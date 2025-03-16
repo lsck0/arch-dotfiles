@@ -1,0 +1,17 @@
+anchor=top-right
+background-color=#000000C0
+border-color=#101011
+border-radius=4
+border-size=2
+default-timeout=2500
+font=Terminus (TTF) 12
+format=%s\n%b
+height=130
+icons=1
+ignore-timeout=1
+layer=overlay
+margin=5
+max-icon-size=64
+padding=12
+sort=-time
+width=315

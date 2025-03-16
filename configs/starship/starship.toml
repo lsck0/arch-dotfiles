@@ -1,0 +1,25 @@
+add_newline = false
+command_timeout = 3000
+
+[container]
+disabled = true
+
+[character]
+success_symbol = '[λ](bold green)'
+error_symbol = '[λ](bold red)'
+
+[sudo]
+disabled = true
+style = 'bold green'
+symbol = 'su '
+
+[git_metrics]
+disabled = false
+added_style = 'bold blue'
+format = '[+$added]($added_style)/[-$deleted]($deleted_style) '
+
+[nix_shell]
+symbol = "󰜗 "
+
+[aws]
+disabled = true

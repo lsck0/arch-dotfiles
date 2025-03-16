@@ -1,0 +1,12 @@
+app-notifications = false
+confirm-close-surface = false
+
+font-family = Terminus (TTF)
+font-size = 18
+
+background = #000000
+foreground = #FFFFFF
+background-opacity = 0.9
+
+#https://github.com/hackr-sh/ghostty-shaders
+#custom-shader=./ghostty-shaders/bloom.glsl

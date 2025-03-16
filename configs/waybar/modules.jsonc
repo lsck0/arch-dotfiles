@@ -1,0 +1,58 @@
+{
+    "wlr/workspaces": {
+        "disable-scroll": true,
+    },
+    "tray": {
+        "icon-size": 16,
+        "spacing": 8,
+    },
+    "cpu": {
+        "format": " {usage}%",
+        "interval": 2,
+    },
+    "memory": {
+        "format": "󰄦 {used:0.2f}/{total:0.2f} GiB",
+        "interval": 2,
+    },
+    "battery": {
+        "interval": 60,
+        "format": "{icon} {capacity}%",
+        "format-icons": [
+            "",
+            "",
+            "",
+            "",
+            ""
+        ],
+        "tooltip": true,
+    },
+    "backlight": {
+        "device": "intel_backlight",
+        "format": "{percent}% {icon}",
+        "format-icons": [
+            "",
+            ""
+        ],
+    },
+    "pulseaudio": {
+        "scroll-step": 5,
+        "format": "{icon} {volume}%",
+        "format-muted": "󰖁 Muted",
+        "format-icons": [
+            "",
+            "",
+            ""
+        ],
+        "on-click": "pavucontrol",
+    },
+    "clock": {
+        "interval": 60,
+        "format": " {:%d.%m %H:%M} ",
+        "max-length": 25,
+    },
+    "hyprland/submap": {
+        "format": "{}",
+        "max-length": 8,
+        "tooltip": false,
+    },
+}

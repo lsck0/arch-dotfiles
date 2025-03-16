@@ -1,0 +1,9 @@
+allow_images=false
+filter_rate=10
+hide_scroll=true
+insensitive=true
+location=center
+matching=fuzzy
+normal_window=true
+prompt=
+term=ghostty

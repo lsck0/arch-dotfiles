@@ -1,0 +1,58 @@
+ZSH=/usr/share/oh-my-zsh/
+ZSH_CACHE_DIR=$HOME/.cache/oh-my-zsh
+if [[ ! -d $ZSH_CACHE_DIR ]]; then
+  mkdir $ZSH_CACHE_DIR
+fi
+plugins=(aws docker docker-compose fzf git nmap node npm rust sudo terraform)
+
+source $ZSH/oh-my-zsh.sh
+
+path+=("$HOME/.ghcup/bin")
+path+=("$HOME/.cargo/bin")
+path+=("$HOME/.config/emacs/bin")
+export PATH
+
+export TERM=xterm-256color
+export EDITOR=vim
+export SHELL=zsh
+
+HISTSIZE=5000
+HISTFILE=~/.zsh_history
+SAVEHIST=$HISTSIZE
+HISTDUP=erase
+setopt appendhistory
+setopt sharehistory
+setopt hist_ignore_space
+setopt hist_ignore_all_dups
+setopt hist_save_no_dups
+setopt hist_ignore_dups
+setopt hist_find_no_dups
+
+alias cat="bat"
+alias cd="z"
+
+alias cp="cp -v"
+alias downgrade="sudo downgrade"
+alias mkdir="mkdir -pv"
+alias mv="mv -v"
+alias pacman="sudo pacman"
+alias rm="trash -v"
+
+alias l="eza -lh"
+alias la="eza -lah"
+alias lt="eza -lah --tree"
+
+alias emacs="doom run"
+alias ldocker="lazydocker"
+alias lgit="lazygit"
+
+alias sshpc="ssh luca@192.168.178.29"
+alias sshnb="ssh luca@192.168.178.73"
+alias sshpi="ssh pi@192.168.178.33"
+
+eval "$(starship init zsh)"
+eval "$(zoxide init zsh)"
+eval "$(rtx activate zsh)"
+eval "$(opam env)"
+
+fastfetch

@@ -1,0 +1,3 @@
+set autosourcereload
+set winsplit=gdb_big
+set winsplitorientation=vertical

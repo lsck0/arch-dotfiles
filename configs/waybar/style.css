@@ -1,0 +1,20 @@
+* {
+    background: black;
+    border: none;
+    color: white;
+    font-family: "Terminus (TTF)", "Symbols Nerd Font", sans-serif;
+    font-size: 14px;
+}
+
+#workspaces button {
+    padding: 0;
+}
+
+#workspaces button.active {
+    border-radius: 0;
+    border-top: 2px solid #bc2421;
+}
+
+#tray {
+    padding: 7px;
+}

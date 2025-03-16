@@ -1,0 +1,24 @@
+{
+    "label" : "shutdown",
+    "action" : "systemctl poweroff",
+    "text" : "(s)hutdown",
+    "keybind" : "s"
+}
+{
+    "label" : "logout",
+    "action" : "pkill Hyprland",
+    "text" : "(e)xit",
+    "keybind" : "e"
+}
+{
+    "label" : "reboot",
+    "action" : "systemctl reboot",
+    "text" : "(r)estart",
+    "keybind" : "r"
+}
+{
+    "label" : "lock",
+    "action" : "hyprlock",
+    "text" : "(l)ock",
+    "keybind" : "l"
+}

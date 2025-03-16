@@ -1,0 +1,8 @@
+[submodule "configs/ghostty/ghostty-shaders"]
+	path = configs/ghostty/ghostty-shaders
+	url = https://github.com/hackr-sh/ghostty-shaders.git
+    branch = main
+[submodule "configs/secrets"]
+	path = configs/secrets
+	url = https://github.com/kryphos/secrets.git
+    branch = master

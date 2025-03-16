@@ -1,0 +1,20 @@
+[Added Associations]
+
+[Default Applications]
+application/pdf=okular.desktop
+application/x-www-form-urlencoded=firefox.desktop
+audio/mpeg=mpv.desktop
+audio/ogg=mpv.desktop
+image/jpeg=feh.desktop
+image/png=feh.desktop
+text/html=firefox.desktop
+text/plain=nvim-qt.desktop
+video/mp4=mpv.desktop
+video/x-matroska=mpv.desktop
+x-scheme-handler/about=firefox.desktop
+x-scheme-handler/betterdiscord=discord.desktop
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+x-scheme-handler/unknown=firefox.desktop
+
+[Removed Associations]

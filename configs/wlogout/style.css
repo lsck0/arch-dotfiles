@@ -1,0 +1,18 @@
+* {
+    all: unset;
+    background-image: none;
+}
+
+window {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+button {
+    font-family: "Terminus (TTF)";
+    font-size: 3rem;
+    background-color: rgba(11, 11, 11, 0.4);
+    color: #FFFFFF;
+    margin: 1rem;
+    padding: 3rem;
+    padding-bottom: 7rem;
+}
