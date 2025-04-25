@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -
+set -e
 
 ## PACKAGE LISTS
 
