@@ -8,10 +8,9 @@ highlight WinSeparator guibg=NONE guifg=#141414 ctermbg=NONE ctermfg=8
 
 " make tabline transparent
 highlight BufferCurrent guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
-highlight BufferVisible guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
-
-highlight StatusLine guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight BufferOffset guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
+highlight BufferVisible guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
+highlight StatusLine guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 
 " show whitespace
 set list listchars=tab:>\ ,trail:-,eol:↲

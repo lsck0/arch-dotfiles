@@ -6,7 +6,33 @@ return {
     {
         "Shatur/neovim-ayu",
         config = function()
-            vim.cmd.colorscheme "ayu"
+            -- vim.cmd.colorscheme "ayu"
+        end
+    },
+
+    {
+        "catppuccin/nvim",
+        name = "catppuccin",
+        config = function()
+            require("catppuccin").setup({
+                flavour = "mocha",
+                transparent_background = true,
+                term_colors = true,
+                integrations = {
+                    barbar = true,
+                    dadbod_ui = true,
+                    diffview = true,
+                    fidget = true,
+                    harpoon = true,
+                    leap = true,
+                    lsp_trouble = true,
+                    mason = true,
+                    noice = true,
+                    notify = true,
+                    snacks = { enabled = true, },
+                },
+            })
+            vim.cmd.colorscheme "catppuccin"
         end
     },
 
