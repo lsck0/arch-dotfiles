@@ -7,7 +7,7 @@ Arch Linux Hyprland/i3 installation and configuration files.
 Run
 
 ```bash
-git clone https://github.com/kryphos/arch-dotfiles.git ~/code/arch-dotfiles/
+git clone https://github.com/lsck0/arch-dotfiles.git ~/code/arch-dotfiles/
 cd ~/code/arch-dotfiles/
 ./install.sh
 ```
