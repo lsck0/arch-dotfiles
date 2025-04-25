@@ -21,7 +21,7 @@ PACKAGES="
     blender
     boomer-git
     bottles
-    brave-bin
+    brave
     brightnessctl
     btop
     bun-bin
@@ -63,7 +63,6 @@ PACKAGES="
     file
     filelight
     filezilla
-    brave
     flameshot
     flat-remix-gtk
     flatpak
@@ -85,6 +84,7 @@ PACKAGES="
     giflib
     gimp
     git
+    git-filter-repo
     github-cli
     glfw
     glm
