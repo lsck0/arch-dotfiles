@@ -21,7 +21,7 @@ PACKAGES="
     blender
     boomer-git
     bottles
-    brave
+    brave-bin
     brightnessctl
     btop
     bun-bin
