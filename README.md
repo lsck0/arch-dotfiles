@@ -15,7 +15,7 @@ cd ~/code/arch-dotfiles/
 in after archinstall minimal with btrfs to setup the system.
 Note: Some configs rely on being in the folder specified above.
 
-## Things to do manually after
+## Things to do manually after rebooting
 
 - fetch the submodules (needs github auth)
 
@@ -27,6 +27,7 @@ git submodule update --init --recursive
 
 ```bash
 gpg --import ~/code/arch-dotfiles/configs/secrets/pgp_privatekey.asc
+sudo chmod 600 ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ```
 
@@ -38,6 +39,8 @@ spicetify config color_scheme UltraBlack
 spicetify backup apply
 betterdiscord-installer
 ```
+
+- run `nwg-look` to set GTK theme
 
 ## Todo
 
