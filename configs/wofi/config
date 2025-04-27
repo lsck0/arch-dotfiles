@@ -6,4 +6,4 @@ location=center
 matching=fuzzy
 normal_window=true
 prompt=
-term=ghostty
+term=kitty
