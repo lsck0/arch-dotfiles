@@ -402,7 +402,7 @@ pushd ./configs/pacman
 sh ./link.sh
 popd
 
-## INSTALLING PACKAGES AND DEPENDENCIES
+# INSTALLING ALL THE THINGS
 
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
@@ -436,6 +436,7 @@ opam init --no-setup
 /usr/bin/ghcup install hls
 /usr/bin/ghcup install stack
 
+rm -rf ~/.config/emacs
 git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
 ~/.config/emacs/bin/doom install --aot --force
 
@@ -446,22 +447,21 @@ echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       | sudo tee -a /etc/security/
 echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
-mkdir -p ${HOME}/documents ${HOME}/downloads ${HOME}/music ${HOME}/pictures ${HOME}/videos ${HOME}/code
 find "$(pwd)" -type f -name 'link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'
 find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && python $(basename {})'
 
 ## FURTHER CONFIG
 
+sudo update-grub
+
 sudo chsh $USER -s /bin/zsh
+
+sudo gpasswd -a $USER docker
 
 sudo systemctl enable ly.service
 sudo systemctl enable cups
 sudo systemctl enable sshd
 sudo systemctl enable nix-daemon
-
-sudo gpasswd -a $USER docker
-
-sudo update-grub
 
 git config --global credential.helper store
 
@@ -469,8 +469,5 @@ git config --global credential.helper store
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
-#/bin/spicetify config current_theme Sleek
-#/bin/spicetify config color_scheme UltraBlack
-#/bin/spicetify backup apply
 
 nvim +TransparentEnable

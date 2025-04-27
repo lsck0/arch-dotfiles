@@ -1,6 +1,8 @@
 #!/bin/bash
 # Update all the things
 
+set -xe
+
 yay -Syyu
 nix-channel --update
 rustup update
