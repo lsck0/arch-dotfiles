@@ -178,7 +178,7 @@ PACKAGES="
     libxslt
     linux-tools-meta
     llvm
-    logseq-desktop
+    logseq-desktop-bin
     lolcat
     lua51-luautf8
     lutris
