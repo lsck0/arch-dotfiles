@@ -63,6 +63,7 @@ PACKAGES="
     file
     filelight
     filezilla
+    firefox
     flameshot
     flat-remix-gtk
     flatpak

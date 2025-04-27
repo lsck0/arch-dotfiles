@@ -50,9 +50,10 @@ alias sshpc="ssh luca@192.168.178.29"
 alias sshpi="ssh pi@192.168.178.33"
 alias sshserv="ssh root@91.99.76.250"
 
+eval "$(opam env)"
+eval "$(rtx activate zsh)"
+eval "$(ssh-agent)"
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
-eval "$(rtx activate zsh)"
-eval "$(opam env)"
 
 fastfetch
