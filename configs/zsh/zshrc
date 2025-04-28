@@ -52,7 +52,7 @@ alias sshserv="ssh root@91.99.76.250"
 
 eval "$(opam env)"
 eval "$(rtx activate zsh)"
-eval "$(ssh-agent >> /dev/null 2> /dev/null)"
+eval "$(ssh-agent)" >> /dev/null 2> /dev/null
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 
