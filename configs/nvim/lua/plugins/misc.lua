@@ -33,7 +33,7 @@ return {
     {
         "folke/trouble.nvim",
         config = function()
-            require("trouble").setup({ padding = false, })
+            require("trouble").setup()
         end
     },
     {

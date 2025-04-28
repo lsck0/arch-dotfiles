@@ -40,11 +40,11 @@ return {
     {
         "williamboman/mason.nvim",
         dependencies = {
-            { "nvimtools/none-ls.nvim" },
             { "jay-babu/mason-null-ls.nvim" },
-            { "williamboman/mason-lspconfig.nvim" },
-            { "neovim/nvim-lspconfig" },
             { "lervag/vimtex" },
+            { "neovim/nvim-lspconfig" },
+            { "nvimtools/none-ls.nvim" },
+            { "williamboman/mason-lspconfig.nvim" },
             {
                 "saecki/crates.nvim",
                 config = function()
@@ -87,6 +87,8 @@ return {
             },
         },
         config = function()
+            vim.diagnostic.config({ virtual_text = true })
+
             require("mason").setup()
             require("null-ls").setup()
             require("mason-null-ls").setup({
