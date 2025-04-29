@@ -195,6 +195,7 @@ PACKAGES="
     mingw-w64-gcc
     minikube
     mirro-rs
+    modrinth-app
     mold
     mpg123
     mpv
