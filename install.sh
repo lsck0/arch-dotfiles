@@ -217,6 +217,7 @@ PACKAGES="
     noto-fonts-emoji
     noto-fonts-extra
     npm
+    nsxiv
     ntfs-3g
     nushell
     nwg-look
