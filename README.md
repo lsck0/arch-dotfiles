@@ -41,7 +41,3 @@ betterdiscord-installer
 ```
 
 - run `nwg-look` to set GTK theme
-
-## Todo
-
-- [ ] add aws v2 cli back (aur package atm broken)

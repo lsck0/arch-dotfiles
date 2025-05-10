@@ -48,7 +48,6 @@ alias lgit="lazygit"
 alias sshnb="ssh luca@192.168.178.73"
 alias sshpc="ssh luca@192.168.178.29"
 alias sshpi="ssh pi@192.168.178.33"
-alias sshserv="ssh root@91.99.76.250"
 
 eval "$(opam env)"
 eval "$(rtx activate zsh)"
