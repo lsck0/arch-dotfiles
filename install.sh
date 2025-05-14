@@ -387,7 +387,10 @@ CARGO_PKGS="
     fuzz
     irust
     mdbook
+    netscanner
+    rainfrog
     rtx-cli
+    serie
     starship
     tmux-sessionizer
     zoxide
@@ -434,6 +437,9 @@ sudo nix-channel --update
 
 rustup default nightly
 cargo install $CARGO_PKGS -j 16
+
+sudo chown root ~/.cargo/bin/netscanner
+sudo chmod u+s ~/.cargo/bin/netscanner
 
 opam init --no-setup
 
