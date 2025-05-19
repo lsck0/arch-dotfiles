@@ -97,35 +97,28 @@ return {
                 automatic_installation = true,
             })
 
-            require("mason-lspconfig").setup()
-            require("mason-lspconfig").setup_handlers {
-                function(server_name)
-                    require("lspconfig")[server_name].setup {}
-                end,
+            require("lspconfig").rust_analyzer.setup({
+                check = {
+                    command = "clippy",
+                }
+            })
+            require("lspconfig").clangd.setup({
+                cmd = {
+                    "clangd",
+                    "--offset-encoding=utf-16",
+                    "--background-index",
+                    "--suggest-missing-includes",
+                },
+            })
 
-                ["rust_analyzer"] = function()
-                    require("lspconfig").rust_analyzer.setup({
-                        settings = {
-                            ["rust-analyzer"] = {
-                                check = {
-                                    command = "clippy",
-                                },
-                            },
-                        }
-                    })
-                end,
-
-                ["clangd"] = function()
-                    require("lspconfig").clangd.setup({
-                        cmd = {
-                            "clangd",
-                            "--offset-encoding=utf-16",
-                            "--background-index",
-                            "--suggest-missing-includes",
-                        },
-                    })
-                end,
-            }
+            require("mason-lspconfig").setup({
+                automatic_enable = {
+                    exclude = {
+                        "clangd",
+                        "rust_analyzer",
+                    }
+                }
+            })
         end,
     },
 
