@@ -382,7 +382,6 @@ CARGO_PKGS="
     cargo-watch
     cross
     du-dust
-    evcxr_repl
     eza
     flamegraph
     fuzz
