@@ -49,6 +49,7 @@ PACKAGES="
     docker
     docker-buildx
     docker-compose
+    dolphin
     downgrade
     efibootmgr
     emacs
