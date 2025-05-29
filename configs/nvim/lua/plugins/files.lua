@@ -44,7 +44,7 @@ return {
                 open_files_do_not_replace_types = { "terminal", "trouble", "qf" },
                 window = {
                     position = "left",
-                    width = 29,
+                    width = 27,
                     mapping_options = { noremap = true, nowait = true },
                     mappings = {
                         ["<space>"] = "toggle_node",
