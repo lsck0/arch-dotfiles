@@ -16,7 +16,7 @@ return {
         config = function()
             require("catppuccin").setup({
                 flavour = "mocha",
-                transparent_background = true,
+                transparent_background = false,
                 term_colors = true,
                 integrations = {
                     barbar = true,
@@ -41,7 +41,7 @@ return {
         branch = "table_version",
         config = function()
             require("sttusline").setup({
-                statusline_color = "#000000",
+                statusline_color = "#1E1E2F",
                 components = {
                     "mode",
                     "filename",

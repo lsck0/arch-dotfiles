@@ -244,6 +244,7 @@ PACKAGES="
     pipewire
     pitivi
     pkgconf
+    plasma
     polkit
     polkit-kde-agent
     postgresql
@@ -487,5 +488,3 @@ git config --global credential.helper store
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
-
-nvim +TransparentEnable
