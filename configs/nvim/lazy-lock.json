@@ -25,6 +25,7 @@
   "inlay-hints.nvim": { "branch": "master", "commit": "3259b54f3b954b4d8260f3ee49ceabe978ea5636" },
   "lazy.nvim": { "branch": "main", "commit": "6c3bda4aca61a13a9c63f1c1d1b16b9d3be90d7a" },
   "lazydev.nvim": { "branch": "main", "commit": "2367a6c0a01eb9edb0464731cc0fb61ed9ab9d2c" },
+  "lean.nvim": { "branch": "main", "commit": "d3d2dcd8c85db8c0cff76608704374c316ac991c" },
   "leap.nvim": { "branch": "main", "commit": "212429314c5bfa41f4154bfa8805f7227ba6a880" },
   "lspkind.nvim": { "branch": "master", "commit": "d79a1c3299ad0ef94e255d045bed9fa26025dab6" },
   "lua-utils.nvim": { "branch": "main", "commit": "e565749421f4bbb5d2e85e37c3cef9d56553d8bd" },

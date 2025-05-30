@@ -17,6 +17,7 @@ local installed = {
     "isort",
     "json-lsp",
     "latexindent",
+    "lean-language-server",
     "lua-language-server",
     "nil",
     "nixpkgs-fmt",
