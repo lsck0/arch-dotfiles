@@ -52,6 +52,7 @@ PACKAGES="
     dolphin
     downgrade
     efibootmgr
+    elan-lean
     emacs
     emscripten
     entr
@@ -448,6 +449,8 @@ opam init --no-setup
 /usr/bin/ghcup install cabal
 /usr/bin/ghcup install hls
 /usr/bin/ghcup install stack
+
+/usr/bin/elan default nightly
 
 rm -rf ~/.config/emacs
 git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
