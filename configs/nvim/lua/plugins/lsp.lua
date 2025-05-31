@@ -133,7 +133,7 @@ return {
                     html = { "prettier" },
                     javascript = { "prettier" },
                     latex = { "latexindent" },
-                    python = { "isort", "prettier" },
+                    python = { "isort", "black" },
                     scss = { "prettier" },
                 },
                 format_on_save = {
