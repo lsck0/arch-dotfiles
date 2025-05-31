@@ -184,6 +184,7 @@ PACKAGES="
     logseq-desktop-bin
     lolcat
     lua51-luautf8
+    luarocks
     lutris
     ly
     make
@@ -253,6 +254,7 @@ PACKAGES="
     postgresql-libs
     powerline-fonts
     pre-commit
+    prettier
     protonup-git
     python-black
     python-isort
