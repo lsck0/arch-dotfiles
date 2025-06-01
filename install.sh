@@ -51,6 +51,7 @@ PACKAGES="
     docker-compose
     dolphin
     downgrade
+    dua-cli
     efibootmgr
     elan-lean
     emacs
@@ -334,6 +335,7 @@ PACKAGES="
     wezterm
     wget
     whatsdesk-bin
+    wiki-tui
     wine-staging
     wireless_tools
     wireplumber
@@ -352,6 +354,7 @@ PACKAGES="
     xdg-utils
     xed
     xf86-input-synaptics
+    xh
     xorg-server
     xorg-xauth
     xorg-xeyes
@@ -391,6 +394,7 @@ CARGO_PKGS="
     fuzz
     irust
     mdbook
+    mprocs
     netscanner
     rainfrog
     rtx-cli
