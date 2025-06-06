@@ -53,7 +53,6 @@ PACKAGES="
     downgrade
     dua-cli
     efibootmgr
-    elan-lean
     emacs
     emscripten
     entr
@@ -456,6 +455,7 @@ opam init --no-setup
 /usr/bin/ghcup install hls
 /usr/bin/ghcup install stack
 
+yay -S elan-lean --noconfirm
 /usr/bin/elan default nightly
 
 rm -rf ~/.config/emacs
