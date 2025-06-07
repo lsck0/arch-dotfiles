@@ -397,6 +397,7 @@ CARGO_PKGS="
     netscanner
     rainfrog
     rtx-cli
+    rustfilt
     serie
     starship
     tmux-sessionizer
