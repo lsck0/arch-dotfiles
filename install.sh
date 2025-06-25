@@ -13,6 +13,7 @@ PACKAGES="
     aseprite
     audacity
     auto-cpufreq
+    awakened-poe-trade-git
     baobab
     bemenu-wayland
     bettercap-git
