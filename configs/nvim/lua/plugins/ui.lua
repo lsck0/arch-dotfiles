@@ -1,15 +1,6 @@
 return {
     { "nvim-tree/nvim-web-devicons" },
 
-    { "xiyaowong/transparent.nvim" },
-
-    {
-        "Shatur/neovim-ayu",
-        config = function()
-            -- vim.cmd.colorscheme "ayu"
-        end
-    },
-
     {
         "catppuccin/nvim",
         name = "catppuccin",
