@@ -213,6 +213,7 @@ PACKAGES="
     neovim-qt
     networkmanager
     nftables
+    nikto
     ninja
     nix
     nmap
