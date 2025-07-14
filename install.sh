@@ -90,6 +90,7 @@ PACKAGES="
     git
     git-filter-repo
     github-cli
+    gitleaks
     glfw
     glm
     glow

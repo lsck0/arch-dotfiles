@@ -1,7 +1,7 @@
 #!/bin/bash
 # Update all the things
 
-set -xe
+set -e
 
 echo "ARE U SURE?"
 read -p "Type 'y' to continue: " confirm
