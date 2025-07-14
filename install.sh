@@ -272,6 +272,7 @@ PACKAGES="
     python-sympy
     python-validity-git
     qbe
+    qbittorrent
     qemu-full
     qmk
     qt5-wayland
