@@ -4,7 +4,7 @@
   "WINDOW_BOUNDS": {
     "x": 1926,
     "y": 36,
-    "width": 1314,
+    "width": 1313,
     "height": 1038
   },
   "SKIP_HOST_UPDATE": true,
@@ -13,5 +13,6 @@
   "enableHardwareAcceleration": false,
   "MIN_WIDTH": 940,
   "MIN_HEIGHT": 500,
-  "BACKGROUND_COLOR": "#000000"
+  "BACKGROUND_COLOR": "#000000",
+  "offloadAdmControls": false
 }
