@@ -9,6 +9,7 @@ PACKAGES="
     aircrack-ng
     alacritty
     amdgpu_top
+    amf-amdgpu-pro
     ani-cli-git
     argon2
     aseprite
@@ -21,7 +22,6 @@ PACKAGES="
     blender
     boomer-git
     bottles
-    brave-bin
     brightnessctl
     btop
     bun-bin
@@ -67,18 +67,15 @@ PACKAGES="
     file
     filezilla
     firefox
+    firewalld
     flameshot
     flat-remix-gtk
-    flatpak
-    flatpak-docs
-    flatpak-xdg-utils
     font-manager
     fzf
     gamemode
     gamescope
     gcc
     gdb
-    gedit
     genius
     gf2-git
     ghcup-hs-bin
@@ -108,7 +105,6 @@ PACKAGES="
     hashcat
     headsetcontrol
     heroic-games-launcher-bin
-    hollywood
     htop
     hydra
     hyperfine
@@ -130,13 +126,11 @@ PACKAGES="
     john
     jq
     jupyterlab
-    kate
     kdenlive
     kitty
     krita
     kubectl
     kvirc
-    lapce
     lazydocker-bin
     lazygit
     lcov
@@ -206,6 +200,7 @@ PACKAGES="
     mpv
     nano
     nasm
+    ncdu
     ncurses
     nemo
     neochat
@@ -228,7 +223,6 @@ PACKAGES="
     nushell
     nwg-look
     obs-studio
-    obsidian
     odin
     oh-my-zsh-git
     okular
@@ -311,8 +305,7 @@ PACKAGES="
     texlive-lang
     themix-gui-git
     themix-plugin-base16-git
-    thunderbird
-    tilix
+    timeshift
     tk
     tldr
     tlp
@@ -503,6 +496,7 @@ sudo gpasswd -a $USER docker
 sudo systemctl enable cronie.service
 sudo systemctl enable cups
 sudo systemctl enable docker.service
+sudo systemctl enable firewalld.service
 sudo systemctl enable ly.service
 sudo systemctl enable nix-daemon
 sudo systemctl enable sshd
