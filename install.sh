@@ -8,17 +8,16 @@ PACKAGES="
     act
     aircrack-ng
     alacritty
+    amdgpu_top
     ani-cli-git
     argon2
     aseprite
     audacity
     auto-cpufreq
     awakened-poe-trade-git
-    baobab
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
-    bleachbit
     blender
     boomer-git
     bottles
@@ -27,6 +26,7 @@ PACKAGES="
     btop
     bun-bin
     burpsuite
+    caligula
     candy-icons-git
     cgdb
     chromium
@@ -34,12 +34,11 @@ PACKAGES="
     cloc
     cmake
     cmatrix
-    code
     codelldb-bin
     copyq
     coreutils
-    cosmic
     cowsay
+    cpufetch
     cronie
     cups
     curl
@@ -53,6 +52,8 @@ PACKAGES="
     dolphin
     downgrade
     dua-cli
+    durdraw
+    dysk
     efibootmgr
     emacs
     emscripten
@@ -64,7 +65,6 @@ PACKAGES="
     feh
     ffmpeg
     file
-    filelight
     filezilla
     firefox
     flameshot
@@ -82,7 +82,7 @@ PACKAGES="
     genius
     gf2-git
     ghcup-hs-bin
-    ghidra-git-bin
+    ghidra
     ghostmirror
     ghostty
     giflib
@@ -105,9 +105,9 @@ PACKAGES="
     gtk3
     gtk4
     gufw
-    handlr-regex
     hashcat
     headsetcontrol
+    heroic-games-launcher-bin
     hollywood
     htop
     hydra
@@ -140,7 +140,6 @@ PACKAGES="
     lazydocker-bin
     lazygit
     lcov
-    lf
     lib32-alsa-lib
     lib32-alsa-plugins
     lib32-giflib
@@ -200,6 +199,7 @@ PACKAGES="
     mingw-w64-gcc
     minikube
     mirro-rs
+    mission-center
     modrinth-app
     mold
     mpg123
@@ -239,10 +239,12 @@ PACKAGES="
     opencl-icd-loader
     openssh
     openssl
+    openvpm
     osmium-tool
     pandoc-cli
     parallel
     pass
+    pastel
     path-of-building-community-git
     pavucontrol
     pdftk
@@ -261,22 +263,22 @@ PACKAGES="
     protonup-git
     python-black
     python-isort
-    python-matplotlib
     python-numpy
     python-pandas
     python-pillow
     python-pip
     python-poetry
-    python-scapy
-    python-scikit-learn
-    python-sympy
+    python-pywalfox
     python-validity-git
+    pywal-spicetify
     qbe
     qbittorrent
     qemu-full
     qmk
     qt5-wayland
     qt6-wayland
+    quickjs
+    quickshell
     qutebrowser
     r
     r2modman-bin
@@ -307,6 +309,8 @@ PACKAGES="
     terraform
     texlive
     texlive-lang
+    themix-gui-git
+    themix-plugin-base16-git
     thunderbird
     tilix
     tk
@@ -335,6 +339,7 @@ PACKAGES="
     vulkan-radeon
     waybar
     wayland
+    webcamize
     wezterm
     wget
     whatsdesk-bin
@@ -448,10 +453,11 @@ sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
 sudo nix-channel --update
 
 rustup default nightly
-cargo install $CARGO_PKGS -j 16
+cargo install $CARGO_PKGS -j $(nproc)
 
-sudo chown root ~/.cargo/bin/netscanner
-sudo chmod u+s ~/.cargo/bin/netscanner
+/bin/hyprpm add https://github.com/hyprwm/hyprland-plugins --force
+/bin/hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
+/bin/hyprpm enable dynamic-cursors
 
 opam init --no-setup
 
@@ -462,6 +468,9 @@ opam init --no-setup
 
 yay -S elan-lean --noconfirm
 /usr/bin/elan default nightly
+
+git clone https://github.com/lsck0/wayland-boomer.git ~/.cache/wayland-boomer && cd ~/.cache/wayland-boomer && make install && cd -
+git clone https://github.com/SnarkyDeveloper/pywal-discord.git ~/.cache/pywal-discord && cd ~/.cache/pywal-discord && sudo ./install && cd -
 
 rm -rf ~/.config/emacs
 git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
@@ -491,14 +500,19 @@ sudo chsh $USER -s /bin/zsh
 
 sudo gpasswd -a $USER docker
 
-sudo systemctl enable ly.service
+sudo systemctl enable cronie.service
 sudo systemctl enable cups
-sudo systemctl enable sshd
+sudo systemctl enable docker.service
+sudo systemctl enable ly.service
 sudo systemctl enable nix-daemon
+sudo systemctl enable sshd
 
 git config --global credential.helper store
 
 ~/.cargo/bin/tms config -p ${HOME}/code
+
+sudo chown root ~/.cargo/bin/netscanner
+sudo chmod u+s ~/.cargo/bin/netscanner
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R

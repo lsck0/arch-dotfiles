@@ -12,9 +12,4 @@ utility       = { shadow = false; };
 
 corner-radius = 4;
 
-opacity-rule = [
-  "93:class_g = 'discord'",
-  "73:class_g = 'Spotify'",
-];
-
 unredir-if-possible = false;

@@ -6,6 +6,7 @@ fi
 plugins=(aws docker docker-compose fzf git nmap node npm rust sudo terraform)
 
 source $ZSH/oh-my-zsh.sh
+source ~/.cache/wal/colors.sh
 
 path+=("$HOME/.ghcup/bin")
 path+=("$HOME/.cargo/bin")
@@ -29,6 +30,10 @@ setopt sharehistory
 
 alias cat="bat"
 alias cd="z"
+alias l="eza -lh"
+alias la="eza -lah"
+alias ls="eza"
+alias lt="eza -lah --tree"
 
 alias cp="cp -v"
 alias downgrade="sudo downgrade"
@@ -36,10 +41,6 @@ alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
-
-alias l="eza -lh"
-alias la="eza -lah"
-alias lt="eza -lah --tree"
 
 alias emacs="doom run"
 alias ldocker="lazydocker"
@@ -51,7 +52,6 @@ alias sshpi="ssh pi@192.168.178.33"
 
 eval "$(opam env)"
 eval "$(rtx activate zsh)"
-eval "$(ssh-agent)" >> /dev/null 2> /dev/null
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 

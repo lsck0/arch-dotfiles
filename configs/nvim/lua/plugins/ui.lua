@@ -2,6 +2,14 @@ return {
     { "nvim-tree/nvim-web-devicons" },
 
     {
+        url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
+        name = "pywal",
+        config = function()
+            require('pywal').setup()
+        end,
+    },
+
+    {
         "catppuccin/nvim",
         name = "catppuccin",
         config = function()
@@ -23,26 +31,16 @@ return {
                     snacks = { enabled = true, },
                 },
             })
-            vim.cmd.colorscheme "catppuccin"
+            -- vim.cmd.colorscheme "catppuccin"
         end
     },
 
     {
-        "sontungexpt/sttusline",
-        branch = "table_version",
+        'nvim-lualine/lualine.nvim',
         config = function()
-            require("sttusline").setup({
-                statusline_color = "#1E1E2F",
-                components = {
-                    "mode",
-                    "filename",
-                    "git-branch",
-                    "%=",
-                    "lsps-formatters",
-                    "indent",
-                    "encoding",
-                    "pos-cursor",
-                    "pos-cursor-progress",
+            require('lualine').setup({
+                options = {
+                    theme = 'pywal-nvim',
                 },
             })
         end
