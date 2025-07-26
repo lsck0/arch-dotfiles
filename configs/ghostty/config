@@ -1,3 +1,5 @@
+config-file=~/.cache/wal/ghostty.conf
+
 app-notifications = false
 confirm-close-surface = false
 

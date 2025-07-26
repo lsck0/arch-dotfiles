@@ -1,13 +1,40 @@
-* {
-    background-color: #000000;
-    font-size: 18px;
-    font-family: "Terminus (TTF)";
+window {
+  margin: 0px;
+  background-color: --wofi-color0;
+  font-size: 18px;
+  font-family: "Terminus (TTF)";
 }
 
-#input>image.left {
-    -gtk-icon-transform: scaleX(0);
+#input {
+  margin: 5px;
+  border: none;
+  color: --wofi-color2;
+  background-color: --wofi-color0;
 }
 
-#input>image.right {
-    -gtk-icon-transform: scaleX(0);
+#inner-box {
+  margin: 5px;
+  border: none;
+  background-color: --wofi-color0;
+}
+
+#outer-box {
+  margin: 5px;
+  border: none;
+  background-color: --wofi-color0;
+}
+
+#scroll {
+  margin: 0px;
+  border: none;
+}
+
+#text {
+  margin: 5px;
+  border: none;
+  color: --wofi-color2;
+}
+
+#entry:selected {
+  background-color: --wofi-color0/120;
 }

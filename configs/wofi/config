@@ -1,9 +1,13 @@
-allow_images=false
+allow_images=true
+columns=3
 filter_rate=10
 hide_scroll=true
+image_size=250x141 # 16:9
 insensitive=true
 location=center
 matching=fuzzy
 normal_window=true
 prompt=
+show=dmenu
+sort_order=alphabetical
 term=kitty

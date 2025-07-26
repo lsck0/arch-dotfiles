@@ -1,6 +1,9 @@
+include=~/.cache/wal/colors-mako
+
+#background-color=#000000C0
+#border-color=#101011
+
 anchor=top-right
-background-color=#000000C0
-border-color=#101011
 border-radius=4
 border-size=2
 default-timeout=2500

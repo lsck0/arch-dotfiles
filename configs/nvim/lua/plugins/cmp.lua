@@ -60,7 +60,7 @@ return {
                     },
                 },
                 performance = {
-                    debounce = 200,
+                    debounce = 100,
                 },
                 formatting = {
                     fields = { "kind", "abbr", "menu" },

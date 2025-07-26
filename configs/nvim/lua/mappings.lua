@@ -97,25 +97,6 @@ end
 
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { noremap = true })
 
--- chat commands
-vim.keymap.set("n", "<leader>cf", "<cmd>GpChatFinder<cr>")
-vim.keymap.set("n", "<leader>cn", "<cmd>GpChatNew<cr>")
-vim.keymap.set("n", "<leader>ct", "<cmd>GpChatToggle<cr>")
-vim.keymap.set("n", "<leader>cc", "<cmd>GpChatRespond<cr>")
-vim.keymap.set("v", "<leader>cd", "<cmd>GpChatDelete<cr>")
-vim.keymap.set("v", "<leader>cn", ":<C-u>'<,'>GpChatNew<cr>")
-vim.keymap.set("v", "<leader>cp", ":<C-u>'<,'>GpChatPaste<cr>")
-vim.keymap.set("v", "<leader>ct", ":<C-u>'<,'>GpChatToggle<cr>")
-
--- prompt commands
-vim.keymap.set("n", "<leader>ca", "<cmd>GpAppend<cr>")
-vim.keymap.set("n", "<leader>cp", "<cmd>GpPopup<cr>")
-vim.keymap.set("n", "<leader>cr", "<cmd>GpRewrite<cr>")
-vim.keymap.set("v", "<leader>ca", ":<C-u>'<,'>GpAppend<cr>")
-vim.keymap.set("v", "<leader>ci", ":<C-u>'<,'>GpImplement<cr>")
-vim.keymap.set("v", "<leader>cp", ":<C-u>'<,'>GpPopup<cr>")
-vim.keymap.set("v", "<leader>cr", ":<C-u>'<,'>GpRewrite<cr>")
-
 -- debugging
 vim.keymap.set("n", "<leader>dt", "<cmd>lua require('dapui').toggle()<CR>")
 vim.keymap.set("n", "<leader>b", "<cmd>DapToggleBreakpoint<CR>")
