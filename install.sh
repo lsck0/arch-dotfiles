@@ -432,10 +432,6 @@ sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
-# fix zlib conflict
-#echo "!!! you might need to overwrite zlib here, please do so !!!"
-#sudo pacman -S zlib-ng-compat
-
 sudo pacman -S --needed --noconfirm git base-devel && \
     git clone https://aur.archlinux.org/yay.git && \
     cd yay && \
@@ -473,10 +469,9 @@ git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
 sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
 sudo nix-channel --update
 
-/bin/hyprpm update
-yes | /bin/hyprpm add https://github.com/hyprwm/hyprland-plugins --force
-yes | /bin/hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
-/bin/hyprpm enable dynamic-cursors
+hyprpm update
+yes | hyprpm add https://github.com/hyprwm/hyprland-plugins --force
+yes | hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
 
 opam init --no-setup
 
@@ -523,5 +518,3 @@ sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
 
 ./scripts/switch-wallpaper.sh Random
-
-sleep 10 && reboot

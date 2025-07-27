@@ -2,7 +2,7 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-Arch Linux Hyprland/i3 installation and configuration files.
+Arch Linux Hyprland installation and configuration files.
 
 Run
 
@@ -12,7 +12,7 @@ cd ~/code/arch-dotfiles/
 ./install.sh
 ```
 
-in after archinstall minimal with btrfs to setup the system.
+after archinstall minimal with btrfs to setup the system.
 Note: Some configs rely on being in the folder specified above.
 
 ## Things to do manually after rebooting
@@ -29,6 +29,12 @@ git submodule update --init --recursive
 gpg --import ~/code/arch-dotfiles/configs/secrets/pgp_privatekey.asc
 sudo chmod 600 ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
+```
+
+- enable hyprland plugins
+
+```bash
+hyprpm enable dynamic-cursors
 ```
 
 - login to discord and spotify and install spicetify and better discord
