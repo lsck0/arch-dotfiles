@@ -74,7 +74,7 @@ apply_wallpaper() {
         nvim --server "$addr" --remote-send ':colorscheme pywal<CR>' &
     done
 
-    pkill waybar && waybar &
+    pkill waybar && sleep 0.25 && waybar &
     pkill mako && mako &
 
     # notify user
