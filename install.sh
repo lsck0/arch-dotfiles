@@ -269,7 +269,6 @@ PACKAGES="
     python-poetry
     python-pywalfox
     python-validity-git
-    pywal-spicetify
     qbe
     qbittorrent
     qemu-full
@@ -409,8 +408,10 @@ CARGO_PKGS="
 
 # some things have missing dependencies or interfere with other things, so do later
 # elan: needs rust and would default to rust and not rustup
+# pywal-spicetify: -||-
 LATER_PACKAGES="
     elan-lean
+    pywal-spicetify
 "
 
 ## REMOVE PASSWORD FROM SUDO
