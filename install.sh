@@ -198,6 +198,7 @@ PACKAGES="
     minikube
     mirro-rs
     mission-center
+    modrinth-app-bin
     mold
     mpg123
     mpv
@@ -408,10 +409,8 @@ CARGO_PKGS="
 
 # some things have missing dependencies or interfere with other things, so do later
 # elan: needs rust and would default to rust and not rustup
-# modrinth: needs tauri cli which is not listed as a dependency
 LATER_PACKAGES="
     elan-lean
-    modrinth-app
 "
 
 ## REMOVE PASSWORD FROM SUDO
