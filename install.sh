@@ -16,6 +16,7 @@ PACKAGES="
     audacity
     auto-cpufreq
     awakened-poe-trade-git
+    bat
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
@@ -53,11 +54,13 @@ PACKAGES="
     downgrade
     dua-cli
     durdraw
+    dust
     dysk
     efibootmgr
     emacs
     emscripten
     entr
+    eza
     fasm
     fastfetch
     fcrackzip
@@ -187,6 +190,7 @@ PACKAGES="
     man-db
     man-pages
     mangohud
+    mdbook
     meson
     metasploit
     minecraft-launcher
@@ -194,7 +198,6 @@ PACKAGES="
     minikube
     mirro-rs
     mission-center
-    modrinth-app
     mold
     mpg123
     mpv
@@ -207,6 +210,7 @@ PACKAGES="
     neofetch
     neovim
     neovim-qt
+    netscanner
     networkmanager
     nftables
     nikto
@@ -276,6 +280,7 @@ PACKAGES="
     qutebrowser
     r
     r2modman-bin
+    rainfrog
     ranger
     raylib
     reaver-wps-fork-t6x-git
@@ -286,6 +291,7 @@ PACKAGES="
     rz-cutter
     sane
     sdl3
+    serie
     sfxr-qt-bin
     slurp
     smartmontools
@@ -296,6 +302,7 @@ PACKAGES="
     sqlitebrowser
     sqlmap-git
     sqlx-cli
+    starship
     steam
     system-config-printer
     tar
@@ -369,12 +376,12 @@ PACKAGES="
     zed
     zig
     zip
+    zoxide
     zsh
 "
 
 CARGO_PKGS="
     bacon
-    bat
     bootimage
     cargo-binstall
     cargo-deny
@@ -389,21 +396,22 @@ CARGO_PKGS="
     cargo-update
     cargo-watch
     cross
-    du-dust
-    eza
     flamegraph
     fuzz
     irust
-    mdbook
     mprocs
-    netscanner
-    rainfrog
     rtx-cli
     rustfilt
-    serie
-    starship
+    tauri-cli
     tmux-sessionizer
-    zoxide
+"
+
+# some things have missing dependencies or interfere with other things, so do later
+# elan: needs rust and would default to rust and not rustup
+# modrinth: needs tauri cli which is not listed as a dependency
+LATER_PACKAGES="
+    elan-lean
+    modrinth-app
 "
 
 ## REMOVE PASSWORD FROM SUDO
@@ -418,7 +426,7 @@ pushd ./configs/pacman
 sh ./link.sh
 popd
 
-# INSTALLING ALL THE THINGS
+## INSTALLING ALL THE THINGS
 
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
@@ -439,14 +447,31 @@ sudo pacman -S --needed --noconfirm git base-devel && \
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 
-## downgrade cmake to latest 3.* since not enough support for 4.* yet...
+# downgrade cmake to latest 3.* since not enough support for 4.* yet...
 sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
-
-sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
-sudo nix-channel --update
 
 rustup default nightly
 cargo install $CARGO_PKGS -j $(nproc)
+
+yay -S $LATER_PACKAGES --noconfirm
+
+# manual installs
+git clone https://github.com/lsck0/wayland-boomer.git ~/.cache/wayland-boomer && cd ~/.cache/wayland-boomer && make install && cd -
+git clone https://github.com/SnarkyDeveloper/pywal-discord.git ~/.cache/pywal-discord && cd ~/.cache/pywal-discord && sudo ./install && cd -
+
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+rm awscliv2.zip
+rm -rf aws/
+
+rm -rf ~/.config/emacs
+git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
+~/.config/emacs/bin/doom install --aot --force
+
+# other package managers
+sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
+sudo nix-channel --update
 
 /bin/hyprpm add https://github.com/hyprwm/hyprland-plugins --force
 /bin/hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
@@ -459,21 +484,7 @@ opam init --no-setup
 /usr/bin/ghcup install hls
 /usr/bin/ghcup install stack
 
-yay -S elan-lean --noconfirm
 /usr/bin/elan default nightly
-
-git clone https://github.com/lsck0/wayland-boomer.git ~/.cache/wayland-boomer && cd ~/.cache/wayland-boomer && make install && cd -
-git clone https://github.com/SnarkyDeveloper/pywal-discord.git ~/.cache/pywal-discord && cd ~/.cache/pywal-discord && sudo ./install && cd -
-
-rm -rf ~/.config/emacs
-git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
-~/.config/emacs/bin/doom install --aot --force
-
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
-rm awscliv2.zip
-rm -rf aws/
 
 ## LINK
 
@@ -504,9 +515,6 @@ sudo systemctl enable sshd
 git config --global credential.helper store
 
 ~/.cargo/bin/tms config -p ${HOME}/code
-
-sudo chown root ~/.cargo/bin/netscanner
-sudo chmod u+s ~/.cargo/bin/netscanner
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
