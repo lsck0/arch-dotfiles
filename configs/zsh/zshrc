@@ -51,7 +51,7 @@ alias sshpc="ssh luca@192.168.178.29"
 alias sshpi="ssh pi@192.168.178.33"
 
 eval "$(opam env)"
-eval "$(rtx activate zsh)"
+eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
 

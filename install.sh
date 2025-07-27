@@ -197,6 +197,7 @@ PACKAGES="
     mingw-w64-gcc
     minikube
     mirro-rs
+    mise
     mission-center
     modrinth-app-bin
     mold
@@ -400,7 +401,6 @@ CARGO_PKGS="
     fuzz
     irust
     mprocs
-    rtx-cli
     rustfilt
     tauri-cli
     tmux-sessionizer
@@ -516,6 +516,8 @@ sudo systemctl enable sshd
 git config --global credential.helper store
 
 ~/.cargo/bin/tms config -p ${HOME}/code
+
+mise trust
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
