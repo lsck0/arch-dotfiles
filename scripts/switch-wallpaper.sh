@@ -1,46 +1,62 @@
 #!/bin/env bash
 #
-WALLPAPER_DIR="$HOME/code/arch-dotfiles/wallpapers/"
-WALLPAPERS=($(ls "$WALLPAPER_DIR"/*.{jpg,jpeg,png,gif} 2> /dev/null))
+WALLPAPER_DIR="$HOME/code/arch-dotfiles/wallpapers"
+SUPPORTED_EXTENSIONS=("jpg" "jpeg" "png" "gif")
 
-# build the list
-FILENAMES=("Random")
-for WALLPAPER in "${WALLPAPERS[@]}"; do
-    BASENAME=$(basename "$WALLPAPER")
-    FILENAME_WITHOUT_EXT="${BASENAME%.*}"
-    CAPITALIZED_NAME=$(echo "$FILENAME_WITHOUT_EXT" | sed 's/.*/\u&/')
-    FILENAMES+=("$CAPITALIZED_NAME")
-done
-
-# explode if no wallpapers
-if [ ${#WALLPAPERS[@]} -eq 0 ]; then
-    echo "No wallpapers found in $WALLPAPER_DIR"
-    exit 1
-fi
-
-# ask for selection
-SELECTED_NAME=$(printf "%s\n" "${FILENAMES[@]}" | wofi --dmenu --prompt="Select a wallpaper")
-
-# do the selection
-if [ "$SELECTED_NAME" == "Random" ]; then
-    SELECTED=${WALLPAPERS[RANDOM % ${#WALLPAPERS[@]}]}
-else
-    for i in "${!FILENAMES[@]}"; do
-        if [ "${FILENAMES[$i]}" == "$SELECTED_NAME" ]; then
-            SELECTED="${WALLPAPERS[$i-1]}"
-            break
-        fi
+get_wallpaper_paths() {
+    local files=()
+    for ext in "${SUPPORTED_EXTENSIONS[@]}"; do
+        while IFS= read -r -d $'\0' file; do
+            files+=("$file")
+        done < <(find "$WALLPAPER_DIR" -type f -iname "*.$ext" -print0 2>/dev/null)
     done
-fi
+    echo "${files[@]}"
+}
 
-if [ -n "$SELECTED" ]; then
+get_wallpaper_filenames() {
+    local wallpapers=("$@")
+    local names=("Random")
+    for wp in "${wallpapers[@]}"; do
+        base=$(basename "${wp%.*}")
+        cap_name=$(echo "$base" | sed 's/.*/\u&/')
+        names+=("$cap_name")
+    done
+    echo "${names[@]}"
+}
+
+select_wallpaper_interactive() {
+    local names=("$@")
+    printf "%s\n" "${names[@]}" | wofi --dmenu --prompt="Select a wallpaper"
+}
+
+resolve_selection() {
+    local selected_name="$1"
+    shift
+    local names=("$@")
+
+    if [[ "$selected_name" == "Random" ]]; then
+        echo "${WALLPAPERS[RANDOM % ${#WALLPAPERS[@]}]}"
+    else
+        for i in "${!names[@]}"; do
+            if [[ "${names[$i]}" == "$selected_name" ]]; then
+                echo "${WALLPAPERS[$((i - 1))]}"
+                return
+            fi
+        done
+    fi
+}
+
+apply_wallpaper() {
+    local file="$1"
+    echo "Applying wallpaper: $file"
+
     # set the wallpaper
-    swww img "$SELECTED" --transition-type grow --transition-step 80 --transition-duration 1 --transition-fps 165 &
+    swww img "$file" --transition-type grow --transition-step 80 --transition-duration 1 --transition-fps 165 &
 
     # generate the new colors
-    wal -i "$SELECTED"
+    wal -i "$file"
 
-    # generate gtk and qt themes
+    # generate GTK and QT themes
     themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox
     themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox
 
@@ -52,15 +68,46 @@ if [ -n "$SELECTED" ]; then
     # update programs that need it
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
     gsettings set org.gnome.desktop.interface gtk-theme '' && \
-        gsettings set org.gnome.desktop.interface gtk-theme $theme &
+        gsettings set org.gnome.desktop.interface gtk-theme "$theme" &
 
     for addr in $XDG_RUNTIME_DIR/nvim.*; do
-        nvim --server $addr --remote-send ':colorscheme pywal<CR>' &
+        nvim --server "$addr" --remote-send ':colorscheme pywal<CR>' &
     done
 
     pkill waybar && waybar &
     pkill mako && mako &
 
-    # notify
-    notify-send "Wallpaper changed" "New wallpaper set to: $SELECTED"
-fi
+    # notify user
+    notify-send "Wallpaper changed" "New wallpaper set to: $file"
+}
+
+main() {
+    WALLPAPERS=($(get_wallpaper_paths))
+
+    # explode if no wallpapers found
+    if [[ ${#WALLPAPERS[@]} -eq 0 ]]; then
+        echo "No wallpapers found in $WALLPAPER_DIR"
+        exit 1
+    fi
+
+    FILENAMES=($(get_wallpaper_filenames "${WALLPAPERS[@]}"))
+
+    # use cli provided wallpaper NAME not FILE
+    if [[ -n "$1" ]]; then
+        SELECTED_NAME="$1"
+    else
+        SELECTED_NAME=$(select_wallpaper_interactive "${FILENAMES[@]}")
+    fi
+
+    # resolve and apply selection
+    SELECTED_FILE=$(resolve_selection "$SELECTED_NAME" "${FILENAMES[@]}")
+
+    if [[ -n "$SELECTED_FILE" ]]; then
+        apply_wallpaper "$SELECTED_FILE"
+    else
+        echo "No valid wallpaper selected."
+        exit 1
+    fi
+}
+
+main "$@"
