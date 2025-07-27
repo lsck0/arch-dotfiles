@@ -233,7 +233,7 @@ PACKAGES="
     opencl-icd-loader
     openssh
     openssl
-    openvpm
+    openvpn
     osmium-tool
     pandoc-cli
     parallel
@@ -510,3 +510,5 @@ sudo chmod u+s ~/.cargo/bin/netscanner
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
+
+./scripts/switch-wallpaper.sh Random
