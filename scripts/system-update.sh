@@ -14,4 +14,5 @@ yay -Syyu --noconfirm
 nix-channel --update
 rustup update
 cargo install-update -a
-rtx upgrade
+mise upgrade
+hyprpm update

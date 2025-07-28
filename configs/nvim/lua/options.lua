@@ -6,7 +6,7 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
-set.guifont = "Terminus (TTF):h22"
+set.guifont = "0xProto Nerd Font:h22"
 set.laststatus = 3
 set.mousemoveevent = true
 set.number = true

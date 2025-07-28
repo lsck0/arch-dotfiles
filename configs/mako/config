@@ -1,13 +1,10 @@
 include=~/.cache/wal/colors-mako
 
-#background-color=#000000C0
-#border-color=#101011
-
 anchor=top-right
 border-radius=4
 border-size=2
 default-timeout=2500
-font=Terminus (TTF) 12
+font=0xProto Nerd Font 9
 format=%s\n%b
 height=130
 icons=1

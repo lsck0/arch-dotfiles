@@ -1,18 +1,40 @@
-* {
-    all: unset;
-    background-image: none;
-}
+@import url("../../.cache/wal/colors-waybar.css");
 
 window {
-    background: rgba(0, 0, 0, 0.9);
+  background-color: rgba(0, 0, 0, 0.6);
+  font-family: "0xProto Nerd Font";
+  font-size: 25pt;
 }
 
 button {
-    font-family: "Terminus (TTF)";
-    font-size: 3rem;
-    background-color: rgba(11, 11, 11, 0.4);
-    color: #FFFFFF;
-    margin: 1rem;
-    padding: 3rem;
-    padding-bottom: 7rem;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 60px;
+  border-radius: 15px;
+  color: @foreground;
+  margin-bottom: 100px;
+}
+
+button:hover {
+  background-color: @color1;
+  background-size: 25%;
+  transition: all 0.3s cubic-bezier(0.55, 0, 0.28, 1.682);
+}
+
+button:focus {
+  outline: none;
+}
+
+#shutdown {
+  background-image: image(url("./icons/power.png"));
+}
+#logout {
+  background-image: image(url("./icons/logout.png"));
+}
+#reboot {
+  background-image: image(url("./icons/restart.png"));
+}
+#lock {
+  background-image: image(url("./icons/lock.png"));
 }

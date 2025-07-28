@@ -7,18 +7,18 @@
 {
     "label" : "logout",
     "action" : "pkill Hyprland",
-    "text" : "(e)xit",
+    "text" : "  (e)xit  ",
     "keybind" : "e"
 }
 {
     "label" : "reboot",
     "action" : "systemctl reboot",
-    "text" : "(r)estart",
+    "text" : "(r)estart ",
     "keybind" : "r"
 }
 {
     "label" : "lock",
     "action" : "hyprlock",
-    "text" : "(l)ock",
+    "text" : "  (l)ock  ",
     "keybind" : "l"
 }

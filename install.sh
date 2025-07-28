@@ -185,6 +185,7 @@ PACKAGES="
     luarocks
     lutris
     ly
+    lynx
     make
     mako
     man-db
@@ -286,6 +287,7 @@ PACKAGES="
     raylib
     reaver-wps-fork-t6x-git
     ripgrep
+    rofi
     rstudio-desktop-bin
     rsync
     rustup
@@ -297,6 +299,7 @@ PACKAGES="
     slurp
     smartmontools
     sox
+    speculum
     spicetify-cli
     spotify
     sqlite
