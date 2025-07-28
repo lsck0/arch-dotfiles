@@ -1,8 +1,8 @@
 window {
   margin: 0px;
   background-color: --wofi-color0;
-  font-size: 18px;
-  font-family: "Terminus (TTF)";
+  font-size: 15px;
+  font-family: "0xProto Nerd Font";
 }
 
 #input {
@@ -36,5 +36,5 @@ window {
 }
 
 #entry:selected {
-  background-color: --wofi-color0/120;
+  background-color: --wofi-color0/150;
 }

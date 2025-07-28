@@ -7,7 +7,7 @@
         "spacing": 8,
     },
     "cpu": {
-        "format": " {usage}%",
+        "format": "  {usage}%",
         "interval": 2,
     },
     "memory": {
@@ -47,7 +47,7 @@
     },
     "clock": {
         "interval": 60,
-        "format": " {:%a %d.%m %H:%M} ",
+        "format": "  {:%a %d.%m %H:%M} ",
         "max-length": 25,
         "tooltip-format": "<tt><small>{calendar}</small></tt>",
         "calendar": {

@@ -52,6 +52,7 @@ apply_wallpaper() {
 
     # set the wallpaper
     swww img "$file" --transition-type grow --transition-step 80 --transition-duration 1 --transition-fps 165 &
+    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null || true
 
     # generate the new colors
     wal -i "$file"
@@ -64,6 +65,13 @@ apply_wallpaper() {
     pywalfox update &
     pywal-spicetify wal &
     pywal-discord -p ~/.config/BetterDiscord/themes &
+
+    # update hyprlock config
+    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
+    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
+    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
+    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
+    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
 
     # update programs that need it
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)

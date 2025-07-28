@@ -149,7 +149,7 @@ bar {
         inactive_workspace  #200000 #200000 #ffffff
     }
 
-    font pango:Terminus 8
+    font pango:0xProto Nerd Font 8
     status_command i3status
 }
 

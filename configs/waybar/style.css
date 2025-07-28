@@ -4,8 +4,8 @@
   background: @background;
   border: none;
   color: @foreground;
-  font-family: "Terminus (TTF)", "Symbols Nerd Font", sans-serif;
-  font-size: 14px;
+  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif;
+  font-size: 12px;
 }
 
 #workspaces button {
