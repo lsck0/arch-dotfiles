@@ -1,0 +1,10 @@
+@theme "~/.cache/wal/colors-rofi-dark.rasi"
+
+configuration {
+  font: "0xProto Nerd Font 15";
+}
+
+
+element-text {
+  font: "0xProto Nerd Font 13";
+}

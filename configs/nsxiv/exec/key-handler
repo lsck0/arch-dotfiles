@@ -1,0 +1,13 @@
+#!/bin/env bash
+
+case "$1" in
+    "d") # delete images
+        while read -r line; do
+            trash "$line"
+        done
+    ;;
+    "w") # set image as wallpaper
+        read -r line
+        switch-wallpaper $(realpath "$line")
+    ;;
+esac

@@ -3,6 +3,7 @@ https://archlinux.org/packages                                                  
 https://arxiv.org
 https://aur.archlinux.org                                                         as aur
 https://chatgpt.com
+https://detexify.kirelabs.org/classify.html                                       as detexify
 https://ecampus.uni-goettingen.de
 https://excalidraw.com
 https://github.com
