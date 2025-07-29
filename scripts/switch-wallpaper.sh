@@ -1,58 +1,11 @@
 #!/bin/env bash
 #
-WALLPAPER_DIR="$HOME/code/arch-dotfiles/wallpapers"
-SUPPORTED_EXTENSIONS=("jpg" "jpeg" "png" "gif")
-
-get_wallpaper_paths() {
-    local files=()
-    for ext in "${SUPPORTED_EXTENSIONS[@]}"; do
-        while IFS= read -r -d $'\0' file; do
-            files+=("$file")
-        done < <(find "$WALLPAPER_DIR" -type f -iname "*.$ext" -print0 2>/dev/null)
-    done
-    echo "${files[@]}"
-}
-
-get_wallpaper_filenames() {
-    local wallpapers=("$@")
-    local names=("Random")
-    for wp in "${wallpapers[@]}"; do
-        base=$(basename "${wp%.*}")
-        cap_name=$(echo "$base" | sed 's/.*/\u&/')
-        names+=("$cap_name")
-    done
-    echo "${names[@]}"
-}
-
-select_wallpaper_interactive() {
-    local names=("$@")
-    printf "%s\n" "${names[@]}" | wofi --dmenu --prompt="Select a wallpaper"
-}
-
-resolve_selection() {
-    local selected_name="$1"
-    shift
-    local names=("$@")
-
-    if [[ "$selected_name" == "Random" ]]; then
-        echo "${WALLPAPERS[RANDOM % ${#WALLPAPERS[@]}]}"
-    else
-        for i in "${!names[@]}"; do
-            if [[ "${names[$i]}" == "$selected_name" ]]; then
-                echo "${WALLPAPERS[$((i - 1))]}"
-                return
-            fi
-        done
-    fi
-}
-
-apply_wallpaper() {
+set_wallpaper() {
     local file="$1"
-    echo "Applying wallpaper: $file"
 
     # set the wallpaper
     swww img "$file" --transition-type grow --transition-step 80 --transition-duration 1 --transition-fps 165 &
-    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null || true
+    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
 
     # generate the new colors
     wal -i "$file"
@@ -67,16 +20,20 @@ apply_wallpaper() {
     pywal-discord -p ~/.config/BetterDiscord/themes &
 
     # update hyprlock config
-    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
-    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
-    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
-    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
-    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf
+    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+
+    # update steam theme
+    sed -i "s|\--custom-accent: .*$|\--custom-accent: $(sed -n 2'p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
+    sed -i "s|\--main-background: .*$|\--main-background: $(sed -n '3p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
+    sed -i "s|\--secondary-background: .*$|\--secondary-background: $(sed -n '1p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
 
     # update programs that need it
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
-    gsettings set org.gnome.desktop.interface gtk-theme '' && \
-        gsettings set org.gnome.desktop.interface gtk-theme "$theme" &
+    gsettings set org.gnome.desktop.interface gtk-theme '' && gsettings set org.gnome.desktop.interface gtk-theme "$theme" &
 
     for addr in $XDG_RUNTIME_DIR/nvim.*; do
         nvim --server "$addr" --remote-send ':colorscheme pywal<CR>' &
@@ -84,38 +41,48 @@ apply_wallpaper() {
 
     pkill waybar && sleep 0.25 && waybar &
     pkill mako && mako &
-
-    # notify user
-    notify-send "Wallpaper changed" "New wallpaper set to: $file"
 }
 
 main() {
-    WALLPAPERS=($(get_wallpaper_paths))
+    WALLPAPER_DIR="$HOME/code/arch-dotfiles/wallpapers"
 
-    # explode if no wallpapers found
-    if [[ ${#WALLPAPERS[@]} -eq 0 ]]; then
-        echo "No wallpapers found in $WALLPAPER_DIR"
-        exit 1
-    fi
+    WALLPAPERS="$(find "$WALLPAPER_DIR" \
+        -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
+        -exec basename {} \; \
+        | sort)\
+    "
 
-    FILENAMES=($(get_wallpaper_filenames "${WALLPAPERS[@]}"))
-
-    # use cli provided wallpaper NAME not FILE
+    # use cli provided wallpaper filepath
     if [[ -n "$1" ]]; then
-        SELECTED_NAME="$1"
-    else
-        SELECTED_NAME=$(select_wallpaper_interactive "${FILENAMES[@]}")
+        if [[ ! -f "$1" ]]; then
+            echo "File does not exist: $1"
+            exit 1
+        fi
+
+        set_wallpaper "$1"
+        exit 0
     fi
 
-    # resolve and apply selection
-    SELECTED_FILE=$(resolve_selection "$SELECTED_NAME" "${FILENAMES[@]}")
+    # select wallpaper interactively
+    SELECTED=$(printf "%s\nrandom\n" "$WALLPAPERS" | wofi --dmenu --prompt="Select a wallpaper")
 
-    if [[ -n "$SELECTED_FILE" ]]; then
-        apply_wallpaper "$SELECTED_FILE"
-    else
-        echo "No valid wallpaper selected."
-        exit 1
+    if [[ -z "$SELECTED" ]]; then
+        echo "No wallpaper selected."
+        exit 0
     fi
+
+    if [[ "$SELECTED" == "random" ]]; then
+        SELECTED_FILE="$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
+    else
+        SELECTED_FILE="$WALLPAPER_DIR/$SELECTED"
+    fi
+
+    set_wallpaper "$SELECTED_FILE"
+
+    # wait in case something takes longer than instantly
+    sleep 5
+
+    exit 0
 }
 
 main "$@"

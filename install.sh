@@ -29,6 +29,7 @@ PACKAGES="
     burpsuite
     caligula
     candy-icons-git
+    cava
     cgdb
     chromium
     clang
@@ -185,6 +186,7 @@ PACKAGES="
     luarocks
     lutris
     ly
+    lynis
     lynx
     make
     mako
@@ -194,6 +196,7 @@ PACKAGES="
     mdbook
     meson
     metasploit
+    millennium
     minecraft-launcher
     mingw-w64-gcc
     minikube
@@ -242,6 +245,7 @@ PACKAGES="
     openssl
     openvpn
     osmium-tool
+    ossec-hids-local
     pandoc-cli
     parallel
     pass
@@ -284,10 +288,14 @@ PACKAGES="
     r2modman-bin
     rainfrog
     ranger
+    rawtherapee
     raylib
     reaver-wps-fork-t6x-git
     ripgrep
+    rkhunter
     rofi
+    rose-pine-cursor
+    rose-pine-hyprcursor
     rstudio-desktop-bin
     rsync
     rustup
@@ -509,6 +517,7 @@ sudo systemctl enable docker.service
 sudo systemctl enable firewalld.service
 sudo systemctl enable ly.service
 sudo systemctl enable nix-daemon
+sudo systemctl enable ossec-server.target
 sudo systemctl enable sshd
 
 git config --global credential.helper store
@@ -520,4 +529,6 @@ mise trust
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
 
-./scripts/switch-wallpaper.sh Random
+./scripts/switch-wallpaper.sh random
+
+echo "Done. Please reboot."

@@ -1,7 +1,7 @@
 @import url("../../.cache/wal/colors-waybar.css");
 
 window {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.8);
   font-family: "0xProto Nerd Font";
   font-size: 25pt;
 }
@@ -17,7 +17,6 @@ button {
 }
 
 button:hover {
-  background-color: @color1;
   background-size: 25%;
   transition: all 0.3s cubic-bezier(0.55, 0, 0.28, 1.682);
 }

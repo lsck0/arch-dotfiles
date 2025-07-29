@@ -1,11 +1,18 @@
 config-file=~/.cache/wal/ghostty.conf
-background-opacity = 0.9
 
 app-notifications = false
 confirm-close-surface = false
 
 font-family = 0xProto Nerd Font
 font-size = 13
+
+# this blocks tab switching in nvim
+keybind = alt+1=unbind
+keybind = alt+2=unbind
+keybind = alt+3=unbind
+keybind = alt+4=unbind
+keybind = alt+5=unbind
+keybind = alt+6=unbind
 
 #https://github.com/hackr-sh/ghostty-shaders
 #custom-shader=./ghostty-shaders/bloom.glsl
