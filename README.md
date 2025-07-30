@@ -13,7 +13,7 @@ cd ~/code/arch-dotfiles/
 ```
 
 after archinstall minimal with btrfs to setup the system.
-Note: Some configs rely on being in the folder specified above.
+Note: Some configs rely on being in the folder specified above and some even on my username `luca`.
 
 ## Things to do manually after rebooting
 

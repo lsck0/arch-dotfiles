@@ -1,0 +1,9 @@
+[Unit]
+Description=Run headset volume set every 75 seconds
+
+[Timer]
+OnUnitActiveSec=30s
+Unit=headset-volume.service
+
+[Install]
+WantedBy=default.target

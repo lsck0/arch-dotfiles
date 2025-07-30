@@ -1,0 +1,6 @@
+[Unit]
+Description=Set headset volume to 70
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/headsetcontrol -s 70

@@ -5,9 +5,9 @@ set -ex
 mkdir -p ${HOME}/.config/discord
 mkdir -p ${HOME}/.config/BetterDiscord/plugins
 mkdir -p ${HOME}/.config/BetterDiscord/themes
+
 ln -sf ${PWD}/discord_settings.json ${HOME}/.config/discord/settings.json
+#ln -sf ${PWD}/wal.theme.css ${HOME}/.config/BetterDiscord/themes/
 
 wget "https://github.com/JustOptimize/ShowHiddenChannels/releases/download/v0.5.6/ShowHiddenChannels.plugin.js" -O ${HOME}/.config/BetterDiscord/plugins/ShowHiddenChannels.plugin.js
 wget "https://raw.githubusercontent.com/1Lighty/BetterDiscordPlugins/refs/heads/master/Plugins/MessageLoggerV2/MessageLoggerV2.plugin.js" -O ${HOME}/.config/BetterDiscord/plugins/MessageLoggerV2.plugin.js
-
-ln -sf ${PWD}/wal.theme.css ${HOME}/.config/BetterDiscord/themes/

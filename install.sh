@@ -7,9 +7,7 @@ set -e
 PACKAGES="
     act
     aircrack-ng
-    alacritty
     amdgpu_top
-    amf-amdgpu-pro
     ani-cli-git
     argon2
     aseprite
@@ -51,7 +49,6 @@ PACKAGES="
     docker
     docker-buildx
     docker-compose
-    dolphin
     downgrade
     dua-cli
     durdraw
@@ -116,9 +113,7 @@ PACKAGES="
     hypridle
     hyprland
     hyprlock
-    hyprpaper
     hyprpicker
-    hyprsunset
     i3-wm
     i3blocks
     i3lock
@@ -174,6 +169,7 @@ PACKAGES="
     libpulse
     libreoffice-fresh
     libva
+    libva-mesa-driver
     libx11
     libxcomposite
     libxinerama
@@ -194,6 +190,7 @@ PACKAGES="
     man-pages
     mangohud
     mdbook
+    mesa-vdpau
     meson
     metasploit
     millennium
@@ -352,7 +349,6 @@ PACKAGES="
     waybar
     wayland
     webcamize
-    wezterm
     wget
     whatsdesk-bin
     wiki-tui
@@ -382,7 +378,6 @@ PACKAGES="
     xorg-xinput
     xorg-xwayland
     xournalpp
-    xterm
     xwaylandvideobridge
     ydotool
     zed
