@@ -9,31 +9,31 @@ return {
         end,
     },
 
-    {
-        "catppuccin/nvim",
-        name = "catppuccin",
-        config = function()
-            require("catppuccin").setup({
-                flavour = "mocha",
-                transparent_background = false,
-                term_colors = true,
-                integrations = {
-                    barbar = true,
-                    dadbod_ui = true,
-                    diffview = true,
-                    fidget = true,
-                    harpoon = true,
-                    leap = true,
-                    lsp_trouble = true,
-                    mason = true,
-                    noice = true,
-                    notify = true,
-                    snacks = { enabled = true, },
-                },
-            })
-            -- vim.cmd.colorscheme "catppuccin"
-        end
-    },
+    -- {
+    --     "catppuccin/nvim",
+    --     name = "catppuccin",
+    --     config = function()
+    --         require("catppuccin").setup({
+    --             flavour = "mocha",
+    --             transparent_background = false,
+    --             term_colors = true,
+    --             integrations = {
+    --                 barbar = true,
+    --                 dadbod_ui = true,
+    --                 diffview = true,
+    --                 fidget = true,
+    --                 harpoon = true,
+    --                 leap = true,
+    --                 lsp_trouble = true,
+    --                 mason = true,
+    --                 noice = true,
+    --                 notify = true,
+    --                 snacks = { enabled = true, },
+    --             },
+    --         })
+    --         vim.cmd.colorscheme "catppuccin"
+    --     end
+    -- },
 
     {
         'nvim-lualine/lualine.nvim',

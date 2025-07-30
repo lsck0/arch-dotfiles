@@ -11,7 +11,7 @@ button {
   background-position: center;
   background-repeat: no-repeat;
   background-size: 60px;
-  border-radius: 15px;
+  border: 0;
   color: @foreground;
   margin-bottom: 100px;
 }
