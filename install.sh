@@ -315,6 +315,7 @@ PACKAGES="
     steam
     system-config-printer
     tar
+    teamspeak3
     terminus-font-ttf
     terraform
     texlive
