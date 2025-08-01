@@ -54,11 +54,11 @@ tooltip {
 #workspaces button {
   background: @background;
   padding: 0;
-  padding-top: 2px;
+  padding-top: 3px;
 }
 
 #workspaces button.active {
   border-radius: 0;
   padding-top: 0px;
-  border-top: 2px solid @color1;
+  border-top: 3px solid @color1;
 }
