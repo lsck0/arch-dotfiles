@@ -17,7 +17,9 @@ set_wallpaper() {
     # apply the new colors to other programs
     pywalfox update &
     pywal-spicetify wal &
-    pywal-discord -p ~/.config/BetterDiscord/themes &
+
+    # update discord theme
+    sed -i "s|\--background: .*$|\--background: $(sed -n '1p' ~/.cache/wal/colors);|" ~/.config/BetterDiscord/themes/wal.theme.css &
 
     # update hyprlock config
     sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
@@ -25,11 +27,6 @@ set_wallpaper() {
     sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
     sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
     sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
-
-    # update steam theme
-    sed -i "s|\--custom-accent: .*$|\--custom-accent: $(sed -n 2'p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
-    sed -i "s|\--main-background: .*$|\--main-background: $(sed -n '3p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
-    sed -i "s|\--secondary-background: .*$|\--secondary-background: $(sed -n '1p' ~/.cache/wal/colors);|" ~/code/arch-dotfiles/configs/steam/NEVKO-UI/Extra/CSS/root.css &
 
     # update programs that need it
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
@@ -54,9 +51,14 @@ main() {
 
     # use cli provided wallpaper filepath
     if [[ -n "$1" ]]; then
-        if [[ ! -f "$1" ]]; then
+        if [[ ! -f "$1" && "$1" != "random" ]]; then
             echo "File does not exist: $1"
             exit 1
+        fi
+
+        if [[ "$1" == "random" ]]; then
+            set_wallpaper "$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
+            exit 0
         fi
 
         set_wallpaper "$1"

@@ -9,12 +9,13 @@
             "hyprland/workspaces",
             "hyprland/submap"
         ],
-        "modules-center": [],
+        "modules-center": [
+            "clock"
+        ],
         "modules-right": [
             "cpu",
             "memory",
-            "pulseaudio",
-            "clock"
+            "pulseaudio"
         ],
         "include": [
             "~/.config/waybar/modules.jsonc"
@@ -30,10 +31,11 @@
             "hyprland/workspaces",
             "hyprland/submap"
         ],
-        "modules-center": [],
-        "modules-right": [
-            "tray",
+        "modules-center": [
             "clock"
+        ],
+        "modules-right": [
+            "tray"
         ],
         "include": [
             "~/.config/waybar/modules.jsonc"
@@ -49,7 +51,9 @@
             "hyprland/workspaces",
             "hyprland/submap"
         ],
-        "modules-center": [],
+        "modules-center": [
+            "clock"
+        ],
         "modules-right": [
             "tray",
             "cpu",
@@ -58,7 +62,6 @@
             "pulseaudio",
             "backlight",
             "battery",
-            "clock",
         ],
         "include": [
             "~/.config/waybar/modules.jsonc"

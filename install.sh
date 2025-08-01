@@ -349,9 +349,11 @@ PACKAGES="
     vulkan-radeon
     waybar
     wayland
+    wayland-boomer-git
     webcamize
     wget
     whatsdesk-bin
+    whois
     wiki-tui
     wine-staging
     wireless_tools
@@ -457,10 +459,6 @@ rustup default nightly
 cargo install $CARGO_PKGS -j $(nproc)
 
 yay -S $LATER_PACKAGES --noconfirm
-
-# manual installs
-git clone https://github.com/lsck0/wayland-boomer.git ~/.cache/wayland-boomer && cd ~/.cache/wayland-boomer && make install && cd -
-git clone https://github.com/SnarkyDeveloper/pywal-discord.git ~/.cache/pywal-discord && cd ~/.cache/pywal-discord && sudo ./install && cd -
 
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
