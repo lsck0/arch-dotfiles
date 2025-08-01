@@ -178,6 +178,7 @@ PACKAGES="
     llvm
     logseq-desktop-bin
     lolcat
+    lshw
     lua51-luautf8
     luarocks
     lutris

@@ -3,16 +3,17 @@ https://archlinux.org/packages                                                  
 https://arxiv.org
 https://aur.archlinux.org                                                         as aur
 https://chatgpt.com
+https://craftofexile.com/                                                         as poecraft
 https://detexify.kirelabs.org/classify.html                                       as detexify
 https://ecampus.uni-goettingen.de
 https://excalidraw.com
 https://github.com
 https://gnu.org/software/libc/manual/pdf/libc.pdf                                 as libcmanual
 https://guide.handmadehero.org                                                    as handmadehero
+https://mail.proton.me
 https://mirror.dogado.de/tex-archive/graphics/pgf/contrib/tikz-cd/tikz-cd-doc.pdf as tikzcd
 https://pathofexile.com/trade                                                     as poetrade
 https://poe.ninja                                                                 as poeninja
-https://mail.proton.me
 https://reddit.com
 https://twitch.com
 https://wolframalpha.com
