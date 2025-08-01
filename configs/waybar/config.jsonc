@@ -15,6 +15,7 @@
         "modules-right": [
             "cpu",
             "memory",
+            "network",
             "pulseaudio"
         ],
         "include": [
@@ -59,6 +60,8 @@
             "cpu",
             "memory",
             "temperature",
+            "network",
+            "bluetooth",
             "pulseaudio",
             "backlight",
             "battery",
