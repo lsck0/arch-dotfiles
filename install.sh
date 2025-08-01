@@ -433,30 +433,6 @@ if ! sudo grep -q '$USER' /etc/sudoers; then
     echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
 fi
 
-## ADD FINGERPRINT AUTH
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/system-login | sudo tee /etc/pam.d/system-login > /dev/null
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/sudo | sudo tee /etc/pam.d/sudo > /dev/null
-
 ## LINK PACMAN CONFIG
 
 pushd ./configs/pacman
@@ -532,6 +508,31 @@ sudo update-grub
 sudo chsh $USER -s /bin/zsh
 
 sudo gpasswd -a $USER docker
+
+# allow fingerprint login and sudo
+awk '
+  /^auth/ { last_auth=NR }
+  { lines[NR]=$0 }
+  END {
+    for (i=1; i<=NR; i++) {
+      print lines[i]
+      if (i==last_auth)
+        print "auth    sufficient    pam_fprintd.so"
+    }
+  }
+' /etc/pam.d/system-login | sudo tee /etc/pam.d/system-login > /dev/null
+awk '
+  /^auth/ { last_auth=NR }
+  { lines[NR]=$0 }
+  END {
+    for (i=1; i<=NR; i++) {
+      print lines[i]
+      if (i==last_auth)
+        print "auth    sufficient    pam_fprintd.so"
+    }
+  }
+' /etc/pam.d/sudo | sudo tee /etc/pam.d/sudo > /dev/null
+
 
 sudo systemctl enable cronie.service
 sudo systemctl enable cups
