@@ -9,11 +9,6 @@
 
 --background: #0f180a;
 
-body {
-  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif !important;
-  font-size: 8px !important;
-}
-
 .appMount,
 .app-2CXKsg,
 .app_de4237 {
@@ -28,4 +23,9 @@ body {
 .sidebar-1tnWFu,
 .container-1NXEtd {
   background-color: var(--background) !important;
+}
+
+body {
+  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif !important;
+  font-size: 7px !important;
 }
