@@ -1,22 +1,64 @@
 @import url("../../.cache/wal/colors-waybar.css");
 
 * {
-  background: @background;
-  border: none;
-  color: @foreground;
   font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif;
-  font-size: 12px;
+  font-size: 11px;
+  color: @foreground;
+  border: none;
 }
 
+/* main window */
+
+window#waybar,
+window#waybar.empty,
+window#waybar.empty #window {
+  background: transparent;
+  padding: 0px;
+  border: 0px;
+}
+
+tooltip {
+  background: @background;
+  border-radius: 7px;
+}
+
+/* modules */
+
+.modules-left,
+.modules-center,
+.modules-right {
+  background: @background;
+  border-radius: 6px;
+  border: 1px solid @color2;
+
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.modules-left {
+  padding-left: 3px;
+  padding-right: 3px;
+}
+.modules-center {
+  padding-left: 15px; /* fix asymmetry from icon */
+  padding-right: 10px;
+}
+.modules-right {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+/* components */
+
 #workspaces button {
+  background: @background;
   padding: 0;
+  padding-top: 2px;
 }
 
 #workspaces button.active {
   border-radius: 0;
+  padding-top: 0px;
   border-top: 2px solid @color1;
-}
-
-#tray {
-  padding: 7px;
 }
