@@ -19,6 +19,7 @@ PACKAGES="
     bettercap-git
     betterdiscord-installer
     blender
+    blueberry
     boomer-git
     bottles
     brightnessctl
@@ -119,6 +120,7 @@ PACKAGES="
     i3lock
     i3status
     imagemagick
+    impala
     inkscape
     ipython
     iwd
@@ -348,6 +350,7 @@ PACKAGES="
     volatility3-git
     vulkan-icd-loader
     vulkan-radeon
+    walker-bin
     waybar
     wayland
     wayland-boomer-git
@@ -358,6 +361,7 @@ PACKAGES="
     wiki-tui
     wine-staging
     wireless_tools
+    wiremix
     wireplumber
     wireshark-qt
     wl-clipboard

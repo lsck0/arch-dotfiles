@@ -39,3 +39,7 @@ ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ```bash
 betterdiscord-installer
 ```
+
+## Screenshots
+
+![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)

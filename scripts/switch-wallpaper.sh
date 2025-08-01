@@ -41,7 +41,9 @@ set_wallpaper() {
         nvim --server "$addr" --remote-send ':colorscheme pywal<CR>' &
     done
 
-    pkill waybar && sleep 0.25 && waybar &
+    # touch the waybar style to have it reload (it doesnt detect dependancies of style.css)
+    echo "" >> ~/.config/waybar/style.css && sed -i '${/^$/d;}' ~/.config/waybar/style.css &
+
     pkill mako && mako &
 }
 
