@@ -1,3 +1,8 @@
+* {
+  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif !important;
+  font-size: 16px;
+}
+
 :root {
   --gradient-colors: var(--spice-gradienttop), var(--spice-gradientbottom);
 }

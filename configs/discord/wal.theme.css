@@ -7,25 +7,25 @@
  * @website https://github.com/lsck0/arch-dotfiles
 */
 
---background: #0f180a;
+@import url("https://mwittrien.github.io/BetterDiscordAddons/Themes/DiscordRecolor/DiscordRecolor.css");
 
-.appMount,
-.app-2CXKsg,
-.app_de4237 {
-  background-color: var(--background) !important;
-}
-
-.chatContent_f087cb,
-.chat-2ZfjoI {
-  background-color: var(--background) !important;
-}
-
-.sidebar-1tnWFu,
-.container-1NXEtd {
-  background-color: var(--background) !important;
-}
-
-body {
-  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif !important;
-  font-size: 7px !important;
+:root {
+  --accentcolor: 114, 137, 218;
+  --accentcolor2: 255, 115, 250;
+  --linkcolor: 0, 176, 244;
+  --mentioncolor: 250, 166, 26;
+  --textbrightest: 255, 255, 255;
+  --textbrighter: 222, 222, 222;
+  --textbright: 185, 185, 185;
+  --textdark: 140, 140, 140;
+  --textdarker: 115, 115, 115;
+  --textdarkest: 80, 80, 80;
+  --font: "0xProto Nerd Font";
+  --backgroundaccent: 50, 50, 50;
+  --backgroundprimary: 30, 30, 30;
+  --backgroundsecondary: 20, 20, 20;
+  --backgroundsecondaryalt: 15, 15, 15;
+  --backgroundtertiary: 10, 10, 10;
+  --backgroundfloating: 0, 0, 0;
+  --settingsicons: 1;
 }
