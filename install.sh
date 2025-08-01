@@ -475,9 +475,9 @@ git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
 sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
 sudo nix-channel --update
 
-hyprpm update
-yes | hyprpm add https://github.com/hyprwm/hyprland-plugins --force
-yes | hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
+# hyprpm update
+# yes | hyprpm add https://github.com/hyprwm/hyprland-plugins --force
+# yes | hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
 
 opam init --no-setup
 
