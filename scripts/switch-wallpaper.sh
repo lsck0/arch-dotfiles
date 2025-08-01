@@ -19,7 +19,12 @@ set_wallpaper() {
     pywal-spicetify wal &
 
     # update discord theme
-    sed -i "s|\--background: .*$|\--background: $(sed -n '1p' ~/.cache/wal/colors);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--accentcolor: .*$|\--accentcolor: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--accentcolor2: .*$|\--accentcolor2: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--backgroundprimary: .*$|\--backgroundprimary: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--backgroundsecondary: .*$|\--backgroundsecondary: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--backgroundsecondaryalt: .*$|\--backgroundsecondaryalt: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
+    sed -i "s|\--backgroundtertiary: .*$|\--backgroundtertiary: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
 
     # update hyprlock config
     sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
