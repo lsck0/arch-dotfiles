@@ -8,4 +8,4 @@ if [[ "$SELECTED" == "CNCLD" || -z "$SELECTED" ]]; then
     exit 0
 fi
 
-shimejictl summon "$SELECTED" &
+shimejictl summon "$SELECTED"
