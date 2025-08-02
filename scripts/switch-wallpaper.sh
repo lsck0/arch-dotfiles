@@ -5,7 +5,7 @@ set_wallpaper() {
 
     # set the wallpaper
     swww img "$file" --transition-type grow --transition-step 80 --transition-duration 1 --transition-fps 165 &
-    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
+    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null &
 
     # generate the new colors
     wal -i "$file"
@@ -41,7 +41,7 @@ set_wallpaper() {
         nvim --server "$addr" --remote-send ':colorscheme pywal<CR>' &
     done
 
-    # touch the waybar style to have it reload (it doesnt detect dependancies of style.css)
+    # touch the waybar style to have it reload (it doesnt detect dependencies of style.css)
     echo "" >> ~/.config/waybar/style.css && sed -i '${/^$/d;}' ~/.config/waybar/style.css &
 
     pkill mako && mako &

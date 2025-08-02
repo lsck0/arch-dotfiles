@@ -2,5 +2,5 @@
 
 set -ex
 
-sudo mkdir -p ${HOME}/.config/fastfetch
-sudo ln -sf ${PWD}/fastfetch.jsonc ${HOME}/.config/fastfetch/config.jsonc
+mkdir -p ${HOME}/.config/fastfetch
+ln -sf ${PWD}/fastfetch.jsonc ${HOME}/.config/fastfetch/config.jsonc

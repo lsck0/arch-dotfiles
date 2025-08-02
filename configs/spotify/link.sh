@@ -9,3 +9,6 @@ fi
 mkdir -p ${HOME}/.config/spicetify/Themes/wal
 ln -sf ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/
 ln -sf ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/
+
+sudo chmod 777 /opt/spotify
+sudo chmod 777 /opt/spotify/Apps -R
