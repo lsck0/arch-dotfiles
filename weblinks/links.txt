@@ -10,7 +10,7 @@ https://excalidraw.com
 https://github.com
 https://gnu.org/software/libc/manual/pdf/libc.pdf                                 as libcmanual
 https://guide.handmadehero.org                                                    as handmadehero
-https://mail.proton.me
+https://mail.proton.me                                                            as protonmail
 https://mirror.dogado.de/tex-archive/graphics/pgf/contrib/tikz-cd/tikz-cd-doc.pdf as tikzcd
 https://pathofexile.com/trade                                                     as poetrade
 https://poe.ninja                                                                 as poeninja

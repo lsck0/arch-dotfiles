@@ -1,0 +1,119 @@
+as_window = false
+close_when_open = true
+disable_click_to_close = false
+force_keyboard_focus = true
+hotreload_theme = true
+locale = ""
+monitor = ""
+terminal_title_flag = ""
+theme = "default"
+theme_base = []
+theme_location = ["~/.config/walker/themes/"]
+timeout = 0
+
+[keys]
+accept_typeahead = ["tab"]
+close = ["esc"]
+next = ["down"]
+prev = ["up"]
+remove_from_history = ["shift backspace"]
+resume_query = ["ctrl r"]
+toggle_exact_search = ["ctrl m"]
+trigger_labels = "lalt"
+
+[keys.activation_modifiers]
+alternate = "alt"
+keep_open = "shift"
+
+[events]
+on_activate = ""
+on_exit = ""
+on_launch = ""
+on_query_change = ""
+on_selection = ""
+
+[list]
+dynamic_sub = true
+keyboard_scroll_style = "emacs"
+max_entries = 50
+placeholder = "No Results"
+show_initial_entries = true
+single_click = true
+visibility_threshold = 20
+
+[search]
+argument_delimiter = "#"
+delay = 0
+placeholder = ""
+resume_last_query = false
+
+[activation_mode]
+labels = "asdfgh"
+
+[builtins.applications.actions]
+enabled = false
+hide_category = true
+hide_without_query = true
+
+[builtins.calc]
+hidden = true
+min_chars = 3
+prefix = "="
+require_number = true
+weight = 5
+
+[builtins.finder]
+cmd_alt = "xdg-open $(dirname ~/%RESULT%)"
+concurrency = 8
+fd_flags = "--ignore-vcs --type file --type directory"
+hidden = true
+icon = "file"
+ignore_gitignore = true
+name = "Finder"
+placeholder = "Finder"
+prefix = '?'
+preview_images = true
+refresh = true
+show_icon_when_single = true
+use_fd = true
+weight = 5
+
+[builtins.websearch]
+hidden = true
+keep_selection = true
+placeholder = "Websearch"
+prefix = "!"
+weight = 5
+
+[[builtins.websearch.entries]]
+name = "Ecosia"
+url = "https://www.ecosia.org/search?q=%TERM%"
+
+[builtins.dmenu]
+placeholder = ""
+hidden = true
+
+[builtins.emojis]
+hidden = true
+prefix = ":"
+
+[builtins.applications]
+hidden = true
+
+[builtins.bookmarks]
+hidden = true
+
+[builtins.commands]
+hidden = true
+
+[builtins.custom_commands]
+hidden = true
+
+[builtins.runner]
+hidden = true
+
+[builtins.ssh]
+hidden = true
+
+[builtins.translation]
+hidden = true

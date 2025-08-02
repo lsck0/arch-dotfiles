@@ -73,9 +73,9 @@ main() {
     fi
 
     # select wallpaper interactively
-    SELECTED=$(printf "%s\nrandom\n" "$WALLPAPERS" | wofi --dmenu --prompt="Select a wallpaper")
+    SELECTED=$(printf "%s\nrandom\n" "$WALLPAPERS" | walker --stream --dmenu)
 
-    if [[ -z "$SELECTED" ]]; then
+    if [[ "$SELECTED" == "CNCLD" || -z "$SELECTED" ]]; then
         echo "No wallpaper selected."
         exit 0
     fi
