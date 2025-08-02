@@ -485,4 +485,6 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ./scripts/switch-wallpaper.sh random
 
+sleep 25
+
 echo "Done. Please reboot."
