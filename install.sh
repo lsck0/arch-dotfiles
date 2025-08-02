@@ -364,6 +364,7 @@ PACKAGES="
     wireplumber
     wireshark-qt
     wl-clipboard
+    wl_shimeji-git
     wlogout
     wofi
     wpa_supplicant
