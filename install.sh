@@ -122,6 +122,7 @@ PACKAGES="
     imagemagick
     impala
     inkscape
+    intel-media-driver
     ipython
     iwd
     john
@@ -159,7 +160,6 @@ PACKAGES="
     lib32-sqlite
     lib32-v4l-utils
     lib32-vulkan-icd-loader
-    lib32-vulkan-icd-loader
     lib32-vulkan-radeon
     libgcrypt
     libgpg-error
@@ -171,6 +171,7 @@ PACKAGES="
     libpulse
     libreoffice-fresh
     libva
+    libva-intel-driver
     libva-mesa-driver
     libx11
     libxcomposite
@@ -193,6 +194,7 @@ PACKAGES="
     man-pages
     mangohud
     mdbook
+    mesa
     mesa-vdpau
     meson
     metasploit
@@ -348,6 +350,8 @@ PACKAGES="
     virt-manager
     volatility3-git
     vulkan-icd-loader
+    vulkan-intel
+    vulkan-nouveau
     vulkan-radeon
     walker-bin
     waybar
@@ -378,6 +382,9 @@ PACKAGES="
     xdg-utils
     xed
     xf86-input-synaptics
+    xf86-video-amdgpu
+    xf86-video-ati
+    xf86-video-nouveau
     xh
     xorg-server
     xorg-xauth
