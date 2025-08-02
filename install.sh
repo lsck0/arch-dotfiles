@@ -459,46 +459,17 @@ sudo pacman -S --needed --noconfirm git base-devel && \
     cd yay && \
     makepkg -si --noconfirm && \
     cd .. && \
-    rm -rf yay/ && \
-    sudo rm -rf ${HOME}/go/
+    rm -rf yay/
 
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
-
-# downgrade cmake to latest 3.* since not enough support for 4.* yet...
-sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
 
 rustup default nightly
 cargo install $CARGO_PKGS -j $(nproc)
 
 yay -S $LATER_PACKAGES --noconfirm
 
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-unzip awscliv2.zip
-sudo ./aws/install
-rm awscliv2.zip
-rm -rf aws/
-
-rm -rf ~/.config/emacs
-git clone --depth 1 https://github.com/doomemacs/doomemacs ~/.config/emacs
-~/.config/emacs/bin/doom install --aot --force
-
-# other package managers
-sudo nix-channel --add https://nixos.org/channels/nixpkgs-unstable
-sudo nix-channel --update
-
-# hyprpm update
-# yes | hyprpm add https://github.com/hyprwm/hyprland-plugins --force
-# yes | hyprpm add https://github.com/VirtCode/hypr-dynamic-cursors --force
-
-opam init --no-setup
-
-/usr/bin/ghcup install ghc
-/usr/bin/ghcup install cabal
-/usr/bin/ghcup install hls
-/usr/bin/ghcup install stack
-
-/usr/bin/elan default nightly
+sudo rm -rf ${HOME}/go/
 
 ## LINK
 
@@ -510,56 +481,7 @@ echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/
 find "$(pwd)" -type f -name 'link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'
 find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && python $(basename {})'
 
-## FURTHER CONFIG
-
-sudo update-grub
-
-sudo chsh $USER -s /bin/zsh
-
-sudo gpasswd -a $USER docker
-
-# allow fingerprint login and sudo
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/system-login | sudo tee /etc/pam.d/system-login > /dev/null
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/sudo | sudo tee /etc/pam.d/sudo > /dev/null
-
-
-sudo systemctl enable cronie.service
-sudo systemctl enable cups
-sudo systemctl enable docker.service
-sudo systemctl enable firewalld.service
-sudo systemctl enable ly.service
-sudo systemctl enable nix-daemon
-sudo systemctl enable ossec-server.target
-sudo systemctl enable sshd
-
-git config --global credential.helper store
-
-~/.cargo/bin/tms config -p ${HOME}/code
-
-mise trust
-
-sudo chmod 777 /opt/spotify
-sudo chmod 777 /opt/spotify/Apps -R
+## FINALIZE
 
 ./scripts/switch-wallpaper.sh random
 
