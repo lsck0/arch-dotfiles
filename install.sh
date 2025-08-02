@@ -317,6 +317,7 @@ PACKAGES="
     sqlx-cli
     starship
     steam
+    swww
     system-config-printer
     tar
     teamspeak3

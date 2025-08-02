@@ -10,7 +10,6 @@ local installed = {
     "emmet_language_server",
     "eslint-lsp",
     "glsl_analyzer",
-    "glslls",
     "gopls",
     "hlint",
     "html-lsp",
