@@ -15,4 +15,3 @@ nix-channel --update
 rustup update
 cargo install-update -a
 mise upgrade
-hyprpm update
