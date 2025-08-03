@@ -308,7 +308,6 @@ PACKAGES="
     slurp
     smartmontools
     sox
-    speculum
     spicetify-cli
     spotify
     sqlite
@@ -356,6 +355,7 @@ PACKAGES="
     vulkan-radeon
     walker-bin
     waybar
+    waydroid
     wayland
     wayland-boomer-git
     webcamize
