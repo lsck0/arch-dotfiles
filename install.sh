@@ -35,6 +35,7 @@ PACKAGES="
     cloc
     cmake
     cmatrix
+    codechecker
     codelldb-bin
     copyq
     coreutils
