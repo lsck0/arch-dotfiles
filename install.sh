@@ -243,6 +243,7 @@ PACKAGES="
     opam
     openal
     opencl-icd-loader
+    openscad
     openssh
     openssl
     openvpn
