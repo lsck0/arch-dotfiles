@@ -58,12 +58,14 @@ PACKAGES="
     durdraw
     dust
     dysk
+    easyeffects
     efibootmgr
     elan-lean
     emacs
     emscripten
     entr
     eza
+    fancontrol-gui
     fasm
     fastfetch
     fcrackzip
@@ -109,12 +111,14 @@ PACKAGES="
     gtk3
     gtk4
     gufw
+    handbrake
     hashcat
     headsetcontrol
     heroic-games-launcher-bin
     htop
     hydra
     hyperfine
+    hypnotix
     hyprcursor
     hypridle
     hyprland
@@ -124,6 +128,7 @@ PACKAGES="
     i3blocks
     i3lock
     i3status
+    identity
     imagemagick
     impala
     inkscape
@@ -188,6 +193,7 @@ PACKAGES="
     llvm
     logseq-desktop-bin
     lolcat
+    losslesscut-bin
     lshw
     lua51-luautf8
     luarocks
@@ -204,7 +210,9 @@ PACKAGES="
     mesa
     mesa-vdpau
     meson
+    metadata-cleaner
     metasploit
+    micro
     millennium
     minecraft-launcher
     mingw-w64-gcc
@@ -267,6 +275,7 @@ PACKAGES="
     pdftk
     picom
     pipeline-gtk
+    piper
     pipewire
     pitivi
     pkgconf
@@ -274,6 +283,7 @@ PACKAGES="
     plasma
     polkit
     polkit-kde-agent
+    portmaster-bin
     postgresql
     postgresql-libs
     powerline-fonts
@@ -328,6 +338,7 @@ PACKAGES="
     sqlx-cli
     starship
     steam
+    stirling-pdf-bin
     switcheroo
     swww
     system-config-printer
@@ -339,6 +350,7 @@ PACKAGES="
     texlive-lang
     themix-gui-git
     themix-plugin-base16-git
+    thunderbird
     timeshift
     tk
     tldr
