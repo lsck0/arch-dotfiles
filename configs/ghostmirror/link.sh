@@ -3,7 +3,7 @@
 set -ex
 
 # create an initial mirrorlist
-ghostmirror -c Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands -l ./mirrorlist -L 25 \
+ghostmirror -c Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands -l ./mirrorlist -L 50 \
     -Po -S state,outofdate,morerecent,ping
 
 # link the mirrorlist over
