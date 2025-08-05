@@ -59,6 +59,7 @@ PACKAGES="
     dust
     dysk
     efibootmgr
+    elan-lean
     emacs
     emscripten
     entr
@@ -285,6 +286,7 @@ PACKAGES="
     python-poetry
     python-pywalfox
     python-validity-git
+    pywal-spicetify
     qbe
     qbittorrent
     qemu-full
@@ -307,7 +309,6 @@ PACKAGES="
     rose-pine-hyprcursor
     rstudio-desktop-bin
     rsync
-    rustup
     rz-cutter
     sane
     sdl3
@@ -437,14 +438,6 @@ CARGO_PKGS="
     tmux-sessionizer
 "
 
-# some things have missing dependencies or interfere with other things, so do later
-# elan: needs rust and would default to rust and not rustup
-# pywal-spicetify: -||-
-LATER_PACKAGES="
-    elan-lean
-    pywal-spicetify
-"
-
 ## REMOVE PASSWORD FROM SUDO
 
 if ! sudo grep -q '$USER' /etc/sudoers; then
@@ -470,13 +463,14 @@ sudo pacman -S --needed --noconfirm git base-devel && \
     cd .. && \
     rm -rf yay/
 
+# force rustup and nightly, since a lot of packages would otherwise install rust and conflict
+sudo pacman -S rustup --noconfirm
+rustup default nightly
+
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 
-rustup default nightly
 cargo install $CARGO_PKGS -j $(nproc)
-
-yay -S $LATER_PACKAGES --noconfirm
 
 sudo rm -rf ${HOME}/go/
 
@@ -492,7 +486,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## FINALIZE
 
-./scripts/switch-wallpaper.sh random
+./scripts/switch-wallpaper.sh random >/dev/null 2>/dev/null
 
 sleep 25
 
