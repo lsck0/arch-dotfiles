@@ -7,6 +7,7 @@ set -e
 PACKAGES="
     act
     aircrack-ng
+    alpaca-ai
     amdgpu_top
     ani-cli-git
     argon2
@@ -46,7 +47,6 @@ PACKAGES="
     cups
     curl
     curseforge
-    devtoolbox
     diesel-cli
     discord
     dmenu
@@ -176,7 +176,6 @@ PACKAGES="
     libpng
     libpqxx
     libpulse
-    librechat
     libreoffice-fresh
     libva
     libva-intel-driver
