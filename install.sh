@@ -37,6 +37,7 @@ PACKAGES="
     cmatrix
     codechecker
     codelldb-bin
+    converseen
     copyq
     coreutils
     cowsay
@@ -45,6 +46,7 @@ PACKAGES="
     cups
     curl
     curseforge
+    devtoolbox
     diesel-cli
     discord
     dmenu
@@ -79,6 +81,7 @@ PACKAGES="
     gamescope
     gcc
     gdb
+    gearlever
     genius
     gf2-git
     ghcup-hs-bin
@@ -131,6 +134,7 @@ PACKAGES="
     jupyterlab
     kdenlive
     kitty
+    klevernotes
     krita
     kubectl
     kvirc
@@ -258,9 +262,11 @@ PACKAGES="
     pavucontrol
     pdftk
     picom
+    pipeline-gtk
     pipewire
     pitivi
     pkgconf
+    planify
     plasma
     polkit
     polkit-kde-agent
@@ -318,6 +324,7 @@ PACKAGES="
     sqlx-cli
     starship
     steam
+    switcheroo
     swww
     system-config-printer
     tar
