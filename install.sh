@@ -130,6 +130,7 @@ PACKAGES="
     intel-media-driver
     ipython
     iwd
+    jdownloader2
     john
     jq
     jupyterlab
@@ -175,6 +176,7 @@ PACKAGES="
     libpng
     libpqxx
     libpulse
+    librechat
     libreoffice-fresh
     libva
     libva-intel-driver
@@ -244,6 +246,7 @@ PACKAGES="
     odin
     oh-my-zsh-git
     okular
+    ollama-for-amd-git
     onefetch
     onlyoffice-bin
     opam
@@ -256,6 +259,7 @@ PACKAGES="
     osmium-tool
     ossec-hids-local
     pandoc-cli
+    parabolic
     parallel
     pass
     pastel
@@ -353,6 +357,7 @@ PACKAGES="
     typst
     unzip
     update-grub
+    upscaler
     v4l-utils
     valgrind
     ventoy-bin
