@@ -7,7 +7,6 @@ set -e
 PACKAGES="
     act
     aircrack-ng
-    alpaca-ai
     amdgpu_top
     ani-cli-git
     argon2
