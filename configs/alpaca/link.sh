@@ -2,4 +2,4 @@
 
 set -ex
 
-flatpak install flathub com.jeffser.Alpaca
+flatpak install flathub com.jeffser.Alpaca -y
