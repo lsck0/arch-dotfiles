@@ -47,8 +47,7 @@ alias ldocker="lazydocker"
 alias lgit="lazygit"
 
 alias sshnb="ssh luca@192.168.178.73"
-alias sshpc="ssh luca@192.168.178.29"
-alias sshpi="ssh pi@192.168.178.33"
+alias sshpc="ssh luca@192.168.178.138"
 
 eval "$(opam env)"
 eval "$(mise activate zsh)"

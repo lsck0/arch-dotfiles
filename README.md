@@ -39,6 +39,8 @@ ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 
 - add your fingerprint with `fprintd-enroll`
 
+- run `spicetify backup apply` after running spotify (otherwise the theme does not work)
+
 ## Screenshots
 
 ![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)
