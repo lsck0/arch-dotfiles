@@ -272,6 +272,7 @@ PACKAGES="
     path-of-building-community-git
     pavucontrol
     pdftk
+    phoronix-test-suite
     picom
     pipeline-gtk
     piper
