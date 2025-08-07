@@ -63,7 +63,6 @@ PACKAGES="
     emscripten
     entr
     eza
-    fancontrol-gui
     fasm
     fastfetch
     fcrackzip
@@ -215,7 +214,6 @@ PACKAGES="
     minecraft-launcher
     mingw-w64-gcc
     minikube
-    mirro-rs
     mise
     mission-center
     modrinth-app-bin
