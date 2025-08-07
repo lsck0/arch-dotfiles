@@ -12,7 +12,6 @@ PACKAGES="
     argon2
     aseprite
     audacity
-    auto-cpufreq
     awakened-poe-trade-git
     bat
     bemenu-wayland
@@ -355,6 +354,7 @@ PACKAGES="
     tk
     tldr
     tlp
+    tlpui
     tmux
     tokei
     torbrowser-launcher
