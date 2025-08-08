@@ -65,7 +65,6 @@ bindsym $mod+Shift+Right move right
 # tiling/stacking settings
 bindsym $mod+w layout tabbed
 bindsym $mod+s layout toggle split
-bindsym $mod+space floating toggle
 
 # resizing 
 floating_modifier $mod
