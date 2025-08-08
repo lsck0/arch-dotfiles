@@ -29,9 +29,9 @@ bindsym $mod+z exec boomer
 
 # autostart commands
 exec picom
-exec feh --bg-fill ~/code/arch-dotfiles/wallpapers/1.jpg
-exec xrandr --output DP-2 --left-of HDMI-1
-exec xrandr --output HDMI-1 --gamma 0.8
+exec feh --bg-fill ~/.cache/wal/wallpaper
+exec xrandr --output DP-1 --left-of DP-2
+exec xrandr --output DP-1 --gamma 0.8
 exec xrandr --output DP-2 --gamma 0.8
 
 #

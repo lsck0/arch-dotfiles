@@ -418,7 +418,6 @@ PACKAGES="
     xf86-video-amdgpu
     xf86-video-ati
     xf86-video-nouveau
-    xfce4
     xh
     xorg-server
     xorg-xauth
