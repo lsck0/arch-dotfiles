@@ -334,6 +334,7 @@ PACKAGES="
     sfxr-qt-bin
     slurp
     smartmontools
+    snapshot
     sox
     spicetify-cli
     spotify
