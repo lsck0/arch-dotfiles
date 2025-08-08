@@ -98,6 +98,15 @@ PACKAGES="
     glm
     glow
     gnome-boxes
+    gnome-calculator
+    gnome-calendar
+    gnome-chess
+    gnome-klotski
+    gnome-mahjongg
+    gnome-maps
+    gnome-mines
+    gnome-sudoku
+    gnome-text-editor
     gnuplot
     gnutls
     go
@@ -277,7 +286,6 @@ PACKAGES="
     pitivi
     pkgconf
     planify
-    plasma
     polkit
     polkit-kde-agent
     portmaster-bin
@@ -410,6 +418,7 @@ PACKAGES="
     xf86-video-amdgpu
     xf86-video-ati
     xf86-video-nouveau
+    xfce4
     xh
     xorg-server
     xorg-xauth
