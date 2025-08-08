@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+exec > >(tee -a "install.log") 2>&1
 
 ## PACKAGE LISTS
 
@@ -75,6 +76,7 @@ PACKAGES="
     firewalld
     flameshot
     flat-remix-gtk
+    flatpak
     font-manager
     fzf
     gamemode
@@ -97,6 +99,7 @@ PACKAGES="
     glfw
     glm
     glow
+    gnome
     gnome-boxes
     gnome-calculator
     gnome-calendar

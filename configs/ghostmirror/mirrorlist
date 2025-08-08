@@ -1,102 +1,62 @@
-# lastsync<dd.mm.yyyy> 06.08.2025
+# lastsync<dd.mm.yyyy> 08.08.2025
 # country outofdate uptodate morerecent total speed stability
-#* 'Germany' 0 14682 106 14788 39.214784 0.304119
-Server=https://de.arch.niranjan.co/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 37.920862 0.316396
-Server=https://mirrors.niyawe.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 37.816608 0.317349
-Server=http://mirror.lcarilla.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 37.038382 0.324281
-Server=http://mirror.ubrco.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 35.379234 0.337871
-Server=http://mirror.moson.org/arch/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 35.121833 0.339823
-Server=http://mirror.hugo-betrugo.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 33.997044 0.347812
-Server=https://mirror.hugo-betrugo.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 32.772578 0.355455
-Server=https://mirror.metalgamer.eu/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 32.240582 0.358413
-Server=https://mirror.ubrco.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 31.993540 0.359709
-Server=https://mirror.netcologne.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 31.862678 0.360376
-Server=https://pkg.fef.moe/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 31.580971 0.361762
+#* 'Germany' 0 14789 0 14789 37.602168 0.952678
+Server=https://mirror.23m.com/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 36.737407 0.963274
+Server=http://mirror.ipb.de/archlinux/$repo/os/$arch
+#* 'Netherlands' 0 14789 0 14789 35.081054 0.979979
+Server=https://nl.arch.niranjan.co/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 33.419101 0.991786
+Server=http://mirrors.n-ix.net/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 33.164452 0.993144
 Server=http://mirror.selfnet.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 30.839202 0.365096
+#* 'Germany' 0 14789 0 14789 31.902935 0.998072
 Server=https://arch.jensgutermuth.de/$repo/os/$arch
-#* 'Switzerland' 0 14682 106 14788 30.822036 0.365168
+#* 'Switzerland' 0 14789 0 14789 30.729877 0.999941
 Server=http://ch.mirrors.cicku.me/archlinux/$repo/os/$arch
-#* 'Austria' 0 14682 106 14788 30.494020 0.366488
-Server=http://at.mirrors.cicku.me/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 30.305020 0.367206
-Server=https://mirror.moson.org/arch/$repo/os/$arch
-#* 'France' 0 14682 106 14788 29.435781 0.370106
-Server=http://mirror.trap.moe/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 28.348155 0.372783
-Server=https://mirror.pseudoform.org/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 27.820116 0.373694
-Server=https://mirror.sunred.org/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 27.741018 0.373809
-Server=http://mirror.metalgamer.eu/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 27.087707 0.374534
-Server=http://arch.jensgutermuth.de/$repo/os/$arch
-#* 'Switzerland' 0 14682 106 14788 26.871766 0.374687
+#* 'Germany' 0 14789 0 14789 30.670404 0.999966
+Server=https://mirror.metalgamer.eu/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 30.028163 0.999803
+Server=https://de.arch.mirror.kescher.at/$repo/os/$arch
+#* 'Switzerland' 0 14789 0 14789 29.539520 0.999150
 Server=https://ch.mirrors.cicku.me/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 26.050533 0.374874
-Server=https://berlin.mirror.pkgbuild.com/$repo/os/$arch
-#* 'Austria' 0 14682 106 14788 25.323293 0.374517
-Server=https://at.arch.niranjan.co/$repo/os/$arch
-#* 'France' 0 14682 106 14788 25.122258 0.374331
+#* 'Germany' 0 14789 0 14789 28.967986 0.997809
+Server=http://de.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 27.904869 0.993666
+Server=https://de.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Austria' 0 14789 0 14789 27.713741 0.992695
+Server=http://at.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 27.109923 0.989181
+Server=https://mirror.sunred.org/archlinux/$repo/os/$arch
+#* 'France' 0 14789 0 14789 27.072456 0.988941
 Server=http://fr.mirrors.cicku.me/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 24.877592 0.374056
-Server=https://mirror.trap.moe/archlinux/$repo/os/$arch
-#* 'Austria' 0 14682 106 14788 24.765626 0.373911
-Server=http://mirror.alwyzon.net/archlinux/$repo/os/$arch
-#* 'Austria' 0 14682 106 14788 24.611455 0.373693
-Server=https://at.arch.mirror.kescher.at/$repo/os/$arch
-#* 'France' 0 14682 106 14788 23.297994 0.370954
-Server=http://archlinux.mailtunnel.eu/$repo/os/$arch
-#* 'Netherlands' 0 14682 106 14788 22.504000 0.368544
-Server=https://mirror.cj2.nl/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 21.881195 0.366264
-Server=https://mirror.selfnet.de/archlinux/$repo/os/$arch
-#* 'Netherlands' 0 14682 106 14788 21.813255 0.365995
-Server=http://mirror.cj2.nl/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 21.616311 0.365192
-Server=http://mirrors.xtom.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 21.576104 0.365024
-Server=https://mirror.cmt.de/archlinux/$repo/os/$arch
-#* 'Austria' 0 14682 106 14788 21.278357 0.363738
-Server=https://mirror.alwyzon.net/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 21.015263 0.362538
-Server=http://mirror.cmt.de/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 19.801915 0.356267
-Server=https://mirrors.xtom.de/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 19.698661 0.355679
-Server=http://mirror.theo546.fr/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 19.622848 0.355241
-Server=https://archlinux.mailtunnel.eu/$repo/os/$arch
-#* 'Netherlands' 0 14682 106 14788 19.136344 0.352327
-Server=http://ftp.nluug.nl/os/Linux/distr/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 18.867441 0.350639
-Server=http://mirror.netcologne.de/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 18.570908 0.348714
-Server=https://mirror.theo546.fr/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 18.270430 0.346697
-Server=https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 17.812432 0.343497
-Server=https://mirror.cyberbits.eu/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 11.864101 0.290493
-Server=http://archlinux.thaller.ws/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 11.640320 0.288174
-Server=https://archlinux.thaller.ws/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 43.128687 0.263082
+#* 'Netherlands' 0 14789 0 14789 26.681342 0.986277
+Server=http://nl.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Netherlands' 0 14789 0 14789 26.412773 0.984285
+Server=https://nl.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'France' 0 14789 0 14789 25.396546 0.975565
+Server=https://fr.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Austria' 0 14789 0 14789 24.478540 0.966113
+Server=https://at.mirrors.cicku.me/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 23.900975 0.959420
+Server=https://mirrors.n-ix.net/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 44.065023 0.838252
+Server=https://mirror.ipb.de/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 43.390204 0.852706
+Server=https://mirror.as20647.net/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 42.564763 0.869695
 Server=http://de.arch.niranjan.co/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 42.639543 0.268448
-Server=http://mirrors.niyawe.de/archlinux/$repo/os/$arch
-#* 'France' 0 14682 106 14788 8.770674 0.257183
-Server=http://mirror.cyberbits.eu/archlinux/$repo/os/$arch
-#* 'Germany' 0 14682 106 14788 8.549577 0.254723
-Server=https://arch.unixpeople.org/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 40.163674 0.914263
+Server=http://mirror.23m.com/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 39.986683 0.917237
+Server=http://mirror.as20647.net/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 39.372203 0.927206
+Server=https://de.arch.niranjan.co/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 38.376124 0.942149
+Server=https://mirror.lcarilla.de/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 22.025680 0.933890
+Server=https://mirror.selfnet.de/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 7.430534 0.601573
+Server=http://mirror.fra10.de.leaseweb.net/archlinux/$repo/os/$arch
+#* 'Germany' 0 14789 0 14789 2.584974 0.475059
+Server=https://mirror.fra10.de.leaseweb.net/archlinux/$repo/os/$arch
