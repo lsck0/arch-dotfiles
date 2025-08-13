@@ -5,7 +5,7 @@ return {
         "chrisgrieser/nvim-early-retirement",
         config = function()
             require("early-retirement").setup({
-                retirementAgeMins = 2,
+                retirementAgeMins = 3,
             })
         end
     },
@@ -75,6 +75,13 @@ return {
         config = function() require("numb").setup() end
     },
     { "nicwest/vim-camelsnek" },
+    {
+        "nosduco/remote-sshfs.nvim",
+        dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
+        config = function()
+            require("remote-sshfs").setup()
+        end
+    },
     { "sindrets/winshift.nvim" },
     { "tpope/vim-repeat" },
     {

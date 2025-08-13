@@ -267,12 +267,14 @@ PACKAGES="
     opam
     openal
     opencl-icd-loader
+    opencomposite-git
     openscad
     openssh
     openssl
     openvpn
     osmium-tool
     ossec-hids-local
+    osslsigncode
     pandoc-cli
     parabolic
     parallel
@@ -345,6 +347,7 @@ PACKAGES="
     sqlitebrowser
     sqlmap-git
     sqlx-cli
+    sshfs
     starship
     steam
     stirling-pdf-bin
@@ -404,9 +407,12 @@ PACKAGES="
     wiremix
     wireplumber
     wireshark-qt
+    wivrn-dashboard
+    wivrn-server
     wl-clipboard
     wl_shimeji-git
     wlogout
+    wlx-overlay-s-git
     wofi
     wpa_supplicant
     wpscan-git
@@ -430,6 +436,7 @@ PACKAGES="
     xorg-xinput
     xorg-xwayland
     xournalpp
+    xrizer-git
     xwaylandvideobridge
     ydotool
     zed

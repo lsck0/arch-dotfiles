@@ -2,6 +2,7 @@
 
 set -ex
 
+sudo systemctl enable avahi-daemon.service
 sudo systemctl enable cronie.service
 sudo systemctl enable cups
 sudo systemctl enable docker.service
