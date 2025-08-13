@@ -42,6 +42,15 @@ return {
                 options = {
                     theme = 'pywal-nvim',
                 },
+                sections = {
+                    lualine_x = {
+                        {
+                            require("noice").api.statusline.mode.get,
+                            cond = require("noice").api.statusline.mode.has,
+                            color = { fg = "#ff9e64" },
+                        }
+                    },
+                },
             })
         end
     },
@@ -142,9 +151,13 @@ return {
         },
         config = function()
             require("noice").setup({
+                presets = {
+                    command_palette = true,
+                    long_message_to_split = true,
+                },
                 messages = { enabled = true },
                 notify = { enabled = true },
-                cmdline = { enabled = true },
+                cmdline = { enabled = true, },
             })
         end
     },

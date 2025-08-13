@@ -27,11 +27,12 @@ return {
             },
 
             {
-                "hrsh7th/cmp-nvim-lua",
-                "hrsh7th/cmp-nvim-lsp",
                 "hrsh7th/cmp-buffer",
-                "hrsh7th/cmp-path",
                 "hrsh7th/cmp-calc",
+                "hrsh7th/cmp-nvim-lsp",
+                "hrsh7th/cmp-nvim-lua",
+                "hrsh7th/cmp-path",
+                "petertriho/cmp-git",
             },
 
             { "onsails/lspkind.nvim" },
@@ -44,6 +45,7 @@ return {
                     { name = "nvim_lsp" },
                     { name = "path" },
                     { name = "buffer" },
+                    { name = 'git' },
                     { name = 'calc' },
                     { name = 'render-markdown' },
                 },
