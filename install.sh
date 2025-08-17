@@ -397,6 +397,7 @@ PACKAGES="
     waydroid
     wayland
     wayland-boomer-git
+    wayvr-dashboard
     webcamize
     wget
     whatsdesk-bin
@@ -436,7 +437,6 @@ PACKAGES="
     xorg-xinput
     xorg-xwayland
     xournalpp
-    xrizer-git
     xwaylandvideobridge
     ydotool
     zed
@@ -459,6 +459,7 @@ CARGO_PKGS="
     cargo-make
     cargo-show-asm
     cargo-shuttle
+    cargo-sort-derives
     cargo-update
     cargo-watch
     cross

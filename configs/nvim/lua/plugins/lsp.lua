@@ -129,6 +129,12 @@ return {
     {
         'stevearc/conform.nvim',
         config = function()
+            require("conform").formatters.sortderives = {
+                inherit = false,
+                command = "/usr/local/bin/sort-derives-stdout",
+                stdin = true,
+            }
+
             require("conform").setup({
                 formatters_by_ft = {
                     bib = { "bibtex-tidy" },
@@ -137,10 +143,11 @@ return {
                     javascript = { "prettier" },
                     latex = { "latexindent" },
                     python = { "isort", "black" },
+                    rust = { "rustfmt", "sortderives" },
                     scss = { "prettier" },
                 },
                 format_on_save = {
-                    timeout_ms = 500,
+                    timeout_ms = 1000,
                     lsp_format = "fallback",
                 },
             })
