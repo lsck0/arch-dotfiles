@@ -14,9 +14,6 @@ highlight BufferOffset guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight BufferVisible guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight StatusLine guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 
-" copilot suggestion color
-highlight CopilotSuggestion guifg=#910367 ctermfg=8
-
 " VIMTEX settings
 filetype plugin indent on
 syntax enable

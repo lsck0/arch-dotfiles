@@ -29,3 +29,4 @@ require("lazy").setup({
 
 require "autocmds"
 require "mappings"
+require "snippets"
