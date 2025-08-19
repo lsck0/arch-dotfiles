@@ -13,6 +13,9 @@ keybind = alt+3=unbind
 keybind = alt+4=unbind
 keybind = alt+5=unbind
 keybind = alt+6=unbind
+keybind = ctrl+shift+n=unbind
+keybind = ctrl+shift+p=unbind
+keybind = ctrl+shift+t=unbind
 
 #https://github.com/hackr-sh/ghostty-shaders
 #custom-shader=./ghostty-shaders/bloom.glsl
