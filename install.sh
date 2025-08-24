@@ -408,7 +408,6 @@ PACKAGES="
     wl-clipboard
     wl_shimeji-git
     wlogout
-    wlx-overlay-s-git
     wofi
     wpa_supplicant
     wpscan-git
