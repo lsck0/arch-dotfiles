@@ -1,4 +1,0 @@
-dashboard:
-  exec: "/usr/bin/wayvr-dashboard"
-  args: ""
-  env: []
