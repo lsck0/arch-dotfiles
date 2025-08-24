@@ -1,30 +1,20 @@
--- ctrl + s for saving
+-- ctrl + s for saving, ctrl + c for exiting insert mode, ctrl + e for exiting terminal mode
 vim.keymap.set("n", "<C-s>", "<cmd>w<CR>")
-
--- commenting
-vim.keymap.set("n", "<leader>x", "<cmd>normal gcc<CR>")
-vim.keymap.set("v", "<leader>x", "<ESC><cmd>normal gvgc<CR>")
-
--- m for running the compile command
-vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>")
+vim.keymap.set("i", "<C-c>", "<ESC>")
+vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]])
 
 -- easier macros
 vim.keymap.set('n', '<M-q>', '@', { noremap = true })
 
--- esc for leaving insert mode in terminal
-vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]])
+-- commenting
+vim.keymap.set("n", "<leader>x", "<cmd>normal gcc<CR>")
+vim.keymap.set("v", "<leader>x", "<ESC><cmd>normal gvgc<CR>")
 
 -- make jump commands also center the screen
 vim.keymap.set("n", "<C-d>", "<C-d>zz")
 vim.keymap.set("n", "<C-u>", "<C-u>zz")
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
-
--- quickfix/trouble list navigation
-vim.keymap.set("n", "<C-n>", "<cmd>cnext<CR>")
-vim.keymap.set("n", "<C-S-n>", "<cmd>cprev<CR>")
-vim.keymap.set("n", "<C-t>", "<cmd>lua require('trouble').next({ skip_groups = true, jump = true })<CR>")
-vim.keymap.set("n", "<C-S-t>", "<cmd>lua require('trouble').prev({ skip_groups = true, jump = true })<CR>")
 
 -- tab navigation + terminal
 vim.keymap.set("n", "<M-t>", "<cmd>terminal <CR>")
@@ -46,10 +36,17 @@ vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>")
 -- popouts
 vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle left<CR>")
 vim.keymap.set("n", "<leader>g", "<cmd>G<CR>")
+vim.keymap.set("n", "<leader>o", "<cmd>Oil . --float <CR>")
 vim.keymap.set("n", "<leader>s", "<cmd>lua require('spectre').toggle()<CR>", {})
 vim.keymap.set("n", "<leader>sw", "<cmd>lua require('spectre').open_visual({select_word=true})<CR>", {})
 vim.keymap.set("n", "<leader>t", "<cmd>Trouble diagnostics<CR>")
-vim.keymap.set("n", "<leader>o", "<cmd>Oil . --float <CR>")
+vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>")
+
+-- quickfix/trouble list navigation
+vim.keymap.set("n", "<C-n>", "<cmd>cnext<CR>")
+vim.keymap.set("n", "<C-S-n>", "<cmd>cprev<CR>")
+vim.keymap.set("n", "<C-t>", "<cmd>lua require('trouble').next({ skip_groups = true, jump = true })<CR>")
+vim.keymap.set("n", "<C-S-t>", "<cmd>lua require('trouble').prev({ skip_groups = true, jump = true })<CR>")
 
 -- telescope and lsp
 local telescope = require("telescope.builtin")

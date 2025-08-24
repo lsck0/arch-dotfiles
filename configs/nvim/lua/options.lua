@@ -19,6 +19,7 @@ set.signcolumn = "yes"
 set.smartindent = true
 set.softtabstop = 4
 set.splitkeep = "screen"
+set.swapfile = false
 set.tabstop = 4
 set.termguicolors = true
 set.timeout = true

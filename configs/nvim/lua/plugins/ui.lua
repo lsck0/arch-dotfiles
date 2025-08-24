@@ -3,6 +3,7 @@ return {
 
     {
         url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
+        priority = 1000,
         name = "pywal",
         config = function()
             require('pywal').setup()
@@ -11,6 +12,7 @@ return {
 
     -- {
     --     "catppuccin/nvim",
+    --     priority = 1000,
     --     name = "catppuccin",
     --     config = function()
     --         require("catppuccin").setup({
@@ -35,12 +37,22 @@ return {
     --     end
     -- },
 
+    -- {
+    --     "EdenEast/nightfox.nvim",
+    --     priority = 1000,
+    --     config = function()
+    --         vim.cmd.colorscheme "carbonfox"
+    --     end
+    -- },
+
     {
-        'nvim-lualine/lualine.nvim',
+        "nvim-lualine/lualine.nvim",
         config = function()
-            require('lualine').setup({
+            require("lualine").setup({
                 options = {
-                    theme = 'pywal-nvim',
+                    -- theme = "carbonfox",
+                    -- theme = "catppuccin",
+                    theme = "pywal-nvim",
                 },
                 sections = {
                     lualine_x = {
@@ -65,7 +77,10 @@ return {
         end
     },
 
-    { "RRethy/vim-illuminate" },
+    {
+        "yorickpeterse/nvim-pqf",
+        config = function() require("pqf").setup() end
+    },
 
     {
         "lukas-reineke/indent-blankline.nvim",
@@ -163,13 +178,14 @@ return {
     },
 
     {
-        'MeanderingProgrammer/render-markdown.nvim',
-        dependencies = { 'nvim-treesitter/nvim-treesitter', 'echasnovski/mini.nvim' },
+        "folke/todo-comments.nvim",
+        config = function() require("todo-comments").setup() end
+    },
+
+    {
+        "folke/trouble.nvim",
         config = function()
-            require('render-markdown').enable()
-            require('render-markdown').setup({
-                completions = { lsp = { enabled = true } },
-            })
+            require("trouble").setup()
         end
-    }
+    },
 }

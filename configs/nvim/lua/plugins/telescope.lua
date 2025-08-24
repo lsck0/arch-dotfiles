@@ -9,6 +9,7 @@ return {
         event = "BufRead",
         branch = "harpoon2",
         config = function()
+            -- having this in the mapping file caused some issues lol
             require("harpoon"):setup()
 
             local harpoon = require("harpoon")

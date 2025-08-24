@@ -27,7 +27,6 @@ PACKAGES="
     bun-bin
     burpsuite
     caligula
-    candy-icons-git
     cava
     cgdb
     chromium
@@ -93,6 +92,7 @@ PACKAGES="
     giflib
     gimp
     git
+    git-delta
     git-filter-repo
     github-cli
     gitleaks
@@ -103,12 +103,7 @@ PACKAGES="
     gnome-boxes
     gnome-calculator
     gnome-calendar
-    gnome-chess
-    gnome-klotski
-    gnome-mahjongg
     gnome-maps
-    gnome-mines
-    gnome-sudoku
     gnome-text-editor
     gnuplot
     gnutls
@@ -520,7 +515,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## FINALIZE
 
-./scripts/switch-wallpaper.sh random >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky2.jpg >/dev/null 2>/dev/null
 
 sleep 25
 
