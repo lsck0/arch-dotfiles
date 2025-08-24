@@ -19,7 +19,6 @@ local installed = {
     "lean-language-server",
     "lua-language-server",
     "nil",
-    "nixpkgs-fmt",
     "prettierd",
     "pyright ",
     "rust_analyzer",
