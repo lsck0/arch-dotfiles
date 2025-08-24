@@ -21,7 +21,7 @@ local installed = {
     "nil",
     "nixpkgs-fmt",
     "prettierd",
-    "python-lsp-server",
+    "pyright ",
     "rust_analyzer",
     "sqlls",
     "tailwindcss-language-server",

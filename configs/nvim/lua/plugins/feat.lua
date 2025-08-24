@@ -49,5 +49,38 @@ return {
         init = function()
             vim.g.db_ui_use_nerd_fonts = 1
         end,
-    }
+    },
+
+    {
+        "jiaoshijie/undotree",
+        dependencies = "nvim-lua/plenary.nvim",
+        config = true,
+        keys = {
+            { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
+        },
+    },
+
+    {
+        "laytan/cloak.nvim",
+        config = function()
+            require("cloak").setup({
+                enabled = true,
+                cloak_character =
+                "#",
+                highlight_group = "Comment",
+                patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" }, },
+            })
+        end
+    },
+
+    {
+        'MeanderingProgrammer/render-markdown.nvim',
+        dependencies = { 'nvim-treesitter/nvim-treesitter', 'echasnovski/mini.nvim' },
+        config = function()
+            require('render-markdown').enable()
+            require('render-markdown').setup({
+                completions = { lsp = { enabled = true } },
+            })
+        end
+    },
 }

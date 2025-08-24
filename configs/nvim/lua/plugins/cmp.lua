@@ -15,19 +15,6 @@ return {
             },
 
             {
-                "windwp/nvim-autopairs",
-                opts = {
-                    fast_wrap = {},
-                    disable_filetype = { "TelescopePrompt", "vim" },
-                },
-                config = function(_, opts)
-                    require("nvim-autopairs").setup(opts)
-                    local cmp_autopairs = require "nvim-autopairs.completion.cmp"
-                    require("cmp").event:on("confirm_done", cmp_autopairs.on_confirm_done())
-                end,
-            },
-
-            {
                 "L3MON4D3/LuaSnip",
                 version = "v2.*",
                 build = "make install_jsregexp"
@@ -47,7 +34,7 @@ return {
             { "onsails/lspkind.nvim" },
         },
         config = function()
-            vim.api.nvim_set_hl(0, "MyCursorLine", { bg = "#6c6f93" })
+            vim.api.nvim_set_hl(0, "MyCursorLine", { fg = "#6c6f93" })
 
             local cmp = require("cmp")
 
