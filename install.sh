@@ -84,6 +84,7 @@ PACKAGES="
     gdb
     gearlever
     genius
+    geogebra-6-bin
     gf2-git
     ghcup-hs-bin
     ghidra
@@ -491,9 +492,9 @@ sudo pacman -S --needed --noconfirm git base-devel && \
     cd .. && \
     rm -rf yay/
 
-# force rustup and nightly, since a lot of packages would otherwise install rust and conflict
+# force rustup and stable, since a lot of packages would otherwise install rust and conflict
 sudo pacman -S rustup --noconfirm
-rustup default nightly
+rustup default stable
 
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm

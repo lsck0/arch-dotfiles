@@ -18,7 +18,7 @@
 }
 {
     "label" : "lock",
-    "action" : "hyprlock",
+    "action" : "loginctl lock-session",
     "text" : "  (l)ock  ",
     "keybind" : "l"
 }
