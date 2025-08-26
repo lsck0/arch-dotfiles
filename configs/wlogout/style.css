@@ -25,15 +25,18 @@ button:focus {
   outline: none;
 }
 
-#shutdown {
-  background-image: image(url("./icons/power.png"));
+#lock {
+  background-image: image(url("./icons/lock.png"));
 }
 #logout {
   background-image: image(url("./icons/logout.png"));
 }
+#hibernate {
+  background-image: image(url("./icons/hibernate.png"));
+}
+#shutdown {
+  background-image: image(url("./icons/power.png"));
+}
 #reboot {
   background-image: image(url("./icons/restart.png"));
-}
-#lock {
-  background-image: image(url("./icons/lock.png"));
 }

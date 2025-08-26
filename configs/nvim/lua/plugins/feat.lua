@@ -74,13 +74,71 @@ return {
     },
 
     {
-        'MeanderingProgrammer/render-markdown.nvim',
-        dependencies = { 'nvim-treesitter/nvim-treesitter', 'echasnovski/mini.nvim' },
+        "MeanderingProgrammer/render-markdown.nvim",
+        dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
         config = function()
-            require('render-markdown').enable()
-            require('render-markdown').setup({
+            require("render-markdown").enable()
+            require("render-markdown").setup({
                 completions = { lsp = { enabled = true } },
             })
         end
     },
+
+    {
+        "echasnovski/mini.nvim",
+        config = function()
+            require("mini.ai").setup()
+            require("mini.align").setup()
+            require("mini.move").setup()
+            require("mini.jump").setup()
+            require('mini.cursorword').setup()
+            require("mini.pairs").setup()
+            require("mini.splitjoin").setup()
+            require("mini.surround").setup({
+                mappings = {
+                    add = "ea",
+                    delete = "ed",
+                    replace = "er",
+                    find = "ef",
+                    find_left = "eF",
+                    highlight = "eh",
+                    update_n_lines = "en",
+                }
+            })
+        end
+    },
+
+    {
+        "nvim-neorg/neorg",
+        version = "*",
+        config = function()
+            require('neorg').setup({
+                load = {
+                    ["core.defaults"] = {},
+                    ["core.concealer"] = {},
+                    ["core.completion"] = {
+                        config = {
+                            engine = "nvim-cmp",
+                        }
+                    }
+                },
+            })
+        end
+    },
+
+    {
+        'piersolenski/import.nvim',
+        opts = {
+            picker = "telescope",
+        },
+        keys = {
+            {
+                "<leader>i",
+                function()
+                    require("import").pick()
+                end,
+                desc = "Import",
+            },
+        },
+    }
 }
