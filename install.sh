@@ -304,6 +304,7 @@ PACKAGES="
     python-pip
     python-poetry
     python-pywalfox
+    python-sympy
     python-validity-git
     pywal-spicetify
     qbe
