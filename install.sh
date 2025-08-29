@@ -57,6 +57,7 @@ PACKAGES="
     dust
     dysk
     easyeffects
+    ecgen-git
     efibootmgr
     elan-lean
     emacs
