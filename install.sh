@@ -197,6 +197,7 @@ PACKAGES="
     libxslt
     linux-tools-meta
     llvm
+    localsend
     logseq-desktop-bin
     lolcat
     losslesscut-bin
@@ -436,7 +437,6 @@ PACKAGES="
     xournalpp
     xwaylandvideobridge
     ydotool
-    zed
     zig
     zip
     zoxide
