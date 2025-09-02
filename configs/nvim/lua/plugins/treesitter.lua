@@ -5,14 +5,6 @@ return {
         build = ":TSUpdate",
         dependencies = {
             { "nvim-treesitter/nvim-treesitter-context" },
-            -- {
-            --     "code-biscuits/nvim-biscuits",
-            --     config = function()
-            --         require("nvim-biscuits").setup({
-            --             min_distance = 20,
-            --         })
-            --     end,
-            -- },
         },
         config = function()
             require("nvim-treesitter.configs").setup({

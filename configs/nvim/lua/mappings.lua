@@ -33,15 +33,6 @@ vim.keymap.set("n", "<C-k>", require("smart-splits").resize_up)
 vim.keymap.set("n", "<C-l>", require("smart-splits").resize_right)
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>")
 
--- popouts
-vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle left<CR>")
-vim.keymap.set("n", "<leader>g", "<cmd>G<CR>")
-vim.keymap.set("n", "<leader>o", "<cmd>Oil . --float <CR>")
-vim.keymap.set("n", "<leader>s", "<cmd>lua require('spectre').toggle()<CR>", {})
-vim.keymap.set("n", "<leader>sw", "<cmd>lua require('spectre').open_visual({select_word=true})<CR>", {})
-vim.keymap.set("n", "<leader>t", "<cmd>Trouble diagnostics<CR>")
-vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>")
-
 -- quickfix/trouble list navigation
 vim.keymap.set("n", "<C-n>", "<cmd>cnext<CR>")
 vim.keymap.set("n", "<C-S-n>", "<cmd>cprev<CR>")
@@ -102,3 +93,12 @@ vim.keymap.set("n", "<F5>", "<cmd>DapContinue<CR>")
 vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>")
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>")
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>")
+
+-- popouts
+vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle left<CR>")
+vim.keymap.set("n", "<leader>g", "<cmd>G<CR>")
+vim.keymap.set("n", "<leader>o", "<cmd>Oil . --float <CR>")
+vim.keymap.set("n", "<leader>s", "<cmd>lua require('spectre').toggle()<CR>", {})
+vim.keymap.set("n", "<leader>sw", "<cmd>lua require('spectre').open_visual({select_word=true})<CR>", {})
+vim.keymap.set("n", "<leader>t", "<cmd>Trouble diagnostics<CR>")
+vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>")
