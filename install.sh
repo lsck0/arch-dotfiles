@@ -504,6 +504,9 @@ rustup default stable
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 
+## downgrade cmake to latest 3.* since not enough support for 4.* yet...
+sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
+
 cargo install $CARGO_PKGS -j $(nproc)
 
 sudo rm -rf ${HOME}/go/
