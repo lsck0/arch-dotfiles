@@ -2,6 +2,8 @@
 
 set -ex
 
+sudo systemctl enable nix-daemon
+
 mkdir -p ${HOME}/.config/nix
 ln -sf ${PWD}/nix.conf ${HOME}/.config/nix/nix.conf
 
