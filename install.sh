@@ -18,6 +18,8 @@ PACKAGES="
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
+    bind
+    bleachbit
     blender
     blueberry
     boomer-git
@@ -384,6 +386,7 @@ PACKAGES="
     v4l-utils
     valgrind
     ventoy-bin
+    veracrypt
     vim
     virt-manager
     volatility3-git
