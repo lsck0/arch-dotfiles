@@ -29,7 +29,6 @@ PACKAGES="
     bun-bin
     burpsuite
     caligula
-    cargo-asm
     cargo-binstall
     cargo-deny
     cargo-edit
