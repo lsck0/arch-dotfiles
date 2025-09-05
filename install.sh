@@ -499,7 +499,7 @@ rustup default stable
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 
-## downgrade cmake to latest 3.* since not enough support for 4.* yet...
+# downgrade cmake to latest 3.* since not enough support for 4.* yet...
 sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
 
 cargo install $CARGO_PKGS -j $(nproc)
@@ -520,6 +520,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky2.jpg >/dev/null 2>/dev/null
 
-sleep 25
+sleep 15
+sleep 90 && reboot &
 
-echo "Done. Please reboot."
+echo "Done. Please reboot." | nvim

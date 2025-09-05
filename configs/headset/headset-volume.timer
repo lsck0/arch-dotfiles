@@ -3,7 +3,7 @@ Description=Configure Headset Periodically
 
 [Timer]
 OnBootSec=10s
-OnUnitActiveSec=30s
+OnUnitActiveSec=45s
 Unit=headset-volume.service
 
 [Install]
