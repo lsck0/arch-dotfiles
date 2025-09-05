@@ -29,6 +29,22 @@ PACKAGES="
     bun-bin
     burpsuite
     caligula
+    cargo-asm
+    cargo-binstall
+    cargo-deny
+    cargo-edit
+    cargo-expand
+    cargo-flamegraph
+    cargo-fuzz
+    cargo-llvm-cov
+    cargo-machete
+    cargo-make
+    cargo-show-asm
+    cargo-shuttle
+    cargo-sort-derives
+    cargo-tauri
+    cargo-update
+    cargo-watch
     cava
     cgdb
     chromium
@@ -75,7 +91,6 @@ PACKAGES="
     file
     filezilla
     firefox
-    firewalld
     flameshot
     flat-remix-gtk
     flatpak
@@ -240,7 +255,6 @@ PACKAGES="
     neochat
     neofetch
     neovim
-    neovim-qt
     netscanner
     networkmanager
     nftables
@@ -302,6 +316,7 @@ PACKAGES="
     protonup-git
     python-black
     python-isort
+    python-matplotlib
     python-numpy
     python-pandas
     python-pillow
@@ -328,7 +343,6 @@ PACKAGES="
     reaver-wps-fork-t6x-git
     ripgrep
     rkhunter
-    rofi
     rose-pine-cursor
     rose-pine-hyprcursor
     rstudio-desktop-bin
@@ -379,7 +393,6 @@ PACKAGES="
     ttf-hanazono
     ttf-ms-fonts
     ttf-opensans
-    typst
     unzip
     update-grub
     upscaler
@@ -400,7 +413,6 @@ PACKAGES="
     wayland
     wayland-boomer-git
     wayvr-dashboard
-    webcamize
     wget
     whatsdesk-bin
     whois
@@ -415,7 +427,6 @@ PACKAGES="
     wl-clipboard
     wl_shimeji-git
     wlogout
-    wofi
     wpa_supplicant
     wpscan-git
     xclip
@@ -449,26 +460,11 @@ PACKAGES="
 CARGO_PKGS="
     bacon
     bootimage
-    cargo-binstall
-    cargo-deny
-    cargo-edit
-    cargo-expand
     cargo-info
-    cargo-llvm-cov
-    cargo-machete
-    cargo-make
-    cargo-show-asm
-    cargo-shuttle
-    cargo-sort-derives
-    cargo-update
-    cargo-watch
     cross
-    flamegraph
-    fuzz
     irust
     mprocs
     rustfilt
-    tauri-cli
     tmux-sessionizer
 "
 
