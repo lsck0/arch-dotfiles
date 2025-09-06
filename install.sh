@@ -417,6 +417,8 @@ PACKAGES="
     whois
     wiki-tui
     wine-staging
+    wireguard-tools
+    wireguard-ui-bin
     wireless_tools
     wiremix
     wireplumber
