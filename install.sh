@@ -307,7 +307,6 @@ PACKAGES="
     piper
     pipewire
     pipewire-alsa
-    pipewire-jack
     pipewire-pulse
     pitivi
     pkgconf
