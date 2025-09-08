@@ -12,7 +12,7 @@ cd ~/code/arch-dotfiles/
 ./install.sh
 ```
 
-after archinstall minimal with to setup the system.
+after archinstall minimal and no applications (bluetooth, audio) configured to setup the system.
 
 Note: Some configs rely on being in the folder specified above and some even on my username `luca`.
 
