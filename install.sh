@@ -8,6 +8,7 @@ exec > >(tee -a "install.log") 2>&1
 PACKAGES="
     act
     aircrack-ng
+    alsa-firmware
     amdgpu_top
     ani-cli-git
     argon2
@@ -22,6 +23,8 @@ PACKAGES="
     bleachbit
     blender
     blueberry
+    bluez
+    bluez-utils
     boomer-git
     bottles
     brightnessctl
@@ -130,6 +133,7 @@ PACKAGES="
     gparted
     graphviz
     grim
+    gst-plugin-pipewire
     gtk3
     gtk4
     gufw
@@ -302,6 +306,9 @@ PACKAGES="
     pipeline-gtk
     piper
     pipewire
+    pipewire-alsa
+    pipewire-jack
+    pipewire-pulse
     pitivi
     pkgconf
     planify
@@ -355,6 +362,7 @@ PACKAGES="
     slurp
     smartmontools
     snapshot
+    sof-firmware
     sox
     spicetify-cli
     spotify
