@@ -49,6 +49,9 @@ alias lgit="lazygit"
 alias sshnb="ssh luca@192.168.178.73"
 alias sshpc="ssh luca@192.168.178.138"
 
+alias vpnon="sudo wg-quick up wg0"
+alias vpnoff="sudo wg-quick down wg0"
+
 eval "$(opam env)"
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"

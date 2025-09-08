@@ -51,6 +51,12 @@ sudo chmod 600 ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ```
 
+- add wirguard vpn tunnel
+
+```bash
+sudo ln -sf ~/code/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/wg0.conf
+```
+
 ## Screenshots
 
 ![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)
