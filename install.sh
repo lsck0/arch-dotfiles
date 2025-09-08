@@ -164,6 +164,7 @@ PACKAGES="
     kdenlive
     kitty
     klevernotes
+    kpat
     krita
     kubectl
     kvirc
