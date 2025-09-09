@@ -20,6 +20,7 @@ PACKAGES="
     bettercap-git
     betterdiscord-installer
     bind
+    bitwarden-bin
     bleachbit
     blender
     blueberry
