@@ -102,6 +102,7 @@ PACKAGES="
     gamemode
     gamescope
     gcc
+    gcc-fortran
     gdb
     gearlever
     genius
