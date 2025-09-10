@@ -133,6 +133,8 @@ PACKAGES="
     go
     gobuster
     gparted
+    gpu-screen-recorder
+    gpu-screen-recorder-ui
     graphviz
     grim
     gst-plugin-pipewire
@@ -174,6 +176,7 @@ PACKAGES="
     krita
     kubectl
     kvirc
+    lact
     lazydocker-bin
     lazygit
     lcov

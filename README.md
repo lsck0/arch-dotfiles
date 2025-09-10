@@ -2,7 +2,7 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-Arch Linux Hyprland installation and configuration files.
+**WARNING**: This is primarily a **personal** setup, using this setup as is will most likely not work for you.
 
 Run
 
@@ -14,11 +14,11 @@ cd ~/code/arch-dotfiles/
 
 after archinstall minimal and no applications (bluetooth, audio) configured to setup the system.
 
-Note: Some configs rely on being in the folder specified above and some even on my username `luca`.
-
 ## Things to do manually after rebooting
 
 - enable optional configs (`fd manual_link.sh` and cd into the folder before running)
+
+- add fingerprint with `fprintd-enroll` (once per device)
 
 - configure the firewall (portmaster), for example:
   - Force Block Incoming Connections: False
@@ -34,8 +34,6 @@ Note: Some configs rely on being in the folder specified above and some even on 
   and font to `0xProto Nerd Font`
 
 - run `spicetify backup apply` after running spotify once, otherwise the theme does not work
-
-- add fingerprint with `fprintd-enroll` (once per device)
 
 - fetch the submodules (needs github auth)
 
@@ -61,3 +59,7 @@ sudo ln -sf ~/code/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/
 ## Screenshots
 
 ![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)
+
+## ToDo
+
+- Upfront tui / config / something to select "features" to install
