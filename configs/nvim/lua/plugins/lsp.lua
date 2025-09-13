@@ -20,7 +20,7 @@ local installed = {
     "lua-language-server",
     "nil",
     "prettierd",
-    "pyright ",
+    "pyright",
     "rust_analyzer",
     "sqlls",
     "tailwindcss-language-server",
