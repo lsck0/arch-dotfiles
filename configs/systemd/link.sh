@@ -11,4 +11,6 @@ sudo systemctl enable cronie.service
 sudo systemctl enable cups
 sudo systemctl enable lactd
 sudo systemctl enable ly.service
+sudo systemctl enable open-fprintd-resume.service
+sudo systemctl enable open-fprintd-suspend.service
 sudo systemctl enable ossec-server.target
