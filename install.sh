@@ -98,6 +98,7 @@ PACKAGES="
     flat-remix-gtk
     flatpak
     font-manager
+    ftxui
     fzf
     gamemode
     gamescope
@@ -535,6 +536,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky12.jpg >/dev/null 2>/dev/null
 
+sleep 15
 sleep 120 && reboot &
 
 echo "Done. Please reboot." | nvim

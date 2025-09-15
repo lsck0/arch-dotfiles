@@ -21,6 +21,7 @@ after archinstall minimal and no applications (bluetooth, audio) configured to s
 - add fingerprint with `fprintd-enroll` (once per device)
 
 - configure the firewall (portmaster), for example:
+  - Always use DNS Cache: True
   - Force Block Incoming Connections: False
   - Incoming Rules: (check quick settings top right)
     - Allow `127.0.0.1`
