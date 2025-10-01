@@ -1,4 +1,6 @@
 return {
+    { "tpope/vim-fugitive" },
+
     { "sindrets/diffview.nvim" },
 
     {
@@ -14,6 +16,4 @@ return {
             require("gitsigns").setup()
         end
     },
-
-    { "tpope/vim-fugitive" },
 }
