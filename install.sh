@@ -398,6 +398,7 @@ PACKAGES="
     swww
     system-config-printer
     tar
+    taskwarrior-tui
     teamspeak3
     terminus-font-ttf
     terraform
@@ -407,6 +408,7 @@ PACKAGES="
     themix-plugin-base16-git
     thunderbird
     timeshift
+    timetrace-bin
     tk
     tldr
     tlp
