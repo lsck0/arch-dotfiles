@@ -16,6 +16,7 @@ PACKAGES="
     audacity
     awakened-poe-trade-git
     bat
+    bc
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
@@ -290,6 +291,7 @@ PACKAGES="
     onlyoffice-bin
     opam
     openal
+    openbsd-netcat
     opencl-icd-loader
     opencomposite-git
     openscad
@@ -401,6 +403,7 @@ PACKAGES="
     torbrowser-launcher
     tparted-bin
     trash-cli
+    trufflehog
     ttf-caladea
     ttf-fira-code
     ttf-hanazono

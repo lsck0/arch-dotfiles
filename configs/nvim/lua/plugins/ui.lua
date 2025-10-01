@@ -45,6 +45,8 @@ return {
     --     end
     -- },
 
+    { "romgrk/barbar.nvim" },
+
     {
         "nvim-lualine/lualine.nvim",
         config = function()
@@ -67,7 +69,6 @@ return {
         end
     },
 
-    { "romgrk/barbar.nvim" },
 
     {
         "xiyaowong/virtcolumn.nvim",
@@ -75,11 +76,6 @@ return {
             vim.g.virtcolumn_char = "▕"
             vim.g.virtcolumn_priority = 10
         end
-    },
-
-    {
-        "yorickpeterse/nvim-pqf",
-        config = function() require("pqf").setup() end
     },
 
     {
@@ -178,14 +174,14 @@ return {
     },
 
     {
-        "folke/todo-comments.nvim",
-        config = function() require("todo-comments").setup() end
-    },
-
-    {
         "folke/trouble.nvim",
         config = function()
             require("trouble").setup()
         end
+    },
+
+    {
+        "yorickpeterse/nvim-pqf",
+        config = function() require("pqf").setup() end
     },
 }
