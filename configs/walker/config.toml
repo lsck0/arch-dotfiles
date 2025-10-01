@@ -1,119 +1,138 @@
-as_window = false
-close_when_open = true
-disable_click_to_close = false
-force_keyboard_focus = true
-hotreload_theme = true
-locale = ""
-monitor = ""
-terminal_title_flag = ""
-theme = "default"
-theme_base = []
-theme_location = ["~/.config/walker/themes/"]
-timeout = 0
+force_keyboard_focus = false    # forces keyboard forcus to stay in Walker
+close_when_open = true          # close walker when invoking while already opened
+click_to_close = true           # closes walker if clicking outside of the main content area
+selection_wrap = false          # wrap list if at bottom or top
+global_argument_delimiter = "#" # query: firefox#https://benz.dev => part after delimiter will be ignored when querying. this should be the same as in the elephant config
+keep_open_modifier = "shift"    # won't close on activation, but rather select the next item in the list
+exact_search_prefix = "'"       # disable fuzzy searching
+theme = "default"               # theme to use
+disable_mouse = false           # disable mouse (on input and list only)
 
-[keys]
-accept_typeahead = ["tab"]
-close = ["esc"]
-next = ["down"]
-prev = ["up"]
-remove_from_history = ["shift backspace"]
-resume_query = ["ctrl r"]
-toggle_exact_search = ["ctrl m"]
-trigger_labels = "lalt"
+[shell]
+anchor_top = true
+anchor_bottom = true
+anchor_left = true
+anchor_right = true
 
-[keys.activation_modifiers]
-alternate = "alt"
-keep_open = "shift"
+[placeholders]
+"default" = { input = "Search", list = "No Results" } # placeholders for input and empty list, key is the providers name, so f.e. "desktopapplications" or "menus:other"
 
-[events]
-on_activate = ""
-on_exit = ""
-on_launch = ""
-on_query_change = ""
-on_selection = ""
+[keybinds]
+close = "Escape"
+next = "Down"
+previous = "Up"
+toggle_exact = "ctrl e"
+resume_last_query = "ctrl r"
 
-[list]
-dynamic_sub = true
-keyboard_scroll_style = "emacs"
-max_entries = 50
-placeholder = "No Results"
-show_initial_entries = true
-single_click = true
-visibility_threshold = 20
+[providers]
+default = [
+    "desktopapplications",
+    "calc",
+    "menus",
+    "websearch",
+] # providers to be queried by default
+empty = ["desktopapplications"] # providers to be queried when query is empty
 
-[search]
-argument_delimiter = "#"
-delay = 0
-placeholder = ""
-resume_last_query = false
+[[providers.prefixes]]
+prefix = ";"
+provider = "providerlist"
 
-[activation_mode]
-labels = "asdfgh"
+[[providers.prefixes]]
+prefix = "/"
+provider = "files"
 
-[builtins.applications.actions]
-enabled = false
-hide_category = true
-hide_without_query = true
+[[providers.prefixes]]
+prefix = "."
+provider = "symbols"
 
-[builtins.calc]
-hidden = true
-min_chars = 3
-prefix = "="
-require_number = true
-weight = 5
-
-[builtins.finder]
-cmd_alt = "xdg-open $(dirname ~/%RESULT%)"
-concurrency = 8
-fd_flags = "--ignore-vcs --type file --type directory"
-hidden = true
-icon = "file"
-ignore_gitignore = true
-name = "Finder"
-placeholder = "Finder"
-prefix = '?'
-preview_images = true
-refresh = true
-show_icon_when_single = true
-use_fd = true
-weight = 5
-
-[builtins.websearch]
-hidden = true
-keep_selection = true
-placeholder = "Websearch"
+[[providers.prefixes]]
 prefix = "!"
-weight = 5
+provider = "todo"
 
-[[builtins.websearch.entries]]
-name = "Ecosia"
-url = "https://www.ecosia.org/search?q=%TERM%"
+[[providers.prefixes]]
+prefix = "="
+provider = "calc"
 
-[builtins.dmenu]
-placeholder = ""
-hidden = true
+[[providers.prefixes]]
+prefix = "@"
+provider = "websearch"
 
-[builtins.emojis]
-hidden = true
+[[providers.prefixes]]
 prefix = ":"
+provider = "clipboard"
 
-[builtins.applications]
-hidden = true
+[providers.archlinuxpkgs]
+default = "install"
+install = "Return"
+remove = "ctrl d"
 
-[builtins.bookmarks]
-hidden = true
+[providers.calc]
+default = "copy"
+copy = "Return"
+save = "ctrl s"
+delete = "ctrl d"
 
-[builtins.commands]
-hidden = true
+[providers.websearch]
+default = "search"
+search = "Return"
+remove_history = "ctrl BackSpace"
 
-[builtins.custom_commands]
-hidden = true
+[providers.providerlist]
+default = "activate"
+activate = "Return"
 
-[builtins.runner]
-hidden = true
+[providers.clipboard]
+time_format = "%d.%m. - %H:%M" # format for the clipboard item date
+default = "copy"
+copy = "Return"
+delete = "ctrl d"
+delete_all = "ctrl shift d"
+edit = "ctrl o"
+toggle_images_only = "ctrl i"
 
-[builtins.ssh]
-hidden = true
+[providers.desktopapplications]
+default = "start"
+start = "Return"
+start_keep_open = "shift Return"
+remove_history = "ctrl h"
+toggle_pin = "ctrl p"
 
-[builtins.translation]
-hidden = true
+[providers.files]
+default = "open"
+open = "Return"
+open_dir = "ctrl Return"
+copy_path = "ctrl shift c"
+copy_file = "ctrl c"
+
+[providers.todo]
+default = "save"
+save = "Return"
+delete = "ctrl d"
+mark_active = "ctrl a"
+mark_done = "ctrl f"
+clear = "ctrl x"
+
+[providers.runner]
+default = "start"
+start = "Return"
+start_terminal = "shift Return"
+remove_history = "ctrl h"
+
+[providers.dmenu]
+default = "select"
+select = "Return"
+
+[providers.symbols]
+default = "copy"
+copy = "Return"
+remove_history = "ctrl h"
+
+[providers.unicode]
+default = "copy"
+copy = "Return"
+remove_history = "ctrl h"
+
+[providers.menus]
+default = "activate"
+activate = "Return"
+remove_history = "ctrl h"

@@ -18,6 +18,18 @@ set_wallpaper() {
     pywalfox update &
     pywal-spicetify wal &
 
+    # update hyprlock config
+    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
+
+    # update walker config
+    sed -i "s|window_bg_color [^;]*|window_bg_color $(sed -n '1p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default.css && \
+    sed -i "s|theme_fg_color [^;]*|theme_fg_color $(sed -n '2p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default.css && \
+    sed -i "s|accent_bg_color [^;]*|accent_bg_color $(sed -n '3p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default.css &
+
     # update discord theme
     sed -i "s|\--accentcolor: .*$|\--accentcolor: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \
     sed -i "s|\--accentcolor2: .*$|\--accentcolor2: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \
@@ -25,13 +37,6 @@ set_wallpaper() {
     sed -i "s|\--backgroundsecondary: .*$|\--backgroundsecondary: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \
     sed -i "s|\--backgroundsecondaryalt: .*$|\--backgroundsecondaryalt: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \
     sed -i "s|\--backgroundtertiary: .*$|\--backgroundtertiary: $(sed -n '1p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css &
-
-    # update hyprlock config
-    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
 
     # update programs that need it
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
