@@ -82,6 +82,19 @@ PACKAGES="
     ecgen-git
     efibootmgr
     elan-lean
+    elephant
+    elephant-archlinuxpkgs
+    elephant-calc
+    elephant-clipboard
+    elephant-desktopapplications
+    elephant-files
+    elephant-menus
+    elephant-providerlist
+    elephant-runner
+    elephant-symbols
+    elephant-todo
+    elephant-unicode
+    elephant-websearch
     emacs
     emscripten
     entr
