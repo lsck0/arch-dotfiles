@@ -26,9 +26,9 @@ set_wallpaper() {
     sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf &
 
     # update walker config
-    sed -i "s|window_bg_color [^;]*|window_bg_color $(sed -n '1p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default/style.css && \
-    sed -i "s|theme_fg_color [^;]*|theme_fg_color $(sed -n '2p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default/style.css && \
-    sed -i "s|accent_bg_color [^;]*|accent_bg_color $(sed -n '3p' ~/.cache/wal/colors)|" ~/.config/walker/themes/default/style.css &
+    sed -i "s|window_bg_color [^;]*|window_bg_color $(sed -n '1p' ~/.cache/wal/colors)|" ~/.config/walker/themes/custom/style.css && \
+    sed -i "s|theme_fg_color [^;]*|theme_fg_color $(sed -n '2p' ~/.cache/wal/colors)|" ~/.config/walker/themes/custom/style.css && \
+    sed -i "s|accent_bg_color [^;]*|accent_bg_color $(sed -n '3p' ~/.cache/wal/colors)|" ~/.config/walker/themes/custom/style.css &
 
     # update discord theme
     sed -i "s|\--accentcolor: .*$|\--accentcolor: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \
