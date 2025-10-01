@@ -8,20 +8,26 @@ return {
         "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {
+            files = {
+                "*.md"
+            },
             keys = {
                 ["<C-Space>"] = {
-                    rhs = "<cmd>Checkmate toggle<CR>",
-                    desc = "Toggle todo item",
+                    rhs = "<cmd>Checkmate cycle_next<CR>",
+                    desc = "Cycle todo item(s) to the next state",
                     modes = { "n", "v" },
                 },
             },
+            todo_states = {
+                unchecked = { marker = "□" },
+                checked = { marker = "✔" },
+            }
         },
     },
 
     {
         "MeanderingProgrammer/render-markdown.nvim",
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
-        ft = "markdown",
         config = function()
             require("render-markdown").enable()
             require("render-markdown").setup({
@@ -31,22 +37,13 @@ return {
     },
 
     {
-        "nvim-neorg/neorg",
-        version = "*",
+        "nvim-orgmode/orgmode",
+        ft = { "org" },
         config = function()
-            require('neorg').setup({
-                load = {
-                    ["core.defaults"] = {},
-                    ["core.concealer"] = {},
-                    ["core.completion"] = {
-                        config = {
-                            engine = "nvim-cmp",
-                        }
-                    }
-                },
+            require("orgmode").setup({
+                org_agenda_files = "~/orgfiles/**/*",
+                org_default_notes_file = "~/orgfiles/refile.org",
             })
-        end
-    },
-
-    { "vimwiki/vimwiki" },
+        end,
+    }
 }
