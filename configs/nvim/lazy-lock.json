@@ -40,6 +40,7 @@
   "mini.nvim": { "branch": "main", "commit": "126ce3328c78399dcff58272f6f540a373b62a75" },
   "neo-tree.nvim": { "branch": "v3.x", "commit": "e195a10c5bfa74ccdeeb4541053cf6130712bfe3" },
   "neovim-auto-autoread": { "branch": "master", "commit": "21fc7d47eaaec03f4e5ab76abacc00d8702e4590" },
+  "neowarrior.nvim": { "branch": "main", "commit": "197cd4a7a56d07374fcda09b5b56baa433e40549" },
   "noice.nvim": { "branch": "main", "commit": "0427460c2d7f673ad60eb02b35f5e9926cf67c59" },
   "none-ls.nvim": { "branch": "main", "commit": "5cf63841461b49989972d35bf886e076a1ab3649" },
   "nui.nvim": { "branch": "main", "commit": "de740991c12411b663994b2860f1a4fd0937c130" },
