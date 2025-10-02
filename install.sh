@@ -24,6 +24,7 @@ PACKAGES="
     bitwarden-bin
     bleachbit
     blender
+    blockbench-bin
     blueberry
     bluez
     bluez-utils
@@ -249,6 +250,7 @@ PACKAGES="
     ly
     lynis
     lynx
+    magicavoxel
     make
     mako
     man-db
