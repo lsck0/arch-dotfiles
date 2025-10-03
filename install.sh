@@ -11,6 +11,7 @@ PACKAGES="
     alsa-firmware
     amdgpu_top
     ani-cli-git
+    app2unit
     argon2
     aseprite
     audacity
