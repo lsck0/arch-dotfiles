@@ -407,6 +407,7 @@ PACKAGES="
     terraform
     texlive
     texlive-lang
+    texmaker
     themix-gui-git
     themix-plugin-base16-git
     thunderbird
