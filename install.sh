@@ -412,7 +412,7 @@ PACKAGES="
     themix-plugin-base16-git
     thunderbird
     timeshift
-    timetrace-bin
+    timew
     tk
     tldr
     tlp
