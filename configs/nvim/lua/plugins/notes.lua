@@ -46,9 +46,4 @@ return {
             })
         end,
     },
-
-    {
-        "duckdm/neowarrior.nvim",
-        opts = {},
-    },
 }
