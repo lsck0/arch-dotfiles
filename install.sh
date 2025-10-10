@@ -30,6 +30,7 @@ PACKAGES="
     bluez
     bluez-utils
     boomer-git
+    boscaceoil
     bottles
     brightnessctl
     btop
@@ -53,6 +54,7 @@ PACKAGES="
     cargo-watch
     cava
     cgdb
+    chatgpt-desktop-bin
     chromium
     clang
     cloc
@@ -240,6 +242,7 @@ PACKAGES="
     libxslt
     linux-tools-meta
     llvm
+    lmms
     localsend
     logseq-desktop-bin
     lolcat
