@@ -51,4 +51,25 @@ return {
             })
         end
     },
+    {
+        "folke/twilight.nvim",
+        opts = {
+            treesitter = true,
+            expand = {
+                "enum_specifier",
+                "for_statement",
+                "function_definition",
+                "if_statement",
+                "preproc_function_def",
+                "preproc_if",
+                "struct_specifier",
+                "type_definition",
+                "while_statement",
+            },
+        }
+    },
+    {
+        "folke/zen-mode.nvim",
+        opts = {},
+    },
 }
