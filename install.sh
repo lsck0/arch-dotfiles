@@ -414,6 +414,7 @@ PACKAGES="
     themix-gui-git
     themix-plugin-base16-git
     thunderbird
+    tiled
     timeshift
     timew
     tk
