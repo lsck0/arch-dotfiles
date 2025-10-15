@@ -1,5 +1,5 @@
 local ignore_filetypes_list = {
-    "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico",
+    "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico", "vendor"
 }
 
 return {

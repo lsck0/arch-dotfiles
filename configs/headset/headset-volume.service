@@ -3,6 +3,6 @@ Description=Configure Headset
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/headsetcontrol -l 1 -s 70
+ExecStart=/usr/bin/headsetcontrol -s 70
 StandardOutput=journal
 StandardError=journal
