@@ -363,7 +363,10 @@ PACKAGES="
     qbittorrent
     qemu-full
     qmk
+    qpwgraph
+    qt5
     qt5-wayland
+    qt6
     qt6-wayland
     quickjs
     qutebrowser

@@ -93,8 +93,8 @@ main() {
 
     set_wallpaper "$SELECTED_FILE"
 
-    # wait in case something takes longer than instantly
-    sleep 5
+    # wait for animation to finish
+    sleep 25
 
     exit 0
 }
