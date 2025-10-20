@@ -44,6 +44,11 @@ body {
   color: var(--spice-text);
 }
 
+.Root__now-playing-bar {
+  background-color: var(--spice-main);
+  color: var(--spice-text);
+}
+
 .main-rootlist-rootlistItem:hover {
   background-color: var(--spice-card-background);
 }
