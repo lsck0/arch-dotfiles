@@ -10,7 +10,7 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
-yay -Syyu --noconfirm
+yay -Syyu --noconfirm --rebuildall
 nix-channel --update
 rustup update
 cargo install-update -a

@@ -374,6 +374,7 @@ PACKAGES="
     r2modman-bin
     rainfrog
     ranger
+    rar
     rawtherapee
     raylib
     reaver-wps-fork-t6x-git
