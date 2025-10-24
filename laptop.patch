@@ -1,0 +1,57 @@
+diff --git a/configs/hyprland/hyprland_keybindings.conf b/configs/hyprland/hyprland_keybindings.conf
+index 0a1a468..7e70b67 100644
+--- a/configs/hyprland/hyprland_keybindings.conf
++++ b/configs/hyprland/hyprland_keybindings.conf
+@@ -5,7 +5,7 @@ bind = $mod,       a,      exec, firefox
+ bind = $mod,       e,      exec, nemo
+ bind = $mod,       d,      exec, nc -U /run/user/1000/walker/walker.sock # themed-bmenu #nc -U /run/user/1000/walker/walker.sock #walker, but faster
+ bind = $mod SHIFT, s,      exec, grim -g "$(slurp)" - | wl-copy
+-bind = $mod,       z,      exec, grim - | wayland-boomer --monitor-scaling 1.666667
++bind = $mod,       z,      exec, grim - | wayland-boomer
+ bind = $mod,       p,      exec, hyprpicker | tr -d '\n' | wl-copy
+ bind = $mod SHIFT, e,      exec, wlogout -b 5 -c 35
+ bind = $mod,       w,      exec, switch-wallpaper
+diff --git a/configs/hyprland/hyprland_layout.conf b/configs/hyprland/hyprland_layout.conf
+index ddc1e68..16b9f7f 100644
+--- a/configs/hyprland/hyprland_layout.conf
++++ b/configs/hyprland/hyprland_layout.conf
+@@ -7,15 +7,15 @@ dwindle {
+     smart_split = false
+ }
+ 
+-workspace = 1, monitor:DP-2
+-workspace = 2, monitor:DP-2
+-workspace = 3, monitor:DP-2
+-workspace = 4, monitor:DP-2
+-workspace = 5, monitor:DP-1
+-workspace = 6, monitor:DP-1
+-workspace = 7, monitor:DP-1
+-workspace = 8, monitor:DP-1
+-workspace = 9, monitor:DP-1
++workspace = 1, monitor:eDP-1
++workspace = 2, monitor:eDP-1
++workspace = 3, monitor:eDP-1
++workspace = 4, monitor:eDP-1
++workspace = 5, monitor:eDP-1
++workspace = 6, monitor:eDP-1
++workspace = 7, monitor:eDP-1
++workspace = 8, monitor:eDP-1
++workspace = 9, monitor:eDP-1
+ 
+ windowrule = workspace 1,    class:^steam$
+ windowrule = workspace 5,    class:^Spotify$
+diff --git a/configs/hyprland/hyprland_monitors.conf b/configs/hyprland/hyprland_monitors.conf
+index 8922136..737c5f7 100644
+--- a/configs/hyprland/hyprland_monitors.conf
++++ b/configs/hyprland/hyprland_monitors.conf
+@@ -1,8 +1,8 @@
+ #monitor=name,resolution,position,scale
+ 
+ # this is for xwayland exclusively
+-env = QT_AUTO_SCREEN_SCALE_FACTOR,2
+-env = GDK_SCALE,2
++env = QT_AUTO_SCREEN_SCALE_FACTOR,1
++env = GDK_SCALE,1
+ xwayland {
+   force_zero_scaling = true
+ }
