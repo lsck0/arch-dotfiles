@@ -67,6 +67,7 @@ PACKAGES="
     coreutils
     cowsay
     cpufetch
+    croc
     cronie
     cups
     curl
@@ -155,6 +156,7 @@ PACKAGES="
     gpu-screen-recorder
     gpu-screen-recorder-ui
     graphviz
+    grex
     grim
     gst-plugin-pipewire
     gtk3
@@ -348,6 +350,7 @@ PACKAGES="
     prettier
     protonup-git
     python-black
+    python-faker
     python-isort
     python-matplotlib
     python-numpy
@@ -418,6 +421,7 @@ PACKAGES="
     themix-gui-git
     themix-plugin-base16-git
     thunderbird
+    tig
     tiled
     timeshift
     timew
