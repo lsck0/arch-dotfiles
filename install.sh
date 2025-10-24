@@ -248,7 +248,6 @@ PACKAGES="
     localsend
     logseq-desktop-bin
     lolcat
-    losslesscut-bin
     lshw
     lua51-luautf8
     luarocks
@@ -498,7 +497,6 @@ PACKAGES="
     xorg-xinput
     xorg-xwayland
     xournalpp
-    xwaylandvideobridge
     ydotool
     zig
     zip
