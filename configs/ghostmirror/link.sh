@@ -9,6 +9,11 @@ ghostmirror -c Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands -l 
 # link the mirrorlist over
 sudo ln -sf ${PWD}/mirrorlist /etc/pacman.d/mirrorlist
 
+# fix permissions
+sudo touch /etc/pacman.d/mirrorlist.gm.bak
+sudo chown luca:luca /etc/pacman.d/mirrorlist
+sudo chown luca:luca /etc/pacman.d/mirrorlist.gm.bak
+
 # have ghostmirror linger and periodically sort the mirrorlist
 ghostmirror -DPo -mul /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist \
-    -s light -S state,outofdate,morerecent,extimated,speed
+    -s light -S state,outofdate,morerecent,estimated,speed
