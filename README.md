@@ -18,6 +18,12 @@ after archinstall minimal and no applications (bluetooth, audio) configured to s
 
 - enable optional configs (`fd manual_link.sh` and cd into the folder before running)
 
+- in case of LUKS encryption, change sector size to 4096 bytes for better performance:
+
+```bash
+sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
+```
+
 - add fingerprint with `fprintd-enroll` (once per device)
 
 - configure the firewall (portmaster), for example:

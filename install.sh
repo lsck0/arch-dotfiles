@@ -412,6 +412,7 @@ PACKAGES="
     tar
     taskwarrior-tui
     teamspeak3
+    telegram-desktop
     terminus-font-ttf
     terraform
     texlive
