@@ -567,7 +567,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## FINALIZE
 
-./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky12.jpg >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/fantasy-landscape2.png >/dev/null 2>/dev/null
 
 sleep 15
 sleep 120 && reboot &
