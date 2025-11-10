@@ -138,6 +138,7 @@ PACKAGES="
     git-delta
     git-filter-repo
     github-cli
+    github-copilot-cli
     gitleaks
     glfw
     glm
@@ -464,6 +465,7 @@ PACKAGES="
     whatsdesk-bin
     whois
     wiki-tui
+    winboat-bin
     wine-staging
     wireguard-tools
     wireguard-ui-bin
