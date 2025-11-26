@@ -22,7 +22,6 @@ PACKAGES="
     bettercap-git
     betterdiscord-installer
     bind
-    bitwarden-bin
     bleachbit
     blender
     blockbench-bin
@@ -154,8 +153,6 @@ PACKAGES="
     go
     gobuster
     gparted
-    gpu-screen-recorder
-    gpu-screen-recorder-ui
     graphviz
     grex
     grim
