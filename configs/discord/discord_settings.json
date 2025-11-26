@@ -4,7 +4,7 @@
   "WINDOW_BOUNDS": {
     "x": 5,
     "y": 34,
-    "width": 1319,
+    "width": 1294,
     "height": 1040
   },
   "SKIP_HOST_UPDATE": true,
@@ -14,5 +14,6 @@
   "MIN_WIDTH": 940,
   "MIN_HEIGHT": 500,
   "BACKGROUND_COLOR": "#000000",
-  "offloadAdmControls": true
+  "offloadAdmControls": true,
+  "asyncVideoInputDeviceInit": false
 }
