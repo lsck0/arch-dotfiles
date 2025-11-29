@@ -24,7 +24,6 @@ PACKAGES="
     bind
     bleachbit
     blender
-    blockbench-bin
     blueberry
     bluez
     bluez-utils
@@ -167,7 +166,6 @@ PACKAGES="
     htop
     hydra
     hyperfine
-    hypnotix
     hyprcursor
     hypridle
     hyprland
@@ -179,7 +177,6 @@ PACKAGES="
     i3status
     identity
     imagemagick
-    impala
     inkscape
     intel-media-driver
     ipython
@@ -253,7 +250,6 @@ PACKAGES="
     ly
     lynis
     lynx
-    magicavoxel
     make
     mako
     man-db
@@ -320,7 +316,6 @@ PACKAGES="
     ossec-hids-local
     osslsigncode
     pandoc-cli
-    parabolic
     parallel
     pass
     pastel
@@ -356,6 +351,8 @@ PACKAGES="
     python-pip
     python-poetry
     python-pywalfox
+    python-scikit-learn
+    python-scipy
     python-sympy
     python-validity-git
     pywal-spicetify
@@ -433,11 +430,67 @@ PACKAGES="
     tparted-bin
     trash-cli
     trufflehog
+    ttf-anonymous-pro
+    ttf-arphic-ukai
+    ttf-arphic-uming
+    ttf-atkinson-hyperlegible
+    ttf-baekmuk
     ttf-caladea
+    ttf-cascadia-code
+    ttf-charis
+    ttf-charis-sil
+    ttf-cormorant
+    ttf-crimson
+    ttf-crimson-pro
+    ttf-crimson-pro-variable
+    ttf-croscore
+    ttf-doulos-sil
+    ttf-droid
+    ttf-eurof
+    ttf-fantasque-sans-mono
     ttf-fira-code
+    ttf-fira-mono
+    ttf-fira-sans
+    ttf-gentium
+    ttf-gentium-book
+    ttf-gentium-plus
+    ttf-hack
     ttf-hanazono
+    ttf-hannom
+    ttf-ibm-plex
+    ttf-inconsolata
+    ttf-indic-otf
+    ttf-input
+    ttf-input-nerd
+    ttf-jetbrains-mono
+    ttf-jigmo
+    ttf-junicode
+    ttf-junicode-variable
+    ttf-khmer
+    ttf-lato
+    ttf-libertinus
+    ttf-linux-libertine
+    ttf-linux-libertine-g
+    ttf-material-icons
+    ttf-material-symbols-variable
+    ttf-mona-sans
+    ttf-monaspace-frozen
+    ttf-monaspace-variable
+    ttf-monofur
+    ttf-monoid
+    ttf-montserrat
     ttf-ms-fonts
+    ttf-nunito
     ttf-opensans
+    ttf-overpass
+    ttf-roboto
+    ttf-roboto-mono
+    ttf-sarasa-gothic
+    ttf-sazanami
+    ttf-scheherazade-new
+    ttf-tibetan-machine
+    ttf-ubuntu-font-family
+    ttf-vlgothic
     unzip
     update-grub
     upscaler
