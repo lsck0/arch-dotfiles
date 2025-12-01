@@ -42,7 +42,6 @@ alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
 
-alias emacs="doom run"
 alias ldocker="lazydocker"
 alias lgit="lazygit"
 
