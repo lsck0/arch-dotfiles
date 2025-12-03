@@ -8,9 +8,10 @@ plugins=(aws docker docker-compose fzf git nmap node npm rust sudo terraform)
 source $ZSH/oh-my-zsh.sh
 source ~/.cache/wal/colors.sh
 
-path+=("$HOME/.ghcup/bin")
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/emacs/bin")
+path+=("$HOME/.ghcup/bin")
+path+=("/opt/jai/bin")
 export PATH
 
 export EDITOR=vim
