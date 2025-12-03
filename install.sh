@@ -163,6 +163,7 @@ PACKAGES="
     hashcat
     headsetcontrol
     heroic-games-launcher-bin
+    hotspot
     htop
     hydra
     hyperfine
@@ -391,6 +392,7 @@ PACKAGES="
     snapshot
     sof-firmware
     sox
+    speedscope
     spicetify-cli
     spotify
     sqlite
