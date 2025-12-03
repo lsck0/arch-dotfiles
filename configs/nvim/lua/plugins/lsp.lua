@@ -84,6 +84,7 @@ return {
                     require("better-type-hover").setup()
                 end,
             },
+            { "rluba/jai.vim" },
         },
         config = function()
             vim.diagnostic.config({ virtual_text = true })
