@@ -1,3 +1,4 @@
+https://adventofcode.com/                                                         as aoc
 https://amazon.de
 https://archlinux.org/packages                                                    as archpackages
 https://arxiv.org
@@ -16,5 +17,6 @@ https://pathofexile.com/trade                                                   
 https://poe.ninja                                                                 as poeninja
 https://reddit.com
 https://twitch.com
+https://wiki.libsdl.org/SDL3/APIByCategory                                        as sdl3docs
 https://wolframalpha.com
 https://youtube.com
