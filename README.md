@@ -24,7 +24,7 @@ after archinstall minimal and no applications (bluetooth, audio) configured to s
 sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
 ```
 
-- add fingerprint with `fprintd-enroll` (once per device)
+- add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
 
 - configure the firewall (portmaster), for example:
   - Always use DNS Cache: True

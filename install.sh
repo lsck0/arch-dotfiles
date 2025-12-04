@@ -16,6 +16,7 @@ PACKAGES="
     aseprite
     audacity
     awakened-poe-trade-git
+    bacon
     bat
     bc
     bemenu-wayland
@@ -36,6 +37,7 @@ PACKAGES="
     burpsuite
     caligula
     cargo-binstall
+    cargo-bloat
     cargo-deny
     cargo-edit
     cargo-expand
@@ -67,6 +69,7 @@ PACKAGES="
     cpufetch
     croc
     cronie
+    cross
     cups
     curl
     curseforge
@@ -346,11 +349,13 @@ PACKAGES="
     python-faker
     python-isort
     python-matplotlib
+    python-numba
     python-numpy
     python-pandas
     python-pillow
     python-pip
     python-poetry
+    python-pytorch-rocm
     python-pywalfox
     python-scikit-learn
     python-scipy
@@ -560,10 +565,8 @@ PACKAGES="
 "
 
 CARGO_PKGS="
-    bacon
     bootimage
     cargo-info
-    cross
     irust
     mprocs
     rustfilt
