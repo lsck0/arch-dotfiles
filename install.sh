@@ -111,6 +111,7 @@ PACKAGES="
     fd
     feh
     ffmpeg
+    figlet
     file
     filezilla
     firefox
@@ -498,6 +499,7 @@ PACKAGES="
     ttf-tibetan-machine
     ttf-ubuntu-font-family
     ttf-vlgothic
+    tty-clock
     unzip
     update-grub
     upscaler
