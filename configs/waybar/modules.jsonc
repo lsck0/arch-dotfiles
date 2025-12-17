@@ -52,6 +52,7 @@
         "max-length": 25,
         "tooltip-format": "<tt><small>{calendar}</small></tt>",
         "calendar": {
+            "locale": "de_DE.UTF-8",
             "mode": "year",
             "mode-mon-col": 3,
             "weeks-pos": "left",
