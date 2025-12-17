@@ -2,7 +2,7 @@
 
 set -ex
 
-sudo systemctl enable --now sshd
+sudo systemctl enable sshd
 
 ln -sf ${PWD}/ssh-agent.service ${HOME}/.config/systemd/user/ssh-agent.service
 
