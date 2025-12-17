@@ -257,7 +257,6 @@ PACKAGES="
     mangohud
     mdbook
     mesa
-    mesa-vdpau
     meson
     metadata-cleaner
     metasploit

@@ -43,7 +43,7 @@ return {
             { "jay-babu/mason-null-ls.nvim" },
             { "neovim/nvim-lspconfig" },
             { "nvimtools/none-ls.nvim" },
-            { "williamboman/mason-lspconfig.nvim" },
+            { "mason-org/mason-lspconfig.nvim" },
             {
                 "ivanjermakov/troublesum.nvim",
                 config = function()
