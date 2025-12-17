@@ -622,7 +622,6 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## REBOOT
 
-sleep 15
 sleep 150 && reboot &
 
 echo "Done. Rebooting soon." | nvim
