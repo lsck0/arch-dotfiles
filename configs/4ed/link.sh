@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 sudo git clone https://github.com/4coder-archive/4coder.git /opt/4ed/code
 sudo git clone https://github.com/4coder-archive/4coder-non-source.git /opt/4ed/4coder-non-source

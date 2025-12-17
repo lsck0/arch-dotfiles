@@ -21,6 +21,7 @@ return {
 
     {
         "mistweaverco/kulala.nvim",
+        lazy = false,
         keys = {
             { "<leader>rs", desc = "Send request" },
             { "<leader>ra", desc = "Send all requests" },
@@ -36,6 +37,7 @@ return {
 
     {
         "jiaoshijie/undotree",
+        lazy = false,
         dependencies = "nvim-lua/plenary.nvim",
         config = true,
         keys = {
@@ -44,7 +46,8 @@ return {
     },
 
     {
-        'piersolenski/import.nvim',
+        "piersolenski/import.nvim",
+        lazy = false,
         opts = {
             picker = "telescope",
         },

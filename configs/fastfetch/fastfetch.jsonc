@@ -18,11 +18,6 @@
             "outputColor": "cyan",
         },
         {
-            "type": "host",
-            "key": "H ",
-            "format": "{2} {3}",
-        },
-        {
             "type": "kernel",
             "key": "K ",
             "format": "{1} {2} {4}",
@@ -40,6 +35,11 @@
             "type": "gpu",
             "key": "G ",
             "format": "{2}",
+        },
+        {
+            "type": "memory",
+            "key": "M ",
+            "format": "{used} / {total} ({percentage})",
         },
         {
             "type": "disk",

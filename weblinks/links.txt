@@ -3,7 +3,6 @@ https://amazon.de
 https://archlinux.org/packages                                                    as archpackages
 https://arxiv.org
 https://aur.archlinux.org                                                         as aur
-https://chatgpt.com
 https://craftofexile.com/                                                         as poecraft
 https://detexify.kirelabs.org/classify.html                                       as detexify
 https://ecampus.uni-goettingen.de

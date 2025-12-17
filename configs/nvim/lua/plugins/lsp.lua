@@ -3,6 +3,7 @@ local installed = {
     "bibtex-tidy",
     "black",
     "clangd",
+    "codelldb",
     "css-lsp",
     "cssmodules-language-server",
     "docker_compose_language_service",
@@ -37,34 +38,12 @@ local installed = {
 
 return {
     {
-        "williamboman/mason.nvim",
+        "mason-org/mason.nvim",
         dependencies = {
             { "jay-babu/mason-null-ls.nvim" },
-            { "lervag/vimtex" },
             { "neovim/nvim-lspconfig" },
             { "nvimtools/none-ls.nvim" },
             { "williamboman/mason-lspconfig.nvim" },
-            {
-                "saecki/crates.nvim",
-                config = function()
-                    require("crates").setup({})
-                end
-            },
-            {
-                "folke/lazydev.nvim",
-                ft = "lua",
-                opts = {
-                    library = {
-                        { path = "${3rd}/luv/library", words = { "vim%.uv" } },
-                    },
-                },
-            },
-            {
-                "dmmulroy/ts-error-translator.nvim",
-                config = function()
-                    require("ts-error-translator").setup()
-                end
-            },
             {
                 "ivanjermakov/troublesum.nvim",
                 config = function()
@@ -84,7 +63,29 @@ return {
                     require("better-type-hover").setup()
                 end,
             },
+            {
+                "folke/lazydev.nvim",
+                ft = "lua",
+                opts = {
+                    library = {
+                        { path = "${3rd}/luv/library", words = { "vim%.uv" } },
+                    },
+                },
+            },
+            {
+                "dmmulroy/ts-error-translator.nvim",
+                config = function()
+                    require("ts-error-translator").setup()
+                end
+            },
             { "rluba/jai.vim" },
+            { "lervag/vimtex" },
+            {
+                "saecki/crates.nvim",
+                config = function()
+                    require("crates").setup({})
+                end
+            },
         },
         config = function()
             vim.diagnostic.config({ virtual_text = true })
@@ -97,16 +98,18 @@ return {
                 automatic_installation = true,
             })
 
-            require("lspconfig").rust_analyzer.setup({
+            vim.lsp.config("rust_analyzer", {
                 settings = {
-                    ['rust-analyzer'] = {
+                    ["rust-analyzer"] = {
                         check = {
                             command = "clippy",
                         }
                     }
                 }
             })
-            require("lspconfig").clangd.setup({
+            vim.lsp.enable("rust_analyzer")
+
+            vim.lsp.config("clangd", {
                 cmd = {
                     "clangd",
                     "--offset-encoding=utf-16",
@@ -114,6 +117,7 @@ return {
                     "--suggest-missing-includes",
                 },
             })
+            vim.lsp.enable("clangd")
 
             require("mason-lspconfig").setup({
                 automatic_enable = {
@@ -127,7 +131,7 @@ return {
     },
 
     {
-        'stevearc/conform.nvim',
+        "stevearc/conform.nvim",
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,

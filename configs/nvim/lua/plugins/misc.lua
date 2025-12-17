@@ -10,8 +10,16 @@ return {
         end
     },
     {
-        "ggandor/leap.nvim",
-        config = function() require("leap").create_default_mappings() end
+        "https://codeberg.org/andyg/leap.nvim",
+        config = function()
+            local clever_s = require('leap.user').with_traversal_keys('s', 'S')
+            vim.keymap.set({ 'n', 'x', 'o' }, 's', function ()
+              require('leap').leap { opts = clever_s }
+            end)
+            vim.keymap.set({ 'n', 'x', 'o' }, 'S', function ()
+              require('leap').leap { opts = clever_s, backward = true }
+            end)
+        end
     },
     {
         "hat0uma/csvview.nvim",

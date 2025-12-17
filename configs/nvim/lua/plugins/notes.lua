@@ -5,6 +5,7 @@ return {
     },
 
     {
+        lazy = false,
         "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {
@@ -38,6 +39,7 @@ return {
 
     {
         "nvim-orgmode/orgmode",
+        lazy = false,
         ft = { "org" },
         config = function()
             require("orgmode").setup({

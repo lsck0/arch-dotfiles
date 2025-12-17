@@ -1,8 +1,8 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 set -ex
 
-sudo systemctl enable nix-daemon
+sudo systemctl enable --now nix-daemon
 
 mkdir -p ${HOME}/.config/nix
 ln -sf ${PWD}/nix.conf ${HOME}/.config/nix/nix.conf

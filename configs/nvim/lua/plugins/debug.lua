@@ -51,10 +51,10 @@ return {
 
             dap.adapters.python = function(cb)
                 cb({
-                    type = 'executable',
-                    command = 'debugpy',
+                    type = "executable",
+                    command = "debugpy",
                     options = {
-                        source_filetype = 'python',
+                        source_filetype = "python",
                     },
                 })
             end
@@ -89,18 +89,18 @@ return {
 
             dap.configurations.python = { {
                 name = "Launch",
-                type = 'python',
-                request = 'launch',
+                type = "python",
+                request = "launch",
                 program = function()
                     return vim.fn.input("Path to main file: ", vim.fn.getcwd() .. "/", "file")
                 end,
                 cwd = "${workspaceFolder}",
                 pythonPath = function()
                     local cwd = vim.fn.getcwd()
-                    if vim.fn.executable(cwd .. '/venv/bin/python') == 1 then
-                        return cwd .. '/venv/bin/python'
-                    elseif vim.fn.executable(cwd .. '/.venv/bin/python') == 1 then
-                        return cwd .. '/.venv/bin/python'
+                    if vim.fn.executable(cwd .. "/venv/bin/python") == 1 then
+                        return cwd .. "/venv/bin/python"
+                    elseif vim.fn.executable(cwd .. "/.venv/bin/python") == 1 then
+                        return cwd .. "/.venv/bin/python"
                     else
                         return "/run/current-system/sw/bin/python"
                     end

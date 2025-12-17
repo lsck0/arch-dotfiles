@@ -47,7 +47,6 @@ vim.keymap.set("n", "<leader>fc", function()
         cwd = "~/code/arch-dotfiles",
     })
 end, {})
-
 vim.keymap.set("n", "<leader>ff", telescope.find_files, {})
 vim.keymap.set("n", "<leader>fw", telescope.live_grep, {})
 vim.keymap.set("n", "<leader>fb", telescope.buffers, {})
@@ -82,7 +81,6 @@ function _G.Toggle_venn()
         vim.b.venn_enabled = nil
     end
 end
-
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { noremap = true })
 
 -- debugging

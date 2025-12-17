@@ -23,5 +23,5 @@ set.swapfile = false
 set.tabstop = 4
 set.termguicolors = true
 set.timeout = true
-set.timeoutlen = 400
+set.timeoutlen = 200
 set.wrap = false

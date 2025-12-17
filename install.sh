@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 exec > >(tee -a "install.log") 2>&1
@@ -58,6 +58,7 @@ PACKAGES="
     chromium
     clang
     cloc
+    clonezilla
     cmake
     cmatrix
     codechecker
@@ -72,7 +73,6 @@ PACKAGES="
     cross
     cups
     curl
-    curseforge
     diesel-cli
     discord
     dmenu
@@ -176,6 +176,7 @@ PACKAGES="
     hyprland
     hyprlock
     hyprpicker
+    hyprsunset
     i3-wm
     i3blocks
     i3lock

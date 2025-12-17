@@ -15,7 +15,7 @@ Name has to match /^[a-zA-Z0-9-_]+$/.
 with open("./links.txt", "r") as file:
     for line in file:
         line = line.strip()
-        parts = [ p.strip() for p in line.split(" ") if p.strip() ]
+        parts = [p.strip() for p in line.split(" ") if p.strip()]
 
         # two cases:
         # url
