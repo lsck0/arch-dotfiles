@@ -3,18 +3,6 @@ return {
         "hrsh7th/nvim-cmp",
         dependencies = {
             {
-                "github/copilot.vim",
-                config = function()
-                    vim.api.nvim_set_hl(0, "CopilotSuggestion", { fg = "#910367" })
-                    vim.keymap.set("i", "<C-a>", "copilot#Accept('<CR>')", {
-                        expr = true,
-                        replace_keycodes = false
-                    })
-                    vim.g.copilot_no_tab_map = true
-                end
-            },
-
-            {
                 "windwp/nvim-autopairs",
                 opts = {
                     fast_wrap = {},
@@ -28,10 +16,24 @@ return {
             },
 
             {
+                "github/copilot.vim",
+                config = function()
+                    vim.api.nvim_set_hl(0, "CopilotSuggestion", { fg = "#910367" })
+                    vim.keymap.set("i", "<C-a>", "copilot#Accept('<CR>')", {
+                        expr = true,
+                        replace_keycodes = false
+                    })
+                    vim.g.copilot_no_tab_map = true
+                end
+            },
+
+            {
                 "L3MON4D3/LuaSnip",
                 version = "v2.*",
                 build = "make install_jsregexp"
             },
+
+            { "onsails/lspkind.nvim" },
 
             {
                 "Dosx001/cmp-commit",
@@ -43,8 +45,6 @@ return {
                 "hrsh7th/cmp-path",
                 "saadparwaiz1/cmp_luasnip",
             },
-
-            { "onsails/lspkind.nvim" },
         },
         config = function()
             vim.api.nvim_set_hl(0, "MyCursorLine", { fg = "#6c6f93" })
@@ -54,13 +54,13 @@ return {
             cmp.setup({
                 preselect = cmp.PreselectMode.None,
                 sources = {
-                    { name = 'luasnip' },
+                    { name = "luasnip" },
                     { name = "nvim_lsp" },
                     { name = "path" },
-                    { name = 'commits' },
-                    { name = 'conventionalcommits' },
-                    { name = 'calc' },
-                    { name = 'render-markdown' },
+                    { name = "commits" },
+                    { name = "conventionalcommits" },
+                    { name = "calc" },
+                    { name = "render-markdown" },
                     { name = "buffer" },
                 },
                 mapping = cmp.mapping.preset.insert({

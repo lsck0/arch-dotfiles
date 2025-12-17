@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 # reboot into w*ndows
 
 set -xe

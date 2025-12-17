@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Update all the things
 
 set -e
@@ -11,6 +11,7 @@ if [ "$confirm" != "y" ]; then
 fi
 
 yay -Syyu --noconfirm --rebuildall --answerclean A
+flatpak update --assumeyes
 nix-channel --update
 rustup update
 cargo install-update -a

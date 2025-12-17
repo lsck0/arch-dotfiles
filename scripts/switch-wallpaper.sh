@@ -1,5 +1,5 @@
-#!/bin/env bash
-#
+#!/usr/bin/env bash
+
 set_wallpaper() {
     local file="$1"
 
@@ -94,7 +94,7 @@ main() {
     set_wallpaper "$SELECTED_FILE"
 
     # wait for animation to finish
-    sleep 25
+    sleep 30
 
     exit 0
 }

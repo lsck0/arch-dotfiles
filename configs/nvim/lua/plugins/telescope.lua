@@ -5,7 +5,7 @@ local ignore_filetypes_list = {
 return {
     {
         "ThePrimeagen/harpoon",
-        lazy = true,
+        lazy = false,
         event = "BufRead",
         branch = "harpoon2",
         config = function()

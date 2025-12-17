@@ -1,8 +1,8 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 set -ex
 
-sudo systemctl enable sshd
+sudo systemctl enable --now sshd
 
 ln -sf ${PWD}/ssh-agent.service ${HOME}/.config/systemd/user/ssh-agent.service
 

@@ -1,10 +1,11 @@
 return {
     {
         "kristijanhusak/vim-dadbod-ui",
+        lazy = false,
         dependencies = {
             { "nvim-neotest/nvim-nio" },
-            { "tpope/vim-dadbod",                     lazy = true },
-            { "kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" }, lazy = true },
+            { "tpope/vim-dadbod",                     lazy = false },
+            { "kristijanhusak/vim-dadbod-completion", lazy = false, ft = { "sql", "mysql", "plsql" }, lazy = true },
         },
         cmd = {
             "DBUI",

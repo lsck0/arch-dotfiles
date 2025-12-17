@@ -124,7 +124,7 @@ return {
 
     {
         "NvChad/nvim-colorizer.lua",
-        lazy = true,
+        lazy = false,
         event = "BufRead",
         config = function()
             require("colorizer").setup({
@@ -142,6 +142,19 @@ return {
         "folke/snacks.nvim",
         opts = {
             bigfile = { enabled = true },
+            dashboard = {
+                enabled = true,
+                preset = {
+                    keys = {
+                        { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
+                        { icon = " ", key = "f", desc = "Find File", action = ":lua Snacks.dashboard.pick('files')" },
+                        { icon = " ", key = "g", desc = "Find Text", action = ":lua Snacks.dashboard.pick('live_grep')" },
+                        { icon = " ", key = "r", desc = "Recent Files", action = ":lua Snacks.dashboard.pick('oldfiles')" },
+                        { icon = "󰒲 ", key = "L", desc = "Lazy", action = ":Lazy", enabled = package.loaded.lazy ~= nil },
+                        { icon = " ", key = "q", desc = "Quit", action = ":qa" },
+                    },
+                }
+            },
             image = {
                 enabled = true,
                 convert = {
@@ -159,6 +172,7 @@ return {
                     }
                 }
             },
+            notifier = { enabled = true },
         },
     },
 
@@ -175,7 +189,6 @@ return {
                     long_message_to_split = true,
                 },
                 messages = { enabled = true },
-                notify = { enabled = true },
                 cmdline = { enabled = true },
             })
         end

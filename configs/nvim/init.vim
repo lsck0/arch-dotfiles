@@ -1,6 +1,6 @@
 lua require("init")
 
-"auto file reload
+" auto file reload
 set autoread
 au CursorHold * checktime
 
