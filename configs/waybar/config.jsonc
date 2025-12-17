@@ -69,4 +69,31 @@
             "~/.config/waybar/modules.jsonc"
         ],
     },
+    {
+        "output": "Virtual-1",
+        "layer": "bottom",
+        "position": "top",
+        "height": 30,
+        "spacing": 18,
+        "modules-left": [
+            "hyprland/workspaces",
+            "hyprland/submap"
+        ],
+        "modules-center": [
+            "clock"
+        ],
+        "modules-right": [
+            "tray",
+            "cpu",
+            "memory",
+            "temperature",
+            "network",
+            "pulseaudio",
+            "backlight",
+            "battery",
+        ],
+        "include": [
+            "~/.config/waybar/modules.jsonc"
+        ],
+    },
 ]

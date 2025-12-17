@@ -64,4 +64,6 @@ sudo ln -sf ~/code/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/
 
 ## Screenshots
 
+Amazing wallpapers: https://aenamiart.artstation.com/
+
 ![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)

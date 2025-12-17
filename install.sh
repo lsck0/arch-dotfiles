@@ -86,6 +86,7 @@ PACKAGES="
     ecgen-git
     efibootmgr
     elan-lean
+    element
     elephant
     elephant-archlinuxpkgs
     elephant-calc
@@ -165,6 +166,7 @@ PACKAGES="
     hashcat
     headsetcontrol
     heroic-games-launcher-bin
+    hexchat
     hotspot
     htop
     hydra
@@ -262,6 +264,7 @@ PACKAGES="
     metasploit
     micro
     millennium
+    minder
     minecraft-launcher
     mingw-w64-gcc
     minikube
@@ -386,6 +389,7 @@ PACKAGES="
     sdl3
     serie
     sfxr-qt-bin
+    signal-desktop
     slurp
     smartmontools
     snapshot
@@ -552,6 +556,7 @@ PACKAGES="
     xorg-xwayland
     xournalpp
     ydotool
+    zed
     zig
     zip
     zoxide
@@ -604,7 +609,8 @@ sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-
 
 cargo install $CARGO_PKGS -j $(nproc)
 
-sudo rm -rf ${HOME}/go/
+rm -rf ${HOME}/go/
+rm -rf ${HOME}/.cache/yay/
 
 ## LINK
 
@@ -618,7 +624,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## INIT WALLPAPER AND THEME FILES
 
-./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky.png >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-ice1920.jpg >/dev/null 2>/dev/null
 
 ## REBOOT
 
