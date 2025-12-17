@@ -6,6 +6,7 @@ set_wallpaper() {
     # set the wallpaper
     swww img "$file" --transition-type center --transition-step 1 --transition-duration 3 --transition-fps 60 &
     ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null &
+    echo $file > "$HOME/.cache/wal/wallpaper_path" 2>/dev/null &
 
     # generate the new colors
     wal -i "$file"
@@ -48,6 +49,7 @@ set_wallpaper() {
 
     # touch the waybar style to have it reload (it doesnt detect dependencies of style.css)
     echo "" >> ~/.config/waybar/style.css && sed -i '${/^$/d;}' ~/.config/waybar/style.css &
+    touch ~/.config/ghostty/config
 
     pkill mako && mako &
 }

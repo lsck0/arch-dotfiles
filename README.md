@@ -65,7 +65,3 @@ sudo ln -sf ~/code/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/
 ## Screenshots
 
 ![screenshot](https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/showcase/showcase1.png)
-
-## ToDo
-
-- Upfront tui / config / something to select "features" to install
