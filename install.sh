@@ -609,7 +609,7 @@ sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-
 
 cargo install $CARGO_PKGS -j $(nproc)
 
-rm -rf ${HOME}/go/
+sudo rm -rf ${HOME}/go/
 rm -rf ${HOME}/.cache/yay/
 
 ## LINK
