@@ -28,7 +28,6 @@ PACKAGES="
     blueberry
     bluez
     bluez-utils
-    boomer-git
     boscaceoil
     bottles
     brightnessctl
@@ -81,7 +80,6 @@ PACKAGES="
     docker-compose
     downgrade
     dua-cli
-    durdraw
     dust
     dysk
     easyeffects
@@ -177,10 +175,6 @@ PACKAGES="
     hyprlock
     hyprpicker
     hyprsunset
-    i3-wm
-    i3blocks
-    i3lock
-    i3status
     identity
     imagemagick
     inkscape
@@ -329,7 +323,6 @@ PACKAGES="
     pavucontrol
     pdftk
     phoronix-test-suite
-    picom
     pipeline-gtk
     piper
     pipewire
@@ -547,7 +540,6 @@ PACKAGES="
     xdg-user-dirs
     xdg-user-dirs-gtk
     xdg-utils
-    xed
     xf86-input-synaptics
     xf86-video-amdgpu
     xf86-video-ati
@@ -625,11 +617,13 @@ echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/
 find "$(pwd)" -type f -name 'link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'
 find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && python $(basename {})'
 
-## FINALIZE
+## INIT WALLPAPER AND THEME FILES
 
-./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/fantasy-landscape2.png >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/sky.png >/dev/null 2>/dev/null
+
+## REBOOT
 
 sleep 15
-sleep 120 && reboot &
+sleep 150 && reboot &
 
-echo "Done. Please reboot." | nvim
+echo "Done. Rebooting soon." | nvim

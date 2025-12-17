@@ -18,4 +18,4 @@ keybind = ctrl+shift+p=unbind
 keybind = ctrl+shift+t=unbind
 
 #https://github.com/hackr-sh/ghostty-shaders
-#custom-shader=./ghostty-shaders/bloom.glsl
+custom-shader=./ghostty-shaders/glow-rgbsplit-twitchy.glsl
