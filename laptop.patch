@@ -1,10 +1,10 @@
 diff --git a/configs/hyprland/hyprland_keybindings.conf b/configs/hyprland/hyprland_keybindings.conf
-index 0a1a468..7e70b67 100644
+index 08bb247..04414d4 100644
 --- a/configs/hyprland/hyprland_keybindings.conf
 +++ b/configs/hyprland/hyprland_keybindings.conf
 @@ -5,7 +5,7 @@ bind = $mod,       a,      exec, firefox
  bind = $mod,       e,      exec, nemo
- bind = $mod,       d,      exec, nc -U /run/user/1000/walker/walker.sock # themed-bmenu #nc -U /run/user/1000/walker/walker.sock #walker, but faster
+ bind = $mod,       d,      exec, nc -U /run/user/1000/walker/walker.sock #walker # themed-bmenu
  bind = $mod SHIFT, s,      exec, grim -g "$(slurp)" - | wl-copy
 -bind = $mod,       z,      exec, grim - | wayland-boomer --monitor-scaling 1.666667
 +bind = $mod,       z,      exec, grim - | wayland-boomer
@@ -12,11 +12,11 @@ index 0a1a468..7e70b67 100644
  bind = $mod SHIFT, e,      exec, wlogout -b 5 -c 35
  bind = $mod,       w,      exec, switch-wallpaper
 diff --git a/configs/hyprland/hyprland_layout.conf b/configs/hyprland/hyprland_layout.conf
-index ddc1e68..16b9f7f 100644
+index f574742..ce45943 100644
 --- a/configs/hyprland/hyprland_layout.conf
 +++ b/configs/hyprland/hyprland_layout.conf
 @@ -7,15 +7,15 @@ dwindle {
-     smart_split = false
+     smart_split                  = false
  }
  
 -workspace = 1, monitor:DP-2
