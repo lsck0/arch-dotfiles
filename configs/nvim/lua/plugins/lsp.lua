@@ -15,6 +15,7 @@ local installed = {
     "hlint",
     "html-lsp",
     "isort",
+    "jinja-lsp",
     "json-lsp",
     "latexindent",
     "lean-language-server",

@@ -6,7 +6,7 @@ return {
         priority = 1000,
         name = "pywal",
         config = function()
-            require('pywal').setup()
+            require("pywal").setup()
         end,
     },
 

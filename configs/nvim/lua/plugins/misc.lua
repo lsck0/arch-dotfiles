@@ -12,12 +12,12 @@ return {
     {
         "https://codeberg.org/andyg/leap.nvim",
         config = function()
-            local clever_s = require('leap.user').with_traversal_keys('s', 'S')
-            vim.keymap.set({ 'n', 'x', 'o' }, 's', function ()
-              require('leap').leap { opts = clever_s }
+            local clever_s = require("leap.user").with_traversal_keys("s", "S")
+            vim.keymap.set({ "n", "x", "o" }, "s", function ()
+              require("leap").leap { opts = clever_s }
             end)
-            vim.keymap.set({ 'n', 'x', 'o' }, 'S', function ()
-              require('leap').leap { opts = clever_s, backward = true }
+            vim.keymap.set({ "n", "x", "o" }, "S", function ()
+              require("leap").leap { opts = clever_s, backward = true }
             end)
         end
     },
@@ -52,8 +52,7 @@ return {
         config = function()
             require("cloak").setup({
                 enabled = true,
-                cloak_character =
-                "#",
+                cloak_character = "#",
                 highlight_group = "Comment",
                 patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" }, },
             })
