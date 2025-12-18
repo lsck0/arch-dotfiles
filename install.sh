@@ -184,6 +184,7 @@ PACKAGES="
     ipython
     iwd
     jdownloader2
+    jetbrains-toolbox
     john
     jq
     jupyterlab

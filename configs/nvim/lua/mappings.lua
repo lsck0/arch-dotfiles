@@ -81,6 +81,7 @@ function _G.Toggle_venn()
         vim.b.venn_enabled = nil
     end
 end
+
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { noremap = true })
 
 -- debugging
