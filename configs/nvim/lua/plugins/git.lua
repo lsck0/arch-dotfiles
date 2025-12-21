@@ -1,7 +1,10 @@
 return {
     { "tpope/vim-fugitive" },
 
-    { "sindrets/diffview.nvim" },
+    {
+        "esmuellert/vscode-diff.nvim",
+        dependencies = { "MunifTanjim/nui.nvim" },
+    },
 
     {
         "akinsho/git-conflict.nvim",
