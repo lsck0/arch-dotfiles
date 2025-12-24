@@ -99,5 +99,7 @@ return {
                 },
             },
         },
-    }
+    },
+
+    { "sotte/presenting.nvim" },
 }
