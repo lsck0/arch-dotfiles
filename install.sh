@@ -537,7 +537,6 @@ PACKAGES="
     wl_shimeji-git
     wlogout
     wpa_supplicant
-    wpscan-git
     xclip
     xdg-desktop-portal-gtk
     xdg-desktop-portal-hyprland
