@@ -12,6 +12,7 @@ PACKAGES="
     amdgpu_top
     ani-cli-git
     app2unit
+    arch-update
     argon2
     aseprite
     audacity
@@ -625,7 +626,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## INIT WALLPAPER AND THEME FILES
 
-./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-ice1920.jpg >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-revenant2-2-1.jpg >/dev/null 2>/dev/null
 
 ## REBOOT
 
