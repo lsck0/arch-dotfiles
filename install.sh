@@ -73,6 +73,7 @@ PACKAGES="
     cross
     cups
     curl
+    curseforge
     diesel-cli
     discord
     dmenu
@@ -191,7 +192,6 @@ PACKAGES="
     jupyterlab
     kdenlive
     kitty
-    klevernotes
     kpat
     krita
     kubectl
@@ -265,7 +265,6 @@ PACKAGES="
     metadata-cleaner
     metasploit
     micro
-    millennium
     minder
     minecraft-launcher
     mingw-w64-gcc
