@@ -187,6 +187,7 @@ PACKAGES="
     iwd
     jdownloader2
     jetbrains-toolbox
+    jless
     john
     jq
     jupyterlab
