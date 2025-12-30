@@ -14,7 +14,7 @@ path+=("$HOME/.ghcup/bin")
 path+=("/opt/jai/bin")
 export PATH
 
-export EDITOR=vim
+export EDITOR=nvim
 export SHELL=zsh
 
 HISTSIZE=5000
@@ -28,6 +28,12 @@ setopt hist_ignore_dups
 setopt hist_ignore_space
 setopt hist_save_no_dups
 setopt sharehistory
+
+autoload zmv
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^x^e' edit-command-line
+bindkey ' ' magic-space
 
 alias cat="bat"
 alias cd="z"
@@ -43,6 +49,7 @@ alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
 
+alias convert="magick"
 alias ldocker="lazydocker"
 alias lgit="lazygit"
 
