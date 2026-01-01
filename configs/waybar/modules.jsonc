@@ -1,107 +1,88 @@
 {
-    "reload_style_on_change": true,
-    "wlr/workspaces": {
-        "disable-scroll": true,
+  "reload_style_on_change": true,
+  "wlr/workspaces": {
+    "disable-scroll": true,
+  },
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8,
+  },
+  "cpu": {
+    "format": "  {usage}%",
+    "interval": 2,
+  },
+  "memory": {
+    "format": "󰄦 {used:0.2f}/{total:0.2f} GiB",
+    "interval": 2,
+  },
+  "battery": {
+    "interval": 60,
+    "format": "{icon} {capacity}%",
+    "format-icons": ["", "", "", "", ""],
+    "tooltip": true,
+  },
+  "backlight": {
+    "device": "intel_backlight",
+    "format": "{percent}% {icon} ",
+    "format-icons": ["", ""],
+  },
+  "pulseaudio": {
+    "scroll-step": 5,
+    "format": "{icon} {volume}%",
+    "format-muted": "󰖁 Muted",
+    "format-icons": ["", "", ""],
+    "on-click": "pavucontrol",
+  },
+  "clock": {
+    "interval": 60,
+    "format": "  {:%a %d.%m. %H:%M} ",
+    "max-length": 25,
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "calendar": {
+      "locale": "de_DE.UTF-8",
+      "mode": "year",
+      "mode-mon-col": 3,
+      "weeks-pos": "left",
+      "on-scroll": 1,
+      "on-click-right": "mode",
+      "format": {
+        "months": "<span color='#ffead3'><b>{}</b></span>",
+        "days": "<span color='#ecc6d9'><b>{}</b></span>",
+        "weeks": "<span color='#99ffdd'><b>W{:%W}</b></span>",
+        "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
+        "today": "<span color='#ff6699'><b><u>{}</u></b></span>",
+      },
     },
-    "tray": {
-        "icon-size": 16,
-        "spacing": 8,
+    "actions": {
+      "on-click-right": "mode",
+      "on-click-forward": "tz_up",
+      "on-click-backward": "tz_down",
+      "on-scroll-up": "shift_up",
+      "on-scroll-down": "shift_down",
     },
-    "cpu": {
-        "format": "  {usage}%",
-        "interval": 2,
-    },
-    "memory": {
-        "format": "󰄦 {used:0.2f}/{total:0.2f} GiB",
-        "interval": 2,
-    },
-    "battery": {
-        "interval": 60,
-        "format": "{icon} {capacity}%",
-        "format-icons": [
-            "",
-            "",
-            "",
-            "",
-            ""
-        ],
-        "tooltip": true,
-    },
-    "backlight": {
-        "device": "intel_backlight",
-        "format": "{percent}% {icon} ",
-        "format-icons": [
-            "",
-            ""
-        ],
-    },
-    "pulseaudio": {
-        "scroll-step": 5,
-        "format": "{icon} {volume}%",
-        "format-muted": "󰖁 Muted",
-        "format-icons": [
-            "",
-            "",
-            ""
-        ],
-        "on-click": "pavucontrol",
-    },
-    "clock": {
-        "interval": 60,
-        "format": "  {:%a %d.%m %H:%M} ",
-        "max-length": 25,
-        "tooltip-format": "<tt><small>{calendar}</small></tt>",
-        "calendar": {
-            "locale": "de_DE.UTF-8",
-            "mode": "year",
-            "mode-mon-col": 3,
-            "weeks-pos": "left",
-            "on-scroll": 1,
-            "on-click-right": "mode",
-            "format": {
-                "months": "<span color='#ffead3'><b>{}</b></span>",
-                "days": "<span color='#ecc6d9'><b>{}</b></span>",
-                "weeks": "<span color='#99ffdd'><b>W{:%W}</b></span>",
-                "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
-                "today": "<span color='#ff6699'><b><u>{}</u></b></span>",
-            },
-        },
-        "actions": {
-            "on-click-right": "mode",
-            "on-click-forward": "tz_up",
-            "on-click-backward": "tz_down",
-            "on-scroll-up": "shift_up",
-            "on-scroll-down": "shift_down",
-        },
-    },
-    "hyprland/submap": {
-        "format": "{}",
-        "max-length": 8,
-        "tooltip": false,
-    },
-    "network": {
-        "format-icons": [
-            "󰤯",
-            "󰤟",
-            "󰤢",
-            "󰤥",
-            "󰤨"
-        ],
-        "format": "{icon}",
-        "format-wifi": "{icon} ⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
-        "format-ethernet": "󰀂 ⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
-        "format-disconnected": "󰖪 ",
-        "tooltip-format-wifi": "{essid} ({frequency} GHz)\n⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
-        "tooltip-format-ethernet": "⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
-        "tooltip-format-disconnected": "Disconnected",
-        "interval": 3,
-        "nospacing": 1,
-    },
-    "bluetooth": {
-        "format": " ",
-        "format-disabled": "󰂲 ",
-        "format-connected": " ",
-        "tooltip-format": "Devices connected: {num_connections}",
-        "on-click": "blueberry",
-    },
+  },
+  "hyprland/submap": {
+    "format": "{}",
+    "max-length": 8,
+    "tooltip": false,
+  },
+  "network": {
+    "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
+    "format": "{icon}",
+    "format-wifi": "{icon} ⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
+    "format-ethernet": "󰀂 ⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
+    "format-disconnected": "󰖪 ",
+    "tooltip-format-wifi": "{essid} ({frequency} GHz)\n⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
+    "tooltip-format-ethernet": "⇣{bandwidthDownBytes} ⇡{bandwidthUpBytes}",
+    "tooltip-format-disconnected": "Disconnected",
+    "interval": 3,
+    "nospacing": 1,
+  },
+  "bluetooth": {
+    "format": " ",
+    "format-disabled": "󰂲 ",
+    "format-connected": " ",
+    "tooltip-format": "Devices connected: {num_connections}",
+    "on-click": "blueberry",
+  },
 }
