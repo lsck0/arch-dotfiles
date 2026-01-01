@@ -38,8 +38,8 @@ index f574742..ce45943 100644
 +workspace = 8, monitor:eDP-1
 +workspace = 9, monitor:eDP-1
  
- windowrule = workspace 1,    class:^steam$
- windowrule = workspace 5,    class:^Spotify$
+ windowrule = workspace 1,    match:class ^steam$
+ windowrule = workspace 5,    match:class ^Spotify$
 diff --git a/configs/hyprland/hyprland_monitors.conf b/configs/hyprland/hyprland_monitors.conf
 index 8922136..737c5f7 100644
 --- a/configs/hyprland/hyprland_monitors.conf
