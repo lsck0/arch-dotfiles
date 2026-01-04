@@ -274,6 +274,7 @@ PACKAGES="
     mission-center
     modrinth-app-bin
     mold
+    mov-cli
     mpg123
     mpv
     nano
