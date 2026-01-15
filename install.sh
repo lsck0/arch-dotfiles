@@ -143,6 +143,7 @@ PACKAGES="
     github-cli
     github-copilot-cli
     gitleaks
+    glava
     glfw
     glm
     glow
@@ -242,6 +243,7 @@ PACKAGES="
     libxcomposite
     libxinerama
     libxslt
+    linux-headers
     linux-tools-meta
     llvm
     lmms
@@ -301,6 +303,7 @@ PACKAGES="
     ntfs-3g
     nushell
     nwg-look
+    obs-plugin-browser
     obs-studio
     odin
     oh-my-zsh-git
@@ -504,6 +507,8 @@ PACKAGES="
     update-grub
     upscaler
     v4l-utils
+    v4l2loopback-dkms
+    v4l2loopback-utils
     valgrind
     ventoy-bin
     veracrypt
