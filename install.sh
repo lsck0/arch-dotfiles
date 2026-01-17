@@ -106,6 +106,7 @@ PACKAGES="
     emscripten
     entr
     eza
+    famistudio-bin
     fasm
     fastfetch
     fcrackzip
