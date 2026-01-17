@@ -303,7 +303,10 @@ PACKAGES="
     ntfs-3g
     nushell
     nwg-look
+    obs-audio-wave-bin
+    obs-pipewire-audio-capture
     obs-plugin-browser
+    obs-plugin-waveform-bin
     obs-studio
     odin
     oh-my-zsh-git
