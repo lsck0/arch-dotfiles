@@ -2,6 +2,4 @@
 
 set -ex
 
-sudo systemctl enable ollama.service
-
 flatpak install flathub de.z_ray.Facetracker -y

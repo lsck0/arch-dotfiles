@@ -13,6 +13,17 @@ fi
 yay -Syyu --noconfirm --rebuildall --answerclean A
 flatpak update --assumeyes
 nix-channel --update
+
 rustup update
 cargo install-update -a
+
+opam update
+opam upgrade
+
+ghcup install ghc
+ghcup install cabal
+ghcup install hls
+ghcup install stack
+ghcup upgrade
+
 mise upgrade
