@@ -29,7 +29,6 @@ PACKAGES="
     blueberry
     bluez
     bluez-utils
-    boscaceoil
     bottles
     brightnessctl
     btop
@@ -319,6 +318,7 @@ PACKAGES="
     openal
     openbsd-netcat
     opencl-icd-loader
+    opencode
     opencomposite-git
     openscad
     openssh
