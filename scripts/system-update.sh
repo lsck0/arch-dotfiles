@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Update all the things
 
-set -e
+set -x
 
 echo "ARE U SURE?"
 read -p "Type 'y' to continue: " confirm
@@ -20,10 +20,10 @@ cargo install-update -a
 opam update
 opam upgrade
 
-ghcup install ghc
-ghcup install cabal
-ghcup install hls
-ghcup install stack
 ghcup upgrade
+ghcup install cabal latest
+ghcup install ghc latest
+ghcup install hls latest
+ghcup install stack latest
 
 mise upgrade

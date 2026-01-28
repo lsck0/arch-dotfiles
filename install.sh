@@ -578,7 +578,6 @@ CARGO_PKGS="
     bootimage
     cargo-info
     irust
-    mprocs
     rustfilt
     tmux-sessionizer
 "
