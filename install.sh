@@ -353,6 +353,7 @@ PACKAGES="
     powerline-fonts
     pre-commit
     prettier
+    processing-bin
     protonup-git
     python-black
     python-faker
