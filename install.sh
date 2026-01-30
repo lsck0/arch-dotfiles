@@ -60,6 +60,7 @@ PACKAGES="
     clonezilla
     cmake
     cmatrix
+    code
     codechecker
     codelldb-bin
     converseen
@@ -262,6 +263,7 @@ PACKAGES="
     man-db
     man-pages
     mangohud
+    maven
     mdbook
     mesa
     meson
@@ -388,6 +390,7 @@ PACKAGES="
     rawtherapee
     raylib
     reaver-wps-fork-t6x-git
+    renderdoc
     ripgrep
     rkhunter
     rose-pine-cursor
