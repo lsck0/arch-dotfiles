@@ -1,41 +1,41 @@
 return {
     { "nvim-tree/nvim-web-devicons" },
 
-    {
-        url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
-        priority = 1000,
-        name = "pywal",
-        config = function()
-            require("pywal").setup()
-        end,
-    },
-
     -- {
-    --     "catppuccin/nvim",
+    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
     --     priority = 1000,
-    --     name = "catppuccin",
+    --     name = "pywal",
     --     config = function()
-    --         require("catppuccin").setup({
-    --             flavour = "mocha",
-    --             transparent_background = false,
-    --             term_colors = true,
-    --             integrations = {
-    --                 barbar = true,
-    --                 dadbod_ui = true,
-    --                 diffview = true,
-    --                 fidget = true,
-    --                 harpoon = true,
-    --                 leap = true,
-    --                 lsp_trouble = true,
-    --                 mason = true,
-    --                 noice = true,
-    --                 notify = true,
-    --                 snacks = { enabled = true, },
-    --             },
-    --         })
-    --         vim.cmd.colorscheme "catppuccin"
-    --     end
+    --         require("pywal").setup()
+    --     end,
     -- },
+
+    {
+        "catppuccin/nvim",
+        priority = 1000,
+        name = "catppuccin",
+        config = function()
+            require("catppuccin").setup({
+                flavour = "mocha",
+                transparent_background = false,
+                term_colors = true,
+                integrations = {
+                    barbar = true,
+                    dadbod_ui = true,
+                    diffview = true,
+                    fidget = true,
+                    harpoon = true,
+                    leap = true,
+                    lsp_trouble = true,
+                    mason = true,
+                    noice = true,
+                    notify = true,
+                    snacks = { enabled = true, },
+                },
+            })
+            vim.cmd.colorscheme "catppuccin"
+        end
+    },
 
     -- {
     --     "EdenEast/nightfox.nvim",
@@ -53,8 +53,8 @@ return {
             require("lualine").setup({
                 options = {
                     -- theme = "carbonfox",
-                    -- theme = "catppuccin",
-                    theme = "pywal-nvim",
+                    theme = "catppuccin",
+                    -- theme = "pywal-nvim",
                 },
                 sections = {
                     lualine_x = {
