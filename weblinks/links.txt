@@ -1,3 +1,4 @@
+https://accounts.hetzner.com/login                                                as hetzner
 https://adventofcode.com/                                                         as aoc
 https://amazon.de
 https://archlinux.org/packages                                                    as archpackages

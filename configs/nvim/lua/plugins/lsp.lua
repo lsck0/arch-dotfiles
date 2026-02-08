@@ -22,6 +22,7 @@ local installed = {
     "json-lsp",
     "latexindent",
     "lean-language-server",
+    "lemminx",
     "lua-language-server",
     "nil",
     "prettierd",
