@@ -52,6 +52,7 @@ PACKAGES="
     cargo-update
     cargo-watch
     cava
+    cdecl
     cgdb
     chatgpt-desktop-bin
     chromium
@@ -193,6 +194,7 @@ PACKAGES="
     john
     jq
     jupyterlab
+    just
     kdenlive
     kitty
     kpat
@@ -401,7 +403,6 @@ PACKAGES="
     rz-cutter
     sane
     sdl3
-    serie
     sfxr-qt-bin
     signal-desktop
     slurp
