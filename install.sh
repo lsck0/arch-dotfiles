@@ -193,6 +193,7 @@ PACKAGES="
     jless
     john
     jq
+    jujutsu
     jupyterlab
     just
     kdenlive
@@ -204,6 +205,7 @@ PACKAGES="
     lact
     lazydocker-bin
     lazygit
+    lazyjj
     lcov
     lib32-alsa-lib
     lib32-alsa-plugins
