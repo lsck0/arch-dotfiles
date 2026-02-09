@@ -12,7 +12,6 @@ PACKAGES="
     amdgpu_top
     ani-cli-git
     app2unit
-    arch-update
     argon2
     aseprite
     audacity
@@ -106,6 +105,7 @@ PACKAGES="
     emacs
     emscripten
     entr
+    exploitdb
     eza
     famistudio-bin
     fasm
@@ -173,7 +173,6 @@ PACKAGES="
     heroic-games-launcher-bin
     hexchat
     hotspot
-    htop
     hydra
     hyperfine
     hyprcursor
@@ -589,6 +588,11 @@ CARGO_PKGS="
     tmux-sessionizer
 "
 
+FLATPAK_PKGS="
+    com.jeffser.Alpaca
+    de.z_ray.Facetracker
+"
+
 ## REMOVE PASSWORD FROM SUDO
 
 if ! sudo grep -q '$USER' /etc/sudoers; then
@@ -620,11 +624,11 @@ rustup default stable
 
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
+cargo install $CARGO_PKGS -j $(nproc)
+flatpak install flathub -y $FLATPAK_PKGS
 
 # downgrade cmake to latest 3.* since not enough support for 4.* yet...
 sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
-
-cargo install $CARGO_PKGS -j $(nproc)
 
 sudo rm -rf ${HOME}/go/
 rm -rf ${HOME}/.cache/yay/
