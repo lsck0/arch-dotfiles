@@ -10,7 +10,7 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
-yay -Syyu --noconfirm --rebuildall --answerclean A
+yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
 flatpak update --assumeyes
 nix-channel --update
 

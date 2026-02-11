@@ -31,7 +31,7 @@ PACKAGES="
     bottles
     brightnessctl
     btop
-    bun-bin
+    bun
     burpsuite
     caligula
     cargo-binstall
@@ -534,7 +534,7 @@ PACKAGES="
     waydroid
     wayland
     wayland-boomer-git
-    wayvr-dashboard
+    wayvr-bin
     wget
     whatsdesk-bin
     whois
