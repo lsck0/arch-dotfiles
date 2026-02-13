@@ -170,6 +170,7 @@ PACKAGES="
     handbrake
     hashcat
     headsetcontrol
+    help2man
     heroic-games-launcher-bin
     hexchat
     hotspot
@@ -201,7 +202,6 @@ PACKAGES="
     krita
     kubectl
     kvirc
-    lact
     lazydocker-bin
     lazygit
     lazyjj
@@ -356,7 +356,6 @@ PACKAGES="
     powerline-fonts
     pre-commit
     prettier
-    processing-bin
     protonup-git
     python-black
     python-faker
@@ -422,7 +421,6 @@ PACKAGES="
     starship
     steam
     stirling-pdf-bin
-    switcheroo
     swww
     system-config-printer
     tar
@@ -515,7 +513,6 @@ PACKAGES="
     tty-clock
     unzip
     update-grub
-    upscaler
     v4l-utils
     v4l2loopback-dkms
     v4l2loopback-utils
@@ -607,21 +604,22 @@ popd
 
 ## INSTALLING ALL THE THINGS
 
+# update
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
-sudo pacman -S --needed --noconfirm git base-devel && \
-    git clone https://aur.archlinux.org/yay.git && \
-    cd yay && \
-    makepkg -si --noconfirm && \
-    cd .. && \
-    rm -rf yay/
+# install yay
+sudo pacman -S --needed --noconfirm git base-devel && git clone https://aur.archlinux.org/yay.git
+pushd yay
+makepkg -si --noconfirm
+popd
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
 sudo pacman -S rustup --noconfirm
 rustup default stable
 
+# install all the things
 yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 cargo install $CARGO_PKGS -j $(nproc)
@@ -630,8 +628,10 @@ flatpak install flathub -y $FLATPAK_PKGS
 # downgrade cmake to latest 3.* since not enough support for 4.* yet...
 sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
 
-sudo rm -rf ${HOME}/go/
+# cleanup
 rm -rf ${HOME}/.cache/yay/
+rm -rf ${HOME}/yay/
+sudo rm -rf ${HOME}/go/
 
 ## LINK
 

@@ -17,3 +17,4 @@ sudo systemctl enable ollama.service
 sudo systemctl enable open-fprintd-resume.service
 sudo systemctl enable open-fprintd-suspend.service
 sudo systemctl enable ossec-server.target
+sudo systemctl enable waydroid-container.service

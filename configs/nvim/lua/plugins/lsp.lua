@@ -28,6 +28,7 @@ local installed = {
     "prettierd",
     "pyright",
     "rust_analyzer",
+    "slangd",
     "sqlls",
     "tailwindcss-language-server",
     "taplo",

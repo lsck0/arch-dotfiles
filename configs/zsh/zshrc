@@ -44,6 +44,7 @@ alias lt="eza -lah --tree"
 
 alias cp="cp -v"
 alias downgrade="sudo downgrade"
+alias gitfetch="onefetch"
 alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias pacman="sudo pacman"

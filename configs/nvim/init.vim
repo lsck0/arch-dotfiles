@@ -1,9 +1,5 @@
 lua require("init")
 
-" auto file reload
-set autoread
-au CursorHold * checktime
-
 " show whitespace
 set list listchars=tab:>\ ,trail:-,eol:↲
 
@@ -13,6 +9,10 @@ highlight BufferCurrent guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight BufferOffset guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight BufferVisible guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
 highlight StatusLine guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
+
+" auto file reload
+set autoread
+au CursorHold * checktime
 
 " VIMTEX settings
 filetype plugin indent on
