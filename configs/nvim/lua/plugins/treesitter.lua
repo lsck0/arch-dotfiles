@@ -16,6 +16,7 @@ return {
                     "cpp",
                     "css",
                     "dockerfile",
+                    "gdshader",
                     "haskell",
                     "html",
                     "java",

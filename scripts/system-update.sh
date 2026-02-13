@@ -27,3 +27,5 @@ ghcup install hls latest
 ghcup install stack latest
 
 mise upgrade
+
+yes | hyprpm update -f

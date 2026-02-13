@@ -56,7 +56,7 @@ end
 
 function M.setup()
     vim.keymap.set("i", ".", function()
-        return require("arrowdot").dot()
+        return require("local_plugins.arrowdot").dot()
     end, { expr = true, silent = true })
 end
 

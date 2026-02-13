@@ -1,5 +1,4 @@
 vim.g.mapleader = " "
-
 require "options"
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -28,7 +27,8 @@ require("lazy").setup({
 })
 
 require "autocmds"
+require "filetype"
 require "mappings"
 require "snippets"
 
-require("arrowdot").setup()
+require "local_plugins.init"
