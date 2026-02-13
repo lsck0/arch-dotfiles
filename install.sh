@@ -72,6 +72,7 @@ PACKAGES="
     cronie
     cross
     cups
+    cups-pk-helper
     curl
     curseforge
     diesel-cli
