@@ -15,7 +15,6 @@ PACKAGES="
     argon2
     aseprite
     audacity
-    awakened-poe-trade-git
     bacon
     bat
     bc
@@ -61,7 +60,6 @@ PACKAGES="
     cmake
     cmatrix
     code
-    codechecker
     codelldb-bin
     converseen
     copyq
@@ -123,6 +121,7 @@ PACKAGES="
     flat-remix-gtk
     flatpak
     font-manager
+    foremost
     ftxui
     fzf
     gamemode
@@ -406,6 +405,7 @@ PACKAGES="
     sdl3
     sfxr-qt-bin
     signal-desktop
+    skipfish
     slurp
     smartmontools
     snapshot
@@ -537,7 +537,6 @@ PACKAGES="
     whatsdesk-bin
     whois
     wiki-tui
-    winboat-bin
     wine-staging
     wireguard-tools
     wireguard-ui-bin
