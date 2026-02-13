@@ -611,11 +611,12 @@ sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
 # install yay
-sudo pacman -S --needed --noconfirm git base-devel && git clone https://aur.archlinux.org/yay.git
-pushd yay
-makepkg -si --noconfirm
-popd
-rm -rf ${HOME}/yay/
+sudo pacman -S --needed --noconfirm git base-devel && \
+    git clone https://aur.archlinux.org/yay.git && \
+    cd yay && \
+    makepkg -si --noconfirm && \
+    cd .. && \
+    rm -rf yay/
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
 sudo pacman -S rustup --noconfirm
