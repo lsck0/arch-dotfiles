@@ -615,6 +615,7 @@ sudo pacman -S --needed --noconfirm git base-devel && git clone https://aur.arch
 pushd yay
 makepkg -si --noconfirm
 popd
+rm -rf ${HOME}/yay/
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
 sudo pacman -S rustup --noconfirm
@@ -631,7 +632,6 @@ sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-
 
 # cleanup
 rm -rf ${HOME}/.cache/yay/
-rm -rf ${HOME}/yay/
 sudo rm -rf ${HOME}/go/
 
 ## LINK
