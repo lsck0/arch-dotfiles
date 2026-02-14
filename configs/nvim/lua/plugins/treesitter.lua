@@ -25,6 +25,8 @@ return {
                     "lua",
                     "luadoc",
                     "make",
+                    "markdown",
+                    "markdown_inline",
                     "norg",
                     "ocaml",
                     "printf",

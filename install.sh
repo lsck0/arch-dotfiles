@@ -174,6 +174,7 @@ PACKAGES="
     heroic-games-launcher-bin
     hexchat
     hotspot
+    hugo
     hydra
     hyperfine
     hyprcursor
@@ -449,6 +450,7 @@ PACKAGES="
     torbrowser-launcher
     tparted-bin
     trash-cli
+    tree-sitter-cli
     trufflehog
     ttf-anonymous-pro
     ttf-arphic-ukai
