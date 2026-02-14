@@ -1,18 +1,18 @@
 diff --git a/configs/hyprland/hyprland_keybindings.conf b/configs/hyprland/hyprland_keybindings.conf
-index 08bb247..04414d4 100644
+index a8f2aa0..a32e0be 100644
 --- a/configs/hyprland/hyprland_keybindings.conf
 +++ b/configs/hyprland/hyprland_keybindings.conf
-@@ -5,7 +5,7 @@ bind = $mod,       a,      exec, firefox
- bind = $mod,       e,      exec, nemo
- bind = $mod,       d,      exec, nc -U /run/user/1000/walker/walker.sock #walker # themed-bmenu
- bind = $mod SHIFT, s,      exec, grim -g "$(slurp)" - | wl-copy
+@@ -12,7 +12,7 @@ bind = $mod,       p,      exec, hyprpicker | tr -d '\n' | wl-copy
+ bind = $mod,       t,      exec, missioncenter
+ bind = $mod,       w,      exec, switch-wallpaper
+ bind = $mod,       y,      exec, spawn-shimoji
 -bind = $mod,       z,      exec, grim - | wayland-boomer --monitor-scaling 1.666667
 +bind = $mod,       z,      exec, grim - | wayland-boomer
- bind = $mod,       p,      exec, hyprpicker | tr -d '\n' | wl-copy
- bind = $mod SHIFT, e,      exec, wlogout -b 5 -c 35
- bind = $mod,       w,      exec, switch-wallpaper
+ 
+ bind = $mod,       tab,    hyprexpo:expo, toggle
+ 
 diff --git a/configs/hyprland/hyprland_layout.conf b/configs/hyprland/hyprland_layout.conf
-index f574742..ce45943 100644
+index 28d3ef3..6ced44b 100644
 --- a/configs/hyprland/hyprland_layout.conf
 +++ b/configs/hyprland/hyprland_layout.conf
 @@ -7,15 +7,15 @@ dwindle {
@@ -38,8 +38,8 @@ index f574742..ce45943 100644
 +workspace = 8, monitor:eDP-1
 +workspace = 9, monitor:eDP-1
  
- windowrule = workspace 1,    match:class ^steam$
- windowrule = workspace 5,    match:class ^Spotify$
+ windowrule = workspace 1,         match:class ^steam$
+ windowrule = workspace 5,         match:class ^spotify$
 diff --git a/configs/hyprland/hyprland_monitors.conf b/configs/hyprland/hyprland_monitors.conf
 index 8922136..737c5f7 100644
 --- a/configs/hyprland/hyprland_monitors.conf
