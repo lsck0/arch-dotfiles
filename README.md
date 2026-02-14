@@ -12,7 +12,7 @@ cd ~/code/arch-dotfiles/
 ./install.sh
 ```
 
-after archinstall minimal and no applications (bluetooth, audio) configured to setup the system.
+after archinstall minimal and no applications (bluetooth, audio, etc) configured to setup the system.
 
 ## Things to do manually after rebooting
 
