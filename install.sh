@@ -52,7 +52,6 @@ PACKAGES="
     cava
     cdecl
     cgdb
-    chatgpt-desktop-bin
     chromium
     clang
     cloc
@@ -174,7 +173,6 @@ PACKAGES="
     heroic-games-launcher-bin
     hexchat
     hotspot
-    hugo
     hydra
     hyperfine
     hyprcursor
@@ -368,6 +366,7 @@ PACKAGES="
     python-pillow
     python-pip
     python-poetry
+    python-pydantic
     python-pytorch-rocm
     python-pywalfox
     python-scikit-learn
@@ -536,7 +535,6 @@ PACKAGES="
     wayland-boomer-git
     wayvr-bin
     wget
-    whatsdesk-bin
     whois
     wiki-tui
     wine-staging
@@ -572,6 +570,7 @@ PACKAGES="
     xorg-xwayland
     xournalpp
     ydotool
+    zapzap
     zed
     zig
     zip

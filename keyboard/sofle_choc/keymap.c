@@ -69,55 +69,55 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *            `----------------------------------'           '------''---------------------------'
  */
 [_BASE] = LAYOUT(
-    KC_ESC,   KC_1,  KC_2,   KC_3,     KC_4,     KC_5,                            KC_6,        KC_7,     KC_8,     KC_9,    KC_0,      KC_BSPC,
-    KC_TAB,   KC_Q,  KC_W,   KC_E,     KC_R,     KC_T,                            KC_Y,        KC_U,     KC_I,     KC_O,    KC_P,      KC_NO,
-    KC_LCTL,  KC_A,  KC_S,   KC_D,     KC_F,     KC_G,                            KC_H,        KC_J,     KC_K,     KC_L,    KC_BSPC,   KC_NO,
-    KC_LSFT,  KC_Z,  KC_X,   KC_C,     KC_V,     KC_B,        KC_MUTE,  KC_MPLY,  KC_N,        KC_M,     KC_COMM,  KC_DOT,  KC_MINUS,  KC_RSFT,
-                     KC_NO,  KC_LCMD,  KC_LALT,  MO(_LOWER),  KC_SPC,   KC_ENT,   MO(_UPPER),  KC_RALT,  KC_NO,    KC_NO
+    KC_ESC,   KC_1,   KC_2,   KC_3,     KC_4,     KC_5,                            KC_6,        KC_7,     KC_8,     KC_9,    KC_0,      KC_BSPC,
+    KC_TAB,   KC_Q,   KC_W,   KC_E,     KC_R,     KC_T,                            KC_Z,        KC_U,     KC_I,     KC_O,    KC_P,      DE_UE,
+    KC_LCTL,  KC_A,   KC_S,   KC_D,     KC_F,     KC_G,                            KC_H,        KC_J,     KC_K,     KC_L,    DE_OE,     DE_AE,
+    KC_LSFT,  KC_Y,   KC_X,   KC_C,     KC_V,     KC_B,        KC_MUTE,  KC_MPLY,  KC_N,        KC_M,     KC_COMM,  KC_DOT,  DE_MINS,   KC_RSFT,
+                      KC_NO,  KC_LCMD,  KC_LALT,  MO(_LOWER),  KC_SPC,   KC_ENT,   MO(_UPPER),  KC_RALT,  KC_NO,    KC_NO
 ),
 /*
- * LOWER LAYER
+ * LOWER LAYER - F-keys, Numpad, Navigation
  * ,-----------------------------------------.                    ,-----------------------------------------.
  * |  F1  |  F2  |  F3  |  F4  |  F5  |  F6  |                    |  F7  |  F8  |  F9  | F10  | F11  | F12  |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |   ^  |   1  |   2  |   3  |   4  |   5  |                    |   6  |   7  |   8  |   9  |   0  |   ´  |
+ * |  ^   |   1  |   2  |   3  |   4  |   5  |                    |   6  |   7  |   8  |   9  |   0  |  ´   |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------.    ,-------| left | down |  up  | right|      |      |
- * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------|    |-------|      |      |      |      |      |      |
+ * |      |      |      |      |      |      |-------.    ,-------| Left | Down |  Up  | Right|      |      |
+ * |------+------+------+------+------+------|  Mute |    | Play  |------+------+------+------+------+------|
+ * |      |  <   |  >   |   ß  |   ?  |      |-------|    |-------| Home | PgDn | PgUp | End  |      |      |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
  *            |      |      |      |      | /       /       \      \  |      |      |      |      |
  *            |      |      |      |      |/       /         \      \ |      |      |      |      |
  *            `----------------------------------'           '------''---------------------------'
  */
 [_LOWER] = LAYOUT(
-    KC_F1,    KC_F2,  KC_F3,  KC_F4,  KC_F5,  KC_F6,                 KC_F7,    KC_F8,    KC_F9,  KC_F10,   KC_F11,  KC_F12,
-    KC_CIRC,  KC_1,   KC_2,   KC_3,   KC_4,   KC_5,                  KC_6,     KC_7,     KC_8,   KC_9,     KC_0,    DE_ACUT,
-    KC_NO,    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,                 KC_LEFT,  KC_DOWN,  KC_UP,  KC_RGHT,  KC_NO,   KC_NO,
-    KC_NO,    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO, KC_NO,  KC_NO,    KC_NO,    KC_NO,  KC_NO,    KC_NO,   KC_NO,
-                      KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO, KC_NO,  KC_NO,    KC_NO,    KC_NO,  KC_NO
+    KC_F1,    KC_F2,    KC_F3,    KC_F4,    KC_F5,    KC_F6,                 KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,   KC_F12,
+    DE_CIRC,  KC_1,     KC_2,     KC_3,     KC_4,     KC_5,                  KC_6,     KC_7,     KC_8,     KC_9,     KC_0,     DE_ACUT,
+    KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,                 KC_LEFT,  KC_DOWN,  KC_UP,    KC_RGHT,  KC_NO,    KC_NO,
+    KC_NO,    DE_LESS,  DE_MORE,  DE_SS,    DE_QST,   KC_NO,   KC_NO, KC_NO,  KC_HOME,  KC_PGDN,  KC_PGUP,  KC_END,   KC_NO,    KC_NO,
+                        KC_NO,    KC_NO,    KC_NO,    KC_NO,   KC_NO, KC_NO,  KC_NO,    KC_NO,    KC_NO,    KC_NO
 ),
 /*
- * UPPER LAYER
+ * UPPER LAYER - Symbols and special chars
  * ,-----------------------------------------.                    ,-----------------------------------------.
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
+ * |      |      |      |      |      |      |                    |      |      |      |      |      |  Del |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |                    |      |      |      |      |      |      |
+ * |   ~  |   !  |   "  |   §  |   $  |   %  |                    |   &  |   /  |   (  |   )  |   =  |   `  |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------.    ,-------|      |      |      |      |      |      |
+ * |      |   @  |   €  |      |      |      |-------.    ,-------|   {  |   [  |   ]  |   }  |   \  |   #  |
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
- * |      |      |      |      |      |      |-------|    |-------|      |      |      |      |      |      |
+ * |      |   |  |      |      |      |      |-------|    |-------|      |      |   ;  |   :  |   _  |   '  |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
  *            |      |      |      |      | /       /       \      \  |      |      |      |      |
  *            |      |      |      |      |/       /         \      \ |      |      |      |      |
  *            `----------------------------------'           '------''---------------------------'
  */
 [_UPPER] = LAYOUT(
-    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,                 KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,
-    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,                 KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,
-    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,                 KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,
-    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO, KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,
-                    KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO, KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO
+    KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,                 KC_NO,     KC_NO,     KC_NO,     KC_NO,     KC_NO,     KC_DEL,
+    DE_TILD,  DE_EXLM,  DE_DQOT,  DE_PARA,  DE_DLR,   DE_PERC,               DE_AMPR,   DE_SLSH,   DE_LPRN,   DE_RPRN,   DE_EQL,    DE_GRV,
+    KC_NO,    DE_AT,    DE_EURO,  KC_NO,    KC_NO,    KC_NO,                 DE_LCBR,   DE_LBRC,   DE_RBRC,   DE_RCBR,   DE_BSLS,   DE_HASH,
+    KC_NO,    DE_PIPE,  KC_NO,    KC_NO,    KC_NO,    KC_NO,   KC_NO, KC_NO,  KC_NO,     KC_NO,     DE_SCLN,   DE_COLN,   DE_UNDS,   DE_QUOT,
+                        KC_NO,    KC_NO,    KC_NO,    KC_NO,   KC_NO, KC_NO,  KC_NO,     KC_NO,     KC_NO,     KC_NO
 ),
 /*
  * EMPTY LAYER

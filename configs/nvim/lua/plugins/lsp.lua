@@ -20,6 +20,7 @@ local installed = {
     "jdtls",
     "jinja-lsp",
     "json-lsp",
+    "kulala-fmt",
     "latexindent",
     "lean-language-server",
     "lemminx",
@@ -120,7 +121,6 @@ return {
                     "clangd",
                     "--offset-encoding=utf-16",
                     "--background-index",
-                    "--suggest-missing-includes",
                 },
             })
             vim.lsp.enable("clangd")
@@ -150,9 +150,11 @@ return {
                     bib = { "bibtex-tidy" },
                     css = { "prettier" },
                     html = { "prettier" },
+                    http = { "kulala-fmt" },
                     javascript = { "prettier" },
                     latex = { "latexindent" },
                     python = { "isort", "black" },
+                    rest = { "kulala-fmt" },
                     rust = { "rustfmt", "sortderives" },
                     scss = { "prettier" },
                 },
