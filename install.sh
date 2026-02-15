@@ -49,7 +49,6 @@ PACKAGES="
     cargo-update
     cargo-watch
     cava
-    cdecl
     cgdb
     chromium
     clang
