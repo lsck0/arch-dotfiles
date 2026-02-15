@@ -27,7 +27,6 @@ PACKAGES="
     blueberry
     bluez
     bluez-utils
-    bottles
     brightnessctl
     btop
     bun
