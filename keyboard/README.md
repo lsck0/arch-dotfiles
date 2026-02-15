@@ -2,7 +2,7 @@
 
 ## Prerequisites:
 
-```shell
+```bash
 git clone --recursive https://github.com/qmk/qmk_firmware.git ~/code/qmk_firmware
 ln -sf ~/code/arch-dotfiles/keyboard/sofle_choc ~/code/qmk_firmware/keyboards/sofle_choc/keymaps/luca_sofle_choc
 cd ~/code/qmk_firmware/
@@ -11,7 +11,7 @@ qmk setup
 
 ## Building:
 
-```shell
+```bash
 ./build.sh
 ```
 

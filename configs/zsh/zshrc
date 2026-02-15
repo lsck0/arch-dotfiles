@@ -3,7 +3,7 @@ ZSH_CACHE_DIR=$HOME/.cache/oh-my-zsh
 if [[ ! -d $ZSH_CACHE_DIR ]]; then
   mkdir $ZSH_CACHE_DIR
 fi
-plugins=(aws docker docker-compose fzf git nmap node npm rust sudo terraform)
+plugins=(aws docker docker-compose fzf git jj mise nmap node npm poetry rust sudo terraform zsh-opencode-ai)
 
 source $ZSH/oh-my-zsh.sh
 source ~/.cache/wal/colors.sh
