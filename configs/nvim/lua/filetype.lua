@@ -5,3 +5,7 @@ vim.filetype.add({
         shader = "hlsl",
     },
 })
+
+vim.filetype.add({
+    pattern = { [".*/hyprland/.*%.conf"] = "hyprlang" },
+})

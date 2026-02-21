@@ -6,6 +6,7 @@ return {
         build = ":TSUpdate",
         dependencies = {
             { "nvim-treesitter/nvim-treesitter-context" },
+            { "IndianBoy42/tree-sitter-just" },
         },
         config = function()
             require("nvim-treesitter.configs").setup({
@@ -19,6 +20,7 @@ return {
                     "gdshader",
                     "haskell",
                     "html",
+                    "hyprlang",
                     "java",
                     "javascript",
                     "json",
