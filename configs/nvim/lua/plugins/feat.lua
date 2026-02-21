@@ -102,4 +102,11 @@ return {
     },
 
     { "sotte/presenting.nvim" },
+
+    -- {
+    --     "lucastavaresa/headers.nvim",
+    --     config = function()
+    --         require("headers").setup()
+    --     end,
+    -- },
 }

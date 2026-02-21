@@ -14,6 +14,7 @@ local installed = {
     "gopls",
     "hlint",
     "html-lsp",
+    "hyprls",
     "isort",
     "java-debug-adapter",
     "java-test",
@@ -51,6 +52,7 @@ return {
             { "neovim/nvim-lspconfig" },
             { "nvimtools/none-ls.nvim" },
             { "mason-org/mason-lspconfig.nvim" },
+            { "marilari88/twoslash-queries.nvim" },
             {
                 "ivanjermakov/troublesum.nvim",
                 config = function()
@@ -125,11 +127,19 @@ return {
             })
             vim.lsp.enable("clangd")
 
+            vim.lsp.config("tsserver", {
+                on_attach = function(client, bufnr)
+                    require("twoslash-queries").attach(client, bufnr)
+                end,
+            })
+            vim.lsp.enable("tsserver")
+
             require("mason-lspconfig").setup({
                 automatic_enable = {
                     exclude = {
                         "clangd",
                         "rust_analyzer",
+                        "tsserver",
                     }
                 }
             })
