@@ -408,6 +408,7 @@ PACKAGES="
     smartmontools
     snapshot
     sof-firmware
+    sowon-git
     sox
     speedscope
     spicetify-cli
