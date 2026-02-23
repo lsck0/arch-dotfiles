@@ -580,6 +580,7 @@ PACKAGES="
 CARGO_PKGS="
     bootimage
     cargo-info
+    cargo-xbuild
     irust
     rustfilt
     tmux-sessionizer

@@ -10,38 +10,30 @@ return {
     --     end,
     -- },
 
-    -- {
-    --     "catppuccin/nvim",
-    --     priority = 1000,
-    --     name = "catppuccin",
-    --     config = function()
-    --         require("catppuccin").setup({
-    --             flavour = "mocha",
-    --             transparent_background = false,
-    --             term_colors = true,
-    --             integrations = {
-    --                 barbar = true,
-    --                 dadbod_ui = true,
-    --                 diffview = true,
-    --                 fidget = true,
-    --                 harpoon = true,
-    --                 leap = true,
-    --                 lsp_trouble = true,
-    --                 mason = true,
-    --                 noice = true,
-    --                 notify = true,
-    --                 snacks = { enabled = true, },
-    --             },
-    --         })
-    --         vim.cmd.colorscheme "catppuccin"
-    --     end
-    -- },
-
     {
-        "EdenEast/nightfox.nvim",
+        "catppuccin/nvim",
         priority = 1000,
+        name = "catppuccin",
         config = function()
-            vim.cmd.colorscheme "carbonfox"
+            require("catppuccin").setup({
+                flavour = "mocha",
+                transparent_background = false,
+                term_colors = true,
+                integrations = {
+                    barbar = true,
+                    dadbod_ui = true,
+                    diffview = true,
+                    fidget = true,
+                    harpoon = true,
+                    leap = true,
+                    lsp_trouble = true,
+                    mason = true,
+                    noice = true,
+                    notify = true,
+                    snacks = { enabled = true, },
+                },
+            })
+            vim.cmd.colorscheme "catppuccin"
         end
     },
 
@@ -52,8 +44,7 @@ return {
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "carbonfox",
-                    -- theme = "catppuccin",
+                    theme = "catppuccin",
                     -- theme = "pywal-nvim",
                 },
                 sections = {
