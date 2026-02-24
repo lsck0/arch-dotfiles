@@ -165,7 +165,7 @@ return {
                     latex = { "latexindent" },
                     python = { "isort", "black" },
                     rest = { "kulala-fmt" },
-                    rust = { "rustfmt", "sortderives" },
+                    rust = { "rustfmt", "sortderives", "leptosfmt" },
                     scss = { "prettier" },
                 },
                 format_on_save = {

@@ -585,6 +585,7 @@ CARGO_PKGS="
     cargo-leptos
     cargo-xbuild
     irust
+    leptosfmt
     rustfilt
     tauri-cli
     tmux-sessionizer
