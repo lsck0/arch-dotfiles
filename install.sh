@@ -228,6 +228,7 @@ PACKAGES="
     lib32-v4l-utils
     lib32-vulkan-icd-loader
     lib32-vulkan-radeon
+    libev
     libgcrypt
     libgpg-error
     libjpeg-turbo
@@ -579,11 +580,15 @@ PACKAGES="
 
 CARGO_PKGS="
     bootimage
+    cargo-generate
     cargo-info
+    cargo-leptos
     cargo-xbuild
     irust
     rustfilt
+    tauri-cli
     tmux-sessionizer
+    trunk
 "
 
 FLATPAK_PKGS="
