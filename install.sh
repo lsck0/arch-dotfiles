@@ -583,6 +583,7 @@ CARGO_PKGS="
     cargo-generate
     cargo-info
     cargo-leptos
+    cargo-wizard
     cargo-xbuild
     irust
     leptosfmt
