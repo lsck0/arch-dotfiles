@@ -7,6 +7,7 @@ exec > >(tee -a "install.log") 2>&1
 
 PACKAGES="
     act
+    afl++
     aircrack-ng
     alsa-firmware
     amdgpu_top
@@ -32,6 +33,7 @@ PACKAGES="
     bun
     burpsuite
     caligula
+    cargo-audit
     cargo-binstall
     cargo-bloat
     cargo-deny
@@ -39,6 +41,8 @@ PACKAGES="
     cargo-expand
     cargo-flamegraph
     cargo-fuzz
+    cargo-fuzz
+    cargo-generate
     cargo-llvm-cov
     cargo-machete
     cargo-make
@@ -48,6 +52,7 @@ PACKAGES="
     cargo-tauri
     cargo-update
     cargo-watch
+    cargo-wizard
     cava
     cgdb
     chromium
@@ -550,6 +555,7 @@ PACKAGES="
     wl_shimeji-git
     wlogout
     wpa_supplicant
+    wrk
     xclip
     xdg-desktop-portal-gtk
     xdg-desktop-portal-hyprland
@@ -570,6 +576,8 @@ PACKAGES="
     xorg-xwayland
     xournalpp
     ydotool
+    z3
+    zaproxy
     zapzap
     zed
     zig
@@ -580,12 +588,12 @@ PACKAGES="
 
 CARGO_PKGS="
     bootimage
-    cargo-generate
+    cargo-afl
     cargo-info
     cargo-leptos
-    cargo-wizard
     cargo-xbuild
     irust
+    kani-verifier
     leptosfmt
     rustfilt
     tauri-cli
