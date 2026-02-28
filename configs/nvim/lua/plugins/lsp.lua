@@ -110,9 +110,20 @@ return {
             vim.lsp.config("rust_analyzer", {
                 settings = {
                     ["rust-analyzer"] = {
+                        cargo = {
+                            allFeatures = true,
+                            extraEnv = {
+                                RUSTFLAGS = "--cfg kani_ra --cfg kani",
+                                RUSTUP_TOOLCHAIN = "nightly",
+                            },
+                        },
                         check = {
                             command = "clippy",
-                        }
+                            extraEnv = {
+                                RUSTFLAGS = "--cfg kani_ra --cfg kani",
+                                RUSTUP_TOOLCHAIN = "nightly",
+                            },
+                        },
                     }
                 }
             })
