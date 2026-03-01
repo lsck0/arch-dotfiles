@@ -6,6 +6,7 @@ https://arxiv.org
 https://aur.archlinux.org                                                         as aur
 https://craftofexile.com/                                                         as poecraft
 https://detexify.kirelabs.org/classify.html                                       as detexify
+https://drive.proton.me                                                           as protondrive
 https://ecampus.uni-goettingen.de
 https://excalidraw.com
 https://github.com
