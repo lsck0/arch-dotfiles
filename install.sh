@@ -331,6 +331,7 @@ PACKAGES="
     openscad
     openssh
     openssl
+    opentabletdriver-git
     openvpn
     osmium-tool
     ossec-hids-local
