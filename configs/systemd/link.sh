@@ -2,6 +2,7 @@
 
 set -ex
 
+systemctl --user enable opentabletdriver.service
 systemctl --user enable pipewire-pulse.service
 systemctl --user enable pipewire-pulse.socket
 
