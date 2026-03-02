@@ -557,6 +557,7 @@ PACKAGES="
     wlogout
     wpa_supplicant
     wrk
+    wscat
     xclip
     xdg-desktop-portal-gtk
     xdg-desktop-portal-hyprland
