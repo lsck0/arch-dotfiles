@@ -124,6 +124,7 @@ return {
                     virtualtext_inline = true,
                     tailwind = true,
                     always_update = true,
+                    suppress_deprecation = true,
                 },
             })
         end
