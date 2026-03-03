@@ -198,14 +198,11 @@
             }
         ]
     },
-    "current_scene": "Overlay",
-    "current_program_scene": "Overlay",
+    "current_scene": "Game",
+    "current_program_scene": "Game",
     "scene_order": [
         {
             "name": "Audio"
-        },
-        {
-            "name": "Alerts"
         },
         {
             "name": "Overlay"
@@ -349,61 +346,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Alerts",
-                        "source_uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 11,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "Audio",
                         "source_uuid": "d9ee5f2e-86b0-4873-9654-e1b445f414f2",
                         "visible": true,
@@ -477,8 +419,6 @@
                 "libobs.hide_scene_item.5": [],
                 "libobs.show_scene_item.13": [],
                 "libobs.hide_scene_item.13": [],
-                "libobs.show_scene_item.11": [],
-                "libobs.hide_scene_item.11": [],
                 "libobs.show_scene_item.12": [],
                 "libobs.hide_scene_item.12": []
             },
@@ -521,12 +461,122 @@
             "id": "scene",
             "versioned_id": "scene",
             "settings": {
-                "id_counter": 7,
+                "id_counter": 11,
                 "custom_size": false,
                 "items": [
                     {
-                        "name": "Discord Audio",
-                        "source_uuid": "36921201-0e92-46c5-a370-84791eee6798",
+                        "name": "Twitch Alerts For Me",
+                        "source_uuid": "a4492cab-33ee-44f2-b271-10af023357cf",
+                        "visible": false,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 10,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -1.7777777910232544,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scale_rel": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Sound Alerts For Me",
+                        "source_uuid": "f6f9636c-befb-49e8-8745-963c959ded0c",
+                        "visible": false,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 11,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -1.7777777910232544,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "scale_rel": {
+                            "x": 1.0,
+                            "y": 1.0
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Twitch Alerts",
+                        "source_uuid": "7c891c44-2f4c-4d19-ac37-c53157697580",
                         "visible": true,
                         "locked": true,
                         "rot": 0.0,
@@ -542,7 +592,117 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 2,
+                        "id": 8,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 1152.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -0.7111111283302307,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.9187500476837158,
+                            "y": 1.9183332920074463
+                        },
+                        "scale_rel": {
+                            "x": 1.9187500476837158,
+                            "y": 1.9183332920074463
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Sound Alerts",
+                        "source_uuid": "8a7705d3-37eb-4f24-99a2-4504e9108fc4",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 9,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 1153.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -0.710185170173645,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.9199999570846558,
+                            "y": 1.9199999570846558
+                        },
+                        "scale_rel": {
+                            "x": 1.9199999570846558,
+                            "y": 1.9199999570846558
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "TITS Audio",
+                        "source_uuid": "3f673fea-201f-493f-b346-878aefb75835",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 4,
                         "group_item_backup": false,
                         "pos": {
                             "x": 0.0,
@@ -690,8 +850,8 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Chromium Audio",
-                        "source_uuid": "aec53ec1-0203-4a83-9f50-7618b4a7c3ab",
+                        "name": "Discord Audio",
+                        "source_uuid": "36921201-0e92-46c5-a370-84791eee6798",
                         "visible": true,
                         "locked": true,
                         "rot": 0.0,
@@ -707,7 +867,7 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 7,
+                        "id": 2,
                         "group_item_backup": false,
                         "pos": {
                             "x": 0.0,
@@ -745,8 +905,8 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "TITS Audio",
-                        "source_uuid": "3f673fea-201f-493f-b346-878aefb75835",
+                        "name": "Chromium Audio",
+                        "source_uuid": "aec53ec1-0203-4a83-9f50-7618b4a7c3ab",
                         "visible": true,
                         "locked": true,
                         "rot": 0.0,
@@ -762,7 +922,7 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 4,
+                        "id": 7,
                         "group_item_backup": false,
                         "pos": {
                             "x": 0.0,
@@ -823,7 +983,15 @@
                 "libobs.show_scene_item.7": [],
                 "libobs.hide_scene_item.7": [],
                 "libobs.show_scene_item.4": [],
-                "libobs.hide_scene_item.4": []
+                "libobs.hide_scene_item.4": [],
+                "libobs.show_scene_item.8": [],
+                "libobs.hide_scene_item.8": [],
+                "libobs.show_scene_item.9": [],
+                "libobs.hide_scene_item.9": [],
+                "libobs.show_scene_item.10": [],
+                "libobs.hide_scene_item.10": [],
+                "libobs.show_scene_item.11": [],
+                "libobs.hide_scene_item.11": []
             },
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
@@ -879,7 +1047,7 @@
             "volume": 0.4216965138912201,
             "balance": 0.5,
             "enabled": true,
-            "muted": false,
+            "muted": true,
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
@@ -924,266 +1092,6 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
-        },
-        {
-            "prev_ver": 536870916,
-            "name": "Alerts",
-            "uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-            "id": "scene",
-            "versioned_id": "scene",
-            "settings": {
-                "id_counter": 5,
-                "custom_size": false,
-                "items": [
-                    {
-                        "name": "Twitch Alerts",
-                        "source_uuid": "7c891c44-2f4c-4d19-ac37-c53157697580",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 1,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 1152.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -0.7111111283302307,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.9187500476837158,
-                            "y": 1.9183332920074463
-                        },
-                        "scale_rel": {
-                            "x": 1.9187500476837158,
-                            "y": 1.9183332920074463
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
-                        "name": "Sound Alerts",
-                        "source_uuid": "8a7705d3-37eb-4f24-99a2-4504e9108fc4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 2,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 1153.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -0.710185170173645,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.9199999570846558,
-                            "y": 1.9199999570846558
-                        },
-                        "scale_rel": {
-                            "x": 1.9199999570846558,
-                            "y": 1.9199999570846558
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
-                        "name": "Sound Alerts For Me",
-                        "source_uuid": "f6f9636c-befb-49e8-8745-963c959ded0c",
-                        "visible": false,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 3,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
-                        "name": "Twitch Alerts For Me",
-                        "source_uuid": "a4492cab-33ee-44f2-b271-10af023357cf",
-                        "visible": false,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 5,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    }
-                ]
-            },
-            "mixers": 0,
-            "sync": 0,
-            "flags": 0,
-            "volume": 1.0,
-            "balance": 0.5,
-            "enabled": true,
-            "muted": false,
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
-            "hotkeys": {
-                "OBSBasic.SelectScene": [],
-                "libobs.show_scene_item.1": [],
-                "libobs.hide_scene_item.1": [],
-                "libobs.show_scene_item.2": [],
-                "libobs.hide_scene_item.2": [],
-                "libobs.show_scene_item.3": [],
-                "libobs.hide_scene_item.3": [],
-                "libobs.show_scene_item.5": [],
-                "libobs.hide_scene_item.5": []
-            },
-            "deinterlace_mode": 0,
-            "deinterlace_field_order": 0,
-            "monitoring_type": 0,
-            "canvas_uuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
             "private_settings": {}
         },
         {
@@ -1491,7 +1399,7 @@
         },
         {
             "prev_ver": 536870916,
-            "name": "Model Capture",
+            "name": "Model",
             "uuid": "926d7eab-df1b-4d20-8051-1df6bb4f61c3",
             "id": "pipewire-screen-capture-source",
             "versioned_id": "pipewire-screen-capture-source",
@@ -1717,61 +1625,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Alerts",
-                        "source_uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 1,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "Audio",
                         "source_uuid": "d9ee5f2e-86b0-4873-9654-e1b445f414f2",
                         "visible": true,
@@ -1847,8 +1700,6 @@
                 "libobs.hide_scene_item.4": [],
                 "libobs.show_scene_item.3": [],
                 "libobs.hide_scene_item.3": [],
-                "libobs.show_scene_item.1": [],
-                "libobs.hide_scene_item.1": [],
                 "libobs.show_scene_item.2": [],
                 "libobs.hide_scene_item.2": []
             },
@@ -1865,68 +1716,13 @@
             "id": "scene",
             "versioned_id": "scene",
             "settings": {
-                "id_counter": 4,
+                "id_counter": 5,
                 "custom_size": false,
                 "items": [
                     {
-                        "name": "Discord Call",
-                        "source_uuid": "bbfd4d27-5fa6-4792-bebe-5ca83c553475",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 4,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 1513.0,
-                            "y": 1005.0
-                        },
-                        "pos_rel": {
-                            "x": -0.3768518567085266,
-                            "y": -0.06944441795349121
-                        },
-                        "scale": {
-                            "x": 1.9249999523162842,
-                            "y": 1.9249999523162842
-                        },
-                        "scale_rel": {
-                            "x": 1.9249999523162842,
-                            "y": 1.9249999523162842
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
-                        "name": "Model Capture",
+                        "name": "Model",
                         "source_uuid": "926d7eab-df1b-4d20-8051-1df6bb4f61c3",
-                        "visible": true,
+                        "visible": false,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -1981,7 +1777,7 @@
                     {
                         "name": "Throw Overlay",
                         "source_uuid": "2996c3ea-e57a-406a-bcc8-f3059bcdb3c0",
-                        "visible": true,
+                        "visible": false,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -2034,9 +1830,119 @@
                         "private_settings": {}
                     },
                     {
+                        "name": "Discord PNGs",
+                        "source_uuid": "bbfd4d27-5fa6-4792-bebe-5ca83c553475",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 4,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 2131.0,
+                            "y": 878.0
+                        },
+                        "pos_rel": {
+                            "x": 0.1953703761100769,
+                            "y": -0.18703705072402954
+                        },
+                        "scale": {
+                            "x": 2.1362500190734863,
+                            "y": 2.136666774749756
+                        },
+                        "scale_rel": {
+                            "x": 2.1362500190734863,
+                            "y": 2.136666774749756
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Chat Overlay",
+                        "source_uuid": "c92498a8-4876-4ba9-a16f-812568316b21",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 5,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 2815.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": 0.8287037014961243,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 1.28125,
+                            "y": 1.28166663646698
+                        },
+                        "scale_rel": {
+                            "x": 1.28125,
+                            "y": 1.28166663646698
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
+                    },
+                    {
                         "name": "Spotify Now Playing",
                         "source_uuid": "54f9c876-4a56-4522-a279-5d0e4211c45c",
-                        "visible": false,
+                        "visible": true,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -2054,11 +1960,11 @@
                         "id": 3,
                         "group_item_backup": false,
                         "pos": {
-                            "x": 3338.0,
+                            "x": 3289.0,
                             "y": 0.0
                         },
                         "pos_rel": {
-                            "x": 1.3128429651260376,
+                            "x": 1.2675925493240356,
                             "y": -1.0
                         },
                         "scale": {
@@ -2110,7 +2016,9 @@
                 "libobs.show_scene_item.3": [],
                 "libobs.hide_scene_item.3": [],
                 "libobs.show_scene_item.4": [],
-                "libobs.hide_scene_item.4": []
+                "libobs.hide_scene_item.4": [],
+                "libobs.show_scene_item.5": [],
+                "libobs.hide_scene_item.5": []
             },
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
@@ -2239,61 +2147,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Alerts",
-                        "source_uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 1,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "Audio",
                         "source_uuid": "d9ee5f2e-86b0-4873-9654-e1b445f414f2",
                         "visible": true,
@@ -2367,8 +2220,6 @@
                 "libobs.hide_scene_item.4": [],
                 "libobs.show_scene_item.3": [],
                 "libobs.hide_scene_item.3": [],
-                "libobs.show_scene_item.1": [],
-                "libobs.hide_scene_item.1": [],
                 "libobs.show_scene_item.2": [],
                 "libobs.hide_scene_item.2": []
             },
@@ -2476,7 +2327,7 @@
             "volume": 1.0,
             "balance": 0.5,
             "enabled": true,
-            "muted": true,
+            "muted": false,
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
@@ -2613,61 +2464,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Alerts",
-                        "source_uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 3,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "Audio",
                         "source_uuid": "d9ee5f2e-86b0-4873-9654-e1b445f414f2",
                         "visible": true,
@@ -2741,8 +2537,6 @@
                 "libobs.hide_scene_item.6": [],
                 "libobs.show_scene_item.2": [],
                 "libobs.hide_scene_item.2": [],
-                "libobs.show_scene_item.3": [],
-                "libobs.hide_scene_item.3": [],
                 "libobs.show_scene_item.4": [],
                 "libobs.hide_scene_item.4": []
             },
@@ -2899,61 +2693,6 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Alerts",
-                        "source_uuid": "f0c014d1-0294-4fc2-aa76-fa595b8e75f4",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 3,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
-                        },
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_rel": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "private_settings": {}
-                    },
-                    {
                         "name": "Audio",
                         "source_uuid": "d9ee5f2e-86b0-4873-9654-e1b445f414f2",
                         "visible": true,
@@ -3027,8 +2766,6 @@
                 "libobs.hide_scene_item.5": [],
                 "libobs.show_scene_item.2": [],
                 "libobs.hide_scene_item.2": [],
-                "libobs.show_scene_item.3": [],
-                "libobs.hide_scene_item.3": [],
                 "libobs.show_scene_item.4": [],
                 "libobs.hide_scene_item.4": []
             },
@@ -3066,12 +2803,44 @@
         },
         {
             "prev_ver": 536870916,
-            "name": "Discord Call",
+            "name": "Discord PNGs",
             "uuid": "bbfd4d27-5fa6-4792-bebe-5ca83c553475",
             "id": "browser_source",
             "versioned_id": "browser_source",
             "settings": {
                 "url": "https://reactive.fugi.tech/custom/19a1dq2odet7"
+            },
+            "mixers": 255,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {
+                "libobs.mute": [],
+                "libobs.unmute": [],
+                "libobs.push-to-mute": [],
+                "libobs.push-to-talk": [],
+                "ObsBrowser.Refresh": []
+            },
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 536870916,
+            "name": "Chat Overlay",
+            "uuid": "c92498a8-4876-4ba9-a16f-812568316b21",
+            "id": "browser_source",
+            "versioned_id": "browser_source",
+            "settings": {
+                "url": "https://streamlabs.com/widgets/chat-box/v1/D5A021844F0D6F2B097F5EC7F3B6EB1735D5F0D8C7C162BC7CD8A35CB2C27CAE31CAC116430DBBC9509AF7A080175E69247BE13D224F4BE3FAFA7539FE0F3DC4034A35CC5AA443E7B7A341286CD9EB7D7591750C39DB45DC38B4879093DFE2C28C41FE6F7B4E7B3290DF733C4F5E273A2ACD1D4AC6FD51C7536DFF7FC2"
             },
             "mixers": 255,
             "sync": 0,
