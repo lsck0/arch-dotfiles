@@ -41,7 +41,6 @@ PACKAGES="
     cargo-expand
     cargo-flamegraph
     cargo-fuzz
-    cargo-fuzz
     cargo-generate
     cargo-llvm-cov
     cargo-machete
@@ -57,6 +56,7 @@ PACKAGES="
     cgdb
     chromium
     clang
+    claude-code
     cloc
     clonezilla
     cmake
@@ -81,6 +81,7 @@ PACKAGES="
     docker
     docker-buildx
     docker-compose
+    dog
     downgrade
     dua-cli
     dust
@@ -521,6 +522,7 @@ PACKAGES="
     tty-clock
     unzip
     update-grub
+    uv
     v4l-utils
     v4l2loopback-dkms
     v4l2loopback-utils
@@ -644,9 +646,6 @@ yay -S $PACKAGES --noconfirm
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 cargo install $CARGO_PKGS -j $(nproc)
 flatpak install flathub -y $FLATPAK_PKGS
-
-# downgrade cmake to latest 3.* since not enough support for 4.* yet...
-sudo pacman -U --noconfirm https://archive.archlinux.org/packages/c/cmake/cmake-3.31.6-1-x86_64.pkg.tar.zst
 
 # cleanup
 rm -rf ${HOME}/.cache/yay/

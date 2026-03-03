@@ -28,6 +28,7 @@ return {
         },
     },
     { "jbyuki/venn.nvim" },
+    { "mg979/vim-visual-multi" },
     { "mrjones2014/smart-splits.nvim" },
     {
         "nacro90/numb.nvim",
