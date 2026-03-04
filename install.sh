@@ -48,6 +48,7 @@ PACKAGES="
     cargo-show-asm
     cargo-shuttle
     cargo-sort-derives
+    cargo-tarpaulin
     cargo-tauri
     cargo-update
     cargo-watch
