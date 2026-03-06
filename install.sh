@@ -238,6 +238,7 @@ PACKAGES="
     libev
     libgcrypt
     libgpg-error
+    libinput-tools
     libjpeg-turbo
     libldap
     libnotify
