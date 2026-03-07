@@ -544,6 +544,7 @@ PACKAGES="
     wayland
     wayland-boomer-git
     wayvr-bin
+    wev
     wget
     whois
     wiki-tui
@@ -576,6 +577,7 @@ PACKAGES="
     xh
     xorg-server
     xorg-xauth
+    xorg-xev
     xorg-xeyes
     xorg-xhost
     xorg-xinput
