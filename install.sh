@@ -174,6 +174,7 @@ PACKAGES="
     handbrake
     hashcat
     headsetcontrol
+    helm
     help2man
     heroic-games-launcher-bin
     hexchat
@@ -413,6 +414,7 @@ PACKAGES="
     sdl3
     sfxr-qt-bin
     signal-desktop
+    skaffold
     skipfish
     slurp
     smartmontools
@@ -575,6 +577,7 @@ PACKAGES="
     xf86-video-ati
     xf86-video-nouveau
     xh
+    xivlauncher-bin
     xorg-server
     xorg-xauth
     xorg-xev
