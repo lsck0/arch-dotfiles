@@ -4,7 +4,7 @@
   "WINDOW_BOUNDS": {
     "x": 5,
     "y": 34,
-    "width": 1215,
+    "width": 1222,
     "height": 1040
   },
   "SKIP_HOST_UPDATE": true,
@@ -15,5 +15,7 @@
   "MIN_HEIGHT": 500,
   "BACKGROUND_COLOR": "#000000",
   "offloadAdmControls": true,
-  "asyncVideoInputDeviceInit": false
+  "asyncVideoInputDeviceInit": false,
+  "enableLibOpenH264Electron": false,
+  "openH264Enabled": true
 }
