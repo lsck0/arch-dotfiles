@@ -1,18 +1,8 @@
 return {
     { "nvim-tree/nvim-web-devicons" },
 
-    -- {
-    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
-    --     priority = 1000,
-    --     name = "pywal",
-    --     config = function()
-    --         require("pywal").setup()
-    --     end,
-    -- },
-
     {
         "catppuccin/nvim",
-        priority = 1000,
         name = "catppuccin",
         config = function()
             require("catppuccin").setup({
@@ -33,9 +23,31 @@ return {
                     snacks = { enabled = true, },
                 },
             })
-            vim.cmd.colorscheme "catppuccin"
+            -- vim.cmd.colorscheme "catppuccin"
         end
     },
+
+    {
+        "nyoom-engineering/oxocarbon.nvim",
+        config = function()
+            -- vim.cmd.colorscheme "oxocarbon"
+        end
+    },
+
+    {
+        "Skalyaev/a-nvim-theme",
+        config = function()
+            vim.cmd.colorscheme "neon"
+        end
+    },
+
+    -- {
+    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
+    --     name = "pywal",
+    --     config = function()
+    --         require("pywal").setup()
+    --     end,
+    -- },
 
     { "romgrk/barbar.nvim" },
 
@@ -44,8 +56,7 @@ return {
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "catppuccin",
-                    -- theme = "pywal-nvim",
+                    theme = "neon",
                 },
                 sections = {
                     lualine_x = {

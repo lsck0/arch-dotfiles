@@ -508,6 +508,7 @@ PACKAGES="
     ttf-mona-sans
     ttf-monaspace-frozen
     ttf-monaspace-variable
+    ttf-monocraft-git
     ttf-monofur
     ttf-monoid
     ttf-montserrat
