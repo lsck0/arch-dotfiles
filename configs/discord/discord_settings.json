@@ -4,7 +4,7 @@
   "WINDOW_BOUNDS": {
     "x": 5,
     "y": 34,
-    "width": 1222,
+    "width": 1238,
     "height": 1040
   },
   "SKIP_HOST_UPDATE": true,
@@ -16,6 +16,6 @@
   "BACKGROUND_COLOR": "#000000",
   "offloadAdmControls": true,
   "asyncVideoInputDeviceInit": false,
-  "enableLibOpenH264Electron": false,
+  "enableLibOpenH264Electron": true,
   "openH264Enabled": true
 }

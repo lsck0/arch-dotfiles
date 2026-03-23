@@ -12,6 +12,7 @@ path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/emacs/bin")
 path+=("$HOME/.ghcup/bin")
 path+=("$HOME/.local/bin")
+path+=("$HOME/go/bin")
 path+=("/opt/jai/bin")
 export PATH
 
