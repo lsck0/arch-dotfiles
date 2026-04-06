@@ -11,11 +11,14 @@ PACKAGES="
     aircrack-ng
     alsa-firmware
     amdgpu_top
+    android-ndk
+    android-sdk
     ani-cli-git
     app2unit
     argon2
     aseprite
     audacity
+    awww
     bacon
     bat
     bc
@@ -168,6 +171,7 @@ PACKAGES="
     grex
     grim
     gst-plugin-pipewire
+    gtk-meshtastic-client
     gtk3
     gtk4
     gufw
@@ -276,6 +280,7 @@ PACKAGES="
     maven
     mdbook
     mesa
+    meshwatch-git
     meson
     metadata-cleaner
     metasploit
@@ -433,7 +438,6 @@ PACKAGES="
     starship
     steam
     stirling-pdf-bin
-    swww
     system-config-printer
     tar
     taskwarrior-tui
@@ -546,6 +550,7 @@ PACKAGES="
     waydroid
     wayland
     wayland-boomer-git
+    waypipe
     wayvr-bin
     wev
     wget

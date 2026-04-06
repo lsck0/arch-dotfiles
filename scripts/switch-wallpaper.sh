@@ -4,7 +4,7 @@ set_wallpaper() {
     local file="$1"
 
     # set the wallpaper
-    swww img "$file" --transition-type center --transition-step 1 --transition-duration 3 --transition-fps 60 &
+    awww img "$file" --transition-type center --transition-step 1 --transition-duration 3 --transition-fps 60 &
     ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null &
     echo $file > "$HOME/.cache/wal/wallpaper_path" 2>/dev/null &
 
