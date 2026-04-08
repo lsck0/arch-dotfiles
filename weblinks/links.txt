@@ -4,6 +4,7 @@ https://amazon.de
 https://archlinux.org/packages                                                    as archpackages
 https://arxiv.org
 https://aur.archlinux.org                                                         as aur
+https://chatgpt.com/                                                              as chatgpt
 https://claude.ai/                                                                as claudeai
 https://craftofexile.com/                                                         as poecraft
 https://detexify.kirelabs.org/classify.html                                       as detexify
