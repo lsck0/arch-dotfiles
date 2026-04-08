@@ -30,7 +30,7 @@ return {
     -- {
     --     "nyoom-engineering/oxocarbon.nvim",
     --     config = function()
-    --         -- vim.cmd.colorscheme "oxocarbon"
+    --         vim.cmd.colorscheme "oxocarbon"
     --     end
     -- },
 
@@ -56,7 +56,7 @@ return {
     --     config = function()
     --         require("lualine").setup({
     --             options = {
-    --                 theme = "neon",
+    --                 theme = "default",
     --             },
     --             sections = {
     --                 lualine_x = {

@@ -33,7 +33,7 @@ PACKAGES="
     bluez-utils
     brightnessctl
     btop
-    bun
+    bugwarrior
     burpsuite
     caligula
     cargo-audit
@@ -75,6 +75,7 @@ PACKAGES="
     croc
     cronie
     cross
+    ctop
     cups
     cups-pk-helper
     curl
@@ -137,6 +138,7 @@ PACKAGES="
     gcc-fortran
     gdb
     gearlever
+    gemini-cli-git
     genius
     geogebra-6-bin
     gf2-git
@@ -296,6 +298,7 @@ PACKAGES="
     mov-cli
     mpg123
     mpv
+    mtools
     nano
     nasm
     ncdu
