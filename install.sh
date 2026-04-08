@@ -438,6 +438,7 @@ PACKAGES="
     sqlmap-git
     sqlx-cli
     sshfs
+    sshpass
     starship
     steam
     stirling-pdf-bin
