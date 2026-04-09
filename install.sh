@@ -8,6 +8,7 @@ exec > >(tee -a "install.log") 2>&1
 PACKAGES="
     act
     afl++
+    age
     aircrack-ng
     alsa-firmware
     amdgpu_top
@@ -112,6 +113,7 @@ PACKAGES="
     emacs
     emscripten
     entr
+    expect
     exploitdb
     eza
     famistudio-bin
@@ -427,7 +429,9 @@ PACKAGES="
     slurp
     smartmontools
     snapshot
+    socat
     sof-firmware
+    sops
     sowon-git
     sox
     speedscope
