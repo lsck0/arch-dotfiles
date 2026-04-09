@@ -13,6 +13,7 @@ sudo systemctl enable cronie.service
 sudo systemctl enable cups
 sudo systemctl enable libvirtd.service
 sudo systemctl enable ly@tty2.service
+sudo systemctl enable nix-daemon
 sudo systemctl enable ollama.service
 sudo systemctl enable open-fprintd-resume.service
 sudo systemctl enable open-fprintd-suspend.service
