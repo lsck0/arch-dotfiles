@@ -421,6 +421,7 @@ PACKAGES="
     rsync
     rz-cutter
     sane
+    sccache
     sdl3
     sfxr-qt-bin
     signal-desktop
