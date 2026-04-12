@@ -23,23 +23,23 @@ return {
     --                 snacks = { enabled = true, },
     --             },
     --         })
-    --         -- vim.cmd.colorscheme "catppuccin"
-    --     end
-    -- },
-
-    -- {
-    --     "nyoom-engineering/oxocarbon.nvim",
-    --     config = function()
-    --         vim.cmd.colorscheme "oxocarbon"
+    --         vim.cmd.colorscheme "catppuccin"
     --     end
     -- },
 
     {
-        "Skalyaev/a-nvim-theme",
+        "nyoom-engineering/oxocarbon.nvim",
         config = function()
-            vim.cmd.colorscheme "neon"
+            vim.cmd.colorscheme "oxocarbon"
         end
     },
+
+    -- {
+    --     "Skalyaev/a-nvim-theme",
+    --     config = function()
+    --         vim.cmd.colorscheme "neon"
+    --     end
+    -- },
 
     -- {
     --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
@@ -49,38 +49,37 @@ return {
     --     end,
     -- },
 
-    -- { "romgrk/barbar.nvim" },
+    { "romgrk/barbar.nvim" },
 
-    -- {
-    --     "nvim-lualine/lualine.nvim",
-    --     config = function()
-    --         require("lualine").setup({
-    --             options = {
-    --                 theme = "default",
-    --             },
-    --             sections = {
-    --                 lualine_x = {
-    --                     {
-    --                         function()
-    --                             local ok, pomo = pcall(require, "pomo")
-    --                             if not ok then
-    --                                 return ""
-    --                             end
-    --
-    --                             local timer = pomo.get_first_to_finish()
-    --                             if timer == nil then
-    --                                 return ""
-    --                             end
-    --
-    --                             return tostring(timer)
-    --                         end,
-    --                     }
-    --                 },
-    --             },
-    --         })
-    --     end
-    -- },
+    {
+        "nvim-lualine/lualine.nvim",
+        config = function()
+            require("lualine").setup({
+                options = {
+                    theme = "oxocarbon",
+                },
+                sections = {
+                    lualine_x = {
+                        {
+                            function()
+                                local ok, pomo = pcall(require, "pomo")
+                                if not ok then
+                                    return ""
+                                end
 
+                                local timer = pomo.get_first_to_finish()
+                                if timer == nil then
+                                    return ""
+                                end
+
+                                return tostring(timer)
+                            end,
+                        }
+                    },
+                },
+            })
+        end
+    },
 
     {
         "xiyaowong/virtcolumn.nvim",
