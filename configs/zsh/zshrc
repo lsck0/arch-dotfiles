@@ -11,10 +11,11 @@ source ~/.cache/wal/colors.sh
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/emacs/bin")
 path+=("$HOME/.ghcup/bin")
+path+=("$HOME/.go/bin")
+path+=("$HOME/.jai/bin")
 path+=("$HOME/.local/bin")
-path+=("$HOME/go/bin")
-path+=("/opt/jai/bin")
 export PATH
+export GOPATH="$HOME/.go"
 
 export EDITOR=nvim
 export SHELL=zsh
@@ -55,6 +56,7 @@ alias rm="trash -v"
 alias convert="magick"
 alias ldocker="lazydocker"
 alias lgit="lazygit"
+alias ljj="lazyjj"
 
 alias sshnb="ssh luca@192.168.178.73"
 alias sshpc="ssh luca@192.168.178.138"
