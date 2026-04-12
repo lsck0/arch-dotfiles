@@ -570,8 +570,6 @@ PACKAGES="
     wiremix
     wireplumber
     wireshark-qt
-    wivrn-dashboard
-    wivrn-server
     wl-clipboard
     wl_shimeji-git
     wlogout
