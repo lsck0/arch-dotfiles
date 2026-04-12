@@ -2,10 +2,6 @@
 
 set -ex
 
-systemctl --user enable opentabletdriver
-systemctl --user enable pipewire-pulse.service
-systemctl --user enable pipewire-pulse.socket
-
 sudo systemctl disable getty@tty2.service
 sudo systemctl enable avahi-daemon.service
 sudo systemctl enable bluetooth.service
