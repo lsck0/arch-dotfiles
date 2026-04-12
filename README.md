@@ -16,12 +16,13 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 
 ## Things to do manually after rebooting
 
-- enable optional configs (`fd manual_link.sh` and cd into the folder before running)
+- enable optional/post-reboot configs (`fd manual_link.sh` and cd into the folder before running)
+  run all with `find "$(pwd)" -type f -name 'manual_link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'`
 
 - in case of LUKS encryption, change sector size to 4096 bytes for better performance:
 
 ```bash
-sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
+sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096 --key-file <file-with-password>
 ```
 
 - add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
