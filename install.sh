@@ -174,7 +174,6 @@ PACKAGES="
     graphviz
     grex
     grim
-    gst-plugin-pipewire
     gtk-meshtastic-client
     gtk3
     gtk4
@@ -223,7 +222,6 @@ PACKAGES="
     lib32-alsa-plugins
     lib32-giflib
     lib32-gnutls
-    lib32-gst-plugins-base-libs
     lib32-gtk3
     lib32-libgcrypt
     lib32-libgpg-error
