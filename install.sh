@@ -153,6 +153,7 @@ PACKAGES="
     git
     git-delta
     git-filter-repo
+    git-lfs
     github-cli
     github-copilot-cli
     gitleaks
