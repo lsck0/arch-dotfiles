@@ -22,7 +22,7 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 - in case of LUKS encryption, change sector size to 4096 bytes for better performance:
 
 ```bash
-sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096 --key-file <file-with-password>
+sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
 ```
 
 - add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
