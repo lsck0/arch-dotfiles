@@ -410,6 +410,7 @@ PACKAGES="
     rar
     rawtherapee
     raylib
+    rcon-cli
     reaver-wps-fork-t6x-git
     renderdoc
     ripgrep
