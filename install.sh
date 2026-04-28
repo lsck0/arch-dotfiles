@@ -454,6 +454,9 @@ PACKAGES="
     telegram-desktop
     terminus-font-ttf
     terraform
+    tesseract
+    tesseract-data-deu
+    tesseract-data-eng
     texlive
     texlive-lang
     texmaker
