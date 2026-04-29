@@ -175,7 +175,6 @@ PACKAGES="
     graphviz
     grex
     grim
-    gtk-meshtastic-client
     gtk3
     gtk4
     gufw
@@ -283,7 +282,6 @@ PACKAGES="
     maven
     mdbook
     mesa
-    meshwatch-git
     meson
     metadata-cleaner
     metasploit
