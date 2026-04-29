@@ -91,6 +91,7 @@ PACKAGES="
     downgrade
     dua-cli
     dust
+    dwarfs-bin
     dysk
     easyeffects
     ecgen-git
