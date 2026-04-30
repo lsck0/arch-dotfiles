@@ -324,7 +324,6 @@ PACKAGES="
     nwg-look
     obs-audio-wave-bin
     obs-pipewire-audio-capture
-    obs-plugin-browser
     obs-plugin-waveform-bin
     obs-studio
     odin
@@ -665,7 +664,7 @@ sudo pacman -S rustup --noconfirm
 rustup default stable
 
 # install all the things
-yay -S $PACKAGES --noconfirm
+yay -S $PACKAGES --noconfirm --mflags --skipinteg
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 cargo install $CARGO_PKGS -j $(nproc)
 flatpak install flathub -y $FLATPAK_PKGS
