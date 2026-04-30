@@ -10,12 +10,16 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
+# system packages
+
 yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
 flatpak update --assumeyes
 nix-channel --update
+cargo install-update -a
+
+# language toolchains
 
 rustup update
-cargo install-update -a
 
 opam update
 opam upgrade
@@ -28,4 +32,11 @@ ghcup install stack latest
 
 mise upgrade
 
+# userland
+
 yes | hyprpm update -f
+
+~/.tmux/plugins/tpm/bin/update_plugins all
+tldr --update_cache
+nvim --headless "+Lazy! sync" +MasonUpdate +TSUpdate +qa
+doom upgrade
