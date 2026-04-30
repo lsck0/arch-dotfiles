@@ -66,7 +66,6 @@ PACKAGES="
     clonezilla
     cmake
     cmatrix
-    code
     codelldb-bin
     converseen
     copyq
@@ -472,6 +471,7 @@ PACKAGES="
     tlpui
     tmux
     tokei
+    topology-toolkit
     torbrowser-launcher
     tparted-bin
     trash-cli
@@ -552,6 +552,7 @@ PACKAGES="
     vim
     virt-manager
     volatility3-git
+    vscodium-bin
     vulkan-icd-loader
     vulkan-intel
     vulkan-nouveau
