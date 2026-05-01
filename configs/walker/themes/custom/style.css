@@ -1,6 +1,6 @@
-@define-color window_bg_color #110c1d;
-@define-color accent_bg_color #63308C;
-@define-color theme_fg_color #1A2A9C;
+@define-color window_bg_color #0b1019;
+@define-color accent_bg_color #97533C;
+@define-color theme_fg_color #62524F;
 
 * {
   all: unset;
