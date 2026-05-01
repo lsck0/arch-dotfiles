@@ -9,11 +9,11 @@ DOMAIN="lsck0.dev"
 
 sudo mkdir -p /etc/NetworkManager/conf.d /etc/NetworkManager/dnsmasq.d
 
-sudo cat > /etc/NetworkManager/conf.d/dns.conf << EOF
+sudo tee /etc/NetworkManager/conf.d/dns.conf > /dev/null << EOF
 [main]
 dns=dnsmasq
 EOF
 
-sudo cat > /etc/NetworkManager/dnsmasq.d/${DOMAIN//./-}.conf << EOF
+sudo tee /etc/NetworkManager/dnsmasq.d/${DOMAIN//./-}.conf > /dev/null << EOF
 server=/${DOMAIN}/${ROUTER_IP}
 EOF
