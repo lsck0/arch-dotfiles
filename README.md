@@ -16,16 +16,10 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 
 ## Things to do manually after rebooting
 
+- add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
+
 - enable optional/post-reboot configs (`fd manual_link.sh` and cd into the folder before running)
   run all with `find "$(pwd)" -type f -name 'manual_link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'`
-
-- in case of LUKS encryption, change sector size to 4096 bytes for better performance:
-
-```bash
-sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
-```
-
-- add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
 
 - configure the firewall (portmaster), for example:
   - Always use DNS Cache: True
@@ -41,6 +35,8 @@ sudo cryptsetup reencrypt /dev/ASDF --cipher aes-xts-plain64 --key-size 256 --se
   and font to `0xProto Nerd Font`
 
 - run `spicetify backup apply && spicetify enable-devtools` after running spotify once (including logging in), otherwise the theme does not work
+
+- run `betterdiscord-installer` after running discord once (including logging in)
 
 - fetch the submodules (needs github auth)
 
