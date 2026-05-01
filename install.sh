@@ -3,6 +3,9 @@
 set -e
 exec > >(tee -a "install.log") 2>&1
 
+FAILURES_FILE="$(pwd)/FAILURES"
+: > "$FAILURES_FILE"
+
 ## PACKAGE LISTS
 
 PACKAGES="
@@ -641,7 +644,7 @@ fi
 ## LINK PACMAN CONFIG
 
 pushd ./configs/pacman
-sh ./link.sh
+( set -o pipefail; sh ./link.sh 2>&1 | tee ./link.sh.log ) || echo "configs/pacman/link.sh" >> "$FAILURES_FILE"
 popd
 
 ## INSTALLING ALL THE THINGS
@@ -680,16 +683,35 @@ echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       | sudo tee -a /etc/security/
 echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
-find "$(pwd)" -type f -name 'link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'
-find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && python $(basename {})'
+find "$(pwd)" -type f -name 'link.sh' | while IFS= read -r script; do
+    dir=$(dirname "$script"); base=$(basename "$script")
+    ( set -o pipefail; cd "$dir" && sh "$base" 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
+done
+find "$(pwd)" -type f -name 'link.py' | while IFS= read -r script; do
+    dir=$(dirname "$script"); base=$(basename "$script")
+    ( set -o pipefail; cd "$dir" && python "$base" 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
+done
+
+## LFS PULL
+
+git lfs pull
 
 ## INIT WALLPAPER AND THEME FILES
 
-git lfs pull
 ./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-revenant2-2-1.jpg >/dev/null 2>/dev/null
+
+## SUMMARY
+
+if [ -s "$FAILURES_FILE" ]; then
+    echo "=== FAILED SCRIPTS ==="
+    cat "$FAILURES_FILE"
+else
+    echo "All scripts succeeded."
+    rm -f "$FAILURES_FILE"
+fi
 
 ## REBOOT
 
 sleep 150 && reboot &
 
-echo "Done. Rebooting soon." | nvim
+nvim
