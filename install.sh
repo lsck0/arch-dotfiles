@@ -685,6 +685,7 @@ find "$(pwd)" -type f -name 'link.py' | xargs -I {} sh -c 'cd $(dirname {}) && p
 
 ## INIT WALLPAPER AND THEME FILES
 
+git lfs pull
 ./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-revenant2-2-1.jpg >/dev/null 2>/dev/null
 
 ## REBOOT
