@@ -302,6 +302,7 @@ PACKAGES="
     mpg123
     mpv
     mtools
+    mtr
     nano
     nasm
     ncdu
@@ -477,6 +478,7 @@ PACKAGES="
     topology-toolkit
     torbrowser-launcher
     tparted-bin
+    traceroute
     trash-cli
     tree-sitter-cli
     trufflehog
