@@ -29,6 +29,7 @@ PACKAGES="
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
+    biber
     bind
     bleachbit
     blender

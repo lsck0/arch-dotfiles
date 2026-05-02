@@ -99,6 +99,17 @@ return {
         config = function()
             vim.diagnostic.config({ virtual_text = true })
 
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = "jai",
+                callback = function(args)
+                    vim.lsp.start({
+                        name = "jails",
+                        cmd = { "jails", "-jai_path", "/home/luca/.jai", "-jai_exe_name", "jai-linux" },
+                        root_dir = vim.fs.root(args.buf, { "jails.json", ".git" }) or vim.fn.getcwd(),
+                    })
+                end,
+            })
+
             require("mason").setup()
             require("null-ls").setup()
             require("mason-null-ls").setup({
@@ -106,6 +117,15 @@ return {
                 handlers = {},
                 automatic_installation = true,
             })
+
+            vim.lsp.config("clangd", {
+                cmd = {
+                    "clangd",
+                    "--offset-encoding=utf-16",
+                    "--background-index",
+                },
+            })
+            vim.lsp.enable("clangd")
 
             vim.lsp.config("rust_analyzer", {
                 settings = {
@@ -128,15 +148,6 @@ return {
                 }
             })
             vim.lsp.enable("rust_analyzer")
-
-            vim.lsp.config("clangd", {
-                cmd = {
-                    "clangd",
-                    "--offset-encoding=utf-16",
-                    "--background-index",
-                },
-            })
-            vim.lsp.enable("clangd")
 
             vim.lsp.config("tsserver", {
                 on_attach = function(client, bufnr)
