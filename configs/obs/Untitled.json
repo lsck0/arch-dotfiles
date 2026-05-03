@@ -29,7 +29,9 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
-        "private_settings": {}
+        "private_settings": {
+            "volume_locked": true
+        }
     },
     "AuxAudioDevice1": {
         "prev_ver": 536936450,
@@ -60,7 +62,9 @@
         "deinterlace_mode": 0,
         "deinterlace_field_order": 0,
         "monitoring_type": 0,
-        "private_settings": {},
+        "private_settings": {
+            "volume_locked": true
+        },
         "filters": [
             {
                 "prev_ver": 536936450,
@@ -240,7 +244,7 @@
             "mixers": 193,
             "sync": 0,
             "flags": 0,
-            "volume": 1.5848932266235352,
+            "volume": 1.0,
             "balance": 0.5,
             "enabled": true,
             "muted": false,
@@ -257,7 +261,37 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": false
+            },
+            "filters": [
+                {
+                    "prev_ver": 536936450,
+                    "name": "Gain",
+                    "uuid": "b717269e-3c1a-45f6-90c9-c593c4cce90d",
+                    "id": "gain_filter",
+                    "versioned_id": "gain_filter",
+                    "settings": {
+                        "db": 5.6
+                    },
+                    "mixers": 255,
+                    "sync": 0,
+                    "flags": 0,
+                    "volume": 1.0,
+                    "balance": 0.5,
+                    "enabled": true,
+                    "muted": false,
+                    "push-to-mute": false,
+                    "push-to-mute-delay": 0,
+                    "push-to-talk": false,
+                    "push-to-talk-delay": 0,
+                    "hotkeys": {},
+                    "deinterlace_mode": 0,
+                    "deinterlace_field_order": 0,
+                    "monitoring_type": 0,
+                    "private_settings": {}
+                }
+            ]
         },
         {
             "prev_ver": 536936450,
@@ -288,7 +322,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -319,7 +355,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -352,7 +390,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -385,7 +425,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -622,7 +664,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -788,7 +832,9 @@
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "private_settings": {}
+            "private_settings": {
+                "volume_locked": true
+            }
         },
         {
             "prev_ver": 536936450,
@@ -850,11 +896,11 @@
             "versioned_id": "browser_source",
             "settings": {
                 "url": "https://reactive.fugi.tech/custom/19a1dq2odet7",
-                "webpage_control_level": 1,
-                "reroute_audio": false,
-                "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
                 "shutdown": false,
-                "restart_when_active": false
+                "restart_when_active": false,
+                "webpage_control_level": 1,
+                "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+                "reroute_audio": false
             },
             "mixers": 255,
             "sync": 0,
@@ -1125,9 +1171,9 @@
                 "custom_size": false,
                 "items": [
                     {
-                        "name": "Twitch Alerts For Me",
-                        "source_uuid": "a4492cab-33ee-44f2-b271-10af023357cf",
-                        "visible": false,
+                        "name": "Sound Alerts For Me",
+                        "source_uuid": "f6f9636c-befb-49e8-8745-963c959ded0c",
+                        "visible": true,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -1142,7 +1188,7 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 10,
+                        "id": 11,
                         "group_item_backup": false,
                         "pos": {
                             "x": 0.0,
@@ -1180,9 +1226,9 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Sound Alerts For Me",
-                        "source_uuid": "f6f9636c-befb-49e8-8745-963c959ded0c",
-                        "visible": false,
+                        "name": "Twitch Alerts For Me",
+                        "source_uuid": "a4492cab-33ee-44f2-b271-10af023357cf",
+                        "visible": true,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -1197,7 +1243,7 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 11,
+                        "id": 10,
                         "group_item_backup": false,
                         "pos": {
                             "x": 0.0,
@@ -2054,26 +2100,26 @@
                         "bounds_align": 0,
                         "bounds_crop": false,
                         "crop_left": 0,
-                        "crop_top": 1989,
-                        "crop_right": 925,
+                        "crop_top": 1975,
+                        "crop_right": 803,
                         "crop_bottom": 0,
                         "id": 3,
                         "group_item_backup": false,
                         "pos": {
-                            "x": 3289.0,
+                            "x": 3259.0,
                             "y": 0.0
                         },
                         "pos_rel": {
-                            "x": 1.2675925493240356,
+                            "x": 1.2399626970291138,
                             "y": -1.0
                         },
                         "scale": {
-                            "x": 1.3425925970077515,
-                            "y": 1.3444443941116333
+                            "x": 1.6134454011917114,
+                            "y": 1.615384578704834
                         },
                         "scale_rel": {
-                            "x": 1.3425925970077515,
-                            "y": 1.3444443941116333
+                            "x": 1.6134454011917114,
+                            "y": 1.615384578704834
                         },
                         "bounds": {
                             "x": 0.0,
@@ -2097,7 +2143,7 @@
                     {
                         "name": "Discord PNGs",
                         "source_uuid": "bbfd4d27-5fa6-4792-bebe-5ca83c553475",
-                        "visible": true,
+                        "visible": false,
                         "locked": true,
                         "rot": 0.0,
                         "scale_ref": {
@@ -2223,12 +2269,12 @@
                 "libobs.hide_scene_item.1": [],
                 "libobs.show_scene_item.2": [],
                 "libobs.hide_scene_item.2": [],
+                "libobs.show_scene_item.3": [],
+                "libobs.hide_scene_item.3": [],
                 "libobs.show_scene_item.4": [],
                 "libobs.hide_scene_item.4": [],
                 "libobs.show_scene_item.5": [],
-                "libobs.hide_scene_item.5": [],
-                "libobs.show_scene_item.3": [],
-                "libobs.hide_scene_item.3": []
+                "libobs.hide_scene_item.5": []
             },
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
