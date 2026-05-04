@@ -3,6 +3,7 @@ vim.filetype.add({
         hlsl = "hlsl",
         fx = "hlsl",
         shader = "hlsl",
+        json = "avsc",
     },
 })
 
