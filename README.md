@@ -23,6 +23,7 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 
 - configure the firewall (portmaster), for example:
   - Always use DNS Cache: True
+  - Add homelab DNS server (first slot!!): dns://192.168.178.29
   - Force Block Incoming Connections: False
   - Incoming Rules: (check quick settings top right)
     - Allow `127.0.0.1`
