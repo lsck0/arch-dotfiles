@@ -1,0 +1,20 @@
+{
+    "dns": {
+        "nameservers": [
+            "dns://192.168.178.29",
+            "dot://cloudflare-dns.com?ip=1.1.1.2&name=Cloudflare&blockedif=zeroip",
+            "dot://cloudflare-dns.com?ip=1.0.0.2&name=Cloudflare&blockedif=zeroip"
+        ],
+        "useStaleCache": true
+    },
+    "filter": {
+        "blockInbound": false,
+        "serviceEndpoints": [
+            "+ 127.0.0.1",
+            "+ * tcp/22",
+            "+ * tcp/80",
+            "+ * tcp/443",
+            "- *"
+        ]
+    }
+}
