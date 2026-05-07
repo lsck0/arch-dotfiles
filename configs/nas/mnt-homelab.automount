@@ -1,0 +1,11 @@
+[Unit]
+Description=Automount NAS homelab share on access
+After=network-online.target
+Wants=network-online.target
+
+[Automount]
+Where=/mnt/homelab
+TimeoutIdleSec=5min
+
+[Install]
+WantedBy=multi-user.target
