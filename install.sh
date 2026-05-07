@@ -64,6 +64,7 @@ PACKAGES="
     cava
     cgdb
     chromium
+    cifs-utils
     clang
     claude-code
     cloc
