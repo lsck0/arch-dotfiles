@@ -702,7 +702,7 @@ git lfs pull
 
 ## INIT WALLPAPER AND THEME FILES
 
-./scripts/switch-wallpaper.sh ~/code/arch-dotfiles/wallpapers/alena-aenami-revenant2-2-1.jpg >/dev/null 2>/dev/null
+./scripts/switch-wallpaper.sh ./wallpapers/gargantua.jpg >/dev/null 2>/dev/null
 
 ## SUMMARY
 
