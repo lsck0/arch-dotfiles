@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
-exec > >(tee -a "install.log") 2>&1
+exec > >(tee "install.log") 2>&1
 
 FAILURES_FILE="$(pwd)/FAILURES"
 : > "$FAILURES_FILE"
@@ -702,14 +702,14 @@ echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       | sudo tee -a /etc/security/
 echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
-find "$(pwd)" -type f -name 'link.sh' | while IFS= read -r script; do
+while IFS= read -r script; do
     dir=$(dirname "$script"); base=$(basename "$script")
-    ( set -o pipefail; cd "$dir" && sh "$base" 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
-done
-find "$(pwd)" -type f -name 'link.py' | while IFS= read -r script; do
+    ( set -o pipefail; cd "$dir" && sh "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
+done < <(find "$(pwd)" -type f -name 'link.sh')
+while IFS= read -r script; do
     dir=$(dirname "$script"); base=$(basename "$script")
-    ( set -o pipefail; cd "$dir" && python "$base" 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
-done
+    ( set -o pipefail; cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
+done < <(find "$(pwd)" -type f -name 'link.py')
 
 ## LFS PULL
 
