@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Download + Install JAI. Download link is provided via argv 1
 
 set -ex
 
