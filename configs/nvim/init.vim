@@ -5,10 +5,10 @@ set list listchars=tab:>\ ,trail:-,eol:↲
 
 " make tabline transparent
 highlight WinSeparator guibg=NONE guifg=#141414 ctermbg=NONE ctermfg=8
-highlight BufferCurrent guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
-highlight BufferOffset guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
-highlight BufferVisible guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
-highlight StatusLine guibg=NONE guibg=NONE ctermbg=NONE ctermfg=NONE
+highlight BufferCurrent guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
+highlight BufferOffset guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
+highlight BufferVisible guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
+highlight StatusLine guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
 
 " auto file reload
 set autoread
