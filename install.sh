@@ -376,7 +376,6 @@ PACKAGES="
     pipewire-pulse
     pitivi
     pkgconf
-    planify
     polkit
     polkit-kde-agent
     portmaster-bin
