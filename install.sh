@@ -36,6 +36,7 @@ PACKAGES="
     blueberry
     bluez
     bluez-utils
+    borg
     brightnessctl
     btop
     bugwarrior
@@ -86,7 +87,10 @@ PACKAGES="
     curl
     curseforge
     diesel-cli
+    difftastic
+    direnv
     discord
+    distrobox
     dmenu
     docker
     docker-buildx
@@ -177,6 +181,7 @@ PACKAGES="
     go
     gobuster
     gparted
+    gping
     graphviz
     grex
     grim
@@ -190,6 +195,7 @@ PACKAGES="
     help2man
     heroic-games-launcher-bin
     hexchat
+    hexyl
     hotspot
     hydra
     hyperfine
@@ -213,6 +219,7 @@ PACKAGES="
     jujutsu
     jupyterlab
     just
+    k9s
     kdenlive
     kitty
     kpat
@@ -297,6 +304,7 @@ PACKAGES="
     minikube
     mise
     mission-center
+    mkcert
     modrinth-app-bin
     mold
     mov-cli
@@ -352,6 +360,7 @@ PACKAGES="
     osmium-tool
     ossec-hids-local
     osslsigncode
+    ouch
     pandoc-cli
     parallel
     pass
@@ -376,6 +385,7 @@ PACKAGES="
     powerline-fonts
     pre-commit
     prettier
+    procs
     protonup-git
     python-black
     python-faker
@@ -413,6 +423,7 @@ PACKAGES="
     rar
     rawtherapee
     raylib
+    rclone
     rcon-cli
     reaver-wps-fork-t6x-git
     renderdoc
@@ -425,6 +436,7 @@ PACKAGES="
     rz-cutter
     sane
     sccache
+    sd
     sdl3
     sfxr-qt-bin
     signal-desktop
@@ -454,6 +466,7 @@ PACKAGES="
     tar
     taskwarrior-tui
     teamspeak3
+    tectonic
     telegram-desktop
     terminus-font-ttf
     terraform
@@ -609,9 +622,12 @@ PACKAGES="
     xorg-xwayland
     xournalpp
     ydotool
+    yt-dlp
     z3
     zaproxy
     zapzap
+    zathura
+    zathura-pdf-mupdf
     zed
     zig
     zip
