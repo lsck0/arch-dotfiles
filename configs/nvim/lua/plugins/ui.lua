@@ -170,7 +170,7 @@ return {
                     enabled = false,
                     latex = {
                         font_size = "Large",
-                        packages = { "tikz-cd", "/home/luca/code/paper/template/header" },
+                        packages = { "tikz-cd", "/home/luca/projects/paper/template/header" },
                     }
                 }
             },

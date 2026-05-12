@@ -44,7 +44,7 @@ local telescope = require("telescope.builtin")
 local opts = { buffer = bufnr, remap = false }
 vim.keymap.set("n", "<leader>fc", function()
     telescope.find_files({
-        cwd = "~/code/arch-dotfiles",
+        cwd = "~/projects/arch-dotfiles",
     })
 end, {})
 vim.keymap.set("n", "<leader>ff", telescope.find_files, {})

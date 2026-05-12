@@ -57,7 +57,7 @@ with open("./links.txt", "r") as file:
 
         os.system(f"chmod +x ./collection/{exec_name}.sh")
         os.system(
-            f"sudo ln -sf {HOME}/code/arch-dotfiles/weblinks/collection/{exec_name}.sh /usr/local/bin/{exec_name}"
+            f"sudo ln -sf {HOME}/projects/arch-dotfiles/weblinks/collection/{exec_name}.sh /usr/local/bin/{exec_name}"
         )
 
         print(f"Created executable {exec_name} for {url}.")
