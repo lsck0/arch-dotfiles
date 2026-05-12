@@ -7,8 +7,8 @@
 Run
 
 ```bash
-git clone https://github.com/lsck0/arch-dotfiles.git ~/code/arch-dotfiles/
-cd ~/code/arch-dotfiles/
+git clone https://github.com/lsck0/arch-dotfiles.git ~/projects/arch-dotfiles/
+cd ~/projects/arch-dotfiles/
 ./install.sh
 ```
 
@@ -37,16 +37,16 @@ git submodule update --init --recursive
 - import shh and pgp keys from secrets submodule
 
 ```bash
-gpg --import ~/code/arch-dotfiles/configs/secrets/pgp_privatekey.asc
+gpg --import ~/projects/arch-dotfiles/configs/secrets/pgp_privatekey.asc
 
-sudo chmod 600 ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
-ssh-add ~/code/arch-dotfiles/configs/secrets/ssh_privatekey.asc
+sudo chmod 600 ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
+ssh-add ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 ```
 
 - add wirguard vpn tunnel
 
 ```bash
-sudo ln -sf ~/code/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/wg0.conf
+sudo ln -sf ~/projects/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/wg0.conf
 ```
 
 ## Screenshots
