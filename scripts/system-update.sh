@@ -15,11 +15,13 @@ fi
 yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
 flatpak update --assumeyes
 nix-channel --update
-cargo install-update -a
 
 # language toolchains
 
+mise upgrade
+
 rustup update
+cargo install-update -a
 
 opam update
 opam upgrade
@@ -30,13 +32,19 @@ ghcup install ghc latest
 ghcup install hls latest
 ghcup install stack latest
 
-mise upgrade
-
 # userland
 
 yes | hyprpm update -f
 
 ~/.tmux/plugins/tpm/bin/update_plugins all
+
 tldr --update_cache
+
+expect -c '
+  spawn doom upgrade --aot
+  expect "(y or n)" { send "n\r" }
+  expect "(y or n)" { send "y\r" }
+  expect eof
+'
+
 nvim --headless "+Lazy! sync" +MasonUpdate +TSUpdate +qa
-doom upgrade
