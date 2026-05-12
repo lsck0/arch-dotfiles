@@ -211,7 +211,7 @@
             "id": "image_source",
             "versioned_id": "image_source",
             "settings": {
-                "file": "/home/luca/code/arch-dotfiles/configs/obs/starting.png"
+                "file": "/home/luca/projects/arch-dotfiles/configs/obs/starting.png"
             },
             "mixers": 0,
             "sync": 0,
@@ -843,7 +843,7 @@
             "id": "image_source",
             "versioned_id": "image_source",
             "settings": {
-                "file": "/home/luca/code/arch-dotfiles/configs/obs/paused.png"
+                "file": "/home/luca/projects/arch-dotfiles/configs/obs/paused.png"
             },
             "mixers": 0,
             "sync": 0,
@@ -869,7 +869,7 @@
             "id": "image_source",
             "versioned_id": "image_source",
             "settings": {
-                "file": "/home/luca/code/arch-dotfiles/configs/obs/ending.png"
+                "file": "/home/luca/projects/arch-dotfiles/configs/obs/ending.png"
             },
             "mixers": 0,
             "sync": 0,

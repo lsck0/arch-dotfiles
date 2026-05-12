@@ -55,7 +55,7 @@ set_wallpaper() {
 }
 
 main() {
-    WALLPAPER_DIR="$HOME/code/arch-dotfiles/wallpapers"
+    WALLPAPER_DIR="$HOME/projects/arch-dotfiles/wallpapers"
 
     WALLPAPERS="$(find "$WALLPAPER_DIR" \
         -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
