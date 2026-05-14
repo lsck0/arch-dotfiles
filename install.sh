@@ -29,6 +29,7 @@ PACKAGES="
     bemenu-wayland
     bettercap-git
     betterdiscord-installer
+    betterdiscordctl-git
     biber
     bind
     bleachbit

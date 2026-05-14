@@ -1,5 +1,5 @@
 diff --git a/configs/hyprland/hyprland_keybindings.conf b/configs/hyprland/hyprland_keybindings.conf
-index a8f2aa0..a32e0be 100644
+index 8c1429e..2220d5d 100644
 --- a/configs/hyprland/hyprland_keybindings.conf
 +++ b/configs/hyprland/hyprland_keybindings.conf
 @@ -12,7 +12,7 @@ bind = $mod,       p,      exec, hyprpicker | tr -d '\n' | wl-copy
@@ -9,13 +9,13 @@ index a8f2aa0..a32e0be 100644
 -bind = $mod,       z,      exec, grim - | wayland-boomer --monitor-scaling 1.666667
 +bind = $mod,       z,      exec, grim - | wayland-boomer
  
- bind = $mod,       tab,    hyprexpo:expo, toggle
- 
+ bind = $mod, Q,     killactive,
+ bind = $mod, space, togglefloating
 diff --git a/configs/hyprland/hyprland_layout.conf b/configs/hyprland/hyprland_layout.conf
-index 28d3ef3..6ced44b 100644
+index b8de34d..e31f531 100644
 --- a/configs/hyprland/hyprland_layout.conf
 +++ b/configs/hyprland/hyprland_layout.conf
-@@ -7,15 +7,15 @@ dwindle {
+@@ -6,15 +6,15 @@ dwindle {
      smart_split                  = false
  }
  
@@ -41,7 +41,7 @@ index 28d3ef3..6ced44b 100644
  windowrule = workspace 1,         match:class ^steam$
  windowrule = workspace 5,         match:class ^Spotify$
 diff --git a/configs/hyprland/hyprland_monitors.conf b/configs/hyprland/hyprland_monitors.conf
-index 8922136..737c5f7 100644
+index e171d0e..fe08640 100644
 --- a/configs/hyprland/hyprland_monitors.conf
 +++ b/configs/hyprland/hyprland_monitors.conf
 @@ -1,8 +1,8 @@
@@ -55,3 +55,65 @@ index 8922136..737c5f7 100644
  xwayland {
    force_zero_scaling = true
  }
+diff --git a/laptop.patch b/laptop.patch
+index 6335576..e69de29 100644
+--- a/laptop.patch
++++ b/laptop.patch
+@@ -1,57 +0,0 @@
+-diff --git a/configs/hyprland/hyprland_keybindings.conf b/configs/hyprland/hyprland_keybindings.conf
+-index a8f2aa0..a32e0be 100644
+---- a/configs/hyprland/hyprland_keybindings.conf
+-+++ b/configs/hyprland/hyprland_keybindings.conf
+-@@ -12,7 +12,7 @@ bind = $mod,       p,      exec, hyprpicker | tr -d '\n' | wl-copy
+- bind = $mod,       t,      exec, missioncenter
+- bind = $mod,       w,      exec, switch-wallpaper
+- bind = $mod,       y,      exec, spawn-shimoji
+--bind = $mod,       z,      exec, grim - | wayland-boomer --monitor-scaling 1.666667
+-+bind = $mod,       z,      exec, grim - | wayland-boomer
+- 
+- bind = $mod,       tab,    hyprexpo:expo, toggle
+- 
+-diff --git a/configs/hyprland/hyprland_layout.conf b/configs/hyprland/hyprland_layout.conf
+-index 28d3ef3..6ced44b 100644
+---- a/configs/hyprland/hyprland_layout.conf
+-+++ b/configs/hyprland/hyprland_layout.conf
+-@@ -7,15 +7,15 @@ dwindle {
+-     smart_split                  = false
+- }
+- 
+--workspace = 1, monitor:DP-2
+--workspace = 2, monitor:DP-2
+--workspace = 3, monitor:DP-2
+--workspace = 4, monitor:DP-2
+--workspace = 5, monitor:DP-1
+--workspace = 6, monitor:DP-1
+--workspace = 7, monitor:DP-1
+--workspace = 8, monitor:DP-1
+--workspace = 9, monitor:DP-1
+-+workspace = 1, monitor:eDP-1
+-+workspace = 2, monitor:eDP-1
+-+workspace = 3, monitor:eDP-1
+-+workspace = 4, monitor:eDP-1
+-+workspace = 5, monitor:eDP-1
+-+workspace = 6, monitor:eDP-1
+-+workspace = 7, monitor:eDP-1
+-+workspace = 8, monitor:eDP-1
+-+workspace = 9, monitor:eDP-1
+- 
+- windowrule = workspace 1,         match:class ^steam$
+- windowrule = workspace 5,         match:class ^Spotify$
+-diff --git a/configs/hyprland/hyprland_monitors.conf b/configs/hyprland/hyprland_monitors.conf
+-index 8922136..737c5f7 100644
+---- a/configs/hyprland/hyprland_monitors.conf
+-+++ b/configs/hyprland/hyprland_monitors.conf
+-@@ -1,8 +1,8 @@
+- #monitor=name,resolution,position,scale
+- 
+- # this is for xwayland exclusively
+--env = QT_AUTO_SCREEN_SCALE_FACTOR,2
+--env = GDK_SCALE,2
+-+env = QT_AUTO_SCREEN_SCALE_FACTOR,1
+-+env = GDK_SCALE,1
+- xwayland {
+-   force_zero_scaling = true
+- }
