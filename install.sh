@@ -341,6 +341,7 @@ PACKAGES="
     obs-pipewire-audio-capture
     obs-plugin-waveform-bin
     obs-studio
+    obsidian
     odin
     oh-my-zsh-git
     okular
@@ -476,6 +477,7 @@ PACKAGES="
     texlive
     texlive-lang
     texmaker
+    thefuck
     themix-gui-git
     themix-plugin-base16-git
     thunderbird
