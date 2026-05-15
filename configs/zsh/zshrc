@@ -1,12 +1,26 @@
+source ~/.cache/wal/colors.sh
+
 ZSH=/usr/share/oh-my-zsh/
 ZSH_CACHE_DIR=$HOME/.cache/oh-my-zsh
 if [[ ! -d $ZSH_CACHE_DIR ]]; then
   mkdir $ZSH_CACHE_DIR
 fi
 plugins=(aws docker docker-compose fzf git jj mise nmap node npm rust sudo terraform)
-
 source $ZSH/oh-my-zsh.sh
-source ~/.cache/wal/colors.sh
+
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+if [ ! -d "$ZINIT_HOME" ]; then
+   mkdir -p "$(dirname $ZINIT_HOME)"
+   git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+fi
+source "${ZINIT_HOME}/zinit.zsh"
+
+zinit light Aloxaf/fzf-tab
+zinit light zsh-users/zsh-autosuggestions
+zinit light zsh-users/zsh-completions
+zinit light zsh-users/zsh-syntax-highlighting
+zinit cdreplay -q
+autoload -Uz compinit && compinit
 
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/emacs/bin")
@@ -35,7 +49,7 @@ setopt sharehistory
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
-bindkey '^x^e' edit-command-line
+bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
 alias cat="bat"
@@ -67,5 +81,6 @@ alias vpnoff="sudo wg-quick down wg0"
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
+eval "$(thefuck --alias)"
 
 fastfetch
