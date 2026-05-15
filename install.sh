@@ -686,6 +686,8 @@ sudo pacman -S --needed --noconfirm git base-devel && \
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
 sudo pacman -S rustup --noconfirm
+rustup toolchain install nightly
+rustup toolchain install stable
 rustup default stable
 
 # install all the things
