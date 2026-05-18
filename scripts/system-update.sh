@@ -36,9 +36,11 @@ ghcup install stack latest
 
 yes | hyprpm update -f
 
-~/.tmux/plugins/tpm/bin/update_plugins all
+protonup -y
 
 tldr --update_cache
+
+~/.tmux/plugins/tpm/bin/update_plugins all
 
 expect -c '
   spawn doom upgrade --aot
