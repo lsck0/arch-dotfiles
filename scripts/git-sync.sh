@@ -17,7 +17,8 @@ for dir in "${dirs[@]}"; do
 
     porcelain=$(git -C "$dir" status --porcelain 2>/dev/null)
     grep -q "^[MADRC]" <<< "$porcelain" && statuses+=("STAGED CHANGES")
-    grep -q "^.[MD]"   <<< "$porcelain" && statuses+=("UNSTAGED CHANGES")
+    grep -q "^.[MADRC]" <<< "$porcelain" && statuses+=("UNSTAGED CHANGES")
+    grep -q "^??" <<< "$porcelain" && statuses+=("UNTRACKED FILES")
 
     upstream=$(git -C "$dir" rev-parse --symbolic-full-name '@{u}' 2>/dev/null)
 
