@@ -24,6 +24,8 @@ PACKAGES="
     audacity
     awww
     bacon
+    base
+    base-devel
     bat
     bc
     bemenu-wayland
@@ -40,6 +42,7 @@ PACKAGES="
     borg
     brightnessctl
     btop
+    btrfs-progs
     bugwarrior
     burpsuite
     caligula
@@ -231,6 +234,7 @@ PACKAGES="
     lazygit
     lazyjj
     lcov
+    less
     lib32-alsa-lib
     lib32-alsa-plugins
     lib32-giflib
@@ -273,7 +277,12 @@ PACKAGES="
     libxcomposite
     libxinerama
     libxslt
+    limine
+    linux
+    linux-firmware
+    linux-hardened
     linux-headers
+    linux-lts
     linux-tools-meta
     llvm
     lmms
@@ -463,6 +472,7 @@ PACKAGES="
     starship
     steam
     stirling-pdf-bin
+    sudo
     system-config-printer
     tar
     taskwarrior-tui
@@ -623,6 +633,7 @@ PACKAGES="
     xorg-xinput
     xorg-xwayland
     xournalpp
+    yay
     ydotool
     yt-dlp
     z3
@@ -634,6 +645,7 @@ PACKAGES="
     zig
     zip
     zoxide
+    zram-generator
     zsh
 "
 
