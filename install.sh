@@ -348,6 +348,7 @@ PACKAGES="
     obs-pipewire-audio-capture
     obs-plugin-waveform-bin
     obs-studio
+    obs-studio-plugin-browser
     obsidian
     odin
     oh-my-zsh-git
