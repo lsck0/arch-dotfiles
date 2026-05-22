@@ -411,6 +411,7 @@ PACKAGES="
     python-pywalfox
     python-scikit-learn
     python-scipy
+    python-snakeviz
     python-sympy
     python-validity-git
     pywal-spicetify
