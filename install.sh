@@ -280,7 +280,9 @@ PACKAGES="
     limine
     linux
     linux-firmware
+    linux-hardened
     linux-headers
+    linux-lts
     linux-tools-meta
     llvm
     lmms
