@@ -303,6 +303,7 @@ PACKAGES="
     mangohud
     maven
     mdbook
+    mermaid-cli
     mesa
     meson
     metadata-cleaner
