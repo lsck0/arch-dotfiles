@@ -409,6 +409,7 @@ PACKAGES="
     python-pip
     python-poetry
     python-pydantic
+    python-pygments
     python-pytorch-rocm
     python-pywalfox
     python-scikit-learn
