@@ -28,6 +28,7 @@ PACKAGES="
     base-devel
     bat
     bc
+    bear
     bemenu-wayland
     bettercap-git
     betterdiscord-installer

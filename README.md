@@ -26,7 +26,7 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 
 - run `spicetify backup apply && spicetify enable-devtools` after running spotify once (including logging in), otherwise the theme does not work
 
-- run `betterdiscord-installer` after running discord once (including logging in)
+- run `betterdiscordctl install` after running discord once (including logging in)
 
 - fetch the submodules (needs github auth)
 
