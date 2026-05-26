@@ -162,6 +162,7 @@ PACKAGES="
     ghostmirror
     ghostty
     giflib
+    gifsicle
     gimp
     git
     git-delta
