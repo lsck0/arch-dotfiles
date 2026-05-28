@@ -16,5 +16,6 @@
   "offloadAdmControls": true,
   "asyncVideoInputDeviceInit": false,
   "enableLibOpenH264Electron": true,
-  "openH264Enabled": true
+  "openH264Enabled": true,
+  "DESKTOP_TTI_REMOVE_V8_CACHE_CLEAR": true
 }
