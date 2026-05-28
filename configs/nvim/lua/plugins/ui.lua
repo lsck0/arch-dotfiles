@@ -27,12 +27,12 @@ return {
     --     end
     -- },
 
-    -- {
-    --     "nyoom-engineering/oxocarbon.nvim",
-    --     config = function()
-    --         vim.cmd.colorscheme "oxocarbon"
-    --     end
-    -- },
+    {
+        "nyoom-engineering/oxocarbon.nvim",
+        config = function()
+            vim.cmd.colorscheme "oxocarbon"
+        end
+    },
 
     -- {
     --     "Skalyaev/a-nvim-theme",
@@ -41,13 +41,13 @@ return {
     --     end
     -- },
 
-    {
-        url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
-        name = "pywal",
-        config = function()
-            require("pywal").setup()
-        end,
-    },
+    -- {
+    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
+    --     name = "pywal",
+    --     config = function()
+    --         require("pywal").setup()
+    --     end,
+    -- },
 
     { "romgrk/barbar.nvim" },
 
@@ -56,7 +56,7 @@ return {
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "pywal",
+                    theme = "oxocarbon",
                 },
                 sections = {
                     lualine_x = {
