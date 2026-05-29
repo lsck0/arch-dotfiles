@@ -17,5 +17,6 @@
   "asyncVideoInputDeviceInit": false,
   "enableLibOpenH264Electron": true,
   "openH264Enabled": true,
-  "DESKTOP_TTI_REMOVE_V8_CACHE_CLEAR": true
+  "DESKTOP_TTI_REMOVE_V8_CACHE_CLEAR": true,
+  "DESKTOP_TTI_UPDATE_BACKOFF_MAX_MS": 10000
 }
