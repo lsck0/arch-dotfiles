@@ -579,6 +579,7 @@ PACKAGES="
     tty-clock
     unzip
     update-grub
+    usage
     uv
     v4l-utils
     v4l2loopback-dkms
