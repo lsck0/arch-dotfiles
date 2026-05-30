@@ -10,6 +10,10 @@ if [ "$confirm" != "y" ]; then
     exit 1
 fi
 
+# disable language shims
+#
+mise deactivate
+
 # system packages
 
 yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
