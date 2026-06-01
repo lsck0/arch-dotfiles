@@ -102,6 +102,7 @@ PACKAGES="
     docker-compose
     dog
     downgrade
+    drawy
     dua-cli
     dust
     dwarfs-bin
@@ -291,6 +292,7 @@ PACKAGES="
     localsend
     logseq-desktop-bin
     lolcat
+    lorien-bin
     lshw
     lua51-luautf8
     luarocks
