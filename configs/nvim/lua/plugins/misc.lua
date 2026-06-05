@@ -28,7 +28,19 @@ return {
         },
     },
     { "jbyuki/venn.nvim" },
-    { "mg979/vim-visual-multi" },
+    {
+        "mg979/vim-visual-multi",
+        init = function()
+            -- <C-n> is taken by `cnext` (mappings.lua), and mappings.lua loads
+            -- AFTER plugins, so it shadows VM's default "Find Under". That's why
+            -- adding a cursor on the next occurrence of the word silently failed.
+            -- Move VM's word-grab onto <M-n> so both keep working.
+            vim.g.VM_maps = {
+                ["Find Under"]         = "<M-n>",
+                ["Find Subword Under"] = "<M-n>",
+            }
+        end
+    },
     { "mrjones2014/smart-splits.nvim" },
     {
         "nacro90/numb.nvim",

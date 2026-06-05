@@ -68,6 +68,7 @@ PACKAGES="
     cargo-watch
     cargo-wizard
     cava
+    cdecl
     cgdb
     chromium
     cifs-utils
@@ -145,6 +146,7 @@ PACKAGES="
     flameshot
     flat-remix-gtk
     flatpak
+    focus-bin
     font-manager
     foremost
     ftxui

@@ -22,18 +22,6 @@ zinit light zsh-users/zsh-syntax-highlighting
 zinit cdreplay -q
 autoload -Uz compinit && compinit
 
-path+=("$HOME/.cargo/bin")
-path+=("$HOME/.config/emacs/bin")
-path+=("$HOME/.ghcup/bin")
-path+=("$HOME/.go/bin")
-path+=("$HOME/.jai/bin")
-path+=("$HOME/.local/bin")
-export PATH
-export GOPATH="$HOME/.go"
-
-export EDITOR=nvim
-export SHELL=zsh
-
 HISTSIZE=5000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
@@ -52,31 +40,40 @@ zle -N edit-command-line
 bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
+path+=("$HOME/.cargo/bin")
+path+=("$HOME/.config/doom-emacs/bin")
+path+=("$HOME/.ghcup/bin")
+path+=("$HOME/.go/bin")
+path+=("$HOME/.jai/bin")
+path+=("$HOME/.local/bin")
+
+export PATH
+export GOPATH="$HOME/.go"
+export EDITOR=nvim
+export SHELL=zsh
+
 alias cat="bat"
 alias cd="z"
-alias l="eza -lh"
-alias la="eza -lah"
-alias ls="eza"
-alias lt="eza -lah --tree"
-
+alias convert="magick"
 alias cp="cp -v"
 alias downgrade="sudo downgrade"
+alias edoom="emacs --init-directory ~/.config/doom-emacs"
 alias gitfetch="onefetch"
+alias l="eza -lh"
+alias la="eza -lah"
+alias ldocker="lazydocker"
+alias lgit="lazygit"
+alias ljj="lazyjj"
+alias ls="eza"
+alias lt="eza -lah --tree"
 alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
-
-alias convert="magick"
-alias ldocker="lazydocker"
-alias lgit="lazygit"
-alias ljj="lazyjj"
-
 alias sshnb="ssh luca@192.168.178.73"
 alias sshpc="ssh luca@192.168.178.138"
-
-alias vpnon="sudo wg-quick up wg0"
 alias vpnoff="sudo wg-quick down wg0"
+alias vpnon="sudo wg-quick up wg0"
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
