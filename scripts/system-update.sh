@@ -46,11 +46,4 @@ tldr --update_cache
 
 ~/.tmux/plugins/tpm/bin/update_plugins all
 
-expect -c '
-  spawn doom upgrade --aot
-  expect "(y or n)" { send "n\r" }
-  expect "(y or n)" { send "y\r" }
-  expect eof
-'
-
 nvim --headless "+Lazy! sync" +MasonUpdate +TSUpdate +qa

@@ -87,7 +87,7 @@ vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { norema
 -- debugging
 vim.keymap.set("n", "<leader>dt", "<cmd>lua require('dapui').toggle()<CR>")
 vim.keymap.set("n", "<leader>b", "<cmd>DapToggleBreakpoint<CR>")
-vim.keymap.set("n", "<leader>B", "<cmd>ua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>")
+vim.keymap.set("n", "<leader>B", "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>")
 vim.keymap.set("n", "<F5>", "<cmd>DapContinue<CR>")
 vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>")
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>")

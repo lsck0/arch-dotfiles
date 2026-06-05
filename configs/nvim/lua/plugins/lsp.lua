@@ -149,19 +149,19 @@ return {
             })
             vim.lsp.enable("rust_analyzer")
 
-            vim.lsp.config("tsserver", {
+            vim.lsp.config("ts_ls", {
                 on_attach = function(client, bufnr)
                     require("twoslash-queries").attach(client, bufnr)
                 end,
             })
-            vim.lsp.enable("tsserver")
+            vim.lsp.enable("ts_ls")
 
             require("mason-lspconfig").setup({
                 automatic_enable = {
                     exclude = {
                         "clangd",
                         "rust_analyzer",
-                        "tsserver",
+                        "ts_ls",
                     }
                 }
             })
