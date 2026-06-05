@@ -1,0 +1,15 @@
+*.elc
+.cache/
+auto-save-list/
+custom.el
+eln-cache/
+elpa/
+eshell/
+network-security.data
+projectile.cache
+projects
+recentf
+snippets/
+transient/
+tree-sitter/
+var/

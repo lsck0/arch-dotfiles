@@ -28,11 +28,22 @@ return {
     -- },
 
     {
-        "nyoom-engineering/oxocarbon.nvim",
+        "Shatur/neovim-ayu",
         config = function()
-            vim.cmd.colorscheme "oxocarbon"
+            require("ayu").setup({
+                mirage = true,
+                terminal = true,
+            })
+            vim.cmd.colorscheme "ayu-mirage"
         end
     },
+
+    -- {
+    --     "nyoom-engineering/oxocarbon.nvim",
+    --     config = function()
+    --         vim.cmd.colorscheme "oxocarbon"
+    --     end
+    -- },
 
     -- {
     --     "Skalyaev/a-nvim-theme",
@@ -56,7 +67,7 @@ return {
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "oxocarbon",
+                    theme = "ayu",
                 },
                 sections = {
                     lualine_x = {
