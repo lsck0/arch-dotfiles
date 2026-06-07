@@ -35,22 +35,23 @@ return {
             require("telescope").setup({
                 defaults = {
                     file_ignore_patterns = ignore_filetypes_list,
+                    -- ivy-style: all pickers open from below
+                    layout_strategy = "bottom_pane",
+                    layout_config = { height = 25 },
+                    sorting_strategy = "ascending",
+                    border = true,
                     mappings = {
                         i = {
                             ["<C-k>"] = "move_selection_next",
                             ["<C-j>"] = "move_selection_previous",
-                            ["<M-q>"] = function(prompt_bufnr)
+                            ["<C-q>"] = function(prompt_bufnr)
                                 actions.smart_send_to_qflist(prompt_bufnr)
                                 actions.open_qflist(prompt_bufnr)
                             end
                         },
                     },
                 },
-                pickers = {
-                    find_files = { theme = "ivy" },
-                    live_grep = { theme = "ivy" },
-                    grep_string = { theme = "ivy" },
-                },
+                pickers = {},
                 extensions = {
                     fzf = {},
                 }

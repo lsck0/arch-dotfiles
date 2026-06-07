@@ -88,6 +88,12 @@ otherwise spawns a fresh one. nvim M-t parity."
     ;; name the tab after the shell so it's findable in the tab list
     (tab-bar-rename-tab "term")))
 
+;; showkeys (nvzone/showkeys) -> keycast. Toggle on-screen keypresses for
+;; screencasts. nvim showkeys is :ShowkeysToggle; here M-x keycast-tab-bar-mode
+;; shows keys in the tab-bar (top, like showkeys position = "top-right").
+(use-package keycast
+  :commands (keycast-tab-bar-mode keycast-mode-line-mode keycast-log-mode))
+
 ;; pomo.nvim -> pomm / org timers; lightweight tea-timer
 (use-package tmr :commands (tmr tmr-with-description))
 

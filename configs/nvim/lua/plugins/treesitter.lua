@@ -1,3 +1,36 @@
+local installed = {
+    "bash",
+    "c",
+    "cmake",
+    "cpp",
+    "css",
+    "dockerfile",
+    "gdshader",
+    "haskell",
+    "html",
+    "hyprlang",
+    "java",
+    "javascript",
+    "json",
+    "lua",
+    "luadoc",
+    "make",
+    "markdown",
+    "markdown_inline",
+    "ocaml",
+    "printf",
+    "python",
+    "query",
+    "rust",
+    "scss",
+    "sql",
+    "toml",
+    "typescript",
+    "vim",
+    "vimdoc",
+    "yaml",
+}
+
 return {
     {
         "nvim-treesitter/nvim-treesitter",
@@ -10,39 +43,6 @@ return {
         },
         config = function()
             local treesitter = require("nvim-treesitter")
-            local languages = {
-                "bash",
-                "c",
-                "cmake",
-                "cpp",
-                "css",
-                "dockerfile",
-                "gdshader",
-                "haskell",
-                "html",
-                "hyprlang",
-                "java",
-                "javascript",
-                "json",
-                "lua",
-                "luadoc",
-                "make",
-                "markdown",
-                "markdown_inline",
-                "ocaml",
-                "printf",
-                "python",
-                "query",
-                "rust",
-                "scss",
-                "sql",
-                "toml",
-                "typescript",
-                "vim",
-                "vimdoc",
-                "yaml",
-            }
-
             treesitter.setup({
                 install_dir = vim.fn.stdpath("data") .. "/site",
             })
@@ -65,7 +65,7 @@ return {
                 group = vim.api.nvim_create_augroup("TreesitterAutoInstall", { clear = true }),
                 once = true,
                 callback = function()
-                    treesitter.install(languages)
+                    treesitter.install(installed)
                 end,
             })
         end,

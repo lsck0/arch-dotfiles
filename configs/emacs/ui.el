@@ -6,7 +6,7 @@
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  (unless (ignore-errors (load-theme 'doom-ayu-mirage t))
+  (unless (ignore-errors (load-theme 'doom-ayu-dark t))
     (load-theme 'doom-one t))
   (doom-themes-org-config))
 
