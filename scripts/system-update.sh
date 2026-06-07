@@ -11,7 +11,7 @@ if [ "$confirm" != "y" ]; then
 fi
 
 # disable language shims
-#
+
 mise deactivate
 
 # system packages
