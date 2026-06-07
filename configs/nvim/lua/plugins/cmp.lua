@@ -1,6 +1,7 @@
 return {
     {
-        "hrsh7th/nvim-cmp",
+        "saghen/blink.cmp",
+        version = "1.*",
         dependencies = {
             {
                 "windwp/nvim-autopairs",
@@ -9,9 +10,19 @@ return {
                     disable_filetype = { "TelescopePrompt", "vim" },
                 },
                 config = function(_, opts)
-                    require("nvim-autopairs").setup(opts)
-                    local cmp_autopairs = require "nvim-autopairs.completion.cmp"
-                    require("cmp").event:on("confirm_done", cmp_autopairs.on_confirm_done())
+                    local npairs = require("nvim-autopairs")
+                    npairs.setup(opts)
+
+                    local Rule = require("nvim-autopairs.rule")
+                    local cond = require("nvim-autopairs.conds")
+                    local tex_ft = { "tex", "latex", "markdown" }
+                    npairs.add_rules({
+                        Rule("$", "$", tex_ft)
+                        -- don't pair if next char is alphanumeric
+                            :with_pair(cond.not_after_regex("[%w]")),
+                        Rule("\\(", "\\)", tex_ft),
+                        Rule("\\[", "\\]", tex_ft),
+                    })
                 end,
             },
 
@@ -35,77 +46,82 @@ return {
 
             { "onsails/lspkind.nvim" },
 
+            -- compat layer for nvim-cmp sources without native blink equivalents
             {
-                "Dosx001/cmp-commit",
-                "davidsierradz/cmp-conventionalcommits",
-                "hrsh7th/cmp-buffer",
-                "hrsh7th/cmp-calc",
-                "hrsh7th/cmp-nvim-lsp",
-                "hrsh7th/cmp-nvim-lua",
-                "hrsh7th/cmp-path",
-                "saadparwaiz1/cmp_luasnip",
+                "saghen/blink.compat",
+                version = "2.*",
+                opts = {},
+                dependencies = {
+                    "Dosx001/cmp-commit",
+                    "davidsierradz/cmp-conventionalcommits",
+                    "hrsh7th/cmp-calc",
+                },
             },
         },
-        config = function()
-            vim.api.nvim_set_hl(0, "MyCursorLine", { fg = "#6c6f93" })
+        opts = {
+            snippets = { preset = "luasnip" },
 
-            local cmp = require("cmp")
+            keymap = {
+                preset = "none",
+                ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
+                ["<C-e>"] = { "cancel", "fallback" },
+                ["<CR>"] = { "accept", "fallback" },
+                ["<Tab>"] = { "select_next", "fallback" },
+                ["<S-Tab>"] = { "select_prev", "fallback" },
+                ["<C-b>"] = { "scroll_documentation_up", "fallback" },
+                ["<C-f>"] = { "scroll_documentation_down", "fallback" },
+            },
 
-            cmp.setup({
-                preselect = cmp.PreselectMode.None,
-                sources = {
-                    { name = "luasnip" },
-                    { name = "nvim_lsp" },
-                    { name = "path" },
-                    { name = "commits" },
-                    { name = "conventionalcommits" },
-                    { name = "calc" },
-                    { name = "render-markdown" },
-                    { name = "buffer" },
-                },
-                mapping = cmp.mapping.preset.insert({
-                    ["<C-Space>"] = cmp.mapping.complete(),
-                    ["<C-e>"] = cmp.mapping.abort(),
-                    ["<CR>"] = cmp.mapping.confirm({ select = true }),
-                }),
-                window = {
-                    completion = {
-                        winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,Search:None,CursorLine:MyCursorLine",
-                        col_offset = -3,
-                        side_padding = 1,
+            completion = {
+                list = { selection = { preselect = true, auto_insert = false } },
+                documentation = { auto_show = true, auto_show_delay_ms = 200 },
+                menu = {
+                    winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,Search:None,CursorLine:MyCursorLine",
+                    draw = {
+                        components = {
+                            kind_icon = {
+                                text = function(ctx)
+                                    local kind = require("lspkind").symbolic(ctx.kind, { mode = "symbol" })
+                                    return string.format("[%s]", kind)
+                                end,
+                            },
+                        },
                     },
                 },
-                performance = {
-                    debounce = 100,
+            },
+
+            sources = {
+                default = {
+                    "lsp",
+                    "path",
+                    "snippets",
+                    "buffer",
+                    "commits",
+                    "conventionalcommits",
+                    "calc",
                 },
-                formatting = {
-                    fields = { "kind", "abbr", "menu" },
-                    format = function(entry, vim_item)
-                        local kind = require("lspkind").cmp_format({
-                            mode = 'symbol',
-                            maxwidth = 30,
-                            ellipsis_char = '...',
-                            show_labelDetails = true,
-                        })(entry, vim_item)
-
-                        vim_item.kind = string.format("[%s]", kind.kind)
-
-                        vim_item.menu = ({
-                            buffer = "[Buf]",
-                            calc = "[Calc]",
-                            commits = "[Commit]",
-                            conventionalcommits = "[CC]",
-                            latex_symbols = "[TeX]",
-                            luasnip = "[Snip]",
-                            nvim_lsp = "[LSP]",
-                            path = "[Path]",
-                            render_markdown = "[Markdown]",
-                        })[entry.source.name]
-
-                        return vim_item
-                    end,
+                providers = {
+                    commits = {
+                        name = "commits",
+                        module = "blink.compat.source",
+                    },
+                    conventionalcommits = {
+                        name = "conventionalcommits",
+                        module = "blink.compat.source",
+                    },
+                    calc = {
+                        name = "calc",
+                        module = "blink.compat.source",
+                    },
                 },
-            })
+            },
+
+            fuzzy = { implementation = "prefer_rust_with_warning" },
+        },
+        opts_extend = { "sources.default" },
+        config = function(_, opts)
+            vim.api.nvim_set_hl(0, "MyCursorLine", { fg = "#c8d3f5", bg = "#3654a8", bold = true })
+            require("blink.cmp").setup(opts)
         end,
     },
 }

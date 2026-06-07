@@ -57,10 +57,11 @@ vim.keymap.set("n", "<leader>ld", vim.lsp.buf.definition)
 vim.keymap.set("n", "<leader>li", vim.lsp.buf.hover, opts)
 vim.keymap.set("n", "<leader>lo", vim.diagnostic.open_float, opts)
 vim.keymap.set("n", "<leader>la", vim.lsp.buf.code_action, opts)
-vim.keymap.set("n", "<leader>ln", vim.diagnostic.goto_next, opts)
+vim.keymap.set("n", "<leader>ln", function() vim.diagnostic.jump({ count = 1, float = true }) end, opts)
 vim.keymap.set("n", "<leader>lr", vim.lsp.buf.rename, opts)
 
 -- venn.nvim
+vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { noremap = true })
 function _G.Toggle_venn()
     local venn_enabled = vim.inspect(vim.b.venn_enabled)
     if venn_enabled == "nil" then
@@ -81,8 +82,6 @@ function _G.Toggle_venn()
         vim.b.venn_enabled = nil
     end
 end
-
-vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>", { noremap = true })
 
 -- debugging
 vim.keymap.set("n", "<leader>dt", "<cmd>lua require('dapui').toggle()<CR>")

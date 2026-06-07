@@ -97,6 +97,12 @@
   :mode ("\\.md\\'" . gfm-mode)
   :config (setq markdown-fontify-code-blocks-natively t))
 
+;; emmet (nvim olrtg/nvim-emmet) — abbreviation expansion for html/css/jsx.
+;; SPC x e wraps region with markup (keys.el); C-j expands inline.
+(use-package emmet-mode
+  :hook ((html-mode html-ts-mode mhtml-mode css-mode css-ts-mode scss-mode
+          web-mode tsx-ts-mode) . emmet-mode))
+
 ;; LaTeX (vimtex) — auctex + texlab LSP, okular + in-emacs pdf-tools
 (use-package auctex
   :defer t

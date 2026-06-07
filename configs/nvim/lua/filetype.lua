@@ -5,8 +5,5 @@ vim.filetype.add({
         shader = "hlsl",
         json = "avsc",
     },
-})
-
-vim.filetype.add({
-    pattern = { [".*/hyprland/.*%.conf"] = "hyprlang" },
+    pattern = { [".*/hyprland/.*%.conf"] = "hyprlang", },
 })

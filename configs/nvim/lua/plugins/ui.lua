@@ -2,6 +2,14 @@ return {
     { "nvim-tree/nvim-web-devicons" },
 
     -- {
+    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
+    --     name = "pywal",
+    --     config = function()
+    --         require("pywal").setup()
+    --     end,
+    -- },
+
+    -- {
     --     "catppuccin/nvim",
     --     name = "catppuccin",
     --     config = function()
@@ -31,10 +39,10 @@ return {
         "Shatur/neovim-ayu",
         config = function()
             require("ayu").setup({
-                mirage = true,
+                dark = true,
                 terminal = true,
             })
-            vim.cmd.colorscheme "ayu-mirage"
+            vim.cmd.colorscheme "ayu-dark"
         end
     },
 
@@ -45,21 +53,6 @@ return {
     --     end
     -- },
 
-    -- {
-    --     "Skalyaev/a-nvim-theme",
-    --     config = function()
-    --         vim.cmd.colorscheme "neon"
-    --     end
-    -- },
-
-    -- {
-    --     url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
-    --     name = "pywal",
-    --     config = function()
-    --         require("pywal").setup()
-    --     end,
-    -- },
-
     { "romgrk/barbar.nvim" },
 
     {
@@ -67,7 +60,7 @@ return {
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "ayu",
+                    theme = "ayu_dark",
                 },
                 sections = {
                     lualine_x = {
@@ -156,7 +149,7 @@ return {
         opts = {
             bigfile = { enabled = true },
             dashboard = {
-                enabled = true,
+                enabled = false,
                 preset = {
                     keys = {
                         { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
