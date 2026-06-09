@@ -95,9 +95,14 @@ c.url.default_page = _startpage
 # search engines
 # ---------------------------------------------------------------------------
 c.url.searchengines = {
-    "DEFAULT": "https://www.qwant.com/?q={}",
+    "DEFAULT": "https://www.google.com/search?q={}",
+    "ap": "https://archlinux.org/packages/?q={}",
+    "aur": "https://aur.archlinux.org/packages?K={}",
     "aw": "https://wiki.archlinux.org/?search={}",
     "gh": "https://github.com/search?q={}",
+    "nlab": "https://ncatlab.org/nlab/search?query={}",
+    "tw": "https://www.twitch.tv/search?term={}",
+    "w": "https://en.wikipedia.org/w/index.php?search={}",
     "yt": "https://youtube.com/results?search_query={}",
 }
 
@@ -113,3 +118,6 @@ for i in range(1, 10):
     config.bind("<Alt+{}>".format(i), "tab-focus {}".format(i))
 
 config.bind(",v", "mode-enter passthrough")
+
+config.bind("y", "yank selection", mode="caret")
+config.bind("Y", "yank selection", mode="caret")
