@@ -13,3 +13,5 @@ git lfs install
 
 jj config set --user user.name "Luca Sandrock"
 jj config set --user user.email "luca.sandrock@proton.me"
+
+gh auth setup-git

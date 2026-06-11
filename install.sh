@@ -309,6 +309,7 @@ PACKAGES="
     mangohud
     maven
     mdbook
+    mdk4
     mermaid-cli
     mesa
     meson
@@ -462,6 +463,7 @@ PACKAGES="
     signal-desktop
     skaffold
     skipfish
+    slowhttptest
     slurp
     smartmontools
     snapshot
