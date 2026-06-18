@@ -225,11 +225,13 @@ PACKAGES="
     jless
     john
     jq
+    jrnl
     jujutsu
     jupyterlab
     just
     k9s
     kdenlive
+    khal
     kitty
     kpat
     krita
@@ -405,6 +407,7 @@ PACKAGES="
     pre-commit
     prettier
     procs
+    protontricks
     protonup-git
     python-black
     python-faker
@@ -657,6 +660,7 @@ PACKAGES="
     zed
     zig
     zip
+    zk
     zoxide
     zram-generator
     zsh
