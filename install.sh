@@ -67,6 +67,7 @@ PACKAGES="
     cargo-update
     cargo-watch
     cargo-wizard
+    cargo-zigbuild
     cava
     cdecl
     cgdb
