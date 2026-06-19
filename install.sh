@@ -471,6 +471,7 @@ PACKAGES="
     signal-desktop
     skaffold
     skipfish
+    slides-git
     slowhttptest
     slurp
     smartmontools
