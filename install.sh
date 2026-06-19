@@ -408,6 +408,10 @@ PACKAGES="
     pre-commit
     prettier
     procs
+    proton-authenticator-bin
+    proton-mail-bin
+    proton-meet-bin
+    proton-vpn-qt-app
     protontricks
     protonup-git
     python-black
