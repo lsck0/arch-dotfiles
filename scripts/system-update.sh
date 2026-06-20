@@ -16,6 +16,10 @@ mise deactivate
 
 # system packages
 
+sudo pacman-key --init
+sudo pacman-key --populate archlinux
+sudo pacman-key --refresh-keys
+
 yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
 flatpak update --assumeyes
 nix-channel --update
