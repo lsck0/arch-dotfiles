@@ -206,6 +206,7 @@ PACKAGES="
     heroic-games-launcher-bin
     hexchat
     hexyl
+    hollywood
     hotspot
     hydra
     hyperfine
