@@ -19,6 +19,7 @@ PACKAGES="
     android-sdk
     ani-cli-git
     app2unit
+    appimagetool-git
     argon2
     aseprite
     audacity
@@ -268,6 +269,7 @@ PACKAGES="
     lib32-v4l-utils
     lib32-vulkan-icd-loader
     lib32-vulkan-radeon
+    libappimage
     libev
     libgcrypt
     libgpg-error
