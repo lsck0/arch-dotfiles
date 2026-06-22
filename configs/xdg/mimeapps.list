@@ -21,5 +21,6 @@ x-scheme-handler/ror2mm=r2modman.desktop
 x-scheme-handler/unknown=firefox.desktop
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/mpv=mpv-scheme-handler.desktop
+application/uproject=com.epicgames.UnrealEngineEditor.desktop
 
 [Removed Associations]
