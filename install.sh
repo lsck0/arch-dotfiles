@@ -98,6 +98,7 @@ PACKAGES="
     difftastic
     direnv
     discord
+    discordo-git
     distrobox
     dmenu
     docker
@@ -344,6 +345,7 @@ PACKAGES="
     neochat
     neofetch
     neovim
+    nethack
     netscanner
     networkmanager
     nftables
@@ -599,6 +601,7 @@ PACKAGES="
     update-grub
     usage
     uv
+    uwsm
     v4l-utils
     v4l2loopback-dkms
     v4l2loopback-utils
