@@ -489,6 +489,7 @@ PACKAGES="
     speedscope
     spicetify-cli
     spotify
+    spotify-player
     sqlite
     sqlitebrowser
     sqlmap-git
