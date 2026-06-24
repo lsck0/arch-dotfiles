@@ -1,4 +1,5 @@
 [Added Associations]
+application/pdf=okular.desktop;
 
 [Default Applications]
 application/pdf=okular.desktop
@@ -24,3 +25,4 @@ x-scheme-handler/mpv=mpv-scheme-handler.desktop
 application/uproject=com.epicgames.UnrealEngineEditor.desktop
 
 [Removed Associations]
+application/pdf=chromium.desktop;

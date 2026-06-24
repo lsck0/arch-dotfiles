@@ -21,8 +21,10 @@ PACKAGES="
     app2unit
     appimagetool-git
     argon2
+    arp-scan
     aseprite
     audacity
+    aws-cli-v2
     awww
     bacon
     base
@@ -107,6 +109,7 @@ PACKAGES="
     dog
     downgrade
     drawy
+    dsniff
     dua-cli
     dust
     dwarfs-bin
@@ -192,6 +195,7 @@ PACKAGES="
     gnutls
     go
     gobuster
+    godot
     gparted
     gping
     graphviz
@@ -210,6 +214,7 @@ PACKAGES="
     hexyl
     hollywood
     hotspot
+    hping
     hydra
     hyperfine
     hyprcursor
@@ -236,6 +241,7 @@ PACKAGES="
     k9s
     kdenlive
     khal
+    kismet
     kitty
     kpat
     krita
@@ -368,6 +374,7 @@ PACKAGES="
     obs-studio
     obs-studio-plugin-browser
     obsidian
+    obsidian-icon-theme
     odin
     oh-my-zsh-git
     okular
@@ -404,6 +411,7 @@ PACKAGES="
     pipewire-pulse
     pitivi
     pkgconf
+    plasma
     polkit
     polkit-kde-agent
     portmaster-bin
@@ -498,6 +506,7 @@ PACKAGES="
     sshpass
     starship
     steam
+    steghide
     stirling-pdf-bin
     sudo
     system-config-printer
@@ -607,6 +616,7 @@ PACKAGES="
     v4l2loopback-dkms
     v4l2loopback-utils
     valgrind
+    veil-bin
     ventoy-bin
     veracrypt
     vim
@@ -673,7 +683,6 @@ PACKAGES="
     zed
     zig
     zip
-    zk
     zoxide
     zram-generator
     zsh
@@ -694,10 +703,10 @@ CARGO_PKGS="
     trunk
 "
 
-FLATPAK_PKGS="
-    com.jeffser.Alpaca
-    de.z_ray.Facetracker
-"
+# FLATPAK_PKGS="
+#     com.jeffser.Alpaca
+#     de.z_ray.Facetracker
+# "
 
 ## REMOVE PASSWORD FROM SUDO
 
@@ -736,7 +745,7 @@ rustup default stable
 yay -S $PACKAGES --noconfirm --mflags --skipinteg
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 cargo install $CARGO_PKGS -j $(nproc)
-flatpak install flathub -y $FLATPAK_PKGS
+# flatpak install flathub -y $FLATPAK_PKGS
 
 # cleanup
 rm -rf ${HOME}/.cache/yay/
