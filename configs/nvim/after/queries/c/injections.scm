@@ -34,3 +34,30 @@
     (string_literal
       (string_content) @injection.content)
     (#set! injection.language "regex")))
+
+; sqlite3_exec(db, "SQL", callback, arg, errmsg) - SQL is 2nd arg
+(call_expression
+  function: (identifier) @_func (#eq? @_func "sqlite3_exec")
+  arguments: (argument_list
+    (_)  ; db handle
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
+
+; sqlite3_prepare / _v2 / _v3 / _16 (db, "SQL", ...) - SQL is 2nd arg
+(call_expression
+  function: (identifier) @_func (#match? @_func "^sqlite3_prepare(16|_v2|_v3|16_v2|16_v3)?$")
+  arguments: (argument_list
+    (_)  ; db handle
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
+
+; sqlite3_get_table(db, "SQL", ...) - SQL is 2nd arg
+(call_expression
+  function: (identifier) @_func (#eq? @_func "sqlite3_get_table")
+  arguments: (argument_list
+    (_)  ; db handle
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))

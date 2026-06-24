@@ -21,6 +21,11 @@ zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-syntax-highlighting
 zinit cdreplay -q
 autoload -Uz compinit && compinit
+autoload zmv
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^e' edit-command-line
+bindkey ' ' magic-space
 
 HISTSIZE=5000
 HISTFILE=~/.zsh_history
@@ -33,12 +38,6 @@ setopt hist_ignore_dups
 setopt hist_ignore_space
 setopt hist_save_no_dups
 setopt sharehistory
-
-autoload zmv
-autoload -Uz edit-command-line
-zle -N edit-command-line
-bindkey '^e' edit-command-line
-bindkey ' ' magic-space
 
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/doom-emacs/bin")
