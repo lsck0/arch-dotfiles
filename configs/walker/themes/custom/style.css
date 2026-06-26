@@ -1,9 +1,14 @@
-@define-color window_bg_color #0b1019;
-@define-color accent_bg_color #97533C;
-@define-color theme_fg_color #62524F;
+@import url("../../../../.cache/wal/colors-waybar.css");
+
+/* pull pywal palette so walker recolors with the wallpaper, same as waybar */
+@define-color window_bg_color @background;
+@define-color accent_bg_color @color2;
+@define-color theme_fg_color @foreground;
 
 * {
   all: unset;
+  font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif;
+  font-size: 14px;
 }
 
 .normal-icons {
@@ -24,8 +29,8 @@ scrollbar {
     0 15px 12px rgba(0, 0, 0, 0.22);
   background: @window_bg_color;
   padding: 20px;
-  border-radius: 20px;
-  border: 1px solid darker(@accent_bg_color);
+  border-radius: 6px;
+  border: 1px solid @accent_bg_color;
 }
 
 .preview-box,
@@ -38,7 +43,7 @@ scrollbar {
 }
 
 .search-container {
-  border-radius: 10px;
+  border-radius: 6px;
 }
 
 .input placeholder {
@@ -73,7 +78,7 @@ child {
 }
 
 .item-box {
-  border-radius: 10px;
+  border-radius: 6px;
   padding: 10px;
 }
 
@@ -113,7 +118,7 @@ child:selected .item-box {
 .preview {
   border: 1px solid alpha(@accent_bg_color, 0.25);
   padding: 10px;
-  border-radius: 10px;
+  border-radius: 6px;
   color: @theme_fg_color;
 }
 

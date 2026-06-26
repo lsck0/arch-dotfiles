@@ -10,10 +10,12 @@
   "cpu": {
     "format": "  {usage}%",
     "interval": 2,
+    "on-click": "kitty btop",
   },
   "memory": {
     "format": "󰄦 {used:0.2f}/{total:0.2f} GiB",
     "interval": 2,
+    "on-click": "kitty btop",
   },
   "battery": {
     "interval": 60,
@@ -77,6 +79,7 @@
     "tooltip-format-disconnected": "Disconnected",
     "interval": 3,
     "nospacing": 1,
+    "on-click": "kitty nmtui",
   },
   "bluetooth": {
     "format": " ",
