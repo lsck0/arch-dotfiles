@@ -13,6 +13,9 @@ disabled = true
 style = 'bold green'
 symbol = 'su '
 
+[git_status]
+disabled = true
+
 [git_metrics]
 disabled = false
 added_style = 'bold blue'
