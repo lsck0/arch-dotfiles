@@ -76,7 +76,7 @@ alias vpnon="sudo wg-quick up wg0"
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
-eval "$(zoxide init zsh)"
 eval "$(thefuck --alias)"
+eval "$(zoxide init zsh)"
 
 fastfetch
