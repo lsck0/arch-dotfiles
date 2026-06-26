@@ -2,6 +2,6 @@
 
 set -ex
 
-mkdir -p ${HOME}/documents ${HOME}/downloads ${HOME}/music ${HOME}/pictures ${HOME}/videos ${HOME}/projects
+mkdir -p ${HOME}/desktop ${HOME}/documents ${HOME}/downloads ${HOME}/music ${HOME}/pictures ${HOME}/videos ${HOME}/projects
 ln -sf ${PWD}/mimeapps.list ${HOME}/.config/mimeapps.list
 ln -sf ${PWD}/user-dirs.dirs ${HOME}/.config/user-dirs.dirs
