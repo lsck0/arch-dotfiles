@@ -703,10 +703,10 @@ CARGO_PKGS="
     trunk
 "
 
-# FLATPAK_PKGS="
-#     com.jeffser.Alpaca
-#     de.z_ray.Facetracker
-# "
+FLATPAK_PKGS="
+    com.jeffser.Alpaca
+    de.z_ray.Facetracker
+"
 
 ## REMOVE PASSWORD FROM SUDO
 
@@ -745,7 +745,7 @@ rustup default stable
 yay -S $PACKAGES --noconfirm --mflags --skipinteg
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
 cargo install $CARGO_PKGS -j $(nproc)
-# flatpak install flathub -y $FLATPAK_PKGS
+flatpak install flathub -y $FLATPAK_PKGS
 
 # cleanup
 rm -rf ${HOME}/.cache/yay/
@@ -789,4 +789,5 @@ fi
 
 sleep 150 && reboot &
 
-nvim
+emacs -nw &
+nvim &

@@ -2,6 +2,8 @@
 
 set -ex
 
+mkdir -p ~/.steam/root/compatibilitytools.d
+mkdir -p ~/.steam/steam/compatibilitytools.d
 ln -sf ~/.steam/root/compatibilitytools.d ~/.steam/steam/compatibilitytools.d
 
 /usr/bin/protonup -y
