@@ -59,6 +59,7 @@
         corfu-auto-delay 0.1
         corfu-auto-prefix 1
         corfu-cycle t
+        corfu-count 12                 ; nvim pumheight
         corfu-preselect 'first
         corfu-popupinfo-delay '(0.3 . 0.1))
   (corfu-popupinfo-mode 1)

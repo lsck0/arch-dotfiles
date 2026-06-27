@@ -82,9 +82,9 @@
   ;; commenting (gcc / gvgc)
   "x" #'evil-commentary-line
 
-  ;; emmet wrap-with-markup (nvim SPC x e). SPC x alone still comments after
-  ;; which-key-idle-delay, exactly like nvim's leader timeout.
-  "xe" #'emmet-wrap-with-markup
+  ;; emmet wrap-with-markup. nvim uses SPC x e via leader-timeout, but emacs
+  ;; can't make SPC x BOTH a command (comment) and a prefix, so this is SPC X.
+  "X" #'emmet-wrap-with-markup
 
   ;; git worktrees (nvim git-worktree.nvim): Gf find/switch, Gc create.
   ;; magit ships worktree management built in.

@@ -5,13 +5,7 @@ return {
         dependencies = {
             { "nvim-neotest/nvim-nio" },
             { "tpope/vim-dadbod",                     lazy = false },
-            { "kristijanhusak/vim-dadbod-completion", lazy = false, ft = { "sql", "mysql", "plsql" }, },
-        },
-        cmd = {
-            "DBUI",
-            "DBUIToggle",
-            "DBUIAddConnection",
-            "DBUIFindBuffer",
+            { "kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" } },
         },
         init = function()
             vim.g.db_ui_use_nerd_fonts = 1

@@ -58,28 +58,36 @@ return {
     {
         "nvim-lualine/lualine.nvim",
         config = function()
+            local pomo_timer = {
+                function()
+                    local ok, pomo = pcall(require, "pomo")
+                    if not ok then return "" end
+                    local timer = pomo.get_first_to_finish()
+                    if timer == nil then return "" end
+                    return "󰔟 " .. tostring(timer)
+                end,
+            }
+
             require("lualine").setup({
                 options = {
                     theme = "ayu_dark",
+                    globalstatus = true,
+                    component_separators = { left = "", right = "" },
+                    section_separators = { left = "", right = "" },
                 },
                 sections = {
+                    lualine_a = { { "mode", icon = "" } },
+                    lualine_b = { "branch", "diff", "diagnostics" },
+                    lualine_c = { { "filename", path = 1 } },
                     lualine_x = {
-                        {
-                            function()
-                                local ok, pomo = pcall(require, "pomo")
-                                if not ok then
-                                    return ""
-                                end
-
-                                local timer = pomo.get_first_to_finish()
-                                if timer == nil then
-                                    return ""
-                                end
-
-                                return tostring(timer)
-                            end,
-                        }
+                        pomo_timer,
+                        { "lsp_status", icon = "" },
+                        "encoding",
+                        "fileformat",
+                        "filetype",
                     },
+                    lualine_y = { "progress" },
+                    lualine_z = { { "location", icon = "" } },
                 },
             })
         end
@@ -130,7 +138,6 @@ return {
     {
         "NvChad/nvim-colorizer.lua",
         lazy = false,
-        event = "BufRead",
         config = function()
             require("colorizer").setup({
                 user_default_options = {
