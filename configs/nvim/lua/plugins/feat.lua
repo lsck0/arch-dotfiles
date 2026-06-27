@@ -21,12 +21,6 @@ return {
 
     {
         "mistweaverco/kulala.nvim",
-        lazy = false,
-        keys = {
-            { "<leader>rs", desc = "Send request" },
-            { "<leader>ra", desc = "Send all requests" },
-            { "<leader>rb", desc = "Open scratchpad" },
-        },
         ft = { "http", "rest" },
         opts = {
             global_keymaps = true,
@@ -79,8 +73,7 @@ return {
     {
         "epwalsh/pomo.nvim",
         version = "*",
-        lazy = true,
-        cmd = { "TimerStart", "TimerRepeat", "TimerSession" },
+        lazy = false,
         opts = {
             update_interval = 1000,
             notifiers = {

@@ -45,6 +45,26 @@ local installed = {
 }
 
 return {
+    -- filetype-specific: load only on their filetype
+    {
+        "folke/lazydev.nvim",
+        ft = "lua",
+        opts = {
+            library = {
+                { path = "${3rd}/luv/library", words = { "vim%.uv" } },
+            },
+        },
+    },
+    { "rluba/jai.vim", ft = "jai" },
+    { "lervag/vimtex", ft = { "tex", "plaintex" } },
+    {
+        "saecki/crates.nvim",
+        ft = "toml",
+        config = function()
+            require("crates").setup({})
+        end
+    },
+
     {
         "mason-org/mason.nvim",
         dependencies = {
@@ -73,31 +93,36 @@ return {
                 end,
             },
             {
-                "folke/lazydev.nvim",
-                ft = "lua",
-                opts = {
-                    library = {
-                        { path = "${3rd}/luv/library", words = { "vim%.uv" } },
-                    },
-                },
-            },
-            {
                 "dmmulroy/ts-error-translator.nvim",
                 config = function()
                     require("ts-error-translator").setup()
                 end
             },
-            { "rluba/jai.vim" },
-            { "lervag/vimtex" },
-            {
-                "saecki/crates.nvim",
-                config = function()
-                    require("crates").setup({})
-                end
-            },
         },
         config = function()
-            vim.diagnostic.config({ virtual_text = true })
+            vim.diagnostic.config({
+                severity_sort = true,
+                update_in_insert = false,
+                underline = true,
+                virtual_text = {
+                    prefix = "●",
+                    spacing = 2,
+                    source = "if_many",
+                },
+                float = {
+                    border = "rounded",
+                    source = "if_many",
+                    header = "",
+                },
+                signs = {
+                    text = {
+                        [vim.diagnostic.severity.ERROR] = vim.fn.nr2char(0xea87), -- nf-cod-error
+                        [vim.diagnostic.severity.WARN]  = vim.fn.nr2char(0xea6c), -- nf-cod-warning
+                        [vim.diagnostic.severity.INFO]  = vim.fn.nr2char(0xea74), -- nf-cod-info
+                        [vim.diagnostic.severity.HINT]  = vim.fn.nr2char(0xea61), -- nf-cod-lightbulb
+                    },
+                },
+            })
 
             vim.api.nvim_create_autocmd("FileType", {
                 pattern = "jai",

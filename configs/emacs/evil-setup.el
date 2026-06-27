@@ -10,6 +10,7 @@
         evil-want-Y-yank-to-eol t
         evil-undo-system 'undo-redo
         evil-search-module 'evil-search
+        evil-ex-search-case 'smart
         evil-split-window-below t
         evil-vsplit-window-right t
         evil-respect-visual-line-mode t)
@@ -17,6 +18,8 @@
   (evil-mode 1)
   ;; C-c exits insert (nvim mapping)
   (define-key evil-insert-state-map (kbd "C-c") 'evil-normal-state)
+  ;; <Esc> clears search highlight (nvim <Esc> -> nohlsearch)
+  (define-key evil-normal-state-map (kbd "<escape>") 'evil-ex-nohighlight)
   ;; jump commands recenter (nvim: C-d/C-u/n/N zz)
   (dolist (cmd '(evil-scroll-down evil-scroll-up
                  evil-search-next evil-search-previous

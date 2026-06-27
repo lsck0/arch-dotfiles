@@ -1,4 +1,5 @@
 *.elc
+*.gz
 .cache/
 auto-save-list/
 custom.el
