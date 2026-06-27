@@ -6,7 +6,6 @@ return {
     {
         "ThePrimeagen/harpoon",
         lazy = false,
-        event = "BufRead",
         branch = "harpoon2",
         config = function()
             -- having this in the mapping file caused some issues lol

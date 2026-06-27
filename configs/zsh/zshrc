@@ -1,5 +1,8 @@
 source ~/.cache/wal/colors.sh
 
+export ZSH_DISABLE_COMPFIX=true
+export ZSH_COMPDUMP="$HOME/.zcompdump"
+
 ZSH=/usr/share/oh-my-zsh/
 ZSH_CACHE_DIR=$HOME/.cache/oh-my-zsh
 if [[ ! -d $ZSH_CACHE_DIR ]]; then
@@ -20,7 +23,12 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-syntax-highlighting
 zinit cdreplay -q
-autoload -Uz compinit && compinit
+autoload -Uz compinit
+if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
+  compinit -C -d "$HOME/.zcompdump"
+else
+  compinit -d "$HOME/.zcompdump"
+fi
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
@@ -39,6 +47,7 @@ setopt hist_ignore_space
 setopt hist_save_no_dups
 setopt sharehistory
 
+typeset -U path
 path+=("$HOME/.cargo/bin")
 path+=("$HOME/.config/doom-emacs/bin")
 path+=("$HOME/.ghcup/bin")
@@ -74,9 +83,11 @@ alias sshpc="ssh luca@192.168.178.138"
 alias vpnoff="sudo wg-quick down wg0"
 alias vpnon="sudo wg-quick up wg0"
 
+# lazy loading
+fuck() { unfunction fuck; eval "$(thefuck --alias)"; fuck "$@"; }
+
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
-eval "$(thefuck --alias)"
 eval "$(zoxide init zsh)"
 
 fastfetch

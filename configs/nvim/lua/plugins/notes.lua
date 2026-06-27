@@ -5,7 +5,6 @@ return {
     },
 
     {
-        lazy = false,
         "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {
@@ -39,8 +38,7 @@ return {
 
     {
         "nvim-orgmode/orgmode",
-        lazy = false,
-        ft = { "org" },
+        ft = "org",
         config = function()
             require("orgmode").setup({
                 org_agenda_files = "~/orgfiles/**/*",

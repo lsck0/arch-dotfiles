@@ -5,7 +5,6 @@ return {
             require("mini.ai").setup()
             require("mini.align").setup()
             require("mini.move").setup()
-            require("mini.jump").setup()
             require('mini.cursorword').setup()
             require("mini.splitjoin").setup()
             require("mini.surround").setup({

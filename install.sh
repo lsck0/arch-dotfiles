@@ -412,6 +412,7 @@ PACKAGES="
     pitivi
     pkgconf
     plasma
+    playerctl
     polkit
     polkit-kde-agent
     portmaster-bin
@@ -693,6 +694,7 @@ CARGO_PKGS="
     cargo-afl
     cargo-info
     cargo-leptos
+    cargo-nextest
     cargo-xbuild
     irust
     kani-verifier
@@ -744,7 +746,7 @@ rustup default stable
 # install all the things
 yay -S $PACKAGES --noconfirm --mflags --skipinteg
 sudo pacman -S $(pacman -Sgq nerd-fonts) --noconfirm
-cargo install $CARGO_PKGS -j $(nproc)
+cargo install --locked $CARGO_PKGS -j $(nproc)
 flatpak install flathub -y $FLATPAK_PKGS
 
 # cleanup

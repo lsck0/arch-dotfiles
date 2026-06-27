@@ -16,6 +16,12 @@
       auto-revert-verbose nil)
 (global-auto-revert-mode 1)
 
+;; restore cursor to last position on reopen (nvim BufReadPost cursor restore)
+(save-place-mode 1)
+
+;; smartcase search (nvim ignorecase + smartcase)
+(setq case-fold-search t)
+
 ;; mkdir on save
 (add-hook 'before-save-hook
           (lambda ()
