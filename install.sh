@@ -336,7 +336,7 @@ PACKAGES="
     mise
     mission-center
     mkcert
-    modrinth-app-bin
+    modrinth-app
     mold
     mov-cli
     mpg123
