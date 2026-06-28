@@ -71,11 +71,18 @@ immutability=1
 plugin=org.kde.plasma.kickoff
 
 [Containments][3][Applets][4][Configuration]
-popupHeight=509
-popupWidth=691
+popupHeight=688
+popupWidth=675
+
+[Containments][3][Applets][4][Configuration][ConfigDialog]
+DialogHeight=630
+DialogWidth=810
 
 [Containments][3][Applets][4][Configuration][General]
+alphaSort=true
+favoritesDisplay=1
 favoritesPortedToKAstats=true
+systemFavorites=suspend\\,hibernate\\,reboot\\,shutdown
 
 [Containments][3][Applets][5]
 immutability=1
@@ -139,6 +146,15 @@ plugin=org.kde.plasma.keyboardindicator
 immutability=1
 plugin=org.kde.plasma.weather
 
+[Containments][3][Applets][8][Applets][17][Configuration][ConfigDialog]
+DialogHeight=630
+DialogWidth=810
+
+[Containments][3][Applets][8][Applets][17][Configuration][WeatherStation]
+placeDisplayName=Göttingen, Germany, DE
+placeInfo=Göttingen, Germany, DE|2918632
+provider=bbcukmet
+
 [Containments][3][Applets][8][Applets][18]
 immutability=1
 plugin=org.kde.kscreen
@@ -174,6 +190,10 @@ plugin=org.kde.plasma.battery
 immutability=1
 plugin=org.kde.plasma.brightness
 
+[Containments][3][Applets][8][Applets][29]
+immutability=1
+plugin=org.kde.plasma.mediacontroller
+
 [Containments][3][Applets][8][Applets][9]
 immutability=1
 plugin=org.kde.kdeconnect
@@ -186,5 +206,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;5;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,6,desktop:/pictures,desktop:/music,desktop:/projects,desktop:/downloads,desktop:/videos,desktop:/documents
-screenMapping=desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=
+screenMapping=desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e

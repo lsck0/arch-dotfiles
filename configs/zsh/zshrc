@@ -88,6 +88,8 @@ fuck() { unfunction fuck; eval "$(thefuck --alias)"; fuck "$@"; }
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
-eval "$(zoxide init zsh)"
 
 fastfetch
+
+# has to be the very last thing
+eval "$(zoxide init zsh)"

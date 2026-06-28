@@ -45,7 +45,6 @@ local installed = {
 }
 
 return {
-    -- filetype-specific: load only on their filetype
     {
         "folke/lazydev.nvim",
         ft = "lua",
