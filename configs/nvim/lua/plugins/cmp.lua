@@ -76,7 +76,7 @@ return {
                 list = { selection = { preselect = true, auto_insert = false } },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 menu = {
-                    winhighlight = "Normal:Pmenu,FloatBorder:Pmenu,Search:None,CursorLine:MyCursorLine",
+                    winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,Search:None,CursorLine:MyCursorLine",
                     draw = {
                         components = {
                             kind_icon = {
@@ -120,7 +120,7 @@ return {
         },
         opts_extend = { "sources.default" },
         config = function(_, opts)
-            vim.api.nvim_set_hl(0, "MyCursorLine", { fg = "#c8d3f5", bg = "#3654a8", bold = true })
+            vim.api.nvim_set_hl(0, "MyCursorLine", { link = "PmenuSel" })
             require("blink.cmp").setup(opts)
         end,
     },
