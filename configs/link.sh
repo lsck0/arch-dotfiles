@@ -12,5 +12,3 @@ ln -sf ${PWD}/uwsm ${HOME}/.config/uwsm
 ln -sf ${PWD}/walker ${HOME}/.config/walker
 ln -sf ${PWD}/waybar ${HOME}/.config/waybar
 ln -sf ${PWD}/wlogout ${HOME}/.config/wlogout
-
-rm ${HOME}/.emacs.d
