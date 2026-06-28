@@ -17,6 +17,8 @@
 (global-auto-revert-mode 1)
 
 ;; restore cursor to last position on reopen (nvim BufReadPost cursor restore)
+;; keep the runtime DB out of the (symlinked) repo -> ~/.cache
+(setq save-place-file (expand-file-name "emacs/places" (or (getenv "XDG_CACHE_HOME") "~/.cache")))
 (save-place-mode 1)
 
 ;; smartcase search (nvim ignorecase + smartcase)
