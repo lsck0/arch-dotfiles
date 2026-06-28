@@ -225,7 +225,6 @@ PACKAGES="
     hyprsunset
     identity
     imagemagick
-    impala
     inkscape
     intel-media-driver
     ipython
