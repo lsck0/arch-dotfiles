@@ -33,7 +33,7 @@
     "format": "{icon} {volume}%",
     "format-muted": "󰖁 Muted",
     "format-icons": ["", "", ""],
-    "on-click": "pavucontrol",
+    "on-click": "kitty wiremix",
   },
   "clock": {
     "interval": 60,
@@ -79,7 +79,7 @@
     "tooltip-format-disconnected": "Disconnected",
     "interval": 3,
     "nospacing": 1,
-    "on-click": "kitty nmtui",
+    "on-click": "kitty sudo impala",
   },
   "bluetooth": {
     "format": " ",

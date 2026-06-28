@@ -225,6 +225,7 @@ PACKAGES="
     hyprsunset
     identity
     imagemagick
+    impala
     inkscape
     intel-media-driver
     ipython
@@ -350,6 +351,7 @@ PACKAGES="
     nemo
     neochat
     neofetch
+    neovide
     neovim
     nethack
     netscanner
@@ -544,6 +546,7 @@ PACKAGES="
     traceroute
     trash-cli
     tree-sitter-cli
+    trippy
     trufflehog
     ttf-anonymous-pro
     ttf-arphic-ukai
