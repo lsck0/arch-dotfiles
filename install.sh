@@ -793,5 +793,4 @@ fi
 
 sleep 150 && reboot &
 
-emacs -nw &
 nvim &
