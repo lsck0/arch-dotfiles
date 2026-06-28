@@ -1,2 +1,4 @@
 *.log
 FAILURES
+.Rhistory
+configs/emacs/places
