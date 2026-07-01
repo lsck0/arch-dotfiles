@@ -298,10 +298,15 @@ PACKAGES="
     libxslt
     limine
     linux
+    linux-docs
     linux-firmware
     linux-hardened
+    linux-hardened-docs
+    linux-hardened-headers
     linux-headers
     linux-lts
+    linux-lts-docs
+    linux-lts-headers
     linux-tools-meta
     llvm
     lmms
