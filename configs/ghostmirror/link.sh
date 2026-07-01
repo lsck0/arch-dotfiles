@@ -20,6 +20,7 @@ sudo chown $USER:$USER /etc/pacman.d/mirrorlist.gm.bak
 # have ghostmirror linger and periodically sort the mirrorlist
 ghostmirror \
     -DPo \
+    -f "OnCalendar=weekly" \
     -mul /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist \
     -s light \
     -S state,outofdate,morerecent,estimated,speed
