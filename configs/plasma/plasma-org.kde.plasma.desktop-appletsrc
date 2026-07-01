@@ -5,8 +5,8 @@ RightButton;NoModifier=org.kde.contextmenu
 RightButton;NoModifier=org.kde.contextmenu
 
 [Containments][1]
-ItemGeometries-2400x1350=
-ItemGeometriesHorizontal=
+ItemGeometries-2400x1350=Applet-30:1872,32,512,160,0;Applet-32:1904,192,448,192,0;
+ItemGeometriesHorizontal=Applet-30:1872,32,512,160,0;Applet-32:1904,192,448,192,0;
 activityId=230c143b-accd-470f-bc9e-bcd19408078e
 formfactor=0
 immutability=1
@@ -14,6 +14,14 @@ lastScreen=0
 location=0
 plugin=org.kde.plasma.folder
 wallpaperplugin=org.kde.image
+
+[Containments][1][Applets][30]
+immutability=1
+plugin=com.github.prayag2.modernclock
+
+[Containments][1][Applets][32]
+immutability=1
+plugin=Music.Waves
 
 [Containments][1][ConfigDialog]
 DialogHeight=821
@@ -207,4 +215,4 @@ AppletOrder=4;5;6;7;8;23;24
 
 [ScreenMapping]
 itemsOnDisabledScreens=
-screenMapping=desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e
+screenMapping=desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e

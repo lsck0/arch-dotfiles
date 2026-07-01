@@ -3,6 +3,9 @@ Id_1=1154b8fc-0cd9-4c1a-9ac4-5c3614539c68
 Number=1
 Rows=1
 
+[Plugins]
+mousemarkEnabled=true
+
 [Tiling][1154b8fc-0cd9-4c1a-9ac4-5c3614539c68][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
