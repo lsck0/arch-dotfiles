@@ -6,7 +6,7 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
-set.guifont = "0xProto Nerd Font:h22"
+set.guifont = "0xProto Nerd Font:h16"
 set.ignorecase = true
 set.inccommand = "split"
 set.laststatus = 3
@@ -36,3 +36,7 @@ set.updatetime = 250
 set.virtualedit = "block"
 set.winborder = "rounded"
 set.wrap = false
+
+if vim.g.neovide then
+    vim.g.neovide_scale_factor = 1.0
+end
