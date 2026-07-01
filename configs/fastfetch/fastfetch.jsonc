@@ -25,7 +25,7 @@
         {
             "type": "packages",
             "key": "P ",
-            "format": "{1} packages",
+            "format": "{pacman} packages",
         },
         {
             "type": "cpu",
