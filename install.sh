@@ -138,6 +138,7 @@ PACKAGES="
     expect
     exploitdb
     eza
+    fail2ban
     famistudio-bin
     fasm
     fastfetch
