@@ -37,3 +37,12 @@ for d in ${DIRS}; do
     rm -rf ${HOME}/.config/${d}
     ln -sf ${PWD}/${d} ${HOME}/.config/${d}
 done
+
+# Install third-party plasmoids
+WIDGET_ID="com.github.prayag2.modernclock"
+if ! kpackagetool6 -t Plasma/Applet -l 2>/dev/null | grep -qx "${WIDGET_ID}"; then
+    TMP=$(mktemp -d)
+    git clone https://github.com/prayag2/kde_modernclock "${TMP}/kde_modernclock"
+    kpackagetool6 -t Plasma/Applet -i "${TMP}/kde_modernclock/package"
+    rm -rf "${TMP}"
+fi
