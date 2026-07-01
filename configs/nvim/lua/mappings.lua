@@ -6,6 +6,17 @@ vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
 -- easier macros
 vim.keymap.set('n', '<M-q>', '@', { noremap = true, desc = "Apply macro (@)" })
 
+-- neovide zoom (ctrl +/-/0)
+if vim.g.neovide then
+    local function scale(factor)
+        vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * factor
+    end
+    vim.keymap.set("n", "<C-=>", function() scale(1.1) end, { desc = "Neovide zoom in" })
+    vim.keymap.set("n", "<C-+>", function() scale(1.1) end, { desc = "Neovide zoom in" })
+    vim.keymap.set("n", "<C-->", function() scale(1 / 1.1) end, { desc = "Neovide zoom out" })
+    vim.keymap.set("n", "<C-0>", function() vim.g.neovide_scale_factor = 1.0 end, { desc = "Neovide zoom reset" })
+end
+
 -- clear search highlight
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 
