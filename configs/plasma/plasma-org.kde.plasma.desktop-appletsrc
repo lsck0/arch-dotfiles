@@ -210,5 +210,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;5;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=
-screenMapping=desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,6,desktop:/downloads,desktop:/projects,desktop:/videos,desktop:/documents,desktop:/pictures,desktop:/music
+screenMapping=desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e
