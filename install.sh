@@ -51,7 +51,6 @@ PACKAGES="
     burpsuite
     caligula
     cargo-audit
-    cargo-binstall
     cargo-bloat
     cargo-deny
     cargo-edit
@@ -514,7 +513,6 @@ PACKAGES="
     sshpass
     starship
     steam
-    steghide
     stirling-pdf-bin
     sudo
     system-config-printer

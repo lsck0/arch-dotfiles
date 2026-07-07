@@ -1,9 +1,9 @@
 @import url("../../../../.cache/wal/colors-waybar.css");
 
 /* pull pywal palette so walker recolors with the wallpaper, same as waybar */
-@define-color window_bg_color @background;
-@define-color accent_bg_color @color2;
-@define-color theme_fg_color @foreground;
+@define-color window_bg_color #0b1019;
+@define-color accent_bg_color #97533C;
+@define-color theme_fg_color #62524F;
 
 * {
   all: unset;
