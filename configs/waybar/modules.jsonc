@@ -33,7 +33,7 @@
     "format": "{icon} {volume}%",
     "format-muted": "󰖁 Muted",
     "format-icons": ["", "", ""],
-    "on-click": "kitty wiremix",
+    "on-click": "pavucontrol",
   },
   "clock": {
     "interval": 60,
