@@ -3,12 +3,6 @@
 
 set -x
 
-LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/system-update"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/system-update-$(date +%Y%m%d-%H%M%S).log"
-exec > >(tee "$LOG_FILE") 2>&1
-echo "Logging to $LOG_FILE"
-
 echo "ARE U SURE?"
 read -p "Type 'y' to continue: " confirm
 if [ "$confirm" != "y" ]; then
