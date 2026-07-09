@@ -84,8 +84,8 @@
   :init (dashboard-setup-startup-hook)
   :config
   (setq dashboard-banner-logo-title nil
-        ;; dashboard has no "no banner" option, so point it at a blank file
-        dashboard-startup-banner (expand-file-name "banner.txt" user-emacs-directory)
+        ;; official GNU Emacs logo image
+        dashboard-startup-banner 'official
         dashboard-center-content t
         dashboard-vertically-center-content t
         dashboard-icon-type 'nerd-icons
