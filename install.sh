@@ -419,6 +419,7 @@ PACKAGES="
     pkgconf
     plasma
     playerctl
+    plymouth
     polkit
     polkit-kde-agent
     portmaster-bin
