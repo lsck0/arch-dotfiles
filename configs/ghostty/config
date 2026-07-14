@@ -4,7 +4,7 @@ app-notifications = false
 confirm-close-surface = false
 
 font-family = 0xProto Nerd Font
-font-size = 13
+font-size = 14
 
 # this blocks tab switching in nvim
 keybind = alt+1=unbind
