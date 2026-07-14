@@ -479,6 +479,7 @@ PACKAGES="
     renderdoc
     ripgrep
     rkhunter
+    rogue
     rose-pine-cursor
     rose-pine-hyprcursor
     rstudio-desktop-bin
