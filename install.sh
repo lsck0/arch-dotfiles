@@ -477,6 +477,7 @@ PACKAGES="
     rcon-cli
     reaver-wps-fork-t6x-git
     renderdoc
+    reptyr
     ripgrep
     rkhunter
     rogue
@@ -561,7 +562,6 @@ PACKAGES="
     ttf-caladea
     ttf-cascadia-code
     ttf-charis
-    ttf-charis-sil
     ttf-cormorant
     ttf-crimson
     ttf-crimson-pro
