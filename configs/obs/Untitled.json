@@ -40,7 +40,7 @@
         "id": "pulse_input_capture",
         "versioned_id": "pulse_input_capture",
         "settings": {
-            "device_id": "alsa_input.usb-Logitech_PRO_X_2_LIGHTSPEED_0000000000000000-00.mono-fallback"
+            "device_id": "alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback"
         },
         "mixers": 195,
         "sync": 0,
@@ -308,7 +308,7 @@
             "volume": 0.4216965138912201,
             "balance": 0.5,
             "enabled": true,
-            "muted": true,
+            "muted": false,
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
@@ -892,6 +892,58 @@
             "deinterlace_field_order": 0,
             "monitoring_type": 0,
             "private_settings": {}
+        },
+        {
+            "prev_ver": 536936450,
+            "name": "Stream Avatars",
+            "uuid": "41472114-cd0c-4604-b98e-6c2908316ec7",
+            "id": "pipewire-screen-capture-source",
+            "versioned_id": "pipewire-screen-capture-source",
+            "settings": {
+                "RestoreToken": ""
+            },
+            "mixers": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {},
+            "filters": [
+                {
+                    "prev_ver": 536936450,
+                    "name": "Chroma Key",
+                    "uuid": "3ed5aa83-6fa5-475a-8afa-fd12f8f7a4f7",
+                    "id": "chroma_key_filter",
+                    "versioned_id": "chroma_key_filter_v2",
+                    "settings": {},
+                    "mixers": 0,
+                    "sync": 0,
+                    "flags": 0,
+                    "volume": 1.0,
+                    "balance": 0.5,
+                    "enabled": true,
+                    "muted": false,
+                    "push-to-mute": false,
+                    "push-to-mute-delay": 0,
+                    "push-to-talk": false,
+                    "push-to-talk-delay": 0,
+                    "hotkeys": {},
+                    "deinterlace_mode": 0,
+                    "deinterlace_field_order": 0,
+                    "monitoring_type": 0,
+                    "private_settings": {}
+                }
+            ]
         },
         {
             "prev_ver": 536936450,
@@ -1908,64 +1960,9 @@
             "id": "scene",
             "versioned_id": "scene",
             "settings": {
-                "id_counter": 9,
+                "id_counter": 11,
                 "custom_size": false,
                 "items": [
-                    {
-                        "name": "Discord PNGs",
-                        "source_uuid": "6272516c-9d46-4fec-8840-3b2362759418",
-                        "visible": true,
-                        "locked": true,
-                        "rot": 0.0,
-                        "scale_ref": {
-                            "x": 3840.0,
-                            "y": 2160.0
-                        },
-                        "align": 5,
-                        "bounds_type": 0,
-                        "bounds_align": 0,
-                        "bounds_crop": false,
-                        "crop_left": 0,
-                        "crop_top": 0,
-                        "crop_right": 0,
-                        "crop_bottom": 0,
-                        "id": 9,
-                        "group_item_backup": false,
-                        "pos": {
-                            "x": 2526.0,
-                            "y": 1667.0
-                        },
-                        "pos_rel": {
-                            "x": 0.5611110925674438,
-                            "y": 0.5435185432434082
-                        },
-                        "scale": {
-                            "x": 0.8212500214576721,
-                            "y": 0.8216666579246521
-                        },
-                        "scale_rel": {
-                            "x": 0.8212500214576721,
-                            "y": 0.8216666579246521
-                        },
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_rel": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "scale_filter": "disable",
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "show_transition": {
-                            "duration": 300
-                        },
-                        "hide_transition": {
-                            "duration": 300
-                        },
-                        "private_settings": {}
-                    },
                     {
                         "name": "Spotify",
                         "source_uuid": "703608ca-648b-4217-9cdd-0b456d145650",
@@ -1987,20 +1984,20 @@
                         "id": 7,
                         "group_item_backup": false,
                         "pos": {
-                            "x": 3177.0,
-                            "y": 1792.0
+                            "x": 3443.0,
+                            "y": 1941.0
                         },
                         "pos_rel": {
-                            "x": 1.163888931274414,
-                            "y": 0.6592592000961304
+                            "x": 1.4101852178573608,
+                            "y": 0.7972222566604614
                         },
                         "scale": {
-                            "x": 0.8500000238418579,
-                            "y": 0.8500000238418579
+                            "x": 0.5049999952316284,
+                            "y": 0.5049999952316284
                         },
                         "scale_rel": {
-                            "x": 0.8500000238418579,
-                            "y": 0.8500000238418579
+                            "x": 0.5049999952316284,
+                            "y": 0.5049999952316284
                         },
                         "bounds": {
                             "x": 0.0,
@@ -2022,8 +2019,8 @@
                         "private_settings": {}
                     },
                     {
-                        "name": "Emote Wall",
-                        "source_uuid": "f91b1845-6a17-4d60-8cdb-28b73c72421a",
+                        "name": "Discord PNGs",
+                        "source_uuid": "6272516c-9d46-4fec-8840-3b2362759418",
                         "visible": true,
                         "locked": true,
                         "rot": 0.0,
@@ -2039,23 +2036,23 @@
                         "crop_top": 0,
                         "crop_right": 0,
                         "crop_bottom": 0,
-                        "id": 6,
+                        "id": 9,
                         "group_item_backup": false,
                         "pos": {
-                            "x": 0.0,
-                            "y": 0.0
+                            "x": 2134.0,
+                            "y": 1520.0
                         },
                         "pos_rel": {
-                            "x": -1.7777777910232544,
-                            "y": -1.0
+                            "x": 0.19814814627170563,
+                            "y": 0.40740740299224854
                         },
                         "scale": {
-                            "x": 2.0,
-                            "y": 2.0
+                            "x": 1.066249966621399,
+                            "y": 1.0666667222976685
                         },
                         "scale_rel": {
-                            "x": 2.0,
-                            "y": 2.0
+                            "x": 1.066249966621399,
+                            "y": 1.0666667222976685
                         },
                         "bounds": {
                             "x": 0.0,
@@ -2130,6 +2127,116 @@
                             "duration": 300
                         },
                         "private_settings": {}
+                    },
+                    {
+                        "name": "Stream Avatars",
+                        "source_uuid": "41472114-cd0c-4604-b98e-6c2908316ec7",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 126,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 11,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 200.0
+                        },
+                        "pos_rel": {
+                            "x": -1.7777777910232544,
+                            "y": -0.8148148059844971
+                        },
+                        "scale": {
+                            "x": 1.0086681842803955,
+                            "y": 1.0082372426986694
+                        },
+                        "scale_rel": {
+                            "x": 1.0086681842803955,
+                            "y": 1.0082372426986694
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 300
+                        },
+                        "hide_transition": {
+                            "duration": 300
+                        },
+                        "private_settings": {}
+                    },
+                    {
+                        "name": "Emote Wall",
+                        "source_uuid": "f91b1845-6a17-4d60-8cdb-28b73c72421a",
+                        "visible": true,
+                        "locked": true,
+                        "rot": 0.0,
+                        "scale_ref": {
+                            "x": 3840.0,
+                            "y": 2160.0
+                        },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 6,
+                        "group_item_backup": false,
+                        "pos": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "pos_rel": {
+                            "x": -1.7777777910232544,
+                            "y": -1.0
+                        },
+                        "scale": {
+                            "x": 2.0,
+                            "y": 2.0
+                        },
+                        "scale_rel": {
+                            "x": 2.0,
+                            "y": 2.0
+                        },
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_rel": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 300
+                        },
+                        "hide_transition": {
+                            "duration": 300
+                        },
+                        "private_settings": {}
                     }
                 ]
             },
@@ -2146,14 +2253,16 @@
             "push-to-talk-delay": 0,
             "hotkeys": {
                 "OBSBasic.SelectScene": [],
-                "libobs.show_scene_item.9": [],
-                "libobs.hide_scene_item.9": [],
                 "libobs.show_scene_item.7": [],
                 "libobs.hide_scene_item.7": [],
-                "libobs.show_scene_item.6": [],
-                "libobs.hide_scene_item.6": [],
+                "libobs.show_scene_item.9": [],
+                "libobs.hide_scene_item.9": [],
                 "libobs.show_scene_item.8": [],
-                "libobs.hide_scene_item.8": []
+                "libobs.hide_scene_item.8": [],
+                "libobs.show_scene_item.11": [],
+                "libobs.hide_scene_item.11": [],
+                "libobs.show_scene_item.6": [],
+                "libobs.hide_scene_item.6": []
             },
             "deinterlace_mode": 0,
             "deinterlace_field_order": 0,
@@ -2795,8 +2904,8 @@
             "name": "Game"
         }
     ],
-    "current_scene": "Full Screen",
-    "current_program_scene": "Full Screen",
+    "current_scene": "Overlay",
+    "current_program_scene": "Overlay",
     "canvases": [],
     "current_transition": "Luma Wipe",
     "transition_duration": 500,
