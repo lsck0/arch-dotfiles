@@ -6,6 +6,8 @@ confirm-close-surface = false
 font-family = 0xProto Nerd Font
 font-size = 14
 
+mouse-scroll-multiplier = precision:0.3,discrete:0.5
+
 # this blocks tab switching in nvim
 keybind = alt+1=unbind
 keybind = alt+2=unbind
