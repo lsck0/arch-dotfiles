@@ -19,6 +19,11 @@ set_wallpaper() {
     pywalfox update &
     pywal-spicetify wal &
 
+    # the lua config reads ~/.cache/wal/colors itself, and hyprland does not
+    # watch that file the way it used to watch the sourced colors-hyprland.conf
+    # config-only: skip the monitor reload, it flickers the outputs
+    hyprctl reload config-only &
+
     # update hyprlock config
     sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
     sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \

@@ -1,0 +1,15 @@
+hl.config({
+    input = {
+        kb_layout = "de",
+        kb_options = "ctrl:nocaps",
+        follow_mouse = 1,
+        sensitivity = 0.1,
+        touchpad = {
+            natural_scroll = true,
+            disable_while_typing = true,
+            tap_to_click = true,
+            drag_lock = true,
+            scroll_factor = 0.5,
+        },
+    },
+})
