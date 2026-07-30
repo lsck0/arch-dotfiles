@@ -646,6 +646,7 @@ PACKAGES="
     wev
     wget
     whois
+    wiki-tui
     wine-staging
     wireguard-tools
     wireguard-ui-bin
