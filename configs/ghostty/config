@@ -9,6 +9,11 @@ adjust-cell-height = -23%
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 
+# no dead space under the tmux status bar: drop the default 2pt top/bottom
+# padding so one more row fits, and balance the sub-cell remainder
+window-padding-y = 0
+window-padding-balance = true
+
 # this blocks tab switching in nvim
 keybind = alt+1=unbind
 keybind = alt+2=unbind
