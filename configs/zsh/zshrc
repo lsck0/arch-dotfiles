@@ -1,5 +1,6 @@
 source ~/.cache/wal/colors.sh
 
+fpath=(~/.zsh/completions $fpath)
 export ZSH_DISABLE_COMPFIX=true
 export ZSH_COMPDUMP="$HOME/.zcompdump"
 
@@ -23,7 +24,7 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-syntax-highlighting
 zinit cdreplay -q
-autoload -Uz compinit
+autoload -Uz compinit && compinit
 if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
   compinit -C -d "$HOME/.zcompdump"
 else
