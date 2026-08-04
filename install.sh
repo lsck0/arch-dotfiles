@@ -561,7 +561,6 @@ PACKAGES="
     ttf-baekmuk
     ttf-caladea
     ttf-cascadia-code
-    ttf-charis
     ttf-cormorant
     ttf-crimson
     ttf-crimson-pro

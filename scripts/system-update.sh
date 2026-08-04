@@ -51,7 +51,9 @@ ghcup install stack latest
 
 # userland
 
-yes | hyprpm update -f
+if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+    yes | hyprpm update -f
+fi
 
 protonup -y
 
