@@ -135,6 +135,8 @@ ForegroundVisited=155,89,182
 [General]
 AccentColor=160,103,80
 ColorSchemeHash=9d38eb71ded8ff549da26d57d7cbab9164da243a
+TerminalApplication=kgx
+TerminalService=org.gnome.Console.desktop
 XftAntialias=true
 XftHintStyle=hintslight
 XftSubPixel=none
