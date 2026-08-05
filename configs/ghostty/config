@@ -5,7 +5,8 @@ confirm-close-surface = false
 
 font-family = 0xProto Nerd Font
 font-size = 14
-adjust-cell-height = -23% #delta
+#delta
+adjust-cell-height = -23%
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 
