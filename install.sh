@@ -410,6 +410,7 @@ PACKAGES="
     pavucontrol
     pdftk
     phoronix-test-suite
+    pi-coding-agent-bin
     pipeline-gtk
     piper
     pipewire
