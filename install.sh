@@ -21,8 +21,10 @@ PACKAGES="
     app2unit
     appimagetool-git
     argon2
+    arjun
     arp-scan
     aseprite
+    ast-grep
     audacity
     aws-cli-v2
     awww
@@ -40,10 +42,12 @@ PACKAGES="
     bind
     bleachbit
     blender
+    bloaty
     blueberry
     bluez
     bluez-utils
     borg
+    bpftrace
     brightnessctl
     btop
     btrfs-progs
@@ -86,6 +90,7 @@ PACKAGES="
     copyq
     coreutils
     cowsay
+    cppcheck
     cpufetch
     croc
     cronie
@@ -95,6 +100,7 @@ PACKAGES="
     cups-pk-helper
     curl
     curseforge
+    dalfox-bin
     diesel-cli
     difftastic
     direnv
@@ -145,6 +151,7 @@ PACKAGES="
     fd
     feh
     ffmpeg
+    ffuf-bin
     figlet
     file
     filezilla
@@ -167,6 +174,7 @@ PACKAGES="
     genius
     geogebra-6-bin
     gf2-git
+    gh-dash
     ghcup-hs-bin
     ghidra
     ghostmirror
@@ -196,6 +204,7 @@ PACKAGES="
     go
     gobuster
     godot
+    gowitness-bin
     gparted
     gping
     graphviz
@@ -207,6 +216,7 @@ PACKAGES="
     handbrake
     hashcat
     headsetcontrol
+    heaptrack
     helm
     help2man
     heroic-games-launcher-bin
@@ -215,6 +225,7 @@ PACKAGES="
     hollywood
     hotspot
     hping
+    httpx-bin
     hydra
     hyperfine
     hyprcursor
@@ -232,6 +243,7 @@ PACKAGES="
     jdownloader2
     jetbrains-toolbox
     jless
+    jnv
     john
     jq
     jrnl
@@ -239,13 +251,17 @@ PACKAGES="
     jupyterlab
     just
     k9s
+    katana-bin
     kdenlive
     khal
     kismet
+    kiterunner-bin
     kitty
     kpat
     krita
+    kubecolor
     kubectl
+    kubectx
     kvirc
     lazydocker-bin
     lazygit
@@ -328,6 +344,7 @@ PACKAGES="
     maven
     mdbook
     mdk4
+    mergiraf
     mermaid-cli
     mesa
     meson
@@ -340,6 +357,7 @@ PACKAGES="
     minikube
     mise
     mission-center
+    mitmproxy
     mkcert
     modrinth-app
     mold
@@ -348,6 +366,7 @@ PACKAGES="
     mpv
     mtools
     mtr
+    naabu-bin
     nano
     nasm
     ncdu
@@ -372,6 +391,8 @@ PACKAGES="
     npm
     nsxiv
     ntfs-3g
+    nuclei-bin
+    nuclei-templates
     nushell
     nwg-look
     obs-audio-wave-bin
@@ -383,6 +404,7 @@ PACKAGES="
     obsidian-icon-theme
     odin
     oh-my-zsh-git
+    oha
     okular
     ollama-for-amd-git
     onefetch
@@ -426,6 +448,7 @@ PACKAGES="
     portmaster-bin
     postgresql
     postgresql-libs
+    posting
     powerline-fonts
     pre-commit
     prettier
@@ -436,6 +459,7 @@ PACKAGES="
     proton-vpn-qt-app
     protontricks
     protonup-git
+    pwndbg
     python-black
     python-faker
     python-isort
@@ -446,6 +470,7 @@ PACKAGES="
     python-pillow
     python-pip
     python-poetry
+    python-pwntools
     python-pydantic
     python-pygments
     python-pytorch-rocm
@@ -487,10 +512,13 @@ PACKAGES="
     rstudio-desktop-bin
     rsync
     rz-cutter
+    samply
     sane
     sccache
     sd
     sdl3
+    seclists
+    serpl
     sfxr-qt-bin
     signal-desktop
     skaffold
@@ -515,9 +543,11 @@ PACKAGES="
     sqlx-cli
     sshfs
     sshpass
+    sslscan
     starship
     steam
     stirling-pdf-bin
+    subfinder-bin
     sudo
     system-config-printer
     tar
@@ -530,6 +560,7 @@ PACKAGES="
     tesseract
     tesseract-data-deu
     tesseract-data-eng
+    testssl.sh
     texlive
     texlive-lang
     texmaker
@@ -554,6 +585,7 @@ PACKAGES="
     trash-cli
     tree-sitter-cli
     trippy
+    trivy
     trufflehog
     ttf-anonymous-pro
     ttf-arphic-ukai
@@ -636,6 +668,7 @@ PACKAGES="
     vulkan-intel
     vulkan-nouveau
     vulkan-radeon
+    wafw00f
     walker-bin
     waybar
     waydroid
