@@ -30,6 +30,8 @@ if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
 else
   compinit -d "$HOME/.zcompdump"
 fi
+compdef kubecolor=kubectl
+
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
@@ -68,6 +70,7 @@ alias cp="cp -v"
 alias downgrade="sudo downgrade"
 alias edoom="emacs --init-directory ~/.config/doom-emacs"
 alias gitfetch="onefetch"
+alias kubectl="kubecolor"
 alias l="eza -lh"
 alias la="eza -lah"
 alias ldocker="lazydocker"
