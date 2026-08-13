@@ -1,0 +1,10 @@
+[Unit]
+Description=ghostmirror timer, auto select archlinux mirror
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target
