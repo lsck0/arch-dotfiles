@@ -69,7 +69,7 @@
 #
 # Dependencies:
 #
-# yay -S --needed curl jq iputils whois bind nmap sslscan testssl.sh gobuster nikto sqlmap hydra wrk hping slowhttptest python openssl chromium httpx-bin subfinder-bin katana-bin naabu-bin nuclei-bin nuclei-templates ffuf-bin gowitness-bin dalfox-bin kiterunner-bin arjun trufflehog wafw00f seclists gau-bin waybackurls python-mmh3 ysoserial phpggc
+# yay -S --needed curl jq iputils whois bind nmap sslscan testssl.sh gobuster nikto sqlmap hydra wrk hping slowhttptest python openssl chromium httpx-bin subfinder-bin katana-bin naabu-bin nuclei-bin nuclei-templates ffuf-bin gowitness-bin dalfox-bin kiterunner-bin arjun trufflehog wafw00f seclists gau waybackurls python-mmh3 ysoserial phpggc
 
 set -uo pipefail
 
