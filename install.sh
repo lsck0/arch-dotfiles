@@ -166,6 +166,7 @@ PACKAGES="
     fzf
     gamemode
     gamescope
+    gau
     gcc
     gcc-fortran
     gdb
