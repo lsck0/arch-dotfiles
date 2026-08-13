@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly ghostmirror mirror pool rebuild
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

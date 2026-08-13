@@ -1,0 +1,8 @@
+[Unit]
+Description=Execute ghost mirror
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/bin/timeout 300 /bin/sh -c 'until /usr/bin/curl -sfI --max-time 10 https://archlinux.org/mirrorlist/all/ >/dev/null; do sleep 15; done'
+ExecStart=/usr/bin/ghostmirror -uml /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist -s light -S state,outofdate,morerecent,estimated,speed
+Environment="SERVICE_VERSION=0.18.5"
