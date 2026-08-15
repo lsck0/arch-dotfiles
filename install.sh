@@ -580,6 +580,7 @@ PACKAGES="
     tmux
     tokei
     topology-toolkit
+    tor-router
     torbrowser-launcher
     tparted-bin
     traceroute
