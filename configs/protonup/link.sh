@@ -1,13 +1,56 @@
 #!/usr/bin/env bash
 
-set -ex
+set -euo pipefail
 
-mkdir -p ~/.steam/root/compatibilitytools.d
-mkdir -p ~/.steam/steam/compatibilitytools.d
-ln -sf ~/.steam/root/compatibilitytools.d ~/.steam/steam/compatibilitytools.d
+COMPAT_DIR="$HOME/.steam/root/compatibilitytools.d"
+OVERLAY_URL="https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
 
-/usr/bin/protonup -y
+mkdir -p "$COMPAT_DIR"
 
-wget https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz
-tar -xzf Proton-LayeredOverlay.tar.gz -C ~/.steam/root/compatibilitytools.d/
-rm Proton-LayeredOverlay.tar.gz
+install_proton_ge() {
+    local api="https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
+    local tag asset url sum_url tmp
+
+    tag=$(curl -fsSL "$api" | jq -r '.tag_name')
+    asset="${tag}-x86_64"
+
+    # Upstream tarballs unpack to <tag>-x86_64, not <tag>.
+    if [ -d "$COMPAT_DIR/$asset" ]; then
+        echo "[INFO] $asset already installed"
+        return
+    fi
+
+    url="https://github.com/GloriousEggroll/proton-ge-custom/releases/download/${tag}/${asset}.tar.gz"
+    sum_url="${url%.tar.gz}.sha512sum"
+
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' RETURN
+
+    echo "[INFO] downloading $asset"
+    curl -fL --progress-bar -o "$tmp/$asset.tar.gz" "$url"
+    curl -fsSL -o "$tmp/$asset.sha512sum" "$sum_url"
+
+    (cd "$tmp" && sha512sum -c "$asset.sha512sum")
+
+    tar -xzf "$tmp/$asset.tar.gz" -C "$COMPAT_DIR"
+    echo "[INFO] installed in $COMPAT_DIR/$asset"
+}
+
+install_overlay() {
+    local tmp
+
+    if [ -d "$COMPAT_DIR/Proton-LayeredOverlay" ]; then
+        echo "[INFO] Proton-LayeredOverlay already installed"
+        return
+    fi
+
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' RETURN
+
+    curl -fL --progress-bar -o "$tmp/overlay.tar.gz" "$OVERLAY_URL"
+    tar -xzf "$tmp/overlay.tar.gz" -C "$COMPAT_DIR"
+    echo "[INFO] installed in $COMPAT_DIR/Proton-LayeredOverlay"
+}
+
+install_proton_ge
+install_overlay
