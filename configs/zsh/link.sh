@@ -2,6 +2,6 @@
 
 set -ex
 
-mkdir ~/.zsh/completions
+mkdir -p ~/.zsh/completions
 
 ln -sf ${PWD}/zshrc ${HOME}/.zshrc
