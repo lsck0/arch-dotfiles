@@ -35,7 +35,6 @@ PACKAGES="
     bc
     bear
     bemenu-wayland
-    bettercap-git
     betterdiscord-installer
     betterdiscordctl-git
     biber
@@ -157,7 +156,6 @@ PACKAGES="
     filezilla
     firefox
     flameshot
-    flat-remix-gtk
     flatpak
     focus-bin
     font-manager
@@ -171,7 +169,6 @@ PACKAGES="
     gcc-fortran
     gdb
     gearlever
-    gemini-cli-git
     genius
     geogebra-6-bin
     gf2-git
@@ -745,7 +742,6 @@ CARGO_PKGS="
     rustfilt
     tauri-cli
     tmux-sessionizer
-    trunk
 "
 
 FLATPAK_PKGS="

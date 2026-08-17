@@ -55,10 +55,12 @@ if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
     yes | hyprpm update -f
 fi
 
-protonup -y
+"$(dirname "$(readlink -f "$0")")/../configs/protonup/link.sh"
 
 tldr --update_cache
 
 ~/.tmux/plugins/tpm/bin/update_plugins all
 
-nvim --headless "+Lazy! sync" +MasonUpdate +TSUpdate +qa
+nvim --headless "+Lazy! sync" +MasonUpdate +MasonToolsUpdateSync \
+    "+MasonInstall glsl_analyzer" \
+    "+lua require('nvim-treesitter').update():wait(600000)" +qa

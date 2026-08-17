@@ -6,11 +6,10 @@ local installed = {
     "codelldb",
     "css-lsp",
     "cssmodules-language-server",
-    "docker_compose_language_service",
+    "docker-compose-language-service",
     "dockerfile-language-server",
-    "emmet_language_server",
+    "emmet-language-server",
     "eslint-lsp",
-    "glsl_analyzer",
     "gopls",
     "hlint",
     "html-lsp",
@@ -29,8 +28,8 @@ local installed = {
     "nil",
     "prettierd",
     "pyright",
-    "rust_analyzer",
-    "slangd",
+    "rust-analyzer",
+    "slang-server",
     "sqlls",
     "tailwindcss-language-server",
     "taplo",
@@ -38,7 +37,7 @@ local installed = {
     "texlab",
     "tree-sitter-cli",
     "typescript-language-server",
-    "typos_lsp",
+    "typos-lsp",
     "vim-language-server",
     "yaml-language-server",
     "zls",
@@ -71,6 +70,7 @@ return {
             { "neovim/nvim-lspconfig" },
             { "nvimtools/none-ls.nvim" },
             { "mason-org/mason-lspconfig.nvim" },
+            { "WhoIsSethDaniel/mason-tool-installer.nvim" },
             { "marilari88/twoslash-queries.nvim" },
             {
                 "ivanjermakov/troublesum.nvim",
@@ -135,6 +135,11 @@ return {
             })
 
             require("mason").setup()
+            require("mason-tool-installer").setup({
+                ensure_installed = installed,
+                -- upgrades run from scripts/system-update.sh, not on every startup
+                run_on_start = false,
+            })
             require("null-ls").setup()
             require("mason-null-ls").setup({
                 ensure_installed = installed,
