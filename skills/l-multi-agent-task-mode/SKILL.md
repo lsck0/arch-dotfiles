@@ -307,7 +307,11 @@ herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus
 herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-research-market
 
-# implementer/reviewer workers additionally carry l-style:
+# implementer/reviewer/designer workers additionally carry l-style —
+# every worker that designs or writes code (l-persona-design-* designers,
+# l-persona-programmer, l-persona-reviewer) gets it, since those personas
+# rely on l-style's principles without restating them; research/audit/test
+# personas run persona-only:
 herdr agent start implementer --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-programmer,l-style
 ```

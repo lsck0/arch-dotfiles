@@ -33,6 +33,8 @@ personas = [s for s in skills_list()["skills"] if s["name"].startswith("l-person
 | `l-persona-pentester`                 | Blackbox pentest: attack the running system, find real breaks.    |
 | `l-persona-auditor-security`          | Passive security audit: code, config, CI/CD, dependencies.        |
 | `l-persona-auditor-performance`       | Audit code for wasted throughput: data structures, cache, allocs. |
+| `l-persona-auditor-spec`              | Passive spec-compliance audit: does the code match the spec.      |
+| `l-persona-auditor-general`           | Passive general audit: best practices, style, maintainability.    |
 | `l-persona-devops`                    | CI/CD, infra, deployment, and observability.                      |
 | `l-persona-orchestrator`              | Spawn and direct other agents; the authority over the run.        |
 | `l-persona-orchestrator-task-planner` | Turn a raw ask into an ordered set of tickets.                    |

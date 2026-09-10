@@ -16,9 +16,13 @@ see `l-multi-agent-task-mode` (spawns workers) or `l-single-agent-task-mode`
 Load `l-personas` for persona discovery and `l-spec-driven-development` for
 the stage shape (research -> design -> spec -> review -> roadmap ->
 implementation) and its file conventions. Preload `l-style` alongside any
-programmer/reviewer worker's persona (`-s` takes a comma-separated list,
-e.g. `-s l-persona-programmer,l-style`) — a worker never sees it
-otherwise.
+worker that designs or writes code — the `l-persona-design-*` designers,
+`l-persona-programmer`, and `l-persona-reviewer` — since those personas
+lean on l-style's principles (primitives, monolith-by-default, no
+sentinels, signature-is-the-product) without restating them. `-s` takes a
+comma-separated list, e.g. `-s l-persona-design-architecture,l-style` — a
+worker never sees the skill otherwise. Research/audit/test personas run
+persona-only.
 
 ## Precondition
 
@@ -126,7 +130,7 @@ herdr pane split --current --direction right --cwd "$WORKTREE_DIR" --no-focus
 herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-plan> --provider <provider-from-plan> -s l-persona-research-market
 
-# implementer/reviewer workers additionally carry l-style:
+# implementer/reviewer/designer workers additionally carry l-style:
 herdr agent start programmer --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-plan> --provider <provider-from-plan> -s l-persona-programmer,l-style
 ```
