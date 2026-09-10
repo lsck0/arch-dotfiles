@@ -11,5 +11,13 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][1154b8fc-0cd9-4c1a-9ac4-5c3614539c68][de9415a7-88d4-41b6-8475-2d34c7cfbf96]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][1154b8fc-0cd9-4c1a-9ac4-5c3614539c68][e9494e9a-e905-44f6-b2a5-8b5028e640a7]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Xwayland]
-Scale=1.6
+Scale=1

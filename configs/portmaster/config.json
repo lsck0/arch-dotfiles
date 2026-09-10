@@ -1,7 +1,7 @@
 {
     "dns": {
         "nameservers": [
-            "dns://192.168.178.29",
+            "dns://192.168.178.1",
             "dot://cloudflare-dns.com?ip=1.1.1.2&name=Cloudflare&blockedif=zeroip",
             "dot://cloudflare-dns.com?ip=1.0.0.2&name=Cloudflare&blockedif=zeroip"
         ],

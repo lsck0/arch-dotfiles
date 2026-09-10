@@ -1,10 +1,14 @@
 return {
     {
-        "mfussenegger/nvim-dap",
+        "mfussenegger/nvim-dap", -- debug adapter protocol
         dependencies = {
-            "rcarriga/nvim-dap-ui",
-            "theHamsta/nvim-dap-virtual-text",
+            "rcarriga/nvim-dap-ui", -- debugger UI panels
+            "theHamsta/nvim-dap-virtual-text", -- inline debug values
         },
+        -- mappings.lua's <leader>dt/<leader>B already require() dap/dapui
+        -- lazily; these are the ones bound to Dap* ex-commands instead, so
+        -- lazy.nvim needs the command names themselves as the trigger
+        cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut" },
         config = function()
             require("nvim-dap-virtual-text").setup()
             local dap, dapui = require("dap"), require("dapui")

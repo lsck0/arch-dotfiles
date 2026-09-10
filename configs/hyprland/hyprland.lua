@@ -15,16 +15,26 @@ for _, module in ipairs({
     package.loaded[module] = nil
 end
 
-require("hyprland_autostart")
-require("hyprland_cursor")
-require("hyprland_input")
-require("hyprland_keybindings")
-require("hyprland_layout")
-require("hyprland_misc")
-require("hyprland_monitors")
-require("hyprland_plugins")
-require("hyprland_windowrules")
-require("hyprland_windows")
+-- A broken optional module should not prevent Hyprland from loading the rest
+-- of the configuration. Keep the order explicit: modules may register binds,
+-- rules, and monitor declarations as they load.
+local function optional(module)
+    local ok, err = pcall(require, module)
+    if not ok then
+        io.stderr:write("hyprland config: skipping " .. module .. ": " .. tostring(err) .. "\n")
+    end
+end
+
+optional("hyprland_autostart")
+optional("hyprland_cursor")
+optional("hyprland_input")
+optional("hyprland_keybindings")
+optional("hyprland_layout")
+optional("hyprland_misc")
+optional("hyprland_monitors")
+optional("hyprland_plugins")
+optional("hyprland_windowrules")
+optional("hyprland_windows")
 
 hl.config({
     ecosystem = {

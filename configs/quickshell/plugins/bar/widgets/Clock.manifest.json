@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.clock",
+  "name": "Clock",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Date and time display",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Clock.qml"
+  },
+  "barWidget": {
+    "displayName": "Clock",
+    "description": "Date and time display",
+    "category": "Desktop",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

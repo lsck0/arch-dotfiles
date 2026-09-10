@@ -1,4 +1,4 @@
 *.log
-FAILURES
 .Rhistory
-configs/emacs/places
+FAILURES
+__pycache__

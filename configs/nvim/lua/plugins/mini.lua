@@ -1,6 +1,6 @@
 return {
     {
-        "echasnovski/mini.nvim",
+        "echasnovski/mini.nvim", -- small QoL modules
         config = function()
             require("mini.ai").setup()
             require("mini.align").setup()

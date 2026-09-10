@@ -1,9 +1,9 @@
 return {
     {
-        "ej-shafran/compile-mode.nvim",
+        "ej-shafran/compile-mode.nvim", -- Emacs-style compile mode
         branch = "latest",
         dependencies = {
-            { "m00qek/baleia.nvim", tag = "v1.3.0" },
+            { "m00qek/baleia.nvim", tag = "v1.3.0" }, -- ANSI color rendering
         },
         config = function()
             vim.g.compile_mode = {
@@ -13,14 +13,14 @@ return {
     },
 
     {
-        "nvim-pack/nvim-spectre",
+        "nvim-pack/nvim-spectre", -- project search and replace
         config = function()
             require('spectre').setup()
         end
     },
 
     {
-        "mistweaverco/kulala.nvim",
+        "mistweaverco/kulala.nvim", -- REST client
         ft = { "http", "rest" },
         opts = {
             global_keymaps = true,
@@ -30,9 +30,8 @@ return {
     },
 
     {
-        "jiaoshijie/undotree",
-        lazy = false,
-        dependencies = "nvim-lua/plenary.nvim",
+        "jiaoshijie/undotree", -- undo history tree
+        dependencies = "nvim-lua/plenary.nvim", -- Lua utility library
         config = true,
         keys = {
             { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
@@ -40,8 +39,7 @@ return {
     },
 
     {
-        "piersolenski/import.nvim",
-        lazy = false,
+        "piersolenski/import.nvim", -- auto-import symbols
         opts = {
             picker = "telescope",
         },
@@ -57,10 +55,10 @@ return {
     },
 
     {
-        'Julian/lean.nvim',
+        'Julian/lean.nvim', -- Lean theorem prover
         dependencies = {
-            { 'neovim/nvim-lspconfig' },
-            { 'nvim-lua/plenary.nvim' },
+            { 'neovim/nvim-lspconfig' }, -- LSP server configs
+            { 'nvim-lua/plenary.nvim' }, -- Lua utility library
         },
         init = function()
             vim.g.lean_config = {
@@ -71,9 +69,9 @@ return {
     },
 
     {
-        "epwalsh/pomo.nvim",
+        "epwalsh/pomo.nvim", -- pomodoro timer
         version = "*",
-        lazy = false,
+        cmd = { "TimerStart", "TimerStop", "TimerRepeat", "TimerHide", "TimerShow", "TimerPause", "TimerResume", "TimerSession" },
         opts = {
             update_interval = 1000,
             notifiers = {
@@ -97,7 +95,7 @@ return {
         },
     },
 
-    { "sotte/presenting.nvim" },
+    { "sotte/presenting.nvim" }, -- in-editor presentations
 
     -- {
     --     "lucastavaresa/headers.nvim",
@@ -107,7 +105,7 @@ return {
     -- },
 
     {
-        "olrtg/nvim-emmet",
+        "olrtg/nvim-emmet", -- emmet abbreviations
         config = function()
             vim.keymap.set({ "n", "v" }, "<leader>xe", require("nvim-emmet").wrap_with_abbreviation,
                 { desc = "Emmet wrap with abbreviation" })

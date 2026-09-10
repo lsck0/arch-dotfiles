@@ -1,0 +1,27 @@
+{
+  "wallpaper": "/home/luca/projects/arch-dotfiles/wallpapers/mountain2.jpg",
+  "font": "0xProto Nerd Font",
+  "special": {
+    "background": "#0b0e14",
+    "foreground": "#bfbdb6",
+    "cursor": "#e6b450"
+  },
+  "colors": {
+    "color0": "#01060e",
+    "color1": "#f07178",
+    "color2": "#aad94c",
+    "color3": "#e6b450",
+    "color4": "#39bae6",
+    "color5": "#d2a6ff",
+    "color6": "#95e6cb",
+    "color7": "#bfbdb6",
+    "color8": "#565b66",
+    "color9": "#f07178",
+    "color10": "#aad94c",
+    "color11": "#e6b450",
+    "color12": "#39bae6",
+    "color13": "#d2a6ff",
+    "color14": "#95e6cb",
+    "color15": "#bfbdb6"
+  }
+}

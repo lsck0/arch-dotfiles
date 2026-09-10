@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "panel.disk-speedtest",
+  "name": "Disk Speed Test",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Live disk read and write speed test",
+  "kinds": [
+    "panel"
+  ],
+  "entryPoints": {
+    "panel": "Panel.qml"
+  },
+  "keepLoaded": true
+}

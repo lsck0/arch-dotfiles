@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.keyboard-layout",
+  "name": "Keyboard Layout",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Active XKB keyboard layout, click to cycle",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "KeyboardLayout.qml" },
+  "barWidget": {
+    "displayName": "Keyboard Layout",
+    "description": "Active XKB keyboard layout, click to cycle",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

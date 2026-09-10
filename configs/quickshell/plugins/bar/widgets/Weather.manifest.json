@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.weather",
+  "name": "Weather",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Current weather conditions",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Weather.qml"
+  },
+  "barWidget": {
+    "displayName": "Weather",
+    "description": "Current weather conditions",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

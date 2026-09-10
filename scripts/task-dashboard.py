@@ -163,6 +163,18 @@ class State:
     def time_week(self) -> list[TimeEntry]:
         return self._aggregate_time(self.time_entries)
 
+    @property
+    def needs_review_tasks(self) -> list[Task]:
+        review_indicators = {"stage-design-review", "stage-code-review", "stage-awaiting-approval"}
+        return [
+            t for t in self.tasks
+            if any(tag.lower() in review_indicators or "review" in tag.lower() or "approval" in tag.lower() for tag in t.tags)
+        ]
+
+    @property
+    def needs_clarification_tasks(self) -> list[Task]:
+        return [t for t in self.tasks if any("needs-human" in tag.lower() for tag in t.tags)]
+
 
 # ============================================================================
 # data fetching
@@ -228,6 +240,7 @@ class Screen:
         self.BOLD = curses.A_BOLD
         self.DIM = curses.color_pair(1)
         self.NORMAL = curses.A_NORMAL
+        win.keypad(True)
         win.timeout(REFRESH_INTERVAL * 1000)
 
     def refresh(self):
@@ -346,7 +359,7 @@ def render_projects(
         return y + 2
 
     bar_w, pct_w = 6, 4
-    name_w = w - bar_w - pct_w - 2
+    name_w = max(1, w - bar_w - pct_w - 2)
 
     for p in projects:
         if y >= max_y - 1:
@@ -360,7 +373,8 @@ def render_projects(
         for t in p.tasks[:2]:
             if y >= max_y - 1:
                 break
-            scr.text(y, x, f"  {t.id:>3} {truncate(t.description, w - 7)}", scr.DIM)
+            desc_len = max(1, w - 7)
+            scr.text(y, x, f"  {t.id:>3} {truncate(t.description, desc_len)}", scr.DIM)
             y += 1
 
     return y + 1
@@ -376,9 +390,9 @@ def render_time(
         scr.text(y, x, "  -", scr.DIM)
         return y + 2
 
-    max_secs = max(e.seconds for e in entries)
+    max_secs = max(e.seconds for e in entries) if entries else 0
     bar_w, time_w = 8, 5
-    label_w = w - bar_w - time_w - 2
+    label_w = max(1, w - bar_w - time_w - 2)
 
     for e in entries:
         if y >= scr.height - 1:
@@ -395,36 +409,134 @@ def render_time(
     return y + 2
 
 
+def render_tabs(scr: Screen, active_tab: int, counts: dict[str, int]):
+    tab_dashboard = " 1:Dashboard "
+    tab_review = f" 2:Needs Review ({counts['review']}) "
+    tab_clarification = f" 3:Needs Clarification ({counts['clarification']}) "
+    
+    # Render each tab
+    x = 1
+    
+    # Tab 1: Dashboard
+    attr = curses.A_REVERSE if active_tab == 0 else scr.DIM
+    scr.text(0, x, tab_dashboard, attr)
+    x += len(tab_dashboard) + 1
+    
+    # Tab 2: Needs Review
+    attr = curses.A_REVERSE if active_tab == 1 else scr.DIM
+    scr.text(0, x, tab_review, attr)
+    x += len(tab_review) + 1
+    
+    # Tab 3: Needs Clarification
+    attr = curses.A_REVERSE if active_tab == 2 else scr.DIM
+    scr.text(0, x, tab_clarification, attr)
+    
+    # Draw separator line at y=1
+    scr.text(1, 0, "-" * (scr.width - 1), scr.DIM)
+
+
+def render_tab_tasks(scr: Screen, y: int, x: int, w: int, label: str, tasks: list[Task]) -> int:
+    scr.text(y, x, label, scr.BOLD)
+    y += 2
+    if not tasks:
+        scr.text(y, x + 2, "No tasks in this category.", scr.DIM)
+        return y + 1
+    
+    col_id_x = x + 1
+    col_pri_x = x + 6
+    col_urg_x = x + 11
+    col_proj_x = x + 17
+    col_desc_x = x + 34
+    
+    scr.text(y, col_id_x, "ID", scr.DIM)
+    scr.text(y, col_pri_x, "PRI", scr.DIM)
+    scr.text(y, col_urg_x, "URG", scr.DIM)
+    scr.text(y, col_proj_x, "PROJECT", scr.DIM)
+    scr.text(y, col_desc_x, "DESCRIPTION", scr.DIM)
+    y += 1
+    
+    scr.text(y, x, "-" * (w - 1), scr.DIM)
+    y += 1
+    
+    for task in tasks:
+        if y >= scr.height - 1:
+            break
+        style = (
+            scr.BOLD
+            if task.priority == "H"
+            else scr.DIM if task.priority == "L" else scr.NORMAL
+        )
+        pri = task.priority if task.priority else "-"
+        proj = task.project if task.project else "-"
+        tag_str = f" [{','.join(task.tags)}]" if task.tags else ""
+        
+        id_str = f"{task.id:>3}"
+        pri_str = f"{pri:>3}"
+        urg_str = f"{task.urgency:>4.1f}"
+        proj_str = truncate(proj, 14)
+        
+        desc_w = max(1, w - (col_desc_x - x) - 1)
+        desc_text = truncate(task.description + tag_str, desc_w)
+        
+        scr.text(y, col_id_x, id_str, scr.DIM)
+        scr.text(y, col_pri_x, pri_str, style)
+        scr.text(y, col_urg_x, urg_str, scr.DIM)
+        scr.text(y, col_proj_x, proj_str, scr.NORMAL)
+        scr.text(y, col_desc_x, desc_text, style)
+        y += 1
+    return y
+
+
 # ============================================================================
 # layout
 # ============================================================================
 
 
-def render(scr: Screen, state: State):
+def render(scr: Screen, state: State, active_tab: int):
     scr.erase()
 
     if scr.height < 10 or scr.width < 50:
         scr.text(0, 0, "terminal too small", scr.BOLD)
         return
 
+    # Gather counts for tabs
+    counts = {
+        "review": len(state.needs_review_tasks),
+        "clarification": len(state.needs_clarification_tasks)
+    }
+
+    # Render tab bar at the top
+    render_tabs(scr, active_tab, counts)
+
     col_x = int(scr.width * COLUMN_RATIO)
     pad = 3
     left_w = col_x - pad
     right_w = scr.width - col_x - pad - 1
 
-    scr.vline(col_x, 0, scr.height)
+    if active_tab == 0:
+        scr.vline(col_x, 2, scr.height)
 
-    # left: active + next
-    y = render_active(scr, 0, 1, left_w, state.active_tasks)
-    render_tasks(
-        scr, y + 1, 1, left_w, "NEXT", state.upcoming_tasks, scr.height - y - 3
-    )
+        # left: active + next (y starts at 2)
+        y = render_active(scr, 2, 1, left_w, state.active_tasks)
+        render_tasks(
+            scr, y + 1, 1, left_w, "NEXT", state.upcoming_tasks, scr.height - y - 3
+        )
 
-    # right: projects + time
-    rx = col_x + pad
-    y = render_projects(scr, 0, rx, right_w, state.projects, scr.height // 2)
-    y = render_time(scr, y + 1, rx, right_w, "TODAY", state.time_today)
-    render_time(scr, y + 1, rx, right_w, "THIS WEEK", state.time_week)
+        # right: projects + time (y starts at 2)
+        rx = col_x + pad
+        y = render_projects(scr, 2, rx, right_w, state.projects, scr.height // 2 + 1)
+        y = render_time(scr, y + 1, rx, right_w, "TODAY", state.time_today)
+        render_time(scr, y + 1, rx, right_w, "THIS WEEK", state.time_week)
+        
+    elif active_tab == 1:
+        render_tab_tasks(
+            scr, 2, 1, scr.width - 2, "TASKS NEEDING REVIEW", state.needs_review_tasks
+        )
+        
+    elif active_tab == 2:
+        render_tab_tasks(
+            scr, 2, 1, scr.width - 2, "TASKS NEEDING CLARIFICATION (needs human input)", state.needs_clarification_tasks
+        )
 
 
 # ============================================================================
@@ -435,17 +547,28 @@ def render(scr: Screen, state: State):
 def main(win):
     scr = Screen(win)
     state = State()
+    active_tab = 0
 
     while True:
         state = fetch_state(state)
-        render(scr, state)
+        render(scr, state, active_tab)
         scr.refresh()
 
         ch = scr.getch()
         if ch in (ord("q"), ord("Q"), 27):
             break
-        if ch == ord("r"):
+        elif ch == ord("r"):
             state.fetched_at = 0
+        elif ch == ord("1"):
+            active_tab = 0
+        elif ch == ord("2"):
+            active_tab = 1
+        elif ch == ord("3"):
+            active_tab = 2
+        elif ch in (9, curses.KEY_RIGHT, ord("l")): # 9 is Tab
+            active_tab = (active_tab + 1) % 3
+        elif ch in (curses.KEY_BTAB, curses.KEY_LEFT, ord("h")): # KEY_BTAB is Shift-Tab
+            active_tab = (active_tab - 1) % 3
 
 
 if __name__ == "__main__":

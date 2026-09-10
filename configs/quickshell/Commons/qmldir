@@ -1,0 +1,8 @@
+module qs.Commons
+singleton Border 1.0 Border.qml
+singleton Cava 1.0 Cava.qml
+CavaRef 1.0 CavaRef.qml
+singleton Color 1.0 Color.qml
+singleton Style 1.0 Style.qml
+singleton Theme 1.0 Theme.qml
+singleton Util 1.0 Util.qml

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "/home/luca/projects/arch-dotfiles/wallpapers/sunset-forrest.png",
+  "font": "0xProto Nerd Font",
+  "special": {
+    "background": "#1b1f27",
+    "foreground": "#cbccc6",
+    "cursor": "#ffcc66"
+  },
+  "colors": {
+    "color0": "#1b1f27",
+    "color1": "#f28779",
+    "color2": "#bae67e",
+    "color3": "#ffd580",
+    "color4": "#73d0ff",
+    "color5": "#d4bfff",
+    "color6": "#95e6cb",
+    "color7": "#cbccc6",
+    "color8": "#707a8c",
+    "color9": "#f28779",
+    "color10": "#bae67e",
+    "color11": "#ffd580",
+    "color12": "#73d0ff",
+    "color13": "#d4bfff",
+    "color14": "#95e6cb",
+    "color15": "#f3f4f5"
+  }
+}

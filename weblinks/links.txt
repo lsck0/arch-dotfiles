@@ -16,7 +16,6 @@ https://github.com
 https://gnu.org/software/libc/manual/pdf/libc.pdf                                 as libcmanual
 https://guide.handmadehero.org                                                    as handmadehero
 https://homepage.lsck0.dev                                                        as homelab
-https://mail.proton.me                                                            as protonmail
 https://mirror.dogado.de/tex-archive/graphics/pgf/contrib/tikz-cd/tikz-cd-doc.pdf as tikzcd
 https://pathofexile.com/trade                                                     as poetrade
 https://poe.ninja                                                                 as poeninja
@@ -25,4 +24,7 @@ https://tikzcd.yichuanshen.de/                                                  
 https://twitch.com
 https://wiki.libsdl.org/SDL3/APIByCategory                                        as sdl3docs
 https://wolframalpha.com
+https://www.deutsche-bank.de/pk.html                                              as deutsche-bank
+https://www.kraken.com/c
+https://www.kreissparkasse-eichsfeld.de/de/home.html                              as ksk
 https://youtube.com

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "/home/luca/projects/arch-dotfiles/wallpapers/citadel.jpg",
+  "font": "0xProto Nerd Font",
+  "special": {
+    "background": "#fafafa",
+    "foreground": "#575f66",
+    "cursor": "#ff9940"
+  },
+  "colors": {
+    "color0": "#e7e8e9",
+    "color1": "#f07178",
+    "color2": "#86b300",
+    "color3": "#f2ae49",
+    "color4": "#36a3d9",
+    "color5": "#a37acc",
+    "color6": "#4cbf99",
+    "color7": "#575f66",
+    "color8": "#a0a6ac",
+    "color9": "#f07178",
+    "color10": "#86b300",
+    "color11": "#f2ae49",
+    "color12": "#36a3d9",
+    "color13": "#a37acc",
+    "color14": "#4cbf99",
+    "color15": "#575f66"
+  }
+}

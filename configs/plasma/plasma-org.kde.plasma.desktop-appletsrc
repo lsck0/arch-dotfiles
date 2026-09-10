@@ -5,8 +5,9 @@ RightButton;NoModifier=org.kde.contextmenu
 RightButton;NoModifier=org.kde.contextmenu
 
 [Containments][1]
+ItemGeometries-1920x1080=Applet-30:1264,32,640,160,0;
 ItemGeometries-2400x1350=Applet-30:1872,32,512,160,0;
-ItemGeometriesHorizontal=Applet-30:1872,32,512,160,0;
+ItemGeometriesHorizontal=Applet-30:1264,32,640,160,0;
 activityId=230c143b-accd-470f-bc9e-bcd19408078e
 formfactor=0
 immutability=1
@@ -24,13 +25,13 @@ DialogHeight=821
 DialogWidth=1128
 
 [Containments][1][General]
-changedPositions={"desktop:/image.png":["2400x1350","0","6"]}
-lastResolution=2400x1350
-positions={"2400x1350":["1","22","desktop:/dinorawrhehe","0","7","desktop:/image.png","0","6","desktop:/pictures","0","3","desktop:/documents","0","0","desktop:/music","0","2","desktop:/projects","0","4","desktop:/videos","0","5","desktop:/downloads","0","1"]}
+changedPositions={"desktop:/image.png":["1920x1080,2400x1350","0","6"]}
+lastResolution=1920x1080
+positions={"1920x1080":["1","17","desktop:/dinorawrhehe","0","7","desktop:/steam.desktop","0","0","desktop:/downloads","0","1","desktop:/music","0","2","desktop:/pictures","0","3","desktop:/videos","0","5","desktop:/documents","0","0","desktop:/projects","0","4","desktop:/image.png","0","6"],"2400x1350":["1","22","desktop:/dinorawrhehe","0","7","desktop:/image.png","0","6","desktop:/pictures","0","3","desktop:/documents","0","0","desktop:/music","0","2","desktop:/projects","0","4","desktop:/videos","0","5","desktop:/downloads","0","1"]}
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/gargantua.jpg
+Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-0011.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -49,7 +50,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/gargantua.jpg
+Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-0011.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
@@ -57,7 +58,7 @@ activityId=
 formfactor=2
 immutability=1
 lastScreen=0
-location=4
+location=3
 plugin=org.kde.panel
 wallpaperplugin=org.kde.image
 
@@ -216,5 +217,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;5;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=
-screenMapping=desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/pictures,desktop:/image.png,desktop:/projects,desktop:/dinorawrhehe,desktop:/music,desktop:/downloads,desktop:/videos,desktop:/documents
+screenMapping=

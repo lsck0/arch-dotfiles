@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "Live-watched. Save this file and the running shell re-themes; no restart.",
+    "Every value below is the shipped default, written out so the file",
+    "doubles as the documentation. Delete any key to fall back to it.",
+    "See Commons/Theme.qml for ranges and what each knob actually does.",
+    "",
+    "font.family is the UI/body family only. The icon family is pinned to a",
+    "Nerd Font in code and is intentionally not settable here: pointing it",
+    "elsewhere does not blank the glyphs, it silently draws different ones.",
+    "font.size is the base of the whole scale - type, spacing and the bar",
+    "grid are all derived from it, so this one number rescales the shell.",
+    "",
+    "palette.* condition pywal's colors.json rather than replace it. The",
+    "wallpaper stays the colour source; these decide how it is interpreted."
+  ],
+  "font": {
+    "family": "0xProto Nerd Font",
+    "size": 12
+  },
+  "palette": {
+    "backgroundValueMin": 0.08,
+    "backgroundValueMax": 0.26,
+    "foregroundContrast": 7.0,
+    "accentMinSaturation": 0.45,
+    "accentMinValue": 0.55,
+    "accentContrast": 3.0,
+    "urgentMinSaturation": 0.55,
+    "urgentMinValue": 0.55,
+    "urgentContrast": 3.0,
+    "mutedContrast": 1.9,
+    "transitionMs": 600
+  }
+}

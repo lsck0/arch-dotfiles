@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.news",
+  "name": "News",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "News headlines ticker",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "News.qml"
+  },
+  "barWidget": {
+    "displayName": "News",
+    "description": "News headlines ticker",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

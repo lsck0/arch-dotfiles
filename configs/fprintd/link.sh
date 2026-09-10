@@ -2,26 +2,7 @@
 
 set -ex
 
-# allow fingerprint login and sudo
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/system-login | sudo tee /etc/pam.d/system-login > /dev/null
-awk '
-  /^auth/ { last_auth=NR }
-  { lines[NR]=$0 }
-  END {
-    for (i=1; i<=NR; i++) {
-      print lines[i]
-      if (i==last_auth)
-        print "auth    sufficient    pam_fprintd.so"
-    }
-  }
-' /etc/pam.d/sudo | sudo tee /etc/pam.d/sudo > /dev/null
+sudo mkdir -p /etc/systemd/system/python3-validity.service.d
+sudo ln -sf ${PWD}/python3-validity-override.conf /etc/systemd/system/python3-validity.service.d/override.conf
+sudo systemctl daemon-reload
+sudo systemctl enable python3-validity.service

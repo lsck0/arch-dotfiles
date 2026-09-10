@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.network",
+  "name": "Network",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Network connection status",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Network.qml"
+  },
+  "barWidget": {
+    "displayName": "Network",
+    "description": "Network connection status",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

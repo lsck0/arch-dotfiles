@@ -1,0 +1,6 @@
+[Unit]
+Description=Clean yay package build cache
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/find %h/.cache/yay -mindepth 1 -maxdepth 1 -mtime +30 -exec rm -rf -- {} +

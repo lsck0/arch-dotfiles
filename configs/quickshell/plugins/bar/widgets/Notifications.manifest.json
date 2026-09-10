@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.notifications",
+  "name": "Notifications",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Notification center",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Notifications.qml"
+  },
+  "barWidget": {
+    "displayName": "Notifications",
+    "description": "Notification center",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
