@@ -45,7 +45,7 @@ local installed = {
 
 return {
     {
-        "folke/lazydev.nvim",
+        "folke/lazydev.nvim", -- Lua LSP for nvim config
         ft = "lua",
         opts = {
             library = {
@@ -53,10 +53,10 @@ return {
             },
         },
     },
-    { "rluba/jai.vim", ft = "jai" },
-    { "lervag/vimtex", ft = { "tex", "plaintex" } },
+    { "rluba/jai.vim", ft = "jai" }, -- Jai language support
+    { "lervag/vimtex", ft = { "tex", "plaintex" } }, -- LaTeX support
     {
-        "saecki/crates.nvim",
+        "saecki/crates.nvim", -- Cargo.toml crate info
         ft = "toml",
         config = function()
             require("crates").setup({})
@@ -64,35 +64,35 @@ return {
     },
 
     {
-        "mason-org/mason.nvim",
+        "mason-org/mason.nvim", -- LSP/tool installer
         dependencies = {
-            { "jay-babu/mason-null-ls.nvim" },
-            { "neovim/nvim-lspconfig" },
-            { "nvimtools/none-ls.nvim" },
-            { "mason-org/mason-lspconfig.nvim" },
-            { "WhoIsSethDaniel/mason-tool-installer.nvim" },
-            { "marilari88/twoslash-queries.nvim" },
+            { "jay-babu/mason-null-ls.nvim" }, -- mason null-ls bridge
+            { "neovim/nvim-lspconfig" }, -- LSP server configs
+            { "nvimtools/none-ls.nvim" }, -- formatting/diagnostics via LSP
+            { "mason-org/mason-lspconfig.nvim" }, -- mason lspconfig bridge
+            { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
+            { "marilari88/twoslash-queries.nvim" }, -- inline TS type hints
             {
-                "ivanjermakov/troublesum.nvim",
+                "ivanjermakov/troublesum.nvim", -- diagnostic count summary
                 config = function()
                     require("troublesum").setup()
                 end
             },
             {
-                "MysticalDevil/inlay-hints.nvim",
+                "MysticalDevil/inlay-hints.nvim", -- LSP inlay hints
                 dependencies = { "neovim/nvim-lspconfig" },
                 config = function()
                     require("inlay-hints").setup()
                 end
             },
             {
-                "Sebastian-Nielsen/better-type-hover",
+                "Sebastian-Nielsen/better-type-hover", -- improved hover popup
                 config = function()
                     require("better-type-hover").setup()
                 end,
             },
             {
-                "dmmulroy/ts-error-translator.nvim",
+                "dmmulroy/ts-error-translator.nvim", -- readable TS errors
                 config = function()
                     require("ts-error-translator").setup()
                 end
@@ -198,10 +198,10 @@ return {
     },
 
     {
-        "antosha417/nvim-lsp-file-operations",
+        "antosha417/nvim-lsp-file-operations", -- LSP-aware file ops
         dependencies = {
-            "nvim-lua/plenary.nvim",
-            "nvim-neo-tree/neo-tree.nvim",
+            "nvim-lua/plenary.nvim", -- Lua utility library
+            "nvim-neo-tree/neo-tree.nvim", -- sidebar file tree
         },
         config = function()
             require("lsp-file-operations").setup()
@@ -209,7 +209,7 @@ return {
     },
 
     {
-        "stevearc/conform.nvim",
+        "stevearc/conform.nvim", -- code formatting
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,

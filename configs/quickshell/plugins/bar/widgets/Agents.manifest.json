@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.agents",
+  "name": "Agents",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "AI agent usage tracker",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Agents.qml"
+  },
+  "barWidget": {
+    "displayName": "Agents",
+    "description": "AI agent usage tracker",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

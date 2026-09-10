@@ -1,11 +1,11 @@
 return {
     {
-        "folke/todo-comments.nvim",
+        "folke/todo-comments.nvim", -- highlight TODO comments
         config = function() require("todo-comments").setup() end
     },
 
     {
-        "bngarren/checkmate.nvim",
+        "bngarren/checkmate.nvim", -- markdown checklist toggling
         ft = "markdown",
         opts = {
             files = {
@@ -26,7 +26,7 @@ return {
     },
 
     {
-        "MeanderingProgrammer/render-markdown.nvim",
+        "MeanderingProgrammer/render-markdown.nvim", -- inline markdown rendering
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
         config = function()
             require("render-markdown").enable()
@@ -37,7 +37,7 @@ return {
     },
 
     {
-        "nvim-orgmode/orgmode",
+        "nvim-orgmode/orgmode", -- org-mode note taking
         ft = "org",
         config = function()
             require("orgmode").setup({

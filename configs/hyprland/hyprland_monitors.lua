@@ -34,10 +34,13 @@ hl.monitor({
     scale = 1.666667,
 })
 
--- fallback
+-- fallback (e.g. an HDMI monitor with no dedicated rule below): pin the
+-- refresh rate explicitly rather than leaving it to Hyprland's own pick,
+-- which can otherwise land on an odd/non-native mode reported over some
+-- USB-C-to-HDMI adapters
 hl.monitor({
     output = "",
-    mode = "preferred",
+    mode = "1920x1080@60",
     position = "auto",
     scale = 1,
 })

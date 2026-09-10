@@ -1,0 +1,16 @@
+[Unit]
+Description=Match the system timezone to the machine's actual location
+Documentation=file:%h/projects/arch-dotfiles/configs/timezone-auto/timezone-auto.sh
+# Pointless without a route out. The script handles being offline gracefully,
+# but there is no reason to wake up only to fail.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/timezone-auto/timezone-auto.sh apply
+# Safety lives in the script, not here: it refuses to act while ProtonVPN,
+# WireGuard or Tor is up (a tunnelled IP reports the exit node's timezone),
+# and it validates the returned zone name against /usr/share/zoneinfo before
+# passing it to timedatectl, so a bad or hostile response cannot name an
+# arbitrary path.

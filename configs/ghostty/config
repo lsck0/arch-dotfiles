@@ -3,8 +3,10 @@ config-file=~/.cache/wal/ghostty.conf
 app-notifications = false
 confirm-close-surface = false
 
+background-opacity = 0.9
+
 font-family = 0xProto Nerd Font
-font-size = 14
+font-size = 16
 #delta
 adjust-cell-height = -23%
 
@@ -27,4 +29,5 @@ keybind = ctrl+shift+p=unbind
 keybind = ctrl+shift+t=unbind
 
 #https://github.com/hackr-sh/ghostty-shaders
-custom-shader=./ghostty-shaders/in-game-crt-cursor.glsl
+#custom-shader=./ghostty-shaders/in-game-crt-cursor.glsl
+#custom-shader-animation = false

@@ -1,3 +1,6 @@
+[Libinput][1739][0][Synaptics TM3289-021]
+NaturalScroll=true
+
 [Libinput][2][10][TPPS/2 Elan TrackPoint]
 NaturalScroll=true
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.indicators",
+  "name": "Indicators",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "DND / keep-awake status indicators",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Indicators.qml" },
+  "barWidget": {
+    "displayName": "Indicators",
+    "description": "DND / keep-awake status indicators",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.costs",
+  "name": "Costs",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Cloud cost tracker (GCP/Hetzner/Cloudflare)",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Costs.qml"
+  },
+  "barWidget": {
+    "displayName": "Costs",
+    "description": "Cloud cost tracker (GCP/Hetzner/Cloudflare)",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

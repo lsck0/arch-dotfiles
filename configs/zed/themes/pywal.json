@@ -1,0 +1,80 @@
+{
+  "$schema": "https://zed.dev/schema/themes/v0.2.0.json",
+  "name": "Pywal",
+  "author": "pywal (generated)",
+  "themes": [
+    {
+      "name": "Pywal",
+      "appearance": "dark",
+      "style": {
+        "background": "#000A14",
+        "editor.background": "#000A14",
+        "editor.foreground": "#FFA3A5",
+        "editor.gutter.background": "#000A14",
+        "editor.active_line.background": "#D6555B",
+        "editor.line_number": "#D6555B",
+        "editor.active_line_number": "#FFA3A5",
+        "text": "#FFA3A5",
+        "text.muted": "#D6555B",
+        "text.accent": "#2D7E99",
+        "border": "#D6555B",
+        "border.variant": "#000103",
+        "element.background": "#000103",
+        "element.hover": "#D6555B",
+        "element.selected": "#2D7E99",
+        "surface.background": "#000A14",
+        "panel.background": "#000A14",
+        "tab.active_background": "#000A14",
+        "tab.inactive_background": "#000103",
+        "tab_bar.background": "#000103",
+        "status_bar.background": "#000103",
+        "title_bar.background": "#000103",
+        "toolbar.background": "#000A14",
+        "terminal.background": "#000A14",
+        "terminal.foreground": "#FFA3A5",
+        "terminal.ansi.black": "#000103",
+        "terminal.ansi.red": "#3C5059",
+        "terminal.ansi.green": "#747498",
+        "terminal.ansi.yellow": "#9C6D7A",
+        "terminal.ansi.blue": "#2D7E99",
+        "terminal.ansi.magenta": "#3EB49C",
+        "terminal.ansi.cyan": "#FF7478",
+        "terminal.ansi.white": "#FF979A",
+        "terminal.ansi.bright_black": "#D6555B",
+        "terminal.ansi.bright_red": "#3C5059",
+        "terminal.ansi.bright_green": "#747498",
+        "terminal.ansi.bright_yellow": "#9C6D7A",
+        "terminal.ansi.bright_blue": "#2D7E99",
+        "terminal.ansi.bright_magenta": "#3EB49C",
+        "terminal.ansi.bright_cyan": "#FF7478",
+        "terminal.ansi.bright_white": "#F7C3C4",
+        "syntax": {
+          "comment": {
+            "color": "#D6555B"
+          },
+          "string": {
+            "color": "#747498"
+          },
+          "keyword": {
+            "color": "#2D7E99"
+          },
+          "function": {
+            "color": "#9C6D7A"
+          },
+          "type": {
+            "color": "#FF7478"
+          },
+          "variable": {
+            "color": "#FFA3A5"
+          },
+          "constant": {
+            "color": "#3EB49C"
+          },
+          "number": {
+            "color": "#3EB49C"
+          }
+        }
+      }
+    }
+  ]
+}

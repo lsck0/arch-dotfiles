@@ -2,22 +2,54 @@ local platform = require("platform")
 
 local mod = "SUPER"
 
-local boomer = platform.laptop and "wayland-boomer" or "wayland-boomer --monitor-scaling 1.666667"
+-- wayland-boomer's -ms must match the focused Hyprland output scale.
+-- The helper reads the monitor list at invocation time, so this stays correct
+-- after a runtime display-scale change and on mixed-scale multi-monitor setups.
+local boomer = "wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""
 
-hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd("wlogout -b 5 -c 35"))
+-- quickshell's own power/session menu (configs/quickshell/plugins/power/).
+-- Replaces wlogout -- see TODO.md Phase 9c. wlogout stays installed and
+-- configs/wlogout/ untouched until Luca confirms this works.
+hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call powermenu toggle"))
+-- Region capture to clipboard: grim -g "$(slurp)" - | wl-copy. The
+-- quickshell flameshot-style annotation overlay (plugins/annotate/,
+-- scripts/screenshot-annotate.sh) was removed 2026-09-08 — back to the
+-- plain grim+slurp one-liner.
+-- Bound on BOTH chords deliberately. Super+Shift+S is the long-standing
+-- muscle memory here; Ctrl+Shift+S is what was asked for. There is no cost
+-- to answering both, and no other bind claims either.
+hl.bind("CTRL + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
-hl.bind(mod .. " + SHIFT + w", hl.dsp.exec_cmd("nsxiv -t ~/projects/arch-dotfiles/wallpapers/"))
+-- Whole focused output, no selection step.
+hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
+    "grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"))
+-- Just the focused window.
+hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
+    "grim -g \"$(hyprctl -j activewindow | jq -r 'select(.at and .size) | \\\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\\\"')\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
-hl.bind(mod .. " + Tab", hl.dsp.global("overview:toggle"))
+-- quickshell's own workspace overview (configs/quickshell/plugins/overview/).
+-- Used to target a global shortcut name ("overview:toggle") that no
+-- installed plugin ever registered — hyprexpo was never actually
+-- installed, this was a dead binding. See TODO.md.
+hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call overview toggle"))
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
 hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd("toggle-shader"))
-hl.bind(mod .. " + d", hl.dsp.exec_cmd("nc -U /run/user/1000/walker/walker.sock"))
+-- quickshell's own launcher (plugins/appsearch/). Replaced walker
+-- 2026-09-02; walker had been the only keyboard launcher, which is what
+-- blocked its removal for so long.
+hl.bind(mod .. " + d", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call appsearch toggle"))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("nemo"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("missioncenter"))
-hl.bind(mod .. " + w", hl.dsp.exec_cmd("switch-wallpaper"))
+-- The single wallpaper entry point. There used to be three: this one
+-- (switch-wallpaper's fzf picker), SHIFT+w opening nsxiv as a browser,
+-- and the Display panel's own button. All three now go through
+-- scripts/wallpaper-picker.sh, which drives quickshell's native
+-- image-picker overlay and falls back to the fzf picker if the shell
+-- is down.
+hl.bind(mod .. " + w", hl.dsp.exec_cmd("wallpaper-picker"))
 hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimoji"))
 hl.bind(mod .. " + x", hl.dsp.exec_cmd("grim -t ppm - | " .. boomer))
 
@@ -25,19 +57,37 @@ hl.bind(mod .. " + Q", hl.dsp.window.close())
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mod .. " + s", hl.dsp.focus({ last = true }))
 hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind(mod .. " + v", hl.dsp.layout("togglesplit"))
+-- quickshell's clipboard plugin (plugins/clipboard/). It had existed since
+-- port Phase 5 with NO keybind at all, which is why copyq stayed in use
+-- and the two silently double-captured every copy.
+-- Mod+V, not Mod+Shift+V: matches the universal OS convention for a
+-- clipboard history popup (Windows/GNOME/KDE all use Super+V). Was
+-- Mod+Shift+V; Mod+V itself was hl.dsp.layout("togglesplit"), moved below
+-- to Mod+G to make room.
+hl.bind(mod .. " + v", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call clipboard toggle"))
+
+hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"))
 
 hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"))
 hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"))
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"))
 hl.bind("XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("pactl set-sink-volume 0 +5%"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("pactl set-sink-volume 0 -5%"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("pactl set-sink-mute 0 toggle"), { locked = true, repeating = true })
+-- Volume / mic / brightness go through scripts/media-key.sh so the OSD is
+-- driven by the same action that makes the change, instead of the shell
+-- inferring it second-hand. The script does the raw action FIRST and only
+-- then tries the OSD, so a dead shell costs you the popup, never the keys.
+--
+-- It also fixes a live bug these binds carried: they were
+-- `pactl set-sink-volume 0` — a hardcoded sink INDEX. The default sink here
+-- is index 58; `0` only ever resolved because there is exactly one sink.
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("media-key volume-up"), { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("media-key volume-down"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("media-key volume-mute"), { locked = true })
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("media-key mic-mute"), { locked = true })
 
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set 5%+"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("media-key brightness-up"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("media-key brightness-down"), { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd("hyprctl hyprsunset gamma +5"),
     { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd("hyprctl hyprsunset gamma -5"),

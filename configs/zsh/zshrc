@@ -1,5 +1,11 @@
 source ~/.cache/wal/colors.sh
 
+# Opt out of the caveman skill/CLI's anonymous usage telemetry (installed
+# 2026-09-09 in Claude/Gemini/opencode/Hermes/Copilot). Env var read by
+# caveman's own CLI/hooks; setting it here rather than a bare ~/.zshenv
+# write keeps it reproducible via this repo's zsh/link.sh.
+export DO_NOT_TRACK=1
+
 fpath=(~/.zsh/completions $fpath)
 export ZSH_DISABLE_COMPFIX=true
 export ZSH_COMPDUMP="$HOME/.zcompdump"
@@ -19,12 +25,27 @@ if [ ! -d "$ZINIT_HOME" ]; then
 fi
 source "${ZINIT_HOME}/zinit.zsh"
 
+# turbo mode: defer these 4 off the synchronous startup path — they load
+# right after the first prompt instead of blocking it. compinit below stays
+# synchronous/unmoved, so ordering vs. it is unaffected; zsh-completions'
+# fpath additions land after that compinit already ran, so a brand-new
+# completion function from it may not show up until the dump cache's next
+# 24h rebuild (see the #qNmh-24 check below) rather than this same session —
+# a minor delayed-availability edge case, not a breakage
+zinit ice wait lucid
 zinit light Aloxaf/fzf-tab
+
+zinit ice wait lucid atload'_zsh_autosuggest_start'
 zinit light zsh-users/zsh-autosuggestions
+
+zinit ice wait lucid blockf
 zinit light zsh-users/zsh-completions
+
+zinit ice wait lucid
 zinit light zsh-users/zsh-syntax-highlighting
+
 zinit cdreplay -q
-autoload -Uz compinit && compinit
+autoload -Uz compinit
 if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
   compinit -C -d "$HOME/.zcompdump"
 else
@@ -75,7 +96,9 @@ alias l="eza -lh"
 alias la="eza -lah"
 alias ldocker="lazydocker"
 alias lgit="lazygit"
+alias lgithub="gh-dash"
 alias ljj="lazyjj"
+alias ljournal="lazyjournal"
 alias ls="eza"
 alias lt="eza -lah --tree"
 alias mkdir="mkdir -pv"
@@ -84,16 +107,17 @@ alias pacman="sudo pacman"
 alias rm="trash -v"
 alias sshnb="ssh luca@192.168.178.73"
 alias sshpc="ssh luca@192.168.178.138"
+alias toroff="sudo systemctl stop tor-router.service"
+alias toron="sudo systemctl start tor-router.service"
 alias vpnoff="sudo wg-quick down wg0"
 alias vpnon="sudo wg-quick up wg0"
 
 # lazy loading
 fuck() { unfunction fuck; eval "$(thefuck --alias)"; fuck "$@"; }
 
-eval "$(mise activate zsh)"
-eval "$(starship init zsh)"
-
 fastfetch
 
-# has to be the very last thing
+eval "$(mise activate zsh)"
+eval "$(starship init zsh)"
+eval "$(direnv hook zsh)"
 eval "$(zoxide init zsh)"

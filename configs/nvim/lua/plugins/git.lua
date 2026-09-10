@@ -1,18 +1,18 @@
 return {
-    { "tpope/vim-fugitive" },
+    { "tpope/vim-fugitive" }, -- git commands in vim
 
     {
-        "esmuellert/vscode-diff.nvim",
-        dependencies = { "MunifTanjim/nui.nvim" },
+        "esmuellert/vscode-diff.nvim", -- VS Code-style diff view
+        dependencies = { "MunifTanjim/nui.nvim" }, -- UI component library
     },
 
     {
-        "akinsho/git-conflict.nvim",
+        "akinsho/git-conflict.nvim", -- merge conflict resolution
         config = true
     },
 
     {
-        "lewis6991/gitsigns.nvim",
+        "lewis6991/gitsigns.nvim", -- git status gutter
         lazy = false,
         config = function()
             require("gitsigns").setup()
@@ -20,7 +20,7 @@ return {
     },
 
     {
-        "nicolasgb/jj.nvim",
+        "nicolasgb/jj.nvim", -- Jujutsu VCS integration
         version = "*",
         config = function()
             require("jj").setup({})
@@ -28,10 +28,10 @@ return {
     },
 
     {
-        "ThePrimeagen/git-worktree.nvim",
+        "ThePrimeagen/git-worktree.nvim", -- git worktree management
         dependencies = {
-            "nvim-lua/plenary.nvim",
-            "nvim-telescope/telescope.nvim",
+            "nvim-lua/plenary.nvim", -- Lua utility library
+            "nvim-telescope/telescope.nvim", -- fuzzy finder
         },
         config = function()
             require("git-worktree").setup()

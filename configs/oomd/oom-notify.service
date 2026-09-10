@@ -1,0 +1,13 @@
+[Unit]
+Description=Desktop notification when systemd-oomd or the kernel OOM killer kills a process
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/projects/arch-dotfiles/configs/oomd/oom-notify.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.media",
+  "name": "Media",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "MPRIS media controls with cava spectrum visualizer",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Media.qml"
+  },
+  "barWidget": {
+    "displayName": "Media",
+    "description": "MPRIS media controls with cava spectrum visualizer",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

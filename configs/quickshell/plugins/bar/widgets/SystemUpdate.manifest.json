@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.system-update",
+  "name": "System Update",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Pending pacman update indicator",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "SystemUpdate.qml" },
+  "barWidget": {
+    "displayName": "System Update",
+    "description": "Pending pacman update indicator",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

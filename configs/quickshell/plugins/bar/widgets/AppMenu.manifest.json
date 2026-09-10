@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.app-menu",
+  "name": "App Menu",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "App launcher menu",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "AppMenu.qml"
+  },
+  "barWidget": {
+    "displayName": "App Menu",
+    "description": "App launcher menu",
+    "category": "Launcher",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

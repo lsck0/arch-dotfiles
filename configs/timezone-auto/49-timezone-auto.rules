@@ -1,0 +1,19 @@
+// Let an active local session set the system timezone without an auth prompt.
+//
+// Without this, configs/timezone-auto/timezone-auto.sh's timedatectl call
+// raises a polkit
+// prompt from a systemd *user timer* — where there is no terminal and usually
+// no agent to answer it, so the timer would just fail quietly every hour and
+// the timezone would stay wrong while looking like it was being managed.
+//
+// Scope is deliberately narrow. It grants exactly one action, only to a
+// physically-present session (local AND active) belonging to wheel. It does
+// NOT grant set-time, set-ntp or set-local-rtc, so it cannot be used to move
+// the clock itself — only which zone that clock is rendered in. A remote or
+// background session gets nothing from it.
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.timedate1.set-timezone" &&
+        subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

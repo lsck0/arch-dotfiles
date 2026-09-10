@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.display",
+  "name": "Display",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Monitor/display controls",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Display.qml"
+  },
+  "barWidget": {
+    "displayName": "Display",
+    "description": "Monitor/display controls",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

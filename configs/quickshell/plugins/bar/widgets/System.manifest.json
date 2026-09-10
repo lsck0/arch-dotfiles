@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.system",
+  "name": "System",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "CPU/memory/disk stats",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "System.qml"
+  },
+  "barWidget": {
+    "displayName": "System",
+    "description": "CPU/memory/disk stats",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
