@@ -1,0 +1,14 @@
+# Make Intel RAPL energy counters world-readable.
+#
+# /sys/class/powercap/intel-rapl:0/energy_uj ships as mode 0400 root:root,
+# so the quickshell System panel cannot read package power as a normal user.
+# It is the substitute for CPU voltage, which this hardware exposes no
+# sensor for at all (see plugins/bar/widgets/system-stats.sh).
+#
+# The counter was restricted upstream because a high-frequency reader can
+# mount a side-channel attack recovering AES keys (CVE-2020-8694, "PLATYPUS").
+# Granting read here is a deliberate, local trade for a watts readout on a
+# single-user laptop. If that is not a trade you want, delete this rule:
+# the panel already handles the counter being unreadable and simply reports
+# package power as unavailable.
+SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod -R a+r /sys/devices/virtual/powercap"

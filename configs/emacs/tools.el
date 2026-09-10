@@ -1,160 +1,108 @@
-;;; tools.el -*- lexical-binding: t; -*-
-;; which-key, snippets, harpoon, undotree, terminal, misc.
+;;; tools.el --- terminal, compile, windows, popups -*- lexical-binding: t; -*-
 
-;; which-key is builtin in Emacs 30
+(defun my/project-root ()
+  "Root of the current project, or `default-directory' outside one."
+  (if-let* ((proj (project-current)))
+      (project-root proj)
+    default-directory))
+
+;;;; which-key ---------------------------------------------------------------
+
 (use-package which-key
-  :ensure nil
+  :ensure nil                             ; built in since Emacs 30
   :init (which-key-mode 1)
-  :config (setq which-key-idle-delay 0.2))   ; nvim timeoutlen = 200
+  :config (setq which-key-idle-delay 0.2)) ; nvim timeoutlen = 200
 
-;; LuaSnip -> yasnippet
-(use-package yasnippet
-  :init (yas-global-mode 1))
-(use-package yasnippet-snippets :after yasnippet)
+;;;; terminal ----------------------------------------------------------------
 
-;; custom snippets ported 1:1 from nvim lua/snippets.lua
-(require 'cl-lib)
-(with-eval-after-load 'yasnippet
-  (let* ((long  (make-string 117 ?─))
-         (short (make-string 57 ?─))
-         ;; one comment-style -> the two banner snippets (banner + smallbanner)
-         (banner (lambda (open line mid close)
-                   (cl-flet ((tpl (dashes)
-                               (concat "\n" open
-                                       "\n" line " " dashes
-                                       "\n" mid "$1"
-                                       "\n" line " " dashes
-                                       "\n" close "\n")))
-                     (list (list "banner"      (tpl long)  "banner")
-                           (list "smallbanner" (tpl short) "smallbanner"))))))
-    ;; (style . modes); style = (open line mid close)
-    (dolist (group `(((  "/*" " *" " * " " */") .
-                      (c-mode c-ts-mode c++-mode c++-ts-mode
-                       js-mode js-ts-mode typescript-ts-mode tsx-ts-mode))
-                     (( "#" "#" "# " "#") . (python-mode python-ts-mode))
-                     (( "%" "%" "% " "%") . (latex-mode LaTeX-mode tex-mode plain-tex-mode))
-                     (( "--" "--" "-- " "--") . (lua-mode lua-ts-mode))))
-      (let ((snips (apply banner (car group))))
-        (dolist (m (cdr group))
-          (yas-define-snippets m snips)))))
+;; eat: pure elisp, no compilation step, good enough for a fallback setup.
+;; Two entry points mirroring how terminals are reached in tmux:
+;;   M-t   -> terminal in its own tab   (tmux new window / nvim :terminal)
+;;   C-q z -> terminal popup at bottom  (tmux `bind z display-popup -E zsh`)
+(use-package eat
+  :commands (eat eat-other-window)
+  :config (setq eat-kill-buffer-on-exit t)
+  ;; terminals open typeable, like tmux
+  :hook (eat-mode . evil-insert-state))
 
-  ;; rust struct/enum
-  (let ((rust-snips
-         '(("struct" "#[derive(Debug, Clone)]\npub struct ${1:Name} {\n    $0\n}" "struct")
-           ("enum"   "#[derive(Debug, Clone)]\npub enum ${1:Name} {\n    $0\n}" "enum"))))
-    (dolist (m '(rust-mode rust-ts-mode))
-      (yas-define-snippets m rust-snips))))
+(defun my/eat-tab ()
+  "Open a shell in its own tab-bar tab, rooted at the project."
+  (interactive)
+  (require 'eat)
+  (let ((default-directory (my/project-root)))
+    (tab-bar-new-tab)
+    ;; ARG non-numeric = a fresh session, so every tab gets its own shell the
+    ;; way every tmux window does. `eat' returns the buffer; switch explicitly
+    ;; so the new tab always ends up showing it.
+    (switch-to-buffer (eat nil t))
+    (tab-bar-rename-tab "term")))
 
-;; winshift.nvim -> ace-window (swap/move windows)
+(defvar my/eat-popup-name "*eat-popup*"
+  "Buffer name of the toggleable bottom terminal.")
+
+(defun my/eat-popup ()
+  "Toggle a shell in a window at the bottom, rooted at the project."
+  (interactive)
+  (require 'eat)
+  (if-let* ((win (get-buffer-window my/eat-popup-name)))
+      (quit-restore-window win 'bury)     ; never errors on a sole window
+    (let* ((default-directory (my/project-root))
+           (buf (or (get-buffer my/eat-popup-name)
+                    ;; `eat-buffer-name' names it up front, so no renaming and
+                    ;; no clash with the per-tab terminals above
+                    (save-window-excursion
+                      (let ((eat-buffer-name my/eat-popup-name))
+                        (eat))))))
+      (select-window (display-buffer buf))
+      (evil-insert-state))))
+
+;;;; compile -----------------------------------------------------------------
+;; compile-mode.nvim: `m` compiles, output opens below (see popups).
+
+(setq compilation-scroll-output 'first-error
+      compilation-always-kill t           ; never ask before restarting a build
+      compilation-ask-about-save nil      ; save modified buffers silently
+      compilation-max-output-line-length nil)
+
+;; render build output colours instead of raw escape codes
+(add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
+
+;;;; popups ------------------------------------------------------------------
+;; Replaces the popper package: transient buffers get a dismissable bottom
+;; window instead of stealing a split. `q` closes them (evil-collection).
+
+(add-to-list 'display-buffer-alist
+             `(,(rx bos (or "*eat-popup*" "*Warnings*" "*Messages*"
+                            "*Async Shell Command*" "*eldoc*"))
+               (display-buffer-reuse-window display-buffer-in-side-window)
+               (side . bottom) (slot . 0) (window-height . 0.35)))
+
+(add-to-list 'display-buffer-alist
+             '((or (derived-mode . compilation-mode)
+                   (derived-mode . flymake-diagnostics-buffer-mode)
+                   (derived-mode . flymake-project-diagnostics-mode)
+                   (derived-mode . help-mode)
+                   (derived-mode . xref--xref-buffer-mode))
+               (display-buffer-reuse-window display-buffer-in-side-window)
+               (side . bottom) (slot . 0) (window-height . 0.35)))
+
+;;;; windows -----------------------------------------------------------------
+
+;; winshift.nvim -> jump/swap windows by letter
 (use-package ace-window
-  :commands (ace-window aw-swap-window)
-  :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)))
+  :commands (ace-window ace-swap-window)
+  :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
+                aw-scope 'frame))
 
-;; kulala.nvim (http client) -> restclient
-(use-package restclient
-  :mode ("\\.http\\'" . restclient-mode))
+;;;; editing helpers ---------------------------------------------------------
 
-;; harpoon (ThePrimeagen/harpoon)
-(use-package harpoon)
-
-;; undotree (jiaoshijie/undotree) -> vundo
+;; undotree.nvim -> visual undo tree
 (use-package vundo
   :commands vundo
   :config (setq vundo-glyph-alist vundo-unicode-symbols))
 
-;; spectre (search/replace across project)
-(use-package wgrep)   ; edit grep buffers in place == spectre apply
-
-;; terminal (nvim :terminal) -> eat, pure elisp, no compile.
-;; nvim runs terminals inside tmux for tab/window multiplexing; here each
-;; terminal opens in its own tab-bar tab (M-t below), so M-1..5 / M-c / M-x
-;; switch/spawn/close them exactly like tmux windows.
-(use-package eat
-  :commands (eat eat-other-window my/eat-tab)
-  :config (setq eat-kill-buffer-on-exit t))
-
-(defun my/eat-tab ()
-  "Open a terminal in its own tab-bar tab (tmux-window feel).
-Reuses an existing terminal tab if its eat buffer is still alive,
-otherwise spawns a fresh one. nvim M-t parity."
-  (interactive)
-  (require 'eat)
-  (let ((default-directory (or (and (project-current)
-                                    (project-root (project-current)))
-                               default-directory)))
-    (tab-bar-new-tab)
-    (let ((eat-kill-buffer-on-exit t))
-      (eat))
-    ;; name the tab after the shell so it's findable in the tab list
-    (tab-bar-rename-tab "term")))
-
-;; showkeys (nvzone/showkeys) -> keycast. Toggle on-screen keypresses for
-;; screencasts. nvim showkeys is :ShowkeysToggle; here M-x keycast-tab-bar-mode
-;; shows keys in the tab-bar (top, like showkeys position = "top-right").
-(use-package keycast
-  :commands (keycast-tab-bar-mode keycast-mode-line-mode keycast-log-mode))
-
-;; pomo.nvim -> pomm / org timers; lightweight tea-timer
-(use-package tmr :commands (tmr tmr-with-description))
-
-;; orgmode (built-in) basic agenda paths
-(use-package org
-  :ensure nil
-  :config
-  (setq org-directory "~/orgfiles"
-        org-agenda-files '("~/orgfiles")
-        org-default-notes-file "~/orgfiles/refile.org"))
-
-;; csvview.nvim
-(use-package csv-mode :mode "\\.csv\\'")
-
-;; cloak.nvim (.env masking)
-(use-package redacted :commands redacted-mode)
-
-;; popper (Doom-style popup management): compile / help / flymake / messages get
-;; herded into a dismissable bottom stack. C-` toggle latest, M-` cycle, C-M-`
-;; promote/demote a window to/from popup. eat terminals stay out (they own tabs).
-(use-package popper
-  :demand t                              ; load at startup so it catches popups
-  :bind (("C-`"   . popper-toggle)
-         ("M-`"   . popper-cycle)
-         ("C-M-`" . popper-toggle-type))
-  :init
-  (setq popper-reference-buffers
-        '("\\*Messages\\*"
-          "\\*Warnings\\*"
-          "Output\\*$"
-          "\\*Async Shell Command\\*"
-          "\\*compilation\\*"
-          "\\*Compile-Log\\*"
-          compilation-mode
-          help-mode
-          helpful-mode
-          "\\*eldoc\\*"
-          flymake-diagnostics-buffer-mode
-          "\\*Flymake diagnostics.*\\*"))
-  :config                                ; modes activate after the package loads
-  (popper-mode 1)
-  (popper-echo-mode 1))
-
-;; helpful (Doom): richer C-h f/v/k buffers (source, refs, callers, examples)
-(use-package helpful
-  :bind (([remap describe-function] . helpful-callable)
-         ([remap describe-variable] . helpful-variable)
-         ([remap describe-key]      . helpful-key)
-         ([remap describe-command]  . helpful-command)
-         ([remap describe-symbol]   . helpful-symbol)))
-
-;; persp workspaces (Doom SPC TAB): per-project window layouts. SPC TAB keys
-;; live in keys.el. Pairs with harpoon for fast project-local navigation.
-(use-package perspective
-  :init
-  (setq persp-suppress-no-prefix-key-warning t
-        persp-initial-frame-name "main")
-  :config (persp-mode 1))
-
-;; ws-butler: trim trailing whitespace only on lines you actually edited, so it
-;; never blows up an unrelated diff (unlike a blanket delete-trailing-whitespace)
+;; trim trailing whitespace only on lines actually edited, so it never
+;; pollutes a diff with unrelated churn
 (use-package ws-butler
   :hook ((prog-mode . ws-butler-mode)
          (text-mode . ws-butler-mode)))

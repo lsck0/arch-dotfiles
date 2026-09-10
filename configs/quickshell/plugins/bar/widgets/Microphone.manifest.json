@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.microphone",
+  "name": "Microphone",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Mic input state and mute toggle",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Microphone.qml"
+  },
+  "barWidget": {
+    "displayName": "Microphone",
+    "description": "Mic input state and mute toggle",
+    "category": "Audio",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

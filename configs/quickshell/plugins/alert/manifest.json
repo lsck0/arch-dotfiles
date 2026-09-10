@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "panel.alert",
+  "name": "Alert",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Large, manually-dismissed alert for timers that have elapsed",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Alert.qml"
+  }
+}

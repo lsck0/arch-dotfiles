@@ -1,7 +1,5 @@
 AUR:
-flat-remix-gtk
-bettercap-git
-gemini-cli-git
+- 
 
 cargo:
-trunk
+- trunk

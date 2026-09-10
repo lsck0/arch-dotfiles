@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.active-window",
+  "name": "Active Window",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Focused window title",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "ActiveWindow.qml"
+  },
+  "barWidget": {
+    "displayName": "Active Window",
+    "description": "Focused window title",
+    "category": "Desktop",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

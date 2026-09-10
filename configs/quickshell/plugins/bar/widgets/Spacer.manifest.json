@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.spacer",
+  "name": "Spacer",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Configurable blank space",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Spacer.qml" },
+  "barWidget": {
+    "displayName": "Spacer",
+    "description": "Configurable blank space",
+    "category": "Layout",
+    "allowMultiple": true,
+    "defaultSection": "center"
+  }
+}

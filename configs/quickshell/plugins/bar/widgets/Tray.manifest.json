@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.tray",
+  "name": "System tray",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Status notifier items",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Tray.qml" },
+  "barWidget": {
+    "displayName": "System tray",
+    "description": "Status notifier items",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

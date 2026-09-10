@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.workspaces",
+  "name": "Workspaces",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Hyprland workspace indicator",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Workspaces.qml"
+  },
+  "barWidget": {
+    "displayName": "Workspaces",
+    "description": "Hyprland workspace indicator",
+    "category": "Desktop",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

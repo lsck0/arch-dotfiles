@@ -55,12 +55,18 @@ hl.animation({
     bezier = "md3_decel",
     style = "slide",
 })
+-- `style = "slide"` used to be set here. Layer-shell surfaces cover
+-- everything the quickshell overlays draw on this leaf — the launcher, the
+-- clipboard picker, the power menu, notification panels — including their
+-- own full-screen scrim rectangle. Sliding the *whole surface* in means the
+-- scrim itself visibly slides/wipes down the screen with it, which reads as
+-- "the background darkening scrolls in" rather than a clean fade. Fade-only
+-- (no `style`) matches how those overlays are actually designed to appear.
 hl.animation({
     leaf = "layersIn",
     enabled = true,
     speed = 3,
     bezier = "menu_decel",
-    style = "slide",
 })
 hl.animation({
     leaf = "layersOut",
@@ -119,10 +125,11 @@ hl.config({
             xray = false,
             size = 3,
             passes = 1,
-            -- true flickers parts of windows against damage_tracking 2 on
-            -- 0.56.1; bisected with `hyprctl eval`, damage tracking itself is
-            -- fine once this is off
-            new_optimizations = false,
+            -- was false: flickered against damage_tracking 2 on 0.56.1,
+            -- bisected with `hyprctl eval`. re-testing true on 0.56.2 per
+            -- user request (2026-08-31) — revert to false if the flicker
+            -- is still there
+            new_optimizations = true,
             popups = true,
             vibrancy = 0.1796,
             vibrancy_darkness = 3.0,

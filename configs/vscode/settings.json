@@ -1,0 +1,9 @@
+{
+    "editor.formatOnSave": true,
+    "editor.fontFamily": "'0xProto Nerd Font', 'monospace'",
+    "editor.fontSize": 14,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "telemetry.telemetryLevel": "off",
+    "workbench.colorCustomizations": {}
+}

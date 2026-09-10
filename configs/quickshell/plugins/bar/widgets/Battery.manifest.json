@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.battery",
+  "name": "Battery",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Battery charge, state, and power-mode switcher",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Battery.qml" },
+  "barWidget": {
+    "displayName": "Battery",
+    "description": "Battery charge, state, and power-mode switcher",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

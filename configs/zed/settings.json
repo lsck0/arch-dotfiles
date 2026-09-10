@@ -1,0 +1,54 @@
+{
+    "theme": "Pywal",
+    "vim_mode": true,
+    "autosave": {
+        "after_delay": {
+            "milliseconds": 1000
+        }
+    },
+    "format_on_save": "on",
+    "buffer_font_family": "0xProto Nerd Font",
+    "buffer_font_size": 16,
+    "ui_font_family": "0xProto Nerd Font",
+    "ui_font_size": 16,
+    "project_panel": {
+        "dock": "left"
+    },
+    "outline_panel": {
+        "dock": "left"
+    },
+    "git_panel": {
+        "dock": "left"
+    },
+    "agent": {
+        "dock": "right"
+    },
+    "relative_line_numbers": true,
+    "vertical_scroll_margin": 8,
+    "wrap_guides": [
+        120
+    ],
+    "soft_wrap": "none",
+    "tab_size": 4,
+    "hard_tabs": false,
+    "remove_trailing_whitespace_on_save": true,
+    "ensure_final_newline_on_save": true,
+    "vim": {
+        "use_system_clipboard": "always"
+    },
+    "terminal": {
+        "dock": "bottom",
+        "shell": {
+            "program": "/bin/zsh"
+        },
+        "font_family": "0xProto Nerd Font",
+        "font_size": 16
+    },
+    "telemetry": {
+        "diagnostics": false,
+        "metrics": false
+    },
+    "features": {
+        "edit_prediction_provider": "none"
+    }
+}

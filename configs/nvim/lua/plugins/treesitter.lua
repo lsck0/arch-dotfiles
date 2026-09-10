@@ -33,13 +33,13 @@ local installed = {
 
 return {
     {
-        "nvim-treesitter/nvim-treesitter",
+        "nvim-treesitter/nvim-treesitter", -- syntax highlighting/parsing
         branch = "main",
         lazy = false,
         build = ":TSUpdate",
         dependencies = {
-            { "nvim-treesitter/nvim-treesitter-context" },
-            { "IndianBoy42/tree-sitter-just" },
+            { "nvim-treesitter/nvim-treesitter-context" }, -- sticky function context
+            { "IndianBoy42/tree-sitter-just" }, -- justfile syntax
         },
         config = function()
             local treesitter = require("nvim-treesitter")

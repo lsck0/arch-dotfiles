@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.toggles",
+  "name": "Toggles",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "toggles/toggle-*.sh quick-access list",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Toggles.qml"
+  },
+  "barWidget": {
+    "displayName": "Toggles",
+    "description": "toggles/toggle-*.sh quick-access list",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

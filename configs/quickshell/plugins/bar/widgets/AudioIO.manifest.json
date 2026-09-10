@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.audio-io",
+  "name": "Audio I/O",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Audio output device control",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "AudioIO.qml"
+  },
+  "barWidget": {
+    "displayName": "Audio I/O",
+    "description": "Audio output device control",
+    "category": "Audio",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
