@@ -56,6 +56,9 @@ Address the following issues, keep track of your work through a TODO.md:
 - toggle shader should be in toggles
 - we dont need all of that revert_package_side. JUST SELECT THE GROUPS and install them. nothing more. no uninstalling, no adding on later. group-select should just be part of install.sh
 - there are two task-dashboards (one in scrips, one in skills)
+- i dont like how the sidebar of herdr stands out so much.
+- you cant click on items in the systemtray in the bar
+- the plasma borders are a bit too rounded for me, also make mod q kill the currently focused window
 
 ---
 
