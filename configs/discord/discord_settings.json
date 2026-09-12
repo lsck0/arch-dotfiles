@@ -1,25 +1,25 @@
 {
-    "IS_MAXIMIZED": true,
-    "IS_MINIMIZED": false,
-    "WINDOW_BOUNDS": {
-        "x": 16,
-        "y": 10,
-        "width": 1323,
-        "height": 1036
-    },
-    "DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING": true,
-    "chromiumSwitches": {},
-    "enableHardwareAcceleration": true,
-    "MIN_WIDTH": 940,
-    "MIN_HEIGHT": 500,
-    "BACKGROUND_COLOR": "#000000",
-    "offloadAdmControls": true,
-    "asyncVideoInputDeviceInit": false,
-    "enableLibOpenH264Electron": true,
-    "openH264Enabled": true,
-    "DESKTOP_TTI_REMOVE_V8_CACHE_CLEAR": false,
-    "DESKTOP_TTI_UPDATE_BACKOFF_MAX_MS": 10000,
-    "DESKTOP_TTI_DNSTCP_WARMUP": true,
-    "DESKTOP_TTI_EARLY_UPDATE_CHECK": true,
-    "DESKTOP_TTI_SPLASH_USE_WEBP": false
+  "IS_MAXIMIZED": true,
+  "IS_MINIMIZED": false,
+  "WINDOW_BOUNDS": {
+    "x": 16,
+    "y": 10,
+    "width": 1323,
+    "height": 1036
+  },
+  "DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING": true,
+  "chromiumSwitches": {},
+  "enableHardwareAcceleration": true,
+  "MIN_WIDTH": 940,
+  "MIN_HEIGHT": 500,
+  "BACKGROUND_COLOR": "#000000",
+  "offloadAdmControls": true,
+  "asyncVideoInputDeviceInit": false,
+  "enableLibOpenH264Electron": true,
+  "openH264Enabled": true,
+  "DESKTOP_TTI_REMOVE_V8_CACHE_CLEAR": false,
+  "DESKTOP_TTI_UPDATE_BACKOFF_MAX_MS": 10000,
+  "DESKTOP_TTI_DNSTCP_WARMUP": true,
+  "DESKTOP_TTI_EARLY_UPDATE_CHECK": true,
+  "DESKTOP_TTI_SPLASH_USE_WEBP": false
 }
