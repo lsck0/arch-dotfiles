@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if ! command -v hyprpm >/dev/null 2>&1; then
+    exit 0
+fi
+
 set -ex
 
 yes | hyprpm update -f

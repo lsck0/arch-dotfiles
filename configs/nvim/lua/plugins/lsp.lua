@@ -53,10 +53,10 @@ return {
             },
         },
     },
-    { "rluba/jai.vim", ft = "jai" }, -- Jai language support
+    { "rluba/jai.vim", ft = "jai" },                 -- Jai language support
     { "lervag/vimtex", ft = { "tex", "plaintex" } }, -- LaTeX support
     {
-        "saecki/crates.nvim", -- Cargo.toml crate info
+        "saecki/crates.nvim",                        -- Cargo.toml crate info
         ft = "toml",
         config = function()
             require("crates").setup({})
@@ -64,16 +64,16 @@ return {
     },
 
     {
-        "mason-org/mason.nvim", -- LSP/tool installer
+        "mason-org/mason.nvim",                              -- LSP/tool installer
         dependencies = {
-            { "jay-babu/mason-null-ls.nvim" }, -- mason null-ls bridge
-            { "neovim/nvim-lspconfig" }, -- LSP server configs
-            { "nvimtools/none-ls.nvim" }, -- formatting/diagnostics via LSP
-            { "mason-org/mason-lspconfig.nvim" }, -- mason lspconfig bridge
+            { "jay-babu/mason-null-ls.nvim" },               -- mason null-ls bridge
+            { "neovim/nvim-lspconfig" },                     -- LSP server configs
+            { "nvimtools/none-ls.nvim" },                    -- formatting/diagnostics via LSP
+            { "mason-org/mason-lspconfig.nvim" },            -- mason lspconfig bridge
             { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
-            { "marilari88/twoslash-queries.nvim" }, -- inline TS type hints
+            { "marilari88/twoslash-queries.nvim" },          -- inline TS type hints
             {
-                "ivanjermakov/troublesum.nvim", -- diagnostic count summary
+                "ivanjermakov/troublesum.nvim",              -- diagnostic count summary
                 config = function()
                     require("troublesum").setup()
                 end
@@ -200,8 +200,8 @@ return {
     {
         "antosha417/nvim-lsp-file-operations", -- LSP-aware file ops
         dependencies = {
-            "nvim-lua/plenary.nvim", -- Lua utility library
-            "nvim-neo-tree/neo-tree.nvim", -- sidebar file tree
+            "nvim-lua/plenary.nvim",           -- Lua utility library
+            "nvim-neo-tree/neo-tree.nvim",     -- sidebar file tree
         },
         config = function()
             require("lsp-file-operations").setup()

@@ -1,5 +1,3 @@
--- SMBIOS chassis types that mean "portable", used when the hostname is not one
--- of the known ones below
 local DMI_PORTABLE = {
     [8] = true,  -- portable
     [9] = true,  -- laptop

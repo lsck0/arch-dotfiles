@@ -1,5 +1,5 @@
 [Unit]
-Description=Execute ghost mirror
+Description=Execute ghostmirror sorting
 
 [Service]
 Type=oneshot

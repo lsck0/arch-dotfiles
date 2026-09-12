@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# One-line system stats for the hyprlock screen (configs/hyprland/hyprlock.conf),
-# polled every few seconds via cmd[update:...]. Deliberately local-only: no
-# network calls, nothing that can hang or stall a label update while the
-# screen is locked. All sources here are /proc or fast, cached-by-the-kernel
-# CLI tools (free, uname), so the whole thing runs in a few ms.
+
 set -euo pipefail
 
 nproc_count=$(nproc)

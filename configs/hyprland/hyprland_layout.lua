@@ -1,7 +1,6 @@
 local platform = require("platform")
 
--- the desktop splits 1-4 and 5-9 across its two screens, the notebook puts
--- everything on its one panel
+-- the desktop splits 1-4 and 5-9 across its two screens, the notebook puts everything on its one panel
 local workspace_monitor = platform.laptop
     and { "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1" }
     or { "DP-2", "DP-2", "DP-2", "DP-2", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1" }

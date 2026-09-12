@@ -55,71 +55,47 @@ return {
         end,
     },
 
-    -- Real colorscheme plugins, one per handwritten theme. The themes are
-    -- applied by pick-a-theme-wallpaper (switch-wallpaper.sh writes the
-    -- theme's own name to ~/.cache/wal/nvim_theme, which lua/theme.lua +
-    -- lua/themes/<name>.lua dispatch to the right :colorscheme). These
-    -- render each theme's actual semantic syntax colors; pywal.nvim (above)
-    -- stays as the fallback for photo wallpapers.
-    --
-    -- lazy = true with NO cmd/event/ft trigger: each lua/themes/<name>.lua
-    -- file explicitly calls require("lazy.core.loader").load("<plugin>")
-    -- itself before switching, so nothing here needs to guess which trigger
-    -- fires it. `cmd = "colorscheme"` was tried first and is NOT valid —
-    -- lazy.nvim's cmd handler creates a real user command with that exact
-    -- name via nvim_create_user_command, which nvim rejects unless it starts
-    -- with an uppercase letter ("Invalid command name (must start with
-    -- uppercase): 'colorscheme'"), crashing startup for every cmd="colorscheme"
-    -- plugin.
-    { "folke/tokyonight.nvim",   lazy = true },
-    { "Shatur/neovim-ayu",       lazy = true },
-    { "catppuccin/nvim",         name = "catppuccin", lazy = true,
-      config = function()
-        require("catppuccin").setup({
-          flavour = "mocha", transparent_background = false, term_colors = true,
-          integrations = {
-            barbar = true, dadbod_ui = true, diffview = true, fidget = true,
-            harpoon = true, leap = true, lsp_trouble = true, mason = true,
-            noice = true, notify = true, snacks = { enabled = true },
-          },
-        })
-      end },
-    { "shaunsingh/nord.nvim",    lazy = true },
+    -- Real colorscheme plugins, applied by themes.lua.
+    { "folke/tokyonight.nvim",      lazy = true },
+    { "Shatur/neovim-ayu",          lazy = true },
+    {
+        "catppuccin/nvim",
+        name = "catppuccin",
+        lazy = true,
+        config = function()
+            require("catppuccin").setup({
+                flavour = "mocha",
+                transparent_background = false,
+                term_colors = true,
+                integrations = {
+                    barbar = true,
+                    dadbod_ui = true,
+                    diffview = true,
+                    fidget = true,
+                    harpoon = true,
+                    leap = true,
+                    lsp_trouble = true,
+                    mason = true,
+                    noice = true,
+                    notify = true,
+                    snacks = { enabled = true },
+                },
+            })
+        end
+    },
+    { "shaunsingh/nord.nvim",     lazy = true },
     { "ellisonleao/gruvbox.nvim", lazy = true },
-    { "oxfist/night-owl.nvim",   lazy = true },
-    { "Mofiqul/dracula.nvim",    lazy = true },
-    { "navarasu/onedark.nvim",   lazy = true },
+    { "oxfist/night-owl.nvim",    lazy = true },
+    { "Mofiqul/dracula.nvim",     lazy = true },
+    { "navarasu/onedark.nvim",    lazy = true },
 
     { "romgrk/barbar.nvim" }, -- buffer tabline
 
     {
         "nvim-lualine/lualine.nvim", -- statusline
         config = function()
-            local pomo_timer = {
-                function()
-                    -- package.loaded check (not require) so this doesn't force
-                    -- pomo.nvim to load on every statusline redraw before any
-                    -- :TimerStart has ever run — see feat.lua's cmd= trigger
-                    if not package.loaded["pomo"] then return "" end
-                    local timer = require("pomo").get_first_to_finish()
-                    if timer == nil then return "" end
-                    return "󰔟 " .. tostring(timer)
-                end,
-            }
-
             require("lualine").setup({
                 options = {
-                    -- "auto", not "pywal": lualine's auto theme reads
-                    -- vim.g.colors_name (set by whichever :colorscheme
-                    -- actually ran — see lua/theme.lua) and loads the
-                    -- matching bundled statusline theme when one exists
-                    -- (ayu_dark, gruvbox, dracula, nord, onedark all ship
-                    -- with lualine); otherwise it derives colors live from
-                    -- the active highlight groups. Pinning to "pywal" meant
-                    -- every handwritten theme's syntax colors were correct
-                    -- but the statusline stayed on pywal's flat palette —
-                    -- the mismatch that made e.g. ayu look "massively
-                    -- different" from ayu.nvim's own statusline.
                     theme = "auto",
                     globalstatus = true,
                     component_separators = { left = "", right = "" },
@@ -130,7 +106,6 @@ return {
                     lualine_b = { "branch", "diff", "diagnostics" },
                     lualine_c = { { "filename", path = 1 } },
                     lualine_x = {
-                        pomo_timer,
                         { "lsp_status", icon = "" },
                         "filetype",
                     },
@@ -185,10 +160,6 @@ return {
 
     {
         "NvChad/nvim-colorizer.lua", -- inline color previews
-        -- TODO.md perf-audit note also suggests scoping `ft` to filetypes
-        -- that actually carry color literals — left alone here since that
-        -- changes behavior (what gets colorized), not just load timing,
-        -- and is a real preference call rather than a pure perf fix
         event = "VeryLazy",
         config = function()
             require("colorizer").setup({

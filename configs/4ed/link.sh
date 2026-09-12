@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# 4ed is a C editor built from source. Guard on `git` (used for all three
+# clones) so a rerun on a machine without git skips cleanly instead of
+# `set -e` aborting on a missing binary.
+if ! command -v git >/dev/null 2>&1; then
+    echo "configs/4ed/link.sh: git not installed, skipping" >&2
+    exit 0
+fi
+
 sudo git clone https://github.com/4coder-archive/4coder.git /opt/4ed/code
 sudo git clone https://github.com/4coder-archive/4coder-non-source.git /opt/4ed/4coder-non-source
 sudo git clone https://github.com/4coder-archive/4coder_fleury.git /opt/4ed/code/custom/fleury

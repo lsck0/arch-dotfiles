@@ -38,12 +38,15 @@ from palette import (  # noqa: E402
     dim_toward,
     hex_to_rgb,
     lift,
+    mix,
     readable_on,
     rgb_to_hex,
     semantic,
     tone_map,
     vivify,
 )
+
+WHITE = (1.0, 1.0, 1.0)
 
 CACHE = os.path.expanduser("~/.cache/wal/colors.json")
 HERMES_HOME = os.environ.get("HERMES_HOME") or os.path.expanduser("~/.hermes")
@@ -92,6 +95,11 @@ def main():
     good = semantic("ok", accent, bg)
     warn = semantic("warn", accent, bg)
 
+    # Diff fills, computed here (not inline in `palette`) because the word
+    # colors below need to contrast against THEM, not against `bg`.
+    diff_added_bg = mix(good, WHITE, 0.88)
+    diff_removed_bg = mix(urgent, WHITE, 0.88)
+
     def on(surface, colour, ratio=4.5):
         return rgb_to_hex(readable_on(surface, colour, ratio), "#")
 
@@ -117,13 +125,22 @@ def main():
         "ui_tool": on(bg, accent, 4.5),
         "ui_thinking": hx(dim),
 
-        # Diffs. The two background keys are fills that dark text sits on, so
-        # they are the one place a LIGHT value is correct; the word-level keys
-        # are foregrounds on the normal background.
-        "diff_added": hx(lift(good, 0.55)),
-        "diff_removed": hx(lift(urgent, 0.55)),
-        "diff_added_word": on(bg, good, 4.5),
-        "diff_removed_word": on(bg, urgent, 4.5),
+        # Diffs. diff_added/diff_removed are FILLS (backgroundColor on the
+        # whole line); diff_added_word/diff_removed_word are the TEXT drawn
+        # on top of that same fill (see hermes_cli/tui_dist/entry.js: one
+        # Text node gets `backgroundColor: diffAdded, color: diffAddedWord`)
+        # — they are not drawn on the app background, so contrast-checking
+        # them against `bg` (as a first version of this did) picked a vivid
+        # green/red that barely contrasts against the pale fill beneath it,
+        # reading as a near-blank white/pale blob. Fill stays pale (mixed
+        # 88% toward white, matching the built-in skin's own #dcffdc/
+        # #ffdcdc pastel intensity rather than a vivid full-bleed color);
+        # word color is contrast-checked against THAT fill instead —
+        # readable_on auto-picks the dark pole since the fill is light.
+        "diff_added": hx(diff_added_bg),
+        "diff_removed": hx(diff_removed_bg),
+        "diff_added_word": on(diff_added_bg, good, 4.5),
+        "diff_removed_word": on(diff_removed_bg, urgent, 4.5),
 
         # Syntax
         "syntax_string": on(bg, good, 4.5),

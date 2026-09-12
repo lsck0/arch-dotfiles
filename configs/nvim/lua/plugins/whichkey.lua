@@ -10,12 +10,12 @@ return {
         config = function(_, opts)
             local wk = require("which-key")
             wk.setup(opts)
-            -- leader prefix group labels
             wk.add({
                 { "<leader>f", group = "find" },
                 { "<leader>l", group = "lsp" },
                 { "<leader>d", group = "debug" },
                 { "<leader>n", group = "test" },
+                { "<leader>p", group = "present" },
                 { "<leader>s", group = "search" },
             })
         end,

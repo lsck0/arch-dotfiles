@@ -2,7 +2,10 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-**WARNING**: This is primarily a **personal** setup, using this setup as is will most likely not work for you.
+TODO:
+
+- cleanup scripts / toggles
+- add new showcases
 
 Run
 
@@ -18,9 +21,6 @@ after archinstall minimal and no applications (bluetooth, audio, etc) configured
 ## Things to do manually after rebooting
 
 - add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
-
-- enable optional/post-reboot configs (`fd manual_link.sh` and cd into the folder before running)
-  run all with `find "$(pwd)" -type f -name 'manual_link.sh' | xargs -I {} sh -c 'cd $(dirname {}) && sh $(basename {})'`
 
 - run `spicetify backup apply && spicetify enable-devtools` after running spotify once (including logging in)
 

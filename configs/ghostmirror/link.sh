@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+
+if ! command -v ghostmirror >/dev/null 2>&1; then
+    exit 0
+fi
+
 set -ex
 
 # create an initial mirrorlist

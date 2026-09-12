@@ -82,10 +82,12 @@ Item {
     var count = 0
     var needle = String(filterText || "").toLowerCase()
     for (var i = 0; i < imageArray.length; i++) {
-      var path = String(imageArray[i].filePath || "")
+      var image = imageArray[i]
+      var path = String(image.filePath || "")
       var matched = !needle
         || nameForPath(path).toLowerCase().indexOf(needle) !== -1
         || labelForPath(path).toLowerCase().indexOf(needle) !== -1
+        || labelForImage(image).toLowerCase().indexOf(needle) !== -1
       matches.push(matched)
       positions.push(matched ? count++ : -1)
     }
@@ -139,11 +141,16 @@ Item {
     return ImagePickerModel.labelForPath(path)
   }
 
-  function currentLabel() {
-    var path = currentPath()
-    if (!path) return filterText ? "No matches" : ""
+  // Themes mode: label by the theme JSON's own name (carried through
+  // list rows as displayName), not by its wallpaper's filename.
+  function labelForImage(image) {
+    return ImagePickerModel.labelForImage(image)
+  }
 
-    return labelForPath(path)
+  function currentLabel() {
+    if (imageArray.length === 0 || !itemMatches(selectedIndex)) return filterText ? "No matches" : ""
+
+    return labelForImage(imageArray[selectedIndex])
   }
 
   function itemMatches(index) {
@@ -491,18 +498,27 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "quickshell-image-selector"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.opened && root.imagesLoaded ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Was `root.opened && root.imagesLoaded`. switchMode() (Up/Down between
+    // Wallpapers and Themes) clears imagesLoaded for the stretch between the
+    // scan starting and the first batch streaming back, with root.opened
+    // staying true throughout -- so this dropped keyboard focus to None and
+    // reacquired Exclusive moments later on every single mode switch, and
+    // the scrim+MouseArea below did the same for the dimmed backdrop,
+    // producing a flash through to the desktop. Keeping all three keyed on
+    // root.opened alone means a mode switch only ever swaps the carousel
+    // contents, never the backdrop or the keyboard grab.
+    WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
 
     Rectangle {
       anchors.fill: parent
-      visible: root.opened && root.imagesLoaded
+      visible: root.opened
       color: root.scrim
     }
 
     MouseArea {
       anchors.fill: parent
-      enabled: root.opened && root.imagesLoaded
+      enabled: root.opened
       onClicked: root.cancel()
     }
 
@@ -755,6 +771,14 @@ Item {
             Keys.onEscapePressed: {
               if (text.length > 0) {
                 text = ""
+                // Clearing drops searchChip.visible -> false, which in turn
+                // reactively clears this field's own `focus: searchChip.visible`
+                // binding -- but nothing else holds `focus: true` inside the
+                // same scope at that instant, so active focus was landing
+                // nowhere and every subsequent key (arrows, Tab, Enter) went
+                // unhandled until the picker was closed and reopened. The
+                // clear (x) button already worked around this the same way.
+                carousel.forceActiveFocus()
               } else {
                 root.cancel()
               }

@@ -52,9 +52,9 @@ return {
                 version = "2.*",
                 opts = {},
                 dependencies = {
-                    "Dosx001/cmp-commit", -- commit message source
+                    "Dosx001/cmp-commit",                    -- commit message source
                     "davidsierradz/cmp-conventionalcommits", -- conventional commits source
-                    "hrsh7th/cmp-calc", -- inline calculator source
+                    "hrsh7th/cmp-calc",                      -- inline calculator source
                 },
             },
         },

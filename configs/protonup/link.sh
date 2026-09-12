@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+if ! command -v curl >/dev/null 2>&1; then
+    exit 0
+fi
+
 COMPAT_DIR="$HOME/.steam/root/compatibilitytools.d"
 OVERLAY_URL="https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
 
@@ -16,7 +20,6 @@ install_proton_ge() {
 
     # Upstream tarballs unpack to <tag>-x86_64, not <tag>.
     if [ -d "$COMPAT_DIR/$asset" ]; then
-        echo "[INFO] $asset already installed"
         return
     fi
 
@@ -26,21 +29,18 @@ install_proton_ge() {
     tmp=$(mktemp -d)
     trap 'rm -rf "$tmp"' RETURN
 
-    echo "[INFO] downloading $asset"
     curl -fL --progress-bar -o "$tmp/$asset.tar.gz" "$url"
     curl -fsSL -o "$tmp/$asset.sha512sum" "$sum_url"
 
     (cd "$tmp" && sha512sum -c "$asset.sha512sum")
 
     tar -xzf "$tmp/$asset.tar.gz" -C "$COMPAT_DIR"
-    echo "[INFO] installed in $COMPAT_DIR/$asset"
 }
 
 install_overlay() {
     local tmp
 
     if [ -d "$COMPAT_DIR/Proton-LayeredOverlay" ]; then
-        echo "[INFO] Proton-LayeredOverlay already installed"
         return
     fi
 
@@ -49,7 +49,6 @@ install_overlay() {
 
     curl -fL --progress-bar -o "$tmp/overlay.tar.gz" "$OVERLAY_URL"
     tar -xzf "$tmp/overlay.tar.gz" -C "$COMPAT_DIR"
-    echo "[INFO] installed in $COMPAT_DIR/Proton-LayeredOverlay"
 }
 
 install_proton_ge
