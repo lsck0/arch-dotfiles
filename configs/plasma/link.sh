@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if ! command -v kpackagetool6 >/dev/null 2>&1; then
+    exit 0
+fi
+
 set -ex
 
 FILES="
@@ -29,8 +33,6 @@ DIRS="
 
 mkdir -p ${HOME}/.config ${HOME}/.local/share/color-schemes
 
-# Plasma only recognizes a user color scheme after it exists in this search
-# path. Keep the generated pywal name stable so kdeglobals can select it.
 ln -sf ${PWD}/color-schemes/pywal.colors ${HOME}/.local/share/color-schemes/pywal.colors
 
 for f in ${FILES}; do

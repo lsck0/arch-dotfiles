@@ -1,6 +1,6 @@
 ---
 name: l-agent-task-db
-description: "Shared taskwarrior+timewarrior conventions for l-multi-agent-task-mode and l-single-agent-task-mode: per-project tasks/ db layout, tasks/context/ folder, tag vocabulary for stage tracking and human-in-the-loop blocking. Load whenever operating in either task-mode skill, or asked to inspect/scaffold a project's agent task db directly."
+description: "Shared taskwarrior/timewarrior conventions for the task-mode skills: db layout, tasks/context/ folder, stage/human-in-the-loop tag vocabulary, scaffolding. Load when operating either task-mode skill or inspecting/scaffolding a project's agent task db."
 ---
 
 # Agent task db conventions (shared mechanics)
@@ -245,8 +245,9 @@ task project:sale-tracker.research list
   ```
 - `+human-review-ready` — the ticket's spec (`SPEC.md`) is written and
   ready for the human review/approval gate
-  (`l-spec-driven-development`'s step 5, the one human checkpoint in the
-  pipeline). Co-exists with the ticket's current `+stage-*` tag so a
+  (`l-spec-driven-development`'s step 5, the one mid-run approval gate in
+  the pipeline — distinct from the input and PR-review touchpoints that
+  bookend it). Co-exists with the ticket's current `+stage-*` tag so a
   resuming agent still knows where it is; cleared together with
   `+human-answered` once the human has reviewed (approved as-is, or
   edited `SPEC.md` directly) — see `+human-answered` below.

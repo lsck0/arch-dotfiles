@@ -1,0 +1,19 @@
+[Unit]
+Description=vLLM server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+Environment=VLLM_TARGET_DEVICE=rocm
+Environment=VLLM_USE_TRITON_AWQ=1
+ExecStart=/usr/bin/vllm serve mattbucci/gemma-4-12B-AWQ \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --max-model-len auto \
+    --enable-auto-tool-choice \
+    --tool-call-parser gemma4
+Restart=on-failure
+RestartSec=5

@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# Start hyprlock with fingerprint authentication only when this user has both
-# a real fprintd device and at least one enrolled finger. Package/PAM presence
-# alone is not sufficient.
 set -euo pipefail
 
 config="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprlock.conf"
@@ -23,8 +20,6 @@ if "$fingerprint_ready"; then
   exec hyprlock -c "$config" "$@"
 fi
 
-# Keep the tracked config unchanged; disable only the fallback invocation's
-# fingerprint option when no usable hardware/enrollment is present.
 tmp_config=$(mktemp "${XDG_RUNTIME_DIR:-/tmp}/hyprlock.XXXXXX.conf")
 trap 'rm -f "$tmp_config"' EXIT
 sed -E 's/^([[:space:]]*fingerprint:enabled[[:space:]]*=)[[:space:]]*true/\1 false/' \

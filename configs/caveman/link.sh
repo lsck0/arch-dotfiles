@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# Installs the caveman skill (github.com/JuliusBrussee/caveman) as a default
-# in Claude Code, Gemini CLI, opencode, Hermes Agent, and GitHub Copilot.
-# "Small rock" (skill) only — the caveman-ai/cli proxy ("big rock") is a
-# separate opt-in tool, not installed here.
-#
-# Each agent uses its own native install mechanism (Claude plugin
-# marketplace, Gemini extension, opencode/Hermes native skills copy via the
-# repo's installer script, Copilot via `skills add`). All five are
-# idempotent on rerun (each reports "already installed"/"kept" rather than
-# erroring or duplicating), so this script is safe to re-run via install.sh.
-#
-# npm in this environment has `allow-git=none`, which blocks the upstream
-# `npx -y github:JuliusBrussee/caveman` one-liner (EALLOWGIT). Work around it
-# by cloning the repo directly with git and running its installer locally —
-# same code path, just not fetched through npm's blocked git resolver.
 
 set -ex
 

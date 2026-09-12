@@ -1,31 +1,23 @@
 ---
 name: l-single-agent-task-mode
-description: "Poll a per-project taskwarrior/timewarrior db (scaffolding one via l-agent-task-db if missing) and work +agent-task tickets itself, ONE at a time claimed sequentially (though sub-actions within one ticket may run concurrently up to the shared parallelism budget), with NO Herdr spawning and no persona-worker pipeline. Same db/tracking mechanism as l-multi-agent-task-mode — the only difference is claiming one ticket at a time here vs. multiple there. Use for straightforward task-db-driven work that doesn't need a multi-role factory. For a live single idea in chat, use l-multi-agent-mode; to spawn Herdr persona workers per task, use l-multi-agent-task-mode."
+description: "Poll a per-project taskwarrior db and work +agent-task tickets yourself, one at a time, no Herdr/worker spawning. Multi-role pipeline -> l-multi-agent-task-mode; live idea, no db -> l-multi-agent-mode."
 ---
 
 # Single-agent task mode (self-polling, no spawning)
 
-Both task-mode skills use the SAME `l-agent-task-db` mechanism — a
-per-project taskwarrior/timewarrior db — for task tracking and planning.
-The only difference between them is concurrency: this skill polls and
-works exactly one ticket at a time, sequentially, itself; `l-multi-agent-task-mode`
-polls the same db but can claim and work MULTIPLE tickets at once,
-spawning a Herdr persona worker per ticket. This instance works a
-project's taskwarrior queue directly, itself, one task at a time — no
-Herdr, no worker panes, no persona pipeline. It reads a task, does the
-work (research, writing, coding, whatever the task actually needs),
-records the result durably, updates tags/priority, and moves to the next
-task. This is the right mode when the work doesn't need multiple
-specialist perspectives running in parallel — most routine queued work.
+This instance works a project's `l-agent-task-db` (taskwarrior) queue
+directly, itself, one task at a time — no Herdr, no worker panes, no
+persona pipeline. It reads a task, does the work (research, writing,
+coding, whatever the task actually needs), records the result durably,
+updates tags/priority, and moves to the next task. The right mode when the
+work doesn't need multiple specialist perspectives in parallel — most
+routine queued work.
 
 For db layout, scaffolding, tag vocabulary, and the `tasks/context/`
 question-file convention, load `l-agent-task-db` first — hard
-prerequisite, every time. For a live single idea worked directly in chat
-with no task db, use `l-multi-agent-mode`. For task-db-driven work that
-DOES warrant spawning Herdr persona workers (a real multi-stage pipeline:
-research -> design -> implement -> review -> test, run by different
-"roles"), use `l-multi-agent-task-mode` instead — that skill requires a
-live Herdr session; this one does not.
+prerequisite, every time. See the description for sibling routing
+(multi-role pipeline vs. live-no-db); note the pipeline sibling
+`l-multi-agent-task-mode` requires a live Herdr session, this one does not.
 
 ## No Herdr precondition
 

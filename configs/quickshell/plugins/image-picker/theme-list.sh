@@ -33,7 +33,13 @@ except OSError:
 if not os.path.isdir(theme_dir):
     sys.exit(0)
 
+# (wallpaper, theme_name) pairs -- theme_name is the JSON's own basename
+# (e.g. "dracula.json" -> "dracula"), carried through as a 3rd tsv column
+# so the picker can label the entry by theme, not by its wallpaper's
+# filename. Dedup by wallpaper: first theme JSON to claim a wallpaper wins
+# the picker entry.
 files = []
+seen = set()
 for name in sorted(os.listdir(theme_dir)):
     if not name.endswith('.json'):
         continue
@@ -46,10 +52,12 @@ for name in sorted(os.listdir(theme_dir)):
     if not wallpaper:
         continue
     wallpaper = os.path.realpath(os.path.expanduser(wallpaper))
-    if os.path.isfile(wallpaper) and wallpaper not in files:
-        files.append(wallpaper)
+    if not os.path.isfile(wallpaper) or wallpaper in seen:
+        continue
+    seen.add(wallpaper)
+    files.append((wallpaper, name[:-len('.json')]))
 
-for image in files:
+for image, theme_name in files:
     try:
         st = os.stat(image)
     except OSError:
@@ -57,7 +65,7 @@ for image in files:
     sig = f"{st.st_size}:{int(st.st_mtime)}"
     h = index.get((image, sig)) or hashlib.md5(f"{image}\t{sig}".encode()).hexdigest()
     thumb = os.path.join(cache_dir, h + '.jpg')
-    sys.stdout.write(f"{image}\t{thumb if os.path.exists(thumb) else image}\n")
+    sys.stdout.write(f"{image}\t{thumb if os.path.exists(thumb) else image}\t{theme_name}\n")
     sys.stdout.flush()
 PY
 

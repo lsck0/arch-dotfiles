@@ -2,7 +2,7 @@ return {
     { "tpope/vim-fugitive" }, -- git commands in vim
 
     {
-        "esmuellert/vscode-diff.nvim", -- VS Code-style diff view
+        "esmuellert/vscode-diff.nvim",             -- VS Code-style diff view
         dependencies = { "MunifTanjim/nui.nvim" }, -- UI component library
     },
 
@@ -28,9 +28,9 @@ return {
     },
 
     {
-        "ThePrimeagen/git-worktree.nvim", -- git worktree management
+        "ThePrimeagen/git-worktree.nvim",    -- git worktree management
         dependencies = {
-            "nvim-lua/plenary.nvim", -- Lua utility library
+            "nvim-lua/plenary.nvim",         -- Lua utility library
             "nvim-telescope/telescope.nvim", -- fuzzy finder
         },
         config = function()

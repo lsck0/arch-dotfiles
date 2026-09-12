@@ -6,23 +6,25 @@ uniform sampler2D tex;
 uniform float time;
 out vec4 fragColor;
 
-float hash(float n) { return fract(sin(n) * 43758.5453); }
-float hash2(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float hash(float n) {
+    return fract(sin(n) * 43758.5453);
+}
+float hash2(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
-// --- tunables ---
-const float WOBBLE      = 0.0014;
-const float SATURATION  = 1.35;
-const float CONTRAST    = 1.12;
-const float GRADE_STR   = 0.28;   // neon color cast strength
-const float BLOOM_STR   = 0.35;
-const float BLOOM_THR   = 0.60;
-const float SCAN_DEPTH  = 0.16;
-const float GRAIN        = 0.030;
-const float VIGNETTE     = 0.24;
+const float WOBBLE = 0.0014;
+const float SATURATION = 1.35;
+const float CONTRAST = 1.12;
+const float GRADE_STR = 0.28;
+const float BLOOM_STR = 0.35;
+const float BLOOM_THR = 0.60;
+const float SCAN_DEPTH = 0.16;
+const float GRAIN = 0.030;
+const float VIGNETTE = 0.24;
 
-// neon targets
-const vec3 SHADOW_TINT   = vec3(0.85, 0.45, 0.25); // warm amber (was teal/blue)
-const vec3 HILIGHT_TINT  = vec3(0.95, 0.35, 0.55); // warm pink/magenta
+const vec3 SHADOW_TINT = vec3(0.85, 0.45, 0.25);
+const vec3 HILIGHT_TINT = vec3(0.95, 0.35, 0.55);
 
 void main() {
     vec2 uv = v_texcoord;
@@ -31,16 +33,16 @@ void main() {
     uv.x += sin(uv.y * 40.0 + time * 2.0) * WOBBLE;
 
     // rolling VHS tracking band
-    float roll  = fract(uv.y + time * 0.15);
+    float roll = fract(uv.y + time * 0.15);
     float track = smoothstep(0.0, 0.05, roll) * smoothstep(0.12, 0.07, roll);
     uv.x += track * 0.010 * sin(time * 30.0);
 
     // datamosh blocks: occasional cells jump sideways
-    vec2 grid  = vec2(24.0, 14.0);
-    vec2 cell  = floor(uv * grid);
-    float bsd  = floor(time * 9.0);
-    float bh   = hash2(cell + bsd);
-    float blk  = step(0.96, bh);
+    vec2 grid = vec2(24.0, 14.0);
+    vec2 cell = floor(uv * grid);
+    float bsd = floor(time * 9.0);
+    float bh = hash2(cell + bsd);
+    float blk = step(0.96, bh);
     uv += blk * (vec2(hash2(cell + bsd + 3.1), hash2(cell + bsd + 7.7)) - 0.5) * 0.06;
 
     // thin glitch tear bands
@@ -58,10 +60,10 @@ void main() {
 
     // neon bloom (4-tap), tinted cyan/magenta by where it blooms
     vec2 r = vec2(0.0024);
-    vec3 b = texture(tex, uv + vec2( r.x, 0.0)).rgb
-           + texture(tex, uv + vec2(-r.x, 0.0)).rgb
-           + texture(tex, uv + vec2(0.0,  r.y)).rgb
-           + texture(tex, uv + vec2(0.0, -r.y)).rgb;
+    vec3 b = texture(tex, uv + vec2(r.x, 0.0)).rgb
+            + texture(tex, uv + vec2(-r.x, 0.0)).rgb
+            + texture(tex, uv + vec2(0.0, r.y)).rgb
+            + texture(tex, uv + vec2(0.0, -r.y)).rgb;
     b *= 0.25;
     vec3 bloom = max(b - BLOOM_THR, 0.0);
     col += bloom * BLOOM_STR * vec3(1.05, 0.85, 1.15);
@@ -70,8 +72,8 @@ void main() {
     float l = dot(col, vec3(0.299, 0.587, 0.114));
     vec3 tint = mix(SHADOW_TINT, HILIGHT_TINT, smoothstep(0.15, 0.85, l));
     col = mix(col, col * tint * 1.6, GRADE_STR);
-    col = mix(vec3(l), col, SATURATION);          // saturation
-    col = (col - 0.5) * CONTRAST + 0.5;            // contrast
+    col = mix(vec3(l), col, SATURATION); // saturation
+    col = (col - 0.5) * CONTRAST + 0.5; // contrast
 
     // drifting scanlines
     float scan = sin((gl_FragCoord.y + time * 8.0) * 3.14159265) * 0.5 + 0.5;

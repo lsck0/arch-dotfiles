@@ -2,6 +2,10 @@
 
 set -ex
 
+if [[ ! -x ${PWD}/oom-notify.sh ]]; then
+    exit 0
+fi
+
 sudo systemctl enable systemd-oomd.service
 
 # scope oomd's kill authority to app.slice only, Hyprland itself stays ineligible

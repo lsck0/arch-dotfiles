@@ -19,6 +19,11 @@ FAILURES_FILE="$(pwd)/FAILURES"
 PACKAGES=(
     alsa-firmware # [base] ALSA sound firmware
     amdgpu_top # [base] AMD GPU monitor
+    python-tree-sitter-html
+    python-tree-sitter-json
+    raddebugger-git
+    python-vllm-rocm
+    python-tree-sitter-javascript
     angryoxide # [security] tui wifi pentesting
     benben # [misc] terminal music player
     bluetui # [base] bluetooth tui
@@ -35,13 +40,13 @@ PACKAGES=(
     enola # [socials] search usernames
     flamelens # [programming] tui flamegraph viewer
     gonzo # [programming] tui log analysis
-    harlequin # [programming] sql tui
     heh # [programming] byte editor
     gpg-tui # [base] gpg tui
     jolt # [base] battery debugging
     kmon # [base] kernel monitor
     lazyjira-bin # [programming] jira tui
     linecast # [misc] tui weather
+    libvirt
     nnd # [programming] linux debugger
     openapi-tui # [programming] openapi tui
     crates-tui-git # [programming] crates.rs tui 
@@ -79,7 +84,7 @@ PACKAGES=(
     gnutls # [base] TLS library
     gparted # [base] partition editor GUI
     gping # [base] ping with graph
-    identity # [base] identity management utility
+    identity # [creativity] media comparison
     intel-media-driver # [base] Intel VAAPI driver
     ipython # [base] enhanced Python shell
     iwd # [base] iNet wireless daemon
@@ -270,7 +275,6 @@ PACKAGES=(
     ttf-ubuntu-font-family # [base] Ubuntu system fonts
     ttf-vlgothic # [base] Japanese Gothic font
     unzip # [base] zip extraction tool
-    update-grub # [base] GRUB config regenerator
     v4l-utils # [base] video4linux utilities
     v4l2loopback-dkms # [base] virtual video device
     v4l2loopback-utils # [base] v4l2loopback helper tools
@@ -446,7 +450,7 @@ PACKAGES=(
     gemini-cli # [programming] Google Gemini CLI
     genius # [programming] math calculator app
     geogebra-6-bin # [programming] math/geometry app
-    gf2-git # [programming] grep pattern wrapper
+    gf2-git # [programming] debugger
     gh-dash # [programming] GitHub dashboard TUI
     ghcup-hs-bin # [programming] Haskell toolchain installer
     git # [programming] version control
@@ -468,7 +472,6 @@ PACKAGES=(
     help2man # [programming] generate man pages
     herdr-bin # [programming] AI agent terminal manager
     hermes-agent # [programming] AI agent
-    hexyl # [programming] hex viewer CLI
     hotspot # [programming] Linux perf GUI
     hyperfine # [programming] command benchmarking tool
     jetbrains-toolbox # [programming] JetBrains IDE manager
@@ -749,6 +752,7 @@ PACKAGES=(
     protonup-git # [gaming] Proton-GE installer
     r2modman-bin # [gaming] game mod manager
     rcon-cli # [gaming] game server RCON client
+    gnucobol # [programming] cobol compiler
     rogue # [gaming] roguelike dungeon game
     steam # [gaming] gaming platform client
     wine-staging # [gaming] Windows compatibility layer
@@ -756,22 +760,22 @@ PACKAGES=(
     cmatrix # [misc] matrix terminal animation
     cowsay # [misc] ascii cow sayings
     figlet # [misc] ascii text banners
-    focus-bin # [misc] focus/pomodoro timer
     hollywood # [misc] fake hacker terminal
     jrnl # [misc] command-line journal
-    khal # [misc] CLI calendar tool
     lolcat # [misc] rainbow text output
     minder # [misc] mind mapping tool
     osmium-tool # [misc] OpenStreetMap data tool
     qmk # [misc] keyboard firmware framework
     rgx # [programming] regex testing
     strace-tui # [programming] strace-tui
+    resvg
+    yazi
+    xplr # [programming] terminal file picker
     superseedr # [misc] terminal torrent
     usbtree # [base] usb tui
     zizmor # [security] workflow auditing
     sowon-git # [misc] pomodoro timer TUI
     taskwarrior-tui # [misc] taskwarrior terminal UI
-    pomo # [misc] terminal pomodoro
     posting # [programming] terminal http client
     pwdsafety # [security] pwd checking
     pwndbg # [security] reverse engineering
@@ -798,7 +802,6 @@ CARGO_PKGS=(
     kani-verifier # [programming] rust formal verifier
     lean-tui # [programming] Lean theorem prover TUI
     leptosfmt # [programming] leptos code formatter
-    Raijin # [programming] rust weather TUI
     rustfilt # [programming] rust symbol demangler
     tauri-cli # [programming] tauri app CLI
     cargo-afl # [security] AFL fuzzing rust
@@ -820,21 +823,10 @@ NIX_PKGS=(
 
 ## PACKAGE GROUPS
 
-# Ask once which of the 8 package groups to enable (default: all of them —
-# see scripts/groups-select.sh) unless a previous run already chose. To
-# change the selection later, rerun scripts/groups-select.sh directly, then
-# scripts/groups-apply.sh install|remove <group> to act on the change —
-# this install.sh pass only ever asks/filters once, up front.
 GROUPS_STATE="$HOME/.config/arch-dotfiles/groups.conf"
 [[ -f "$GROUPS_STATE" ]] || "$(pwd)/scripts/groups-select.sh"
 ENABLED_GROUPS=$(cat "$GROUPS_STATE")
 
-# Every entry in PACKAGES/FLATPAK_PKGS/CARGO_PKGS/CARGO_PKGS_GIT/GO_PKGS is
-# commented `# [group] description` — comments never survive into a bash
-# array at runtime, so this re-parses this file's own source per array name
-# (plain substring match on "[groupname]", not a regex: an unescaped `[` in
-# a dynamic awk regex opens a bracket expression instead of matching a
-# literal bracket, verified the hard way before landing this).
 filter_by_group() {
     awk -v arr="$1" -v groups="$ENABLED_GROUPS" '
         BEGIN { n = split(groups, g, "\n") }
