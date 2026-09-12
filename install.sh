@@ -105,7 +105,6 @@ PACKAGES=(
     lib32-libva # [base] 32-bit VAAPI lib
     lib32-libxcomposite # [base] 32-bit X composite
     lib32-libxinerama # [base] 32-bit Xinerama lib
-    lib32-libxslt # [base] 32-bit XSLT lib
     lib32-mesa # [base] 32-bit Mesa drivers
     lib32-mpg123 # [base] 32-bit MP3 decoder
     lib32-ncurses # [base] 32-bit ncurses lib
@@ -823,7 +822,7 @@ NIX_PKGS=(
 
 ## PACKAGE GROUPS
 
-GROUPS_STATE="$HOME/.config/arch-dotfiles/groups.conf"
+GROUPS_STATE="$HOME/projects/arch-dotfiles/groups.conf"
 [[ -f "$GROUPS_STATE" ]] || "$(pwd)/scripts/groups-select.sh"
 ENABLED_GROUPS=$(cat "$GROUPS_STATE")
 
