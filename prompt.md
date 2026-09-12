@@ -54,7 +54,8 @@ Address the following issues, keep track of your work through a TODO.md:
 - ./scripts/alert.sh media-key, notification-send, watch-monitors, reminder, should be in quickshell
 - all of the colorscheme stuff should be in config/wallust
 - toggle shader should be in toggles
-- we dont need all of that revert_package_side. JUST SELECT THE GROUPS and install them. nothing more. no uninstalling, no adding on later.
+- we dont need all of that revert_package_side. JUST SELECT THE GROUPS and install them. nothing more. no uninstalling, no adding on later. group-select should just be part of install.sh
+- there are two task-dashboards (one in scrips, one in skills)
 
 ---
 
