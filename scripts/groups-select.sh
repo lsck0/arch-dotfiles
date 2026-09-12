@@ -11,7 +11,7 @@
 set -euo pipefail
 
 PKG_GROUPS=(base desktop programming security creating socials gaming misc)
-STATE_DIR="$HOME/.config/arch-dotfiles"
+STATE_DIR="$HOME/projects/arch-dotfiles"
 STATE_FILE="$STATE_DIR/groups.conf"
 mkdir -p "$STATE_DIR"
 
