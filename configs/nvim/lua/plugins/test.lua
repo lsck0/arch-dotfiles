@@ -1,16 +1,14 @@
 return {
     {
-        "nvim-neotest/neotest", -- test runner framework
+        "nvim-neotest/neotest",                -- test runner framework
         dependencies = {
-            "nvim-neotest/nvim-nio", -- async IO library
-            "nvim-lua/plenary.nvim", -- Lua utility library
+            "nvim-neotest/nvim-nio",           -- async IO library
+            "nvim-lua/plenary.nvim",           -- Lua utility library
             "antoinemadec/FixCursorHold.nvim", -- CursorHold event fix
             "nvim-treesitter/nvim-treesitter", -- syntax parsing engine
-            "nvim-neotest/neotest-python", -- Python test adapter
-            "rouge8/neotest-rust", -- Rust test adapter
+            "nvim-neotest/neotest-python",     -- Python test adapter
+            "rouge8/neotest-rust",             -- Rust test adapter
         },
-        -- keymaps below are all set inside config(), so this list is what
-        -- actually defers loading until one of them is first pressed
         keys = {
             "<leader>nr", "<leader>nf", "<leader>na", "<leader>nl", "<leader>nd",
             "<leader>ns", "<leader>no", "<leader>nw", "<leader>nx",

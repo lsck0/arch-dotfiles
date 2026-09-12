@@ -1,5 +1,5 @@
 [Unit]
-Description=ghostmirror timer, auto select archlinux mirror
+Description=Weekly ghostmirror sorting
 
 [Timer]
 OnCalendar=weekly

@@ -278,7 +278,3 @@ _launch=Meta+A
 
 [services][nemo.desktop]
 _launch=Meta+E
-
-[services][org.kde.spectacle.desktop]
-CurrentMonitorScreenShot=none
-OpenWithoutScreenshot=none

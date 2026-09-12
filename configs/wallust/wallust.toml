@@ -1,69 +1,7 @@
-# wallust — replaces pywal as the colour-extraction backend (2026-09-03).
-#
-# Everything in this repo that consumes colours — quickshell, hyprland,
-# kitty, ghostty, zsh, hyprlock, discord, spotify, oomox/GTK, KDE, zed,
-# vscodium, herdr, and firefox via pywalfox — reads files out of
-# ~/.cache/wal/. None of them know or care which binary wrote those files,
-# so regenerating the same paths in the same formats means **nothing
-# downstream needed changing**. That is what made this migration cheap.
-#
-# `templates/wal/` holds pywal16's OWN template files, rendered with
-# `pywal = true` (wallust's pywal-syntax compatibility mode). Copied verbatim
-# from /usr/lib/python3.14/site-packages/pywal/templates/ — only the 8 files
-# this repo actually reads, not all 56. One local edit: pywal's
-# `colors.json` template referenced `{checksum}`, a variable wallust does not
-# provide, which made that ONE file fail to render while every other
-# template succeeded. Nothing here reads `checksum`, so the line was dropped.
-# See the templates/ README for why that failure mattered so much.
-
-# ~ Backend ~
-# A CORRECTION to research/pywal-wallust-migration.md's "Track A": it assumed
-# the swap could be made byte-identical by using backend = "wal"
-# (ImageMagick, pywal's own extraction) together with pywal's own templates.
-# **That does not hold.** Verified by diffing against the same wallpaper:
-# wallust's `wal` backend produced bg #000000 / fg #CAD8C5 where pywal16
-# produced #0b1019 / #c2c3c5. pywal16 is a 16-colour fork that post-processes
-# its palette, so matching its *output* would mean reimplementing those
-# adjustments, not just borrowing its extraction step.
-#
-# Byte-identical being off the table, there was no reason to keep the slow
-# ImageMagick backend for a comparison that cannot succeed. These are
-# wallust's own recommended defaults.
-#
-# Palette VALUES shift system-wide with this migration. That is expected and
-# unavoidable — it is a different extraction engine. What carried over intact
-# is the thing that actually matters: the file SCHEMA.
 backend = "fastresize"
-
-# ~ Palette ~
-# `salience` picks perceptually prominent colours — wallust's default, and
-# most of the reason to prefer it over pywal. `ansi` was considered for the
-# classic TTY role layout, but nothing here structurally depends on it: the
-# hyprlock and discord sed blocks read colors-rgb by line POSITION, so they
-# get a colour either way.
+check_contrast = true
 palette = "salience"
-
 style = "dark"
 
-# Added 2026-09-04: reported as "way worse than pywal", and it was — not a
-# taste thing, salience's default output left color1-6 dark and nearly
-# indistinguishable from each other and from the background (compared
-# side-by-side against pywal, verified visually, not assumed). This is
-# wallust's own documented knob for exactly that ("Ensures a readable
-# contrast"), not a workaround. Confirmed on this machine's actual
-# wallpaper: lifts the muddy dark swatches into clearly distinct mid-tones
-# while keeping the same earthy hue character, rather than pushing
-# saturation into something louder (intensity = "vibrant" was tried too —
-# punchier, but skews single-hue on nature photos; rejected in favor of
-# this smaller, safer fix).
-check_contrast = true
-
 [templates]
-# One directory entry rather than eight file entries: wallust renders every
-# file inside it into ~/.cache/wal/ under the same name.
-#
-# NOTE the path is relative to <config-dir>/templates/, NOT to <config-dir>
-# as the shipped sample config's wording suggests. Writing 'templates/wal/'
-# here resolves to ~/.config/wallust/templates/templates/wal/ and renders
-# nothing at all — with only a warning, not an error.
 wal = { template = 'wal/', target = '~/.cache/wal/', pywal = true }

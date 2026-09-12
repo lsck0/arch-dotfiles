@@ -1,9 +1,6 @@
 return {
     {
         "stevearc/oil.nvim", -- edit dirs as buffers
-        -- mappings.lua's <leader>o binds :Oil, defined after lazy.setup() —
-        -- cmd (not keys) so lazy.nvim hooks the ex-command itself rather
-        -- than a keymap that mappings.lua would just overwrite
         cmd = { "Oil" },
         config = function()
             require("oil").setup()
@@ -13,12 +10,9 @@ return {
     {
         "nvim-neo-tree/neo-tree.nvim", -- sidebar file tree
         branch = "v3.x",
-        -- explicit, not relying on init.lua's global defaults.lazy = false:
-        -- <leader>e's :Neotree toggle needs the sidebar to feel instant on
-        -- first press, not pay a load delay
         lazy = false,
         dependencies = {
-            "MunifTanjim/nui.nvim", -- UI component library
+            "MunifTanjim/nui.nvim",          -- UI component library
             {
                 "s1n7ax/nvim-window-picker", -- window selection picker
                 version = "2.*",

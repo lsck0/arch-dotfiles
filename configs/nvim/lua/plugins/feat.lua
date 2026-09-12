@@ -30,7 +30,7 @@ return {
     },
 
     {
-        "jiaoshijie/undotree", -- undo history tree
+        "jiaoshijie/undotree",                  -- undo history tree
         dependencies = "nvim-lua/plenary.nvim", -- Lua utility library
         config = true,
         keys = {
@@ -55,7 +55,7 @@ return {
     },
 
     {
-        'Julian/lean.nvim', -- Lean theorem prover
+        'Julian/lean.nvim',              -- Lean theorem prover
         dependencies = {
             { 'neovim/nvim-lspconfig' }, -- LSP server configs
             { 'nvim-lua/plenary.nvim' }, -- Lua utility library
@@ -66,33 +66,6 @@ return {
             }
         end,
         config = function() end,
-    },
-
-    {
-        "epwalsh/pomo.nvim", -- pomodoro timer
-        version = "*",
-        cmd = { "TimerStart", "TimerStop", "TimerRepeat", "TimerHide", "TimerShow", "TimerPause", "TimerResume", "TimerSession" },
-        opts = {
-            update_interval = 1000,
-            notifiers = {
-                {
-                    name = "Default",
-                    opts = {
-                        sticky = false,
-                    },
-                },
-            },
-            sessions = {
-                pomodoro = {
-                    { name = "Work",        duration = "25m" },
-                    { name = "Short Break", duration = "5m" },
-                    { name = "Work",        duration = "25m" },
-                    { name = "Short Break", duration = "5m" },
-                    { name = "Work",        duration = "25m" },
-                    { name = "Long Break",  duration = "15m" },
-                },
-            },
-        },
     },
 
     { "sotte/presenting.nvim" }, -- in-editor presentations

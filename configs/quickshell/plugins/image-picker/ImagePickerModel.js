@@ -3,8 +3,21 @@ function nameForPath(path) {
   return String(path || "").split("/").pop().replace(/\.[^/.]+$/, "")
 }
 
+function titleCase(name) {
+  return name.replace(/[-_]+/g, " ").replace(/\b\w/g, function(match) { return match.toUpperCase() })
+}
+
 function labelForPath(path) {
-  return nameForPath(path).replace(/[-_]+/g, " ").replace(/\b\w/g, function(match) { return match.toUpperCase() })
+  return titleCase(nameForPath(path))
+}
+
+// Themes mode rows carry a 3rd tsv column: the theme JSON's own basename
+// (see theme-list.sh), so a theme picked by its wallpaper's filename never
+// shows the wallpaper's name -- it shows the theme's own name. Falls back
+// to labelForPath for wallpapers-mode rows, which have no 3rd column.
+function labelForImage(image) {
+  if (image && image.displayName) return titleCase(image.displayName)
+  return labelForPath(image ? image.filePath : "")
 }
 
 function loadRows(rows) {
@@ -27,7 +40,8 @@ function loadRows(rows) {
     images.push({
       filePath: path,
       fileName: fileName,
-      thumbnailPath: columns[1] || path
+      thumbnailPath: columns[1] || path,
+      displayName: columns[2] || ""
     })
   }
 
@@ -87,6 +101,7 @@ if (typeof module !== "undefined") {
   module.exports = {
     nameForPath: nameForPath,
     labelForPath: labelForPath,
+    labelForImage: labelForImage,
     loadRows: loadRows,
     itemMatches: itemMatches,
     firstMatchingIndex: firstMatchingIndex,

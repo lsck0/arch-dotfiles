@@ -1,0 +1,11 @@
+[Unit]
+Description=On-demand vllm starter
+Requires=vllm.socket
+After=vllm.socket
+
+[Service]
+Type=simple
+Sockets=vllm.socket
+ExecStartPre=/home/luca/projects/arch-dotfiles/configs/vllm/vllm-wait-ready.sh
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=15min 127.0.0.1:8001
+ExecStopPost=/usr/bin/systemctl stop vllm.service

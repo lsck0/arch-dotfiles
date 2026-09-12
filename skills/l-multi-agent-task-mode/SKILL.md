@@ -1,34 +1,28 @@
 ---
 name: l-multi-agent-task-mode
-description: "Turn this running instance into an orchestrator that self-polls a per-project taskwarrior/timewarrior db (scaffolding one via l-agent-task-db if missing) and spawns Herdr persona workers to advance MULTIPLE +agent-task tickets in parallel through a fixed pipeline. Same db/tracking mechanism as l-single-agent-task-mode — the only difference is claiming/working several tickets at once here vs. one there. Blocks on human input via tasks/context/questions/ + tags, not live chat. For a single live idea with no task db, use l-multi-agent-mode instead; for polling one ticket at a time WITHOUT spawning workers, use l-single-agent-task-mode."
+description: "Self-poll a per-project taskwarrior db and spawn Herdr persona workers to advance multiple +agent-task tickets in parallel through a research->design->implement->review->test pipeline. One ticket at a time, no spawning -> l-single-agent-task-mode; live idea, no db -> l-multi-agent-mode."
 ---
 
 # Multi-agent task mode (self-polling orchestrator + Herdr workers)
 
-Both task-mode skills use the SAME `l-agent-task-db` mechanism — a
-per-project taskwarrior/timewarrior db — for task tracking and planning.
-The only difference between them is concurrency: `l-single-agent-task-mode`
-polls and works exactly one ticket at a time, sequentially, itself; this
-skill polls the same db but can claim and work MULTIPLE tickets at once,
-spawning a Herdr persona worker per ticket (or per pipeline stage within
-one ticket), up to the shared 3-way parallelism budget. Hermes acts as an
-orchestrator that manages itself via that db instead of live human
+Hermes acts as an orchestrator that manages itself via a per-project
+`l-agent-task-db` (taskwarrior/timewarrior) instead of live human
 direction: it polls `+agent-task` tickets, claims and advances them by
-spawning Herdr persona workers through a fixed pipeline, and blocks on a
-human only via `tasks/context/questions/` + tags — never via
-`mcp__clarify` (the human isn't necessarily watching a poll pass).
+spawning Herdr persona workers through a fixed pipeline (a worker per
+ticket, or per pipeline stage within one ticket, up to the shared 3-way
+parallelism budget), and blocks on a human only via
+`tasks/context/questions/` + tags — never via `mcp__clarify` (the human
+isn't necessarily watching a poll pass).
 
 This skill covers the SPAWNING/DRIVING half. For db layout, scaffolding,
 tag vocabulary, and the `tasks/context/` question-file convention, load
-`l-agent-task-db` — it is a hard prerequisite, load it first every time.
-Load `l-personas` for persona discovery and `l-spec-driven-development`
-for the stage shape and model-sizing rule (small/cheap for research,
-strong for design/spec/implementation/review) — same two skills
-`l-multi-agent-mode` loads, so live and queue orchestration share one
-persona vocabulary and one stage shape instead of drifting apart. For a
-single live idea worked directly in chat with no task db at all, use
-`l-multi-agent-mode` instead. For task-db polling that works tasks
-itself WITHOUT spawning workers, use `l-single-agent-task-mode`.
+`l-agent-task-db` first — hard prerequisite, every time. Load `l-personas`
+for persona discovery and `l-spec-driven-development` for the stage shape
+and model-sizing rule (small/cheap for research, strong for
+design/spec/implementation/review) — the same two skills `l-multi-agent-mode`
+loads, so live and queue orchestration share one persona vocabulary and
+one stage shape. See the description for sibling routing (single-ticket vs.
+live-no-db).
 
 Worker harness policy (hard requirement): every worker is a **Hermes
 harness** (`--kind hermes`). Never spawn `--kind claude`, `codex`,
@@ -201,15 +195,23 @@ worker persona covers its entire scope in one shot.
 
 ## The one human gate, queue-mode version
 
-`l-spec-driven-development`'s one real human gate (step 5, spec review)
-becomes `+human-review-ready` here: once a ticket's `SPEC.md` is written,
-tag it `+human-review-ready` and stop advancing that ticket's stage until
-the human clears it (see "Blocking on a human question" below — same
+`l-spec-driven-development`'s one real human gate (step 5) becomes
+`+human-review-ready` here: once a ticket's last planning artifact before
+the build is written — `SPEC.md`, or `DESIGN.md` when the ticket has no
+spec (a bug fix or anything small enough to skip one) — tag it
+`+human-review-ready` and stop advancing that ticket's stage until the
+human clears it (see "Blocking on a human question" below — same
 mechanics, different tag). Judgment-call decisions that come up mid-stage
-(not the spec-review gate itself) still go through
+(not the plan-review gate itself) still go through
 `tasks/context/questions/` + `+human-clarification-needed` — same content
 bar as a design-review gate would use (only calls that materially change
 the product, never trivia, each with a recommendation).
+
+This is the second of three human touchpoints, mirroring
+`l-spec-driven-development`'s "Human touchpoints": (1) input — the human
+files the `+prompt` / GitHub issue; (2) this plan-approval gate; (3) PR
+review — the implementer opens the PR at LAND (see "Fix loop") and the
+run stops there, the human reviews and merges.
 
 ## Queue-poll procedure
 
@@ -247,9 +249,10 @@ the product, never trivia, each with a recommendation).
      modify` call, `task <id> start`, resume. If not yet answered: skip
      it, note it in the end-of-poll summary, move to the next claimable
      task.
-   - **Blocked on spec review** — `+human-review-ready` present. Check
-     whether the human has added `+human-answered`. If yes: re-read
-     `SPEC.md` (the human may have edited it directly), clear both
+   - **Blocked on plan review** — `+human-review-ready` present. Check
+     whether the human has added `+human-answered`. If yes: re-read the
+     ticket's plan artifact — `SPEC.md`, or `DESIGN.md` when it has no spec
+     (the human may have edited it directly) — clear both
      `+human-review-ready` and `+human-answered` in one `task modify`
      call, `task <id> start`, advance to the roadmap/implementation
      stage. If not yet answered: skip it, note it in the end-of-poll
@@ -292,11 +295,12 @@ project isn't cron-driven yet and relies on the human re-invoking this
 skill live instead, say so plainly — don't imply the wake-up is automatic
 when it isn't.
 
-The spec-review gate (`+human-review-ready`) follows the identical
+The plan-review gate (`+human-review-ready`) follows the identical
 mechanic — `task <id> modify +human-review-ready`, `task <id> stop`, the
-human reviews/edits `SPEC.md` and sets `+human-answered` themselves, the
-next poll resumes it — just no question file, since the artifact under
-review is `SPEC.md` itself, not a `## Q<n>` list.
+human reviews/edits the plan artifact (`SPEC.md`, or `DESIGN.md` when the
+ticket has no spec) and sets `+human-answered` themselves, the next poll
+resumes it — just no question file, since the artifact under review is
+that plan doc itself, not a `## Q<n>` list.
 
 ## Spawning a worker pane (mechanics, verified working)
 
@@ -374,14 +378,29 @@ before moving to synthesis.
 
 ## Fix loop
 
+Before the first IMPLEMENT, sync + branch (`l-spec-driven-development`
+step 0): fetch, base branch up to date with a clean tree, then work
+trunk-based on the base or on a short-lived feature branch off it per the
+repo's convention. In a bare-repo/worktree setup each concurrently
+implemented ticket gets its own worktree (the worktree section above); cap
+concurrent implementations at 2.
+
 ```
 IMPLEMENT -> REVIEW -> TEST
   TEST fail -> prompt implementer with tests/report.md contents -> IMPLEMENT again -> TEST
-  TEST pass -> COMPLETE
+  TEST pass -> LAND -> COMPLETE
 ```
 No human gate inside this loop — the one human gate
-(`+human-review-ready`) already happened earlier, at spec approval,
-before the roadmap/implementation stage began. On `+stage-complete`, set
+(`+human-review-ready`) already happened earlier, at plan approval,
+before the roadmap/implementation stage began. LAND per the repo's own
+commit convention (`l-spec-driven-development` step 8): a normal project
+repo -> commit trunk-based, or rebase the feature branch onto the base,
+push, open the PR, switch back to the base with a clean tree. The PR is
+the third human touchpoint and the stop point — open it and stop; the
+human reviews and merges. Don't merge or self-approve. A repo whose
+convention forbids auto-committing (e.g. `l-dotfiles`) -> stop at a clean,
+reviewed working tree and leave the commit to the human — same deference
+as the "Don't auto-commit" rule above. On `+stage-complete`, set
 that tag on the task — don't run `task <id> done` automatically;
 completing the taskwarrior task itself is the human's call, since "the
 pipeline finished a pass" and "I'm satisfied with the result" aren't

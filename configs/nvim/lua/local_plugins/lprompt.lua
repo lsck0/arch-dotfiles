@@ -1,11 +1,8 @@
--- :LPromptBuffer / :LPromptSelection — send buffer/selection text into the
--- nearest project's taskwarrior db as a +prompt task (see l-agent-task-db /
--- l-multi-agent-task-mode in arch-dotfiles: a +prompt task is a raw human
--- ask waiting to be decomposed by an orchestrator's task-planner).
+-- :LPromptBuffer / :LPromptSelection
+-- Send buffer/selection text into the nearest project's taskwarrior db as a +prompt task.
+-- (see l-agent-task-db / l-multi-agent-task-mode)
 local M = {}
 
--- Walk up from `start_dir` looking for tasks/.taskrc (l-agent-task-db's
--- per-project-root db layout). Returns an absolute path or nil.
 local function find_taskrc(start_dir)
     local dir = start_dir
     while dir and dir ~= "" do
@@ -22,9 +19,6 @@ local function find_taskrc(start_dir)
     return nil
 end
 
--- Add `text` as a +prompt task in whichever project db is found above the
--- current buffer (or cwd, for an unnamed buffer). No shell involved (task
--- run as an argv list), so no escaping to worry about.
 local function add_prompt(text)
     text = vim.trim(text)
     if text == "" then
@@ -40,7 +34,7 @@ local function add_prompt(text)
     if not taskrc then
         vim.notify(
             "LPrompt: no tasks/.taskrc found above " .. start_dir
-                .. " -- scaffold one first (l-agent-task-db's taskwarrior-init)",
+            .. " -- scaffold one first (l-agent-task-db's taskwarrior-init)",
             vim.log.levels.ERROR
         )
         return

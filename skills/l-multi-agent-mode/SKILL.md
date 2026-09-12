@@ -64,7 +64,11 @@ last machine's setup still applies.
 
 ## Workflow
 
-1. Spawn one task-planner worker (`-s l-persona-orchestrator-task-planner`),
+1. Sync + branch first (`l-spec-driven-development` step 0): fetch, get the
+   base branch (`master`, or `dev` on a `prod`/`dev` repo) up to date with a
+   clean tree, then start clean per the repo's convention (trunk-based work
+   on base, or a short-lived feature branch off it). Then spawn one
+   task-planner worker (`-s l-persona-orchestrator-task-planner`),
    prompt it with the human's raw ask, `--wait`. It creates
    `specs/spec-<number>-<feature-name>/` and writes `PLAN.md` inside it:
    which personas run, how many, what model/provider each gets, dependency
@@ -74,14 +78,21 @@ last machine's setup still applies.
    it — spawn each worker the plan calls for, in the order/parallelism it
    specifies. Every worker's task prompt names `$SPEC_DIR` as where its
    output file goes.
-3. Drive the `l-spec-driven-development` stages through to a written spec.
-   Gate with `mcp__clarify` at that skill's one human checkpoint (step 5,
-   human review of the spec) — nowhere else. Everything before it
-   (research, design, review, spec-writing) and everything after
-   (roadmap, implementation) runs autonomously.
+3. Drive the `l-spec-driven-development` stages through to the last
+   planning artifact before the build. Gate with `mcp__clarify` at that
+   skill's one human checkpoint (step 5) — the human approves `SPEC.md`,
+   or `DESIGN.md` when the task has no spec (a bug fix or anything small
+   enough to skip one). Gate nowhere else: everything before it (research,
+   design, review, spec-writing) and everything after (roadmap,
+   implementation) runs autonomously.
 4. Run implement -> review -> test with no further gate; relay a `FAIL`
    straight back to the programmer worker.
-5. Report COMPLETE to the human.
+5. Land it (`l-spec-driven-development` step 8): commit to the repo's
+   convention; on a feature branch, rebase onto the base, push, open the PR,
+   then switch back to the base branch with a clean tree. Never leave the
+   session parked on the feature branch. The PR is the stop point — open it
+   and stop; the human reviews and merges. Don't merge or self-approve.
+6. Report COMPLETE to the human, with the PR link.
 
 Parallel workers within one stage (e.g. market + technical research) each
 write their own `$SPEC_DIR/<stage>-<persona-slug>.md`; before advancing to

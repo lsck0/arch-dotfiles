@@ -15,9 +15,6 @@ for _, module in ipairs({
     package.loaded[module] = nil
 end
 
--- A broken optional module should not prevent Hyprland from loading the rest
--- of the configuration. Keep the order explicit: modules may register binds,
--- rules, and monitor declarations as they load.
 local function optional(module)
     local ok, err = pcall(require, module)
     if not ok then

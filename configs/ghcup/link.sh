@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if ! command -v ghcup >/dev/null 2>&1; then
+    exit 0
+fi
+
 set -ex
 
 /usr/bin/ghcup install ghc

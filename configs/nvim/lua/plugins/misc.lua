@@ -98,6 +98,15 @@ return {
     },
 
     {
+        "sotte/presenting.nvim", -- turn a markdown/org/adoc file into in-editor slides
+        cmd = "Presenting", -- lazy: load only when the presentation starts
+        opts = {},
+        keys = {
+            { "<leader>pp", "<cmd>Presenting<cr>", desc = "Present (toggle slides)" },
+        },
+    },
+
+    {
         "nvzone/showkeys", -- on-screen keypress display
         -- always-on overlay, no command/keymap toggles it anywhere in this
         -- config — VeryLazy defers past the critical startup path while

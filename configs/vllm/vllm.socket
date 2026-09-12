@@ -1,0 +1,9 @@
+[Unit]
+Description=On-demand listening socket for vllm
+
+[Socket]
+ListenStream=127.0.0.1:8000
+Accept=no
+
+[Install]
+WantedBy=sockets.target

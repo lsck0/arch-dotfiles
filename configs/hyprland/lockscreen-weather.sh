@@ -1,23 +1,5 @@
 #!/usr/bin/env bash
-# One-line current-conditions string for the hyprlock screen
-# (configs/hyprland/hyprlock.conf), polled every few minutes via
-# cmd[update:...].
-#
-# Deliberately reads the ALREADY-SANITISED cache that
-# plugins/bar/widgets/weather-fetch.sh writes
-# (~/.cache/quickshell-weather.json), rather than calling Open-Meteo again
-# from here. Two reasons:
-#   1. No second network path to audit for the same "don't leak location"
-#      guarantee weather-fetch.sh already enforces (banned-field scan on
-#      every write) — this script only ever reads numbers, so it can't leak
-#      what it never receives.
-#   2. hyprlock's own poll cadence (this script, every few minutes) would
-#      otherwise re-hit the API on a completely separate schedule from the
-#      bar widget's 30-minute Process timer.
-#
-# If the cache doesn't exist yet (bar widget never ran) or is unreadable,
-# print nothing — the label just doesn't render, same "degrade over
-# disappearing only when there's truly nothing" rule as the bar widget.
+
 set -euo pipefail
 
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-weather.json"
@@ -38,17 +20,6 @@ c = d.get("current") or {}
 units = (d.get("units") or {}).get("temp", "°C")
 
 
-# Same verified WMO code -> glyph map as
-# plugins/bar/widgets/Weather.qml's iconFor() — kept in sync deliberately,
-# not re-derived, since that map already burned a cycle catching a wrong
-# guessed codepoint (see Weather.qml's own header comment).
-#
-# All codepoints here are >U+FFFF (Supplementary Private Use Area-A,
-# 0xF0000-0xFFFFD) — Python's \u escape takes EXACTLY 4 hex digits, so
-# "\uf0599" silently parsed as \uf059 + literal "9" rather than erroring.
-# Caught by screenshot verification: it rendered as an unrelated glyph
-# (bell) plus a stray digit, not a missing-glyph tofu box, so it looked
-# plausible at a glance. \U + 8 hex digits is required for this range.
 def icon_for(code, is_day):
     c = code
     day = 1 if is_day is None else is_day
@@ -92,5 +63,5 @@ if temp is None:
     sys.exit(0)
 
 stale = " (stale)" if d.get("stale") else ""
-print(f"{glyph}  {temp:.0f}{units}  ·  {humidity:.0f}% hum{stale}")
+print(f"{glyph}  {temp:.0f}{units}  {humidity:.0f}% hum{stale}")
 PY
