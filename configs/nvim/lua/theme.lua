@@ -3,10 +3,10 @@ local M = {}
 
 local MARKER = vim.env.HOME .. "/.cache/wal/nvim_theme"
 
-M.current = "pywal"
+M.current = "ayu-dark"
 
 function M.apply(name)
-    name = name and name ~= "" and name or "pywal"
+    name = name and name ~= "" and name or "ayu-dark"
     local ok, err = pcall(function() require("themes." .. name).apply() end)
     if ok then
         M.current = name
@@ -18,7 +18,7 @@ function M.apply(name)
             vim.log.levels.WARN
         )
     end)
-    M.current = "pywal"
+    M.current = "ayu-dark"
     pcall(function() require("themes.pywal").apply() end)
 end
 
