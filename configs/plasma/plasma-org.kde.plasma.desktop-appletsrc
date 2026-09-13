@@ -217,5 +217,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;5;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=
-screenMapping=desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/documents,desktop:/image.png,desktop:/videos,desktop:/music,desktop:/projects,desktop:/downloads,desktop:/dinorawrhehe,desktop:/pictures
+screenMapping=
