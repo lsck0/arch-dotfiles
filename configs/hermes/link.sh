@@ -12,7 +12,6 @@ fi
 HERMES_HOME="${HOME}/.hermes/profiles/orchestrator" hermes config set compression.threshold_tokens 500000
 hermes profile alias orchestrator --name hermes-orchestrator
 
-
 # Sync skills into the orchestrator profile too
 mkdir -p "${HOME}/.hermes/profiles/orchestrator/skills"
 for dir in "$(dirname "$0")"/../../skills/l-*/; do
@@ -60,6 +59,7 @@ if command -v ollama >/dev/null 2>&1; then
 fi
 
 # Wallust-generated skin
+hermes config set display.interface tui
 "$(dirname "$(readlink -f "$0")")/../../scripts/generate-hermes-skin.py" || true
 hermes skin use wallust || true
 
