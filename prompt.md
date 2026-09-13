@@ -1,40 +1,3 @@
-Remove the following packages from install.sh along with all configurations done to it:
-
-opencode
-gnome (KEEP ONLY GNOME BOXES), this might need to fix the keyring or portal?
-4ed
-doomemacs
-cointop
-ncdu
-nushell
-thefuck
-flameshot
-dust
-pi-coding-agent-bin
-rainfrog
-kvirc
-neochat
-de.z_ray.Facetracker
-wlogout
-logradar
-
-Once done reorder/sort the remaining packages into those groups, also check that the description is correct (max 4 words).
-
-- base: bare arch system + security things + basic tooling like btop, zsh, ffmpeg, tmux, zip, rar, drivers, curl, kernels, mirrors, coreutils ... basically arch+
-- fonts: fonts, font managers, font tools, nerd fonts, etc all except for the base fonts
-- desktop: hyprland + plasma and a basic minimal desktop: browser, nemo, mpv, proton suite, onlyoffice, okular, printer, fonts, sound, gimp, plymuth, ly, torrent, tor ... basically a "normy" viable setup
-- socials: zapzap, discord, spotify, telegram, obs, ...
-- gaming: steam, vr, r2modman, heroic, lutris, protonup, modrith, ...
-- creating: more advanced creativity tools: blender, krita, inkscape, video editors, cad, music stuff
-- latex: as the name says, everything latex and bibtex etc.
-- programming: editors, agents, language toolchains, debuggers, linters, zizmor, act, trufflehog, fuzzing, debugging tooling like dns checking, network scanning, most tui apps, docker, k8s, profiling / benchmarking tools...
-- qemu: as the name says, everything needed for virtualization
-- llm: everything needed to locally run llms, ollama, vllm, rocm stack, alpaca
-- pentesting: ACTIVE scanning tools, metasploit, aircrack, pw braeaking tools, webapp scanners, anything that is NOT! normal programming tooling, reverse engineering, MITM, etc
-- misc: anything that really doesnt fit anywhere else, this should be kept minimal
-
----
-
 Address the following issues, keep track of your work through a TODO.md:
 
 - mermaid live showcase in md are too big and also only show in insert mode?
@@ -65,6 +28,19 @@ Address the following issues, keep track of your work through a TODO.md:
 - can we bind language servers to specific filetypes in nvim? like why is tailwind css running in a markdown file
 - portmaster and quickshell use a lot of memory, can we reduce that?
 - try to maximally port over hyprland keybdindings for window/workspace management to plasma
+- can obs save the screencapture things? everytime i open it, it asks me for ALL sources and i have to fix them
+- sanity check the package sorting and descriptions in install.sh, dont change it just tell me your findings:
+  - base: bare arch system + security things + basic tooling like btop, zsh, ffmpeg, tmux, zip, rar, drivers, curl, kernels, mirrors, coreutils ... basically arch+
+  - fonts: fonts, font tools, nerd fonts, etc all except for the base fonts
+  - desktop: hyprland + plasma and a basic minimal desktop: browser, nemo, mpv, proton suite, onlyoffice, okular, printer, fonts, sound, gimp, plymuth, ly, torrent, tor ... basically a "normy" viable setup
+  - socials: zapzap, discord, spotify, telegram, obs, ...
+  - gaming: steam, vr, r2modman, heroic, lutris, protonup, modrith, ...
+  - creating: more advanced creativity tools: blender, krita, inkscape, video editors, cad, music stuff
+  - latex: as the name says, everything latex and bibtex etc.
+  - programming: editors, agents, language toolchains, debuggers, linters, zizmor, act, trufflehog, fuzzing, debugging tooling like dns checking, network scanning, most tui apps, docker, k8s, profiling / benchmarking tools...
+  - qemu: as the name says, everything needed for virtualization, distrobox, etc
+  - llm: everything needed to locally run llms, ollama, vllm, rocm stack, alpaca
+  - pentesting: ACTIVE scanning tools, metasploit, aircrack, pw braeaking tools, webapp scanners, anything that is NOT! normal programming tooling, reverse engineering, MITM, etc
 
 ---
 
@@ -102,6 +78,7 @@ Remember, this is the expected scope from quickshell:
 - app launcher like walker+elephant
 - clipboard manager / history
 - logout/exit screen
+- indicators at the bottom for volume/brightness/kbd backlight increased/decreased etc
 
 ---
 
