@@ -210,6 +210,7 @@ PACKAGES=(
     xf86-video-ati # [base] legacy AMD driver
     xf86-video-nouveau # [base] open Nvidia driver
     yay # [base] AUR helper
+    yazi # [base] terminal file manager
     yt-dlp # [base] video downloader
     zip # [base] zip archiving tool
     zoxide # [base] smarter cd command
@@ -219,139 +220,139 @@ PACKAGES=(
     noto-fonts # [fonts] Google Noto fonts
     noto-fonts-emoji # [fonts] Noto emoji fonts
     noto-fonts-extra # [fonts] Noto extra fonts
-    otf-atkinsonhyperlegiblemono-nerd
-    otf-aurulent-nerd
-    otf-codenewroman-nerd
-    otf-comicshanns-nerd
-    otf-commit-mono-nerd
-    otf-droid-nerd
-    otf-firamono-nerd
-    otf-geist-mono-nerd
-    otf-hasklig-nerd
-    otf-hermit-nerd
-    otf-monaspace-nerd
-    otf-opendyslexic-nerd
-    otf-overpass-nerd
+    otf-atkinsonhyperlegiblemono-nerd # [fonts] Atkinson Hyperlegible Mono Nerd Font
+    otf-aurulent-nerd # [fonts] Aurulent Sans Nerd Font
+    otf-codenewroman-nerd # [fonts] Code New Roman Nerd Font
+    otf-comicshanns-nerd # [fonts] Comic Shanns Nerd Font
+    otf-commit-mono-nerd # [fonts] Commit Mono Nerd Font
+    otf-droid-nerd # [fonts] Droid Sans Mono Nerd Font
+    otf-firamono-nerd # [fonts] Fira Mono Nerd Font
+    otf-geist-mono-nerd # [fonts] Geist Mono Nerd Font
+    otf-hasklig-nerd # [fonts] Hasklig Nerd Font
+    otf-hermit-nerd # [fonts] Hermit Nerd Font
+    otf-monaspace-nerd # [fonts] MonoSpace Nerd Font
+    otf-opendyslexic-nerd # [fonts] OpenDyslexic Nerd Font
+    otf-overpass-nerd # [fonts] Overpass Nerd Font
     powerline-fonts # [fonts] powerline symbol fonts
     terminus-font-ttf # [fonts] bitmap terminal font
-    ttf-0xproto-nerd
-    ttf-3270-nerd
-    ttf-adwaitamono-nerd
-    ttf-agave-nerd
-    ttf-annotationmono-nerd
+    ttf-0xproto-nerd # [fonts] 0xProto Nerd Font
+    ttf-3270-nerd # [fonts] 3270 Nerd Font
+    ttf-adwaitamono-nerd # [fonts] Adwaita Mono Nerd Font
+    ttf-agave-nerd # [fonts] Agave Nerd Font
+    ttf-annotationmono-nerd # [fonts] Annotation Mono Nerd Font
     ttf-anonymous-pro # [fonts] monospace font
-    ttf-anonymouspro-nerd
-    ttf-arimo-nerd
+    ttf-anonymouspro-nerd # [fonts] Anonymous Pro Nerd Font
+    ttf-arimo-nerd # [fonts] Arimo Nerd Font
     ttf-arphic-ukai # [fonts] Chinese kai font
     ttf-arphic-uming # [fonts] Chinese ming font
     ttf-atkinson-hyperlegible # [fonts] accessible reading font
     ttf-baekmuk # [fonts] Korean font family
-    ttf-bigblueterminal-nerd
-    ttf-bitstream-vera-mono-nerd
+    ttf-bigblueterminal-nerd # [fonts] Big Blue Terminal Nerd Font
+    ttf-bitstream-vera-mono-nerd # [fonts] Bitstream Vera Mono Nerd Font
     ttf-caladea # [fonts] Cambria-metric font
     ttf-cascadia-code # [fonts] monospace coding font
-    ttf-cascadia-code-nerd
-    ttf-cascadia-mono-nerd
+    ttf-cascadia-code-nerd # [fonts] Cascadia Code Nerd Font
+    ttf-cascadia-mono-nerd # [fonts] Cascadia Mono Nerd Font
     ttf-cormorant # [fonts] serif display font
-    ttf-cousine-nerd
+    ttf-cousine-nerd # [fonts] Cousine Nerd Font
     ttf-crimson # [fonts] serif text font
     ttf-crimson-pro # [fonts] serif text font
     ttf-crimson-pro-variable # [fonts] variable serif font
     ttf-croscore # [fonts] Chrome OS fonts
-    ttf-d2coding-nerd
-    ttf-daddytime-mono-nerd
-    ttf-dejavu-nerd
+    ttf-d2coding-nerd # [fonts] D2Coding Nerd Font
+    ttf-daddytime-mono-nerd # [fonts] DaddyTime Mono Nerd Font
+    ttf-dejavu-nerd # [fonts] DejaVu Nerd Font
     ttf-doulos-sil # [fonts] phonetic Unicode font
     ttf-droid # [fonts] Android system fonts
-    ttf-envycoder-nerd
+    ttf-envycoder-nerd # [fonts] EnvyCoder Nerd Font
     ttf-eurof # [fonts] Eurostile-style font
-    ttf-fantasque-nerd
+    ttf-fantasque-nerd # [fonts] Fantasque Sans Mono Nerd Font
     ttf-fantasque-sans-mono # [fonts] quirky monospace font
     ttf-fira-code # [fonts] ligature coding font
     ttf-fira-mono # [fonts] monospace font
     ttf-fira-sans # [fonts] humanist sans font
-    ttf-firacode-nerd
+    ttf-firacode-nerd # [fonts] Fira Code Nerd Font
     ttf-gentium # [fonts] serif Unicode font
     ttf-gentium-book # [fonts] serif book font
     ttf-gentium-plus # [fonts] extended serif font
-    ttf-go-nerd
-    ttf-gohu-nerd
-    ttf-googlesanscode-nerd
+    ttf-go-nerd # [fonts] Go Nerd Font
+    ttf-gohu-nerd # [fonts] Gohu Nerd Font
+    ttf-googlesanscode-nerd # [fonts] Google Sans Code Nerd Font
     ttf-hack # [fonts] monospace coding font
-    ttf-hack-nerd
+    ttf-hack-nerd # [fonts] Hack Nerd Font
     ttf-hanazono # [fonts] Japanese CJK font
     ttf-hannom # [fonts] Vietnamese Han-Nom font
-    ttf-heavydata-nerd
-    ttf-iawriter-nerd
+    ttf-heavydata-nerd # [fonts] Heavy Data Nerd Font
+    ttf-iawriter-nerd # [fonts] iA Writer Nerd Font
     ttf-ibm-plex # [fonts] IBM typeface family
-    ttf-ibmplex-mono-nerd
+    ttf-ibmplex-mono-nerd # [fonts] IBM Plex Mono Nerd Font
     ttf-inconsolata # [fonts] monospace coding font
-    ttf-inconsolata-go-nerd
-    ttf-inconsolata-lgc-nerd
-    ttf-inconsolata-nerd
+    ttf-inconsolata-go-nerd # [fonts] Inconsolata Go Nerd Font
+    ttf-inconsolata-lgc-nerd # [fonts] Inconsolata LGC Nerd Font
+    ttf-inconsolata-nerd # [fonts] Inconsolata Nerd Font
     ttf-indic-otf # [fonts] Indic script fonts
     ttf-input # [fonts] coding-focused font
     ttf-input-nerd # [fonts] Input font + icons
-    ttf-intone-nerd
-    ttf-iosevka-nerd
-    ttf-iosevkaterm-nerd
-    ttf-iosevkatermslab-nerd
+    ttf-intone-nerd # [fonts] Intone Nerd Font
+    ttf-iosevka-nerd # [fonts] Iosevka Nerd Font
+    ttf-iosevkaterm-nerd # [fonts] Iosevka Term Nerd Font
+    ttf-iosevkatermslab-nerd # [fonts] Iosevka Term SLAB Nerd Font
     ttf-jetbrains-mono # [fonts] monospace coding font
-    ttf-jetbrains-mono-nerd
+    ttf-jetbrains-mono-nerd # [fonts] JetBrains Mono Nerd Font
     ttf-jigmo # [fonts] rare CJK glyphs
     ttf-junicode # [fonts] medievalist Unicode font
     ttf-junicode-variable # [fonts] variable medievalist font
     ttf-khmer # [fonts] Khmer script font
     ttf-lato # [fonts] humanist sans font
-    ttf-lekton-nerd
-    ttf-liberation-mono-nerd
+    ttf-lekton-nerd # [fonts] Lekton Nerd Font
+    ttf-liberation-mono-nerd # [fonts] Liberation Mono Nerd Font
     ttf-libertinus # [fonts] classic serif family
-    ttf-lilex-nerd
+    ttf-lilex-nerd # [fonts] Lilex Nerd Font
     ttf-linux-libertine # [fonts] free serif font
     ttf-linux-libertine-g # [fonts] Libertine with graphite
-    ttf-martian-mono-nerd
+    ttf-martian-mono-nerd # [fonts] Martian Mono Nerd Font
     ttf-material-icons # [fonts] material design icons
     ttf-material-symbols-variable # [fonts] variable material icons
-    ttf-meslo-nerd
+    ttf-meslo-nerd # [fonts] Meslo Nerd Font
     ttf-mona-sans # [fonts] GitHub display font
     ttf-monaspace-frozen # [fonts] GitHub monospace font
     ttf-monaspace-variable # [fonts] variable monospace font
     ttf-monocraft-git # [fonts] Minecraft-style monospace
     ttf-monofur # [fonts] futuristic monospace font
-    ttf-monofur-nerd
+    ttf-monofur-nerd # [fonts] MonoFur Nerd Font
     ttf-monoid # [fonts] coding-focused monospace
-    ttf-monoid-nerd
-    ttf-mononoki-nerd
+    ttf-monoid-nerd # [fonts] Monoid Nerd Font
+    ttf-mononoki-nerd # [fonts] Mononoki Nerd Font
     ttf-montserrat # [fonts] geometric sans font
-    ttf-mplus-nerd
+    ttf-mplus-nerd # [fonts] Mplus Nerd Font
     ttf-ms-fonts # [fonts] Microsoft core fonts
-    ttf-nerd-fonts-symbols
-    ttf-nerd-fonts-symbols-mono
-    ttf-noto-nerd
+    ttf-nerd-fonts-symbols # [fonts] Nerd Fonts Symbols
+    ttf-nerd-fonts-symbols-mono # [fonts] Nerd Fonts Symbols Mono
+    ttf-noto-nerd # [fonts] Noto Nerd Font
     ttf-nunito # [fonts] rounded sans font
     ttf-opensans # [fonts] humanist sans font
     ttf-overpass # [fonts] highway-gothic sans font
-    ttf-profont-nerd
-    ttf-proggyclean-nerd
-    ttf-recursive-nerd
+    ttf-profont-nerd # [fonts] ProFont Nerd Font
+    ttf-proggyclean-nerd # [fonts] ProggyClean Nerd Font
+    ttf-recursive-nerd # [fonts] Recursive Nerd Font
     ttf-roboto # [fonts] Android system font
     ttf-roboto-mono # [fonts] monospace variant font
-    ttf-roboto-mono-nerd
+    ttf-roboto-mono-nerd # [fonts] Roboto Mono Nerd Font
     ttf-sarasa-gothic # [fonts] CJK+Latin coding font
     ttf-sazanami # [fonts] Japanese Gothic font
     ttf-scheherazade-new # [fonts] Arabic script font
-    ttf-sharetech-mono-nerd
-    ttf-sourcecodepro-nerd
-    ttf-space-mono-nerd
-    ttf-terminus-nerd
+    ttf-sharetech-mono-nerd # [fonts] ShareTech Mono Nerd Font
+    ttf-sourcecodepro-nerd # [fonts] Source Code Pro Nerd Font
+    ttf-space-mono-nerd # [fonts] Space Mono Nerd Font
+    ttf-terminus-nerd # [fonts] Terminus Nerd Font
     ttf-tibetan-machine # [fonts] Tibetan script font
-    ttf-tinos-nerd
+    ttf-tinos-nerd # [fonts] Tinos Nerd Font
     ttf-ubuntu-font-family # [fonts] Ubuntu system fonts
-    ttf-ubuntu-mono-nerd
-    ttf-ubuntu-nerd
-    ttf-victor-mono-nerd
+    ttf-ubuntu-mono-nerd # [fonts] Ubuntu Mono Nerd Font
+    ttf-ubuntu-nerd # [fonts] Ubuntu Nerd Font
+    ttf-victor-mono-nerd # [fonts] Victor Mono Nerd Font
     ttf-vlgothic # [fonts] Japanese Gothic font
-    ttf-zed-mono-nerd
+    ttf-zed-mono-nerd # [fonts] Zed Mono Nerd Font
 
     ani-cli-git # [desktop] anime streaming CLI
     bemenu-wayland # [desktop] dmenu for wayland
@@ -699,7 +700,6 @@ PACKAGES=(
     postgresql # [programming] relational database
     postgresql-libs # [programming] postgres client libs
     posting # [programming] HTTP client TUI
-    posting # [programming] terminal http client
     pre-commit # [programming] git hook manager
     prettier # [programming] code formatter
     python-black # [programming] Python code formatter
@@ -762,7 +762,6 @@ PACKAGES=(
     wscat # [programming] websocket CLI client
     xh # [programming] friendly HTTP client
     xplr # [programming] terminal file picker
-    yazi # [programming] terminal file manager
     yozefu # [programming] kafka browser TUI
     z3 # [programming] SMT theorem prover
     zed # [programming] collaborative code editor
@@ -827,7 +826,6 @@ PACKAGES=(
     osslsigncode # [pentesting] authenticode signing tool
     pwdsafety # [pentesting] pwd checking
     pwndbg # [pentesting] GDB exploit-dev plugin
-    pwndbg # [pentesting] reverse engineering
     python-pwntools # [pentesting] exploit development library
     reaver-wps-fork-t6x-git # [pentesting] WPS PIN cracker
     rkhunter # [pentesting] rootkit detection tool
