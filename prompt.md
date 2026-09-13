@@ -46,7 +46,8 @@ Address the following issues, keep track of your work through a TODO.md:
 - setup bookokrat with nvim for latex writing (like clicking in bookokrat should open the line in nvim). there also are rendering bugs with tmux. configure it with the colorscheme too.
 - make sure herdr is nearly identical to tmux. also remove the popup that asks me for the name of a new tab.
 - the theming of hms and tms is different. also using hms outside herdr doesnt attach to it.
-- nvim lualine and tmux bar seem to not be styled correctly
+- dont show active LSP in the nvim lualine bar
+- nvim lualine and tmux bar seem to not be styled correctly, they should be the same color as the bg, currently they are standing out too much
 - make sure install.sh sets ayu dark as default theme (that whole stack should be in base package group)
 - there are recursive links in ./skills/ again
 - can we have another REALLY dark theme and another brighter theme? ayu-light is literally WHITE lmao thats too bright
@@ -59,6 +60,11 @@ Address the following issues, keep track of your work through a TODO.md:
 - i dont like how the sidebar of herdr stands out so much.
 - you cant click on items in the systemtray in the bar
 - the plasma borders are a bit too rounded for me, also make mod q kill the currently focused window
+- add a button to the far right of the quickshell bar that opens the exit menu
+- replace copilot in nvim with https://github.com/Exafunction/windsurf.vim
+- can we bind language servers to specific filetypes in nvim? like why is tailwind css running in a markdown file
+- portmaster and quickshell use a lot of memory, can we reduce that?
+- try to maximally port over hyprland keybdindings for window/workspace management to plasma
 
 ---
 
@@ -82,14 +88,16 @@ Remember, this is the expected scope from quickshell:
 - a nice and featurefull bar with widgets:
   - arch icon
   - workspaces
-  - datetime (time + timezone, calendars, other timezones + timetravel, reminders, pomodoro) based on location
-  - weather (current, forecast, alerts, radar) based on location
-  - media controls + visualisation
+  - datetime (time + timezone, calendars, other timezones + timetravel, reminders, pomodoro) based on location etc
+  - weather (current, forecast, alerts, radar) based on location etc
+  - media controls + visualisation etc
+  - OBS status: LIVE/RECORDING with stats like bitrate, dropped frames etc
+  - discord call: icons that move whose talking, mute, deafen indicators on the icons
   - system tray
-  - system stats (cpu, ram, gpu, vram, disk, network, battery, power mode)
-  - network (current network, connect to new network, tunnels, turn on/off network interfaces (lan, wifi, bluetooth, mobile, offline mode), internet speed)
-  - volume control (input/output devices with volume, selecting default, mute, deafen toggles)
-  - notifications (dnd, history, clear)
+  - system stats (cpu, ram, gpu, vram, disk (speed, usage), network (speed, usage), battery, power mode, power draw) etc
+  - network (current network, connect to new network, tunnels, turn on/off network interfaces (lan, wifi, bluetooth, mobile, offline mode), internet speed) etc
+  - volume control (input/output devices with volume, selecting default, mute, deafen toggles) etc
+  - notifications (dnd, history, clear) etc
 - wallpaper / theme selector
 - app launcher like walker+elephant
 - clipboard manager / history
