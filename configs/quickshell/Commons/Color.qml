@@ -118,6 +118,8 @@ QtObject {
   // Here rather than as literals at each call site: Obs.qml alone repeated the
   // same three hex values eleven times, which is eleven places to disagree.
   readonly property QtObject semantic: QtObject {
+    id: semanticColors
+
     // Broadcast/record conventions, as used by cameras and broadcast desks.
     property color live: "#c0392b"
     property color recording: "#e67e22"
@@ -126,9 +128,18 @@ QtObject {
     property color warn: "#e8c317"
     // Discord's own speaking indicator.
     property color speaking: "#23a55a"
+
     // MeteoAlarm awareness levels 4 and 3; level 2 is `warn` above.
-    property color alertRed: "#c0392b"
-    property color alertOrange: "#e67e22"
+    //
+    // ALIASES, not copies. These carried the same two hex values as
+    // live/recording written out a second time, which is two places to edit
+    // and a silent way for a red warning and a live indicator to stop being
+    // the same red. The names stay because the call sites mean different
+    // things by them — `alertRed` is a weather severity, `live` is a broadcast
+    // state — and a warning tier that later wants its own red only has to
+    // stop pointing here.
+    property color alertRed: semanticColors.live
+    property color alertOrange: semanticColors.recording
   }
 
   // ONE SCRIM FOR EVERY FULL-SCREEN OVERLAY.

@@ -28,13 +28,21 @@ BarWidget {
 
   // Written by the BetterDiscord plugin. XDG_RUNTIME_DIR is tmpfs, so this
   // cannot survive a reboot and report a call that ended days ago.
+  //
+  // NO /tmp FALLBACK, on both sides of the channel — the plugin dropped its
+  // one for the same reason. XDG_RUNTIME_DIR is a 0700 per-user directory;
+  // /tmp is world-writable, so falling back there would let any local process
+  // both read who is in the call and, through the command file below, mute and
+  // deafen the client. An unset XDG_RUNTIME_DIR means no session bus, in which
+  // case this widget has nothing to read anyway.
+  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
-    (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-discord-voice.json"
+    runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
   // The way back in. The BetterDiscord plugin polls this file and deletes it
   // as it reads — see its header for why the channel is a file and not a
   // socket (Discord's renderer `fs` shim has no watch, and no server).
   readonly property string commandPath:
-    (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-discord-cmd"
+    runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : ""
 
   // Written with `printf`, not a FileView: FileView owns its path for reading
   // and re-arms a watch on it, which is the wrong shape for a write-only drop
@@ -46,6 +54,7 @@ BarWidget {
   // empty or half-written line. Both paths are in XDG_RUNTIME_DIR, one tmpfs,
   // so the rename is atomic and the reader only ever sees a complete command.
   function send(cmd) {
+    if (!root.commandPath) return
     const target = Util.shellQuote(root.commandPath)
     const tmp = Util.shellQuote(root.commandPath + ".tmp")
     Quickshell.execDetached(["bash", "-c",
@@ -126,8 +135,10 @@ BarWidget {
 
   FileView {
     id: stateFile
+    // Empty path when there is no runtime directory — FileView simply never
+    // loads, so `inVoice` stays false and the widget stays off the bar.
     path: root.statePath
-    watchChanges: true
+    watchChanges: root.statePath !== ""
     printErrors: false
     onLoaded: {
       root.apply(text())

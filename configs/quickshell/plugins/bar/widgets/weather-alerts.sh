@@ -49,6 +49,13 @@ FEED_MAX_AGE=600
 
 fail() { printf '{"ok":false,"error":"%s","alerts":[]}\n' "$1"; exit 0; }
 
+# The cache directory is NOT guaranteed to exist. weather-fetch.sh caches to a
+# flat ~/.cache/quickshell-weather.json, so nothing else in the weather group
+# creates this subdirectory except weather-radar.sh — and radar and alerts start
+# together on shell start, so relying on that ordering meant alerts failed with
+# "no region" on a fresh machine whenever it won the race.
+mkdir -p "$CACHE" 2>/dev/null || fail "cache unavailable"
+
 fresh() { # path, max-age
     [[ -s "$1" ]] || return 1
     local age=$(( $(date +%s) - $(stat -c %Y "$1" 2>/dev/null || echo 0) ))
@@ -83,14 +90,18 @@ if ! fresh "$PLACE_CACHE" "$PLACE_MAX_AGE"; then
 fi
 [[ -s "$PLACE_CACHE" ]] || fail "no region"
 
-COUNTRY_CODE=$(python3 -c "
-import json,sys
+# Path passed as argv, not interpolated into the program text: every other
+# python call in this file and its siblings does it that way, and a $HOME
+# containing a quote turns interpolation into a syntax error at best.
+COUNTRY_CODE=$(python3 - "$PLACE_CACHE" <<'PY' 2>/dev/null
+import json, sys
 try:
-    d=json.load(open('$PLACE_CACHE'))
-    print((d.get('address') or {}).get('country_code',''))
+    d = json.load(open(sys.argv[1]))
+    print((d.get('address') or {}).get('country_code', ''))
 except Exception:
     print('')
-" 2>/dev/null)
+PY
+)
 [[ -z "$COUNTRY_CODE" ]] && fail "no region"
 
 # MeteoAlarm's feed slugs. Written out rather than derived from the country
@@ -255,17 +266,25 @@ for warning in feed.get("warnings") or []:
     if expires is not None and expires < 0:
         continue
 
-    if not scope:
-        others += 1
-        continue
-
     level, colour, kind = awareness(info)
     # Green/level-1 is MeteoAlarm's "no particular awareness required" tier and
     # the feeds are full of it — the Dutch feed alone carried 493 warnings, the
     # overwhelming majority green. Listing those turns a warnings panel into a
     # weather-is-happening panel. Yellow (2) and up only.
+    #
+    # FILTERED BEFORE `others` IS COUNTED, not after. The counter feeds the
+    # panel's "N more warnings elsewhere in your country" line, so counting the
+    # green tier here while refusing to list it meant that line reported a
+    # number the panel would never show anything for — 487, on the Dutch feed
+    # above. `others` now means "warnings I would have listed, but they are not
+    # near you", which is the only reading that makes the sentence true.
     if level < 2:
         continue
+
+    if not scope:
+        others += 1
+        continue
+
     key = (str(info.get("event", "")), level, scope)
     if key in seen:
         continue

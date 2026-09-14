@@ -1049,6 +1049,37 @@ else
 fi
 rm -f "$sudo_tmp"
 
+# CLEAN UP AFTER THE OLD BUG. Fixing the guard stops new duplicates; it does
+# nothing about the ones already appended to /etc/sudoers on every machine that
+# ran the broken version. The rule now lives in the drop-in above, so those
+# lines are redundant — and a pile of identical NOPASSWD entries in the main
+# file is exactly the kind of thing nobody reads until it matters.
+#
+# ONLY the exact line the old code wrote is removed, matched whole:
+#   <user> ALL=(ALL) NOPASSWD: ALL
+# Anything hand-written, differently spaced, or scoped to specific commands is
+# left alone — this is not the place to be clever about someone's sudo policy.
+#
+# The edit happens on a copy, is validated with `visudo -c`, and is only
+# installed if validation passes and the drop-in that replaces the rule is
+# actually in place. A broken /etc/sudoers means no sudo at all, and the
+# recovery is a root shell you may not have.
+if [[ -f "$SUDOERS_DROPIN" ]] && sudo grep -qE "^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$" /etc/sudoers 2>/dev/null; then
+    sudoers_tmp="$(mktemp)"
+    sudo cat /etc/sudoers > "$sudoers_tmp"
+    dupes="$(grep -cE "^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$" "$sudoers_tmp" || true)"
+    sed -i -E "/^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$/d" "$sudoers_tmp"
+    if sudo visudo -c -f "$sudoers_tmp" >/dev/null 2>&1; then
+        sudo install -m440 -o root -g root /etc/sudoers /etc/sudoers.arch-dotfiles-backup
+        sudo install -m440 -o root -g root "$sudoers_tmp" /etc/sudoers
+        echo "sudoers: removed $dupes duplicate NOPASSWD line(s) from /etc/sudoers (rule is now in $SUDOERS_DROPIN; backup at /etc/sudoers.arch-dotfiles-backup)" >&2
+    else
+        echo "sudoers: cleanup of duplicate NOPASSWD lines failed validation — /etc/sudoers left untouched" >&2
+        echo "sudoers duplicate-line cleanup" >> "$FAILURES_FILE"
+    fi
+    rm -f "$sudoers_tmp"
+fi
+
 ## LINK PACMAN CONFIG
 
 # chaotic aur

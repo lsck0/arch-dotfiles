@@ -320,9 +320,15 @@ def run_session(conf):
             while select.select([sys.stdin], [], [], 0)[0]:
                 line = sys.stdin.readline()
                 if not line:
-                    # stdin closed — the shell tore the widget down. Exit
-                    # rather than spinning on a dead descriptor forever.
-                    return
+                    # stdin closed — the shell tore the widget down. EXIT THE
+                    # PROCESS, not just this session: returning here dropped
+                    # back into main()'s reconnect loop, which has no sleep on
+                    # the clean-return path, so the next iteration reconnected,
+                    # saw EOF again immediately, and span through a full
+                    # websocket handshake per pass at 100% of a core. SystemExit
+                    # is not an Exception, so it passes through main()'s handler
+                    # and the `finally` below still closes the socket.
+                    sys.exit(0)
                 ws.settimeout(6)
                 try:
                     if handle_command(session, line):
@@ -375,7 +381,12 @@ def main():
             time.sleep(backoff)
             backoff = min(RECONNECT_MAX, backoff * 1.6)
         else:
+            # A clean return means OBS closed the socket on its own terms
+            # (Exit event, obs-websocket switched off). Still a reconnect, so
+            # it still waits: an unsleep on this path is a busy loop, which is
+            # exactly what the stdin-EOF case used to be.
             backoff = RECONNECT_MIN
+            time.sleep(backoff)
 
 
 if __name__ == "__main__":

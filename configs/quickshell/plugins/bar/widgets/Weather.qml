@@ -456,7 +456,25 @@ BarWidget {
       Column {
         width: parent.width
         spacing: Style.spacing.xs
-        visible: root.alerts.length > 0
+        visible: root.alerts.length > 0 || !root.alertsSupported
+
+        // WHY THE WARNINGS SECTION IS EMPTY, when it is empty for a reason the
+        // user can do nothing about. MeteoAlarm covers ~38 European countries
+        // and nothing outside that footprint; weather-alerts.sh reports the
+        // difference between "no warnings" and "no source" deliberately, and
+        // this is the half of that contract that was missing — `alertsSupported`
+        // was assigned from the script's `supported` flag and then read by
+        // nobody, so an unsupported region looked identical to a calm day.
+        Text {
+          width: parent.width
+          visible: !root.alertsSupported
+          wrapMode: Text.Wrap
+          text: "No warning service for this region — MeteoAlarm covers Europe only"
+          color: Color.menu.text
+          opacity: Style.emphasis.disabled
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
 
         Repeater {
           model: root.alerts
@@ -555,7 +573,7 @@ BarWidget {
         }
       }
 
-      PanelSeparator { visible: root.alerts.length > 0 }
+      PanelSeparator { visible: root.alerts.length > 0 || !root.alertsSupported }
 
       // --- current ---
       Row {
@@ -997,7 +1015,6 @@ BarWidget {
               // the band's. S is the square edge; oy is where its top sits.
               var S = radarBox.imgSize
               var oy = radarBox.yOffset
-              var W = S, H = S
               function px(u) { return u * S }
               function py(v) { return oy + v * S }
 
@@ -1017,8 +1034,19 @@ BarWidget {
                 // 1 hPa is the standard isobar interval on a surface chart at
                 // this scale; 4 hPa would give a single line over a 2 hPa
                 // spread.
-                var step = 1.0
-                var first = Math.ceil(root.fieldPressureMin / step) * step
+                // EVERY NAME IN THIS FUNCTION IS UNIQUE, and that is a rule
+                // rather than a style preference. `var` is function-scoped, so
+                // the isobar block and the wind block below share one scope: an
+                // earlier version declared `var step` in both (1 hPa here, the
+                // arrow lattice pitch there) and `cx`/`cy` both as the marching
+                // -squares column/row here and as the centre coordinates near
+                // the bottom. It only worked because the blocks happen to run
+                // in order, and the `reach`/`reachKm` comment further down
+                // records what it cost when that assumption broke — a Canvas
+                // that throws mid-paint loses the ENTIRE overlay, not the one
+                // shape with the bad value.
+                var isobarStep = 1.0
+                var firstIsobar = Math.ceil(root.fieldPressureMin / isobarStep) * isobarStep
                 ctx.lineWidth = 1
                 ctx.strokeStyle = Color.menu.text
                 ctx.globalAlpha = 0.42
@@ -1027,12 +1055,12 @@ BarWidget {
                 // turns four straight cell-edges into a curve.
                 var sub = 6
                 var cellsAcross = (n - 1) * sub
-                for (var level = first; level <= root.fieldPressureMax; level += step) {
+                for (var level = firstIsobar; level <= root.fieldPressureMax; level += isobarStep) {
                   ctx.beginPath()
-                  for (var cy = 0; cy < cellsAcross; cy++) {
-                    for (var cx = 0; cx < cellsAcross; cx++) {
-                      var gx0 = cx / sub, gy0 = cy / sub
-                      var gx1 = (cx + 1) / sub, gy1 = (cy + 1) / sub
+                  for (var msRow = 0; msRow < cellsAcross; msRow++) {
+                    for (var msCol = 0; msCol < cellsAcross; msCol++) {
+                      var gx0 = msCol / sub, gy0 = msRow / sub
+                      var gx1 = (msCol + 1) / sub, gy1 = (msRow + 1) / sub
                       var a = pressureAt(gx0, gy0, n, values)
                       var b = pressureAt(gx1, gy0, n, values)
                       var c = pressureAt(gx1, gy1, n, values)
@@ -1108,13 +1136,13 @@ BarWidget {
               // Odd so one arrow lands dead centre, under the location marker's
               // own ring rather than beside it.
               var density = 17
-              var step = S / density
+              var latticeStep = S / density
               // Sized to the lattice, so raising `density` shrinks the arrows
               // instead of overlapping them. 0.30, not 0.42: at the larger
               // density the arrows were still reading as the subject of the
               // picture rather than as texture over the precipitation, which
               // is what the radar is actually for.
-              var reach = step * 0.28
+              var arrowReach = latticeStep * 0.28
 
               ctx.strokeStyle = Color.accent
               ctx.fillStyle = Color.accent
@@ -1127,7 +1155,7 @@ BarWidget {
                   var fu = (gx + 0.5) / density
                   var fv = (gy + 0.5) / density
                   var x = px(fu), y = py(fv)
-                  if (y < -reach || y > height + reach) continue
+                  if (y < -arrowReach || y > height + arrowReach) continue
 
                   var sx = sample(ux, fu * (n - 1), fv * (n - 1))
                   var sy = sample(vy, fu * (n - 1), fv * (n - 1))
@@ -1142,7 +1170,7 @@ BarWidget {
                   // Curved: sqrt lifts the low end so gentle flow is still
                   // legible, while the top stays distinct.
                   var shaped = Math.sqrt(strength)
-                  var len = reach * (0.55 + 0.45 * shaped)
+                  var len = arrowReach * (0.55 + 0.45 * shaped)
                   // Much fainter overall, and with a wider spread between calm
                   // and strong — the field should be something the eye reads
                   // through, not the brightest thing in the frame.
@@ -1155,7 +1183,7 @@ BarWidget {
                   ctx.stroke()
 
                   // Arrowhead, back along the shaft from the tip.
-                  var head = Math.max(1.5, reach * 0.46)
+                  var head = Math.max(1.5, arrowReach * 0.46)
                   var ang = Math.atan2(dx, -dy)
                   var la = ang + Math.PI * 0.82, ra = ang - Math.PI * 0.82
                   ctx.beginPath()
@@ -1174,14 +1202,18 @@ BarWidget {
               // square's transform with the arrows and the isobars, and having
               // one drawing own the whole overlay is what stops the radar
               // reading as a separate pasted-in widget.
-              // `reachKm`, not `reach`: the wind block above already declares a
-              // `var reach`, and `var` is function-scoped, so the two were one
-              // variable in one function. Any path that left it holding the
+              // `reachKm` and `arrowReach` are separate names because they
+              // once were not. The wind block declared `var reach` for the
+              // arrow half-length and this block declared `var reach` for the
+              // radar's ground reach in km; `var` is function-scoped, so the
+              // two were one variable. Any path that left it holding the
               // arrow-length value produced a nonsense ring radius — and a
               // Canvas that throws mid-paint loses the ENTIRE overlay, not just
               // the ring, which is how one bad radius blanked the rings, the
-              // arrows, the isobars and the compass at once.
-              var cx = px(0.5), cy = py(0.5)
+              // arrows, the isobars and the compass at once. Every declaration
+              // in this function now has a name of its own; see the note in the
+              // isobar block.
+              var centreX = px(0.5), centreY = py(0.5)
               var reachKm = Number(root.radarReachKm) || 0
               var rings = root.radarRingsKm
               ctx.textAlign = "center"
@@ -1196,7 +1228,7 @@ BarWidget {
                 ctx.globalAlpha = r === 0 ? 0.26 : 0.15
                 ctx.lineWidth = 1
                 ctx.beginPath()
-                ctx.arc(cx, cy, rad, 0, Math.PI * 2)
+                ctx.arc(centreX, centreY, rad, 0, Math.PI * 2)
                 ctx.stroke()
 
                 // Label sat on the ring, above the centre. A pill behind it
@@ -1208,11 +1240,11 @@ BarWidget {
                 // Tall enough to swallow the ring stroke completely — a
                 // slightly short box left a sliver of the arc peeking out
                 // above the label, which reads as a rendering seam.
-                ctx.fillRect(cx - lw / 2 - 4, cy - rad - Style.font.caption * 0.80,
+                ctx.fillRect(centreX - lw / 2 - 4, centreY - rad - Style.font.caption * 0.80,
                              lw + 8, Style.font.caption * 1.30)
                 ctx.fillStyle = Color.menu.text
                 ctx.globalAlpha = 0.5
-                ctx.fillText(label, cx, cy - rad + Style.font.caption * 0.28)
+                ctx.fillText(label, centreX, centreY - rad + Style.font.caption * 0.28)
               }
               ctx.globalAlpha = 1
 
@@ -1225,13 +1257,13 @@ BarWidget {
               // is what keeps a 3px dot findable among arrows of its own colour.
               var markerR = Math.max(2, (Number(S) || 0) * 0.006)
               ctx.beginPath()
-              ctx.arc(cx, cy, markerR + 1.8, 0, Math.PI * 2)
+              ctx.arc(centreX, centreY, markerR + 1.8, 0, Math.PI * 2)
               ctx.fillStyle = Color.menu.background
               ctx.globalAlpha = 0.9
               ctx.fill()
               ctx.globalAlpha = 1
               ctx.beginPath()
-              ctx.arc(cx, cy, markerR, 0, Math.PI * 2)
+              ctx.arc(centreX, centreY, markerR, 0, Math.PI * 2)
               ctx.fillStyle = Color.accent
               ctx.fill()
 
@@ -1358,8 +1390,6 @@ BarWidget {
         font.pixelSize: Style.font.caption
       }
 
-      // Attribution is a condition of RainViewer's free API, so it is shown
-      // rather than tucked into a comment.
       // What the overlay is showing, since arrows and thin lines over rain are
       // not self-explanatory.
       Row {
@@ -1387,6 +1417,8 @@ BarWidget {
         }
       }
 
+      // Attribution is a condition of RainViewer's free API, so it is shown
+      // rather than tucked into a comment.
       Text {
         width: parent.width
         visible: root.radarFrames.length > 0

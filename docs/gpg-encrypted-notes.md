@@ -7,8 +7,12 @@ the secret.
 
 One file, one secret. Open a `*.gpg` (or `*.asc`) file and nvim
 transparently decrypts it; save encrypts it back in memory. Plaintext
-never touches disk, swap, undo, or ShaDa. Clipboard is disabled inside
-the buffer so a yank doesn't leak decrypted text to the OS clipboard.
+never touches disk, swap, undo, or ShaDa.
+
+The clipboard is **not** covered: this repo sets `allow_clipboard = true`
+on purpose, so a yank out of a decrypted buffer does reach the OS
+clipboard. That trade, and how to reverse it, is under
+[What's protected](#whats-protected) below.
 
 ### Quick start
 
@@ -58,8 +62,34 @@ require("gpg").setup({
 })
 ```
 
-Now `nvim alice.asc` decrypts with Alice's key + yours, and anyone else
-sees only ciphertext.
+**Setting a recipient replaces yours, it does not add to it.** With only
+Alice named, the file is encrypted to Alice's key alone: she can read it
+and *you cannot*, including the file you just wrote. The next `:w` on a
+buffer you can no longer decrypt is how notes get lost.
+
+To share a file and keep your own access, be a recipient too — either by
+naming both:
+
+```lua
+require("gpg").setup({
+  default_recipient = "alice@example.com me@example.com",
+  use_armor = true,
+})
+```
+
+or, better, once and globally in `~/.gnupg/gpg.conf`, which covers every
+gpg caller on the machine and not just nvim:
+
+```
+encrypt-to me@example.com
+```
+
+Verify before trusting it with anything you cannot retype — this lists
+the keys a file is actually encrypted to:
+
+```bash
+gpg --list-only --no-default-keyring -d alice.asc 2>&1 | grep -i 'public key is'
+```
 
 ### What's protected
 
@@ -164,6 +194,11 @@ them stays readable.
 
 Use your own email/key → only you can open it. Use a team key → anyone
 with that key can. You can change per-file by editing the front-matter.
+
+Same trap as `gpg.nvim`'s `default_recipient`: naming someone else here
+and not yourself produces blocks *you* cannot decrypt on the next open.
+`encrypt-to me@example.com` in `~/.gnupg/gpg.conf` keeps your own access
+regardless of what a file's front-matter says.
 
 ### Commands
 
