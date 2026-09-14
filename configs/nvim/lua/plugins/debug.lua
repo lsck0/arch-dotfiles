@@ -1,8 +1,8 @@
 return {
     {
-        "mfussenegger/nvim-dap", -- debug adapter protocol
+        "mfussenegger/nvim-dap",               -- debug adapter protocol
         dependencies = {
-            "rcarriga/nvim-dap-ui", -- debugger UI panels
+            "rcarriga/nvim-dap-ui",            -- debugger UI panels
             "theHamsta/nvim-dap-virtual-text", -- inline debug values
         },
         cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut" },
@@ -71,10 +71,6 @@ return {
                 },
             }
 
-            -- js-debug for typescript/javascript (vscode's debug adapter,
-            -- standalone via node). Install: mason's js-debug-adapter puts
-            -- js-debug-adapter-prefix here; fall back to the bare command
-            -- if it's on PATH.
             local js_debug_dir = vim.fn.stdpath("data") .. "/mason/packages/js-debug-adapter"
             local js_dbg_cmd = vim.fs.find("js-debug-adapter-prefix", {
                 path = vim.fn.stdpath("data") .. "/mason/bin", type = "file"

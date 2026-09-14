@@ -17,15 +17,9 @@ ln -sf ${PWD}/discord_settings.json ${HOME}/.config/discord/settings.json
 #ln -sf ${PWD}/wal.theme.css ${HOME}/.config/BetterDiscord/themes/
 cp ${PWD}/wal.theme.css ${HOME}/.config/BetterDiscord/themes/wal.theme.css
 
-# First-party plugin: publishes voice-call state for the quickshell bar widget
-# (configs/quickshell/plugins/bar/widgets/Discord.qml; the plugin's own header
-# carries the reasoning). Copied rather than symlinked, for the same reason
-# wal.theme.css is — BetterDiscord does not see changes through a symlink.
-#
-# Needs BetterDiscord actually injected: `betterdiscordctl status` should say
-# `Discord "index.js" injected: yes`, and a Discord update needs
-# `betterdiscordctl reinstall`. Without it the widget just stays hidden.
 mkdir -p ${HOME}/.config/BetterDiscord/plugins
+
+# my plugins
 cp ${PWD}/plugins/QuickshellVoiceStatus.plugin.js ${HOME}/.config/BetterDiscord/plugins/QuickshellVoiceStatus.plugin.js
 
 # download plugins

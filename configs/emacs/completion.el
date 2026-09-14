@@ -1,6 +1,4 @@
 ;;; completion.el --- fuzzy finding + in-buffer completion -*- lexical-binding: t; -*-
-;; vertico/consult/embark = telescope.  corfu/cape = nvim-cmp.
-;; Keys live in keys.el.
 
 ;;;; minibuffer (telescope) -------------------------------------------------
 

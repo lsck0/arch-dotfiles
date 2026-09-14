@@ -1,11 +1,6 @@
 -- :LPromptBuffer / :LPromptSelection
 -- Send buffer/selection text into the nearest project's taskwarrior db as a +prompt task.
 -- (see l-agent-task-db / l-multi-agent-task-mode)
---
--- Issue 22: ALSO forward the same text to a single, already-open herdr hermes
--- agent pane (create one if none exists) instead of only filing a task,
--- so a quick prompt reaches a live session immediately rather than waiting
--- for something to poll taskwarrior.
 local M = {}
 
 local function find_taskrc(start_dir)
@@ -60,9 +55,6 @@ local function add_prompt(text)
     vim.notify("LPrompt: " .. vim.trim(result.stdout or "added"), vim.log.levels.INFO)
 end
 
--- Finds an existing hermes agent pane over herdr's socket API, or starts one
--- in a fresh workspace pane if none is running. Returns the pane/terminal id
--- string herdr's `agent prompt <target>` expects, or nil + an error message.
 local function find_or_start_hermes_target()
     if vim.fn.executable("herdr") == 0 then
         return nil, "herdr not on PATH"
@@ -82,8 +74,6 @@ local function find_or_start_hermes_target()
         end
     end
 
-    -- No existing hermes agent: create one in a new pane of the current
-    -- workspace, then hand back its pane id once herdr confirms readiness.
     local split = vim.system({ "herdr", "pane", "split", "--direction", "right" }, { text = true }):wait()
     local ok2, pane_decoded = pcall(vim.json.decode, split.stdout)
     local new_pane_id = ok2 and pane_decoded and pane_decoded.result and pane_decoded.result.pane

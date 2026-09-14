@@ -1,5 +1,4 @@
 ;;; lang.el --- treesitter, LSP, diagnostics, formatting -*- lexical-binding: t; -*-
-;; treesit + eglot + flymake are all built in; only the glue is packaged.
 
 ;;;; treesitter --------------------------------------------------------------
 

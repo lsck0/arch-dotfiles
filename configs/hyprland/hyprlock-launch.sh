@@ -2,13 +2,6 @@
 
 set -euo pipefail
 
-# Issue 29: hyprlock has no built-in single-instance guard, so a lock
-# triggered from two paths close together (hypridle's idle timeout AND
-# before_sleep_cmd's `loginctl lock-session`, or a manual lock keybind hit
-# while an idle-triggered lock is already up) stacks a second ~150-200MB
-# hyprlock process on top of the first instead of no-op'ing. Found via `ps`
-# showing two hyprlock processes, one 16+ hours old. Bail out early if one is
-# already running — the existing instance already has the session locked.
 if pgrep -x hyprlock -u "$USER" >/dev/null 2>&1; then
   exit 0
 fi

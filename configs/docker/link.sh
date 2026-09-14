@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-set -ex
-
 if ! command -v docker >/dev/null 2>&1; then
     exit 0
 fi
+
+set -ex
 
 sudo systemctl enable docker.socket
 

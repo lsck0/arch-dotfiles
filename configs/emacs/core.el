@@ -1,13 +1,10 @@
 ;;; core.el --- editor defaults -*- lexical-binding: t; -*-
-;; Mirrors nvim lua/options.lua. Built-in Emacs only, no packages.
 
 (set-language-environment "UTF-8")
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
 ;;;; runtime state ----------------------------------------------------------
-;; user-emacs-directory is a symlink into the git repo, so every file Emacs
-;; writes at runtime would show up as repo noise. Point them all at ~/.cache.
 
 (defvar my/cache-dir
   (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/"))

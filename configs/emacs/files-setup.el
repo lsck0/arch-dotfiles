@@ -1,7 +1,4 @@
 ;;; files-setup.el --- file browser -*- lexical-binding: t; -*-
-;; dirvish over dired covers both nvim file plugins:
-;;   SPC o -> dirvish       (oil.nvim: edit the directory as a buffer)
-;;   SPC e -> dirvish-side  (neo-tree: sidebar tree)
 
 (use-package dirvish
   :init (dirvish-override-dired-mode 1)
@@ -10,10 +7,6 @@
         dirvish-use-header-line 'global
         dirvish-mode-line-format '(:left (sort symlink) :right (omit yank index))
         dirvish-side-width 30
-        ;; dirvish marks the sidebar `no-other-window', which makes
-        ;; `window-in-direction' skip it: C-w h / C-w <left> then fail with
-        ;; "No window left from selected window". Drop that parameter, keep
-        ;; the one that stops C-w o from deleting the sidebar.
         dirvish-side-window-parameters '((no-delete-other-windows . t))
         dirvish-quick-access-entries
         '(("h" "~/"                              "home")

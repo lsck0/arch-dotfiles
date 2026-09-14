@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 TIMEOUT=60
 SSID="FRITZ\!Box 7590 YI"

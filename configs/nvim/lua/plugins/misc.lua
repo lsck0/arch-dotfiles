@@ -94,10 +94,6 @@ return {
         "dijeferson/gpg.nvim", -- transparent GPG encryption/decryption for *.gpg/*.asc files
         opts = {
             use_armor = true,  -- .asc output, portable for pasting into chats/email
-            -- On by design: yanking out of a decrypted buffer is the point of
-            -- keeping notes this way. The trade is real and documented in
-            -- docs/gpg-encrypted-notes.md — plaintext on the OS clipboard is
-            -- readable by every other application and outlives the buffer.
             allow_clipboard = true,
             show_progress = "toast",
         },
@@ -130,9 +126,6 @@ return {
 
     {
         "nvzone/showkeys", -- on-screen keypress display
-        -- always-on overlay, no command/keymap toggles it anywhere in this
-        -- config — VeryLazy defers past the critical startup path while
-        -- still loading effectively immediately, unlike a real cmd/keys trigger
         event = "VeryLazy",
         opts = {
             timeout = 1,

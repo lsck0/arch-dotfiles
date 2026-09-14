@@ -1,6 +1,4 @@
 ;;; latex.el --- AUCTeX + texlab -*- lexical-binding: t; -*-
-;; vimtex mirror: AUCTeX for editing, texlab via eglot (see lang.el),
-;; latexindent/bibtex via apheleia (builtin mappings), zathura viewer.
 
 (use-package auctex
   :defer t
@@ -22,8 +20,7 @@
 ;; after/ftplugin/latex.lua: set noexpandtab
 (add-hook 'LaTeX-mode-hook (lambda () (setq indent-tabs-mode t)))
 
-;; vimtex localleader maps (`\`): compile/view/errors/toc. AUCTeX's C-c C-c
-;; family stays live too.
+;; vimtex localleader maps (`\`): compile/view/errors/toc. AUCTeX's C-c C-c family stays live too.
 (defun my/latex-keys ()
   (evil-define-key 'normal 'local
     "\\ll" #'TeX-command-master          ; vimtex \ll: compile

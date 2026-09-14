@@ -66,8 +66,7 @@ hermes skin use wallust || true
 # Model routing:
 #   Tier 1 (default):   claude-sonnet-5 via anthropic
 #   Tier 2 (fallback):  z-ai/glm-5.3:US via Nous Portal (paid)
-#   Tier 3 (fallback):  upstage/solar-pro4:free via Nous Portal (free tier)
-#   Tier 4 (fallback):  vllm-rocm local GPU (cold-start, last resort)
+#   Tier 3 (fallback):  vllm-rocm local GPU (cold-start, last resort)
 #   Delegation:         z-ai/glm-5.3-flash:US via Nous (cheaper subagent work)
 
 # Tier 1: default model
@@ -78,10 +77,10 @@ hermes config set model.provider anthropic
 hermes config set delegation.provider nous
 hermes config set delegation.model "z-ai/glm-5.3-flash:US"
 
-# vllm-rocm local provider (Tier 4, cold-started by configs/vllm/link.sh)
+# vllm-rocm local provider (Tier 3, cold-started by configs/vllm/link.sh)
 hermes config set providers.vllm-rocm.api "http://localhost:8000/v1"
 hermes config set providers.vllm-rocm.default_model "mattbucci/gemma-4-12B-AWQ"
 hermes config set providers.vllm-rocm.transport chat_completions
 
-# Tier 2-4: fallback chain (Nous paid → Nous free → vllm local)
-hermes config set fallback_providers '[{"provider":"nous","model":"z-ai/glm-5.3:US"},{"provider":"nous","model":"upstage/solar-pro4:free"},{"provider":"custom","model":"mattbucci/gemma-4-12B-AWQ","base_url":"http://localhost:8000/v1"}]'
+# Tier 2-5: fallback chain
+hermes config set fallback_providers '[{"provider":"nous","model":"z-ai/glm-5.3:US"},{"provider":"custom","model":"mattbucci/gemma-4-12B-AWQ","base_url":"http://localhost:8000/v1"}]'
