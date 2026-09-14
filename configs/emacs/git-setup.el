@@ -1,8 +1,5 @@
 ;;; git-setup.el --- git -*- lexical-binding: t; -*-
-;; magit = fugitive + lazygit (tmux C-q g).  diff-hl = gitsigns.
 
-;; transient is not declared here: Emacs 31 bundles a version magit accepts,
-;; and package.el pulls a newer one as a magit dependency if that ever changes.
 (use-package magit
   :commands (magit-status magit-dispatch magit-file-dispatch)
   :config

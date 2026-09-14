@@ -17,6 +17,8 @@ maybe_link() {
     fi
 }
 
+mkdir -p "${HOME}/.config"
+
 maybe_link btop    "${PWD}/btop"    "${HOME}/.config/btop"
 maybe_link emacs   "${PWD}/emacs"   "${HOME}/.config/emacs"
 maybe_link ghostty "${PWD}/ghostty" "${HOME}/.config/ghostty"

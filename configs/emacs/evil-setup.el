@@ -1,5 +1,4 @@
 ;;; evil-setup.el --- vim emulation -*- lexical-binding: t; -*-
-;; Behaviour only. Every keybinding lives in keys.el, like nvim mappings.lua.
 
 (use-package evil
   :init

@@ -28,11 +28,6 @@ return {
                     "TabLineFill",
                     "StatusLine",
                     "StatusLineNC",
-                    -- Split/separator surfaces: pywal colorschemes set these to a
-                    -- solid background, creating visible borders between splits
-                    -- on every theme switch. Clearing them to NONE keeps the
-                    -- separator glyphs but no colored border — matches every
-                    -- other transparent panel.
                     "VertSplit",
                     "WinSeparator",
                     "SignColumn",
@@ -126,23 +121,6 @@ return {
                     lualine_z = { "location" },
                 },
             })
-            -- Transparent statusline: clear the b/c/x/y lualine_* highlight
-            -- groups' bg to NONE, same as every other panel transparent.nvim
-            -- already handles. `clear_prefix` (not a hardcoded group list)
-            -- also covers the per-diagnostic/per-diff groups lualine
-            -- generates lazily (lualine_b_diagnostics_error_normal etc — 60+
-            -- groups, not just the dozen visible in a plain setup), and
-            -- registers each prefix so transparent.nvim's own ColorScheme
-            -- re-clear (see ui.lua's transparent.nvim autocmd) keeps
-            -- catching new ones on every theme switch, not just this one.
-            --
-            -- Deliberately EXCLUDES "lualine_a": the mode indicator (section
-            -- a) and the far-right location component (section z reuses
-            -- section a's highlight groups verbatim, see lualine's
-            -- highlight.lua section_highlight_map z -> a) both depend on a
-            -- solid, mode-colored background to be legible. Clearing it left
-            -- both rendering as blank gaps (foreground-only text in a color
-            -- indistinguishable from the transparent bg behind it).
             for _, prefix in ipairs({ "lualine_b", "lualine_c", "lualine_x", "lualine_y" }) do
                 require("transparent").clear_prefix(prefix)
             end

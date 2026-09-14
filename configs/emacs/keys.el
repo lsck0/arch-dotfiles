@@ -1,12 +1,4 @@
 ;;; keys.el --- every keybinding -*- lexical-binding: t; -*-
-;;
-;; Two layers, so muscle memory from the real setup carries over:
-;;
-;;   C-q ...   the tmux prefix layer  (tmux.conf `set-option -g prefix C-q`)
-;;   SPC ...   the nvim leader layer  (nvim lua/mappings.lua)
-;;
-;; plus the bare nvim maps (C-s, M-t, C-h/j/k/l, m, ...). Where tmux and nvim
-;; disagree, both bindings are kept: they never collide.
 
 (use-package general
   :config (general-evil-setup t))

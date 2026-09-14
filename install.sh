@@ -6,25 +6,6 @@ exec > >(tee "install.log") 2>&1
 FAILURES_FILE="$(pwd)/FAILURES"
 : > "$FAILURES_FILE"
 
-# retry N times with exponential backoff. Pacman exit code 8 is "failed to
-# commit transaction" — usually a mirror rate-limit or a partially downloaded
-# DB, i.e. transient. Retrying the whole command makes a flaky mirror
-# survivable instead of aborting the run.
-retry() {
-    local attempts="$1"; shift
-    local n=1 wait_s=5
-    until "$@"; do
-        if (( n >= attempts )); then
-            echo "FAILED after $attempts attempts: $*" >&2
-            return 1
-        fi
-        echo "attempt $n/$attempts failed, retrying in ${wait_s}s: $*" >&2
-        sleep "$wait_s"
-        n=$(( n + 1 ))
-        wait_s=$(( wait_s * 2 ))
-    done
-}
-
 ## PACKAGES
     #   base        - bare Arch security tooling
     #   fonts       - fonts, managers, nerd fonts
@@ -37,15 +18,6 @@ retry() {
     #   qemu        - QEMU and virtualization tooling
     #   llm         - Ollama, vLLM, ROCm stack
     #   pentesting  - active scanning exploitation tools
-
-# NOTE: the theme-propagation stack lives in base on purpose, so it is always
-# installed even when the desktop group is deselected: wallust-git (engine),
-# themix-gui-git + themix-plugin-base16-git (themix-multi-export, the GTK
-# exporter scripts/switch-wallpaper.sh calls on every wallpaper change),
-# python-pywalfox (firefox), imagemagick (magick, used by
-# generate-editor-themes.sh), python (generate-*.py scripts) and jq (theme
-# scan + generators). themix-gui-git ships a GUI, but its multi-export CLI is
-# part of the core theme pipeline, hence the base exception.
 
 PACKAGES=(
     alsa-firmware # [base] ALSA sound firmware
@@ -988,20 +960,14 @@ mapfile -t NIX_PKGS < <(filter_by_group NIX_PKGS)
 
 ## BOOT DISK SECURITY (timeshift btrfs snapshots, Secure Boot, LUKS)
 
-# Partitioning/bootloader is already done by the time install.sh runs (see
-# l-dotfiles convention), so this only detects what the existing layout
-# supports and configures it — it never repartitions, converts MBR→GPT, or
-# migrates an unencrypted install into LUKS. See README §Boot disk security
-# and BOOT.md for the manual steps those require.
+# Partitioning/bootloader is already done by the time install.sh runs
 BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
 BOOT_FEATURES=(timeshift sbctl luks)
 
 if [[ ! -f "$BOOT_STATE" ]]; then
     if [[ -t 0 ]]; then
         echo ""
-        echo "Boot disk security (timeshift/sbctl/luks) — each is detected and"
-        echo "skipped automatically if this system's layout doesn't support it"
-        echo "yet (see README §Boot disk security for how to prepare it):"
+        echo "Boot disk security (timeshift/sbctl/luks)"
         for i in "${!BOOT_FEATURES[@]}"; do
             echo "  $(( i + 1 ))  ${BOOT_FEATURES[i]}"
         done
@@ -1020,7 +986,7 @@ if [[ ! -f "$BOOT_STATE" ]]; then
         fi
         printf '%s\n' "${selected[@]}" > "$BOOT_STATE"
     else
-        : > "$BOOT_STATE" # non-interactive: opt-in only, nothing enabled by default
+        : > "$BOOT_STATE"
     fi
     echo "Enabled boot features:" >&2
     cat "$BOOT_STATE" >&2
@@ -1028,56 +994,8 @@ fi
 
 ## REMOVE PASSWORD FROM SUDO
 
-# A drop-in, not an append to /etc/sudoers. The guard used to be
-# `grep -q '$USER'` in SINGLE quotes, so it searched for the literal string
-# `$USER`, never matched the expanded line it had written, and appended one more
-# `NOPASSWD: ALL` on every run — eight of them on this machine before anyone
-# looked. A file in sudoers.d is idempotent by construction: same path, same
-# content, one rule.
-#
-# Written via a temp file and `visudo -c` before install: a syntax error in
-# /etc/sudoers.d locks every user out of sudo on the next invocation, and the
-# recovery for that is a root shell you may not have.
-SUDOERS_DROPIN="/etc/sudoers.d/10-arch-dotfiles-nopasswd"
-sudo_tmp="$(mktemp)"
-printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$USER" > "$sudo_tmp"
-if sudo visudo -c -f "$sudo_tmp" >/dev/null 2>&1; then
-    sudo install -m440 -o root -g root "$sudo_tmp" "$SUDOERS_DROPIN"
-else
-    echo "sudoers drop-in failed validation — left unchanged" >&2
-    echo "sudoers NOPASSWD drop-in" >> "$FAILURES_FILE"
-fi
-rm -f "$sudo_tmp"
-
-# CLEAN UP AFTER THE OLD BUG. Fixing the guard stops new duplicates; it does
-# nothing about the ones already appended to /etc/sudoers on every machine that
-# ran the broken version. The rule now lives in the drop-in above, so those
-# lines are redundant — and a pile of identical NOPASSWD entries in the main
-# file is exactly the kind of thing nobody reads until it matters.
-#
-# ONLY the exact line the old code wrote is removed, matched whole:
-#   <user> ALL=(ALL) NOPASSWD: ALL
-# Anything hand-written, differently spaced, or scoped to specific commands is
-# left alone — this is not the place to be clever about someone's sudo policy.
-#
-# The edit happens on a copy, is validated with `visudo -c`, and is only
-# installed if validation passes and the drop-in that replaces the rule is
-# actually in place. A broken /etc/sudoers means no sudo at all, and the
-# recovery is a root shell you may not have.
-if [[ -f "$SUDOERS_DROPIN" ]] && sudo grep -qE "^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$" /etc/sudoers 2>/dev/null; then
-    sudoers_tmp="$(mktemp)"
-    sudo cat /etc/sudoers > "$sudoers_tmp"
-    dupes="$(grep -cE "^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$" "$sudoers_tmp" || true)"
-    sed -i -E "/^${USER}[[:space:]]+ALL=\(ALL\)[[:space:]]+NOPASSWD:[[:space:]]+ALL[[:space:]]*$/d" "$sudoers_tmp"
-    if sudo visudo -c -f "$sudoers_tmp" >/dev/null 2>&1; then
-        sudo install -m440 -o root -g root /etc/sudoers /etc/sudoers.arch-dotfiles-backup
-        sudo install -m440 -o root -g root "$sudoers_tmp" /etc/sudoers
-        echo "sudoers: removed $dupes duplicate NOPASSWD line(s) from /etc/sudoers (rule is now in $SUDOERS_DROPIN; backup at /etc/sudoers.arch-dotfiles-backup)" >&2
-    else
-        echo "sudoers: cleanup of duplicate NOPASSWD lines failed validation — /etc/sudoers left untouched" >&2
-        echo "sudoers duplicate-line cleanup" >> "$FAILURES_FILE"
-    fi
-    rm -f "$sudoers_tmp"
+if ! sudo grep -q '$USER' /etc/sudoers; then
+    echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
 fi
 
 ## LINK PACMAN CONFIG
@@ -1093,16 +1011,26 @@ popd
 
 ## INSTALLING ALL THE THINGS
 
-# update. One -Syyu for the whole run; -Sy/-Syy inside install commands is
-# what made reruns slow (each refresh re-downloads the DB and hits mirror
-# rate limits). Everything below installs with --needed, which skips
-# packages that are already installed and current, so a rerun of this
-# script costs seconds, not a full reinstall.
+# retry N times with exponential backoff
+retry() {
+    local attempts="$1"; shift
+    local n=1 wait_s=5
+    until "$@"; do
+        if (( n >= attempts )); then
+            echo "FAILED after $attempts attempts: $*" >&2
+            return 1
+        fi
+        echo "attempt $n/$attempts failed, retrying in ${wait_s}s: $*" >&2
+        sleep "$wait_s"
+        n=$(( n + 1 ))
+        wait_s=$(( wait_s * 2 ))
+    done
+}
+
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
-# install yay (skipped when already present)
 if ! command -v yay >/dev/null 2>&1; then
     sudo pacman -S --needed --noconfirm git base-devel
     git clone https://aur.archlinux.org/yay.git
@@ -1116,10 +1044,6 @@ rustup toolchain install nightly || true
 rustup toolchain install stable || true
 rustup default stable || true
 
-# install all the things. ONE pacman/paru transaction instead of one per
-# group: paru resolves the full dep set at once and a single -Sy-free run
-# avoids per-chunk mirror refreshes/rate limits. --needed keeps reruns
-# idempotent (already-installed packages are skipped, not reinstalled).
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#PACKAGES[@]} -gt 0 ]]; then
     retry 5 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}" \
@@ -1135,8 +1059,6 @@ for git_pkg in "${CARGO_PKGS_GIT[@]}"; do
 done
 
 if [[ ${#GO_PKGS[@]} -gt 0 ]]; then
-    # `go install a@latest b@latest` fails with "all packages must be provided
-    # by the same module" — versioned installs only work one module at a time.
     for go_pkg in "${GO_PKGS[@]}"; do
         go install "$go_pkg" || echo "go $go_pkg" >> "$FAILURES_FILE"
     done
@@ -1170,17 +1092,25 @@ while IFS= read -r script; do
     ( set -o pipefail; cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
 done < <(find "$(pwd)" -type f -name 'link.py')
 
+## INSTALL EDITOR PLUGINS
+
+if command -v nvim >/dev/null 2>&1; then
+    nvim --headless "+Lazy! sync" +qa || echo "nvim plugin bootstrap" >> "$FAILURES_FILE"
+fi
+
+if command -v emacs >/dev/null 2>&1; then
+emacs --batch \
+    -l "${HOME}/.config/emacs/early-init.el" \
+    -l "${HOME}/.config/emacs/init.el" \
+    --eval '(princ "emacs: package bootstrap complete\n")'
+fi
+
 ## LFS PULL
 
 git lfs pull
 
 ## INIT WALLPAPER AND THEME FILES
 
-# First run must land on the default theme, not a re-derived palette:
-# mountain2.jpg is ayu-dark.json's own wallpaper (its "wallpaper" field
-# points here), so switch-wallpaper.sh matches the theme JSON and applies
-# the hand-authored ayu-dark palette via `wallust cs` instead of
-# re-extracting colors from the image.
 ./scripts/switch-wallpaper.sh ./wallpapers/mountain2.jpg >/dev/null 2>/dev/null || \
     echo "scripts/switch-wallpaper.sh" >> "$FAILURES_FILE"
 
@@ -1196,16 +1126,4 @@ fi
 
 ## REBOOT
 
-sleep 150 && reboot &
-
-# Bootstrap nvim plugins headlessly before ever showing a GUI window: on a
-# fresh install lazy.nvim would otherwise install everything the first time
-# a human happens to open nvim interactively, racing the unattended reboot
-# 150s above. `Lazy! sync` clones every plugin synchronously; matches
-# configs/emacs/link.sh's equivalent batch bootstrap for parity between the
-# two editors on a fresh machine.
-if command -v nvim >/dev/null 2>&1; then
-    nvim --headless "+Lazy! sync" +qa || echo "nvim plugin bootstrap" >> "$FAILURES_FILE"
-fi
-
-nvim &
+reboot

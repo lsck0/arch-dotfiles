@@ -1,25 +1,5 @@
 #!/usr/bin/env bash
-# Pywal-themed dmenu-style picker. Reads newline-separated choices on stdin
-# and prints the selection.
-#
-# Replaces `walker --dmenu`, which had two call sites (toggles/menu.sh and
-# scripts/spawn-shimoji.sh) and was the reason walker could not be removed
-# alongside the rest of it. quickshell's own launcher is an *application*
-# launcher with no dmenu mode, so those call sites needed a real
-# general-purpose picker rather than a shell IPC call.
-#
-# bemenu, not rofi/wofi/fuzzel: it is the only dmenu-style picker already
-# installed here that has a Wayland backend
-# (/usr/lib/bemenu/bemenu-renderer-wayland.so).
-#
-# Colours are read at call time from ~/.cache/wal/colors rather than baked
-# into a config file, so this follows the wallpaper with no regeneration
-# step — unlike walker, which needed switch-wallpaper.sh to rewrite its CSS
-# on every wallpaper change. That sed block is gone with it.
-
-# omarchy:summary=Pywal-themed dmenu-style chooser (bemenu)
-# omarchy:args=[-p <prompt>] [extra bemenu args...]
-# omarchy:examples=printf 'a\nb\n' | picker.sh -p "Pick one"
+# styled dmenu
 
 set -uo pipefail
 
