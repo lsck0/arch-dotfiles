@@ -9,11 +9,11 @@ set -ex
 mkdir -p ${HOME}/.config/obs-studio/basic/scenes/
 mkdir -p ${HOME}/.config/obs-studio/basic/profiles/Untitled/
 
-ln -sf ${PWD}/Untitled.json ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
-ln -sf ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
+ln -sfn ${PWD}/Untitled.json ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
+ln -sfn ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
 # global config: SafeMode off + AutomaticSearch on so a missing capture device
 # auto-retries instead of prompting for every source on launch (issue 32)
-[ -f ${HOME}/.config/obs-studio/global.ini ] || ln -sf ${PWD}/global.ini ${HOME}/.config/obs-studio/global.ini
+[ -f ${HOME}/.config/obs-studio/global.ini ] || ln -sfn ${PWD}/global.ini ${HOME}/.config/obs-studio/global.ini
 
 # obs-websocket, for the bar's OBS status widget
 # (configs/quickshell/plugins/bar/widgets/obs-status.py). The widget reads the

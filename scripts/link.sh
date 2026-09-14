@@ -8,9 +8,9 @@ shopt -s nullglob
 
 for script in *.sh; do
     [[ "$script" == "link.sh" ]] && continue
-    sudo ln -sf "$PWD/$script" "/usr/local/bin/$(basename "$script" .sh)"
+    sudo ln -sfn "$PWD/$script" "/usr/local/bin/$(basename "$script" .sh)"
 done
 
 for script in *.py; do
-    sudo ln -sf "$PWD/$script" "/usr/local/bin/$(basename "$script" .py)"
+    sudo ln -sfn "$PWD/$script" "/usr/local/bin/$(basename "$script" .py)"
 done

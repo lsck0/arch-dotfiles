@@ -8,4 +8,4 @@ set -ex
 
 mkdir -p ~/.zsh/completions
 
-ln -sf ${PWD}/zshrc ${HOME}/.zshrc
+ln -sfn ${PWD}/zshrc ${HOME}/.zshrc

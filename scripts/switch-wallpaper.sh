@@ -5,7 +5,7 @@ set_wallpaper() {
 
     # Background.qml refreshes on startup or over IPC only — it does not watch
     # the symlink — so the shell has to be told, not just pointed at the file.
-    ln -sf "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
+    ln -sfn "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
     echo "$file" > "$HOME/.cache/wal/wallpaper_path" 2>/dev/null
 
     # A dead shell just reads the symlink on its next start, so failure here is
@@ -185,6 +185,14 @@ set_wallpaper() {
 
     # No notification-daemon restart: quickshell's notifications plugin
     # recolours live from Commons/Color.qml, which watches colors.json itself.
+
+    # Everything above is backgrounded so an interactive switch returns at
+    # once. install.sh reboots as soon as this returns, which killed the GTK
+    # and Qt exporters mid-run and left a fresh install unthemed, so it sets
+    # WALLPAPER_SYNC=1 to wait them out first.
+    if [[ -n "${WALLPAPER_SYNC:-}" ]]; then
+        wait || true
+    fi
 }
 
 # A dmenu-style picker is plain text only, so the interactive picker below uses

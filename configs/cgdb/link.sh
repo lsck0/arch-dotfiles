@@ -8,4 +8,4 @@ set -ex
 
 mkdir -p ${HOME}/.cgdb
 
-ln -sf ${PWD}/cgdbrc ${HOME}/.cgdb/cgdbrc
+ln -sfn ${PWD}/cgdbrc ${HOME}/.cgdb/cgdbrc

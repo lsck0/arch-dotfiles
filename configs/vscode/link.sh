@@ -8,5 +8,5 @@ set -ex
 
 mkdir -p ${HOME}/.config/VSCodium/User
 
-ln -sf ${PWD}/settings.json ${HOME}/.config/VSCodium/User/settings.json
-ln -sf ${PWD}/keybindings.json ${HOME}/.config/VSCodium/User/keybindings.json
+ln -sfn ${PWD}/settings.json ${HOME}/.config/VSCodium/User/settings.json
+ln -sfn ${PWD}/keybindings.json ${HOME}/.config/VSCodium/User/keybindings.json

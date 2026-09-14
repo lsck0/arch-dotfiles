@@ -16,7 +16,7 @@ hermes profile alias orchestrator --name hermes-orchestrator
 mkdir -p "${HOME}/.hermes/profiles/orchestrator/skills"
 for dir in "$(dirname "$0")"/../../skills/l-*/; do
   name=$(basename "${dir}")
-  ln -sf "$(cd "${dir}" && pwd)" "${HOME}/.hermes/profiles/orchestrator/skills/${name}"
+  ln -sfn "$(cd "${dir}" && pwd)" "${HOME}/.hermes/profiles/orchestrator/skills/${name}"
 done
 find "${HOME}/.hermes/profiles/orchestrator/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 

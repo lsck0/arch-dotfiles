@@ -14,7 +14,7 @@ ghostmirror \
     -Po -S state,outofdate,morerecent,ping
 
 # link the mirrorlist over
-sudo ln -sf ${PWD}/mirrorlist /etc/pacman.d/mirrorlist
+sudo ln -sfn ${PWD}/mirrorlist /etc/pacman.d/mirrorlist
 
 # fix permissions
 sudo touch /etc/pacman.d/mirrorlist.gm.bak

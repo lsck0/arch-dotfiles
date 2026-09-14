@@ -12,6 +12,9 @@ return {
     {
         "xiyaowong/transparent.nvim", -- transparent editor surfaces
         dependencies = { "pywal" },
+        init = function()
+            vim.g.transparent_enabled = true
+        end,
         config = function()
             require("transparent").setup({
                 extra_groups = {

@@ -14,4 +14,4 @@ else
     conf=ac-only.tlp.conf
 fi
 
-sudo ln -sf "${PWD}/${conf}" /etc/tlp.conf
+sudo ln -sfn "${PWD}/${conf}" /etc/tlp.conf

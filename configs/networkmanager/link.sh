@@ -6,6 +6,6 @@ fi
 
 set -ex
 
-sudo ln -sf ${PWD}/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+sudo ln -sfn ${PWD}/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
 
 sudo systemctl restart NetworkManager.service

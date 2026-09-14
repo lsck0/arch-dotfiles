@@ -22,4 +22,4 @@ pushd ~/.jai/jails
 jai-linux build.jai
 popd
 
-ln -sf ~/.jai/jails/bin/jails ~/.jai/bin/jails
+ln -sfn ~/.jai/jails/bin/jails ~/.jai/bin/jails
