@@ -115,7 +115,7 @@ set_wallpaper() {
     # pywal-syntax templates have no colour maths, so the fix cannot live in
     # one. This runs SYNCHRONOUSLY and before both exporters, because they
     # read the file it writes.
-    ~/projects/arch-dotfiles/scripts/generate-oomox-colors.py || true
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py || true
 
     themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox &
     themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox &
@@ -145,7 +145,7 @@ set_wallpaper() {
     # ~/.cache/wal/colors at call time and so needs no regeneration step.
 
     # update zed and vscodium themes
-    ~/projects/arch-dotfiles/scripts/generate-editor-themes.sh &
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-editor-themes.sh &
 
     # Chat client theming (Telegram/ZapZap/Signal) was attempted and dropped
     # 2026-09-08: Telegram has no CLI/D-Bus way to apply a .tdesktop-palette
@@ -159,12 +159,12 @@ set_wallpaper() {
     # (its gateway pushes the resolved skin to every surface), so this is a
     # single file rather than three integrations. Already activated once; this
     # just rewrites the file the active skin points at.
-    ~/projects/arch-dotfiles/scripts/generate-hermes-skin.py >/dev/null 2>&1 &
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-hermes-skin.py >/dev/null 2>&1 &
 
     # update KDE/Qt colours + Plasma's own wallpaper. Qt apps (qutebrowser,
     # obs, proton-vpn-qt-app) reach this through QT_QPA_PLATFORMTHEME=kde ->
     # plasma-integration -> ~/.config/kdeglobals.
-    ~/projects/arch-dotfiles/scripts/generate-kde-theme.sh "$file" &
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-kde-theme.sh "$file" &
 
     # update discord theme
     sed -i "s|\--accentcolor: .*$|\--accentcolor: $(sed -n '2p' ~/.cache/wal/colors-rgb);|" ~/.config/BetterDiscord/themes/wal.theme.css && \

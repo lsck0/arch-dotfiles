@@ -38,8 +38,8 @@ return {
             require("telescope").load_extension("git_worktree")
 
             local tele = require("telescope").extensions.git_worktree
-            vim.keymap.set("n", "<leader>gf", tele.git_worktrees)
-            vim.keymap.set("n", "<leader>gc", tele.create_git_worktree)
+            vim.keymap.set("n", "<leader>gf", tele.git_worktrees, { desc = "Git worktrees (telescope)" })
+            vim.keymap.set("n", "<leader>gc", tele.create_git_worktree, { desc = "Create git worktree" })
         end,
     },
 }

@@ -21,12 +21,14 @@ body {
 .Root__top-container {
   grid-template-areas:
     "global-nav global-nav global-nav"
-    "left-sidebar main-content"
+    "left-sidebar main-content right-sidebar"
     "now-playing-bar now-playing-bar now-playing-bar";
 }
 
+/* right sidebar: queue + device picker live here — do NOT display:none it
+   (that was the bug that hid both menus) */
 .Root__right-sidebar {
-  display: none;
+  background-color: var(--spice-main);
 }
 
 .main-globalNav-navLink {

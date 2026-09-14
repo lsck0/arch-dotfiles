@@ -5,6 +5,11 @@ set -ex
 
 mkdir -p "${HOME}/.claude/skills" "${HOME}/.copilot/skills" "${HOME}/.hermes/skills"
 
+# kill recursive links FIRST (looking at you gemini), so a re-run can never
+# see the loop it created last time
+find "${PWD}" -mindepth 2 -maxdepth 2 -type l -name 'l-*' -delete
+git -C "${PWD}" rm -q --cached --ignore-unmatch -- "${PWD}"/l-*/l-* 2>/dev/null || true
+
 for dir in "${PWD}"/l-*/; do
   name=$(basename "${dir}")
 
@@ -27,3 +32,5 @@ done
 
 # kill recursive links in case they happen (looking at you gemini)
 find "${PWD}" -mindepth 2 -maxdepth 2 -type l -name 'l-*' -delete
+# if any were committed, untrack them too so a fresh clone stays clean
+git -C "${PWD}" rm -q --cached --ignore-unmatch -- "${PWD}"/l-*/l-* 2>/dev/null || true

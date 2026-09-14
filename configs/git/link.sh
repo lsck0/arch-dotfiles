@@ -34,3 +34,4 @@ git config --global merge.mergiraf.driver "mergiraf merge --git %O %A %B -s %S -
 # jj deez
 jj config set --user user.name "Luca Sandrock"
 jj config set --user user.email "luca.sandrock@proton.me"
+jj config set --user ui.default-command log

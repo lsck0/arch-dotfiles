@@ -8,6 +8,11 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -- " .. os.getenv("HOME") .. "/projects/arch-dotfiles/configs/quickshell/restart.sh") -- replaces waybar
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/scripts/watch-monitors.sh")
 
+    -- First-boot-only setup (hyprpm plugins, shimeji imports). Both scripts
+    -- no-op when their ~/.local/state marker exists.
+    hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/hypr/manual_link.sh")
+    hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/shimoji/manual_link.sh")
+
     hl.exec_cmd("hyprpm reload")
     hl.exec_cmd("xhost + local:")
     hl.exec_cmd("xhost +SI:localuser:root")

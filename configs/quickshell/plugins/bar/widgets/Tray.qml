@@ -290,7 +290,10 @@ BarWidget {
             x: root.drawerExtent - root.revealExtent
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.trayItemGap
-            layer.enabled: true
+            // layer.enabled removed: the texture pass ate left-clicks on the
+            // icons underneath (input was landing on the layer surface, not
+            // the delegate MouseAreas). Slide masking wasn't needed since the
+            // clip container already hides the reveal.
 
             Repeater {
               model: root.drawerItems
@@ -366,7 +369,10 @@ BarWidget {
             y: root.drawerExtent - root.revealExtent
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: root.trayItemGap
-            layer.enabled: true
+            // layer.enabled removed: the texture pass ate left-clicks on the
+            // icons underneath (input was landing on the layer surface, not
+            // the delegate MouseAreas). Slide masking wasn't needed since the
+            // clip container already hides the reveal.
 
             Repeater {
               model: root.drawerItems

@@ -1,4 +1,5 @@
 local installed = {
+    "asm",
     "bash",
     "c",
     "cmake",
@@ -17,6 +18,7 @@ local installed = {
     "make",
     "markdown",
     "markdown_inline",
+    "nasm",
     "ocaml",
     "printf",
     "python",
