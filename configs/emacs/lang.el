@@ -21,6 +21,7 @@
           js-ts-mode typescript-ts-mode tsx-ts-mode
           bash-ts-mode sh-mode css-ts-mode html-mode
           json-ts-mode yaml-ts-mode lua-ts-mode go-ts-mode
+          latex-mode tex-mode bibtex-mode LaTeX-mode
           zig-mode nix-mode haskell-mode) . eglot-ensure)
   :config
   (setq eglot-autoshutdown t
@@ -30,6 +31,11 @@
   ;; inlay-hints.nvim
   (add-hook 'eglot-managed-mode-hook
             (lambda () (when (eglot-managed-p) (eglot-inlay-hints-mode 1))))
+
+  ;; vimtex + texlab: LaTeX through eglot (builtin eglot has no texlab entry)
+  (add-to-list 'eglot-server-programs
+               '((latex-mode tex-mode bibtex-mode LaTeX-mode)
+                 . ("texlab")))
 
   (add-to-list 'eglot-server-programs
                '((c-mode c-ts-mode c++-mode c++-ts-mode)

@@ -4,11 +4,28 @@ app-notifications = false
 confirm-close-surface = false
 
 background-opacity = 0.9
+# By design, background-opacity alone only affects the WINDOW background —
+# any cell with an explicit background color set (tmux's status bar
+# repainting its own bg, Hermes' TUI painting its skin's status_bar_bg/
+# completion_menu_bg panels) stays fully opaque regardless. nvim looked
+# "correctly" transparent only because transparent.nvim clears its
+# highlight groups' bg to NONE (no explicit color) rather than actually
+# being handled specially. This applies the same opacity to every cell,
+# so tmux and Hermes match nvim instead of reading as a solid darker box.
+background-opacity-cells = true
 
 font-family = 0xProto Nerd Font
 font-size = 16
 #delta
 adjust-cell-height = -23%
+
+# +100px width over ghostty's implicit default (80 cols): at font-size 16
+# each cell is ~10px wide, so 10 extra columns ≈ +100px. Column-based, not
+# literal pixels -- ghostty's window-width/window-height only accept grid
+# cells (confirmed: "We don't currently support specifying a size in
+# pixels" in the option reference), so this is an approximation that holds
+# across both Hyprland and Plasma sessions rather than a KWin-only rule.
+window-width = 90
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 

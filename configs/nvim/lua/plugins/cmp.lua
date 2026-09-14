@@ -27,18 +27,6 @@ return {
             },
 
             {
-                "github/copilot.vim", -- AI code completion
-                config = function()
-                    vim.api.nvim_set_hl(0, "CopilotSuggestion", { fg = "#910367" })
-                    vim.keymap.set("i", "<C-a>", "copilot#Accept('<CR>')", {
-                        expr = true,
-                        replace_keycodes = false
-                    })
-                    vim.g.copilot_no_tab_map = true
-                end
-            },
-
-            {
                 "L3MON4D3/LuaSnip", -- snippet engine
                 version = "v2.*",
                 build = "make install_jsregexp"

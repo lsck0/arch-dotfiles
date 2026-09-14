@@ -1,6 +1,11 @@
 -- :LPromptBuffer / :LPromptSelection
 -- Send buffer/selection text into the nearest project's taskwarrior db as a +prompt task.
 -- (see l-agent-task-db / l-multi-agent-task-mode)
+--
+-- Issue 22: ALSO forward the same text to a single, already-open herdr hermes
+-- agent pane (create one if none exists) instead of only filing a task,
+-- so a quick prompt reaches a live session immediately rather than waiting
+-- for something to poll taskwarrior.
 local M = {}
 
 local function find_taskrc(start_dir)
@@ -55,24 +60,92 @@ local function add_prompt(text)
     vim.notify("LPrompt: " .. vim.trim(result.stdout or "added"), vim.log.levels.INFO)
 end
 
+-- Finds an existing hermes agent pane over herdr's socket API, or starts one
+-- in a fresh workspace pane if none is running. Returns the pane/terminal id
+-- string herdr's `agent prompt <target>` expects, or nil + an error message.
+local function find_or_start_hermes_target()
+    if vim.fn.executable("herdr") == 0 then
+        return nil, "herdr not on PATH"
+    end
+
+    local list = vim.system({ "herdr", "agent", "list" }, { text = true }):wait()
+    if list.code ~= 0 then
+        return nil, "herdr agent list failed: " .. vim.trim(list.stderr or list.stdout or "")
+    end
+
+    local ok, decoded = pcall(vim.json.decode, list.stdout)
+    if ok and decoded and decoded.result and decoded.result.agents then
+        for _, agent in ipairs(decoded.result.agents) do
+            if agent.agent == "hermes" then
+                return agent.pane_id
+            end
+        end
+    end
+
+    -- No existing hermes agent: create one in a new pane of the current
+    -- workspace, then hand back its pane id once herdr confirms readiness.
+    local split = vim.system({ "herdr", "pane", "split", "--direction", "right" }, { text = true }):wait()
+    local ok2, pane_decoded = pcall(vim.json.decode, split.stdout)
+    local new_pane_id = ok2 and pane_decoded and pane_decoded.result and pane_decoded.result.pane
+        and pane_decoded.result.pane.pane_id
+    if split.code ~= 0 or not new_pane_id then
+        return nil, "herdr pane split failed: " .. vim.trim(split.stderr or split.stdout or "")
+    end
+
+    local start = vim.system(
+        { "herdr", "agent", "start", "lprompt-hermes", "--kind", "hermes", "--pane", new_pane_id },
+        { text = true }
+    ):wait()
+    if start.code ~= 0 then
+        return nil, "herdr agent start failed: " .. vim.trim(start.stderr or start.stdout or "")
+    end
+    return new_pane_id
+end
+
+local function send_to_hermes(text)
+    text = vim.trim(text)
+    if text == "" then
+        return
+    end
+    local target, err = find_or_start_hermes_target()
+    if not target then
+        vim.notify("LPrompt: hermes forward skipped (" .. err .. ")", vim.log.levels.WARN)
+        return
+    end
+    local prompt = vim.system(
+        { "herdr", "agent", "prompt", target, text },
+        { text = true }
+    ):wait()
+    if prompt.code ~= 0 then
+        vim.notify(
+            "LPrompt: herdr agent prompt failed: " .. vim.trim(prompt.stderr or prompt.stdout or ""),
+            vim.log.levels.WARN
+        )
+    end
+end
+
 function M.prompt_buffer()
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    add_prompt(table.concat(lines, "\n"))
+    local text = table.concat(lines, "\n")
+    add_prompt(text)
+    send_to_hermes(text)
 end
 
 function M.prompt_selection(start_line, end_line)
     local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
-    add_prompt(table.concat(lines, "\n"))
+    local text = table.concat(lines, "\n")
+    add_prompt(text)
+    send_to_hermes(text)
 end
 
 function M.setup()
     vim.api.nvim_create_user_command("LPromptBuffer", function()
         M.prompt_buffer()
-    end, { desc = "Add current buffer as a +prompt taskwarrior task" })
+    end, { desc = "Add current buffer as a +prompt taskwarrior task and forward to hermes" })
 
     vim.api.nvim_create_user_command("LPromptSelection", function(opts)
         M.prompt_selection(opts.line1, opts.line2)
-    end, { range = true, desc = "Add visual selection as a +prompt taskwarrior task" })
+    end, { range = true, desc = "Add visual selection as a +prompt taskwarrior task and forward to hermes" })
 end
 
 return M

@@ -17,7 +17,7 @@ hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
-hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd("toggle-shader"))
+hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd("~/projects/arch-dotfiles/toggles/toggle-cyberpunk-shader.sh"))
 hl.bind(mod .. " + d", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call appsearch toggle"))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("nemo"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))

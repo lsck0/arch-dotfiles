@@ -11,6 +11,9 @@ mkdir -p ${HOME}/.config/obs-studio/basic/profiles/Untitled/
 
 ln -sf ${PWD}/Untitled.json ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
 ln -sf ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
+# global config: SafeMode off + AutomaticSearch on so a missing capture device
+# auto-retries instead of prompting for every source on launch (issue 32)
+[ -f ${HOME}/.config/obs-studio/global.ini ] || ln -sf ${PWD}/global.ini ${HOME}/.config/obs-studio/global.ini
 
 # Patch the OBS desktop launcher with CEF/Chromium flags
 OBS_FLAGS="--use-fake-ui-for-media-stream --enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults,LocalNetworkAccess"

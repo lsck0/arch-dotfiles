@@ -3,9 +3,9 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# Same shader pair and hyprctl approach as scripts/toggle-shader.sh (bound to
-# SUPER+SHIFT+C directly for a quick keypress); this wraps the same effect
-# with on/off semantics so it also shows up in the toggles menu/waybar.
+# Same shader pair and hyprctl approach the SUPER+SHIFT+C keybind uses
+# directly (hyprland_keybindings.lua); this wraps the same effect with
+# on/off semantics so it also shows up in the toggles menu/waybar.
 DEFAULT_SHADER="${HOME}/.config/hypr/shaders/color-correction.frag"
 CYBERPUNK_SHADER="${HOME}/.config/hypr/shaders/crt-effect.frag"
 

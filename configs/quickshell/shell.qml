@@ -85,7 +85,8 @@ ShellRoot {
           { id: "bar.network" }, { id: "bar.display" }, { id: "bar.audio-io" },
           { id: "bar.notifications" },
           { id: "bar.keyboard-layout" },
-          { id: "bar.indicators" }
+          { id: "bar.indicators" },
+          { id: "bar.exit" }
         ]
       },
       // What the bar shows on every screen that is NOT the main one. The

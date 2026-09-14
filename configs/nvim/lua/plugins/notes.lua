@@ -32,6 +32,17 @@ return {
             require("render-markdown").enable()
             require("render-markdown").setup({
                 completions = { lsp = { enabled = true } },
+                anti_conceal = {
+                    -- Anti-conceal hides decorations on the cursor line in
+                    -- normal mode, which made mermaid blocks (rendered inline
+                    -- via snacks.image) vanish outside insert mode. Keep code
+                    -- blocks always shown regardless of cursor position.
+                    ignore = {
+                        code_background = true,
+                        code_border = true,
+                        code_language = true,
+                    },
+                },
             })
         end
     },

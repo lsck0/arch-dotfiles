@@ -47,6 +47,35 @@ ssh-add ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 sudo ln -sf ~/projects/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/wg0.conf
 ```
 
+## Boot disk security (btrfs subvolumes, timeshift, Secure Boot, LUKS)
+
+`install.sh` prompts once (like package groups, state cached in `boot.conf`)
+for which of `timeshift` / `sbctl` / `luks` to attempt. Each is **detected,
+not assumed**: install.sh never partitions, converts MBR→GPT, or migrates an
+unencrypted system into LUKS — partitioning and the bootloader are already
+done by the time install.sh runs, on laptops, desktops, WSL, and servers
+alike, so this only configures what the existing disk layout already
+supports and otherwise prints what to fix and exits cleanly.
+
+| Feature                | install.sh configures                                                                    | You must set up first                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| timeshift (btrfs mode) | `/etc/timeshift/timeshift.json`, `timeshift-autosnap` pacman hook                        | root mounted from a **named** btrfs subvolume (e.g. `@`), not the top-level subvol (`subvolid=5`) — see ArchWiki Timeshift § Configuring btrfs snapshots |
+| sbctl (Secure Boot)    | key creation + enrollment, signs the ESP boot chain, enables the mkinitcpio signing hook | a GPT disk with a real ESP, booted in UEFI mode (`/sys/firmware/efi` present)                                                                            |
+| luks                   | `/etc/crypttab` tuning (`discard`, `perf-no-*-workqueue`), mkinitcpio `encrypt` hook     | an existing LUKS2 partition — install.sh will not encrypt an unencrypted root in place                                                                   |
+
+If your system doesn't meet a precondition yet, `configs/boot/<feature>/link.sh`
+says so on stderr and skips; rerun install.sh (or just that script) once you've
+fixed it. See `BOOT.md` for the full research/rationale behind these choices
+(cipher/sector-size tuning, TPM2 auto-unlock, why LUKS-on-LVM was rejected,
+etc.) — it documents one real migration plan, but the mechanics below apply
+to any machine.
+
+To convert an existing top-level-subvolume system to the `@`/`@home` layout
+timeshift needs, or to add a LUKS2 layer to an existing partition, follow the
+ArchWiki (Timeshift § Converting an installed system; dm-crypt § Encrypting
+an entire system) — both are point-of-no-return operations to do deliberately
+with a verified backup, not folded into an unattended install script.
+
 ## Screenshots
 
 Amazing wallpapers: https://aenamiart.artstation.com/

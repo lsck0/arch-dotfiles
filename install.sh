@@ -6,6 +6,25 @@ exec > >(tee "install.log") 2>&1
 FAILURES_FILE="$(pwd)/FAILURES"
 : > "$FAILURES_FILE"
 
+# retry N times with exponential backoff. Pacman exit code 8 is "failed to
+# commit transaction" — usually a mirror rate-limit or a partially downloaded
+# DB, i.e. transient. Retrying the whole command makes a flaky mirror
+# survivable instead of aborting the run.
+retry() {
+    local attempts="$1"; shift
+    local n=1 wait_s=5
+    until "$@"; do
+        if (( n >= attempts )); then
+            echo "FAILED after $attempts attempts: $*" >&2
+            return 1
+        fi
+        echo "attempt $n/$attempts failed, retrying in ${wait_s}s: $*" >&2
+        sleep "$wait_s"
+        n=$(( n + 1 ))
+        wait_s=$(( wait_s * 2 ))
+    done
+}
+
 ## PACKAGES
     #   base        - bare Arch security tooling
     #   fonts       - fonts, managers, nerd fonts
@@ -18,6 +37,15 @@ FAILURES_FILE="$(pwd)/FAILURES"
     #   qemu        - QEMU and virtualization tooling
     #   llm         - Ollama, vLLM, ROCm stack
     #   pentesting  - active scanning exploitation tools
+
+# NOTE: the theme-propagation stack lives in base on purpose, so it is always
+# installed even when the desktop group is deselected: wallust-git (engine),
+# themix-gui-git + themix-plugin-base16-git (themix-multi-export, the GTK
+# exporter scripts/switch-wallpaper.sh calls on every wallpaper change),
+# python-pywalfox (firefox), imagemagick (magick, used by
+# generate-editor-themes.sh), python (generate-*.py scripts) and jq (theme
+# scan + generators). themix-gui-git ships a GUI, but its multi-export CLI is
+# part of the core theme pipeline, hence the base exception.
 
 PACKAGES=(
     alsa-firmware # [base] ALSA sound firmware
@@ -58,12 +86,14 @@ PACKAGES=(
     fd # [base] find alternative
     ffmpeg # [base] audio/video converter
     file # [base] file type detector
+    fzf # [base] fuzzy finder
     flatpak # [base] sandboxed app packages
     ghostmirror # [base] mirrorlist ranking tool
     git # [base] version control
     gnutls # [base] TLS library
     gpg-tui # [base] gpg tui
     gping # [base] ping with graph
+    imagemagick # [base] theme generator dependency
     intel-media-driver # [base] Intel VAAPI driver
     ipython # [base] enhanced Python shell
     iwd # [base] iNet wireless daemon
@@ -155,6 +185,8 @@ PACKAGES=(
     plymouth # [base] boot splash screen
     portmaster-bin # [base] application firewall
     procs # [base] modern ps replacement
+    python # [base] theme generator scripts
+    python-pywalfox # [base] firefox theme propagator
     python-validity-git # [base] fingerprint reader driver
     ranger # [base] terminal file manager
     rar # [base] RAR archive tool
@@ -163,6 +195,7 @@ PACKAGES=(
     rustnet # [base] network monitor TUI
     s-tui # [base] CPU stress/monitor TUI
     sane # [base] scanner access library
+    sbctl # [base] Secure Boot key management
     sd # [base] sed alternative CLI
     smartmontools # [base] disk health monitoring
     socat # [base] socket relay tool
@@ -175,8 +208,11 @@ PACKAGES=(
     superseedr # [base] terminal torrent
     tar # [base] archiving utility
     tar-scripts # [base] tar helper scripts
+    themix-gui-git # [base] GTK theme exporter
+    themix-plugin-base16-git # [base] themix export plugin
     thermald # [base] thermal management daemon
     timeshift # [base] system backup/restore
+    timeshift-autosnap # [base] pacman hook for pre-upgrade snapshots
     tk # [base] Tcl/Tk GUI toolkit
     tldr # [base] simplified man pages
     tlp # [base] laptop power management
@@ -199,6 +235,7 @@ PACKAGES=(
     vulkan-intel # [base] Intel Vulkan driver
     vulkan-nouveau # [base] Nvidia open Vulkan
     vulkan-radeon # [base] AMD Vulkan driver
+    wallust-git # [base] wallpaper colour engine
     wget # [base] file download utility
     whois # [base] domain lookup tool
     wiki-tui # [base] Wikipedia terminal browser
@@ -413,7 +450,6 @@ PACKAGES=(
     polkit-kde-agent # [desktop] KDE polkit agent
     proton-authenticator-bin # [desktop] Proton 2FA app
     proton-vpn-qt-app # [desktop] ProtonVPN GUI client
-    python-pywalfox # [desktop] pywal firefox theming
     qbittorrent # [desktop] torrent client
     qt5 # [desktop] Qt5 UI toolkit
     qt5-wayland # [desktop] Qt5 wayland platform
@@ -427,12 +463,9 @@ PACKAGES=(
     snapshot # [desktop] GNOME camera app
     sowon-git # [desktop] tsoding timer
     system-config-printer # [desktop] printer config GUI
-    themix-gui-git # [desktop] GTK theme generator
-    themix-plugin-base16-git # [desktop] themix base16 plugin
     tlpui # [desktop] TLP configuration GUI
     torbrowser-launcher # [desktop] Tor Browser launcher
     uwsm # [desktop] universal wayland session manager
-    wallust-git # [desktop] wallpaper colour extraction
     waydroid # [desktop] Android container runtime
     wayland # [desktop] display server protocol
     wayland-boomer-git # [desktop] wayland screen magnifier
@@ -515,7 +548,6 @@ PACKAGES=(
     glava # [creating] audio visualizer
     handbrake # [creating] video transcoder
     identity # [creating] media comparison
-    imagemagick # [creating] image manipulation CLI
     inkscape # [creating] vector graphics editor
     kdenlive # [creating] video editor
     krita # [creating] digital painting app
@@ -540,6 +572,7 @@ PACKAGES=(
     biber # [latex] bibliography processor
     bibiman-bin # [latex] tui bibtext manager
     tectonic # [latex] LaTeX engine
+    texlab # [latex] LaTeX language server
     texlive # [latex] LaTeX distribution
     texlive-lang # [latex] LaTeX language packs
     texmaker # [latex] LaTeX editor
@@ -547,6 +580,10 @@ PACKAGES=(
     act # [programming] run CI locally
     afl++ # [programming] fuzzing tool
     age # [programming] file encryption tool
+    avr-binutils # [programming] AVR assembler/linker
+    avr-gcc # [programming] AVR C compiler
+    avr-gdb # [programming] AVR debugger
+    avr-libc # [programming] AVR C library
     android-ndk # [programming] Android native dev kit
     android-sdk # [programming] Android development kit
     appimagetool-git # [programming] build AppImages
@@ -608,7 +645,6 @@ PACKAGES=(
     figlet # [programming] ascii text banners
     flamelens # [programming] tui flamegraph viewer
     ftxui # [programming] C++ terminal UI lib
-    fzf # [programming] fuzzy finder
     gcc # [programming] C/C++ compiler
     gcc-fortran # [programming] Fortran compiler
     gdb # [programming] GNU debugger
@@ -891,7 +927,38 @@ NIX_PKGS=(
 ## PACKAGE GROUPS
 
 GROUPS_STATE="$HOME/projects/arch-dotfiles/groups.conf"
-[[ -f "$GROUPS_STATE" ]] || "$(pwd)/scripts/groups-select.sh"
+PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
+
+if [[ ! -f "$GROUPS_STATE" ]]; then
+    if [[ -t 0 ]]; then
+        echo "Select package groups to install (space-separated numbers, or press enter for all):"
+        for i in "${!PKG_GROUPS[@]}"; do
+            echo "  $(( i + 1 ))  ${PKG_GROUPS[i]}"
+        done
+        echo "  0  all groups"
+        echo ""
+        read -rp "Enter numbers (e.g. '1 3 5' or '0' for all): " -a nums
+        if [[ ${#nums[@]} -gt 0 && "${nums[0]}" != "0" ]]; then
+            selected=()
+            for n in "${nums[@]}"; do
+                if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 && n <= ${#PKG_GROUPS[@]} )); then
+                    selected+=("${PKG_GROUPS[n-1]}")
+                fi
+            done
+            if [[ ${#selected[@]} -gt 0 ]]; then
+                printf '%s\n' "${selected[@]}" > "$GROUPS_STATE"
+            else
+                printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
+            fi
+        else
+            printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
+        fi
+    else
+        printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
+    fi
+    echo "Enabled groups:" >&2
+    cat "$GROUPS_STATE" >&2
+fi
 ENABLED_GROUPS=$(cat "$GROUPS_STATE")
 
 filter_by_group() {
@@ -918,6 +985,46 @@ mapfile -t CARGO_PKGS_GIT < <(filter_by_group CARGO_PKGS_GIT)
 mapfile -t GO_PKGS < <(filter_by_group GO_PKGS)
 mapfile -t NIX_PKGS < <(filter_by_group NIX_PKGS)
 
+## BOOT DISK SECURITY (timeshift btrfs snapshots, Secure Boot, LUKS)
+
+# Partitioning/bootloader is already done by the time install.sh runs (see
+# l-dotfiles convention), so this only detects what the existing layout
+# supports and configures it — it never repartitions, converts MBR→GPT, or
+# migrates an unencrypted install into LUKS. See README §Boot disk security
+# and BOOT.md for the manual steps those require.
+BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
+BOOT_FEATURES=(timeshift sbctl luks)
+
+if [[ ! -f "$BOOT_STATE" ]]; then
+    if [[ -t 0 ]]; then
+        echo ""
+        echo "Boot disk security (timeshift/sbctl/luks) — each is detected and"
+        echo "skipped automatically if this system's layout doesn't support it"
+        echo "yet (see README §Boot disk security for how to prepare it):"
+        for i in "${!BOOT_FEATURES[@]}"; do
+            echo "  $(( i + 1 ))  ${BOOT_FEATURES[i]}"
+        done
+        echo "  0  all"
+        echo ""
+        read -rp "Enter numbers to attempt (e.g. '1 2' or '0' for all, enter for none): " -a bnums
+        selected=()
+        if [[ ${#bnums[@]} -gt 0 && "${bnums[0]}" == "0" ]]; then
+            selected=("${BOOT_FEATURES[@]}")
+        else
+            for n in "${bnums[@]}"; do
+                if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 && n <= ${#BOOT_FEATURES[@]} )); then
+                    selected+=("${BOOT_FEATURES[n-1]}")
+                fi
+            done
+        fi
+        printf '%s\n' "${selected[@]}" > "$BOOT_STATE"
+    else
+        : > "$BOOT_STATE" # non-interactive: opt-in only, nothing enabled by default
+    fi
+    echo "Enabled boot features:" >&2
+    cat "$BOOT_STATE" >&2
+fi
+
 ## REMOVE PASSWORD FROM SUDO
 
 if ! sudo grep -q '$USER' /etc/sudoers; then
@@ -937,37 +1044,62 @@ popd
 
 ## INSTALLING ALL THE THINGS
 
-# update
+# update. One -Syyu for the whole run; -Sy/-Syy inside install commands is
+# what made reruns slow (each refresh re-downloads the DB and hits mirror
+# rate limits). Everything below installs with --needed, which skips
+# packages that are already installed and current, so a rerun of this
+# script costs seconds, not a full reinstall.
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
-# install yay
-sudo pacman -S --needed --noconfirm git base-devel && \
-    git clone https://aur.archlinux.org/yay.git && \
-    cd yay && \
-    makepkg -si --noconfirm && \
-    cd .. && \
+# install yay (skipped when already present)
+if ! command -v yay >/dev/null 2>&1; then
+    sudo pacman -S --needed --noconfirm git base-devel
+    git clone https://aur.archlinux.org/yay.git
+    ( cd yay && makepkg -si --noconfirm )
     rm -rf yay/
+fi
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
-sudo pacman -S rustup --noconfirm
-rustup toolchain install nightly
-rustup toolchain install stable
-rustup default stable
+sudo pacman -S --needed --noconfirm rustup
+rustup toolchain install nightly || true
+rustup toolchain install stable || true
+rustup default stable || true
 
-# install all the things
+# install all the things. ONE pacman/paru transaction instead of one per
+# group: paru resolves the full dep set at once and a single -Sy-free run
+# avoids per-chunk mirror refreshes/rate limits. --needed keeps reruns
+# idempotent (already-installed packages are skipped, not reinstalled).
 export yay_skipcheck=true # prevent failing tests to break everything
-[[ ${#PACKAGES[@]} -eq 0 ]] || yay -S "${PACKAGES[@]}" --noconfirm --mflags --skipinteg
+if [[ ${#PACKAGES[@]} -gt 0 ]]; then
+    retry 5 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}" \
+        || echo "yay batch (${#PACKAGES[@]} pkgs)" >> "$FAILURES_FILE"
+fi
 
-[[ ${#CARGO_PKGS[@]} -eq 0 ]] || cargo install --locked "${CARGO_PKGS[@]}" -j $(nproc)
+if [[ ${#CARGO_PKGS[@]} -gt 0 ]]; then
+    cargo install --locked "${CARGO_PKGS[@]}" -j $(nproc) \
+        || echo "cargo batch" >> "$FAILURES_FILE"
+fi
 for git_pkg in "${CARGO_PKGS_GIT[@]}"; do
-    cargo install --git "$git_pkg" -j $(nproc)
+    cargo install --git "$git_pkg" -j $(nproc) || echo "cargo $git_pkg" >> "$FAILURES_FILE"
 done
 
-[[ ${#GO_PKGS[@]} -eq 0 ]] || go install "${GO_PKGS[@]}"
-[[ ${#FLATPAK_PKGS[@]} -eq 0 ]] || flatpak install flathub -y "${FLATPAK_PKGS[@]}"
-[[ ${#NIX_PKGS[@]} -eq 0 ]] || nix profile install --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}"
+if [[ ${#GO_PKGS[@]} -gt 0 ]]; then
+    # `go install a@latest b@latest` fails with "all packages must be provided
+    # by the same module" — versioned installs only work one module at a time.
+    for go_pkg in "${GO_PKGS[@]}"; do
+        go install "$go_pkg" || echo "go $go_pkg" >> "$FAILURES_FILE"
+    done
+fi
+if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]]; then
+    flatpak install flathub -y "${FLATPAK_PKGS[@]}" \
+        || echo "flatpak batch" >> "$FAILURES_FILE"
+fi
+if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
+    nix profile install --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
+        || echo "nix batch" >> "$FAILURES_FILE"
+fi
 
 # cleanup
 rm -rf ${HOME}/.cache/yay/
@@ -995,7 +1127,13 @@ git lfs pull
 
 ## INIT WALLPAPER AND THEME FILES
 
-./scripts/switch-wallpaper.sh ./wallpapers/gargantua.jpg >/dev/null 2>/dev/null
+# First run must land on the default theme, not a re-derived palette:
+# mountain2.jpg is ayu-dark.json's own wallpaper (its "wallpaper" field
+# points here), so switch-wallpaper.sh matches the theme JSON and applies
+# the hand-authored ayu-dark palette via `wallust cs` instead of
+# re-extracting colors from the image.
+./scripts/switch-wallpaper.sh ./wallpapers/mountain2.jpg >/dev/null 2>/dev/null || \
+    echo "scripts/switch-wallpaper.sh" >> "$FAILURES_FILE"
 
 ## SUMMARY
 
@@ -1010,5 +1148,15 @@ fi
 ## REBOOT
 
 sleep 150 && reboot &
+
+# Bootstrap nvim plugins headlessly before ever showing a GUI window: on a
+# fresh install lazy.nvim would otherwise install everything the first time
+# a human happens to open nvim interactively, racing the unattended reboot
+# 150s above. `Lazy! sync` clones every plugin synchronously; matches
+# configs/emacs/link.sh's equivalent batch bootstrap for parity between the
+# two editors on a fresh machine.
+if command -v nvim >/dev/null 2>&1; then
+    nvim --headless "+Lazy! sync" +qa || echo "nvim plugin bootstrap" >> "$FAILURES_FILE"
+fi
 
 nvim &

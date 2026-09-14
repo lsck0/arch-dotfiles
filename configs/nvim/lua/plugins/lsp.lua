@@ -1,8 +1,10 @@
 local installed = {
+    "asm-lsp",
     "bash-language-server",
     "bibtex-tidy",
     "black",
     "clangd",
+    "cobol-language-support",
     "codelldb",
     "css-lsp",
     "cssmodules-language-server",
@@ -11,6 +13,7 @@ local installed = {
     "emmet-language-server",
     "eslint-lsp",
     "gopls",
+    "haskell-language-server",
     "hlint",
     "html-lsp",
     "hyprls",
@@ -19,6 +22,7 @@ local installed = {
     "java-test",
     "jdtls",
     "jinja-lsp",
+    "js-debug-adapter", -- pwa-node DAP for typescript/javascript debugging
     "json-lsp",
     "kulala-fmt",
     "latexindent",
@@ -26,6 +30,7 @@ local installed = {
     "lemminx",
     "lua-language-server",
     "nil",
+    "ormolu",
     "prettierd",
     "pyright",
     "rust-analyzer",
@@ -178,6 +183,16 @@ return {
             })
             vim.lsp.enable("rust_analyzer")
 
+            -- tailwindcss only where class attributes exist; the default
+            -- filetype list leaks into markdown etc. (issue 28)
+            vim.lsp.config("tailwindcss", {
+                filetypes = {
+                    "html", "css", "scss", "less", "javascript", "javascriptreact",
+                    "typescript", "typescriptreact", "vue", "svelte",
+                },
+            })
+            vim.lsp.enable("tailwindcss")
+
             vim.lsp.config("ts_ls", {
                 on_attach = function(client, bufnr)
                     require("twoslash-queries").attach(client, bufnr)
@@ -185,12 +200,37 @@ return {
             })
             vim.lsp.enable("ts_ls")
 
+            -- haskell/asm/cobol: nvim-lspconfig's shipped defaults (hls,
+            -- asm_lsp, cobol_ls) already point at the mason-installed
+            -- binaries above by name -- no cmd/filetype override needed,
+            -- except cobol_ls (see below).
+            vim.lsp.enable("hls")
+            vim.lsp.enable("asm_lsp")
+
+            -- cobol_ls: mason's `cobol-language-support` binary is a native
+            -- (non-JVM) wrapper that leaks its logback startup banner onto
+            -- stdout before the first LSP Content-Length header, corrupting
+            -- the JSON-RPC stream ("Content-Length not found in header").
+            -- The bundled server.jar run directly through `java -jar` does
+            -- not have this bug (verified: clean stdout, banner only on
+            -- stderr) -- point cmd at that instead of the mason shim.
+            local cobol_jar = vim.fn.stdpath("data")
+                .. "/mason/packages/cobol-language-support/extension/server/jar/server.jar"
+            if vim.uv.fs_stat(cobol_jar) then
+                vim.lsp.config("cobol_ls", { cmd = { "java", "-jar", cobol_jar } })
+                vim.lsp.enable("cobol_ls")
+            end
+
             require("mason-lspconfig").setup({
                 automatic_enable = {
                     exclude = {
                         "clangd",
                         "rust_analyzer",
                         "ts_ls",
+                        "tailwindcss", -- manually enabled with restricted filetypes
+                        "hls",
+                        "asm_lsp",
+                        "cobol_ls",
                     }
                 }
             })
@@ -221,6 +261,7 @@ return {
                 formatters_by_ft = {
                     bib = { "bibtex-tidy" },
                     css = { "prettier" },
+                    haskell = { "ormolu" },
                     html = { "prettier" },
                     http = { "kulala-fmt" },
                     javascript = { "prettier" },

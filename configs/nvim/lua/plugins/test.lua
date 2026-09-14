@@ -16,7 +16,12 @@ return {
         config = function()
             require("neotest").setup({
                 adapters = {
-                    require("neotest-rust"),
+                    -- neotest-rust runs cargo-nextest (that's what the adapter
+                    -- is built on). args are passed straight to nextest.
+                    require("neotest-rust")({
+                        args = { "--no-fail-fast" },
+                        dap_adapter = "codelldb",
+                    }),
                     require("neotest-python")({
                         dap = { justMyCode = false },
                     }),

@@ -16,7 +16,12 @@ return {
                 { "<leader>d", group = "debug" },
                 { "<leader>n", group = "test" },
                 { "<leader>p", group = "present" },
-                { "<leader>s", group = "search" },
+                { "<leader>s", group = "search/spectre" },
+                { "<leader>b", group = "breakpoints" },
+                { "<leader>g", group = "git" },
+                { "<leader>t", group = "trouble" },
+                { "<leader>v", group = "venn" },
+                { "<leader>x", desc = "Comment line" },
             })
         end,
     },

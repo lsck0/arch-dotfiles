@@ -1,0 +1,20 @@
+# /etc/crypttab — LUKS device options (idempotent, managed by
+# configs/boot/luks/link.sh). Entries below are appended by the link script
+# when a LUKS-encrypted root/data device is detected. Manual entries added
+# above this marker are preserved across reruns.
+#
+# Options used (when LUKS is present):
+#   luks             — detect LUKS header
+#   discard          — pass TRIM/UNMAP through (matches current btrfs
+#                      discard=async; tradeoff: reveals freed-block regions)
+#   perf-no-read-workqueue
+#   perf-no-write-workqueue
+#                      — reduce dm-crypt per-bio latency on kernels ≥ 5.9;
+#                      relevant on this 512e NVMe (see BOOT.md benchmarks)
+#
+# For auto-unlock with SB active: systemd-cryptenroll --tpm2-device auto
+#   --tpm2-pcr 7 (PCR 7 binding only meaningful with Secure Boot on).
+# For passphrase-based boot: mkinitcpio encrypt hook + a keyfile in the ESP,
+#   or a typed passphrase prompt in the initrd.
+#
+# MARKER:arch-dotfiles/boot/luks — do not edit entries below this line manually

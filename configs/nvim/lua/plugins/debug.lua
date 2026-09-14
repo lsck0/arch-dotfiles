@@ -60,6 +60,62 @@ return {
                 })
             end
 
+            -- codelldb: rust + any lldb-debuggable target (installed via
+            -- codelldb-bin, mason-managed binary verified on PATH).
+            dap.adapters.codelldb = {
+                type = "server",
+                port = "${port}",
+                executable = {
+                    command = "codelldb",
+                    args = { "--port", "${port}" },
+                },
+            }
+
+            -- js-debug for typescript/javascript (vscode's debug adapter,
+            -- standalone via node). Install: mason's js-debug-adapter puts
+            -- js-debug-adapter-prefix here; fall back to the bare command
+            -- if it's on PATH.
+            local js_debug_dir = vim.fn.stdpath("data") .. "/mason/packages/js-debug-adapter"
+            local js_dbg_cmd = vim.fs.find("js-debug-adapter-prefix", {
+                path = vim.fn.stdpath("data") .. "/mason/bin", type = "file"
+            })[1]
+            if js_dbg_cmd then
+                dap.adapters["pwa-node"] = {
+                    type = "server",
+                    host = "localhost",
+                    port = "${port}",
+                    executable = {
+                        command = "node",
+                        args = {
+                            js_debug_dir .. "/js-debug/src/dapDebugServer.js",
+                            "${port}",
+                        },
+                    },
+                }
+                dap.configurations.typescript = {
+                    {
+                        name = "Launch file",
+                        type = "pwa-node",
+                        request = "launch",
+                        program = "${file}",
+                        cwd = "${workspaceFolder}",
+                        runtimeExecutable = "tsx",
+                        runtimeArgs = {},
+                        console = "integratedTerminal",
+                        internalConsoleOptions = "neverOpen",
+                        skipFiles = { "<node_internals>/**", "node_modules/**" },
+                    },
+                    {
+                        name = "Attach to node process",
+                        type = "pwa-node",
+                        request = "attach",
+                        processId = require("dap.utils").pick_process,
+                        cwd = "${workspaceFolder}",
+                    },
+                }
+                dap.configurations.javascript = dap.configurations.typescript
+            end
+
             dap.configurations.asm = {
                 {
                     name = "Launch",
@@ -77,15 +133,15 @@ return {
             dap.configurations.cpp = dap.configurations.asm
 
             dap.configurations.rust = { {
-                name = "Launch",
-                type = "gdb",
+                name = "Launch (codelldb)",
+                type = "codelldb",
                 request = "launch",
                 program = function()
                     vim.fn.system("cargo build")
                     return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/target/debug/", "file")
                 end,
                 cwd = "${workspaceFolder}",
-                stopAtBeginningOfMainSubprogram = true,
+                stopOnEntry = false,
             } }
 
             dap.configurations.python = { {

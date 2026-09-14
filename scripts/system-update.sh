@@ -2,8 +2,8 @@
 # Update all the things.
 #
 # Every external tool here comes from an install.sh PACKAGE GROUP the user
-# can opt out of (`scripts/groups-select.sh` — any of the 8 groups,
-# including "programming", "gaming", even "base", can be deselected), so a
+# can opt out of (interactive prompt at first install.sh run — any of the 11
+# groups, including "programming", "gaming", even "base", can be deselected), so a
 # tool being absent on this particular machine is an expected, normal case,
 # not a bug. Before this guard existed, an opted-out toolchain just spammed
 # "command not found" to stderr and moved on — harmless but noisy, and it
@@ -17,6 +17,20 @@ read -p "Type 'y' to continue: " confirm
 if [ "$confirm" != "y" ]; then
     echo "Aborting update."
     exit 1
+fi
+
+# Pre-update snapshot: only if timeshift has actually been configured past
+# its first-run wizard (config/boot/timeshift/link.sh writes
+# /etc/timeshift/timeshift.json — see BOOT.md; on this machine btrfs-mode is
+# not yet reachable since root is still a top-level subvol, so this
+# correctly no-ops here until that migration happens). Guarding on the real
+# config file, not just `command -v timeshift`, avoids dropping the tool
+# into its interactive first-run wizard from an unattended update script.
+if command -v timeshift >/dev/null 2>&1 && [ -f /etc/timeshift/timeshift.json ] \
+    && ! grep -q '"do_first_run" : "true"' /etc/timeshift/timeshift.json 2>/dev/null; then
+    sudo timeshift --create --comments "pre-update ($(date -Iseconds))" --tags D
+else
+    echo "[skip] timeshift not configured past first-run (see BOOT.md) — no pre-update snapshot" >&2
 fi
 
 # Runs a command only if its first word resolves on PATH; otherwise prints a
@@ -90,6 +104,18 @@ if command -v ghcup >/dev/null 2>&1; then
     ghcup install stack latest
 else
     echo "[skip] ghcup not installed" >&2
+fi
+
+if command -v emacs >/dev/null 2>&1; then
+    emacs --batch --eval "(progn (require 'package)
+      (setq package-archives '((\"gnu\" . \"https://elpa.gnu.org/packages/\")
+                                (\"nongnu\" . \"https://elpa.nongnu.org/nongnu/\")
+                                (\"melpa\" . \"https://melpa.org/packages/\")))
+      (package-initialize)
+      (package-refresh-contents)
+      (package-upgrade-all))"
+else
+    echo "[skip] emacs not installed" >&2
 fi
 
 # userland
