@@ -85,9 +85,9 @@ ShellRoot {
     version: 1,
     bar: {
       layout: {
-        // Time and weather live on the LEFT, beside the launcher and the
-        // workspaces — they are reference information you glance at, not
-        // something that should own the middle of the screen.
+        // The launcher and the workspaces: where you are, and how to get
+        // somewhere else. Both are navigation rather than information, which
+        // is why they sit at the edge you throw the pointer at.
         left: [
           { id: "bar.app-menu" },
           { id: "bar.workspaces" }

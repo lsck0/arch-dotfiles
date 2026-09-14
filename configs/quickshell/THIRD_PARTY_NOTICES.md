@@ -111,6 +111,23 @@ entries; summarized here for provenance:
   integrations replaced with this repo's pywal/wallpaper-script
   equivalents).
 
+## External data sources and runtime dependencies
+
+Not derived code — these are services the shell queries at runtime, and
+packages it needs present. Listed here because their terms are what make
+the querying allowed, and because "where does this number come from" is a
+question this file should answer.
+
+| Source | Used by | Terms as they affect us |
+| --- | --- | --- |
+| [Open-Meteo](https://open-meteo.com/) | `weather-fetch.sh`, `weather-field.sh` | Free for non-commercial use, no API key. CC-BY-4.0 data; attribution is shown in the weather panel's provenance line. `weather-field.sh` sends a 25-point grid in one request, well inside the free tier's call budget. |
+| [RainViewer](https://www.rainviewer.com/api.html) | `weather-radar.sh` | Free public API, no key. **Attribution is a licence condition** — the panel renders "radar © RainViewer" whenever frames are shown, and `manifest.json` carries the string so the widget cannot display the loop without it. |
+| [MeteoAlarm](https://meteoalarm.org/) (EUMETNET) | `weather-alerts.sh` | Free, unauthenticated CAP feeds from ~38 European national met services. Warnings are re-presented as structured fields only (event, awareness level, relative times) — no headline, description or instruction text is emitted, which also keeps us clear of redistributing their prose. |
+| [Nominatim](https://nominatim.org/) / OpenStreetMap | `weather-alerts.sh` | Reverse geocoding, to decide which CAP region applies. ODbL data. Their usage policy requires an identifying `User-Agent` (sent) and forbids heavy automated use — the answer is cached for 30 days, since administrative boundaries do not move. The result is used only for region matching and is never displayed, so no on-screen OSM attribution is due. |
+| `python-websocket-client` | `obs-status.py` | Apache-2.0. Packaged on Arch as `python-websocket-client`; pulled in by `install.sh`. |
+| [obs-websocket](https://github.com/obsproject/obs-websocket) (protocol) | `obs-status.py` | GPL-2.0-or-later, and shipped inside OBS Studio — we implement its v5 client handshake against the user's own local server, linking nothing. |
+| [BetterDiscord](https://betterdiscord.app/) (plugin API) | `configs/discord/plugins/QuickshellVoiceStatus.plugin.js` | First-party plugin written for this repo, not a port. It targets BetterDiscord's `BdApi` surface; BetterDiscord itself is Apache-2.0 and is installed separately by the user. |
+
 ## Scripts (`scripts/`)
 
 Verbatim ports of Omarchy `bin/` scripts, renamed and symlinked via this

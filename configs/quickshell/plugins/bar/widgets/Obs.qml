@@ -79,14 +79,26 @@ BarWidget {
   // The state colour, used by the dot AND the label. Streaming outranks
   // recording: if both outputs are running, the one with an audience is the
   // one you must not lose track of.
-  readonly property color stateColor: degraded
+  readonly property color stateColor: (degraded || faulted)
     ? Color.semantic.warn
     : (streaming ? Color.semantic.live : (recording ? Color.semantic.recording : Color.muted))
   // Reconnecting is the state worth shouting about: the bar still says LIVE
   // while the stream is, in fact, not reaching anyone.
   readonly property bool degraded: streamReconnecting || dropPct >= 1.0 || congestion >= 0.3
 
-  visible: connected
+  // OBS IS RUNNING BUT THE HELPER CANNOT TALK TO IT — obs-websocket switched
+  // off, a password this side does not have, the python module missing. The
+  // helper goes to some trouble to distinguish those and report which; that
+  // was wasted, because `visible: connected` hid the widget in exactly the
+  // cases it had something to say, panel and all. So the error reports itself.
+  //
+  // Gated on `obsSeen`, so a machine that never opens OBS still gets no chip:
+  // the helper is not even started until `pgrep -x obs` succeeds, and a
+  // permanent "OBS: disabled" on a bar belonging to someone who does not
+  // stream is precisely the noise this widget's header rejects.
+  readonly property bool faulted: obsSeen && !connected && errorText !== ""
+
+  visible: connected || faulted
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
@@ -310,6 +322,7 @@ BarWidget {
       // "REC" while live would understate it: a dropped recording costs a
       // file, a dropped stream costs the audience.
       text: {
+        if (root.faulted) return "OBS ⚠"
         if (root.streamReconnecting) return "RECONNECTING"
         if (root.streaming && root.recording) return "LIVE+REC"
         if (root.streaming) return "LIVE"
@@ -319,13 +332,13 @@ BarWidget {
       // Tinted to the state, not left on the bar foreground. The dot alone was
       // the only thing separating "live" from "recording" at a glance, and a
       // 8px dot is not enough to carry that difference.
-      color: root.active
+      color: root.active || root.faulted
         ? root.stateColor
         : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
       font.bold: root.active
-      opacity: root.active ? 1 : 0.55
+      opacity: root.active || root.faulted ? 1 : 0.55
     }
 
     Text {
@@ -435,6 +448,34 @@ BarWidget {
 
       PanelSectionHeader { text: "OBS" }
 
+      // AT THE TOP, NOT THE BOTTOM. This used to be the last child of the
+      // panel, under five sections of readouts — and unreachable anyway, since
+      // the widget hid itself whenever there was an error to report. When the
+      // helper cannot reach OBS this line is the only content that means
+      // anything, so it leads.
+      Rectangle {
+        width: parent.width
+        height: faultText.implicitHeight + Style.spacing.sm * 2
+        radius: Style.cornerRadius
+        visible: root.errorText !== ""
+        color: Util.alpha(Color.semantic.warn, 0.16)
+
+        Text {
+          id: faultText
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: Style.spacing.md
+          anchors.rightMargin: Style.spacing.md
+          anchors.verticalCenter: parent.verticalCenter
+          wrapMode: Text.Wrap
+          textFormat: Text.PlainText
+          text: root.errorText
+          color: Color.semantic.warn
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+      }
+
       // --- controls ---
       //
       // First, above the readouts. The reason to open this panel mid-session is
@@ -444,9 +485,14 @@ BarWidget {
       // Deliberately no confirmation dialog on stop. A stop is recoverable (the
       // file is kept, the stream can be restarted) and a modal between the user
       // and "stop streaming" is its own hazard.
+      // Hidden, not dimmed, while the helper has no session: every one of these
+      // sends a command down a pipe nothing is reading. A control that silently
+      // does nothing is the worst kind — this file's own words, a few lines
+      // down, about the pause button.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
+        visible: root.connected
 
         Action {
           width: (parent.width - Style.spacing.sm * 2) / 3
@@ -486,8 +532,8 @@ BarWidget {
         }
       }
 
-      PanelSeparator {}
-      PanelSectionHeader { text: "SCENES" }
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { text: "SCENES"; visible: root.connected }
 
       // Flow, not a Row: scene names are user-chosen and there are seven here.
       // A single row would either overflow the card or elide every label into
@@ -495,6 +541,7 @@ BarWidget {
       Flow {
         width: parent.width
         spacing: Style.spacing.xs
+        visible: root.connected
 
         Repeater {
           model: root.scenes
@@ -534,7 +581,7 @@ BarWidget {
 
       Text {
         width: parent.width
-        visible: root.scenes.length === 0
+        visible: root.connected && root.scenes.length === 0
         text: "No scenes reported"
         color: Color.menu.text
         opacity: Style.emphasis.disabled
@@ -630,15 +677,6 @@ BarWidget {
           ? Color.semantic.warn : Color.menu.text
       }
 
-      Text {
-        width: parent.width
-        visible: root.errorText !== ""
-        wrapMode: Text.Wrap
-        text: root.errorText
-        color: Color.urgent
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
     }
   }
 }

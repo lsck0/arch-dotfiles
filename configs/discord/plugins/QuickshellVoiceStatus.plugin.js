@@ -53,10 +53,22 @@ module.exports = class QuickshellVoiceStatus {
     this._heartbeat = null;
     this._lastPayload = "";
     this._fs = null;
-    const runtimeDir = (typeof process !== "undefined" && process.env && process.env.XDG_RUNTIME_DIR)
-      ? process.env.XDG_RUNTIME_DIR : "/tmp";
-    this._statePath = runtimeDir + "/quickshell-discord-voice.json";
-    this._commandPath = runtimeDir + "/quickshell-discord-cmd";
+    // NO /tmp FALLBACK. The first version fell back to /tmp when
+    // XDG_RUNTIME_DIR was unset, which quietly downgraded both files from a
+    // 0700 per-user tmpfs to a world-writable directory. The state file is
+    // only a privacy leak there; the COMMAND file is worse, because anything
+    // that can write it can mute and deafen the Discord client, and a
+    // predictable path in /tmp is squattable by any local process.
+    //
+    // XDG_RUNTIME_DIR is always set under a systemd/logind session, which is
+    // how this desktop starts. If it is missing, something is wrong enough
+    // that publishing to a shared directory is not the right answer — the
+    // plugin disables itself and the bar widget simply never appears.
+    const runtimeDir = (typeof process !== "undefined" && process.env)
+      ? process.env.XDG_RUNTIME_DIR : null;
+    this._runtimeDir = runtimeDir || null;
+    this._statePath = runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : null;
+    this._commandPath = runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : null;
     this._actions = null;
     this._commandPoll = null;
   }
@@ -171,7 +183,7 @@ module.exports = class QuickshellVoiceStatus {
   }
 
   _write(payload) {
-    if (!this._fs) return;
+    if (!this._fs || !this._statePath) return;
     const text = JSON.stringify(payload);
     // The store change listeners fire far more often than the rendered state
     // actually changes — several times a second per participant during talk —
@@ -217,7 +229,7 @@ module.exports = class QuickshellVoiceStatus {
   }
 
   _pollCommands() {
-    if (!this._fs) return;
+    if (!this._fs || !this._commandPath) return;
     let text;
     try {
       text = this._fs.readFileSync(this._commandPath, "utf8");
@@ -254,6 +266,11 @@ module.exports = class QuickshellVoiceStatus {
   }
 
   start() {
+    // Same reasoning as the `fs` guard below: with nowhere safe to write, this
+    // plugin has no way to reach the shell, so it does nothing at all rather
+    // than subscribing to stores and polling for commands it cannot honour.
+    if (!this._runtimeDir) return;
+
     try {
       this._fs = require("fs");
     } catch (e) {

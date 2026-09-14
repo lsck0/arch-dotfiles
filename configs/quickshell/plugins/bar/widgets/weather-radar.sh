@@ -90,19 +90,31 @@ HOST=$(head -1 <<<"$PLAN")
 export HOST SIZE ZOOM LAT LON COLOUR OPTIONS
 [[ -z "$HOST" ]] && fail "bad index"
 
-# STAGE INTO A SCRATCH DIR, THEN SWAP. The old code deleted every frame before
-# downloading the new ones, so for the length of a refresh the cache held
-# nothing and a panel opened in that window showed "Loading radar…" over a loop
-# that had been perfectly good a second earlier. Frames are built up beside the
-# live set and moved into place only once the whole loop is complete, so what is
-# on disk is always a playable loop — the previous one until the moment it is
-# the new one.
-STAGE="$CACHE_DIR/.staging"
+# EACH REFRESH GETS ITS OWN FRAME DIRECTORY, AND THE MANIFEST IS THE SWITCH.
+#
+# The first version deleted every frame before downloading the new ones, so for
+# the length of a refresh the cache held nothing and a panel opened in that
+# window showed "Loading radar…" over a loop that had been perfectly good a
+# second earlier.
+#
+# Staging into a scratch dir and then moving the files into the live directory
+# did not actually fix that: the move still had to `rm` the old frames first,
+# because the live paths are the same on every run. The window shrank from
+# "the whole download" to "the length of an rm plus twelve renames", but a
+# reader landing inside it still saw a half-populated loop, and the manifest
+# pointed at files that were being deleted underneath it.
+#
+# So the frames are never overwritten at all. Every run writes to a directory
+# named after its own timestamp, and the manifest — renamed into place, which
+# IS atomic on one filesystem — is what decides which generation is live. A
+# reader either sees the whole previous loop or the whole new one. Superseded
+# generations are removed only after the manifest no longer names them.
+NOW=$(date +%s)
+
+STAGE="$CACHE_DIR/f-$NOW"
 export STAGE
 rm -rf "$STAGE"
 mkdir -p "$STAGE" || fail "cache unavailable"
-
-NOW=$(date +%s)
 
 # DOWNLOADED IN PARALLEL. Twelve frames fetched one after another is twelve
 # round trips end to end — the single biggest reason a cold radar took as long
@@ -125,33 +137,31 @@ done < <(tail -n +2 <<<"$PLAN") > "$STAGE/.plan"
     head -c 8 "$out" | grep -q PNG || rm -f "$out"
 ' 2>/dev/null
 
+# The frames stay where they were downloaded, so the paths in the manifest are
+# the staging paths. Nothing is moved and nothing is deleted yet.
 ENTRIES=""
 while IFS=$'\t' read -r idx ts path is_forecast; do
     staged=$(printf '%s/frame-%02d.png' "$STAGE" "$idx")
     [[ -s "$staged" ]] || continue
-    ENTRIES+="$(printf '%s/frame-%02d.png' "$CACHE_DIR" "$idx") $ts $is_forecast"$'\n'
+    ENTRIES+="$staged $ts $is_forecast"$'\n'
 done < "$STAGE/.plan"
 
 [[ -z "$ENTRIES" ]] && { rm -rf "$STAGE"; fail "no frames"; }
 
-# Swap. The frame count can shrink between runs, so the old set is cleared in
-# the same breath as the new one lands rather than left to be replayed.
-rm -f "$CACHE_DIR"/frame-*.png
-for staged in "$STAGE"/frame-*.png; do
-    [[ -e "$staged" ]] || continue
-    mv -f "$staged" "$CACHE_DIR/$(basename "$staged")"
-done
-rm -rf "$STAGE"
-
-LIST="$CACHE_DIR/.frames"
+LIST="$STAGE/.frames"
 printf '%s' "$ENTRIES" > "$LIST"
 
 # The manifest is what reaches QML, and it carries no coordinate: file paths,
 # minutes relative to now, and the span the image covers in kilometres. The
 # km span is computed here from the zoom and the latitude, because deriving it
 # in the widget would mean handing the widget the latitude.
-python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" <<'PY'
-import json, sys, math
+#
+# `|| PUBLISHED=0` rather than `|| true`: the exit status says whether the
+# manifest actually got renamed into place, and that is the one thing that
+# decides whether the older frame directories are safe to remove.
+PUBLISHED=1
+python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" <<'PY' || PUBLISHED=0
+import json, os, sys, math
 
 now, zoom, size, manifest, listfile, lat = (
     int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]),
@@ -201,13 +211,51 @@ def scan(o, path=""):
 leak = scan(out)
 if leak:
     print(json.dumps({"ok": False, "error": "location field leaked: " + leak}))
-    sys.exit(0)
+    # Non-zero, so the caller does NOT prune: no manifest was written, the
+    # previous generation is still the live one, and deleting it here would
+    # strand the manifest that still names it.
+    sys.exit(1)
 
+# Written beside the manifest and renamed over it. os.replace is atomic within
+# a filesystem, so a concurrent reader (`cat "$MANIFEST"` on the cached path,
+# which is what most calls do) gets either the whole previous manifest or the
+# whole new one — never a half-written object, and never one naming frames that
+# are mid-delete. The rename is also what publishes this run's frame directory;
+# the exit status tells the shell whether the generation is safe to prune.
+ok = True
 try:
-    with open(manifest, "w") as f:
+    tmp = manifest + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(out, f)
+    os.replace(tmp, manifest)
 except Exception:
-    pass
+    ok = False
+    try:
+        os.unlink(manifest + ".tmp")
+    except Exception:
+        pass
 
 print(json.dumps(out))
+sys.exit(0 if ok else 1)
 PY
+
+# PRUNE ONLY WHAT THE MANIFEST NO LONGER NAMES, and only once it has been
+# published. Superseded generations are dead weight — twelve 512px PNGs each —
+# but a reader that loaded the old manifest a moment ago is still displaying
+# them, so this runs last and never touches the generation that just went live.
+#
+# The `frame-*.png` sweep clears the flat layout the earlier version wrote
+# straight into the cache directory, so an upgrade does not leave one dead loop
+# behind forever.
+if (( PUBLISHED )); then
+    for old in "$CACHE_DIR"/f-*; do
+        [[ -d "$old" ]] || continue
+        [[ "$old" == "$STAGE" ]] && continue
+        rm -rf "$old"
+    done
+    rm -f "$CACHE_DIR"/frame-*.png "$CACHE_DIR"/.frames
+else
+    # Nothing published, so this run's frames are unreachable. Drop them rather
+    # than accumulating a directory per failed refresh.
+    rm -rf "$STAGE"
+fi

@@ -7,6 +7,8 @@
   "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Obs.qml" },
+  "//keepLoaded": "ground rule #7 — this widget owns obs-status.py, a long-lived subprocess. Inert for bar-widget kind (BarSection's Loader is never deactivated, unlike the panel Loaders in shell.qml that read this flag), but the rule is stated without exception and a future move to a panel would need it.",
+  "keepLoaded": true,
   "barWidget": {
     "displayName": "OBS",
     "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",

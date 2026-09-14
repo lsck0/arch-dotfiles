@@ -748,3 +748,95 @@ Not pursued: the 110 MB of Mesa/LLVM mappings are shared with every other GL
 client and are not the shell's to reclaim; the remaining ~90 MB over the floor
 is QML engine and scene-graph cost spread thinly across twenty-odd components,
 with no single contributor worth more than a few MB.
+
+## K. Pre-ship review — twelve findings, all fixed
+
+A full read of the staged tree before shipping, against the code rather than
+the notes above. Five of these were ship blockers, and two of the five were
+wrong *claims* rather than wrong code — a comment or a message asserting a
+guarantee the implementation did not provide, which is the failure mode this
+document is most exposed to.
+
+- [x] K1 — **`sbctl` signed nothing and said it had.** `sbctl sign-all`
+  iterates sbctl's own file database, which is EMPTY on a fresh install; only
+  `sbctl sign -s <path>` adds an entry, and the script called that for the
+  Limine binary alone, in the other branch. So the reordering added in this
+  pass ("sign before enrolling, to close the unbootable window") closed
+  nothing: the user got "boot files signed", enabled Secure Boot, and had an
+  unbootable machine. `sign_unsigned_boot_files()` now enumerates from
+  `sbctl verify` plus an explicit candidate list, registers each with
+  `sign -s`, and only then runs `sign-all`. Also un-silenced — `2>/dev/null ||
+  true` on the one step that decides whether the machine boots was the same
+  mistake `luks/link.sh` had just been fixed for.
+- [x] K2 — **`obs-status.py` busy-looped on stdin EOF.** `run_session` returned
+  on EOF and `main`'s clean-return path had no sleep, so it reconnected, hit
+  EOF again, and span through a full websocket handshake per pass. Now
+  `sys.exit(0)`, plus a sleep on the clean-return path so no future early
+  return can reintroduce it. Regression-tested against a fake obs-websocket:
+  one handshake and a clean exit, where the previous version passed ten
+  reconnects in under a second.
+- [x] K3 — **`countryOthers` counted warnings the panel refuses to show.**
+  `others += 1` ran before the `level < 2` filter, so the green tier — 493 of
+  the Dutch feed's warnings, per this repo's own note — fed a panel line
+  reading "N more warnings elsewhere in your country" that nothing would ever
+  display. Filter moved above the counter.
+- [x] K4 — **`weather-alerts.sh` and `weather-field.sh` never created their
+  cache directory.** Only `weather-radar.sh` did `mkdir -p`, and all three
+  start together, so on a fresh machine alerts failed permanently with
+  "no region" whenever it won the race. Verified by deleting
+  `~/.cache/quickshell` and running all three cold.
+- [x] K5 — **The GPG notes doc contradicted itself and would have lost data.**
+  It opened by saying the clipboard was disabled while `allow_clipboard = true`
+  is set deliberately (and its own later section said so), and its
+  recipient-targeting example claimed a file encrypted to Alice decrypts "with
+  Alice's key + yours" — it does not, and following it produces notes the
+  author cannot open. Both corrected, with `encrypt-to` in `gpg.conf` as the
+  fix and a command to verify which keys a file is actually readable by.
+- [x] K6 — **OBS errors were unreachable.** `visible: connected` hid the widget
+  in exactly the cases the helper had something to report, and the error text
+  was the last child of the panel behind it. The helper distinguishes
+  "obs-websocket disabled" from "no password in config" on purpose; that is
+  now surfaced (gated on `pgrep` having seen OBS, so a non-streamer's bar stays
+  clean), the message leads the panel, and the controls hide rather than
+  sending commands into a pipe nobody reads.
+- [x] K7 — **`alertsSupported` was write-only.** Assigned from the script's
+  `supported` flag and read by nobody, so MeteoAlarm's European-only footprint
+  looked exactly like a calm day. The panel says which.
+- [x] K8 — **The radar's "always a playable loop" guarantee was not one.** The
+  staged swap still had to `rm` the live frames before renaming the new ones
+  in, because the paths were identical every run. Each refresh now writes its
+  own `f-<ts>/` generation and the manifest — renamed into place, which *is*
+  atomic — is the switch; superseded generations are pruned only after it
+  lands, and only if it landed.
+- [x] K9 — **Removing the `fillWidth` spacers removed all arbitration with
+  them.** Three rows anchored to three edges cannot see each other, so a long
+  window title or a full tray would draw straight through the clock. Each side
+  now sits in a holder bounded by the centre cluster's edge and clips, with the
+  right-hand cluster anchored right so transient widgets survive the clip and
+  permanent ones are what gets cut.
+- [x] K10 — Comment claimed time and weather live on the left, directly above a
+  `left:` containing neither. Rewritten to describe what the section holds.
+- [x] K11 — `THIRD_PARTY_NOTICES.md` had no entry for any of the new upstreams:
+  RainViewer, MeteoAlarm, Nominatim/OSM, Open-Meteo's grid endpoint,
+  python-websocket-client, BetterDiscord. Added as a table, with the terms that
+  actually bind us (RainViewer's attribution condition, Nominatim's User-Agent
+  and caching policy).
+- [x] K12 — **The sudoers fix left its own mess behind.** Moving the rule to a
+  drop-in stopped new duplicates but did nothing about the ones the broken
+  `grep -q '$USER'` had already appended — eight on this machine. Exact-match
+  lines are now removed from `/etc/sudoers`, on a copy, validated with
+  `visudo -c`, backed up first, and only when the drop-in that replaces the
+  rule is in place.
+
+Lower-severity, same pass: paths passed as `argv` instead of interpolated into
+`python3 -c` program text (two scripts); every `var` in the radar overlay's
+`onPaint` given a unique name, since `step` was declared twice and `cx`/`cy`
+served as both loop indices and centre coordinates in one function scope — the
+exact trap the `reach`/`reachKm` note in H16 was written about; the `/tmp`
+fallback dropped from both ends of the Discord channel, where a world-writable
+command file is a path for any local process to mute the client;
+`Color.semantic.alertRed`/`alertOrange` made aliases of `live`/`recording`
+rather than a second copy of the same two hex values; `keepLoaded` added to
+`Obs.manifest.json` for ground rule #7, inert for a bar widget but the rule is
+stated without exception; the RainViewer attribution comment moved onto the
+attribution text it describes.
