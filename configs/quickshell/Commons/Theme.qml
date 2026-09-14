@@ -11,10 +11,10 @@ import Quickshell.Io
 //             shell (the type scale, the spacing scale, the bar grid) is
 //             derived from `size` in Style.qml, so this one number rescales
 //             the whole shell rather than just the body text.
-//   palette — the *conditioning* knobs applied to pywal's colors.json in
+//   palette — the *conditioning* knobs applied to wallust's colors.json in
 //             Color.qml. There is no named-theme list here on purpose: this
 //             shell has exactly one colour source (the wallpaper, via
-//             pywal/wallust), and what a user actually wants to change is
+//             wallust), and what a user actually wants to change is
 //             how that source is interpreted — how dark the background is
 //             forced, how much presence a washed-out accent is given, how
 //             hard contrast is enforced.

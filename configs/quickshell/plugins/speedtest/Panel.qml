@@ -32,12 +32,8 @@ Item {
   property var shell: null
   property var manifest: null
 
-  readonly property string configRoot:
-    Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell"
-  readonly property string networkDetailsScript:
-    configRoot + "/plugins/bar/widgets/network-details.sh"
-  readonly property string speedTestScript:
-    configRoot + "/scripts/network-speedtest.sh"
+  readonly property string networkDetailsScript: Paths.barWidget("network-details.sh")
+  readonly property string speedTestScript: Paths.shellScripts + "/network-speedtest.sh"
   readonly property string statePath:
     (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
       + "/quickshell/network-speedtest.json"

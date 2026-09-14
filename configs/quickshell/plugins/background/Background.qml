@@ -8,7 +8,7 @@ import qs.Commons
 import qs.Ui
 
 // Adapted from omarchy-shell's Background.qml: same crossfade-reveal
-// mechanism, but reads the current wallpaper from pywal's own symlink
+// mechanism, but reads the current wallpaper from wallust's own symlink
 // (~/.cache/wal/wallpaper, maintained by scripts/switch-wallpaper.sh)
 // instead of Omarchy's theme state directory, and double-click opens this
 // repo's wallpaper picker instead of omarchy-theme-bg-switcher. No pending
@@ -69,7 +69,10 @@ Item {
   }
 
   function openSelector() {
-    Util.execDetached(home + "/projects/arch-dotfiles/scripts/switch-wallpaper.sh")
+    // Same as the Display panel's button: switch-wallpaper.sh with no
+    // arguments is the fzf path and needs a terminal this has no way to give
+    // it. wallpaper-picker summons the native overlay instead.
+    Util.execDetached(Util.shellQuote(Paths.repoScript("wallpaper-picker.sh")))
   }
 
   Process {
@@ -127,7 +130,31 @@ Item {
       color: "transparent"
       updatesEnabled: true
 
+      // Hyprland leaves an already-mapped layer surface at its old global
+      // position when its monitor moves within the layout, so undocking
+      // leaves the wallpaper painting at the previous origin. The guard
+      // pulses `remapping` on a settled move, and folding it into `visible`
+      // is what unmaps and remaps the surface so the compositor re-places
+      // it. See Ui/ScreenMoveRemap.qml.
+      ScreenMoveRemap { id: screenGuard; window: panel }
+      visible: !screenGuard.remapping
+
       property bool maskReady: false
+
+      // Decode the wallpaper at the size it is actually drawn at, not at the
+      // size it happens to be stored at. Without this, a 3840x2160 wallpaper
+      // on a 1920x1080 output is decoded to a full 3840x2160 RGBA buffer —
+      // 33 MB, four times the pixels that can ever be shown — and up to three
+      // of those exist at once mid-crossfade. Measured: the background alone
+      // accounted for 44 MB RSS of the shell's total.
+      //
+      // Rounded up to the device pixel ratio so a fractional-scaled or
+      // HiDPI output still gets a full-resolution decode. PreserveAspectCrop
+      // treats sourceSize as a bounding box, so the shorter axis still fills.
+      readonly property real outputScale:
+        modelData && modelData.devicePixelRatio ? modelData.devicePixelRatio : 1
+      readonly property size decodeSize: Qt.size(
+        Math.ceil(width * outputScale), Math.ceil(height * outputScale))
 
       function maybeStartReveal() {
         if (!root.incomingBackground || root.revealProgress !== 0 || maskReady) return
@@ -148,6 +175,7 @@ Item {
         id: base
         anchors.fill: parent
         source: root.imageUrl(root.displayedBackground)
+        sourceSize: panel.decodeSize
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
@@ -164,11 +192,14 @@ Item {
         id: oldFrame
         anchors.fill: parent
         source: root.imageUrl(root.oldBackground)
+        sourceSize: panel.decodeSize
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false
         smooth: true
-        mipmap: true
+        // No mipmaps: sourceSize already decodes to the drawn size, so there
+        // is no minification for them to serve, and they cost another third
+        // of the texture's memory each.
         visible: root.oldBackground !== "" && root.revealProgress < 1
         onStatusChanged: panel.maybeStartReveal()
       }
@@ -190,11 +221,11 @@ Item {
           id: incomingFrame
           anchors.fill: parent
           source: root.imageUrl(root.incomingBackground)
+          sourceSize: panel.decodeSize
           fillMode: Image.PreserveAspectCrop
           asynchronous: true
           cache: false
           smooth: true
-          mipmap: true
           onStatusChanged: panel.maybeStartReveal()
         }
       }
@@ -203,7 +234,12 @@ Item {
         id: revealMask
         anchors.fill: parent
         visible: false
-        layer.enabled: true
+        // Only while a crossfade is running. `layer.enabled: true` allocates a
+        // full-screen RGBA framebuffer for as long as it is set, and this mask
+        // is consumed by exactly one MultiEffect that is itself only enabled
+        // during the reveal — so leaving it on held ~8 MB of FBO permanently
+        // to serve a 420 ms animation.
+        layer.enabled: root.incomingBackground !== "" && root.revealProgress < 1
 
         readonly property real slant: -0.18
         readonly property real centerTop: width / 2 - slant * height / 2

@@ -21,9 +21,9 @@
 # still changes — you just do not get the OSD. A broken shell must not cost
 # you your volume keys.
 
-# omarchy:summary=Adjust volume/mic/brightness and show the OSD
-# omarchy:args=volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down
-# omarchy:examples=media-key.sh volume-up | media-key.sh brightness-down
+# omarchy:summary=Adjust volume/mic/brightness/keyboard backlight and show the OSD
+# omarchy:args=volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle
+# omarchy:examples=media-key.sh volume-up | media-key.sh brightness-down | media-key.sh kbd-backlight-up
 
 set -uo pipefail
 
@@ -61,6 +61,45 @@ brightness_pct() {
     cur=$(brightnessctl -m get 2>/dev/null) || return 1
     max=$(brightnessctl -m max 2>/dev/null) || return 1
     ((max > 0)) && echo $(( cur * 100 / max )) || echo 0
+}
+
+# --- keyboard backlight -----------------------------------------------------
+#
+# A separate device class from the display backlight, and a coarse one: a
+# ThinkPad's tpacpi::kbd_backlight has max_brightness 2, so this is a
+# three-position switch (off / dim / bright), not a percentage. It is driven
+# in raw steps rather than `N%+` for exactly that reason — `5%+` on a 0-2
+# device rounds to zero and the key does nothing at all.
+#
+# The device name is vendor-specific (tpacpi::/asus::/dell::kbd_backlight), so
+# it is discovered; machines with none get a no-op that says so.
+#
+# Written through brightnessctl, not straight to sysfs: /sys/class/leds/*/
+# brightness is root-owned 644, and brightnessctl goes through logind to get
+# the write. No udev rule or suid bit needed.
+kbd_device() {
+    local d
+    for d in /sys/class/leds/*kbd_backlight*; do
+        [[ -e "$d/brightness" ]] && { basename "$d"; return 0; }
+    done
+    return 1
+}
+
+kbd_set() { # device, raw level
+    brightnessctl -q -d "$1" set "$2" >/dev/null 2>&1
+}
+
+kbd_osd() { # raw level, raw max
+    local cur=$1 max=$2 pct
+    ((max > 0)) || return
+    pct=$(( cur * 100 / max ))
+    # Below the bar: at max_brightness 2 there are only three states, and a
+    # bare "50%" reads as a continuous dimmer it is not.
+    if ((cur == 0)); then
+        osd_text "keyboard-backlight-off" "Keyboard light off"
+    else
+        osd_value "keyboard-backlight" "$pct"
+    fi
 }
 
 case "${1:-}" in
@@ -101,8 +140,25 @@ brightness-up|brightness-down)
     fi
     b=$(brightness_pct); osd_value "brightness" "${b:-0}"
     ;;
+kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle)
+    dev=$(kbd_device) || { osd_text "keyboard-backlight-off" "No keyboard backlight"; exit 0; }
+    cur=$(brightnessctl -d "$dev" -m get 2>/dev/null) || exit 0
+    max=$(brightnessctl -d "$dev" -m max 2>/dev/null) || exit 0
+    case "$1" in
+    kbd-backlight-up)     next=$(( cur + 1 )); ((next > max)) && next=$max ;;
+    kbd-backlight-down)   next=$(( cur - 1 )); ((next < 0)) && next=0 ;;
+    # Cycle rather than on/off: on a three-position switch, a toggle that only
+    # ever visits 0 and max skips the dim setting entirely.
+    kbd-backlight-toggle) next=$(( (cur + 1) % (max + 1) )) ;;
+    esac
+    kbd_set "$dev" "$next"
+    # $next, not a re-read: it is already clamped to [0,max] and brightnessctl
+    # set is synchronous, so reading the device back would cost two more
+    # brightnessctl invocations per keypress to learn what we just wrote.
+    kbd_osd "$next" "$max"
+    ;;
 *)
-    echo "usage: $(basename "$0") {volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down}" >&2
+    echo "usage: $(basename "$0") {volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle}" >&2
     exit 1
     ;;
 esac

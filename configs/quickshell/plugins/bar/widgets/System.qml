@@ -78,7 +78,7 @@ BarWidget {
     Qt.callLater(root.refreshPowerMode)
   }
 
-  readonly property string powerModeScript: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles/toggle-powermode.sh"
+  readonly property string powerModeScript: Paths.toggle("toggle-powermode.sh")
 
   Process {
     id: powerModeProc
@@ -100,7 +100,7 @@ BarWidget {
     onTriggered: root.refreshPowerMode()
   }
 
-  implicitWidth: label.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   Rectangle {
@@ -117,7 +117,7 @@ BarWidget {
   Process {
     id: statsProc
     running: true
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/system-stats.sh"]
+    command: [Paths.barWidget("system-stats.sh")]
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {
@@ -146,14 +146,86 @@ BarWidget {
     }
   }
 
-  Text {
+  // ONE FIXED-WIDTH SLOT PER STAT, not one long string.
+  //
+  // The string form re-measured on every sample: CPU crossing 9%->10%, the
+  // clock dropping a digit, the temperature changing — each one changed the
+  // widget's implicitWidth and shoved every widget to its left along the bar.
+  // That is the same jitter that got active-window dropped from the layout,
+  // and with a dozen widgets in the cluster it is far more visible.
+  //
+  // Each stat now reserves room for its widest plausible value and right-aligns
+  // inside it, so a readout updates in place and the bar never moves.
+  component Stat: Row {
+    property string glyph: ""
+    property string value: ""
+    // The widest string this stat can ever show. The slot is MEASURED from it
+    // rather than guessed in pixels: a hand-picked width was wrong the moment
+    // the CPU clock reached four digits, and the value then overflowed left
+    // underneath its own glyph. Measuring also survives a theme.json font
+    // change, which a pixel constant does not.
+    property string widest: ""
+    // sm, not xs: the value right-aligns in a fixed slot, so at its widest it
+    // reaches the glyph and the two run together ("CPU100%").
+    spacing: Style.spacing.sm
+
+    Text {
+      anchors.verticalCenter: parent.verticalCenter
+      textFormat: Text.PlainText
+      text: parent.glyph
+      color: root.bar ? root.bar.barForeground : Color.foreground
+      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+      font.pixelSize: Style.font.icon
+      opacity: Style.emphasis.dim
+    }
+    Text {
+      id: slotText
+      anchors.verticalCenter: parent.verticalCenter
+      textFormat: Text.PlainText
+      width: Math.ceil(sizer.implicitWidth)
+      horizontalAlignment: Text.AlignRight
+      text: parent.value
+      color: root.bar ? root.bar.barForeground : Color.foreground
+      font.family: root.bar ? root.bar.fontFamily : Style.font.family
+      font.pixelSize: Style.font.body
+
+      // Never drawn; exists only to report the width of the widest value.
+      Text {
+        id: sizer
+        visible: false
+        textFormat: Text.PlainText
+        text: parent.parent.widest
+        font.family: slotText.font.family
+        font.pixelSize: slotText.font.pixelSize
+      }
+    }
+  }
+
+  Row {
     id: label
     anchors.centerIn: parent
-    textFormat: Text.PlainText
-    text: "󰻠 " + root.cpuPct + "% " + root.freqMhz + "MHz  󰍛 " + root.memUsedGb.toFixed(1) + "G  " + root.tempC + "°  \u{f061a} " + root.gpuPct + "%" + (root.batteryPresent ? "  " + root.batteryIcon + " " + Math.round(root.batteryFraction * 100) + "%" : "")
-    color: root.bar ? root.bar.barForeground : Color.foreground
-    font.family: root.bar ? root.bar.fontFamily : Style.font.family
-    font.pixelSize: Style.font.body
+    spacing: Style.spacing.lg
+
+    // md-cpu_64_bit. Load and clock share one stat: they are read together,
+    // and splitting them doubles the glyph noise for no extra meaning.
+    Stat {
+      glyph: "\u{f0ee0}"
+      widest: "100%  4800MHz"
+      value: root.cpuPct + "%  " + root.freqMhz + "MHz"
+    }
+    // md-memory
+    Stat { glyph: "\u{f035b}"; widest: "99.9G"; value: root.memUsedGb.toFixed(1) + "G" }
+    // md-thermometer, unit spelled out: a bare "80" sitting between two
+    // percentages reads as a third percentage.
+    Stat { glyph: "\u{f050f}"; widest: "100°C"; value: root.tempC + "°C" }
+    // md-chip (GPU)
+    Stat { glyph: "\u{f061a}"; widest: "100%"; value: root.gpuPct + "%" }
+    Stat {
+      visible: root.batteryPresent
+      glyph: root.batteryIcon
+      widest: "100%"
+      value: Math.round(root.batteryFraction * 100) + "%"
+    }
   }
 
   MouseArea {
@@ -176,7 +248,7 @@ BarWidget {
       width: parent.width * 0.4
       text: parent.label
       color: Color.menu.text
-      opacity: 0.6
+      opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }
@@ -199,7 +271,7 @@ BarWidget {
     // The power-mode chips sit in one horizontal row. Keep enough inner
     // width for all three labels plus ButtonGroup spacing; the old 280px card
     // let the final chip protrude beyond the BorderSurface.
-    implicitWidth: Style.space(360) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {

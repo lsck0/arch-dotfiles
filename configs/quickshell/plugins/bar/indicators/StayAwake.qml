@@ -7,12 +7,13 @@ import qs.Ui
 // Adapted from upstream, which reads bar.shell.firstPartyServiceFor(
 // "omarchy.idle") — an idle-management service plugin this repo doesn't
 // have. Polls toggles/toggle-keep-awake.sh directly instead, matching
-// TODO.md's Phase 3 instruction: wire to existing toggles/*.sh, don't
+// research/ROADMAP.md's Phase 3 instruction: wire to existing toggles/*.sh,
+// don't
 // reimplement the toggle logic itself.
 BarIndicator {
   id: root
 
-  readonly property string toggleScript: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles/toggle-keep-awake.sh"
+  readonly property string toggleScript: Paths.toggle("toggle-keep-awake.sh")
 
   active: false
   activeText: "󰅶"

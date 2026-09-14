@@ -20,7 +20,8 @@ import "BatteryModel.js" as BatteryModel
 //   - power-profile switching: toggles/toggle-powermode.sh (TLP-based,
 //     already built this session) instead of power-profiles-daemon.
 //   - system stats: deliberately not duplicated — System.qml already
-//     covers this and TODO.md says keep it as-is, not reconciled here.
+//     covers this and research/ROADMAP.md says keep it as-is, not reconciled
+//     here.
 //   - no shutdown/reboot/logout/lock menu: upstream's power panel never
 //     had one either (that's wlogout's job, unrelated to this widget).
 BarWidget {
@@ -64,7 +65,7 @@ BarWidget {
     Qt.callLater(root.refreshPowerMode)
   }
 
-  readonly property string powerModeScript: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles/toggle-powermode.sh"
+  readonly property string powerModeScript: Paths.toggle("toggle-powermode.sh")
 
   Process {
     id: powerModeProc
@@ -155,7 +156,7 @@ BarWidget {
           Rectangle {
             required property string modelData
             width: (content.width - Style.spacing.sm * 2) / 3
-            height: Style.space(32)
+            height: Style.row.list
             radius: Style.cornerRadius
             color: modelData === root.powerMode ? Color.menu.selectedBackground : "transparent"
 

@@ -9,7 +9,7 @@ import "BorderGeometry.js" as Geometry
 // Same shape as omarchy-shell's Border.qml minus its shell.toml-driven
 // per-surface/per-theme override resolution: this repo has one look, so a
 // spec's colour/width is just what the caller passes (usually a
-// Color.<surface>.* role already derived from pywal), with no override
+// Color.<surface>.* role already derived from wallust), with no override
 // lookup layer on top.
 //
 // Upstream's gradient field is kept in the spec object because

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.exit",
+  "name": "Exit",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Opens the power menu (lock, log out, suspend, reboot, shut down)",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Exit.qml" },
+  "barWidget": {
+    "displayName": "Exit",
+    "description": "Opens the power menu (lock, log out, suspend, reboot, shut down)",
+    "category": "Session",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
