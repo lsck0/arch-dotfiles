@@ -43,8 +43,6 @@ except Exception:
 " <<<"$json" 2>/dev/null || true)
         [[ -n "$tz" ]] && { echo "$tz"; return 0; }
     fi
-    # Second provider, different operator — one being down or rate-limiting
-    # should not mean the timezone silently stops tracking.
     json=$(timeout 10 curl -s --max-time 8 'http://ip-api.com/json/?fields=timezone' 2>/dev/null || true)
     if [[ -n "$json" ]]; then
         tz=$(python3 -c "

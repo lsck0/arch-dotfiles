@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-# Wallpaper: pick one, render it, and regenerate every theme derived from it.
-#
-# Also the backend for quickshell's native picker, via the get/list/set
-# subcommands below — the panel drives this rather than duplicating the pywal
-# logic in QML.
-#
-# THE RENDERER IS QUICKSHELL, NOT awww (changed 2026-09-02). Two wallpaper
-# renderers used to run at once: `awww-daemon` and quickshell's own QML
-# crossfade in plugins/background/Background.qml, which watches
-# ~/.cache/wal/wallpaper (the symlink written below) and does its own
-# reveal animation. Two renderers on the same surface is a z-order race, and
-# awww's transition flags were doing work nobody saw.
-#
-# Tradeoff, deliberate: with awww gone the wallpaper is painted by quickshell
-# alone, so a dead shell means no wallpaper. That is already true of the bar,
-# the notifications and the OSD.
 
 set_wallpaper() {
     local file="$1"

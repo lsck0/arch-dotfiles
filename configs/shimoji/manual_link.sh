@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Runs once on the first-ever Hyprland start (guarded by a state marker),
-# then never again. Invoked from configs/hyprland/hyprland_autostart.lua.
 
 if ! command -v shimejictl >/dev/null 2>&1; then
     exit 0

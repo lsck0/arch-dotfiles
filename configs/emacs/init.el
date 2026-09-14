@@ -1,11 +1,4 @@
 ;;; init.el --- vim-first Emacs, from scratch -*- lexical-binding: t; -*-
-;;
-;; A deliberately small mirror of the nvim + tmux setup, kept working as a
-;; fallback for when that one breaks. Scope: evil, file browser, top and bottom
-;; bar, treesitter, LSP, terminal, compile, fuzzy finding, git. Nothing else.
-;;
-;; Feature modules live next to this file and load in the order below.
-;; Add one: drop the file in, add it to the list.
 
 (require 'package)
 (setq package-archives
@@ -19,9 +12,6 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
-;; Machine-written `customize' state (gitignored). This has to happen *before*
-;; the modules load: installing a package writes `package-selected-packages',
-;; and while `custom-file' is still nil that write lands in this file instead.
 (setq custom-file (expand-file-name "custom.el" user-emacs-directory))
 (when (file-exists-p custom-file)
   (load custom-file nil t))

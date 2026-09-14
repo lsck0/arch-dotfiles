@@ -1,16 +1,12 @@
 hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm finalize")
 
+    hl.exec_cmd("uwsm app -- " .. os.getenv("HOME") .. "/projects/arch-dotfiles/configs/quickshell/restart.sh") -- replaces waybar
+    hl.exec_cmd("uwsm app -- /usr/lib/polkit-kde-authentication-agent-1")
+    hl.exec_cmd("uwsm app -- hypridle")
     hl.exec_cmd("uwsm app -- hyprsunset -t 6000 --gamma_max 150")
 
-    hl.exec_cmd("uwsm app -- hypridle")
-    hl.exec_cmd("uwsm app -- /usr/lib/polkit-kde-authentication-agent-1")
-    hl.exec_cmd("uwsm app -- " .. os.getenv("HOME") .. "/projects/arch-dotfiles/configs/quickshell/restart.sh") -- replaces waybar
-    -- watch-monitors.sh was removed — quickshell's Variants { model: Quickshell.screens }
-    -- now owns output hotplug; plugging in a monitor auto-instantiates a new PanelWindow.
-
-    -- First-boot-only setup (hyprpm plugins, shimeji imports). Both scripts
-    -- no-op when their ~/.local/state marker exists.
+    -- one time runs
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/hypr/manual_link.sh")
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/shimoji/manual_link.sh")
 

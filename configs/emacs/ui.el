@@ -1,6 +1,4 @@
 ;;; ui.el --- theme, bars, visual aids -*- lexical-binding: t; -*-
-;; Top bar  = tab-bar    (nvim barbar / tmux windows)
-;; Bottom bar = doom-modeline (nvim lualine)
 
 ;;;; theme + font -----------------------------------------------------------
 

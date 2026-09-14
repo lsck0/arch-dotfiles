@@ -1,5 +1,4 @@
 ;;; early-init.el --- pre-GUI setup -*- lexical-binding: t; -*-
-;; Runs before the package system and the first frame. Keep it cheap.
 
 ;; Crank GC for startup; init.el restores sane values on emacs-startup-hook.
 (setq gc-cons-threshold most-positive-fixnum
@@ -7,9 +6,6 @@
 
 (setq package-enable-at-startup nil)
 
-;; Font lives here so the first frame is drawn at the right size (no reflow
-;; flicker). ui.el reuses these for the fixed/variable-pitch faces.
-;; h16 matches nvim `set.guifont = "0xProto Nerd Font:h16"`.
 (defvar my/font-family "0xProto Nerd Font")
 (defvar my/font-size 16)
 

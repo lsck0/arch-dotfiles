@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Safely extract a supported archive into a same-named directory.
+
 set -euo pipefail
 
 usage() { printf 'usage: %s ARCHIVE [DESTINATION]\n' "$0" >&2; exit 2; }
@@ -19,8 +20,6 @@ stage=$(mktemp -d "${TMPDIR:-/tmp}/extract.XXXXXX")
 cleanup() { rm -rf -- "$stage"; }
 trap cleanup EXIT
 
-# Python performs the complete preflight for tar/zip: reject traversal,
-# links, excessive entries, and excessive declared expansion before extraction.
 python3 - "$archive" "$stage" <<'PY'
 import os, sys, tarfile, zipfile
 p, stage = sys.argv[1:]
