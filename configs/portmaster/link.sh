@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-if [[ ! -f ${PWD}/config.json ]]; then
+if [[ ! -d /var/lib/portmaster ]]; then
+    echo "portmaster: /var/lib/portmaster missing, skipping" >&2
     exit 0
 fi
 

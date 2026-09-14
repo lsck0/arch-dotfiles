@@ -22,13 +22,12 @@ For secure boot: disable while installing base system, enable before running ins
 - tune LUKS for better performance
 
 ```bash
-cryptsetup reencrypt \
+sudo cryptsetup reencrypt /dev/nvme0n1p2
   --type luks2 \
   --cipher aes-xts-plain64 \
   --key-size 256 \
   --sector-size 4096 \
-  --pbkdf argon2id \
-  /dev/nvme0n1p2
+  --pbkdf argon2id
 ```
 
 - run `spicetify backup apply && spicetify enable-devtools` after running spotify once (including logging in)

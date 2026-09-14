@@ -2,6 +2,10 @@ local platform = require("platform")
 
 local mod = "SUPER"
 
+local function shell_bin(name)
+    return "~/.local/bin/" .. name
+end
+
 local boomer =
 "wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""
 
@@ -22,7 +26,7 @@ hl.bind(mod .. " + d", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell c
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("nemo"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("missioncenter"))
-hl.bind(mod .. " + w", hl.dsp.exec_cmd("wallpaper-picker"))
+hl.bind(mod .. " + w", hl.dsp.exec_cmd(shell_bin("wallpaper-picker")))
 hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimoji"))
 hl.bind(mod .. " + x", hl.dsp.exec_cmd("grim -t ppm - | " .. boomer))
 
@@ -39,22 +43,26 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"))
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"))
 hl.bind("XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("media-key volume-up"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("media-key volume-down"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("media-key volume-mute"), { locked = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("media-key mic-mute"), { locked = true })
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-up"),
+    { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-down"),
+    { locked = true, repeating = true })
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-mute"), { locked = true })
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(shell_bin("media-key") .. " mic-mute"), { locked = true })
 
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("media-key brightness-up"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("media-key brightness-down"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(shell_bin("media-key") .. " brightness-up"),
+    { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(shell_bin("media-key") .. " brightness-down"),
+    { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd("hyprctl hyprsunset gamma +5"),
     { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd("hyprctl hyprsunset gamma -5"),
     { locked = true, repeating = true })
 
-hl.bind("XF86KbdBrightnessUp", hl.dsp.exec_cmd("media-key kbd-backlight-up"), { locked = true })
-hl.bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd("media-key kbd-backlight-down"), { locked = true })
-hl.bind("XF86KbdLightOnOff", hl.dsp.exec_cmd("media-key kbd-backlight-toggle"), { locked = true })
-hl.bind(mod .. " + SHIFT + b", hl.dsp.exec_cmd("media-key kbd-backlight-toggle"), { locked = true })
+hl.bind("XF86KbdBrightnessUp", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-up"), { locked = true })
+hl.bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-down"), { locked = true })
+hl.bind("XF86KbdLightOnOff", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-toggle"), { locked = true })
+hl.bind(mod .. " + SHIFT + b", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-toggle"), { locked = true })
 
 hl.bind(mod .. " + h", hl.dsp.focus({ direction = "left" }))
 hl.bind(mod .. " + l", hl.dsp.focus({ direction = "right" }))

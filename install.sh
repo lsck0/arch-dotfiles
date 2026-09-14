@@ -783,7 +783,7 @@ PACKAGES=(
     virt-manager # [qemu] VM management GUI
 
     ollama-for-amd-git # [llm] local LLM runner (AMD)
-    python-pytorch-rocm # [llm] ML framework (AMD)
+    python-pytorch-opt-rocm # [llm] ML framework (AMD, AVX2 build python-vllm-rocm depends on)
     python-vllm-rocm # [llm] LLM serving (AMD)
 
     aircrack-ng # [pentesting] wifi security auditing
@@ -1006,7 +1006,7 @@ sudo pacman-key --lsign-key 3056513887B78AEB
 sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' --noconfirm
 
 pushd ./configs/pacman
-( set -o pipefail; sh ./link.sh 2>&1 | tee ./link.sh.log ) || echo "configs/pacman/link.sh" >> "$FAILURES_FILE"
+( set -o pipefail; bash ./link.sh 2>&1 | tee ./link.sh.log ) || echo "configs/pacman/link.sh" >> "$FAILURES_FILE"
 popd
 
 ## INSTALLING ALL THE THINGS
@@ -1046,8 +1046,17 @@ rustup default stable || true
 
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#PACKAGES[@]} -gt 0 ]]; then
-    retry 5 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}" \
-        || echo "yay batch (${#PACKAGES[@]} pkgs)" >> "$FAILURES_FILE"
+    # One unresolvable conflict in the batch (e.g. two providers of the same
+    # virtual package) makes pacman refuse the whole transaction, so a single
+    # bad entry would otherwise leave all ~800 packages uninstalled. Fall back
+    # to installing one at a time and record only the entries that really fail.
+    if ! retry 5 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
+        echo "yay batch failed, falling back to per-package install" >&2
+        for pkg in "${PACKAGES[@]}"; do
+            yay -S --needed --noconfirm --mflags --skipinteg "$pkg" \
+                || echo "yay $pkg" >> "$FAILURES_FILE"
+        done
+    fi
 fi
 
 if [[ ${#CARGO_PKGS[@]} -gt 0 ]]; then
@@ -1064,12 +1073,31 @@ if [[ ${#GO_PKGS[@]} -gt 0 ]]; then
     done
 fi
 if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]]; then
-    flatpak install flathub -y "${FLATPAK_PKGS[@]}" \
-        || echo "flatpak batch" >> "$FAILURES_FILE"
+    if command -v flatpak >/dev/null 2>&1; then
+        # Arch's flatpak package ships no remotes, so `flatpak install flathub`
+        # fails on a fresh machine until flathub is registered.
+        sudo flatpak remote-add --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo \
+            || echo "flatpak remote-add flathub" >> "$FAILURES_FILE"
+        flatpak install flathub -y "${FLATPAK_PKGS[@]}" \
+            || echo "flatpak batch" >> "$FAILURES_FILE"
+    else
+        echo "flatpak not installed, skipping flatpak packages" >&2
+    fi
 fi
 if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
-    nix profile install --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
-        || echo "nix batch" >> "$FAILURES_FILE"
+    if command -v nix >/dev/null 2>&1; then
+        # The Arch package installs the binaries but leaves the daemon and the
+        # store un-set-up; `nix profile install` needs both. Group membership
+        # only takes effect on the next login, which is why this is best-effort
+        # rather than fatal.
+        sudo systemctl enable --now nix-daemon.socket || true
+        sudo gpasswd -a "$USER" nix-users 2>/dev/null || true
+        nix profile install --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
+            || echo "nix batch" >> "$FAILURES_FILE"
+    else
+        echo "nix not installed, skipping nix packages" >&2
+    fi
 fi
 
 # cleanup
@@ -1085,7 +1113,7 @@ echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/
 
 while IFS= read -r script; do
     dir=$(dirname "$script"); base=$(basename "$script")
-    ( set -o pipefail; cd "$dir" && sh "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
+    ( set -o pipefail; cd "$dir" && bash "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
 done < <(find "$(pwd)" -type f -name 'link.sh')
 while IFS= read -r script; do
     dir=$(dirname "$script"); base=$(basename "$script")
@@ -1107,7 +1135,11 @@ fi
 
 ## LFS PULL
 
-git lfs pull
+if command -v git-lfs >/dev/null 2>&1; then
+    git lfs pull || echo "git lfs pull" >> "$FAILURES_FILE"
+else
+    echo "git-lfs not installed, skipping lfs pull" >&2
+fi
 
 ## INIT WALLPAPER AND THEME FILES
 

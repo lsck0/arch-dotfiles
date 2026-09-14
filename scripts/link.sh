@@ -2,5 +2,15 @@
 
 set -ex
 
-ls -1 *.sh | grep -v "link.sh" | xargs -I {} sh -c 'sudo ln -sf $PWD/{} /usr/local/bin/$(basename "{}" .sh)'
-ls -1 *.py | xargs -I {} sh -c 'sudo ln -sf $PWD/{} /usr/local/bin/$(basename "{}" .py)'
+# Globs, not `ls`: an empty match makes `ls` exit non-zero and take the whole
+# script down under `set -e`.
+shopt -s nullglob
+
+for script in *.sh; do
+    [[ "$script" == "link.sh" ]] && continue
+    sudo ln -sf "$PWD/$script" "/usr/local/bin/$(basename "$script" .sh)"
+done
+
+for script in *.py; do
+    sudo ln -sf "$PWD/$script" "/usr/local/bin/$(basename "$script" .py)"
+done
