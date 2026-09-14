@@ -277,6 +277,28 @@ BarWidget {
         height: root.barSize
         visible: root.allItems.length > 0
 
+        // Empty-space right-click opens the tray manage popup (previously the
+        // chevron's job — the chevron itself is gone).
+        //
+        // DECLARED FIRST, AND ONLY FIRST. It fills the whole drawer area,
+        // including the space the icons occupy, so declaring it after trayClip
+        // put it on top of every TrayItem and swallowed each icon's own
+        // right-click: the per-item menu could never open, because the press
+        // never reached the item. Sibling order is the z-order here, so this
+        // has to stay above trayClip in the file and therefore below it on
+        // screen.
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.RightButton
+          // `pressed` carries a MouseEvent, not a button number. The old
+          // `function(button)` compared that object against Qt.RightButton, so
+          // the test was permanently false and this handler did nothing at all
+          // — while still accepting the press and hiding it from the icons.
+          onPressed: function(mouse) {
+            if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
+          }
+        }
+
         Item {
           id: trayClip
           x: 0
@@ -302,15 +324,6 @@ BarWidget {
           }
         }
 
-        // Empty-space right-click opens the tray manage popup (previously the
-        // chevron's job — the chevron itself is gone).
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
       }
 
       Row {
@@ -356,6 +369,17 @@ BarWidget {
         height: verticalTrayRoot.drawerBlockHeight
         visible: root.allItems.length > 0
 
+        // Same two fixes as the horizontal layout above: declared before
+        // trayClip so it sits under the icons rather than over them, and
+        // taking a MouseEvent rather than a button number.
+        MouseArea {
+          anchors.fill: parent
+          acceptedButtons: Qt.RightButton
+          onPressed: function(mouse) {
+            if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
+          }
+        }
+
         Item {
           id: trayClip
           y: 0
@@ -381,15 +405,6 @@ BarWidget {
           }
         }
 
-        // Empty-space right-click opens the tray manage popup (the chevron
-        // that used to own this was removed — same as the horizontal layout).
-        MouseArea {
-          anchors.fill: parent
-          acceptedButtons: Qt.RightButton
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-          }
-        }
       }
 
       Column {
@@ -542,8 +557,6 @@ BarWidget {
     // for the fade to actually finish. Switching to a different tray item
     // still resets immediately, from openTrayMenu() itself.
     onVisibleChanged: if (!visible) root.resetTrayMenu()
-    padding: Style.space(8)
-    borderColor: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.45)
     contentWidth: trayMenuPopup.fittedContentWidth(Style.space(232))
     contentHeight: trayMenuPopup.fittedContentHeight(menuHeaderHeight + trayMenuColumn.implicitHeight, Style.space(420))
 
@@ -629,7 +642,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             height: 1
             color: Color.popups.border
-            opacity: 0.45
+            opacity: Style.emphasis.faint
           }
         }
       }
@@ -683,7 +696,7 @@ BarWidget {
                 anchors.verticalCenter: parent.verticalCenter
                 height: 1
                 color: Color.popups.border
-                opacity: 0.45
+                opacity: Style.emphasis.faint
               }
 
               Rectangle {

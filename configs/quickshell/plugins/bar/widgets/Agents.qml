@@ -22,7 +22,7 @@ BarWidget {
   readonly property int totalTokens: inputTokens + outputTokens + cacheTokens
   visible: totalTokens > 0
 
-  implicitWidth: label.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   Rectangle {
@@ -44,7 +44,7 @@ BarWidget {
 
   Process {
     id: usageProc
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/agent-usage.sh"]
+    command: [Paths.barWidget("agent-usage.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

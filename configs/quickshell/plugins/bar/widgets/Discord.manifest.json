@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.discord",
+  "name": "Discord call",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Voice-call participants with speaking, mute and deafen state",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Discord.qml" },
+  "barWidget": {
+    "displayName": "Discord call",
+    "description": "Voice-call participants with speaking, mute and deafen state",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

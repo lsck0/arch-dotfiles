@@ -7,7 +7,8 @@ import qs.Ui
 // Verbatim from omarchy-shell, plus one addition upstream doesn't have
 // either: scroll-to-switch (a MouseArea wheel handler cycling through
 // `workspaceIds()`, wrapping at the ends) — not a fidelity gap, just a
-// convenience this repo's own TODO.md flagged as missing.
+// convenience this repo's own notes (now research/ROADMAP.md) flagged as
+// missing.
 BarWidget {
   id: root
   moduleName: "workspaces"
@@ -84,13 +85,18 @@ BarWidget {
         implicitHeight: btn.implicitHeight
 
         // Text-color-only focus indication (WidgetButton's `active` state)
-        // was too subtle against this repo's muted pywal palette, and
+        // was too subtle against this repo's muted wallust palette, and
         // occupied-but-unfocused workspaces already render at the same full
         // opacity — a filled pill is the only way to make "which one is
         // active" unambiguous at a glance. Same accent-fill token Clock's
         // calendar uses for "today".
+        // Inset top and bottom. Filling the cell made the pill run edge to
+        // edge on a 30px bar, where it read as a block of background colour
+        // rather than as a control sitting on the bar.
         Rectangle {
           anchors.fill: parent
+          anchors.topMargin: Style.bar.pillInset
+          anchors.bottomMargin: Style.bar.pillInset
           radius: Style.cornerRadius
           color: cell.focused ? Style.selectedFill : "transparent"
         }

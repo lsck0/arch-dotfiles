@@ -79,7 +79,7 @@ BarWidget {
   }
 
   visible: player !== null
-  implicitWidth: row.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   function fmtTime(seconds) {
@@ -194,7 +194,7 @@ BarWidget {
     // Centre-section widget: opens directly beneath its own trigger. See
     // Ui/HoverPanel.qml and Bar.layoutRevision for why that works now.
     anchorWidget: root
-    implicitWidth: Style.space(380) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     // Second cava reference: keeps the spectrum alive while the panel is
@@ -238,6 +238,9 @@ BarWidget {
             id: art
             anchors.fill: parent
             source: root.player && root.player.trackArtUrl ? root.player.trackArtUrl : ""
+            // Album art arrives at whatever size the player publishes — often
+            // 1000x1000 or larger — and is drawn in a 72px box.
+            sourceSize.width: Math.ceil(artFrame.width * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -252,7 +255,7 @@ BarWidget {
             visible: !art.visible
             text: "\u{f001}"   // fa-music
             color: Color.menu.text
-            opacity: 0.45
+            opacity: Style.emphasis.faint
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.title
           }
@@ -278,7 +281,7 @@ BarWidget {
             textFormat: Text.PlainText
             text: root.artist
             color: Color.menu.text
-            opacity: 0.7
+            opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -289,7 +292,7 @@ BarWidget {
             textFormat: Text.PlainText
             text: root.album
             color: Color.menu.text
-            opacity: 0.45
+            opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -432,7 +435,7 @@ BarWidget {
           delegate: Rectangle {
             required property var modelData
             width: content.width
-            height: Style.space(28)
+            height: Style.row.list
             radius: Style.cornerRadius
             readonly property bool current: root.player === modelData
             color: current ? Color.menu.selectedBackground : "transparent"

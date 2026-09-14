@@ -28,6 +28,31 @@ import "services"
 // Background and Osd instantiate their own per-screen Variants internally.
 // Locking is owned entirely by hyprlock/hypridle (configs/hyprland/) —
 // quickshell's own lock plugin was removed 2026-09-08 in favor of that.
+//
+// ---------------------------------------------------------------------------
+// TWO WAYS A PIECE OF UI GETS INTO THIS SHELL, and which to use
+// ---------------------------------------------------------------------------
+//
+// 1. Declared here, at the bottom of this file (Background, Osd, Clipboard,
+//    AppSearch, PowerMenu, Overview, Startup). Always loaded, always alive,
+//    no manifest. Correct for the fixtures of the desktop itself: things with
+//    no meaningful "disabled" state, that own an IpcHandler other components
+//    call into, and that nothing should be able to unregister at runtime.
+//
+// 2. A plugin directory with a `manifest.json`, discovered by PluginRegistry
+//    and loaded on demand by kind — `bar-widget` into the bar's layout,
+//    `panel`/`overlay`/`menu` through summon()/hide()/toggle(), `service` into
+//    serviceHost. Correct for anything optional, placeable, user-enableable,
+//    or shipped by someone other than this repo. A plugin owning a
+//    long-running subprocess must additionally set `"keepLoaded": true`, or
+//    its Loader tears the Process down before it can exit and orphans the
+//    children.
+//
+// The split is deliberate, not historical drift: mechanism 2 costs a manifest,
+// an async scan and a Loader per entry, which buys nothing for a component
+// that is unconditionally present. If a new component could reasonably be
+// turned off, moved, or replaced, it wants a manifest; otherwise it belongs in
+// the list at the bottom of this file.
 ShellRoot {
   id: shell
 
@@ -37,9 +62,6 @@ ShellRoot {
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
-  Startup { }
-
-  // Startup overlay is independent of the bar and fades after login settles.
 
   readonly property string home: Quickshell.env("HOME")
   // Quickshell.shellDir is this checkout's own shell.qml directory
@@ -63,12 +85,24 @@ ShellRoot {
     version: 1,
     bar: {
       layout: {
-        left: [{ id: "bar.app-menu" }, { id: "bar.workspaces" }],
-        // SPEC puts datetime and media in the middle; weather was a later
-        // addition to the same spec and rides along here. Media moved out of
-        // `right` 2026-09-02 once panel anchoring could put a centre widget's
-        // panel under its own trigger (Phase 2a).
-        center: [{ id: "bar.clock" }, { id: "bar.weather" }, { id: "bar.media" }],
+        // Time and weather live on the LEFT, beside the launcher and the
+        // workspaces — they are reference information you glance at, not
+        // something that should own the middle of the screen.
+        left: [
+          { id: "bar.app-menu" },
+          { id: "bar.workspaces" }
+        ],
+        // The centre is for what is happening RIGHT NOW: what is playing, and
+        // who is in the call. Both are transient and both are things you look
+        // at deliberately rather than scan, which is what the middle of a bar
+        // is good for.
+        // Clock and weather lead the centre as a pair — they are the two
+        // always-present readouts, so they are what the centre is anchored on.
+        // Media and the Discord call trail them and come and go.
+        center: [
+          { id: "bar.clock" }, { id: "bar.weather" },
+          { id: "bar.media" }, { id: "bar.discord" }
+        ],
         // active-window/agents/microphone/news/costs dropped 2026-09-01 per
         // an explicit per-widget review against the SPEC: costs was
         // non-functional (needs credentials that don't exist), microphone
@@ -80,7 +114,22 @@ ShellRoot {
         // overrides it whenever it exists. A fresh machine (or a deleted state
         // file) reproduces *this* list, so drift here ships the wrong bar.
         right: [
+          // ONE separator, and only where it earns its place: between the
+          // widgets that come and go and the ones that are always there.
+          //
+          // Rules between permanent widgets were noise — they never divide
+          // anything that changes, so they add a line to look at for no
+          // information. The transient boundary is different: OBS and the tray
+          // appear and vanish, and without a rule the permanent cluster looks
+          // like it simply grew a new icon.
+          //
+          // Transient first on purpose: the section is right-aligned, so things
+          // appearing here grow the cluster leftward into empty space and every
+          // permanent icon keeps its position. The separator hides itself when
+          // the whole transient group is empty.
+          { id: "bar.obs" },
           { id: "bar.tray" },
+          { id: "bar.separator" },
           { id: "bar.system" },
           { id: "bar.network" }, { id: "bar.display" }, { id: "bar.audio-io" },
           { id: "bar.notifications" },
@@ -713,10 +762,17 @@ ShellRoot {
     }
   }
 
+  // ------------------------------------------------- always-on components
+  //
+  // Mechanism 1 from this file's header: the desktop's own fixtures. Each is
+  // unconditionally present and owns an IpcHandler that keybinds, scripts and
+  // other widgets call into, so none of them has a meaningful disabled state
+  // to model as a plugin. Startup fades itself out once login settles.
   Background {}
   Osd {}
   Clipboard {}
   AppSearch { appLibrary: shell.appLibrary }
   PowerMenu {}
   Overview {}
+  Startup {}
 }

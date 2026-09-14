@@ -5,7 +5,8 @@
 #
 # Kill the process GROUP, not just the process. Several widgets own
 # long-lived helper processes — `wl-paste --watch` x2 (clipboard),
-# `inotifywait -m` (plugin registry), `nmcli monitor` (network) — and
+# `inotifywait -m` (plugin registry), `nmcli monitor` (network),
+# `system-stats.sh` (system) and `obs-status.py` (OBS) — and
 # quickshell does not reap them on exit, on SIGTERM or SIGKILL (verified
 # both). The old `pkill -9 -f "^quickshell -p"` therefore orphaned five
 # helpers on *every* restart, reparented to the user manager and invisible

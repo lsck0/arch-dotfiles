@@ -16,14 +16,14 @@ BarWidget {
   id: root
   moduleName: "toggles"
 
-  readonly property string toggleDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles"
-  readonly property string scriptDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets"
+  readonly property string toggleDir: Paths.toggles
+  readonly property string scriptDir: Paths.barWidgets
 
   property string text: "⚙ 0"
   property string tooltip: ""
   property var items: []
 
-  implicitWidth: label.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   Rectangle {
@@ -111,7 +111,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(260) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
     Flickable {
@@ -144,7 +144,7 @@ BarWidget {
           visible: root.items.length === 0
           text: "Loading…"
           color: Color.menu.text
-          opacity: 0.5
+          opacity: Style.emphasis.faint
           font.pixelSize: Style.font.body
           font.family: Style.font.family
         }

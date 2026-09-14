@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.separator",
+  "name": "Separator",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Hairline rule for grouping bar widgets",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Separator.qml" },
+  "barWidget": {
+    "displayName": "Separator",
+    "description": "Hairline rule for grouping bar widgets",
+    "category": "Layout",
+    "allowMultiple": true,
+    "defaultSection": "right"
+  }
+}

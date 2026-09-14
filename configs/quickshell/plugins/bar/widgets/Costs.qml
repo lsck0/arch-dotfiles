@@ -31,7 +31,7 @@ BarWidget {
 
   Process {
     id: costsProc
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/costs-fetch.sh"]
+    command: [Paths.barWidget("costs-fetch.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -68,7 +68,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(300) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
@@ -124,7 +124,7 @@ BarWidget {
         wrapMode: Text.Wrap
         text: "Drop credentials in ~/.config/costs/ — see costs-fetch.sh for what each provider needs"
         color: Color.menu.text
-        opacity: 0.4
+        opacity: Style.emphasis.faint
         font.pixelSize: Style.font.caption
         font.family: Style.font.family
       }

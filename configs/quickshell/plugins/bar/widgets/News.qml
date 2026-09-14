@@ -23,7 +23,7 @@ BarWidget {
 
   Process {
     id: newsProc
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/news-headlines.sh"]
+    command: [Paths.barWidget("news-headlines.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -55,7 +55,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(380) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
@@ -82,7 +82,7 @@ BarWidget {
         visible: root.headlines.length === 0
         text: "Loading…"
         color: Color.menu.text
-        opacity: 0.5
+        opacity: Style.emphasis.faint
         font.pixelSize: Style.font.body
         font.family: Style.font.family
       }

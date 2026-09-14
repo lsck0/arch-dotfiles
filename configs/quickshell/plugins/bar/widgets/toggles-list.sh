@@ -4,7 +4,9 @@
 # rendered inline instead of shelling out to walker/fzf.
 set -euo pipefail
 
-TOGGLE_DIR="$HOME/projects/arch-dotfiles/toggles"
+# Overridable for a checkout that is not at the default location, matching
+# Commons/Paths.qml's QS_DOTFILES_DIR.
+TOGGLE_DIR="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 cd "$TOGGLE_DIR"
 
 entries="[]"

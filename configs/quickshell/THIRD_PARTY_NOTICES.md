@@ -3,7 +3,8 @@
 This directory's QML is heavily derived from
 [basecamp/omarchy](https://github.com/basecamp/omarchy)'s `shell/` (Quickshell
 desktop shell). Per the "full 1:1 port" decision recorded in this repo's
-`TODO.md` (2026-08-30), most of upstream's plugin surface has since been
+`TODO.md` (2026-08-30, since folded into `research/ROADMAP.md`), most of
+upstream's plugin surface has since been
 ported here too, adapted where this repo's architecture differs: no
 `OMARCHY_PATH`/distro-checkout layer, no `shell.toml` theme-override layer
 (one pywal-fed theme, not swappable themes), hover-driven panel-open instead
@@ -39,7 +40,8 @@ upstream plugin with the same name.
 ## Bar (`plugins/bar/`)
 
 `Bar.qml` itself is adapted (hover-open instead of click-toggle — a
-deliberate, explicitly-requested deviation from 1:1, see `TODO.md`).
+deliberate, explicitly-requested deviation from 1:1, see
+`research/ROADMAP.md`).
 Verbatim-or-near-verbatim widgets: `Workspaces.qml`, `ActiveWindow.qml`,
 `Microphone.qml`, `AudioIO.qml`, `Clock.qml`, `Weather.qml` (partial —
 Omarchy-specific bits swapped), `Media.qml`, `Toggles.qml`, `Network.qml`,
@@ -62,7 +64,8 @@ power-profiles-daemon approach).
 
 ## Net-new plugins (Phase 5/6/7)
 
-Each of these has a fuller adaptation writeup in `TODO.md`'s Phase 5-7
+Each of these has a fuller adaptation writeup in `research/ROADMAP.md`'s
+Appendix B and each file's own header, covering the old Phase 5-7
 entries; summarized here for provenance:
 
 - `plugins/notifications/` (`Service.qml`, `NotificationLogic.js`,

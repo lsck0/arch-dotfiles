@@ -16,8 +16,6 @@ BarWidget {
   id: root
   moduleName: "app-menu"
 
-  readonly property string quickshellConfigPath: Quickshell.env("HOME") + "/.config/quickshell"
-
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
 
@@ -33,6 +31,6 @@ BarWidget {
     // clicked at all.
     text: "\u{f303}"
     tooltipText: "Applications"
-    onPressed: Quickshell.execDetached(["quickshell", "ipc", "-p", root.quickshellConfigPath, "call", "appsearch", "toggle"])
+    onPressed: Quickshell.execDetached(Paths.ipcCall("appsearch", "toggle"))
   }
 }

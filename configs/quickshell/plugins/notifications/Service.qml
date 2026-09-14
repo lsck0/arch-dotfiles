@@ -1,6 +1,7 @@
 // Notification service. Adapted from omarchy-shell's plugins/notifications
 // (replaces mako as the active `org.freedesktop.Notifications` handler --
-// see TODO.md for the keep-vs-replace decision and staged rollout).
+// see research/ROADMAP.md for the keep-vs-replace decision and staged
+// rollout).
 //
 // Loaded through shell.qml's existing `service`-kind plugin loader
 // (_syncServices()/ensureService()) -- the first real consumer of that
@@ -8,7 +9,8 @@
 // imperatively assigns `inst.shell = shell` from the *surrounding* function
 // scope, not a declarative `Service { shell: shell }` binding block, so the
 // `shell` property name here does NOT hit the Bar.qml property-shadowing
-// bug documented in Ui/BarIndicator.qml / TODO.md (that bug was specifically
+// bug documented in Ui/BarIndicator.qml / research/ROADMAP.md (that bug was
+// specifically
 // about an unqualified `shell` reference resolving to a same-named property
 // on the object being *declared*, inside its own construction block).
 //
@@ -88,6 +90,17 @@ Item {
   ListModel { id: popupModel }
 
   readonly property int historyLimit: 10
+
+  // Shared "now" for every visible toast's timestamp. Only ticks while
+  // something is on screen.
+  property double popupNowMs: Date.now()
+  Timer {
+    interval: 20000
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: service.popupNowMs = Date.now()
+  }
 
   readonly property int lowPopupDuration: 5000
   readonly property int normalPopupDuration: 8000
@@ -658,7 +671,7 @@ Item {
   // `quickshell ipc -p ~/.config/quickshell call notifications <method>`.
   // toggles/toggle-dnd.sh's three functions (check/turn_on/turn_off) point
   // here instead of `makoctl mode` once this service is the active handler
-  // -- see TODO.md for the staged cutover this is part of.
+  // -- see research/ROADMAP.md for the staged cutover this is part of.
 
   IpcHandler {
     target: "notifications"
@@ -828,6 +841,11 @@ Item {
               image: cardSlot.image
               urgency: cardSlot.urgency
               timestamp: cardSlot.timestamp
+              // A toast is nearly always "now", which the card renders as the
+              // word rather than a clock reading — but a popup replayed from
+              // history is not, and without a reference time it would show a
+              // bare timestamp with nothing to compare it against.
+              now: service.popupNowMs
               cornerRadius: service.cornerRadius
               glyph: cardSlot.glyph
 

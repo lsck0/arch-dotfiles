@@ -20,7 +20,7 @@ import "ClipboardHistory.js" as ClipboardHistory
 Item {
   id: root
 
-  readonly property string pluginDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/clipboard"
+  readonly property string pluginDir: Paths.plugin("clipboard")
   property bool opened: false
   property string filterText: ""
   property int selectedIndex: 0
@@ -476,6 +476,10 @@ Item {
                       width: visible ? parent.height : 0
                       height: parent.height
                       source: rowDelegate.previewImage
+                      // Clipboard images are usually screenshots; this draws
+                      // them at row height, so decoding at full size held a
+                      // multi-megabyte buffer per visible row.
+                      sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
                       fillMode: Image.PreserveAspectFit
                       asynchronous: true
                       smooth: true
@@ -575,6 +579,7 @@ Item {
                 anchors.fill: parent
                 anchors.leftMargin: root.contentMargin
                 source: parent.activeRow ? parent.activeRow.previewImage : ""
+                sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectFit
                 verticalAlignment: Image.AlignTop
                 asynchronous: true

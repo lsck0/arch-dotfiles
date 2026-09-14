@@ -31,7 +31,12 @@ fi
 
 # Layout is compatible — install config + wire the autosnap hook.
 sudo mkdir -p /etc/timeshift
-DEF="# config/boot/timeshift/timeshift.json"
+# "Is this file ours?" as a JSON member, not a leading `# ...` line. The comment
+# form made the config invalid JSON — timeshift parses it with json-glib, which
+# fails on the first character — so the backup below was comparing against a
+# file timeshift itself could not read. Unknown members are ignored by the
+# parser, so carrying the marker inside the object costs nothing.
+DEF='"_managed_by": "arch-dotfiles/boot/timeshift"'
 if [[ -f /etc/timeshift/timeshift.json ]]; then
     if ! sudo grep -qF "$DEF" /etc/timeshift/timeshift.json 2>/dev/null; then
         sudo install -m644 /etc/timeshift/timeshift.json \
@@ -47,7 +52,6 @@ fi
 
 sed "s|PLACEHOLDER_ROOT_UUID|$ROOT_UUID|" \
     "$(dirname "$0")/timeshift.json" | sudo tee /etc/timeshift/timeshift.json >/dev/null
-sudo sed -i "1i$DEF" /etc/timeshift/timeshift.json
 
 # timeshift hard-depends on cronie for scheduled snapshots; systemd/link.sh
 # already enables it, but guard here in case that didn't run.

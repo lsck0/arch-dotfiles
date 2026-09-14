@@ -1,4 +1,5 @@
 {
+    "_managed_by": "arch-dotfiles/boot/timeshift",
     "backup_device_uuid": "PLACEHOLDER_ROOT_UUID",
     "do_first_run": "false",
     "btrfs_mode": "true",

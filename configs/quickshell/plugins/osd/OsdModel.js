@@ -16,6 +16,10 @@ function iconFor(name, percent) {
   if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return ""
   if (n === "microphone" || n === "mic") return ""
   if (n === "brightness" || n === "display") return ""
+  // md-keyboard U+F030C / md-keyboard_off U+F0310, both verified by name
+  // against the 0xProto Nerd Font cmap.
+  if (n === "keyboard-backlight-off" || n === "kbd-backlight-off") return "\u{f0310}"
+  if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
   if (n.length > 0) return name
   if (percent <= 33) return ""
   if (percent <= 66) return ""

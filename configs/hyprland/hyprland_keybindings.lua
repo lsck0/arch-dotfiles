@@ -51,6 +51,17 @@ hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd("hyprctl hyprsunset gamma
 hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd("hyprctl hyprsunset gamma -5"),
     { locked = true, repeating = true })
 
+-- Keyboard backlight. ThinkPads handle Fn+Space in firmware and may never
+-- deliver a key event to the compositor, so both the standard keysyms and a
+-- mod chord are bound: whichever the hardware actually produces, one of these
+-- works, and the chord is the guaranteed path. tpacpi::kbd_backlight is a
+-- three-position switch, so "toggle" cycles off -> dim -> bright rather than
+-- flipping between the extremes.
+hl.bind("XF86KbdBrightnessUp", hl.dsp.exec_cmd("media-key kbd-backlight-up"), { locked = true })
+hl.bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd("media-key kbd-backlight-down"), { locked = true })
+hl.bind("XF86KbdLightOnOff", hl.dsp.exec_cmd("media-key kbd-backlight-toggle"), { locked = true })
+hl.bind(mod .. " + SHIFT + b", hl.dsp.exec_cmd("media-key kbd-backlight-toggle"), { locked = true })
+
 hl.bind(mod .. " + h", hl.dsp.focus({ direction = "left" }))
 hl.bind(mod .. " + l", hl.dsp.focus({ direction = "right" }))
 hl.bind(mod .. " + k", hl.dsp.focus({ direction = "up" }))

@@ -74,19 +74,29 @@ BarWidget {
     if (!devicesProc.running) devicesProc.running = true
   }
 
+  // Re-read after pactl has had a moment to apply. Refreshing inline raced
+  // the detached pactl every time: audio-devices.sh ran while the old default
+  // was still current, so the selected row did not move until the panel was
+  // hovered again and looked like the click had been ignored.
+  Timer {
+    id: devicesSettle
+    interval: 250
+    onTriggered: root.refreshDevices()
+  }
+
   function setSink(name) {
     Quickshell.execDetached(["pactl", "set-default-sink", name])
-    refreshDevices()
+    devicesSettle.restart()
   }
 
   function setSource(name) {
     Quickshell.execDetached(["pactl", "set-default-source", name])
-    refreshDevices()
+    devicesSettle.restart()
   }
 
   Process {
     id: devicesProc
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/audio-devices.sh"]
+    command: [Paths.barWidget("audio-devices.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -124,7 +134,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(320) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
@@ -171,7 +181,7 @@ BarWidget {
           verticalAlignment: Text.AlignVCenter
           text: Math.round(root.volume * 100) + "%"
           color: Color.menu.text
-          opacity: 0.6
+          opacity: Style.emphasis.dim
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -182,7 +192,7 @@ BarWidget {
         Rectangle {
           required property var modelData
           width: content.width
-          height: Style.space(32)
+          height: Style.row.list
           radius: Style.cornerRadius
           color: modelData.name === root.defaultSinkName ? Color.menu.selectedBackground : "transparent"
           Text {
@@ -244,17 +254,49 @@ BarWidget {
           verticalAlignment: Text.AlignVCenter
           text: Math.round(root.micVolume * 100) + "%"
           color: Color.menu.text
-          opacity: 0.6
+          opacity: Style.emphasis.dim
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
       }
 
+      // Input devices, directly under the microphone slider they belong to.
+      // These used to sit below the deafen row, one separator past their own
+      // section header, which read as a third unlabelled list rather than as
+      // the MICROPHONE section's devices.
+      Repeater {
+        model: root.sources
+        Rectangle {
+          required property var modelData
+          width: content.width
+          height: Style.row.list
+          radius: Style.cornerRadius
+          color: modelData.name === root.defaultSourceName ? Color.menu.selectedBackground : "transparent"
+          Text {
+            anchors.left: parent.left
+            anchors.leftMargin: Style.spacing.md
+            anchors.verticalCenter: parent.verticalCenter
+            text: (modelData.name === root.defaultSourceName ? "● " : "○ ") + modelData.description
+            color: modelData.name === root.defaultSourceName ? Color.menu.selectedText : Color.menu.text
+            font.pixelSize: Style.font.body
+            font.family: Style.font.family
+            elide: Text.ElideRight
+            width: parent.width - Style.spacing.md * 2
+          }
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.setSource(modelData.name)
+          }
+        }
+      }
+
       PanelSeparator {}
 
+      // Deafen spans both sections, so it goes last rather than inside either.
       Rectangle {
         width: content.width
-        height: Style.space(32)
+        height: Style.row.list
         radius: Style.cornerRadius
         color: root.deafened
           ? Util.alpha(Color.urgent, 0.18)
@@ -286,33 +328,6 @@ BarWidget {
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           onClicked: root.toggleDeafen()
-        }
-      }
-
-      Repeater {
-        model: root.sources
-        Rectangle {
-          required property var modelData
-          width: content.width
-          height: Style.space(32)
-          radius: Style.cornerRadius
-          color: modelData.name === root.defaultSourceName ? Color.menu.selectedBackground : "transparent"
-          Text {
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.md
-            anchors.verticalCenter: parent.verticalCenter
-            text: (modelData.name === root.defaultSourceName ? "● " : "○ ") + modelData.description
-            color: modelData.name === root.defaultSourceName ? Color.menu.selectedText : Color.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
-            elide: Text.ElideRight
-            width: parent.width - Style.spacing.md * 2
-          }
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.setSource(modelData.name)
-          }
         }
       }
     }

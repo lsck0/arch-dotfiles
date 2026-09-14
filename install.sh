@@ -559,6 +559,7 @@ PACKAGES=(
     obs-plugin-waveform-bin # [creating] OBS waveform plugin
     obs-studio # [creating] screen recording/streaming
     obs-studio-plugin-browser # [creating] OBS browser source
+    python-websocket-client # [creating] obs-websocket client for the bar's OBS widget
     openscad # [creating] 3D CAD modeler
     opentabletdriver-git # [creating] graphics tablet driver
     pitivi # [creating] video editor
@@ -1027,9 +1028,26 @@ fi
 
 ## REMOVE PASSWORD FROM SUDO
 
-if ! sudo grep -q '$USER' /etc/sudoers; then
-    echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+# A drop-in, not an append to /etc/sudoers. The guard used to be
+# `grep -q '$USER'` in SINGLE quotes, so it searched for the literal string
+# `$USER`, never matched the expanded line it had written, and appended one more
+# `NOPASSWD: ALL` on every run — eight of them on this machine before anyone
+# looked. A file in sudoers.d is idempotent by construction: same path, same
+# content, one rule.
+#
+# Written via a temp file and `visudo -c` before install: a syntax error in
+# /etc/sudoers.d locks every user out of sudo on the next invocation, and the
+# recovery for that is a root shell you may not have.
+SUDOERS_DROPIN="/etc/sudoers.d/10-arch-dotfiles-nopasswd"
+sudo_tmp="$(mktemp)"
+printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$USER" > "$sudo_tmp"
+if sudo visudo -c -f "$sudo_tmp" >/dev/null 2>&1; then
+    sudo install -m440 -o root -g root "$sudo_tmp" "$SUDOERS_DROPIN"
+else
+    echo "sudoers drop-in failed validation — left unchanged" >&2
+    echo "sudoers NOPASSWD drop-in" >> "$FAILURES_FILE"
 fi
+rm -f "$sudo_tmp"
 
 ## LINK PACMAN CONFIG
 

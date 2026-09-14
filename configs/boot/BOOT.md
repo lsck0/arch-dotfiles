@@ -72,9 +72,14 @@ plus some CPU, largely recoverable with the flags above.
   - `@` — root system (timeshift btrfs-mode requirement)
   - `@home` — user data (excluded from timeshift snapshots by design)
   - `/timeshift` — snapshot target dir (first-level, required by timeshift)
-- LUKS options: `--type luks2 --cipher aes-xts-plain64 --key-size 256 --sector-size 4096
-  --allow-discards --perf-no_read_workqueue --perf-no_write_workqueue`,
-  pbkdf argon2id
+- LUKS options, split by when they bind:
+  - **format-time (in the LUKS2 header, fixed at `luksFormat`, MANUAL — the
+    script cannot set or change these):** `--type luks2 --cipher
+    aes-xts-plain64 --key-size 256 --sector-size 4096 --pbkdf argon2id`.
+    The exact `luksFormat` command is in README §Manual LUKS format.
+  - **open-time (re-applied every unlock, set by `configs/boot/luks/link.sh`
+    via `/etc/crypttab`):** `discard` (`--allow-discards`),
+    `perf-no-read-workqueue`, `perf-no-write-workqueue`.
 - **Secure Boot**: own keys via sbctl in firmware Setup Mode; pacman hooks auto-sign
   kernels/bootloader; `limine-enroll-config` signs `limine_x64.efi`. Community reports
   (CachyOS) say Limine+SB is finicky — prefer **UKIs signed with sbctl** as the robust

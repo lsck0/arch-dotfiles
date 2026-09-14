@@ -60,6 +60,15 @@ PanelWindow {
   implicitHeight: Style.bar.sizeHorizontal
   color: "transparent"
 
+  // Hyprland leaves an already-mapped layer surface at its old global
+  // position when its monitor moves within the layout — undock, and the bar
+  // keeps drawing at the previous origin or off-screen entirely. The guard
+  // pulses `remapping` once the move settles, and folding it into `visible`
+  // is what unmaps and remaps the surface so the compositor re-places it.
+  // See Ui/ScreenMoveRemap.qml.
+  ScreenMoveRemap { id: screenGuard; window: root }
+  visible: !screenGuard.remapping
+
   readonly property bool vertical: false
   readonly property int barSize: Style.bar.sizeHorizontal
   readonly property string fontFamily: Style.resolvedFontFamily
@@ -192,39 +201,49 @@ PanelWindow {
     color: root.background
   }
 
-  RowLayout {
+  // THE CENTRE IS ANCHORED TO THE SCREEN, NOT SPLIT BETWEEN THE SIDES.
+  //
+  // This was a RowLayout with a fillWidth spacer either side of the centre
+  // group. Those spacers divide the *leftover* space equally, which centres the
+  // middle section between the two side sections — not on the display. With a
+  // full right-hand cluster and a nearly empty left one, that put the clock
+  // about 230px left of the actual centre of the screen, and moved it every
+  // time a right-hand widget appeared or vanished.
+  //
+  // Three anchored rows instead: left to the left edge, right to the right
+  // edge, centre to the screen's own centre. The centre now holds still no
+  // matter what the other two do.
+  Item {
     anchors.fill: parent
-    anchors.leftMargin: Style.spacing.lg
-    anchors.rightMargin: 0
 
     RowLayout {
       id: leftSection
-      spacing: Style.spacing.md
-      Layout.alignment: Qt.AlignVCenter
+      anchors.left: parent.left
+      anchors.leftMargin: Style.spacing.lg
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.bar.itemGap
       onXChanged: root.layoutRevision++
       onWidthChanged: root.layoutRevision++
 
       BarSection { bar: root; section: "left" }
     }
 
-    Item { Layout.fillWidth: true }
-
     RowLayout {
       id: centerSection
-      spacing: Style.spacing.md
-      Layout.alignment: Qt.AlignVCenter
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.bar.itemGap
       onXChanged: root.layoutRevision++
       onWidthChanged: root.layoutRevision++
 
       BarSection { bar: root; section: "center" }
     }
 
-    Item { Layout.fillWidth: true }
-
     RowLayout {
       id: rightSection
-      spacing: Style.spacing.md
-      Layout.alignment: Qt.AlignVCenter
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: Style.bar.itemGap
       onXChanged: root.layoutRevision++
       onWidthChanged: root.layoutRevision++
 

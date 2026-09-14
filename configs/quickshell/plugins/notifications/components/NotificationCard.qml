@@ -29,6 +29,48 @@ BorderSurface {
   property double timestamp: 0
   property int cornerRadius: 0
 
+  // "toast"  — a free-floating popup over the desktop. It needs its own edges,
+  //            so it keeps the border and the opaque card background.
+  // "row"    — an entry in the history list inside a panel that ALREADY has
+  //            edges. Four bordered cards stacked inside one bordered card is
+  //            what made the list read as a pile of boxes rather than a list;
+  //            nothing else in this shell outlines its list rows.
+  property string variant: "toast"
+  readonly property bool isRow: variant === "row"
+
+  // How many lines of body to show before eliding. The clamp exists so a long
+  // list stays scannable — every row roughly the same height — which is a
+  // reason that disappears when there is only one row to look at. The panel
+  // decides, because only it knows how many rows there are.
+  property int bodyLines: 3
+
+  // Wall-clock reference for the relative timestamp. Passed in rather than
+  // read here so a list of thirty rows ticks from one timer instead of thirty.
+  property double now: 0
+
+  // A clock time, with the day added once it is no longer today.
+  //
+  // I had this as a relative age ("4d") on the argument that staleness is the
+  // question being asked. It is the wrong call for a history you scroll: "2m"
+  // and "3m" beside each other tell you the order you already knew, whereas
+  // 12:58 tells you the notification arrived during the meeting. Relative time
+  // is kept only for the very recent, where a clock reading is noise.
+  function formatTime(ts, ref) {
+    if (!ts) return ""
+    var ms = ts * (ts < 1e12 ? 1000 : 1)
+    var when = new Date(ms)
+    if (ref) {
+      var secs = Math.max(0, Math.round((ref - ms) / 1000))
+      if (secs < 60) return "now"
+    }
+    var today = ref ? new Date(ref) : new Date()
+    var sameDay = when.getFullYear() === today.getFullYear()
+      && when.getMonth() === today.getMonth()
+      && when.getDate() === today.getDate()
+    return sameDay ? Qt.formatDateTime(when, "HH:mm")
+                   : Qt.formatDateTime(when, "dd.MM. HH:mm")
+  }
+
   // The card's text family. Defaults to the theme font; exposed so a caller
   // can override it per card. Both body Texts read it, which they did not
   // before — this property was declared and then ignored while they used a
@@ -36,6 +78,7 @@ BorderSurface {
   property string fontFamily: Style.font.family
 
   readonly property bool hovered: hoverTracker.hovered
+  readonly property string timeLabel: formatTime(timestamp, now)
 
   signal closeRequested()
   signal cardClicked()
@@ -53,7 +96,11 @@ BorderSurface {
   readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
   readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
   readonly property color accentColor: urgency === 2 ? Color.urgent : (urgency === 0 ? dimColor : Color.notifications.countdown)
-  readonly property var cardBorderSpec: Border.flat(urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, 0.5), 1)
+  // A row draws no outline at all; a critical one keeps a left-edge accent
+  // instead, which is the only urgency cue it still needs inside a panel.
+  readonly property var cardBorderSpec: isRow
+    ? Border.flat("transparent", 0)
+    : Border.flat(urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, 0.5), 1)
 
   function sanitizeBody(s) {
     return NotificationLogic.sanitizeBody(s, app, appIcon)
@@ -67,16 +114,32 @@ BorderSurface {
     return Quickshell.iconPath(value, true)
   }
 
-  implicitWidth: Style.space(360)
+  implicitWidth: Style.panelWidth.normal
   // Add vertical border insets so mainColumn (inset by border on top/left/right)
   // doesn't push content under the bottom edge.
   implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
-  radius: Style.space(8)
-  color: Color.notifications.background
+  radius: isRow ? Style.cornerRadius : Style.space(8)
+  // A row is transparent at rest and lights up on hover, exactly like every
+  // other selectable row in the shell (audio devices, Wi-Fi networks, tunnels).
+  color: isRow
+    ? (hovered ? Style.hoverFill : "transparent")
+    : Color.notifications.background
+  Behavior on color { ColorAnimation { duration: 100 } }
   borderSpec: cardBorderSpec
   clip: true
 
   HoverHandler { id: hoverTracker }
+
+  // Urgency rule for a row, standing in for the border a toast gets.
+  Rectangle {
+    visible: root.isRow && root.urgency === 2
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    width: Style.space(2)
+    height: parent.height - Style.space(8)
+    radius: width / 2
+    color: Color.urgent
+  }
 
   MouseArea {
     anchors.fill: parent
@@ -111,8 +174,10 @@ BorderSurface {
 
       Item {
         id: smallIconSlot
-        Layout.preferredWidth: visible ? Style.space(32) : 0
-        Layout.preferredHeight: visible ? Style.space(32) : 0
+        // Smaller in a list: at 32 the avatar dominated a two-line row and
+        // left the text looking like a caption hung off a picture.
+        Layout.preferredWidth: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
+        Layout.preferredHeight: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.alignment: Qt.AlignVCenter
         visible: !root.collapseRedundantIcon && !root.compactGlyph && (root.hasSmallIcon || root.hasGlyph) && (root.hasGlyph || smallIconImage.status !== Image.Error)
 
@@ -155,6 +220,40 @@ BorderSurface {
         Layout.rightMargin: Style.space(10)
         spacing: Style.space(2)
 
+        // WHO AND WHEN. Both were properties on this card and neither was ever
+        // drawn — so two notifications from different apps were indistinguishable
+        // in a toast, and the history could not say whether something arrived a
+        // minute or a week ago. It is the first line because it is the context
+        // the summary is read against.
+        Row {
+          Layout.fillWidth: true
+          spacing: Style.spacing.xs
+          visible: root.app.length > 0 || root.timeLabel.length > 0
+
+          Text {
+            textFormat: Text.PlainText
+            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.spacing)
+            text: root.app
+            elide: Text.ElideRight
+            color: Color.notifications.text
+            opacity: Style.emphasis.faint
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+          Text {
+            id: timeText
+            textFormat: Text.PlainText
+            // Middot, not a wider gap: "App 6  1m" still reads as one phrase
+            // whatever the spacing, because both halves are the same weight and
+            // colour. A separator says they are two facts.
+            text: (root.app.length > 0 && root.timeLabel.length > 0 ? "·  " : "") + root.timeLabel
+            color: Color.notifications.text
+            opacity: Style.emphasis.faint
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+        }
+
         Text {
           textFormat: Text.PlainText
           Layout.fillWidth: true
@@ -184,7 +283,7 @@ BorderSurface {
           font.pixelSize: Style.font.body
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
-          maximumLineCount: 3
+          maximumLineCount: Math.max(1, root.bodyLines)
         }
       }
     }

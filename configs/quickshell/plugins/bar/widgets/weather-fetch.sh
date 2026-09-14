@@ -21,7 +21,9 @@
 # slower motion.
 set -uo pipefail
 
-TOGGLES="$HOME/projects/arch-dotfiles/toggles"
+# Overridable for a checkout that is not at the default location, matching
+# Commons/Paths.qml's QS_DOTFILES_DIR.
+TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-weather.json"
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }

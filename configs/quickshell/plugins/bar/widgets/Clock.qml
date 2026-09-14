@@ -28,8 +28,8 @@ BarWidget {
   // --user timers, so the notification
   // still fires with the shell restarted or dead. This panel is a readout and
   // a set of buttons; it holds no timer state of its own.
-  readonly property string pomodoroScript: Quickshell.env("HOME") + "/.local/bin/pomodoro"
-  readonly property string reminderScript: Quickshell.env("HOME") + "/.local/bin/reminder"
+  readonly property string pomodoroScript: Paths.bin("pomodoro")
+  readonly property string reminderScript: Paths.bin("reminder")
 
   property var pomo: ({ running: false, paused: false, phase: "idle", label: "Pomodoro", remaining: "", cycle: 0 })
   property var reminders: []
@@ -54,7 +54,7 @@ BarWidget {
 
   Timer { id: pomoDelay; interval: 250; onTriggered: root.refreshPanelData() }
 
-  implicitWidth: label.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   Rectangle {
@@ -64,12 +64,24 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // Calendar grid for the month the timetravel slider is currently pointed
-  // at (root.now + travelHours), so scrubbing the slider also scrubs the
-  // month view — Sunday-first weeks, today (real today, not the travelled
+  // The date the calendar and the zone list are pointed at: now, shifted by
+  // the timetravel slider. Scrubbing the slider therefore also scrubs the
+  // month view — Sunday-first weeks, with *real* today (not the travelled
   // date) highlighted when it falls in the visible month.
+  readonly property date travelledNow: new Date(now.getTime() + travelHours * 3600000)
+
+  // The calendar grid is expensive to rebuild — 42 delegates — and it only
+  // changes when the travelled *day* does. Bound directly to calendarWeeks(),
+  // the Repeater's model depended on `now` and so rebuilt the whole grid once
+  // a second for as long as the panel stayed open. Rebuild on this key
+  // instead: once per day, or whenever the slider moves the date.
+  readonly property string calendarKey: Qt.formatDate(travelledNow, "yyyy-MM-dd")
+  property var calendarModel: []
+  onCalendarKeyChanged: calendarModel = calendarWeeks()
+  Component.onCompleted: calendarModel = calendarWeeks()
+
   function calendarWeeks() {
-    var travelled = new Date(root.now.getTime() + root.travelHours * 3600000)
+    var travelled = root.travelledNow
     var year = travelled.getFullYear()
     var month = travelled.getMonth()
     var firstOfMonth = new Date(year, month, 1)
@@ -93,8 +105,7 @@ BarWidget {
   }
 
   function monthLabel() {
-    var travelled = new Date(root.now.getTime() + root.travelHours * 3600000)
-    return Qt.formatDateTime(travelled, "MMMM yyyy")
+    return Qt.formatDateTime(root.travelledNow, "MMMM yyyy")
   }
 
   function refreshOffsets() {
@@ -102,8 +113,7 @@ BarWidget {
   }
 
   function timeInZone(offsetSec) {
-    var d = new Date(root.now.getTime() + offsetSec * 1000 + root.travelHours * 3600000)
-    return Qt.formatTime(d, "HH:mm")
+    return Qt.formatTime(new Date(root.travelledNow.getTime() + offsetSec * 1000), "HH:mm")
   }
 
   function dayLabel() {
@@ -114,7 +124,7 @@ BarWidget {
 
   Process {
     id: offsetsProc
-    command: [Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/timezone-offsets.sh"]
+    command: [Paths.barWidget("timezone-offsets.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -218,7 +228,7 @@ BarWidget {
     anchorWidget: root
     // Widened from 320: the pomodoro row (icon + countdown + three buttons)
     // and the six quick-reminder chips both need the extra room.
-    implicitWidth: Style.space(360) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
@@ -256,7 +266,7 @@ BarWidget {
               horizontalAlignment: Text.AlignHCenter
               text: modelData
               color: Color.menu.text
-              opacity: 0.5
+              opacity: Style.emphasis.faint
               font.pixelSize: Style.font.caption
               font.family: Style.font.family
             }
@@ -275,7 +285,7 @@ BarWidget {
         }
 
         Repeater {
-          model: root.calendarWeeks()
+          model: root.calendarModel
           Row {
             required property var modelData
             width: content.width
@@ -350,7 +360,7 @@ BarWidget {
         width: parent.width
         height: Style.space(24)
         radius: Style.cornerRadius
-        color: Util.alpha(Color.accent, 0.15)
+        color: Style.selectedFillFor(Color.menu.text, Color.accent)
         Text {
           anchors.centerIn: parent
           text: "Reset to now"
@@ -413,7 +423,7 @@ BarWidget {
               horizontalAlignment: Text.AlignRight
               text: modelData.remaining || ""
               color: Color.menu.text
-              opacity: 0.6
+              opacity: Style.emphasis.dim
               font.pixelSize: Style.font.caption
               font.family: Style.font.family
             }
@@ -447,7 +457,7 @@ BarWidget {
         textFormat: Text.PlainText
         text: "No outstanding reminders"
         color: Color.menu.text
-        opacity: 0.4
+        opacity: Style.emphasis.faint
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
@@ -488,7 +498,7 @@ BarWidget {
             visible: root.pomo.running
             text: root.pomo.phase === "work" ? "Focusing" : "On break"
             color: Color.menu.text
-            opacity: 0.5
+            opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
