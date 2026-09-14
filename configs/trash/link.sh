@@ -8,4 +8,4 @@ fi
 
 sudo mkdir -p /etc/cron.daily
 
-sudo ln -sf ${PWD}/trash-clean-job.sh /etc/cron.daily/trash-clean-job
+sudo ln -sfn ${PWD}/trash-clean-job.sh /etc/cron.daily/trash-clean-job

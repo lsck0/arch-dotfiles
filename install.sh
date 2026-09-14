@@ -3,7 +3,7 @@
 set -e
 exec > >(tee "install.log") 2>&1
 
-FAILURES_FILE="$(pwd)/FAILURES"
+export FAILURES_FILE="$(pwd)/FAILURES"
 : > "$FAILURES_FILE"
 
 ## PACKAGES
@@ -178,6 +178,7 @@ PACKAGES=(
     stirling-pdf-bin # [base] PDF manipulation tool
     sudo # [base] privilege escalation tool
     superseedr # [base] terminal torrent
+    tailspin # [base] logging tool
     tar # [base] archiving utility
     tar-scripts # [base] tar helper scripts
     themix-gui-git # [base] GTK theme exporter
@@ -711,6 +712,7 @@ PACKAGES=(
     posting # [programming] HTTP client TUI
     pre-commit # [programming] git hook manager
     prettier # [programming] code formatter
+    protobuf # [programming] protocol buffers runtime
     python-black # [programming] Python code formatter
     python-faker # [programming] fake data generator
     python-isort # [programming] Python import sorter
@@ -757,6 +759,7 @@ PACKAGES=(
     taskwarrior-tui # [programming] taskwarrior terminal UI
     terraform # [programming] infrastructure as code
     tesseract # [programming] OCR engine
+    trunk # [programming] rust wasm tooling
     tesseract-data-deu # [programming] German OCR data
     tesseract-data-eng # [programming] English OCR data
     tig # [programming] git repository browser
@@ -958,6 +961,55 @@ mapfile -t CARGO_PKGS_GIT < <(filter_by_group CARGO_PKGS_GIT)
 mapfile -t GO_PKGS < <(filter_by_group GO_PKGS)
 mapfile -t NIX_PKGS < <(filter_by_group NIX_PKGS)
 
+# nonsense around gpu specific packages
+
+has_amd_gpu() {
+    local vendor
+    for vendor in /sys/class/drm/card[0-9]*/device/vendor; do
+        if [[ -r "$vendor" && "$(<"$vendor")" == "0x1002" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+ROCM_PKGS=(ollama-for-amd-git python-pytorch-opt-rocm python-vllm-rocm)
+if ! has_amd_gpu; then
+    kept=()
+    dropped=()
+    for pkg in "${PACKAGES[@]}"; do
+        if printf '%s\n' "${ROCM_PKGS[@]}" | grep -qxF "$pkg"; then
+            dropped+=("$pkg")
+        else
+            kept+=("$pkg")
+        fi
+    done
+    if [[ ${#dropped[@]} -gt 0 ]]; then
+        PACKAGES=("${kept[@]}")
+    fi
+fi
+
+detect_discrete_gfx() {
+    local node best_simd=0 best_ver="" simd ver
+    for node in /sys/class/kfd/kfd/topology/nodes/*/properties; do
+        [[ -r "$node" ]] || continue
+        simd=$(awk '/^simd_count /{print $2; exit}' "$node")
+        ver=$(awk '/^gfx_target_version /{print $2; exit}' "$node")
+        [[ "$simd" =~ ^[0-9]+$ && "$ver" =~ ^[0-9]+$ ]] || continue
+        (( ver > 0 && simd > best_simd )) || continue
+        best_simd=$simd
+        best_ver=$ver
+    done
+    [[ -n "$best_ver" ]] || return 1
+    printf 'gfx%d%x%x\n' $(( best_ver / 10000 )) $(( (best_ver / 100) % 100 )) $(( best_ver % 100 ))
+}
+
+if [[ -z "${ROCM_ARCH:-}" ]] && printf '%s\n' "${PACKAGES[@]}" | grep -qxF python-vllm-rocm; then
+    if gfx=$(detect_discrete_gfx); then
+        export ROCM_ARCH="$gfx"
+    fi
+fi
+
 ## BOOT DISK SECURITY (timeshift btrfs snapshots, Secure Boot, LUKS)
 
 # Partitioning/bootloader is already done by the time install.sh runs
@@ -1014,7 +1066,7 @@ popd
 # retry N times with exponential backoff
 retry() {
     local attempts="$1"; shift
-    local n=1 wait_s=5
+    local n=1 wait_s=15
     until "$@"; do
         if (( n >= attempts )); then
             echo "FAILED after $attempts attempts: $*" >&2
@@ -1046,11 +1098,7 @@ rustup default stable || true
 
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#PACKAGES[@]} -gt 0 ]]; then
-    # One unresolvable conflict in the batch (e.g. two providers of the same
-    # virtual package) makes pacman refuse the whole transaction, so a single
-    # bad entry would otherwise leave all ~800 packages uninstalled. Fall back
-    # to installing one at a time and record only the entries that really fail.
-    if ! retry 5 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
+    if ! retry 7 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
         echo "yay batch failed, falling back to per-package install" >&2
         for pkg in "${PACKAGES[@]}"; do
             yay -S --needed --noconfirm --mflags --skipinteg "$pkg" \
@@ -1067,6 +1115,7 @@ for git_pkg in "${CARGO_PKGS_GIT[@]}"; do
     cargo install --git "$git_pkg" -j $(nproc) || echo "cargo $git_pkg" >> "$FAILURES_FILE"
 done
 
+export GOPATH="${GOPATH:-$HOME/.go}"
 if [[ ${#GO_PKGS[@]} -gt 0 ]]; then
     for go_pkg in "${GO_PKGS[@]}"; do
         go install "$go_pkg" || echo "go $go_pkg" >> "$FAILURES_FILE"
@@ -1074,35 +1123,23 @@ if [[ ${#GO_PKGS[@]} -gt 0 ]]; then
 fi
 if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]]; then
     if command -v flatpak >/dev/null 2>&1; then
-        # Arch's flatpak package ships no remotes, so `flatpak install flathub`
-        # fails on a fresh machine until flathub is registered.
         sudo flatpak remote-add --if-not-exists flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo \
             || echo "flatpak remote-add flathub" >> "$FAILURES_FILE"
         flatpak install flathub -y "${FLATPAK_PKGS[@]}" \
             || echo "flatpak batch" >> "$FAILURES_FILE"
-    else
-        echo "flatpak not installed, skipping flatpak packages" >&2
     fi
 fi
 if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
     if command -v nix >/dev/null 2>&1; then
-        # The Arch package installs the binaries but leaves the daemon and the
-        # store un-set-up; `nix profile install` needs both. Group membership
-        # only takes effect on the next login, which is why this is best-effort
-        # rather than fatal.
         sudo systemctl enable --now nix-daemon.socket || true
-        sudo gpasswd -a "$USER" nix-users 2>/dev/null || true
-        nix profile install --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
+        sudo systemctl start nix-daemon.service || true
+        nix_profile_cmd=add
+        nix --version 2>/dev/null | grep -qE ' 2\.(1[0-9]|2[0-7])(\.|$)' && nix_profile_cmd=install
+        nix profile "$nix_profile_cmd" --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
             || echo "nix batch" >> "$FAILURES_FILE"
-    else
-        echo "nix not installed, skipping nix packages" >&2
     fi
 fi
-
-# cleanup
-rm -rf ${HOME}/.cache/yay/
-sudo rm -rf ${HOME}/go/
 
 ## LINK
 
@@ -1120,31 +1157,19 @@ while IFS= read -r script; do
     ( set -o pipefail; cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log" ) || echo "$script" >> "$FAILURES_FILE"
 done < <(find "$(pwd)" -type f -name 'link.py')
 
-## INSTALL EDITOR PLUGINS
-
-if command -v nvim >/dev/null 2>&1; then
-    nvim --headless "+Lazy! sync" +qa || echo "nvim plugin bootstrap" >> "$FAILURES_FILE"
-fi
-
-if command -v emacs >/dev/null 2>&1; then
-emacs --batch \
-    -l "${HOME}/.config/emacs/early-init.el" \
-    -l "${HOME}/.config/emacs/init.el" \
-    --eval '(princ "emacs: package bootstrap complete\n")'
-fi
-
-## LFS PULL
+## INIT WALLPAPER AND THEME FILES
 
 if command -v git-lfs >/dev/null 2>&1; then
     git lfs pull || echo "git lfs pull" >> "$FAILURES_FILE"
-else
-    echo "git-lfs not installed, skipping lfs pull" >&2
 fi
 
-## INIT WALLPAPER AND THEME FILES
-
-./scripts/switch-wallpaper.sh ./wallpapers/mountain2.jpg >/dev/null 2>/dev/null || \
+WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/mountain2.jpg >/dev/null 2>/dev/null || \
     echo "scripts/switch-wallpaper.sh" >> "$FAILURES_FILE"
+
+## CLEANUP
+
+rm -rf "${HOME}/go"
+rm -rf ${HOME}/.cache/yay/
 
 ## SUMMARY
 

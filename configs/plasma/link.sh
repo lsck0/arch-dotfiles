@@ -33,15 +33,15 @@ DIRS="
 
 mkdir -p ${HOME}/.config ${HOME}/.local/share/color-schemes
 
-ln -sf ${PWD}/color-schemes/pywal.colors ${HOME}/.local/share/color-schemes/pywal.colors
+ln -sfn ${PWD}/color-schemes/pywal.colors ${HOME}/.local/share/color-schemes/pywal.colors
 
 for f in ${FILES}; do
-    ln -sf ${PWD}/${f} ${HOME}/.config/${f}
+    ln -sfn ${PWD}/${f} ${HOME}/.config/${f}
 done
 
 for d in ${DIRS}; do
     rm -rf ${HOME}/.config/${d}
-    ln -sf ${PWD}/${d} ${HOME}/.config/${d}
+    ln -sfn ${PWD}/${d} ${HOME}/.config/${d}
 done
 
 # Install third-party plasmoids

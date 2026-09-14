@@ -8,4 +8,4 @@ set -ex
 
 mkdir -p ${HOME}/.config/fastfetch
 
-ln -sf ${PWD}/fastfetch.jsonc ${HOME}/.config/fastfetch/config.jsonc
+ln -sfn ${PWD}/fastfetch.jsonc ${HOME}/.config/fastfetch/config.jsonc

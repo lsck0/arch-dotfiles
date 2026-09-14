@@ -2,3 +2,5 @@
 .Rhistory
 FAILURES
 __pycache__
+boot.conf
+groups.conf

@@ -8,4 +8,4 @@ set -ex
 
 mkdir -p "${HOME}/.nnd"
 
-ln -sf "${PWD}/keys" "${HOME}/.nnd/keys"
+ln -sfn "${PWD}/keys" "${HOME}/.nnd/keys"
