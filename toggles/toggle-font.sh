@@ -29,7 +29,7 @@ source ./lib.sh
 # Worth knowing: `sed -i` replaces the file's inode. That is safe here
 # because these are regular files inside symlinked directories — but it
 # would DESTROY a file-level symlink. `~/.config/kdeglobals` is exactly that
-# case, which is why scripts/generate-kde-theme.sh uses kwriteconfig6
+# case, which is why configs/wallust/scripts/generate-kde-theme.sh uses kwriteconfig6
 # instead. Check which shape a target is before adding one here.
 #
 # quickshell's theme.json IS reached through a file-level symlink

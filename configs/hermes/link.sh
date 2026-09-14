@@ -60,7 +60,7 @@ fi
 
 # Wallust-generated skin
 hermes config set display.interface tui
-"$(dirname "$(readlink -f "$0")")/../../scripts/generate-hermes-skin.py" || true
+"$(dirname "$(readlink -f "$0")")/../wallust/scripts/generate-hermes-skin.py" || true
 hermes skin use wallust || true
 
 # Model routing:

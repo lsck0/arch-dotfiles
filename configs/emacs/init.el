@@ -34,6 +34,7 @@
              "files-setup"   ; file browser
              "git-setup"     ; magit, diff markers
              "lang"          ; treesitter, LSP, formatting
+             "latex"         ; AUCTeX + reftex + zathura
              "tools"         ; terminal, compile, windows
              "keys"))        ; all keybindings          (nvim mappings.lua)
   (load (expand-file-name m user-emacs-directory) nil t))

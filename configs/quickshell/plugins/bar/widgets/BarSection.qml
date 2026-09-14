@@ -40,6 +40,7 @@ Repeater {
         "bar.clock": "Clock.qml",
         "bar.costs": "Costs.qml",
         "bar.display": "Display.qml",
+        "bar.exit": "Exit.qml",
         "bar.indicators": "Indicators.qml",
         "bar.keyboard-layout": "KeyboardLayout.qml",
         "bar.media": "Media.qml",

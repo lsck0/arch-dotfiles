@@ -1,0 +1,39 @@
+version: 3
+theme: "Ayu Dark"
+margin: 0
+transparent_background: true
+pdf_scale: 1
+pdf_pan_shift: 0
+pdf_render_mode: scroll
+pdf_page_layout_mode: single
+epub_column_mode: single
+pdf_enabled: true
+pdf_settings_configured: true
+justify_text: false
+invert_scroll_direction: false
+book_sort_order: by_name
+synctex_editor: "ghostty -e nvim +{line} {file}"
+
+nav_panel_width: 12
+lookup_command: null
+lookup_display: popup
+
+custom_themes:
+  - scheme: "Ayu Dark"
+    author: "luca (ayu dark base16)"
+    base00: "0B0E14"
+    base01: "131721"
+    base02: "1C222D"
+    base03: "565B66"
+    base04: "8A9199"
+    base05: "BFBDB6"
+    base06: "D9D7CE"
+    base07: "F8F8F2"
+    base08: "F07178"
+    base09: "FF8F40"
+    base0A: "E6B450"
+    base0B: "AAD94C"
+    base0C: "95E6CB"
+    base0D: "59C2FF"
+    base0E: "D2A6FF"
+    base0F: "E6B673"

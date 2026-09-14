@@ -63,6 +63,7 @@ vim.keymap.set("n", "<leader>fc", function()
         cwd = "~/projects/arch-dotfiles",
     })
 end, { desc = "Find files (dotfiles)" })
+
 vim.keymap.set("n", "<leader>ff", telescope.find_files, { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", telescope.live_grep, { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", telescope.buffers, { desc = "Buffers" })
