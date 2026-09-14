@@ -10,11 +10,18 @@ PopupWindow {
   required property QtObject bar
   property var owner: null
   property int margin: Style.gapsOut
-  property int padding: Style.spacing.popupPadding
+  // Same chrome as Ui/HoverPanel, deliberately. A card hanging off the bar is
+  // a card hanging off the bar: before this, the shell drew three different
+  // ones — bar panels with a full-strength foreground border, the tray's
+  // right-click menu with a foreground border at 0.45, and the tray's manage
+  // popup with an ACCENT border, which is the only accent-outlined surface in
+  // the whole UI. Hovering a tray icon and right-clicking it produced two
+  // visibly different cards from the same icon.
+  property int padding: Style.spacing.panelPadding
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
-  property color borderColor: Color.popups.border
-  property var borderSpec: Border.surfaceSpec(borderColor, Color.popups.border, Math.max(1, Style.space(2)))
+  property color borderColor: Color.menu.border
+  property var borderSpec: Border.surfaceSpec(borderColor, Color.menu.border, Math.max(1, Style.space(2)))
   property bool open: false
   property bool centerOnBar: false
   // "click" — uses HyprlandFocusGrab so clicking outside dismisses the popup.
@@ -69,10 +76,18 @@ PopupWindow {
   implicitWidth: contentWidth
   implicitHeight: contentHeight
 
+  // Upstream's bar owns a popout coordinator (requestPopout/releasePopout/
+  // activePopout) that keeps one click-popup open at a time. This repo's
+  // Bar.qml deliberately never ported it — see its header — so these calls hit
+  // a Bar that has no such methods and threw a TypeError out of this handler on
+  // every open. Guarded rather than deleted: the contract still describes what
+  // a bar SHOULD do with a popup, and a future bar that implements it gets the
+  // behaviour for free.
   onOpenChanged: {
-    if (!bar) return
+    if (!bar || typeof bar.requestPopout !== "function") return
     if (open) bar.requestPopout(coordinatorKey)
-    else if (bar.activePopout === coordinatorKey) bar.releasePopout(coordinatorKey)
+    else if (bar.activePopout === coordinatorKey && typeof bar.releasePopout === "function")
+      bar.releasePopout(coordinatorKey)
   }
 
   // Outside-click dismissal via Hyprland's focus grab. While `active`, input
@@ -150,7 +165,7 @@ PopupWindow {
   BorderSurface {
     id: card
     anchors.fill: parent
-    color: Color.popups.background
+    color: Color.menu.background
     borderSpec: root.borderSpec
     padding: root.padding
     radius: Style.cornerRadius

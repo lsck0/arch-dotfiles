@@ -36,11 +36,11 @@ import "ImagePickerModel.js" as ImagePickerModel
 Item {
   id: root
 
-  readonly property string pluginDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/image-picker"
+  readonly property string pluginDir: Paths.plugin("image-picker")
   property var shell: null
   property var manifest: null
 
-  property string imageDirs: Quickshell.env("HOME") + "/projects/arch-dotfiles/wallpapers"
+  property string imageDirs: Paths.wallpapers
   // Handwritten premade themes, scanned as their own mode via theme-list.sh,
   // which reads each themes/*.json's own "wallpaper" field rather than
   // listing image files directly -- the JSON is the source of truth, not a
@@ -48,7 +48,7 @@ Item {
   // points at the directory of theme JSONs (themes/), not at a directory of
   // images. Selecting a result applies that theme's hand-authored palette
   // (switch-wallpaper.sh matches by each theme JSON's "wallpaper" field).
-  property string themeDirs: Quickshell.env("HOME") + "/projects/arch-dotfiles/themes"
+  property string themeDirs: Paths.themes
   // 0 = wallpapers (auto-generate palette via wallust), 1 = premade themes.
   // Up/Down switches; each mode scans its own directory set.
   property int mode: 0
@@ -660,6 +660,12 @@ Item {
                   id: thumbImage
                   anchors.fill: parent
                   source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
+                  // Decode no wider than this image can ever be drawn. A
+                  // wallpaper directory is full of 4K files, and a 3840x2160
+                  // source decodes to a 33 MB RGBA buffer regardless of the
+                  // 768px box it is shown in — times every activated slice.
+                  // Height is left to follow the aspect ratio.
+                  sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   // Was false, which decoded every image on the UI thread —
                   // so opening the picker froze the shell while it worked
@@ -675,6 +681,9 @@ Item {
                   id: fullImage
                   anchors.fill: parent
                   source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
+                  // Same cap as the thumbnail layer: this is the full-size
+                  // original, shown in the same 768px box.
+                  sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   asynchronous: true
                   cache: true
@@ -768,7 +777,7 @@ Item {
             clip: true
             onTextChanged: if (text !== root.filterText) root.updateFilter(text)
             onAccepted: carousel.forceActiveFocus()
-            Keys.onEscapePressed: {
+            Keys.onEscapePressed: function (event) {
               if (text.length > 0) {
                 text = ""
                 // Clearing drops searchChip.visible -> false, which in turn
@@ -786,8 +795,8 @@ Item {
             }
             // Up/Down switches group from the search field too (focus lands
             // here when filterable). Enter commits the filter to the carousel.
-            Keys.onUpPressed: { root.switchMode(); event.accepted = true }
-            Keys.onDownPressed: { root.switchMode(); event.accepted = true }
+            Keys.onUpPressed: function (event) { root.switchMode(); event.accepted = true }
+            Keys.onDownPressed: function (event) { root.switchMode(); event.accepted = true }
           }
 
           Item {

@@ -14,7 +14,8 @@ Item {
   // color as `barForeground` (Bar.qml:50); `bar.foreground` is undefined and
   // silently yields "Unable to assign [undefined] to QColor" at runtime.
   // Third occurrence of this exact naming mismatch (see Tray.qml:25 and the
-  // Phase 3 notes in TODO.md) — check this name before adding new bar.* reads.
+  // Phase 3 notes in research/ROADMAP.md) — check this name before adding new
+  // bar.* reads.
   property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Color.accent) : Style.selectedFill
   property color fillColor: bar ? bar.barForeground : Color.foreground
   property color knobColor: bar ? bar.barForeground : Color.foreground

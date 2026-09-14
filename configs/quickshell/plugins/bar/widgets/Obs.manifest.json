@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.obs",
+  "name": "OBS",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Obs.qml" },
+  "barWidget": {
+    "displayName": "OBS",
+    "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",
+    "category": "Status",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

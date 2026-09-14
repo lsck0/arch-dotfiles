@@ -16,8 +16,10 @@ return {
             require("transparent").setup({
                 extra_groups = {
                     "NormalFloat",
-                    "NvimTreeNormal",
                     "NeoTreeNormal",
+                    "NeoTreeNormalNC",
+                    "NvimTreeNormal",
+                    "NvimTreeNormalNC",
                     "TelescopeNormal",
                     "WhichKeyFloat",
                     "BufferTabpageFill",
@@ -26,6 +28,15 @@ return {
                     "TabLineFill",
                     "StatusLine",
                     "StatusLineNC",
+                    -- Split/separator surfaces: pywal colorschemes set these to a
+                    -- solid background, creating visible borders between splits
+                    -- on every theme switch. Clearing them to NONE keeps the
+                    -- separator glyphs but no colored border — matches every
+                    -- other transparent panel.
+                    "VertSplit",
+                    "WinSeparator",
+                    "SignColumn",
+                    "EndOfBuffer",
                     "BufferCurrent",
                     "BufferCurrentIndex",
                     "BufferCurrentMod",

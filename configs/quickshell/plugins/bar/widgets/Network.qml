@@ -23,8 +23,7 @@ BarWidget {
   id: root
   moduleName: "network"
 
-  readonly property string quickshellConfigPath: Quickshell.env("HOME") + "/.config/quickshell"
-  readonly property string toggleDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles"
+  readonly property string toggleDir: Paths.toggles
 
   property string homeVpnState: "off"
   property string protonVpnState: "off"
@@ -57,9 +56,7 @@ BarWidget {
     return kbps + " KB/s"
   }
 
-  readonly property bool showSpeeds: detailsConnected && (detailsRxKbps > 0 || detailsTxKbps > 0)
-
-  implicitWidth: trigger.implicitWidth + Style.spacing.controlPaddingX * 2
+  implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   function refreshAll() {
@@ -89,16 +86,40 @@ BarWidget {
     connectProc.running = true
   }
 
-  readonly property string scriptDir: Quickshell.env("HOME") + "/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets"
+  readonly property string scriptDir: Paths.barWidgets
 
-  function toggleHomeVpn() { Quickshell.execDetached([toggleDir + "/toggle-vpn.sh", "toggle"]); Qt.callLater(refreshAll) }
-  function toggleProtonVpn() { Quickshell.execDetached([toggleDir + "/toggle-protonvpn.sh", "toggle"]); Qt.callLater(refreshAll) }
-  function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); Qt.callLater(refreshAll) }
-  function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); Qt.callLater(refreshAll) }
-  function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); Qt.callLater(refreshAll) }
-  // Offline mode tears tunnels down first and takes several seconds; the
-  // nmcli monitor below catches the result, so no extra polling here.
-  function toggleOfflineMode() { Quickshell.execDetached([toggleDir + "/toggle-offline.sh", "toggle"]); Qt.callLater(refreshAll) }
+  // Every toggle is detached and takes real time — a VPN dial-up, an rfkill
+  // round trip, bluetoothctl powering a controller. `Qt.callLater(refreshAll)`
+  // re-read the `get` scripts on the *next frame*, so it always observed the
+  // pre-toggle state and the row appeared not to respond until something else
+  // refreshed it. Re-read on a settle delay instead, and repeat once, because
+  // the slower toggles are not done at 600ms either. The nmcli monitor still
+  // carries anything NetworkManager itself reports.
+  Timer {
+    id: toggleSettle
+    interval: 600
+    repeat: true
+    property int ticks: 0
+    onTriggered: {
+      root.refreshAll()
+      ticks++
+      if (ticks >= 4) stop()
+    }
+  }
+
+  function afterToggle() {
+    toggleSettle.ticks = 0
+    toggleSettle.restart()
+  }
+
+  function toggleHomeVpn() { Quickshell.execDetached([toggleDir + "/toggle-vpn.sh", "toggle"]); afterToggle() }
+  function toggleProtonVpn() { Quickshell.execDetached([toggleDir + "/toggle-protonvpn.sh", "toggle"]); afterToggle() }
+  function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); afterToggle() }
+  function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); afterToggle() }
+  function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); afterToggle() }
+  // Offline mode tears tunnels down first and takes several seconds, which is
+  // the case the repeated re-read above exists for.
+  function toggleOfflineMode() { Quickshell.execDetached([toggleDir + "/toggle-offline.sh", "toggle"]); afterToggle() }
 
   Process {
     id: homeVpnProc
@@ -273,16 +294,10 @@ BarWidget {
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
     }
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
-      visible: root.showSpeeds
-      text: "↓" + root.fmtSpeed(root.detailsRxKbps) + " ↑" + root.fmtSpeed(root.detailsTxKbps)
-      color: root.bar ? root.bar.barForeground : Color.foreground
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.bodySmall
-      opacity: 0.7
-    }
+    // No throughput in the bar. It is the one number here that changes every
+    // second, it is rarely what you want at a glance, and giving it a slot wide
+    // enough not to twitch cost ~120px of a bar that is now full. The panel
+    // still shows it, next to the device and IP it belongs with.
   }
 
   MouseArea {
@@ -298,7 +313,13 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(340) + Style.shadowOffset
+    // Load-bearing. HoverPanel defaults to WlrKeyboardFocus.None, so the
+    // Wi-Fi password TextInput below could take a click but never receive a
+    // keystroke — a secured network simply could not be joined from here.
+    // OnDemand hands focus over on the click and gives it back when the
+    // panel closes.
+    acceptsKeyboard: true
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
@@ -317,7 +338,7 @@ BarWidget {
         property string glyph: ""
         signal activated()
         width: content.width
-        height: Style.space(32)
+        height: Style.row.list
         radius: Style.cornerRadius
         color: on ? Color.menu.selectedBackground : "transparent"
         Row {
@@ -413,7 +434,7 @@ BarWidget {
               id: netRow
               property bool pendingConnect: false
               width: parent.width
-              height: Style.space(28)
+              height: Style.row.list
               radius: Style.cornerRadius
               color: modelData.active ? Color.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
 
@@ -442,7 +463,7 @@ BarWidget {
                 Text {
                   text: modelData.signal + "%"
                   color: Color.menu.text
-                  opacity: 0.5
+                  opacity: Style.emphasis.faint
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
                 }
@@ -473,7 +494,7 @@ BarWidget {
 
               Rectangle {
                 width: parent.width - 70 - parent.spacing
-                height: Style.space(26)
+                height: Style.row.control
                 radius: Style.cornerRadius
                 color: Style.normalFill
                 border.width: pwInput.activeFocus ? 1 : 0
@@ -494,9 +515,9 @@ BarWidget {
               }
               Rectangle {
                 width: 70
-                height: Style.space(26)
+                height: Style.row.control
                 radius: Style.cornerRadius
-                color: Util.alpha(Color.accent, 0.15)
+                color: Style.selectedFillFor(Color.menu.text, Color.accent)
                 Text {
                   anchors.centerIn: parent
                   text: root.connectingSsid === modelData.ssid ? "…" : "Connect"
@@ -518,7 +539,7 @@ BarWidget {
           visible: root.wifiNetworks.length === 0
           text: "No networks found — scanning…"
           color: Color.menu.text
-          opacity: 0.4
+          opacity: Style.emphasis.faint
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -568,8 +589,7 @@ BarWidget {
         glyph: "\u{f04c5}"
         onActivated: {
           if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(["quickshell", "ipc", "-p", root.quickshellConfigPath,
-                                   "call", "shell", "summon", "panel.speedtest", ""])
+          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest"))
         }
       }
     }

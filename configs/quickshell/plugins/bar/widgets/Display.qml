@@ -37,7 +37,14 @@ BarWidget {
   }
 
   function openWallpaperPicker() {
-    Quickshell.execDetached(Quickshell.env("HOME") + "/projects/arch-dotfiles/scripts/switch-wallpaper.sh")
+    // `wallpaper-picker`, NOT switch-wallpaper.sh. With no arguments that
+    // script falls through to an fzf+chafa picker, which needs a terminal —
+    // launched detached from the shell it has no tty, so this button ran a
+    // program that immediately gave up and nothing appeared. wallpaper-picker
+    // is the wrapper that summons the native overlay, and it is the only
+    // caller that passes `showLabels: true`, which is what puts the wallpaper
+    // name under the selection.
+    Quickshell.execDetached([Paths.repoScript("wallpaper-picker.sh")])
   }
 
   function setFont(family) {
@@ -142,9 +149,9 @@ BarWidget {
 
       Rectangle {
         width: parent.width
-        height: Style.space(32)
+        height: Style.row.list
         radius: Style.cornerRadius
-        color: Util.alpha(Color.menu.text, 0.08)
+        color: Style.normalFill
         Text {
           anchors.centerIn: parent
           text: "Choose wallpaper…"
@@ -169,9 +176,9 @@ BarWidget {
           Rectangle {
             required property string modelData
             width: fontLabel.implicitWidth + Style.spacing.md * 2
-            height: Style.space(28)
+            height: Style.row.list
             radius: Style.cornerRadius
-            color: Style.fontFamily === modelData ? Color.menu.selectedBackground : Util.alpha(Color.menu.text, 0.08)
+            color: Style.fontFamily === modelData ? Color.menu.selectedBackground : Style.normalFill
             Text {
               id: fontLabel
               anchors.centerIn: parent
@@ -197,9 +204,9 @@ BarWidget {
           Rectangle {
             required property int modelData
             width: Style.space(34)
-            height: Style.space(28)
+            height: Style.row.list
             radius: Style.cornerRadius
-            color: Util.alpha(Color.menu.text, 0.08)
+            color: Style.normalFill
             Text {
               anchors.centerIn: parent
               text: String(parent.modelData)
@@ -243,7 +250,7 @@ BarWidget {
                 width: Style.space(40)
                 height: Style.space(22)
                 radius: Style.cornerRadius
-                color: Util.alpha(Color.menu.text, 0.08)
+                color: Style.normalFill
                 Text {
                   anchors.centerIn: parent
                   text: parent.modelData + "x"

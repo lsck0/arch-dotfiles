@@ -75,6 +75,10 @@ QtObject {
   // accent they could not ask for. Selected/pressed/focus now genuinely
   // resolve to the accent, which is also what makes those states read as
   // loud rather than as a slightly brighter grey.
+  // These are THE fill and border alphas. Call sites must use them (or the
+  // *Fill/*For helpers below) rather than hand-rolling `Util.alpha(x, 0.08)` —
+  // a coherence sweep found ten different hand-picked values doing the work of
+  // these four, so panels tinted the same kind of surface by different amounts.
   readonly property real normalFillAlpha: 0.04
   readonly property real hoverFillAlpha: 0.10
   readonly property real selectedFillAlpha: 0.22
@@ -164,6 +168,59 @@ QtObject {
     if (focused) return focusBorderWidth
     if (hot) return hoverBorderWidth
     return normalBorderWidth
+  }
+
+  // ---------------------------------------------------------- panel metrics
+  //
+  // Heights and widths for the two things panels are actually made of, because
+  // the shell had stopped agreeing with itself about either.
+  //
+  // Row heights were 20 / 22 / 24 / 26 / 28 / 30 / 32 / 34 / 38 across the
+  // panels — and Network.qml alone used 26, 28 AND 32 for three rows of the
+  // same kind, Display.qml 22, 28 and 32. Every one of those was a number
+  // typed at a call site, so neighbouring panels listed the same sort of thing
+  // at different heights.
+  //
+  // Two roles cover nearly all of it: a row you pick from a list, and a
+  // control you press. Grid cells (the calendar) and bespoke chrome (the image
+  // carousel) keep their own numbers on purpose — they are not rows.
+  readonly property QtObject row: QtObject {
+    // A selectable entry in a panel list: an audio device, a Wi-Fi network,
+    // a toggle line, a media player.
+    readonly property int list: root.space(32)
+    // A pressable chip or button sitting inside a panel.
+    readonly property int control: root.space(28)
+  }
+
+  // Hover-panel widths were 300 / 320 / 340 / 360 / 380 / 460 — six widths for
+  // cards that hang off the same bar and are read the same way. Three sizes is
+  // the actual range of content.
+  readonly property QtObject panelWidth: QtObject {
+    readonly property int narrow: root.space(320)
+    readonly property int normal: root.space(360)
+    // Only for a panel that genuinely carries more: the weather panel's three
+    // data tiers plus the radar.
+    readonly property int wide: root.space(460)
+  }
+
+  // ---------------------------------------------------------- emphasis
+  //
+  // Four levels, because the UI only ever meant four. Swept from FOURTEEN
+  // distinct literal opacities (0.3 / 0.35 / 0.4 / 0.45 / 0.5 / 0.55 / 0.6 /
+  // 0.7 / 0.75 / 0.8 / 0.85 ...) that were all doing one of these jobs, chosen
+  // per call site by eye. Neighbouring panels ended up dimming the same kind of
+  // label by different amounts, which reads as sloppiness rather than as
+  // hierarchy.
+  readonly property QtObject emphasis: QtObject {
+    // Primary content.
+    readonly property real strong: 1.0
+    // Secondary: a value beside its label, a subtitle.
+    readonly property real dim: 0.7
+    // Tertiary: captions, units, provenance, "nothing here" placeholders.
+    readonly property real faint: 0.45
+    // Unavailable or not applicable — deliberately below faint so "off" is
+    // distinguishable from "quiet".
+    readonly property real disabled: 0.3
   }
 
   // ---------------------------------------------------------- spacing
@@ -300,6 +357,28 @@ QtObject {
     readonly property int iconCanvas: root.space(16)
     readonly property int iconFont: root.baseSize + 2
     readonly property int statusSlot: root.space(22)
+
+    // ---- one rhythm for the whole bar ------------------------------------
+    //
+    // These three exist because the spacing used to come from two unrelated
+    // places and did not agree. An icon widget is an iconSlot (30) around an
+    // iconCanvas (16), i.e. 7px of padding a side. A text widget padded itself
+    // with `spacing.controlPaddingX` (12) a side. With the section's own 6px
+    // between them, two text widgets sat 30px apart and two icon widgets 6px
+    // apart — on the same row, supposedly evenly spaced.
+    //
+    // Now every bar widget pads itself by `itemPaddingX`, matched to the icon
+    // slot's own padding, and the section contributes `itemGap`. One number
+    // changes the density of the entire bar.
+    readonly property int itemPaddingX: Math.round((iconSlot - iconCanvas) / 2)
+    readonly property int itemGap: root.space(2)
+    // Around a separator, so a group boundary reads as clearly wider than the
+    // gap between two widgets inside a group.
+    readonly property int groupGap: root.space(10)
+    // Keeps a filled pill (the focused workspace) off the bar's top and bottom
+    // edges. Edge-to-edge it reads as a block of background rather than as a
+    // control sitting on the bar.
+    readonly property int pillInset: root.space(4)
   }
 
   // Mirrors hyprctl's general:gaps_out so panels can match the live Hyprland

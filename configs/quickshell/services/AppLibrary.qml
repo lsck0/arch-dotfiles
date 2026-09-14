@@ -29,9 +29,8 @@ import "AppSearch.js" as AppSearch
 Item {
   id: root
 
-  readonly property string shellDir: Quickshell.shellDir
-  readonly property string homeDir: Quickshell.env("HOME")
-  readonly property string quickshellConfigPath: homeDir + "/.config/quickshell"
+  readonly property string shellDir: Paths.shellDir
+  readonly property string homeDir: Paths.home
 
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
@@ -145,7 +144,11 @@ Item {
     // so the parser, which keeps the first hit per name, prefers scalable icons.
     return [
       'dirs="$HOME/.icons $HOME/.local/share/icons";',
-      'IFS=":"; for d in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do dirs="$dirs $d/icons"; done; unset IFS;',
+      // ${d%/} trims a trailing slash: XDG_DATA_DIRS entries are allowed to
+      // carry one, and "/usr/share/" + "/icons" indexed every icon under a
+      // doubled slash, which then shows up verbatim in every "Cannot open"
+      // warning and makes two spellings of one path look like two icons.
+      'IFS=":"; for d in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do dirs="$dirs ${d%/}/icons"; done; unset IFS;',
       'for ext in svg png; do',
       '  for base in $dirs; do',
       '    [[ -d $base ]] && find "$base" \\( -path "*/apps/*" -o -path "*/devices/*" \\) -name "*.$ext" 2>/dev/null;',
@@ -190,7 +193,7 @@ Item {
     launchDelay.stop()
     launchTimeout.stop()
     if (root.launchOsdOpen) {
-      Quickshell.execDetached(["quickshell", "ipc", "-p", root.quickshellConfigPath, "call", "osd", "close"])
+      Quickshell.execDetached(Paths.ipcCall("osd", "close"))
       root.launchOsdOpen = false
     }
   }
@@ -251,7 +254,7 @@ Item {
   }
 
   FileView {
-    path: root.quickshellConfigPath + "/launcher.hides"
+    path: root.shellDir + "/launcher.hides"
     watchChanges: true
     printErrors: false
     onLoaded: root.loadConfiguredHides(text())
@@ -275,8 +278,8 @@ Item {
     onTriggered: {
       if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
       root.launchOsdOpen = true
-      Quickshell.execDetached(["quickshell", "ipc", "-p", root.quickshellConfigPath, "call", "osd", "present",
-        JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })])
+      Quickshell.execDetached(Paths.ipcCall("osd", "present",
+        JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })))
     }
   }
 

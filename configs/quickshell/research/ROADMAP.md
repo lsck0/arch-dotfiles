@@ -72,12 +72,32 @@ Phases 3, 4, 5, 8, 9, 10 are independent of each other once 0-2 are done.
 | `hypridle` | idle → dim/lock/dpms/suspend | ❌ **not started, still running and owning the idle chain** — Phase 9b |
 | `wlogout` | power / session menu | ❌ not started, still bound to `Super+Shift+E` — Phase 9c |
 | `copyq` | clipboard manager | ✅ retired — verified double-capturing with the plugin. `Super+Shift+V` now opens the plugin. Package and data left in place as the undo path |
-| `scripts/watch-monitors.sh` | repaint wallpaper on hotplug | ⚠️ still autostarted. Believed redundant now the QML `Variants` owns outputs, but **unverifiable without a second display** |
+| `scripts/watch-monitors.sh` | repaint wallpaper on hotplug | ✅ **removed** — script deleted and the autostart line dropped from `hyprland_autostart.lua`. `Background.qml`'s `Variants` over `Quickshell.screens` owns outputs now. Still **not verified against a real hotplug** (one output on this machine) — see Phase 11 |
 
 **Not replaced, and not candidates:** `pywal` (generates the palette
 quickshell reads — it is the *input* to the theming, not a competitor),
 `hyprpicker` (colour picking; every surveyed shell just shells out to it),
 and the KDE polkit agent (see Out of scope).
+
+---
+
+## Cleanup pass (2026-09-14)
+
+A full coherence/bug/future-proofing sweep is written up in
+`../CLEANUP.md`: 13 bugs fixed (several only visible in the running shell's
+log, not in its source), a `Commons/Paths.qml` singleton replacing 23
+hardcoded checkout paths, `BarSection` resolving widgets through the plugin
+registry so third-party bar widgets can render at all, and
+`Ui/ScreenMoveRemap.qml` finally wired to the bar and the wallpaper. The four SPEC gaps it turned up
+were then built in the same session: an **OBS status widget** (obs-websocket
+5.x client, LIVE/REC with bitrate and dropped frames), a **Discord call
+widget** (BetterDiscord plugin publishing voice state; avatars scale and ring
+while speaking, with mute/deafen badges), **weather alerts** (MeteoAlarm CAP,
+structured fields only so no place name can reach the UI) and **radar**
+(RainViewer frames downloaded locally, labelled range rings, no basemap by
+design), and a **keyboard-backlight OSD**. A measured memory pass cut the
+shell from 393 MB to 376 MB RSS — 178 MB to 134 MB of own memory — mostly by
+capping image decode sizes.
 
 ---
 
@@ -834,12 +854,12 @@ match), and switching back restored the original palette.
 ### Still open
 
 - [ ] **Per-monitor wallpaper assignment.**
-- [ ] **`scripts/watch-monitors.sh`** — deliberately left in place.
-  It exists only to work around awww's hotplug blindness, and
-  `Background.qml`'s `Variants` over `Quickshell.screens` should make it
-  unnecessary, but **that needs a real hotplug to confirm** and this machine
-  has one output. Removing it unverified risks a blank screen on a newly
-  plugged monitor. Revisit with Phase 11.
+- [x] **`scripts/watch-monitors.sh`** — removed. It existed only to work
+  around awww's hotplug blindness, and `Background.qml`'s `Variants` over
+  `Quickshell.screens` replaces it. Removed **without a real hotplug to
+  confirm** — this machine has one output. If a newly plugged monitor ever
+  comes up with a blank background, this is the first thing to suspect; the
+  script is recoverable from git history. Tracked in Phase 11.
 - [ ] `awww` package itself still installed (`sudo pacman -Rs awww`);
   nothing references it any more.
 
@@ -1080,8 +1100,9 @@ alias. `AppLibrary.qml` updated. Verified: `call osd present '{…}'` returns
 
 - [ ] **Hot-plug verification.** Cannot be done here — this machine has one
   output (`eDP-1`). The `Osd.qml` fix and `Background.qml`'s `Variants` both
-  need a second display to confirm, as does deciding whether
-  `scripts/watch-monitors.sh` is finally redundant (Phase 8).
+  need a second display to confirm. `scripts/watch-monitors.sh` was removed
+  on the strength of `Variants` alone (Phase 8) — a hotplug test is what
+  would turn that from an assumption into a fact.
 - [ ] **Per-monitor widget sets** — one layout for all screens today. Left
   alone: it is a "consider", and there is no second monitor to design
   against.

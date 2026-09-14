@@ -10,7 +10,8 @@ import "../../notifications/components"
 // widget... — mako already handles the actual notification daemon duties"
 // comment below described that design); now bridges
 // plugins/notifications/Service.qml, the native daemon that replaced mako
-// (see TODO.md for the keep-vs-replace decision). History is read straight
+// (see research/ROADMAP.md for the keep-vs-replace decision). History is read
+// straight
 // off Service.qml's own history directory (the same files the daemon reads
 // on restore/replay) rather than through a new IPC method — no method for
 // "dump history as JSON" exists upstream either, only `showHistory` (replay
@@ -20,8 +21,7 @@ BarWidget {
   id: root
   moduleName: "notifications"
 
-  readonly property string toggleScript: Quickshell.env("HOME") + "/projects/arch-dotfiles/toggles/toggle-dnd.sh"
-  readonly property string quickshellConfigPath: Quickshell.env("HOME") + "/.config/quickshell"
+  readonly property string toggleScript: Paths.toggle("toggle-dnd.sh")
   readonly property string historyDir: Quickshell.env("HOME") + "/.local/state/quickshell/notifications/history"
 
   property bool dndOn: false
@@ -102,7 +102,7 @@ BarWidget {
   }
 
   function dismissAll() {
-    Quickshell.execDetached(["quickshell", "ipc", "-p", root.quickshellConfigPath, "call", "notifications", "clear"])
+    Quickshell.execDetached(Paths.ipcCall("notifications", "clear"))
     Qt.callLater(root.refreshHistory)
   }
 
@@ -153,18 +153,51 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.space(340) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
+    // Refresh on the panel becoming visible, not only on the trigger's hover.
+    // `refreshHistory()` used to hang off `onEntered` alone, so opening this
+    // panel any other way — `quickshell ipc call bar open notifications`, or a
+    // keybind — showed "Nothing recent" over a history directory with ten
+    // entries in it. Same trap the radar had.
+    onVisibleChanged: if (visible) root.refreshHistory()
+
+    // And keep it current while it stays open: a notification arriving with
+    // the panel already up should appear in the list, not wait for the next
+    // hover.
+    Timer {
+      interval: 4000
+      running: panel.visible
+      repeat: true
+      onTriggered: root.refreshHistory()
+    }
+
+    // One clock for the whole list. Thirty rows each running their own timer to
+    // age a "2m" label is thirty timers for one number.
+    property double nowMs: Date.now()
+    Timer {
+      interval: 30000
+      running: panel.visible
+      repeat: true
+      triggeredOnStart: true
+      onTriggered: panel.nowMs = Date.now()
+    }
+
     Flickable {
+      id: historyFlick
       anchors.fill: parent
       contentHeight: content.implicitHeight
       clip: true
+      boundsBehavior: Flickable.StopAtBounds
 
       Column {
         id: content
         width: parent.width
-        spacing: Style.spacing.md
+        // Rows sit closer together than the panel's own sections do: with the
+        // borders gone they read as one list, and section spacing between them
+        // pulled them back apart into separate things.
+        spacing: Style.spacing.xs
 
         Row {
           width: parent.width
@@ -203,7 +236,7 @@ BarWidget {
           visible: root.history.length === 0
           text: "Nothing recent"
           color: Color.menu.text
-          opacity: 0.6
+          opacity: Style.emphasis.dim
           font.pixelSize: Style.font.body
           font.family: Style.font.family
         }
@@ -219,6 +252,16 @@ BarWidget {
           model: root.history
           delegate: NotificationCard {
             required property var modelData
+            // A row, not a toast — see NotificationCard's `variant`. The panel
+            // already has edges; these do not need their own.
+            variant: "row"
+            now: panel.nowMs
+            // A short history is a detail view, not a list: with one or two
+            // entries there is nothing to scan past, so show the message
+            // instead of eliding it into "…in the…" above 40px of empty panel.
+            // Past that the clamp comes back, because uniform row heights are
+            // what make a long list readable — and the panel scrolls anyway.
+            bodyLines: root.history.length <= 2 ? 10 : 3
             width: content.width
             app: modelData.app || ""
             appIcon: modelData.appIcon || ""
@@ -238,6 +281,24 @@ BarWidget {
             onCloseRequested: root.dismissAll()
           }
         }
+      }
+    }
+
+    // The list is clipped mid-row when there is more history than panel, with
+    // nothing to say so — it just looked like a rendering cut. A fade at the
+    // bottom edge is the conventional "there is more below", and it costs one
+    // gradient rather than a scrollbar this shell has nowhere else.
+    Rectangle {
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: Style.space(24)
+      visible: historyFlick.contentHeight > historyFlick.height + 1
+      opacity: historyFlick.atYEnd ? 0 : 1
+      Behavior on opacity { NumberAnimation { duration: 140 } }
+      gradient: Gradient {
+        GradientStop { position: 0.0; color: Util.alpha(Color.menu.background, 0.0) }
+        GradientStop { position: 1.0; color: Util.alpha(Color.menu.background, 0.95) }
       }
     }
   }

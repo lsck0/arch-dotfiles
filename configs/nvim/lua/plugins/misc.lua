@@ -1,6 +1,6 @@
 return {
-    { "TheZoq2/neovim-auto-autoread" }, -- auto-reload changed files
-    { "sitiom/nvim-numbertoggle" }, -- relative/absolute number toggle
+    { "TheZoq2/neovim-auto-autoread" },       -- auto-reload changed files
+    { "sitiom/nvim-numbertoggle" },           -- relative/absolute number toggle
     {
         "chrisgrieser/nvim-early-retirement", -- auto-close idle buffers
         config = function()
@@ -27,7 +27,7 @@ return {
             parser = { comments = { "#", "//" } },
         },
     },
-    { "jbyuki/venn.nvim" }, -- ASCII diagram drawing
+    { "jbyuki/venn.nvim" },       -- ASCII diagram drawing
     {
         "mg979/vim-visual-multi", -- multiple cursors
         init = function()
@@ -39,7 +39,7 @@ return {
     },
     { "mrjones2014/smart-splits.nvim" }, -- resize/navigate splits
     {
-        "nacro90/numb.nvim", -- peek line on jump
+        "nacro90/numb.nvim",             -- peek line on jump
         config = function() require("numb").setup() end
     },
     {
@@ -49,9 +49,9 @@ return {
             require("remote-sshfs").setup()
         end
     },
-    { "sindrets/winshift.nvim" }, -- move/swap windows
-    { "tpope/vim-repeat" }, -- repeat plugin actions
-    { "zeioth/garbage-day.nvim" }, -- restart idle LSP clients
+    { "sindrets/winshift.nvim" },      -- move/swap windows
+    { "tpope/vim-repeat" },            -- repeat plugin actions
+    { "zeioth/garbage-day.nvim" },     -- restart idle LSP clients
     {
         "ziontee113/icon-picker.nvim", -- emoji/icon picker
         config = function() require("icon-picker").setup({ disable_legacy_commands = true }) end
@@ -91,6 +91,28 @@ return {
     { "jghauser/mkdir.nvim" }, -- auto-create parent dirs
 
     {
+        "dijeferson/gpg.nvim", -- transparent GPG encryption/decryption for *.gpg/*.asc files
+        opts = {
+            use_armor = true,  -- .asc output, portable for pasting into chats/email
+            -- On by design: yanking out of a decrypted buffer is the point of
+            -- keeping notes this way. The trade is real and documented in
+            -- docs/gpg-encrypted-notes.md — plaintext on the OS clipboard is
+            -- readable by every other application and outlives the buffer.
+            allow_clipboard = true,
+            show_progress = "toast",
+        },
+    },
+    {
+        "icarios-dev/privymd.nvim", -- GPG-encrypted fenced blocks inside Markdown
+        ft = "markdown",
+        config = function()
+            require("privymd").setup({
+                auto_decrypt = true,
+                auto_encrypt = true,
+            })
+        end,
+    },
+    {
         "matthandzel/taskwarrior.nvim", -- taskwarrior integration: edit the task db as a buffer
         config = function()
             require("taskwarrior").setup()
@@ -99,7 +121,7 @@ return {
 
     {
         "sotte/presenting.nvim", -- turn a markdown/org/adoc file into in-editor slides
-        cmd = "Presenting", -- lazy: load only when the presentation starts
+        cmd = "Presenting",      -- lazy: load only when the presentation starts
         opts = {},
         keys = {
             { "<leader>pp", "<cmd>Presenting<cr>", desc = "Present (toggle slides)" },

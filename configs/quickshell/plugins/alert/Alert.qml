@@ -130,7 +130,9 @@ Item {
               font.family: Style.font.iconFamily
               // Oversized on purpose: this is meant to be readable from
               // across the room, not scanned like a toast.
-              font.pixelSize: Style.space(46)
+              // A display size, not a spacing value — Style.space() happens to scale the
+              // same way, which is how it ended up here.
+              font.pixelSize: Style.font.displayLarge
             }
 
             Column {

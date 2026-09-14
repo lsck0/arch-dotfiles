@@ -129,8 +129,9 @@ were missing from every doc until a coverage check on 2026-09-01:
   (ROADMAP 13b)
 - **Three wallpaper entry points** (`Super+W`, `Super+Shift+W` → nsxiv,
   and the Display panel button) plus the unwired picker. (ROADMAP Phase 8)
-- **`scripts/watch-monitors.sh` exists only to work around awww's hotplug
-  blindness** and is likely obsoleted by the QML crossfade. (Phase 8/11)
+- **`scripts/watch-monitors.sh` existed only to work around awww's hotplug
+  blindness** — ✅ removed, obsoleted by `Background.qml`'s `Variants` over
+  `Quickshell.screens`. Not hotplug-tested. (Phase 8/11)
 - **XDG portals were unpinned with five backends installed** — ✅ fixed:
   `configs/xdg/hyprland-portals.conf` pins `default=hyprland;kde`, GNOME's
   session stack removed.

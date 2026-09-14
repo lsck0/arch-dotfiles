@@ -70,7 +70,8 @@ BarIndicator {
   // (ReminderFlow.qml, or the `reminder` CLI directly) with no reference
   // back to this indicator to push a refresh -- so kept tighter than the
   // 20s used for the pure catch-up polls. 10s still cuts process count
-  // in half. See TODO.md's "three independent poll timers" perf item.
+  // in half. See research/ROADMAP.md's "three independent poll timers" perf
+  // item.
   Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
   onPressed: function() {

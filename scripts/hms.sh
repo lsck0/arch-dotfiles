@@ -25,28 +25,14 @@ done
 
 [[ ${#repos[@]} -gt 0 ]] || { echo "no git repos found under tms search_dirs" >&2; exit 1; }
 
-# Issue 9: hms and tms picker theming must be identical. tms gets its picker
-# colours from ~/.config/tms/config.toml (written by configs/tmux/link.sh from
-# the same ~/.cache/wal/colors.json at link time); hms reads the same file here
-# at runtime so both pickers track the wallpaper with one source of truth.
-# Palette mirrors configs/tmux/tmux.conf's sourced colors-tmux.conf roles:
-# selection = mode-style (bg color4, fg background), border = popup-border-style
-# (color1), prompt/info = status-style fg / accent.
-WAL_JSON="$HOME/.cache/wal/colors.json"
-if [[ -f "$WAL_JSON" ]] && command -v jq >/dev/null 2>&1; then
-  c_bg=$(jq -r '.special.background' "$WAL_JSON")
-  c_fg=$(jq -r '.special.foreground' "$WAL_JSON")
-  c_sel=$(jq -r '.colors.color4' "$WAL_JSON")
-  c_border=$(jq -r '.colors.color1' "$WAL_JSON")
-  c_accent=$(jq -r '.colors.color3' "$WAL_JSON")
-  fzf_theme=(--color="fg:$c_fg,bg:$c_bg,hl:$c_border,fg+:$c_fg,bg+:$c_sel,hl+:$c_bg,"
-    --color="info:$c_fg,prompt:$c_sel,pointer:$c_accent,marker:$c_accent,border:$c_border")
-else
-  fzf_theme=()
-fi
-
+# Issue 9: hms and tms picker theming must be identical. tms uses plain fzf
+# with no custom --color flags (fzf inherits the terminal's own bg/fg, which
+# is now transparent via ghostty's background-opacity-cells). To match, hms
+# also passes no custom colors — fzf falls back to its defaults, which read
+# the terminal's transparent background and the current colorscheme's
+# foreground. One picker, one look, no opaque dark box.
 selected_line=$(printf '%s\n' "${repos[@]}" | sort -u -t$'\t' -k1,1 \
-  | fzf --prompt="> " --delimiter=$'\t' --with-nth=1 "${fzf_theme[@]}")
+  | fzf --prompt="> " --delimiter=$'\t' --with-nth=1)
 [[ -n "$selected_line" ]] || exit 0
 
 selected="${selected_line#*$'\t'}"

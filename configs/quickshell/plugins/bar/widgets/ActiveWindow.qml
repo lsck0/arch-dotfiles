@@ -14,7 +14,7 @@ BarWidget {
   readonly property int maxLabelWidth: 280
 
   visible: title !== "" && !vertical
-  implicitWidth: visible ? Math.min(maxLabelWidth, labelText.implicitWidth) + Style.spacing.controlPaddingX * 2 : 0
+  implicitWidth: visible ? Math.min(maxLabelWidth, labelText.implicitWidth) + Style.bar.itemPaddingX * 2 : 0
   implicitHeight: barSize
 
   Behavior on implicitWidth {
@@ -30,8 +30,8 @@ BarWidget {
 
   Item {
     anchors.fill: parent
-    anchors.leftMargin: Style.spacing.controlPaddingX
-    anchors.rightMargin: Style.spacing.controlPaddingX
+    anchors.leftMargin: Style.bar.itemPaddingX
+    anchors.rightMargin: Style.bar.itemPaddingX
     clip: true
 
     Text {

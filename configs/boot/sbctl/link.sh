@@ -38,16 +38,25 @@ if [[ "$need_sign" == "true" ]]; then
         exit 0
     fi
 
-    # Keys present + enrolled?
+    # Keys present?
     if ! echo "$st" | grep -qE 'Owner GUID'; then
         echo "sbctl: creating keys" >&2
         sudo sbctl create-keys
     fi
+
+    # SIGN BEFORE ENROLLING. Signing needs the keys to exist, not to be enrolled,
+    # and the window between "keys enrolled" and "boot chain signed" is a window
+    # in which switching Secure Boot on in firmware leaves the machine unable to
+    # boot anything. Closing it costs one command in a different order.
+    echo "sbctl: signing boot files before enrollment" >&2
+    sudo sbctl sign-all
+
     if ! sudo sbctl list-enrolled-keys 2>/dev/null | grep -q .; then
         echo "sbctl: enrolling keys (incl. Microsoft DB for dual-boot compat)" >&2
         sudo sbctl enroll-keys -m
     fi
-    echo "sbctl: keys created/enrolled. Enable Secure Boot in firmware, reboot, then rerun install.sh to sign boot files." >&2
+    echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun install.sh." >&2
+    echo "sbctl: verify with 'sbctl verify' BEFORE rebooting with Secure Boot on." >&2
     exit 0
 fi
 
@@ -56,11 +65,13 @@ fi
 # signed by sbctl are the robust path — see BOOT.md).
 echo "sbctl: signing ESP boot files" >&2
 
-# All enrolled/required files that are unsigned.
-if sudo sbctl verify 2>/dev/null | grep -q 'not signed'; then
-    sudo sbctl verify 2>/dev/null | sed -n 's/.*is not signed$/sbctl sign -s "&"/p' \
-        | while IFS= read -r cmd; do sudo bash -lc "$cmd" 2>/dev/null || true; done
-fi
+# All enrolled/required files that are unsigned. sbctl signs its own database
+# here rather than this script parsing `sbctl verify` output: the previous
+# version built a command per line with sed, where `&` expanded to the WHOLE
+# matched line, so it ran
+#   sbctl sign -s "✗ /boot/vmlinuz-linux is not signed"
+# — a path that does not exist, failing on every file with `|| true` hiding it.
+sudo sbctl sign-all 2>/dev/null || true
 
 # Limine UEFI binary (if Limine is the bootloader).
 for cand in \

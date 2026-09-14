@@ -40,4 +40,5 @@ mask_if_present NetworkManager-wait-online.service
 for unit in pipewire-pulse.service pipewire-pulse.socket ssh-agent.service; do
     if systemctl --user list-unit-files --no-legend "$unit" 2>/dev/null | grep -q .; then
         systemctl --user enable "$unit"
+    fi
 done

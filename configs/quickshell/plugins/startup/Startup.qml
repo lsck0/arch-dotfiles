@@ -35,15 +35,17 @@ Item {
 
       Column {
         anchors.centerIn: parent
-        spacing: 14
+        spacing: Style.spacing.xxxl
 
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           text: "HYPRLAND"
           color: Color.foreground
-          font.family: Style.fontFamily
-          font.pixelSize: 22
-          font.letterSpacing: 4
+          font.family: Style.font.family
+          font.pixelSize: Style.font.heading
+          // headerTracking (+2.4), not displayTracking (-0.5): this is a wide-set
+          // wordmark, and display tracking is the tight setting for large numerals.
+          font.letterSpacing: Style.headerTracking
         }
 
         Rectangle {

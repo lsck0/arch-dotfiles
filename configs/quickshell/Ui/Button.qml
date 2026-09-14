@@ -15,7 +15,7 @@ import qs.Commons
 // All fills/borders come from `qs.Commons.Style` tokens. Upstream also reads
 // per-instance overrides from shell.toml's [controls]/[tooltip] sections via
 // Border.surfaceSpec/controlHasWidth — this repo dropped
-// that override layer (one pywal theme, not swappable ones, see Commons/
+// that override layer (one wallust theme, not swappable ones, see Commons/
 // Color.qml's own note), so those calls are replaced below with the plain
 // Border.flat/Style.* fallback path they'd always resolve to anyway once no
 // override is present.

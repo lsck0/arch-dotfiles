@@ -6,11 +6,11 @@ import Quickshell.Io
 // The palette. Same surface-role shape as omarchy-shell's Color.qml
 // (bar/popups/tooltip/notifications/menu/polkit/lock/imagePicker, each
 // composed from the foundational palette via alpha rather than aliased to
-// flat colours) — but fed straight from pywal's colors.json instead of
+// flat colours) — but fed straight from wallust's colors.json instead of
 // theme/colors.toml + shell.toml.
 //
 // There is exactly ONE colour source here: the current wallpaper, via
-// pywal/wallust (scripts/switch-wallpaper.sh). No named-theme list, no
+// wallust (scripts/switch-wallpaper.sh). No named-theme list, no
 // swappable palettes. What is user-configurable is how that source is
 // *interpreted* — the conditioning constants below all come from
 // Theme.qml/theme.json and re-apply live.
@@ -18,6 +18,10 @@ QtObject {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
+  // Still ~/.cache/wal/ despite wallust having replaced pywal on 2026-09-03:
+  // wallust writes pywal's paths and schema deliberately, so every consumer
+  // in this repo kept working unchanged. The directory name is the only
+  // pywal left anywhere.
   readonly property string colorsPath: home + "/.cache/wal/colors.json"
 
   // Every one of the 40-odd role colours below is a binding on these five,
@@ -36,14 +40,14 @@ QtObject {
 
   // ---- palette conditioning (adapted from Ryoku's Wallust.qml) ----------
   //
-  // pywal reports whatever the wallpaper happens to contain, and some
+  // wallust reports whatever the wallpaper happens to contain, and some
   // wallpapers are a bad basis for a UI: a bright one yields a background
   // too light to read white-ish text on, a washed-out one yields an accent
   // with no presence, and either can put accent and surface close enough
   // together that selected text disappears. These three functions are the
   // conditioning layer that makes any wallpaper safe, applied in
   // applyColors() below. The extraction backend is untouched — this is math
-  // on pywal's own colors.json, not a replacement for it.
+  // on wallust's own colors.json, not a replacement for it.
   //
   // Their thresholds are Theme.qml properties rather than literals, because
   // "how dark should any wallpaper be forced" is a taste decision that
@@ -103,6 +107,46 @@ QtObject {
   // at the draw site from Style.shadowAlpha.
   readonly property color shadow: Qt.darker(root.background, 3.0)
 
+  // ---- semantic colours ---------------------------------------------------
+  //
+  // The one set of colours that must NOT follow the wallpaper. A recording dot
+  // that turns wallpaper-accent is no longer a recording dot, an amber weather
+  // warning that renders blue is no longer an amber warning, and Discord's
+  // speaking green is a convention people already read. These are conventions
+  // borrowed from outside the shell, so the shell does not get to restyle them.
+  //
+  // Here rather than as literals at each call site: Obs.qml alone repeated the
+  // same three hex values eleven times, which is eleven places to disagree.
+  readonly property QtObject semantic: QtObject {
+    // Broadcast/record conventions, as used by cameras and broadcast desks.
+    property color live: "#c0392b"
+    property color recording: "#e67e22"
+    // Degraded-but-not-failed: dropped frames, congestion, a reconnecting
+    // stream. Also MeteoAlarm's yellow awareness level.
+    property color warn: "#e8c317"
+    // Discord's own speaking indicator.
+    property color speaking: "#23a55a"
+    // MeteoAlarm awareness levels 4 and 3; level 2 is `warn` above.
+    property color alertRed: "#c0392b"
+    property color alertOrange: "#e67e22"
+  }
+
+  // ONE SCRIM FOR EVERY FULL-SCREEN OVERLAY.
+  //
+  // There were two, and they disagreed: the wallpaper picker dimmed the desktop
+  // to 0.75 while the launcher, the power menu, the clipboard, the overview,
+  // the reminder flow and the speed test all used 0.94. Opening one overlay
+  // after another visibly changed how much of the desktop was left, which reads
+  // as three different applications rather than one shell.
+  //
+  // Settled on the picker's 0.75. Seeing the desktop through an overlay is the
+  // point in all of these — they are transient surfaces you are passing
+  // through, not destinations — and 0.94 was very nearly opaque.
+  //
+  // polkit keeps its own, lighter scrim on purpose: an authentication prompt
+  // should leave the window that triggered it clearly visible.
+  readonly property color scrim: Util.alpha(root.background, 0.75)
+
   readonly property QtObject bar: QtObject {
     property color background: Util.alpha(root.background, 1.0)
     property color text: root.foreground
@@ -128,10 +172,9 @@ QtObject {
     property color background: Util.alpha(root.background, 1.0)
     property color text: root.foreground
     property color border: Util.alpha(root.foreground, 1.0)
-    // 0.94, up from 0.88 (was 0.5 originally). Still legible enough to
-    // recognize the desktop behind, but the modal is unmistakably the thing
-    // in focus rather than a small overlay floating on a busy screen.
-    property color scrim: Util.alpha(root.background, 0.94)
+    // Points at the shared overlay scrim above; every full-screen surface in
+    // the shell dims the desktop by the same amount.
+    property color scrim: root.scrim
     // Accent-tinted, matching Style.selectedFillAlpha's weight. Written as a
     // literal rather than read from Style so this file stays free of a
     // Color->Style->Color import cycle; Style is the only direction that
@@ -160,10 +203,8 @@ QtObject {
     property color selection: Util.alpha(root.accent, 0.45)
   }
   readonly property QtObject imagePicker: QtObject {
-    // Deliberately lighter than menu.scrim: this one sits behind a wallpaper
-    // grid, where seeing the desktop through it is the point. 0.75, up from
-    // 0.6.
-    property color scrim: Util.alpha(root.background, 0.75)
+    // The value the shared scrim was settled on — this surface is why.
+    property color scrim: root.scrim
     property color text: root.foreground
     property color selectedBorder: Util.alpha(root.accent, 1.0)
     property color unselectedBorder: Util.alpha(root.foreground, 0.28)
@@ -181,7 +222,7 @@ QtObject {
       var parsed = JSON.parse(rawColors || "{}")
       var special = parsed.special || {}
       var colors = parsed.colors || {}
-      // Condition the raw pywal values rather than binding them straight
+      // Condition the raw wallust values rather than binding them straight
       // through. Order matters: the background has to settle first, because
       // both the foreground and the accent are made legible *against it*.
       if (special.background)
