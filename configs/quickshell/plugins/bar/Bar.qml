@@ -213,19 +213,47 @@ PanelWindow {
   // Three anchored rows instead: left to the left edge, right to the right
   // edge, centre to the screen's own centre. The centre now holds still no
   // matter what the other two do.
+  //
+  // THE SPACERS WERE ALSO THE ONLY THING KEEPING THE CLUSTERS APART. Removing
+  // them fixed the centring and removed all arbitration with it: three rows
+  // anchored to three different edges have no idea the other two exist, so a
+  // long window title on the left or a full tray on the right would simply
+  // draw straight through the clock. Layouts do not collide; they overlap in
+  // silence, which is the worst way for this to fail.
+  //
+  // So each side sits in a holder that is bounded by the centre cluster's own
+  // edge and clips. The side sections keep their natural width until they
+  // would reach the centre, and are cut off at exactly the point where they
+  // would start overwriting it. There is no binding loop: `centerSection.x`
+  // depends on its own implicit width and the bar's width, never on the
+  // holders.
   Item {
     anchors.fill: parent
 
-    RowLayout {
-      id: leftSection
+    // The gap a side cluster must leave before the centre one. One item gap
+    // reads as "these are separate groups" without wasting bar.
+    readonly property int keepClear: Style.bar.itemGap * 2
+
+    Item {
+      id: leftHolder
       anchors.left: parent.left
       anchors.leftMargin: Style.spacing.lg
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.bar.itemGap
-      onXChanged: root.layoutRevision++
-      onWidthChanged: root.layoutRevision++
+      height: parent.height
+      clip: true
+      width: Math.max(0, Math.min(leftSection.implicitWidth,
+                                  centerSection.x - x - parent.keepClear))
 
-      BarSection { bar: root; section: "left" }
+      RowLayout {
+        id: leftSection
+        anchors.left: parent.left
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.bar.itemGap
+        onXChanged: root.layoutRevision++
+        onWidthChanged: root.layoutRevision++
+
+        BarSection { bar: root; section: "left" }
+      }
     }
 
     RowLayout {
@@ -239,15 +267,30 @@ PanelWindow {
       BarSection { bar: root; section: "center" }
     }
 
-    RowLayout {
-      id: rightSection
+    Item {
+      id: rightHolder
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.bar.itemGap
-      onXChanged: root.layoutRevision++
-      onWidthChanged: root.layoutRevision++
+      height: parent.height
+      clip: true
+      width: Math.max(0, Math.min(rightSection.implicitWidth,
+                                  parent.width - (centerSection.x + centerSection.width)
+                                    - parent.keepClear))
 
-      BarSection { bar: root; section: "right" }
+      RowLayout {
+        id: rightSection
+        // Anchored to the holder's RIGHT edge, so when the holder is narrower
+        // than the cluster it is the leftmost (oldest, most permanent) icons
+        // that get clipped and the rightmost that stay — matching the layout
+        // note in shell.qml about transient widgets growing leftward.
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.bar.itemGap
+        onXChanged: root.layoutRevision++
+        onWidthChanged: root.layoutRevision++
+
+        BarSection { bar: root; section: "right" }
+      }
     }
   }
 

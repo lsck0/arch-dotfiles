@@ -36,6 +36,11 @@ MAX_AGE=540
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
+# Same reason as weather-alerts.sh: nothing guarantees ~/.cache/quickshell
+# exists. Without this the cache write below failed silently (it is wrapped in
+# a try/except by design) and every call refetched the whole grid.
+mkdir -p "$(dirname "$CACHE")" 2>/dev/null || fail "cache unavailable"
+
 if [[ -s "$CACHE" ]]; then
     age=$(( $(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0) ))
     if (( age >= 0 && age < MAX_AGE )); then
@@ -51,12 +56,16 @@ LON=${COORDS##*,}
 
 # No radar means nothing to overlay, and no extent to match.
 [[ -s "$RADAR_MANIFEST" ]] || fail "no radar"
-SPAN_KM=$(python3 -c "
-import json,sys
+# Path as argv, not interpolated into the program text — see the same change in
+# weather-alerts.sh.
+SPAN_KM=$(python3 - "$RADAR_MANIFEST" <<'PY' 2>/dev/null
+import json, sys
 try:
-    print(int(json.load(open('$RADAR_MANIFEST')).get('spanKm') or 0))
+    print(int(json.load(open(sys.argv[1])).get('spanKm') or 0))
 except Exception:
-    print(0)" 2>/dev/null)
+    print(0)
+PY
+)
 [[ "${SPAN_KM:-0}" -gt 0 ]] || fail "no radar extent"
 
 # Build the grid, call the API, and reduce to image coordinates — all in one
