@@ -8,4 +8,4 @@ set -ex
 
 mkdir -p ${HOME}/.config/herdr
 
-ln -sf ${PWD}/config.toml ${HOME}/.config/herdr/config.toml
+ln -sfn ${PWD}/config.toml ${HOME}/.config/herdr/config.toml

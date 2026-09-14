@@ -6,4 +6,4 @@ fi
 
 set -ex
 
-ln -sf ${PWD}/gdbinit ${HOME}/.gdbinit
+ln -sfn ${PWD}/gdbinit ${HOME}/.gdbinit

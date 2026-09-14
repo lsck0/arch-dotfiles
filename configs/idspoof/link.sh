@@ -6,9 +6,18 @@ fi
 
 set -ex
 
-git clone https://github.com/NubleX/ID-Spoofer.git
-cd ID-Spoofer/idspoof
+# Absolute, because the build below cds into the clone: the old `cd ..` landed
+# in ID-Spoofer/ rather than back here, so `rm -rf ID-Spoofer` deleted nothing
+# and the clone was left sitting inside the dotfiles repo after every install.
+BASE="$PWD"
+SRC="$BASE/ID-Spoofer"
+
+# A leftover clone from an aborted earlier run would make `git clone` fail, and
+# `set -e` would take the whole script down with it.
+rm -rf "$SRC"
+trap 'rm -rf "$SRC"' EXIT
+
+git clone https://github.com/NubleX/ID-Spoofer.git "$SRC"
+cd "$SRC/idspoof"
 make build
 sudo cp bin/idspoof /usr/local/bin/
-cd ..
-rm -rf ID-Spoofer

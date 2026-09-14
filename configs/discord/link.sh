@@ -11,7 +11,7 @@ mkdir -p ${HOME}/.config/discord
 mkdir -p ${HOME}/.config/BetterDiscord/plugins
 mkdir -p ${HOME}/.config/BetterDiscord/themes
 
-ln -sf ${PWD}/discord_settings.json ${HOME}/.config/discord/settings.json
+ln -sfn ${PWD}/discord_settings.json ${HOME}/.config/discord/settings.json
 
 # copy instead if link otherwise betterdiscord cannot see file changes
 #ln -sf ${PWD}/wal.theme.css ${HOME}/.config/BetterDiscord/themes/

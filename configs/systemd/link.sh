@@ -2,25 +2,33 @@
 
 set -ex
 
+unit_file_present() {
+    local unit="$1" lookup="$1"
+    case "$unit" in
+        *@*.*) lookup="${unit%%@*}@.${unit##*.}" ;;
+    esac
+    systemctl list-unit-files --no-legend "$lookup" 2>/dev/null | grep -q .
+}
+
 enable_if_present() {
-    if systemctl list-unit-files --no-legend "$1" 2>/dev/null | grep -q .; then
+    if unit_file_present "$1"; then
         sudo systemctl enable "${@:2}" "$1"
     fi
 }
 
 disable_if_present() {
-    if systemctl list-unit-files --no-legend "$1" 2>/dev/null | grep -q .; then
+    if unit_file_present "$1"; then
         sudo systemctl disable "$1"
     fi
 }
 
 mask_if_present() {
-    if systemctl list-unit-files --no-legend "$1" 2>/dev/null | grep -q .; then
+    if unit_file_present "$1"; then
         sudo systemctl mask "$1"
     fi
 }
 
-sudo systemctl disable getty@tty2.service
+sudo systemctl disable getty@tty2.service || true
 
 disable_if_present proton.VPN.service
 enable_if_present avahi-daemon.service

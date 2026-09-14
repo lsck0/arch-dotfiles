@@ -14,15 +14,15 @@ for dir in "${PWD}"/l-*/; do
   name=$(basename "${dir}")
 
   if command -v claude >/dev/null 2>&1; then
-    ln -sf "${dir%/}" "${HOME}/.claude/skills/${name}"
+    ln -sfn "${dir%/}" "${HOME}/.claude/skills/${name}"
   fi
 
   if command -v copilot >/dev/null 2>&1; then
-    ln -sf "${dir%/}" "${HOME}/.copilot/skills/${name}"
+    ln -sfn "${dir%/}" "${HOME}/.copilot/skills/${name}"
   fi
 
   if command -v hermes >/dev/null 2>&1; then
-    ln -sf "${dir%/}" "${HOME}/.hermes/skills/${name}"
+    ln -sfn "${dir%/}" "${HOME}/.hermes/skills/${name}"
   fi
 
   if command -v gemini >/dev/null 2>&1 && ! gemini skills list 2>/dev/null | grep -qxF "${name} [Enabled]"; then

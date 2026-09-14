@@ -6,7 +6,7 @@ fi
 
 set -ex
 
-ln -sfn "${PWD}" "${HOME}/.config/emacs"
+ln -sfn "${PWD}" "$HOME/.config/emacs"
 
 emacs --batch \
     -l "${HOME}/.config/emacs/early-init.el" \

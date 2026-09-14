@@ -6,4 +6,4 @@ fi
 
 set -ex
 
-ln -sf ${PWD}/starship.toml ${HOME}/.config/starship.toml
+ln -sfn ${PWD}/starship.toml ${HOME}/.config/starship.toml

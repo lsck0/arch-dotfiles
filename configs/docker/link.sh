@@ -10,6 +10,6 @@ sudo systemctl enable docker.socket
 
 sudo mkdir -p /etc/cron.daily
 
-sudo ln -sf ${PWD}/docker-prune-job.sh /etc/cron.daily/docker-prune-job
+sudo ln -sfn ${PWD}/docker-prune-job.sh /etc/cron.daily/docker-prune-job
 
 sudo gpasswd -a $USER docker
