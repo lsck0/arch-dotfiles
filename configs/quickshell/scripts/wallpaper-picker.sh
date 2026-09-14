@@ -2,7 +2,7 @@
 # Native wallpaper picker: drives quickshell's image-picker overlay and
 # applies whatever comes back.
 #
-# The overlay (configs/quickshell/plugins/image-picker/) was ported in port
+# The overlay (../plugins/image-picker/) was ported in port
 # Phase 6 and then sat unused for want of a consumer — it is Omarchy's
 # general-purpose "pick from a directory of images" component, and its
 # selection protocol is a file handshake designed for a shell caller:
@@ -30,6 +30,11 @@ set -uo pipefail
 #     switch-wallpaper.sh matches the picked file against every theme
 #     JSON's "wallpaper" field and uses that theme's colors.json instead of
 #     deriving one.
+SELF_DIR="$(dirname "$(readlink -f "$0")")"
+# switch-wallpaper.sh stays repo-level: it is the colour engine for the whole
+# desktop, not a quickshell helper. Three levels up from configs/quickshell/scripts/.
+SWITCH_WALLPAPER="$SELF_DIR/../../../scripts/switch-wallpaper.sh"
+
 REPO_WALLPAPERS="$HOME/projects/arch-dotfiles/wallpapers"
 THEMES_DIR="$HOME/projects/arch-dotfiles/themes"
 DIR=${1:-$REPO_WALLPAPERS}
@@ -61,7 +66,7 @@ if ! timeout 3 quickshell ipc -p "$QS_CONFIG" call shell summon panel.image-pick
     # Shell down or the overlay unavailable — fall back to the fzf picker
     # rather than leaving the user with nothing.
     echo "quickshell picker unavailable; falling back to the fzf picker" >&2
-    exec "$(dirname "$(readlink -f "$0")")/switch-wallpaper.sh"
+    exec "$SWITCH_WALLPAPER"
 fi
 
 : >"$SEL"
@@ -87,4 +92,4 @@ if [[ -z "$SELECTED" ]]; then
 fi
 [[ -f "$SELECTED" ]] || { echo "selected file does not exist: $SELECTED" >&2; exit 1; }
 
-exec "$(dirname "$(readlink -f "$0")")/switch-wallpaper.sh" set "$SELECTED"
+exec "$SWITCH_WALLPAPER" set "$SELECTED"

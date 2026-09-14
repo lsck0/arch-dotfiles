@@ -44,7 +44,7 @@ BarWidget {
     // is the wrapper that summons the native overlay, and it is the only
     // caller that passes `showLabels: true`, which is what puts the wallpaper
     // name under the selection.
-    Quickshell.execDetached([Paths.repoScript("wallpaper-picker.sh")])
+    Quickshell.execDetached([Paths.shellScripts + "/wallpaper-picker.sh"])
   }
 
   function setFont(family) {

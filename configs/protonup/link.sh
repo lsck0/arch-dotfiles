@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-if ! command -v curl >/dev/null 2>&1; then
+if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+    echo "protonup: curl/jq missing, skipping" >&2
     exit 0
 fi
 
@@ -15,7 +16,14 @@ install_proton_ge() {
     local api="https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
     local tag asset url sum_url tmp
 
-    tag=$(curl -fsSL "$api" | jq -r '.tag_name')
+    # An unauthenticated GitHub API call is rate-limited and returns an error
+    # object rather than a release; without this check the script would build a
+    # "null-x86_64" URL and die on the 404 under `set -e`.
+    tag=$(curl -fsSL "$api" | jq -r '.tag_name // empty')
+    if [ -z "$tag" ]; then
+        echo "protonup: could not resolve latest proton-ge release, skipping" >&2
+        return 0
+    fi
     asset="${tag}-x86_64"
 
     # Upstream tarballs unpack to <tag>-x86_64, not <tag>.
@@ -51,5 +59,5 @@ install_overlay() {
     tar -xzf "$tmp/overlay.tar.gz" -C "$COMPAT_DIR"
 }
 
-install_proton_ge
-install_overlay
+install_proton_ge || echo "protonup: proton-ge install failed" >&2
+install_overlay || echo "protonup: layered overlay install failed" >&2

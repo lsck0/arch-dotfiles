@@ -3,7 +3,7 @@
 # notification reminders via systemd-run --user timers (ephemeral,
 # --on-active relative timers; nothing persists across a reboot, matching
 # upstream). Adaptations:
-#   - omarchy-notification-send -> the sibling notification-send.sh helper.
+#   - omarchy-notification-send -> the repo-level notification-send.sh helper.
 #   - omarchy-shell -q omarchy.indicators refresh -> dropped. There is no
 #     "push a refresh to a specific indicator" IPC here; the bar's Reminder
 #     indicator (plugins/bar/indicators/Reminder.qml) polls on its own 5s
@@ -22,6 +22,13 @@
 # omarchy:examples=reminder.sh -i | reminder.sh 5 | reminder.sh 30 "Check the oven" | reminder.sh show | reminder.sh show --json | reminder.sh clear
 
 set -euo pipefail
+
+SELF_DIR="$(dirname "$(readlink -f "$0")")"
+# alert.sh is a sibling here; notification-send.sh is repo-level, three up.
+# Absolute paths, not the PATH symlinks: the systemd --user unit set below gets
+# a minimal environment, and this must work before any link.sh has run.
+ALERT_BIN="$SELF_DIR/alert.sh"
+NOTIFY_BIN="$SELF_DIR/../../../scripts/notification-send.sh"
 
 format_remaining() {
   local seconds=$1
@@ -77,9 +84,9 @@ show_reminders() {
   done < <(active_reminder_timers "$now")
 
   if [[ -z $body ]]; then
-    "$(dirname "$(readlink -f "$0")")/notification-send.sh" -g 󰢌 "Upcoming reminders" "No outstanding reminders"
+    "$NOTIFY_BIN" -g 󰢌 "Upcoming reminders" "No outstanding reminders"
   else
-    "$(dirname "$(readlink -f "$0")")/notification-send.sh" -g 󰢌 "Upcoming reminders" "${body%$'\n'}"
+    "$NOTIFY_BIN" -g 󰢌 "Upcoming reminders" "${body%$'\n'}"
   fi
 }
 
@@ -141,7 +148,7 @@ clear_reminders() {
   fi
 
   rm -f "$reminder_dir"/quickshell-reminder-*.message 2>/dev/null || true
-  "$(dirname "$(readlink -f "$0")")/notification-send.sh" -g 󰢌 "All reminders have been cleared"
+  "$NOTIFY_BIN" -g 󰢌 "All reminders have been cleared"
 }
 
 usage() {
@@ -206,18 +213,12 @@ if [[ -n $custom_message ]]; then
   confirmation_title="$custom_message in ${minutes} minutes"
 fi
 
-# Fires through scripts/alert.sh, not notification-send: a reminder that
-# elapses while you are looking at another workspace must not auto-expire
-# into nothing. alert.sh plays a sound and puts up the large top-left card
-# that has to be dismissed by hand, falling back to a plain notification if
-# quickshell is not running. Deliberate divergence from upstream omarchy,
-# which uses a plain toast here.
-# Absolute path, not the `alert` PATH symlink: systemd --user units get a
-# minimal environment, and this must work before scripts/link.sh has run.
-alert_bin="$(dirname "$(readlink -f "$0")")/alert.sh"
-notification_bin="$(dirname "$(readlink -f "$0")")/notification-send.sh"
-
+# Fires through alert.sh, not notification-send: a reminder that elapses while
+# you are looking at another workspace must not auto-expire into nothing.
+# alert.sh plays a sound and puts up the large top-left card that has to be
+# dismissed by hand, falling back to a plain notification if quickshell is not
+# running. Deliberate divergence from upstream omarchy, which uses a plain toast.
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
-  bash -c '"$3" "Reminder" "$1" 󰢌; rm -f "$2"' bash "$message" "$message_file" "$alert_bin"
+  bash -c '"$3" "Reminder" "$1" 󰢌; rm -f "$2"' bash "$message" "$message_file" "$ALERT_BIN"
 
-"$notification_bin" -g 󰢌 "$confirmation_title" "$confirmation"
+"$NOTIFY_BIN" -g 󰢌 "$confirmation_title" "$confirmation"

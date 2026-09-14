@@ -15,7 +15,7 @@ import qs.Ui
 // to lose. Ordinary confirmations ("reminder set", "pomodoro stopped") stay
 // as normal toasts; they are not worth blocking on.
 //
-// The sound is played by scripts/alert.sh, not here, so a reminder is still
+// The sound is played by configs/quickshell/scripts/alert.sh, not here, so a reminder is still
 // audible when the shell is down. That script also falls back to a plain
 // notification if this overlay cannot be summoned.
 Item {

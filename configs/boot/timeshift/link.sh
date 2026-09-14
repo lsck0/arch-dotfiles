@@ -38,7 +38,14 @@ if [[ -f /etc/timeshift/timeshift.json ]]; then
     fi
 fi
 
-ROOT_UUID="$(lsblk -no UUID "$ROOT_SOURCE" 2>/dev/null || true)"
+# findmnt reports a btrfs source as "<device>[/<subvol>]"; strip the subvol
+# suffix so lsblk gets a real device node.
+ROOT_DEVICE="${ROOT_SOURCE%%[*}"
+
+ROOT_UUID="$(lsblk -no UUID "$ROOT_DEVICE" 2>/dev/null | head -1 || true)"
+if [[ -z "$ROOT_UUID" ]]; then
+    ROOT_UUID="$(findmnt -n -o UUID / 2>/dev/null || true)"
+fi
 if [[ -z "$ROOT_UUID" ]]; then
     echo "timeshift: cannot determine root UUID for $ROOT_SOURCE" >&2
     exit 1
