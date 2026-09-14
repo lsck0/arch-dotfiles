@@ -57,7 +57,7 @@ now() { date +%s; }
 # phase actually elapsing, which is the whole point of running a pomodoro:
 # it plays a sound and puts up the manually-dismissed top-left card, so a
 # finished focus block cannot quietly expire while you are heads-down.
-ALERT="$(dirname "$SELF")/../../../scripts/alert.sh"
+ALERT="$(dirname "$SELF")/alert.sh"
 
 notify() {
     "$(dirname "$SELF")/../../../scripts/notification-send.sh" -g "$GLYPH" "$1" "${2:-}" || true

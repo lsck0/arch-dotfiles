@@ -5,7 +5,8 @@
 # phase ending. An ordinary notification toast is the wrong shape for those:
 # it auto-expires, so one that fires while you are looking elsewhere is
 # simply gone. This pairs a sound with the large top-left card in
-# configs/quickshell/plugins/alert/, which stays up until clicked.
+# ../plugins/alert/, which stays up until clicked. It lives here rather than in
+# the repo-level scripts/ dir because that card is the only thing it drives.
 #
 # Ordinary confirmations ("reminder set", "pomodoro stopped") deliberately do
 # NOT come through here — they still use notification-send. Blocking on those
@@ -20,6 +21,12 @@
 # omarchy:examples=alert.sh "Reminder" "Check the oven" | alert.sh "Focus done" "Take a break"
 
 set -uo pipefail
+
+SELF_DIR="$(dirname "$(readlink -f "$0")")"
+# Repo-level scripts/, three levels up from configs/quickshell/scripts/. Not the
+# PATH name: this is called from systemd --user units with a minimal
+# environment, and must work before any link.sh has run.
+REPO_SCRIPTS="$SELF_DIR/../../../scripts"
 
 TITLE=${1:-Reminder}
 BODY=${2:-}
@@ -58,5 +65,5 @@ play_sound
 
 if ! show_card; then
     # Shell down, or the overlay unavailable: never drop the alert.
-    "$(dirname "$(readlink -f "$0")")/notification-send.sh" -g "$GLYPH" "$TITLE" "$BODY" || true
+    "$REPO_SCRIPTS/notification-send.sh" -g "$GLYPH" "$TITLE" "$BODY" || true
 fi

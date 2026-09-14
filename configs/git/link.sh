@@ -7,7 +7,10 @@ fi
 set -ex
 
 mkdir -p ${HOME}/.config/git
-git lfs install
+
+if command -v git-lfs >/dev/null 2>&1; then
+    git lfs install
+fi
 
 # basic
 git config --global user.name "Luca Sandrock"
@@ -26,12 +29,16 @@ git config --global delta.navigate true
 git config --global delta.side-by-side true
 
 # merging
-mergiraf languages --gitattributes > ${HOME}/.config/git/attributes
 git config --global merge.conflictStyle zdiff3
-git config --global merge.mergiraf.name "mergiraf"
-git config --global merge.mergiraf.driver "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
+if command -v mergiraf >/dev/null 2>&1; then
+    mergiraf languages --gitattributes > ${HOME}/.config/git/attributes
+    git config --global merge.mergiraf.name "mergiraf"
+    git config --global merge.mergiraf.driver "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
+fi
 
 # jj deez
-jj config set --user user.name "Luca Sandrock"
-jj config set --user user.email "luca.sandrock@proton.me"
-jj config set --user ui.default-command log
+if command -v jj >/dev/null 2>&1; then
+    jj config set --user user.name "Luca Sandrock"
+    jj config set --user user.email "luca.sandrock@proton.me"
+    jj config set --user ui.default-command log
+fi

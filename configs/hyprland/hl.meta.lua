@@ -1,0 +1,28 @@
+---@meta
+--
+-- Type stub for `hl`, the global Hyprland Lua config API.
+--
+---@class HlDispatchers
+---@field dpms fun(opts: table): any
+---@field exec_cmd fun(cmd: string): any
+---@field focus fun(arg: any): any
+---@field group fun(arg: any): any
+---@field layout fun(arg: any): any
+---@field submap fun(name: string): any
+---@field window fun(arg: any): any
+
+---@class Hl
+---@field dsp HlDispatchers
+---@field plugin table<string, any>
+---@field animation fun(spec: table)
+---@field bind fun(keys: string, action: any, opts?: table)
+---@field config fun(cfg: table)
+---@field curve fun(spec: table)
+---@field define_submap fun(name: string, binds: table)
+---@field env fun(name: string, value: string)
+---@field exec_cmd fun(cmd: string): any
+---@field monitor fun(spec: table)
+---@field on fun(event: string, handler: fun(...): any)
+---@field window_rule fun(rule: table)
+---@field workspace_rule fun(rule: table)
+hl = {}

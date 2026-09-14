@@ -42,7 +42,7 @@ focus_pane_left = "prefix+left"
 focus_pane_down = "prefix+down"
 focus_pane_up = "prefix+up"
 focus_pane_right = "prefix+right"
-workspace_picker = ""             # tmux: bind w -> tmux-sessionizer popup, not workspace picker
+workspace_picker = ""             # tmux: bind w -> sessionizer popup, not workspace picker
 goto = ""                         # tmux: bind g -> lazygit popup, not goto
 next_tab = ""                     # tmux: bind n -> netscanner popup, not next-window
 previous_tab = ""                 # tmux: bind p -> btop popup, not previous-window
@@ -61,16 +61,23 @@ width = "90%"
 height = "90%"
 
 [[keys.command]]
-key = "prefix+d"
+key = "prefix+shift+n"
 type = "popup"
-command = "lazydocker"
+command = "rustnet"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
-key = "prefix+shift+n"
+key = "prefix+shift+s"
 type = "popup"
-command = "rustnet"
+command = "lazysql"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+d"
+type = "popup"
+command = "lazydocker"
 width = "90%"
 height = "90%"
 
@@ -91,6 +98,13 @@ height = "90%"
 [[keys.command]]
 key = "prefix+j"
 type = "popup"
+command = "lazyjj"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+shift+j"
+type = "popup"
 command = "lazyjournal"
 width = "90%"
 height = "90%"
@@ -99,13 +113,6 @@ height = "90%"
 key = "prefix+k"
 type = "popup"
 command = "k9s"
-width = "90%"
-height = "90%"
-
-[[keys.command]]
-key = "prefix+l"
-type = "popup"
-command = "logradar"
 width = "90%"
 height = "90%"
 

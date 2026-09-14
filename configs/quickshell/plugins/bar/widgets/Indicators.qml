@@ -7,7 +7,7 @@ import qs.Ui
 // reconfigurable indicator cluster (6 possible indicators, hover-reveal
 // for inactive ones, per-instance settings UI). This repo only has real
 // backing for 3 of them (StayAwake — see toggles/toggle-keep-awake.sh;
-// Reminder — see scripts/reminder.sh, added in Phase 6; Pomodoro — see
+// Reminder — see configs/quickshell/scripts/reminder.sh, added in Phase 6; Pomodoro — see
 // scripts/pomodoro.sh, added in roadmap Phase 5. DND moved into the
 // notifications widget itself (a Toggle row in its hover panel) rather
 // than living here as a separate bar icon — it's a notifications setting,

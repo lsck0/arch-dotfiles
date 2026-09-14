@@ -6,7 +6,7 @@ import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
 
 // Adapted from omarchy-shell almost verbatim -- a two-step prompt (minutes,
-// then message) that shells out to scripts/reminder.sh (this repo's own
+// then message) that shells out to configs/quickshell/scripts/reminder.sh (this repo's own
 // port of omarchy-reminder) to arm a systemd-run timer.
 //
 // Differences: omarchy-notification-send -> notification-send,

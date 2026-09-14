@@ -4,7 +4,7 @@ import Quickshell.Io
 import qs.Ui
 
 // Adapted from omarchy-shell: omarchy-reminder -> this repo's own
-// scripts/reminder.sh. Two real differences from upstream, both matching
+// configs/quickshell/scripts/reminder.sh. Two real differences from upstream, both matching
 // this repo's established Dnd.qml/StayAwake.qml pattern:
 //   - omarchy-reminder's own `extractData(raw)` call goes through
 //     BarIndicator.qml's `Util.parseModuleJson` -- never implemented

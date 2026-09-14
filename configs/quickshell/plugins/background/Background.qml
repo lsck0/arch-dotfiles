@@ -72,7 +72,7 @@ Item {
     // Same as the Display panel's button: switch-wallpaper.sh with no
     // arguments is the fzf path and needs a terminal this has no way to give
     // it. wallpaper-picker summons the native overlay instead.
-    Util.execDetached(Util.shellQuote(Paths.repoScript("wallpaper-picker.sh")))
+    Util.execDetached(Util.shellQuote(Paths.shellScripts + "/wallpaper-picker.sh"))
   }
 
   Process {
