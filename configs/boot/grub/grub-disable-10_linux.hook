@@ -1,0 +1,11 @@
+# grub upgrades restore 10_linux as executable; 09_arch replaces it.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = grub
+
+[Action]
+Description = Disabling GRUB's 10_linux (replaced by 09_arch)...
+When = PostTransaction
+Exec = /usr/bin/chmod -x /etc/grub.d/10_linux

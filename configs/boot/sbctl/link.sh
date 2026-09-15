@@ -34,7 +34,9 @@ sign_unsigned_boot_files() {
     local cand
     for cand in \
         /boot/vmlinuz-linux /boot/vmlinuz-linux-lts /boot/vmlinuz-linux-zen \
+        /boot/vmlinuz-linux-hardened \
         /boot/EFI/BOOT/BOOTX64.EFI \
+        /boot/EFI/GRUB/grubx64.efi \
         /boot/EFI/Linux/*.efi \
         /boot/EFI/systemd/systemd-bootx64.efi \
         /boot/efi/EFI/BOOT/BOOTX64.EFI \

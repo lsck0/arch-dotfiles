@@ -1,0 +1,13 @@
+# Runs after every transaction: timeshift-autosnap snapshots before it and
+# kernel upgrades change which snapshots still have matching modules.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Updating boot menu (kernels, timeshift snapshots)...
+When = PostTransaction
+Exec = /usr/local/bin/boot-menu @MODE@

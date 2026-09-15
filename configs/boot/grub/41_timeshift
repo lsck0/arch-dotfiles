@@ -1,0 +1,12 @@
+#!/bin/sh
+# Refresh the timeshift snapshot menu, then source it from grub.cfg. Snapshot
+# changes only ever rewrite timeshift.cfg, never the whole grub.cfg.
+set -e
+
+/usr/local/bin/boot-menu grub-snapshots >&2 || echo "41_timeshift: snapshot menu not refreshed" >&2
+
+cat <<'EOF'
+if [ -s "${prefix}/timeshift.cfg" ]; then
+    source "${prefix}/timeshift.cfg"
+fi
+EOF
