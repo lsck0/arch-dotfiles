@@ -95,7 +95,8 @@ BarWidget {
   // Gated on `obsSeen`, so a machine that never opens OBS still gets no chip:
   // the helper is not even started until `pgrep -x obs` succeeds, and a
   // permanent "OBS: disabled" on a bar belonging to someone who does not
-  // stream is precisely the noise this widget's header rejects.
+  // stream is precisely the noise this widget's header rejects. `obsSeen` goes
+  // back to false when OBS exits, so a closed OBS is not a fault either.
   readonly property bool faulted: obsSeen && !connected && errorText !== ""
 
   visible: connected || faulted
@@ -197,8 +198,8 @@ BarWidget {
     prevSampleMs = nowMs
   }
 
-  // Start the helper only once OBS is actually running, and never stop it
-  // after that.
+  // Start the helper only once OBS is actually running, and stop it again when
+  // OBS goes away.
   //
   // The helper is a Python process — ~13 MB of resident memory for something
   // that, on a normal day, sits in a reconnect loop against a program that is
@@ -214,14 +215,20 @@ BarWidget {
   // nothing while OBS was demonstrably running.
   //
   // So: `pgrep -x obs`, triggered on shell start, on any toplevel change (a
-  // free, event-driven hint that something launched), and on a slow fallback
-  // timer for the tray-only case where no window ever appears. All three stop
-  // the moment OBS is found, and the helper then stays up for the session —
-  // OBS minimised back to the tray must not blind the widget.
+  // free, event-driven hint that something launched), and on a fallback timer
+  // for the tray-only case where no window ever appears. Process detection is
+  // what lets OBS sit minimised in the tray without blinding the widget.
+  //
+  // The probe also has to run the other way round. `obsSeen` used to latch
+  // true for the life of the shell, so quitting OBS left the helper looping
+  // against a dead socket and the chip stuck on the bar reading
+  // "[Errno 111] Connection refused" — the `faulted` branch below, firing for
+  // a fault that is just OBS being closed. Losing the connection is therefore
+  // a question, not an answer: re-probe, and if the process is gone, clear
+  // `obsSeen` so the helper stops and the widget leaves the bar.
   property bool obsSeen: false
 
   function probeForObs() {
-    if (obsSeen) return
     if (!obsProbe.running) obsProbe.running = true
   }
 
@@ -231,8 +238,27 @@ BarWidget {
     // records for `pgrep -f`.
     command: ["pgrep", "-x", "obs"]
     onExited: function (exitCode) {
-      if (exitCode === 0) root.obsSeen = true
+      root.obsSeen = exitCode === 0
     }
+  }
+
+  // Drop every reading from the session that just ended. Without this the last
+  // values stay latched and a later OBS launch shows the previous session's
+  // stats until the first sample lands.
+  onObsSeenChanged: if (!obsSeen) {
+    connected = false
+    errorText = ""
+    streaming = false
+    streamReconnecting = false
+    recording = false
+    recordPaused = false
+    bitrateKbps = 0
+    recordKbps = 0
+    prevStreamBytes = -1
+    prevRecordBytes = -1
+    prevSampleMs = 0
+    scene = ""
+    scenes = []
   }
 
   Connections {
@@ -241,10 +267,15 @@ BarWidget {
   }
 
   Timer {
-    // Only until OBS is found. One fork a minute while it is closed, none
-    // afterwards.
-    interval: 60000
-    running: !root.obsSeen
+    // Two jobs, two rates. While OBS is closed this is the slow hunt for it:
+    // one fork a minute. While OBS is running but the helper has lost its
+    // session, it is the check for whether OBS is still there at all, and that
+    // wants to be quick — it is the delay before the chip disappears.
+    //
+    // Idle while OBS is running and connected, which is the whole point: no
+    // forks at all in the common case.
+    interval: root.obsSeen ? 3000 : 60000
+    running: !root.obsSeen || !root.connected
     repeat: true
     triggeredOnStart: true
     onTriggered: root.probeForObs()
