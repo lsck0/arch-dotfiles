@@ -13,7 +13,7 @@ cd ~/projects/arch-dotfiles/
 
 after archinstall minimal with btrfs+subvolumes+compression+LUKS and no applications (bluetooth, audio, etc) configured to setup the system.
 
-For secure boot: disable while installing base system, enable before running install.sh.
+For secure boot: Enable Secure Boot + Setup Mode before archinstall.
 
 ## Things to do manually after rebooting
 

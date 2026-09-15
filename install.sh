@@ -60,6 +60,7 @@ PACKAGES=(
     file # [base] file type detector
     fzf # [base] fuzzy finder
     flatpak # [base] sandboxed app packages
+    freetype2 # [base] font rasterizer
     ghostmirror # [base] mirrorlist ranking tool
     git # [base] version control
     gnutls # [base] TLS library
@@ -112,7 +113,6 @@ PACKAGES=(
     libvips # [base] image processing library
     libxcomposite # [base] X composite extension
     libxinerama # [base] X multi-monitor lib
-    limine # [base] boot loader
     linux # [base] Linux kernel
     linux-docs # [base] kernel documentation
     linux-firmware # [base] kernel firmware blobs
@@ -786,8 +786,7 @@ PACKAGES=(
     virt-manager # [qemu] VM management GUI
 
     ollama-for-amd-git # [llm] local LLM runner (AMD)
-    python-pytorch-opt-rocm # [llm] ML framework (AMD, AVX2 build python-vllm-rocm depends on)
-    python-vllm-rocm # [llm] LLM serving (AMD)
+    python-pytorch-opt-rocm # [llm] ML framework (AMD, AVX2 optimized)
 
     aircrack-ng # [pentesting] wifi security auditing
     ali # [pentesting] tui webapp load testing
@@ -1042,6 +1041,27 @@ if [[ ! -f "$BOOT_STATE" ]]; then
     fi
     echo "Enabled boot features:" >&2
     cat "$BOOT_STATE" >&2
+fi
+
+# Exactly one bootloader is installed and configured (configs/boot/{limine,grub}).
+if ! grep -qxE 'limine|grub' "$BOOT_STATE"; then
+    bootloader=limine
+    if [[ -f /boot/EFI/GRUB/grubx64.efi ]]; then
+        bootloader=grub
+    fi
+    if [[ -t 0 ]]; then
+        read -rp "Bootloader (limine/grub) [$bootloader]: " answer
+        if [[ "$answer" == limine || "$answer" == grub ]]; then
+            bootloader=$answer
+        fi
+    fi
+    echo "$bootloader" >> "$BOOT_STATE"
+    echo "Bootloader: $bootloader" >&2
+fi
+if grep -qx grub "$BOOT_STATE"; then
+    PACKAGES+=(grub os-prober update-grub)
+else
+    PACKAGES+=(limine)
 fi
 
 ## REMOVE PASSWORD FROM SUDO

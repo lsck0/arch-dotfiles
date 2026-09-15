@@ -1,0 +1,3 @@
+List of non-blocking bugs or changes that need to be made for the next dotfile session:
+
+-
