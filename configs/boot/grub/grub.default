@@ -1,0 +1,19 @@
+# managed by arch-dotfiles/boot/grub
+# /etc/default/grub — installed by link.sh, edits here are overwritten.
+# Kernel entries come from /etc/grub.d/09_arch, with the arguments in
+# /etc/kernel/cmdline, so GRUB_CMDLINE_LINUX is intentionally unused.
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_TIMEOUT_STYLE=menu
+GRUB_DISTRIBUTOR="Arch"
+
+GRUB_PRELOAD_MODULES="part_gpt part_msdos"
+GRUB_DISABLE_RECOVERY=true
+GRUB_DISABLE_OS_PROBER=false
+
+GRUB_TERMINAL_INPUT=console
+GRUB_TERMINAL_OUTPUT=gfxterm
+GRUB_GFXMODE=auto
+GRUB_GFXPAYLOAD_LINUX=keep
+GRUB_THEME="/boot/grub/themes/ly/theme.txt"

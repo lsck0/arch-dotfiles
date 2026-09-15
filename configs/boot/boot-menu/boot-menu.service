@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh boot menu (kernels, timeshift snapshots)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/boot-menu @MODE@

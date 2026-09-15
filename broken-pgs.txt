@@ -1,0 +1,2 @@
+AUR:
+    - python-vllm-rocm, python-vllm-omni # [llm] LLM serving (AMD), packaging bug as of 15.06.26

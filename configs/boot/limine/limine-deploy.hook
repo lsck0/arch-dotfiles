@@ -1,0 +1,11 @@
+# Deploy the upgraded limine binary to the ESP; zz-boot-menu.hook signs it after.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = limine
+
+[Action]
+Description = Deploying limine to the ESP...
+When = PostTransaction
+Exec = /usr/bin/install -m644 /usr/share/limine/BOOTX64.EFI @LIMINE_EFI@

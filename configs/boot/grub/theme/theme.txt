@@ -1,0 +1,63 @@
+# ly-style GRUB theme: black ground, one white-bordered box, monospace text,
+# key hints top-left. @PLACEHOLDERS@ are filled by render.py.
+
+title-text: ""
+desktop-color: "#000000"
+message-font: "@FONT@"
+message-color: "#ffffff"
+message-bg-color: "#000000"
+terminal-font: "@FONT@"
+terminal-box: "box_*.png"
+
++ label {
+    left = @PAD@
+    top = @PAD@
+    width = 100%
+    height = @ITEM_HEIGHT@
+    font = "@FONT@"
+    color = "#ffffff"
+    text = "enter boot    e edit    c console    esc back"
+}
+
++ label {
+    left = 0
+    top = 25%-@TITLE_OFFSET@
+    width = 100%
+    height = @ITEM_HEIGHT@
+    align = "center"
+    font = "@FONT@"
+    color = "#ffffff"
+    text = "@HOSTNAME@"
+}
+
++ boot_menu {
+    left = 25%
+    top = 25%
+    width = 50%
+    height = 50%
+    menu_pixmap_style = "box_*.png"
+    item_font = "@FONT@"
+    item_color = "#ffffff"
+    selected_item_font = "@FONT@"
+    selected_item_color = "#000000"
+    selected_item_pixmap_style = "select_*.png"
+    item_height = @ITEM_HEIGHT@
+    item_padding = @PAD@
+    item_spacing = 0
+    icon_width = 0
+    icon_height = 0
+    item_icon_space = 0
+    scrollbar = false
+}
+
++ label {
+    id = "__timeout__"
+    left = 0
+    top = 75%+@TITLE_OFFSET@
+    width = 100%
+    height = @ITEM_HEIGHT@
+    align = "center"
+    font = "@FONT@"
+    color = "#808080"
+    text = "booting in %d s"
+}

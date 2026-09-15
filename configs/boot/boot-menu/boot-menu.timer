@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh boot menu (picks up snapshots made by timeshift's cron schedule)
+
+[Timer]
+OnBootSec=2min
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
