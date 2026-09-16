@@ -1412,38 +1412,6 @@ BarWidget {
           font.pixelSize: Style.font.caption
         }
       }
-
-      // Attribution is a condition of RainViewer's free API, so it is shown
-      // rather than tucked into a comment.
-      Text {
-        width: parent.width
-        visible: root.radarFrames.length > 0
-        horizontalAlignment: Text.AlignRight
-        text: "radar © RainViewer"
-        color: Color.menu.text
-        opacity: Style.emphasis.disabled
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-
-      // Says how the location was determined, never where it is. "timezone"
-      // in particular is a coarse, tunnel-proof guess and the user should be
-      // able to tell that is what they are looking at.
-      Text {
-        width: parent.width
-        visible: root.report !== null
-        horizontalAlignment: Text.AlignRight
-        text: {
-          var s = root.report ? root.report.source : ""
-          var how = s === "manual" ? "manual location"
-                  : s === "geoclue" ? "system location"
-                  : s === "timezone" ? "timezone estimate"
-                  : s === "ipgeo" ? "IP estimate" : ""
-          return (root.report && root.report.stale ? "cached · " : "") + how
-        }
-        color: Color.menu.text; opacity: Style.emphasis.disabled
-        font.family: Style.font.family; font.pixelSize: Style.font.caption
-      }
     }
   }
 }

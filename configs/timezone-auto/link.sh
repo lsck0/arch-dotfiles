@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if [[ ! -d /etc/polkit-1/rules.d ]]; then
     exit 0

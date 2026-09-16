@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
     exit 0

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if [[ ! -d ${HOME}/.config/mozilla/firefox ]]; then
     exit 0

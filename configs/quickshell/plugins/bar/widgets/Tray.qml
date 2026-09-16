@@ -569,6 +569,8 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.trayMenuOpen
+    // Rows carry their own hover fill, so the card only needs a thin inset.
+    padding: Style.spacing.sm
     // The card fades out over 140ms (visible stays true for that whole time --
     // see PopupCard's own visible: open || card.opacity > 0), so resetting on
     // "open" would swap a live submenu for the root menu mid-fade: a visible
@@ -582,6 +584,12 @@ BarWidget {
     // Column skips invisible children but keeps reporting their height, so
     // read the header's extent through its own visibility.
     readonly property int menuHeaderHeight: menuHeader.visible ? menuHeader.implicitHeight : 0
+    // Check and icon gutters are reserved only when some entry in this level uses them.
+    readonly property var menuEntries: root.currentChildren ? root.currentChildren.values : []
+    readonly property bool hasCheckColumn: menuEntries.some(e => !e.isSeparator && e.buttonType !== QsMenuButtonType.None)
+    readonly property bool hasIconColumn: menuEntries.some(e => !e.isSeparator && String(e.icon || "") !== "")
+    readonly property int checkGutter: hasCheckColumn ? Style.space(22) : Style.space(8)
+    readonly property int textInset: checkGutter + (hasIconColumn ? Style.space(22) : 0)
 
     Column {
       id: trayMenuLayout
@@ -703,7 +711,7 @@ BarWidget {
 
               visible: !hiddenRow
               width: trayMenuColumn.width
-              implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(11) : Style.space(30))
+              implicitHeight: hiddenRow ? 0 : (modelData.isSeparator ? Style.space(9) : Style.space(26))
               opacity: modelData.enabled ? 1.0 : 0.45
 
               Rectangle {
@@ -743,7 +751,7 @@ BarWidget {
                 visible: !menuRow.modelData.isSeparator && String(menuRow.modelData.icon || "") !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
-                anchors.leftMargin: Style.space(24)
+                anchors.leftMargin: trayMenuPopup.checkGutter
                 width: Style.space(16)
                 height: Style.space(16)
                 fillMode: Image.PreserveAspectFit
@@ -759,7 +767,7 @@ BarWidget {
                 visible: !menuRow.modelData.isSeparator
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
-                anchors.leftMargin: menuIcon.visible ? Style.space(46) : Style.space(28)
+                anchors.leftMargin: trayMenuPopup.textInset
                 anchors.right: submenuGlyph.left
                 anchors.rightMargin: Style.space(8)
                 text: menuRow.rowText
