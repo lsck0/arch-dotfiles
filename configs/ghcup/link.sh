@@ -11,6 +11,11 @@ set -ex
 /usr/bin/ghcup install hls
 /usr/bin/ghcup install stack
 
+/usr/bin/ghcup set ghc
+/usr/bin/ghcup set cabal
+/usr/bin/ghcup set hls
+/usr/bin/ghcup set stack
+
 git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
 pushd liquid-fixpoint
 ~/.ghcup/bin/stack install

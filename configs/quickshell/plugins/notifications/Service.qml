@@ -174,18 +174,20 @@ Item {
   }
 
   function writeSilenced(notification, written) {
-    writeHistoryFile(written, function() {
-      var updated = null
-      try {
-        updated = NotificationLogic.replacementSnapshot(notification, written.originalId, written.timestamp)
-      } catch (e) {
-        // Torn down by the server while the write was queued.
-      }
-      if (updated && NotificationLogic.popupRowChanged(written, updated)) {
-        service.writeSilenced(notification, updated)
-        return
-      }
-      service.releaseSilenced(notification, written.originalId)
+    service.materializeImage(written, function(resolved) {
+      service.writeHistoryFile(resolved, function() {
+        var updated = null
+        try {
+          updated = NotificationLogic.replacementSnapshot(notification, resolved.originalId, resolved.timestamp)
+        } catch (e) {
+          // Torn down by the server while the write was queued.
+        }
+        if (updated && NotificationLogic.popupRowChanged(resolved, updated)) {
+          service.writeSilenced(notification, updated)
+          return
+        }
+        service.releaseSilenced(notification, resolved.originalId)
+      })
     })
   }
 
@@ -398,20 +400,163 @@ Item {
     "done\n"
 
   function persistPopupFile(snapshot) {
-    var persistable = NotificationLogic.persistablePopup(snapshot, imagesDir)
-    var command = ["bash", "-c",
-      "mkdir -p \"$1\" \"$2\" || exit 0\n" +
-      "dir=\"$1\" json=\"$3\" name=\"$4\"\n" +
-      "shift 4\n" +
-      copyImagesScript +
-      "printf '%s\\n' \"$json\" > \"$dir/$name\"", "--",
-      popupStateDir,
-      imagesDir,
-      NotificationLogic.serializePopup(persistable.entry, NotificationUrgency.Normal),
-      NotificationLogic.popupFileName(snapshot)]
-    for (var i = 0; i < persistable.copies.length; i++)
-      command.push(persistable.copies[i].from, persistable.copies[i].to)
-    enqueuePopupFileJob(command)
+    service.materializeImage(snapshot, function(resolved) {
+      var persistable = NotificationLogic.persistablePopup(resolved, imagesDir)
+      var command = ["bash", "-c",
+        "mkdir -p \"$1\" \"$2\" || exit 0\n" +
+        "dir=\"$1\" json=\"$3\" name=\"$4\"\n" +
+        "shift 4\n" +
+        copyImagesScript +
+        "printf '%s\\n' \"$json\" > \"$dir/$name\"", "--",
+        popupStateDir,
+        imagesDir,
+        NotificationLogic.serializePopup(persistable.entry, NotificationUrgency.Normal),
+        NotificationLogic.popupFileName(resolved)]
+      for (var i = 0; i < persistable.copies.length; i++)
+        command.push(persistable.copies[i].from, persistable.copies[i].to)
+      enqueuePopupFileJob(command)
+    })
+  }
+
+  // Senders (Discord's Electron client among them) commonly attach the
+  // avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw
+  // pixel buffer, not a path — which Quickshell exposes only as an
+  // in-process `image://…` URL tied to the live Notification object. That
+  // URL renders fine in the live toast (which binds straight to it), but
+  // NotificationLogic.persistablePopup only knows how to copy a `file://`
+  // path onto disk; it silently blanks any `image://` value to "" before
+  // writing, since the pixmap dies with the Notification. The result was
+  // every persisted/history entry — including Discord's — permanently
+  // missing its avatar, even though the toast itself had shown it a moment
+  // before. This renders that in-memory image to a real PNG under
+  // imagesDir BEFORE persisting, so the file that ends up on disk is one
+  // persistablePopup's ordinary file:// handling already knows how to
+  // carry through. Falls back to the original snapshot (unchanged
+  // behaviour) on any failure — e.g. the source URL has already gone
+  // stale, or the render/save failed — rather than blocking on it.
+  //
+  // grabToImage NEEDS A MAPPED WINDOW, not merely a window.
+  //
+  // An Item hanging off `service` has no window at all (Service.qml is a plain
+  // Item in shell.qml's serviceHost, which is never shown), so the grab was
+  // first given a dedicated `Window { visible: false }`. That does not work
+  // either, and fails quietly in the one way that matters: Qt refuses with
+  // "grabToImage: item's window is not visible", the callback never runs, and
+  // every avatar silently fell back to the icon. It looked like a fixed bug
+  // because the code for the fix was all there.
+  //
+  // imageGrabWindow is therefore a REAL, mapped layer-shell surface — and an
+  // imperceptible one: 1x1, transparent, on the background layer, with an
+  // empty input region so the compositor routes every pointer event straight
+  // past it. It is the smallest thing that actually has a scenegraph.
+  function materializeImage(snapshot, done) {
+    var url = String((snapshot && snapshot.image) || "")
+    if (url.indexOf("image://") !== 0) {
+      done(snapshot)
+      return
+    }
+
+    // A notification arriving in the moments before the surface finishes
+    // mapping has nothing to render into. Queue it rather than dropping the
+    // image, and flush once the surface is up.
+    if (!imageGrabWindow.backingWindowVisible) {
+      if (service.pendingGrabs.length >= service.pendingGrabsMax) {
+        // Bounded on purpose: a notification storm during startup must not
+        // grow this without limit. Dropping the image is what this function
+        // already does on every other failure.
+        done(snapshot)
+        return
+      }
+      service.pendingGrabs.push({ snapshot: snapshot, done: done })
+      return
+    }
+
+    var outPath = service.imagesDir + NotificationLogic.imageStem(snapshot) + "-materialized.png"
+    var saver = imageSaverComponent.createObject(imageGrabWindow.contentItem, { source: url })
+    if (!saver) {
+      done(snapshot)
+      return
+    }
+
+    function finish() {
+      if (saver.status !== Image.Ready) {
+        saver.destroy()
+        done(snapshot)
+        return
+      }
+      var grabbed = saver.grabToImage(function(grabResult) {
+        var ok = false
+        try {
+          ok = grabResult.saveToFile(outPath)
+        } catch (e) {
+          ok = false
+        }
+        saver.destroy()
+        if (ok) {
+          var copy = {}
+          for (var k in snapshot) copy[k] = snapshot[k]
+          copy.image = "file://" + outPath
+          done(copy)
+        } else {
+          done(snapshot)
+        }
+      })
+      if (!grabbed) {
+        saver.destroy()
+        done(snapshot)
+      }
+    }
+
+    if (saver.status === Image.Ready || saver.status === Image.Error) finish()
+    else saver.statusChanged.connect(finish)
+  }
+
+  // Grabs that arrived before the surface was mapped. See materializeImage.
+  readonly property int pendingGrabsMax: 16
+  property var pendingGrabs: []
+
+  function flushPendingGrabs() {
+    if (!imageGrabWindow.backingWindowVisible) return
+    var queued = service.pendingGrabs
+    service.pendingGrabs = []
+    for (var i = 0; i < queued.length; i++)
+      service.materializeImage(queued[i].snapshot, queued[i].done)
+  }
+
+  PanelWindow {
+    id: imageGrabWindow
+
+    // Mapped for the whole session. Keeping it up only during a grab would
+    // mean waiting for a map round trip on every notification carrying a
+    // pixmap, which is the common case for the apps that send them at all
+    // (Discord, Spotify) — a 1x1 transparent surface is cheaper than that
+    // handshake and has no timing to get wrong.
+    visible: true
+    screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+    implicitWidth: 1
+    implicitHeight: 1
+    color: "transparent"
+    // Anchored so the compositor has a definite placement; it is one pixel of
+    // fully transparent nothing in the top-left corner, under every window.
+    anchors { top: true; left: true }
+    exclusionMode: ExclusionMode.Ignore
+    // Empty input region: this must never eat a click, and a 1x1 surface in
+    // the corner is exactly where a stray click would be hardest to explain.
+    mask: Region {}
+    WlrLayershell.namespace: "quickshell-notification-image-grab"
+    WlrLayershell.layer: WlrLayer.Background
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+    onBackingWindowVisibleChanged: if (backingWindowVisible) service.flushPendingGrabs()
+  }
+
+  Component {
+    id: imageSaverComponent
+    Image {
+      visible: false
+      asynchronous: true
+      cache: false
+    }
   }
 
   function deletePopupFileFor(row) {

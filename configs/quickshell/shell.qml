@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.Commons
 import "plugins/bar"
 import "plugins/background"
@@ -60,7 +61,6 @@ ShellRoot {
   // imports don't share singleton state across importers, so these are
   // regular instances built once here and handed down).
   property PluginRegistry pluginRegistry: PluginRegistry { }
-  property BarWidgetRegistry barWidgetRegistry: BarWidgetRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
 
   readonly property string home: Quickshell.env("HOME")
@@ -127,6 +127,12 @@ ShellRoot {
           // appearing here grow the cluster leftward into empty space and every
           // permanent icon keeps its position. The separator hides itself when
           // the whole transient group is empty.
+          // Self-hiding, like OBS and the tray: it is only on the bar when
+          // `checkupdates` actually reports something, so it costs nothing on
+          // an up-to-date system. It was left out of this list while its click
+          // action pointed at a script that did not exist; that is fixed (see
+          // SystemUpdate.qml / scripts/system-update.sh), so it earns its slot.
+          { id: "bar.system-update" },
           { id: "bar.obs" },
           { id: "bar.tray" },
           { id: "bar.separator" },
@@ -195,51 +201,80 @@ ShellRoot {
     persistShellConfig(copy)
   }
 
-  // Writes inline settings to a bar layout entry or top-level plugin entry
-  // in shell.json. moduleName is the entry id; settings is the merged
-  // plugin state (e.g. Tray's pinned/hidden item id lists). Returns true
-  // if anything actually changed — added for Phase 3's Tray widget, which
-  // needs this to persist pin/hide state; missed in the initial Phase 2
-  // port since nothing needed it yet.
-  function updateEntryInline(moduleName, settings) {
-    var stripped = Util.canonicalWidgetId(moduleName)
-    var copy = Util.cloneJson(shellConfig || builtinShellConfig)
-    if (!Util.isPlainObject(copy.bar)) copy.bar = { layout: { left: [], center: [], right: [] } }
-    if (!Util.isPlainObject(copy.bar.layout)) copy.bar.layout = { left: [], center: [], right: [] }
-    if (!Array.isArray(copy.plugins)) copy.plugins = []
+  // ------------------------------------------------------- widget settings
+  //
+  // Per-widget state a widget saves for itself: the tray's pinned/hidden item
+  // ids today, anything comparable later. Its own file, deliberately NOT
+  // shell.json.
+  //
+  // THIS USED TO WRITE INTO shell.json's LAYOUT, and that is a trap rather
+  // than a style question. shell.json does not exist on a fresh install, so
+  // the bar comes from `builtinShellConfig` above — which means shell.qml is
+  // the source of truth for the layout and editing this file changes the bar.
+  // But any write to shell.json snapshots the WHOLE config, layout included.
+  // So the first time anyone pinned a tray icon, the then-current layout was
+  // frozen to disk and every later edit to builtinShellConfig was silently
+  // ignored from that moment on: the bar would simply stop tracking the file
+  // that appears to define it, with no error and no obvious cause.
+  //
+  // Pinning an icon is not a statement about bar layout, so it no longer
+  // writes one. shell.json is now only ever written by a deliberate layout
+  // change (moveBarWidget / setBarWidget / setEnabled through IPC), which is
+  // exactly when snapshotting it is the correct behaviour.
+  readonly property string widgetSettingsPath:
+    (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/quickshell/widget-settings.json"
 
-    var sections = ["left", "center", "right"]
-    var foundInLayout = false
-    var dirty = false
-    for (var s = 0; s < sections.length; s++) {
-      var arr = copy.bar.layout[sections[s]] || []
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] && Util.canonicalWidgetId(arr[i].id) === stripped) {
-          var next = { id: stripped }
-          for (var k in settings) if (k !== "id") next[k] = settings[k]
-          if (JSON.stringify(arr[i]) !== JSON.stringify(next)) {
-            arr[i] = next
-            dirty = true
-          }
-          foundInLayout = true
-        }
-      }
-    }
-    if (!foundInLayout) {
-      for (var j = 0; j < copy.plugins.length; j++) {
-        if (copy.plugins[j] && copy.plugins[j].id === stripped) {
-          var pnext = { id: stripped }
-          for (var pk in settings) if (pk !== "id") pnext[pk] = settings[pk]
-          if (JSON.stringify(copy.plugins[j]) !== JSON.stringify(pnext)) {
-            copy.plugins[j] = pnext
-            dirty = true
-          }
-        }
-      }
-    }
-    if (!dirty) return false
-    persistShellConfig(copy)
+  // { widgetId: { ...settings } }
+  property var widgetSettings: ({})
+
+  function settingsForWidget(widgetId) {
+    var entry = widgetSettings[String(widgetId)]
+    return Util.isPlainObject(entry) ? entry : ({})
+  }
+
+  // Returns true if anything actually changed, so a caller that saves on every
+  // state change does not rewrite an identical file.
+  function setWidgetSettings(widgetId, settings) {
+    var key = String(widgetId)
+    var next = {}
+    for (var k in settings) if (k !== "id") next[k] = settings[k]
+    var current = widgetSettings[key]
+    if (current && JSON.stringify(current) === JSON.stringify(next)) return false
+    widgetSettings = Util.mapSet(widgetSettings, key, next)
+    widgetSettingsFile.setText(JSON.stringify(widgetSettings, null, 2) + "\n")
     return true
+  }
+
+  function applyWidgetSettings() {
+    var text = widgetSettingsFile.text() || ""
+    if (!text.trim()) {
+      widgetSettings = ({})
+      return
+    }
+    try {
+      var parsed = JSON.parse(text)
+      widgetSettings = Util.isPlainObject(parsed) ? parsed : ({})
+    } catch (e) {
+      console.warn("widget-settings.json parse failed, ignoring it:", e)
+      widgetSettings = ({})
+    }
+  }
+
+  FileView {
+    id: widgetSettingsFile
+    path: shell.widgetSettingsPath
+    watchChanges: true
+    atomicWrites: true
+    // A missing file is the normal state on a fresh install, not an error.
+    printErrors: false
+    onLoaded: {
+      shell.applyWidgetSettings()
+      // atomicWrites replaces the inode this watch is attached to, so without
+      // re-arming only the first external edit would ever be noticed.
+      Util.rearmWatch(this)
+    }
+    onLoadFailed: shell.widgetSettings = ({})
+    onFileChanged: reload()
   }
 
   // The user's shell.json REPLACES the builtin config rather than layering on
@@ -258,13 +293,22 @@ ShellRoot {
   }
 
   // Which output counts as "main". An explicit `bar.mainScreen` in shell.json
-  // wins; otherwise the output positioned at the origin, which is how this
-  // setup pins its desktop display. Falls back to the first screen so a
-  // machine whose outputs are all offset still gets exactly one full bar
-  // rather than none.
+  // wins. Otherwise: whichever monitor Hyprland has assigned workspace 1 to
+  // (configs/hyprland/hyprland_layout.lua's workspace_monitor table is the
+  // single source of truth for that — on the desktop profile it pins
+  // workspaces 1-4 to DP-2 and 5-9 to DP-1). That used to be "the output
+  // positioned at 0,0" instead, which happened to be DP-1 on this desktop —
+  // the SECONDARY monitor by workspace layout, not the one workspace 1 (and
+  // therefore every fresh app) actually opens on. The main bar ended up on
+  // the wrong screen as a result. Falls back to the old 0,0 heuristic, then
+  // the first screen, if Hyprland hasn't reported workspace 1 yet (e.g. the
+  // very first frame before any workspace has been created).
   readonly property string mainScreenName: {
     var configured = barConfig && barConfig.mainScreen ? String(barConfig.mainScreen) : ""
     if (configured) return configured
+    var workspaces = Hyprland.workspaces.values
+    for (var w = 0; w < workspaces.length; w++)
+      if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
     var screens = Quickshell.screens
     for (var i = 0; i < screens.length; i++)
       if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
@@ -304,7 +348,6 @@ ShellRoot {
 
     Bar {
       pluginRegistry: shell.pluginRegistry
-      barWidgetRegistry: shell.barWidgetRegistry
       barConfig: shell.barConfig
       shellHost: shell
       // Bar derives isMainScreen from this and its own `modelData` — the
@@ -355,7 +398,6 @@ ShellRoot {
       }
       if ("shell" in inst) inst.shell = shell
       if ("manifest" in inst) inst.manifest = manifest
-      if ("barWidgetRegistry" in inst) inst.barWidgetRegistry = shell.barWidgetRegistry
       if ("pluginRegistry" in inst) inst.pluginRegistry = shell.pluginRegistry
       _services = Util.mapSet(_services, key, inst)
     }
@@ -545,7 +587,6 @@ ShellRoot {
           if (!item) return
           if ("shell" in item) item.shell = shell
           if ("manifest" in item) item.manifest = panelEntry.manifest
-          if ("barWidgetRegistry" in item) item.barWidgetRegistry = shell.barWidgetRegistry
           if ("pluginRegistry" in item) item.pluginRegistry = shell.pluginRegistry
           if ("service" in item) item.service = shell.serviceFor(panelEntry.pluginId)
           shell.registerPanelLoader(panelEntry.pluginId, this)
@@ -560,97 +601,6 @@ ShellRoot {
         }
         Component.onDestruction: shell.unregisterPanelLoader(panelEntry.pluginId)
       }
-    }
-  }
-
-  // ---------------------------------------------------------- plugin loader
-  //
-  // Mirrors plugin registry state into BarWidgetRegistry whenever it changes.
-  // Each enabled plugin with kind "bar-widget" gets a Component created from
-  // its manifest entry point and registered under its manifest id.
-
-  property var pluginWidgetComponents: ({})
-
-  function syncPluginWidgets() {
-    var plugins = shell.pluginRegistry.installedPlugins
-    var seen = ({})
-
-    for (var pluginId in plugins) {
-      var manifest = plugins[pluginId]
-      if (!manifest || !manifest.kinds || manifest.kinds.indexOf("bar-widget") === -1) continue
-      if (!shell.pluginRegistry.isEnabled(pluginId)) continue
-
-      var registryKey = String(manifest.id)
-      seen[registryKey] = true
-
-      var existing = pluginWidgetComponents[registryKey]
-      var url = shell.pluginRegistry.entryPointUrl(manifest, "barWidget")
-      if (!url) {
-        console.warn("Plugin " + manifest.id + " has no barWidget entry point")
-        continue
-      }
-      var meta = manifest.barWidget || {}
-      meta = {
-        displayName: meta.displayName || manifest.name,
-        description: meta.description || manifest.description,
-        category: meta.category || "Plugin",
-        allowMultiple: meta.allowMultiple === true,
-        defaultSection: meta.defaultSection || "center",
-        pluginId: manifest.id,
-        sourceDir: manifest.__sourceDir || "",
-        source: manifest.__isFirstParty ? "first-party" : "plugin"
-      }
-
-      if (existing && existing.url === url && !existing.component) continue
-
-      if (existing && existing.url === url && shell.barWidgetRegistry.has(registryKey)) {
-        shell.barWidgetRegistry.register(registryKey, existing.component, meta)
-        continue
-      }
-
-      loadPluginWidget(registryKey, url, meta)
-    }
-
-    var allIds = shell.barWidgetRegistry.availableIds()
-    for (var i = 0; i < allIds.length; i++) {
-      var id = allIds[i]
-      if (!pluginWidgetComponents[id]) continue
-      if (!seen[id]) {
-        shell.barWidgetRegistry.unregister(id)
-        pluginWidgetComponents = Util.mapRemove(pluginWidgetComponents, id)
-      }
-    }
-  }
-
-  Connections {
-    target: shell.pluginRegistry
-    function onPluginsChanged() { shell.syncPluginWidgets() }
-  }
-
-  function setPluginWidgetComponent(registryKey, entry) {
-    pluginWidgetComponents = entry
-      ? Util.mapSet(pluginWidgetComponents, registryKey, entry)
-      : Util.mapRemove(pluginWidgetComponents, registryKey)
-  }
-
-  function loadPluginWidget(registryKey, url, meta) {
-    setPluginWidgetComponent(registryKey, { url: url, component: null })
-
-    var comp = Qt.createComponent(url, Component.Asynchronous)
-    function finalize() {
-      if (comp.status === Component.Ready) {
-        shell.barWidgetRegistry.register(registryKey, comp, meta)
-        shell.setPluginWidgetComponent(registryKey, { url: url, component: comp })
-      } else if (comp.status === Component.Error) {
-        console.warn("Plugin widget " + registryKey + " failed: " + comp.errorString())
-        shell.setPluginWidgetComponent(registryKey, null)
-        shell.pluginRegistry.pluginLoadFailed(registryKey, comp.errorString())
-      }
-    }
-    if (comp.status === Component.Loading) {
-      comp.statusChanged.connect(finalize)
-    } else {
-      finalize()
     }
   }
 

@@ -10,3 +10,4 @@ sudo mkdir -p /etc/systemd/system/python3-validity.service.d
 sudo ln -sfn ${PWD}/python3-validity-override.conf /etc/systemd/system/python3-validity.service.d/override.conf
 sudo systemctl daemon-reload
 sudo systemctl enable python3-validity.service
+sudo systemctl mask fprintd.service

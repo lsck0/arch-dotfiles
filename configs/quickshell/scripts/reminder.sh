@@ -137,6 +137,30 @@ show_json() {
   jq -cn --argjson count "$count" --arg tooltip "$tooltip" --argjson reminders "$reminders_json" '{count:$count,active:($count > 0),tooltip:$tooltip,reminders:$reminders}'
 }
 
+cancel_reminder() {
+  local target=${1:-}
+  local reminder_dir="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
+  local unit
+
+  # Accept either "<unit>" or "<unit>.timer" — show --json emits both shapes.
+  unit=${target%.timer}
+  unit=${unit%.service}
+
+  # Only ever touch this script's own units: the argument reaches here from a
+  # QML click handler, and `systemctl stop` on an arbitrary caller-supplied
+  # name is not something to hand out.
+  if [[ -z $unit || $unit != quickshell-reminder-* ]]; then
+    echo "reminder.sh: refusing to cancel non-reminder unit '${target}'" >&2
+    return 1
+  fi
+
+  # Both units, not just the timer. Stopping the .timer alone leaves the
+  # .service loaded, and an already-elapsed-but-still-running alert keeps
+  # going; `clear` has always stopped both, single-delete used not to.
+  systemctl --user stop "$unit.timer" "$unit.service" 2>/dev/null || true
+  rm -f "$reminder_dir/$unit.message" 2>/dev/null || true
+}
+
 clear_reminders() {
   local units
   local reminder_dir="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
@@ -155,6 +179,7 @@ usage() {
   echo "Usage: reminder.sh [-i|--interactive]"
   echo "       reminder.sh <minutes> [message]"
   echo "       reminder.sh show [-j|--json]"
+  echo "       reminder.sh cancel <unit>"
   echo "       reminder.sh clear"
 }
 
@@ -180,6 +205,10 @@ show | list)
   ;;
 clear)
   clear_reminders
+  exit 0
+  ;;
+cancel | delete)
+  cancel_reminder "${2:-}"
   exit 0
   ;;
 esac

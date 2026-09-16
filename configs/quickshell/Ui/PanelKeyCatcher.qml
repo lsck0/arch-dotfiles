@@ -5,8 +5,9 @@ import QtQuick
 // (focusSection, selectedIndex, action rules) while the boilerplate
 // key handling lives here.
 //
-// Usage:
-//   Common.KeyboardPanel {
+// Usage — inside any panel window that takes keyboard focus (the
+// appsearch/clipboard/wifiqr overlays are the live examples):
+//   PanelWindow {
 //     ...
 //     PanelKeyCatcher {
 //       anchors.fill: parent

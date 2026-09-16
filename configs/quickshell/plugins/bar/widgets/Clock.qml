@@ -116,10 +116,16 @@ BarWidget {
     return Qt.formatTime(new Date(root.travelledNow.getTime() + offsetSec * 1000), "HH:mm")
   }
 
+  // The slider steps in half hours, so toFixed(0) rendered +1.5h and +2h
+  // identically as "+2h" — the header claimed a different offset from the one
+  // the zone list below it was actually showing. One decimal, dropped when the
+  // offset is whole, so the common case still reads "+3h".
   function dayLabel() {
     if (root.travelHours === 0) return ""
-    var sign = root.travelHours > 0 ? "+" : ""
-    return " (" + sign + root.travelHours.toFixed(0) + "h)"
+    var sign = root.travelHours > 0 ? "+" : "−"
+    var hours = Math.abs(root.travelHours)
+    var text = hours === Math.floor(hours) ? String(hours) : hours.toFixed(1)
+    return " (" + sign + text + "h)"
   }
 
   Process {
@@ -209,7 +215,7 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshOffsets() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -226,6 +232,7 @@ BarWidget {
     // The fix was to make the position reactive rather than to look for a
     // third coordinate source — see BarWidget.barX and Bar.layoutRevision.
     anchorWidget: root
+    onOpened: root.refreshOffsets()
     // Widened from 320: the pomodoro row (icon + countdown + three buttons)
     // and the six quick-reminder chips both need the extra room.
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
@@ -239,11 +246,19 @@ BarWidget {
       // Full precision (H:M:S.mmm) at the top, distinct from the bar
       // label's minute resolution — this is the one place in the shell
       // that shows a genuinely live-ticking clock.
+      //
+      // Color.menu.text, not Color.accent: this is the panel's primary
+      // reading (the same role as Weather's big current-temperature text),
+      // and Weather's convention is that primary content is the theme
+      // foreground while accent is reserved for structure/selection
+      // (PanelSectionHeader, the calendar's "today" cell, the timezone
+      // slider's reset pill). A bare accent-colored headline here made the
+      // clock panel read as a different palette from every other panel.
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
         text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss:zzz")
-        color: Color.accent
+        color: Color.menu.text
         font.family: Style.font.family
         font.bold: true
         font.pixelSize: Style.font.heading
@@ -441,8 +456,12 @@ BarWidget {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
+                // Through reminder.sh's own `cancel`, not a bare `systemctl
+                // stop <timer>` from here: the script is what knows a
+                // reminder is a .timer AND a .service AND a .message file,
+                // and stopping only the timer left the other two behind.
                 onClicked: {
-                  Quickshell.execDetached(["systemctl", "--user", "stop", modelData.timer])
+                  Quickshell.execDetached([root.reminderScript, "cancel", modelData.unit])
                   pomoDelay.restart()
                 }
               }

@@ -29,3 +29,16 @@
   --backgroundfloating: 0, 0, 0;
   --settingsicons: 1;
 }
+
+/* MessageLoggerV2's webpack class lookups fail on current Discord, so its
+   log-view avatars get class="" and collapse. Discord's own always have a
+   generated class, so this only hits MLV2's orphans. */
+img[class=""][src*="discordapp.com/avatars/"],
+img[class=""][src*="discordapp.com/embed/avatars/"],
+img[class=""][src^="/assets/"] {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 16px;
+  flex: 0 0 auto;
+}

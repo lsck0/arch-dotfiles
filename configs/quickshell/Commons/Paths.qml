@@ -88,10 +88,17 @@ QtObject {
   function bin(name) { return home + "/.local/bin/" + name }
 
   // Argv for an `ipc call` against this shell instance. The `-p` argument is
-  // the one thing every such call gets wrong when written by hand.
-  function ipcCall(target, method, arg) {
+  // the one thing every such call gets wrong when written by hand. Extra
+  // positional args (e.g. shell.summon's `payloadJson`) are passed through
+  // as-is after `target`/`method` — `shell summon panel.speedtest` alone was
+  // silently rejected by quickshell ("Too few arguments provided (2
+  // required but 1 were provided)") since summon(id, payloadJson) needs both.
+  function ipcCall(target, method) {
     var argv = ["quickshell", "ipc", "-p", shellDir, "call", String(target), String(method)]
-    if (arg !== undefined && arg !== null) argv.push(String(arg))
+    for (var i = 2; i < arguments.length; i++) {
+      var arg = arguments[i]
+      if (arg !== undefined && arg !== null) argv.push(String(arg))
+    }
     return argv
   }
 }

@@ -6,10 +6,12 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
 import "widgets"
+import "widgets/BuiltinWidgets.js" as BuiltinWidgets
 
 // Registry-driven left/center/right widget placement (quickshell Phase 2):
-// each section's model comes from `barConfig.layout.<section>`, resolved
-// against `barWidgetRegistry` for the Component to instantiate. Still this
+// each section's model comes from `barConfig.layout.<section>`, and BarSection
+// resolves each entry id to a .qml URL through `pluginRegistry` (falling back
+// to its own map of the widgets that ship in widgets/). Still this
 // repo's own hover-driven panel mechanism throughout — upstream's Bar.qml
 // (1842 lines) is click/drag-reorder-driven with its own popout-coordinator
 // API (clickTargets/requestPopout/releasePopout/activePopout); this file
@@ -23,7 +25,6 @@ PanelWindow {
 
   // Injected by shell.qml, matching upstream's configureBar() pattern.
   property QtObject pluginRegistry: null
-  property QtObject barWidgetRegistry: null
   property var barConfig: null
   // Named shellHost, not shell: the outer ShellRoot's own `id: shell`
   // would otherwise shadow this property when referenced unqualified from
@@ -85,6 +86,20 @@ PanelWindow {
 
   function run(cmd) {
     Util.execDetached(cmd)
+  }
+
+  // BarSection's cold-start id → file map mirrors the widget manifests, so
+  // check once per session that the two still agree rather than trusting the
+  // comment asking the next person to edit both. scanFinished is the first
+  // moment the manifests are known; checkDrift reports once however many bars
+  // call it. It lives here and not in BarSection because a Repeater's default
+  // property is `delegate` — a Connections declared there is swallowed.
+  Connections {
+    target: root.pluginRegistry
+    enabled: root.pluginRegistry !== null
+    function onScanFinished() {
+      BuiltinWidgets.checkDrift(root.pluginRegistry.installedPlugins, console.warn)
+    }
   }
 
   // Shared popup state: only one widget panel open at a time, and opening a
@@ -159,11 +174,35 @@ PanelWindow {
   // `close` / `toggle`. Scriptable panel control (bind a key to open the
   // network panel, drive the shell from a test harness) for the same reason
   // Panel widgets get a moduleName in the first place.
+  //
+  // An IpcHandler target is GLOBAL, but this file is instantiated once per
+  // output. With two monitors the second registration was refused outright
+  // ("Handler was registered but will not be used because another handler is
+  // registered for target bar", one warning per reload), so `call bar open`
+  // reached whichever bar happened to register first — not necessarily the
+  // one being looked at. The main bar keeps the plain `bar` target so every
+  // existing keybind and script is unchanged; every other output gets
+  // `bar-<output>`, which also makes a specific monitor's bar addressable.
+  readonly property string ipcScreenName: modelData ? String(modelData.name) : ""
+  readonly property bool ownsGlobalIpcTarget: {
+    if (ipcScreenName === "") return true
+    if (mainScreenName !== "") return ipcScreenName === mainScreenName
+    // No opinion on which output is main (shell.qml only reports that with
+    // no screens at all): fall back to the first one, so exactly one bar
+    // still answers to `bar`.
+    var screens = Quickshell.screens
+    return screens.length === 0 || String(screens[0].name) === ipcScreenName
+  }
+  readonly property string ipcTarget: ownsGlobalIpcTarget ? "bar" : "bar-" + ipcScreenName
+
   IpcHandler {
-    target: "bar"
+    target: root.ipcTarget
     function open(panel: string): void { root.activePanel = panel }
     function close(): void { root.activePanel = "" }
     function toggle(panel: string): void { root.togglePanel(panel) }
+    // Which panel this particular bar has open, so a script driving several
+    // outputs can tell them apart without guessing.
+    function state(): string { return root.activePanel }
   }
 
   // Bumped whenever anything that can move a widget horizontally changes.

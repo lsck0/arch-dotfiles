@@ -36,6 +36,13 @@ hl.window_rule({
 
 hl.window_rule({
     match = {
+        class = "^org.kde.dolphin$",
+    },
+    opacity = global_opacity,
+})
+
+hl.window_rule({
+    match = {
         class = "^wofi$",
     },
     opacity = global_opacity,
@@ -78,10 +85,18 @@ hl.window_rule({
     no_anim = true,
 })
 
--- nemo
+-- file managers
 hl.window_rule({
     match = {
         class = "^nemo$",
+    },
+    float = true,
+    size = "1080 720",
+})
+
+hl.window_rule({
+    match = {
+        class = "^org.kde.dolphin$",
     },
     float = true,
     size = "1080 720",

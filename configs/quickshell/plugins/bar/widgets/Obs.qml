@@ -53,6 +53,16 @@ BarWidget {
   property string scene: ""
   property var scenes: []
 
+  // Mute state for the six audio sources this repo's OBS scene collection
+  // defines (configs/obs/Untitled.json) — keyed by the short label
+  // obs-status.py's MUTE_SOURCES maps to the real OBS input name ("Mic" ->
+  // "Mic/Aux", "Desktop" -> "Desktop Audio", the rest are the per-app
+  // pipewire captures). A label missing from the payload (source not present
+  // in whatever OBS has loaded) just never gets a key here, and the pill
+  // below renders it dim/unmuted rather than guessing.
+  readonly property var muteSources: ["Mic", "Chromium", "Discord", "Firefox", "Spotify", "Desktop"]
+  property var mutes: ({})
+
   // Live bitrates, derived here rather than read from OBS: obs-websocket
   // reports cumulative session bytes, not a rate. Two successive samples and
   // the wall time between them is the whole calculation, and doing it in the
@@ -136,6 +146,7 @@ BarWidget {
       recordKbps = 0
       prevStreamBytes = -1
       prevRecordBytes = -1
+      mutes = ({})
       return
     }
 
@@ -161,6 +172,7 @@ BarWidget {
     encoderTotal = Number(payload.encoderTotal) || 0
     scene = String(payload.scene || "")
     if (Array.isArray(payload.scenes)) scenes = payload.scenes
+    if (payload.mutes && typeof payload.mutes === "object") mutes = payload.mutes
 
     var sBytes = Number(payload.streamBytes) || 0
     var rBytes = Number(payload.recordBytes) || 0
@@ -259,6 +271,7 @@ BarWidget {
     prevSampleMs = 0
     scene = ""
     scenes = []
+    mutes = ({})
   }
 
   Connections {
@@ -618,6 +631,72 @@ BarWidget {
         opacity: Style.emphasis.disabled
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+      }
+
+      PanelSeparator { visible: root.connected }
+      PanelSectionHeader { text: "AUDIO"; visible: root.connected }
+
+      // Quick mute/unmute for the six sources this repo's OBS scene
+      // collection defines (configs/obs/Untitled.json): Mic, Chromium,
+      // Discord, Firefox, Spotify, Desktop. Same Flow-of-pills idiom as the
+      // scene switcher above, since this is the same shape of problem — a
+      // handful of named toggles with no natural row/column count. The dot
+      // is muted-only (a live/red accent), not a full on/off marker, because
+      // "not lit" already reads as "unmuted, normal" the same way the scene
+      // pills read "not selected" without needing a marker of their own.
+      Flow {
+        width: parent.width
+        spacing: Style.spacing.xs
+        visible: root.connected
+
+        Repeater {
+          model: root.muteSources
+          delegate: Rectangle {
+            id: muteRow
+            required property string modelData
+            readonly property bool muted: root.mutes[modelData] === true
+            height: Style.row.control
+            width: muteLabel.implicitWidth + dot.width + Style.spacing.md * 2 + Style.spacing.xs
+            radius: Style.cornerRadius
+            color: muted ? Util.alpha(Color.semantic.warn, 0.18)
+                 : (muteMouse.containsMouse ? Style.hoverFill : "transparent")
+            border.width: muted ? 0 : Style.normalBorderWidth
+            border.color: Util.alpha(Color.menu.text, 0.18)
+
+            Row {
+              anchors.centerIn: parent
+              spacing: Style.spacing.xs
+
+              Rectangle {
+                id: dot
+                anchors.verticalCenter: parent.verticalCenter
+                width: Style.space(6)
+                height: width
+                radius: width / 2
+                color: muteRow.muted ? Color.semantic.warn : Color.menu.text
+                opacity: muteRow.muted ? 1 : 0.3
+              }
+
+              Text {
+                id: muteLabel
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: muteRow.modelData
+                color: muteRow.muted ? Color.semantic.warn : Color.menu.text
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+
+            MouseArea {
+              id: muteMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.send({ cmd: "toggleMute", source: muteRow.modelData })
+            }
+          }
+        }
       }
 
       PanelSeparator {}

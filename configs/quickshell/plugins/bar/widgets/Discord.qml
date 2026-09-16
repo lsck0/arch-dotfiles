@@ -167,7 +167,10 @@ BarWidget {
     anchors.centerIn: parent
     // Wider than the usual xs: each chip now carries a ring outside its own
     // bounds, so neighbours at xs spacing would have their rings touching.
-    spacing: Style.spacing.md
+    // Bumped md -> lg (+2px): chips at md read as touching once the ring
+    // and badge are both drawn, reported as "icons should be 1-2px more
+    // apart".
+    spacing: Style.spacing.lg
 
     Repeater {
       // The whole list is the model, with the tail hidden, rather than a
@@ -288,14 +291,13 @@ BarWidget {
           border.width: root.ringWidth
           border.color: Util.alpha(Color.urgent, 0.55)
 
-          Text {
+          OpticalGlyph {
             anchors.centerIn: parent
             text: (modelData.selfDeaf || modelData.deaf)
               ? "\u{f0581}"    // md-volume_off
               : "\u{f036d}"    // md-microphone_off
             color: Color.urgent
-            font.family: Style.font.iconFamily
-            font.pixelSize: Math.round(parent.width * 0.72)
+            fontSize: Math.round(parent.width * 0.72)
           }
         }
       }

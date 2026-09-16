@@ -14,16 +14,15 @@ import qs.Commons
 // in is.
 //
 // Set `focusable: true` to make the button keyboard-tabbable with the
-// shared hover-cursor/focus tokens. Use this
-// in form contexts where Tab walks a list
-// of controls; leave it false for the right-edge actions on panel rows
-// where the row's CursorSurface owns the keyboard cursor.
+// shared hover-cursor/focus tokens. Use this in form contexts where Tab
+// walks a list of controls; leave it false for the right-edge actions on
+// panel rows, where the row itself owns the keyboard cursor.
 //
 // Set `hasCursor: true` to have the button render the same hover state as
-// mouse hover — so a panel's keyboard cursor lands on it identically.
-// Use this when a PanelActionButton is itself the cursor target (rather
-// than living inside a CursorSurface row). Emits `hovered(bool)` on
-// pointer enter/leave so the panel can update its cursor state to match.
+// mouse hover — so a panel's keyboard cursor lands on it identically. Use
+// this when a PanelActionButton is itself the cursor target rather than one
+// action inside a cursor-owning row. Emits `hovered(bool)` on pointer
+// enter/leave so the panel can update its cursor state to match.
 BorderSurface {
   id: root
 

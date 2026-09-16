@@ -1,0 +1,6 @@
+:root {{
+  --background: {background};
+  --foreground: {foreground};
+  --muted: {color8};
+  --cell: {color4};
+}}

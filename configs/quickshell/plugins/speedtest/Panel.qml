@@ -268,9 +268,7 @@ Item {
     rightValue: root.uploadValue
     leftLive: root.running && root.phase === "down"
     rightLive: root.running && root.phase === "up"
-    statusText: (root.pingMs !== "" ? "PING " + root.pingMs + " ms" : "")
-      + (!root.running && root.lastDownloadMbps !== "" && root.lastUploadMbps !== ""
-        ? (root.pingMs !== "" ? "  ·  " : "") + "LAST " + root.lastDownloadMbps + " / " + root.lastUploadMbps + " Mbps" : "")
+    statusText: root.pingMs !== "" ? "PING " + root.pingMs + " ms" : ""
     error: root.error
     open: root.opened
     onCloseRequested: root.dismiss()

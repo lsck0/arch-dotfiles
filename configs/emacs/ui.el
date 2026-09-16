@@ -2,13 +2,55 @@
 
 ;;;; theme + font -----------------------------------------------------------
 
-;; ayu dark, same palette as the nvim colorscheme
+;; Follows the desktop theme instead of pinning one palette. switch-wallpaper.sh
+;; writes the active theme's basename ("ayu-dark") — or the literal "pywal" when
+;; a bare wallpaper was set rather than a named theme — to ~/.cache/wal/nvim_theme.
+;; A name with a doom-themes counterpart uses it (hand-tuned beats generated);
+;; anything else falls back to doom-pywal, regenerated from the live palette by
+;; configs/wallust/scripts/generate-editor-themes.sh. Same name-dispatch-with-
+;; pywal-fallback that nvim's lua/theme.lua does.
+(defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
+
+(defconst my/system-theme-alist
+  '(("ayu-dark"       . doom-ayu-dark)
+    ("ayu-light"      . doom-ayu-light)
+    ("ayu-mirage"     . doom-ayu-mirage)
+    ("dracula"        . doom-dracula)
+    ("gruvbox-dark"   . doom-gruvbox)
+    ("nord"           . doom-nord)
+    ("one-dark"       . doom-one)
+    ("solarized-dawn" . doom-solarized-light)
+    ("tokyo-night"    . doom-tokyo-night))
+  "Theme basenames in themes/ that ship a doom-themes equivalent.
+Names missing here (catppuccin-*, night-owl, void, \"pywal\") fall back to
+the generated doom-pywal theme.")
+
+(defun my/system-theme ()
+  "Return the doom theme symbol matching the desktop's current theme."
+  (let ((name (and (file-readable-p my/system-theme-file)
+                   (string-trim
+                    (with-temp-buffer
+                      (insert-file-contents my/system-theme-file)
+                      (buffer-string))))))
+    (or (cdr (assoc name my/system-theme-alist)) 'doom-pywal)))
+
+(defun my/apply-system-theme ()
+  "Load the theme matching the desktop's, replacing whatever is enabled.
+Called at startup and again by switch-wallpaper.sh over emacsclient, so open
+frames recolour on a theme switch exactly as a fresh launch would."
+  (interactive)
+  (mapc #'disable-theme custom-enabled-themes)
+  (unless (ignore-errors (load-theme (my/system-theme) t))
+    (load-theme 'doom-one t)))
+
 (use-package doom-themes
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  (unless (ignore-errors (load-theme 'doom-ayu-dark t))
-    (load-theme 'doom-one t))
+  ;; where generate-editor-themes.sh writes doom-pywal-theme.el
+  (add-to-list 'custom-theme-load-path
+               (expand-file-name "themes/" user-emacs-directory))
+  (my/apply-system-theme)
   (doom-themes-org-config))
 
 ;; family/size come from early-init.el so the first frame is already correct

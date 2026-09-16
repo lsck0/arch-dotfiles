@@ -1,0 +1,8 @@
+[default_config]
+version = "0.10"
+assembler = "fasm"
+instruction_set = "x86-64"
+
+[default_config.opts]
+diagnostics = false
+default_diagnostics = false

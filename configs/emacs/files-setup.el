@@ -22,7 +22,21 @@
         delete-by-moving-to-trash t)
 
   ;; the sidebar tracks the buffer you are editing (neo-tree follow)
-  (dirvish-side-follow-mode 1))
+  (dirvish-side-follow-mode 1)
+
+  ;; Make the sidebar resizable. dirvish-side.el creates its session with
+  ;; :size-fixed 'width, which dirvish applies to `window-size-fixed' in every
+  ;; buffer of that session — so the divider cannot be dragged and
+  ;; `enlarge-window-horizontally' silently does nothing. Clearing it on the
+  ;; session keeps `dirvish-side-width' as the starting width without making it
+  ;; a hard constraint; the buffer-local clear covers buffers already built by
+  ;; the time this hook runs.
+  (defun my/dirvish-side-resizable ()
+    (when-let* ((dv (dirvish-curr))
+                ((eq (dv-type dv) 'side)))
+      (setf (dv-size-fixed dv) nil)
+      (setq-local window-size-fixed nil)))
+  (add-hook 'dirvish-setup-hook #'my/dirvish-side-resizable))
 
 (provide 'files-setup)
 ;;; files-setup.el ends here

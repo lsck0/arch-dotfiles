@@ -18,10 +18,32 @@ MARKER="# managed by arch-dotfiles/boot/grub"
 
 enable_initramfs_images
 
+# Detect the tallest connected display's native mode once
+gfx_width=0 gfx_height=0
+for status in /sys/class/drm/card*-*/status; do
+    [[ -f "$status" && "$(cat "$status")" == connected ]] || continue
+    mode="$(head -1 "$(dirname "$status")/modes" 2>/dev/null || true)"
+    [[ "$mode" == *x* ]] || continue
+    w="${mode%%x*}"
+    h="${mode#*x}"
+    h="${h%%[^0-9]*}"
+    if [[ -n "$h" ]] && (( h > gfx_height )); then
+        gfx_width=$w
+        gfx_height=$h
+    fi
+done
+
+if (( gfx_width > 0 && gfx_height > 0 )); then
+    GFXMODE="${gfx_width}x${gfx_height},auto"
+else
+    GFXMODE="auto"
+fi
+
 if [[ -f /etc/default/grub ]] && ! grep -qF "$MARKER" /etc/default/grub; then
     sudo install -m644 /etc/default/grub /etc/default/grub.arch-dotfiles-backup
 fi
-sudo install -m644 "$HERE/grub.default" /etc/default/grub
+sed "s/@GFXMODE@/$GFXMODE/" "$HERE/grub.default" | sudo tee /etc/default/grub >/dev/null
+sudo chmod 644 /etc/default/grub
 
 # Under Secure Boot GRUB refuses to insmod anything, so every module the config,
 # the snapshot menu and the theme need is baked into the (signed) core image.
@@ -37,17 +59,7 @@ MODULES=(
 sudo grub-install --target=x86_64-efi --efi-directory="$ESP" --boot-directory="$ESP" \
     --bootloader-id=GRUB --disable-shim-lock --modules="${MODULES[*]}"
 
-# Theme: GRUB fonts are bitmaps, so rasterize for the tallest connected display.
-height=0
-for status in /sys/class/drm/card*-*/status; do
-    [[ -f "$status" && "$(cat "$status")" == connected ]] || continue
-    mode="$(head -1 "$(dirname "$status")/modes" 2>/dev/null || true)"
-    h="${mode#*x}"
-    h="${h%%[^0-9]*}"
-    if [[ -n "$h" ]] && (( h > height )); then
-        height=$h
-    fi
-done
+height=$gfx_height
 (( height > 0 )) || height=1080
 sudo rm -rf "$ESP/grub/themes/ly"
 sudo python "$HERE/theme/render.py" "$ESP/grub/themes/ly" "$(( height / 60 ))" "$(cat /etc/hostname 2>/dev/null || hostname)"

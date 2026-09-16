@@ -42,8 +42,19 @@ BarWidget {
   }
 
   function toggleItem(name) {
-    Quickshell.execDetached([root.toggleDir + "/toggle-" + name + ".sh", "toggle"])
-    Qt.callLater(function() { root.refresh(); root.refreshItems() })
+    // Same fix as Notifications.qml's toggleDnd(): wait for the toggle
+    // script to actually exit before refreshing, instead of firing it
+    // detached and refreshing on the next event-loop tick (which reliably
+    // beat the script to the finish and re-displayed the pre-toggle state).
+    if (toggleProc.running) return
+    toggleProc.command = [root.toggleDir + "/toggle-" + name + ".sh", "toggle"]
+    toggleProc.running = true
+  }
+
+  Process {
+    id: toggleProc
+    running: false
+    onExited: { root.refresh(); root.refreshItems() }
   }
 
   Process {
@@ -102,7 +113,7 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshItems() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -111,12 +122,21 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    onOpened: root.refreshItems()
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
     Flickable {
+      id: togglesFlick
       anchors.fill: parent
+      // Same as the notification history list: bound to the vertical axis and
+      // inert while everything fits, so a horizontal drag cannot slide the
+      // toggle rows off the card.
+      contentWidth: width
       contentHeight: content.implicitHeight
+      flickableDirection: Flickable.VerticalFlick
+      interactive: contentHeight > height
+      boundsBehavior: Flickable.StopAtBounds
       clip: true
 
       Column {
