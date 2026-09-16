@@ -46,7 +46,9 @@ BarWidget {
   // actively dragging, and two monitors with slightly different starting
   // brightness don't make the slider jump after the first paints.
   property bool brightnessSeeded: false
+  // `monitors all`, so disabled outputs stay listed and can be turned back on.
   property var monitors: []
+  readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
   // Read from toggle-font.sh's own `shortlist`, not listed again here. The
   // panel used to carry a hardcoded four of the script's six, so the chip row
   // and the keybind that cycles the same setting disagreed about which fonts
@@ -64,8 +66,8 @@ BarWidget {
   }
 
   function refreshAllBrightness() {
-    for (var i = 0; i < root.monitors.length; i++)
-      root.refreshBrightnessFor(root.monitors[i].name)
+    for (var i = 0; i < root.activeMonitors.length; i++)
+      root.refreshBrightnessFor(root.activeMonitors[i].name)
   }
 
   function setBrightnessFor(name, pct) {
@@ -82,8 +84,8 @@ BarWidget {
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
-    for (var i = 0; i < root.monitors.length; i++)
-      root.setBrightnessFor(root.monitors[i].name, pct)
+    for (var i = 0; i < root.activeMonitors.length; i++)
+      root.setBrightnessFor(root.activeMonitors[i].name, pct)
   }
 
   function refreshMonitors() {
@@ -172,6 +174,22 @@ BarWidget {
     onTriggered: root.refreshFontSize()
   }
 
+  // action: "extend", "off", or "mirror:<source output>".
+  function setMonitorLayout(name, action) {
+    var args = [Paths.shellScripts + "/set-monitor-layout.sh", name]
+    if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
+    else args.push(action)
+    Quickshell.execDetached(args)
+    layoutSettleTimer.restart()
+  }
+
+  // Hyprland needs a moment to reconfigure outputs before the readback is current.
+  Timer {
+    id: layoutSettleTimer
+    interval: 800
+    onTriggered: root.refreshMonitors()
+  }
+
   function setMonitorScale(name, scale) {
     Quickshell.execDetached([Paths.shellScripts + "/set-monitor-scale.sh", name, String(scale)])
     refreshMonitors()
@@ -207,7 +225,7 @@ BarWidget {
 
   Process {
     id: monitorsProc
-    command: ["hyprctl", "monitors", "-j"]
+    command: ["hyprctl", "monitors", "all", "-j"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -294,7 +312,7 @@ BarWidget {
         // current-conditions subtitle) instead of a one-off opacity.
         Text {
           text: Math.round(root.brightnessPct) + "%"
-            + (root.monitors.length > 1 ? "  ·  " + root.monitors.length + " monitors" : "")
+            + (root.activeMonitors.length > 1 ? "  ·  " + root.activeMonitors.length + " monitors" : "")
           color: Color.menu.text
           opacity: Style.emphasis.dim
           font.pixelSize: Style.font.bodySmall
@@ -321,9 +339,9 @@ BarWidget {
 
       PanelRow {
         width: parent.width
+        // md-image, same action-row shape as the System and Network tools.
+        glyph: "\u{f02e9}"
         label: "Choose wallpaper…"
-        filled: true
-        centered: true
         onActivated: { root.openWallpaperPicker(); root.bar.closePanel(root.moduleName) }
       }
 
@@ -334,27 +352,11 @@ BarWidget {
         spacing: Style.spacing.sm
         Repeater {
           model: root.fontChoices
-          Rectangle {
-            id: familyChip
+          Chip {
             required property string modelData
-            readonly property bool selected: Style.fontFamily === modelData
-            width: fontLabel.implicitWidth + Style.spacing.md * 2
-            height: Style.row.list
-            radius: Style.cornerRadius
-            color: selected ? Color.menu.selectedBackground : Style.normalFill
-            Text {
-              id: fontLabel
-              anchors.centerIn: parent
-              text: familyChip.modelData
-              color: familyChip.selected ? Color.menu.selectedText : Color.menu.text
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
-            }
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.setFont(familyChip.modelData)
-            }
+            text: modelData
+            selected: Style.fontFamily === modelData
+            onClicked: root.setFont(modelData)
           }
         }
       }
@@ -364,29 +366,11 @@ BarWidget {
         spacing: Style.spacing.sm
         Repeater {
           model: root.fontSizes
-          Rectangle {
-            id: sizeChip
+          Chip {
             required property int modelData
-            readonly property bool selected: root.currentFontSize === modelData
-            width: Style.space(34)
-            height: Style.row.list
-            radius: Style.cornerRadius
-            // Was unconditionally normalFill — the size chips were the one
-            // control group in the shell with no selected state at all, so
-            // there was nothing to say which size was in effect.
-            color: selected ? Color.menu.selectedBackground : Style.normalFill
-            Text {
-              anchors.centerIn: parent
-              text: String(sizeChip.modelData)
-              color: sizeChip.selected ? Color.menu.selectedText : Color.menu.text
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
-            }
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.setFontSize(sizeChip.modelData)
-            }
+            text: String(modelData)
+            selected: root.currentFontSize === modelData
+            onClicked: root.setFontSize(modelData)
           }
         }
       }
@@ -399,46 +383,71 @@ BarWidget {
           id: monitorRow
           required property var modelData
           width: content.width
-          spacing: Style.spacing.xs
+          spacing: Style.spacing.sm
 
-          Text {
-            text: monitorRow.modelData.name + "  " + monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz  " + monitorRow.modelData.scale.toFixed(2) + "x"
-            color: Color.menu.text
-            font.pixelSize: Style.font.bodySmall
-            font.family: Style.font.family
+          readonly property bool disabled: !!modelData.disabled
+          readonly property string mirrorOf: modelData.mirrorOf && modelData.mirrorOf !== "none" ? modelData.mirrorOf : ""
+          readonly property string layoutValue: disabled ? "off" : (mirrorOf ? "mirror:" + mirrorOf : "extend")
+
+          Row {
+            spacing: Style.spacing.md
+            Text {
+              text: monitorRow.modelData.name
+              color: Color.menu.text
+              font.pixelSize: Style.font.bodySmall
+              font.family: Style.font.family
+            }
+            Text {
+              text: monitorRow.disabled ? "off"
+                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
+                  + (monitorRow.mirrorOf ? "  ·  mirroring " + monitorRow.mirrorOf : "")
+              color: Color.menu.text
+              opacity: Style.emphasis.dim
+              font.pixelSize: Style.font.bodySmall
+              font.family: Style.font.family
+            }
+          }
+
+          // "Off" is hidden on the last active output so the session keeps a screen.
+          Flow {
+            visible: root.monitors.length > 1
+            width: parent.width
+            spacing: Style.spacing.sm
+            Repeater {
+              model: {
+                var opts = [{ value: "extend", label: "Extend" }]
+                var others = 0
+                for (var i = 0; i < root.monitors.length; i++) {
+                  var m = root.monitors[i]
+                  if (m.name === monitorRow.modelData.name || m.disabled) continue
+                  if (m.mirrorOf && m.mirrorOf !== "none") continue
+                  others++
+                  opts.push({ value: "mirror:" + m.name, label: "Mirror " + m.name })
+                }
+                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "Off" })
+                return opts
+              }
+              Chip {
+                required property var modelData
+                text: modelData.label
+                selected: modelData.value === monitorRow.layoutValue
+                onClicked: if (!selected) root.setMonitorLayout(monitorRow.modelData.name, modelData.value)
+              }
+            }
           }
 
           Flow {
+            visible: !monitorRow.disabled
             width: parent.width
-            spacing: Style.spacing.xs
+            spacing: Style.spacing.sm
             Repeater {
               model: [1, 1.25, 1.5, 1.666667, 2]
-              Rectangle {
-                id: scaleChip
+              Chip {
                 required property real modelData
-                // Hyprland reports the applied scale to more places than the
-                // chip labels carry (1.666667 comes back as 1.67), so compare
-                // with a tolerance rather than for equality.
-                readonly property bool selected:
-                  Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
-                width: Style.space(40)
-                height: Style.space(22)
-                radius: Style.cornerRadius
-                color: selected ? Color.menu.selectedBackground : Style.normalFill
-                Text {
-                  anchors.centerIn: parent
-                  // Trimmed: 1.666667 drew as "1.666667x" and overflowed its
-                  // own chip.
-                  text: (Math.round(scaleChip.modelData * 100) / 100) + "x"
-                  color: scaleChip.selected ? Color.menu.selectedText : Color.menu.text
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
-                }
-                MouseArea {
-                  anchors.fill: parent
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.setMonitorScale(monitorRow.modelData.name, scaleChip.modelData)
-                }
+                // Hyprland reports 1.666667 back as 1.6666666, so compare with a tolerance.
+                selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
+                text: (Math.round(modelData * 100) / 100) + "x"
+                onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)
               }
             }
           }
@@ -447,4 +456,3 @@ BarWidget {
     }
   }
 }
-

@@ -257,7 +257,7 @@ BarWidget {
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
-        text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss:zzz")
+        text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss.zzz")
         color: Color.menu.text
         font.family: Style.font.family
         font.bold: true
@@ -270,6 +270,17 @@ BarWidget {
       Column {
         width: parent.width
         spacing: Style.spacing.xs
+
+        Text {
+          anchors.horizontalCenter: parent.horizontalCenter
+          textFormat: Text.PlainText
+          text: root.monthLabel().toUpperCase()
+          color: Color.accent
+          opacity: 0.8
+          font.pixelSize: Style.font.caption
+          font.family: Style.font.family
+          font.letterSpacing: Style.headerTracking
+        }
 
         Row {
           width: parent.width
@@ -286,17 +297,6 @@ BarWidget {
               font.family: Style.font.family
             }
           }
-        }
-
-        Text {
-          anchors.horizontalCenter: parent.horizontalCenter
-          textFormat: Text.PlainText
-          text: root.monthLabel().toUpperCase()
-          color: Color.accent
-          opacity: 0.8
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
-          font.letterSpacing: Style.headerTracking
         }
 
         Repeater {
@@ -402,13 +402,9 @@ BarWidget {
 
         Repeater {
           model: [5, 10, 15, 30, 45, 60]
-          PanelActionButton {
+          Chip {
             required property int modelData
-            iconText: String(modelData) + "m"
-            fontFamily: Style.font.family
-            fontSize: Style.font.caption
-            implicitWidth: Style.space(46)
-            bordered: true
+            text: String(modelData) + "m"
             onClicked: root.remindIn(modelData)
           }
         }
@@ -489,11 +485,13 @@ BarWidget {
           : "POMODORO"
       }
 
-      Row {
+      Item {
         width: parent.width
-        spacing: Style.spacing.md
+        implicitHeight: Math.max(pomoIcon.implicitHeight, pomoText.implicitHeight, pomoButtons.implicitHeight)
 
         Text {
+          id: pomoIcon
+          anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           // md-timer_sand while focusing, md-coffee on a break.
           text: root.pomo.phase === "work" ? "\u{f051f}" : (root.pomo.running ? "\u{f0176}" : "\u{f051f}")
@@ -504,8 +502,11 @@ BarWidget {
         }
 
         Column {
+          id: pomoText
+          anchors.left: pomoIcon.right
+          anchors.leftMargin: Style.spacing.md
+          anchors.right: pomoButtons.left
           anchors.verticalCenter: parent.verticalCenter
-          width: parent.width - Style.space(150)
           spacing: Style.spacing.xxs
           Text {
             text: root.pomo.running ? root.pomo.remaining : "Not running"
@@ -523,28 +524,28 @@ BarWidget {
           }
         }
 
+        // Pinned to the right edge, borderless like the other inline panel actions.
         Row {
+          id: pomoButtons
+          anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           spacing: Style.spacing.xs
 
           PanelActionButton {
             iconText: !root.pomo.running ? "\u{f040a}" : (root.pomo.paused ? "\u{f040a}" : "\u{f03e4}")
             tooltipText: !root.pomo.running ? "Start" : (root.pomo.paused ? "Resume" : "Pause")
-            bordered: true
             onClicked: root.pomoRun("toggle")
           }
           PanelActionButton {
             visible: root.pomo.running
             iconText: "\u{f04ad}"
             tooltipText: "Skip"
-            bordered: true
             onClicked: root.pomoRun("skip")
           }
           PanelActionButton {
             visible: root.pomo.running
             iconText: "\u{f04db}"
             tooltipText: "Stop"
-            bordered: true
             onClicked: root.pomoRun("stop")
           }
         }

@@ -222,9 +222,9 @@ Item {
                             width: Style.space(132)
                             height: Style.space(132)
                             radius: Style.cornerRadius
-                            // Through the shared state engine, so every tile uses the same
-                            // hover and selected colors rather than an action-specific ladder.
-                            color: selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint)
+                            // State fill tinted onto the opaque menu surface; a bare translucent
+                            // fill let whatever sat under the scrim read through the tiles.
+                            color: Qt.tint(Color.menu.background, selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint))
                             borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
 
                             Column {

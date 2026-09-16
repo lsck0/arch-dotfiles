@@ -217,20 +217,24 @@ BarWidget {
         // pulled them back apart into separate things.
         spacing: Style.spacing.xs
 
-        Row {
+        // Same section header as every other panel; the toggle below already says DND state.
+        Item {
           width: parent.width
-          Text {
-            text: root.dndOn ? "Do Not Disturb: on" : "Notifications"
-            color: Color.menu.text
-            font.pixelSize: Style.font.title
-            font.family: Style.font.family
-            width: parent.width - clearLabel.implicitWidth
+          implicitHeight: Math.max(notifHeader.implicitHeight, clearLabel.implicitHeight)
+          PanelSectionHeader {
+            id: notifHeader
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: "NOTIFICATIONS" + (root.history.length > 0 ? " · " + root.history.length : "")
           }
           Text {
             id: clearLabel
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.history.length > 0
             text: "Clear"
             color: Color.accent
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Style.font.caption
             font.family: Style.font.family
             MouseArea {
               anchors.fill: parent

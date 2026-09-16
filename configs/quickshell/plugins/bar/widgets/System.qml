@@ -369,8 +369,6 @@ BarWidget {
         // md-harddisk U+F02CA, cmap-verified by name.
         glyph: "\u{f02ca}"
         label: "Disk speed test"
-        filled: true
-        centered: true
         onActivated: {
           if (root.bar) root.bar.closePanel(root.moduleName)
           Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.disk-speedtest", "{}"))

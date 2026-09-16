@@ -221,7 +221,8 @@ Item {
             width: ListView.view.width
             height: root.rowHeight
             radius: root.cornerRadius
-            color: index === root.selectedIndex ? root.selectedBackground : "transparent"
+            color: index === root.selectedIndex ? root.selectedBackground
+              : rowMouse.containsMouse ? Style.hoverFill : "transparent"
 
             Row {
               anchors.fill: parent
@@ -270,6 +271,7 @@ Item {
             }
 
             MouseArea {
+              id: rowMouse
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor

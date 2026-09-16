@@ -396,35 +396,39 @@ BarWidget {
               radius: Style.cornerRadius
               color: modelData.active ? Color.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
 
-              Row {
+              Text {
+                id: netIcon
                 anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: Style.spacing.md
+                anchors.verticalCenter: parent.verticalCenter
+                text: modelData.active ? "●" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
+                color: modelData.active ? Color.menu.selectedText : Color.menu.text
+                font.pixelSize: Style.font.caption
+                font.family: Style.font.iconFamily
+              }
+              Text {
+                anchors.left: netIcon.right
+                anchors.leftMargin: Style.spacing.sm
+                anchors.right: netSignal.left
+                anchors.rightMargin: Style.spacing.sm
+                anchors.verticalCenter: parent.verticalCenter
+                text: modelData.ssid
+                color: modelData.active ? Color.menu.selectedText : Color.menu.text
+                font.pixelSize: Style.font.body
+                font.family: Style.font.family
+                elide: Text.ElideRight
+              }
+              // Right-aligned like PanelRow's trailing value.
+              Text {
+                id: netSignal
+                anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.md
-                spacing: Style.spacing.sm
-
-                Text {
-                  text: modelData.active ? "●" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
-                  color: modelData.active ? Color.menu.selectedText : Color.menu.text
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.iconFamily
-                }
-                Text {
-                  width: parent.width - 90
-                  text: modelData.ssid
-                  color: modelData.active ? Color.menu.selectedText : Color.menu.text
-                  font.pixelSize: Style.font.body
-                  font.family: Style.font.family
-                  elide: Text.ElideRight
-                }
-                Text {
-                  text: modelData.signal + "%"
-                  color: Color.menu.text
-                  opacity: Style.emphasis.faint
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
-                }
+                anchors.verticalCenter: parent.verticalCenter
+                text: modelData.signal + "%"
+                color: Color.menu.text
+                opacity: modelData.active ? 1 : Style.emphasis.faint
+                font.pixelSize: Style.font.caption
+                font.family: Style.font.family
               }
 
               MouseArea {

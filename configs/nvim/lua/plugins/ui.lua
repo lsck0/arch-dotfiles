@@ -230,6 +230,21 @@ return {
             },
             notifier = { enabled = true },
         },
+        config = function(_, opts)
+            require("snacks").setup(opts)
+            -- Diagrams only in normal mode: snacks re-evaluates image
+            -- visibility on every ModeChanged, so hide them all in insert.
+            local inline = require("snacks.image.inline")
+            local conceal = inline.conceal
+            function inline:conceal()
+                conceal(self)
+                if vim.fn.mode():sub(1, 1) == "i" then
+                    for _, img in pairs(self.imgs) do
+                        img:hide()
+                    end
+                end
+            end
+        end,
     },
 
     {

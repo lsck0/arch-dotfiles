@@ -31,6 +31,8 @@ Row {
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.body
   property bool focusable: true
+  // Stretch chips so the row spans its full width. Needs an explicit width.
+  property bool fill: false
 
   // -1 disables the external cursor highlight (the panel-cursor case).
   // Driven by a containing panel; the group's own Tab-focus h/l
@@ -46,6 +48,18 @@ Row {
   signal hovered(int index, bool isHovered)
 
   spacing: Style.spacing.md
+
+  // Width left over past the chips' natural sizes, split evenly between them.
+  readonly property int _slack: {
+    if (!fill || chips.count === 0) return 0
+    var natural = spacing * (chips.count - 1)
+    for (var i = 0; i < chips.count; i++) {
+      var item = chips.itemAt(i)
+      if (!item) return 0
+      natural += item.implicitWidth
+    }
+    return Math.max(0, Math.floor(width - natural))
+  }
 
   activeFocusOnTab: focusable
 
@@ -103,26 +117,19 @@ Row {
   }
 
   Repeater {
+    id: chips
     model: root.options
 
-    delegate: Button {
+    delegate: Chip {
       required property var modelData
       required property int index
+      readonly property int _share: Math.floor(root._slack / Math.max(1, chips.count))
+      width: implicitWidth + (index === chips.count - 1 ? root._slack - _share * (chips.count - 1) : _share)
       text: root.optionLabel(modelData)
-      iconText: root.optionIcon(modelData)
-      tooltipText: root.optionTooltip(modelData)
       selected: root.optionValue(modelData) === root.value
-      // Chip lights up when either the external panel cursor lands here
-      // or the group has Tab focus and h/l has walked to this index.
+      // Lit by the external panel cursor or by h/l while the group has Tab focus.
       hasCursor: root.cursorIndex === index
         || (root.activeFocus && root._focusedIndex === index)
-      // Every chip carries the standard bordered-button chrome so the
-      // group reads as a row of distinct options. selected / hover-cursor /
-      // focus are all painted by Button from Style's shared state tokens.
-      bordered: true
-      foreground: root.foreground
-      background: root.background
-      accent: root.accent
       fontFamily: root.fontFamily
       fontSize: root.fontSize
       onClicked: root.changed(root.optionValue(modelData))

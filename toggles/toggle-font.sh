@@ -45,6 +45,10 @@ EMACS="$REPO/configs/emacs/early-init.el"
 DISCORD="$REPO/configs/discord/wal.theme.css"
 SPOTIFY="$REPO/configs/spotify/user.css"
 NVIM="$REPO/configs/nvim/lua/options.lua"
+KITTY="$REPO/configs/kitty/kitty.conf"
+QUTEBROWSER="$REPO/configs/qutebrowser/config.py"
+QUTEBROWSER_STARTPAGE="$REPO/configs/qutebrowser/startpage.html"
+HYPRLOCK="$REPO/configs/hyprland/hyprlock.conf"
 QUICKSHELL_THEME="$REPO/configs/quickshell/theme.json"
 
 # GTK's settings.ini pair is NOT tracked in this repo (no configs/gtk*): it is
@@ -205,6 +209,11 @@ apply_family() {
     sed -i "s|font-family: \"[^\"]*\", \"Symbols Nerd Font\"|font-family: \"$e\", \"Symbols Nerd Font\"|" "$SPOTIFY"
 
     sed -i "s|^set.guifont = \".*:h\([0-9]*\)\"|set.guifont = \"$e:h\1\"|" "$NVIM"
+
+    sed -i "s|^font_family .*|font_family $e|" "$KITTY"
+    sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
+    sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
+    sed -i "s|^\$FONT = .*|\$FONT = $e|" "$HYPRLOCK"
 
     # quickshell reads theme.json, which it live-watches — no restart, and
     # no sed into a .qml source. The UI family only: the icon family is

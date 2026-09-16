@@ -7,6 +7,7 @@ BorderOverlay 1.0 BorderOverlay.qml
 BorderSurface 1.0 BorderSurface.qml
 Button 1.0 Button.qml
 ButtonGroup 1.0 ButtonGroup.qml
+Chip 1.0 Chip.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 HoverPanel 1.0 HoverPanel.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
