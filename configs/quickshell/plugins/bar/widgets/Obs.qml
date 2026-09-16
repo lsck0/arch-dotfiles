@@ -584,41 +584,17 @@ BarWidget {
       // uselessness, and a switcher you cannot read the labels of is not one.
       Flow {
         width: parent.width
-        spacing: Style.spacing.xs
+        spacing: Style.spacing.sm
         visible: root.connected
 
         Repeater {
           model: root.scenes
-          delegate: Rectangle {
+          delegate: Chip {
             required property string modelData
-            readonly property bool current: modelData === root.scene
-            height: Style.row.control
-            width: sceneLabel.implicitWidth + Style.spacing.md * 2
-            radius: Style.cornerRadius
-            color: current ? Color.menu.selectedBackground
-                 : (sceneMouse.containsMouse ? Style.hoverFill : "transparent")
-            border.width: current ? 0 : Style.normalBorderWidth
-            border.color: Util.alpha(Color.menu.text, 0.18)
-
-            Text {
-              id: sceneLabel
-              anchors.centerIn: parent
-              textFormat: Text.PlainText
-              text: modelData
-              color: parent.current ? Color.menu.selectedText : Color.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-
-            MouseArea {
-              id: sceneMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              // Switching to the scene already live is a no-op in OBS, but
-              // sending it anyway would still cost a round trip and a re-poll.
-              onClicked: if (!parent.current) root.send({ cmd: "setScene", scene: modelData })
-            }
+            text: modelData
+            selected: modelData === root.scene
+            // Switching to the live scene is a no-op in OBS; skip the round trip.
+            onClicked: if (!selected) root.send({ cmd: "setScene", scene: modelData })
           }
         }
       }
@@ -636,65 +612,22 @@ BarWidget {
       PanelSeparator { visible: root.connected }
       PanelSectionHeader { text: "AUDIO"; visible: root.connected }
 
-      // Quick mute/unmute for the six sources this repo's OBS scene
-      // collection defines (configs/obs/Untitled.json): Mic, Chromium,
-      // Discord, Firefox, Spotify, Desktop. Same Flow-of-pills idiom as the
-      // scene switcher above, since this is the same shape of problem — a
-      // handful of named toggles with no natural row/column count. The dot
-      // is muted-only (a live/red accent), not a full on/off marker, because
-      // "not lit" already reads as "unmuted, normal" the same way the scene
-      // pills read "not selected" without needing a marker of their own.
+      // Quick mute toggles for the scene collection's sources. Live (unmuted)
+      // sources are lit like a selected chip; muted ones are dimmed.
       Flow {
         width: parent.width
-        spacing: Style.spacing.xs
+        spacing: Style.spacing.sm
         visible: root.connected
 
         Repeater {
           model: root.muteSources
-          delegate: Rectangle {
-            id: muteRow
+          delegate: Chip {
             required property string modelData
             readonly property bool muted: root.mutes[modelData] === true
-            height: Style.row.control
-            width: muteLabel.implicitWidth + dot.width + Style.spacing.md * 2 + Style.spacing.xs
-            radius: Style.cornerRadius
-            color: muted ? Util.alpha(Color.semantic.warn, 0.18)
-                 : (muteMouse.containsMouse ? Style.hoverFill : "transparent")
-            border.width: muted ? 0 : Style.normalBorderWidth
-            border.color: Util.alpha(Color.menu.text, 0.18)
-
-            Row {
-              anchors.centerIn: parent
-              spacing: Style.spacing.xs
-
-              Rectangle {
-                id: dot
-                anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(6)
-                height: width
-                radius: width / 2
-                color: muteRow.muted ? Color.semantic.warn : Color.menu.text
-                opacity: muteRow.muted ? 1 : 0.3
-              }
-
-              Text {
-                id: muteLabel
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: muteRow.modelData
-                color: muteRow.muted ? Color.semantic.warn : Color.menu.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-              }
-            }
-
-            MouseArea {
-              id: muteMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.send({ cmd: "toggleMute", source: muteRow.modelData })
-            }
+            text: modelData
+            selected: !muted
+            opacity: muted ? Style.emphasis.dim : 1
+            onClicked: root.send({ cmd: "toggleMute", source: modelData })
           }
         }
       }

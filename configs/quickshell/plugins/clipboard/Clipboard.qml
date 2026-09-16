@@ -461,7 +461,10 @@ Item {
                   width: ListView.view.width
                   height: root.rowHeight
                   radius: root.cornerRadius
-                  color: hasCursor ? root.selectedBackground : "transparent"
+                  // The previewed row keeps a faint fill before the cursor is engaged,
+                  // so the preview pane always points at a visible row.
+                  color: hasCursor ? root.selectedBackground
+                    : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
                   Row {
                     anchors.fill: parent

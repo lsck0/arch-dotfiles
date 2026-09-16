@@ -860,6 +860,7 @@ PACKAGES=(
     veracrypt # [pentesting] disk encryption tool
     volatility3-git # [pentesting] memory forensics framework
     wafw00f # [pentesting] WAF fingerprinting tool
+    waybackurls # [pentesting] Wayback Machine URL fetcher
     wireguard-tools # [pentesting] WireGuard VPN tools
     wireguard-ui-bin # [pentesting] WireGuard web UI
     wireshark-qt # [pentesting] network protocol analyzer

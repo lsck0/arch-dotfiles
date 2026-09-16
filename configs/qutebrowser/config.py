@@ -76,7 +76,7 @@ c.tabs.show = "multiple"  # hide tabbar when only 1 tab
 c.tabs.indicator.width = 2
 c.statusbar.show = "in-mode"  # hide statusbar except command/insert modes
 c.scrolling.smooth = True
-c.fonts.default_family = "JetBrainsMono Nerd Font"
+c.fonts.default_family = "0xProto Nerd Font"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 
