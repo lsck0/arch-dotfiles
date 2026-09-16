@@ -127,12 +127,6 @@ ShellRoot {
           // appearing here grow the cluster leftward into empty space and every
           // permanent icon keeps its position. The separator hides itself when
           // the whole transient group is empty.
-          // Self-hiding, like OBS and the tray: it is only on the bar when
-          // `checkupdates` actually reports something, so it costs nothing on
-          // an up-to-date system. It was left out of this list while its click
-          // action pointed at a script that did not exist; that is fixed (see
-          // SystemUpdate.qml / scripts/system-update.sh), so it earns its slot.
-          { id: "bar.system-update" },
           { id: "bar.obs" },
           { id: "bar.tray" },
           { id: "bar.separator" },
