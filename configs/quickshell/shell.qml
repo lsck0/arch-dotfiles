@@ -98,10 +98,10 @@ ShellRoot {
         // is good for.
         // Clock and weather lead the centre as a pair — they are the two
         // always-present readouts, so they are what the centre is anchored on.
-        // Media and the Discord call trail them and come and go.
+        // Media, OBS and the Discord call trail them and come and go.
         center: [
           { id: "bar.clock" }, { id: "bar.weather" },
-          { id: "bar.media" }, { id: "bar.discord" }
+          { id: "bar.media" }, { id: "bar.obs" }, { id: "bar.discord" }
         ],
         // active-window/agents/microphone/news/costs dropped 2026-09-01 per
         // an explicit per-widget review against the SPEC: costs was
@@ -119,17 +119,17 @@ ShellRoot {
           //
           // Rules between permanent widgets were noise — they never divide
           // anything that changes, so they add a line to look at for no
-          // information. The transient boundary is different: OBS and the tray
-          // appear and vanish, and without a rule the permanent cluster looks
+          // information. The transient boundary is different: the tray
+          // appears and vanishes, and without a rule the permanent cluster looks
           // like it simply grew a new icon.
           //
           // Transient first on purpose: the section is right-aligned, so things
           // appearing here grow the cluster leftward into empty space and every
           // permanent icon keeps its position. The separator hides itself when
           // the whole transient group is empty.
-          { id: "bar.obs" },
           { id: "bar.tray" },
           { id: "bar.separator" },
+          { id: "bar.homelab" },
           { id: "bar.system" },
           { id: "bar.network" }, { id: "bar.display" }, { id: "bar.audio-io" },
           { id: "bar.notifications" },

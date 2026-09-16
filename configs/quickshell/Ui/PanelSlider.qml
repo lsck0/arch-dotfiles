@@ -139,8 +139,11 @@ Item {
     }
     onReleased: function(mouse) {
       if (mouse.button !== Qt.LeftButton) return
+      // Captured first: clearing dragging re-evaluates bindings like the seek bar's
+      // `value`, which would reset liveValue and report the old position.
+      var target = root.liveValue
       root.dragging = false
-      root.released(root.liveValue)
+      root.released(target)
       root.liveValue = root.value
     }
     onWheel: function(wheel) {

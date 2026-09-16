@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
+import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
@@ -25,6 +26,11 @@ BarWidget {
   // automatically when that player goes away, so the widget falls back to
   // the automatic choice rather than going blank.
   property string pinnedPlayer: ""
+
+  function duplicateScore(p) {
+    return (p.playbackState === MprisPlaybackState.Playing ? 8 : 0)
+      + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
+  }
 
   // MPRIS can expose the same player more than once during D-Bus
   // reconnects. Keep one source per stable bus name so the picker and the
@@ -56,14 +62,9 @@ BarWidget {
         byIdentity[idKey] = p
         order.push(idKey)
       } else {
-        var current = byIdentity[idKey]
-        var currentPlaying = current.playbackState === MprisPlaybackState.Playing
-        var pPlaying = p.playbackState === MprisPlaybackState.Playing
-        if (pPlaying && !currentPlaying) {
-          byIdentity[idKey] = p
-        } else if (pPlaying === currentPlaying && !current.trackTitle && p.trackTitle) {
-          byIdentity[idKey] = p
-        }
+        // Playing beats paused, then art beats none: Firefox's own service
+        // publishes no artwork, plasma-browser-integration does.
+        if (duplicateScore(p) > duplicateScore(byIdentity[idKey])) byIdentity[idKey] = p
       }
     }
     var deduped = []
@@ -139,6 +140,73 @@ BarWidget {
   readonly property string artist: player ? (player.trackArtist || "") : ""
   readonly property string album: player ? (player.trackAlbum || "") : ""
   readonly property bool playing: player !== null && player.playbackState === MprisPlaybackState.Playing
+
+  // YouTube does not always hand the browser artwork (then neither Firefox nor
+  // plasma-browser-integration publishes any), but the thumbnail URL follows from the video id.
+  readonly property string artUrl: {
+    if (!player) return ""
+    if (player.trackArtUrl) return player.trackArtUrl
+    var url = String((player.metadata && player.metadata["xesam:url"]) || "")
+    var m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/)|youtu\.be\/)([\w-]{11})/)
+    return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
+  }
+
+  // Players with MPRIS Volume are driven through it: Spotify re-applies its own
+  // volume to the stream on every track change, undoing a PipeWire-level change.
+  // Other players fall back to their PipeWire playback streams, matched on the
+  // desktop entry.
+  readonly property var playerStreams: {
+    var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
+    var nodes = Pipewire.nodes ? Pipewire.nodes.values : []
+    var out = []
+    if (!entry) return out
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i]
+      if (n && n.isStream && n.isSink && String(n.name || "").toLowerCase() === entry) out.push(n)
+    }
+    return out
+  }
+  readonly property var volumeStream: playerStreams.length > 0 ? playerStreams[0] : null
+  // plasma-browser-integration reports a constant 0 while audio plays; it gets the stream.
+  readonly property bool mprisVolume: player !== null && player.volumeSupported && player.canControl
+    && String(player.dbusName).indexOf("plasma-browser-integration") === -1
+  readonly property bool volumeAvailable: mprisVolume || volumeStream !== null
+  readonly property real playerVolume: mprisVolume ? player.volume
+    : volumeStream && volumeStream.audio ? volumeStream.audio.volume : 0
+  readonly property bool playerMuted: mprisVolume ? player.volume === 0
+    : volumeStream && volumeStream.audio ? volumeStream.audio.muted : false
+  // MPRIS has no mute, so muting there is volume 0 and this is what comes back.
+  property real unmuteVolume: 1
+
+  function setPlayerVolume(v) {
+    if (mprisVolume) {
+      player.volume = v
+      return
+    }
+    for (var i = 0; i < playerStreams.length; i++) {
+      var audio = playerStreams[i].audio
+      if (!audio) continue
+      audio.volume = v
+      if (v > 0) audio.muted = false
+    }
+  }
+
+  function togglePlayerMute() {
+    if (mprisVolume) {
+      if (player.volume > 0) {
+        unmuteVolume = player.volume
+        player.volume = 0
+      } else {
+        player.volume = unmuteVolume
+      }
+      return
+    }
+    var muted = !playerMuted
+    for (var i = 0; i < playerStreams.length; i++)
+      if (playerStreams[i].audio) playerStreams[i].audio.muted = muted
+  }
+
+  PwObjectTracker { objects: root.playerStreams }
 
   // ---- auto-hide after silence ------------------------------------------
 
@@ -357,7 +425,7 @@ BarWidget {
           Image {
             id: art
             anchors.fill: parent
-            source: root.player && root.player.trackArtUrl ? root.player.trackArtUrl : ""
+            source: root.artUrl
             // Album art arrives at whatever size the player publishes — often
             // 1000x1000 or larger — and is drawn in a 72px box.
             sourceSize.width: Math.ceil(artFrame.width * Screen.devicePixelRatio)
@@ -451,7 +519,11 @@ BarWidget {
           value: root.player && !dragging ? root.player.position : value
           enabled: root.player !== null && root.player.canSeek
           opacity: enabled ? 1 : 0.4
-          onReleased: function (v) { if (root.player && root.player.canSeek) root.player.position = v }
+          onReleased: function (v) {
+            if (!root.player || !root.player.canSeek) return
+            root.player.position = v
+            root.player.positionChanged()
+          }
         }
 
         Row {
@@ -558,6 +630,55 @@ BarWidget {
               }
             }
           }
+        }
+      }
+
+      // --- volume, same row shape as the audio panel's output slider ---
+      Row {
+        width: parent.width
+        spacing: Style.spacing.md
+        visible: root.player !== null
+        opacity: root.volumeAvailable ? 1 : 0.4
+
+        Item {
+          width: Style.space(24)
+          height: playerVolumeSlider.height
+          Text {
+            anchors.centerIn: parent
+            // md-volume_off / high / medium / low
+            text: root.playerMuted ? "\u{f0581}" : root.playerVolume > 0.66 ? "\u{f057e}"
+              : root.playerVolume > 0 ? "\u{f0580}" : "\u{f057f}"
+            color: root.playerMuted ? Color.urgent : Color.menu.text
+            font.pixelSize: Style.font.icon
+            font.family: Style.font.iconFamily
+          }
+          MouseArea {
+            anchors.fill: parent
+            enabled: root.volumeAvailable
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.togglePlayerMute()
+          }
+        }
+
+        PanelSlider {
+          id: playerVolumeSlider
+          width: content.width - Style.space(24) - Style.space(40) - parent.spacing * 2
+          bar: root.bar
+          enabled: root.volumeAvailable
+          value: root.playerVolume
+          onMoved: function(v) { root.setPlayerVolume(v) }
+          onRightClicked: root.togglePlayerMute()
+        }
+
+        Text {
+          width: Style.space(40)
+          height: playerVolumeSlider.height
+          horizontalAlignment: Text.AlignRight
+          verticalAlignment: Text.AlignVCenter
+          text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "–"
+          color: Color.menu.text
+          font.pixelSize: Style.font.caption
+          font.family: Style.font.family
         }
       }
 

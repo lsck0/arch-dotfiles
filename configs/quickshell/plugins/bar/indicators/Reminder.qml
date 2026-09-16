@@ -75,7 +75,6 @@ BarIndicator {
   Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
   onPressed: function() {
-    if (root.reminderCount > 0) Quickshell.execDetached([root.reminderScript, "show"])
-    else root.openReminderFlow()
+    root.openReminderFlow()
   }
 }

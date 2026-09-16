@@ -167,7 +167,7 @@ set_wallpaper() {
     (
       was_running=0
       pgrep -x spotify >/dev/null && was_running=1
-      pywal-spicetify wal
+      ~/projects/arch-dotfiles/configs/wallust/scripts/generate-spicetify-colors.py && pywal-spicetify wal
       # pywal-spicetify runs `spicetify apply`, which renames the client's CSS
       # classes away from what the DOM uses; undo that and reload the client it
       # just started, or it comes up with the layout stripped.

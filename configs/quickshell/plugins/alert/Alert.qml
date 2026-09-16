@@ -4,7 +4,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// New plugin, not from omarchy-shell. A large top-left card that stays up
+// New plugin, not from omarchy-shell. A large top-right card that stays up
 // until it is dismissed by hand.
 //
 // This exists because an ordinary notification toast is the wrong shape for
@@ -40,6 +40,8 @@ Item {
       title: String(payload.title || "Reminder"),
       body: String(payload.body || ""),
       glyph: String(payload.glyph || "\u{f0020}"),   // md-alarm, cmap-verified
+      kind: String(payload.kind || ""),
+      message: String(payload.message || ""),
       at: Qt.formatTime(new Date(), "HH:mm")
     })
     root.alerts = next
@@ -50,6 +52,28 @@ Item {
     next.splice(index, 1)
     root.alerts = next
     if (next.length === 0) dismiss()
+  }
+
+  function snoozeAt(index, minutes) {
+    var alert = root.alerts[index]
+    var argv = [Paths.bin("reminder"), String(minutes)]
+    if (alert && alert.message) argv.push(alert.message)
+    Quickshell.execDetached(argv)
+    dismissAt(index)
+  }
+
+  function stopPomodoroAt(index) {
+    Quickshell.execDetached([Paths.bin("pomodoro"), "stop"])
+    dismissAt(index)
+  }
+
+  // Same main output as the bar and notifications.
+  readonly property var mainScreen: {
+    var screens = Quickshell.screens
+    var name = root.shell ? root.shell.mainScreenName : ""
+    for (var i = 0; i < screens.length; i++)
+      if (String(screens[i].name) === name) return screens[i]
+    return screens.length > 0 ? screens[0] : null
   }
 
   // close() and dismiss() must stay separate, and only dismiss() may talk to
@@ -72,13 +96,14 @@ Item {
   PanelWindow {
     id: win
     visible: root.alerts.length > 0
-    // Top-left, per the owner's explicit request. Sized to its content
+    screen: root.mainScreen
+    // Top-right, per the owner's explicit request. Sized to its content
     // rather than full-screen: a full-screen surface would swallow clicks
     // across the whole desktop for as long as an alert is up, which is the
     // same mistake Bar.qml's removed dismiss-catcher made.
-    anchors { top: true; left: true }
-    margins { top: Style.bar.sizeHorizontal + Style.spacing.lg; left: Style.spacing.lg }
-    implicitWidth: Style.space(560)
+    anchors { top: true; right: true }
+    margins { top: Style.bar.sizeHorizontal + Style.spacing.lg; right: Style.spacing.lg }
+    implicitWidth: Style.space(440)
     implicitHeight: stack.implicitHeight
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
@@ -111,82 +136,126 @@ Item {
           required property int index
 
           width: stack.width
-          implicitHeight: Math.max(Style.space(120), inner.implicitHeight + Style.spacing.panelPadding * 2)
+          implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
           color: Color.menu.background
           borderSpec: Border.flat(Color.accent, Style.selectedBorderWidth > 0 ? Style.selectedBorderWidth : 2)
           radius: Style.cornerRadius
           padding: Style.spacing.panelPadding
 
-          Row {
-            id: inner
-            anchors.fill: parent
-            anchors.margins: Style.spacing.panelPadding
-            spacing: Style.spacing.lg
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: card.modelData.glyph
-              color: Color.accent
-              font.family: Style.font.iconFamily
-              // Oversized on purpose: this is meant to be readable from
-              // across the room, not scanned like a toast.
-              // A display size, not a spacing value — Style.space() happens to scale the
-              // same way, which is how it ended up here.
-              font.pixelSize: Style.font.displayLarge
-            }
-
-            Column {
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - Style.space(150)
-              spacing: Style.spacing.xxs
-
-              Text {
-                width: parent.width
-                text: card.modelData.title
-                color: Color.menu.text
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.display
-                wrapMode: Text.WordWrap
-              }
-              Text {
-                width: parent.width
-                visible: card.modelData.body !== ""
-                text: card.modelData.body
-                color: Color.menu.text
-                opacity: 0.75
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.title
-                wrapMode: Text.WordWrap
-              }
-              Text {
-                text: card.modelData.at
-                color: Color.menu.text
-                opacity: 0.4
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-              }
-            }
-
-            PanelActionButton {
-              anchors.verticalCenter: parent.verticalCenter
-              iconText: "\u{f0156}"          // md-close, cmap-verified
-              tooltipText: "Dismiss"
-              foreground: Color.menu.text
-              fontFamily: root.fontFamily
-              size: Style.space(32)
-              onClicked: root.dismissAt(card.index)
-            }
+          // Slides in from the right edge it is pinned to.
+          opacity: 0
+          transform: Translate { id: slide; x: Style.space(24) }
+          Component.onCompleted: appear.start()
+          ParallelAnimation {
+            id: appear
+            NumberAnimation { target: card; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutCubic }
+            NumberAnimation { target: slide; property: "x"; to: 0; duration: 220; easing.type: Easing.OutCubic }
           }
 
-          // Clicking anywhere on the card dismisses it too — the close
-          // button is for discoverability, not the only target.
-          MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.dismissAt(card.index)
-            // Let the action button win where they overlap.
-            z: -1
+          Column {
+            id: inner
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: card.contentTopInset
+            anchors.leftMargin: card.contentLeftInset
+            anchors.rightMargin: card.contentRightInset
+            spacing: Style.spacing.lg
+
+            Item {
+              width: parent.width
+              height: Math.max(badge.height, texts.implicitHeight)
+
+              Rectangle {
+                id: badge
+                width: Style.space(48)
+                height: width
+                radius: width / 2
+                color: Style.selectedFillFor(Color.menu.text, Color.accent)
+                Text {
+                  anchors.centerIn: parent
+                  text: card.modelData.glyph
+                  color: Color.accent
+                  font.family: Style.font.iconFamily
+                  font.pixelSize: Style.font.heading + Style.space(4)
+                }
+              }
+
+              Column {
+                id: texts
+                anchors.left: badge.right
+                anchors.leftMargin: Style.spacing.lg
+                anchors.right: closeButton.left
+                anchors.rightMargin: Style.spacing.md
+                anchors.verticalCenter: badge.verticalCenter
+                spacing: Style.spacing.xxs
+
+                Text {
+                  width: parent.width
+                  textFormat: Text.PlainText
+                  text: card.modelData.title
+                  color: Color.menu.text
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.heading
+                  font.bold: true
+                  wrapMode: Text.WordWrap
+                }
+                Text {
+                  width: parent.width
+                  visible: card.modelData.body !== ""
+                  textFormat: Text.PlainText
+                  text: card.modelData.body
+                  color: Color.menu.text
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  wrapMode: Text.WordWrap
+                }
+                Text {
+                  textFormat: Text.PlainText
+                  text: card.modelData.at
+                  color: Color.menu.text
+                  opacity: Style.emphasis.faint
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                }
+              }
+
+              PanelActionButton {
+                id: closeButton
+                anchors.right: parent.right
+                anchors.top: parent.top
+                iconText: "\u{f0156}"          // md-close, cmap-verified
+                tooltipText: "Dismiss"
+                foreground: Color.menu.text
+                onClicked: root.dismissAt(card.index)
+              }
+            }
+
+            Row {
+              anchors.right: parent.right
+              spacing: Style.spacing.sm
+
+              Chip {
+                visible: card.modelData.kind === "reminder"
+                text: "Snooze 5 min"
+                onClicked: root.snoozeAt(card.index, 5)
+              }
+              Chip {
+                visible: card.modelData.kind === "reminder"
+                text: "Snooze 15 min"
+                onClicked: root.snoozeAt(card.index, 15)
+              }
+              Chip {
+                visible: card.modelData.kind === "pomodoro"
+                text: "Stop pomodoro"
+                onClicked: root.stopPomodoroAt(card.index)
+              }
+              Chip {
+                text: "Dismiss"
+                selected: true
+                onClicked: root.dismissAt(card.index)
+              }
+            }
           }
         }
       }
