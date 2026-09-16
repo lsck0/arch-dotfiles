@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if [[ ! -d /var/lib/portmaster ]]; then
     echo "portmaster: /var/lib/portmaster missing, skipping" >&2
