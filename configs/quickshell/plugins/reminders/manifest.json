@@ -4,7 +4,7 @@
   "name": "Reminders",
   "version": "1.0.0",
   "author": "Omarchy",
-  "description": "Interactive reminder setup flow",
+  "description": "Centered reminders and pomodoro overlay",
   "kinds": [
     "overlay"
   ],

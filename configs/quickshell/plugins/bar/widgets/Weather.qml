@@ -432,7 +432,7 @@ BarWidget {
     // there is more than one frame — a single-frame "loop" is a still image
     // and a timer repainting it is pure waste.
     Timer {
-      interval: 420
+      interval: 250
       repeat: true
       running: panel.visible && root.radarPlaying && root.radarFrames.length > 1
       onTriggered: root.radarIndex = (root.radarIndex + 1) % root.radarFrames.length
@@ -1363,7 +1363,9 @@ BarWidget {
             if (!root.radarFrame) return ""
             var m = Number(root.radarFrame.minutes)
             if (root.radarFrame.forecast) return "+" + Math.abs(m) + "m forecast"
-            return m === 0 ? "now" : Math.abs(m) + "m ago"
+            m = Math.abs(m)
+            if (m === 0) return "now"
+            return (m >= 60 ? Math.floor(m / 60) + "h " + (m % 60) + "m" : m + "m") + " ago"
           }
           color: Color.menu.text
           opacity: root.radarFrame && root.radarFrame.forecast ? 0.85 : 0.6

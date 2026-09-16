@@ -33,6 +33,7 @@ const files = {
     "bar.costs":           "Costs.qml",
     "bar.discord":         "Discord.qml",
     "bar.display":         "Display.qml",
+    "bar.homelab":         "Homelab.qml",
     "bar.exit":            "Exit.qml",
     "bar.indicators":      "Indicators.qml",
     "bar.keyboard-layout": "KeyboardLayout.qml",

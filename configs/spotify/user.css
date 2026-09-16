@@ -1,6 +1,5 @@
 * {
   font-family: "0xProto Nerd Font", "Symbols Nerd Font", sans-serif !important;
-  font-size: 14px;
 }
 
 body {
@@ -64,7 +63,7 @@ body {
 .main-addButton-active,
 .main-addButton-active:focus,
 .main-addButton-active:hover {
-  color: var(--spice-player);
+  color: var(--spice-button);
 }
 /* menus */
 .main-card-card {
@@ -86,8 +85,8 @@ body {
 }
 .main-trackList-trackListHeaderStuck.main-trackList-trackListHeader {
   background: transparent;
-  -webkit-box-shadow: 0 -1px 0 0 var(--spice-player);
-  box-shadow: 0 -1px 0 0 var(--spice-player);
+  -webkit-box-shadow: 0 -1px 0 0 var(--spice-highlight);
+  box-shadow: 0 -1px 0 0 var(--spice-highlight);
 }
 .main-trackList-trackListHeaderStuck .main-trackList-trackListHeaderRow {
   border-bottom: 1px solid transparent;
@@ -122,15 +121,6 @@ body {
 }
 .main-entityHeader-backgroundColor {
   background: var(--spice-main);
-}
-.player-controls__buttons--new-icons {
-  gap: 16px;
-  margin-bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  justify-content: center;
-  align-items: center;
 }
 .Root__top-container {
   background-color: var(--spice-main);

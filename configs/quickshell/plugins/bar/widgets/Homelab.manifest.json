@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.homelab",
+  "name": "Homelab",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "Homelab health from Prometheus and Alertmanager, with links to every service",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Homelab.qml" },
+  "keepLoaded": true,
+  "barWidget": {
+    "displayName": "Homelab",
+    "description": "Homelab health from Prometheus and Alertmanager, with links to every service",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

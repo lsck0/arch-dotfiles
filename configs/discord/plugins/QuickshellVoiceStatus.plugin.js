@@ -26,6 +26,8 @@ module.exports = class QuickshellVoiceStatus {
       : null;
     this._actions = null;
     this._commandPoll = null;
+    this._commandWatcher = null;
+    this._publishTimer = null;
   }
 
   getName() {
@@ -144,6 +146,8 @@ module.exports = class QuickshellVoiceStatus {
     };
   }
 
+  // BetterDiscord's fs shim has no async API, so writes stay synchronous;
+  // _schedulePublish is what keeps them to one per 150ms during calls.
   _write(payload) {
     if (!this._fs || !this._statePath) return;
     const text = JSON.stringify(payload);
@@ -156,9 +160,15 @@ module.exports = class QuickshellVoiceStatus {
     } catch (e) {}
   }
 
+  _writeSync(payload) {
+    if (!this._fs || !this._statePath) return;
+    try {
+      this._fs.writeFileSync(this._statePath, JSON.stringify(payload));
+    } catch (e) {}
+  }
+
   _runCommand(cmd) {
-    const actions = this._actions;
-    if (!actions) return;
+    const actions = this._actions || {};
     switch (cmd) {
       case "toggleSelfMute":
         if (typeof actions.toggleSelfMute === "function")
@@ -168,6 +178,9 @@ module.exports = class QuickshellVoiceStatus {
         if (typeof actions.toggleSelfDeaf === "function")
           actions.toggleSelfDeaf();
         break;
+      case "disconnect":
+        this._disconnect();
+        break;
       default:
         return;
     }
@@ -175,13 +188,47 @@ module.exports = class QuickshellVoiceStatus {
     this._publish();
   }
 
+  // ChannelActions (exported as `default`) owns disconnect(); a plain
+  // VOICE_CHANNEL_SELECT with no channel is the same thing at the dispatcher.
+  _disconnect() {
+    const W = BdApi.Webpack;
+    const isActions = (m) =>
+      m && typeof m.selectVoiceChannel === "function" && typeof m.disconnect === "function";
+    let actions = null;
+    try {
+      actions = W.getModule(isActions, { searchExports: true });
+    } catch (e) {}
+    if (actions) {
+      try {
+        actions.disconnect();
+        return;
+      } catch (e) {
+        console.error("[QuickshellVoiceStatus] disconnect() failed", e);
+      }
+    }
+    try {
+      const dispatcher = W.getModule((m) => m && typeof m.dispatch === "function" && typeof m.subscribe === "function",
+        { searchExports: true });
+      const selected = this._stores && this._stores.selected;
+      dispatcher.dispatch({
+        type: "VOICE_CHANNEL_SELECT",
+        guildId: null,
+        channelId: null,
+        currentVoiceChannelId: selected ? selected.getVoiceChannelId() : null,
+      });
+    } catch (e) {
+      console.error("[QuickshellVoiceStatus] no way to disconnect found", e);
+    }
+  }
+
   _pollCommands() {
     if (!this._fs || !this._commandPath) return;
+    if (!this._fs.existsSync(this._commandPath)) return; // the normal case
     let text;
     try {
       text = this._fs.readFileSync(this._commandPath, "utf8");
     } catch (e) {
-      return; // the normal case: no command pending
+      return;
     }
     // Consumed before it is acted on, so a command that throws cannot be
     // replayed on every poll for the rest of the session.
@@ -193,7 +240,9 @@ module.exports = class QuickshellVoiceStatus {
       if (!trimmed) continue;
       try {
         this._runCommand(JSON.parse(trimmed).cmd);
-      } catch (e) {}
+      } catch (e) {
+        console.error("[QuickshellVoiceStatus] command failed", trimmed, e);
+      }
     }
   }
 
@@ -205,9 +254,18 @@ module.exports = class QuickshellVoiceStatus {
     }
   }
 
+  // Speaking toggles many times a second in a call; one snapshot per 150ms is plenty.
+  _schedulePublish() {
+    if (this._publishTimer) return;
+    this._publishTimer = setTimeout(() => {
+      this._publishTimer = null;
+      this._publish();
+    }, 150);
+  }
+
   _subscribe(store) {
     if (!store || typeof store.addChangeListener !== "function") return;
-    const handler = () => this._publish();
+    const handler = () => this._schedulePublish();
     store.addChangeListener(handler);
     this._unsubscribes.push(() => {
       try {
@@ -238,7 +296,15 @@ module.exports = class QuickshellVoiceStatus {
     for (const key of ["voice", "speaking", "media", "selected"])
       this._subscribe(this._stores[key]);
 
-    this._commandPoll = setInterval(() => this._pollCommands(), 250);
+    // Watch for commands; the slow poll only covers a watcher that died.
+    try {
+      this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
+        if (name === "quickshell-discord-cmd") this._pollCommands();
+      });
+    } catch (e) {
+      this._commandWatcher = null;
+    }
+    this._commandPoll = setInterval(() => this._pollCommands(), this._commandWatcher ? 2000 : 250);
 
     this._heartbeat = setInterval(() => {
       if (
@@ -262,7 +328,11 @@ module.exports = class QuickshellVoiceStatus {
     this._heartbeat = null;
     if (this._commandPoll) clearInterval(this._commandPoll);
     this._commandPoll = null;
+    if (this._commandWatcher) this._commandWatcher.close();
+    this._commandWatcher = null;
+    if (this._publishTimer) clearTimeout(this._publishTimer);
+    this._publishTimer = null;
     this._lastPayload = "";
-    this._write({ inVoice: false });
+    this._writeSync({ inVoice: false });
   }
 };

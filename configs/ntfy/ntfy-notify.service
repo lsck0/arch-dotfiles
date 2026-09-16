@@ -1,0 +1,13 @@
+[Unit]
+Description=Forward ntfy topic messages to desktop notifications
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/projects/arch-dotfiles/configs/ntfy/ntfy-notify.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

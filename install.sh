@@ -393,6 +393,8 @@ PACKAGES=(
     hyprcursor # [desktop] hyprland cursor format
     hypridle # [desktop] hyprland idle daemon
     hyprland # [desktop] wayland compositor
+    hyprpm # [desktop] hyprland plugin manager (dynamic-cursors, Hyprspace)
+    cpio # [desktop] hyprpm extracts Hyprland headers with it
     hyprlock # [desktop] wayland screen locker
     hyprpicker # [desktop] wayland color picker
     hyprsunset # [desktop] blue light filter

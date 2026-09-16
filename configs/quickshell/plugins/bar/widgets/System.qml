@@ -182,28 +182,28 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.lg
 
-    // md-cpu_64_bit. Clock dropped from the bar strip (still in the hover
+    // md-memory: despite the name it is the square CPU-package glyph. Clock dropped from the bar strip (still in the hover
     // panel below) — CPU%/RAM/GPU%/VRAM/temp is the fixed set requested;
     // clock was the odd one out, widening this slot most and matching
     // nothing else in the row's "current/max" shape.
-    Stat { glyph: "\u{f0ee0}"; widest: "100%"; value: root.cpuPct + "%" }
-    // md-memory. current/max, not just current — matches VRAM's shape below.
+    Stat { glyph: "\u{f035b}"; widest: "100%"; value: root.cpuPct + "%" }
+    // fa-memory (DIMM stick). current/max, not just current — matches VRAM's shape below.
     // widest is derived from this machine's own total rather than a 999G
     // worst case: used can never exceed total, so the real widest string is
     // total-at-one-decimal over total, and a hardcoded bound just left dead
     // space in the slot on every machine with less than 100G of RAM.
     Stat {
-      glyph: "\u{f035b}"
+      glyph: "\u{efc5}"
       widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
       value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
     }
-    // md-chip (GPU)
-    Stat { glyph: "\u{f061a}"; widest: "100%"; value: root.gpuPct + "%" }
+    // md-expansion_card (graphics card)
+    Stat { glyph: "\u{f08ae}"; widest: "100%"; value: root.gpuPct + "%" }
     // VRAM only where it's a real concept — see the hover panel's own VRAM
-    // row below for why an iGPU has no row here.
+    // row below for why an iGPU has no row here. md-chip (memory package).
     Stat {
       visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
-      glyph: "\u{f0313}"
+      glyph: "\u{f061a}"
       widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
       value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
     }
@@ -240,7 +240,6 @@ BarWidget {
       width: parent.width * 0.4
       text: parent.label
       color: Color.menu.text
-      opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }
@@ -271,6 +270,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
+      PanelSectionHeader { text: "System"; fontSize: Style.font.title }
       PanelSectionHeader { text: "CPU" }
       Text {
         width: parent.width

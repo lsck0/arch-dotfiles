@@ -34,19 +34,6 @@ BarWidget {
   property var pomo: ({ running: false, paused: false, phase: "idle", label: "Pomodoro", remaining: "", cycle: 0 })
   property var reminders: []
 
-  function pomoRun(action) {
-    Quickshell.execDetached([root.pomodoroScript, action])
-    // The script writes state synchronously, but execDetached returns
-    // immediately — give it a beat before reading back or the panel shows
-    // the pre-click state.
-    pomoDelay.restart()
-  }
-
-  function remindIn(minutes) {
-    Quickshell.execDetached([root.reminderScript, String(minutes)])
-    pomoDelay.restart()
-  }
-
   function refreshPanelData() {
     if (!pomoProc.running) pomoProc.running = true
     if (!remindersProc.running) remindersProc.running = true
@@ -391,163 +378,22 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "REMINDERS" + (root.reminders.length > 0 ? " · " + root.reminders.length : "") }
+      PanelSectionHeader { text: "TIMERS" }
 
-      // Six fixed quick-set chips rather than a free-text field — the
-      // interactive (`reminder.sh -i`) flow already covers custom minutes
-      // and a message; this row is for the common cases in one click.
-      Row {
+      // Reminders and the pomodoro live in the centered overlay (plugins/reminders).
+      PanelRow {
         width: parent.width
-        spacing: Style.spacing.sm
-
-        Repeater {
-          model: [5, 10, 15, 30, 45, 60]
-          Chip {
-            required property int modelData
-            text: String(modelData) + "m"
-            onClicked: root.remindIn(modelData)
-          }
+        glyph: root.pomo.running ? (root.pomo.phase === "work" ? "\u{f051f}" : "\u{f0176}") : "\u{f009c}"
+        label: "Reminders & pomodoro"
+        trailing: {
+          var parts = []
+          if (root.pomo.running) parts.push((root.pomo.paused ? "Paused " : "") + root.pomo.remaining)
+          if (root.reminders.length) parts.push(root.reminders.length + (root.reminders.length === 1 ? " reminder" : " reminders"))
+          return parts.join(" · ")
         }
-      }
-
-      Column {
-        width: parent.width
-        spacing: Style.spacing.xs
-        visible: root.reminders.length > 0
-
-        Repeater {
-          model: root.reminders
-          Row {
-            required property var modelData
-            width: content.width
-            spacing: Style.spacing.sm
-            Text {
-              width: parent.width - Style.space(80)
-              text: modelData.label || ""
-              color: Color.menu.text
-              font.pixelSize: Style.font.body
-              font.family: Style.font.family
-              elide: Text.ElideRight
-            }
-            Text {
-              width: Style.space(50)
-              horizontalAlignment: Text.AlignRight
-              text: modelData.remaining || ""
-              color: Color.menu.text
-              opacity: Style.emphasis.dim
-              font.pixelSize: Style.font.caption
-              font.family: Style.font.family
-            }
-            Text {
-              width: Style.space(20)
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-              text: "✕"
-              color: Color.menu.text
-              opacity: deleteArea.containsMouse ? 1.0 : 0.4
-              font.pixelSize: Style.font.caption
-              font.family: Style.font.family
-              MouseArea {
-                id: deleteArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                // Through reminder.sh's own `cancel`, not a bare `systemctl
-                // stop <timer>` from here: the script is what knows a
-                // reminder is a .timer AND a .service AND a .message file,
-                // and stopping only the timer left the other two behind.
-                onClicked: {
-                  Quickshell.execDetached([root.reminderScript, "cancel", modelData.unit])
-                  pomoDelay.restart()
-                }
-              }
-            }
-          }
-        }
-      }
-
-      Text {
-        width: parent.width
-        visible: root.reminders.length === 0
-        textFormat: Text.PlainText
-        text: "No outstanding reminders"
-        color: Color.menu.text
-        opacity: Style.emphasis.faint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-
-      PanelSeparator {}
-      PanelSectionHeader {
-        text: root.pomo.running
-          ? "POMODORO · " + String(root.pomo.label).toUpperCase()
-            + (root.pomo.paused ? " (PAUSED)" : "")
-          : "POMODORO"
-      }
-
-      Item {
-        width: parent.width
-        implicitHeight: Math.max(pomoIcon.implicitHeight, pomoText.implicitHeight, pomoButtons.implicitHeight)
-
-        Text {
-          id: pomoIcon
-          anchors.left: parent.left
-          anchors.verticalCenter: parent.verticalCenter
-          // md-timer_sand while focusing, md-coffee on a break.
-          text: root.pomo.phase === "work" ? "\u{f051f}" : (root.pomo.running ? "\u{f0176}" : "\u{f051f}")
-          color: root.pomo.running ? Color.accent : Color.menu.text
-          opacity: root.pomo.running ? 1 : 0.4
-          font.family: Style.font.iconFamily
-          font.pixelSize: Style.font.heading
-        }
-
-        Column {
-          id: pomoText
-          anchors.left: pomoIcon.right
-          anchors.leftMargin: Style.spacing.md
-          anchors.right: pomoButtons.left
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xxs
-          Text {
-            text: root.pomo.running ? root.pomo.remaining : "Not running"
-            color: Color.menu.text
-            font.family: Style.font.family
-            font.pixelSize: root.pomo.running ? Style.font.title : Style.font.body
-          }
-          Text {
-            visible: root.pomo.running
-            text: root.pomo.phase === "work" ? "Focusing" : "On break"
-            color: Color.menu.text
-            opacity: Style.emphasis.faint
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-          }
-        }
-
-        // Pinned to the right edge, borderless like the other inline panel actions.
-        Row {
-          id: pomoButtons
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xs
-
-          PanelActionButton {
-            iconText: !root.pomo.running ? "\u{f040a}" : (root.pomo.paused ? "\u{f040a}" : "\u{f03e4}")
-            tooltipText: !root.pomo.running ? "Start" : (root.pomo.paused ? "Resume" : "Pause")
-            onClicked: root.pomoRun("toggle")
-          }
-          PanelActionButton {
-            visible: root.pomo.running
-            iconText: "\u{f04ad}"
-            tooltipText: "Skip"
-            onClicked: root.pomoRun("skip")
-          }
-          PanelActionButton {
-            visible: root.pomo.running
-            iconText: "\u{f04db}"
-            tooltipText: "Stop"
-            onClicked: root.pomoRun("stop")
-          }
+        onActivated: {
+          if (root.bar) root.bar.closePanel(root.moduleName)
+          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.reminders", "{}"))
         }
       }
     }

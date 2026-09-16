@@ -49,7 +49,7 @@ BarWidget {
   // box that the other side immediately unlinks.
   //
   // Write-then-rename, mirroring how the plugin publishes state back: the
-  // plugin polls this path every 250ms with a plain readFileSync, so a direct
+  // plugin watches this path and reads it with a plain readFileSync, so a direct
   // `> path` can be read between the truncate and the write and hand it an
   // empty or half-written line. Both paths are in XDG_RUNTIME_DIR, one tmpfs,
   // so the rename is atomic and the reader only ever sees a complete command.
@@ -353,9 +353,8 @@ BarWidget {
 
       // --- my own controls ---
       //
-      // Mute and deafen only. Discord exposes both as single documented
-      // actions on its media-engine module, and they are the two things worth
-      // reaching for without switching windows.
+      // Mute, deafen and leave: single actions on Discord's media-engine and
+      // channel-action modules, the things worth reaching for without switching windows.
       //
       // There is deliberately NO "go live" button. Probed this Discord build
       // for it: no `startStream`, no `openGoLiveModal`, no module carrying
@@ -408,7 +407,7 @@ BarWidget {
         }
 
         Action {
-          width: (parent.width - Style.spacing.sm) / 2
+          width: (parent.width - Style.spacing.sm * 2) / 3
           // md-microphone_off / md-microphone
           glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           label: root.selfMute ? "Unmute" : "Mute"
@@ -416,12 +415,23 @@ BarWidget {
           onActivated: root.send("toggleSelfMute")
         }
         Action {
-          width: (parent.width - Style.spacing.sm) / 2
+          width: (parent.width - Style.spacing.sm * 2) / 3
           // md-volume_off / md-headphones
           glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           label: root.selfDeaf ? "Undeafen" : "Deafen"
           on: root.selfDeaf
           onActivated: root.send("toggleSelfDeaf")
+        }
+        Action {
+          width: (parent.width - Style.spacing.sm * 2) / 3
+          glyph: "\u{f03f5}"   // md-phone_hangup
+          label: "Leave"
+          // Always in the urgent style: it ends the call.
+          on: true
+          onActivated: {
+            root.send("disconnect")
+            if (root.bar) root.bar.closePanel(root.moduleName)
+          }
         }
       }
 

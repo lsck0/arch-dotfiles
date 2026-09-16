@@ -25,33 +25,27 @@ REPOS=(
     "https://github.com/KZDKM/Hyprspace|Hyprspace"
 )
 
-listed=$(hyprpm list 2>/dev/null)
-
-added=0
-for entry in "${REPOS[@]}"; do
-    url="${entry%%|*}"; name="${entry##*|}"
-    # Re-adding an existing repo is a hard error, and re-cloning every repo on
-    # every boot took long enough that a logout could land mid-run — which is
-    # how this script kept dying before it reached its own completion marker.
-    if grep -qiF "Repository $name " <<<"$listed"; then
-        continue
-    fi
-    yes | hyprpm add "$url" || true
-    added=1
-done
-
-# `hyprpm update` rebuilds every plugin against the current Hyprland headers.
-# It is minutes of compilation, so it runs only when the compositor's commit
-# changed since the last successful run (or when a repo was just added), not
-# on every boot.
+# Headers first: `hyprpm add` refuses to build without them. Minutes of
+# compilation, so only when the compositor's commit changed.
 STATE="$HOME/.local/state/hypr-plugins-built-for"
 commit=$(hyprctl version -j 2>/dev/null | jq -r '.commit // empty')
-if [[ -z "$commit" || "$added" == 1 || "$(cat "$STATE" 2>/dev/null)" != "$commit" ]]; then
+if [[ -z "$commit" || "$(cat "$STATE" 2>/dev/null)" != "$commit" ]]; then
     if yes | hyprpm update -f; then
         mkdir -p "$(dirname "$STATE")"
         printf '%s\n' "$commit" > "$STATE"
     fi
 fi
+
+listed=$(hyprpm list 2>/dev/null)
+
+for entry in "${REPOS[@]}"; do
+    url="${entry%%|*}"; name="${entry##*|}"
+    # Re-adding an existing repo is a hard error; `add` also builds the plugin.
+    if grep -qiF "Repository $name " <<<"$listed"; then
+        continue
+    fi
+    yes | hyprpm add "$url" || true
+done
 
 # Idempotent; enabling an already-enabled plugin is a no-op.
 hyprpm enable dynamic-cursors || true
