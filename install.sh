@@ -1190,7 +1190,7 @@ if command -v git-lfs >/dev/null 2>&1; then
     git lfs pull || echo "git lfs pull" >> "$FAILURES_FILE"
 fi
 
-WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-sunset2k.jpg >/dev/null 2>/dev/null || \
+WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkambient-1k.jpg >/dev/null 2>/dev/null || \
     echo "scripts/switch-wallpaper.sh" >> "$FAILURES_FILE"
 
 ## CLEANUP
