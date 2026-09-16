@@ -21,9 +21,10 @@ fi
 
 # THE ROOT DEVICE MUST NOT GO IN CRYPTTAB.
 ROOT_SRC="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+ROOT_SRC="${ROOT_SRC%%[*}"
 ROOT_BACKING=""
 if [[ "$ROOT_SRC" == /dev/mapper/* ]]; then
-    ROOT_BACKING="$(lsblk -no pkname "$ROOT_SRC" 2>/dev/null | head -1 || true)"
+    ROOT_BACKING="$(lsblk -lnso NAME,TYPE "$ROOT_SRC" 2>/dev/null | awk '$2 == "part" {print $1; exit}' || true)"
 fi
 
 # Ensure crypttab header + marker exist, back up a pre-existing live file.

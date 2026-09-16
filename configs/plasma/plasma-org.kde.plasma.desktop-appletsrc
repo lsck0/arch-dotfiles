@@ -31,7 +31,7 @@ positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-way.jpg
+Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-darkambient-1k.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -50,7 +50,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-way.jpg
+Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-darkambient-1k.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
