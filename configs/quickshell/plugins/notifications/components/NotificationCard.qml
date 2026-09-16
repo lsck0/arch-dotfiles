@@ -230,9 +230,17 @@ BorderSurface {
           spacing: Style.spacing.xs
           visible: root.app.length > 0 || root.timeLabel.length > 0
 
+          readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
+          // Row's own `spacing` sat between "App" and the dot, but the gap
+          // after the dot was two literal space glyphs baked into timeText's
+          // string — a different, font-dependent width, so the two gaps
+          // either side of "·" never matched. Both are the same Row spacing
+          // now: the dot is its own Text instead of a prefix on timeText.
+          readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
+
           Text {
             textFormat: Text.PlainText
-            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.spacing)
+            width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.spacing)
             text: root.app
             elide: Text.ElideRight
             color: Color.notifications.text
@@ -241,12 +249,22 @@ BorderSurface {
             font.pixelSize: Style.font.caption
           }
           Text {
-            id: timeText
+            id: dotText
             textFormat: Text.PlainText
+            visible: parent.showDot
             // Middot, not a wider gap: "App 6  1m" still reads as one phrase
             // whatever the spacing, because both halves are the same weight and
             // colour. A separator says they are two facts.
-            text: (root.app.length > 0 && root.timeLabel.length > 0 ? "·  " : "") + root.timeLabel
+            text: "·"
+            color: Color.notifications.text
+            opacity: Style.emphasis.faint
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+          Text {
+            id: timeText
+            textFormat: Text.PlainText
+            text: root.timeLabel
             color: Color.notifications.text
             opacity: Style.emphasis.faint
             font.family: root.fontFamily

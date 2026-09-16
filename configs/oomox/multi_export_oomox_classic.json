@@ -17,28 +17,28 @@
   "2": {
     "name": "base16",
     "config": {
-      "default_path": "~",
+      "default_path": "~/.themes/<THEME_NAME>/gtk-4.0/gtk.css",
       "last_variant": "gtk4-libadwaita1.6.0",
       "last_app": "gtk4-oodwaita",
-      "default_path_gtk4-oodwaita": "~"
+      "default_path_gtk4-oodwaita": "~/.themes/<THEME_NAME>/gtk-4.0/gtk.css"
     }
   },
   "3": {
     "name": "base16",
     "config": {
-      "default_path": "~",
+      "default_path": "~/.config/qt5ct/colors/<THEME_NAME>.conf",
       "last_variant": "breeze",
       "last_app": "qt5ct",
-      "default_path_qt5ct": "~"
+      "default_path_qt5ct": "~/.config/qt5ct/colors/<THEME_NAME>.conf"
     }
   },
   "4": {
     "name": "base16",
     "config": {
-      "default_path": "~",
+      "default_path": "~/.config/qt6ct/colors/<THEME_NAME>.conf",
       "last_variant": "breeze",
       "last_app": "qt6ct",
-      "default_path_qt6ct": "~"
+      "default_path_qt6ct": "~/.config/qt6ct/colors/<THEME_NAME>.conf"
     }
   },
   "5": {

@@ -39,8 +39,11 @@ BarWidget {
   readonly property var allItems: bucket("all")
   readonly property int drawerCount: drawerItems.length
   readonly property int trayItemExtent: Style.bar.iconSlot
-  readonly property int trayItemGap: 0
-  readonly property int trayJoinGap: 0
+  // Was 0 — every other bar icon breathes by Style.bar.itemGap (2px) between
+  // slots; the tray's own icons had no gap at all, which read as cramped
+  // next to the rest of the bar.
+  readonly property int trayItemGap: Style.bar.itemGap
+  readonly property int trayJoinGap: Style.bar.groupGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
   // Match Waybar's group/tray-expander drawer transition-duration.
   readonly property int animationDuration: 600
@@ -129,7 +132,12 @@ BarWidget {
   }
 
   function openTrayMenu(item, anchorItem, mouse) {
-    if (!item || !item.menu) {
+    // `!item` fell into the branch below and then immediately dereferenced
+    // `item.display`, so the one case the guard existed for was the one that
+    // threw. Nothing to open means nothing to do.
+    if (!item) return
+    if (!item.menu) {
+      if (!anchorItem || !anchorItem.QsWindow) return
       var point = anchorItem.QsWindow.contentItem.mapFromItem(anchorItem, mouse.x, mouse.y)
       item.display(anchorItem.QsWindow.window, point.x, point.y)
       return
@@ -194,14 +202,17 @@ BarWidget {
     return result
   }
 
+  // Saved to shell.qml's widget-settings file, NOT into the bar layout in
+  // shell.json. Pinning an icon used to rewrite the whole shell config, which
+  // froze the bar layout to disk and stopped shell.qml's builtin layout from
+  // taking effect ever again — see shell.qml's widgetSettings comment.
   function persistTrayState(pinned, hidden) {
     // bar.shellHost, not bar.shell — see Bar.qml's shellHost property
     // comment: a property literally named "shell" on Bar's type shadows
     // every unqualified `shell.X` reference inside shell.qml's own
     // `Bar { ... }` construction block, not just assignments to it.
-    if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.updateEntryInline !== "function") return
-    var id = root.moduleName || "bar.tray"
-    root.bar.shellHost.updateEntryInline(id, { id: id, pinned: pinned, hidden: hidden })
+    if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
+    root.bar.shellHost.setWidgetSettings(root.moduleName || "bar.tray", { pinned: pinned, hidden: hidden })
   }
 
   function togglePin(iid) {
@@ -443,9 +454,13 @@ BarWidget {
         font.bold: true
       }
 
+      // Style.emphasis, not Qt.darker: the shared emphasis ladder is how every
+      // other panel de-emphasises secondary text, and darkening the foreground
+      // against a dark card reduces contrast instead of softening it.
       Text {
         text: "Pinned icons stay visible. Hidden icons never show."
-        color: Qt.darker(root.foreground, 1.4)
+        color: root.foreground
+        opacity: Style.emphasis.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
@@ -455,7 +470,8 @@ BarWidget {
       Text {
         visible: root.allItems.length === 0
         text: "No tray items reporting."
-        color: Qt.darker(root.foreground, 1.5)
+        color: root.foreground
+        opacity: Style.emphasis.faint
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
         font.italic: true
@@ -468,7 +484,10 @@ BarWidget {
           required property var modelData
           required property int index
           width: manageColumn.width
-          implicitHeight: 28
+          // Was a raw 28/16/8/3 ladder — the only control rows in the shell
+          // that did not scale with theme.json's font size, so this popup stayed
+          // put while every other panel grew around it.
+          implicitHeight: Style.row.control
 
           readonly property string itemId: String(modelData.id || "")
           readonly property string displayName: {
@@ -487,8 +506,8 @@ BarWidget {
             id: rowIcon
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
-            width: 16
-            height: 16
+            width: Style.bar.iconCanvas
+            height: Style.bar.iconCanvas
             icon: rowRoot.modelData.icon
           }
 
@@ -513,8 +532,8 @@ BarWidget {
             iconText: "\uf08d"
             text: rowRoot.isPinned ? "Unpin" : "Pin"
             foreground: root.foreground
-            horizontalPadding: 8
-            verticalPadding: 3
+            horizontalPadding: Style.spacing.controlPaddingX
+            verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
             fontSize: Style.font.bodySmall
             onClicked: root.togglePin(rowRoot.itemId)
@@ -528,8 +547,8 @@ BarWidget {
             iconText: "\uf06e"
             text: rowRoot.isHidden ? "Show" : "Hide"
             foreground: root.foreground
-            horizontalPadding: 8
-            verticalPadding: 3
+            horizontalPadding: Style.spacing.controlPaddingX
+            verticalPadding: Style.spacing.controlPaddingY
             iconSize: Style.font.bodySmall
             fontSize: Style.font.bodySmall
             onClicked: root.toggleHide(rowRoot.itemId)
@@ -835,8 +854,10 @@ BarWidget {
 
     TrayIcon {
       anchors.centerIn: parent
-      width: Style.space(12)
-      height: Style.space(12)
+      // Was space(12) — every other bar icon renders at iconCanvas (16) inside
+      // an iconSlot (30); the tray drew noticeably smaller than its neighbours.
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
       icon: trayItemRoot.modelData.icon
     }
 

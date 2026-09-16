@@ -32,8 +32,13 @@ BarWidget {
     if (!updateProc.running) updateProc.running = true
   }
 
+  // `/usr/local/bin/system-update.sh` was a path nothing in this repo creates,
+  // so clicking the indicator opened a terminal that failed and closed. The
+  // script now lives in scripts/ (link.sh puts every one of those on PATH as
+  // ~/.local/bin/<name>) and is addressed through Paths.bin like pomodoro and
+  // reminder, rather than by a hardcoded absolute path.
   function runUpdate() {
-    if (root.bar) root.bar.run("ghostty -e /usr/local/bin/system-update.sh")
+    Quickshell.execDetached(["ghostty", "-e", Paths.bin("system-update")])
   }
 
   visible: updateAvailable

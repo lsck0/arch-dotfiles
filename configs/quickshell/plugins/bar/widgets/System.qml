@@ -5,18 +5,25 @@ import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. No voltage readout: this hardware has
-// no exposed vcore sensor (checked with `sensors -j` before writing
-// system-stats.sh) — showing a fake/zero value would be worse than not
-// showing it. GPU is the integrated Intel iGPU (no discrete GPU on this
-// hardware) — busy% and clock read from i915's own sysfs, no
-// intel_gpu_top dependency (blocked by kernel.perf_event_paranoid=2 for a
-// normal user anyway).
+// New widget, not from omarchy-shell. No voltage readout: neither machine in
+// this repo exposes a usable CPU vcore (k10temp publishes temperature only —
+// re-checked with `sensors -j` 2026-09-16) and showing a fake/zero value would
+// be worse than not showing it.
+//
+// GPU IS WHATEVER THE MACHINE HAS. This file makes no assumption about it;
+// system-stats.sh identifies the vendor from lspci and reads through whichever
+// sysfs interface that vendor exposes (amdgpu, i915, nvidia). This comment used
+// to assert "the integrated Intel iGPU, no discrete GPU on this hardware",
+// which was true of the laptop and has never been true of the desktop — see
+// memory/machines.md: the dotfiles span both, and the desktop drives a discrete
+// Radeon. The only vendor-specific thing left in this file is the VRAM row,
+// which is hidden on Intel because an iGPU has no VRAM to report.
 //
 // Power-mode switching lives here too (not a separate widget): TLP-backed,
 // via toggles/toggle-powermode.sh, which is also what the toggles menu and
 // any keybind drive — this panel is just another consumer of the same
-// script, not a second source of truth.
+// script, not a second source of truth. The control itself is
+// Ui/PowerModeSelector, shared with Battery.qml.
 BarWidget {
   id: root
   moduleName: "system"
@@ -61,45 +68,9 @@ BarWidget {
     return hours > 0 ? hours + "h " + minutes + "m" : (minutes > 0 ? minutes + "m" : "")
   }
 
-  // Empty string means "no override" — see toggles/toggle-powermode.sh's
-  // get/auto contract (2026-09-06). Distinct from "balanced": that used to
-  // double as the pre-refresh placeholder AND a real state, which made an
-  // actual auto/no-override reading indistinguishable from "hasn't loaded
-  // yet". Now empty is unambiguous and ButtonGroup simply shows no chip
-  // selected until the process replies.
-  property string powerMode: ""
-
-  function refreshPowerMode() {
-    if (!powerModeProc.running) powerModeProc.running = true
-  }
-
-  function setPowerMode(mode) {
-    Quickshell.execDetached([root.powerModeScript, mode])
-    Qt.callLater(root.refreshPowerMode)
-  }
-
-  readonly property string powerModeScript: Paths.toggle("toggle-powermode.sh")
-
-  Process {
-    id: powerModeProc
-    command: [root.powerModeScript, "get"]
-    stdout: StdioCollector {
-      id: powerModeOutput
-      waitForEnd: true
-    }
-    onExited: {
-      root.powerMode = (powerModeOutput.text || "").trim()
-    }
-  }
-
-  Timer {
-    interval: 5000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshPowerMode()
-  }
-
+  // Power mode lives entirely in Ui/PowerModeSelector — reader, writer, option
+  // list and chips. This widget used to carry its own copy of all four, as did
+  // Battery.qml, and the two had already drifted apart.
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
@@ -165,8 +136,6 @@ BarWidget {
     // underneath its own glyph. Measuring also survives a theme.json font
     // change, which a pixel constant does not.
     property string widest: ""
-    // sm, not xs: the value right-aligns in a fixed slot, so at its widest it
-    // reaches the glyph and the two run together ("CPU100%").
     spacing: Style.spacing.sm
 
     Text {
@@ -183,7 +152,14 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       width: Math.ceil(sizer.implicitWidth)
-      horizontalAlignment: Text.AlignRight
+      // AlignLeft, not AlignRight. The slot is fixed-width so the row cannot
+      // jitter, but right-aligning parked short values at the far end of it:
+      // "7%" sat ~3 character widths from its own glyph and only spacing.lg
+      // (8px) from the NEXT one, so every number read as belonging to the
+      // icon on its right. Left-aligning pins the glyph-to-value gap at a
+      // constant spacing.sm for every stat and pushes the slack into the
+      // inter-stat gap, where it belongs.
+      horizontalAlignment: Text.AlignLeft
       text: parent.value
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
@@ -206,20 +182,34 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.lg
 
-    // md-cpu_64_bit. Load and clock share one stat: they are read together,
-    // and splitting them doubles the glyph noise for no extra meaning.
+    // md-cpu_64_bit. Clock dropped from the bar strip (still in the hover
+    // panel below) — CPU%/RAM/GPU%/VRAM/temp is the fixed set requested;
+    // clock was the odd one out, widening this slot most and matching
+    // nothing else in the row's "current/max" shape.
+    Stat { glyph: "\u{f0ee0}"; widest: "100%"; value: root.cpuPct + "%" }
+    // md-memory. current/max, not just current — matches VRAM's shape below.
+    // widest is derived from this machine's own total rather than a 999G
+    // worst case: used can never exceed total, so the real widest string is
+    // total-at-one-decimal over total, and a hardcoded bound just left dead
+    // space in the slot on every machine with less than 100G of RAM.
     Stat {
-      glyph: "\u{f0ee0}"
-      widest: "100%  4800MHz"
-      value: root.cpuPct + "%  " + root.freqMhz + "MHz"
+      glyph: "\u{f035b}"
+      widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
+      value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
     }
-    // md-memory
-    Stat { glyph: "\u{f035b}"; widest: "99.9G"; value: root.memUsedGb.toFixed(1) + "G" }
+    // md-chip (GPU)
+    Stat { glyph: "\u{f061a}"; widest: "100%"; value: root.gpuPct + "%" }
+    // VRAM only where it's a real concept — see the hover panel's own VRAM
+    // row below for why an iGPU has no row here.
+    Stat {
+      visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
+      glyph: "\u{f0313}"
+      widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
+      value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
+    }
     // md-thermometer, unit spelled out: a bare "80" sitting between two
     // percentages reads as a third percentage.
     Stat { glyph: "\u{f050f}"; widest: "100°C"; value: root.tempC + "°C" }
-    // md-chip (GPU)
-    Stat { glyph: "\u{f061a}"; widest: "100%"; value: root.gpuPct + "%" }
     Stat {
       visible: root.batteryPresent
       glyph: root.batteryIcon
@@ -233,7 +223,9 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshPowerMode() }
+    // PowerModeSelector reads on its own once the panel is visible
+    // (triggeredOnStart), so hover has nothing left to prime here.
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -355,26 +347,34 @@ BarWidget {
       PanelSeparator { visible: root.batteryPresent }
       PanelSectionHeader { text: "POWER MODE" }
 
-      // No option is selected when powerMode is empty — that means no
-      // runtime override is forced, so TLP is on its configured hardware
-      // default (balanced/power-saver on battery machines, performance on
-      // AC-only ones; see configs/tlp/tlp.conf vs. tlp.conf.ac-only). Any
-      // override made here is deliberately session-only: it never survives
+      // Any override made here is deliberately session-only: it never survives
       // a reboot, matching the requested "overridable but non-persistent"
-      // policy.
-      ButtonGroup {
+      // policy. See PowerModeSelector for what "Auto" means.
+      PowerModeSelector {
         width: parent.width
-        spacing: Style.spacing.xs
-        options: [
-          { value: "power-saver", label: "Power saver" },
-          { value: "balanced",    label: "Balanced" },
-          { value: "performance", label: "Performance" }
-        ]
-        value: root.powerMode
-        foreground: Color.menu.text
-        background: "transparent"
-        fontSize: Style.font.caption
-        onChanged: function(value) { root.setPowerMode(value) }
+        active: panel.visible
+      }
+
+      PanelSeparator {}
+      PanelSectionHeader { text: "TOOLS" }
+
+      // panel.disk-speedtest was built, enabled, keepLoaded — and summoned by
+      // nothing, the same defect the internet speed test had before the
+      // Network panel grew a button for it. This panel is where the rest of
+      // this machine's hardware readouts live, so it is where a disk
+      // throughput test belongs. Same button idiom as the Display panel's
+      // "Choose wallpaper…".
+      PanelRow {
+        width: parent.width
+        // md-harddisk U+F02CA, cmap-verified by name.
+        glyph: "\u{f02ca}"
+        label: "Disk speed test"
+        filled: true
+        centered: true
+        onActivated: {
+          if (root.bar) root.bar.closePanel(root.moduleName)
+          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.disk-speedtest", "{}"))
+        }
       }
     }
   }

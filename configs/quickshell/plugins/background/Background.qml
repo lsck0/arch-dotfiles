@@ -157,10 +157,23 @@ Item {
         Math.ceil(width * outputScale), Math.ceil(height * outputScale))
 
       function maybeStartReveal() {
-        if (!root.incomingBackground || root.revealProgress !== 0 || maskReady) return
+        // NOT gated on root.revealProgress === 0. Each screen's Image
+        // decodes asynchronously and independently, so on a >1-screen setup
+        // one panel's incomingFrame regularly turns Ready a frame or two
+        // after the other's already kicked the shared animation off (its
+        // revealProgress is already moving). Bailing here on "already
+        // started" used to skip arming *this* panel's own maskReady
+        // entirely — its incomingLayer then stayed invisible for the whole
+        // 420ms fade and only snapped to the new wallpaper at the very end,
+        // i.e. the crossfade only ever visibly played on whichever screen
+        // happened to decode first. startReveal() below is itself
+        // idempotent (revealStartedVersion guards the actual animation
+        // restart), so every panel is safe to call it as soon as its own
+        // frame is ready.
+        if (!root.incomingBackground || maskReady) return
         if (incomingFrame.status !== Image.Ready) return
         Qt.callLater(function() {
-          if (!root.incomingBackground || root.revealProgress !== 0 || maskReady) return
+          if (!root.incomingBackground || maskReady) return
           if (incomingFrame.status !== Image.Ready) return
           root.startReveal(panel)
         })

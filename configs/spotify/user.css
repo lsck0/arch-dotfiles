@@ -18,12 +18,9 @@ body {
   color: var(--spice-text);
 }
 
-.Root__top-container {
-  grid-template-areas:
-    "global-nav global-nav global-nav"
-    "left-sidebar main-content right-sidebar"
-    "now-playing-bar now-playing-bar now-playing-bar";
-}
+/* Don't override grid-template-areas: Spotify sets layout via the
+   `grid-template` shorthand, so a longhand areas override desyncs the row
+   tracks and blanks the content pane. */
 
 /* right sidebar: queue + device picker live here — do NOT display:none it
    (that was the bug that hid both menus) */

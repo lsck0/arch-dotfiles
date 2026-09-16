@@ -8,10 +8,7 @@ BorderSurface 1.0 BorderSurface.qml
 Button 1.0 Button.qml
 ButtonGroup 1.0 ButtonGroup.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
-CursorSurface 1.0 CursorSurface.qml
-Dropdown 1.0 Dropdown.qml
 HoverPanel 1.0 HoverPanel.qml
-KeyboardPanel 1.0 KeyboardPanel.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
 PanelActionButton 1.0 PanelActionButton.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
@@ -20,9 +17,10 @@ PanelSeparator 1.0 PanelSeparator.qml
 PanelSlider 1.0 PanelSlider.qml
 PanelToolTip 1.0 PanelToolTip.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
+PanelRow 1.0 PanelRow.qml
 PopupCard 1.0 PopupCard.qml
+PowerModeSelector 1.0 PowerModeSelector.qml
 ScreenMoveRemap 1.0 ScreenMoveRemap.qml
-SearchableDropdown 1.0 SearchableDropdown.qml
 SpeedTestOverlay 1.0 SpeedTestOverlay.qml
 TextField 1.0 TextField.qml
 Toggle 1.0 Toggle.qml

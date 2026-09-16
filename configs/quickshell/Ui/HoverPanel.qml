@@ -47,14 +47,35 @@ PanelWindow {
     return Math.max(edgeMargin, Math.min(maxLeft, centre - implicitWidth / 2))
   }
 
-  visible: bar !== null && bar.activePanel === moduleName
-  screen: bar && bar.screen ? bar.screen : null
+  // Emitted every time the panel comes up, however it was opened.
+  //
+  // A PANEL MUST REFRESH FROM HERE, NOT FROM ITS TRIGGER'S onEntered. Hover is
+  // only one of the ways a panel opens: `quickshell ipc call bar open network`
+  // and any keybind bound to it never touch the trigger, so a widget that
+  // fetched its data on hover alone came up empty or stale for every other
+  // route — the audio panel with no devices listed, the notification list
+  // reading "Nothing recent" over ten stored entries, the radar stuck on
+  // "unavailable". Three widgets had each grown their own `onVisibleChanged`
+  // to patch it and five had not; this is the one mechanism, so a new panel
+  // gets it by connecting a signal rather than by remembering a convention.
+  signal opened()
 
-  // Re-read the trigger's position every time the panel opens. The layout
-  // signals below keep barX fresh in the general case, but this is the one
-  // moment correctness is actually observable, so it is worth not relying
-  // on them alone.
-  onVisibleChanged: if (visible && anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
+  visible: bar !== null && bar.activePanel === moduleName
+  // One handler: QML allows a signal only one handler per object, and a second
+  // `onVisibleChanged` here is a load-time error, not an addition.
+  //
+  // Re-reading the trigger's position happens first. The layout signals below
+  // keep barX fresh in the general case, but this is the one moment
+  // correctness is actually observable, so it is worth not relying on them
+  // alone — and it must settle before a consumer of `opened()` can move
+  // anything.
+  onVisibleChanged: {
+    if (!visible) return
+    if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
+    opened()
+  }
+
+  screen: bar && bar.screen ? bar.screen : null
   color: "transparent"
 
   // Anchoring one horizontal edge and offsetting from it is what positions a

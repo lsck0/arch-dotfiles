@@ -59,7 +59,7 @@ BarWidget {
     bar: root.bar
     text: "\u{f155}"
     tooltipText: root.anyConfigured ? "Cloud costs" : "Cloud costs — no credentials configured"
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refresh() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -68,6 +68,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    onOpened: root.refresh()
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -76,7 +77,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      Text { text: "Cloud costs"; color: Color.menu.text; opacity: 0.6; font.pixelSize: Style.font.caption; font.family: Style.font.family }
+      PanelSectionHeader { text: "CLOUD COSTS" }
 
       Row {
         width: content.width
@@ -85,8 +86,8 @@ BarWidget {
           width: parent.width * 0.5
           horizontalAlignment: Text.AlignRight
           text: root.hetzner !== null ? "€" + root.hetzner.toFixed(2) + "/mo" : "not configured"
-          color: root.hetzner !== null ? Color.menu.text : Color.menu.text
-          opacity: root.hetzner !== null ? 1 : 0.4
+          color: Color.menu.text
+          opacity: root.hetzner !== null ? Style.emphasis.strong : Style.emphasis.faint
           font.pixelSize: Style.font.body
           font.family: Style.font.family
         }
@@ -98,7 +99,7 @@ BarWidget {
           width: parent.width * 0.5
           horizontalAlignment: Text.AlignRight
           text: root.cloudflare !== null ? "$" + root.cloudflare.toFixed(2) + "/mo" : "not configured"
-          opacity: root.cloudflare !== null ? 1 : 0.4
+          opacity: root.cloudflare !== null ? Style.emphasis.strong : Style.emphasis.faint
           color: Color.menu.text
           font.pixelSize: Style.font.body
           font.family: Style.font.family
@@ -111,7 +112,7 @@ BarWidget {
           width: parent.width * 0.5
           horizontalAlignment: Text.AlignRight
           text: root.gcp !== null ? "$" + root.gcp.toFixed(2) + "/mo" : "not configured"
-          opacity: root.gcp !== null ? 1 : 0.4
+          opacity: root.gcp !== null ? Style.emphasis.strong : Style.emphasis.faint
           color: Color.menu.text
           font.pixelSize: Style.font.body
           font.family: Style.font.family

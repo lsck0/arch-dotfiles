@@ -27,6 +27,7 @@ PACKAGES=(
     base-devel # [base] Arch build tools
     bluetui # [base] bluetooth tui
     bluez # [base] bluetooth stack
+    bluez-obex # [base] bluetooth OBEX (file transfer) daemon, split out of bluez itself
     bluez-utils # [base] bluetooth utilities
     borg # [base] deduplicating backup tool
     bpftop # [base] bpf monitor
@@ -373,6 +374,7 @@ PACKAGES=(
     brightnessctl # [desktop] backlight control
     chromium # [desktop] web browser
     cups-pk-helper # [desktop] cups polkit helper
+    dolphin # [desktop] file manager (default; nemo kept alongside)
     filezilla # [desktop] FTP client
     firefox # [desktop] web browser
     flat-remix-gtk # [desktop] GTK theme
@@ -396,6 +398,7 @@ PACKAGES=(
     hyprsunset # [desktop] blue light filter
     jdownloader2 # [desktop] download manager
     kitty # [desktop] GPU terminal emulator
+    krusader # [desktop] total commander
     lib32-gtk3 # [desktop] 32-bit GTK3
     libnotify # [desktop] desktop notification lib
     libx11 # [desktop] X11 client library
@@ -897,6 +900,7 @@ GO_PKGS=(
 
 NIX_PKGS=(
     nixpkgs#devenv # [programming] reproducible dev environments
+    nixpkgs#nixfmt # [programming] nix formatter, nil_ls shells out to this
 )
 
 ## PACKAGE GROUPS
@@ -1154,6 +1158,9 @@ if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
     if command -v nix >/dev/null 2>&1; then
         sudo systemctl enable --now nix-daemon.socket || true
         sudo systemctl start nix-daemon.service || true
+        if [[ ! -d /nix/store ]]; then
+            sudo nix-store --init || true
+        fi
         nix_profile_cmd=add
         nix --version 2>/dev/null | grep -qE ' 2\.(1[0-9]|2[0-7])(\.|$)' && nix_profile_cmd=install
         nix profile "$nix_profile_cmd" --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
@@ -1183,13 +1190,13 @@ if command -v git-lfs >/dev/null 2>&1; then
     git lfs pull || echo "git lfs pull" >> "$FAILURES_FILE"
 fi
 
-WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/mountain2.jpg >/dev/null 2>/dev/null || \
+WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-sunset2k.jpg >/dev/null 2>/dev/null || \
     echo "scripts/switch-wallpaper.sh" >> "$FAILURES_FILE"
 
 ## CLEANUP
 
-rm -rf "${HOME}/go"
-rm -rf ${HOME}/.cache/yay/
+sudo rm -rf "${HOME}/go"
+sudo rm -rf ${HOME}/.cache/yay/
 
 ## SUMMARY
 

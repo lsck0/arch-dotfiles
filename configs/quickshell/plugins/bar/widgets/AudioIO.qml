@@ -125,7 +125,7 @@ BarWidget {
       var step = 0.05
       root.sink.audio.volume = Math.max(0, Math.min(1, root.volume + (delta > 0 ? step : -step)))
     }
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshDevices() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -134,6 +134,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    onOpened: root.refreshDevices()
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -189,28 +190,16 @@ BarWidget {
 
       Repeater {
         model: root.sinks
-        Rectangle {
+        // Shared Ui/PanelRow — the ●/○ prefix used to be concatenated into the
+        // label string, so the gap after it was whatever the font gave it
+        // rather than the row spacing every other list uses.
+        PanelRow {
           required property var modelData
           width: content.width
-          height: Style.row.list
-          radius: Style.cornerRadius
-          color: modelData.name === root.defaultSinkName ? Color.menu.selectedBackground : "transparent"
-          Text {
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.md
-            anchors.verticalCenter: parent.verticalCenter
-            text: (modelData.name === root.defaultSinkName ? "● " : "○ ") + modelData.description
-            color: modelData.name === root.defaultSinkName ? Color.menu.selectedText : Color.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
-            elide: Text.ElideRight
-            width: parent.width - Style.spacing.md * 2
-          }
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.setSink(modelData.name)
-          }
+          stateMarker: true
+          on: modelData.name === root.defaultSinkName
+          label: modelData.description
+          onActivated: root.setSink(modelData.name)
         }
       }
 
@@ -266,28 +255,13 @@ BarWidget {
       // the MICROPHONE section's devices.
       Repeater {
         model: root.sources
-        Rectangle {
+        PanelRow {
           required property var modelData
           width: content.width
-          height: Style.row.list
-          radius: Style.cornerRadius
-          color: modelData.name === root.defaultSourceName ? Color.menu.selectedBackground : "transparent"
-          Text {
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.md
-            anchors.verticalCenter: parent.verticalCenter
-            text: (modelData.name === root.defaultSourceName ? "● " : "○ ") + modelData.description
-            color: modelData.name === root.defaultSourceName ? Color.menu.selectedText : Color.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
-            elide: Text.ElideRight
-            width: parent.width - Style.spacing.md * 2
-          }
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.setSource(modelData.name)
-          }
+          stateMarker: true
+          on: modelData.name === root.defaultSourceName
+          label: modelData.description
+          onActivated: root.setSource(modelData.name)
         }
       }
 

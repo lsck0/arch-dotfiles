@@ -372,7 +372,7 @@ BarWidget {
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
-      opacity: 0.85
+      opacity: Style.emphasis.strong
     }
   }
 
@@ -400,11 +400,7 @@ BarWidget {
     implicitWidth: Style.panelWidth.wide + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
-    // On the panel becoming visible, not on the trigger's hover: the panel
-    // also opens from `quickshell ipc call bar open weather`, which never
-    // fires the trigger's onEntered. Hanging the radar fetch off hover alone
-    // meant the section read "Radar unavailable" for every non-hover open.
-    onVisibleChanged: if (visible) root.refreshRadar()
+    onOpened: root.refreshRadar()
 
     component Stat: Column {
       property string glyph: ""
@@ -416,12 +412,12 @@ BarWidget {
         spacing: Style.spacing.xs
         Text {
           text: parent.parent.glyph
-          color: Color.menu.text; opacity: 0.5
+          color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
         }
         Text {
           text: parent.parent.caption
-          color: Color.menu.text; opacity: 0.5
+          color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
@@ -600,7 +596,7 @@ BarWidget {
             text: root.current
               ? root.labelFor(root.current.code) + "  ·  feels " + root.t(root.current.feelsLike)
               : (root.errorText || "…")
-            color: Color.menu.text; opacity: 0.7
+            color: Color.menu.text; opacity: Style.emphasis.dim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -642,12 +638,12 @@ BarWidget {
             Text {
               text: "\u{f0390}"                          // md-navigation
               rotation: root.current ? Number(root.current.windDir) + 180 : 0
-              color: Color.menu.text; opacity: 0.5
+              color: Color.menu.text; opacity: Style.emphasis.faint
               font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
             }
             Text {
               text: "WIND"
-              color: Color.menu.text; opacity: 0.5
+              color: Color.menu.text; opacity: Style.emphasis.faint
               font.family: Style.font.family; font.pixelSize: Style.font.caption
             }
           }
@@ -833,14 +829,14 @@ BarWidget {
             }
             return "temp " + root.t(lo) + " – " + root.t(hi)
           }
-          color: Color.menu.text; opacity: 0.5
+          color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
         Text {
           width: parent.width / 2
           horizontalAlignment: Text.AlignRight
           text: "bars = chance of rain"
-          color: Color.menu.text; opacity: 0.5
+          color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
@@ -880,7 +876,7 @@ BarWidget {
               width: Style.space(96)
               anchors.verticalCenter: parent.verticalCenter
               text: modelData.windy ? "Windy" : root.labelFor(modelData.code)
-              color: Color.menu.text; opacity: 0.7
+              color: Color.menu.text; opacity: Style.emphasis.dim
               font.family: Style.font.family; font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
@@ -888,7 +884,7 @@ BarWidget {
               width: Style.space(64)
               anchors.verticalCenter: parent.verticalCenter
               text: "\u{f0597} " + root.n0(modelData.pop) + "%"
-              color: Color.menu.text; opacity: 0.6
+              color: Color.menu.text; opacity: Style.emphasis.dim
               // Glyph + digits in one Text: the whole thing takes the icon
               // family. Digits render fine in a Nerd Font, and splitting a
               // two-token string is more churn than it is worth. Strings
@@ -1445,7 +1441,7 @@ BarWidget {
                   : s === "ipgeo" ? "IP estimate" : ""
           return (root.report && root.report.stale ? "cached · " : "") + how
         }
-        color: Color.menu.text; opacity: 0.35
+        color: Color.menu.text; opacity: Style.emphasis.disabled
         font.family: Style.font.family; font.pixelSize: Style.font.caption
       }
     }

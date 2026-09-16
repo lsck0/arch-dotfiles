@@ -24,11 +24,38 @@ BarWidget {
   function scrollWorkspace(direction) {
     var ids = root.workspaceIds()
     if (ids.length === 0) return
-    var currentId = Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : ids[0]
+    // This bar's own monitor, not the globally focused one — scrolling on a
+    // secondary bar used to start counting from whatever workspace the OTHER
+    // monitor was on, so the first tick jumped somewhere unrelated.
+    var currentId = root.activeWorkspaceId !== -1 ? root.activeWorkspaceId : ids[0]
     var index = ids.indexOf(currentId)
     if (index === -1) index = 0
     var nextIndex = (index + direction + ids.length) % ids.length
     root.focusWorkspace(ids[nextIndex])
+  }
+
+  // This bar's own output, as a HyprlandMonitor — not a screen name string,
+  // so it compares directly against HyprlandWorkspace.monitor below. Null
+  // until Hyprland has actually reported monitors (or on a bar with no
+  // `bar.modelData`, e.g. under a test harness), in which case every
+  // workspace passes rather than the bar going permanently blank.
+  readonly property var myMonitor: root.bar && root.bar.modelData
+    ? Hyprland.monitorFor(root.bar.modelData) : null
+
+  // THE workspace this bar's own monitor is showing. Every "which one is
+  // current" question in this widget must go through here: Hyprland's
+  // `focusedWorkspace` is compositor-global (whichever monitor last had input
+  // focus), so reading it directly makes a secondary bar describe the primary
+  // monitor's state. That was fixed once for the visible-workspace list and
+  // missed here, which is why the focus pill vanished from a secondary bar the
+  // moment the pointer left it.
+  //
+  // Falls back to the global focus only while Hyprland has not reported this
+  // monitor yet (first frame, or a bar with no modelData under a harness).
+  readonly property int activeWorkspaceId: {
+    if (root.myMonitor && root.myMonitor.activeWorkspace)
+      return root.myMonitor.activeWorkspace.id
+    return Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1
   }
 
   // Only workspaces that actually have a window on them, plus whichever one
@@ -36,15 +63,31 @@ BarWidget {
   // four empty slots on a fresh session. The focused workspace stays even
   // when empty: otherwise switching to an empty workspace would blank the
   // whole widget, with no cell left to click back from.
+  //
+  // Filtered to THIS bar's own monitor. Every bar used to list every
+  // workspace on every monitor — a workspace living on DP-2 still showed
+  // (and was clickable, jumping the pointer to another screen) on DP-1's
+  // bar. Hyprland's own multi-monitor model is "each workspace belongs to
+  // exactly one monitor", so this list should too.
   function workspaceIds() {
     var ids = []
     var values = Hyprland.workspaces.values
-    var focusedId = Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1
+    // Per-monitor active workspace, NOT Hyprland.focusedWorkspace — that's
+    // global (whichever monitor last had input focus). Keying the "keep an
+    // empty workspace visible" rule off it meant switching monitors changed
+    // every OTHER bar's idea of "focused" too: move off an empty workspace 3
+    // on monitor A onto monitor B, and A's bar immediately dropped 3 (it's
+    // empty and no longer *globally* focused) until the mouse re-entered A.
+    // Same bug behind "non-main taskbars should still show" — a secondary
+    // monitor's own active-but-empty workspace was being hidden on its own
+    // bar for the same reason.
+    var monitorActiveId = root.activeWorkspaceId
 
     for (var i = 0; i < values.length; i++) {
       var id = values[i].id
       if (id <= 0 || id > 10) continue
-      if (values[i].toplevels.values.length === 0 && id !== focusedId) continue
+      if (root.myMonitor && values[i].monitor !== root.myMonitor) continue
+      if (values[i].toplevels.values.length === 0 && id !== monitorActiveId) continue
       if (ids.indexOf(id) === -1) ids.push(id)
     }
 
@@ -79,7 +122,7 @@ BarWidget {
 
         readonly property var workspace: root.workspaceById(modelData)
         readonly property bool occupied: workspace !== null && workspace.toplevels.values.length > 0
-        readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
+        readonly property bool focused: root.activeWorkspaceId === modelData
 
         implicitWidth: btn.implicitWidth
         implicitHeight: btn.implicitHeight
