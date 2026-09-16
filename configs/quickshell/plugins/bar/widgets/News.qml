@@ -46,7 +46,7 @@ BarWidget {
     bar: root.bar
     text: "\u{f1ea}"
     tooltipText: "News (NYT)"
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refresh() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -55,6 +55,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    onOpened: root.refresh()
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -63,7 +64,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      Text { text: "NYT Top Stories"; color: Color.menu.text; opacity: 0.6; font.pixelSize: Style.font.caption; font.family: Style.font.family }
+      PanelSectionHeader { text: "NYT TOP STORIES" }
 
       Repeater {
         model: root.headlines

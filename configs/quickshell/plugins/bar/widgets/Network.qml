@@ -14,11 +14,6 @@ import qs.Ui
 // those tools inline. That is what hid the offline-mode bug: a bare
 // `rfkill block all` only covers radios, so ethernet stayed up while the
 // panel said "offline". See toggles/toggle-offline.sh for the fix.
-//
-// Portmaster: it runs a local web UI on 127.0.0.1:817 with no documented
-// public REST API (probed directly — only its own UI paths respond), so
-// "stats" here is limited to whether portmaster-core is actually running;
-// the button opens its real web UI rather than faking a stats readout.
 BarWidget {
   id: root
   moduleName: "network"
@@ -31,7 +26,6 @@ BarWidget {
   property bool btPowered: false
   property bool wifiOn: true
   property bool offlineModeOn: false
-  property bool portmasterRunning: false
 
   property bool detailsConnected: false
   // NM's own verdict: full | limited | portal | none | unknown. Distinct
@@ -66,7 +60,6 @@ BarWidget {
     btProc.running = true
     wifiProc.running = true
     rfkillProc.running = true
-    portmasterProc.running = true
     if (!detailsProc.running) detailsProc.running = true
   }
 
@@ -150,11 +143,6 @@ BarWidget {
     id: rfkillProc
     command: [root.toggleDir + "/toggle-offline.sh", "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.offlineModeOn = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: portmasterProc
-    command: ["bash", "-lc", "pgrep -x portmaster-core >/dev/null && echo on || echo off"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.portmasterRunning = String(text || "").trim() === "on" }
   }
   Process {
     id: detailsProc
@@ -304,7 +292,7 @@ BarWidget {
     id: hoverArea
     anchors.fill: parent
     hoverEnabled: true
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshAll(); root.refreshWifiList(false) }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -313,6 +301,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    onOpened: { root.refreshAll(); root.refreshWifiList(false) }
     // Load-bearing. HoverPanel defaults to WlrKeyboardFocus.None, so the
     // Wi-Fi password TextInput below could take a click but never receive a
     // keystroke — a secured network simply could not be joined from here.
@@ -327,45 +316,14 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      component Row_: Rectangle {
-        property string label: ""
-        property bool on: false
-        // An action row runs something instead of representing on/off state,
-        // so it takes an icon rather than the ●/○ state marker. Codepoint
-        // verified against 0xProto's cmap with fontTools (f04c5 is
-        // md-speedometer) — the repo has been bitten before by codepoints
-        // that were present but drew a different glyph.
-        property string glyph: ""
-        signal activated()
+      // This panel's rows were an in-file `Row_` component; they are the shared
+      // Ui/PanelRow now, along with the equivalent rows in the audio, display,
+      // system and media panels. `stateMarker` is the ●/○ toggle dot; an
+      // action row takes a `glyph` instead, because it runs something rather
+      // than representing on/off.
+      component Row_: PanelRow {
         width: content.width
-        height: Style.row.list
-        radius: Style.cornerRadius
-        color: on ? Color.menu.selectedBackground : "transparent"
-        Row {
-          anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.md
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.sm
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: parent.parent.glyph !== "" ? parent.parent.glyph : (parent.parent.on ? "●" : "○")
-            color: parent.parent.on ? Color.menu.selectedText : Color.menu.text
-            font.pixelSize: parent.parent.glyph !== "" ? Style.font.icon : Style.font.body
-            font.family: parent.parent.glyph !== "" ? Style.font.iconFamily : Style.font.family
-          }
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: parent.parent.label
-            color: parent.parent.on ? Color.menu.selectedText : Color.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
-          }
-        }
-        MouseArea {
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          onClicked: parent.activated()
-        }
+        stateMarker: glyph === ""
       }
 
       PanelSectionHeader {
@@ -568,16 +526,6 @@ BarWidget {
       Row_ { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "PORTMASTER" }
-      Text {
-        text: root.portmasterRunning ? "● running" : "○ not running"
-        color: Color.menu.text
-        opacity: root.portmasterRunning ? 1 : 0.5
-        font.pixelSize: Style.font.body
-        font.family: Style.font.family
-      }
-
-      PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }
       // The speed test plugin was built, enabled and keepLoaded — and
       // completely unreachable: nothing in the shell, no keybind and no menu
@@ -589,7 +537,26 @@ BarWidget {
         glyph: "\u{f04c5}"
         onActivated: {
           if (root.bar) root.bar.closePanel(root.moduleName)
-          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest"))
+          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.speedtest", "{}"))
+        }
+      }
+
+      // panel.wifiqr was the SECOND plugin in exactly the same state: a
+      // finished Wi-Fi share card (QR matrix rendered as native rectangles,
+      // plus a password reveal, with scripts/network-qr.sh and
+      // scripts/network-password.sh behind it), enabled, keepLoaded, and
+      // summoned by nothing. Only shown on Wi-Fi: the card cannot describe an
+      // ethernet link, and network-qr.sh exits with "No active Wi-Fi
+      // connection" — a row that always fails is worse than no row.
+      // md-qrcode U+F0432.
+      Row_ {
+        visible: root.detailsConnected && !root.onEthernet
+        label: "Share Wi-Fi (QR)"
+        glyph: "\u{f0432}"
+        onActivated: {
+          if (root.bar) root.bar.closePanel(root.moduleName)
+          Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.wifiqr",
+            JSON.stringify({ iface: root.detailsDevice, ssid: root.detailsSsid })))
         }
       }
     }

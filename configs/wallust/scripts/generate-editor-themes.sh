@@ -22,11 +22,33 @@ install_through_symlink() {
 COLORS_JSON="$HOME/.cache/wal/colors.json"
 ZED_THEME="$HOME/projects/arch-dotfiles/configs/zed/themes/pywal.json"
 VSCODE_SETTINGS="$HOME/.config/VSCodium/User/settings.json"
+EMACS_THEME_DIR="$HOME/projects/arch-dotfiles/configs/emacs/themes"
+EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 
 [[ -f "$COLORS_JSON" ]] || exit 0
 
 bg=$(jq -r '.special.background' "$COLORS_JSON")
 fg=$(jq -r '.special.foreground' "$COLORS_JSON")
+
+# Decided on the RAW background, before the HSV floor below clamps it into a
+# fixed dark band: after that clamp every palette looks dark, so it can no
+# longer tell a light theme (ayu-light, solarized-dawn) from a dark one.
+if python3 -c "
+import sys
+hx = '$bg'.lstrip('#')
+r, g, b = (int(hx[i:i+2], 16) / 255 for i in (0, 2, 4))
+sys.exit(0 if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5 else 1)
+"; then
+    EMACS_MODE=light
+    EMACS_BG=$bg           # unfloored: the floor below would force it dark
+    EMACS_DARKEN=lighten   # "starker background" runs the other way on light
+    EMACS_LIGHTEN=darken
+else
+    EMACS_MODE=dark
+    EMACS_BG=""            # filled in with the floored $bg below
+    EMACS_DARKEN=darken
+    EMACS_LIGHTEN=lighten
+fi
 
 # Floor bg's HSV value the same way configs/quickshell/Commons/Color.qml's
 # toneMap(bg, 0.08, 0.26) does for the shell's own background. Without this,
@@ -45,6 +67,7 @@ v = max(0.08, min(0.26, v))
 r, g, b = colorsys.hsv_to_rgb(h, s, v)
 print('#%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255)))
 ")
+[[ -n "$EMACS_BG" ]] || EMACS_BG=$bg
 c0=$(jq -r '.colors.color0' "$COLORS_JSON")
 c1=$(jq -r '.colors.color1' "$COLORS_JSON")
 c2=$(jq -r '.colors.color2' "$COLORS_JSON")
@@ -256,3 +279,88 @@ print(blend(0.06), blend(0.11), blend(0.0), blend(0.08), blend(0.14), blend(0.22
 
   herdr server reload-config >/dev/null 2>&1 || true
 fi
+
+# --- Emacs: doom-pywal theme ---
+#
+# Emacs gets a real generated `doom-themes` theme rather than a face-by-face
+# override list: doom-themes-base.el already defines ~500 faces (org, magit,
+# lsp, treemacs, …) in terms of a fixed palette vocabulary, so emitting just
+# that vocabulary buys every one of them. ui.el loads a hand-picked doom theme
+# when the active system theme has a doom counterpart and falls back to this
+# generated one otherwise (plain-wallpaper mode always lands here) — same
+# name-dispatch-with-pywal-fallback shape nvim's lua/theme.lua uses.
+#
+# base0..base8 and the off-palette hues (orange/teal/violet/dark-*) are derived
+# at load time with doom-darken/doom-lighten/doom-blend instead of being
+# precomputed here, so they stay correct for light palettes too, where a
+# hardcoded "darken by N" would run the wrong direction.
+mkdir -p "$EMACS_THEME_DIR"
+cat > "$EMACS_THEME" <<EOF
+;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; Commentary:
+;; GENERATED FILE — do not edit. Rewritten by
+;; configs/wallust/scripts/generate-editor-themes.sh on every theme switch.
+;;; Code:
+
+(require 'doom-themes)
+
+(def-doom-theme doom-pywal
+  "A theme generated from the active wallust/pywal palette."
+  :family 'doom-pywal
+  :background-mode '$EMACS_MODE
+
+  ((bg         '("$EMACS_BG"  "black"   "black"        ))
+   (fg         '("$fg"  "#bfbfbf"       "brightwhite"  ))
+   (bg-alt     (doom-$EMACS_DARKEN bg 0.10))
+   (fg-alt     (doom-$EMACS_LIGHTEN fg 0.20))
+
+   (base0      (doom-$EMACS_DARKEN bg 0.20))
+   (base1      (doom-$EMACS_DARKEN bg 0.10))
+   (base2      bg)
+   (base3      (doom-$EMACS_LIGHTEN bg 0.10))
+   (base4      (doom-blend bg fg 0.25))
+   (base5      (doom-blend bg fg 0.45))
+   (base6      (doom-blend bg fg 0.60))
+   (base7      (doom-blend bg fg 0.75))
+   (base8      (doom-$EMACS_LIGHTEN fg 0.20))
+
+   (grey       base4)
+   (red        '("$c1"  "$c1"  "red"           ))
+   (orange     (doom-blend '("$c1" "$c1" "brightred") '("$c3" "$c3" "yellow") 0.5))
+   (green      '("$c2"  "$c2"  "green"         ))
+   (teal       (doom-blend '("$c2" "$c2" "brightgreen") '("$c6" "$c6" "cyan") 0.5))
+   (yellow     '("$c3"  "$c3"  "yellow"        ))
+   (blue       '("$c4"  "$c4"  "brightblue"    ))
+   (dark-blue  (doom-darken '("$c4" "$c4" "blue") 0.4))
+   (magenta    '("$c5"  "$c5"  "brightmagenta" ))
+   (violet     (doom-blend '("$c5" "$c5" "magenta") '("$c4" "$c4" "blue") 0.5))
+   (cyan       '("$c6"  "$c6"  "brightcyan"    ))
+   (dark-cyan  (doom-darken '("$c6" "$c6" "cyan") 0.4))
+
+   ;; mandatory "universal syntax classes" — doom-themes-base errors without them
+   (highlight      blue)
+   (vertical-bar   (doom-$EMACS_DARKEN bg 0.15))
+   (selection      dark-blue)
+   (builtin        magenta)
+   (comments       base5)
+   (doc-comments   (doom-lighten base5 0.25))
+   (constants      violet)
+   (functions      yellow)
+   (keywords       blue)
+   (methods        cyan)
+   (operators      blue)
+   (type           cyan)
+   (strings        green)
+   (variables      fg)
+   (numbers        magenta)
+   (region         (doom-blend bg fg 0.20))
+   (error          red)
+   (warning        yellow)
+   (success        green)
+   (vc-modified    orange)
+   (vc-added       green)
+   (vc-deleted     red)))
+
+(provide-theme 'doom-pywal)
+;;; doom-pywal-theme.el ends here
+EOF

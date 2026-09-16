@@ -1,32 +1,38 @@
-# lastsync<dd.mm.yyyy> 01.09.2026
+# lastsync<dd.mm.yyyy> 15.09.2026
 ## Germany
 Server=http://mirror.23m.com/archlinux/$repo/os/$arch
-Server=https://mirror.23m.com/archlinux/$repo/os/$arch
-Server=http://ftp.agdsn.de/pub/mirrors/archlinux/$repo/os/$arch
-Server=https://ftp.agdsn.de/pub/mirrors/archlinux/$repo/os/$arch
-Server=http://mirrors.aminvakil.com/archlinux/$repo/os/$arch
-Server=https://mirrors.aminvakil.com/archlinux/$repo/os/$arch
-Server=http://artfiles.org/archlinux.org/$repo/os/$arch
-Server=https://mirror.bethselamin.de/$repo/os/$arch
-Server=http://de.mirrors.cicku.me/archlinux/$repo/os/$arch
-Server=https://de.mirrors.cicku.me/archlinux/$repo/os/$arch
-Server=http://mirror.clientvps.com/archlinux/$repo/os/$arch
-Server=https://mirror.clientvps.com/archlinux/$repo/os/$arch
-Server=http://mirror.cmt.de/archlinux/$repo/os/$arch
-Server=https://mirror.cmt.de/archlinux/$repo/os/$arch
-Server=http://os.codefionn.eu/archlinux/$repo/os/$arch
-Server=https://os.codefionn.eu/archlinux/$repo/os/$arch
-Server=http://mirror-de-1.cutie.dating/archlinux/$repo/os/$arch
-Server=https://mirror-de-1.cutie.dating/archlinux/$repo/os/$arch
-Server=http://mirror.diyarciftci.xyz/archlinux/$repo/os/$arch
-Server=https://mirror.diyarciftci.xyz/archlinux/$repo/os/$arch
-Server=https://mirror.dogado.de/archlinux/$repo/os/$arch
-Server=http://ftp.fau.de/archlinux/$repo/os/$arch
-Server=https://ftp.fau.de/archlinux/$repo/os/$arch
-Server=https://pkg.fef.moe/archlinux/$repo/os/$arch
-Server=https://dist-mirror.fem.tu-ilmenau.de/archlinux/$repo/os/$arch
-Server=http://mirrors.foxmire.space/archlinux/$repo/os/$arch
-Server=https://mirrors.foxmire.space/archlinux/$repo/os/$arch
-Server=https://berlin.mirror.pkgbuild.com/$repo/os/$arch
+Server=https://de.arch.niranjan.co/$repo/os/$arch
 Server=https://frankfurt.mirror.pkgbuild.com/$repo/os/$arch
-Server=http://ftp.gwdg.de/pub/linux/archlinux/$repo/os/$arch
+Server=http://mirror.moson.org/arch/$repo/os/$arch
+Server=https://mirror.moson.org/arch/$repo/os/$arch
+Server=https://mirror.sunred.org/archlinux/$repo/os/$arch
+Server=http://arch.jensgutermuth.de/$repo/os/$arch
+Server=http://mirror.sunred.org/archlinux/$repo/os/$arch
+Server=https://mirrors.niyawe.de/archlinux/$repo/os/$arch
+Server=https://mirror.selfnet.de/archlinux/$repo/os/$arch
+Server=http://mirror.selfnet.de/archlinux/$repo/os/$arch
+Server=https://mirror.pseudoform.org/$repo/os/$arch
+Server=http://mirrors.niyawe.de/archlinux/$repo/os/$arch
+Server=https://mirror.23m.com/archlinux/$repo/os/$arch
+Server=https://archlinux.thaller.ws/$repo/os/$arch
+Server=https://arch.jensgutermuth.de/$repo/os/$arch
+## France
+Server=https://mirror.trap.moe/archlinux/$repo/os/$arch
+Server=http://mirror.trap.moe/archlinux/$repo/os/$arch
+Server=http://mirror.cyberbits.eu/archlinux/$repo/os/$arch
+## Austria
+Server=https://at.arch.mirror.kescher.at/$repo/os/$arch
+## France
+Server=https://mirror.cyberbits.eu/archlinux/$repo/os/$arch
+## Germany
+Server=https://de.arch.mirror.kescher.at/$repo/os/$arch
+Server=https://berlin.mirror.pkgbuild.com/$repo/os/$arch
+Server=http://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
+Server=https://mirror.kumi.systems/archlinux/$repo/os/$arch
+Server=https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch
+Server=http://archlinux.thaller.ws/$repo/os/$arch
+## France
+Server=http://mirror.theo546.fr/archlinux/$repo/os/$arch
+Server=https://mirror.theo546.fr/archlinux/$repo/os/$arch
+## Netherlands
+Server=https://nl.arch.niranjan.co/$repo/os/$arch

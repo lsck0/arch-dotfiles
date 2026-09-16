@@ -43,6 +43,7 @@ GHOSTTY="$REPO/configs/ghostty/config"
 ZED="$REPO/configs/zed/settings.json"
 EMACS="$REPO/configs/emacs/early-init.el"
 DISCORD="$REPO/configs/discord/wal.theme.css"
+SPOTIFY="$REPO/configs/spotify/user.css"
 NVIM="$REPO/configs/nvim/lua/options.lua"
 QUICKSHELL_THEME="$REPO/configs/quickshell/theme.json"
 
@@ -64,9 +65,12 @@ KDE_FONT_KEYS=(
     "WM:activeFont"
 )
 
-# Cycled by `toggle`, so the setting stays usable from menu.sh and a keybind.
-# Filtered to what is actually installed at runtime. The panel offers all
-# 4174 families; this is the short list worth flipping between blind.
+# Cycled by `toggle`, so the setting stays usable from menu.sh and a keybind,
+# and served to quickshell's Display panel by the `shortlist` action below --
+# the panel had its own hardcoded copy of four of these, so the keybind and the
+# panel offered different sets of fonts for the same setting.
+# Filtered to what is actually installed at runtime. `list` offers all 4174
+# families; this is the short list worth flipping between blind.
 SHORTLIST=(
     "0xProto Nerd Font"
     "JetBrainsMono Nerd Font"
@@ -192,6 +196,14 @@ apply_family() {
 
     sed -i "s|^(defvar my/font-family \".*\")|(defvar my/font-family \"$e\")|" "$EMACS"
     sed -i "s|^  --font: \".*\";|  --font: \"$e\";|" "$DISCORD"
+
+    # Spotify (via Spicetify's injected user.css). Same "pin the icon font"
+    # rule as quickshell above: "Symbols Nerd Font" stays fixed as the
+    # fallback so glyph icons in the theme's own CSS don't silently swap to a
+    # different Nerd Font's glyph shapes — only the leading UI-text family is
+    # rewritten.
+    sed -i "s|font-family: \"[^\"]*\", \"Symbols Nerd Font\"|font-family: \"$e\", \"Symbols Nerd Font\"|" "$SPOTIFY"
+
     sed -i "s|^set.guifont = \".*:h\([0-9]*\)\"|set.guifont = \"$e:h\1\"|" "$NVIM"
 
     # quickshell reads theme.json, which it live-watches — no restart, and
@@ -270,11 +282,24 @@ reload_hint() {
     fi
     echo "quickshell: applied live; gtk: applied live (portal apps) or on next start;" \
          "qt/kde: next app start; ghostty: reload with its own keybind;" \
-         "emacs/nvim/zed/discord: restart to pick this up" >&2
+         "emacs/nvim/zed/discord: restart to pick this up;" \
+         "spotify: run 'spicetify apply' then restart Spotify to pick this up" >&2
 }
 
 usage() {
-    echo "usage: $(basename "$0") {get|size|ui-size|label|list|toggle|set <family>|set-size <n>|set-ui-size <n>}" >&2
+    echo "usage: $(basename "$0") {get|size|ui-size|label|list|shortlist|toggle|set <family>|set-size <n>|set-ui-size <n>}" >&2
+}
+
+# The families `toggle` cycles, filtered to what is installed. One family per
+# line, in cycle order, so a caller can render them as a picker that matches
+# what the keybind does. Computing the installed set once here rather than
+# calling is_installed per entry keeps this to a single fc-list.
+shortlist() {
+    local installed family
+    installed=$(installed_families)
+    for family in "${SHORTLIST[@]}"; do
+        grep -qxF "$family" <<<"$installed" && printf '%s\n' "$family"
+    done
 }
 
 case "${1:-label}" in
@@ -283,6 +308,7 @@ size) current_size ;;
 ui-size) current_ui_size ;;
 label) echo "󰛖 Font: $(current_family) $(current_size)" ;;
 list) installed_families ;;
+shortlist) shortlist ;;
 set)
     [[ $# -ge 2 ]] || { usage; exit 1; }
     shift

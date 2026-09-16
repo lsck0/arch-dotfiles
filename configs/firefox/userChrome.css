@@ -1,0 +1,59 @@
+/* Semi-transparent app shell (tab strip, nav bar, sidebar) so Firefox sits in
+ * the desktop like every other window: hyprland_windowrules.lua gives Spotify,
+ * ghostty, discord, kitty, nemo and wofi a 0.95 window opacity, but Firefox is
+ * deliberately not in that list — a window rule dims web content too, which
+ * makes pages unreadable. Doing it here instead keeps content fully opaque and
+ * only thins the chrome.
+ *
+ * Colors are not hardcoded: --lwt-accent-color / --toolbar-bgcolor are set by
+ * the pywalfox theme, which switch-wallpaper.sh refreshes (`pywalfox update`)
+ * on every theme switch, so color-mix() tracks the palette automatically and
+ * only contributes the alpha.
+ *
+ * Requires toolkit.legacyUserProfileCustomizations.stylesheets (set in the
+ * user.js next to this file).
+ */
+
+:root {
+  /* matches global_opacity in configs/hyprland/hyprland_windowrules.lua */
+  --appshell-opacity: 95%;
+}
+
+/* The window itself must carry an alpha channel, otherwise the toolbox blends
+ * against an opaque backdrop and nothing shows through. Web content stays
+ * opaque because browser.tabs.allow_transparent_browser is left at its default
+ * false, so the content area paints its own background over this. */
+:root,
+#main-window {
+  background-color: transparent !important;
+}
+
+#navigator-toolbox,
+#titlebar,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar {
+  background-color: color-mix(
+    in srgb,
+    var(--lwt-accent-color, var(--toolbar-bgcolor, Canvas)) var(--appshell-opacity),
+    transparent
+  ) !important;
+}
+
+#sidebar-box,
+#sidebar-header,
+#sidebar-main {
+  background-color: color-mix(
+    in srgb,
+    var(--lwt-accent-color, var(--toolbar-bgcolor, Canvas)) var(--appshell-opacity),
+    transparent
+  ) !important;
+}
+
+/* The individual bars inside the toolbox must not stack their own opaque fill
+ * on top of the blended one above, or the alpha compounds away. */
+#navigator-toolbox > *,
+#nav-bar,
+#PersonalToolbar {
+  background-image: none !important;
+}

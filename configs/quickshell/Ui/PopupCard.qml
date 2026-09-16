@@ -17,7 +17,13 @@ PopupWindow {
   // popup with an ACCENT border, which is the only accent-outlined surface in
   // the whole UI. Hovering a tray icon and right-clicking it produced two
   // visibly different cards from the same icon.
-  property int padding: Style.spacing.panelPadding
+  // popupPadding (16), not panelPadding (22): PopupCard is the menu/context-
+  // popup component (the tray's right-click menu and its manage popup are
+  // its only two call sites), which reads as a normal-sized menu at the
+  // tighter popup padding. panelPadding is HoverPanel's token, for the
+  // larger hover-triggered info cards — using it here made both of Tray's
+  // popups look oversized/bulky next to any other menu in the shell.
+  property int padding: Style.spacing.popupPadding
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
   property color borderColor: Color.menu.border

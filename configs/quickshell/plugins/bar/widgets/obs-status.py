@@ -22,7 +22,7 @@ logs each of those as a new session.
 
   {"cmd": "setScene", "scene": "Gameplay"}
   {"cmd": "toggleStream"}      {"cmd": "toggleRecord"}
-  {"cmd": "toggleRecordPause"}
+  {"cmd": "toggleRecordPause"} {"cmd": "toggleMute", "source": "Mic"}
 
 Commands are fire-and-forget: the reply that matters is the next status line,
 because that is what the UI actually renders. A rejected request is logged to
@@ -58,12 +58,34 @@ CONFIG = (pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or (pathlib.Path.home()
           / "obs-studio/plugin_config/obs-websocket/config.json")
 
 # obs-websocket 5.x EventSubscription bit flags. Only what is actually rendered:
-# subscribing to Inputs or SceneItems would wake this process on every volume
-# nudge and every source drag for data nothing here displays.
+# subscribing to SceneItems would wake this process on every source drag for
+# data nothing here displays. Inputs IS subscribed now, for
+# InputMuteStateChanged -- the mute pills below need to notice a mute toggled
+# from inside OBS itself, not just one sent from this widget.
 SUB_GENERAL = 1 << 0
 SUB_SCENES = 1 << 2
+SUB_INPUTS = 1 << 3
 SUB_OUTPUTS = 1 << 6
-SUBSCRIPTIONS = SUB_GENERAL | SUB_SCENES | SUB_OUTPUTS
+SUBSCRIPTIONS = SUB_GENERAL | SUB_SCENES | SUB_INPUTS | SUB_OUTPUTS
+
+# Quick mute/unmute pills in the panel. Keyed by the short label the widget
+# shows; valued by the exact OBS input name to send obs-websocket, which are
+# fixed by this repo's own scene collection (configs/obs/Untitled.json,
+# symlinked to ~/.config/obs-studio/basic/scenes/Untitled.json by
+# configs/obs/link.sh) -- "Mic/Aux" and "Desktop Audio" are OBS's own default
+# global-audio names, the rest are the per-app pipewire captures that scene
+# collection defines. A source missing from a differently-configured OBS
+# simply never reports a mute state and its pill stays at its last-known
+# (initially unmuted) value -- GetInputMute for a name OBS does not have comes
+# back as a rejected request, same as any other command here.
+MUTE_SOURCES = {
+    "Mic": "Mic/Aux",
+    "Desktop": "Desktop Audio",
+    "Chromium": "Chromium Audio",
+    "Discord": "Discord Audio",
+    "Firefox": "Firefox Audio",
+    "Spotify": "Spotify Audio",
+}
 
 # While live, the numbers that matter (bitrate, dropped frames) move every
 # second. While idle nothing moves at all, and the only reason to ask is to
@@ -168,12 +190,26 @@ def timecode_seconds(timecode):
         return 0
 
 
+def poll_mutes(session):
+    """One GetInputMute per configured source. Six extra requests per poll --
+    cheap next to the five already made, and the alternative (GetInputList
+    plus filtering) still costs a round trip and adds a name-matching step for
+    no benefit, since the sources this widget cares about are fixed above."""
+    mutes = {}
+    for label, input_name in MUTE_SOURCES.items():
+        result, _ = session.request("GetInputMute", {"inputName": input_name})
+        if result is not None:
+            mutes[label] = bool(result.get("inputMuted"))
+    return mutes
+
+
 def snapshot(session):
     stats, _ = session.request("GetStats")
     stream, _ = session.request("GetStreamStatus")
     record, _ = session.request("GetRecordStatus")
     scene, _ = session.request("GetCurrentProgramScene")
     scenes, _ = session.request("GetSceneList")
+    mutes = poll_mutes(session)
 
     stats = stats or {}
     stream = stream or {}
@@ -227,6 +263,8 @@ def snapshot(session):
 
         "scene": str(scene.get("currentProgramSceneName") or ""),
         "scenes": scene_names,
+
+        "mutes": mutes,
     }
 
 
@@ -274,7 +312,23 @@ def handle_command(session, line):
         msg = json.loads(line)
     except Exception:
         return False
-    entry = COMMANDS.get(str(msg.get("cmd", "")))
+    cmd = str(msg.get("cmd", ""))
+
+    # Not in COMMANDS: it needs a source-name translation ToggleInputMute
+    # doesn't, from the widget's short label (msg["source"] == "Mic") to the
+    # actual OBS input name ("Mic/Aux") -- see MUTE_SOURCES above.
+    if cmd == "toggleMute":
+        label = str(msg.get("source") or "")
+        input_name = MUTE_SOURCES.get(label)
+        if not input_name:
+            return False
+        result, _ = session.request("ToggleInputMute", {"inputName": input_name})
+        if result is None:
+            print("obs-status: ToggleInputMute(%s) rejected" % input_name,
+                  file=sys.stderr, flush=True)
+        return True
+
+    entry = COMMANDS.get(cmd)
     if not entry:
         return False
     request_type, data_key = entry
@@ -350,7 +404,8 @@ def run_session(conf):
             if msg.get("op") == 5:
                 event_type = msg["d"].get("eventType", "")
                 if event_type.startswith(("StreamState", "RecordState",
-                                          "CurrentProgramScene", "Exit")):
+                                          "CurrentProgramScene", "Exit",
+                                          "InputMuteStateChanged")):
                     last_poll = 0.0
     finally:
         try:

@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = spotify
+
+[Action]
+Description = Re-patching Spotify with spicetify (a Spotify update replaces the patched client)
+When = PostTransaction
+# Via link.sh, so the class-name fixup runs with the apply.
+Exec = /usr/bin/runuser -l luca -c 'cd ~/projects/arch-dotfiles/configs/spotify && bash ./link.sh'

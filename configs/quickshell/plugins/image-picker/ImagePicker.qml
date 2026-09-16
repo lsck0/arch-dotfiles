@@ -736,6 +736,22 @@ Item {
           readonly property bool focused: searchInput.activeFocus
           readonly property bool hot: searchHover.hovered
           visible: root.filterable && root.filterText.length > 0
+
+          // EVERY way out of the search field has to hand focus back, not just
+          // the two that remembered to.
+          //
+          // This chip only exists while there is filter text, and `searchInput`
+          // holds `focus: searchChip.visible` — so the moment the filter empties
+          // the field is un-focused and active focus lands on nothing. Arrows,
+          // Enter, Escape and plain typing then all stop working until the
+          // picker is closed and reopened, which reads as "the picker froze".
+          // Escape and the clear (x) button each carried their own
+          // `carousel.forceActiveFocus()` workaround; BACKSPACING THE LAST
+          // CHARACTER did not, and that is the most natural way to empty it.
+          // Handle it once, where the focus is actually lost, instead of at
+          // each exit.
+          onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
+
           anchors.top: carousel.bottom
           anchors.topMargin: Style.space(10)
           anchors.horizontalCenter: carousel.horizontalCenter
@@ -780,13 +796,8 @@ Item {
             Keys.onEscapePressed: function (event) {
               if (text.length > 0) {
                 text = ""
-                // Clearing drops searchChip.visible -> false, which in turn
-                // reactively clears this field's own `focus: searchChip.visible`
-                // binding -- but nothing else holds `focus: true` inside the
-                // same scope at that instant, so active focus was landing
-                // nowhere and every subsequent key (arrows, Tab, Enter) went
-                // unhandled until the picker was closed and reopened. The
-                // clear (x) button already worked around this the same way.
+                // searchChip.onVisibleChanged also returns focus to the
+                // carousel; this is the explicit path for the same thing.
                 carousel.forceActiveFocus()
               } else {
                 root.cancel()

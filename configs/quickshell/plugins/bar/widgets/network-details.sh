@@ -13,7 +13,11 @@ set -euo pipefail
 connectivity=$(nmcli -t -f CONNECTIVITY general 2>/dev/null || echo unknown)
 connectivity=${connectivity:-unknown}
 
-device=$(nmcli -t -f DEVICE,STATE dev status 2>/dev/null | awk -F: '$2 == "connected" && $1 != "lo" {print $1; exit}')
+# Real ethernet/wifi only. `dev status` also lists every tunnel adapter a
+# VPN/firewall app owns (wg0, proton0, Portmaster's SPN interface, ...) as
+# "connected" — picking those up here made this row report the tunnel's
+# connection name (e.g. "Portmaster") instead of the actual network.
+device=$(nmcli -t -f DEVICE,TYPE,STATE dev status 2>/dev/null | awk -F: '$3 == "connected" && ($2 == "ethernet" || $2 == "wifi") {print $1; exit}')
 device=${device:-}
 
 if [[ -z "$device" ]]; then

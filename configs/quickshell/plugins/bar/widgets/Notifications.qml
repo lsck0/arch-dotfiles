@@ -97,8 +97,24 @@ BarWidget {
   }
 
   function toggleDnd() {
-    Quickshell.execDetached([root.toggleScript, "toggle"])
-    Qt.callLater(root.refreshDnd)
+    // A real child Process, not execDetached + Qt.callLater. execDetached is
+    // fire-and-forget with no completion signal, and the toggle script itself
+    // takes ~15-30ms end to end (bash startup, sourcing lib.sh, then spawning
+    // its own `quickshell ipc` subprocess to actually flip the backend
+    // state) — Qt.callLater's "next event loop tick" fires well before that,
+    // so the immediate refreshDnd() queried the OLD pre-toggle state and
+    // snapped the switch back in the UI a moment after the user turned it
+    // on, even though the backend had genuinely flipped. Waiting for onExited
+    // means refreshDnd() only ever runs after the toggle has actually landed.
+    if (toggleProc.running) return
+    toggleProc.running = true
+  }
+
+  Process {
+    id: toggleProc
+    command: [root.toggleScript, "toggle"]
+    running: false
+    onExited: root.refreshDnd()
   }
 
   function dismissAll() {
@@ -144,7 +160,7 @@ BarWidget {
     onPressed: function(b) {
       if (b === Qt.MiddleButton) root.toggleDnd()
     }
-    onEntered: { root.bar.hoverOpen(root.moduleName); root.refreshHistory() }
+    onEntered: root.bar.hoverOpen(root.moduleName)
     onExited: root.bar.hoverTriggerExit(root.moduleName)
   }
 
@@ -156,12 +172,7 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
-    // Refresh on the panel becoming visible, not only on the trigger's hover.
-    // `refreshHistory()` used to hang off `onEntered` alone, so opening this
-    // panel any other way — `quickshell ipc call bar open notifications`, or a
-    // keybind — showed "Nothing recent" over a history directory with ten
-    // entries in it. Same trap the radar had.
-    onVisibleChanged: if (visible) root.refreshHistory()
+    onOpened: root.refreshHistory()
 
     // And keep it current while it stays open: a notification arriving with
     // the panel already up should appear in the list, not wait for the next
@@ -187,7 +198,14 @@ BarWidget {
     Flickable {
       id: historyFlick
       anchors.fill: parent
+      // contentWidth + VerticalFlick, matching Tray's menu Flickable: without
+      // them contentWidth defaults to -1 and a horizontal drag slides the whole
+      // list sideways with nothing to scroll to. `interactive` off when it all
+      // fits keeps a short history from absorbing wheel events.
+      contentWidth: width
       contentHeight: content.implicitHeight
+      flickableDirection: Flickable.VerticalFlick
+      interactive: contentHeight > height
       clip: true
       boundsBehavior: Flickable.StopAtBounds
 
@@ -228,6 +246,9 @@ BarWidget {
           description: "Silence new notification popups"
           checked: root.dndOn
           onClicked: root.toggleDnd()
+          // Borderless like every other row in this panel; the switch itself
+          // carries the affordance.
+          borderSpec: Border.flat("transparent", 0)
         }
 
         PanelSeparator {}

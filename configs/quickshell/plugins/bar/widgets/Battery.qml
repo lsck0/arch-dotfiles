@@ -48,45 +48,8 @@ BarWidget {
     return BatteryModel.formatDuration(seconds)
   }
 
-  // Empty string means "no override" -- see toggles/toggle-powermode.sh's
-  // get/auto contract (2026-09-06). Distinct from "balanced": that used to
-  // double as the pre-refresh placeholder AND a real state, which made an
-  // actual auto/no-override reading indistinguishable from "hasn't loaded
-  // yet". Now empty is unambiguous and ButtonGroup simply shows no chip
-  // selected until the process replies.
-  property string powerMode: ""
-
-  function refreshPowerMode() {
-    if (!powerModeProc.running) powerModeProc.running = true
-  }
-
-  function setPowerMode(mode) {
-    Quickshell.execDetached([root.powerModeScript, mode])
-    Qt.callLater(root.refreshPowerMode)
-  }
-
-  readonly property string powerModeScript: Paths.toggle("toggle-powermode.sh")
-
-  Process {
-    id: powerModeProc
-    command: [root.powerModeScript, "get"]
-    stdout: StdioCollector {
-      id: powerModeOutput
-      waitForEnd: true
-    }
-    onExited: {
-      root.powerMode = (powerModeOutput.text || "").trim()
-    }
-  }
-
-  Timer {
-    interval: 5000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshPowerMode()
-  }
-
+  // Power mode lives entirely in Ui/PowerModeSelector — see its header. This
+  // widget and System.qml each used to carry a full copy.
   visible: present
   implicitWidth: present ? button.implicitWidth : 0
   implicitHeight: present ? button.implicitHeight : 0
@@ -106,8 +69,11 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: 260
-    implicitHeight: content.implicitHeight + padding * 2
+    // Shared panel tokens, like every other hover panel. The hardcoded 260 was
+    // narrower than any other card on the bar, and omitting shadowOffset from
+    // both axes clipped the card's own drop shadow away.
+    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
     Column {
       id: content
@@ -124,7 +90,10 @@ BarWidget {
           text: root.icon
           color: root.thresholdActive ? Color.urgent : Color.menu.text
           font.pixelSize: Style.font.icon
-          font.family: Style.font.family
+          // iconFamily: root.icon is a Nerd Font glyph. Drawing it in the
+          // user-selectable UI family is exactly the substitution Style.qml's
+          // font note warns about.
+          font.family: Style.font.iconFamily
         }
 
         Column {
@@ -137,7 +106,8 @@ BarWidget {
           }
           Text {
             text: root.modeLabel + (root.remaining ? " · " + root.remaining : "")
-            color: Qt.darker(Color.menu.text, 1.4)
+            color: Color.menu.text
+            opacity: Style.emphasis.dim
             font.pixelSize: Style.font.bodySmall
             font.family: Style.font.family
           }
@@ -147,34 +117,12 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "POWER MODE" }
 
-      Row {
+      // This was a hand-rolled Repeater of Rectangles offering only the three
+      // forced modes, so the default state (no override) matched no chip and
+      // the group read as "nothing selected".
+      PowerModeSelector {
         width: content.width
-        spacing: Style.spacing.sm
-
-        Repeater {
-          model: ["balanced", "performance", "power-saver"]
-          Rectangle {
-            required property string modelData
-            width: (content.width - Style.spacing.sm * 2) / 3
-            height: Style.row.list
-            radius: Style.cornerRadius
-            color: modelData === root.powerMode ? Color.menu.selectedBackground : "transparent"
-
-            Text {
-              anchors.centerIn: parent
-              text: parent.modelData
-              color: parent.modelData === root.powerMode ? Color.menu.selectedText : Color.menu.text
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
-            }
-
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.setPowerMode(parent.modelData)
-            }
-          }
-        }
+        active: panel.visible
       }
     }
   }

@@ -273,7 +273,18 @@ Item {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onEntered: root.selectedIndex = rowDelegate.index
+              // Deliberately does NOT drive root.selectedIndex, on hover OR
+              // move. Qt Quick re-synthesizes hover/position events for a
+              // delegate that slides under a stationary cursor (e.g. the list
+              // reflowing while typing a filter), so both onEntered and
+              // onPositionChanged fire without the pointer actually moving —
+              // this is the same class of bug as rofi's mouse-hijacks-
+              // keyboard-selection behavior (fixed there via an empty
+              // me-select-entry). Keyboard (Up/Down/PageUp/PageDown/Home/End)
+              // is the only thing that sets selectedIndex, so Enter always
+              // activates the keyboard-highlighted row. Clicking still
+              // launches whatever is directly under the pointer, independent
+              // of selectedIndex.
               onClicked: root.launchAt(rowDelegate.index)
             }
           }

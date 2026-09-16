@@ -120,22 +120,21 @@ PanelWindow {
     Keys.onReturnPressed: if (!root.running) root.runAgainRequested()
     Keys.onEnterPressed: if (!root.running) root.runAgainRequested()
 
-    BorderSurface {
+    Item {
       id: cluster
-      anchors.centerIn: parent
-      width: content.implicitWidth + Style.spacing.panelPadding * 2
-      height: content.implicitHeight + Style.spacing.panelPadding * 2
-      color: Color.menu.background
-      borderSpec: Border.flat(Color.popups.border, Style.normalBorderWidth)
-      radius: Style.cornerRadius
-      // Narrow or heavily scaled outputs: shrink the whole card rather than
-      // clipping it at the screen edge.
+      anchors.fill: parent
+      // Shrink only when the dials genuinely don't fit the output.
       scale: Math.min(1,
-        (keyCatcher.width - Style.space(32)) / Math.max(1, width),
-        (keyCatcher.height - Style.space(32)) / Math.max(1, height))
+        (keyCatcher.width - Style.space(32)) / Math.max(1, content.implicitWidth),
+        (keyCatcher.height - Style.space(32)) / Math.max(1, content.implicitHeight))
 
-      // Swallow clicks so only the scrim outside the card dismisses.
-      MouseArea { anchors.fill: parent; onClicked: {} }
+      // Swallow clicks over the dials so only the surrounding scrim dismisses.
+      MouseArea {
+        anchors.centerIn: parent
+        width: content.implicitWidth + Style.space(48)
+        height: content.implicitHeight + Style.space(48)
+        onClicked: {}
+      }
 
       ColumnLayout {
         id: content
@@ -146,17 +145,17 @@ PanelWindow {
           textFormat: Text.PlainText
           visible: root.title !== ""
           text: root.title.toUpperCase()
-          color: root.onCardDim
+          color: root.onCard
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.title
           font.bold: true
-          font.letterSpacing: 2
+          font.letterSpacing: 3
           Layout.fillWidth: true
           horizontalAlignment: Text.AlignHCenter
         }
 
         Row {
-          spacing: Style.space(28)
+          spacing: Style.space(64)
           Layout.alignment: Qt.AlignHCenter
 
           SpeedDial {
@@ -199,12 +198,13 @@ PanelWindow {
           textFormat: Text.PlainText
           visible: root.statusText !== ""
           text: root.statusText
-          color: root.onCardDim
+          color: root.onCard
           font.family: root.fontFamily
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.subtitle
+          font.letterSpacing: 1.5
           wrapMode: Text.Wrap
-          Layout.fillWidth: true
-          Layout.maximumWidth: Style.space(440)
+          Layout.maximumWidth: Style.space(560)
+          Layout.alignment: Qt.AlignHCenter
           horizontalAlignment: Text.AlignHCenter
         }
 
@@ -216,8 +216,8 @@ PanelWindow {
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
           wrapMode: Text.Wrap
-          Layout.fillWidth: true
           Layout.maximumWidth: Style.space(440)
+          Layout.alignment: Qt.AlignHCenter
           horizontalAlignment: Text.AlignHCenter
         }
       }
@@ -236,9 +236,7 @@ PanelWindow {
     required property real value
     required property bool live
 
-    // Sized for a dialog rather than for a full screen: at 210 the pair plus
-    // gutters ran ~470px wide before the card's own padding.
-    readonly property real diameter: Style.space(168)
+    readonly property real diameter: Style.space(300)
     // 0° = 3 o'clock, increasing clockwise (PathAngleArc's convention).
     readonly property real dialStart: 135
     readonly property real dialSweep: 270
@@ -409,7 +407,9 @@ PanelWindow {
           : Math.round(dial.reading).toLocaleString(Qt.locale(), 'f', 0)
         color: root.onCard
         font.family: root.fontFamily
-        font.pixelSize: Style.font.display
+        // Scaled off the dial, not the text ladder: display (base*2) is sized
+        // for a dialog and reads as a footnote inside a full-screen gauge.
+        font.pixelSize: Math.round(dial.diameter * 0.2)
         font.bold: true
       }
 
@@ -419,7 +419,7 @@ PanelWindow {
         text: root.unit
         color: root.onCardDim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.body
       }
     }
 
@@ -430,11 +430,11 @@ PanelWindow {
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.bottom: parent.bottom
       text: dial.label
-      color: root.onCardDim
+      color: root.onCard
       font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.subtitle
       font.bold: true
-      font.letterSpacing: 1.5
+      font.letterSpacing: 2.5
     }
   }
 }

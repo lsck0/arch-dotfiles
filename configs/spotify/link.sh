@@ -17,3 +17,16 @@ ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css
 
 sudo chmod 777 /opt/spotify
 sudo chmod 777 /opt/spotify/Apps -R
+
+spicetify config current_theme wal color_scheme pywal
+spicetify config experimental_features 0
+spicetify config overwrite_assets 1
+
+if ! pacman -Q spotify >/dev/null 2>&1; then
+    echo "spotify: not installed, skipping spicetify apply" >&2
+    exit 0
+fi
+
+spicetify apply || spicetify backup apply || true
+
+python3 "${PWD}/spicetify-unmap-classes.py"
