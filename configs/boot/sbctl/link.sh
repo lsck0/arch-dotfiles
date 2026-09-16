@@ -17,7 +17,7 @@ if [[ ! -d /sys/firmware/efi ]]; then
 fi
 
 need_sign=true
-if sbctl status 2>/dev/null | grep -qE 'Secure Boot:\s+Enabled'; then
+if sbctl status 2>/dev/null | grep -qE 'Secure Boot:\s+(\S+\s+)?Enabled'; then
     need_sign=false
     echo "sbctl: Secure Boot already enabled" >&2
 fi
@@ -72,7 +72,7 @@ if [[ "$need_sign" == "true" ]]; then
         echo "sbctl: cannot read firmware status" >&2
         exit 0
     fi
-    if ! echo "$st" | grep -qE 'Setup Mode:\s+Enabled'; then
+    if ! echo "$st" | grep -qE 'Setup Mode:\s+(\S+\s+)?Enabled'; then
         echo "sbctl: firmware not in Setup Mode and SB not enabled." >&2
         echo "sbctl: enable Setup Mode / Secure Boot in firmware, then rerun install.sh." >&2
         exit 0
@@ -88,7 +88,7 @@ if [[ "$need_sign" == "true" ]]; then
     echo "sbctl: signing boot files before enrollment" >&2
     sign_unsigned_boot_files
 
-    if ! sudo sbctl list-enrolled-keys 2>/dev/null | grep -q .; then
+    if ! sudo sbctl list-enrolled-keys 2>/dev/null | grep -qvE '^\S+:\s*$'; then
         echo "sbctl: enrolling keys (incl. Microsoft DB for dual-boot compat)" >&2
         sudo sbctl enroll-keys -m
     fi

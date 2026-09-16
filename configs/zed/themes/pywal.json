@@ -7,71 +7,71 @@
       "name": "Pywal",
       "appearance": "dark",
       "style": {
-        "background": "#1E2127",
-        "editor.background": "#1E2127",
-        "editor.foreground": "#ABB2BF",
-        "editor.gutter.background": "#1E2127",
-        "editor.active_line.background": "#5C6370",
-        "editor.line_number": "#5C6370",
-        "editor.active_line_number": "#ABB2BF",
-        "text": "#ABB2BF",
-        "text.muted": "#5C6370",
-        "text.accent": "#61AFEF",
-        "border": "#5C6370",
-        "border.variant": "#1E2127",
-        "element.background": "#1E2127",
-        "element.hover": "#5C6370",
-        "element.selected": "#61AFEF",
-        "surface.background": "#1E2127",
-        "panel.background": "#1E2127",
-        "tab.active_background": "#1E2127",
-        "tab.inactive_background": "#1E2127",
-        "tab_bar.background": "#1E2127",
-        "status_bar.background": "#1E2127",
-        "title_bar.background": "#1E2127",
-        "toolbar.background": "#1E2127",
-        "terminal.background": "#1E2127",
-        "terminal.foreground": "#ABB2BF",
-        "terminal.ansi.black": "#1E2127",
-        "terminal.ansi.red": "#E06C75",
-        "terminal.ansi.green": "#98C379",
-        "terminal.ansi.yellow": "#D19A66",
-        "terminal.ansi.blue": "#61AFEF",
-        "terminal.ansi.magenta": "#C678DD",
-        "terminal.ansi.cyan": "#56B6C2",
-        "terminal.ansi.white": "#ABB2BF",
-        "terminal.ansi.bright_black": "#5C6370",
-        "terminal.ansi.bright_red": "#E06C75",
-        "terminal.ansi.bright_green": "#98C379",
-        "terminal.ansi.bright_yellow": "#D19A66",
-        "terminal.ansi.bright_blue": "#61AFEF",
-        "terminal.ansi.bright_magenta": "#C678DD",
-        "terminal.ansi.bright_cyan": "#56B6C2",
-        "terminal.ansi.bright_white": "#FFFFFF",
+        "background": "#0B0E14",
+        "editor.background": "#0B0E14",
+        "editor.foreground": "#BFBDB6",
+        "editor.gutter.background": "#0B0E14",
+        "editor.active_line.background": "#565B66",
+        "editor.line_number": "#565B66",
+        "editor.active_line_number": "#BFBDB6",
+        "text": "#BFBDB6",
+        "text.muted": "#565B66",
+        "text.accent": "#39BAE6",
+        "border": "#565B66",
+        "border.variant": "#01060E",
+        "element.background": "#01060E",
+        "element.hover": "#565B66",
+        "element.selected": "#39BAE6",
+        "surface.background": "#0B0E14",
+        "panel.background": "#0B0E14",
+        "tab.active_background": "#0B0E14",
+        "tab.inactive_background": "#01060E",
+        "tab_bar.background": "#01060E",
+        "status_bar.background": "#01060E",
+        "title_bar.background": "#01060E",
+        "toolbar.background": "#0B0E14",
+        "terminal.background": "#0B0E14",
+        "terminal.foreground": "#BFBDB6",
+        "terminal.ansi.black": "#01060E",
+        "terminal.ansi.red": "#F07178",
+        "terminal.ansi.green": "#AAD94C",
+        "terminal.ansi.yellow": "#E6B450",
+        "terminal.ansi.blue": "#39BAE6",
+        "terminal.ansi.magenta": "#D2A6FF",
+        "terminal.ansi.cyan": "#95E6CB",
+        "terminal.ansi.white": "#BFBDB6",
+        "terminal.ansi.bright_black": "#565B66",
+        "terminal.ansi.bright_red": "#F07178",
+        "terminal.ansi.bright_green": "#AAD94C",
+        "terminal.ansi.bright_yellow": "#E6B450",
+        "terminal.ansi.bright_blue": "#39BAE6",
+        "terminal.ansi.bright_magenta": "#D2A6FF",
+        "terminal.ansi.bright_cyan": "#95E6CB",
+        "terminal.ansi.bright_white": "#BFBDB6",
         "syntax": {
           "comment": {
-            "color": "#5C6370"
+            "color": "#565B66"
           },
           "string": {
-            "color": "#98C379"
+            "color": "#AAD94C"
           },
           "keyword": {
-            "color": "#61AFEF"
+            "color": "#39BAE6"
           },
           "function": {
-            "color": "#D19A66"
+            "color": "#E6B450"
           },
           "type": {
-            "color": "#56B6C2"
+            "color": "#95E6CB"
           },
           "variable": {
-            "color": "#ABB2BF"
+            "color": "#BFBDB6"
           },
           "constant": {
-            "color": "#C678DD"
+            "color": "#D2A6FF"
           },
           "number": {
-            "color": "#C678DD"
+            "color": "#D2A6FF"
           }
         }
       }
