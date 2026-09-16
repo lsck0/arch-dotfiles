@@ -83,12 +83,11 @@ Rectangle {
     anchors.left: root.centered ? undefined : parent.left
     anchors.leftMargin: root.centered ? 0 : Style.spacing.md
     anchors.horizontalCenter: root.centered ? parent.horizontalCenter : undefined
-    anchors.right: root.centered || root.trailing === "" ? undefined : trailingText.left
-    anchors.rightMargin: root.centered || root.trailing === "" ? 0 : Style.spacing.sm
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.spacing.sm
 
     Text {
+      id: glyphText
       anchors.verticalCenter: parent.verticalCenter
       visible: root.glyph !== ""
       textFormat: Text.PlainText
@@ -99,6 +98,7 @@ Rectangle {
     }
 
     Text {
+      id: markerText
       anchors.verticalCenter: parent.verticalCenter
       visible: root.glyph === "" && root.stateMarker
       textFormat: Text.PlainText
@@ -110,6 +110,11 @@ Rectangle {
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
+      // Capped to the row, so long labels (audio device names) elide instead of overflowing.
+      width: Math.max(0, Math.min(implicitWidth, root.width - Style.spacing.md * 2
+        - (glyphText.visible ? glyphText.implicitWidth + content.spacing : 0)
+        - (markerText.visible ? markerText.implicitWidth + content.spacing : 0)
+        - (trailingText.visible ? trailingText.implicitWidth + Style.spacing.sm : 0)))
       textFormat: Text.PlainText
       text: root.label
       color: root._text

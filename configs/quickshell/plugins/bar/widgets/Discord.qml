@@ -333,31 +333,22 @@ BarWidget {
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "VOICE" }
+      PanelSectionHeader { text: "VOICE · " + root.participants.length + " IN CALL" }
 
       Text {
         width: parent.width
         textFormat: Text.PlainText
-        text: root.guildName
+        readonly property string base: root.guildName
           ? root.guildName + "  ·  " + root.channelName
           : (root.channelName || "Voice call")
+        text: base + (root.speakingCount > 0 ? "  ·  " + root.speakingCount + " speaking" : "")
         color: Color.menu.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         opacity: Style.emphasis.dim
         elide: Text.ElideRight
-      }
-
-      Text {
-        width: parent.width
-        text: root.participants.length + " in call"
-          + (root.speakingCount > 0 ? "  ·  " + root.speakingCount + " speaking" : "")
-        color: Color.menu.text
-        opacity: Style.emphasis.faint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
       }
 
       // --- my own controls ---
@@ -483,15 +474,30 @@ BarWidget {
             }
           }
 
-          Text {
+          Row {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - Style.space(26) - Style.space(74) - parent.spacing * 2
-            textFormat: Text.PlainText
-            text: modelData.name + (modelData.self ? "  (you)" : "")
-            color: modelData.speaking ? Color.accent : Color.menu.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            elide: Text.ElideRight
+            spacing: Style.spacing.sm
+            Text {
+              id: nameLabel
+              width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))
+              textFormat: Text.PlainText
+              text: modelData.name
+              color: modelData.speaking ? Color.accent : Color.menu.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+              elide: Text.ElideRight
+            }
+            Text {
+              id: youLabel
+              visible: !!modelData.self
+              anchors.baseline: nameLabel.baseline
+              text: "you"
+              color: Color.menu.text
+              opacity: Style.emphasis.faint
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
           }
 
           // Every state gets its own glyph here, unlike the bar, where space

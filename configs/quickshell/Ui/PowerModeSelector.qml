@@ -124,6 +124,7 @@ Item {
   ButtonGroup {
     id: group
     width: root.width
+    fill: true
     spacing: Style.spacing.xs
     options: root.modeOptions
     value: internal.mode === "" ? "auto" : internal.mode
