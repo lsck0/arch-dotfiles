@@ -902,13 +902,21 @@ Item {
 
   // -------------------------------------------------------------- popup UI
   //
-  // One PanelWindow per output (Variants on Quickshell.screens) holding the
-  // stacked toast cards. Layer is Overlay, exclusionMode Ignore, no
-  // keyboard focus -- popups are passive surfaces and must never steal
-  // input from the focused application.
+  // One PanelWindow on the primary output holding the stacked toast cards.
+  // Layer is Overlay, exclusionMode Ignore, no keyboard focus -- popups are
+  // passive surfaces and must never steal input from the focused application.
+
+  // Same main output as the bar (shell.mainScreenName: the one holding workspace 1).
+  readonly property var primaryScreen: {
+    var screens = Quickshell.screens
+    var name = service.shell ? service.shell.mainScreenName : ""
+    for (var i = 0; i < screens.length; i++)
+      if (String(screens[i].name) === name) return screens[i]
+    return screens.length > 0 ? screens[0] : null
+  }
 
   Variants {
-    model: Quickshell.screens
+    model: service.primaryScreen ? [service.primaryScreen] : []
 
     PanelWindow {
       id: popupWindow

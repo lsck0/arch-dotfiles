@@ -16,9 +16,11 @@
 # shown over a flat surface with a centre marker instead: you can read where
 # the rain is relative to you without the image saying where "you" is.
 #
-# Source: RainViewer's free public API (no key, no account). Its
-# lat/lon-centred endpoint returns one ready-made square per frame, so this
-# needs no tile-mosaic arithmetic:
+# Sources, both keyless:
+#   DWD GeoServer WMS (Germany and surroundings): keeps three days of 5-minute
+#   RV composites, so it can serve the full four hours of history.
+#   RainViewer's public API everywhere else: its index only lists the last two
+#   hours and older frame paths return 410, so the loop is shorter there.
 #   {host}{path}/{size}/{z}/{lat}/{lon}/{colour}/{smooth}_{snow}.png
 set -uo pipefail
 
@@ -33,9 +35,9 @@ SIZE=512
 # 4 = the "Universal Blue" palette; 1_1 = smoothed, snow shown separately.
 COLOUR=4
 OPTIONS=1_1
-# Twelve frames at ten-minute steps is two hours of history. More frames is
-# more download for a loop nobody watches to the end.
-FRAMES=12
+# Four hours of history at ten-minute steps.
+HISTORY_MIN=240
+STEP_MIN=10
 # The upstream index only advances every ten minutes, so refetching sooner
 # re-downloads identical PNGs.
 MAX_AGE=540
@@ -58,19 +60,52 @@ read -r SOURCE COORDS <<<"$("$TOGGLES/toggle-weather-location.sh" resolve 2>/dev
 LAT=${COORDS%%,*}
 LON=${COORDS##*,}
 
-INDEX=$(curl -s --max-time 12 "https://api.rainviewer.com/public/weather-maps.json" 2>/dev/null || true)
-[[ -z "$INDEX" ]] && fail "offline"
+# Inside the DWD composite the WMS is used; it needs no index round trip.
+if python3 -c "import sys; la, lo = map(float, sys.argv[1:3]); sys.exit(not (47.0 <= la <= 55.1 and 5.8 <= lo <= 15.1))" "$LAT" "$LON"; then
+    PROVIDER=dwd
+    INDEX=""
+    ATTRIBUTION="Deutscher Wetterdienst"
+else
+    PROVIDER=rainviewer
+    INDEX=$(curl -s --max-time 12 "https://api.rainviewer.com/public/weather-maps.json" 2>/dev/null || true)
+    [[ -z "$INDEX" ]] && fail "offline"
+    ATTRIBUTION="RainViewer"
+fi
 
 mkdir -p "$CACHE_DIR" || fail "cache unavailable"
 
-# Emit the frames to fetch as "<index> <unix-ts> <url-path>" lines.
-PLAN=$(python3 - "$INDEX" "$FRAMES" <<'PY'
-import json, sys
+# Emit the frames to fetch as "<index> <unix-ts> <url> <is-forecast>" lines.
+# Both providers are framed on the same web-mercator square (zoom, size and
+# centre), so spanKm and the wind field overlay stay aligned whichever serves.
+PLAN=$(python3 - "$PROVIDER" "$INDEX" "$HISTORY_MIN" "$STEP_MIN" "$SIZE" "$ZOOM" "$LAT" "$LON" "$COLOUR" "$OPTIONS" <<'PY'
+import json, math, sys, time, urllib.parse
+provider, index = sys.argv[1], sys.argv[2]
+history, step, size, zoom = (int(a) for a in sys.argv[3:7])
+lat, lon = float(sys.argv[7]), float(sys.argv[8])
+colour, options = sys.argv[9], sys.argv[10]
+
+if provider == "dwd":
+    r = 6378137.0
+    x = math.radians(lon) * r
+    y = math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)) * r
+    half = size * 156543.03392 / 2 ** zoom / 2
+    # The newest composite lands a few minutes after its timestamp.
+    latest = (int(time.time()) - 5 * 60) // (step * 60) * (step * 60)
+    for i, ts in enumerate(range(latest - history * 60, latest + 1, step * 60)):
+        query = urllib.parse.urlencode({
+            "service": "WMS", "version": "1.1.1", "request": "GetMap",
+            "layers": "dwd:Radar_rv_product_1x1km_ger", "styles": "",
+            "srs": "EPSG:3857", "bbox": "%f,%f,%f,%f" % (x - half, y - half, x + half, y + half),
+            "width": size, "height": size, "format": "image/png", "transparent": "true",
+            "time": time.strftime("%Y-%m-%dT%H:%M:00.000Z", time.gmtime(ts)),
+        })
+        print(i, ts, "https://maps.dwd.de/geoserver/dwd/wms?" + query, 0)
+    sys.exit(0)
+
 try:
-    d = json.loads(sys.argv[1])
+    d = json.loads(index)
 except Exception:
     sys.exit(1)
-want = int(sys.argv[2])
 radar = d.get("radar") or {}
 # Nowcast frames are appended so the loop runs past "now" into the forecast
 # when the provider has one; they are flagged in the manifest so the UI can
@@ -79,16 +114,14 @@ frames = [(f, False) for f in (radar.get("past") or [])] + \
          [(f, True) for f in (radar.get("nowcast") or [])]
 if not frames:
     sys.exit(1)
-frames = frames[-want:]
-print(d.get("host", "https://tilecache.rainviewer.com"))
+frames = frames[-(history // step + 1):]
+host = d.get("host", "https://tilecache.rainviewer.com")
 for i, (f, is_forecast) in enumerate(frames):
-    print(i, f.get("time", 0), f.get("path", ""), int(is_forecast))
+    url = "%s%s/%d/%d/%s/%s/%s/%s.png" % (host, f.get("path", ""), size, zoom, lat, lon, colour, options)
+    print(i, f.get("time", 0), url, int(is_forecast))
 PY
 ) || fail "bad index"
-
-HOST=$(head -1 <<<"$PLAN")
-export HOST SIZE ZOOM LAT LON COLOUR OPTIONS
-[[ -z "$HOST" ]] && fail "bad index"
+[[ -z "$PLAN" ]] && fail "bad index"
 
 # EACH REFRESH GETS ITS OWN FRAME DIRECTORY, AND THE MANIFEST IS THE SWITCH.
 #
@@ -116,7 +149,7 @@ export STAGE
 rm -rf "$STAGE"
 mkdir -p "$STAGE" || fail "cache unavailable"
 
-# DOWNLOADED IN PARALLEL. Twelve frames fetched one after another is twelve
+# DOWNLOADED IN PARALLEL. Two dozen frames fetched one after another is as many
 # round trips end to end — the single biggest reason a cold radar took as long
 # as it did. They are independent files from one CDN, so there is no ordering to
 # preserve; -P 6 keeps it civil while cutting the wall time to roughly the
@@ -124,13 +157,12 @@ mkdir -p "$STAGE" || fail "cache unavailable"
 while read -r idx ts path is_forecast; do
     [[ -z "${path:-}" ]] && continue
     printf '%s\t%s\t%s\t%s\n' "$idx" "$ts" "$path" "$is_forecast"
-done < <(tail -n +2 <<<"$PLAN") > "$STAGE/.plan"
+done <<<"$PLAN" > "$STAGE/.plan"
 
 # shellcheck disable=SC2016
 < "$STAGE/.plan" cut -f1,3 | xargs -P 6 -n 2 bash -c '
     out=$(printf "%s/frame-%02d.png" "$STAGE" "$0")
-    url="${HOST}${1}/${SIZE}/${ZOOM}/${LAT}/${LON}/${COLOUR}/${OPTIONS}.png"
-    curl -sf --max-time 15 -o "$out" "$url" 2>/dev/null || exit 0
+    curl -sf --max-time 15 -o "$out" "$1" 2>/dev/null || exit 0
     # A truncated body or an error page is not a usable frame; drop it rather
     # than letting the widget render a hole in the middle of the loop.
     [[ -s "$out" ]] || { rm -f "$out"; exit 0; }
@@ -160,7 +192,7 @@ printf '%s' "$ENTRIES" > "$LIST"
 # manifest actually got renamed into place, and that is the one thing that
 # decides whether the older frame directories are safe to remove.
 PUBLISHED=1
-python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" <<'PY' || PUBLISHED=0
+python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" "$ATTRIBUTION" <<'PY' || PUBLISHED=0
 import json, os, sys, math
 
 now, zoom, size, manifest, listfile, lat = (
@@ -189,9 +221,9 @@ out = {
     "ok": True,
     "frames": frames,
     "spanKm": span_km,
-    # Attribution is a licence condition of the free RainViewer API, so the
-    # widget must actually display it.
-    "attribution": "RainViewer",
+    # Attribution is a licence condition of both free sources, so the widget
+    # must actually display it.
+    "attribution": sys.argv[7],
 }
 
 BANNED = {"lat", "lon", "latitude", "longitude", "coords", "place", "area"}
@@ -240,7 +272,7 @@ sys.exit(0 if ok else 1)
 PY
 
 # PRUNE ONLY WHAT THE MANIFEST NO LONGER NAMES, and only once it has been
-# published. Superseded generations are dead weight — twelve 512px PNGs each —
+# published. Superseded generations are dead weight — two dozen 512px PNGs each —
 # but a reader that loaded the old manifest a moment ago is still displaying
 # them, so this runs last and never touches the generation that just went live.
 #

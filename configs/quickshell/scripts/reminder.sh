@@ -28,6 +28,7 @@ SELF_DIR="$(dirname "$(readlink -f "$0")")"
 # Absolute paths, not the PATH symlinks: the systemd --user unit set below gets
 # a minimal environment, and this must work before any link.sh has run.
 ALERT_BIN="$SELF_DIR/alert.sh"
+BELL="󰂞"   # md-bell_ring
 NOTIFY_BIN="$SELF_DIR/../../../scripts/notification-send.sh"
 
 format_remaining() {
@@ -223,9 +224,10 @@ if [[ -z $minutes ]] || [[ ! $minutes =~ ^[0-9]+$ ]] || ((minutes == 0)); then
   exit 1
 fi
 
-if [[ -z $message ]]; then
-  message="Your ${minutes} minutes are up"
-fi
+unit_label=$( ((minutes == 1)) && echo "1 minute" || echo "${minutes} minutes")
+# The alert card leads with what you asked to be reminded of.
+alert_title=${message:-"Time's up"}
+alert_body="${unit_label/%s/} reminder"
 
 set_at=$(date +%s)
 remind_at=$(date -d "+${minutes} minutes" +%H:%M)
@@ -233,21 +235,21 @@ unit="quickshell-reminder-${minutes}m-$set_at"
 reminder_dir="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
 message_file="$reminder_dir/$unit.message"
 confirmation="You'll be reminded at $remind_at"
-confirmation_title="Reminder set for ${minutes} minutes"
+confirmation_title="Reminder set for ${unit_label}"
 
 mkdir -p "$reminder_dir"
 
 if [[ -n $custom_message ]]; then
   printf "%s" "$custom_message" >"$message_file"
-  confirmation_title="$custom_message in ${minutes} minutes"
+  confirmation_title="$custom_message in ${unit_label}"
 fi
 
 # Fires through alert.sh, not notification-send: a reminder that elapses while
 # you are looking at another workspace must not auto-expire into nothing.
-# alert.sh plays a sound and puts up the large top-left card that has to be
+# alert.sh plays a sound and puts up the large top-right card that has to be
 # dismissed by hand, falling back to a plain notification if quickshell is not
 # running. Deliberate divergence from upstream omarchy, which uses a plain toast.
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
-  bash -c '"$3" "Reminder" "$1" 󰢌; rm -f "$2"' bash "$message" "$message_file" "$ALERT_BIN"
+  bash -c '"$3" "$1" "$4" '"$BELL"' reminder "$5"; rm -f "$2"' bash "$alert_title" "$message_file" "$ALERT_BIN" "$alert_body" "$custom_message"
 
-"$NOTIFY_BIN" -g 󰢌 "$confirmation_title" "$confirmation"
+"$NOTIFY_BIN" -g "$BELL" "$confirmation_title" "$confirmation"

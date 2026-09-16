@@ -12,6 +12,8 @@ if [ ! -d ${HOME}/.config/spicetify/Themes/.git ]; then
 fi
 
 mkdir -p ${HOME}/.config/spicetify/Themes/wal
+# pywal-spicetify panics unless pywal's template dir exists, even though wallust generates the colors.
+mkdir -p ${HOME}/.config/wal/templates
 
 ln -sfn ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/color.ini
 ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css
@@ -21,6 +23,8 @@ sudo chmod 777 /opt/spotify/Apps -R
 
 spicetify config current_theme wal color_scheme pywal
 spicetify config experimental_features 0
+# On, it strips every [dir=ltr] rule too, and Spotify's spacing lives in those.
+spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
 if ! pacman -Q spotify >/dev/null 2>&1; then

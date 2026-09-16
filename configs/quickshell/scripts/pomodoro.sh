@@ -55,14 +55,14 @@ now() { date +%s; }
 # Two tiers on purpose. `notify` is for confirmations you do not need to
 # act on (started, paused, stopped) — an ordinary toast. `alert` is for a
 # phase actually elapsing, which is the whole point of running a pomodoro:
-# it plays a sound and puts up the manually-dismissed top-left card, so a
+# it plays a sound and puts up the manually-dismissed top-right card, so a
 # finished focus block cannot quietly expire while you are heads-down.
 ALERT="$(dirname "$SELF")/alert.sh"
 
 notify() {
     "$(dirname "$SELF")/../../../scripts/notification-send.sh" -g "$GLYPH" "$1" "${2:-}" || true
 }
-alert()  { "$ALERT" "$1" "${2:-}" "$GLYPH" || true; }
+alert()  { "$ALERT" "$1" "${2:-}" "$GLYPH" pomodoro || true; }
 
 read_state() { [[ -s "$STATE" ]] && cat "$STATE" || echo '{}'; }
 
@@ -184,8 +184,9 @@ status_json() {
     local running paused phase endsAt cycle remaining
     running=$(jqs '.running'); [[ "$running" == "true" ]] || running=false
     if [[ "$running" != "true" ]]; then
-        jq -cn '{running:false,paused:false,phase:"idle",label:"Pomodoro",
-                 remainingSeconds:0,remaining:"",cycle:0,tooltip:"Pomodoro: off"}'
+        jq -cn --argjson work "$DEF_WORK" --argjson longEvery "$LONG_EVERY" \
+            '{running:false,paused:false,phase:"idle",label:"Pomodoro",remainingSeconds:0,remaining:"",
+              cycle:0,totalSeconds:0,defaultWork:$work,longEvery:$longEvery,tooltip:"Pomodoro: off"}'
         return
     fi
     paused=$(jqs '.paused'); phase=$(jqs '.phase'); cycle=$(jqs '.cycle')
@@ -195,13 +196,20 @@ status_json() {
         endsAt=$(jqs '.endsAt'); remaining=$((endsAt - $(now)))
     fi
     ((remaining < 0)) && remaining=0
+    local total
+    case "$phase" in
+    work) total=$(( $(jqs '.work') * 60 )) ;;
+    long) total=$(( $(jqs '.long') * 60 )) ;;
+    *) total=$(( $(jqs '.break') * 60 )) ;;
+    esac
     jq -cn --argjson running true --argjson paused "${paused:-false}" \
         --arg phase "$phase" --arg label "$(phase_label "$phase")" \
         --argjson remainingSeconds "$remaining" --arg remaining "$(fmt "$remaining")" \
-        --argjson cycle "$cycle" \
+        --argjson cycle "$cycle" --argjson totalSeconds "$total" --argjson longEvery "$LONG_EVERY" \
         --arg tooltip "$(phase_label "$phase") · $(fmt "$remaining") left · pomodoro $cycle$([[ "$paused" == "true" ]] && echo ' (paused)')" \
         '{running:$running,paused:$paused,phase:$phase,label:$label,
-          remainingSeconds:$remainingSeconds,remaining:$remaining,cycle:$cycle,tooltip:$tooltip}'
+          remainingSeconds:$remainingSeconds,remaining:$remaining,cycle:$cycle,
+          totalSeconds:$totalSeconds,longEvery:$longEvery,tooltip:$tooltip}'
 }
 
 usage() {
