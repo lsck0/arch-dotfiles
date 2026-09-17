@@ -67,7 +67,8 @@ queue at a glance instead of hand-parsing `task list`/`task export`.
   - installs the `on-modify.timewarrior` hook so `task <id> start`/`stop`
     auto-tracks a matching timewarrior interval;
   - creates `tasks/context/{research,design,questions}/`;
-  - creates a NEW `devenv.nix` + `.envrc` if none exists, OR — if
+  - puts `use devenv` first in `.envrc`, creating it if needed;
+  - creates a NEW `devenv.nix` if none exists, OR — if
     `devenv.nix` already exists for the project's real dev tooling —
     PATCHES its `enterShell` block in place to add the
     `TASKRC`/`TIMEWARRIORDB` exports, leaving everything else in the file
