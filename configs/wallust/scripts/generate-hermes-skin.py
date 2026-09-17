@@ -107,7 +107,8 @@ def main():
         return rgb_to_hex(c, "#")
 
     palette = {
-        "background": hx(bg),
+        # No "background" key: the TUI paints it via OSC 11, which makes the
+        # terminal opaque. `bg` is still the contrast reference below.
 
         # Banner / panels
         "banner_border": on(bg, accent, 3.0),
@@ -210,9 +211,10 @@ def main():
             ("status_bar_critical", "status_bar_bg"),
         ]
         for f, b in checks:
-            ratio = contrast(hex_to_rgb(palette[f]), hex_to_rgb(palette[b]))
+            back = palette.get(b, hx(bg))
+            ratio = contrast(hex_to_rgb(palette[f]), hex_to_rgb(back))
             print("%-20s %s on %s  %.2f:1  %s"
-                  % (f, palette[f], palette[b], ratio,
+                  % (f, palette[f], back, ratio,
                      "OK" if ratio >= 4.5 else "LOW"))
 
     print("wrote %s (%d colours)" % (OUT, len(palette)))
