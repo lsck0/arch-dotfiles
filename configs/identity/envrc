@@ -1,0 +1,222 @@
+# Customer identity for one repository. identity-init copies this file to <repo>/.identity/envrc and appends
+# `source_env_if_exists .identity/envrc` to <repo>/.envrc; re-running identity-init updates it.
+#
+# Inside the repository, logins, credentials, signing keys and every history (zsh, python, nvim, rtk, chromium,
+# claude, copilot, hermes) live in .identity/. Agents keep their personal settings, skills and plugins through
+# links; anything not on an allowlist below starts empty.
+#
+# The file must end with exit status 0. direnv drops the whole environment of a failing .envrc, so the personal
+# credentials would stay loaded. Missing pieces are logged instead.
+#
+# Rejected:
+#   - linking every agent entry except known credential files: leaked hermes shared/nous_auth.json, state.db and
+#     memories, and silently shares whatever a new version adds.
+#   - XDG_DATA_HOME / XDG_CONFIG_HOME per repository: breaks nvim plugins, zinit, mise tools.
+#   - HISTFILE from direnv: zsh keeps history in memory, and direnv unsets the variable on leave. zshrc swaps the
+#     history list with fc -p / fc -P on DIRENV_HISTFILE instead.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# source_env runs this file from inside .identity/
+identity_dir=$(expand_path "$(dirname "${BASH_SOURCE[0]}")")
+repo_dir=${identity_dir%/*}
+personal_config_dir=${XDG_CONFIG_HOME:-$HOME/.config}
+personal_state_dir=${XDG_STATE_HOME:-$HOME/.local/state}
+
+PERSONAL_CREDENTIAL_VARS=(
+  GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN COPILOT_GITHUB_TOKEN
+  ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_TOKEN CLAUDE_CODE_OAUTH_TOKEN
+  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_PROFILE AWS_DEFAULT_PROFILE
+  STACKIT_SERVICE_ACCOUNT_TOKEN STACKIT_ACCESS_TOKEN STACKIT_SERVICE_ACCOUNT_KEY_PATH STACKIT_PRIVATE_KEY_PATH
+  GIT_SSH GIT_SSH_COMMAND SSH_AUTH_SOCK JJ_USER JJ_EMAIL
+)
+GNUPG_SHARED_ITEMS=(common.conf gpg.conf gpg-agent.conf dirmngr.conf scdaemon.conf)
+GH_SHARED_ITEMS=(config.yml)
+# nix keeps the personal profiles in XDG state
+STATE_SHARED_ITEMS=(nix)
+CLAUDE_SHARED_ITEMS=(CLAUDE.md RTK.md settings.json keybindings.json agents commands hooks output-styles plugins skills)
+COPILOT_SHARED_ITEMS=(copilot-instructions.md settings.json mcp-config.json lsp-config.json agents hooks
+  installed-plugins skills)
+HERMES_SHARED_ITEMS=(SOUL.md config.yaml bin hooks lsp plugins skins context_length_cache.yaml models_dev_cache.etag
+  models_dev_cache.json ollama_cloud_models_cache.json provider_models_cache.json tui-theme-boot.json .update_check)
+PRIVATE_DIRS=(bin ssh gnupg gh aws stackit jj rtk state terraform docker kube helm claude copilot hermes)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# prints the names of the links in $2 that point into $1
+home_links_get() {
+  local source_dir=$1 home_dir=$2 link
+  shopt -s dotglob nullglob
+  for link in "$home_dir"/*; do
+    [[ -L $link && $(readlink "$link") == "$source_dir/${link##*/}" ]] && echo "${link##*/}"
+  done
+  shopt -u dotglob nullglob
+}
+
+# links exactly the listed $1 items into $2; real files in $2 are never touched
+home_links_set() {
+  local source_dir=$1 home_dir=$2 item
+  shift 2
+  local -A listed=()
+  for item in "$@"; do
+    [[ $item == */* ]] && { log_error "identity: link item '$item' must be a plain name"; continue; }
+    listed[$item]=1
+  done
+  while read -r item; do
+    [[ -n ${listed[$item]-} && -e $source_dir/$item ]] || rm "$home_dir/$item"
+  done < <(home_links_get "$source_dir" "$home_dir")
+  for item in "${!listed[@]}"; do
+    [[ -e $source_dir/$item && ! -e $home_dir/$item && ! -L $home_dir/$item ]] && ln -s "$source_dir/$item" "$home_dir/$item"
+  done
+  return 0
+}
+
+# writes $identity_dir/bin/$1 running body with $real set to the binary on PATH, or removes the wrapper when
+# the binary is gone. PATH may already hold the wrapper (a parent .envrc, a nested load), which would exec itself.
+bin_wrapper_create() {
+  local name=$1 body=$2 dir real=
+  local -a dirs
+  IFS=: read -ra dirs <<<"$PATH"
+  for dir in "${dirs[@]}"; do
+    [[ $dir != "$identity_dir/bin" && -f $dir/$name && -x $dir/$name ]] && { real=$dir/$name; break; }
+  done
+  [[ -n $real ]] || { bin_wrapper_destroy "$name"; return 1; }
+  printf '#!/bin/sh\nreal=%q\n%s\n' "$real" "$body" >"$identity_dir/bin/$name"
+  chmod 755 "$identity_dir/bin/$name"
+}
+
+bin_wrapper_destroy() {
+  rm -f "$identity_dir/bin/$1"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CREDENTIALS
+# ─────────────────────────────────────────────────────────────────────────────
+
+mkdir -p "${PRIVATE_DIRS[@]/#/$identity_dir/}"
+chmod 700 "$identity_dir" "${PRIVATE_DIRS[@]/#/$identity_dir/}"
+
+unset "${PERSONAL_CREDENTIAL_VARS[@]}"
+for var in $(compgen -e); do
+  [[ $var == TF_TOKEN_* ]] && unset "$var"
+done
+dotenv_if_exists "$identity_dir/env"
+
+if [[ -z ${GIT_EMAIL-} ]]; then
+  log_error "identity: GIT_EMAIL missing in .identity/env, git and jj commits are refused"
+  # git refuses an empty name but accepts an empty email
+  GIT_NAME=
+fi
+# command-scope config beats global and repository config. the empty helper clears the personal credential store.
+git_config=(
+  user.name "${GIT_NAME-}"
+  user.email "${GIT_EMAIL-}"
+  user.useConfigOnly true
+  credential.helper ""
+  credential.helper "!gh auth git-credential"
+)
+[[ -n ${GIT_SIGNING_KEY-} ]] && git_config+=(user.signingKey "$GIT_SIGNING_KEY" commit.gpgSign true tag.gpgSign true)
+export GIT_CONFIG_COUNT=$((${#git_config[@]} / 2))
+for ((i = 0; i < GIT_CONFIG_COUNT; i++)); do
+  export "GIT_CONFIG_KEY_$i=${git_config[i * 2]}" "GIT_CONFIG_VALUE_$i=${git_config[i * 2 + 1]}"
+done
+
+# jj ignores git config. later files in JJ_CONFIG win, and `jj git push` refuses an empty name or email.
+{
+  printf 'user.name = "%s"\nuser.email = "%s"\n' "${GIT_NAME-}" "${GIT_EMAIL-}"
+  [[ -n ${GIT_SIGNING_KEY-} ]] && printf 'signing.behavior = "own"\nsigning.backend = "gpg"\nsigning.key = "%s"\n' "$GIT_SIGNING_KEY"
+} >"$identity_dir/jj/config.toml"
+export JJ_CONFIG=$identity_dir/jj/config.toml
+[[ -e $personal_config_dir/jj/config.toml ]] && JJ_CONFIG=$personal_config_dir/jj/config.toml:$JJ_CONFIG
+unset GIT_NAME GIT_EMAIL GIT_SIGNING_KEY
+
+# IdentitiesOnly keeps the personal default keys and agent out
+[[ -e $identity_dir/ssh/config ]] || cat >"$identity_dir/ssh/config" <<EOF
+IdentityFile $identity_dir/ssh/id_ed25519
+IdentitiesOnly yes
+Include ~/.ssh/config
+Include /etc/ssh/ssh_config
+EOF
+for name in ssh scp sftp; do
+  bin_wrapper_create "$name" "exec \"\$real\" -F $(printf %q "$identity_dir/ssh/config") \"\$@\""
+done
+
+export GNUPGHOME=$identity_dir/gnupg
+home_links_set "$HOME/.gnupg" "$GNUPGHOME" "${GNUPG_SHARED_ITEMS[@]}"
+
+# log in with `gh auth login --insecure-storage`, the keyring is shared with the personal login
+export GH_CONFIG_DIR=$identity_dir/gh
+home_links_set "$personal_config_dir/gh" "$GH_CONFIG_DIR" "${GH_SHARED_ITEMS[@]}"
+
+export AWS_CONFIG_FILE=$identity_dir/aws/config
+export AWS_SHARED_CREDENTIALS_FILE=$identity_dir/aws/credentials
+
+export STACKIT_CLI_PROFILE=${STACKIT_CLI_PROFILE:-${repo_dir##*/}}
+export STACKIT_CREDENTIALS_PATH=$identity_dir/stackit/credentials.json
+[[ -e $identity_dir/stackit/sa-key.json ]] && export STACKIT_SERVICE_ACCOUNT_KEY_PATH=$identity_dir/stackit/sa-key.json
+
+# terraform login always writes ~/.terraform.d, which personal runs read too. tokens go into .identity/env.
+export TF_CLI_CONFIG_FILE=$identity_dir/terraform/terraformrc
+[[ -e $TF_CLI_CONFIG_FILE ]] || install -m 600 /dev/null "$TF_CLI_CONFIG_FILE"
+bin_wrapper_create terraform 'for arg; do
+  case $arg in
+  -*) ;;
+  login | logout) echo "terraform $arg: set TF_TOKEN_* in .identity/env instead" >&2; exit 1 ;;
+  *) break ;;
+  esac
+done
+exec "$real" "$@"'
+
+export DOCKER_CONFIG=$identity_dir/docker
+export KUBECONFIG=$identity_dir/kube/config
+export HELM_CONFIG_HOME=$identity_dir/helm
+export NPM_CONFIG_USERCONFIG=$identity_dir/npmrc
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HISTORY
+# ─────────────────────────────────────────────────────────────────────────────
+
+export DIRENV_HISTFILE=$identity_dir/zsh_history
+[[ -e $DIRENV_HISTFILE ]] || install -m 600 /dev/null "$DIRENV_HISTFILE"
+
+# nvim shada, undo and swap files, mise trust
+export XDG_STATE_HOME=$identity_dir/state
+home_links_set "$personal_state_dir" "$XDG_STATE_HOME" "${STATE_SHARED_ITEMS[@]}"
+export PYTHON_HISTORY=$XDG_STATE_HOME/python_history
+
+# the rtk recall store keeps full command output and ignores RTK_DB_PATH
+export RTK_DB_PATH=$identity_dir/rtk/history.db RTK_RECALL=0 RTK_TEE=0
+
+bin_wrapper_create chromium "exec \"\$real\" --user-data-dir=$(printf %q "$identity_dir/chromium") \"\$@\"" &&
+  export BROWSER=$identity_dir/bin/chromium
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AGENTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+export CLAUDE_CONFIG_DIR=$identity_dir/claude
+home_links_set "$HOME/.claude" "$CLAUDE_CONFIG_DIR" "${CLAUDE_SHARED_ITEMS[@]}"
+[[ -s $identity_dir/claude-token ]] && export CLAUDE_CODE_OAUTH_TOKEN="$(<"$identity_dir/claude-token")"
+
+export COPILOT_HOME=$identity_dir/copilot
+home_links_set "$HOME/.copilot" "$COPILOT_HOME" "${COPILOT_SHARED_ITEMS[@]}"
+if [[ -s $identity_dir/copilot-token ]]; then
+  export COPILOT_GITHUB_TOKEN="$(<"$identity_dir/copilot-token")"
+elif token=$(gh auth token 2>/dev/null); then
+  export COPILOT_GITHUB_TOKEN=$token
+fi
+
+# hermes writes skills from sessions into skills/, so personal skills are linked one by one
+export HERMES_HOME=$identity_dir/hermes
+home_links_set "$HOME/.hermes" "$HERMES_HOME" "${HERMES_SHARED_ITEMS[@]}"
+mkdir -p "$HERMES_HOME/skills"
+shopt -s dotglob nullglob
+hermes_skills=("$HOME"/.hermes/skills/*)
+shopt -u dotglob nullglob
+home_links_set "$HOME/.hermes/skills" "$HERMES_HOME/skills" "${hermes_skills[@]##*/}"
+
+PATH_add "$identity_dir/bin"

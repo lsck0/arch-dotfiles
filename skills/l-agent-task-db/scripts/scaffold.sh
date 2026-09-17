@@ -122,10 +122,11 @@ NIX
   echo "wrote $devenv_nix"
 fi
 
-if [[ ! -f "$envrc" ]]; then
-  cat > "$envrc" <<'ENVRC'
-use devenv
-ENVRC
+# first line: identity-init appends to .envrc and must stay last
+envrc_devenv_line='use devenv'
+if ! grep -qxF "$envrc_devenv_line" "$envrc" 2>/dev/null; then
+  envrc_rest=$(cat "$envrc" 2>/dev/null || true)
+  printf '%s\n%s' "$envrc_devenv_line" "${envrc_rest:+$envrc_rest$'\n'}" > "$envrc"
 fi
 
 if git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
