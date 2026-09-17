@@ -11,8 +11,8 @@ font-size = 16
 #delta
 adjust-cell-height = -23%
 
-# 90 got cut off by KWin's decoration in Plasma
-window-width = 96
+window-width = 115
+window-height = 35
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 

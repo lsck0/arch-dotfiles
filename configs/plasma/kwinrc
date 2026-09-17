@@ -27,7 +27,23 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][3dcd5303-ae2c-4582-b8dc-d8a52af78b25][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][3dcd5303-ae2c-4582-b8dc-d8a52af78b25][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][3dcd5303-ae2c-4582-b8dc-d8a52af78b25][e9494e9a-e905-44f6-b2a5-8b5028e640a7]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][8097a8d0-c07b-4b62-8a8b-10191493c70f][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][8097a8d0-c07b-4b62-8a8b-10191493c70f][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
@@ -35,7 +51,23 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][80c6cb30-119f-4ce5-8ce2-ccdec82a61f0][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][80c6cb30-119f-4ce5-8ce2-ccdec82a61f0][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][80c6cb30-119f-4ce5-8ce2-ccdec82a61f0][e9494e9a-e905-44f6-b2a5-8b5028e640a7]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][9e23a911-4041-437d-9a66-43a9b1f5b6da][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][9e23a911-4041-437d-9a66-43a9b1f5b6da][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
@@ -43,7 +75,23 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][d4d892d2-38b1-46a0-bdb3-8df178400a53][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][d4d892d2-38b1-46a0-bdb3-8df178400a53][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][d4d892d2-38b1-46a0-bdb3-8df178400a53][e9494e9a-e905-44f6-b2a5-8b5028e640a7]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][e75471e6-cc23-442d-9c91-3e0e2eaffa4e][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][e75471e6-cc23-442d-9c91-3e0e2eaffa4e][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
@@ -51,7 +99,23 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Tiling][efb5580d-9f01-4f06-bd5b-5ca5e3833fcb][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][efb5580d-9f01-4f06-bd5b-5ca5e3833fcb][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
 [Tiling][efb5580d-9f01-4f06-bd5b-5ca5e3833fcb][e9494e9a-e905-44f6-b2a5-8b5028e640a7]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][fa50bc6e-3990-4714-8387-f225fbdefd81][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
+padding=4
+tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
+
+[Tiling][fa50bc6e-3990-4714-8387-f225fbdefd81][b4acb46a-e05f-4b8f-b439-4afc5ea292cc]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
@@ -60,7 +124,7 @@ padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
 [Xwayland]
-Scale=1
+Scale=1.6
 
 [org.kde.kdecoration2]
 BorderSize=Normal
