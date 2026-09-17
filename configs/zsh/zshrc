@@ -102,4 +102,24 @@ fastfetch
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
 eval "$(direnv hook zsh)"
+
+history_file_push() {
+  fc -p "$1" $HISTSIZE $SAVEHIST
+  history_file_pushed=$1
+}
+
+history_file_pop() {
+  [[ -n ${history_file_pushed-} ]] || return 0
+  fc -P
+  history_file_pushed=
+}
+
+# direnv can't own HISTFILE: sharehistory writes the in-memory list on every command, so the list itself is swapped.
+# registered after direnv's precmd hook so DIRENV_HISTFILE is already current.
+history_file_follow_direnv() {
+  [[ ${DIRENV_HISTFILE-} == ${history_file_pushed-} ]] && return
+  history_file_pop
+  [[ -z ${DIRENV_HISTFILE-} ]] || history_file_push "$DIRENV_HISTFILE"
+}
+precmd_functions+=(history_file_follow_direnv)
 eval "$(zoxide init zsh)"
