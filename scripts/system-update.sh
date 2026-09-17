@@ -39,13 +39,13 @@ unset __MISE_DIFF __MISE_WATCH __MISE_SESSION MISE_SHELL 2>/dev/null
 
 # system packages
 
-run_if_present pacman-key --init
-run_if_present pacman-key --populate archlinux
-# run_if_present pacman-key --refresh-keys
+sudo pacman-key --init
+sudo pacman-key --populate archlinux
+# sudo pacman-key --refresh-keys
 
-run_if_present yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
-run_if_present flatpak update --assumeyes
-run_if_present nix-channel --update
+yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
+flatpak update --assumeyes
+nix-channel --update
 
 # language toolchains
 
