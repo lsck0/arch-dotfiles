@@ -633,6 +633,8 @@ PACKAGES=(
     gf2-git # [programming] debugger
     gh-dash # [programming] GitHub dashboard TUI
     ghcup-hs-bin # [programming] Haskell toolchain installer
+    git-absorb #[programming] absorbing submodules
+    git-age # [programming] git age encryption
     git-delta # [programming] syntax-highlighting diff pager
     git-filter-repo # [programming] git history rewriter
     git-lfs # [programming] git large file storage
