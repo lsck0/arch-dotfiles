@@ -40,6 +40,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Notifications
+import Quickshell.Hyprland
 import qs.Commons
 
 import "components"
@@ -906,17 +907,44 @@ Item {
   // Layer is Overlay, exclusionMode Ignore, no keyboard focus -- popups are
   // passive surfaces and must never steal input from the focused application.
 
-  // Same main output as the bar (shell.mainScreenName: the one holding workspace 1).
-  readonly property var primaryScreen: {
+  // Toasts appear on the output you are looking at, not on the main one.
+  //
+  // Hyprland's focused monitor is the right signal for both halves of "where
+  // am I": it follows the focused window, and with follow_mouse on it also
+  // follows the pointer across outputs. Falling back to the bar's main output
+  // covers the frame before Hyprland has reported a focus.
+  //
+  // PINNED WHILE A STACK IS UP. The screen is only re-read when the stack
+  // goes from empty to non-empty. Re-reading it live would make a toast jump
+  // screens mid-life the moment the pointer crossed a monitor edge — and,
+  // worse, move the surface out from under a click aimed at its action button.
+  readonly property var focusedScreen: {
     var screens = Quickshell.screens
-    var name = service.shell ? service.shell.mainScreenName : ""
+    var focused = Hyprland.focusedMonitor
+    var name = focused ? String(focused.name) : ""
+    if (!name && service.shell) name = String(service.shell.mainScreenName || "")
     for (var i = 0; i < screens.length; i++)
       if (String(screens[i].name) === name) return screens[i]
     return screens.length > 0 ? screens[0] : null
   }
 
+  // NOT Osd.qml's one-window-per-screen-toggle-visible pattern, even though
+  // that avoids rebuilding a wayland surface. Each card here owns a lifetime
+  // animation whose completion calls expirePopup(index); duplicating the
+  // delegates across screens would fire that twice per toast and remove the
+  // wrong rows. One window, moved between stacks, keeps one timer per card.
+  property var popupScreen: null
+
+  Connections {
+    target: popupModel
+    function onCountChanged() {
+      if (popupModel.count === 0) service.popupScreen = null
+      else if (!service.popupScreen) service.popupScreen = service.focusedScreen
+    }
+  }
+
   Variants {
-    model: service.primaryScreen ? [service.primaryScreen] : []
+    model: service.popupScreen ? [service.popupScreen] : []
 
     PanelWindow {
       id: popupWindow

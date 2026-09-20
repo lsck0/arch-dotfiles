@@ -1,4 +1,6 @@
 # grub upgrades restore 10_linux as executable; 09_arch replaces it.
+# 15_uki is disabled for the same reason: its `uki` command lists every UKI on
+# the ESP as another entry titled just "Arch".
 [Trigger]
 Operation = Install
 Operation = Upgrade
@@ -6,6 +8,6 @@ Type = Package
 Target = grub
 
 [Action]
-Description = Disabling GRUB's 10_linux (replaced by 09_arch)...
+Description = Disabling GRUB's 10_linux and 15_uki (replaced by 09_arch)...
 When = PostTransaction
-Exec = /usr/bin/chmod -x /etc/grub.d/10_linux
+Exec = /bin/sh -c 'chmod -x /etc/grub.d/10_linux /etc/grub.d/15_uki 2>/dev/null || true'

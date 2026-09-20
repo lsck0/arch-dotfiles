@@ -116,7 +116,7 @@ vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" }
 -- popouts
 vim.keymap.set("n", "<leader>e", "<cmd>Neotree toggle left<CR>", { desc = "File tree (neo-tree)" })
 vim.keymap.set("n", "<leader>g", "<cmd>G<CR>", { desc = "Git (fugitive)" })
-vim.keymap.set("n", "<leader>o", "<cmd>Oil . --float <CR>", { desc = "Oil file manager (float)" })
+vim.keymap.set("n", "<leader>O", "<cmd>Oil . --float <CR>", { desc = "Oil file manager (float)" })
 vim.keymap.set("n", "<leader>s", "<cmd>lua require('spectre').toggle()<CR>", { desc = "Spectre search/replace" })
 vim.keymap.set("n", "<leader>sw", "<cmd>lua require('spectre').open_visual({select_word=true})<CR>",
     { desc = "Spectre word under cursor" })

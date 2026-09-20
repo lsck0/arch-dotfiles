@@ -283,7 +283,12 @@ BarWidget {
           anchors.bottom: parent.bottom
           anchors.rightMargin: -root.ringWidth
           anchors.bottomMargin: -root.ringWidth
-          width: Math.round(root.avatarSize * 0.58)
+          // Even, so the centre lands on a whole pixel. At 22px avatars the
+          // rounded value was 13: the badge centre was 6.5, the glyph's own
+          // half-width another fraction, and NativeRendering then snapped the
+          // whole thing to one side — which is what made the mute and deafen
+          // marks sit off-centre in their disc.
+          width: 2 * Math.round(root.avatarSize * 0.58 / 2)
           height: width
           radius: width / 2
           antialiasing: true
@@ -381,12 +386,17 @@ BarWidget {
           Row {
             anchors.centerIn: parent
             spacing: Style.spacing.xs
-            Text {
+            // OpticalGlyph, not a bare Text: centring an icon-font line box
+            // against a body-font line box lines up two different ascents, so
+            // the mic and headphone marks read as sitting low next to their
+            // labels. This centres the painted glyph instead.
+            OpticalGlyph {
               anchors.verticalCenter: parent.verticalCenter
+              width: Style.font.caption
+              height: Style.font.caption
               text: parent.parent.glyph
               color: parent.parent.on ? Color.urgent : Color.menu.text
-              font.family: Style.font.iconFamily
-              font.pixelSize: Style.font.caption
+              fontSize: Style.font.caption
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter

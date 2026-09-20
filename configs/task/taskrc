@@ -1,0 +1,27 @@
+data.location=~/.task
+include ~/.config/bugwarrior/uda.taskrc
+
+# --- reporting -------------------------------------------------------------
+
+default.command=next
+report.next.columns=id,start.age,entry.age,depends.indicator,priority,project,tags,recur.indicator,scheduled.countdown,due.relative,until.remaining,description.count,urgency
+report.next.labels=ID,Active,Age,D,P,Project,Tag,R,S,Due,Until,Description,Urg
+
+# Dates the way they are written everywhere else here.
+dateformat=Y-M-D
+dateformat.report=Y-M-D
+dateformat.annotation=Y-M-D
+date.iso=yes
+weekstart=Monday
+journal.info=off
+
+# --- urgency ---------------------------------------------------------------
+
+urgency.user.tag.inbox.coefficient=-2.0
+urgency.user.tag.github.coefficient=-1.0
+urgency.user.tag.involved.coefficient=-1.5
+
+# --- theme -----------------------------------------------------------------
+
+color=on
+rule.precedence.color=deleted,completed,active,keyword.,tag.,project.,overdue,scheduled,due.today,due,blocked,blocking,recurring,tagged,uda.

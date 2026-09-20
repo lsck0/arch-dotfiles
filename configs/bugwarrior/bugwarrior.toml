@@ -1,0 +1,38 @@
+[general]
+targets = ["github", "github_involved"]
+taskrc = "~/.taskrc"
+static_fields = ["priority", "project"]
+static_tags = ["inbox"]
+annotation_links = true
+annotation_comments = false
+inline_links = false
+log_level = "INFO"
+log_file = "~/.local/state/bugwarrior/bugwarrior.log"
+
+[github]
+service = "github"
+login = "lsck0"
+username = "lsck0"
+token = "@oracle:eval:gh auth token"
+include_user_repos = true
+include_user_issues = true
+involved_issues = false
+# Pull requests are reviewed in gh-dash, not tracked as tasks.
+exclude_pull_requests = true
+import_labels_as_tags = true
+label_template = "gh_{{label|replace(' ', '_')}}"
+project_owner_prefix = true
+add_tags = ["github"]
+
+[github_involved]
+service = "github"
+login = "lsck0"
+token = "@oracle:eval:gh auth token"
+query = "is:issue is:open involves:lsck0 -user:lsck0"
+include_user_repos = false
+include_user_issues = false
+exclude_pull_requests = true
+import_labels_as_tags = true
+label_template = "gh_{{label|replace(' ', '_')}}"
+project_owner_prefix = true
+add_tags = ["github", "involved"]

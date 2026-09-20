@@ -8,6 +8,7 @@ local installed = {
     "codelldb",
     "css-lsp",
     "cssmodules-language-server",
+    "debugpy",
     "docker-compose-language-service",
     "dockerfile-language-server",
     "emmet-language-server",
@@ -201,6 +202,15 @@ return {
                 on_attach = function(client, bufnr)
                     require("twoslash-queries").attach(client, bufnr)
                 end,
+            })
+
+            -- system JDK (mise may pin an older java on PATH); java-debug bundle enables dap
+            vim.lsp.config("jdtls", {
+                cmd = { "jdtls", "--java-executable", "/usr/lib/jvm/default/bin/java" },
+                init_options = {
+                    bundles = vim.fn.glob(vim.fn.stdpath("data")
+                        .. "/mason/packages/java-debug-adapter/extension/server/com.microsoft.java.debug.plugin-*.jar", true, true),
+                },
             })
 
             vim.lsp.enable("clangd")

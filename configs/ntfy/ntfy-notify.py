@@ -20,6 +20,8 @@ import urllib.request
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "ntfy-notify")
 LAST_ID = os.path.join(STATE_DIR, "last-id")
+# Alert group key -> the notification id currently on screen for it.
+OPEN_ALERTS = os.path.join(STATE_DIR, "open-alerts.json")
 # Messages missed while offline are replayed, but not a backlog older than this.
 MAX_REPLAY_S = 3600
 
@@ -61,6 +63,62 @@ def webhook_summary(payload):
     return title, body, "critical" if critical else "normal", click
 
 
+def group_key(payload):
+    """Stable identity for one alert group across its firing and resolved posts."""
+    key = payload.get("groupKey")
+    if isinstance(key, str) and key:
+        return key
+    alerts = payload.get("alerts") or []
+    return "|".join(sorted(
+        "%s@%s" % (a.get("labels", {}).get("alertname", "alert"),
+                   a.get("labels", {}).get("instance", ""))
+        for a in alerts
+    ))
+
+
+def open_alerts_read():
+    try:
+        with open(OPEN_ALERTS) as fh:
+            value = json.load(fh)
+        return value if isinstance(value, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def open_alerts_write(value):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(OPEN_ALERTS + ".tmp", "w") as fh:
+        json.dump(value, fh)
+    os.replace(OPEN_ALERTS + ".tmp", OPEN_ALERTS)
+
+
+def notification_close(notification_id):
+    subprocess.run(
+        ["gdbus", "call", "--session",
+         "--dest", "org.freedesktop.Notifications",
+         "--object-path", "/org/freedesktop/Notifications",
+         "--method", "org.freedesktop.Notifications.CloseNotification",
+         str(notification_id)],
+        check=False, capture_output=True,
+    )
+
+
+def notify_send(app, glyph, urgency, title, body, click, replaces=0):
+    """Post a notification and return its id, or 0 when the server gave none."""
+    argv = ["notify-send", "-a", app, "-u", urgency, "-p",
+            "-h", "string:omarchy-glyph:" + glyph]
+    if replaces:
+        argv += ["-r", str(replaces)]
+    if click:
+        argv += ["-h", "string:omarchy-exec-argv:" + json.dumps(["xdg-open", click])]
+    argv += [title, html.escape(body, quote=False)]
+    result = subprocess.run(argv, check=False, capture_output=True, text=True)
+    try:
+        return int(result.stdout.strip())
+    except ValueError:
+        return 0
+
+
 def notify(msg):
     text = msg.get("message", "")
     try:
@@ -71,19 +129,35 @@ def notify(msg):
     if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
         title, body, urgency, click = webhook_summary(payload)
         app, glyph = "Homelab", "\U000f048d"
-    else:
-        priority = int(msg.get("priority") or 3)
-        title = msg.get("title") or msg.get("topic", "ntfy")
-        body = text
-        urgency = "critical" if priority >= 5 else "low" if priority <= 2 else "normal"
-        click = https(msg.get("click"))
-        app, glyph = "ntfy", "\U000f009e"
+        # A firing critical alert is posted with no expiry on purpose — it must
+        # not scroll away while nobody is looking. That is also why it never
+        # left the screen: nothing ever took it down again. Alertmanager sends
+        # a `resolved` post for the same group when the condition clears, so
+        # that post is what closes the firing one. The resolved toast itself is
+        # ordinary urgency and expires on its own.
+        key = group_key(payload)
+        opened = open_alerts_read()
+        previous = opened.pop(key, 0)
+        if payload.get("status") == "firing":
+            # Replace rather than stack: a group that re-fires (a new alert
+            # joins it, Alertmanager repeats it) should update the card that is
+            # already up, not add another identical one.
+            new_id = notify_send(app, glyph, urgency, title, body, click, replaces=previous)
+            if new_id:
+                opened[key] = new_id
+        else:
+            if previous:
+                notification_close(previous)
+            notify_send(app, glyph, "normal", title, body, click)
+        open_alerts_write(opened)
+        return
 
-    argv = ["notify-send", "-a", app, "-u", urgency, "-h", "string:omarchy-glyph:" + glyph]
-    if click:
-        argv += ["-h", "string:omarchy-exec-argv:" + json.dumps(["xdg-open", click])]
-    argv += [title, html.escape(body, quote=False)]
-    subprocess.run(argv, check=False)
+    priority = int(msg.get("priority") or 3)
+    title = msg.get("title") or msg.get("topic", "ntfy")
+    body = text
+    urgency = "critical" if priority >= 5 else "low" if priority <= 2 else "normal"
+    click = https(msg.get("click"))
+    notify_send("ntfy", "\U000f009e", urgency, title, body, click)
 
 
 def read_last_id():

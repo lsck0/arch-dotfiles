@@ -61,8 +61,14 @@ sudo grub-install --target=x86_64-efi --efi-directory="$ESP" --boot-directory="$
 
 height=$gfx_height
 (( height > 0 )) || height=1080
+# height/60 alone is a pure 1:1 pixel scale: 18px at 1080p, but 36px at 2160p,
+# which fills the screen with a menu you can read from the sofa. Cap it — past
+# 1440p the menu is already comfortably legible and more height is just zoom.
+font_px=$(( height / 60 ))
+(( font_px > 24 )) && font_px=24
+(( font_px < 12 )) && font_px=12
 sudo rm -rf "$ESP/grub/themes/ly"
-sudo python "$HERE/theme/render.py" "$ESP/grub/themes/ly" "$(( height / 60 ))" "$(cat /etc/hostname 2>/dev/null || hostname)"
+sudo python "$HERE/theme/render.py" "$ESP/grub/themes/ly" "$font_px" "$(cat /etc/hostname 2>/dev/null || hostname)"
 
 install_boot_menu grub-snapshots
 
@@ -70,6 +76,12 @@ install_boot_menu grub-snapshots
 sudo install -Dm755 "$HERE/09_arch" /etc/grub.d/09_arch
 sudo install -Dm644 "$HERE/grub-disable-10_linux.hook" /etc/pacman.d/hooks/grub-disable-10_linux.hook
 sudo chmod -x /etc/grub.d/10_linux
+# 15_uki emits GRUB's `uki` command, which auto-discovers every UKI in
+# EFI/Linux and titles all of them "$GRUB_DISTRIBUTOR" — three more entries
+# called plain "Arch" for the same three kernels 09_arch already lists by name.
+# The UKIs stay on the ESP (limine and a direct EFI boot still use them), they
+# are just not a second set of GRUB entries.
+sudo chmod -x /etc/grub.d/15_uki 2>/dev/null || true
 sudo install -Dm755 "$HERE/41_timeshift" /etc/grub.d/41_timeshift
 
 # limine is not the bootloader any more; stop deploying it on upgrades.

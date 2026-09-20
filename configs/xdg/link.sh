@@ -15,6 +15,26 @@ Icon=folder-development
 EOF
 command -v gio >/dev/null 2>&1 && gio set ${HOME}/projects metadata::custom-icon-name folder-development || true
 
+# Hide the desktop entries listed in hidden-apps.list. A user-level file of the
+# same name shadows the system one, so a NoDisplay override there takes the
+# entry out of every launcher without touching anything pacman owns.
+mkdir -p ${HOME}/.local/share/applications
+while IFS= read -r entry; do
+    entry="${entry%%#*}"
+    entry="$(echo "$entry" | tr -d '[:space:]')"
+    [ -n "$entry" ] || continue
+    cat > "${HOME}/.local/share/applications/${entry}.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=${entry}
+Exec=true
+NoDisplay=true
+Hidden=true
+EOF
+done < ${PWD}/hidden-apps.list
+command -v update-desktop-database >/dev/null 2>&1 \
+    && update-desktop-database ${HOME}/.local/share/applications 2>/dev/null || true
+
 # portal backend preference for the Hyprland session
 if command -v Hyprland >/dev/null 2>&1; then
     mkdir -p ${HOME}/.config/xdg-desktop-portal
