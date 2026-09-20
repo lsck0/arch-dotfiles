@@ -219,6 +219,7 @@ BarWidget {
   Component.onCompleted: {
     updatePlayer()
     if (playing) lastPlayingAt = Date.now()
+    Cava.source = spectrumSource
   }
 
   Timer {
@@ -235,6 +236,13 @@ BarWidget {
   // reference (below) so the spectrum keeps running while the panel is open
   // even if the bar widget's own conditions lapse.
   readonly property bool spectrumLive: visible && Cava.available && playing
+
+  // Point cava at THIS player's PipeWire stream rather than the speakers, so
+  // a Discord call in the same sink does not drive the bars. Falls back to
+  // the default monitor when the player has no matching stream (an MPRIS-only
+  // player, or one whose desktop entry does not match its node name).
+  readonly property string spectrumSource: volumeStream ? String(volumeStream.name || "") : ""
+  onSpectrumSourceChanged: Cava.source = spectrumSource
 
   Loader {
     active: root.spectrumLive

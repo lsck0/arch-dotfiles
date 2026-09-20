@@ -138,6 +138,7 @@ PACKAGES=(
     networkmanager # [base] network connection manager
     nss-mdns # [base] mDNS name resolution
     ntfs-3g # [base] NTFS filesystem driver
+    nushell # [base] structured-data shell
     oh-my-zsh-git # [base] zsh config framework
     openal # [base] 3D audio library
     openbsd-netcat # [base] netcat networking tool
@@ -632,6 +633,7 @@ PACKAGES=(
     geogebra-6-bin # [programming] math/geometry app
     gf2-git # [programming] debugger
     gh-dash # [programming] GitHub dashboard TUI
+    gh-enhance-bin # [programming] gh-dash actions extension
     ghcup-hs-bin # [programming] Haskell toolchain installer
     git-absorb #[programming] absorbing submodules
     git-age # [programming] git age encryption
@@ -660,6 +662,7 @@ PACKAGES=(
     hollywood # [programming] fake hacker terminal
     hotspot # [programming] Linux perf GUI
     hyperfine # [programming] command benchmarking tool
+    jdk-openjdk # [programming] Java JDK (jdtls needs 21+)
     jetbrains-toolbox # [programming] JetBrains IDE manager
     jless # [programming] JSON viewer TUI
     jnv # [programming] interactive JSON navigator

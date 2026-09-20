@@ -19,6 +19,7 @@ return {
                 { "<leader>s", group = "search/spectre" },
                 { "<leader>b", group = "breakpoints" },
                 { "<leader>g", group = "git" },
+                { "<leader>k", group = "keys/secrets" },
                 { "<leader>t", group = "trouble" },
                 { "<leader>v", group = "venn" },
                 { "<leader>x", desc = "Comment line" },

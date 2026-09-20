@@ -68,6 +68,16 @@ return {
         end
     },
     {
+        "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
+        -- Not lazy: the plugin has to own BufReadCmd/BufWriteCmd before a file
+        -- is opened, otherwise the first sops file of a session shows ciphertext.
+        lazy = false,
+        opts = { disabled = false },
+        keys = {
+            { "<leader>ks", "<cmd>SopsToggle<cr>", desc = "Sops: toggle transparent en/decryption" },
+        },
+    },
+    {
         "folke/twilight.nvim", -- dim inactive code
         opts = {
             treesitter = true,

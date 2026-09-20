@@ -1,0 +1,23 @@
+# Desktop entries hidden from every launcher (quickshell's AppMenu, rofi, KDE).
+# One desktop-file id per line, no .desktop suffix; blank lines and # comments
+# are ignored. link.sh writes a NoDisplay override into
+# ~/.local/share/applications for each, which is the XDG-sanctioned way to hide
+# a package's entry without deleting a file pacman owns.
+#
+# plasma-bigscreen is a TV shell pulled in by the `plasma` group. Its launcher
+# entry runs plasma-bigscreen-swap-session, which only works from inside a KDE
+# session — from this Hyprland desktop it exits immediately and the launcher
+# reports "failed to launch process 127". The other entries below are its
+# settings modules, which are KCMs for that same TV shell.
+plasma-bigscreen-swap-session
+org.kde.plasma.bigscreen.inputhandler
+org.kde.plasma.bigscreen.uvcviewer
+kcm_mediacenter_audiodevice
+kcm_mediacenter_bigscreen_settings
+kcm_mediacenter_bluetooth
+kcm_mediacenter_display
+kcm_mediacenter_input
+kcm_mediacenter_kdeconnect
+kcm_mediacenter_wallpaper
+kcm_mediacenter_webapps
+kcm_mediacenter_wifi

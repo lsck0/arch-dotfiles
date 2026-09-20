@@ -1,5 +1,5 @@
 [Unit]
-Description=NAS homelab share (nas.lsck0.dev)
+Description=NAS homelab share (vm-108)
 DefaultDependencies=no
 Conflicts=umount.target
 Before=umount.target
@@ -7,10 +7,14 @@ After=network-online.target
 Wants=network-online.target
 
 [Mount]
-What=//smb.lsck0.dev/homelab
+# The NAS is addressed by IP on purpose. *.lsck0.dev is a Cloudflare-proxied
+# public name, and this machine resolves through the FritzBox, not through the
+# lab's split-horizon DNS: smb.lsck0.dev answers with a Cloudflare address,
+# which cannot carry SMB. 10.100.0.108 is vm-108 and is routed from the LAN.
+What=//10.100.0.108/homelab
 Where=/mnt/homelab
 Type=cifs
-Options=guest,uid=1000,gid=1000,vers=3.0,_netdev,file_mode=0664,dir_mode=0775
+Options=guest,uid=1000,gid=1000,vers=3.0,_netdev,nofail,file_mode=0664,dir_mode=0775
 
 [Install]
 WantedBy=multi-user.target

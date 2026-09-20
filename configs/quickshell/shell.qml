@@ -303,10 +303,54 @@ ShellRoot {
     var workspaces = Hyprland.workspaces.values
     for (var w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
+    // Workspace 1 does not EXIST until something opens on it: Hyprland creates
+    // a workspace lazily and destroys it when its last window closes. So the
+    // loop above finds nothing on a machine that booted onto workspace 5, and
+    // the bar used to fall straight through to the 0,0 heuristic — which is
+    // DP-1 here, the secondary screen. The workspace RULE is the durable
+    // answer: it says where workspace 1 will open whether or not it exists
+    // right now, and it is the same table configs/hyprland/hyprland_layout.lua
+    // writes.
+    if (workspaceOneRuleMonitor) return workspaceOneRuleMonitor
     var screens = Quickshell.screens
     for (var i = 0; i < screens.length; i++)
       if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
     return screens.length > 0 ? String(screens[0].name) : ""
+  }
+
+  // Monitor named by Hyprland's `workspace 1, monitor:...` rule, or "" when
+  // there is no such rule. Read once at startup and again whenever Hyprland
+  // reloads its config, which is the only thing that can change it.
+  property string workspaceOneRuleMonitor: ""
+
+  Process {
+    id: workspaceRulesProc
+    command: ["hyprctl", "-j", "workspacerules"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var name = ""
+        try {
+          var rules = JSON.parse(text || "[]")
+          for (var i = 0; i < rules.length; i++) {
+            var ws = String(rules[i].workspaceString || "")
+            // Rules are written per numeric workspace here; `name:foo` and
+            // range rules say nothing about where workspace 1 lands.
+            if (ws === "1" && rules[i].monitor) { name = String(rules[i].monitor); break }
+          }
+        } catch (e) {
+          console.warn("workspacerules parse failed:", e)
+        }
+        shell.workspaceOneRuleMonitor = name
+      }
+    }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "configreloaded") workspaceRulesProc.running = true
+    }
   }
 
   FileView {
@@ -333,6 +377,7 @@ ShellRoot {
     // the user dir already existed at startup.
     pluginRegistry.rescan()
     shell._syncServices()
+    workspaceRulesProc.running = true
   }
 
   // --------------------------------------------------------------- bar

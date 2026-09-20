@@ -16,8 +16,8 @@ sudo systemctl enable mnt-homelab.automount
 # add NAS to nemo/nautilus sidebar bookmarks
 mkdir -p "${HOME}/.config/gtk-3.0"
 BOOKMARK="${HOME}/.config/gtk-3.0/bookmarks"
-grep -qxF "smb://smb.lsck0.dev/homelab Homelab" "$BOOKMARK" 2>/dev/null \
-  || echo "smb://smb.lsck0.dev/homelab Homelab" >> "$BOOKMARK"
+grep -qxF "smb://10.100.0.108/homelab Homelab" "$BOOKMARK" 2>/dev/null \
+  || echo "smb://10.100.0.108/homelab Homelab" >> "$BOOKMARK"
 
 # add NAS to Dolphin's Places panel (KDE reads its own xbel file, not the GTK bookmarks above)
 if command -v dolphin >/dev/null 2>&1; then
@@ -30,7 +30,7 @@ if command -v dolphin >/dev/null 2>&1; then
 			</xbel>
 		EOF
     fi
-    if ! grep -q 'smb://smb.lsck0.dev/homelab' "$PLACES"; then
+    if ! grep -q 'smb://10.100.0.108/homelab' "$PLACES"; then
         python3 - "$PLACES" <<-'EOF'
 			import sys
 			import xml.etree.ElementTree as ET
@@ -39,7 +39,7 @@ if command -v dolphin >/dev/null 2>&1; then
 			tree = ET.parse(path)
 			root = tree.getroot()
 
-			bookmark = ET.SubElement(root, "bookmark", href="smb://smb.lsck0.dev/homelab")
+			bookmark = ET.SubElement(root, "bookmark", href="smb://10.100.0.108/homelab")
 			title = ET.SubElement(bookmark, "title")
 			title.text = "Homelab"
 			info = ET.SubElement(bookmark, "info")

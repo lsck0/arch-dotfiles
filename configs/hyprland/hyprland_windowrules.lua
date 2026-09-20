@@ -134,8 +134,13 @@ hl.window_rule({
     float = true,
 })
 
--- Toasts are a full-screen overlay surface, so the layer slide/fade animates
--- the whole screen in and the card shows up well after the sender's sound.
+hl.window_rule({
+    match = {
+        class = "^[Ww]aydroid.*$",
+    },
+    float = true,
+})
+
 hl.layer_rule({
     name = "quickshell-notifications-no-anim",
     match = {

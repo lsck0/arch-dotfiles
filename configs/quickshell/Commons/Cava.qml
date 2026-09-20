@@ -43,6 +43,30 @@ Singleton {
   readonly property string confPath:
     (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-cava.conf"
 
+  // WHICH audio to analyse. Empty means cava's own default, which is the
+  // default sink's monitor — everything the speakers play, mixed. That is the
+  // wrong answer whenever more than one thing makes noise: with music in
+  // Firefox and a Discord call open, the bars followed whoever was talking
+  // instead of the track the widget names right next to them.
+  //
+  // Set it to a PipeWire node name and cava targets that node instead.
+  // `source` becomes PW_KEY_TARGET_OBJECT, and PipeWire will happily link a
+  // capture stream to another *stream's* output ports, which is what makes
+  // per-application capture work at all — verified with `pw-link -l` showing
+  // `cava:input_FL <- Firefox:output_FL`.
+  property string source: ""
+
+  // Changing `source` rewrites configText, but a running cava has already
+  // read its config file, so the process has to come back for the change to
+  // mean anything. `running` is a binding, so it is restored as one.
+  onSourceChanged: restart()
+
+  function restart() {
+    if (!cavaProc.running) return
+    cavaProc.running = false
+    cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 })
+  }
+
   // sensitivity=300 with autosens=0 was measured, not guessed. Feeding
   // music-shaped noise through a null sink: sensitivity 30 (the value in
   // the research doc, inherited from DankMaterialShell, which re-normalises
@@ -76,7 +100,8 @@ Singleton {
     "integral=90\n" +
     "gravity=95\n" +
     "ignore=2\n" +
-    "monstercat=1.5\n"
+    "monstercat=1.5\n" +
+    (source ? "\n[input]\nmethod=pipewire\nsource=" + source + "\n" : "")
 
   function zeroed() {
     var out = []

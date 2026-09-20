@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
 # Sync all git repos recursively, skipping submodules.
+#
+# Bare repos (mirrors, push targets, `repo.git/` directories) are included.
+# They have no worktree and cannot be pulled into, so for those the sync is a
+# fetch and the report is about refs, not about a working tree.
 
 BASE_DIR=$(realpath "${1:-.}")
 
-mapfile -t dirs < <(find "$BASE_DIR" -name ".git" -type d -prune 2>/dev/null | sed 's|/.git$||' | sort)
+# Two kinds of repo root: a directory holding a `.git` (normal), and a
+# directory that IS the git dir (bare). `.git` is matched first so a normal
+# repo's own git dir never also matches the bare test below.
+mapfile -t dirs < <(
+    find "$BASE_DIR" -type d \
+        \( -name '.git' -o \
+           \( -exec test -e '{}/HEAD' \; -exec test -d '{}/objects' \; -exec test -d '{}/refs' \; \) \) \
+        -prune -print 2>/dev/null |
+        sed 's|/\.git$||' | sort -u
+)
 
 pad=0
 for dir in "${dirs[@]}"; do
@@ -14,6 +27,24 @@ done
 for dir in "${dirs[@]}"; do
     rel="${dir#$BASE_DIR/}"
     statuses=()
+
+    bare=$(git -C "$dir" rev-parse --is-bare-repository 2>/dev/null)
+
+    if [[ "$bare" == "true" ]]; then
+        # A mirror fetch rewrites refs/heads, a plain one only refs/remotes,
+        # so every ref is watched rather than just the remote-tracking ones.
+        refs_before=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)
+        git -C "$dir" fetch --all --prune --quiet 2>/dev/null || statuses+=("FETCH FAILED")
+        refs_after=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)
+
+        [[ "$refs_before" != "$refs_after" ]] && statuses+=("FETCHED")
+        [[ -z $(git -C "$dir" remote 2>/dev/null) ]] && statuses+=("NO REMOTE")
+
+        [[ ${#statuses[@]} -eq 0 ]] && statuses+=("UP TO DATE")
+        status_str=$(IFS=", "; echo "${statuses[*]}")
+        printf "%-*s  %s  (bare)\n" "$pad" "$rel" "$status_str"
+        continue
+    fi
 
     porcelain=$(git -C "$dir" status --porcelain 2>/dev/null)
     grep -q "^[MADRC]" <<< "$porcelain" && statuses+=("STAGED CHANGES")
