@@ -8,6 +8,6 @@ case "$1" in
     ;;
     "w") # set image as wallpaper
         read -r line
-        switch-wallpaper $(realpath "$line")
+        switch-wallpaper "$(realpath "$line")"
     ;;
 esac

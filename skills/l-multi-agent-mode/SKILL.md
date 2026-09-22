@@ -14,8 +14,8 @@ see `l-multi-agent-task-mode` (spawns workers) or `l-single-agent-task-mode`
 (works tasks itself, no spawning).
 
 Load `l-personas` for persona discovery and `l-spec-driven-development` for
-the stage shape (research -> design -> spec -> review -> roadmap ->
-implementation) and its file conventions. Preload `l-style` alongside any
+the stage shape (sync -> reconcile -> research -> design -> review ->
+spec -> spec gate -> phase loop) and its file conventions. Preload `l-style` alongside any
 worker that designs or writes code — the `l-persona-design-*` designers,
 `l-persona-programmer`, and `l-persona-reviewer` — since those personas
 lean on l-style's principles (primitives, monolith-by-default, no
@@ -64,35 +64,32 @@ last machine's setup still applies.
 
 ## Workflow
 
-1. Sync + branch first (`l-spec-driven-development` step 0): fetch, get the
-   base branch (`master`, or `dev` on a `prod`/`dev` repo) up to date with a
-   clean tree, then start clean per the repo's convention (trunk-based work
-   on base, or a short-lived feature branch off it). Then spawn one
-   task-planner worker (`-s l-persona-orchestrator-task-planner`),
-   prompt it with the human's raw ask, `--wait`. It creates
-   `specs/spec-<number>-<feature-name>/` and writes `PLAN.md` inside it:
-   which personas run, how many, what model/provider each gets, dependency
-   order, and whether implementation needs parallel git worktrees (see
-   below).
+This is `l-spec-driven-development`'s autonomous mode: the human appears
+at input, the spec gate, and each phase PR. Nowhere else.
+
+1. Sync (`l-spec-driven-development`): fetch, base branch up to date with
+   a clean tree. Spawn one task-planner worker
+   (`-s l-persona-orchestrator-task-planner`), prompt it with the human's
+   raw ask, `--wait`. It picks the governing spec and writes `PLAN.md`
+   into the change's notes directory (`$SPEC_DIR` from here on): which
+   personas run, how many, model/provider each, dependency order, and
+   whether a phase needs parallel worktrees (see below).
 2. Read `PLAN.md`, state it to the human in one or two lines, then execute
    it — spawn each worker the plan calls for, in the order/parallelism it
    specifies. Every worker's task prompt names `$SPEC_DIR` as where its
-   output file goes.
-3. Drive the `l-spec-driven-development` stages through to the last
-   planning artifact before the build. Gate with `mcp__clarify` at that
-   skill's one human checkpoint (step 5) — the human approves `SPEC.md`,
-   or `DESIGN.md` when the task has no spec (a bug fix or anything small
-   enough to skip one). Gate nowhere else: everything before it (research,
-   design, review, spec-writing) and everything after (roadmap,
-   implementation) runs autonomously.
-4. Run implement -> review -> test with no further gate; relay a `FAIL`
-   straight back to the programmer worker.
-5. Land it (`l-spec-driven-development` step 8): commit to the repo's
-   convention; on a feature branch, rebase onto the base, push, open the PR,
-   then switch back to the base branch with a clean tree. Never leave the
-   session parked on the feature branch. The PR is the stop point — open it
-   and stop; the human reviews and merges. Don't merge or self-approve.
-6. Report COMPLETE to the human, with the PR link.
+   output file goes, and the spec directory it amends.
+3. Drive reconcile, research, design, review and spec autonomously, then
+   open the spec PR and gate on it with `mcp__clarify`: the human merges
+   it or gives feedback (run Feedback, gate again).
+4. Phase loop: per `ROADMAP.md` phase, implement -> review -> test with no
+   gate inside; relay a `FAIL` straight back to the programmer worker.
+   Land the phase as its PR (trace block, run and revert lines), then
+   gate with `mcp__clarify`: the human looks at the PR and its build, and
+   merges or gives feedback. Merged -> sync the base, next phase.
+   Feedback -> a fresh programmer worker runs Feedback on that PR, gate
+   again.
+5. Report COMPLETE after the last phase merged: requirement IDs built,
+   every PR, every check as passed/failed/not run.
 
 Parallel workers within one stage (e.g. market + technical research) each
 write their own `$SPEC_DIR/<stage>-<persona-slug>.md`; before advancing to
@@ -101,25 +98,11 @@ the next stage, synthesize them into the canonical file
 
 ## Parallel work in one repo: worktrees
 
-Never point two concurrent workers at the same working tree — one's
-uncommitted change stomps the other's. Herdr has native worktree support;
-use it instead of raw `git worktree` commands so the checkout and its pane
-are created/tracked together:
-
-```bash
-herdr worktree create --cwd "$REPO_DIR" --branch <workstream-branch> \
-  --label <workstream-name> --no-focus
-# -> read the new pane/worktree path from the JSON response
-```
-- `herdr worktree open --path <existing-worktree>` to reopen one instead of
-  creating a new one.
-- `herdr worktree list` to see what's already checked out before creating
-  a duplicate.
-- `herdr worktree remove` once that workstream's work has landed/merged —
-  don't leave stale worktrees.
-
-Each worker's pane then runs inside its own worktree's path — no manual
-`--cwd` bookkeeping across `git worktree add` + `pane split` needed.
+Never point two concurrent workers at the same working tree. Each
+concurrent implementer gets its own Herdr worktree; mechanics, landing
+and cleanup are in `l-spec-driven-development` ("Parallel
+implementation"). Research/design/review workers only write to
+`$SPEC_DIR` and share the main checkout.
 
 ## Parallelism budget
 
@@ -130,12 +113,13 @@ the design doc first).
 
 ## Spawning a worker pane
 
-`$WORKTREE_DIR` is the worker's own checkout/cwd (project root, or a
-worktree path from the previous section); `$SPEC_DIR` is where it writes
-its output file — usually distinct paths.
+`$SPEC_DIR` is where the worker writes its output file. A worker in the
+main checkout gets a split pane; a worker in its own worktree starts in
+the worktree's root pane (`.result.root_pane.pane_id` from `herdr
+worktree create`) and skips the split.
 
 ```bash
-herdr pane split --current --direction right --cwd "$WORKTREE_DIR" --no-focus
+herdr pane split --current --direction right --cwd "$REPO_DIR" --no-focus
 # -> read new pane id from .result.pane.pane_id
 
 herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
@@ -179,8 +163,10 @@ cat "$SPEC_DIR/RESEARCH-market.md"
 
 ```bash
 herdr pane close <pane_id>
+herdr worktree remove --workspace <id>   # per worktree, once its PR is open
 ```
-Never close a pane you did not create; never `herdr server stop`.
+Never close a pane or remove a worktree you did not create; never
+`herdr server stop`.
 
 ## Pitfalls
 

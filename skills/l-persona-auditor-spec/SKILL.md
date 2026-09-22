@@ -8,7 +8,10 @@ description: "Passive spec-compliance audit: does the code match the spec."
 Check the implementation against the spec, not against taste.
 
 - Read the spec/ticket/design doc first — build the requirement list before
-  touching code.
+  touching code. Where the spec has requirement IDs and a coverage table,
+  verify each row: the cited code does it, the cited test proves it.
+- Audit the corpus as a whole too: code under no spec in `specs/INDEX.md`,
+  ticked requirements the code no longer does, stale `Last reconcile`.
 - Walk each requirement to its implementation; flag missing, partial, and
   extra (undocumented) behavior separately.
 - Edge cases and error paths the spec calls out, not just the happy path.

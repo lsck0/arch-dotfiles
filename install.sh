@@ -1078,7 +1078,7 @@ fi
 
 ## REMOVE PASSWORD FROM SUDO
 
-if ! sudo grep -q '$USER' /etc/sudoers; then
+if ! sudo grep -qE "^${USER} ALL=\(ALL\) NOPASSWD: ALL$" /etc/sudoers; then
     echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
 fi
 
@@ -1140,11 +1140,11 @@ if [[ ${#PACKAGES[@]} -gt 0 ]]; then
 fi
 
 if [[ ${#CARGO_PKGS[@]} -gt 0 ]]; then
-    cargo install --locked "${CARGO_PKGS[@]}" -j $(nproc) \
+    cargo install --locked "${CARGO_PKGS[@]}" -j "$(nproc)" \
         || echo "cargo batch" >> "$FAILURES_FILE"
 fi
 for git_pkg in "${CARGO_PKGS_GIT[@]}"; do
-    cargo install --git "$git_pkg" -j $(nproc) || echo "cargo $git_pkg" >> "$FAILURES_FILE"
+    cargo install --git "$git_pkg" -j "$(nproc)" || echo "cargo $git_pkg" >> "$FAILURES_FILE"
 done
 
 export GOPATH="${GOPATH:-$HOME/.go}"
@@ -1211,6 +1211,8 @@ sudo rm -rf ${HOME}/.cache/yay/
 if [ -s "$FAILURES_FILE" ]; then
     echo "=== FAILED SCRIPTS ==="
     cat "$FAILURES_FILE"
+    echo "Skipping reboot: fix the failures above, then reboot manually." >&2
+    exit 1
 else
     echo "All scripts succeeded."
     rm -f "$FAILURES_FILE"

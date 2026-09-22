@@ -10,7 +10,9 @@ set -ex
 mkdir -p ${HOME}/.config/obs-studio/basic/scenes/
 mkdir -p ${HOME}/.config/obs-studio/basic/profiles/Untitled/
 
-ln -sfn ${PWD}/Untitled.json ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
+# scene collection carries stream tokens, so it lives in the private secrets
+# submodule, not this public repo
+ln -sfn "$(readlink -f ../secrets/obs-Untitled.json)" ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
 ln -sfn ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
 # global config: SafeMode off + AutomaticSearch on so a missing capture device
 # auto-retries instead of prompting for every source on launch (issue 32)

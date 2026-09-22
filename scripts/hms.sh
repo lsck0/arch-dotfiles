@@ -33,16 +33,21 @@ selected="${selected_line#*$'\t'}"
 
 label=$(basename "$selected")
 
-if herdr status server 2>/dev/null | grep -q "status: running"; then
-  existing_id=$(herdr workspace list 2>/dev/null \
-    | jq -r --arg label "$label" '.result.workspaces[] | select(.label == $label) | .workspace_id' \
-    | head -n1)
-
-  if [[ -n "$existing_id" ]]; then
-    herdr workspace focus "$existing_id" >/dev/null
-  else
-    herdr workspace create --cwd "$selected" --label "$label" --focus >/dev/null
-  fi
-else
-  exec herdr --session "$label"
+# one herdr session (default) with a workspace per repo
+if ! herdr status server 2>/dev/null | grep -q "status: running"; then
+  cd "$selected"
+  exec herdr
 fi
+
+existing_id=$(herdr workspace list 2>/dev/null \
+  | jq -r --arg label "$label" '.result.workspaces[] | select(.label == $label) | .workspace_id' \
+  | head -n1)
+
+if [[ -n "$existing_id" ]]; then
+  herdr workspace focus "$existing_id" >/dev/null
+else
+  herdr workspace create --cwd "$selected" --label "$label" --focus >/dev/null
+fi
+
+# outside herdr: attach a client (extra clients are fine)
+[[ -n "${HERDR_ENV:-}" ]] || exec herdr

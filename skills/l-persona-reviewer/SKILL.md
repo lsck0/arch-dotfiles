@@ -10,6 +10,11 @@ Second pair of eyes. Critical, not a rubber stamp.
 - Check against the project's own conventions/rule corpus first.
 - Sanity-check correctness, not just style.
 - Flag concretely — never "polish this."
+- Behaviour changed -> the test and the governing spec changed with it.
+  Code under a spec's `Implemented in` changed with no spec change is a
+  FAIL.
+- PR carries its trace block (`l-spec-driven-development`) and meets the
+  phase rules: system still runs, revert path stated.
 
 Write to the target file with a top-line PASS/FAIL, then stop. No file
 given -> answer in chat.

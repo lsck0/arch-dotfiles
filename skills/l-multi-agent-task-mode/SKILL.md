@@ -193,25 +193,24 @@ research") may just go pending -> start -> done without ever touching
 stage tags, same as `l-single-agent-task-mode`'s convention, when one
 worker persona covers its entire scope in one shot.
 
-## The one human gate, queue-mode version
+## Human gates, queue-mode version
 
-`l-spec-driven-development`'s one real human gate (step 5) becomes
-`+human-review-ready` here: once a ticket's last planning artifact before
-the build is written — `SPEC.md`, or `DESIGN.md` when the ticket has no
-spec (a bug fix or anything small enough to skip one) — tag it
-`+human-review-ready` and stop advancing that ticket's stage until the
-human clears it (see "Blocking on a human question" below — same
-mechanics, different tag). Judgment-call decisions that come up mid-stage
-(not the plan-review gate itself) still go through
-`tasks/context/questions/` + `+human-clarification-needed` — same content
-bar as a design-review gate would use (only calls that materially change
-the product, never trivia, each with a recommendation).
+`l-spec-driven-development`'s autonomous gates become `+human-review-ready`
+here: (1) input — the human files the `+prompt` / GitHub issue; (2) the
+spec PR — amendments to the governing spec in `specs/` plus its roadmap
+phases; (3) each phase PR. When a ticket opens one of those PRs, annotate
+the PR link, tag `+human-review-ready`, and stop advancing it until the
+human sets `+human-answered` (see `l-agent-task-db` and "Blocking on a
+human question" below — same mechanics, different tag). Merged ->
+advance; still open -> run Feedback on it and gate again.
 
-This is the second of three human touchpoints, mirroring
-`l-spec-driven-development`'s "Human touchpoints": (1) input — the human
-files the `+prompt` / GitHub issue; (2) this plan-approval gate; (3) PR
-review — the implementer opens the PR at LAND (see "Fix loop") and the
-run stops there, the human reviews and merges.
+Roadmap phases are tickets: one per phase, `depends:` on the previous
+phase, so a phase is only claimable once the one before it merged.
+
+Judgment-call decisions that come up mid-stage (not a gate itself) still
+go through `tasks/context/questions/` + `+human-clarification-needed` —
+only calls that materially change the product, never trivia, each with a
+recommendation.
 
 ## Queue-poll procedure
 
@@ -249,13 +248,12 @@ run stops there, the human reviews and merges.
      modify` call, `task <id> start`, resume. If not yet answered: skip
      it, note it in the end-of-poll summary, move to the next claimable
      task.
-   - **Blocked on plan review** — `+human-review-ready` present. Check
-     whether the human has added `+human-answered`. If yes: re-read the
-     ticket's plan artifact — `SPEC.md`, or `DESIGN.md` when it has no spec
-     (the human may have edited it directly) — clear both
+   - **Blocked on PR review** — `+human-review-ready` present. Check
+     whether the human has added `+human-answered`. If yes: check the
+     annotated PR (`gh pr view <n> --json state`), clear both
      `+human-review-ready` and `+human-answered` in one `task modify`
-     call, `task <id> start`, advance to the roadmap/implementation
-     stage. If not yet answered: skip it, note it in the end-of-poll
+     call, `task <id> start`; merged -> advance (spec PR: to the phase
+     tickets; phase PR: `+stage-complete`), open -> run Feedback on it. If not yet answered: skip it, note it in the end-of-poll
      summary, move to the next claimable task.
 3. Work up to 3 independent, non-blocking things at once — separate
    Herdr panes/tasks whose persona sets don't collide, or a worker pane
@@ -295,12 +293,11 @@ project isn't cron-driven yet and relies on the human re-invoking this
 skill live instead, say so plainly — don't imply the wake-up is automatic
 when it isn't.
 
-The plan-review gate (`+human-review-ready`) follows the identical
-mechanic — `task <id> modify +human-review-ready`, `task <id> stop`, the
-human reviews/edits the plan artifact (`SPEC.md`, or `DESIGN.md` when the
-ticket has no spec) and sets `+human-answered` themselves, the next poll
-resumes it — just no question file, since the artifact under review is
-that plan doc itself, not a `## Q<n>` list.
+The PR gates (`+human-review-ready`) follow the identical mechanic —
+`task <id> modify +human-review-ready`, `task <id> stop`, the human merges
+or reviews the annotated PR and sets `+human-answered` themselves, the
+next poll resumes it — just no question file, since the PR and its
+comments carry the review.
 
 ## Spawning a worker pane (mechanics, verified working)
 
@@ -378,26 +375,25 @@ before moving to synthesis.
 
 ## Fix loop
 
-Before the first IMPLEMENT, sync + branch (`l-spec-driven-development`
-step 0): fetch, base branch up to date with a clean tree, then work
-trunk-based on the base or on a short-lived feature branch off it per the
-repo's convention. In a bare-repo/worktree setup each concurrently
-implemented ticket gets its own worktree (the worktree section above); cap
-concurrent implementations at 2.
+Per phase ticket, before IMPLEMENT: fetch, base branch up to date with a
+clean tree (the previous phase merged), then branch
+`<type>/spec-<nnn>-p<k>-<slug>` (`l-spec-driven-development`, Phase
+loop). Two tickets implemented at once each get their own
+Herdr worktree (`l-spec-driven-development`, "Parallel implementation");
+cap concurrent implementations at 2. The implementer then starts in the
+worktree's root pane instead of a split of `$PROJECT_DIR`, and
+`tasks/context/` stays in the main checkout.
 
 ```
 IMPLEMENT -> REVIEW -> TEST
   TEST fail -> prompt implementer with tests/report.md contents -> IMPLEMENT again -> TEST
   TEST pass -> LAND -> COMPLETE
 ```
-No human gate inside this loop — the one human gate
-(`+human-review-ready`) already happened earlier, at plan approval,
-before the roadmap/implementation stage began. LAND per the repo's own
-commit convention (`l-spec-driven-development` step 8): a normal project
-repo -> commit trunk-based, or rebase the feature branch onto the base,
-push, open the PR, switch back to the base with a clean tree. The PR is
-the third human touchpoint and the stop point — open it and stop; the
-human reviews and merges. Don't merge or self-approve. A repo whose
+No human gate inside this loop. LAND per `l-spec-driven-development`'s
+Phase loop: spec updated in the same PR, trace block, run and revert
+lines, then switch back to the base with a clean tree. The phase PR is a
+human gate (`+human-review-ready`, above) — open it and stop; the human
+merges or gives feedback. Don't merge or self-approve. A repo whose
 convention forbids auto-committing (e.g. `l-dotfiles`) -> stop at a clean,
 reviewed working tree and leave the commit to the human — same deference
 as the "Don't auto-commit" rule above. On `+stage-complete`, set
@@ -413,7 +409,9 @@ monitoring:
 ```bash
 herdr pane close <pane_id>
 ```
-Never close a pane you did not create, and never `herdr server stop`.
+Remove a ticket's worktree once its PR is open:
+`herdr worktree remove --workspace <id>`. Never close a pane or remove a
+worktree you did not create, and never `herdr server stop`.
 
 ## Pitfalls
 

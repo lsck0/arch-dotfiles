@@ -244,14 +244,12 @@ task project:sale-tracker.research list
   ```bash
   task 14 modify -stage-research +stage-design
   ```
-- `+human-review-ready` — the ticket's spec (`SPEC.md`) is written and
-  ready for the human review/approval gate
-  (`l-spec-driven-development`'s step 5, the one mid-run approval gate in
-  the pipeline — distinct from the input and PR-review touchpoints that
-  bookend it). Co-exists with the ticket's current `+stage-*` tag so a
-  resuming agent still knows where it is; cleared together with
-  `+human-answered` once the human has reviewed (approved as-is, or
-  edited `SPEC.md` directly) — see `+human-answered` below.
+- `+human-review-ready` — a PR is open and waiting on the human: the spec
+  PR (`l-spec-driven-development`'s spec gate) or a phase PR (its result
+  gate). Annotate the PR link on the task. Co-exists with the ticket's
+  current `+stage-*` tag so a resuming agent still knows where it is;
+  cleared together with `+human-answered` once the human has merged the
+  PR or left feedback on it — see `+human-answered` below.
 - `+human-clarification-needed` — the task is blocked on a decision only
   a human can make (a question written to
   `tasks/context/questions/<id>-*.md`). Co-exists with whatever other
@@ -269,10 +267,11 @@ task project:sale-tracker.research list
     `task modify` call — tags reflect current state only, the answer's
     own history lives in the doc (and git, once committed), not in a
     lingering tag.
-  - Clearing `+human-review-ready`: the human has reviewed `SPEC.md`
-    (approved as-is or edited it directly) and sets `+human-answered`
-    themselves. Once an agent has picked the ticket back up (re-reading
-    `SPEC.md` in case it changed) it clears BOTH `+human-review-ready`
+  - Clearing `+human-review-ready`: the human merged the PR or reviewed
+    it with feedback, and sets `+human-answered` themselves. The agent
+    checks `gh pr view <n> --json state`: merged -> advance (next phase,
+    or complete); open -> run `l-spec-driven-development`'s Feedback on
+    it, then gate again. Either way it clears BOTH `+human-review-ready`
     and `+human-answered` in the same `task modify` call, same
     discipline as above.
 
@@ -289,10 +288,13 @@ usually be bumped to H; routine follow-up work stays M/L.
 ```
 tasks/context/
   research/<id>-<slug>.md      # findings, spikes, investigation notes
-  design/<id>-<slug>.md        # specs, decisions, architecture notes
+  design/<id>-<slug>.md        # design notes and decisions behind a change
   questions/<id>-<slug>.md     # open questions blocking a +human-clarification-needed task
 ```
-Name files by the task's `id-slug` (see Pitfalls — the numeric id alone
+The specs themselves live in the repo's spec corpus (`specs/`, see
+`l-spec-driven-development`); `tasks/context/` holds the notes behind a
+change, in place of the corpus's `notes/` directory. Name files by the
+task's `id-slug` (see Pitfalls — the numeric id alone
 is not durable). This directory is the durable record of WHY decisions
 were made and WHAT was found — not agent conversation history, and not
 taskwarrior annotations beyond a pointer to the file. Record the file's
