@@ -1,0 +1,9 @@
+[Unit]
+Description=Post Claude Code usage to the TRMNL display
+Documentation=https://github.com/emaspa/trmnl-claude
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/trmnl-claude/run.sh

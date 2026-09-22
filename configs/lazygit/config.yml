@@ -1,0 +1,12 @@
+# ~/.config/lazygit/config.yml (linked by link.sh)
+gui:
+  nerdFontsVersion: "3"
+git:
+  # --no-gitconfig: gitconfig sets delta.navigate, which breaks inside lazygit. Cycle with `|`.
+  diffRenderers:
+    - command: delta --no-gitconfig --dark --paging=never --line-numbers
+      name: delta
+    - command: delta --no-gitconfig --dark --paging=never --line-numbers --side-by-side
+      name: delta side-by-side
+os:
+  editPreset: nvim

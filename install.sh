@@ -673,7 +673,7 @@ PACKAGES=(
     kubecolor # [programming] kubectl colorized output
     kubectl # [programming] kubernetes CLI
     kubectx # [programming] kubernetes context switcher
-    lazydocker-bin # [programming] docker TUI
+    lazydocker # [programming] docker TUI
     lazygit # [programming] git TUI
     lazyjira-bin # [programming] jira tui
     lazyjj # [programming] jujutsu TUI

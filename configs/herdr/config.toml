@@ -105,7 +105,7 @@ height = "90%"
 [[keys.command]]
 key = "prefix+shift+j"
 type = "popup"
-command = "lazyjournal"
+command = "sh -c 'lazyjournal -T \"$(date +%:z)\"'"
 width = "90%"
 height = "90%"
 
