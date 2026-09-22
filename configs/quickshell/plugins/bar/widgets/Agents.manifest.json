@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "bar.agents",
   "name": "Agents",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "arch-dotfiles",
-  "description": "AI agent usage tracker",
+  "description": "Claude Code usage: plan limits, today, week and per-model split",
   "kinds": [
     "bar-widget"
   ],
@@ -12,8 +12,8 @@
     "barWidget": "Agents.qml"
   },
   "barWidget": {
-    "displayName": "Agents",
-    "description": "AI agent usage tracker",
+    "displayName": "Claude Code",
+    "description": "Claude Code usage: plan limits, today, week and per-model split",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

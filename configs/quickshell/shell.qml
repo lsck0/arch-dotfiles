@@ -110,6 +110,11 @@ ShellRoot {
         // one variable-width widget competing for space the SPEC's middle
         // section needs. Their .qml/.manifest.json stay on disk, so
         // re-adding any of them is one array entry.
+        //
+        // agents came back 2026-09-22. It was dropped for reporting a token
+        // count while admitting in its own tooltip that the plan limits were
+        // out of reach; configs/trmnl-claude vendors a client for them now,
+        // so it leads with the percentage that decides what to start next.
         // Keep this in sync with ~/.local/state/quickshell/shell.json, which
         // overrides it whenever it exists. A fresh machine (or a deleted state
         // file) reproduces *this* list, so drift here ships the wrong bar.
@@ -129,6 +134,8 @@ ShellRoot {
           // the whole transient group is empty.
           { id: "bar.tray" },
           { id: "bar.separator" },
+          // the two "my own infrastructure" readouts, side by side
+          { id: "bar.agents" },
           { id: "bar.homelab" },
           { id: "bar.system" },
           { id: "bar.network" }, { id: "bar.display" }, { id: "bar.audio-io" },
