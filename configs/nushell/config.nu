@@ -89,7 +89,7 @@ alias ldocker = lazydocker
 alias lgit = lazygit
 alias lgithub = gh-dash
 alias ljj = lazyjj
-alias ljournal = lazyjournal
+def ljournal [...args] { lazyjournal -T (date now | format date "%:z") ...$args }
 alias lsql = lazysql
 alias lt = eza -lah --tree
 alias mkdir = mkdir -v
