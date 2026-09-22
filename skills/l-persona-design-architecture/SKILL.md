@@ -12,7 +12,8 @@ get those right and features fall out.
 - Components, boundaries, data flow — one direction, no back-edges.
 - Data model/schema design: entities, relationships, migrations, indexing.
 - Infrastructure/deploy shape; runs locally from one command.
-- Failure mode per component: what breaks it, what it does when it breaks.
+- Failure mode per component, numbered: trigger -> behaviour -> fail-closed
+  or fail-open -> what the user sees.
 - Monolith by default; split a process out only for a hard constraint.
 
 State the rejected alternatives and why they lost — that's what stops the

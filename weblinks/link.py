@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import os
 import re
+import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -23,14 +23,12 @@ with open("./links.txt", "r") as file:
         if len(parts) == 1:
             url = parts[0]
 
-            exec_name = None
             try:
                 exec_name = urlparse(url).hostname
-            except:
+            except ValueError as err:
+                raise Exception(ERROR_MSG.format(line)) from err
+            if exec_name is None:
                 raise Exception(ERROR_MSG.format(line))
-            finally:
-                if exec_name is None:
-                    raise Exception(ERROR_MSG.format(line))
 
             exec_name = re.sub(r".\w+(?=$)", "", exec_name)
         elif len(parts) == 3:
@@ -39,8 +37,8 @@ with open("./links.txt", "r") as file:
 
             try:
                 urlparse(url)
-            except:
-                raise Exception(ERROR_MSG.format(line))
+            except ValueError as err:
+                raise Exception(ERROR_MSG.format(line)) from err
 
             if parts[1] != "as":
                 raise Exception(ERROR_MSG.format(line))
@@ -50,14 +48,17 @@ with open("./links.txt", "r") as file:
         else:
             raise Exception(ERROR_MSG.format(line))
 
-        with open(f"./collection/{exec_name}.sh", "w") as file:
-            file.write(f"#!/bin/sh\n")
-            file.write(f"xdg-open {url}\n")
-            file.write(f"exit 0\n")
+        # exec_name lands in a filesystem path and a symlink target, so keep it
+        # to the same charset the `as name` branch already enforces.
+        if not re.match(r"^[a-zA-Z0-9-_]+$", exec_name):
+            raise Exception(ERROR_MSG.format(line))
 
-        os.system(f"chmod +x ./collection/{exec_name}.sh")
-        os.system(
-            f"sudo ln -sfn {HOME}/projects/arch-dotfiles/weblinks/collection/{exec_name}.sh /usr/local/bin/{exec_name}"
+        script = Path("./collection") / f"{exec_name}.sh"
+        script.write_text(f"#!/bin/sh\nxdg-open {url}\nexit 0\n")
+        script.chmod(0o755)
+        subprocess.run(
+            ["sudo", "ln", "-sfn", str(script.resolve()), f"/usr/local/bin/{exec_name}"],
+            check=True,
         )
 
         print(f"Created executable {exec_name} for {url}.")

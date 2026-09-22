@@ -213,7 +213,7 @@ def _count_active_sessions(claude_dir):
             pid = json.loads(f.read_text("utf-8")).get("pid")
             if pid and _pid_alive(pid):
                 count += 1
-        except Exception:
+        except Exception:  # noqa: S110 -- best-effort: dead/unreadable session file
             pass
     return count
 
@@ -515,7 +515,7 @@ def _usage_from_headers():
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310 -- constant https anthropic endpoint
             headers = r.headers
     except urllib.error.HTTPError as e:
         # 429 still carries the utilization headers -- that's the case we most
@@ -623,7 +623,7 @@ def _scrape_usage_winpty(PtyProcess, threading):
     time.sleep(2)
     try:
         proc.close(force=True)
-    except Exception:
+    except Exception:  # noqa: S110 -- best-effort: pexpect child already gone
         pass
     t.join(timeout=2)
     return _parse_usage_output("".join(output))
@@ -645,14 +645,14 @@ def _scrape_usage_pexpect(pexpect):
         while time.time() < end:
             try:
                 buf.append(proc.read_nonblocking(8192, timeout=0.4))
-            except Exception:
+            except Exception:  # noqa: S110 -- best-effort: nonblocking read drained
                 pass
 
     proc = pexpect.spawn('claude', dimensions=(55, 200), encoding='utf-8',
                          timeout=30, env=_spawn_env())
     try:
         proc.expect([r'[>❯]', r'\u2570'], timeout=10)
-    except Exception:
+    except Exception:  # noqa: S110 -- best-effort: prompt not seen in time
         pass
     drain(6)            # wait for the TUI to come up
     proc.send('/usage')
@@ -667,7 +667,7 @@ def _scrape_usage_pexpect(pexpect):
     drain(2)
     try:
         proc.close()
-    except Exception:
+    except Exception:  # noqa: S110 -- best-effort: pexpect child already gone
         pass
     return _parse_usage_output("".join(buf))
 
@@ -1255,7 +1255,7 @@ def _mark_pushed():
     """Record the current time as last push."""
     try:
         _debounce_path().write_text(str(datetime.now(timezone.utc).timestamp()), encoding="utf-8")
-    except Exception:
+    except Exception:  # noqa: S110 -- best-effort: debounce stamp is advisory
         pass
 
 

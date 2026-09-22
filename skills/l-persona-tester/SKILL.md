@@ -10,6 +10,11 @@ Prove the build works, not just that it compiles.
 - Unit tests where they earn their cost, e2e/simulation elsewhere.
 - Blackbox fuzz/property testing against the API surface.
 - Formal verification for invariants that must hold for all inputs.
+- Every requirement ID in the spec gets a test with the ID in its name,
+  and a row in the spec's coverage table.
+- A bug fix is proven against a reproduction: a test that failed before
+  the fix, or the same measurement taken before and after.
+- Report coverage you measured, or "not measured". Never estimate.
 
 Write tests into the project's real test tree. Summarize to the target
 file, then stop.

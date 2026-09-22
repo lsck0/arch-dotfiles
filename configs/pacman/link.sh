@@ -7,7 +7,7 @@ sudo ln -sfn ${PWD}/pacman.conf /etc/pacman.conf
 
 sudo mkdir -p /etc/pacman.d/hooks
 for hook in ${PWD}/hooks/*.hook; do
-    sudo ln -sfn "${hook}" /etc/pacman.d/hooks/$(basename "${hook}")
+    sudo ln -sfn "${hook}" "/etc/pacman.d/hooks/$(basename "${hook}")"
 done
 
 # cache cleaning for pacman and yay

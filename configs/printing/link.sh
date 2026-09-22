@@ -12,7 +12,7 @@ command -v avahi-daemon >/dev/null 2>&1 && sudo systemctl enable --now avahi-dae
 
 # Network printers advertise over mDNS
 if ! grep -q "mdns_minimal" /etc/nsswitch.conf; then
-    sudo cp /etc/nsswitch.conf /etc/nsswitch.conf.bak-$(date +%Y%m%d)
+    sudo cp /etc/nsswitch.conf "/etc/nsswitch.conf.bak-$(date +%Y%m%d)"
     sudo sed -i 's|^hosts:.*|hosts: mymachines mdns_minimal [NOTFOUND=return] resolve [!UNAVAIL=return] files myhostname dns|' /etc/nsswitch.conf
 fi
 

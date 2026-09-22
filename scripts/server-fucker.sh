@@ -1909,6 +1909,7 @@ fi
 if have arjun; then
     run arjun sh -c "arjun -u '$BASEURL' -oT /dev/stdout -q 2>/dev/null; [ -s '$API_URLS' ] && arjun -i '$API_URLS' -oT /dev/stdout -q 2>/dev/null" > "$OUTDIR/raw/arjun.log" 2>&1
 fi
+# shellcheck disable=SC2046  # empty must vanish (no -ssl arg), so no quotes
 run nikto nikto -host "$HOST" -port "$PORT" $([ "$SCHEME" = https ] && echo -ssl) -maxtime "${DURATION}s" -ask no -o "$OUTDIR/raw/nikto.txt"
 
 # HTTP method map for discovered API/OpenAPI endpoints (verb sweep + OPTIONS Allow)
@@ -1998,6 +1999,7 @@ if have nuclei; then
     run nuclei nuclei -u "$BASEURL" -l "$CORPUS" "${NUCLEI_AUTH[@]}" "${NUCLEI_OOB[@]}" -rl "$NUCLEI_RL" -severity info,low,medium,high,critical -stats -silent -o "$OUTDIR/raw/nuclei.txt"
     [ -s "$PARAMS" ] && run nuclei-dast nuclei -l "$PARAMS" "${NUCLEI_AUTH[@]}" "${NUCLEI_OOB[@]}" -rl "$NUCLEI_RL" -dast -fuzz-aggression high -stats -silent -o "$OUTDIR/raw/nuclei-dast.txt"
 fi
+# shellcheck disable=SC2048,SC2086  # deliberate split: rewrite -b/-H flags into dalfox's --cookie/--header args
 [ -s "$PARAMS" ] && { run dalfox dalfox file "$PARAMS" ${CURL_AUTH[*]/#-b/--cookie} ${CURL_AUTH[*]/#-H/--header} "${DALFOX_TUNE[@]}" --silence --no-color --skip-mining-dom -o "$OUTDIR/raw/dalfox.txt"; run sqlmap sqlmap -m "$PARAMS" "${SQLMAP_AUTH[@]}" "${SQLMAP_TUNE[@]}" --batch --level 3 --risk 2 --smart --crawl 0 --output-dir "$OUTDIR/raw/sqlmap"; }
 
 ## ================================================================ PHASE 5: brute
