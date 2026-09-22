@@ -20,6 +20,9 @@ BarWidget {
   property var host: ({})
   property var storage: ({})
   property var traffic: ({})
+  // The four incoming lists, as on the TRMNL dashboard. Empty when Loki is
+  // unreachable, which costs this section and nothing else.
+  property var clients: ({})
 
   // Link-only entries (up === null) have no state and are left out of the counts.
   readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
@@ -71,6 +74,7 @@ BarWidget {
           root.host = s.host || {}
           root.storage = s.storage || {}
           root.traffic = s.traffic || {}
+          root.clients = s.clients || {}
         } catch (e) {}
       }
     }
@@ -177,6 +181,73 @@ BarWidget {
       hoverEnabled: true
       cursorShape: kv.url ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: root.open(kv.url)
+    }
+  }
+
+  // One of the four incoming lists: a caption, then a row per entry with a
+  // bar of its share of the largest row in the same list. Share of the list
+  // and not of the whole, or everything under the leader is a sliver.
+  component ClientList: Column {
+    id: list
+    property string title: ""
+    property var rows: []
+    spacing: 0
+
+    Text {
+      text: list.title
+      color: Color.menu.text
+      opacity: Style.emphasis.faint
+      textFormat: Text.PlainText
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking
+      elide: Text.ElideRight
+      width: list.width
+      bottomPadding: Style.spacing.xxs
+    }
+
+    Repeater {
+      model: list.rows
+      delegate: Item {
+        id: entry
+        required property var modelData
+        width: list.width
+        implicitHeight: entryName.implicitHeight + Style.spacing.xxs
+
+        Rectangle {
+          // the share bar, drawn behind the text rather than beside it: a
+          // separate track would cost width the column does not have
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          height: parent.height
+          width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
+          radius: Style.cornerRadius
+          color: Util.alpha(Color.menu.text, 0.12)
+        }
+        Text {
+          id: entryName
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width - entryCount.implicitWidth - Style.spacing.sm
+          textFormat: Text.PlainText
+          text: entry.modelData.name
+          elide: Text.ElideRight
+          color: Color.menu.text
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+        Text {
+          id: entryCount
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          textFormat: Text.PlainText
+          text: entry.modelData.count
+          color: Color.menu.text
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+        }
+      }
     }
   }
 
@@ -366,6 +437,46 @@ BarWidget {
           value: root.num(root.traffic.errorRps, " req/s")
           alert: root.traffic.errorRps > 0
           url: root.links.dashboard
+        }
+
+        // ---- incoming -------------------------------------------------------
+        // Who reached the lab from the internet, which is the one thing
+        // Prometheus cannot answer: its Traefik counters carry no client
+        // detail, so these come from the access log through Loki.
+        Column {
+          width: parent.width
+          visible: (root.clients.countries || []).length > 0
+          spacing: Style.spacing.md
+
+          PanelSeparator {}
+          Row {
+            width: parent.width
+            spacing: Style.spacing.sm
+            PanelSectionHeader { text: "Incoming" }
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.clients.window || ""
+              color: Color.menu.text
+              opacity: Style.emphasis.faint
+              textFormat: Text.PlainText
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          Grid {
+            id: clientGrid
+            width: parent.width
+            columns: 4
+            columnSpacing: Style.spacing.lg
+            readonly property real cellWidth:
+              (width - columnSpacing * (columns - 1)) / columns
+
+            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
+            ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
+            ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
+          }
         }
 
         // ---- services -------------------------------------------------------

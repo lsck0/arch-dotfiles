@@ -5,7 +5,12 @@ The homelab's shape is read from its source checkout on every poll:
 src/inventory.json (written by sync.sh from instances.tf) for VMs and their
 enabled state, modules/routes.nix plus the Traefik instances for links, and
 whichever instance enables Prometheus for where to query. Only live state comes
-from Prometheus/Alertmanager. Disabled VMs are left out entirely.
+from Prometheus/Alertmanager/Loki. Disabled VMs are left out entirely.
+
+The "incoming" lists are the same four the TRMNL homelab dashboard draws, from
+the same source: Traefik's JSON access log, shipped to Loki by promtail. They
+are the only thing here that Prometheus cannot answer, because its Traefik
+counters carry no client detail at all.
 """
 
 import calendar
@@ -24,6 +29,26 @@ INTERVAL = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 # Targets seen within this window count as fleet members; the scrape sweeps whole /24s.
 SEEN = "6h"
 IPV4 = r"\d+\.\d+\.\d+\.\d+"
+# How far back the incoming lists look, and how many rows each one keeps. An
+# hour of a private lab is mostly whatever its owner happened to open.
+CLIENT_WINDOW = "24h"
+CLIENT_ROWS = 8
+
+# Traefik logs the User-Agent verbatim, which is thousands of distinct strings
+# and useless as a series label, so Loki folds it into a family before the
+# count. Order matters: Edge claims Chrome and both claim Safari. `contains`
+# rather than a regex because Loki has no regexMatch.
+AGENT_FAMILY = (
+    '{{ if or (contains "bot" .ua) (contains "Bot" .ua) (contains "crawl" .ua)'
+    ' (contains "spider" .ua) }}bot'
+    '{{ else if contains "Edg/" .ua }}Edge'
+    '{{ else if contains "Chrome/" .ua }}Chrome'
+    '{{ else if contains "Firefox/" .ua }}Firefox'
+    '{{ else if contains "Safari/" .ua }}Safari'
+    '{{ else if or (contains "Go-http" .ua) (contains "connect-go" .ua) }}Go'
+    '{{ else if or (contains "curl" .ua) (contains "Wget" .ua) }}curl'
+    '{{ else }}other{{ end }}'
+)
 
 
 def read(*parts):
@@ -154,8 +179,21 @@ def source():
         monitor["url"] = grafana + dashboard_path
     nas = named("nas")
     infra = next((homepage_group(t, "Infra") for t in texts.values() if "- Infra:" in t), [])
+
+    # Loki's address is wherever promtail is told to push. The access log the
+    # incoming lists read is only worth counting on the public ingress: the
+    # external Traefik relays into the internal one, so a request off the
+    # internet is written to both logs and summing them counts it twice. The
+    # stream's host label is the VM's hostname, which is "vm-" plus its id.
+    push = re.search(r"https?://(%s:\d+)/loki/api/v1/push" % IPV4, read("modules", "base.nix"))
+    ingress = next((vmid for vmid, text in texts.items()
+                    if vms[vmid]["type"] == "external" and "homelab.traefik" in text), None)
+
     return {
         "infra": infra,
+        "loki": "http://" + push.group(1) if push else "",
+        "ingress": "vm-%d" % ingress if ingress else "",
+        "domain": domain,
         "by_ip": by_ip,
         "subnets": subnets,
         "host_ip": host_ip,
@@ -181,6 +219,103 @@ def vm_for(instance, src):
         return src["by_ip"][ip]
     zone = next((z for z, subnet in src["subnets"].items() if ip.startswith(subnet + ".")), "")
     return {"id": 100000, "name": ip, "url": "", "onDemand": False, "type": zone}
+
+
+def human_count(n):
+    if n < 1000:
+        return str(int(n))
+    if n < 10000:
+        return "%.1fk" % (n / 1000)
+    if n < 1000000:
+        return "%.0fk" % (n / 1000)
+    return "%.1fM" % (n / 1000000)
+
+
+def bars(pairs, scale=None):
+    """(name, count) pairs -> rows the panel draws without arithmetic.
+
+    `pct` is the share of the largest row, not of the total: the question a
+    glance asks is which of these is big next to its neighbours, and a total
+    share makes every row after the first a sliver.
+    """
+    top = scale if scale is not None else max([c for _, c in pairs] or [0])
+    return [{"name": n, "count": human_count(c),
+             "pct": int(round(100 * c / top)) if top else 0} for n, c in pairs]
+
+
+def clients(src):
+    """The four incoming lists, from Traefik's access log by way of Loki."""
+    if not src["loki"] or not src["ingress"]:
+        return {}
+    stream = '{job="traefik-access", host="%s"}' % src["ingress"]
+    window = CLIENT_WINDOW
+
+    def instant(expr):
+        url = src["loki"] + "/loki/api/v1/query?" + urllib.parse.urlencode({"query": expr})
+        body = fetch(url)
+        if body.get("status") != "success":
+            return []
+        return body["data"]["result"]
+
+    def ranked(expr, label, fallback):
+        rows = []
+        for r in instant(expr):
+            try:
+                rows.append((r["metric"].get(label) or fallback, float(r["value"][1])))
+            except (KeyError, TypeError, ValueError):
+                continue
+        rows.sort(key=lambda kv: -kv[1])
+        return bars(rows[:CLIENT_ROWS])
+
+    # A request with no Cf-Ipcountry did not arrive through Cloudflare, which
+    # means someone dialled the address rather than the hostname.
+    countries = ranked(
+        "topk(%d, sum by (country) (count_over_time(%s[%s])))" % (CLIENT_ROWS, stream, window),
+        "country", "direct")
+    agents = ranked(
+        "topk(%d, sum by (agent) (count_over_time(%s | json ua=`[\"request_User-Agent\"]`"
+        " | label_format agent=`%s` [%s])))" % (CLIENT_ROWS, stream, AGENT_FAMILY, window),
+        "agent", "other")
+    hosts = ranked(
+        "topk(%d, sum by (h) (count_over_time(%s | json h=\"RequestHost\" [%s])))"
+        % (CLIENT_ROWS, stream, window),
+        "h", "direct")
+    suffix = "." + src["domain"] if src["domain"] else ""
+    for host in hosts:
+        if suffix and host["name"].endswith(suffix):
+            host["name"] = host["name"][: -len(suffix)]
+        elif host["name"][:1].isdigit():
+            # a bare address in the Host header is a scanner, not a visitor
+            host["name"] = "by address"
+
+    by_status = {}
+    for r in instant("sum by (status) (count_over_time(%s[%s]))" % (stream, window)):
+        code = str(r["metric"].get("status") or "")
+        klass = code[:1] + "xx" if code[:1].isdigit() else "?"
+        try:
+            by_status[klass] = by_status.get(klass, 0.0) + float(r["value"][1])
+        except (KeyError, TypeError, ValueError):
+            continue
+    total = sum(by_status.values())
+
+    # ClientHost is the visitor and not the proxy: the Cloudflare ranges are
+    # trusted on the entrypoint, so Traefik resolves the forwarded address.
+    seen = instant('count(count by (ip) (count_over_time(%s | json ip="ClientHost" [%s])))'
+                   % (stream, window))
+    try:
+        visitors = float(seen[0]["value"][1])
+    except (IndexError, KeyError, TypeError, ValueError):
+        visitors = 0.0
+
+    rows = [("requests", total), ("visitors", visitors)]
+    rows.extend((c, by_status.get(c, 0.0)) for c in ("2xx", "3xx", "4xx", "5xx"))
+    traffic = bars(rows, scale=total)
+    # the first two are not a share of the requests, so they get no bar
+    for row in traffic[:2]:
+        row["pct"] = 0
+
+    return {"window": window, "countries": countries, "agents": agents,
+            "hosts": hosts, "traffic": traffic}
 
 
 def reachable(url):
@@ -303,7 +438,17 @@ def sample(src):
             "externalRps": rps("external"),
             "errorRps": rounded(scalar('sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))') or 0, 2),
         },
+        # Loki is a separate service from the one this poll depends on, so a
+        # failure here costs the four lists and nothing else on the panel.
+        "clients": try_clients(src),
     }
+
+
+def try_clients(src):
+    try:
+        return clients(src)
+    except Exception:
+        return {}
 
 
 def main():
