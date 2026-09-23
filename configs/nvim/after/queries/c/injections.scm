@@ -61,3 +61,47 @@
     (string_literal
       (string_content) @injection.content)
     (#set! injection.language "sql")))
+
+; ─────────────────────────────────────────────────────────────────────────────
+; nyangine — src/nyangine/db
+; ─────────────────────────────────────────────────────────────────────────────
+
+; nya_sql_exec(db, "SQL") — SQL is the 2nd argument
+(call_expression
+  function: (identifier) @_func (#eq? @_func "nya_sql_exec")
+  arguments: (argument_list
+    (_)  ; NYA_Database*
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
+
+; nya_sql_exec_bound(db, "SQL", values, count) — SQL is the 2nd argument
+(call_expression
+  function: (identifier) @_func (#eq? @_func "nya_sql_exec_bound")
+  arguments: (argument_list
+    (_)  ; NYA_Database*
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
+
+; nya_sql_query(db, arena, "SQL", values, count, out) — SQL is the 3rd argument
+(call_expression
+  function: (identifier) @_func (#eq? @_func "nya_sql_query")
+  arguments: (argument_list
+    (_)  ; NYA_Database*
+    (_)  ; NYA_Arena*
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
+
+; nya_orm_select(table, arena, "WHERE ... ORDER BY ...", values, count, rows, out)
+; A clause rather than a whole statement, so tree-sitter-sql parses it as an error node and only the
+; keywords inside it come out coloured. That is still better than a plain string.
+(call_expression
+  function: (identifier) @_func (#eq? @_func "nya_orm_select")
+  arguments: (argument_list
+    (_)  ; NYA_OrmTable*
+    (_)  ; NYA_Arena*
+    (string_literal
+      (string_content) @injection.content)
+    (#set! injection.language "sql")))
