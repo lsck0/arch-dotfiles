@@ -56,97 +56,97 @@ previous_agent = "alt+p"
 [[keys.command]]
 key = "prefix+w"
 type = "popup"
-command = "hms"
+command = "direnv exec . hms"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+shift+n"
 type = "popup"
-command = "rustnet"
+command = "direnv exec . rustnet"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+shift+s"
 type = "popup"
-command = "lazysql"
+command = "direnv exec . lazysql"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+d"
 type = "popup"
-command = "lazydocker"
+command = "direnv exec . lazydocker"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+g"
 type = "popup"
-command = "lazygit"
+command = "direnv exec . lazygit"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+h"
 type = "popup"
-command = "gh-dash"
+command = "direnv exec . gh-dash"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+j"
 type = "popup"
-command = "lazyjj"
+command = "direnv exec . lazyjj"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+shift+j"
 type = "popup"
-command = "sh -c 'lazyjournal -T \"$(date +%:z)\"'"
+command = "direnv exec . sh -c 'lazyjournal -T \"$(date +%:z)\"'"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+k"
 type = "popup"
-command = "k9s"
+command = "direnv exec . k9s"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+m"
 type = "popup"
-command = "~/projects/arch-dotfiles/toggles/menu.sh --fzf"
+command = "direnv exec . ~/projects/arch-dotfiles/toggles/menu.sh --fzf"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+n"
 type = "popup"
-command = "netscanner"
+command = "direnv exec . netscanner"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+p"
 type = "popup"
-command = "btop"
+command = "direnv exec . btop"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+t"
 type = "popup"
-command = "taskwarrior-tui"
+command = "direnv exec . taskwarrior-tui"
 width = "90%"
 height = "90%"
 
 [[keys.command]]
 key = "prefix+z"
 type = "popup"
-command = "zsh"
+command = "direnv exec . zsh"
 width = "90%"
 height = "90%"
