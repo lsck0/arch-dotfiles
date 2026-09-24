@@ -288,7 +288,8 @@ Before an MVP exists, git is a backup tool and nothing else. Commit whatever, wh
 - One commit per logical change. Split unrelated changes, squash fixups before landing, never leave a "wip" or "fix typo" in history.
 - Conventional commits, enforced by hook and CI: `type(scope): summary`, imperative, lowercase, no trailing period. Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Scope is the module or service.
   - Breaking changes get a `!` after the type and a `BREAKING CHANGE:` footer saying what breaks and what to do instead.
-  - The body carries the why: reasoning, rejected alternative, measurement. The summary says what changed, never how. Footers reference issues (`Closes #12`).
+  - One line by default: the `type(scope): summary` line is the whole commit. Add a body only when the why is not obvious from the summary — reasoning, rejected alternative, measurement — never a body that just restates the summary. The summary says what changed, never how. Footers reference issues (`Closes #12`).
+  - Never mention the tool that wrote the code. No `Co-Authored-By` for an LLM/agent, no "generated with"/"created by" line, no model name, no AI/agent/assistant reference anywhere in message, body or footer. The commit reads as the author's own, whoever or whatever produced the diff.
 - Changelog and version are generated from history, never hand-edited. `feat` bumps minor, `fix` and `perf` bump patch, `!` bumps major, and the tag, changelog and release notes come out of one CI run on merge.
 
 ## CI / CD
