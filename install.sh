@@ -845,6 +845,7 @@ PACKAGES=(
     obfs4proxy # [pentesting] Tor traffic obfuscator
     openvpn # [pentesting] VPN client/server
     osslsigncode # [pentesting] authenticode signing tool
+    osv-scanner # [pentesting] dependency vulnerability scanner
     pwdsafety # [pentesting] pwd checking
     pwndbg # [pentesting] GDB exploit-dev plugin
     python-pwntools # [pentesting] exploit development library
