@@ -1,21 +1,5 @@
 #!/usr/bin/env bash
-# Scaffolds a per-project-root taskwarrior (+ timewarrior) instance plus its
-# tasks/context/ sibling folder. One instance == one project (taskwarrior's
-# own `project:` field is reserved for SUB-grouping inside this one db, e.g.
-# sprints — see skills/l-agent-task-db/SKILL.md).
-#
-# Layout created under <target>/:
-#   tasks/.taskrc, tasks/.task/, tasks/.timewarrior/
-#   tasks/context/{research,design,questions}/
-#   devenv.nix (created or patched) + .envrc, so TASKRC/TIMEWARRIORDB are
-#   auto-exported by direnv on `cd`/`direnv allow` — requires
-#   `eval "$(direnv hook zsh)"` in the shell rc (already wired in this
-#   repo's configs/zsh/zshrc).
-#   A git repo, if <target> isn't inside one already (`git init` + one
-#   initial commit of just the scaffolded files). An EXISTING repo is
-#   never auto-committed to — only its .gitignore gets the new entries.
-#
-# Usage: scaffold.sh [target-dir]   (defaults to $PWD)
+# Scaffolds a per-project-root taskwarrior (+ timewarrior) instance plus its tasks/context/ sibling folder.
 set -euo pipefail
 
 target=${1:-$PWD}
@@ -36,11 +20,7 @@ if [[ -f "$taskrc" ]]; then
   exit 1
 fi
 
-# --- git repo: init one if <target> isn't already inside a work tree ---
-# A fresh repo gets one initial commit of just what THIS script created (not
-# a blind `git add -A`, so pre-existing unrelated files in <target> aren't
-# silently swept into a commit the user didn't ask for). An existing repo's
-# history is never touched — only its .gitignore gains the new entries.
+# --- git repo: init one if <target> isn't already inside a work tree --- A fresh repo gets one initial commit of just what THIS script created (not a blind `git add -A`, so pre-existing unrelated files in <target> aren't silently swept into a commit the user didn't ask for).
 repo_is_new=0
 if git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   echo "note: $target is already inside a git repo — not running 'git init'."
@@ -52,9 +32,7 @@ fi
 
 mkdir -p "$task_data/hooks" "$timew_data"
 mkdir -p "$tasks_context_dir/research" "$tasks_context_dir/design" "$tasks_context_dir/questions"
-# git doesn't track empty directories — drop a placeholder so the context/
-# subfolders actually show up in the initial commit instead of vanishing
-# until the first real file lands in each.
+# git doesn't track empty directories — drop a placeholder so the context/ subfolders actually show up in the initial commit instead of vanishing until the first real file lands in each.
 touch "$tasks_context_dir/research/.gitkeep" "$tasks_context_dir/design/.gitkeep" "$tasks_context_dir/questions/.gitkeep"
 
 cat > "$taskrc" <<EOF
@@ -62,9 +40,7 @@ data.location=$task_data
 hooks.location=$task_data/hooks
 EOF
 
-# Wire the timewarrior auto-tracking hook if the system package providing it
-# is installed. Silent skip (not a hard failure) otherwise — the task db is
-# still fully usable without time tracking.
+# Wire the timewarrior auto-tracking hook if the system package providing it is installed.
 if [[ -f "$hook_src" ]]; then
   cp "$hook_src" "$hook_dst"
   chmod +x "$hook_dst"

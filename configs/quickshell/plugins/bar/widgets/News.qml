@@ -5,9 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Was flagged as blocked pending "which
-// outlet + API key" — resolved by using NYT's free public RSS feed instead
-// of a paid news API, since that needs no credentials at all.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "news"

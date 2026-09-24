@@ -5,8 +5,8 @@ local ignore_filetypes_list = {
 return {
     {
         "ThePrimeagen/harpoon", -- quick file bookmarks
-        lazy = false,
         branch = "harpoon2",
+        keys = { "<leader>a", "<leader>h", "<leader>1", "<leader>2", "<leader>3", "<leader>4", "<leader>5" },
         config = function()
             -- having this in the mapping file caused some issues lol
             require("harpoon"):setup()
@@ -23,6 +23,7 @@ return {
     },
     {
         "nvim-telescope/telescope.nvim", -- fuzzy finder
+        cmd = "Telescope",
         dependencies = {
             {
                 "nvim-telescope/telescope-fzf-native.nvim", -- fzf sorting backend
@@ -43,7 +44,8 @@ return {
                         i = {
                             ["<C-k>"] = "move_selection_next",
                             ["<C-j>"] = "move_selection_previous",
-                            ["<C-q>"] = function(prompt_bufnr)
+                            -- C-a, not C-q: Ctrl+Q is the tmux/herdr prefix.
+                            ["<C-a>"] = function(prompt_bufnr)
                                 actions.smart_send_to_qflist(prompt_bufnr)
                                 actions.open_qflist(prompt_bufnr)
                             end

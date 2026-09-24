@@ -1,0 +1,6 @@
+{
+  "runtime.version": "LuaJIT",
+  "workspace.checkThirdParty": false,
+  "diagnostics.globals": ["vim", "Snacks"],
+  "diagnostics.disable": ["missing-fields"]
+}

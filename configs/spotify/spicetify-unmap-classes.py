@@ -66,8 +66,7 @@ def main() -> int:
         if css.name in SKIP or css.name not in pristine:
             continue
 
-        # What spicetify's rename turns each pristine selector into, so patched
-        # selectors can be looked up and swapped back for the original.
+        # What spicetify's rename turns each pristine selector into, so patched selectors can be looked up and swapped back for the original.
         original = {}
         source = pristine[css.name]
         for start, end in preludes(source):

@@ -1,10 +1,4 @@
-// Trimmed from upstream's power/Model.js: kept only the generic UPower-device
-// helpers (battery icon/fraction/charge-threshold/mode-label), which operate
-// purely on the shape Quickshell.Services.UPower already exposes. Dropped
-// everything power-profiles-daemon-specific (parseProfiles/profileIcon/
-// selectProfileIndex/clampIndex/parseKeyValue) — this repo's power-profile
-// switching goes through toggles/toggle-powermode.sh (TLP-based, already
-// built), not powerprofilesctl parsing.
+// Trimmed from upstream's power/Model.js: kept only the generic UPower-device helpers (battery icon/fraction/charge-threshold/mode-label), which operate purely on the shape Quickshell.Services.UPower already exposes.
 
 function batteryFraction(device) {
   return device && device.isPresent ? Math.max(0, Math.min(1, device.percentage)) : 0
@@ -50,8 +44,7 @@ function modeLabel(device, onBattery, states) {
   return "Charging"
 }
 
-// mm:ss-free "Xh Ym" formatting for UPower's timeToEmpty/timeToFull, which
-// are seconds.
+// mm:ss-free "Xh Ym" formatting for UPower's timeToEmpty/timeToFull, which are seconds.
 function formatDuration(seconds) {
   var total = Math.max(0, Math.round(Number(seconds) || 0))
   var hours = Math.floor(total / 3600)

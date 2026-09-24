@@ -5,26 +5,14 @@ import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Two halves:
-//   - in the bar: a live cava spectrum plus play/pause and the track title
-//   - on hover: album art, seek, transport, loop/shuffle, and a player picker
-//
-// The spectrum's audio source is Commons/Cava.qml (a ref-counted cava
-// subprocess); this file holds a CavaRef only while something is actually
-// looking at bars, so nothing runs when nothing is playing.
-//
-// All glyphs below are cmap-verified against 0xProto Nerd Font. Two near
-// misses worth recording: U+F0400 is md-pi_box, not md-music_note, and the
-// music-note fallback used here is fa-music U+F001.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "media"
 
   // ---- player selection -------------------------------------------------
 
-  // dbusName of a player the user explicitly picked in the panel. Cleared
-  // automatically when that player goes away, so the widget falls back to
-  // the automatic choice rather than going blank.
+  // dbusName of a player the user explicitly picked in the panel.
   property string pinnedPlayer: ""
 
   function duplicateScore(p) {
@@ -32,14 +20,7 @@ BarWidget {
       + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
   }
 
-  // MPRIS can expose the same player more than once during D-Bus
-  // reconnects. Keep one source per stable bus name so the picker and the
-  // automatic selection do not show duplicate entries.
-  //
-  // One Firefox tab surfaces twice, via firefox's own MPRIS service and via
-  // plasma-browser-integration. Their identities differ only by case
-  // ("Mozilla firefox" / "Mozilla Firefox"), so the identity key is folded.
-  // playerctld is a proxy for whatever is active and is always a duplicate.
+  // MPRIS can expose the same player more than once during D-Bus reconnects.
   readonly property var players: {
     var unique = []
     var seen = ({})
@@ -62,8 +43,7 @@ BarWidget {
         byIdentity[idKey] = p
         order.push(idKey)
       } else {
-        // Playing beats paused, then art beats none: Firefox's own service
-        // publishes no artwork, plasma-browser-integration does.
+        // Playing beats paused, then art beats none: Firefox's own service publishes no artwork, plasma-browser-integration does.
         if (duplicateScore(p) > duplicateScore(byIdentity[idKey])) byIdentity[idKey] = p
       }
     }
@@ -75,18 +55,6 @@ BarWidget {
   property string lastShownPlayer: ""
 
   // WHICH PLAYER THE WIDGET IS SHOWING — assigned, not bound.
-  //
-  // The selection is deliberately sticky: with nothing playing it stays on
-  // whatever was last shown rather than falling back to array order, so the
-  // card does not jump to a different app the moment you hit pause. That makes
-  // the choice depend on its own previous answer, and as a binding that is a
-  // genuine cycle — `player` read `lastShownPlayer`, which was written back
-  // from `player`. Qt.callLater deferred the write but not the dependency, and
-  // the shell logged "Binding loop detected for property player" on every
-  // playback change.
-  //
-  // Computing it in one place and assigning the result breaks the cycle
-  // outright instead of hiding it behind a deferral.
   property var player: null
 
   function pickPlayer() {
@@ -110,11 +78,7 @@ BarWidget {
     lastShownPlayer = player ? player.dbusName : ""
   }
 
-  // `players` only reads playbackState while collapsing DUPLICATE identities,
-  // so with a single player nothing in that binding depends on playback at all
-  // and playersChanged never fires when it starts or stops. This key does
-  // depend on every player's state, which is what re-runs the selection when
-  // something begins playing.
+  // `players` only reads playbackState while collapsing DUPLICATE identities, so with a single player nothing in that binding depends on playback at all and playersChanged never fires when it starts or stops.
   readonly property string playbackKey: {
     var values = Mpris.players ? Mpris.players.values : []
     var key = ""
@@ -141,8 +105,7 @@ BarWidget {
   readonly property string album: player ? (player.trackAlbum || "") : ""
   readonly property bool playing: player !== null && player.playbackState === MprisPlaybackState.Playing
 
-  // YouTube does not always hand the browser artwork (then neither Firefox nor
-  // plasma-browser-integration publishes any), but the thumbnail URL follows from the video id.
+  // YouTube does not always hand the browser artwork (then neither Firefox nor plasma-browser-integration publishes any), but the thumbnail URL follows from the video id.
   readonly property string artUrl: {
     if (!player) return ""
     if (player.trackArtUrl) return player.trackArtUrl
@@ -151,10 +114,7 @@ BarWidget {
     return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
   }
 
-  // Players with MPRIS Volume are driven through it: Spotify re-applies its own
-  // volume to the stream on every track change, undoing a PipeWire-level change.
-  // Other players fall back to their PipeWire playback streams, matched on the
-  // desktop entry.
+  // Players with MPRIS Volume are driven through it: Spotify re-applies its own volume to the stream on every track change, undoing a PipeWire-level change.
   readonly property var playerStreams: {
     var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
     var nodes = Pipewire.nodes ? Pipewire.nodes.values : []
@@ -231,16 +191,10 @@ BarWidget {
 
   // ---- spectrum ---------------------------------------------------------
 
-  // Hold a cava reference only while bars are actually being drawn: visible,
-  // available, and something is playing. The panel holds its own second
-  // reference (below) so the spectrum keeps running while the panel is open
-  // even if the bar widget's own conditions lapse.
+  // Hold a cava reference only while bars are actually being drawn: visible, available, and something is playing.
   readonly property bool spectrumLive: visible && Cava.available && playing
 
-  // Point cava at THIS player's PipeWire stream rather than the speakers, so
-  // a Discord call in the same sink does not drive the bars. Falls back to
-  // the default monitor when the player has no matching stream (an MPRIS-only
-  // player, or one whose desktop entry does not match its node name).
+  // Point cava at THIS player's PipeWire stream rather than the speakers, so a Discord call in the same sink does not drive the bars.
   readonly property string spectrumSource: volumeStream ? String(volumeStream.name || "") : ""
   onSpectrumSourceChanged: Cava.source = spectrumSource
 
@@ -277,10 +231,7 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.sm
 
-    // Six Rectangles, not Canvas/Shape/ShaderEffect. At this size the scene
-    // graph batches and animates them for free; a Canvas would repaint an
-    // image every frame, and a shader would mean shipping a compiled .qsb
-    // for six bars.
+    // Six Rectangles, not Canvas/Shape/ShaderEffect.
     Row {
       id: spectrum
       anchors.verticalCenter: parent.verticalCenter
@@ -297,19 +248,12 @@ BarWidget {
           readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
           width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
           radius: width / 2
-          // Bars tint toward the accent colour as they get louder — reads as
-          // a warmer, more "alive" equaliser than a flat single-colour one,
-          // and costs nothing extra since it's still a plain Rectangle fill.
+          // Bars tint toward the accent colour as they get louder — reads as a warmer, more "alive" equaliser than a flat single-colour one, and costs nothing extra since it's still a plain Rectangle fill.
           color: Qt.tint(root.bar ? root.bar.barForeground : Color.foreground,
             Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, level * 0.55))
           opacity: 0.85 + level * 0.15
           anchors.verticalCenter: parent.verticalCenter
-          // Floor of 2px so the bars read as a quiet equaliser at rest
-          // rather than vanishing entirely between beats.
-          // Lower exponent (0.72 -> 0.5) + a 1.2x gain: quiet passages were
-          // barely registering, reported as "make the visualisation more
-          // sensitive". Still clamped to spectrum.height so loud peaks don't
-          // overshoot the bar.
+          // Floor of 2px so the bars read as a quiet equaliser at rest rather than vanishing entirely between beats.
           height: Math.max(2, Math.min(spectrum.height,
             spectrum.height * Math.min(100, Math.pow(level, 0.5) * 1.2 * 100) / 100))
           Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
@@ -327,12 +271,7 @@ BarWidget {
 
       MouseArea {
         anchors.fill: parent
-        // z above hoverArea: this glyph stays a dedicated toggle (play AND
-        // pause) even though the wider hoverArea below now treats a plain
-        // click anywhere else on the widget as "pause only" (see hoverArea's
-        // onClicked). Without this, hoverArea — being the later sibling and
-        // therefore on top — would swallow clicks over the icon too and
-        // resuming playback by clicking it would stop working.
+        // z above hoverArea: this glyph stays a dedicated toggle (play AND pause) even though the wider hoverArea below now treats a plain click anywhere else on the widget as "pause only" (see hoverArea's onClicked).
         z: 1
         cursorShape: Qt.PointingHandCursor
         onClicked: if (root.player) root.player.togglePlaying()
@@ -342,11 +281,7 @@ BarWidget {
     Text {
       textFormat: Text.PlainText
       anchors.verticalCenter: parent.verticalCenter
-      // Fixed, not Math.min(implicitWidth, 220). This widget now sits in the
-      // centre section next to the clock, and a width that tracked the title
-      // would shove the clock sideways on every track change. That jitter is
-      // exactly why active-window was dropped from the bar; a little unused
-      // space beats a clock that will not hold still.
+      // Fixed, not Math.min(implicitWidth, 220).
       width: Style.space(200)
       elide: Text.ElideRight
       text: root.title + (root.artist ? " — " + root.artist : "")
@@ -364,12 +299,7 @@ BarWidget {
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     onClicked: function (mouse) {
       if (!root.player) return
-      // Left click anywhere on the tray widget (outside the dedicated
-      // play/pause glyph, which keeps its own toggle above via z: 1) pauses
-      // — a quick "shut it up" gesture that doesn't also risk resuming
-      // something you meant to silence. Falls back to togglePlaying() for
-      // the rare player that reports canPause: false but still handles the
-      // combined PlayPause call.
+      // Left click anywhere on the tray widget (outside the dedicated play/pause glyph, which keeps its own toggle above via z: 1) pauses — a quick "shut it up" gesture that doesn't also risk resuming something you meant to silence.
       if (mouse.button === Qt.LeftButton) {
         if (root.player.canPause) root.player.pause()
         else root.player.togglePlaying()
@@ -387,24 +317,18 @@ BarWidget {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
-    // Centre-section widget: opens directly beneath its own trigger. See
-    // Ui/HoverPanel.qml and Bar.layoutRevision for why that works now.
+    // Centre-section widget: opens directly beneath its own trigger.
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
-    // Second cava reference: keeps the spectrum alive while the panel is
-    // open even if playback pauses, so the panel does not visibly lose its
-    // equaliser the moment you hit pause inside it.
+    // Second cava reference: keeps the spectrum alive while the panel is open even if playback pauses, so the panel does not visibly lose its equaliser the moment you hit pause inside it.
     Loader {
       active: panel.visible && Cava.available
       sourceComponent: CavaRef {}
     }
 
-    // MprisPlayer.position does NOT tick on its own — it is fetched on
-    // demand. Emitting positionChanged() is the documented way to make the
-    // binding re-read it. Only runs while the panel is open and the player
-    // actually reports a position.
+    // MprisPlayer.position does NOT tick on its own — it is fetched on demand.
     Timer {
       interval: 1000
       repeat: true
@@ -434,8 +358,7 @@ BarWidget {
             id: art
             anchors.fill: parent
             source: root.artUrl
-            // Album art arrives at whatever size the player publishes — often
-            // 1000x1000 or larger — and is drawn in a 72px box.
+            // Album art arrives at whatever size the player publishes — often 1000x1000 or larger — and is drawn in a 72px box.
             sourceSize.width: Math.ceil(artFrame.width * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
@@ -443,9 +366,7 @@ BarWidget {
             visible: status === Image.Ready
           }
 
-          // Not every player publishes art, and a published URL can still
-          // fail to load (stale file:// path, unreachable http://). Both
-          // land here rather than on an empty box.
+          // Not every player publishes art, and a published URL can still fail to load (stale file:// path, unreachable http://).
           Text {
             anchors.centerIn: parent
             visible: !art.visible
@@ -473,12 +394,7 @@ BarWidget {
           }
           Text {
             width: parent.width
-            // Always in the layout (never visible: false) even with no
-            // artist tag: a Column positioner drops the space of a hidden
-            // child entirely, and this line popping in/out was one of the
-            // two big contributors to the popup "jumping" between tracks
-            // and players. An empty Text still claims one line of height,
-            // which is exactly the point.
+            // Always in the layout (never visible: false) even with no artist tag: a Column positioner drops the space of a hidden child entirely, and this line popping in/out was one of the two big contributors to the popup "jumping" between tracks and players.
             textFormat: Text.PlainText
             text: root.artist
             color: Color.menu.text
@@ -505,12 +421,7 @@ BarWidget {
       Column {
         width: parent.width
         spacing: Style.spacing.xxs
-        // Always laid out, even for a player that doesn't report a length —
-        // hiding this whole block used to remove/restore ~40px the instant
-        // the active player changed to (or from) one without seek support,
-        // which was the other big source of the popup "jumping" (see the
-        // artist/album Text above for the same fix applied to metadata).
-        // The slider and labels just read as a disabled 0:00 track instead.
+        // Always laid out, even for a player that doesn't report a length — hiding this whole block used to remove/restore ~40px the instant the active player changed to (or from) one without seek support, which was the other big source of the popup "jumping" (see the artist/album Text above for the same fix applied to metadata). The slider and labels just read as a disabled 0:00 track instead.
         readonly property bool supported:
           root.player !== null && root.player.lengthSupported && root.player.length > 0
         opacity: supported ? 1 : 0
@@ -521,9 +432,7 @@ BarWidget {
           bar: root.bar
           minimum: 0
           maximum: root.player && root.player.length > 0 ? root.player.length : 1
-          // While dragging, the slider owns the value; otherwise it follows
-          // the player. Without the guard the 1s poll above would yank the
-          // knob back under the pointer mid-drag.
+          // While dragging, the slider owns the value; otherwise it follows the player.
           value: root.player && !dragging ? root.player.position : value
           enabled: root.player !== null && root.player.canSeek
           opacity: enabled ? 1 : 0.4
@@ -589,13 +498,7 @@ BarWidget {
             opacity: root.player && root.player.canTogglePlaying ? 1 : 0.3
             enabled: root.player !== null && root.player.canTogglePlaying
             fontFamily: Style.font.family
-            // A bigger glyph, not a bigger button: Row (a positioner) does
-            // not vertically centre children of differing implicitHeight —
-            // it top-aligns them — so a taller button here threw the whole
-            // transport row out of line. Same 22px footprint as its
-            // siblings, just a larger icon inside it, keeps every button's
-            // top edge (and therefore the row) flush while still reading as
-            // the primary action.
+            // A bigger glyph, not a bigger button: Row (a positioner) does not vertically centre children of differing implicitHeight — it top-aligns them — so a taller button here threw the whole transport row out of line.
             fontSize: Style.font.icon + Style.space(4)
             onClicked: if (root.player) root.player.togglePlaying()
           }
@@ -611,9 +514,7 @@ BarWidget {
           }
 
           PanelActionButton {
-            // md-repeat / md-repeat_once — the state is carried by which
-            // glyph is shown plus the accent, since there is no "repeat
-            // off" glyph distinct enough to read at this size.
+            // md-repeat / md-repeat_once — the state is carried by which glyph is shown plus the accent, since there is no "repeat off" glyph distinct enough to read at this size.
             iconText: root.player && root.player.loopState === MprisLoopState.Track
               ? "\u{f0458}" : "\u{f0456}"
             tooltipText: {
@@ -701,17 +602,14 @@ BarWidget {
 
         Repeater {
           model: root.players
-          // The player identity is an external string and stays on the UI
-          // family; only the play glyph comes from the icon font, which is
-          // what PanelRow's own glyph/label split already does.
+          // The player identity is an external string and stays on the UI family; only the play glyph comes from the icon font, which is what PanelRow's own glyph/label split already does.
           delegate: PanelRow {
             required property var modelData
             width: content.width
             on: root.player === modelData
             glyph: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : ""
             label: modelData.identity || modelData.dbusName
-            // Clicking the already-pinned player unpins it, handing
-            // selection back to "whatever is playing".
+            // Clicking the already-pinned player unpins it, handing selection back to "whatever is playing".
             onActivated: root.pinnedPlayer =
               (root.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
           }

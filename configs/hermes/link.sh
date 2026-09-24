@@ -51,7 +51,7 @@ if command -v ollama >/dev/null 2>&1; then
     hermes config set providers.ollama-local.context_length 65536
     hermes config set providers.ollama-local.transport chat_completions
 
-    # Widen Hermes' API read timeout for local slow CPU-only
+    # Widen Hermes' API read timeout for slow local CPU-only backends.
     if ! grep -q '^HERMES_API_TIMEOUT=' "${HOME}/.hermes/.env" 2>/dev/null; then
         echo 'HERMES_API_TIMEOUT=1800' >> "${HOME}/.hermes/.env"
         chmod 600 "${HOME}/.hermes/.env"
@@ -65,22 +65,23 @@ hermes skin use wallust || true
 
 # Model routing:
 #   Tier 1 (default):   claude-sonnet-5 via anthropic
-#   Tier 2 (fallback):  z-ai/glm-5.3:US via Nous Portal (paid)
-#   Tier 3 (fallback):  vllm-rocm local GPU (cold-start, last resort)
-#   Delegation:         z-ai/glm-5.3-flash:US via Nous (cheaper subagent work)
+#   Tier 2 (fallback):  free Nous Portal models (no per-token cost)
+#   Tier 3 (fallback):  vllm-rocm local GPU (cold-started by configs/vllm)
+#   Tier 4 (fallback):  ollama-local CPU (last resort)
+#   Delegation:         a free Nous model (cheap subagent work, no cost)
 
-# Tier 1: default model
+# Tier 1: default model, anthropic only
 hermes config set model.default claude-sonnet-5
 hermes config set model.provider anthropic
 
-# Delegation: cheaper model for subagent work
+# Delegation: free Nous model for subagent work
 hermes config set delegation.provider nous
-hermes config set delegation.model "z-ai/glm-5.3-flash:US"
+hermes config set delegation.model "meituan/longcat-2.0:free"
 
 # vllm-rocm local provider (Tier 3, cold-started by configs/vllm/link.sh)
 hermes config set providers.vllm-rocm.api "http://localhost:8000/v1"
 hermes config set providers.vllm-rocm.default_model "mattbucci/gemma-4-12B-AWQ"
 hermes config set providers.vllm-rocm.transport chat_completions
 
-# Tier 2-5: fallback chain
-hermes config set fallback_providers '[{"provider":"nous","model":"z-ai/glm-5.3:US"},{"provider":"custom","model":"mattbucci/gemma-4-12B-AWQ","base_url":"http://localhost:8000/v1"}]'
+# Fallback chain: free Nous models, then local GPU (vllm), then local CPU (ollama)
+hermes config set fallback_providers '[{"provider":"nous","model":"meituan/longcat-2.0:free"},{"provider":"nous","model":"poolside/laguna-s-2.1:free"},{"provider":"vllm-rocm","model":"mattbucci/gemma-4-12B-AWQ"},{"provider":"ollama-local","model":"llama3.1-64k"}]'

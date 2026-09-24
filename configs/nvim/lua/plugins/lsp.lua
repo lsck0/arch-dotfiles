@@ -37,6 +37,10 @@ local installed = {
     "rust-analyzer",
     "slang-server",
     "sqlls",
+    "stylua",
+    "shfmt",
+    "gofumpt",
+    "goimports",
     "tailwindcss-language-server",
     "taplo",
     "terraform-ls",
@@ -47,6 +51,24 @@ local installed = {
     "vim-language-server",
     "yaml-language-server",
     "zls",
+    -- broader popular-language coverage (LSPs)
+    "clojure-lsp",
+    "elixir-ls",
+    "graphql-language-service-cli",
+    "intelephense",
+    "kotlin-language-server",
+    "marksman",
+    "omnisharp",
+    "ruby-lsp",
+    "svelte-language-server",
+    "vue-language-server",
+    -- their formatters
+    "cljfmt",
+    "csharpier",
+    "ktlint",
+    "php-cs-fixer",
+    "rubocop",
+    "sql-formatter",
 }
 
 return {
@@ -59,22 +81,12 @@ return {
             },
         },
     },
-    { "rluba/jai.vim", ft = "jai" },                 -- Jai language support
-    { "lervag/vimtex", ft = { "tex", "plaintex" } }, -- LaTeX support
-    {
-        "saecki/crates.nvim",                        -- Cargo.toml crate info
-        ft = "toml",
-        config = function()
-            require("crates").setup({})
-        end
-    },
+    -- per-language plugins live in lua/languages/ (jai.vim, vimtex, crates, lean)
 
     {
         "mason-org/mason.nvim",                              -- LSP/tool installer
         dependencies = {
-            { "jay-babu/mason-null-ls.nvim" },               -- mason null-ls bridge
             { "neovim/nvim-lspconfig" },                     -- LSP server configs
-            { "nvimtools/none-ls.nvim" },                    -- formatting/diagnostics via LSP
             { "mason-org/mason-lspconfig.nvim" },            -- mason lspconfig bridge
             { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
             { "marilari88/twoslash-queries.nvim" },          -- inline TS type hints
@@ -82,13 +94,6 @@ return {
                 "ivanjermakov/troublesum.nvim",              -- diagnostic count summary
                 config = function()
                     require("troublesum").setup()
-                end
-            },
-            {
-                "MysticalDevil/inlay-hints.nvim", -- LSP inlay hints
-                dependencies = { "neovim/nvim-lspconfig" },
-                config = function()
-                    require("inlay-hints").setup()
                 end
             },
             {
@@ -129,30 +134,12 @@ return {
                 },
             })
 
-            vim.api.nvim_create_autocmd("FileType", {
-                pattern = "jai",
-                callback = function(args)
-                    vim.lsp.start({
-                        name = "jails",
-                        cmd = { "jails", "-jai_path", "/home/luca/.jai", "-jai_exe_name", "jai-linux" },
-                        root_dir = vim.fs.root(args.buf, { "jails.json", ".git" }) or vim.fn.getcwd(),
-                    })
-                end,
-            })
-
             require("mason").setup()
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
                 -- upgrades run from scripts/system-update.sh, not on every startup
                 run_on_start = false,
             })
-            require("null-ls").setup()
-            require("mason-null-ls").setup({
-                ensure_installed = installed,
-                handlers = {},
-                automatic_installation = true,
-            })
-
             vim.lsp.config("clangd", {
                 cmd = {
                     "clangd",
@@ -168,23 +155,26 @@ return {
                 vim.lsp.enable("cobol_ls")
             end
 
+            -- kani projects need these cfgs + nightly; plain Rust must NOT get
+            local function rust_extra_env()
+                local root = vim.fs.root(vim.fn.getcwd(), { "Cargo.toml" }) or vim.fn.getcwd()
+                local f = io.open(root .. "/Cargo.toml")
+                if f then
+                    local uses_kani = f:read("*a"):find("kani") ~= nil
+                    f:close()
+                    if uses_kani then
+                        return { RUSTFLAGS = "--cfg kani_ra --cfg kani", RUSTUP_TOOLCHAIN = "nightly" }
+                    end
+                end
+                return vim.empty_dict()
+            end
+            local rust_env = rust_extra_env()
+
             vim.lsp.config("rust_analyzer", {
                 settings = {
                     ["rust-analyzer"] = {
-                        cargo = {
-                            allFeatures = true,
-                            extraEnv = {
-                                RUSTFLAGS = "--cfg kani_ra --cfg kani",
-                                RUSTUP_TOOLCHAIN = "nightly",
-                            },
-                        },
-                        check = {
-                            command = "clippy",
-                            extraEnv = {
-                                RUSTFLAGS = "--cfg kani_ra --cfg kani",
-                                RUSTUP_TOOLCHAIN = "nightly",
-                            },
-                        },
+                        cargo = { allFeatures = true, extraEnv = rust_env },
+                        check = { command = "clippy", extraEnv = rust_env },
                     }
                 }
             })
@@ -213,7 +203,57 @@ return {
                 },
             })
 
+            -- In jupytext notebook buffers, drop pyright undefined-var noise for IPython builtins.
+            local ipython_builtins = {
+                display = true, get_ipython = true, In = true, Out = true,
+                exit = true, quit = true,
+            }
+            -- point pyright at the project's virtualenv so poetry-installed
+            local function project_python(root)
+                if not root then return nil end
+                local venv = vim.env.VIRTUAL_ENV
+                if venv and vim.fn.executable(venv .. "/bin/python") == 1 then
+                    return venv .. "/bin/python"
+                end
+                if vim.fn.executable(root .. "/.venv/bin/python") == 1 then
+                    return root .. "/.venv/bin/python"
+                end
+                if vim.fn.filereadable(root .. "/pyproject.toml") == 1
+                    and vim.fn.executable("poetry") == 1 then
+                    local out = vim.trim(vim.fn.system({ "poetry", "-C", root, "env", "info", "-e" }))
+                    if vim.v.shell_error == 0 and out ~= "" then return out end
+                end
+            end
+
+            local publish = vim.lsp.handlers["textDocument/publishDiagnostics"]
+            vim.lsp.config("pyright", {
+                before_init = function(params, config)
+                    local root = params.rootPath
+                        or (params.rootUri and vim.uri_to_fname(params.rootUri))
+                    local py = project_python(root)
+                    if py then
+                        config.settings = config.settings or {}
+                        config.settings.python = config.settings.python or {}
+                        config.settings.python.pythonPath = py
+                    end
+                end,
+                handlers = {
+                    ["textDocument/publishDiagnostics"] = function(err, result, ctx)
+                        local buf = vim.uri_to_bufnr(result.uri)
+                        if vim.b[buf].is_jupytext then
+                            result.diagnostics = vim.tbl_filter(function(d)
+                                local name = d.code == "reportUndefinedVariable"
+                                    and d.message:match('"([%w_]+)"')
+                                return not (name and ipython_builtins[name])
+                            end, result.diagnostics)
+                        end
+                        return publish(err, result, ctx)
+                    end,
+                },
+            })
+
             vim.lsp.enable("clangd")
+            vim.lsp.enable("pyright")
             vim.lsp.enable("rust_analyzer")
             vim.lsp.enable("tailwindcss")
             vim.lsp.enable("ts_ls")
@@ -223,6 +263,7 @@ return {
                     exclude = {
                         "clangd",
                         "cobol_ls",
+                        "pyright",
                         "rust_analyzer",
                         "tailwindcss",
                         "ts_ls",
@@ -251,6 +292,13 @@ return {
                 command = "/usr/local/bin/sort-derives-stdout",
                 stdin = true,
             }
+            -- l-style shell: 4-space indent, indent switch cases, binary ops at
+            require("conform").formatters.shfmt = {
+                prepend_args = { "-i", "4", "-ci", "-bn" },
+            }
+            -- l-style width for python (black defaults to 88)
+            require("conform").formatters.black = { prepend_args = { "--line-length", "120" } }
+            require("conform").formatters.isort = { prepend_args = { "--line-length", "120", "--profile", "black" } }
 
             require("conform").setup({
                 formatters_by_ft = {
@@ -263,14 +311,58 @@ return {
                     latex = { "latexindent" },
                     python = { "isort", "black" },
                     rest = { "kulala-fmt" },
-                    rust = { "rustfmt", "sortderives", "leptosfmt" },
+                    -- leptosfmt only in leptos projects, else it errors on plain Rust
+                    rust = function(bufnr)
+                        local fmts = { "rustfmt", "sortderives" }
+                        local root = vim.fs.root(bufnr, { "Cargo.toml" })
+                        local f = root and io.open(root .. "/Cargo.toml")
+                        if f then
+                            if f:read("*a"):find("leptos") then table.insert(fmts, "leptosfmt") end
+                            f:close()
+                        end
+                        return fmts
+                    end,
                     scss = { "prettier" },
+                    typescript = { "prettier" },
+                    typescriptreact = { "prettier" },
+                    javascriptreact = { "prettier" },
+                    lua = { "stylua" },
+                    json = { "prettier" },
+                    jsonc = { "prettier" },
+                    yaml = { "prettier" },
+                    markdown = { "prettier" },
+                    sh = { "shfmt" },
+                    bash = { "shfmt" },
+                    go = { "goimports", "gofumpt" },
+                    nix = { "nixfmt" },
+                    ruby = { "rubocop" },
+                    php = { "php_cs_fixer" },
+                    cs = { "csharpier" },
+                    kotlin = { "ktlint" },
+                    vue = { "prettier" },
+                    svelte = { "prettier" },
+                    graphql = { "prettier" },
+                    clojure = { "cljfmt" },
+                    elixir = { "mix" },
+                    sql = { "sql_formatter" },
                 },
-                format_on_save = {
-                    timeout_ms = 1000,
-                    lsp_format = "fallback",
-                },
+                -- toggle with :FormatToggle (g:) or per-buffer (b:disable_autoformat)
+                format_on_save = function(bufnr)
+                    if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
+                        return
+                    end
+                    return { timeout_ms = 1000, lsp_format = "fallback" }
+                end,
             })
+
+            vim.api.nvim_create_user_command("FormatToggle", function(o)
+                if o.bang then
+                    vim.b.disable_autoformat = not vim.b.disable_autoformat -- buffer-local
+                else
+                    vim.g.disable_autoformat = not vim.g.disable_autoformat -- global
+                end
+                vim.notify("autoformat " .. ((vim.g.disable_autoformat or vim.b.disable_autoformat) and "off" or "on"))
+            end, { bang = true, desc = "Toggle format-on-save (! = buffer only)" })
         end,
     }
 }

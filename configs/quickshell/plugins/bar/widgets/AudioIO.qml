@@ -5,16 +5,7 @@ import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Volume readout uses Quickshell's own
-// Pipewire binding (already proven in Microphone.qml); device switching
-// shells out to pactl since Quickshell's Pipewire binding doesn't expose a
-// "set default sink/source" call, only live volume/mute state.
-//
-// Merged with the microphone: output mute/volume, output devices, input
-// (mic) mute/volume, and input devices all live in this one panel now —
-// Microphone.qml keeps its own bar icon (mute shortcut + wheel-scroll), but
-// hovering it opens this same panel (moduleName "audio-io") rather than
-// duplicating the device/volume UI in a second panel.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "audio-io"
@@ -53,17 +44,10 @@ BarWidget {
     if (source && source.audio) source.audio.muted = !source.audio.muted
   }
 
-  // "Deafened" is both ends muted at once — the state a call app means by
-  // the word. Derived rather than stored, so it stays correct when either
-  // side is muted individually or from outside the shell (a headset button,
-  // a keybind, another app).
+  // "Deafened" is both ends muted at once — the state a call app means by the word.
   readonly property bool deafened: muted && micMuted
 
-  // Undeafening restores both to unmuted rather than to whatever they were
-  // before. Remembering prior state sounds friendlier but is a trap: mute
-  // can change from outside the shell while deafened, and restoring a stale
-  // snapshot would then silently re-mute a device the user had just
-  // unmuted.
+  // Undeafening restores both to unmuted rather than to whatever they were before.
   function toggleDeafen() {
     var target = !deafened
     if (sink && sink.audio) sink.audio.muted = target
@@ -74,10 +58,7 @@ BarWidget {
     if (!devicesProc.running) devicesProc.running = true
   }
 
-  // Re-read after pactl has had a moment to apply. Refreshing inline raced
-  // the detached pactl every time: audio-devices.sh ran while the old default
-  // was still current, so the selected row did not move until the panel was
-  // hovered again and looked like the click had been ignored.
+  // Re-read after pactl has had a moment to apply.
   Timer {
     id: devicesSettle
     interval: 250
@@ -190,9 +171,7 @@ BarWidget {
 
       Repeater {
         model: root.sinks
-        // Shared Ui/PanelRow — the ●/○ prefix used to be concatenated into the
-        // label string, so the gap after it was whatever the font gave it
-        // rather than the row spacing every other list uses.
+        // Shared Ui/PanelRow — the ●/○ prefix used to be concatenated into the label string, so the gap after it was whatever the font gave it rather than the row spacing every other list uses.
         PanelRow {
           required property var modelData
           width: content.width
@@ -250,9 +229,6 @@ BarWidget {
       }
 
       // Input devices, directly under the microphone slider they belong to.
-      // These used to sit below the deafen row, one separator past their own
-      // section header, which read as a third unlabelled list rather than as
-      // the MICROPHONE section's devices.
       Repeater {
         model: root.sources
         PanelRow {

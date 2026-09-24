@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-# Give a repository its own customer identity, see configs/identity/envrc. Re-run to update a repository.
-#
-#   identity-init [repo-dir]
-#
-# Works before or after taskwarrior-init. The identity line goes last in .envrc so it overrides `use devenv`, and
-# .identity/ ignores itself so a later `git init` + `git add .envrc` never sees it.
-#
-# Rejected:
-#   - .git/info/exclude: missing before `git init`, and the scaffold's `git add` fails on excluded paths.
-#   - symlinking .identity/envrc to the template: source_env cds into the link target, so the repository is lost.
+# Give a repository its own customer identity, see configs/identity/envrc.
 
 set -euo pipefail
 

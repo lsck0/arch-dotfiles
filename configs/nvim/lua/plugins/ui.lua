@@ -51,8 +51,7 @@ return {
                 exclude_groups = {},
             })
 
-            -- pywal owns the foreground palette; transparent.nvim only removes
-            -- panel backgrounds, leaving tab text and accents readable.
+            -- pywal owns the foreground palette; transparent.nvim only removes panel backgrounds, leaving tab text and accents readable.
             vim.api.nvim_create_autocmd("ColorScheme", {
                 callback = function()
                     vim.schedule(function()
@@ -98,10 +97,11 @@ return {
     { "Mofiqul/dracula.nvim",     lazy = true },
     { "navarasu/onedark.nvim",    lazy = true },
 
-    { "romgrk/barbar.nvim" }, -- buffer tabline
+    { "romgrk/barbar.nvim", event = "VeryLazy" }, -- buffer tabline
 
     {
         "nvim-lualine/lualine.nvim", -- statusline
+        event = "VeryLazy",
         dependencies = { "xiyaowong/transparent.nvim" },
         config = function()
             require("lualine").setup({
@@ -115,7 +115,8 @@ return {
                 sections = {
                     lualine_a = { "mode" },
                     lualine_b = { "branch", "diff", "diagnostics" },
-                    lualine_c = { { "filename", path = 1 } },
+                    -- dropbar breadcrumbs (path + symbols) rendered at the bottom via lualine.
+                    lualine_c = { { function() return "%{%v:lua.dropbar()%}" end } },
                     lualine_x = {
                         -- active LSP name hidden (issue 10)
                         "filetype",
@@ -132,6 +133,7 @@ return {
 
     {
         "xiyaowong/virtcolumn.nvim", -- virtual colorcolumn
+        event = "VeryLazy",
         config = function()
             vim.g.virtcolumn_char = "▕"
             vim.g.virtcolumn_priority = 10
@@ -139,36 +141,21 @@ return {
     },
 
     {
-        "lukas-reineke/indent-blankline.nvim", -- indent guides
-        main = "ibl",
-        dependencies = {
-            { "HiPhish/rainbow-delimiters.nvim" }, -- rainbow bracket colors
-        },
+        "HiPhish/rainbow-delimiters.nvim", -- rainbow bracket colors (indent guides now via snacks.indent)
+        event = { "BufReadPost", "BufNewFile" },
         config = function()
             local highlight = {
-                "RainbowRed",
-                "RainbowYellow",
-                "RainbowBlue",
-                "RainbowOrange",
-                "RainbowGreen",
-                "RainbowViolet",
-                "RainbowCyan",
+                "RainbowRed", "RainbowYellow", "RainbowBlue", "RainbowOrange",
+                "RainbowGreen", "RainbowViolet", "RainbowCyan",
             }
-            local hooks = require "ibl.hooks"
-            hooks.register(hooks.type.HIGHLIGHT_SETUP, function()
-                vim.api.nvim_set_hl(0, "RainbowRed", { fg = "#E06C75" })
-                vim.api.nvim_set_hl(0, "RainbowYellow", { fg = "#E5C07B" })
-                vim.api.nvim_set_hl(0, "RainbowBlue", { fg = "#61AFEF" })
-                vim.api.nvim_set_hl(0, "RainbowOrange", { fg = "#D19A66" })
-                vim.api.nvim_set_hl(0, "RainbowGreen", { fg = "#98C379" })
-                vim.api.nvim_set_hl(0, "RainbowViolet", { fg = "#C678DD" })
-                vim.api.nvim_set_hl(0, "RainbowCyan", { fg = "#56B6C2" })
-            end)
-
+            vim.api.nvim_set_hl(0, "RainbowRed", { fg = "#E06C75" })
+            vim.api.nvim_set_hl(0, "RainbowYellow", { fg = "#E5C07B" })
+            vim.api.nvim_set_hl(0, "RainbowBlue", { fg = "#61AFEF" })
+            vim.api.nvim_set_hl(0, "RainbowOrange", { fg = "#D19A66" })
+            vim.api.nvim_set_hl(0, "RainbowGreen", { fg = "#98C379" })
+            vim.api.nvim_set_hl(0, "RainbowViolet", { fg = "#C678DD" })
+            vim.api.nvim_set_hl(0, "RainbowCyan", { fg = "#56B6C2" })
             vim.g.rainbow_delimiters = { highlight = highlight }
-            require("ibl").setup { scope = { highlight = highlight } }
-
-            hooks.register(hooks.type.SCOPE_HIGHLIGHT, hooks.builtin.scope_highlight_from_extmark)
         end
     },
 
@@ -176,13 +163,25 @@ return {
         "NvChad/nvim-colorizer.lua", -- inline color previews
         event = "VeryLazy",
         config = function()
+            -- Named colors (black/red/...) and tailwind matches turn any
             require("colorizer").setup({
                 user_default_options = {
                     mode = "virtualtext",
                     virtualtext_inline = true,
-                    tailwind = true,
+                    names = false,
+                    tailwind = false,
                     always_update = true,
                     suppress_deprecation = true,
+                },
+                filetypes = {
+                    "*",
+                    css = { names = true, tailwind = true },
+                    scss = { names = true, tailwind = true },
+                    sass = { names = true, tailwind = true },
+                    less = { names = true, tailwind = true },
+                    html = { names = true, tailwind = true },
+                    javascriptreact = { tailwind = true },
+                    typescriptreact = { tailwind = true },
                 },
             })
         end
@@ -209,7 +208,6 @@ return {
                 enabled = true,
                 doc = {
                     -- Cap rendered diagram/image size (was full-window huge
-                    -- for wide mermaid blocks)
                     max_width = 60,
                     max_height = 24,
                 },
@@ -228,12 +226,40 @@ return {
                     }
                 }
             },
-            notifier = { enabled = true },
+            -- noice + nvim-notify already handle notifications; don't double up
+            notifier = { enabled = false },
+            indent = { enabled = true }, -- indent guides + scope (replaces indent-blankline)
+            scroll = { enabled = false }, -- no smooth scrolling
+            words = { enabled = true },  -- highlight LSP references under cursor (replaces mini.cursorword)
+            -- File browser (snacks, in place of neo-tree), pinned to the git root.
+            explorer = { replace_netrw = true },
+            picker = {
+                sources = {
+                    explorer = {
+                        follow_file = false,
+                        hidden = true, -- show dotfiles on start
+                        auto_close = false,
+                        jump = { close = false },
+                        -- custom layout: list window only, no input/title box
+                        layout = {
+                            preview = false,
+                            layout = {
+                                box = "vertical",
+                                position = "left",
+                                width = 24,
+                                min_width = 24,
+                                height = 0,
+                                border = "none",
+                                { win = "list", border = "none" },
+                            },
+                        },
+                    },
+                },
+            },
         },
         config = function(_, opts)
             require("snacks").setup(opts)
-            -- Diagrams only in normal mode: snacks re-evaluates image
-            -- visibility on every ModeChanged, so hide them all in insert.
+            -- Diagrams only in normal mode: snacks re-evaluates image visibility on every ModeChanged, so hide them all in insert.
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()
@@ -249,9 +275,14 @@ return {
 
     {
         "folke/noice.nvim",         -- UI for messages/cmdline
+        event = "VeryLazy",
         dependencies = {
             "MunifTanjim/nui.nvim", -- UI component library
-            "rcarriga/nvim-notify", -- notification popups
+            {
+                "rcarriga/nvim-notify", -- notification popups
+                -- transparent.nvim strips NotifyBackground, so set an explicit background_colour.
+                opts = { background_colour = "#000000", render = "compact" },
+            },
         },
         config = function()
             require("noice").setup({
@@ -261,12 +292,28 @@ return {
                 },
                 messages = { enabled = true },
                 cmdline = { enabled = true },
+                -- don't pop up for trivial edits (yank/delete/paste line counts).
+                routes = {
+                    { filter = { event = "msg_show", kind = "search_count" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ lines yanked" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ fewer lines" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ more lines" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ lines changed" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ lines >ed %d+ time" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+ lines <ed %d+ time" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "%d+L, %d+B" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "written" }, opts = { skip = true } },
+                    { filter = { event = "msg_show", find = "-- INSERT --" }, opts = { skip = true } },
+                    { filter = { event = "notify", find = "deprecated" }, opts = { skip = true } },
+                    { filter = { find = "buf_get_clients" }, opts = { skip = true } },
+                },
             })
         end
     },
 
     {
         "folke/trouble.nvim", -- diagnostics/quickfix list
+        cmd = "Trouble",
         config = function()
             require("trouble").setup()
         end
@@ -274,6 +321,7 @@ return {
 
     {
         "yorickpeterse/nvim-pqf", -- pretty quickfix list
+        event = "VeryLazy",
         config = function() require("pqf").setup() end
     },
 }

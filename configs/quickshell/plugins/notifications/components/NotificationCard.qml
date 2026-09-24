@@ -1,11 +1,4 @@
-// Notification card. Pure presentational -- no service, Notification, or
-// ListModel references. The popup container drives lifetime.
-//
-// Verbatim from omarchy-shell except: Border.surfaceSpec("notifications",
-// "border", ...) -> Border.flat(...) -- this repo's Border.qml has no
-// per-surface/per-theme override resolution layer (see Border.qml's own
-// header), so a spec is just the color/width the caller passes, same
-// adaptation as Clipboard.qml/ConfirmDialog.qml already made.
+// Notification card.
 
 import QtQuick
 import QtQuick.Layouts
@@ -29,32 +22,17 @@ BorderSurface {
   property double timestamp: 0
   property int cornerRadius: 0
 
-  // "toast"  — a free-floating popup over the desktop. It needs its own edges,
-  //            so it keeps the border and the opaque card background.
-  // "row"    — an entry in the history list inside a panel that ALREADY has
-  //            edges. Four bordered cards stacked inside one bordered card is
-  //            what made the list read as a pile of boxes rather than a list;
-  //            nothing else in this shell outlines its list rows.
+  // "toast"  — a free-floating popup over the desktop.
   property string variant: "toast"
   readonly property bool isRow: variant === "row"
 
-  // How many lines of body to show before eliding. The clamp exists so a long
-  // list stays scannable — every row roughly the same height — which is a
-  // reason that disappears when there is only one row to look at. The panel
-  // decides, because only it knows how many rows there are.
+  // How many lines of body to show before eliding.
   property int bodyLines: 3
 
-  // Wall-clock reference for the relative timestamp. Passed in rather than
-  // read here so a list of thirty rows ticks from one timer instead of thirty.
+  // Wall-clock reference for the relative timestamp.
   property double now: 0
 
   // A clock time, with the day added once it is no longer today.
-  //
-  // I had this as a relative age ("4d") on the argument that staleness is the
-  // question being asked. It is the wrong call for a history you scroll: "2m"
-  // and "3m" beside each other tell you the order you already knew, whereas
-  // 12:58 tells you the notification arrived during the meeting. Relative time
-  // is kept only for the very recent, where a clock reading is noise.
   function formatTime(ts, ref) {
     if (!ts) return ""
     var ms = ts * (ts < 1e12 ? 1000 : 1)
@@ -71,10 +49,7 @@ BorderSurface {
                    : Qt.formatDateTime(when, "dd.MM. HH:mm")
   }
 
-  // The card's text family. Defaults to the theme font; exposed so a caller
-  // can override it per card. Both body Texts read it, which they did not
-  // before — this property was declared and then ignored while they used a
-  // hardcoded family.
+  // The card's text family.
   property string fontFamily: Style.font.family
 
   readonly property bool hovered: hoverTracker.hovered
@@ -96,8 +71,7 @@ BorderSurface {
   readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
   readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
   readonly property color accentColor: urgency === 2 ? Color.urgent : (urgency === 0 ? dimColor : Color.notifications.countdown)
-  // A row draws no outline at all; a critical one keeps a left-edge accent
-  // instead, which is the only urgency cue it still needs inside a panel.
+  // A row draws no outline at all; a critical one keeps a left-edge accent instead, which is the only urgency cue it still needs inside a panel.
   readonly property var cardBorderSpec: isRow
     ? Border.flat("transparent", 0)
     : Border.flat(urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, 0.5), 1)
@@ -115,12 +89,10 @@ BorderSurface {
   }
 
   implicitWidth: Style.panelWidth.normal
-  // Add vertical border insets so mainColumn (inset by border on top/left/right)
-  // doesn't push content under the bottom edge.
+  // Add vertical border insets so mainColumn (inset by border on top/left/right) doesn't push content under the bottom edge.
   implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
   radius: isRow ? Style.cornerRadius : Style.space(8)
-  // A row is transparent at rest and lights up on hover, exactly like every
-  // other selectable row in the shell (audio devices, Wi-Fi networks, tunnels).
+  // A row is transparent at rest and lights up on hover, exactly like every other selectable row in the shell (audio devices, Wi-Fi networks, tunnels).
   color: isRow
     ? (hovered ? Style.hoverFill : "transparent")
     : Color.notifications.background
@@ -174,8 +146,7 @@ BorderSurface {
 
       Item {
         id: smallIconSlot
-        // Smaller in a list: at 32 the avatar dominated a two-line row and
-        // left the text looking like a caption hung off a picture.
+        // Smaller in a list: at 32 the avatar dominated a two-line row and left the text looking like a caption hung off a picture.
         Layout.preferredWidth: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.preferredHeight: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.alignment: Qt.AlignVCenter
@@ -220,22 +191,14 @@ BorderSurface {
         Layout.rightMargin: Style.space(10)
         spacing: Style.space(2)
 
-        // WHO AND WHEN. Both were properties on this card and neither was ever
-        // drawn — so two notifications from different apps were indistinguishable
-        // in a toast, and the history could not say whether something arrived a
-        // minute or a week ago. It is the first line because it is the context
-        // the summary is read against.
+        // WHO AND WHEN.
         Row {
           Layout.fillWidth: true
           spacing: Style.spacing.xs
           visible: root.app.length > 0 || root.timeLabel.length > 0
 
           readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
-          // Row's own `spacing` sat between "App" and the dot, but the gap
-          // after the dot was two literal space glyphs baked into timeText's
-          // string — a different, font-dependent width, so the two gaps
-          // either side of "·" never matched. Both are the same Row spacing
-          // now: the dot is its own Text instead of a prefix on timeText.
+          // Row's own `spacing` sat between "App" and the dot, but the gap after the dot was two literal space glyphs baked into timeText's string — a different, font-dependent width, so the two gaps either side of "·" never matched.
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
 
           Text {
@@ -252,9 +215,7 @@ BorderSurface {
             id: dotText
             textFormat: Text.PlainText
             visible: parent.showDot
-            // Middot, not a wider gap: "App 6  1m" still reads as one phrase
-            // whatever the spacing, because both halves are the same weight and
-            // colour. A separator says they are two facts.
+            // Middot, not a wider gap: "App 6  1m" still reads as one phrase whatever the spacing, because both halves are the same weight and colour.
             text: "·"
             color: Color.notifications.text
             opacity: Style.emphasis.faint
@@ -278,9 +239,6 @@ BorderSurface {
           visible: root.summary.length > 0
           text: root.summary
           // Was a hardcoded "Liberation Sans" (upstream carry, unexplained).
-          // These two Texts were the only strings in the whole shell that
-          // ignored the theme font, so choosing a family left every
-          // notification still rendering in something else.
           font.family: root.fontFamily
           color: Color.notifications.text
           font.pixelSize: Style.font.body
@@ -307,8 +265,7 @@ BorderSurface {
     }
   }
 
-  // Hover-revealed close. Stacked after mainColumn so its MouseArea sits
-  // above the full-card one and the click never reaches cardClicked.
+  // Hover-revealed close.
   Item {
     anchors.top: parent.top
     anchors.right: parent.right

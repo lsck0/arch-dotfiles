@@ -13,125 +13,40 @@ import "plugins/overview"
 import "plugins/startup"
 import "services"
 
-// Entry point. quickshell Phase 2: dynamic plugin registry — see
-// services/PluginRegistry.qml's own header for what's a faithful 1:1 port
-// vs. what's adapted for this repo (no OMARCHY_PATH/distro checkout, no
-// bundled second config layer, no swappable alternative-bar plugins since
-// none exist or are planned here).
-//
-// One Bar per connected screen, matching Quickshell's standard per-monitor
-// panel pattern (Variants over Quickshell.screens) — kept as a direct
-// instantiation rather than porting upstream's swappable-bar-option Loader
-// machinery (defaultBarLoader/pluginBarLoader/activeBarId), since this repo
-// has exactly one bar implementation and no "bar" kind plugin is planned to
-// ever compete with it.
-//
-// Background and Osd instantiate their own per-screen Variants internally.
-// Locking is owned entirely by hyprlock/hypridle (configs/hyprland/) —
-// quickshell's own lock plugin was removed 2026-09-08 in favor of that.
-//
-// ---------------------------------------------------------------------------
-// TWO WAYS A PIECE OF UI GETS INTO THIS SHELL, and which to use
-// ---------------------------------------------------------------------------
-//
-// 1. Declared here, at the bottom of this file (Background, Osd, Clipboard,
-//    AppSearch, PowerMenu, Overview, Startup). Always loaded, always alive,
-//    no manifest. Correct for the fixtures of the desktop itself: things with
-//    no meaningful "disabled" state, that own an IpcHandler other components
-//    call into, and that nothing should be able to unregister at runtime.
-//
-// 2. A plugin directory with a `manifest.json`, discovered by PluginRegistry
-//    and loaded on demand by kind — `bar-widget` into the bar's layout,
-//    `panel`/`overlay`/`menu` through summon()/hide()/toggle(), `service` into
-//    serviceHost. Correct for anything optional, placeable, user-enableable,
-//    or shipped by someone other than this repo. A plugin owning a
-//    long-running subprocess must additionally set `"keepLoaded": true`, or
-//    its Loader tears the Process down before it can exit and orphans the
-//    children.
-//
-// The split is deliberate, not historical drift: mechanism 2 costs a manifest,
-// an async scan and a Loader per entry, which buys nothing for a component
-// that is unconditionally present. If a new component could reasonably be
-// turned off, moved, or replaced, it wants a manifest; otherwise it belongs in
-// the list at the bottom of this file.
+// Entry point.
 ShellRoot {
   id: shell
 
-  // Shared service instances, injected into Bar via property (relative-path
-  // imports don't share singleton state across importers, so these are
-  // regular instances built once here and handed down).
+  // Shared service instances, injected into Bar via property (relative-path imports don't share singleton state across importers, so these are regular instances built once here and handed down).
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
 
   readonly property string home: Quickshell.env("HOME")
-  // Quickshell.shellDir is this checkout's own shell.qml directory
-  // (~/.config/quickshell, symlinked to configs/quickshell/ in the repo) —
-  // the direct substitute for upstream's OMARCHY_PATH-derived shellPath,
-  // no env var needed.
+  // Quickshell.shellDir is this checkout's own shell.qml directory (~/.config/quickshell, symlinked to configs/quickshell/ in the repo) — the direct substitute for upstream's OMARCHY_PATH-derived shellPath, no env var needed.
   readonly property string shellDir: Quickshell.shellDir
   readonly property string firstPartyPluginsDir: shellDir + "/plugins"
-  // Deliberately under XDG_STATE_HOME, not inside the ~/.config/quickshell
-  // symlink: that path resolves into this git-tracked repo, and shell.json
-  // is runtime state (bar layout, enabled plugins), not tracked config —
-  // same reasoning as toggles/lib.sh's TOGGLES_STATE_DIR.
+  // Deliberately under XDG_STATE_HOME, not inside the ~/.config/quickshell symlink: that path resolves into this git-tracked repo, and shell.json is runtime state (bar layout, enabled plugins), not tracked config — same reasoning as toggles/lib.sh's TOGGLES_STATE_DIR.
   readonly property string userConfigPath:
     (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/quickshell/shell.json"
 
-  // This repo's actual current bar layout, as the sole "defaults" — no
-  // separate bundled/distro-defaults file exists to layer on top of this
-  // (upstream has defaultsPath + userConfigPath as two layers; this repo
-  // only ever had the one).
+  // This repo's actual current bar layout, as the sole "defaults" — no separate bundled/distro-defaults file exists to layer on top of this (upstream has defaultsPath + userConfigPath as two layers; this repo only ever had the one).
   readonly property var builtinShellConfig: ({
     version: 1,
     bar: {
       layout: {
-        // The launcher and the workspaces: where you are, and how to get
-        // somewhere else. Both are navigation rather than information, which
-        // is why they sit at the edge you throw the pointer at.
+        // The launcher and the workspaces: where you are, and how to get somewhere else.
         left: [
           { id: "bar.app-menu" },
           { id: "bar.workspaces" }
         ],
-        // The centre is for what is happening RIGHT NOW: what is playing, and
-        // who is in the call. Both are transient and both are things you look
-        // at deliberately rather than scan, which is what the middle of a bar
-        // is good for.
-        // Clock and weather lead the centre as a pair — they are the two
-        // always-present readouts, so they are what the centre is anchored on.
-        // Media, OBS and the Discord call trail them and come and go.
+        // The centre is for what is happening RIGHT NOW: what is playing, and who is in the call.
         center: [
           { id: "bar.clock" }, { id: "bar.weather" },
           { id: "bar.media" }, { id: "bar.obs" }, { id: "bar.discord" }
         ],
-        // active-window/agents/microphone/news/costs dropped 2026-09-01 per
-        // an explicit per-widget review against the SPEC: costs was
-        // non-functional (needs credentials that don't exist), microphone
-        // only shortcut into AudioIO's own panel, and active-window was the
-        // one variable-width widget competing for space the SPEC's middle
-        // section needs. Their .qml/.manifest.json stay on disk, so
-        // re-adding any of them is one array entry.
-        //
-        // agents came back 2026-09-22. It was dropped for reporting a token
-        // count while admitting in its own tooltip that the plan limits were
-        // out of reach; configs/trmnl-claude vendors a client for them now,
-        // so it leads with the percentage that decides what to start next.
-        // Keep this in sync with ~/.local/state/quickshell/shell.json, which
-        // overrides it whenever it exists. A fresh machine (or a deleted state
-        // file) reproduces *this* list, so drift here ships the wrong bar.
+        // active-window/agents/microphone/news/costs dropped 2026-09-01 per an explicit per-widget review against the SPEC: costs was non-functional (needs credentials that don't exist), microphone only shortcut into AudioIO's own panel, and active-window was the one variable-width widget competing for space the SPEC's middle section needs. Their .qml/.manifest.json stay on disk, so re-adding any of them is one array entry. agents came back 2026-09-22. It was dropped for reporting a token count while admitting in its own tooltip that the plan limits were out of reach; configs/trmnl-claude vendors a client for them now, so it leads with the percentage that decides what to start next. Keep this in sync with ~/.local/state/quickshell/shell.json, which overrides it whenever it exists. A fresh machine (or a deleted state file) reproduces *this* list, so drift here ships the wrong bar.
         right: [
-          // ONE separator, and only where it earns its place: between the
-          // widgets that come and go and the ones that are always there.
-          //
-          // Rules between permanent widgets were noise — they never divide
-          // anything that changes, so they add a line to look at for no
-          // information. The transient boundary is different: the tray
-          // appears and vanishes, and without a rule the permanent cluster looks
-          // like it simply grew a new icon.
-          //
-          // Transient first on purpose: the section is right-aligned, so things
-          // appearing here grow the cluster leftward into empty space and every
-          // permanent icon keeps its position. The separator hides itself when
-          // the whole transient group is empty.
+          // ONE separator, and only where it earns its place: between the widgets that come and go and the ones that are always there.
           { id: "bar.tray" },
           { id: "bar.separator" },
           // the two "my own infrastructure" readouts, side by side
@@ -145,17 +60,7 @@ ShellRoot {
           { id: "bar.exit" }
         ]
       },
-      // What the bar shows on every screen that is NOT the main one. The
-      // status widgets are all global state — clock, battery, network, tray —
-      // so repeating them per monitor says the same thing several times while
-      // costing a full set of poll timers and MPRIS/tray subscriptions each.
-      // What is actually per-screen is which workspace you are on, plus a way
-      // into the launcher.
-      //
-      // Set `bar.mainScreen` in shell.json to name the main output
-      // explicitly; otherwise the output at 0,0 wins (which is DP-1 on the
-      // desktop, per configs/hyprland/hyprland_monitors.lua) and a
-      // single-monitor machine is unaffected either way.
+      // What the bar shows on every screen that is NOT the main one.
       secondaryLayout: {
         left: [{ id: "bar.app-menu" }, { id: "bar.workspaces" }],
         center: [],
@@ -202,26 +107,7 @@ ShellRoot {
     persistShellConfig(copy)
   }
 
-  // ------------------------------------------------------- widget settings
-  //
-  // Per-widget state a widget saves for itself: the tray's pinned/hidden item
-  // ids today, anything comparable later. Its own file, deliberately NOT
-  // shell.json.
-  //
-  // THIS USED TO WRITE INTO shell.json's LAYOUT, and that is a trap rather
-  // than a style question. shell.json does not exist on a fresh install, so
-  // the bar comes from `builtinShellConfig` above — which means shell.qml is
-  // the source of truth for the layout and editing this file changes the bar.
-  // But any write to shell.json snapshots the WHOLE config, layout included.
-  // So the first time anyone pinned a tray icon, the then-current layout was
-  // frozen to disk and every later edit to builtinShellConfig was silently
-  // ignored from that moment on: the bar would simply stop tracking the file
-  // that appears to define it, with no error and no obvious cause.
-  //
-  // Pinning an icon is not a statement about bar layout, so it no longer
-  // writes one. shell.json is now only ever written by a deliberate layout
-  // change (moveBarWidget / setBarWidget / setEnabled through IPC), which is
-  // exactly when snapshotting it is the correct behaviour.
+  // ------------------------------------------------------- widget settings Per-widget state a widget saves for itself: the tray's pinned/hidden item ids today, anything comparable later.
   readonly property string widgetSettingsPath:
     (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/quickshell/widget-settings.json"
 
@@ -233,8 +119,7 @@ ShellRoot {
     return Util.isPlainObject(entry) ? entry : ({})
   }
 
-  // Returns true if anything actually changed, so a caller that saves on every
-  // state change does not rewrite an identical file.
+  // Returns true if anything actually changed, so a caller that saves on every state change does not rewrite an identical file.
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
     var next = {}
@@ -270,20 +155,14 @@ ShellRoot {
     printErrors: false
     onLoaded: {
       shell.applyWidgetSettings()
-      // atomicWrites replaces the inode this watch is attached to, so without
-      // re-arming only the first external edit would ever be noticed.
+      // atomicWrites replaces the inode this watch is attached to, so without re-arming only the first external edit would ever be noticed.
       Util.rearmWatch(this)
     }
     onLoadFailed: shell.widgetSettings = ({})
     onFileChanged: reload()
   }
 
-  // The user's shell.json REPLACES the builtin config rather than layering on
-  // it, so a file written before `secondaryLayout` existed would leave it
-  // undefined and every secondary bar would silently keep rendering the full
-  // layout. Fill it (and only it) back in from the builtin when absent, so
-  // the feature works on an existing install without anyone hand-editing
-  // state. An explicit secondaryLayout in shell.json still wins.
+  // The user's shell.json REPLACES the builtin config rather than layering on it, so a file written before `secondaryLayout` existed would leave it undefined and every secondary bar would silently keep rendering the full layout.
   readonly property var barConfig: {
     var base = shellConfig && Util.isPlainObject(shellConfig.bar)
       ? shellConfig.bar : builtinShellConfig.bar
@@ -293,31 +172,14 @@ ShellRoot {
     return merged
   }
 
-  // Which output counts as "main". An explicit `bar.mainScreen` in shell.json
-  // wins. Otherwise: whichever monitor Hyprland has assigned workspace 1 to
-  // (configs/hyprland/hyprland_layout.lua's workspace_monitor table is the
-  // single source of truth for that — on the desktop profile it pins
-  // workspaces 1-4 to DP-2 and 5-9 to DP-1). That used to be "the output
-  // positioned at 0,0" instead, which happened to be DP-1 on this desktop —
-  // the SECONDARY monitor by workspace layout, not the one workspace 1 (and
-  // therefore every fresh app) actually opens on. The main bar ended up on
-  // the wrong screen as a result. Falls back to the old 0,0 heuristic, then
-  // the first screen, if Hyprland hasn't reported workspace 1 yet (e.g. the
-  // very first frame before any workspace has been created).
+  // Which output counts as "main".
   readonly property string mainScreenName: {
     var configured = barConfig && barConfig.mainScreen ? String(barConfig.mainScreen) : ""
     if (configured) return configured
     var workspaces = Hyprland.workspaces.values
     for (var w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
-    // Workspace 1 does not EXIST until something opens on it: Hyprland creates
-    // a workspace lazily and destroys it when its last window closes. So the
-    // loop above finds nothing on a machine that booted onto workspace 5, and
-    // the bar used to fall straight through to the 0,0 heuristic — which is
-    // DP-1 here, the secondary screen. The workspace RULE is the durable
-    // answer: it says where workspace 1 will open whether or not it exists
-    // right now, and it is the same table configs/hyprland/hyprland_layout.lua
-    // writes.
+    // Workspace 1 does not EXIST until something opens on it: Hyprland creates a workspace lazily and destroys it when its last window closes.
     if (workspaceOneRuleMonitor) return workspaceOneRuleMonitor
     var screens = Quickshell.screens
     for (var i = 0; i < screens.length; i++)
@@ -325,9 +187,7 @@ ShellRoot {
     return screens.length > 0 ? String(screens[0].name) : ""
   }
 
-  // Monitor named by Hyprland's `workspace 1, monitor:...` rule, or "" when
-  // there is no such rule. Read once at startup and again whenever Hyprland
-  // reloads its config, which is the only thing that can change it.
+  // Monitor named by Hyprland's `workspace 1, monitor:...` rule, or "" when there is no such rule.
   property string workspaceOneRuleMonitor: ""
 
   Process {
@@ -341,8 +201,7 @@ ShellRoot {
           var rules = JSON.parse(text || "[]")
           for (var i = 0; i < rules.length; i++) {
             var ws = String(rules[i].workspaceString || "")
-            // Rules are written per numeric workspace here; `name:foo` and
-            // range rules say nothing about where workspace 1 lands.
+            // Rules are written per numeric workspace here; `name:foo` and range rules say nothing about where workspace 1 lands.
             if (ws === "1" && rules[i].monitor) { name = String(rules[i].monitor); break }
           }
         } catch (e) {
@@ -379,9 +238,7 @@ ShellRoot {
     pluginRegistry.firstPartyDir = shell.firstPartyPluginsDir
     pluginRegistry.shellConfigProvider = function() { return shell.shellConfig }
     pluginRegistry.shellConfigMutator = function(mutate) { shell.mutateShellConfig(mutate) }
-    // PluginRegistry.ensureUserDir() runs in its own Component.onCompleted and
-    // chains rescan() once the directory exists. Kick a scan here too in case
-    // the user dir already existed at startup.
+    // PluginRegistry.ensureUserDir() runs in its own Component.onCompleted and chains rescan() once the directory exists.
     pluginRegistry.rescan()
     shell._syncServices()
     workspaceRulesProc.running = true
@@ -396,19 +253,12 @@ ShellRoot {
       pluginRegistry: shell.pluginRegistry
       barConfig: shell.barConfig
       shellHost: shell
-      // Bar derives isMainScreen from this and its own `modelData` — the
-      // comparison cannot live here, because redeclaring Variants' required
-      // `modelData` in this block shadows the one Variants injects and the
-      // delegate then fails to construct at all.
+      // Bar derives isMainScreen from this and its own `modelData` — the comparison cannot live here, because redeclaring Variants' required `modelData` in this block shadows the one Variants injects and the delegate then fails to construct at all.
       mainScreenName: shell.mainScreenName
     }
   }
 
-  // ------------------------------------------------------------- services
-  //
-  // Generic loader for any enabled plugin that declares kind "service".
-  // First-party infrastructure services are implicitly enabled by the registry;
-  // third-party services are enabled by adding the plugin id to shell.json.
+  // ------------------------------------------------------------- services Generic loader for any enabled plugin that declares kind "service".
   Item {
     id: serviceHost
     visible: false
@@ -482,12 +332,7 @@ ShellRoot {
     function onPluginsChanged() { shell._syncServices() }
   }
 
-  // ---------------------------------------------------------- on-demand panels
-  //
-  // For kinds "panel"/"overlay"/"menu" — none currently exist as first-party
-  // manifests in this repo (AppMenu is a bar-widget, not a separate popup
-  // plugin), but this stays wired so a later phase's panel/overlay/menu
-  // plugin needs no further shell.qml changes to be summonable.
+  // ---------------------------------------------------------- on-demand panels For kinds "panel"/"overlay"/"menu" — none currently exist as first-party manifests in this repo (AppMenu is a bar-widget, not a separate popup plugin), but this stays wired so a later phase's panel/overlay/menu plugin needs no further shell.qml changes to be summonable.
 
   property var openPanelIds: ({})
   property var pendingPayloads: ({})
@@ -682,8 +527,7 @@ ShellRoot {
       }
     }
 
-    // Enable, but only where the widget is not on the bar already, so a caller
-    // that cannot know whether it ran before leaves a placed widget alone.
+    // Enable, but only where the widget is not on the bar already, so a caller that cannot know whether it ran before leaves a placed widget alone.
     function putBarWidget(id: string, placementJson: string): string {
       try {
         var error = shell.pluginRegistry.putBarWidget(id, JSON.parse(placementJson || "{}"))
@@ -758,12 +602,7 @@ ShellRoot {
     }
   }
 
-  // ------------------------------------------------- always-on components
-  //
-  // Mechanism 1 from this file's header: the desktop's own fixtures. Each is
-  // unconditionally present and owns an IpcHandler that keybinds, scripts and
-  // other widgets call into, so none of them has a meaningful disabled state
-  // to model as a plugin. Startup fades itself out once login settles.
+  // ------------------------------------------------- always-on components Mechanism 1 from this file's header: the desktop's own fixtures.
   Background {}
   Osd {}
   Clipboard {}

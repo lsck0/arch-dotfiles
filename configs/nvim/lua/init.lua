@@ -21,6 +21,7 @@ require("lazy").setup({
     spec = {
         { "nvim-lua/plenary.nvim" },
         { import = "plugins" },
+        { import = "languages" },
     },
 
     defaults = { lazy = false },

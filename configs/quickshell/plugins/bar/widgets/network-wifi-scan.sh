@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # JSON array of nearby Wi-Fi networks for Network.qml's SSID list.
-# `nmcli dev wifi list` uses cached scan results (fast); pass "rescan" as $1
-# to force a fresh scan first (slower, ~2-5s).
 set -euo pipefail
 
 if [[ "${1:-}" == "rescan" ]]; then

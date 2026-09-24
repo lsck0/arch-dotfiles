@@ -4,8 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Homelab health from homelab-status.py, which derives the fleet and every link
-// from the homelab source. Every row in the panel opens the thing it describes.
+// Homelab health from homelab-status.py, which derives the fleet and every link from the homelab source.
 BarWidget {
   id: root
   moduleName: "homelab"
@@ -20,8 +19,7 @@ BarWidget {
   property var host: ({})
   property var storage: ({})
   property var traffic: ({})
-  // The four incoming lists, as on the TRMNL dashboard. Empty when Loki is
-  // unreachable, which costs this section and nothing else.
+  // The four incoming lists, as on the TRMNL dashboard.
   property var clients: ({})
 
   // Link-only entries (up === null) have no state and are left out of the counts.
@@ -124,8 +122,7 @@ BarWidget {
     onClicked: root.open(root.links.homepage)
   }
 
-  // System.qml's label/value row, clickable: the hover fill bleeds past the
-  // column edge so the text stays aligned with the section headers.
+  // System.qml's label/value row, clickable: the hover fill bleeds past the column edge so the text stays aligned with the section headers.
   component Row_: Item {
     id: kv
     property string label: ""
@@ -184,9 +181,7 @@ BarWidget {
     }
   }
 
-  // One of the four incoming lists: a caption, then a row per entry with a
-  // bar of its share of the largest row in the same list. Share of the list
-  // and not of the whole, or everything under the leader is a sliver.
+  // One of the four incoming lists: a caption, then a row per entry with a bar of its share of the largest row in the same list.
   component ClientList: Column {
     id: list
     property string title: ""
@@ -216,8 +211,7 @@ BarWidget {
         implicitHeight: entryName.implicitHeight + Style.spacing.xxs
 
         Rectangle {
-          // the share bar, drawn behind the text rather than beside it: a
-          // separate track would cost width the column does not have
+          // the share bar, drawn behind the text rather than beside it: a separate track would cost width the column does not have
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           height: parent.height
@@ -251,8 +245,7 @@ BarWidget {
     }
   }
 
-  // One titled grid of services. Three columns fit the wide panel without
-  // eliding the longer VM names.
+  // One titled grid of services.
   component ServiceGroup: Column {
     id: groupBox
     property string title: ""
@@ -439,10 +432,7 @@ BarWidget {
           url: root.links.dashboard
         }
 
-        // ---- incoming -------------------------------------------------------
-        // Who reached the lab from the internet, which is the one thing
-        // Prometheus cannot answer: its Traefik counters carry no client
-        // detail, so these come from the access log through Loki.
+        // ---- incoming ------------------------------------------------------- Who reached the lab from the internet, which is the one thing Prometheus cannot answer: its Traefik counters carry no client detail, so these come from the access log through Loki.
         Column {
           width: parent.width
           visible: (root.clients.countries || []).length > 0

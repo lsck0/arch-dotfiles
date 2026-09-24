@@ -5,29 +5,19 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Zone offsets come from `date`/TZ
-// (refreshed periodically for DST) rather than a JS timezone library —
-// QtQml's Date has no real IANA timezone support beyond local/UTC.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "clock"
 
   property date now: new Date()
-  // Millisecond-precision clock for the panel header only — the bar label
-  // and every other consumer (calendar "today", zone offsets, timetravel)
-  // only need whole-second resolution, so they keep the cheap 1s timer
-  // below. This one only runs while the panel is actually open.
+  // Millisecond-precision clock for the panel header only — the bar label and every other consumer (calendar "today", zone offsets, timetravel) only need whole-second resolution, so they keep the cheap 1s timer below.
   property date nowPrecise: new Date()
   property var zoneOffsets: []
-  // Timetravel: hours offset applied to every zone's preview simultaneously,
-  // for "what time is it everywhere if we meet 3 hours from now".
+  // Timetravel: hours offset applied to every zone's preview simultaneously, for "what time is it everywhere if we meet 3 hours from now".
   property real travelHours: 0
 
-  // Pomodoro and reminders live in the shell-owned helpers under
-  // configs/quickshell/scripts/ (linked into ~/.local/bin), backed by systemd
-  // --user timers, so the notification
-  // still fires with the shell restarted or dead. This panel is a readout and
-  // a set of buttons; it holds no timer state of its own.
+  // Pomodoro and reminders live in the shell-owned helpers under configs/quickshell/scripts/ (linked into ~/.local/bin), backed by systemd --user timers, so the notification still fires with the shell restarted or dead.
   readonly property string pomodoroScript: Paths.bin("pomodoro")
   readonly property string reminderScript: Paths.bin("reminder")
 
@@ -51,17 +41,10 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // The date the calendar and the zone list are pointed at: now, shifted by
-  // the timetravel slider. Scrubbing the slider therefore also scrubs the
-  // month view — Sunday-first weeks, with *real* today (not the travelled
-  // date) highlighted when it falls in the visible month.
+  // The date the calendar and the zone list are pointed at: now, shifted by the timetravel slider.
   readonly property date travelledNow: new Date(now.getTime() + travelHours * 3600000)
 
-  // The calendar grid is expensive to rebuild — 42 delegates — and it only
-  // changes when the travelled *day* does. Bound directly to calendarWeeks(),
-  // the Repeater's model depended on `now` and so rebuilt the whole grid once
-  // a second for as long as the panel stayed open. Rebuild on this key
-  // instead: once per day, or whenever the slider moves the date.
+  // The calendar grid is expensive to rebuild — 42 delegates — and it only changes when the travelled *day* does.
   readonly property string calendarKey: Qt.formatDate(travelledNow, "yyyy-MM-dd")
   property var calendarModel: []
   onCalendarKeyChanged: calendarModel = calendarWeeks()
@@ -103,10 +86,7 @@ BarWidget {
     return Qt.formatTime(new Date(root.travelledNow.getTime() + offsetSec * 1000), "HH:mm")
   }
 
-  // The slider steps in half hours, so toFixed(0) rendered +1.5h and +2h
-  // identically as "+2h" — the header claimed a different offset from the one
-  // the zone list below it was actually showing. One decimal, dropped when the
-  // offset is whole, so the common case still reads "+3h".
+  // The slider steps in half hours, so toFixed(0) rendered +1.5h and +2h identically as "+2h" — the header claimed a different offset from the one the zone list below it was actually showing.
   function dayLabel() {
     if (root.travelHours === 0) return ""
     var sign = root.travelHours > 0 ? "+" : "−"
@@ -151,9 +131,7 @@ BarWidget {
     }
   }
 
-  // Only while the panel is actually open. The bar's Pomodoro indicator
-  // keeps its own slower 10s poll for the collapsed case, so nothing runs
-  // at 1s just because the shell is up.
+  // Only while the panel is actually open.
   Timer {
     interval: 1000
     running: root.bar !== null && root.bar.activePanel === root.moduleName
@@ -169,9 +147,7 @@ BarWidget {
     onTriggered: root.now = new Date()
   }
 
-  // 30ms (~33fps) rather than a true 1ms tick: the header only needs to
-  // look continuously live to the eye, and this panel is the only consumer
-  // of nowPrecise, so it only runs while open.
+  // 30ms (~33fps) rather than a true 1ms tick: the header only needs to look continuously live to the eye, and this panel is the only consumer of nowPrecise, so it only runs while open.
   Timer {
     interval: 30
     running: root.bar !== null && root.bar.activePanel === root.moduleName
@@ -210,18 +186,10 @@ BarWidget {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
-    // Opens centred under the clock itself. This used to anchor top-right
-    // like every other panel, leaving a ~950px trip from a mid-bar trigger
-    // to its own panel. Two earlier attempts failed: mapToGlobal (Wayland
-    // gives clients no true global coordinates, so it never could work) and
-    // a mapToItem binding, which was correct arithmetic evaluated once
-    // before RowLayout had laid anything out and then never recomputed.
-    // The fix was to make the position reactive rather than to look for a
-    // third coordinate source — see BarWidget.barX and Bar.layoutRevision.
+    // Opens centred under the clock itself.
     anchorWidget: root
     onOpened: root.refreshOffsets()
-    // Widened from 320: the pomodoro row (icon + countdown + three buttons)
-    // and the six quick-reminder chips both need the extra room.
+    // Widened from 320: the pomodoro row (icon + countdown + three buttons) and the six quick-reminder chips both need the extra room.
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -230,17 +198,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.lg
 
-      // Full precision (H:M:S.mmm) at the top, distinct from the bar
-      // label's minute resolution — this is the one place in the shell
-      // that shows a genuinely live-ticking clock.
-      //
-      // Color.menu.text, not Color.accent: this is the panel's primary
-      // reading (the same role as Weather's big current-temperature text),
-      // and Weather's convention is that primary content is the theme
-      // foreground while accent is reserved for structure/selection
-      // (PanelSectionHeader, the calendar's "today" cell, the timezone
-      // slider's reset pill). A bare accent-colored headline here made the
-      // clock panel read as a different palette from every other panel.
+      // Full precision (H:M:S.mmm) at the top, distinct from the bar label's minute resolution — this is the one place in the shell that shows a genuinely live-ticking clock.
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
@@ -345,8 +303,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "TIMETRAVEL" }
 
-      // Drag/scroll to preview every zone (and the calendar) at an offset
-      // from now, for planning across timezones. Range: -24h to +24h.
+      // Drag/scroll to preview every zone (and the calendar) at an offset from now, for planning across timezones.
       PanelSlider {
         width: parent.width
         value: root.travelHours

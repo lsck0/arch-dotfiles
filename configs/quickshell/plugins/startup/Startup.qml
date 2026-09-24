@@ -3,9 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 
-// Short compositor-side handoff while the session finishes starting. This is
-// intentionally independent of the bar, so a bar/widget failure does not
-// bring back a completely black login transition.
+// Short compositor-side handoff while the session finishes starting.
 Item {
   id: root
 
@@ -43,8 +41,7 @@ Item {
           color: Color.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.heading
-          // headerTracking (+2.4), not displayTracking (-0.5): this is a wide-set
-          // wordmark, and display tracking is the tight setting for large numerals.
+          // headerTracking (+2.4), not displayTracking (-0.5): this is a wide-set wordmark, and display tracking is the tight setting for large numerals.
           font.letterSpacing: Style.headerTracking
         }
 

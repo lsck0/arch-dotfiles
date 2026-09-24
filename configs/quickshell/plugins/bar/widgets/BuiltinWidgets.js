@@ -53,14 +53,12 @@ const files = {
     "bar.workspaces":      "Workspaces.qml"
 };
 
-// "" for an id this directory does not ship, which is the normal answer for a
-// third-party widget and means "let the registry handle it".
+// "" for an id this directory does not ship, which is the normal answer for a third-party widget and means "let the registry handle it".
 function fileFor(id) {
     return files[String(id || "")] || "";
 }
 
-// One report per session, not one per bar per section — six identical warnings
-// teach nothing the first did not.
+// One report per session, not one per bar per section — six identical warnings teach nothing the first did not.
 let checked = false;
 
 /*

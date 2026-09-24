@@ -18,11 +18,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# ── Anthropic pricing (API-equivalent $/MTok) ───────────────────────
-#
-# Cache writes aren't listed: they're a multiple of the input price and depend
-# on the TTL the request asked for (see CACHE_WRITE_MULT). Cache reads are
-# 0.1x input everywhere except Fable 5.1, which reads at 0.025x.
+# ── Anthropic pricing (API-equivalent $/MTok) ─────────────────────── Cache writes aren't listed: they're a multiple of the input price and depend on the TTL the request asked for (see CACHE_WRITE_MULT).
 
 PRICING = {
     "claude-fable-5-1":  {"input": 10.0, "output": 50.0, "cache_read": 0.25},
@@ -34,19 +30,13 @@ PRICING = {
     "claude-sonnet-4-6": {"input": 3.0,  "output": 15.0, "cache_read": 0.30},
     "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0,  "cache_read": 0.10},
 }
-# Fallback for models this table doesn't know. Sonnet-4.6 rates, so the cost
-# line stays an estimate rather than a gap. By default this only applies to an
-# Anthropic model newer than this table, since anything else is left out of the
-# figures entirely (see _is_anthropic).
+# Fallback for models this table doesn't know.
 _DEFAULT_PRICE = {"input": 3.0, "output": 15.0, "cache_read": 0.30}
 
-# Anthropic families. A model naming one of these is Anthropic's whatever else
-# the id says.
+# Anthropic families.
 _ANTHROPIC_FAMILIES = ("fable", "opus", "sonnet", "haiku")
 
-# Vendors that turn up proxied through a gateway. They matter because such a
-# gateway may hand back an id like "claude-gpt-6-astra": the "claude-" prefix
-# proves nothing on its own, so the vendor name has to be checked for.
+# Vendors that turn up proxied through a gateway.
 _FOREIGN_VENDORS = ("gpt", "qwen", "llama", "gemini", "mistral", "deepseek",
                     "grok", "kimi", "glm", "command-r", "phi")
 
@@ -119,8 +109,7 @@ _MODEL_NAMES = {
 def _model_display(key):
     if key in _MODEL_NAMES:
         return _MODEL_NAMES[key]
-    # Unknown model, most likely proxied through a gateway. Skip the "claude-"
-    # prefix such ids often carry so a non-Claude model isn't labelled "Claude".
+    # Unknown model, most likely proxied through a gateway.
     parts = [p for p in key.split("-") if p and p != "claude"]
     return parts[0].title()[:10] if parts else key[:10]
 
@@ -141,9 +130,6 @@ def _is_anthropic(key):
     if _FOREIGN_RE.search(n):
         return False
     # An unfamiliar "claude-…" is most likely a family this version predates.
-    # Counting it is the safer mistake: dropping real usage is worse than
-    # carrying a little that shouldn't be there, and it shows up as a model
-    # name nobody recognises rather than vanishing.
     return n.startswith("claude")
 
 
@@ -241,8 +227,7 @@ def _scan_usage(claude_dir, since, include_other=False):
     daily = defaultdict(lambda: {
         "input": 0, "output": 0, "cache_read": 0, "cache_write": 0,
         "cost": 0.0, "messages": 0, "sessions": set(),
-        # What was left out, so the excluded work is reportable rather than
-        # merely absent. Zero when include_other folds it into the rest.
+        # What was left out, so the excluded work is reportable rather than merely absent.
         "other_tokens": 0, "other_messages": 0,
     })
     models = defaultdict(lambda: {"tokens": 0, "messages": 0, "cost": 0.0})
@@ -323,9 +308,7 @@ def _process_jsonl(path, since, daily, models, projects, proj, seen,
                 out = u.get("output_tokens", 0)
                 cr = u.get("cache_read_input_tokens", 0)
                 cw = u.get("cache_creation_input_tokens", 0)
-                # Cache writes bill 1.25x input at the 5-minute TTL and 2x at
-                # the 1-hour one. Split them when the breakdown is present;
-                # older entries only carry the total, so assume the cheaper TTL.
+                # Cache writes bill 1.25x input at the 5-minute TTL and 2x at the 1-hour one.
                 ttl = u.get("cache_creation") or {}
                 cw1h = ttl.get("ephemeral_1h_input_tokens", 0)
                 cw5m = ttl.get("ephemeral_5m_input_tokens", cw if not ttl else 0)
@@ -336,11 +319,7 @@ def _process_jsonl(path, since, daily, models, projects, proj, seen,
                 cost = _calc_cost(mk, inp, out, cw5m, cw1h, cr)
                 dk = ts.astimezone().strftime("%Y-%m-%d")
 
-                # A model that isn't Anthropic's has no price in the table and
-                # never counted against the limits on the display, so it is
-                # tallied on its own rather than folded into figures it would
-                # misstate. The session id is left out too, so the session
-                # count keeps describing the tokens shown next to it.
+                # A model that isn't Anthropic's has no price in the table and never counted against the limits on the display, so it is tallied on its own rather than folded into figures it would misstate.
                 if not include_other and not _is_anthropic(mk):
                     o = daily[dk]
                     o["other_tokens"] += total
@@ -438,14 +417,11 @@ def _read_usage(method="auto", model_ttl_min=None):
     return limits
 
 
-# How often "auto" re-scrapes the per-model weekly row. Each refresh costs a
-# ~20s PTY session, so it stays rare -- but a cap you're close to is worth
-# watching more often, since that's when the number actually moves.
+# How often "auto" re-scrapes the per-model weekly row.
 _MODEL_LIMIT_TTL_MIN = 60
 _MODEL_LIMIT_TTL_NEAR_CAP_MIN = 15
 _MODEL_LIMIT_NEAR_CAP_PCT = 80
-# Past this the cached row is dropped rather than shown. A weekly limit resets,
-# and a stale 95% after a reset is worse than showing nothing.
+# Past this the cached row is dropped rather than shown.
 _MODEL_LIMIT_MAX_AGE_MIN = 360
 
 
@@ -518,8 +494,7 @@ def _usage_from_headers():
         with urllib.request.urlopen(req, timeout=15) as r:  # noqa: S310 -- constant https anthropic endpoint
             headers = r.headers
     except urllib.error.HTTPError as e:
-        # 429 still carries the utilization headers -- that's the case we most
-        # want to report. Anything else (401 on an expired token, 5xx) has none.
+        # 429 still carries the utilization headers -- that's the case we most want to report.
         headers = e.headers
     except Exception:
         return {}
@@ -535,8 +510,7 @@ def _usage_from_headers():
         except ValueError:
             continue
         out[key] = {"pct": pct, "resets": _fmt_reset(reset)}
-    # No per-model counterpart exists, so week_sonnet stays absent and the
-    # dashboard shows it as "—". Use --usage-method pty if you need it.
+    # No per-model counterpart exists, so week_sonnet stays absent and the dashboard shows it as "—".
     return out
 
 
@@ -691,10 +665,7 @@ def _parse_usage_output(raw):
         }
 
     result = {}
-    # The /usage TUI is drawn with cursor positioning, so winpty capture often
-    # merges adjacent words ("Currentsession", "allmodels", "ResetsJun4") and
-    # drops the odd character. Keep whitespace optional (\s*) so percentages
-    # still parse.
+    # The /usage TUI is drawn with cursor positioning, so winpty capture often merges adjacent words ("Currentsession", "allmodels", "ResetsJun4") and drops the odd character.
     for key, pattern in {
         "session": r"(?i)current\s*session",
         "week_all": r"(?i)(?:current\s*)?week\s*\(?\s*all\s*models",
@@ -703,9 +674,7 @@ def _parse_usage_output(raw):
         if m:
             result[key] = row(m)
 
-    # Plans that cap one model separately get a third row. Which model that is
-    # has changed over time (Sonnet once, Fable now) and differs by plan, so
-    # read the name off the panel instead of matching one hardcoded model.
+    # Plans that cap one model separately get a third row.
     m = re.search(r'(?i)(?:current\s*)?week\s*\(\s*(?!all\s*models)'
                   r'([A-Za-z][\w .-]{0,20}?)\s*\)', clean)
     if m:
@@ -713,33 +682,7 @@ def _parse_usage_output(raw):
     return result
 
 
-# ── Fleet ────────────────────────────────────────────────────────────
-#
-# Several machines can share one display. Each reads only its own ~/.claude,
-# so their numbers add up rather than overlap, but only one of them may post:
-# TRMNL keeps the last payload it received, so two hosts posting their own
-# halves means the display shows whichever half arrived most recently.
-#
-# The master pulls each secondary's store, merges, posts the sum, then pushes
-# the merged store back out. If it goes quiet for longer than the takeover
-# window, a secondary posts instead, pairing its own fresh scan with the last
-# figures it holds for everyone else. Because the store is keyed by host, a
-# secondary replaces its own entry and leaves the rest alone, so taking over
-# never double-counts. When the master returns it pulls those stores and keeps
-# the newest entry per host, which absorbs the outage with no special case.
-#
-# Secondaries never need to reach the master. The heartbeat travels inside the
-# store the master pushes, so a secondary decides whether to take over by
-# reading a local file. That matters: the master can ssh out, and the reverse
-# direction is usually not set up.
-#
-# Past two machines, "a secondary takes over" isn't enough: every secondary
-# sees the same stale heartbeat at the same moment and they all post, which is
-# the flipping display again. So secondaries queue. The store records when each
-# host first appeared, and succession follows that join order, each successor
-# waiting one stagger interval longer than the one ahead of it. If the first
-# successor is down too, it simply never posts, the heartbeat keeps ageing, and
-# the next one's turn arrives on its own.
+# ── Fleet ──────────────────────────────────────────────────────────── Several machines can share one display.
 
 FLEET_STORE_NAME = ".trmnl_fleet.json"
 _FLEET_DEFAULTS = {"takeover_after_min": 45, "stale_after_min": 60,
@@ -799,13 +742,9 @@ def _aggregate_local(claude_dir, since, include_other=False):
         "ts": datetime.now(timezone.utc).timestamp(),
         "active": _count_active_sessions(claude_dir),
         # Account-wide, so any host that can read them speaks for all of them.
-        # macOS keeps these in the Keychain rather than in a file, so a Mac
-        # reports Unknown and has to borrow the answer from someone else.
         "sub": sub,
         "tier": tier,
-        # Which population this host counted. The poster passes its own setting
-        # when it collects, so these normally agree; a host that took over on
-        # its own schedule is how they come apart.
+        # Which population this host counted.
         "include_other": bool(include_other),
         "daily": {k: {**v, "sessions": sorted(v["sessions"])} for k, v in daily.items()},
         "models": {k: dict(v) for k, v in models.items()},
@@ -883,9 +822,7 @@ def _load_store():
         s["last_post"] = {}
     if not isinstance(s.get("last_post_by"), dict):
         s["last_post_by"] = {}
-    # Stores written before posts were tracked per host carry only the single
-    # most recent one. Seed from it, or every secondary reads a master that has
-    # never posted and takes over on the first run after an upgrade.
+    # Stores written before posts were tracked per host carry only the single most recent one.
     lp = s["last_post"]
     if lp.get("by") and lp.get("ts") and lp["by"] not in s["last_post_by"]:
         s["last_post_by"][lp["by"]] = lp["ts"]
@@ -940,8 +877,7 @@ def _merge_stores(into, other):
         cur = into["hosts"].get(host)
         if not cur or float(agg.get("ts", 0)) > float(cur.get("ts", 0)):
             into["hosts"][host] = agg
-    # Join times settle the other way round: the earliest sighting is the true
-    # one, so a host that rebuilt its store can't jump the queue.
+    # Join times settle the other way round: the earliest sighting is the true one, so a host that rebuilt its store can't jump the queue.
     for host, info in (other.get("members") or {}).items():
         if not isinstance(info, dict) or "joined" not in info:
             continue
@@ -963,8 +899,7 @@ def _merge_stores(into, other):
         except (TypeError, ValueError):
             continue
 
-    # The cached limits travel with the store, which is the only way a host
-    # that can't read them itself ever gets any.
+    # The cached limits travel with the store, which is the only way a host that can't read them itself ever gets any.
     mine = into.get("limits") or {}
     yours = other.get("limits") or {}
     try:
@@ -1019,8 +954,7 @@ def build_payload(usage_method="auto", model_ttl_min=None,
                   usage_limits=None, include_other=False,
                   strict_activity=False):
     cd = _find_claude_dir()
-    # Day boundaries follow the local clock, so "today" means the same thing
-    # here as it does on the wall and in the usage reset times below.
+    # Day boundaries follow the local clock, so "today" means the same thing here as it does on the wall and in the usage reset times below.
     now = datetime.now().astimezone()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     seven_ago = today_start - timedelta(days=7)
@@ -1093,7 +1027,6 @@ def build_payload(usage_method="auto", model_ttl_min=None,
         "tier": tier,
         "active": active,
         # Reporting hosts out of configured ones, blank on a single machine.
-        # Without it, a host that stops reporting just looks like a quiet day.
         "fleet": f"{fresh}/{hosts_total}" if hosts_total > 1 else "",
         # Today
         "t_input": fmt_tokens(t_in),
@@ -1110,26 +1043,18 @@ def build_payload(usage_method="auto", model_ttl_min=None,
         "w_cost": fmt_cost(w_cost),
         "w_sessions": w_sess,
         "w_messages": w_msgs,
-        # Sparkline & streak
-        # Activity, not spend: these count a day's work whoever served it,
-        # unless --strict-activity says otherwise. The trend arrow above is
-        # deliberately not in this group, since it describes the Today total
-        # sitting beside it and has to count the same population.
+        # Sparkline & streak Activity, not spend: these count a day's work whoever served it, unless --strict-activity says otherwise.
         "spark": _sparkline(daily, with_other=not strict_activity),
         "streak": _streak(daily, with_other=not strict_activity),
         # Top project
         "top_project": max(projects, key=lambda k: projects[k]["tokens"]) if projects else "—",
-        # Tokens today from models left out of everything above, so the work is
-        # reportable rather than merely missing. Blank when there were none, or
-        # when --include-other-models folded them into the figures instead. No
-        # shipped template renders these.
+        # Tokens today from models left out of everything above, so the work is reportable rather than merely missing.
         "o_tokens": fmt_tokens(t_other),
         "o_messages": t_other_msgs,
         # Usage limits
         "u_session": usage_limits.get("session", {}).get("pct", "—"),
         "u_week": usage_limits.get("week_all", {}).get("pct", "—"),
-        # Third limit row: present only on plans that cap one model separately,
-        # and the model varies -- u_model carries whichever one the panel named.
+        # Third limit row: present only on plans that cap one model separately, and the model varies -- u_model carries whichever one the panel named.
         "u_sonnet": usage_limits.get("week_model", {}).get("pct", "—"),
         "u_model": usage_limits.get("week_model", {}).get("name", "Model"),
         "u_reset": usage_limits.get("session", {}).get("resets", ""),
@@ -1262,11 +1187,7 @@ def _mark_pushed():
 # ── CLI ──────────────────────────────────────────────────────────────
 
 def main():
-    # Windows consoles default to cp1252, which can't encode the block
-    # characters echoed back in TRMNL's response (sparkline/usage bars).
-    # Without this, the success print() raises UnicodeEncodeError *before*
-    # _mark_pushed() runs, so the debounce timestamp never updates and every
-    # Notification fires an un-throttled post until TRMNL rate-limits us.
+    # Windows consoles default to cp1252, which can't encode the block characters echoed back in TRMNL's response (sparkline/usage bars).
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")
@@ -1297,10 +1218,7 @@ def main():
     parser.add_argument("--fleet-config", metavar="PATH", default=None,
                         help="Fleet config file (default: $TRMNL_FLEET_CONFIG, "
                              "else fleet.json beside this script)")
-    # Mutually exclusive, because --strict-activity cannot be honoured once
-    # --include-other-models has folded the gateway's tokens into the totals:
-    # nothing records which of them were which any more, so the streak would
-    # quietly stay wide. Refusing both is better than ignoring one.
+    # Mutually exclusive, because --strict-activity cannot be honoured once --include-other-models has folded the gateway's tokens into the totals: nothing records which of them were which any more, so the streak would quietly stay wide.
     others_group = parser.add_mutually_exclusive_group()
     others_group.add_argument("--include-other-models", action="store_true",
                               help="Count models that aren't Anthropic's in the "
@@ -1325,9 +1243,7 @@ def main():
                              "merged store back out)")
     args = parser.parse_args()
 
-    # Fleet plumbing. Neither posts, and --emit-store skips the usage limits
-    # entirely: the master reads those itself, and scraping them here would
-    # put a 20s PTY on the far end of every collection.
+    # Fleet plumbing.
     if args.emit_store:
         cd = _find_claude_dir()
         since = (datetime.now().astimezone().replace(
@@ -1374,8 +1290,7 @@ def _run_fleet(args, cfg):
     others = [h for h in cfg["hosts"] if h["name"] != me]
     now = datetime.now(timezone.utc).timestamp()
 
-    # Copying the example config without editing it leaves every name wrong,
-    # and the symptom is a host counted as absent forever. Say so out loud.
+    # Copying the example config without editing it leaves every name wrong, and the symptom is a host counted as absent forever.
     if len(others) == len(cfg["hosts"]):
         print(f"Warning: this host is '{me}', which the fleet config doesn't "
               f"list. Names must match `hostname -s`.", file=sys.stderr)
@@ -1384,8 +1299,7 @@ def _run_fleet(args, cfg):
     since = (datetime.now().astimezone().replace(
         hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7))
 
-    # Own entry is always a fresh scan; whatever the store held for this host
-    # is superseded, which is what keeps a takeover from counting us twice.
+    # Own entry is always a fresh scan; whatever the store held for this host is superseded, which is what keeps a takeover from counting us twice.
     store = _load_store()
     _ensure_member(store, me, now)
     store["hosts"][me] = _aggregate_local(cd, since, args.include_other_models)
@@ -1397,59 +1311,37 @@ def _run_fleet(args, cfg):
             return float("inf")
 
     def master_quiet_for():
-        # Measured against the master's own last post, not the last post by
-        # anyone. A successor that took over would otherwise reset the very
-        # clock it checks, stand down against itself on its next run, and leave
-        # the display untouched for a whole takeover window at a time.
+        # Measured against the master's own last post, not the last post by anyone.
         return posted_ago(cfg["master"])
 
     def another_host_posted():
-        # Any other host, not only ones ranked ahead. Once someone is driving
-        # the display the queue has done its job, and handing back to a
-        # returning senior successor would buy nothing but a window where both
-        # of them post.
+        # Any other host, not only ones ranked ahead.
         return min((posted_ago(h["name"]) for h in others), default=float("inf"))
 
     if not is_master:
         rank = _successor_rank(cfg, store, me)
         wait_min = (cfg["takeover_after_min"]
                     + rank * cfg["successor_stagger_min"])
-        # Stand down if the master is posting for all of us, if a successor
-        # ahead in the queue gets first refusal, or if this host already knows
-        # another one is driving. That last case is worth catching here rather
-        # than after collecting: during an outage every idle successor would
-        # otherwise ssh to every host on every run, stalling on the master's
-        # dead port each time, only to learn what its own store already said.
+        # Stand down if the master is posting for all of us, if a successor ahead in the queue gets first refusal, or if this host already knows another one is driving.
         if (master_quiet_for() <= wait_min * 60
                 or another_host_posted() <= cfg["takeover_after_min"] * 60):
-            # Keep the fresh scan so whoever does post has something current to
-            # collect, and stay off the display.
+            # Keep the fresh scan so whoever does post has something current to collect, and stay off the display.
             _save_store(store)
             return
 
-    # Whoever is about to post collects first, so the display carries the
-    # freshest numbers every reachable host can give, not the poster's own
-    # beside a set of cached ones.
+    # Whoever is about to post collects first, so the display carries the freshest numbers every reachable host can give, not the poster's own beside a set of cached ones.
     for h in others:
         got = _pull_store(h, args.include_other_models)
         if got:
             _merge_stores(store, got)
 
-    # Collecting can reveal that the master, or another successor, has posted
-    # in the meantime. Yield instead of posting over them. This repeats the
-    # check above against fresher information, and catches the case the local
-    # store can't: a driver whose push never reached this host.
+    # Collecting can reveal that the master, or another successor, has posted in the meantime.
     if not is_master and min(master_quiet_for(),
                              another_host_posted()) <= cfg["takeover_after_min"] * 60:
         _save_store(store)
         return
 
-    # Reading the limits needs the OAuth token from ~/.claude/.credentials.json,
-    # which macOS doesn't have: it keeps them in the Keychain. Rather than let a
-    # Mac's takeover blank the three bars, cache whatever the last host that
-    # could read them saw, and reuse it while it's worth showing. Past that the
-    # bars go blank on purpose, because a percentage that outlived its reset is
-    # worse than no percentage.
+    # Reading the limits needs the OAuth token from ~/.claude/.credentials.json, which macOS doesn't have: it keeps them in the Keychain.
     limits = ({} if args.no_scrape
               else _read_usage(args.usage_method, args.model_limit_ttl))
     if limits:
@@ -1459,14 +1351,11 @@ def _run_fleet(args, cfg):
         if now - float(cached.get("ts", 0) or 0) < cfg["stale_after_min"] * 60:
             limits = cached.get("data") or {}
 
-    # Configured hosts only. A machine dropped from the config still has an
-    # entry in everyone's store, and counting it would keep its tokens in the
-    # weekly total indefinitely and push the marker past the host count.
+    # Configured hosts only.
     counted = {n: a for n, a in store["hosts"].items()
                if any(h["name"] == n for h in cfg["hosts"])}
 
-    # Summing hosts that counted different populations gives a total that means
-    # nothing in particular, and nothing on the display would show it.
+    # Summing hosts that counted different populations gives a total that means nothing in particular, and nothing on the display would show it.
     odd = sorted(n for n, a in counted.items()
                  if bool(a.get("include_other")) != bool(args.include_other_models))
     if odd:
@@ -1495,9 +1384,7 @@ def _run_fleet(args, cfg):
     store["last_post_by"][me] = now
     _save_store(store)
 
-    # The heartbeat rides along, so pushing is also how secondaries learn the
-    # master is alive. A secondary that took over pushes to whoever it can
-    # reach, which is usually nobody until the master is back.
+    # The heartbeat rides along, so pushing is also how secondaries learn the master is alive.
     for h in others:
         _push_store(h, store)
 

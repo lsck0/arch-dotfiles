@@ -1,6 +1,4 @@
 return {
-    { "TheZoq2/neovim-auto-autoread" },       -- auto-reload changed files
-    { "sitiom/nvim-numbertoggle" },           -- relative/absolute number toggle
     {
         "chrisgrieser/nvim-early-retirement", -- auto-close idle buffers
         config = function()
@@ -10,50 +8,53 @@ return {
         end
     },
     {
-        "https://codeberg.org/andyg/leap.nvim", -- fast cursor motion
-        config = function()
-            local clever_s = require("leap.user").with_traversal_keys("s", "S")
-            vim.keymap.set({ "n", "x", "o" }, "s", function()
-                require("leap").leap { opts = clever_s }
-            end, { desc = "Leap forward" })
-            vim.keymap.set({ "n", "x", "o" }, "S", function()
-                require("leap").leap { opts = clever_s, backward = true }
-            end, { desc = "Leap backward" })
-        end
+        "folke/flash.nvim", -- jump/select via labels, treesitter, search
+        event = "VeryLazy",
+        opts = {},
+        keys = {
+            { "s", mode = { "n", "x", "o" }, function() require("flash").jump() end,             desc = "Flash jump" },
+            { "S", mode = { "n", "x", "o" }, function() require("flash").treesitter() end,       desc = "Flash treesitter" },
+            { "r", mode = "o",               function() require("flash").remote() end,           desc = "Remote flash" },
+            { "R", mode = { "o", "x" },      function() require("flash").treesitter_search() end, desc = "Treesitter search" },
+        },
     },
     {
         "hat0uma/csvview.nvim", -- CSV column alignment
+        ft = "csv",
         opts = {
             parser = { comments = { "#", "//" } },
         },
     },
-    { "jbyuki/venn.nvim" },       -- ASCII diagram drawing
+    { "jbyuki/venn.nvim", cmd = { "VBox", "VBoxD", "VBoxH", "VBoxO" } }, -- ASCII diagram drawing
     {
         "mg979/vim-visual-multi", -- multiple cursors
         init = function()
+            -- M-d, not M-n: herdr binds alt+n to next_agent and would swallow it
             vim.g.VM_maps = {
-                ["Find Under"]         = "<M-n>",
-                ["Find Subword Under"] = "<M-n>",
+                ["Find Under"]         = "<M-d>",
+                ["Find Subword Under"] = "<M-d>",
             }
         end
     },
-    { "mrjones2014/smart-splits.nvim" }, -- resize/navigate splits
+    { "mrjones2014/smart-splits.nvim", lazy = true }, -- resize/navigate splits
     {
         "nacro90/numb.nvim",             -- peek line on jump
         config = function() require("numb").setup() end
     },
     {
         "nosduco/remote-sshfs.nvim", -- browse remote files via SSH
+        cmd = { "RemoteSSHFSConnect", "RemoteSSHFSEdit", "RemoteSSHFSDisconnect", "RemoteSSHFSFindFiles", "RemoteSSHFSLiveGrep" },
         dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
         config = function()
             require("remote-sshfs").setup()
         end
     },
-    { "sindrets/winshift.nvim" },      -- move/swap windows
+    { "sindrets/winshift.nvim", cmd = "WinShift" },      -- move/swap windows
     { "tpope/vim-repeat" },            -- repeat plugin actions
     { "zeioth/garbage-day.nvim" },     -- restart idle LSP clients
     {
         "ziontee113/icon-picker.nvim", -- emoji/icon picker
+        cmd = { "IconPickerNormal", "IconPickerInsert", "IconPickerYank" },
         config = function() require("icon-picker").setup({ disable_legacy_commands = true }) end
     },
     {
@@ -69,8 +70,7 @@ return {
     },
     {
         "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
-        -- Not lazy: the plugin has to own BufReadCmd/BufWriteCmd before a file
-        -- is opened, otherwise the first sops file of a session shows ciphertext.
+        -- Not lazy: the plugin has to own BufReadCmd/BufWriteCmd before a file is opened, otherwise the first sops file of a session shows ciphertext.
         lazy = false,
         opts = { disabled = false },
         keys = {
@@ -79,6 +79,7 @@ return {
     },
     {
         "folke/twilight.nvim", -- dim inactive code
+        cmd = "Twilight",
         opts = {
             treesitter = true,
             expand = {
@@ -96,9 +97,9 @@ return {
     },
     {
         "folke/zen-mode.nvim", -- distraction-free writing
+        cmd = "ZenMode",
         opts = {},
     },
-    { "jghauser/mkdir.nvim" }, -- auto-create parent dirs
 
     {
         "dijeferson/gpg.nvim", -- transparent GPG encryption/decryption for *.gpg/*.asc files
@@ -123,15 +124,6 @@ return {
         config = function()
             require("taskwarrior").setup()
         end,
-    },
-
-    {
-        "sotte/presenting.nvim", -- turn a markdown/org/adoc file into in-editor slides
-        cmd = "Presenting",      -- lazy: load only when the presentation starts
-        opts = {},
-        keys = {
-            { "<leader>pp", "<cmd>Presenting<cr>", desc = "Present (toggle slides)" },
-        },
     },
 
     {

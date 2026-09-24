@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 # Sync all git repos recursively, skipping submodules.
-#
-# Bare repos (mirrors, push targets, `repo.git/` directories) are included.
-# They have no worktree and cannot be pulled into, so for those the sync is a
-# fetch and the report is about refs, not about a working tree.
 
 BASE_DIR=$(realpath "${1:-.}")
 
-# Two kinds of repo root: a directory holding a `.git` (normal), and a
-# directory that IS the git dir (bare). `.git` is matched first so a normal
-# repo's own git dir never also matches the bare test below.
+# Two kinds of repo root: a directory holding a `.git` (normal), and a directory that IS the git dir (bare).
 mapfile -t dirs < <(
     find "$BASE_DIR" -type d \
         \( -name '.git' -o \
@@ -31,8 +25,7 @@ for dir in "${dirs[@]}"; do
     bare=$(git -C "$dir" rev-parse --is-bare-repository 2>/dev/null)
 
     if [[ "$bare" == "true" ]]; then
-        # A mirror fetch rewrites refs/heads, a plain one only refs/remotes,
-        # so every ref is watched rather than just the remote-tracking ones.
+        # A mirror fetch rewrites refs/heads, a plain one only refs/remotes, so every ref is watched rather than just the remote-tracking ones.
         refs_before=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)
         git -C "$dir" fetch --all --prune --quiet 2>/dev/null || statuses+=("FETCH FAILED")
         refs_after=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)

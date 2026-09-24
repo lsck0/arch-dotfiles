@@ -6,21 +6,7 @@ import qs.Commons
 import qs.Ui
 import "../../services"
 
-// New widget, not a port of omarchy-shell's plugins/menu/Menu.qml. Upstream's
-// menu is a full JSONC-config-driven, guard-scripted, multi-provider command
-// palette (system actions, theme switching, settings toggles, app search —
-// all one generic tree-navigation engine, ~1480 lines) — the "Apps" search
-// is just one provider plugged into that. Building the whole engine to
-// replace walker (an app launcher) would be large scope creep past what was
-// actually asked for, and would duplicate widgets this repo already has
-// (Battery/Network/Bluetooth panels etc. already cover the non-app parts of
-// upstream's menu). This is a purpose-built app search/launcher instead,
-// styled like Clipboard.qml's overlay, backed entirely by the existing
-// shared services/AppLibrary.qml + AppSearch.js (already ported in Phase 2
-// for this exact consumer, per AppLibrary.qml's own header comment).
-// Deliberately does not wire AppLibrary.remove() — no local equivalent of
-// omarchy-remove-launcher-entry exists (see AppLibrary.qml), so there is no
-// delete-entry action here rather than a dead button.
+// New widget, not a port of omarchy-shell's plugins/menu/Menu.qml.
 Item {
   id: root
 
@@ -275,18 +261,7 @@ Item {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              // Deliberately does NOT drive root.selectedIndex, on hover OR
-              // move. Qt Quick re-synthesizes hover/position events for a
-              // delegate that slides under a stationary cursor (e.g. the list
-              // reflowing while typing a filter), so both onEntered and
-              // onPositionChanged fire without the pointer actually moving —
-              // this is the same class of bug as rofi's mouse-hijacks-
-              // keyboard-selection behavior (fixed there via an empty
-              // me-select-entry). Keyboard (Up/Down/PageUp/PageDown/Home/End)
-              // is the only thing that sets selectedIndex, so Enter always
-              // activates the keyboard-highlighted row. Clicking still
-              // launches whatever is directly under the pointer, independent
-              // of selectedIndex.
+              // Deliberately does NOT drive root.selectedIndex, on hover OR move.
               onClicked: root.launchAt(rowDelegate.index)
             }
           }

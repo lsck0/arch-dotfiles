@@ -1,38 +1,4 @@
-// Notification service. Adapted from omarchy-shell's plugins/notifications
-// (replaces mako as the active `org.freedesktop.Notifications` handler --
-// see research/ROADMAP.md for the keep-vs-replace decision and staged
-// rollout).
-//
-// Loaded through shell.qml's existing `service`-kind plugin loader
-// (_syncServices()/ensureService()) -- the first real consumer of that
-// machinery, which Phase 2 built but nothing had exercised yet. That loader
-// imperatively assigns `inst.shell = shell` from the *surrounding* function
-// scope, not a declarative `Service { shell: shell }` binding block, so the
-// `shell` property name here does NOT hit the Bar.qml property-shadowing
-// bug documented in Ui/BarIndicator.qml / research/ROADMAP.md (that bug was
-// specifically
-// about an unqualified `shell` reference resolving to a same-named property
-// on the object being *declared*, inside its own construction block).
-//
-// Adaptations from upstream (OMARCHY_PATH-rooted, distro-checkout-relative):
-//   - state dir: ~/.local/state/omarchy/ -> ~/.local/state/quickshell/,
-//     matching Clipboard.qml's existing convention for this repo.
-//   - this repo's bar is a single fixed top bar (Bar.qml has no position
-//     config, no autohide, one instance per screen via Variants -- there is
-//     no singular `shell.bar` to read fontFamily/barHidden/barSize off of).
-//     Dropped the barConfig-driven position/clearance lookup entirely --
-//     popups anchor top-right, cleared by Style.bar.sizeHorizontal, always.
-//     NotificationCard now defaults its own fontFamily to Style.font.family
-//     instead of being handed one from a shell.bar that doesn't exist here.
-//   - focusApp(): upstream shells out to its own `omarchy-hyprland-focus-app`
-//     bin/ script (no local equivalent) -- rewritten as an inline
-//     hyprctl-clients-by-class lookup, functionally the same fallback
-//     (chat apps that don't register a libnotify "default" action get their
-//     window focused by clicking the toast).
-//   - invokePopupDefault(): upstream calls its own `Util.execArgv` wrapper;
-//     this repo's Quickshell.execDetached() already takes an argv array
-//     with no shell interpretation, so it's used directly -- same safety
-//     property (see parseExecArgv's own comment), no new Util function.
+// Notification service.
 
 import QtQuick
 import QtQuick.Layouts
@@ -62,11 +28,7 @@ Item {
   // Fixed top bar, always -- see header comment.
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
 
-  // Live Notification objects by originalId, kept OUT of the ListModels: a
-  // QObject stored in a model role becomes a dangling C++ pointer when the
-  // server destroys the notification (sender close, DND untrack, dismiss),
-  // and the next read of that role segfaults in QQmlListModel::data. A JS
-  // map only holds a wrapper, which degrades to a catchable error instead.
+  // Live Notification objects by originalId, kept OUT of the ListModels: a QObject stored in a model role becomes a dangling C++ pointer when the server destroys the notification (sender close, DND untrack, dismiss), and the next read of that role segfaults in QQmlListModel::data.
   property var liveRefs: ({})
 
   PersistentProperties {
@@ -92,8 +54,7 @@ Item {
 
   readonly property int historyLimit: 10
 
-  // Shared "now" for every visible toast's timestamp. Only ticks while
-  // something is on screen.
+  // Shared "now" for every visible toast's timestamp.
   property double popupNowMs: Date.now()
   Timer {
     interval: 20000
@@ -124,12 +85,7 @@ Item {
     return Math.round(ms)
   }
 
-  // DND bypass: only let through notifications we trust to be intentional
-  // and rare.
-  //   - omarchy-action: a user-action confirmation toast. Kept as the
-  //     sentinel app name so first-run/self-generated toasts (see
-  //     replayHistory's placeholder) still bypass DND like upstream's do.
-  //   - urgency=critical AND app_name=notify-send: bare-CLI emergency alerts.
+  // DND bypass: only let through notifications we trust to be intentional and rare.
   function shouldBypassDnd(notification) {
     return NotificationLogic.shouldBypassDnd(notification, NotificationUrgency.Critical)
   }
@@ -287,11 +243,7 @@ Item {
     while (popupModel.count > 0) dismissPopup(0)
   }
 
-  // Run the popup's click action, then dismiss. Omarchy's own toasts carry
-  // the action as an argv vector in the `execArgv` role (see
-  // execArgvFromHints), which the persistence files preserve, so restored
-  // toasts stay clickable. Third-party clients register a libnotify action
-  // under the canonical identifier "default" instead.
+  // Run the popup's click action, then dismiss.
   function invokePopupDefault(index) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
@@ -322,10 +274,7 @@ Item {
     dismissPopup(index)
   }
 
-  // Best-effort: focus a Hyprland window whose class contains the
-  // notification's app name (case-insensitive substring). Chat apps
-  // (Slack, Discord, Vesktop, etc.) rarely register a "default" libnotify
-  // action -- they just expect a click on the toast to jump to their window.
+  // Best-effort: focus a Hyprland window whose class contains the notification's app name (case-insensitive substring).
   function focusApp(entry) {
     if (!entry || !entry.app) return
     focusAppProc.command = ["bash", "-c",
@@ -419,37 +368,7 @@ Item {
     })
   }
 
-  // Senders (Discord's Electron client among them) commonly attach the
-  // avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw
-  // pixel buffer, not a path — which Quickshell exposes only as an
-  // in-process `image://…` URL tied to the live Notification object. That
-  // URL renders fine in the live toast (which binds straight to it), but
-  // NotificationLogic.persistablePopup only knows how to copy a `file://`
-  // path onto disk; it silently blanks any `image://` value to "" before
-  // writing, since the pixmap dies with the Notification. The result was
-  // every persisted/history entry — including Discord's — permanently
-  // missing its avatar, even though the toast itself had shown it a moment
-  // before. This renders that in-memory image to a real PNG under
-  // imagesDir BEFORE persisting, so the file that ends up on disk is one
-  // persistablePopup's ordinary file:// handling already knows how to
-  // carry through. Falls back to the original snapshot (unchanged
-  // behaviour) on any failure — e.g. the source URL has already gone
-  // stale, or the render/save failed — rather than blocking on it.
-  //
-  // grabToImage NEEDS A MAPPED WINDOW, not merely a window.
-  //
-  // An Item hanging off `service` has no window at all (Service.qml is a plain
-  // Item in shell.qml's serviceHost, which is never shown), so the grab was
-  // first given a dedicated `Window { visible: false }`. That does not work
-  // either, and fails quietly in the one way that matters: Qt refuses with
-  // "grabToImage: item's window is not visible", the callback never runs, and
-  // every avatar silently fell back to the icon. It looked like a fixed bug
-  // because the code for the fix was all there.
-  //
-  // imageGrabWindow is therefore a REAL, mapped layer-shell surface — and an
-  // imperceptible one: 1x1, transparent, on the background layer, with an
-  // empty input region so the compositor routes every pointer event straight
-  // past it. It is the smallest thing that actually has a scenegraph.
+  // Senders (Discord's Electron client among them) commonly attach the avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw pixel buffer, not a path — which Quickshell exposes only as an in-process `image://…` URL tied to the live Notification object.
   function materializeImage(snapshot, done) {
     var url = String((snapshot && snapshot.image) || "")
     if (url.indexOf("image://") !== 0) {
@@ -457,14 +376,10 @@ Item {
       return
     }
 
-    // A notification arriving in the moments before the surface finishes
-    // mapping has nothing to render into. Queue it rather than dropping the
-    // image, and flush once the surface is up.
+    // A notification arriving in the moments before the surface finishes mapping has nothing to render into.
     if (!imageGrabWindow.backingWindowVisible) {
       if (service.pendingGrabs.length >= service.pendingGrabsMax) {
-        // Bounded on purpose: a notification storm during startup must not
-        // grow this without limit. Dropping the image is what this function
-        // already does on every other failure.
+        // Bounded on purpose: a notification storm during startup must not grow this without limit.
         done(snapshot)
         return
       }
@@ -527,22 +442,16 @@ Item {
   PanelWindow {
     id: imageGrabWindow
 
-    // Mapped for the whole session. Keeping it up only during a grab would
-    // mean waiting for a map round trip on every notification carrying a
-    // pixmap, which is the common case for the apps that send them at all
-    // (Discord, Spotify) — a 1x1 transparent surface is cheaper than that
-    // handshake and has no timing to get wrong.
+    // Mapped for the whole session.
     visible: true
     screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
     implicitWidth: 1
     implicitHeight: 1
     color: "transparent"
-    // Anchored so the compositor has a definite placement; it is one pixel of
-    // fully transparent nothing in the top-left corner, under every window.
+    // Anchored so the compositor has a definite placement; it is one pixel of fully transparent nothing in the top-left corner, under every window.
     anchors { top: true; left: true }
     exclusionMode: ExclusionMode.Ignore
-    // Empty input region: this must never eat a click, and a 1x1 surface in
-    // the corner is exactly where a stray click would be hardest to explain.
+    // Empty input region: this must never eat a click, and a 1x1 surface in the corner is exactly where a stray click would be hardest to explain.
     mask: Region {}
     WlrLayershell.namespace: "quickshell-notification-image-grab"
     WlrLayershell.layer: WlrLayer.Background
@@ -812,12 +721,7 @@ Item {
     })
   }
 
-  // ---------------------------------------------------- IPC
-  //
-  // `quickshell ipc -p ~/.config/quickshell call notifications <method>`.
-  // toggles/toggle-dnd.sh's three functions (check/turn_on/turn_off) point
-  // here instead of `makoctl mode` once this service is the active handler
-  // -- see research/ROADMAP.md for the staged cutover this is part of.
+  // ---------------------------------------------------- IPC `quickshell ipc -p ~/.config/quickshell call notifications <method>`.
 
   IpcHandler {
     target: "notifications"
@@ -901,23 +805,9 @@ Item {
     }
   }
 
-  // -------------------------------------------------------------- popup UI
-  //
-  // One PanelWindow on the primary output holding the stacked toast cards.
-  // Layer is Overlay, exclusionMode Ignore, no keyboard focus -- popups are
-  // passive surfaces and must never steal input from the focused application.
+  // -------------------------------------------------------------- popup UI One PanelWindow on the primary output holding the stacked toast cards.
 
   // Toasts appear on the output you are looking at, not on the main one.
-  //
-  // Hyprland's focused monitor is the right signal for both halves of "where
-  // am I": it follows the focused window, and with follow_mouse on it also
-  // follows the pointer across outputs. Falling back to the bar's main output
-  // covers the frame before Hyprland has reported a focus.
-  //
-  // PINNED WHILE A STACK IS UP. The screen is only re-read when the stack
-  // goes from empty to non-empty. Re-reading it live would make a toast jump
-  // screens mid-life the moment the pointer crossed a monitor edge — and,
-  // worse, move the surface out from under a click aimed at its action button.
   readonly property var focusedScreen: {
     var screens = Quickshell.screens
     var focused = Hyprland.focusedMonitor
@@ -928,11 +818,7 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // NOT Osd.qml's one-window-per-screen-toggle-visible pattern, even though
-  // that avoids rebuilding a wayland surface. Each card here owns a lifetime
-  // animation whose completion calls expirePopup(index); duplicating the
-  // delegates across screens would fire that twice per toast and remove the
-  // wrong rows. One window, moved between stacks, keeps one timer per card.
+  // NOT Osd.qml's one-window-per-screen-toggle-visible pattern, even though that avoids rebuilding a wayland surface.
   property var popupScreen: null
 
   Connections {
@@ -1022,10 +908,7 @@ Item {
               image: cardSlot.image
               urgency: cardSlot.urgency
               timestamp: cardSlot.timestamp
-              // A toast is nearly always "now", which the card renders as the
-              // word rather than a clock reading — but a popup replayed from
-              // history is not, and without a reference time it would show a
-              // bare timestamp with nothing to compare it against.
+              // A toast is nearly always "now", which the card renders as the word rather than a clock reading — but a popup replayed from history is not, and without a reference time it would show a bare timestamp with nothing to compare it against.
               now: service.popupNowMs
               cornerRadius: service.cornerRadius
               glyph: cardSlot.glyph

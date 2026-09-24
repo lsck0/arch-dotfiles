@@ -61,6 +61,20 @@ width = "90%"
 height = "90%"
 
 [[keys.command]]
+key = "prefix+shift+c"
+type = "popup"
+command = "pclone"
+width = "50%"
+height = "12%"
+
+[[keys.command]]
+key = "prefix+b"
+type = "popup"
+command = "wtree"
+width = "60%"
+height = "60%"
+
+[[keys.command]]
 key = "prefix+shift+n"
 type = "popup"
 command = "direnv exec . rustnet"

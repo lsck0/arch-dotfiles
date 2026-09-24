@@ -5,8 +5,7 @@ set -ex
 
 mkdir -p "${HOME}/.claude/skills" "${HOME}/.copilot/skills" "${HOME}/.hermes/skills"
 
-# kill recursive links FIRST (looking at you gemini), so a re-run can never
-# see the loop it created last time
+# kill recursive links FIRST (looking at you gemini), so a re-run can never see the loop it created last time
 find "${PWD}" -mindepth 2 -maxdepth 2 -type l -name 'l-*' -delete
 git -C "${PWD}" rm -q --cached --ignore-unmatch -- "${PWD}"/l-*/l-* 2>/dev/null || true
 

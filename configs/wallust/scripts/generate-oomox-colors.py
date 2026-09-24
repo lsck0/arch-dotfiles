@@ -39,11 +39,7 @@ import json
 import os
 import sys
 
-# The colour maths is shared with generate-hermes-skin.py — see
-# configs/wallust/scripts/lib/palette.py for why it lives there and why quickshell keeps its
-# own copy. `lib/` is deliberately a subdirectory: scripts/link.sh globs only
-# top-level *.py into /usr/local/bin, so a shared module here does not become
-# a stray command.
+# The colour maths is shared with generate-hermes-skin.py — see configs/wallust/scripts/lib/palette.py for why it lives there and why quickshell keeps its own copy.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib"))
 
 from palette import (  # noqa: E402
@@ -87,9 +83,7 @@ def main():
     raw_fg = slot("foreground", "#c2c3c5")
     accent = vivify(slot("color4", "#B68B74"), 0.45, 0.55)
 
-    # Surfaces, lifted off the window background rather than pulled from the
-    # photo. Text fields sit slightly *below* menus so an entry reads as a
-    # well rather than as a raised control.
+    # Surfaces, lifted off the window background rather than pulled from the photo.
     menu_bg = lift(bg, 0.045)
     txt_bg = lift(bg, 0.02)
     btn_bg = lift(bg, 0.075)
@@ -103,8 +97,7 @@ def main():
         "FG": rgb_to_hex(readable_on(bg, raw_fg)),
         "MENU_BG": rgb_to_hex(menu_bg),
         "MENU_FG": rgb_to_hex(readable_on(menu_bg, raw_fg)),
-        # The pairing that was broken: the selection foreground is now derived
-        # from the selection background it is drawn on, not from color0.
+        # The pairing that was broken: the selection foreground is now derived from the selection background it is drawn on, not from color0.
         "SEL_BG": rgb_to_hex(sel_bg),
         "SEL_FG": rgb_to_hex(sel_fg),
         "TXT_BG": rgb_to_hex(txt_bg),
@@ -125,9 +118,7 @@ def main():
              "GRADIENT"]
 
     body = "".join("%s=%s\n" % (k, values[k]) for k in order)
-    # Written via a temp file in the same directory, then renamed: themix
-    # reads this path and a half-written file would silently produce a
-    # half-themed desktop.
+    # Written via a temp file in the same directory, then renamed: themix reads this path and a half-written file would silently produce a half-themed desktop.
     tmp = OUT + ".tmp"
     with open(tmp, "w") as fh:
         fh.write(body)

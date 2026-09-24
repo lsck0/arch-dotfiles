@@ -6,22 +6,9 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Native workspace overview — `Super+Tab` used to be bound to
-// `hl.dsp.global("overview:toggle")`, a global shortcut name no installed
-// plugin ever registered (checked: `hyprctl plugin list` shows only
-// dynamic-cursors; hyprexpo was never added to hyprpm and isn't built into
-// this Hyprland version). Rather than gambling on a third-party C++ plugin
-// building against this exact Hyprland version (hy3 is already broken here
-// for that reason — `hyprpm list` shows it failed to build), this is a
-// plain QML grid: one tile per existing workspace, each listing its
-// windows by title. No live thumbnails (that needs wlr-screencopy per
-// window, real scope beyond what was asked) — titles are enough to tell
-// workspaces apart and jump to one.
+// Native workspace overview — `Super+Tab` used to be bound to `hl.dsp.global("overview:toggle")`, a global shortcut name no installed plugin ever registered (checked: `hyprctl plugin list` shows only dynamic-cursors; hyprexpo was never added to hyprpm and isn't built into this Hyprland version).
 Item {
-    // Number keys jump straight to a workspace, the way Super+<n> already does
-    // outside the overview — arrows alone meant walking across the grid to
-    // reach a workspace you could already name. 0 is workspace 10, matching
-    // both the bar widget's labelling and the compositor's own binds.
+    // Number keys jump straight to a workspace, the way Super+<n> already does outside the overview — arrows alone meant walking across the grid to reach a workspace you could already name.
 
     id: root
 
@@ -70,10 +57,7 @@ Item {
         root.close();
     }
 
-    // Deliberately NOT restricted to workspaces that currently exist: an
-    // overview that refuses to send you to an empty workspace 4 behaves
-    // differently from the Super+4 muscle memory it sits on top of. Hyprland
-    // creates it, same as it always does.
+    // Deliberately NOT restricted to workspaces that currently exist: an overview that refuses to send you to an empty workspace 4 behaves differently from the Super+4 muscle memory it sits on top of.
     function jumpToWorkspace(number) {
         root.focusAndClose(number);
     }
@@ -164,10 +148,7 @@ Item {
                 }
             }
 
-            // Titled composition rather than a bare floating grid: a header that
-            // says what this is, the grid, and a key legend. The overview is a
-            // full-screen takeover — with no framing at all it read as a small
-            // strip of thumbnails dropped on the desktop.
+            // Titled composition rather than a bare floating grid: a header that says what this is, the grid, and a key legend.
             Column {
                 anchors.centerIn: parent
                 spacing: Style.spacing.huge
@@ -220,9 +201,7 @@ Item {
                                 return null;
                             }
                             readonly property var toplevels: workspace ? workspace.toplevels.values : []
-                            // The live thumbnail shows this workspace's most recently
-                            // active window — the one Hyprland itself would raise on
-                            // switch — not just array position 0.
+                            // The live thumbnail shows this workspace's most recently active window — the one Hyprland itself would raise on switch — not just array position 0.
                             readonly property var primaryToplevel: {
                                 for (var i = 0; i < toplevels.length; i++) if (toplevels[i].activated) {
                                     return toplevels[i];
@@ -233,15 +212,6 @@ Item {
                             readonly property bool selected: index === root.selectedIndex
 
                             // 16:9, matching the actual screen the thumbnail is a photo of.
-                            // Selected/unselected treatment borrowed directly from the
-                            // wallpaper picker (plugins/image-picker/ImagePicker.qml): the
-                            // selected item pops in size and full brightness, everything
-                            // else dims — same Color.imagePicker tokens, same 0.42 dim
-                            // alpha, same grammar, not a new one.
-                            // Sized off the actual output rather than fixed: at a flat 320px
-                            // four tiles filled a third of a 1920 screen and the overview
-                            // read as a strip. Capped so a single workspace does not become
-                            // a poster, floored so a full grid stays legible.
                             width: Math.max(Style.space(260), Math.min(Style.space(460), (keyCatcher.width - Style.space(160)) / keyCatcher.columns - Style.spacing.xl))
                             height: Math.round(width * 9 / 16)
                             scale: selected ? 1.08 : 1
@@ -285,8 +255,7 @@ Item {
 
                             }
 
-                            // Bottom title bar, over the thumbnail rather than pushing it
-                            // smaller — same treatment a real window switcher uses.
+                            // Bottom title bar, over the thumbnail rather than pushing it smaller — same treatment a real window switcher uses.
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right

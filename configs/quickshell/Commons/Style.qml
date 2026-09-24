@@ -3,82 +3,23 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Structural design tokens: geometry, interactive states, typography,
-// spacing, and the bar grid. Colour lives in Color.qml; the user-facing
-// knobs both read from live in Theme.qml.
-//
-// Same token *shape* as omarchy-shell's Style.qml (state-color engine,
-// derived spacing/typography scale, bar grid) with upstream's shell.toml
-// per-theme override layer removed — but unlike the earlier port, the values
-// here are no longer frozen literals. Everything dimensional is derived from
-// `Theme.fontSize`, so one number in theme.json rescales type, spacing, panel
-// widths and the bar together instead of leaving the body text bigger inside
-// a grid that stayed put.
+// Structural design tokens: geometry, interactive states, typography, spacing, and the bar grid.
 QtObject {
   id: root
 
-  // ---------------------------------------------------------- scale
-  //
-  // Every dimension in the shell is a multiple of this. 12px is the design
-  // baseline, so at the default size `scale` is exactly 1 and each token
-  // below evaluates to the number it was hand-tuned to — changing the base
-  // size is the only thing that moves them.
+  // ---------------------------------------------------------- scale Every dimension in the shell is a multiple of this.
   readonly property int baseSize: Theme.fontSize
   readonly property real scale: baseSize / 12.0
 
-  // The rem-equivalent used by call sites for their own dimensions (panel
-  // widths, card sizes, ad-hoc margins). It used to be `Math.round(px)` —
-  // an identity function, so ~200 call sites were writing fixed pixels
-  // through something that looked like a scaling helper. Now it is one.
+  // The rem-equivalent used by call sites for their own dimensions (panel widths, card sizes, ad-hoc margins).
   function space(px) { return Math.max(0, Math.round(px * scale)) }
   function spaceReal(px) { return Math.max(0, px * scale) }
 
-  // ---------------------------------------------------------- geometry
-  //
-  // "Refined brutalist" (2026-09-04, second pass). History worth keeping:
-  // the 09-03 overhaul was zero-radius/hard-slab brutalism, softened the
-  // same day to radius 6 after two distinct complaints — "too stark/harsh"
-  // AND "cramped". Those pull in different directions, so this pass answers
-  // only the first: edges get harder and states get louder, while the
-  // padding/control-size bump that fixed "cramped" is kept in full.
-  //
-  // The result reads structural rather than raw: a small radius that still
-  // registers as a cut corner, borders with real weight, an offset shadow,
-  // and hierarchy carried by type weight and letter-tracking instead of by
-  // heavier chrome.
-  //
-  // Pinned, NOT read from Hyprland's decoration:rounding. Inheriting window
-  // rounding made the shell's own surfaces a side effect of an unrelated
-  // setting.
+  // ---------------------------------------------------------- geometry "Refined brutalist" (2026-09-04, second pass).
   readonly property int cornerRadius: Math.max(0, Math.round(3 * scale))
   property int gapsOut: 5
 
-  // ---------------------------------------------------------- state tokens
-  //
-  // Shared interactive-state tokens for every reusable surface in the kit.
-  //   normal   — idle control chrome
-  //   hover    — mouse hover OR panel keyboard cursor
-  //   selected — persistent chosen/current state
-  //   pressed  — mouse down
-  //   focus    — Qt activeFocus
-  //
-  // Each resolver takes explicit (foreground, accent) so a caller can point
-  // a control at a non-default palette role — e.g. an urgent-tinted delete
-  // button passes its urgent colour as `accent` — without a second copy of
-  // the ladder.
-  //
-  // The resolvers used to be six functions with identical bodies, all
-  // returning `foreground` and ignoring the `accent` argument entirely: dead
-  // weight left over from when the shell.toml override layer picked the role
-  // per theme. The proof they were wrong is that seven call sites bypassed
-  // them for a `selectedAccentFill` token added specifically to get the
-  // accent they could not ask for. Selected/pressed/focus now genuinely
-  // resolve to the accent, which is also what makes those states read as
-  // loud rather than as a slightly brighter grey.
-  // These are THE fill and border alphas. Call sites must use them (or the
-  // *Fill/*For helpers below) rather than hand-rolling `Util.alpha(x, 0.08)` —
-  // a coherence sweep found ten different hand-picked values doing the work of
-  // these four, so panels tinted the same kind of surface by different amounts.
+  // ---------------------------------------------------------- state tokens Shared interactive-state tokens for every reusable surface in the kit.
   readonly property real normalFillAlpha: 0.04
   readonly property real hoverFillAlpha: 0.10
   readonly property real selectedFillAlpha: 0.22
@@ -86,35 +27,19 @@ QtObject {
   readonly property real focusFillAlpha: 0.14
   readonly property real selectionFillAlpha: 0.35
 
-  // Ascending with emphasis. The old ladder had hover (0.25) *fainter* than
-  // normal (0.4), so hovering a bordered control made its outline recede —
-  // backwards, and invisible in review because no state was ever loud enough
-  // to notice.
+  // Ascending with emphasis.
   readonly property real normalBorderAlpha: 0.45
   readonly property real hoverBorderAlpha: 0.70
   readonly property real focusBorderAlpha: 0.85
   readonly property real selectedBorderAlpha: 1.0
 
-  // Structural weight is where this look lives. Idle chrome stays hairline;
-  // the states that mean something get a second pixel, which at a 3px radius
-  // reads as a drawn edge rather than a glow.
+  // Structural weight is where this look lives.
   readonly property int normalBorderWidth: 1
   readonly property int hoverBorderWidth: 1
   readonly property int focusBorderWidth: 2
   readonly property int selectedBorderWidth: 2
 
   // Offset shadow: a solid rectangle behind each surface, pushed down-right.
-  // Not a blur or a glow — the offset itself is the effect. Its colour is a
-  // palette role (Color.shadow), so it stays coherent as the wallpaper
-  // changes instead of being a fixed black that goes muddy over a warm
-  // background.
-  //
-  // Disabled (offset 0): the shadow sat outside the 1px surface border, so
-  // every panel/button read as having TWO parallel edges at its corners —
-  // the crisp border plus the offset shadow's own edge. One clean border is
-  // the more minimal look and kills the double-line at the corners outright.
-  // (2026-09-07: the "refined brutalist" pass leaned on the offset shadow
-  // for depth; the double-line it produced read as noisy, not structural.)
   readonly property int shadowOffset: 0
   readonly property real shadowAlpha: 0.0
 
@@ -149,9 +74,7 @@ QtObject {
   readonly property color selectedBorderColor: selectedBorderFor(Color.foreground, Color.accent)
   readonly property color focusBorderColor: focusBorderFor(Color.foreground, Color.accent)
 
-  // Composite helpers for the focus > hover > normal priority chain used by
-  // every form control surface (TextField, Dropdown, Toggle, etc.). Saves
-  // callers from re-writing the three-line ternary ladder per Rectangle.
+  // Composite helpers for the focus > hover > normal priority chain used by every form control surface (TextField, Dropdown, Toggle, etc.).
   function controlFill(focused, hot, foreground, accent) {
     if (focused) return focusFillFor(foreground || Color.foreground, accent || Color.accent)
     if (hot) return hoverFillFor(foreground || Color.foreground, accent || Color.accent)
@@ -170,47 +93,23 @@ QtObject {
     return normalBorderWidth
   }
 
-  // ---------------------------------------------------------- panel metrics
-  //
-  // Heights and widths for the two things panels are actually made of, because
-  // the shell had stopped agreeing with itself about either.
-  //
-  // Row heights were 20 / 22 / 24 / 26 / 28 / 30 / 32 / 34 / 38 across the
-  // panels — and Network.qml alone used 26, 28 AND 32 for three rows of the
-  // same kind, Display.qml 22, 28 and 32. Every one of those was a number
-  // typed at a call site, so neighbouring panels listed the same sort of thing
-  // at different heights.
-  //
-  // Two roles cover nearly all of it: a row you pick from a list, and a
-  // control you press. Grid cells (the calendar) and bespoke chrome (the image
-  // carousel) keep their own numbers on purpose — they are not rows.
+  // ---------------------------------------------------------- panel metrics Heights and widths for the two things panels are actually made of, because the shell had stopped agreeing with itself about either.
   readonly property QtObject row: QtObject {
-    // A selectable entry in a panel list: an audio device, a Wi-Fi network,
-    // a toggle line, a media player.
+    // A selectable entry in a panel list: an audio device, a Wi-Fi network, a toggle line, a media player.
     readonly property int list: root.space(32)
     // A pressable chip or button sitting inside a panel.
     readonly property int control: root.space(28)
   }
 
-  // Hover-panel widths were 300 / 320 / 340 / 360 / 380 / 460 — six widths for
-  // cards that hang off the same bar and are read the same way. Three sizes is
-  // the actual range of content.
+  // Hover-panel widths were 300 / 320 / 340 / 360 / 380 / 460 — six widths for cards that hang off the same bar and are read the same way.
   readonly property QtObject panelWidth: QtObject {
     readonly property int narrow: root.space(320)
     readonly property int normal: root.space(360)
-    // Only for a panel that genuinely carries more: the weather panel's three
-    // data tiers plus the radar.
+    // Only for a panel that genuinely carries more: the weather panel's three data tiers plus the radar.
     readonly property int wide: root.space(460)
   }
 
-  // ---------------------------------------------------------- emphasis
-  //
-  // Four levels, because the UI only ever meant four. Swept from FOURTEEN
-  // distinct literal opacities (0.3 / 0.35 / 0.4 / 0.45 / 0.5 / 0.55 / 0.6 /
-  // 0.7 / 0.75 / 0.8 / 0.85 ...) that were all doing one of these jobs, chosen
-  // per call site by eye. Neighbouring panels ended up dimming the same kind of
-  // label by different amounts, which reads as sloppiness rather than as
-  // hierarchy.
+  // ---------------------------------------------------------- emphasis Four levels, because the UI only ever meant four.
   readonly property QtObject emphasis: QtObject {
     // Primary content.
     readonly property real strong: 1.0
@@ -218,23 +117,13 @@ QtObject {
     readonly property real dim: 0.7
     // Tertiary: captions, units, provenance, "nothing here" placeholders.
     readonly property real faint: 0.45
-    // Unavailable or not applicable — deliberately below faint so "off" is
-    // distinguishable from "quiet".
+    // Unavailable or not applicable — deliberately below faint so "off" is distinguishable from "quiet".
     readonly property real disabled: 0.3
   }
 
-  // ---------------------------------------------------------- spacing
-  //
-  // Margins, gaps, padding and the standard control/popup dimensions. The
-  // literals are the values tuned at the default size; `space()` carries
-  // them across a font-size change so a bigger base does not leave text
-  // pressed against chrome that stayed put.
-  //
-  // The padding scale below is the one bumped on 2026-09-04 for the
-  // "cramped" complaint. It is deliberately unchanged by the brutalist pass.
+  // ---------------------------------------------------------- spacing Margins, gaps, padding and the standard control/popup dimensions.
   readonly property QtObject spacing: QtObject {
-    // Hairline is a rendering constant, not a measurement — it stays one
-    // physical pixel at every scale.
+    // Hairline is a rendering constant, not a measurement — it stays one physical pixel at every scale.
     readonly property int hairline: 1
     readonly property int xxs: root.space(2)
     readonly property int xs: root.space(3)
@@ -264,32 +153,7 @@ QtObject {
     readonly property int popupPadding: root.space(16)
   }
 
-  // ---------------------------------------------------------- typography
-  //
-  // TWO families, and the split is load-bearing:
-  //
-  //   font.family     — UI/body text. User-selectable via theme.json.
-  //   font.iconFamily — every glyph in the shell. Pinned to a Nerd Font
-  //                     forever; theme.json cannot reach it.
-  //
-  // Why the split exists: "monospace" (or any user pick) resolves through
-  // fc-match to whatever the system has, which will not carry the Nerd Font
-  // icon codepoints the bar draws. Qt's fallback chain then silently
-  // substitutes some other installed font that happens to contain the
-  // codepoint — rendering a *different* glyph, not a missing one, with no
-  // QML error either way. One shared family property is why the font picker
-  // could not ship before Phase 2b.
-  //
-  // Both properties expose the fc-match-RESOLVED family, never the requested
-  // one. Previously `font.family` returned the request while
-  // `font.iconFamily` returned the resolution, so picking an uninstalled
-  // family made the bar (which read the resolved name) and every panel
-  // (which read the requested one) disagree about what they were rendering
-  // in. `requestedFamily` is kept for UI that needs to echo the choice back.
-  //
-  // NAMING NOTE, deviating from the roadmap: it prescribed `Style.font.ui` /
-  // `Style.font.icon`, but `font.icon` is already an int *size* token with
-  // many call sites. `family`/`iconFamily` avoids that collision.
+  // ---------------------------------------------------------- typography TWO families, and the split is load-bearing: font.family     — UI/body text.
   readonly property string fontFamily: Theme.fontFamily
   property string resolvedFontFamily: Theme.fontFamily
   readonly property string iconFontFamily: "0xProto Nerd Font"
@@ -301,19 +165,7 @@ QtObject {
     // Use this for anything that renders a glyph, never font.family.
     readonly property string iconFamily: root.resolvedIconFontFamily
 
-    // Steps, not ratios. A geometric scale collapses at these sizes — so
-    // the near-body steps are offsets from the base and only the display
-    // sizes are multiplied. At the default base of 12 this reproduces the
-    // hand-tuned scale exactly.
-    //
-    // CONSOLIDATED 2026-09-07 (was 8 steps, several 1px apart — read as
-    // incoherent): bodySmall and subtitle were 11px and 13px, one pixel each
-    // off the steps around them, and displayLarge was 28 vs display's 24.
-    // Each created a barely-distinguishable size that panels mixed into the
-    // same row, which is what made type feel "AI-generated" rather than
-    // deliberate. They're now aliased to the nearest surviving step — the
-    // token names stay so the ~200 call sites keep working, but only five
-    // rendered sizes remain: caption, body, title, heading, display.
+    // Steps, not ratios.
     readonly property int caption: Math.max(1, root.baseSize - 2)
     readonly property int bodySmall: caption  // was base-1; now one small step
     readonly property int body: root.baseSize
@@ -326,30 +178,18 @@ QtObject {
     readonly property int iconSmall: Math.max(1, root.baseSize - 1)
     readonly property int iconLarge: root.baseSize + 6
 
-    // Weight tokens. This is where hierarchy comes from now: one family, one
-    // size step or two, and the difference carried by weight. Named rather
-    // than using Font.Bold inline so a proportional user font (which may
-    // ship more weights than a mono one) has a single place to be tuned.
+    // Weight tokens.
     readonly property int weightNormal: Font.Normal
     readonly property int weightMedium: Font.Medium
     readonly property int weightBold: Font.Bold
   }
 
-  // Letter-spacing for uppercase section headers and other tracked-out
-  // labels. Widened for the brutalist pass — tracking plus weight is what
-  // separates a header from body text when everything shares one family.
-  // Scales with the base size so the optical spacing holds.
+  // Letter-spacing for uppercase section headers and other tracked-out labels.
   readonly property real headerTracking: 2.4 * scale
   // Display numerals (clock, big readouts) read tighter, not wider.
   readonly property real displayTracking: -0.5 * scale
 
-  // ---------------------------------------------------------- bar grid
-  //
-  // Fixed-width slots so bar icons/status text align on a grid instead of
-  // sizing to implicitWidth and drifting ragged as labels change length.
-  // Derived from the base size: a larger font in a 30px bar clips, so the
-  // bar has to grow with it. `exclusiveZone` follows automatically, which is
-  // what keeps Hyprland's reserved area correct.
+  // ---------------------------------------------------------- bar grid Fixed-width slots so bar icons/status text align on a grid instead of sizing to implicitWidth and drifting ragged as labels change length.
   readonly property QtObject bar: QtObject {
     readonly property int sizeHorizontal: root.space(30)
     readonly property int sizeVertical: root.space(30)
@@ -358,33 +198,16 @@ QtObject {
     readonly property int iconFont: root.baseSize + 2
     readonly property int statusSlot: root.space(22)
 
-    // ---- one rhythm for the whole bar ------------------------------------
-    //
-    // These three exist because the spacing used to come from two unrelated
-    // places and did not agree. An icon widget is an iconSlot (30) around an
-    // iconCanvas (16), i.e. 7px of padding a side. A text widget padded itself
-    // with `spacing.controlPaddingX` (12) a side. With the section's own 6px
-    // between them, two text widgets sat 30px apart and two icon widgets 6px
-    // apart — on the same row, supposedly evenly spaced.
-    //
-    // Now every bar widget pads itself by `itemPaddingX`, matched to the icon
-    // slot's own padding, and the section contributes `itemGap`. One number
-    // changes the density of the entire bar.
+    // ---- one rhythm for the whole bar ------------------------------------ These three exist because the spacing used to come from two unrelated places and did not agree.
     readonly property int itemPaddingX: Math.round((iconSlot - iconCanvas) / 2)
     readonly property int itemGap: root.space(2)
-    // Around a separator, so a group boundary reads as clearly wider than the
-    // gap between two widgets inside a group.
+    // Around a separator, so a group boundary reads as clearly wider than the gap between two widgets inside a group.
     readonly property int groupGap: root.space(10)
-    // Keeps a filled pill (the focused workspace) off the bar's top and bottom
-    // edges. Edge-to-edge it reads as a block of background rather than as a
-    // control sitting on the bar.
+    // Keeps a filled pill (the focused workspace) off the bar's top and bottom edges.
     readonly property int pillInset: root.space(4)
   }
 
-  // Mirrors hyprctl's general:gaps_out so panels can match the live Hyprland
-  // config without hardcoding it twice. decoration:rounding used to be read
-  // here too, into a `hyprlandRounding` property that nothing ever read —
-  // dropped along with its process.
+  // Mirrors hyprctl's general:gaps_out so panels can match the live Hyprland config without hardcoding it twice.
   property Process gapsOutProc: Process {
     id: gapsOutProc
     command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
@@ -403,10 +226,7 @@ QtObject {
     }
   }
 
-  // fc-match verification for the ICON family specifically. fc-match always
-  // answers with *something*, so a reply that is not the requested family
-  // means the Nerd Font is not installed and every glyph in the shell is
-  // about to be a silent substitution. Warn loudly rather than let it pass.
+  // fc-match verification for the ICON family specifically.
   property Process fcMatchIconProc: Process {
     command: ["fc-match", "-f", "%{family[0]}", root.iconFontFamily]
     stdout: StdioCollector {
@@ -423,9 +243,7 @@ QtObject {
     }
   }
 
-  // Separate resolve for the UI family, so a bad user font choice degrades
-  // the text only and cannot take the icons with it. Re-runs whenever
-  // theme.json changes the family.
+  // Separate resolve for the UI family, so a bad user font choice degrades the text only and cannot take the icons with it.
   property Process fcMatchUiProc: Process {
     stdout: StdioCollector {
       waitForEnd: true
@@ -441,17 +259,6 @@ QtObject {
   }
 
   // `command` is assigned here rather than bound to root.fontFamily.
-  //
-  // As a binding it raced: both `command` and onFontFamilyChanged depend on
-  // the same property, QML does not order a binding re-evaluation against a
-  // change handler, and the handler won — so the process launched with the
-  // PREVIOUS family and wrote that back as the resolved one. The symptom was
-  // a font switch resolving to the font you just switched away from, plus a
-  // bogus "not installed" warning naming the new family.
-  //
-  // The race was unreachable until now only because fontFamily used to be a
-  // literal in this file that a sed rewrote between runs; making the font
-  // live is what made an assign-then-run ordering necessary.
   function resolveUiFont() {
     fcMatchUiProc.running = false
     fcMatchUiProc.command = ["fc-match", "-f", "%{family[0]}", root.fontFamily]

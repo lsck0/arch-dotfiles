@@ -3,62 +3,30 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Audio spectrum source for the media visualizer: `cava` as a subprocess,
-// parsed from its raw ASCII output. Quickshell has no FFT primitive of its
-// own — `Quickshell.Services.Pipewire.PwNodePeakMonitor` gives real native
-// peak metering with no subprocess, but that is a single "how loud right
-// now" scalar, not per-band data, so it cannot drive distinct bars.
-//
-// Deliberately NOT a compiled C++ Quickshell plugin. caelestia ships one
-// (Caelestia.Services.CavaProvider), which means rebuilding a .so against
-// libcava and Quickshell headers on every Quickshell upgrade — a bad trade
-// for six rectangles.
-//
-// Lives in Commons/ rather than services/ because Commons is the only real
-// QML *module* here (`module qs.Commons` in its qmldir), and that is what
-// makes a singleton actually singular. The lowercase services/ directory
-// deliberately holds instances injected by shell.qml instead: relative-path
-// singleton imports were creating one copy per importer — see
-// services/BarWidgetRegistry.qml's header for that scar.
+// Audio spectrum source for the media visualizer: `cava` as a subprocess, parsed from its raw ASCII output.
 Singleton {
   id: root
 
   readonly property int barCount: 18
 
-  // 0-100 per band, matching ascii_max_range below so a value maps straight
-  // onto "percent of full bar height" with no scaling at the call site.
+  // 0-100 per band, matching ascii_max_range below so a value maps straight onto "percent of full bar height" with no scaling at the call site.
   property var values: [0, 0, 0, 0, 0, 0]
 
   property bool available: false
 
-  // The whole idle-CPU story. The Process does not exist — no PID, no
-  // polling, nothing — unless something is holding a reference. Take one
-  // with a CavaRef, never by touching refCount directly.
+  // The whole idle-CPU story.
   property int refCount: 0
 
   readonly property bool active: cavaProc.running
 
-  // Its own config, never ~/.config/cava/config: this must not collide with
-  // a terminal cava setup the user may keep separately.
+  // Its own config, never ~/.config/cava/config: this must not collide with a terminal cava setup the user may keep separately.
   readonly property string confPath:
     (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-cava.conf"
 
-  // WHICH audio to analyse. Empty means cava's own default, which is the
-  // default sink's monitor — everything the speakers play, mixed. That is the
-  // wrong answer whenever more than one thing makes noise: with music in
-  // Firefox and a Discord call open, the bars followed whoever was talking
-  // instead of the track the widget names right next to them.
-  //
-  // Set it to a PipeWire node name and cava targets that node instead.
-  // `source` becomes PW_KEY_TARGET_OBJECT, and PipeWire will happily link a
-  // capture stream to another *stream's* output ports, which is what makes
-  // per-application capture work at all — verified with `pw-link -l` showing
-  // `cava:input_FL <- Firefox:output_FL`.
+  // WHICH audio to analyse.
   property string source: ""
 
-  // Changing `source` rewrites configText, but a running cava has already
-  // read its config file, so the process has to come back for the change to
-  // mean anything. `running` is a binding, so it is restored as one.
+  // Changing `source` rewrites configText, but a running cava has already read its config file, so the process has to come back for the change to mean anything.
   onSourceChanged: restart()
 
   function restart() {
@@ -67,18 +35,7 @@ Singleton {
     cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 })
   }
 
-  // sensitivity=300 with autosens=0 was measured, not guessed. Feeding
-  // music-shaped noise through a null sink: sensitivity 30 (the value in
-  // the research doc, inherited from DankMaterialShell, which re-normalises
-  // in QML afterwards) peaked at 7/100 — a visualizer that never visibly
-  // moves. 100 peaked at ~24, 300 at ~65, 450 clipped at 100. 300 leaves
-  // headroom for louder material while still filling most of the bar.
-  //
-  // autosens stays 0 on purpose: automatic gain makes the bars visibly
-  // recalibrate every time playback starts or stops.
-  //
-  // sleep_timer=3 is what makes cava itself go quiet after 3s of silence,
-  // so idle CPU does not depend on QML noticing silence.
+  // sensitivity=300 with autosens=0 was measured, not guessed.
   readonly property string configText:
     "[general]\n" +
     "framerate=25\n" +
@@ -125,8 +82,7 @@ Singleton {
     id: cavaProc
     running: root.available && root.refCount > 0
 
-    // The config text is passed as an argv element rather than heredoc'd
-    // into the script, so nothing in it can be re-interpreted by the shell.
+    // The config text is passed as an argv element rather than heredoc'd into the script, so nothing in it can be re-interpreted by the shell.
     command: ["sh", "-c",
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",
       "sh", root.configText, root.confPath]
@@ -137,9 +93,7 @@ Singleton {
       splitMarker: "\n"
       onRead: function (data) {
         if (root.refCount <= 0 || !data) return
-        // cava emits a TRAILING semicolon, so a 6-bar frame splits into 7
-        // parts with the last one empty. Read by index rather than
-        // trusting the part count to equal barCount.
+        // cava emits a TRAILING semicolon, so a 6-bar frame splits into 7 parts with the last one empty.
         var parts = data.split(";")
         if (parts.length < root.barCount) return
         var out = []

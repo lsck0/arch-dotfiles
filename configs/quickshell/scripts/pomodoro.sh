@@ -1,24 +1,5 @@
 #!/bin/bash
-# Pomodoro timer, built the same way scripts/reminder.sh is: the phase
-# countdown lives in a `systemd-run --user` transient timer, not in the
-# shell. That means the "your 25 minutes are up" notification still fires if
-# quickshell is restarted or crashes mid-session, and the whole thing is
-# usable from a keybind or menu.sh with no GUI at all.
-#
-# Each phase arms the NEXT phase when it fires, rather than arming the whole
-# cycle up front. Verified that a --collect transient unit can spawn another
-# systemd-run unit as it exits (a chain of three fired correctly); doing it
-# this way is what makes `skip` and `pause` simple, since only one timer is
-# ever outstanding.
-#
-# AccuracySec=1s matters here. systemd's default timer accuracy is 1 minute,
-# and it coalesces wakeups: measured, a 5s timer fired 10s later without
-# this. Irrelevant for a reminder, very noticeable on a 5-minute break.
-#
-# State lives in XDG_RUNTIME_DIR (tmpfs) on purpose: a pomodoro is session
-# state, and a stale "you are 12 minutes into a work phase" surviving a
-# reboot would be a lie. Same reasoning as toggle_get_volatile in
-# toggles/lib.sh.
+# Pomodoro timer, built the same way scripts/reminder.sh is: the phase countdown lives in a `systemd-run --user` transient timer, not in the shell.
 
 # omarchy:summary=Pomodoro work/break timer with desktop notifications
 # omarchy:args=start [work] [break] | stop | pause | resume | skip | status [-j|--json]
@@ -29,20 +10,11 @@ set -euo pipefail
 SELF=$(readlink -f "$0")
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-pomodoro"
 STATE="$STATE_DIR/state.json"
-# Each armed phase gets its OWN unit name. Reusing one fixed name looked
-# fine until a phase actually rolled over: the firing unit is itself
-# `quickshell-pomodoro.service`, so the `cancel_timer` inside `arm` stopped
-# the very service that was mid-`_advance` — it killed itself before it
-# could arm the next phase. The journal showed "Started ... _advance" and
-# "Stopping ... _advance" in the same second, state advanced to `break`, and
-# no timer existed. Unique names, and only ever stopping *.timer units, make
-# that impossible.
+# Each armed phase gets its OWN unit name.
 UNIT_PREFIX=quickshell-pomodoro
 GLYPH="󰔟"
 
-# Classic pomodoro: 25 work, 5 short break, 15 long break after every 4th
-# work phase. Overridable on `start`, deliberately not configurable anywhere
-# else — the SPEC asks for a pomodoro, not a pomodoro settings screen.
+# Classic pomodoro: 25 work, 5 short break, 15 long break after every 4th work phase.
 DEF_WORK=25
 DEF_BREAK=5
 DEF_LONG=15
@@ -52,11 +24,7 @@ mkdir -p "$STATE_DIR"
 
 now() { date +%s; }
 
-# Two tiers on purpose. `notify` is for confirmations you do not need to
-# act on (started, paused, stopped) — an ordinary toast. `alert` is for a
-# phase actually elapsing, which is the whole point of running a pomodoro:
-# it plays a sound and puts up the manually-dismissed top-right card, so a
-# finished focus block cannot quietly expire while you are heads-down.
+# Two tiers on purpose.
 ALERT="$(dirname "$SELF")/alert.sh"
 
 notify() {
@@ -77,8 +45,7 @@ write_state() {
           remaining:$remaining,work:$work,break:$brk,long:$long}' >"$STATE"
 }
 
-# Stops outstanding *timers* only, never .service units: when this runs
-# from inside a firing phase, that phase's own service is still executing.
+# Stops outstanding *timers* only, never .service units: when this runs from inside a firing phase, that phase's own service is still executing.
 cancel_timer() {
     local t
     while read -r t; do
@@ -155,8 +122,7 @@ resume() {
     notify "Pomodoro resumed" "$(fmt "$remaining") left"
 }
 
-# Advance to the next phase. Called both by the firing timer (which is why
-# it is a real subcommand rather than an internal function) and by `skip`.
+# Advance to the next phase.
 advance() {
     [[ "$(jqs '.running')" == "true" ]] || exit 0
     local phase cycle work brk long next next_min

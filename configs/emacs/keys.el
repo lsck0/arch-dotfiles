@@ -51,11 +51,7 @@
       (eat-emacs-mode)
     (evil-normal-state)))
 
-;;;; ------------------------------------------------------------------------
-;;;; tmux layer: C-q
-;;;; ------------------------------------------------------------------------
-;; tmux "pane" -> Emacs window, tmux "window" -> tab-bar tab. The popups tmux
-;; opens with external TUIs map to the Emacs equivalent of the same tool.
+; ;;; ------------------------------------------------------------------------ ;;; tmux layer: C-q ;;; ------------------------------------------------------------------------ ; tmux "pane" -> Emacs window, tmux "window" -> tab-bar tab.
 
 (defvar my/tmux-map (make-sparse-keymap)
   "Bindings under the tmux prefix C-q.")
@@ -101,9 +97,7 @@
  "M-K" #'windmove-up
  "M-L" #'windmove-right)
 
-;;;; ------------------------------------------------------------------------
-;;;; nvim layer: bare maps
-;;;; ------------------------------------------------------------------------
+; ;;; ------------------------------------------------------------------------ ;;; nvim layer: bare maps ;;; ------------------------------------------------------------------------
 
 ;; C-s save, C-c leave insert, Esc clear search highlight
 (general-def 'global "C-s" #'save-buffer)
@@ -134,8 +128,7 @@
   "C-t"   #'flymake-goto-next-error
   "C-S-t" #'flymake-goto-prev-error)
 
-;; tabs + terminal. NOTE: M-x is nvim's tabclose, so the command palette moved
-;; to SPC : (and C-q is free of it entirely).
+; ; tabs + terminal.
 (general-def 'global
   "M-t" #'my/eat-tab
   "M-x" #'tab-bar-close-tab
@@ -146,13 +139,10 @@
   "M-4" (lambda () (interactive) (tab-bar-select-tab 4))
   "M-5" (lambda () (interactive) (tab-bar-select-tab 5)))
 
-;; nvim binds bare `m` to compile-mode (not mark-set); mode maps such as
-;; dired's `m` still win, because they are more specific.
+; ; nvim binds bare `m` to compile-mode (not mark-set); mode maps such as ; dired's `m` still win, because they are more specific.
 (general-nmap "m" #'compile)
 
-;;;; ------------------------------------------------------------------------
-;;;; nvim layer: SPC leader
-;;;; ------------------------------------------------------------------------
+; ;;; ------------------------------------------------------------------------ ;;; nvim layer: SPC leader ;;; ------------------------------------------------------------------------
 
 (general-create-definer my/leader
   :states '(normal visual)
@@ -173,8 +163,7 @@
   "g" #'magit-status                     ; fugitive
   "t" #'consult-flymake                  ; trouble
 
-  ;; spectre. SPC s cannot be both a command and a prefix, so the
-  ;; word-under-cursor variant (nvim SPC sw) is SPC S.
+  ; ; spectre.
   "s" #'project-query-replace-regexp
   "S" #'my/replace-symbol
 
@@ -186,6 +175,16 @@
   "fr" #'consult-recent-file
   "f*" #'my/grep-string
 
+  ;; claude (leader c in nvim); more under claude-code's own transient
+  "cc" #'claude-code
+  "ct" #'claude-code-toggle
+
+  ;; jupyter cells (leader j in nvim)
+  "je" #'code-cells-eval
+  "jn" #'code-cells-forward-cell
+  "jp" #'code-cells-backward-cell
+  "jm" #'code-cells-eval-above
+
   ;; lsp
   "ld" #'xref-find-definitions
   "lf" #'xref-find-references
@@ -196,9 +195,7 @@
   "lo" #'flymake-show-buffer-diagnostics
   "ln" #'flymake-goto-next-error)
 
-;;;; ------------------------------------------------------------------------
-;;;; package-local maps
-;;;; ------------------------------------------------------------------------
+; ;;; ------------------------------------------------------------------------ ;;; package-local maps ;;; ------------------------------------------------------------------------
 
 ;; mini.surround: add / delete / replace. evil-surround's own ys/ds/cs stay live.
 (with-eval-after-load 'evil-surround
@@ -229,9 +226,7 @@
     "C-e"   #'corfu-quit
     "RET"   #'corfu-insert))
 
-;; oil.nvim movement inside dired. Backspace goes up too, overriding dired's
-;; own DEL (dired-unmark-backward); bind both spellings so it works in a GUI
-;; frame and in -nw.
+; ; oil.nvim movement inside dired.
 (with-eval-after-load 'dired
   (evil-define-key 'normal dired-mode-map
     "h" #'dired-up-directory

@@ -4,14 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Claude Code usage, the same numbers the TRMNL plugin puts on the e-ink
-// display: agent-usage.py runs configs/trmnl-claude's vendored script in
-// --dry-run and hands over the payload it would have posted.
-//
-// This widget used to sum today's tokens out of ~/.claude/projects and say in
-// its tooltip that the plan-limit percentages were out of reach. They are not
-// any more, so the session and weekly limits are the headline and everything
-// else hangs off them.
+// Claude Code usage, the same numbers the TRMNL plugin puts on the e-ink display: agent-usage.py runs configs/trmnl-claude's vendored script in --dry-run and hands over the payload it would have posted.
 BarWidget {
   id: root
   moduleName: "agents"
@@ -54,9 +47,7 @@ BarWidget {
     }
   }
 
-  // The script asks the API for the rate-limit headers, so this is a poll with
-  // a cost, small as it is. Ten minutes is well inside how fast a five-hour
-  // session window moves.
+  // The script asks the API for the rate-limit headers, so this is a poll with a cost, small as it is.
   Timer {
     interval: 10 * 60 * 1000
     running: true
@@ -104,8 +95,7 @@ BarWidget {
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
-  // Label, value, and an optional bar drawn behind them. Same treatment as the
-  // homelab panel's incoming lists, so the two read the same way.
+  // Label, value, and an optional bar drawn behind them.
   component BarRow: Item {
     id: barRow
     property string label: ""

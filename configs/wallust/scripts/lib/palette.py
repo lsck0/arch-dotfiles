@@ -23,9 +23,7 @@ the palette rather than trusting it is what makes any wallpaper safe.
 # WCAG AA for body text. Everything that has text drawn on it is held to this.
 TEXT_RATIO = 4.5
 
-# The value band a background is forced into. Matches Theme.qml's
-# backgroundValueMin/Max defaults so the shell and everything themed from here
-# agree about how dark "dark" is.
+# The value band a background is forced into.
 BG_VALUE_MIN = 0.08
 BG_VALUE_MAX = 0.26
 
@@ -150,8 +148,7 @@ def dim_toward(fg, bg, ratio=2.6):
     return out
 
 
-# Canonical hues for the roles that carry MEANING rather than style, in the
-# 0..1 hue space used here: red ~0, amber ~0.11, green ~0.33.
+# Canonical hues for the roles that carry MEANING rather than style, in the 0..1 hue space used here: red ~0, amber ~0.11, green ~0.33.
 SEMANTIC_HUES = {"error": 0.0, "warn": 0.11, "ok": 0.33}
 
 

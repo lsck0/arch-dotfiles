@@ -8,20 +8,13 @@ QtObject {
   id: registry
 
   property string home: Quickshell.env("HOME")
-  // Deliberately outside ~/.config/quickshell: that path is a symlink into
-  // this git-tracked repo (configs/quickshell/link.sh), so a third-party
-  // plugin dropped there would land inside dotfiles version control by
-  // accident. This repo has no third-party plugin ecosystem yet, but the
-  // scan/watch mechanism below is real and works the moment one exists.
+  // Deliberately outside ~/.config/quickshell: that path is a symlink into this git-tracked repo (configs/quickshell/link.sh), so a third-party plugin dropped there would land inside dotfiles version control by accident.
   property string pluginsDir: home + "/.local/share/quickshell/plugins"
 
   // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
 
-  // Wired by shell.qml so the registry can read the canonical shell.json
-  // without owning file IO itself. shellConfigProvider returns the current
-  // effective shell config; shellConfigMutator takes a function that receives
-  // a deep-cloned config it can mutate in place and persists the result.
+  // Wired by shell.qml so the registry can read the canonical shell.json without owning file IO itself.
   property var shellConfigProvider: null
   property var shellConfigMutator: null
 
@@ -82,9 +75,7 @@ QtObject {
         return null
       }
     }
-    // Every entry point must be a relative path inside the plugin's source
-    // directory. Reject the whole manifest if anything looks like an attempt
-    // to escape the plugin's sandbox.
+    // Every entry point must be a relative path inside the plugin's source directory.
     for (var key in manifest.entryPoints) {
       if (!isSafeEntryPoint(manifest.entryPoints[key])) {
         console.warn("PluginRegistry: unsafe entryPoint '" + key + "'='"
@@ -101,8 +92,7 @@ QtObject {
     if (!ep) return ""
     var dir = manifest.__sourceDir || ""
     if (!dir) return ""
-    // Defense in depth: even after validateManifest, confirm the resolved
-    // path stays inside the plugin's sourceDir.
+    // Defense in depth: even after validateManifest, confirm the resolved path stays inside the plugin's sourceDir.
     var resolved = dir.replace(/\/$/, "") + "/" + String(ep)
     var expectedPrefix = dir.replace(/\/$/, "") + "/"
     if (resolved.indexOf(expectedPrefix) !== 0) {
@@ -112,19 +102,7 @@ QtObject {
     return Util.fileUrl(resolved)
   }
 
-  // Enabled = the plugin id is referenced somewhere in shell.json. That can
-  // be either the active bar option in `bar.id`, a layout entry inside
-  // `bar.layout.*` (bar widgets), or a top-level entry in `plugins[]` (panels,
-  // overlays, services).
-  //
-  // Special cases (implicitly always enabled, no shell.json entry needed):
-  //   - the built-in bar option (`omarchy.bar`) is active when `bar.id` is
-  //     missing or set to `omarchy.bar`.
-  //   - first-party non-bar plugins are shell infrastructure (settings,
-  //     image-picker, ...). Requiring users to add them to plugins[] just to
-  //     summon them was a footgun: a stock shell.json with `plugins: []` would
-  //     silently make `omarchy launch bar-settings` a no-op. Turning one off
-  //     is therefore recorded the other way round, in `disabledPlugins[]`.
+  // Enabled = the plugin id is referenced somewhere in shell.json.
   function isEnabled(id) {
     var key = String(id)
     var manifest = installedPlugins[key]
@@ -152,8 +130,7 @@ QtObject {
 
   function resolveEnabledId(id) {
     var key = Util.canonicalWidgetId(String(id || ""))
-    // Callers keep using the built-in id after cloning; the enabled local
-    // manifest is the implementation that should receive the call.
+    // Callers keep using the built-in id after cloning; the enabled local manifest is the implementation that should receive the call.
     for (var candidate in installedPlugins) {
       var manifest = installedPlugins[candidate]
       var metadata = manifest && Util.isPlainObject(manifest.omarchy) ? manifest.omarchy : null
@@ -163,11 +140,7 @@ QtObject {
     return key
   }
 
-  // A bar widget is on when it sits in the bar, whoever shipped it. That is a
-  // different question from isEnabled(), which decides whether the widget's
-  // component is loaded at all — a built-in stays loadable so it can be put
-  // back, and so a plugin that is both a widget and a menu (omarchy.menu)
-  // cannot be locked out of the shell by taking its button off the bar.
+  // A bar widget is on when it sits in the bar, whoever shipped it.
   function inBar(id) {
     var config = shellConfigProvider ? shellConfigProvider() : null
     return findEntryLocation(config, id).kind === "bar"
@@ -200,8 +173,7 @@ QtObject {
     return { found: false }
   }
 
-  // A caller naming a widget that has been cloned means the clone that took
-  // its place, the way resolveEnabledId routes calls to it.
+  // A caller naming a widget that has been cloned means the clone that took its place, the way resolveEnabledId routes calls to it.
   function findRelativeBarLocation(config, id, section) {
     var location = findBarLocation(config, id, section)
     if (location.found) return location
@@ -298,16 +270,13 @@ QtObject {
     return ""
   }
 
-  // put is the unattended verb: where enable errors, it falls back, and it
-  // leaves a widget that is already on the bar where its owner put it.
+  // put is the unattended verb: where enable errors, it falls back, and it leaves a widget that is already on the bar where its owner put it.
   function putBarWidget(id, placement) {
     if (inBar(id)) return ""
     var config = shellConfigProvider ? shellConfigProvider() : null
-    // Enabling a source whose clone is active switches back to the built-in,
-    // which is the owner's call, not an unattended caller's.
+    // Enabling a source whose clone is active switches back to the built-in, which is the owner's call, not an unattended caller's.
     if (findRelativeBarLocation(config, id, "").found) return ""
-    // The manifest scan is a subprocess and IPC answers before it returns, so
-    // an id it has not reached yet is not one that does not exist.
+    // The manifest scan is a subprocess and IPC answers before it returns, so an id it has not reached yet is not one that does not exist.
     if (scanning && !installedPlugins[Util.canonicalWidgetId(String(id))]) return "not ready"
     var target = Util.isPlainObject(placement) ? Util.cloneJson(placement) : {}
     var relativeId = String(target.before || target.after || "")
@@ -376,11 +345,7 @@ QtObject {
     if (!Array.isArray(config.plugins)) config.plugins = []
   }
 
-  // Bar widgets use the default section declared in their manifest, falling
-  // back to center. Panels/overlays/menus/services go into the plugins[] array.
-  // Built-ins are already loaded, so shell.json only ever records the
-  // deviation: an added third-party plugin in plugins[], a switched-off
-  // built-in in disabledPlugins[].
+  // Bar widgets use the default section declared in their manifest, falling back to center.
   function removeDisabled(config, id) {
     if (!Array.isArray(config.disabledPlugins)) return
     config.disabledPlugins = config.disabledPlugins.filter(function(entry) { return entry !== id })
@@ -538,8 +503,7 @@ QtObject {
       else if (location.kind === "bar") config.bar.layout[location.section].splice(location.index, 1)
       else if (location.kind === "plugin") config.plugins.splice(location.index, 1)
 
-      // Dropping the layout entry is the whole story for a widget. Anything
-      // else built-in loads by default, so switching it off has to be stated.
+      // Dropping the layout entry is the whole story for a widget.
       if (isFirstParty && !isBarWidget) addDisabled(config, key)
     })
     if (lastEnableError) return false
@@ -603,9 +567,7 @@ QtObject {
 
     var merged = {}
     for (var fk in firstParty) merged[fk] = firstParty[fk]
-    // Third-party plugins never shadow first-party ids. The whole
-    // `omarchy.*` namespace is reserved for built-ins, including bar widgets
-    // registered outside the manifest-based plugin registry.
+    // Third-party plugins never shadow first-party ids.
     for (var tk in thirdParty) {
       if (firstParty[tk] || String(tk).indexOf("omarchy.") === 0) {
         console.warn("PluginRegistry: plugin " + tk
@@ -669,13 +631,7 @@ QtObject {
   function rescan() {
     if (scanning) return
     scanning = true
-    // $0 = first-party dir, $1 = third-party dir. Some bash versions need the explicit -- separator.
-    // First-party plugins may be grouped one level deeper, e.g. panels/audio
-    // or services/battery.
-    // First-party bar widgets can also carry sibling manifests such as
-    // widgets/Clock.manifest.json so multiple widgets can live in one source
-    // directory without wrapper folders.
-    // Third-party plugins stay at the top level of ~/.config/omarchy/plugins.
+    // $0 = first-party dir, $1 = third-party dir.
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "
@@ -685,11 +641,7 @@ QtObject {
       + "}; "
       + "scan_firstparty() { local dir=\"$1\"; "
       + "  [[ -d \"$dir\" ]] || return 0; "
-      // -L: this repo's plugins dir is reached through a symlink chain
-      // (~/.config/quickshell/plugins -> configs/quickshell/plugins), and
-      // plain `find` does not descend into a symlinked starting path the
-      // way -mindepth/-maxdepth here need — confirmed directly: identical
-      // command found 0 manifests without -L, all 16 with it.
+      // -L: this repo's plugins dir is reached through a symlink chain (~/.config/quickshell/plugins -> configs/quickshell/plugins), and plain `find` does not descend into a symlinked starting path the way -mindepth/-maxdepth here need — confirmed directly: identical command found 0 manifests without -L, all 16 with it.
       + "  while IFS= read -r manifest; do emit_manifest firstparty \"$manifest\"; done < <(find -L \"$dir\" -mindepth 2 -maxdepth 3 -type f \\( -name manifest.json -o -name '*.manifest.json' \\) | sort); "
       + "}; "
       + "scan_thirdparty() { local dir=\"$1\"; "

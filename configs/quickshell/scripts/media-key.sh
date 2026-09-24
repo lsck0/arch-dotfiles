@@ -1,25 +1,5 @@
 #!/usr/bin/env bash
 # Volume / microphone / brightness keys, routed through the shell.
-#
-# WHY THIS EXISTS. The media keys used to call `pactl` and `brightnessctl`
-# directly from hyprland_keybindings.lua. Two problems with that:
-#
-#   1. **A live bug.** The volume binds were `pactl set-sink-volume 0 …` — a
-#      HARDCODED SINK INDEX, not the default sink. On this machine the only
-#      sink is index 58, so `0` was already wrong; it happened to resolve
-#      because there is exactly one sink. Plug in Bluetooth headphones or an
-#      HDMI display and the volume keys start adjusting whichever device
-#      pactl picks, not the one you are listening to. `@DEFAULT_SINK@` is
-#      both correct and self-documenting.
-#
-#   2. The shell had to *infer* the change second-hand. The OSD is now driven
-#      by the same action that makes the change, so it can never disagree
-#      with reality or lag behind it.
-#
-# DUAL-BINDING PRINCIPLE (from end-4's shells): the raw action always runs
-# first and never depends on the shell. If quickshell is dead the volume
-# still changes — you just do not get the OSD. A broken shell must not cost
-# you your volume keys.
 
 # omarchy:summary=Adjust volume/mic/brightness/keyboard backlight and show the OSD
 # omarchy:args=volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle
@@ -31,16 +11,7 @@ STEP_VOL=5
 STEP_BRI=5
 QS_CONFIG="$HOME/.config/quickshell"
 
-# Speaks the OSD's OWN vocabulary rather than passing raw glyphs:
-# OsdModel.js's iconFor() maps semantic names ("volume", "volume-muted",
-# "brightness", "microphone-muted", …) to glyphs itself, so the icon set
-# stays owned in one place instead of being duplicated here.
-#
-# The progress-bar contract is easy to get wrong: OsdModel gives you a bar
-# only when a value is present AND the message is EMPTY (it then renders the
-# percentage as the message itself). Passing both a message and a value
-# silently yields a text-only OSD with no bar — which is exactly what the
-# first version of this script did.
+# Speaks the OSD's OWN vocabulary rather than passing raw glyphs: OsdModel.js's iconFor() maps semantic names ("volume", "volume-muted", "brightness", "microphone-muted", …) to glyphs itself, so the icon set stays owned in one place instead of being duplicated here.
 osd_value() { # semantic-icon, value  -> progress bar
     timeout 2 quickshell ipc -p "$QS_CONFIG" call osd present \
         "$(jq -cn --arg i "$1" --argjson v "$2" '{icon:$i, value:$v}')" >/dev/null 2>&1 || true
@@ -63,20 +34,7 @@ brightness_pct() {
     ((max > 0)) && echo $(( cur * 100 / max )) || echo 0
 }
 
-# --- keyboard backlight -----------------------------------------------------
-#
-# A separate device class from the display backlight, and a coarse one: a
-# ThinkPad's tpacpi::kbd_backlight has max_brightness 2, so this is a
-# three-position switch (off / dim / bright), not a percentage. It is driven
-# in raw steps rather than `N%+` for exactly that reason — `5%+` on a 0-2
-# device rounds to zero and the key does nothing at all.
-#
-# The device name is vendor-specific (tpacpi::/asus::/dell::kbd_backlight), so
-# it is discovered; machines with none get a no-op that says so.
-#
-# Written through brightnessctl, not straight to sysfs: /sys/class/leds/*/
-# brightness is root-owned 644, and brightnessctl goes through logind to get
-# the write. No udev rule or suid bit needed.
+# --- keyboard backlight ----------------------------------------------------- A separate device class from the display backlight, and a coarse one: a ThinkPad's tpacpi::kbd_backlight has max_brightness 2, so this is a three-position switch (off / dim / bright), not a percentage.
 kbd_device() {
     local d
     for d in /sys/class/leds/*kbd_backlight*; do
@@ -93,8 +51,7 @@ kbd_osd() { # raw level, raw max
     local cur=$1 max=$2 pct
     ((max > 0)) || return
     pct=$(( cur * 100 / max ))
-    # Below the bar: at max_brightness 2 there are only three states, and a
-    # bare "50%" reads as a continuous dimmer it is not.
+    # Below the bar: at max_brightness 2 there are only three states, and a bare "50%" reads as a continuous dimmer it is not.
     if ((cur == 0)); then
         osd_text "keyboard-backlight-off" "Keyboard light off"
     else
@@ -108,8 +65,7 @@ volume-up|volume-down)
         pactl set-sink-volume @DEFAULT_SINK@ "+${STEP_VOL}%" >/dev/null 2>&1
         # pactl will happily go past 100% and clip.
         v=$(sink_volume); [[ -n "${v:-}" && "$v" -gt 100 ]] && pactl set-sink-volume @DEFAULT_SINK@ 100% >/dev/null 2>&1
-        # Raising the volume unmutes: pressing volume-up on a muted sink and
-        # having nothing audible happen is the wrong behaviour.
+        # Raising the volume unmutes: pressing volume-up on a muted sink and having nothing audible happen is the wrong behaviour.
         pactl set-sink-mute @DEFAULT_SINK@ 0 >/dev/null 2>&1
     else
         pactl set-sink-volume @DEFAULT_SINK@ "-${STEP_VOL}%" >/dev/null 2>&1
@@ -147,14 +103,11 @@ kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle)
     case "$1" in
     kbd-backlight-up)     next=$(( cur + 1 )); ((next > max)) && next=$max ;;
     kbd-backlight-down)   next=$(( cur - 1 )); ((next < 0)) && next=0 ;;
-    # Cycle rather than on/off: on a three-position switch, a toggle that only
-    # ever visits 0 and max skips the dim setting entirely.
+    # Cycle rather than on/off: on a three-position switch, a toggle that only ever visits 0 and max skips the dim setting entirely.
     kbd-backlight-toggle) next=$(( (cur + 1) % (max + 1) )) ;;
     esac
     kbd_set "$dev" "$next"
-    # $next, not a re-read: it is already clamped to [0,max] and brightnessctl
-    # set is synchronous, so reading the device back would cost two more
-    # brightnessctl invocations per keypress to learn what we just wrote.
+    # $next, not a re-read: it is already clamped to [0,max] and brightnessctl set is synchronous, so reading the device back would cost two more brightnessctl invocations per keypress to learn what we just wrote.
     kbd_osd "$next" "$max"
     ;;
 *)

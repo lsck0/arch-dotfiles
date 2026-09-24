@@ -1,35 +1,12 @@
 #!/usr/bin/env bash
-# Downloads a short precipitation-radar loop centred on the current location
-# and prints a manifest of LOCAL FILE PATHS for Weather.qml to animate.
-#
-# WHY IT DOWNLOADS INSTEAD OF HANDING QML A URL. Every radar URL carries the
-# centre coordinate in its path. If the widget loaded the URL itself, the
-# location would be in the QML — the exact thing weather-fetch.sh's whitelist
-# exists to prevent, reintroduced through a different door. The frames are
-# fetched here and the widget is given file paths and relative timestamps, so
-# the same structural guarantee holds for radar as for the forecast.
-#
-# NO BASEMAP, DELIBERATELY. RainViewer serves transparent overlays; the usual
-# treatment is to composite them over a street map. That would draw the user's
-# own town under the rain — a screenshot of this panel would reveal the
-# location outright, which is precisely what the SPEC forbids. The loop is
-# shown over a flat surface with a centre marker instead: you can read where
-# the rain is relative to you without the image saying where "you" is.
-#
-# Sources, both keyless:
-#   DWD GeoServer WMS (Germany and surroundings): keeps three days of 5-minute
-#   RV composites, so it can serve the full four hours of history.
-#   RainViewer's public API everywhere else: its index only lists the last two
-#   hours and older frame paths return 410, so the loop is shorter there.
-#   {host}{path}/{size}/{z}/{lat}/{lon}/{colour}/{smooth}_{snow}.png
+# Downloads a short precipitation-radar loop centred on the current location and prints a manifest of LOCAL FILE PATHS for Weather.qml to animate.
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/radar"
 MANIFEST="$CACHE_DIR/manifest.json"
 
-# z=7 is roughly a 400 km square at mid latitudes: wide enough to see weather
-# arriving, tight enough that a front is not one undifferentiated smear.
+# z=7 is roughly a 400 km square at mid latitudes: wide enough to see weather arriving, tight enough that a front is not one undifferentiated smear.
 ZOOM=7
 SIZE=512
 # 4 = the "Universal Blue" palette; 1_1 = smoothed, snow shown separately.
@@ -38,15 +15,12 @@ OPTIONS=1_1
 # Four hours of history at ten-minute steps.
 HISTORY_MIN=240
 STEP_MIN=10
-# The upstream index only advances every ten minutes, so refetching sooner
-# re-downloads identical PNGs.
+# The upstream index only advances every ten minutes, so refetching sooner re-downloads identical PNGs.
 MAX_AGE=540
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
-# Serve the cached manifest when it is still current. Weather.qml refreshes on
-# hover, and hovering the widget five times in a minute must not mean sixty
-# image downloads.
+# Serve the cached manifest when it is still current.
 if [[ -s "$MANIFEST" ]]; then
     age=$(( $(date +%s) - $(stat -c %Y "$MANIFEST" 2>/dev/null || echo 0) ))
     if (( age >= 0 && age < MAX_AGE )); then
@@ -75,8 +49,6 @@ fi
 mkdir -p "$CACHE_DIR" || fail "cache unavailable"
 
 # Emit the frames to fetch as "<index> <unix-ts> <url> <is-forecast>" lines.
-# Both providers are framed on the same web-mercator square (zoom, size and
-# centre), so spanKm and the wind field overlay stay aligned whichever serves.
 PLAN=$(python3 - "$PROVIDER" "$INDEX" "$HISTORY_MIN" "$STEP_MIN" "$SIZE" "$ZOOM" "$LAT" "$LON" "$COLOUR" "$OPTIONS" <<'PY'
 import json, math, sys, time, urllib.parse
 provider, index = sys.argv[1], sys.argv[2]
@@ -124,24 +96,6 @@ PY
 [[ -z "$PLAN" ]] && fail "bad index"
 
 # EACH REFRESH GETS ITS OWN FRAME DIRECTORY, AND THE MANIFEST IS THE SWITCH.
-#
-# The first version deleted every frame before downloading the new ones, so for
-# the length of a refresh the cache held nothing and a panel opened in that
-# window showed "Loading radar…" over a loop that had been perfectly good a
-# second earlier.
-#
-# Staging into a scratch dir and then moving the files into the live directory
-# did not actually fix that: the move still had to `rm` the old frames first,
-# because the live paths are the same on every run. The window shrank from
-# "the whole download" to "the length of an rm plus twelve renames", but a
-# reader landing inside it still saw a half-populated loop, and the manifest
-# pointed at files that were being deleted underneath it.
-#
-# So the frames are never overwritten at all. Every run writes to a directory
-# named after its own timestamp, and the manifest — renamed into place, which
-# IS atomic on one filesystem — is what decides which generation is live. A
-# reader either sees the whole previous loop or the whole new one. Superseded
-# generations are removed only after the manifest no longer names them.
 NOW=$(date +%s)
 
 STAGE="$CACHE_DIR/f-$NOW"
@@ -149,11 +103,7 @@ export STAGE
 rm -rf "$STAGE"
 mkdir -p "$STAGE" || fail "cache unavailable"
 
-# DOWNLOADED IN PARALLEL. Two dozen frames fetched one after another is as many
-# round trips end to end — the single biggest reason a cold radar took as long
-# as it did. They are independent files from one CDN, so there is no ordering to
-# preserve; -P 6 keeps it civil while cutting the wall time to roughly the
-# slowest frame rather than the sum of all of them.
+# DOWNLOADED IN PARALLEL.
 while read -r idx ts path is_forecast; do
     [[ -z "${path:-}" ]] && continue
     printf '%s\t%s\t%s\t%s\n' "$idx" "$ts" "$path" "$is_forecast"
@@ -163,14 +113,12 @@ done <<<"$PLAN" > "$STAGE/.plan"
 < "$STAGE/.plan" cut -f1,3 | xargs -P 6 -n 2 bash -c '
     out=$(printf "%s/frame-%02d.png" "$STAGE" "$0")
     curl -sf --max-time 15 -o "$out" "$1" 2>/dev/null || exit 0
-    # A truncated body or an error page is not a usable frame; drop it rather
-    # than letting the widget render a hole in the middle of the loop.
+    # A truncated body or an error page is not a usable frame; drop it rather than letting the widget render a hole in the middle of the loop.
     [[ -s "$out" ]] || { rm -f "$out"; exit 0; }
     head -c 8 "$out" | grep -q PNG || rm -f "$out"
 ' 2>/dev/null
 
-# The frames stay where they were downloaded, so the paths in the manifest are
-# the staging paths. Nothing is moved and nothing is deleted yet.
+# The frames stay where they were downloaded, so the paths in the manifest are the staging paths.
 ENTRIES=""
 while IFS=$'\t' read -r idx ts path is_forecast; do
     staged=$(printf '%s/frame-%02d.png' "$STAGE" "$idx")
@@ -183,14 +131,7 @@ done < "$STAGE/.plan"
 LIST="$STAGE/.frames"
 printf '%s' "$ENTRIES" > "$LIST"
 
-# The manifest is what reaches QML, and it carries no coordinate: file paths,
-# minutes relative to now, and the span the image covers in kilometres. The
-# km span is computed here from the zoom and the latitude, because deriving it
-# in the widget would mean handing the widget the latitude.
-#
-# `|| PUBLISHED=0` rather than `|| true`: the exit status says whether the
-# manifest actually got renamed into place, and that is the one thing that
-# decides whether the older frame directories are safe to remove.
+# The manifest is what reaches QML, and it carries no coordinate: file paths, minutes relative to now, and the span the image covers in kilometres.
 PUBLISHED=1
 python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" "$ATTRIBUTION" <<'PY' || PUBLISHED=0
 import json, os, sys, math
@@ -271,14 +212,7 @@ print(json.dumps(out))
 sys.exit(0 if ok else 1)
 PY
 
-# PRUNE ONLY WHAT THE MANIFEST NO LONGER NAMES, and only once it has been
-# published. Superseded generations are dead weight — two dozen 512px PNGs each —
-# but a reader that loaded the old manifest a moment ago is still displaying
-# them, so this runs last and never touches the generation that just went live.
-#
-# The `frame-*.png` sweep clears the flat layout the earlier version wrote
-# straight into the cache directory, so an upgrade does not leave one dead loop
-# behind forever.
+# PRUNE ONLY WHAT THE MANIFEST NO LONGER NAMES, and only once it has been published.
 if (( PUBLISHED )); then
     for old in "$CACHE_DIR"/f-*; do
         [[ -d "$old" ]] || continue
@@ -287,7 +221,6 @@ if (( PUBLISHED )); then
     done
     rm -f "$CACHE_DIR"/frame-*.png "$CACHE_DIR"/.frames
 else
-    # Nothing published, so this run's frames are unreachable. Drop them rather
-    # than accumulating a directory per failed refresh.
+    # Nothing published, so this run's frames are unreachable.
     rm -rf "$STAGE"
 fi

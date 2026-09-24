@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# NYT's free public RSS feed — no API key/subscription needed, unlike most
-# outlets' actual news APIs. Top 5 headlines as JSON.
+# NYT's free public RSS feed — no API key/subscription needed, unlike most outlets' actual news APIs.
 set -euo pipefail
 
 curl -s --max-time 8 "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml" | python3 -c '

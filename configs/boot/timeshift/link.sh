@@ -38,8 +38,7 @@ if [[ -f /etc/timeshift/timeshift.json ]]; then
     fi
 fi
 
-# findmnt reports a btrfs source as "<device>[/<subvol>]"; strip the subvol
-# suffix so lsblk gets a real device node.
+# findmnt reports a btrfs source as "<device>[/<subvol>]"; strip the subvol suffix so lsblk gets a real device node.
 ROOT_DEVICE="${ROOT_SOURCE%%[*}"
 
 ROOT_UUID="$(lsblk -no UUID "$ROOT_DEVICE" 2>/dev/null | head -1 || true)"

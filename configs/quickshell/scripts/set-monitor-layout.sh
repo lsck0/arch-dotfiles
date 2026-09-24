@@ -30,8 +30,7 @@ configured() {
 
 case "$action" in
     extend)
-        # hl.monitor merges into the existing rule, so disabled/mirror must be
-        # cleared explicitly. Mode and position come back from the static config.
+        # hl.monitor merges into the existing rule, so disabled/mirror must be cleared explicitly.
         hyprctl eval "hl.monitor({ output = \"$name\", mode = \"$(configured mode highrr)\", position = \"$(configured position auto)\", scale = \"$scale\", disabled = false, mirror = \"\" })"
         ;;
     off)

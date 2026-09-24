@@ -38,9 +38,7 @@ Item {
 
   // ─────────────────────────────────────────────────────────── CONSTANTS
 
-  // The four states toggle-powermode.sh accepts. `auto` is its own action
-  // (clear any override); the other three are TLP's native forced modes.
-  // Ordered coldest to hottest after Auto, so the row reads as a scale.
+  // The four states toggle-powermode.sh accepts.
   readonly property var modeOptions: [
     { value: "auto",        label: "Auto" },
     { value: "power-saver", label: "Power saver" },
@@ -48,27 +46,18 @@ Item {
     { value: "performance", label: "Performance" }
   ]
 
-  // Catch-up poll for changes made outside this control — a keybind,
-  // toggles/menu.sh, another panel. Only runs while `active`, so the interval
-  // buys nothing when nobody is looking; it exists so a value changed elsewhere
-  // does not sit stale for as long as a panel stays open. 5s is imperceptible
-  // against a setting a human changes by hand, and `get` costs ~3ms.
+  // Catch-up poll for changes made outside this control — a keybind, toggles/menu.sh, another panel.
   readonly property int pollIntervalMs: 5000
 
-  // Time for the detached script to fork, source lib.sh, call `sudo tlp` and
-  // write its volatile state file before the value is worth re-reading. Below
-  // this the readback returns the PRE-click state and the chip snaps back —
-  // the same race Notifications.toggleDnd() and AudioIO.setSink() document.
+  // Time for the detached script to fork, source lib.sh, call `sudo tlp` and write its volatile state file before the value is worth re-reading.
   readonly property int applySettleMs: 600
 
   // ─────────────────────────────────────────────────────────── API
 
-  // Bind to the containing panel's visibility. False stops the poll entirely;
-  // the control is idle and costs nothing when it is not on screen.
+  // Bind to the containing panel's visibility.
   property bool active: false
 
-  // Palette + type, so a panel can match its surroundings. Defaults are the
-  // menu role every hover panel uses.
+  // Palette + type, so a panel can match its surroundings.
   property color foreground: Color.menu.text
   property color background: "transparent"
   property real fontSize: Style.font.caption

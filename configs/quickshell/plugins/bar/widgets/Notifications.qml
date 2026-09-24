@@ -6,17 +6,7 @@ import qs.Commons
 import qs.Ui
 import "../../notifications/components"
 
-// New widget, not from omarchy-shell. Originally bridged mako (the "New
-// widget... — mako already handles the actual notification daemon duties"
-// comment below described that design); now bridges
-// plugins/notifications/Service.qml, the native daemon that replaced mako
-// (see research/ROADMAP.md for the keep-vs-replace decision). History is read
-// straight
-// off Service.qml's own history directory (the same files the daemon reads
-// on restore/replay) rather than through a new IPC method — no method for
-// "dump history as JSON" exists upstream either, only `showHistory` (replay
-// as toasts), and this repo's shape needs a flat list for the panel, not a
-// replay.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "notifications"
@@ -38,17 +28,7 @@ BarWidget {
     if (!historyProc.running) historyProc.running = true
   }
 
-  // Open whatever a history entry points at. Two tiers, because a stored
-  // entry is not a live notification any more — its D-Bus action object is
-  // long gone, so `execArgv` (which the daemon persists precisely so
-  // restored toasts stay clickable) is the only real action carrier.
-  // Falling back to the app's desktop entry means clicking a notification
-  // from, say, Discord still opens Discord.
-  // Last-resort matcher. A notification's app_name is a display name, and
-  // neither byId nor heuristicLookup reliably bridges "ghostty" to
-  // `com.mitchellh.ghostty.desktop`. Match case-insensitively on the entry
-  // name, the id, or the id's last dotted segment, which covers the
-  // reverse-DNS ids most modern apps ship.
+  // Open whatever a history entry points at.
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()
     if (!want) return null
@@ -77,10 +57,7 @@ BarWidget {
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
     }
-    // byId wants an actual desktop-file id; the notification's app_name is
-    // a display name ("Discord", "Firefox"), so heuristicLookup is the one
-    // that usually matches. Try both, appIcon first since it is more often
-    // a real id.
+    // byId wants an actual desktop-file id; the notification's app_name is a display name ("Discord", "Firefox"), so heuristicLookup is the one that usually matches.
     var candidates = [entry.appIcon, entry.app]
     for (var i = 0; i < candidates.length; i++) {
       var id = String(candidates[i] || "").trim()
@@ -93,19 +70,10 @@ BarWidget {
       }
     }
     // Nothing to open — a shell-generated notification with no action.
-    // Deliberately a no-op rather than a guess.
   }
 
   function toggleDnd() {
-    // A real child Process, not execDetached + Qt.callLater. execDetached is
-    // fire-and-forget with no completion signal, and the toggle script itself
-    // takes ~15-30ms end to end (bash startup, sourcing lib.sh, then spawning
-    // its own `quickshell ipc` subprocess to actually flip the backend
-    // state) — Qt.callLater's "next event loop tick" fires well before that,
-    // so the immediate refreshDnd() queried the OLD pre-toggle state and
-    // snapped the switch back in the UI a moment after the user turned it
-    // on, even though the backend had genuinely flipped. Waiting for onExited
-    // means refreshDnd() only ever runs after the toggle has actually landed.
+    // A real child Process, not execDetached + Qt.callLater.
     if (toggleProc.running) return
     toggleProc.running = true
   }
@@ -174,9 +142,7 @@ BarWidget {
 
     onOpened: root.refreshHistory()
 
-    // And keep it current while it stays open: a notification arriving with
-    // the panel already up should appear in the list, not wait for the next
-    // hover.
+    // And keep it current while it stays open: a notification arriving with the panel already up should appear in the list, not wait for the next hover.
     Timer {
       interval: 4000
       running: panel.visible
@@ -184,8 +150,7 @@ BarWidget {
       onTriggered: root.refreshHistory()
     }
 
-    // One clock for the whole list. Thirty rows each running their own timer to
-    // age a "2m" label is thirty timers for one number.
+    // One clock for the whole list.
     property double nowMs: Date.now()
     Timer {
       interval: 30000
@@ -198,10 +163,7 @@ BarWidget {
     Flickable {
       id: historyFlick
       anchors.fill: parent
-      // contentWidth + VerticalFlick, matching Tray's menu Flickable: without
-      // them contentWidth defaults to -1 and a horizontal drag slides the whole
-      // list sideways with nothing to scroll to. `interactive` off when it all
-      // fits keeps a short history from absorbing wheel events.
+      // contentWidth + VerticalFlick, matching Tray's menu Flickable: without them contentWidth defaults to -1 and a horizontal drag slides the whole list sideways with nothing to scroll to.
       contentWidth: width
       contentHeight: content.implicitHeight
       flickableDirection: Flickable.VerticalFlick
@@ -212,9 +174,7 @@ BarWidget {
       Column {
         id: content
         width: parent.width
-        // Rows sit closer together than the panel's own sections do: with the
-        // borders gone they read as one list, and section spacing between them
-        // pulled them back apart into separate things.
+        // Rows sit closer together than the panel's own sections do: with the borders gone they read as one list, and section spacing between them pulled them back apart into separate things.
         spacing: Style.spacing.xs
 
         // Same section header as every other panel; the toggle below already says DND state.
@@ -250,8 +210,7 @@ BarWidget {
           description: "Silence new notification popups"
           checked: root.dndOn
           onClicked: root.toggleDnd()
-          // Borderless like every other row in this panel; the switch itself
-          // carries the affordance.
+          // Borderless like every other row in this panel; the switch itself carries the affordance.
           borderSpec: Border.flat("transparent", 0)
         }
 
@@ -266,26 +225,15 @@ BarWidget {
           font.family: Style.font.family
         }
 
-        // Rendered with the SAME NotificationCard the toasts use, rather
-        // than the two plain Texts that used to live here. The card already
-        // does everything the SPEC asks of this list — an image slot with
-        // app-icon and glyph fallbacks, urgency colouring, and a click
-        // action — and the stored history rows were verified to retain
-        // every field it needs (app, appIcon, image, glyph, execArgv,
-        // urgency, timestamp). Nothing had to change in the daemon.
+        // Rendered with the SAME NotificationCard the toasts use, rather than the two plain Texts that used to live here.
         Repeater {
           model: root.history
           delegate: NotificationCard {
             required property var modelData
-            // A row, not a toast — see NotificationCard's `variant`. The panel
-            // already has edges; these do not need their own.
+            // A row, not a toast — see NotificationCard's `variant`.
             variant: "row"
             now: panel.nowMs
-            // A short history is a detail view, not a list: with one or two
-            // entries there is nothing to scan past, so show the message
-            // instead of eliding it into "…in the…" above 40px of empty panel.
-            // Past that the clamp comes back, because uniform row heights are
-            // what make a long list readable — and the panel scrolls anyway.
+            // A short history is a detail view, not a list: with one or two entries there is nothing to scan past, so show the message instead of eliding it into "…in the…" above 40px of empty panel.
             bodyLines: root.history.length <= 2 ? 10 : 3
             width: content.width
             app: modelData.app || ""
@@ -299,20 +247,14 @@ BarWidget {
             cornerRadius: Style.cornerRadius
 
             onCardClicked: root.openEntry(modelData)
-            // The daemon owns the history files, so removing one entry from
-            // the panel would desync it. Clicking the close affordance
-            // clears the whole history, which is the only operation the
-            // service actually exposes.
+            // The daemon owns the history files, so removing one entry from the panel would desync it.
             onCloseRequested: root.dismissAll()
           }
         }
       }
     }
 
-    // The list is clipped mid-row when there is more history than panel, with
-    // nothing to say so — it just looked like a rendering cut. A fade at the
-    // bottom edge is the conventional "there is more below", and it costs one
-    // gradient rather than a scrollbar this shell has nowhere else.
+    // The list is clipped mid-row when there is more history than panel, with nothing to say so — it just looked like a rendering cut.
     Rectangle {
       anchors.left: parent.left
       anchors.right: parent.right

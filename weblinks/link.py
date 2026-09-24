@@ -17,9 +17,7 @@ with open("./links.txt", "r") as file:
         line = line.strip()
         parts = [p.strip() for p in line.split(" ") if p.strip()]
 
-        # two cases:
-        # url
-        # url as name
+        # two cases: url url as name
         if len(parts) == 1:
             url = parts[0]
 
@@ -48,8 +46,7 @@ with open("./links.txt", "r") as file:
         else:
             raise Exception(ERROR_MSG.format(line))
 
-        # exec_name lands in a filesystem path and a symlink target, so keep it
-        # to the same charset the `as name` branch already enforces.
+        # exec_name lands in a filesystem path and a symlink target, so keep it to the same charset the `as name` branch already enforces.
         if not re.match(r"^[a-zA-Z0-9-_]+$", exec_name):
             raise Exception(ERROR_MSG.format(line))
 

@@ -9,8 +9,7 @@
         TeX-view-program-selection '((output-pdf "Zathura"))
         TeX-clean-confirm nil))
 
-;; reftex (builtin): labels/citations browser, vimtex's table of contents
-;; synctex forward/backward search with zathura (vimtex default viewer)
+; ; reftex (builtin): labels/citations browser, vimtex's table of contents ; synctex forward/backward search with zathura (vimtex default viewer)
 (use-package reftex
   :ensure nil
   :hook ((LaTeX-mode . reftex-mode)

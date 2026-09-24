@@ -1,13 +1,5 @@
 #!/bin/bash
 # Lists premade-theme wallpapers for image-picker's Themes mode (mode 1).
-#
-# Sourced from each themes/*.json's own "wallpaper" field — the JSON is
-# authoritative, not the filename. Theme wallpapers point directly at their
-# source image in wallpapers/ (no separate themes/wallpapers/ copy). Same
-# tsv contract as list.sh ("<image>\t<thumbnail-or-original>" per line) so
-# ImagePickerModel.loadRows needs no changes, and the same thumbnail cache
-# dir/index so a file already thumbnailed via list.sh (or vice versa) is
-# never redecoded.
 
 theme_dir=${1:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/image-selector
@@ -69,8 +61,7 @@ for image, theme_name in files:
     sys.stdout.flush()
 PY
 
-# Generate any missing thumbnails after the listing, detached — mirrors
-# list.sh's own background pass so the picker never waits on vipsthumbnail.
+# Generate any missing thumbnails after the listing, detached — mirrors list.sh's own background pass so the picker never waits on vipsthumbnail.
 if command -v vipsthumbnail >/dev/null 2>&1; then
   (
     python3 -c '

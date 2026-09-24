@@ -1,28 +1,7 @@
 import QtQuick
 import qs.Commons
 
-// Small (22×22 by default) icon button used at the right edge of panel rows
-// for inline actions — forget network, confirm passphrase, unpair device,
-// etc. Two visual modes are supported via `hoverColor`:
-//   - default: hoverColor === foreground → subtle foreground-tint hover
-//   - urgent:  hoverColor === bar.urgent → red-tint hover for destructive
-//              actions like forget/unpair
-//
-// `enabled` gates clicks and dims the icon. The component owns its own
-// hover state visuals; mouse hover does NOT update any panel cursor state
-// here because action buttons are not cursor targets — the row they live
-// in is.
-//
-// Set `focusable: true` to make the button keyboard-tabbable with the
-// shared hover-cursor/focus tokens. Use this in form contexts where Tab
-// walks a list of controls; leave it false for the right-edge actions on
-// panel rows, where the row itself owns the keyboard cursor.
-//
-// Set `hasCursor: true` to have the button render the same hover state as
-// mouse hover — so a panel's keyboard cursor lands on it identically. Use
-// this when a PanelActionButton is itself the cursor target rather than one
-// action inside a cursor-owning row. Emits `hovered(bool)` on pointer
-// enter/leave so the panel can update its cursor state to match.
+// Small (22×22 by default) icon button used at the right edge of panel rows for inline actions — forget network, confirm passphrase, unpair device, etc. Two visual modes are supported via `hoverColor`: - default: hoverColor === foreground → subtle foreground-tint hover - urgent:  hoverColor === bar.urgent → red-tint hover for destructive actions like forget/unpair `enabled` gates clicks and dims the icon. The component owns its own hover state visuals; mouse hover does NOT update any panel cursor state here because action buttons are not cursor targets — the row they live in is. Set `focusable: true` to make the button keyboard-tabbable with the shared hover-cursor/focus tokens. Use this in form contexts where Tab walks a list of controls; leave it false for the right-edge actions on panel rows, where the row itself owns the keyboard cursor. Set `hasCursor: true` to have the button render the same hover state as mouse hover — so a panel's keyboard cursor lands on it identically. Use this when a PanelActionButton is itself the cursor target rather than one action inside a cursor-owning row. Emits `hovered(bool)` on pointer enter/leave so the panel can update its cursor state to match.
 BorderSurface {
   id: root
 
@@ -30,9 +9,7 @@ BorderSurface {
   property string tooltipText: ""
   property color foreground: Color.foreground
   property color hoverColor: foreground
-  // Icon family: this button is icon-only (its size token is already
-  // Style.font.icon). Overridable, but the default must not follow the
-  // user-selectable UI font.
+  // Icon family: this button is icon-only (its size token is already Style.font.icon).
   property string fontFamily: Style.font.iconFamily
   property real fontSize: Style.font.icon
   property real size: Math.max(Style.space(22), fontSize + Style.spacing.sm * 2)

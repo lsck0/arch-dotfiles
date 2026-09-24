@@ -9,8 +9,7 @@ fi
 
 sudo systemctl enable systemd-oomd.service
 
-# scope oomd's kill authority to app.slice only, Hyprland itself stays ineligible
-# systemd ships no oomd.conf.d by default, so the drop-in dir has to be created.
+# scope oomd's kill authority to app.slice only, Hyprland itself stays ineligible systemd ships no oomd.conf.d by default, so the drop-in dir has to be created.
 sudo mkdir -p /etc/systemd/oomd.conf.d
 sudo ln -sfn ${PWD}/oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf
 mkdir -p ${HOME}/.config/systemd/user/app.slice.d

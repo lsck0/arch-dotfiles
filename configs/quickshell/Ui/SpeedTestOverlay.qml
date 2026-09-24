@@ -6,21 +6,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Centered speed test dialog shared by the network and disk speed tests: two
-// instrument dials -- open 270° arcs, faint tick rings, hubless gradient
-// needles, a digital readout in the middle -- inside a normal panel card.
-// Esc, the scrim, or the corner dismiss close it; the needles sweep to full
-// scale and back on open, then track the live readings. Callers name the
-// dials, the unit, and the scale.
-//
-// It used to be a bare cluster floating on a near-black 0.78 scrim covering
-// the whole screen, which is a lot of screen for "what is my download speed"
-// and the only surface in the shell with no card chrome. Because that scrim
-// was a fixed near-black regardless of theme, the contents also needed a
-// fixed light palette (hardcoded "white" and #ff6b6b) that could not follow
-// the wallpaper. Putting the cluster in a card fixes both at once: the window
-// still spans the screen (it has to, to catch Esc and clicks-outside) but
-// only the card is painted, and every colour below is now a palette role.
+// Centered speed test dialog shared by the network and disk speed tests: two instrument dials -- open 270° arcs, faint tick rings, hubless gradient needles, a digital readout in the middle -- inside a normal panel card.
 PanelWindow {
   id: root
 
@@ -39,8 +25,7 @@ PanelWindow {
   property string error: ""
   property string statusText: ""
   property bool open: false
-  // Full-scale latch points for the dials, smallest first. The first stop is
-  // the base scale a fresh run starts from.
+  // Full-scale latch points for the dials, smallest first.
   property var scaleStops: [100, 250, 500, 1000, 2500, 5000, 10000]
   property real fullScale: scaleStops[0]
 
@@ -54,8 +39,7 @@ PanelWindow {
   }
 
   function expandScale(value) {
-    // Either reading ranges the entire cluster upward. Keeping this latch on
-    // the overlay ensures both dials always describe the same scale.
+    // Either reading ranges the entire cluster upward.
     for (var i = 0; i < scaleStops.length; i++) {
       if (value <= scaleStops[i] * 0.92) {
         if (scaleStops[i] > fullScale) fullScale = scaleStops[i]
@@ -74,17 +58,13 @@ PanelWindow {
     NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
   }
 
-  // Card colours. Named onCard/onCardDim rather than onScrim* because the
-  // contents now sit on a themed panel card, not on a fixed near-black wash —
-  // which is what lets them be palette roles instead of hardcoded light
-  // values.
+  // Card colours.
   readonly property color onCard: Color.menu.text
   readonly property color onCardDim: Util.alpha(Color.menu.text, 0.55)
   readonly property color onCardUrgent: Color.urgent
 
   visible: open
-  // The window is instantiated hidden, so re-acquire focus after mapping and
-  // fire the ignition sweep once the surface is actually on screen.
+  // The window is instantiated hidden, so re-acquire focus after mapping and fire the ignition sweep once the surface is actually on screen.
   onOpenChanged: {
     if (open) Qt.callLater(function() {
       if (!root.open) return
@@ -173,8 +153,7 @@ PanelWindow {
           }
         }
 
-        // Centered on the dial pair. Fades rather than unmounts while a run
-        // is in flight, so the cluster never shifts.
+        // Centered on the dial pair.
         Button {
           text: "Run Again"
           tooltipText: root.runAgainTooltip
@@ -224,11 +203,7 @@ PanelWindow {
     }
   }
 
-  // One floating cluster dial: an open 270° scale with the gap at the
-  // bottom, a faint tick ring, a glowing accent value arc, a hubless needle
-  // that fades toward the pivot, and a digital readout in the middle. All
-  // writes to the needle funnel through `shown` so the ignition sweep and
-  // live readings share one animation.
+  // One floating cluster dial: an open 270° scale with the gap at the bottom, a faint tick ring, a glowing accent value arc, a hubless needle that fades toward the pivot, and a digital readout in the middle.
   component SpeedDial: Item {
     id: dial
 
@@ -250,8 +225,7 @@ PanelWindow {
     readonly property bool engaged: live || value > 0
 
     property real shown: 0
-    // The digital readout stays on the real figure while the ignition sweep
-    // drives the needle -- a cluster sweeps its gauges, not its numerals.
+    // The digital readout stays on the real figure while the ignition sweep drives the needle -- a cluster sweeps its gauges, not its numerals.
     readonly property real reading: ignition.running ? value : shown
     readonly property real fullScale: root.fullScale
     readonly property real fraction: fullScale > 0 ? Math.max(0, Math.min(1, shown / fullScale)) : 0
@@ -279,8 +253,7 @@ PanelWindow {
       ignition.restart()
     }
 
-    // Car-cluster power-on: needle sweeps to full scale and falls back before
-    // the live figures take over.
+    // Car-cluster power-on: needle sweeps to full scale and falls back before the live figures take over.
     SequentialAnimation {
       id: ignition
       NumberAnimation { target: dial; property: "shown"; to: dial.fullScale; duration: 550; easing.type: Easing.InOutCubic }
@@ -309,9 +282,7 @@ PanelWindow {
         }
       }
 
-      // Soft under-glow beneath the value arc, standing in for the backlit
-      // ring of a real cluster. Both arcs go transparent at rest, or their
-      // round caps would leave a stray dot at the foot of the scale.
+      // Soft under-glow beneath the value arc, standing in for the backlit ring of a real cluster.
       ShapePath {
         strokeWidth: dial.arcWidth * 3
         strokeColor: dial.arcVisible ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18) : "transparent"
@@ -368,8 +339,7 @@ PanelWindow {
       }
     }
 
-    // Hubless needle: a slender sliver that fades out toward the pivot, so
-    // it reads as floating like the rest of the cluster.
+    // Hubless needle: a slender sliver that fades out toward the pivot, so it reads as floating like the rest of the cluster.
     Item {
       anchors.fill: parent
       rotation: dial.dialStart + dial.fraction * dial.dialSweep - 270
@@ -398,17 +368,13 @@ PanelWindow {
       Text {
         textFormat: Text.PlainText
         anchors.horizontalCenter: parent.horizontalCenter
-        // Both branches go through the locale: a reading is a measurement, so
-        // its separators follow the system's number conventions rather than the
-        // interface language. toFixed would have hardcoded a dot below 10 while
-        // everything above it was already grouped for the locale.
+        // Both branches go through the locale: a reading is a measurement, so its separators follow the system's number conventions rather than the interface language.
         text: dial.reading < 10
           ? dial.reading.toLocaleString(Qt.locale(), 'f', 1)
           : Math.round(dial.reading).toLocaleString(Qt.locale(), 'f', 0)
         color: root.onCard
         font.family: root.fontFamily
-        // Scaled off the dial, not the text ladder: display (base*2) is sized
-        // for a dialog and reads as a footnote inside a full-screen gauge.
+        // Scaled off the dial, not the text ladder: display (base*2) is sized for a dialog and reads as a footnote inside a full-screen gauge.
         font.pixelSize: Math.round(dial.diameter * 0.2)
         font.bold: true
       }
@@ -423,8 +389,7 @@ PanelWindow {
       }
     }
 
-    // The 90° gap at the bottom of the scale is where a cluster prints its
-    // unit; here it names the direction.
+    // The 90° gap at the bottom of the scale is where a cluster prints its unit; here it names the direction.
     Text {
       textFormat: Text.PlainText
       anchors.horizontalCenter: parent.horizontalCenter

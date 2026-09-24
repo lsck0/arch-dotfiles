@@ -8,9 +8,6 @@ fi
 set -ex
 
 # Android has no scroll-to-zoom gesture, so no waydroid property can add one.
-# Resizing is the part that is fixable: multi_windows gives each activity its
-# own Wayland surface, and the two `settings put global` below make Android
-# accept a resize instead of letterboxing inside a fixed container.
 waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.cursor_on_subsurface true
 

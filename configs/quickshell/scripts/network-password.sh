@@ -1,7 +1,5 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-network-password. Prints the active
-# Wi-Fi connection's password for configs/quickshell/plugins/wifiqr/Panel.qml's
-# "Show password" reveal.
+# Verbatim from omarchy's bin/omarchy-network-password.
 
 set -euo pipefail
 
@@ -28,6 +26,5 @@ if [[ -z $key_management || $key_management == "none" ]]; then
 fi
 [[ -n $password ]] || { echo "Could not read the Wi-Fi password" >&2; exit 1; }
 
-# Stdout is a private pipe to the caller; the secret is never an argument, so
-# it never shows up in /proc cmdlines.
+# Stdout is a private pipe to the caller; the secret is never an argument, so it never shows up in /proc cmdlines.
 printf '%s\n' "$password"

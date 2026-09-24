@@ -6,28 +6,18 @@ exec > >(tee "install.log") 2>&1
 export FAILURES_FILE="$(pwd)/FAILURES"
 : > "$FAILURES_FILE"
 
-## PACKAGES
-    #   base        - bare Arch security tooling
-    #   fonts       - fonts, managers, nerd fonts
-    #   desktop     - Hyprland, Plasma, minimal apps
-    #   socials     - chat, voice, social apps
-    #   gaming      - games and gaming tooling
-    #   creating    - Blender, Krita, CAD tools
-    #   latex       - LaTeX and BibTeX tooling
-    #   programming - editors, agents, toolchains, debuggers
-    #   qemu        - QEMU and virtualization tooling
-    #   llm         - Ollama, vLLM, ROCm stack
-    #   pentesting  - active scanning exploitation tools
+# # PACKAGES
 
 PACKAGES=(
     alsa-firmware # [base] ALSA sound firmware
     amdgpu_top # [base] AMD GPU monitor
     app2unit # [base] app to systemd unit
+    argon2 # [base] password hashing tool
     base # [base] Arch base group
     base-devel # [base] Arch build tools
     bluetui # [base] bluetooth tui
     bluez # [base] bluetooth stack
-    bluez-obex # [base] bluetooth OBEX (file transfer) daemon, split out of bluez itself
+    bluez-obex # [base] bluetooth OBEX (file transfer)
     bluez-utils # [base] bluetooth utilities
     borg # [base] deduplicating backup tool
     bpftop # [base] bpf monitor
@@ -59,14 +49,16 @@ PACKAGES=(
     fd # [base] find alternative
     ffmpeg # [base] audio/video converter
     file # [base] file type detector
-    fzf # [base] fuzzy finder
     flatpak # [base] sandboxed app packages
     freetype2 # [base] font rasterizer
+    fzf # [base] fuzzy finder
     ghostmirror # [base] mirrorlist ranking tool
     git # [base] version control
     gnutls # [base] TLS library
     gpg-tui # [base] gpg tui
     gping # [base] ping with graph
+    gufw # [base] firewall GUI (ufw)
+    gum # [base] pretty shell prompts/inputs
     imagemagick # [base] theme generator dependency
     intel-media-driver # [base] Intel VAAPI driver
     ipython # [base] enhanced Python shell
@@ -128,6 +120,7 @@ PACKAGES=(
     lolcat # [base] rainbow text output
     lshw # [base] hardware lister
     lua51-luautf8 # [base] Lua UTF-8 lib
+    lynis # [base] security auditing tool
     man-pages # [base] Linux manual pages
     mesa # [base] graphics driver library
     metadata-cleaner # [base] strip file metadata
@@ -136,6 +129,7 @@ PACKAGES=(
     ncurses # [base] terminal UI library
     neofetch # [base] system info display
     networkmanager # [base] network connection manager
+    nftables # [base] firewall packet filter
     nss-mdns # [base] mDNS name resolution
     ntfs-3g # [base] NTFS filesystem driver
     nushell # [base] structured-data shell
@@ -145,6 +139,7 @@ PACKAGES=(
     opencl-icd-loader # [base] OpenCL loader
     openssh # [base] SSH client/server
     openssl # [base] TLS/crypto toolkit
+    openvpn # [base] VPN client/server
     ossec-hids-local # [base] host intrusion detection
     ouch # [base] archive compression tool
     pacman-contrib # [base] pacman cache cleanup tools
@@ -165,6 +160,7 @@ PACKAGES=(
     ranger # [base] terminal file manager
     rar # [base] RAR archive tool
     rclone # [base] cloud storage sync
+    rkhunter # [base] rootkit detection tool
     rsync # [base] file sync tool
     rustnet # [base] network monitor TUI
     s-tui # [base] CPU stress/monitor TUI
@@ -205,6 +201,7 @@ PACKAGES=(
     v4l2loopback-dkms # [base] virtual video device
     v4l2loopback-utils # [base] v4l2loopback helper tools
     ventoy-bin # [base] multi-boot USB creator
+    veracrypt # [base] disk encryption tool
     vim # [base] modal text editor
     vulkan-icd-loader # [base] Vulkan loader library
     vulkan-intel # [base] Intel Vulkan driver
@@ -214,6 +211,8 @@ PACKAGES=(
     wget # [base] file download utility
     whois # [base] domain lookup tool
     wiki-tui # [base] Wikipedia terminal browser
+    wireguard-tools # [base] WireGuard VPN tools
+    wireguard-ui-bin # [base] WireGuard web UI
     wireless_tools # [base] legacy wireless config
     wpa_supplicant # [base] wifi authentication daemon
     xdg-ninja # [base] XDG compliance checker
@@ -374,6 +373,7 @@ PACKAGES=(
     bookokrat # [desktop] terminal pdf
     brightnessctl # [desktop] backlight control
     chromium # [desktop] web browser
+    cpio # [desktop] hyprpm extracts Hyprland headers with it
     cups-pk-helper # [desktop] cups polkit helper
     dolphin # [desktop] file manager (default; nemo kept alongside)
     filezilla # [desktop] FTP client
@@ -381,6 +381,7 @@ PACKAGES=(
     flat-remix-gtk # [desktop] GTK theme
     font-manager # [desktop] font management GUI
     gearlever # [desktop] AppImage manager
+    geogebra-6-bin # [desktop] math/geometry app
     ghostty # [desktop] GPU terminal emulator
     gnome-calculator # [desktop] calculator app
     gnome-calendar # [desktop] calendar app
@@ -391,13 +392,13 @@ PACKAGES=(
     gtk3 # [desktop] GTK3 toolkit
     gtk4 # [desktop] GTK4 toolkit
     headsetcontrol # [desktop] headset control utility
+    hollywood # [desktop] fake hacker terminal
     hyprcursor # [desktop] hyprland cursor format
     hypridle # [desktop] hyprland idle daemon
     hyprland # [desktop] wayland compositor
-    hyprpm # [desktop] hyprland plugin manager (dynamic-cursors, Hyprspace)
-    cpio # [desktop] hyprpm extracts Hyprland headers with it
     hyprlock # [desktop] wayland screen locker
     hyprpicker # [desktop] wayland color picker
+    hyprpm # [desktop] hyprland plugin manager
     hyprsunset # [desktop] blue light filter
     jdownloader2 # [desktop] download manager
     kitty # [desktop] GPU terminal emulator
@@ -478,7 +479,6 @@ PACKAGES=(
     discord # [socials] chat/voice app
     discordo-git # [socials] terminal discord client
     element # [socials] matrix chat client
-    enola # [pentesting] search usernames
     hexchat # [socials] IRC client
     proton-mail-bin # [socials] Proton Mail client
     proton-meet-bin # [socials] Proton video calls
@@ -538,10 +538,10 @@ PACKAGES=(
     obs-plugin-waveform-bin # [creating] OBS waveform plugin
     obs-studio # [creating] screen recording/streaming
     obs-studio-plugin-browser # [creating] OBS browser source
-    python-websocket-client # [creating] obs-websocket client for the bar's OBS widget
     openscad # [creating] 3D CAD modeler
     opentabletdriver-git # [creating] graphics tablet driver
     pitivi # [creating] video editor
+    python-websocket-client # [creating] obs-websocket client for the bar's OBS widget
     qpwgraph # [creating] pipewire patchbay GUI
     rawtherapee # [creating] RAW photo editor
     sfxr-qt-bin # [creating] sound effect generator
@@ -560,14 +560,15 @@ PACKAGES=(
     act # [programming] run CI locally
     afl++ # [programming] fuzzing tool
     age # [programming] file encryption tool
-    avr-binutils # [programming] AVR assembler/linker
-    avr-gcc # [programming] AVR C compiler
-    avr-gdb # [programming] AVR debugger
-    avr-libc # [programming] AVR C library
+    ali # [programming] tui webapp load testing
     android-ndk # [programming] Android native dev kit
     android-sdk # [programming] Android development kit
     appimagetool-git # [programming] build AppImages
     ast-grep # [programming] code structural search
+    avr-binutils # [programming] AVR assembler/linker
+    avr-gcc # [programming] AVR C compiler
+    avr-gdb # [programming] AVR debugger
+    avr-libc # [programming] AVR C library
     aws-cli-v2 # [programming] AWS command line
     bacon # [programming] rust background checker
     bat # [programming] cat with highlighting
@@ -575,6 +576,7 @@ PACKAGES=(
     bear # [programming] compile db generator
     bind # [programming] DNS utilities
     bloaty # [programming] binary size profiler
+    bpftrace # [programming] eBPF tracing tool
     bugwarrior # [programming] bugtracker to taskwarrior
     cargo-audit # [programming] rust vuln scanner
     cargo-bloat # [programming] rust binary size
@@ -623,6 +625,7 @@ PACKAGES=(
     expect # [programming] scripted terminal automation
     fasm # [programming] flat assembler
     figlet # [programming] ascii text banners
+    flamegraph # [programming] perf stackcollapse + flamegraph scripts
     flamelens # [programming] tui flamegraph viewer
     ftxui # [programming] C++ terminal UI lib
     gcc # [programming] C/C++ compiler
@@ -630,18 +633,18 @@ PACKAGES=(
     gdb # [programming] GNU debugger
     gemini-cli # [programming] Google Gemini CLI
     genius # [programming] math calculator app
-    geogebra-6-bin # [programming] math/geometry app
     gf2-git # [programming] debugger
     gh-dash # [programming] GitHub dashboard TUI
     gh-enhance-bin # [programming] gh-dash actions extension
     ghcup-hs-bin # [programming] Haskell toolchain installer
-    git-absorb #[programming] absorbing submodules
+    git-absorb # [programming] absorbing submodules
     git-age # [programming] git age encryption
     git-delta # [programming] syntax-highlighting diff pager
     git-filter-repo # [programming] git history rewriter
     git-lfs # [programming] git large file storage
     github-cli # [programming] GitHub CLI (gh)
     github-copilot-cli # [programming] Copilot CLI tool
+    gitleaks # [programming] git secrets scanner
     glfw # [programming] OpenGL windowing lib
     glm # [programming] OpenGL math library
     glow # [programming] markdown terminal renderer
@@ -659,7 +662,6 @@ PACKAGES=(
     help2man # [programming] generate man pages
     herdr-bin # [programming] AI agent terminal manager
     hermes-agent # [programming] AI agent
-    hollywood # [programming] fake hacker terminal
     hotspot # [programming] Linux perf GUI
     hyperfine # [programming] command benchmarking tool
     jdk-openjdk # [programming] Java JDK (jdtls needs 21+)
@@ -696,6 +698,7 @@ PACKAGES=(
     mingw-w64-gcc # [programming] Windows cross-compiler
     minikube # [programming] local kubernetes cluster
     mise # [programming] runtime version manager
+    mkcert # [programming] local TLS certificates
     mold # [programming] fast linker
     nano # [programming] terminal text editor
     nasm # [programming] x86 assembler
@@ -713,6 +716,8 @@ PACKAGES=(
     openapi-tui # [programming] openapi tui
     opencomposite-git # [programming] OpenXR to OpenVR
     osmium-tool # [programming] OpenStreetMap data tool
+    osslsigncode # [programming] authenticode signing tool
+    osv-scanner # [programming] dependency vulnerability scanner
     pastel # [programming] color manipulation CLI
     phoronix-test-suite # [programming] benchmarking suite
     pipeline-gtk # [programming] GStreamer pipeline debugger
@@ -725,7 +730,9 @@ PACKAGES=(
     protobuf # [programming] protocol buffers runtime
     python-black # [programming] Python code formatter
     python-faker # [programming] fake data generator
+    python-ipykernel # [programming] Jupyter python kernel
     python-isort # [programming] Python import sorter
+    python-jupytext # [programming] jupytext CLI: .ipynb <-> text
     python-matplotlib # [programming] Python plotting library
     python-numba # [programming] Python JIT compiler
     python-numpy # [programming] numerical computing library
@@ -733,6 +740,7 @@ PACKAGES=(
     python-pillow # [programming] Python imaging library
     python-pip # [programming] Python package installer
     python-poetry # [programming] Python dependency manager
+    python-pynvim # [programming] nvim python provider
     python-pydantic # [programming] data validation library
     python-pygments # [programming] syntax highlighting library
     python-scikit-learn # [programming] machine learning library
@@ -761,6 +769,7 @@ PACKAGES=(
     serpl # [programming] search-replace TUI tool
     skaffold # [programming] kubernetes dev workflow
     slides-git # [programming] terminal presentation tool
+    sops # [programming] secrets encryption tool
     speedscope # [programming] flamegraph profiler viewer
     sqlite # [programming] embedded SQL database
     sqlitebrowser # [programming] SQLite database GUI
@@ -769,7 +778,6 @@ PACKAGES=(
     taskwarrior-tui # [programming] taskwarrior terminal UI
     terraform # [programming] infrastructure as code
     tesseract # [programming] OCR engine
-    trunk # [programming] rust wasm tooling
     tesseract-data-deu # [programming] German OCR data
     tesseract-data-eng # [programming] English OCR data
     tig # [programming] git repository browser
@@ -777,8 +785,12 @@ PACKAGES=(
     tokei # [programming] code line counter
     topology-toolkit # [programming] scalar field analysis
     tree-sitter-cli # [programming] incremental parser generator
+    trivy # [programming] container vulnerability scanner
+    trufflehog # [programming] secrets scanning tool
+    trunk # [programming] rust wasm tooling
     updo # [programming] website uptime monitor
     uv # [programming] fast Python package manager
+    valgrind # [programming] memory debugging/profiling tool
     vscodium-bin # [programming] VS Code de-branded
     wrk # [programming] HTTP benchmarking tool
     wscat # [programming] websocket CLI client
@@ -795,31 +807,29 @@ PACKAGES=(
     qemu-full # [qemu] machine emulator/virtualizer
     virt-manager # [qemu] VM management GUI
 
-    ollama-for-amd-git # [llm] local LLM runner (AMD)
+    ollama # [llm] local LLM runner (daemon + CPU backend)
+    ollama-rocm # [llm] ROCm/HIP GPU backend for ollama (official, gfx1101)
     python-pytorch-opt-rocm # [llm] ML framework (AMD, AVX2 optimized)
+    python-setuptools-rust # [llm] python-vllm-rocm build dep (setuptools_rust)
 
     aircrack-ng # [pentesting] wifi security auditing
-    ali # [pentesting] tui webapp load testing
     angryoxide # [pentesting] tui wifi pentesting
-    argon2 # [pentesting] password hashing tool
     arjun # [pentesting] HTTP param discovery
     arp-scan # [pentesting] ARP network scanner
     bettercap # [pentesting] network attack framework
     binsider # [pentesting] binary analysis TUI
-    bpftrace # [pentesting] eBPF tracing tool
     burpsuite # [pentesting] web security testing
     dalfox-bin # [pentesting] XSS scanning tool
     dsniff # [pentesting] network sniffing tools
+    enola # [pentesting] search usernames
     exploitdb # [pentesting] exploit database mirror
     fcrackzip # [pentesting] zip password cracker
     ffuf-bin # [pentesting] web fuzzing tool
     foremost # [pentesting] file carving tool
     gau # [pentesting] get-all-urls tool
     ghidra # [pentesting] reverse engineering suite
-    gitleaks # [pentesting] git secrets scanner
     gobuster # [pentesting] directory/DNS brute-forcer
     gowitness-bin # [pentesting] web screenshot tool
-    gufw # [pentesting] firewall GUI (ufw)
     hashcat # [pentesting] password cracking tool
     hping # [pentesting] packet crafting tool
     httpx-bin # [pentesting] HTTP probing tool
@@ -830,50 +840,35 @@ PACKAGES=(
     katana-bin # [pentesting] web crawling tool
     kismet # [pentesting] wireless network detector
     kiterunner-bin # [pentesting] API endpoint bruteforcer
-    lynis # [pentesting] security auditing tool
     mdk4 # [pentesting] wifi attack toolkit
     metasploit # [pentesting] exploitation framework
     mitmproxy # [pentesting] HTTPS intercepting proxy
-    mkcert # [pentesting] local TLS certificates
     naabu-bin # [pentesting] port scanning tool
     netscanner # [pentesting] network scanning TUI
-    nftables # [pentesting] firewall packet filter
     nikto # [pentesting] web server scanner
     nmap # [pentesting] network mapper scanner
     nuclei-bin # [pentesting] vulnerability scanner
     nuclei-templates # [pentesting] nuclei scan templates
     obfs4proxy # [pentesting] Tor traffic obfuscator
-    openvpn # [pentesting] VPN client/server
-    osslsigncode # [pentesting] authenticode signing tool
-    osv-scanner # [pentesting] dependency vulnerability scanner
     pwdsafety # [pentesting] pwd checking
     pwndbg # [pentesting] GDB exploit-dev plugin
     python-pwntools # [pentesting] exploit development library
     reaver-wps-fork-t6x-git # [pentesting] WPS PIN cracker
-    rkhunter # [pentesting] rootkit detection tool
     rz-cutter # [pentesting] reverse engineering GUI
     seclists # [pentesting] security wordlists collection
     skipfish # [pentesting] web app security scanner
     slowhttptest # [pentesting] DoS testing tool
-    sops # [pentesting] secrets encryption tool
     sqlmap-git # [pentesting] SQL injection tool
     sslscan # [pentesting] TLS/SSL cipher scanner
     subfinder-bin # [pentesting] subdomain discovery tool
     testssl.sh # [pentesting] TLS/SSL testing script
     tor-router # [pentesting] transparent tor routing
-    trivy # [pentesting] container vulnerability scanner
-    trufflehog # [pentesting] secrets scanning tool
-    valgrind # [pentesting] memory debugging tool
     veil-bin # [pentesting] antivirus evasion framework
-    veracrypt # [pentesting] disk encryption tool
     volatility3-git # [pentesting] memory forensics framework
     wafw00f # [pentesting] WAF fingerprinting tool
     waybackurls # [pentesting] Wayback Machine URL fetcher
-    wireguard-tools # [pentesting] WireGuard VPN tools
-    wireguard-ui-bin # [pentesting] WireGuard web UI
     wireshark-qt # [pentesting] network protocol analyzer
     zaproxy # [pentesting] OWASP ZAP scanner
-
 )
 FLATPAK_PKGS=(
     com.jeffser.Alpaca # [programming] Ollama chat GUI
@@ -919,28 +914,21 @@ PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu ll
 
 if [[ ! -f "$GROUPS_STATE" ]]; then
     if [[ -t 0 ]]; then
-        echo "Select package groups to install (space-separated numbers, or press enter for all):"
+        echo "Enter the numbers to DISABLE (space-separated), or enter for all:"
         for i in "${!PKG_GROUPS[@]}"; do
             echo "  $(( i + 1 ))  ${PKG_GROUPS[i]}"
         done
-        echo "  0  all groups"
         echo ""
-        read -rp "Enter numbers (e.g. '1 3 5' or '0' for all): " -a nums
-        if [[ ${#nums[@]} -gt 0 && "${nums[0]}" != "0" ]]; then
-            selected=()
+        read -rp "Numbers to exclude (e.g. '5 9', enter for all): " -a nums
+        selected=()
+        for i in "${!PKG_GROUPS[@]}"; do
+            skip=0
             for n in "${nums[@]}"; do
-                if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 && n <= ${#PKG_GROUPS[@]} )); then
-                    selected+=("${PKG_GROUPS[n-1]}")
-                fi
+                if [[ "$n" == "$(( i + 1 ))" ]]; then skip=1; break; fi
             done
-            if [[ ${#selected[@]} -gt 0 ]]; then
-                printf '%s\n' "${selected[@]}" > "$GROUPS_STATE"
-            else
-                printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
-            fi
-        else
-            printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
-        fi
+            (( skip )) || selected+=("${PKG_GROUPS[i]}")
+        done
+        printf '%s\n' "${selected[@]}" > "$GROUPS_STATE"
     else
         printf '%s\n' "${PKG_GROUPS[@]}" > "$GROUPS_STATE"
     fi
@@ -985,7 +973,7 @@ has_amd_gpu() {
     return 1
 }
 
-ROCM_PKGS=(ollama-for-amd-git python-pytorch-opt-rocm python-vllm-rocm)
+ROCM_PKGS=(ollama-rocm python-pytorch-opt-rocm python-vllm-rocm)
 if ! has_amd_gpu; then
     kept=()
     dropped=()
@@ -1031,26 +1019,23 @@ BOOT_FEATURES=(timeshift sbctl luks)
 if [[ ! -f "$BOOT_STATE" ]]; then
     if [[ -t 0 ]]; then
         echo ""
-        echo "Boot disk security (timeshift/sbctl/luks)"
+        echo "Enter the numbers to DISABLE, or enter for all:"
         for i in "${!BOOT_FEATURES[@]}"; do
             echo "  $(( i + 1 ))  ${BOOT_FEATURES[i]}"
         done
-        echo "  0  all"
         echo ""
-        read -rp "Enter numbers to attempt (e.g. '1 2' or '0' for all, enter for none): " -a bnums
+        read -rp "Numbers to exclude (e.g. '3', enter for all): " -a bnums
         selected=()
-        if [[ ${#bnums[@]} -gt 0 && "${bnums[0]}" == "0" ]]; then
-            selected=("${BOOT_FEATURES[@]}")
-        else
+        for i in "${!BOOT_FEATURES[@]}"; do
+            skip=0
             for n in "${bnums[@]}"; do
-                if [[ "$n" =~ ^[0-9]+$ ]] && (( n > 0 && n <= ${#BOOT_FEATURES[@]} )); then
-                    selected+=("${BOOT_FEATURES[n-1]}")
-                fi
+                if [[ "$n" == "$(( i + 1 ))" ]]; then skip=1; break; fi
             done
-        fi
+            (( skip )) || selected+=("${BOOT_FEATURES[i]}")
+        done
         printf '%s\n' "${selected[@]}" > "$BOOT_STATE"
     else
-        : > "$BOOT_STATE"
+        printf '%s\n' "${BOOT_FEATURES[@]}" > "$BOOT_STATE"
     fi
     echo "Enabled boot features:" >&2
     cat "$BOOT_STATE" >&2

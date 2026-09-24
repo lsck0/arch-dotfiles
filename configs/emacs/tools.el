@@ -15,10 +15,7 @@
 
 ;;;; terminal ----------------------------------------------------------------
 
-;; eat: pure elisp, no compilation step, good enough for a fallback setup.
-;; Two entry points mirroring how terminals are reached in tmux:
-;;   M-t   -> terminal in its own tab   (tmux new window / nvim :terminal)
-;;   C-q z -> terminal popup at bottom  (tmux `bind z display-popup -E zsh`)
+; ; eat: pure elisp, no compilation step, good enough for a fallback setup.
 (use-package eat
   :commands (eat eat-other-window)
   :config (setq eat-kill-buffer-on-exit t)
@@ -31,9 +28,7 @@
   (require 'eat)
   (let ((default-directory (my/project-root)))
     (tab-bar-new-tab)
-    ;; ARG non-numeric = a fresh session, so every tab gets its own shell the
-    ;; way every tmux window does. `eat' returns the buffer; switch explicitly
-    ;; so the new tab always ends up showing it.
+    ; ; ARG non-numeric = a fresh session, so every tab gets its own shell the ; way every tmux window does.
     (switch-to-buffer (eat nil t))
     (tab-bar-rename-tab "term")))
 
@@ -48,16 +43,14 @@
       (quit-restore-window win 'bury)     ; never errors on a sole window
     (let* ((default-directory (my/project-root))
            (buf (or (get-buffer my/eat-popup-name)
-                    ;; `eat-buffer-name' names it up front, so no renaming and
-                    ;; no clash with the per-tab terminals above
+                    ; ; `eat-buffer-name' names it up front, so no renaming and ; no clash with the per-tab terminals above
                     (save-window-excursion
                       (let ((eat-buffer-name my/eat-popup-name))
                         (eat))))))
       (select-window (display-buffer buf))
       (evil-insert-state))))
 
-;;;; compile -----------------------------------------------------------------
-;; compile-mode.nvim: `m` compiles, output opens below (see popups).
+; ;;; compile ----------------------------------------------------------------- ; compile-mode.nvim: `m` compiles, output opens below (see popups).
 
 (setq compilation-scroll-output 'first-error
       compilation-always-kill t           ; never ask before restarting a build
@@ -67,9 +60,7 @@
 ;; render build output colours instead of raw escape codes
 (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
 
-;;;; popups ------------------------------------------------------------------
-;; Replaces the popper package: transient buffers get a dismissable bottom
-;; window instead of stealing a split. `q` closes them (evil-collection).
+; ;;; popups ------------------------------------------------------------------ ; Replaces the popper package: transient buffers get a dismissable bottom ; window instead of stealing a split.
 
 (add-to-list 'display-buffer-alist
              `(,(rx bos (or "*eat-popup*" "*Warnings*" "*Messages*"
@@ -101,11 +92,20 @@
   :commands vundo
   :config (setq vundo-glyph-alist vundo-unicode-symbols))
 
-;; trim trailing whitespace only on lines actually edited, so it never
-;; pollutes a diff with unrelated churn
+; ; trim trailing whitespace only on lines actually edited, so it never ; pollutes a diff with unrelated churn
 (use-package ws-butler
   :hook ((prog-mode . ws-butler-mode)
          (text-mode . ws-butler-mode)))
+
+;;;; claude (claudecode.nvim) ------------------------------------------------
+
+;; run Claude Code in an eat terminal, tied to the current project.
+(use-package claude-code
+  :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
+  :after eat
+  :config
+  (setq claude-code-terminal-backend 'eat)
+  (claude-code-mode 1))
 
 (provide 'tools)
 ;;; tools.el ends here

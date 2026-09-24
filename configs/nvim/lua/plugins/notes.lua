@@ -1,6 +1,7 @@
 return {
     {
         "folke/todo-comments.nvim", -- highlight TODO comments
+        event = "VeryLazy",
         config = function() require("todo-comments").setup() end
     },
 
@@ -27,13 +28,13 @@ return {
 
     {
         "MeanderingProgrammer/render-markdown.nvim", -- inline markdown rendering
+        ft = "markdown",
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
         config = function()
             require("render-markdown").enable()
             require("render-markdown").setup({
                 completions = { lsp = { enabled = true } },
-                -- "hide" conceals the fence rows, and snacks.image anchors
-                -- mermaid diagrams to the opening fence, hiding them too.
+                -- "hide" conceals the fence rows, and snacks.image anchors mermaid diagrams to the opening fence, hiding them too.
                 code = { border = "thin" },
                 anti_conceal = {
                     ignore = {

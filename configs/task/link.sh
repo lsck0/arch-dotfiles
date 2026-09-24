@@ -20,11 +20,7 @@ else
     echo "task: $HOOK not found (timew not installed), skipping hook" >&2
 fi
 
-# bugwarrior stores its issue metadata in taskwarrior UDAs, which taskwarrior
-# only accepts if they are declared. `bugwarrior uda` prints those declarations
-# for the configured targets; ~/.taskrc includes the result. The file is
-# created empty when bugwarrior is missing, because an include that does not
-# resolve is a hard error for every `task` invocation.
+# bugwarrior stores its issue metadata in taskwarrior UDAs, which taskwarrior only accepts if they are declared.
 if command -v bugwarrior >/dev/null 2>&1 && [[ -e "$HOME/.config/bugwarrior/bugwarrior.toml" ]]; then
     bugwarrior uda > ~/.config/bugwarrior/uda.taskrc.tmp \
         && mv -f ~/.config/bugwarrior/uda.taskrc.tmp ~/.config/bugwarrior/uda.taskrc \

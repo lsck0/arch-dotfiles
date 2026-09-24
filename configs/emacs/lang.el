@@ -20,6 +20,7 @@
           js-ts-mode typescript-ts-mode tsx-ts-mode
           bash-ts-mode sh-mode css-ts-mode html-mode
           json-ts-mode yaml-ts-mode lua-ts-mode go-ts-mode
+          ruby-ts-mode ruby-mode markdown-mode gfm-mode
           latex-mode tex-mode bibtex-mode LaTeX-mode
           zig-mode nix-mode haskell-mode) . eglot-ensure)
   :config
@@ -42,6 +43,9 @@
   (add-to-list 'eglot-server-programs
                '(jai-mode . ("jails" "-jai_path" "/home/luca/.jai"
                              "-jai_exe_name" "jai-linux")))
+
+  ;; marksman for markdown (nvim added the marksman LSP)
+  (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
 
   ;; rust-analyzer: allFeatures + kani cfg flags + nightly clippy (nvim parity)
   (setq-default eglot-workspace-configuration
@@ -85,11 +89,16 @@
     (setf (alist-get m apheleia-mode-alist) '(rustfmt leptosfmt sortderives)))
   (dolist (m '(typescript-ts-mode tsx-ts-mode js-ts-mode
                html-mode css-ts-mode scss-mode))
-    (setf (alist-get m apheleia-mode-alist) 'prettier)))
+    (setf (alist-get m apheleia-mode-alist) 'prettier))
+  ;; conform parity: go, shell, lua, nix
+  (setf (alist-get 'gofumpt apheleia-formatters) '("gofumpt")
+        (alist-get 'nixfmt  apheleia-formatters) '("nixfmt"))
+  (dolist (m '(go-mode go-ts-mode))     (setf (alist-get m apheleia-mode-alist) '(goimports gofumpt)))
+  (dolist (m '(sh-mode bash-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'shfmt))
+  (dolist (m '(lua-mode lua-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'stylua))
+  (dolist (m '(nix-mode nix-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'nixfmt)))
 
-;;;; major modes not bundled with Emacs --------------------------------------
-;; Rust, Go, Lua, Python, JS/TS, C/C++, JSON, YAML, bash and friends all have
-;; built-in *-ts-mode; treesit-auto wires them up. Only these are missing.
+; ;;; major modes not bundled with Emacs -------------------------------------- ; Rust, Go, Lua, Python, JS/TS, C/C++, JSON, YAML, bash and friends all have ; built-in *-ts-mode; treesit-auto wires them up.
 
 (use-package haskell-mode :defer t)
 (use-package zig-mode     :defer t)
@@ -104,6 +113,12 @@
   :vc (:url "https://github.com/elp-revive/jai-mode" :rev :newest)
   :mode "\\.jai\\'"
   :hook (jai-mode . eglot-ensure))
+
+;;;; notebooks (molten + jupytext.nvim) --------------------------------------
+
+;; code-cells: `# %%` cell navigation/eval, and .ipynb round-trip via jupytext.
+(use-package code-cells
+  :hook ((python-mode python-ts-mode markdown-mode) . code-cells-mode-maybe))
 
 (provide 'lang)
 ;;; lang.el ends here

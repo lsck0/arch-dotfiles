@@ -10,19 +10,7 @@ PopupWindow {
   required property QtObject bar
   property var owner: null
   property int margin: Style.gapsOut
-  // Same chrome as Ui/HoverPanel, deliberately. A card hanging off the bar is
-  // a card hanging off the bar: before this, the shell drew three different
-  // ones — bar panels with a full-strength foreground border, the tray's
-  // right-click menu with a foreground border at 0.45, and the tray's manage
-  // popup with an ACCENT border, which is the only accent-outlined surface in
-  // the whole UI. Hovering a tray icon and right-clicking it produced two
-  // visibly different cards from the same icon.
-  // popupPadding (16), not panelPadding (22): PopupCard is the menu/context-
-  // popup component (the tray's right-click menu and its manage popup are
-  // its only two call sites), which reads as a normal-sized menu at the
-  // tighter popup padding. panelPadding is HoverPanel's token, for the
-  // larger hover-triggered info cards — using it here made both of Tray's
-  // popups look oversized/bulky next to any other menu in the shell.
+  // Same chrome as Ui/HoverPanel, deliberately.
   property int padding: Style.spacing.popupPadding
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
@@ -31,7 +19,6 @@ PopupWindow {
   property bool open: false
   property bool centerOnBar: false
   // "click" — uses HyprlandFocusGrab so clicking outside dismisses the popup.
-  // "hover" — passive overlay; the owning widget controls open via hover.
   property string triggerMode: "click"
 
   readonly property var coordinatorKey: owner || root
@@ -82,13 +69,7 @@ PopupWindow {
   implicitWidth: contentWidth
   implicitHeight: contentHeight
 
-  // Upstream's bar owns a popout coordinator (requestPopout/releasePopout/
-  // activePopout) that keeps one click-popup open at a time. This repo's
-  // Bar.qml deliberately never ported it — see its header — so these calls hit
-  // a Bar that has no such methods and threw a TypeError out of this handler on
-  // every open. Guarded rather than deleted: the contract still describes what
-  // a bar SHOULD do with a popup, and a future bar that implements it gets the
-  // behaviour for free.
+  // Upstream's bar owns a popout coordinator (requestPopout/releasePopout/ activePopout) that keeps one click-popup open at a time.
   onOpenChanged: {
     if (!bar || typeof bar.requestPopout !== "function") return
     if (open) bar.requestPopout(coordinatorKey)
@@ -96,10 +77,7 @@ PopupWindow {
       bar.releasePopout(coordinatorKey)
   }
 
-  // Outside-click dismissal via Hyprland's focus grab. While `active`, input
-  // is routed only to the listed windows; clicking anywhere else clears the
-  // grab and we close the popup. Skipped for hover-mode popups so the cursor
-  // can move freely between the trigger and the popup.
+  // Outside-click dismissal via Hyprland's focus grab.
   HyprlandFocusGrab {
     active: root.open && root.triggerMode === "click"
     windows: root.anchorWindow ? [root, root.anchorWindow] : [root]

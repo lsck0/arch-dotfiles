@@ -8,31 +8,7 @@ import qs.Commons
 import qs.Ui
 import "ImagePickerModel.js" as ImagePickerModel
 
-// Adapted from omarchy-shell almost verbatim -- the skewed-carousel image
-// grid (Shape-masked slices, MultiEffect masking, filter-by-name) is
-// unchanged; only the OMARCHY_PATH/env-var plumbing differs:
-//   - scriptPath()/list.sh: this repo's own plugin dir instead of an
-//     OMARCHY_PATH checkout.
-//   - imageDirs default: upstream falls back through
-//     OMARCHY_IMAGE_SELECTOR_DIRS/_DIR/_STOCK_BACKGROUNDS_DIR env vars to
-//     Omarchy's own theme system (~/.local/state/omarchy/current/theme/
-//     backgrounds) -- none of which exist here. Defaults to this repo's
-//     own wallpapers/ directory instead.
-//   - list.sh's thumbnail cache has no pre-generation step here (Omarchy
-//     warms it during theme install; this repo has no equivalent), so
-//     until a thumbnail happens to get cached some other way, images load
-//     full-size -- list.sh's own fallback already handles this gracefully,
-//     and only the ~16 carousel-adjacent images are ever actually loaded.
-//   - Util.editsFilter/editedFilter (no local equivalent) -> the same
-//     explicit Key_Backspace + printable-character handling
-//     Clipboard.qml/AppSearch.qml/Emojis.qml already use.
-//   - selectionFile/doneFile handshake protocol kept as-is: a caller
-//     summons with a payload naming both, writes are polled by the
-//     caller, not consumed by anything in this repo yet -- this is
-//     Omarchy's own general-purpose "picker for a directory of images"
-//     component, unwired to any specific consumer (not a replacement for
-//     scripts/switch-wallpaper.sh's existing fzf+chafa interactive picker,
-//     which stays as-is).
+// Adapted from omarchy-shell almost verbatim -- the skewed-carousel image grid (Shape-masked slices, MultiEffect masking, filter-by-name) is unchanged; only the OMARCHY_PATH/env-var plumbing differs: - scriptPath()/list.sh: this repo's own plugin dir instead of an OMARCHY_PATH checkout.
 Item {
   id: root
 
@@ -41,16 +17,9 @@ Item {
   property var manifest: null
 
   property string imageDirs: Paths.wallpapers
-  // Handwritten premade themes, scanned as their own mode via theme-list.sh,
-  // which reads each themes/*.json's own "wallpaper" field rather than
-  // listing image files directly -- the JSON is the source of truth, not a
-  // themes/wallpapers/<name> filename convention. themeDirs therefore
-  // points at the directory of theme JSONs (themes/), not at a directory of
-  // images. Selecting a result applies that theme's hand-authored palette
-  // (switch-wallpaper.sh matches by each theme JSON's "wallpaper" field).
+  // Handwritten premade themes, scanned as their own mode via theme-list.sh, which reads each themes/*.json's own "wallpaper" field rather than listing image files directly -- the JSON is the source of truth, not a themes/wallpapers/<name> filename convention.
   property string themeDirs: Paths.themes
   // 0 = wallpapers (auto-generate palette via wallust), 1 = premade themes.
-  // Up/Down switches; each mode scans its own directory set.
   property int mode: 0
   property var modeNames: ["Wallpapers", "Themes"]
   property string imageRows: ""
@@ -68,9 +37,7 @@ Item {
   property int applySerial: 0
   property string doneFile: ""
   property string filterText: ""
-  // Cache filter results and filtered positions. Computing the match and
-  // scanning all preceding images inside every delegate made each keystroke
-  // O(n²), which was very noticeable with a large wallpaper directory.
+  // Cache filter results and filtered positions.
   property var filterMatches: []
   property var filterPositions: []
   property int filteredCount: 0
@@ -141,8 +108,7 @@ Item {
     return ImagePickerModel.labelForPath(path)
   }
 
-  // Themes mode: label by the theme JSON's own name (carried through
-  // list rows as displayName), not by its wallpaper's filename.
+  // Themes mode: label by the theme JSON's own name (carried through list rows as displayName), not by its wallpaper's filename.
   function labelForImage(image) {
     return ImagePickerModel.labelForImage(image)
   }
@@ -339,23 +305,18 @@ Item {
     loadImagesProc.activeSerial = serial
     loadImagesProc.queuedSerial = 0
     loadImagesProc.queuedDirs = ""
-    // Themes mode (1) lists theme JSONs' own "wallpaper" fields via
-    // theme-list.sh; wallpapers mode (0) lists image files directly via
-    // list.sh. Both share list.sh's tsv contract and thumbnail cache.
+    // Themes mode (1) lists theme JSONs' own "wallpaper" fields via theme-list.sh; wallpapers mode (0) lists image files directly via list.sh.
     var script = root.mode === 1 ? "theme-list.sh" : "list.sh"
     loadImagesProc.command = [root.scriptPath(script), dirs]
     loadImagesProc.running = true
   }
 
-  // The directory set for the active mode: wallpapers (auto-generate palette)
-  // or the premade themes' wallpapers.
+  // The directory set for the active mode: wallpapers (auto-generate palette) or the premade themes' wallpapers.
   function activeDirs() {
     return root.mode === 1 ? root.themeDirs : root.imageDirs
   }
 
-  // Up/Down switches mode (wallpapers <-> themes) and re-scans the other
-  // directory set. Clears the filter and selection so the carousel starts
-  // fresh on the newly active group rather than pointing at a stale index.
+  // Up/Down switches mode (wallpapers <-> themes) and re-scans the other directory set.
   function switchMode() {
     var next = root.mode === 1 ? 0 : 1
     root.mode = next
@@ -369,9 +330,7 @@ Item {
     root.startImageScan(root.requestSerial, root.activeDirs())
   }
 
-  // Coalesces the per-line stream into a few visible updates rather than
-  // 262 model rebuilds — one per row would be far more expensive than the
-  // wait it replaces.
+  // Coalesces the per-line stream into a few visible updates rather than 262 model rebuilds — one per row would be far more expensive than the wait it replaces.
   Timer {
     id: streamFlush
     interval: 120
@@ -394,10 +353,7 @@ Item {
     property int activeSerial: 0
     property int queuedSerial: 0
     property string queuedDirs: ""
-    // Streams. list.sh prints and flushes one row per image, so the
-    // carousel can fill in as results arrive instead of waiting for the
-    // whole directory walk. Was StdioCollector{waitForEnd:true}, which
-    // blocked on the complete listing before showing anything.
+    // Streams.
     property string streamBuffer: ""
     stdout: SplitParser {
       splitMarker: "\n"
@@ -405,10 +361,7 @@ Item {
         if (loadImagesProc.activeSerial !== root.requestSerial) return
         if (!line) return
         loadImagesProc.streamBuffer += line + "\n"
-        // Reveal on the first batch so something is on screen immediately,
-        // then keep appending. Re-parsing the accumulated buffer is cheap
-        // next to decoding an image and keeps one parser as the single
-        // source of truth for row format.
+        // Reveal on the first batch so something is on screen immediately, then keep appending.
         streamFlush.restart()
       }
     }
@@ -426,8 +379,7 @@ Item {
     }
   }
 
-  // Lifecycle hooks invoked by shell.summon/shell.hide. shell.summon(id,
-  // payloadJson) hands the JSON to open() here; shell.hide(id) calls close().
+  // Lifecycle hooks invoked by shell.summon/shell.hide.
   function open(payload) {
     var args = {}
     if (payload) {
@@ -443,8 +395,7 @@ Item {
     var filter = args.filterable === true || args.filterable === "true"
     imageDirs = dirs
     themeDirs = tDirs
-    // Which group to land on. The wallpaper picker passes mode 0 (wallpapers)
-    // by default; a caller can open straight into the themes group with 1.
+    // Which group to land on.
     if (args.mode === 1) mode = 1; else mode = 0
     openSelector(dirs, rows, sel, selFile, doneF, labels, filter)
   }
@@ -454,10 +405,7 @@ Item {
   }
 
   function preloadRows(nextImageRows, nextSelectedImage, nextShowLabels, nextFilterable) {
-    // Theme/background set hooks can warm selector rows after a picker was
-    // dismissed. Ignore those preloads while a user-visible request is open;
-    // otherwise the preload resets layoutSettled without revealing again,
-    // leaving only the fullscreen scrim.
+    // Theme/background set hooks can warm selector rows after a picker was dismissed.
     if (opened || requestActive) return
 
     requestSerial += 1
@@ -498,15 +446,7 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "quickshell-image-selector"
     WlrLayershell.layer: WlrLayer.Overlay
-    // Was `root.opened && root.imagesLoaded`. switchMode() (Up/Down between
-    // Wallpapers and Themes) clears imagesLoaded for the stretch between the
-    // scan starting and the first batch streaming back, with root.opened
-    // staying true throughout -- so this dropped keyboard focus to None and
-    // reacquired Exclusive moments later on every single mode switch, and
-    // the scrim+MouseArea below did the same for the dimmed backdrop,
-    // producing a flash through to the desktop. Keeping all three keyed on
-    // root.opened alone means a mode switch only ever swaps the carousel
-    // contents, never the backdrop or the keyboard grab.
+    // Was `root.opened && root.imagesLoaded`.
     WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
 
@@ -567,9 +507,7 @@ Item {
               root.selectAdjacent(1)
               event.accepted = true
             } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-              // Up/Down toggles between the two groups: wallpapers (auto-
-              // generate the theme) and premade themes (each with its own
-              // wallpaper + hand-authored palette).
+              // Up/Down toggles between the two groups: wallpapers (auto- generate the theme) and premade themes (each with its own wallpaper + hand-authored palette).
               root.switchMode()
               event.accepted = true
             } else if (root.filterable && event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127 && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
@@ -645,33 +583,15 @@ Item {
                   maskSpreadAtMin: 0.3
                 }
 
-                // Two layers, not one. The thumbnail (cached, a few hundred
-                // px, decodes near-instantly) is always the base — it is
-                // what every slice shows, selected or not. The selected
-                // item ALSO loads its full-size original on top, since it's
-                // displayed at 768x475 and a thumbnail there was visibly
-                // soft; that decode is asynchronous but a multi-MB source
-                // still takes real time. It used to be the *only* image, so
-                // selecting a wallpaper meant an empty box for however long
-                // that decode took. Now the thumbnail is already on screen
-                // for that whole window, and the full-res layer just fades
-                // in on top once ready — never a blank frame.
+                // Two layers, not one.
                 Image {
                   id: thumbImage
                   anchors.fill: parent
                   source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                  // Decode no wider than this image can ever be drawn. A
-                  // wallpaper directory is full of 4K files, and a 3840x2160
-                  // source decodes to a 33 MB RGBA buffer regardless of the
-                  // 768px box it is shown in — times every activated slice.
-                  // Height is left to follow the aspect ratio.
+                  // Decode no wider than this image can ever be drawn.
                   sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
-                  // Was false, which decoded every image on the UI thread —
-                  // so opening the picker froze the shell while it worked
-                  // through them. The carousel already windows which images
-                  // activate; decoding those off-thread is what keeps it
-                  // responsive while they arrive.
+                  // Was false, which decoded every image on the UI thread — so opening the picker froze the shell while it worked through them.
                   asynchronous: true
                   cache: true
                   smooth: true
@@ -681,8 +601,7 @@ Item {
                   id: fullImage
                   anchors.fill: parent
                   source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
-                  // Same cap as the thumbnail layer: this is the full-size
-                  // original, shown in the same 768px box.
+                  // Same cap as the thumbnail layer: this is the full-size original, shown in the same 768px box.
                   sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   asynchronous: true
@@ -723,33 +642,14 @@ Item {
           }
         }
 
-        // Search chip: hidden until you type. The carousel's own Keys.onPressed
-        // already accepts printable characters and calls updateFilter (see
-        // its handler above), so a search box isn't needed just to START
-        // typing — only to see/edit/clear the filter once it exists. Filling
-        // that role only after there's something to show removes the empty
-        // "Search wallpapers…" box that always sat under the carousel: one
-        // less always-on element, same discoverability (the mode label
-        // below still says "type to search" while empty).
+        // Search chip: hidden until you type.
         BorderSurface {
           id: searchChip
           readonly property bool focused: searchInput.activeFocus
           readonly property bool hot: searchHover.hovered
           visible: root.filterable && root.filterText.length > 0
 
-          // EVERY way out of the search field has to hand focus back, not just
-          // the two that remembered to.
-          //
-          // This chip only exists while there is filter text, and `searchInput`
-          // holds `focus: searchChip.visible` — so the moment the filter empties
-          // the field is un-focused and active focus lands on nothing. Arrows,
-          // Enter, Escape and plain typing then all stop working until the
-          // picker is closed and reopened, which reads as "the picker froze".
-          // Escape and the clear (x) button each carried their own
-          // `carousel.forceActiveFocus()` workaround; BACKSPACING THE LAST
-          // CHARACTER did not, and that is the most natural way to empty it.
-          // Handle it once, where the focus is actually lost, instead of at
-          // each exit.
+          // EVERY way out of the search field has to hand focus back, not just the two that remembered to.
           onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
 
           anchors.top: carousel.bottom
@@ -796,16 +696,14 @@ Item {
             Keys.onEscapePressed: function (event) {
               if (text.length > 0) {
                 text = ""
-                // searchChip.onVisibleChanged also returns focus to the
-                // carousel; this is the explicit path for the same thing.
+                // searchChip.onVisibleChanged also returns focus to the carousel; this is the explicit path for the same thing.
                 carousel.forceActiveFocus()
               } else {
                 root.cancel()
               }
               event.accepted = true
             }
-            // Up/Down switches group from the search field too (focus lands
-            // here when filterable). Enter commits the filter to the carousel.
+            // Up/Down switches group from the search field too (focus lands here when filterable).
             Keys.onUpPressed: function (event) { root.switchMode(); event.accepted = true }
             Keys.onDownPressed: function (event) { root.switchMode(); event.accepted = true }
           }

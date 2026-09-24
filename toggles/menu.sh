@@ -16,8 +16,7 @@ done < <(find . -maxdepth 1 -name 'toggle-*.sh' | sort)
 if [[ "$picker" == fzf ]]; then
     selected=$(printf '%s\n' "${lines[@]}" | fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel")
 else
-    # scripts/picker.sh (pywal-themed bemenu). Was `walker --dmenu`;
-    # walker was removed 2026-09-02.
+    # scripts/picker.sh (pywal-themed bemenu).
     selected=$(printf '%s\n' "${lines[@]}" | "$HOME/projects/arch-dotfiles/scripts/picker.sh" -p "Toggles")
 fi
 [[ -z "${selected:-}" ]] && exit 0

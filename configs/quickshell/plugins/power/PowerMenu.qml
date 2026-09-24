@@ -1,7 +1,4 @@
-// Native replacement for wlogout, bound to Super+Shift+E. Actions are
-// immediate; the key letters are l/e/h/s/r.
-// Lock shells out to `loginctl lock-session`, which hypridle's `lock_cmd`
-// (configs/hyprland/hypridle.conf, hyprlock) answers.
+// Native replacement for wlogout, bound to Super+Shift+E.
 
 import QtQuick
 import Quickshell
@@ -10,17 +7,14 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// wlogout's own layout used `pkill Hyprland` for logout; `hyprctl dispatch
-// exit` is the documented, non-SIGKILL equivalent (see
-// configs/wlogout/layout).
+// wlogout's own layout used `pkill Hyprland` for logout; `hyprctl dispatch exit` is the documented, non-SIGKILL equivalent (see configs/wlogout/layout).
 Item {
     id: root
 
     property bool opened: false
     property int selectedIndex: 0
     readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
-    // Glyph codepoints resolved to their glyph names via fontTools against
-    // 0xProto Nerd Font before use.
+    // Glyph codepoints resolved to their glyph names via fontTools against 0xProto Nerd Font before use.
     readonly property var actions: [{
         "id": "lock",
         "label": "Lock",
@@ -33,8 +27,6 @@ Item {
         "icon": "\u{f08b}",
         "destructive": false,
         // Terminate this session directly instead of asking Hyprland to exit.
-        // The latter is compositor-specific and was the reason Exit appeared
-        // to do nothing in non-Hyprland/session-manager paths.
         "cmd": ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""]
     }, {
         "id": "suspend",
@@ -222,8 +214,7 @@ Item {
                             width: Style.space(132)
                             height: Style.space(132)
                             radius: Style.cornerRadius
-                            // State fill tinted onto the opaque menu surface; a bare translucent
-                            // fill let whatever sat under the scrim read through the tiles.
+                            // State fill tinted onto the opaque menu surface; a bare translucent fill let whatever sat under the scrim read through the tiles.
                             color: Qt.tint(Color.menu.background, selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint))
                             borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
 
@@ -270,11 +261,7 @@ Item {
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     textFormat: Text.PlainText
-                    // Words, not arrow glyphs. U+2190..2193 and U+21B5 are NOT in
-                    // 0xProto Nerd Font (checked with fontTools), so Qt silently
-                    // substituted them from some other installed family and they
-                    // rendered as dashes. U+00B7 is present and is used as the
-                    // separator.
+                    // Words, not arrow glyphs.
                     visible: false
                     text: ""
                     opacity: 0

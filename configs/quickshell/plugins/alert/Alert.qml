@@ -4,28 +4,14 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// New plugin, not from omarchy-shell. A large top-right card that stays up
-// until it is dismissed by hand.
-//
-// This exists because an ordinary notification toast is the wrong shape for
-// a timer that has elapsed: toasts auto-expire, so a reminder that fires
-// while you are looking at another screen is simply gone. Anything routed
-// here is something you asked to be interrupted by — a reminder firing, a
-// pomodoro phase ending — so it is deliberately hard to miss and impossible
-// to lose. Ordinary confirmations ("reminder set", "pomodoro stopped") stay
-// as normal toasts; they are not worth blocking on.
-//
-// The sound is played by configs/quickshell/scripts/alert.sh, not here, so a reminder is still
-// audible when the shell is down. That script also falls back to a plain
-// notification if this overlay cannot be summoned.
+// New plugin, not from omarchy-shell.
 Item {
   id: root
 
   property var shell: null
   property var manifest: null
 
-  // A list, not a single alert: two reminders can elapse in the same minute
-  // and the second must not silently replace the first.
+  // A list, not a single alert: two reminders can elapse in the same minute and the second must not silently replace the first.
   property var alerts: []
 
   property string fontFamily: Style.font.family
@@ -76,13 +62,7 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // close() and dismiss() must stay separate, and only dismiss() may talk to
-  // the shell. shell.hide() calls the plugin's own close() — so a close()
-  // that calls hide() recurses until the stack blows
-  // ("RangeError: Maximum call stack size exceeded"), which then leaves the
-  // shell's openPanelIds entry never cleared, so every *later* summon was
-  // accepted and silently delivered nothing. Same split ReminderFlow.qml
-  // uses, and for the same reason.
+  // close() and dismiss() must stay separate, and only dismiss() may talk to the shell.
   function close() {
     root.alerts = []
   }
@@ -97,10 +77,7 @@ Item {
     id: win
     visible: root.alerts.length > 0
     screen: root.mainScreen
-    // Top-right, per the owner's explicit request. Sized to its content
-    // rather than full-screen: a full-screen surface would swallow clicks
-    // across the whole desktop for as long as an alert is up, which is the
-    // same mistake Bar.qml's removed dismiss-catcher made.
+    // Top-right, per the owner's explicit request.
     anchors { top: true; right: true }
     margins { top: Style.bar.sizeHorizontal + Style.spacing.lg; right: Style.spacing.lg }
     implicitWidth: Style.space(440)
@@ -108,16 +85,11 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
-    // OnDemand, not Exclusive: an alert must not steal the keyboard the
-    // instant it appears (that would eat keystrokes mid-sentence). Click it
-    // and Esc works; ignore it and typing continues uninterrupted.
+    // OnDemand, not Exclusive: an alert must not steal the keyboard the instant it appears (that would eat keystrokes mid-sentence).
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
 
-    // Keys must attach to an Item, not to the PanelWindow itself — a
-    // PanelWindow is a wayland surface interface, and attaching there logs
-    // "Could not attach Keys property to ... is not an Item" and silently
-    // never fires. Wrap the content instead.
+    // Keys must attach to an Item, not to the PanelWindow itself — a PanelWindow is a wayland surface interface, and attaching there logs "Could not attach Keys property to ...
     PanelKeyCatcher {
       anchors.fill: parent
       onCloseRequested: root.dismiss()

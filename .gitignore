@@ -1,7 +1,7 @@
+*.log
+.Rhistory
+FAILURES
+__pycache__
 boot.conf
 configs/obs/Untitled.json
-FAILURES
 groups.conf
-*.log
-__pycache__
-.Rhistory

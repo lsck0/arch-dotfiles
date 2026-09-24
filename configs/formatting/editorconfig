@@ -1,0 +1,14 @@
+# Global fallback for files under $HOME (no root=true, so a project's own
+# root .editorconfig stops before reaching this). l-style: 4-space, 120 cols.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.md]
+# trailing two spaces are a hard line break in markdown
+trim_trailing_whitespace = false

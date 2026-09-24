@@ -1,17 +1,8 @@
 #!/usr/bin/env bash
-# Regenerates the Zed pywal theme and VSCodium's workbench.colorCustomizations
-# from pywal's colors.json. Called from switch-wallpaper.sh's set_wallpaper(),
-# same place every other themed app gets updated.
+# Regenerates the Zed pywal theme and VSCodium's workbench.colorCustomizations from pywal's colors.json.
 set -euo pipefail
 
 # Install a generated file WITHOUT replacing the destination inode.
-#
-# `mv tmp dest` replaces the inode, which silently converts a symlink into a
-# regular file. ~/.config/herdr/config.toml is a symlink into this repo
-# (configs/herdr/link.sh), so a plain mv would break the link on the first
-# wallpaper change and the repo copy would then quietly stop being what herdr
-# actually reads. Resolving the destination first keeps the rename atomic
-# while landing it on the symlink's target instead of on the symlink.
 install_through_symlink() {
     local src=$1 dest=$2 real
     real=$(readlink -f "$dest" 2>/dev/null || echo "$dest")
@@ -30,9 +21,7 @@ EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 bg=$(jq -r '.special.background' "$COLORS_JSON")
 fg=$(jq -r '.special.foreground' "$COLORS_JSON")
 
-# Decided on the RAW background, before the HSV floor below clamps it into a
-# fixed dark band: after that clamp every palette looks dark, so it can no
-# longer tell a light theme (ayu-light, solarized-dawn) from a dark one.
+# Decided on the RAW background, before the HSV floor below clamps it into a fixed dark band: after that clamp every palette looks dark, so it can no longer tell a light theme (ayu-light, solarized-dawn) from a dark one.
 if python3 -c "
 import sys
 hx = '$bg'.lstrip('#')
@@ -50,14 +39,7 @@ else
     EMACS_LIGHTEN=lighten
 fi
 
-# Floor bg's HSV value the same way configs/quickshell/Commons/Color.qml's
-# toneMap(bg, 0.08, 0.26) does for the shell's own background. Without this,
-# every consumer of $bg below (Zed, VSCodium, herdr) gets wallust's raw
-# special.background verbatim — on this palette that's V≈0.039, so dark it
-# renders as flat black. herdr's sidebar_bg was the one actually reported
-# ("black bar on the left"), but panel_bg/editor backgrounds share the same
-# raw value, so the floor applies before $bg branches to any of them rather
-# than patching herdr's block alone.
+# Floor bg's HSV value the same way configs/quickshell/Commons/Color.qml's toneMap(bg, 0.08, 0.26) does for the shell's own background.
 bg=$(python3 -c "
 import colorsys
 hx = '$bg'.lstrip('#')
@@ -176,19 +158,10 @@ if [[ -d "$(dirname "$VSCODE_SETTINGS")" ]] || mkdir -p "$(dirname "$VSCODE_SETT
     }' "$VSCODE_SETTINGS" > "$tmp" && mv "$tmp" "$VSCODE_SETTINGS"
 fi
 
-# --- herdr [theme.custom] (marker-delimited surgical replace — config.toml is
-# hand-written/tracked, so this must never touch anything outside the markers) ---
+# --- herdr [theme.custom] (marker-delimited surgical replace — config.toml is hand-written/tracked, so this must never touch anything outside the markers) ---
 HERDR_CONFIG="$HOME/.config/herdr/config.toml"
 
-# herdr's own background. Issue 21 v3: v1 used the ghostty-composited colour
-# (too light, mismatched the opaque pane). v2 hardcoded a hand-picked value
-# darker than even $bg's own HSV floor (#07090c vs. a floored $bg around
-# #0B0E14) — reported back as "TOOOOO DARK", because on this palette the raw
-# background's V is ~0.078, already right at $bg's 0.08 floor, so v2's extra
-# darkening was pure regression with no floor left under it. Fix: give herdr
-# specifically a *second, higher* floor (0.16, distinctly lighter than $bg's
-# shared 0.08) rather than reusing $bg verbatim — Zed/VSCodium keep the
-# original $bg floor unchanged since neither got this complaint.
+# herdr's own background.
 herdr_bg=$(python3 -c "
 import colorsys
 hx = '$bg'.lstrip('#')
@@ -199,30 +172,7 @@ r, g, b = colorsys.hsv_to_rgb(h, s, v)
 print('#%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255)))
 ")
 if [[ -f "$HERDR_CONFIG" ]] && grep -q "# BEGIN PYWAL THEME" "$HERDR_CONFIG"; then
-  # Only sidebar_bg/panel_bg/active_row_bg/selection_bg/accent/red/green used
-  # to be set here. herdr's [theme.custom] schema (config-reference.json)
-  # also has surface0/surface1/surface_dim/overlay0/overlay1/text/subtext0
-  # and mauve/yellow/blue/teal/peach — Catppuccin's own token names, which
-  # this is a reskin of. Leaving them unset doesn't mean "invisible", it
-  # means herdr falls back to its stock (non-wallust) theme for whatever
-  # uses them — which on this machine was a neutral grey, sitting right next
-  # to the navy-tinted bg/accent tokens that WERE set. Reported as "a
-  # transparency difference between the main window and the sidebar"; it
-  # was actually two different color families in the same window, not
-  # alpha (config-reference.json's own token comment documents
-  # `panel_bg = "reset"` as a real, supported value — a pass-through to the
-  # host terminal's own background/opacity, not a solid color. Corrects the
-  # earlier "no opacity/transparency keys at all" note here — that read the
-  # override syntax as if hex/named/rgb() were the ONLY accepted forms).
-  # sidebar_bg/panel_bg are now set to "reset" (real sidebar/topbar
-  # transparency, following ghostty's background-opacity through) instead
-  # of a solid pre-blended hex — active_row_bg/selection_bg/surface*/
-  # overlay*/subtext0 stay solid since those need to sit legibly on TOP of
-  # whatever shows through, so pre-blending foreground into background at
-  # increasing opacity (mirroring configs/quickshell/Commons/Color.qml's
-  # selectedBackground convention) is still correct for them specifically.
-  # Same ramp order as Catppuccin: surface_dim ~= bg, then
-  # surface0 < surface1 < overlay0 < overlay1 < subtext0 < text(=fg).
+  # Only sidebar_bg/panel_bg/active_row_bg/selection_bg/accent/red/green used to be set here.
   read -r active_row_bg selection_bg surface_dim surface0 surface1 overlay0 overlay1 subtext0 < <(python3 -c "
 fg = '$fg'.lstrip('#')
 bg = '$herdr_bg'.lstrip('#')
@@ -234,10 +184,7 @@ def blend(t):
         round(fgc * t + bgc * (1 - t)),
         round(fb * t + bb * (1 - t)),
     )
-# Issue 21 v3: v2 pulled the whole ramp too close to bg on top of an
-# already-too-dark bg, compounding into TOOOOO DARK. With herdr_bg now
-# floored lighter (see above), restore fractions closer to the original
-# Catppuccin-style ramp so active/selection/surface states stay legible.
+# Issue 21 v3: v2 pulled the whole ramp too close to bg on top of an already-too-dark bg, compounding into TOOOOO DARK.
 print(blend(0.06), blend(0.11), blend(0.0), blend(0.08), blend(0.14), blend(0.22), blend(0.34), blend(0.65))
 ")
 
@@ -280,20 +227,7 @@ print(blend(0.06), blend(0.11), blend(0.0), blend(0.08), blend(0.14), blend(0.22
   herdr server reload-config >/dev/null 2>&1 || true
 fi
 
-# --- Emacs: doom-pywal theme ---
-#
-# Emacs gets a real generated `doom-themes` theme rather than a face-by-face
-# override list: doom-themes-base.el already defines ~500 faces (org, magit,
-# lsp, treemacs, …) in terms of a fixed palette vocabulary, so emitting just
-# that vocabulary buys every one of them. ui.el loads a hand-picked doom theme
-# when the active system theme has a doom counterpart and falls back to this
-# generated one otherwise (plain-wallpaper mode always lands here) — same
-# name-dispatch-with-pywal-fallback shape nvim's lua/theme.lua uses.
-#
-# base0..base8 and the off-palette hues (orange/teal/violet/dark-*) are derived
-# at load time with doom-darken/doom-lighten/doom-blend instead of being
-# precomputed here, so they stay correct for light palettes too, where a
-# hardcoded "darken by N" would run the wrong direction.
+# --- Emacs: doom-pywal theme --- Emacs gets a real generated `doom-themes` theme rather than a face-by-face override list: doom-themes-base.el already defines ~500 faces (org, magit, lsp, treemacs, …) in terms of a fixed palette vocabulary, so emitting just that vocabulary buys every one of them.
 mkdir -p "$EMACS_THEME_DIR"
 cat > "$EMACS_THEME" <<EOF
 ;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-

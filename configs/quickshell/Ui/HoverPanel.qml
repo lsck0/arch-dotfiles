@@ -3,14 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 
-// Shared chrome + hover wiring for every dropdown-style bar panel:
-// BorderSurface card, a click-eating MouseArea (stops clicks falling
-// through to Bar's dismiss catcher), and a HoverHandler that reports into
-// `bar.hoverPanelEnter/Exit` — the panel-side counterpart to the
-// trigger-side reporting WidgetButton does via its entered()/exited()
-// signals. Callers declare their content as plain children, same as they
-// would inside a bare Column; it lands inside the inset `inner` item via
-// the default-property redirect below.
+// Shared chrome + hover wiring for every dropdown-style bar panel: BorderSurface card, a click-eating MouseArea (stops clicks falling through to Bar's dismiss catcher), and a HoverHandler that reports into `bar.hoverPanelEnter/Exit` — the panel-side counterpart to the trigger-side reporting WidgetButton does via its entered()/exited() signals. Callers declare their content as plain children, same as they would inside a bare Column; it lands inside the inset `inner` item via the default-property redirect below.
 PanelWindow {
   id: root
 
@@ -19,27 +12,14 @@ PanelWindow {
   property real padding: Style.spacing.panelPadding
   default property alias data: inner.data
 
-  // Set this to the BarWidget that triggers the panel and it opens centred
-  // beneath that widget. Leave it null and the panel keeps the historical
-  // top-right anchor, which is still the right answer for right-section
-  // widgets: they all sit next to each other, so a shared landing spot means
-  // hover can transit from any of them to any panel.
-  //
-  // It exists for the *centre* section. The SPEC puts the datetime and media
-  // widgets there behind hover panels, and a mid-bar trigger is ~950px from
-  // a right-anchored panel — far enough that reaching it needs one
-  // uninterrupted sweep inside hoverCloseTimer's grace window.
+  // Set this to the BarWidget that triggers the panel and it opens centred beneath that widget.
   property Item anchorWidget: null
   readonly property bool anchored: anchorWidget !== null
 
   // Keeps the card clear of the screen edges when the trigger sits near one.
   readonly property real edgeMargin: Style.spacing.md
 
-  // Centred under the trigger, then clamped into the bar's width so a panel
-  // wider than the space beside its trigger slides inward instead of
-  // hanging off-screen. Depends on anchorWidget.barX, which BarWidget
-  // republishes on every layout change — that dependency is the whole
-  // mechanism, so it must stay a property read and not a mapToItem call.
+  // Centred under the trigger, then clamped into the bar's width so a panel wider than the space beside its trigger slides inward instead of hanging off-screen.
   readonly property real anchoredLeft: {
     if (!anchored || !bar) return 0
     var centre = anchorWidget.barX + anchorWidget.width / 2
@@ -48,27 +28,10 @@ PanelWindow {
   }
 
   // Emitted every time the panel comes up, however it was opened.
-  //
-  // A PANEL MUST REFRESH FROM HERE, NOT FROM ITS TRIGGER'S onEntered. Hover is
-  // only one of the ways a panel opens: `quickshell ipc call bar open network`
-  // and any keybind bound to it never touch the trigger, so a widget that
-  // fetched its data on hover alone came up empty or stale for every other
-  // route — the audio panel with no devices listed, the notification list
-  // reading "Nothing recent" over ten stored entries, the radar stuck on
-  // "unavailable". Three widgets had each grown their own `onVisibleChanged`
-  // to patch it and five had not; this is the one mechanism, so a new panel
-  // gets it by connecting a signal rather than by remembering a convention.
   signal opened()
 
   visible: bar !== null && bar.activePanel === moduleName
-  // One handler: QML allows a signal only one handler per object, and a second
-  // `onVisibleChanged` here is a load-time error, not an addition.
-  //
-  // Re-reading the trigger's position happens first. The layout signals below
-  // keep barX fresh in the general case, but this is the one moment
-  // correctness is actually observable, so it is worth not relying on them
-  // alone — and it must settle before a consumer of `opened()` can move
-  // anything.
+  // One handler: QML allows a signal only one handler per object, and a second `onVisibleChanged` here is a load-time error, not an addition.
   onVisibleChanged: {
     if (!visible) return
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
@@ -78,9 +41,7 @@ PanelWindow {
   screen: bar && bar.screen ? bar.screen : null
   color: "transparent"
 
-  // Anchoring one horizontal edge and offsetting from it is what positions a
-  // layer-shell surface; there is no free-floating x. Anchoring *both* edges
-  // would stretch the surface across the screen instead.
+  // Anchoring one horizontal edge and offsetting from it is what positions a layer-shell surface; there is no free-floating x.
   anchors {
     top: true
     left: root.anchored
@@ -99,20 +60,12 @@ PanelWindow {
 
   WlrLayershell.namespace: "quickshell-" + (moduleName || "panel")
   WlrLayershell.layer: WlrLayer.Overlay
-  // Opt-in, defaulting to None. A hover panel that grabbed the keyboard
-  // would pull focus off whatever you were typing in the moment it opened,
-  // and most panels have nothing to type into. Panels that DO carry a text
-  // field (the Display panel's font search) set this, and OnDemand means
-  // they only take focus on an actual click, handing it back when the panel
-  // closes on hover-exit.
+  // Opt-in, defaulting to None.
   property bool acceptsKeyboard: false
   WlrLayershell.keyboardFocus: root.acceptsKeyboard
     ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-  // The card is inset from the window by exactly the shadow offset, so the
-  // hard shadow has somewhere to land. Filling the window instead clips the
-  // shadow away entirely — invisible on a right-anchored panel, which is
-  // most of them.
+  // The card is inset from the window by exactly the shadow offset, so the hard shadow has somewhere to land.
   BorderSurface {
     id: card
     x: 0
@@ -125,9 +78,7 @@ PanelWindow {
     padding: root.padding
   }
 
-  // Do not place a click-eating MouseArea over the card: panel controls
-  // (calendar, sliders, buttons, and text fields) must receive pointer input.
-  // Each interactive child owns its own MouseArea.
+  // Do not place a click-eating MouseArea over the card: panel controls (calendar, sliders, buttons, and text fields) must receive pointer input.
 
   HoverHandler {
     onHoveredChanged: {

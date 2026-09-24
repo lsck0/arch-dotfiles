@@ -129,19 +129,12 @@ def notify(msg):
     if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
         title, body, urgency, click = webhook_summary(payload)
         app, glyph = "Homelab", "\U000f048d"
-        # A firing critical alert is posted with no expiry on purpose — it must
-        # not scroll away while nobody is looking. That is also why it never
-        # left the screen: nothing ever took it down again. Alertmanager sends
-        # a `resolved` post for the same group when the condition clears, so
-        # that post is what closes the firing one. The resolved toast itself is
-        # ordinary urgency and expires on its own.
+        # A firing critical alert is posted with no expiry on purpose — it must not scroll away while nobody is looking.
         key = group_key(payload)
         opened = open_alerts_read()
         previous = opened.pop(key, 0)
         if payload.get("status") == "firing":
-            # Replace rather than stack: a group that re-fires (a new alert
-            # joins it, Alertmanager repeats it) should update the card that is
-            # already up, not add another identical one.
+            # Replace rather than stack: a group that re-fires (a new alert joins it, Alertmanager repeats it) should update the card that is already up, not add another identical one.
             new_id = notify_send(app, glyph, urgency, title, body, click, replaces=previous)
             if new_id:
                 opened[key] = new_id
@@ -184,7 +177,6 @@ def subscribe(server, names, since):
     if query:
         url += "?" + urllib.parse.urlencode(query)
     # ntfy sends a keepalive every 45s, so a silent minute means a dead connection.
-    # The edge WAF rejects urllib's default User-Agent.
     request = urllib.request.Request(url, headers={"User-Agent": "ntfy-notify"})
     with urllib.request.urlopen(request, timeout=90) as stream:
         for raw in stream:

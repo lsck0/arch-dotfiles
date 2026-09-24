@@ -118,19 +118,7 @@ function sortedEntries(values, query, hiddenCallback) {
     return 0
   })
 
-  // Unwrap. `rows` carries {entry, score, key, name} purely so the sort above
-  // can see the precomputed score and sort key — but the function is called
-  // sortedEntries and every caller reasonably treats what it returns as a
-  // DesktopEntry. Returning the wrappers broke FOUR things at once in
-  // AppSearch.qml, all silently:
-  //   * icons      — modelData.icon was undefined, so every row fell back to
-  //                  the generic application-x-executable placeholder
-  //   * names      — entryName(wrapper) returned wrapper.name, which is the
-  //                  LOWERCASED sort key, so every app displayed lowercased
-  //   * subtitles  — entrySubtext(wrapper).genericName was undefined
-  //   * LAUNCHING  — launchAt() read entry.id off the wrapper, got undefined,
-  //                  and AppLibrary.launch() returns early on a falsy id, so
-  //                  clicking a result did nothing at all
+  // Unwrap. `rows` carries {entry, score, key, name} purely so the sort above can see the precomputed score and sort key — but the function is called sortedEntries and every caller reasonably treats what it returns as a DesktopEntry. Returning the wrappers broke FOUR things at once in AppSearch.qml, all silently: * icons      — modelData.icon was undefined, so every row fell back to the generic application-x-executable placeholder * names      — entryName(wrapper) returned wrapper.name, which is the LOWERCASED sort key, so every app displayed lowercased * subtitles  — entrySubtext(wrapper).genericName was undefined * LAUNCHING  — launchAt() read entry.id off the wrapper, got undefined, and AppLibrary.launch() returns early on a falsy id, so clicking a result did nothing at all
   var out = []
   for (var r = 0; r < rows.length; r++) out.push(rows[r].entry)
   return out

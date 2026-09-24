@@ -33,30 +33,20 @@ Rectangle {
   // ─────────────────────────────────────────────────────────── API
 
   property string label: ""
-  // Leading icon, drawn in the pinned icon family. Empty means no glyph and
-  // the label sits where the glyph would have been — the row does not reserve
-  // an empty slot, because a list where only some rows have icons reads better
-  // flush than ragged.
+  // Leading icon, drawn in the pinned icon family.
   property string glyph: ""
   // Right-aligned secondary text: a signal percentage, a device name, a value.
   property string trailing: ""
 
-  // A TOGGLE row shows its state as a filled/hollow dot instead of an icon —
-  // a VPN that is on, an audio device that is current. Drawn in the UI family
-  // because ● / ○ are ordinary text, not Nerd Font glyphs, and pinning them to
-  // the icon family is how they end up as two different circles. Ignored when
-  // `glyph` is set: a row states its purpose one way or the other.
+  // A TOGGLE row shows its state as a filled/hollow dot instead of an icon — a VPN that is on, an audio device that is current.
   property bool stateMarker: false
 
-  // Selected/active. Paints the menu's selected role, which is the same
-  // treatment the calendar's "today" and the audio panel's current device use.
+  // Selected/active.
   property bool on: false
 
-  // A row that is a BUTTON rather than a list entry rests on a fill instead of
-  // on the card, so it reads as pressable with nothing selected.
+  // A row that is a BUTTON rather than a list entry rests on a fill instead of on the card, so it reads as pressable with nothing selected.
   property bool filled: false
-  // Centre the label instead of running it from the left edge. Buttons centre;
-  // list entries do not.
+  // Centre the label instead of running it from the left edge.
   property bool centered: false
 
   property bool enabled: true

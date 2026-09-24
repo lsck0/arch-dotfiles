@@ -2,13 +2,7 @@
 
 ;;;; theme + font -----------------------------------------------------------
 
-;; Follows the desktop theme instead of pinning one palette. switch-wallpaper.sh
-;; writes the active theme's basename ("ayu-dark") — or the literal "pywal" when
-;; a bare wallpaper was set rather than a named theme — to ~/.cache/wal/nvim_theme.
-;; A name with a doom-themes counterpart uses it (hand-tuned beats generated);
-;; anything else falls back to doom-pywal, regenerated from the live palette by
-;; configs/wallust/scripts/generate-editor-themes.sh. Same name-dispatch-with-
-;; pywal-fallback that nvim's lua/theme.lua does.
+; ; Follows the desktop theme instead of pinning one palette.
 (defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
 
 (defconst my/system-theme-alist
@@ -74,8 +68,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;;;; top bar ----------------------------------------------------------------
 
-;; Native tab-bar tabs are the tmux-window / nvim-tab equivalent. M-1..5 and
-;; C-q 1..5 select them, M-c/C-q c spawns, M-x/C-q x closes (see keys.el).
+; ; Native tab-bar tabs are the tmux-window / nvim-tab equivalent.
 (setq tab-bar-show 1
       tab-bar-new-tab-choice #'my/projects-dired
       tab-bar-tab-hints t                 ; number each tab
