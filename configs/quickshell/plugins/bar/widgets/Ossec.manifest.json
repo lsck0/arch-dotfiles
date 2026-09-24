@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "bar.ossec",
+  "name": "OSSEC",
+  "version": "1.0.0",
+  "author": "arch-dotfiles",
+  "description": "OSSEC HIDS alerts: 24h count, highest level, recent alerts",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Ossec.qml" },
+  "keepLoaded": true,
+  "barWidget": {
+    "displayName": "OSSEC",
+    "description": "OSSEC HIDS alerts: 24h count, highest level, recent alerts",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

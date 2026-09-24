@@ -1,8 +1,4 @@
--- :LPromptBuffer / :LPromptSelection
---   Send buffer/selection text to the one hermes agent this editor owns.
--- :LPromptBufferToTaskwarrior / :LPromptSelectionToTaskwarrior
---   Send the same text into the nearest project's taskwarrior db as a
---   +prompt task. (see l-agent-task-db / l-multi-agent-task-mode)
+-- :LPromptBuffer / :LPromptSelection Send buffer/selection text to the one hermes agent this editor owns.
 local M = {}
 
 local HERMES_AGENT_NAME = "lprompt-hermes"

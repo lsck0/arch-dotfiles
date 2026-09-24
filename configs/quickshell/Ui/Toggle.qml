@@ -1,17 +1,7 @@
 import QtQuick
 import qs.Commons
 
-// Labeled toggle row: title + optional description on the left, a
-// `ToggleSwitch` on the right. Clicking anywhere on the row emits `clicked()`;
-// consumers flip `checked` in response (the component is stateless about the
-// actual value so it composes cleanly with model-driven UI).
-//
-// Cursor and focus styling match the rest of the kit: hasCursor / mouse
-// hover and activeFocus share the hover-cursor defaults.
-//
-// `rounded` is forwarded to the switch, which auto-detects from
-// Style.cornerRadius: pill shape when Hyprland corners are rounded, square on
-// sharp. Callers can override per-instance.
+// Labeled toggle row: title + optional description on the left, a `ToggleSwitch` on the right.
 BorderSurface {
   id: root
 
@@ -19,13 +9,10 @@ BorderSurface {
   property string description: ""
   property bool checked: false
 
-  // Panel-cursor flag. Same role as Button.hasCursor:
-  // panels with their own keyboard cursor bind this to drive the highlight
-  // separately from activeFocus. Visuals use the same hover-cursor tokens.
+  // Panel-cursor flag.
   property bool hasCursor: false
 
   // Switch shape follows the theme by default: pill on round, square on sharp.
-  // Override per-instance if a caller wants the opposite.
   property bool rounded: Style.cornerRadius > 0
 
   property color foreground: Color.foreground

@@ -2,8 +2,7 @@ import QtQuick
 import Quickshell
 import qs.Commons
 
-// Verbatim from omarchy-shell: an icon-only WidgetButton, using OpticalGlyph
-// for a properly-centered icon-font glyph instead of a plain Text baseline.
+// Verbatim from omarchy-shell: an icon-only WidgetButton, using OpticalGlyph for a properly-centered icon-font glyph instead of a plain Text baseline.
 WidgetButton {
   id: root
 
@@ -11,9 +10,7 @@ WidgetButton {
   property real slotSize: Style.bar.iconSlot
   property real opticalSize: Style.bar.iconCanvas
 
-  // Icon-only by construction (labelVisible below is hard-false), so it must
-  // draw from the pinned icon family rather than WidgetButton's default of
-  // bar.fontFamily. BarIndicator extends this, so indicators are covered too.
+  // Icon-only by construction (labelVisible below is hard-false), so it must draw from the pinned icon family rather than WidgetButton's default of bar.fontFamily.
   fontFamily: bar ? bar.iconFontFamily : Style.font.iconFamily
 
   labelVisible: false

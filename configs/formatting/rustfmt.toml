@@ -1,0 +1,7 @@
+comment_width = 120
+format_strings = true
+group_imports = "StdExternalCrate"
+imports_granularity = "Crate"
+max_width = 120
+use_small_heuristics = "Default"
+wrap_comments = true

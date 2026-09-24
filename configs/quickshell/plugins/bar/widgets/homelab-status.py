@@ -29,15 +29,11 @@ INTERVAL = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 # Targets seen within this window count as fleet members; the scrape sweeps whole /24s.
 SEEN = "6h"
 IPV4 = r"\d+\.\d+\.\d+\.\d+"
-# How far back the incoming lists look, and how many rows each one keeps. An
-# hour of a private lab is mostly whatever its owner happened to open.
+# How far back the incoming lists look, and how many rows each one keeps.
 CLIENT_WINDOW = "24h"
 CLIENT_ROWS = 8
 
-# Traefik logs the User-Agent verbatim, which is thousands of distinct strings
-# and useless as a series label, so Loki folds it into a family before the
-# count. Order matters: Edge claims Chrome and both claim Safari. `contains`
-# rather than a regex because Loki has no regexMatch.
+# Traefik logs the User-Agent verbatim, which is thousands of distinct strings and useless as a series label, so Loki folds it into a family before the count.
 AGENT_FAMILY = (
     '{{ if or (contains "bot" .ua) (contains "Bot" .ua) (contains "crawl" .ua)'
     ' (contains "spider" .ua) }}bot'
@@ -180,11 +176,7 @@ def source():
     nas = named("nas")
     infra = next((homepage_group(t, "Infra") for t in texts.values() if "- Infra:" in t), [])
 
-    # Loki's address is wherever promtail is told to push. The access log the
-    # incoming lists read is only worth counting on the public ingress: the
-    # external Traefik relays into the internal one, so a request off the
-    # internet is written to both logs and summing them counts it twice. The
-    # stream's host label is the VM's hostname, which is "vm-" plus its id.
+    # Loki's address is wherever promtail is told to push.
     push = re.search(r"https?://(%s:\d+)/loki/api/v1/push" % IPV4, read("modules", "base.nix"))
     ingress = next((vmid for vmid, text in texts.items()
                     if vms[vmid]["type"] == "external" and "homelab.traefik" in text), None)
@@ -267,8 +259,7 @@ def clients(src):
         rows.sort(key=lambda kv: -kv[1])
         return bars(rows[:CLIENT_ROWS])
 
-    # A request with no Cf-Ipcountry did not arrive through Cloudflare, which
-    # means someone dialled the address rather than the hostname.
+    # A request with no Cf-Ipcountry did not arrive through Cloudflare, which means someone dialled the address rather than the hostname.
     countries = ranked(
         "topk(%d, sum by (country) (count_over_time(%s[%s])))" % (CLIENT_ROWS, stream, window),
         "country", "direct")
@@ -298,8 +289,7 @@ def clients(src):
             continue
     total = sum(by_status.values())
 
-    # ClientHost is the visitor and not the proxy: the Cloudflare ranges are
-    # trusted on the entrypoint, so Traefik resolves the forwarded address.
+    # ClientHost is the visitor and not the proxy: the Cloudflare ranges are trusted on the entrypoint, so Traefik resolves the forwarded address.
     seen = instant('count(count by (ip) (count_over_time(%s | json ip="ClientHost" [%s])))'
                    % (stream, window))
     try:
@@ -360,8 +350,7 @@ def sample(src):
         entry["group"] = "infra" if vm.get("type") == "router" else vm.get("type") or "internal"
         entry["up"] = entry.get("up", False) or value == 1
 
-    # Infra comes from homepage's own Infra group; machines Prometheus already
-    # watches keep that state, the rest are probed, and link-only ones have none.
+    # Infra comes from homepage's own Infra group; machines Prometheus already watches keep that state, the rest are probed, and link-only ones have none.
     for order, item in enumerate(src["infra"]):
         address = re.match(r"^\w+://([^/:]+)", item["ping"] or item["href"])
         ip = address.group(1) if address else ""
@@ -438,8 +427,7 @@ def sample(src):
             "externalRps": rps("external"),
             "errorRps": rounded(scalar('sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))') or 0, 2),
         },
-        # Loki is a separate service from the one this poll depends on, so a
-        # failure here costs the four lists and nothing else on the panel.
+        # Loki is a separate service from the one this poll depends on, so a failure here costs the four lists and nothing else on the panel.
         "clients": try_clients(src),
     }
 

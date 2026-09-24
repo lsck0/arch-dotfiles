@@ -9,15 +9,22 @@ return {
             "nvim-neotest/neotest-python",     -- Python test adapter
             "rouge8/neotest-rust",             -- Rust test adapter
         },
+        -- full key specs (with desc) so which-key shows them before neotest loads
         keys = {
-            "<leader>nr", "<leader>nf", "<leader>na", "<leader>nl", "<leader>nd",
-            "<leader>ns", "<leader>no", "<leader>nw", "<leader>nx",
+            { "<leader>nr", function() require("neotest").run.run() end,                  desc = "Test nearest" },
+            { "<leader>nf", function() require("neotest").run.run(vim.fn.expand("%")) end, desc = "Test file" },
+            { "<leader>na", function() require("neotest").run.run(vim.fn.getcwd()) end,    desc = "Test all" },
+            { "<leader>nl", function() require("neotest").run.run_last() end,             desc = "Test last" },
+            { "<leader>nd", function() require("neotest").run.run({ strategy = "dap" }) end, desc = "Debug nearest test" },
+            { "<leader>ns", function() require("neotest").summary.toggle() end,           desc = "Test summary" },
+            { "<leader>no", function() require("neotest").output.open({ enter = true }) end, desc = "Test output" },
+            { "<leader>nw", function() require("neotest").watch.toggle() end,             desc = "Test watch (file)" },
+            { "<leader>nx", function() require("neotest").run.stop() end,                 desc = "Test stop" },
         },
         config = function()
             require("neotest").setup({
                 adapters = {
-                    -- neotest-rust runs cargo-nextest (that's what the adapter
-                    -- is built on). args are passed straight to nextest.
+                    -- neotest-rust runs cargo-nextest (that's what the adapter is built on).
                     require("neotest-rust")({
                         args = { "--no-fail-fast" },
                         dap_adapter = "codelldb",
@@ -27,18 +34,6 @@ return {
                     }),
                 },
             })
-
-            local nt = require("neotest")
-            local map = vim.keymap.set
-            map("n", "<leader>nr", function() nt.run.run() end, { desc = "Test nearest" })
-            map("n", "<leader>nf", function() nt.run.run(vim.fn.expand("%")) end, { desc = "Test file" })
-            map("n", "<leader>na", function() nt.run.run(vim.fn.getcwd()) end, { desc = "Test all" })
-            map("n", "<leader>nl", function() nt.run.run_last() end, { desc = "Test last" })
-            map("n", "<leader>nd", function() nt.run.run({ strategy = "dap" }) end, { desc = "Debug nearest test" })
-            map("n", "<leader>ns", function() nt.summary.toggle() end, { desc = "Test summary" })
-            map("n", "<leader>no", function() nt.output.open({ enter = true }) end, { desc = "Test output" })
-            map("n", "<leader>nw", function() nt.watch.toggle() end, { desc = "Test watch (file)" })
-            map("n", "<leader>nx", function() nt.run.stop() end, { desc = "Test stop" })
         end,
     },
 }

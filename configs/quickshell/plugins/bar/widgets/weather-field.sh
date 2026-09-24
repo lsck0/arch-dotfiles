@@ -1,44 +1,18 @@
 #!/usr/bin/env bash
-# A coarse grid of wind and surface pressure over the same square the radar
-# loop covers, emitted in IMAGE COORDINATES so Weather.qml can draw a vector
-# field and isobars on top of the radar without ever being told where it is.
-#
-# WHY THIS IS POSSIBLE AT ALL. Open-Meteo's forecast endpoint accepts a list of
-# coordinates in one request and answers with one result per point, so a 5x5
-# grid is a single call rather than 25 — verified against the live API, which
-# pairs `latitude[i]` with `longitude[i]` (it is NOT a cross product, so every
-# grid point is sent explicitly).
-#
-# PRIVACY, same contract as weather-fetch.sh and weather-radar.sh. The response
-# echoes back the model's snapped `latitude`/`longitude` for every point, which
-# would pin the user precisely — 25 times over. None of it is forwarded: each
-# point is converted to a (u, v) fraction of the radar square, 0..1 from its
-# top-left, and the whitelist is asserted at the end. A screenshot of the panel
-# shows arrows over an unlabelled square.
-#
-# The grid is deliberately coarse. 5x5 over ~400 km is ~100 km spacing, which
-# is the scale surface pressure and synoptic wind actually vary at; a finer
-# grid would be 100 requests' worth of data drawing prettier noise.
+# A coarse grid of wind and surface pressure over the same square the radar loop covers, emitted in IMAGE COORDINATES so Weather.qml can draw a vector field and isobars on top of the radar without ever being told where it is.
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/weather-field.json"
 
-# The extent comes from the RADAR MANIFEST, not from a copy of the radar's
-# zoom and tile size. Duplicating those constants meant changing the radar's
-# zoom silently misaligned every arrow and isobar over the image, with nothing
-# to catch it — the two would simply be drawing different squares. The radar
-# already publishes `spanKm` for its own label, so it is the one source of
-# truth for how much ground the picture covers.
+# The extent comes from the RADAR MANIFEST, not from a copy of the radar's zoom and tile size.
 RADAR_MANIFEST="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/radar/manifest.json"
 GRID=5
 MAX_AGE=540
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
-# Same reason as weather-alerts.sh: nothing guarantees ~/.cache/quickshell
-# exists. Without this the cache write below failed silently (it is wrapped in
-# a try/except by design) and every call refetched the whole grid.
+# Same reason as weather-alerts.sh: nothing guarantees ~/.cache/quickshell exists.
 mkdir -p "$(dirname "$CACHE")" 2>/dev/null || fail "cache unavailable"
 
 if [[ -s "$CACHE" ]]; then
@@ -56,8 +30,7 @@ LON=${COORDS##*,}
 
 # No radar means nothing to overlay, and no extent to match.
 [[ -s "$RADAR_MANIFEST" ]] || fail "no radar"
-# Path as argv, not interpolated into the program text — see the same change in
-# weather-alerts.sh.
+# Path as argv, not interpolated into the program text — see the same change in weather-alerts.sh.
 SPAN_KM=$(python3 - "$RADAR_MANIFEST" <<'PY' 2>/dev/null
 import json, sys
 try:
@@ -68,8 +41,7 @@ PY
 )
 [[ "${SPAN_KM:-0}" -gt 0 ]] || fail "no radar extent"
 
-# Build the grid, call the API, and reduce to image coordinates — all in one
-# place so the raw coordinates never leave this process.
+# Build the grid, call the API, and reduce to image coordinates — all in one place so the raw coordinates never leave this process.
 python3 - "$LAT" "$LON" "$SPAN_KM" "$GRID" "$CACHE" <<'PY'
 import json, math, sys, urllib.parse, urllib.request
 

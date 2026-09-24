@@ -7,17 +7,14 @@ mkdir -p ${HOME}/desktop ${HOME}/documents ${HOME}/downloads ${HOME}/music ${HOM
 ln -sfn ${PWD}/mimeapps.list ${HOME}/.config/mimeapps.list
 ln -sfn ${PWD}/user-dirs.dirs ${HOME}/.config/user-dirs.dirs
 
-# custom folder icon for ~/projects (no XDG standard icon exists for it, unlike Desktop/Pictures/etc.)
-# .directory covers Dolphin/KDE; gio metadata covers Nemo/GTK, which ignores .directory Icon=
+# custom folder icon for ~/projects (no XDG standard icon exists for it, unlike Desktop/Pictures/etc.) .directory covers Dolphin/KDE; gio metadata covers Nemo/GTK, which ignores .directory Icon=
 cat > ${HOME}/projects/.directory <<'EOF'
 [Desktop Entry]
 Icon=folder-development
 EOF
 command -v gio >/dev/null 2>&1 && gio set ${HOME}/projects metadata::custom-icon-name folder-development || true
 
-# Hide the desktop entries listed in hidden-apps.list. A user-level file of the
-# same name shadows the system one, so a NoDisplay override there takes the
-# entry out of every launcher without touching anything pacman owns.
+# Hide the desktop entries listed in hidden-apps.list.
 mkdir -p ${HOME}/.local/share/applications
 while IFS= read -r entry; do
     entry="${entry%%#*}"

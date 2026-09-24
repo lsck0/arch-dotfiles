@@ -2,21 +2,21 @@ return {
     {
         "ej-shafran/compile-mode.nvim", -- Emacs-style compile mode
         branch = "latest",
+        cmd = { "Compile", "Recompile" },
         dependencies = {
             { "m00qek/baleia.nvim", tag = "v1.3.0" }, -- ANSI color rendering
         },
         config = function()
             vim.g.compile_mode = {
-                baleia_setup = true,
+                ansi_color = { kind = "render" }, -- was baleia_setup (deprecated, removed in v6)
             }
         end
     },
 
     {
-        "nvim-pack/nvim-spectre", -- project search and replace
-        config = function()
-            require('spectre').setup()
-        end
+        "MagicDuck/grug-far.nvim", -- fast project-wide search/replace, live preview
+        cmd = "GrugFar",
+        opts = {},
     },
 
     {
@@ -53,29 +53,6 @@ return {
             },
         },
     },
-
-    {
-        'Julian/lean.nvim',              -- Lean theorem prover
-        dependencies = {
-            { 'neovim/nvim-lspconfig' }, -- LSP server configs
-            { 'nvim-lua/plenary.nvim' }, -- Lua utility library
-        },
-        init = function()
-            vim.g.lean_config = {
-                mappings = true,
-            }
-        end,
-        config = function() end,
-    },
-
-    { "sotte/presenting.nvim" }, -- in-editor presentations
-
-    -- {
-    --     "lucastavaresa/headers.nvim",
-    --     config = function()
-    --         require("headers").setup()
-    --     end,
-    -- },
 
     {
         "olrtg/nvim-emmet", -- emmet abbreviations

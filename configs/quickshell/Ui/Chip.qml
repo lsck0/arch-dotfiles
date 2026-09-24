@@ -1,8 +1,7 @@
 import QtQuick
 import qs.Commons
 
-// The one pick-from-a-set chip for panels: font, size, scale, monitor layout,
-// power mode, reminder presets. Flat fill, accent tint when selected.
+// The one pick-from-a-set chip for panels: font, size, scale, monitor layout, power mode, reminder presets.
 Rectangle {
   id: root
 

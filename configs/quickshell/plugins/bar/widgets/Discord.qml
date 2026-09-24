@@ -5,54 +5,20 @@ import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. The SPEC asks for "discord call: icons
-// that move whose talking, mute, deafen indicators on the icons".
-//
-// WHERE THE DATA COMES FROM. Discord publishes none of this to the desktop:
-// its local RPC socket has exactly the right events and gates all of them
-// behind an OAuth scope that needs an app registered by hand on Discord's
-// developer portal. So the source is a BetterDiscord plugin instead —
-// configs/discord/plugins/QuickshellVoiceStatus.plugin.js — which reads the
-// client's own stores and writes a small JSON file to XDG_RUNTIME_DIR. Its
-// header carries the full reasoning. This file only ever reads that file.
-//
-// DEGRADES TO ABSENT. No Discord, no BetterDiscord injection, no call — the
-// widget is simply not on the bar. There is no "Discord: not connected" state,
-// because a permanent chip saying nothing is happening is worse than nothing.
-//
-// Glyphs verified BY NAME against the 0xProto Nerd Font cmap: md-microphone_off
-// U+F036D, md-volume_off U+F0581, md-video U+F0567, md-monitor_share U+F1483.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "discord"
 
-  // Written by the BetterDiscord plugin. XDG_RUNTIME_DIR is tmpfs, so this
-  // cannot survive a reboot and report a call that ended days ago.
-  //
-  // NO /tmp FALLBACK, on both sides of the channel — the plugin dropped its
-  // one for the same reason. XDG_RUNTIME_DIR is a 0700 per-user directory;
-  // /tmp is world-writable, so falling back there would let any local process
-  // both read who is in the call and, through the command file below, mute and
-  // deafen the client. An unset XDG_RUNTIME_DIR means no session bus, in which
-  // case this widget has nothing to read anyway.
+  // Written by the BetterDiscord plugin.
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
     runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
-  // The way back in. The BetterDiscord plugin polls this file and deletes it
-  // as it reads — see its header for why the channel is a file and not a
-  // socket (Discord's renderer `fs` shim has no watch, and no server).
+  // The way back in.
   readonly property string commandPath:
     runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : ""
 
-  // Written with `printf`, not a FileView: FileView owns its path for reading
-  // and re-arms a watch on it, which is the wrong shape for a write-only drop
-  // box that the other side immediately unlinks.
-  //
-  // Write-then-rename, mirroring how the plugin publishes state back: the
-  // plugin watches this path and reads it with a plain readFileSync, so a direct
-  // `> path` can be read between the truncate and the write and hand it an
-  // empty or half-written line. Both paths are in XDG_RUNTIME_DIR, one tmpfs,
-  // so the rename is atomic and the reader only ever sees a complete command.
+  // Written with `printf`, not a FileView: FileView owns its path for reading and re-arms a watch on it, which is the wrong shape for a write-only drop box that the other side immediately unlinks.
   function send(cmd) {
     if (!root.commandPath) return
     const target = Util.shellQuote(root.commandPath)
@@ -62,15 +28,10 @@ BarWidget {
         + " > " + tmp + " && mv -f " + tmp + " " + target])
   }
 
-  // One place for the chip geometry: the ring is drawn outside the avatar, so
-  // the widget's own width has to account for it and the badge hangs off the
-  // corner by the same amount.
+  // One place for the chip geometry: the ring is drawn outside the avatar, so the widget's own width has to account for it and the badge hangs off the corner by the same amount.
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
-  // The disc behind an avatar, shown while the image loads and behind the
-  // initial when there is none. Not one of Style's state fills — it is a
-  // placeholder surface, not a control — but it is one decision, so it is
-  // written once rather than at each of the two draw sites.
+  // The disc behind an avatar, shown while the image loads and behind the initial when there is none.
   readonly property color avatarBacking: Util.alpha(Color.menu.text, 0.12)
 
   property bool inVoice: false
@@ -81,10 +42,7 @@ BarWidget {
   property var participants: []
   property real updatedAt: 0
 
-  // Discord can die without its plugin's stop() ever running, leaving the last
-  // call frozen on disk. The plugin refreshes the timestamp every 15s while in
-  // a call, so anything older than three missed beats is a corpse, not a quiet
-  // conversation.
+  // Discord can die without its plugin's stop() ever running, leaving the last call frozen on disk.
   property real nowMs: Date.now()
   readonly property bool stale: updatedAt > 0 && (nowMs - updatedAt) > 50000
   readonly property bool live: inVoice && !stale
@@ -94,9 +52,7 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // Only ticks while there is something to age out. A clock running for a
-  // widget that is not on screen is the kind of cost that adds up across
-  // twenty widgets.
+  // Only ticks while there is something to age out.
   Timer {
     interval: 5000
     running: root.inVoice
@@ -135,17 +91,13 @@ BarWidget {
 
   FileView {
     id: stateFile
-    // Empty path when there is no runtime directory — FileView simply never
-    // loads, so `inVoice` stays false and the widget stays off the bar.
+    // Empty path when there is no runtime directory — FileView simply never loads, so `inVoice` stays false and the widget stays off the bar.
     path: root.statePath
     watchChanges: root.statePath !== ""
     printErrors: false
     onLoaded: {
       root.apply(text())
-      // The plugin writes temp-file-then-rename, which replaces the inode the
-      // watch is attached to. Without re-arming, the first call would show and
-      // every later update would be silently dropped — the failure mode this
-      // helper exists for.
+      // The plugin writes temp-file-then-rename, which replaces the inode the watch is attached to.
       Util.rearmWatch(this)
     }
     onLoadFailed: root.inVoice = false
@@ -159,25 +111,15 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // The bar shows the faces, because "who is in this call and who is talking"
-  // is the whole question. Everything else — channel name, per-person mute
-  // detail — is panel material.
+  // The bar shows the faces, because "who is in this call and who is talking" is the whole question.
   Row {
     id: trigger
     anchors.centerIn: parent
-    // Wider than the usual xs: each chip now carries a ring outside its own
-    // bounds, so neighbours at xs spacing would have their rings touching.
-    // Bumped md -> lg (+2px): chips at md read as touching once the ring
-    // and badge are both drawn, reported as "icons should be 1-2px more
-    // apart".
+    // Wider than the usual xs: each chip now carries a ring outside its own bounds, so neighbours at xs spacing would have their rings touching.
     spacing: Style.spacing.lg
 
     Repeater {
-      // The whole list is the model, with the tail hidden, rather than a
-      // `.slice(0, 5)`: slicing builds a new array on every update, and every
-      // new array rebuilds all five delegates — including their avatars —
-      // each time somebody starts or stops talking. A Row excludes invisible
-      // children from layout, so hiding the tail costs no space either.
+      // The whole list is the model, with the tail hidden, rather than a `.slice(0, 5)`: slicing builds a new array on every update, and every new array rebuilds all five delegates — including their avatars — each time somebody starts or stops talking.
       model: root.participants
 
       delegate: Item {
@@ -185,8 +127,7 @@ BarWidget {
         required property var modelData
         required property int index
         anchors.verticalCenter: parent.verticalCenter
-        // Capped: a twelve-person call would otherwise push the centre section
-        // off its own axis. The overflow count below says how many are hidden.
+        // Capped: a twelve-person call would otherwise push the centre section off its own axis.
         visible: index < 5
         width: root.avatarSize
         height: root.avatarSize
@@ -194,16 +135,11 @@ BarWidget {
         readonly property bool silenced:
           modelData.selfDeaf || modelData.deaf || modelData.selfMute || modelData.mute
 
-        // The "icons that move" from the SPEC. Scale rather than a ring alone:
-        // at this size a highlight ring is a couple of pixels and reads as
-        // noise, whereas a face growing is unmistakable in peripheral vision.
+        // The "icons that move" from the SPEC.
         scale: modelData.speaking ? 1.14 : 1.0
         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
-        // The ring lives OUTSIDE the clipped avatar, drawn as a border on a
-        // slightly larger circle behind it. Drawing it on top of a clipped
-        // Image put a hard 2px stroke on an already hard-clipped edge, which
-        // is what made these read as pasted-on squares rather than chips.
+        // The ring lives OUTSIDE the clipped avatar, drawn as a border on a slightly larger circle behind it.
         Rectangle {
           anchors.centerIn: parent
           width: parent.width + root.ringWidth * 2
@@ -212,19 +148,14 @@ BarWidget {
           color: "transparent"
           antialiasing: true
           border.width: root.ringWidth
-          // Discord's own speaking green — a convention people already read,
-          // the same deliberate exception to the palette as the OBS record red.
+          // Discord's own speaking green — a convention people already read, the same deliberate exception to the palette as the OBS record red.
           border.color: modelData.speaking && !parent.silenced
             ? Color.semantic.speaking
             : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: 140 } }
         }
 
-        // ClippingRectangle, not Rectangle. QtQuick's `clip` is a rectangular
-        // scissor test and ignores `radius` entirely, so a rounded Rectangle
-        // with clip:true still clipped its Image to a SQUARE — which is what
-        // made these look like pasted-on tiles with a ring around them rather
-        // than round avatars. Quickshell ships this exact type for the job.
+        // ClippingRectangle, not Rectangle.
         ClippingRectangle {
           id: avatarFrame
           anchors.fill: parent
@@ -236,11 +167,7 @@ BarWidget {
             id: avatarImage
             anchors.fill: parent
             source: modelData.avatar || ""
-            // Decode at twice the drawn size, not at it. Discord publishes
-            // these at 64px; decoding straight to ~20 threw away most of the
-            // pixels and left a blocky result, and mipmapping a 20px texture
-            // has nothing to work with. Two-times plus mipmap gives a clean
-            // downscale for a quarter of the 64px memory.
+            // Decode at twice the drawn size, not at it.
             sourceSize.width: Math.ceil(width * 2 * Screen.devicePixelRatio)
             sourceSize.height: Math.ceil(height * 2 * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
@@ -249,18 +176,12 @@ BarWidget {
             smooth: true
             mipmap: true
             visible: status === Image.Ready
-            // `chip.silenced`, not `parent.parent.silenced`. ClippingRectangle
-            // reparents its children into an internal contentItem, so the
-            // parent chain from here no longer reaches the delegate — the
-            // expression resolved to undefined and the dim silently never
-            // applied. Addressing the delegate by id is immune to that.
+            // `chip.silenced`, not `parent.parent.silenced`.
             opacity: chip.silenced ? Style.emphasis.faint : 1
             Behavior on opacity { NumberAnimation { duration: 140 } }
           }
 
-          // Not every avatar loads (offline, blocked CDN, a user with none);
-          // the initial on a tinted disc is a real fallback rather than an
-          // empty hole.
+          // Not every avatar loads (offline, blocked CDN, a user with none); the initial on a tinted disc is a real fallback rather than an empty hole.
           Text {
             anchors.centerIn: parent
             visible: !avatarImage.visible
@@ -273,21 +194,14 @@ BarWidget {
           }
         }
 
-        // Deafened outranks muted: someone deafened is also muted, and two
-        // badges on a 22px avatar is two illegible marks instead of one
-        // legible one. The disc is opaque and ringed in the bar background so
-        // the badge stays readable over any avatar under it.
+        // Deafened outranks muted: someone deafened is also muted, and two badges on a 22px avatar is two illegible marks instead of one legible one.
         Rectangle {
           visible: parent.silenced
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.rightMargin: -root.ringWidth
           anchors.bottomMargin: -root.ringWidth
-          // Even, so the centre lands on a whole pixel. At 22px avatars the
-          // rounded value was 13: the badge centre was 6.5, the glyph's own
-          // half-width another fraction, and NativeRendering then snapped the
-          // whole thing to one side — which is what made the mute and deafen
-          // marks sit off-centre in their disc.
+          // Even, so the centre lands on a whole pixel.
           width: 2 * Math.round(root.avatarSize * 0.58 / 2)
           height: width
           radius: width / 2
@@ -356,17 +270,7 @@ BarWidget {
         elide: Text.ElideRight
       }
 
-      // --- my own controls ---
-      //
-      // Mute, deafen and leave: single actions on Discord's media-engine and
-      // channel-action modules, the things worth reaching for without switching windows.
-      //
-      // There is deliberately NO "go live" button. Probed this Discord build
-      // for it: no `startStream`, no `openGoLiveModal`, no module carrying
-      // both start/stop stream, and no Go Live control findable in the DOM.
-      // Screen-sharing also needs a source picked, which is a modal of
-      // Discord's own. A button that silently did nothing would be worse than
-      // its absence.
+      // --- my own controls --- Mute, deafen and leave: single actions on Discord's media-engine and channel-action modules, the things worth reaching for without switching windows.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
@@ -386,10 +290,7 @@ BarWidget {
           Row {
             anchors.centerIn: parent
             spacing: Style.spacing.xs
-            // OpticalGlyph, not a bare Text: centring an icon-font line box
-            // against a body-font line box lines up two different ascents, so
-            // the mic and headphone marks read as sitting low next to their
-            // labels. This centres the painted glyph instead.
+            // OpticalGlyph, not a bare Text: centring an icon-font line box against a body-font line box lines up two different ascents, so the mic and headphone marks read as sitting low next to their labels.
             OpticalGlyph {
               anchors.verticalCenter: parent.verticalCenter
               width: Style.font.caption
@@ -459,8 +360,7 @@ BarWidget {
             width: Style.space(26)
             height: width
 
-            // Same reasoning as the bar chip: real rounded clipping, ring
-            // drawn outside the clipped area, decode at 2x the drawn size.
+            // Same reasoning as the bar chip: real rounded clipping, ring drawn outside the clipped area, decode at 2x the drawn size.
             ClippingRectangle {
               id: panelAvatar
               anchors.fill: parent
@@ -520,9 +420,7 @@ BarWidget {
             }
           }
 
-          // Every state gets its own glyph here, unlike the bar, where space
-          // only allows the strongest one. A server mute is shown apart from a
-          // self mute because only one of them is the person's own choice.
+          // Every state gets its own glyph here, unlike the bar, where space only allows the strongest one.
           Row {
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(74)

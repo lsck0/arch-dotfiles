@@ -160,8 +160,7 @@ return {
                 },
             }, native_attach)
 
-            -- python: debugpy from mason; attach with connect goes straight to a
-            -- `python -m debugpy --listen 5678` server
+            -- python: debugpy from mason; attach with connect goes straight to a `python -m debugpy --listen 5678` server
             local debugpy_python = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
             dap.adapters.python = function(cb, config)
                 if config.request == "attach" and config.connect then

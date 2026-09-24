@@ -1,0 +1,14 @@
+[Unit]
+Description=Additive inbound firewall (coexists with Portmaster)
+After=portmaster.service docker.service network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
+ExecStop=/usr/sbin/nft delete table inet fw
+
+[Install]
+WantedBy=multi-user.target

@@ -1,47 +1,5 @@
 #!/usr/bin/env bash
-# Streams one JSON line per sample: CPU, memory, GPU (busy/clock/VRAM/power)
-# and package temperature/power.
-#
-# LONG-LIVED, not one-shot. This used to be respawned by System.qml every 5
-# seconds, which meant a fresh bash plus ~8 forks per sample forever. It now
-# runs once and prints a line per interval, read with SplitParser — the same
-# shape as the cava and `nmcli monitor` readers.
-#
-# HARDWARE-ADAPTIVE. This repo runs on more than one machine (see
-# hyprland_monitors.lua's "notebook"/"desktop" split), and CPU/GPU vendor and
-# sensor layout differ between them:
-#
-#   * Temperature: probed from `sensors -j` rather than a hardcoded chip/label
-#     pair. Package temp lives under different labels per platform —
-#     "Package id 0" (Intel coretemp), "Tctl"/"Tdie" (AMD k10temp) — so every
-#     known label is tried in priority order and the first hit wins. A
-#     machine with none of them (rare, but possible in a VM) reports 0 rather
-#     than erroring.
-#   * GPU: identified by vendor from lspci, then read through whichever sysfs
-#     interface that vendor exposes on /sys/class/drm/card*:
-#       - amdgpu: gpu_busy_percent, pp_dpm_sclk's "*" entry, and
-#         mem_info_vram_{used,total} for VRAM — all present on every amdgpu
-#         card, no privilege needed.
-#       - i915 (Intel iGPU): no VRAM concept and no gpu_busy_percent; busy%
-#         is derived from rc6_residency_ms idle-time delta (100 - idle%),
-#         same method the previous single-platform version used.
-#     Whichever wins is picked from the FIRST GPU lspci reports as a VGA/3D
-#     controller — this only handles one GPU card; a desktop with a
-#     discrete card AND an iGPU shows the discrete one, which is what
-#     `hl.env` extensions in this repo already assume is the "real" GPU.
-#   * GPU power: amdgpu publishes its own PPT reading via hwmon
-#     (power1_average newer kernels, power1_input on some); i915 has none, so
-#     the RAPL psys/pkg energy counter is used there instead, unchanged from
-#     before.
-#
-# WHAT SOME HARDWARE CANNOT REPORT. Real hardware facts, not gaps — the
-# widget shows the field as unavailable (null) rather than a plausible zero:
-#
-#   * CPU/GPU voltage — no consistent cross-vendor hwmon voltage input;
-#     package power in watts is reported instead.
-#   * VRAM on an iGPU — i915 has no VRAM concept and no sysfs equivalent of
-#     amdgpu's mem_info_vram_used. Emitted as null and gated on `gpuVendor`
-#     in System.qml.
+# Streams one JSON line per sample: CPU, memory, GPU (busy/clock/VRAM/power) and package temperature/power.
 set -uo pipefail
 
 INTERVAL=${1:-5}
@@ -60,10 +18,7 @@ case "$gpu_vendor_raw" in
 *) gpu_vendor=unknown ;;
 esac
 
-# Locate this GPU's /sys/class/drm/cardN — matched by PCI vendor:device id
-# (lspci -n) against each card's device/{vendor,device} rather than by
-# name/position, since card numbering is not guaranteed to match discovery
-# order across reboots.
+# Locate this GPU's /sys/class/drm/cardN — matched by PCI vendor:device id (lspci -n) against each card's device/{vendor,device} rather than by name/position, since card numbering is not guaranteed to match discovery order across reboots.
 gpu_card=""
 gpu_pci=$(lspci -Dnmm 2>/dev/null | awk '/ 0300: | 0302: /{ print $1; exit }')
 if [[ -n "$gpu_pci" ]]; then
@@ -87,12 +42,7 @@ fi
 gpu_rc6=$gpu_card/gt/gt0/rc6_residency_ms  # i915 only
 rapl=/sys/class/powercap/intel-rapl:0/energy_uj  # i915 platforms only
 
-# RAM type/speed/channel count from SMBIOS, via passwordless sudo dmidecode
-# (this machine's sudoers grants NOPASSWD: ALL — see configs/sudoers). Read
-# once at startup like cpu_name/gpu_name: physically installed memory does
-# not change while the shell is running. Populated devices only (empty
-# Size means an unpopulated slot) so an asymmetric/single-DIMM machine
-# reports correctly instead of a bogus zero-size channel.
+# RAM type/speed/channel count from SMBIOS, via passwordless sudo dmidecode (this machine's sudoers grants NOPASSWD: ALL — see configs/sudoers).
 mem_type=""
 mem_speed_mts=0
 mem_channels=0
@@ -106,12 +56,7 @@ if command -v dmidecode >/dev/null 2>&1; then
 fi
 : "${mem_type:=}" "${mem_speed_mts:=0}" "${mem_channels:=0}"
 
-# Package temperature: try every known "this is the CPU package" sensors
-# label, across chips, in priority order. `sensors -j` nests chip -> feature
-# -> {tempN_input: ...}, so this walks every chip's features once per sample
-# looking for the first matching label; cheap (one process, one jq pass) and
-# tolerant of a machine exposing more than one candidate (e.g. a temp1 on an
-# unrelated chip) by preferring the known package-temp labels first.
+# Package temperature: try every known "this is the CPU package" sensors label, across chips, in priority order.
 read_temp() {
     sensors -j 2>/dev/null | jq -r '
         def pick(k): [.[] | to_entries[] | select(.key == k) | (.value.temp1_input // .value.temp2_input // .value.temp3_input)] | first;
@@ -144,11 +89,7 @@ prev_t_ms=$(date +%s%3N)
 prev_energy=0
 ((power_ok)) && prev_energy=$(cat "$rapl" 2>/dev/null || echo 0)
 
-# First sample uses a SHORT window so the bar has real numbers within a
-# fraction of a second of the shell starting. Sleeping the full interval
-# first meant every restart showed "0% 0MHz  0.0G  0deg" for five seconds —
-# the one-shot version this replaced sampled immediately, so that was a
-# regression when it became a streaming helper.
+# First sample uses a SHORT window so the bar has real numbers within a fraction of a second of the shell starting.
 delay=0.3
 while :; do
     sleep "$delay"
@@ -190,9 +131,7 @@ while :; do
             }')
         gpu_freq=$(cat "$gpu_card/gt_act_freq_mhz" 2>/dev/null || echo 0)
 
-        # Package power from the RAPL energy counter. It is a wrapping
-        # microjoule counter, so a negative delta means it wrapped: skip
-        # that sample rather than reporting a nonsense spike.
+        # Package power from the RAPL energy counter.
         if ((power_ok)); then
             energy=$(cat "$rapl" 2>/dev/null || echo 0)
             power_w=$(awk -v e1="$prev_energy" -v e2="$energy" -v t1="$prev_t_ms" -v t2="$t_ms" \

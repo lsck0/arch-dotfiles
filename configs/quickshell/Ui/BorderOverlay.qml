@@ -3,22 +3,7 @@ import QtQuick.Shapes
 import qs.Commons
 import "../Commons/BorderGeometry.js" as Geometry
 
-// Visual-only border renderer for gradient or per-side-width borders. Flat
-// uniform borders take Rectangle.border instead.
-//
-// DEAD IN THIS REPO, and kept only as upstream carry. BorderSurface loads it
-// via `Border.needsOverlay(spec)`, which is true only for a gradient spec or
-// unequal side widths — and Border.qml's only spec factory is `flat()`, which
-// hardcodes `gradient.enabled: false` and builds uniform widths from a single
-// scalar. Nothing constructs a spec any other way, so this component has
-// never been instantiated. Most of Commons/BorderGeometry.js (the ring-path,
-// gradient-endpoint and per-side-run maths, ~250 of its 373 lines) exists
-// solely to feed it.
-//
-// Left in place rather than deleted because the shell.toml override layer
-// that produced gradient specs upstream is the plausible reason someone would
-// want it back. If that stops being plausible, this file plus most of
-// BorderGeometry.js goes with it.
+// Visual-only border renderer for gradient or per-side-width borders.
 Item {
   id: root
 

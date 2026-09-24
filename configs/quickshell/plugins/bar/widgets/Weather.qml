@@ -4,31 +4,12 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell (its weather panel needs its own
-// location/API-key config). Rebuilt 2026-09-02 from a single wttr.in call
-// plus a tooltip into the SPEC's three tiers: current conditions, a rolling
-// 24h hourly series, and a 3-day forecast.
-//
-// PRIVACY: the SPEC says "use the current location but NOT REVEAL IT". This
-// file never receives a coordinate, a place name, a timezone or a
-// sunrise/sunset time — weather-fetch.sh whitelists the fields before the
-// JSON gets here, so no edit to this file can leak a location it was never
-// given. `source` says *how* the location was determined, never where.
-//
-// All glyphs below were looked up BY NAME in the 0xProto Nerd Font cmap
-// rather than guessed. Guessing costs real bugs here: U+F0554 is
-// md-vector_arrange_above and U+F0500 is md-teamviewer, both of which were
-// plausible-looking guesses for weather/gauge icons in this exact pass.
+// New widget, not from omarchy-shell (its weather panel needs its own location/API-key config).
 BarWidget {
   id: root
   moduleName: "weather"
 
-  // NOT `data`. `data` is Item's DEFAULT property — the list its child
-  // objects are assigned into — so declaring `property var data` here
-  // shadowed it and the Rectangle/Row/MouseArea were never added as visual
-  // children. The symptom was baffling: the hover panel worked perfectly
-  // (a PanelWindow is its own window, so it survived) while the bar trigger
-  // rendered nothing at all and still occupied layout space.
+  // NOT `data`.
   property var report: null
   property bool ready: false
   property string errorText: ""
@@ -36,15 +17,12 @@ BarWidget {
   readonly property var current: report && report.current ? report.current : null
   readonly property var hourly: report && report.hourly ? report.hourly : []
   readonly property var daily: report && report.daily ? report.daily : []
-  // The API includes today for current conditions; the forecast list starts
-  // tomorrow so the panel does not repeat the current day.
+  // The API includes today for current conditions; the forecast list starts tomorrow so the panel does not repeat the current day.
   readonly property var forecast: daily.length > 1 ? daily.slice(1) : []
   readonly property string units: report && report.units ? report.units.temp : "°C"
   readonly property string windUnits: report && report.units ? report.units.wind : "km/h"
 
-  // WMO code -> glyph. The old map keyed off wttr.in's free-text condition
-  // strings; Open-Meteo returns the WMO enum instead, so this is the same
-  // verified glyph set re-keyed rather than a new one.
+  // WMO code -> glyph.
   function iconFor(code, isDay) {
     var c = Number(code)
     var day = isDay === undefined ? 1 : Number(isDay)
@@ -81,8 +59,7 @@ BarWidget {
     return "—"
   }
 
-  // Meteorological convention: wind_direction_10m is the direction the wind
-  // comes FROM, which is what this compass label reports.
+  // Meteorological convention: wind_direction_10m is the direction the wind comes FROM, which is what this compass label reports.
   function compass(deg) {
     var pts = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
     return pts[Math.round(Number(deg) / 45) % 8]
@@ -95,26 +72,16 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // ---- alerts ------------------------------------------------------------
-  //
-  // A separate process from the forecast, not another field on it: MeteoAlarm
-  // is a different provider with a different failure mode, and a rate-limited
-  // or down warnings feed must not take the temperature with it.
+  // ---- alerts ------------------------------------------------------------ A separate process from the forecast, not another field on it: MeteoAlarm is a different provider with a different failure mode, and a rate-limited or down warnings feed must not take the temperature with it.
   property var alerts: []
   property int countryOthers: 0
   property bool alertsSupported: true
 
   // Level 3 (orange) is where a warning stops being background information.
-  // The bar trigger only changes at all at that point; yellow lives in the
-  // panel, where it is read on purpose rather than glanced at.
   readonly property var topAlert: alerts.length > 0 ? alerts[0] : null
   readonly property bool alertProminent: topAlert !== null && Number(topAlert.level) >= 3
 
-  // MeteoAlarm publishes its own awareness palette, and those colours are the
-  // whole point of the scale — an "amber warning" that renders in the
-  // wallpaper's accent is no longer an amber warning. These four are the
-  // exception to the never-hardcode-a-colour rule, for the same reason a
-  // traffic light is not themeable.
+  // MeteoAlarm publishes its own awareness palette, and those colours are the whole point of the scale — an "amber warning" that renders in the wallpaper's accent is no longer an amber warning.
   function alertColor(level) {
     switch (Number(level)) {
     case 4: return Color.semantic.alertRed
@@ -133,8 +100,7 @@ BarWidget {
     }
   }
 
-  // Relative minutes, as the script emits them — never a wall-clock time, so
-  // a screenshot of the panel cannot narrow the timezone.
+  // Relative minutes, as the script emits them — never a wall-clock time, so a screenshot of the panel cannot narrow the timezone.
   function inWords(minutes) {
     if (minutes === null || minutes === undefined) return ""
     var m = Math.abs(Number(minutes))
@@ -144,11 +110,7 @@ BarWidget {
 
   // ---- radar -------------------------------------------------------------
 
-  // ---- wind / pressure field over the radar square ------------------------
-  //
-  // A coarse grid from weather-field.sh, already reduced to (u, v) fractions of
-  // the radar image so this file never sees a coordinate. Drawn as arrows plus
-  // isobars on top of the precipitation.
+  // ---- wind / pressure field over the radar square ------------------------ A coarse grid from weather-field.sh, already reduced to (u, v) fractions of the radar image so this file never sees a coordinate.
   property var fieldCells: []
   property real fieldPressureMin: 0
   property real fieldPressureMax: 0
@@ -159,29 +121,22 @@ BarWidget {
   property var radarFrames: []
   property int radarSpanKm: 0
 
-  // Half the image edge, i.e. the distance from the centre marker to the edge
-  // of the square. Every range ring is measured against this.
+  // Half the image edge, i.e. the distance from the centre marker to the edge of the square. Every range ring is measured against this.
   readonly property real radarReachKm: radarSpanKm > 0 ? radarSpanKm / 2 : 0
 
   // Ring spacing, snapped to a round number a person can hold in their head.
-  // A computed "65.2 km" ring is arithmetically honest and useless to read;
-  // three rings at 50/100/150 answers "how far away is that rain" instantly.
   readonly property int radarRingStepKm: {
     if (radarReachKm <= 0) return 0
     var target = radarReachKm / 3
     var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000]
-    // Largest round step that still fits three rings, NOT the smallest step
-    // at or above the target: rounding up gave a single 100 km ring inside a
-    // 195 km reach, which is a scale mark rather than a scale.
+    // Largest round step that still fits three rings, NOT the smallest step at or above the target: rounding up gave a single 100 km ring inside a 195 km reach, which is a scale mark rather than a scale.
     var chosen = nice[0]
     for (var i = 0; i < nice.length; i++)
       if (nice[i] <= target) chosen = nice[i]
     return chosen
   }
 
-  // Only rings that fit inside the square. The outermost is allowed to reach
-  // the edge midpoint but not beyond it, where it would be clipped into four
-  // arcs and read as decoration rather than as a scale.
+  // Only rings that fit inside the square.
   readonly property var radarRingsKm: {
     var out = []
     if (radarRingStepKm <= 0) return out
@@ -200,18 +155,6 @@ BarWidget {
   }
 
   // PREFETCHED IN THE BACKGROUND, not fetched when you open the panel.
-  //
-  // This was panel-only, on the reasoning that a dozen PNG downloads should not
-  // happen unless somebody looks. The cost of that was the whole point of the
-  // panel: opening it started a cold fetch and you watched "Loading radar…"
-  // for several seconds every time the nine-minute cache had lapsed, which is
-  // most times.
-  //
-  // The timer below keeps the cache warm so the panel is instant, and the
-  // script serves the existing loop untouched whenever the manifest is still
-  // fresh — so this costs one round of downloads per ten minutes, matching how
-  // often RainViewer's own index actually advances. Fetching more often
-  // re-downloads identical PNGs; less often and it is stale when you look.
   function refreshRadar() {
     if (!radarProc.running) radarProc.running = true
     if (!fieldProc.running) fieldProc.running = true
@@ -231,8 +174,7 @@ BarWidget {
             root.ready = true
           } else {
             root.errorText = d.error || "unavailable"
-            // Keep showing the last good reading rather than blanking the
-            // bar on one failed poll.
+            // Keep showing the last good reading rather than blanking the bar on one failed poll.
             if (!root.report) root.ready = false
           }
         } catch (e) {
@@ -304,10 +246,7 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
-  // Radar and the wind/pressure field, kept warm. Ten minutes because that is
-  // the cadence of the upstream index; `triggeredOnStart` so the first open
-  // after a shell restart is warm too, rather than the one time it is
-  // guaranteed to be cold.
+  // Radar and the wind/pressure field, kept warm.
   Timer {
     interval: 10 * 60 * 1000
     running: true
@@ -316,11 +255,7 @@ BarWidget {
     onTriggered: root.refreshRadar()
   }
 
-  // Not a BarIconButton: that renders a single glyph and hard-sets
-  // labelVisible: false, and its `label` is the id of the Text showing
-  // `text`, not a settable second string — so asking it for "icon plus
-  // temperature" would have drawn the glyph twice. Same Row idiom as
-  // Media.qml instead.
+  // Not a BarIconButton: that renders a single glyph and hard-sets labelVisible: false, and its `label` is the id of the Text showing `text`, not a settable second string — so asking it for "icon plus temperature" would have drawn the glyph twice.
   Rectangle {
     anchors.fill: parent
     radius: Style.cornerRadius
@@ -331,14 +266,10 @@ BarWidget {
   Row {
     id: trigger
     anchors.centerIn: parent
-    // Matched to System.qml's Stat, so a glyph sits the same distance from its
-    // value everywhere on the bar.
+    // Matched to System.qml's Stat, so a glyph sits the same distance from its value everywhere on the bar.
     spacing: Style.spacing.sm
 
-    // Orange-or-worse warnings only, and in MeteoAlarm's own colour. A bar
-    // that turns accent-coloured for every yellow "it might be breezy" stops
-    // meaning anything; this is the glyph you are supposed to look twice at.
-    // md-alert U+F0026, verified by name against the 0xProto cmap.
+    // Orange-or-worse warnings only, and in MeteoAlarm's own colour.
     Text {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.alertProminent
@@ -393,10 +324,7 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Wider than the other panels on purpose: three tiers of data do not fit
-    // at the usual 340-380, and the hourly series in particular needs
-    // horizontal room. Tabs were rejected — they need a click, which fights
-    // the hover model.
+    // Wider than the other panels on purpose: three tiers of data do not fit at the usual 340-380, and the hourly series in particular needs horizontal room.
     implicitWidth: Style.panelWidth.wide + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -428,9 +356,7 @@ BarWidget {
       }
     }
 
-    // Advance the radar loop. Only while the panel is visible and only when
-    // there is more than one frame — a single-frame "loop" is a still image
-    // and a timer repainting it is pure waste.
+    // Advance the radar loop.
     Timer {
       interval: 250
       repeat: true
@@ -443,24 +369,13 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      // --- alerts ---
-      //
-      // Above the current conditions, because a warning is the one thing here
-      // that is worth interrupting for. Absent entirely when there is nothing
-      // to say, rather than an "all clear" row that costs space every day to
-      // be useful twice a year.
+      // --- alerts --- Above the current conditions, because a warning is the one thing here that is worth interrupting for.
       Column {
         width: parent.width
         spacing: Style.spacing.xs
         visible: root.alerts.length > 0 || !root.alertsSupported
 
-        // WHY THE WARNINGS SECTION IS EMPTY, when it is empty for a reason the
-        // user can do nothing about. MeteoAlarm covers ~38 European countries
-        // and nothing outside that footprint; weather-alerts.sh reports the
-        // difference between "no warnings" and "no source" deliberately, and
-        // this is the half of that contract that was missing — `alertsSupported`
-        // was assigned from the script's `supported` flag and then read by
-        // nobody, so an unsupported region looked identical to a calm day.
+        // WHY THE WARNINGS SECTION IS EMPTY, when it is empty for a reason the user can do nothing about.
         Text {
           width: parent.width
           visible: !root.alertsSupported
@@ -480,9 +395,7 @@ BarWidget {
             height: alertRow.implicitHeight + Style.spacing.sm * 2
             radius: Style.cornerRadius
             color: Util.alpha(root.alertColor(modelData.level), 0.16)
-            // A left rule in the awareness colour, so the severity is
-            // readable at a glance without tinting the whole card so hard it
-            // fights the text on top of it.
+            // A left rule in the awareness colour, so the severity is readable at a glance without tinting the whole card so hard it fights the text on top of it.
             Rectangle {
               width: Style.space(3)
               height: parent.height
@@ -520,9 +433,7 @@ BarWidget {
                 }
                 Text {
                   anchors.verticalCenter: parent.verticalCenter
-                  // `event` is a controlled phrase from the issuing service,
-                  // never free prose — see weather-alerts.sh on why no
-                  // headline or description crosses into this file.
+                  // `event` is a controlled phrase from the issuing service, never free prose — see weather-alerts.sh on why no headline or description crosses into this file.
                   text: modelData.event || modelData.kind || "Weather warning"
                   color: Color.menu.text
                   font.family: Style.font.family
@@ -540,9 +451,7 @@ BarWidget {
                   var ends = root.inWords(modelData.endsIn)
                   if (Number(modelData.startsIn) > 0 && starts) bits.push("starts " + starts)
                   if (ends) bits.push("ends " + ends)
-                  // "here" came from a polygon test, "region" only from a
-                  // county-name match — say which, rather than implying the
-                  // looser one is as certain as the tighter one.
+                  // "here" came from a polygon test, "region" only from a county-name match — say which, rather than implying the looser one is as certain as the tighter one.
                   bits.push(modelData.scope === "here" ? "your area" : "your region")
                   if (modelData.certainty) bits.push(String(modelData.certainty).toLowerCase())
                   return bits.join("  ·  ")
@@ -627,9 +536,7 @@ BarWidget {
           value: root.current ? root.n0(root.current.pressure) + " hPa" : "—"
         }
 
-        // Wind gets the arrow treatment: md-navigation points north at
-        // rotation 0, so rotating by direction+180 makes it point the way
-        // the wind is travelling, while the text names where it comes from.
+        // Wind gets the arrow treatment: md-navigation points north at rotation 0, so rotating by direction+180 makes it point the way the wind is travelling, while the text names where it comes from.
         Column {
           width: Style.space(96)
           spacing: Style.spacing.xxs
@@ -673,10 +580,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "NEXT 24 HOURS" }
 
-      // --- hourly sparkline ---
-      // A Canvas is the right tool here, unlike the media visualizer's six
-      // bars: this is an actual polyline over 24 points, redrawn only when
-      // the data changes (twice an hour), not every frame.
+      // --- hourly sparkline --- A Canvas is the right tool here, unlike the media visualizer's six bars: this is an actual polyline over 24 points, redrawn only when the data changes (twice an hour), not every frame.
       Item {
         width: parent.width
         height: Style.space(84)
@@ -709,8 +613,7 @@ BarWidget {
             var xs = function (i) { return padL + (i / (n - 1)) * (w - padL - padR) }
             var ys = function (v) { return padT + h - ((v - lo) / (hi - lo)) * h }
 
-            // Axes make the scale and zero point legible even when the
-            // temperature line is nearly flat.
+            // Axes make the scale and zero point legible even when the temperature line is nearly flat.
             ctx.strokeStyle = Color.menu.text
             ctx.globalAlpha = 0.35
             ctx.lineWidth = 1
@@ -721,8 +624,7 @@ BarWidget {
             ctx.stroke()
             ctx.globalAlpha = 1
 
-            // Vertical temperature scale labels. Keep them outside the plot so
-            // the labels cannot overlap the line or rain bars.
+            // Vertical temperature scale labels.
             ctx.fillStyle = Color.menu.text
             ctx.globalAlpha = 0.65
             ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
@@ -733,9 +635,7 @@ BarWidget {
             ctx.textAlign = "left"
             ctx.globalAlpha = 1
 
-            // Rain-probability axis on the right: its own vertical line (like
-            // the left temperature axis has), with labels outside it so they
-            // read as belonging to that line rather than floating in the plot.
+            // Rain-probability axis on the right: its own vertical line (like the left temperature axis has), with labels outside it so they read as belonging to that line rather than floating in the plot.
             ctx.strokeStyle = Color.accent
             ctx.globalAlpha = 0.35
             ctx.lineWidth = 1
@@ -752,8 +652,7 @@ BarWidget {
             ctx.fillText("0%", w - padR + 6, padT + h)
             ctx.globalAlpha = 1
 
-            // Horizontal reference line at zero when it falls in the visible
-            // temperature range.
+            // Horizontal reference line at zero when it falls in the visible temperature range.
             if (lo <= 0 && hi >= 0) {
               ctx.strokeStyle = Color.menu.text
               ctx.globalAlpha = 0.2
@@ -770,9 +669,7 @@ BarWidget {
             for (i = 0; i < n; i++) {
               var pop = Math.max(0, Math.min(100, Number(pts[i].pop) || 0))
               if (pop <= 0) continue
-              // Capped at 60% of the chart, not 100%. In a place where
-              // every hour is 100% rain (this was written against Glasgow)
-              // full-height bars swallow the temperature line entirely.
+              // Capped at 60% of the chart, not 100%.
               var bh = (pop / 100) * h * 0.6
               ctx.fillRect(xs(i) - bw / 2, padT + h - bh, bw, bh)
             }
@@ -790,9 +687,7 @@ BarWidget {
             // hour labels every 6h, plus min/max temp markers
             ctx.fillStyle = Color.menu.text
             ctx.globalAlpha = 0.5
-            // Quoted: Canvas's CSS-ish font parser drops a family name
-            // containing spaces ("Context2D: The font families specified
-            // are invalid: 0xProtoNerdFont") and silently falls back.
+            // Quoted: Canvas's CSS-ish font parser drops a family name containing spaces ("Context2D: The font families specified are invalid: 0xProtoNerdFont") and silently falls back.
             ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
             for (i = 0; i < n; i += 6) {
               ctx.fillText(pts[i].h, xs(i) - 6, height - 3)
@@ -801,12 +696,7 @@ BarWidget {
           }
         }
 
-        // Redraw when the palette changes, or the sparkline keeps the old
-        // wallpaper's colors until the next fetch. Both roots it draws with
-        // are watched: the rain bars and right-hand axis are `accent`, but
-        // the temperature line, the left axis and every label are
-        // `Color.menu.text`, which is `foreground` — watching only accent
-        // left half the chart on the previous wallpaper's palette.
+        // Redraw when the palette changes, or the sparkline keeps the old wallpaper's colors until the next fetch.
         Connections {
           target: Color
           function onAccentChanged() { spark.requestPaint() }
@@ -866,8 +756,7 @@ BarWidget {
             Text {
               width: Style.space(20)
               anchors.verticalCenter: parent.verticalCenter
-              // "windy" is derived, not a WMO code — the enum has no windy
-              // value, so a strong-breeze day overrides the sky glyph.
+              // "windy" is derived, not a WMO code — the enum has no windy value, so a strong-breeze day overrides the sky glyph.
               text: modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)
               color: Color.menu.text
               font.family: Style.font.iconFamily; font.pixelSize: Style.font.body
@@ -885,10 +774,7 @@ BarWidget {
               anchors.verticalCenter: parent.verticalCenter
               text: "\u{f0597} " + root.n0(modelData.pop) + "%"
               color: Color.menu.text; opacity: Style.emphasis.dim
-              // Glyph + digits in one Text: the whole thing takes the icon
-              // family. Digits render fine in a Nerd Font, and splitting a
-              // two-token string is more churn than it is worth. Strings
-              // carrying *user* text get split instead — see Clock.qml.
+              // Glyph + digits in one Text: the whole thing takes the icon family.
               font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
             }
             Text {
@@ -906,42 +792,20 @@ BarWidget {
         text: "RADAR" + (root.radarSpanKm > 0 ? "  ·  " + root.radarSpanKm + " km across" : "")
       }
 
-      // --- radar loop ---
-      //
-      // Precipitation only, over a flat surface, with a centre marker. There
-      // is deliberately no street map underneath: compositing the radar over
-      // one would draw the user's own town in the panel, and a screenshot
-      // would then give away the location the rest of this widget goes to
-      // some length never to state. Distance is conveyed by the span label
-      // and the range ring instead.
+      // --- radar loop --- Precipitation only, over a flat surface, with a centre marker.
       Item {
         id: radarBox
         width: parent.width
         // A BAND ACROSS THE PANEL, not a framed square floating in one.
-        //
-        // The radar used to be a 240px box, centred, with its own background
-        // fill, border and corner radius — a card inside a card, narrower than
-        // every other row, which is exactly why it read as glued on. The
-        // hourly sparkline above it is a bare Canvas spanning the full content
-        // width with no chrome at all, and that is what makes it feel like
-        // part of the panel rather than a guest in it. Same treatment here.
-        //
-        // The frames are transparent PNG overlays, so with no fill behind them
-        // the precipitation sits directly on the panel background and the crop
-        // edges are invisible.
         height: Math.round(width * 0.62)
         visible: root.radarFrames.length > 0
         clip: true
 
-        // The source is square; the band is wider than tall, so the square is
-        // scaled to the band's WIDTH and cropped equally top and bottom.
-        // Everything drawn on top maps through these two numbers.
+        // The source is square; the band is wider than tall, so the square is scaled to the band's WIDTH and cropped equally top and bottom.
         readonly property real imgSize: width
         readonly property real yOffset: (height - imgSize) / 2
 
         // One Image, re-sourced per frame, rather than a stack of twelve.
-        // `cache: true` keeps the decoded frames warm so the loop does not
-        // re-read them from disk every pass.
         Image {
           id: radarImage
           x: 0
@@ -957,13 +821,7 @@ BarWidget {
           cache: true
         }
 
-        // --- range rings, wind vectors, isobars and a compass ---
-        //
-        // One Canvas for the entire overlay: they share a coordinate space and
-        // a repaint trigger, and the rings used to be separate QML Items on top
-        // of the image, which is one more thing to keep aligned for no gain.
-        // Repainted only when the data or the palette changes — the radar loop
-        // underneath animates on its own and does not touch this layer.
+        // --- range rings, wind vectors, isobars and a compass --- One Canvas for the entire overlay: they share a coordinate space and a repaint trigger, and the rings used to be separate QML Items on top of the image, which is one more thing to keep aligned for no gain.
         Canvas {
           id: fieldCanvas
           anchors.fill: parent
@@ -983,9 +841,7 @@ BarWidget {
             function onAccentChanged() { fieldCanvas.requestPaint() }
           }
 
-          // Bilinear sample of the pressure grid, in (u, v) space. Used by the
-          // isobar tracer so contours are smooth across cells rather than
-          // stepping at every grid line.
+          // Bilinear sample of the pressure grid, in (u, v) space.
           function pressureAt(gx, gy, n, values) {
             var x = Math.max(0, Math.min(n - 1.0001, gx))
             var y = Math.max(0, Math.min(n - 1.0001, gy))
@@ -1006,19 +862,13 @@ BarWidget {
               var n = Math.round(Math.sqrt(cells.length))
               if (n < 2 || n * n !== cells.length) return
 
-              // The band shows a square source cropped top and bottom, so
-              // everything drawn on top has to use the SQUARE's geometry, not
-              // the band's. S is the square edge; oy is where its top sits.
+              // The band shows a square source cropped top and bottom, so everything drawn on top has to use the SQUARE's geometry, not the band's.
               var S = radarBox.imgSize
               var oy = radarBox.yOffset
               function px(u) { return u * S }
               function py(v) { return oy + v * S }
 
-              // ---- isobars ------------------------------------------------
-              //
-              // Marching squares over the grid. Only drawn when the field
-              // actually varies: over a flat pressure field the contours would
-              // be noise chasing the model's rounding.
+              // ---- isobars ------------------------------------------------ Marching squares over the grid.
               var values = []
               var hasPressure = true
               for (var i = 0; i < cells.length; i++) {
@@ -1027,28 +877,13 @@ BarWidget {
               }
 
               if (hasPressure && root.fieldPressureMax - root.fieldPressureMin >= 0.8) {
-                // 1 hPa is the standard isobar interval on a surface chart at
-                // this scale; 4 hPa would give a single line over a 2 hPa
-                // spread.
-                // EVERY NAME IN THIS FUNCTION IS UNIQUE, and that is a rule
-                // rather than a style preference. `var` is function-scoped, so
-                // the isobar block and the wind block below share one scope: an
-                // earlier version declared `var step` in both (1 hPa here, the
-                // arrow lattice pitch there) and `cx`/`cy` both as the marching
-                // -squares column/row here and as the centre coordinates near
-                // the bottom. It only worked because the blocks happen to run
-                // in order, and the `reach`/`reachKm` comment further down
-                // records what it cost when that assumption broke — a Canvas
-                // that throws mid-paint loses the ENTIRE overlay, not the one
-                // shape with the bad value.
+                // 1 hPa is the standard isobar interval on a surface chart at this scale; 4 hPa would give a single line over a 2 hPa spread.
                 var isobarStep = 1.0
                 var firstIsobar = Math.ceil(root.fieldPressureMin / isobarStep) * isobarStep
                 ctx.lineWidth = 1
                 ctx.strokeStyle = Color.menu.text
                 ctx.globalAlpha = 0.42
-                // Sub-sampled marching squares: the 5x5 grid is traced on a
-                // finer lattice through the bilinear sampler, which is what
-                // turns four straight cell-edges into a curve.
+                // Sub-sampled marching squares: the 5x5 grid is traced on a finer lattice through the bilinear sampler, which is what turns four straight cell-edges into a curve.
                 var sub = 6
                 var cellsAcross = (n - 1) * sub
                 for (var level = firstIsobar; level <= root.fieldPressureMax; level += isobarStep) {
@@ -1091,24 +926,11 @@ BarWidget {
                 ctx.globalAlpha = 1
               }
 
-              // ---- wind vectors -------------------------------------------
-              //
-              // DRAWN ON A DENSER LATTICE THAN THE DATA, by interpolating the
-              // grid rather than fetching more of it. Open-Meteo bills per
-              // location, so a 13x13 field of real samples would be 169
-              // locations every nine minutes; wind at 100 km spacing is a
-              // smooth field, so bilinear interpolation between the 25 real
-              // samples is both free and physically reasonable.
-              //
-              // The components are interpolated, NOT speed and direction.
-              // Averaging bearings is wrong at the wrap: halfway between 350°
-              // and 10° is 0°, but the mean of the numbers is 180° — an arrow
-              // pointing exactly backwards.
+              // ---- wind vectors ------------------------------------------- DRAWN ON A DENSER LATTICE THAN THE DATA, by interpolating the grid rather than fetching more of it.
               var ux = [], vy = []
               for (var c = 0; c < cells.length; c++) {
                 var sp = Number(cells[c].wind) || 0
-                // Meteorological `dir` is where the wind comes FROM; store the
-                // vector it is going TO, which is what gets drawn.
+                // Meteorological `dir` is where the wind comes FROM; store the vector it is going TO, which is what gets drawn.
                 var rr0 = (Number(cells[c].dir) + 180) * Math.PI / 180
                 ux.push(Math.sin(rr0) * sp)
                 vy.push(-Math.cos(rr0) * sp)
@@ -1129,15 +951,10 @@ BarWidget {
               for (var w = 0; w < cells.length; w++)
                 maxWind = Math.max(maxWind, Number(cells[w].wind) || 0)
 
-              // Odd so one arrow lands dead centre, under the location marker's
-              // own ring rather than beside it.
+              // Odd so one arrow lands dead centre, under the location marker's own ring rather than beside it.
               var density = 17
               var latticeStep = S / density
-              // Sized to the lattice, so raising `density` shrinks the arrows
-              // instead of overlapping them. 0.30, not 0.42: at the larger
-              // density the arrows were still reading as the subject of the
-              // picture rather than as texture over the precipitation, which
-              // is what the radar is actually for.
+              // Sized to the lattice, so raising `density` shrinks the arrows instead of overlapping them.
               var arrowReach = latticeStep * 0.28
 
               ctx.strokeStyle = Color.accent
@@ -1146,8 +963,7 @@ BarWidget {
 
               for (var gy = 0; gy < density; gy++) {
                 for (var gx = 0; gx < density; gx++) {
-                  // Cell centres, so the field is inset from the edges rather
-                  // than half-clipped along them.
+                  // Cell centres, so the field is inset from the edges rather than half-clipped along them.
                   var fu = (gx + 0.5) / density
                   var fv = (gy + 0.5) / density
                   var x = px(fu), y = py(fv)
@@ -1159,17 +975,12 @@ BarWidget {
                   if (speed < 0.01) continue
                   var dx = sx / speed, dy = sy / speed
 
-                  // Normalised against the field's own range rather than
-                  // against zero, so a calm day still shows structure instead
-                  // of a uniform mat of minimum-length arrows.
+                  // Normalised against the field's own range rather than against zero, so a calm day still shows structure instead of a uniform mat of minimum-length arrows.
                   var strength = Math.min(1, speed / maxWind)
-                  // Curved: sqrt lifts the low end so gentle flow is still
-                  // legible, while the top stays distinct.
+                  // Curved: sqrt lifts the low end so gentle flow is still legible, while the top stays distinct.
                   var shaped = Math.sqrt(strength)
                   var len = arrowReach * (0.55 + 0.45 * shaped)
-                  // Much fainter overall, and with a wider spread between calm
-                  // and strong — the field should be something the eye reads
-                  // through, not the brightest thing in the frame.
+                  // Much fainter overall, and with a wider spread between calm and strong — the field should be something the eye reads through, not the brightest thing in the frame.
                   ctx.globalAlpha = 0.13 + 0.29 * shaped
 
                   var tipX = x + dx * len, tipY = y + dy * len
@@ -1192,23 +1003,7 @@ BarWidget {
               }
               ctx.globalAlpha = 1
 
-              // ---- range rings, labels and the centre marker ---------------
-              //
-              // Drawn here rather than as QML Items on top. They share the
-              // square's transform with the arrows and the isobars, and having
-              // one drawing own the whole overlay is what stops the radar
-              // reading as a separate pasted-in widget.
-              // `reachKm` and `arrowReach` are separate names because they
-              // once were not. The wind block declared `var reach` for the
-              // arrow half-length and this block declared `var reach` for the
-              // radar's ground reach in km; `var` is function-scoped, so the
-              // two were one variable. Any path that left it holding the
-              // arrow-length value produced a nonsense ring radius — and a
-              // Canvas that throws mid-paint loses the ENTIRE overlay, not just
-              // the ring, which is how one bad radius blanked the rings, the
-              // arrows, the isobars and the compass at once. Every declaration
-              // in this function now has a name of its own; see the note in the
-              // isobar block.
+              // ---- range rings, labels and the centre marker --------------- Drawn here rather than as QML Items on top.
               var centreX = px(0.5), centreY = py(0.5)
               var reachKm = Number(root.radarReachKm) || 0
               var rings = root.radarRingsKm
@@ -1217,8 +1012,7 @@ BarWidget {
               for (var r = 0; r < rings.length; r++) {
                 var km = rings[r]
                 var rad = S / 2 * (Number(km) / Math.max(1, reachKm))
-                // Belt and braces after the above: a non-finite or negative
-                // radius is the one argument ctx.arc refuses outright.
+                // Belt and braces after the above: a non-finite or negative radius is the one argument ctx.arc refuses outright.
                 if (!isFinite(rad) || rad <= 0) continue
                 ctx.strokeStyle = Color.menu.text
                 ctx.globalAlpha = r === 0 ? 0.26 : 0.15
@@ -1227,15 +1021,12 @@ BarWidget {
                 ctx.arc(centreX, centreY, rad, 0, Math.PI * 2)
                 ctx.stroke()
 
-                // Label sat on the ring, above the centre. A pill behind it
-                // would be another box; a short gap in the ring reads cleaner.
+                // Label sat on the ring, above the centre.
                 var label = km + " km"
                 var lw = ctx.measureText(label).width
                 ctx.globalAlpha = 1
                 ctx.fillStyle = Color.menu.background
-                // Tall enough to swallow the ring stroke completely — a
-                // slightly short box left a sliver of the arc peeking out
-                // above the label, which reads as a rendering seam.
+                // Tall enough to swallow the ring stroke completely — a slightly short box left a sliver of the arc peeking out above the label, which reads as a rendering seam.
                 ctx.fillRect(centreX - lw / 2 - 4, centreY - rad - Style.font.caption * 0.80,
                              lw + 8, Style.font.caption * 1.30)
                 ctx.fillStyle = Color.menu.text
@@ -1244,13 +1035,7 @@ BarWidget {
               }
               ctx.globalAlpha = 1
 
-              // You are here — the one location fact this panel states, and it
-              // is relative to an unlabelled square, so it says nothing.
-              // Small, and ringed in the panel background. It was a plain 9px
-              // disc, which was fine over five big arrows and far too heavy
-              // once the field became a few hundred small ones — it read as a
-              // blob sitting on the map rather than a position on it. The ring
-              // is what keeps a 3px dot findable among arrows of its own colour.
+              // You are here — the one location fact this panel states, and it is relative to an unlabelled square, so it says nothing.
               var markerR = Math.max(2, (Number(S) || 0) * 0.006)
               ctx.beginPath()
               ctx.arc(centreX, centreY, markerR + 1.8, 0, Math.PI * 2)
@@ -1263,16 +1048,7 @@ BarWidget {
               ctx.fillStyle = Color.accent
               ctx.fill()
 
-              // ---- compass ------------------------------------------------
-              //
-              // Bottom-left, away from the centre marker and the range labels.
-              // Without it the arrows are a direction relative to nothing.
-              //
-              // Was a bare circle with a crosshair through it: crude on its
-              // own, and with a hundred arrows now crossing the same pixels it
-              // had no ground of its own to sit on. Redrawn as a rose — a
-              // backing disc so the field passes behind it, a thin ring, four
-              // ticks with north the long one, and a filled north needle.
+              // ---- compass ------------------------------------------------ Bottom-left, away from the centre marker and the range labels.
               var cxc = Math.round(width * 0.115)
               var cyc = Math.round(height * 0.78)
               var rr = Math.max(4, Math.min(width, height) * 0.075)
@@ -1290,8 +1066,7 @@ BarWidget {
               ctx.arc(cxc, cyc, rr, 0, Math.PI * 2)
               ctx.stroke()
 
-              // Ticks, not a crosshair: a cross through the middle fights the
-              // needle for the same space and reads as a gunsight.
+              // Ticks, not a crosshair: a cross through the middle fights the needle for the same space and reads as a gunsight.
               ctx.globalAlpha = 0.4
               for (var q = 0; q < 4; q++) {
                 var qa = q * Math.PI / 2
@@ -1302,8 +1077,7 @@ BarWidget {
                 ctx.stroke()
               }
 
-              // North needle in the accent, so it reads as the one oriented
-              // thing on the dial rather than more chrome.
+              // North needle in the accent, so it reads as the one oriented thing on the dial rather than more chrome.
               ctx.globalAlpha = 0.9
               ctx.fillStyle = Color.accent
               ctx.beginPath()
@@ -1313,8 +1087,7 @@ BarWidget {
               ctx.closePath()
               ctx.fill()
 
-              // Quoted family: Canvas's CSS-ish font parser drops a family name
-              // containing spaces and silently falls back.
+              // Quoted family: Canvas's CSS-ish font parser drops a family name containing spaces and silently falls back.
               ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
               ctx.textAlign = "center"
               ctx.fillStyle = Color.menu.text
@@ -1339,8 +1112,7 @@ BarWidget {
           onClicked: root.radarPlaying = !root.radarPlaying
         }
 
-        // Scrub the loop by hand. Pausing on drag is the point: the reason to
-        // touch this at all is to hold one frame still.
+        // Scrub the loop by hand.
         PanelSlider {
           anchors.verticalCenter: parent.verticalCenter
           width: parent.width - Style.space(150)
@@ -1374,10 +1146,7 @@ BarWidget {
         }
       }
 
-      // "Unavailable" only once the fetch has actually finished and come back
-      // with nothing. A cold cache is twelve PNG downloads, and calling that
-      // unavailable while it is in flight is simply wrong — it is the state a
-      // first open lands in every time.
+      // "Unavailable" only once the fetch has actually finished and come back with nothing.
       Text {
         width: parent.width
         visible: root.radarFrames.length === 0
@@ -1388,8 +1157,7 @@ BarWidget {
         font.pixelSize: Style.font.caption
       }
 
-      // What the overlay is showing, since arrows and thin lines over rain are
-      // not self-explanatory.
+      // What the overlay is showing, since arrows and thin lines over rain are not self-explanatory.
       Row {
         width: parent.width
         visible: root.hasField

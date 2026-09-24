@@ -1,22 +1,12 @@
 #!/usr/bin/env bash
-# One-shot JSON snapshot of the active connection's device/IP/MAC and
-# instantaneous up/down throughput, for Network.qml's details row. Rate is a
-# two-sample delta over 0.3s, same shape as system-stats.sh's CPU%/GPU% —
-# /proc/net/dev has no instantaneous rate, only cumulative byte counters.
+# One-shot JSON snapshot of the active connection's device/IP/MAC and instantaneous up/down throughput, for Network.qml's details row.
 set -euo pipefail
 
-# NetworkManager's own connectivity verdict: full | limited | portal | none
-# | unknown. This is the honest answer to "do we actually have internet?" --
-# a device can be `connected` with a valid IP and still be behind a captive
-# portal or a link with no route out, which a device-state check reports as
-# online. Rendered separately from `connected` for exactly that reason.
+# NetworkManager's own connectivity verdict: full | limited | portal | none | unknown.
 connectivity=$(nmcli -t -f CONNECTIVITY general 2>/dev/null || echo unknown)
 connectivity=${connectivity:-unknown}
 
-# Real ethernet/wifi only. `dev status` also lists every tunnel adapter a
-# VPN/firewall app owns (wg0, proton0, Portmaster's SPN interface, ...) as
-# "connected" — picking those up here made this row report the tunnel's
-# connection name (e.g. "Portmaster") instead of the actual network.
+# Real ethernet/wifi only.
 device=$(nmcli -t -f DEVICE,TYPE,STATE dev status 2>/dev/null | awk -F: '$3 == "connected" && ($2 == "ethernet" || $2 == "wifi") {print $1; exit}')
 device=${device:-}
 

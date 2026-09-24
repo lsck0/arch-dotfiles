@@ -1,9 +1,6 @@
 import QtQuick
 
-// Verbatim from omarchy-shell: filters synthetic hover churn from moving
-// delegates under a stationary pointer. Call reset() after keyboard/list
-// mutations, then moved() from a row MouseArea's onPositionChanged before
-// changing cursor selection.
+// Verbatim from omarchy-shell: filters synthetic hover churn from moving delegates under a stationary pointer.
 QtObject {
   id: root
 

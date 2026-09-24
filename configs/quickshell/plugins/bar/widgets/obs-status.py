@@ -57,27 +57,14 @@ except ImportError:
 CONFIG = (pathlib.Path(os.environ.get("XDG_CONFIG_HOME") or (pathlib.Path.home() / ".config"))
           / "obs-studio/plugin_config/obs-websocket/config.json")
 
-# obs-websocket 5.x EventSubscription bit flags. Only what is actually rendered:
-# subscribing to SceneItems would wake this process on every source drag for
-# data nothing here displays. Inputs IS subscribed now, for
-# InputMuteStateChanged -- the mute pills below need to notice a mute toggled
-# from inside OBS itself, not just one sent from this widget.
+# obs-websocket 5.x EventSubscription bit flags.
 SUB_GENERAL = 1 << 0
 SUB_SCENES = 1 << 2
 SUB_INPUTS = 1 << 3
 SUB_OUTPUTS = 1 << 6
 SUBSCRIPTIONS = SUB_GENERAL | SUB_SCENES | SUB_INPUTS | SUB_OUTPUTS
 
-# Quick mute/unmute pills in the panel. Keyed by the short label the widget
-# shows; valued by the exact OBS input name to send obs-websocket, which are
-# fixed by this repo's own scene collection (configs/obs/Untitled.json,
-# symlinked to ~/.config/obs-studio/basic/scenes/Untitled.json by
-# configs/obs/link.sh) -- "Mic/Aux" and "Desktop Audio" are OBS's own default
-# global-audio names, the rest are the per-app pipewire captures that scene
-# collection defines. A source missing from a differently-configured OBS
-# simply never reports a mute state and its pill stays at its last-known
-# (initially unmuted) value -- GetInputMute for a name OBS does not have comes
-# back as a rejected request, same as any other command here.
+# Quick mute/unmute pills in the panel.
 MUTE_SOURCES = {
     "Mic": "Mic/Aux",
     "Desktop": "Desktop Audio",
@@ -87,9 +74,7 @@ MUTE_SOURCES = {
     "Spotify": "Spotify Audio",
 }
 
-# While live, the numbers that matter (bitrate, dropped frames) move every
-# second. While idle nothing moves at all, and the only reason to ask is to
-# notice a scene change, so the idle poll is deliberately lazy.
+# While live, the numbers that matter (bitrate, dropped frames) move every second.
 POLL_ACTIVE = 1.0
 POLL_IDLE = 5.0
 
@@ -217,9 +202,7 @@ def snapshot(session):
     scene = scene or {}
     scenes = scenes or {}
 
-    # OBS returns the scene list in reverse UI order (bottom of the list
-    # first), so reverse it back — a scene switcher whose buttons are upside
-    # down relative to OBS itself is worse than no switcher.
+    # OBS returns the scene list in reverse UI order (bottom of the list first), so reverse it back — a scene switcher whose buttons are upside down relative to OBS itself is worse than no switcher.
     scene_names = [str(s.get("sceneName", ""))
                    for s in reversed(scenes.get("scenes") or [])]
     scene_names = [n for n in scene_names if n]
@@ -237,9 +220,7 @@ def snapshot(session):
         "streamSeconds": timecode_seconds(stream.get("outputTimecode")),
         "recordSeconds": timecode_seconds(record.get("outputTimecode")),
 
-        # OBS reports bytes for the whole session and a congestion figure; the
-        # per-second bitrate people actually quote is derived in the widget from
-        # successive samples, so both halves are published here.
+        # OBS reports bytes for the whole session and a congestion figure; the per-second bitrate people actually quote is derived in the widget from successive samples, so both halves are published here.
         "streamBytes": int(stream.get("outputBytes") or 0),
         "recordBytes": int(record.get("outputBytes") or 0),
         "congestion": round(float(stream.get("outputCongestion") or 0.0), 3),
@@ -254,8 +235,7 @@ def snapshot(session):
         "memMb": round(float(stats.get("memoryUsage") or 0.0), 1),
         "freeDiskMb": round(float(stats.get("availableDiskSpace") or 0.0), 1),
         "frameTimeMs": round(float(stats.get("averageFrameRenderTime") or 0.0), 2),
-        # Render skips mean the machine cannot draw fast enough; encoder skips
-        # mean it cannot encode fast enough. Different fixes, so not summed.
+        # Render skips mean the machine cannot draw fast enough; encoder skips mean it cannot encode fast enough.
         "renderSkipped": int(stats.get("renderSkippedFrames") or 0),
         "renderTotal": int(stats.get("renderTotalFrames") or 0),
         "encoderSkipped": int(stats.get("outputSkippedFrames") or 0),
@@ -274,26 +254,14 @@ _last_line = None
 def emit(payload):
     global _last_line
     line = json.dumps(payload)
-    # Identical to the last line means nothing moved — OBS open but idle, where
-    # the five-second poll returns the same scene name forever. Re-printing it
-    # costs the shell a JSON parse and a round of property writes per poll for
-    # no change at all.
-    #
-    # This one check also covers the reconnect loop, which runs every second or
-    # so while OBS is closed: its repeated {"connected": false} collapses to a
-    # single line. An earlier version suppressed on connected-ness instead, and
-    # that swallowed every *later* disconnect payload whose error differed —
-    # "obs-websocket disabled" never reached the widget at all, because the
-    # startup {"connected": false} had already latched the state off.
+    # Identical to the last line means nothing moved — OBS open but idle, where the five-second poll returns the same scene name forever.
     if line == _last_line:
         return
     _last_line = line
     print(line, flush=True)
 
 
-# requestType per command, and which payload key it carries. Kept as a table
-# rather than an if-chain so the set of things the widget is allowed to do is
-# one readable list — this is the only path from the desktop into OBS.
+# requestType per command, and which payload key it carries.
 COMMANDS = {
     "toggleStream": ("ToggleStream", None),
     "startStream": ("StartStream", None),
@@ -314,9 +282,7 @@ def handle_command(session, line):
         return False
     cmd = str(msg.get("cmd", ""))
 
-    # Not in COMMANDS: it needs a source-name translation ToggleInputMute
-    # doesn't, from the widget's short label (msg["source"] == "Mic") to the
-    # actual OBS input name ("Mic/Aux") -- see MUTE_SOURCES above.
+    # Not in COMMANDS: it needs a source-name translation ToggleInputMute doesn't, from the widget's short label (msg["source"] == "Mic") to the actual OBS input name ("Mic/Aux") -- see MUTE_SOURCES above.
     if cmd == "toggleMute":
         label = str(msg.get("source") or "")
         input_name = MUTE_SOURCES.get(label)
@@ -341,17 +307,14 @@ def handle_command(session, line):
     result, _ = session.request(request_type, data)
     if result is None:
         print("obs-status: %s rejected" % request_type, file=sys.stderr, flush=True)
-    # Re-poll either way. A rejected toggle still means the UI's idea of the
-    # state was wrong, and refreshing is how it finds out.
+    # Re-poll either way.
     return True
 
 
 def run_session(conf):
     ws = connect(conf)
     session = Session(ws)
-    # Blocking recv would hold the loop past its poll deadline; a short timeout
-    # turns the socket into "deliver an event if one is ready" so events and
-    # polling can share one thread without either starving the other.
+    # Blocking recv would hold the loop past its poll deadline; a short timeout turns the socket into "deliver an event if one is ready" so events and polling can share one thread without either starving the other.
     ws.settimeout(0.25)
 
     last_poll = 0.0
@@ -368,20 +331,11 @@ def run_session(conf):
                 emit(state)
                 last_poll = time.monotonic()
 
-            # Commands first: a button press must not wait out the socket
-            # timeout before it is sent. select with a zero timeout makes this
-            # a non-blocking peek, so the loop keeps its own cadence.
+            # Commands first: a button press must not wait out the socket timeout before it is sent.
             while select.select([sys.stdin], [], [], 0)[0]:
                 line = sys.stdin.readline()
                 if not line:
-                    # stdin closed — the shell tore the widget down. EXIT THE
-                    # PROCESS, not just this session: returning here dropped
-                    # back into main()'s reconnect loop, which has no sleep on
-                    # the clean-return path, so the next iteration reconnected,
-                    # saw EOF again immediately, and span through a full
-                    # websocket handshake per pass at 100% of a core. SystemExit
-                    # is not an Exception, so it passes through main()'s handler
-                    # and the `finally` below still closes the socket.
+                    # stdin closed — the shell tore the widget down.
                     sys.exit(0)
                 ws.settimeout(6)
                 try:
@@ -397,10 +351,7 @@ def run_session(conf):
             except (ValueError, TypeError):
                 continue
 
-            # Any output or scene change makes the cached snapshot stale, so
-            # re-poll immediately rather than waiting out the interval. This is
-            # what makes hitting Start Streaming show up at once instead of up
-            # to five seconds later.
+            # Any output or scene change makes the cached snapshot stale, so re-poll immediately rather than waiting out the interval.
             if msg.get("op") == 5:
                 event_type = msg["d"].get("eventType", "")
                 if event_type.startswith(("StreamState", "RecordState",
@@ -416,16 +367,12 @@ def run_session(conf):
 
 def main():
     backoff = RECONNECT_MIN
-    # Announce the starting state once so the widget has something to bind to
-    # before OBS is ever opened, rather than staying at its uninitialised
-    # default until the first successful connection.
+    # Announce the starting state once so the widget has something to bind to before OBS is ever opened, rather than staying at its uninitialised default until the first successful connection.
     emit({"connected": False})
     while True:
         conf = read_config()
         if conf is None:
-            # Distinct from "OBS is closed": the server is switched off (or
-            # never enabled), and no amount of retrying will change that until
-            # someone edits the config. Say which, so the panel can too.
+            # Distinct from "OBS is closed": the server is switched off (or never enabled), and no amount of retrying will change that until someone edits the config.
             emit({"connected": False, "error": "obs-websocket disabled"})
             time.sleep(RECONNECT_MAX)
             continue
@@ -436,10 +383,7 @@ def main():
             time.sleep(backoff)
             backoff = min(RECONNECT_MAX, backoff * 1.6)
         else:
-            # A clean return means OBS closed the socket on its own terms
-            # (Exit event, obs-websocket switched off). Still a reconnect, so
-            # it still waits: an unsleep on this path is a busy loop, which is
-            # exactly what the stdin-EOF case used to be.
+            # A clean return means OBS closed the socket on its own terms (Exit event, obs-websocket switched off).
             backoff = RECONNECT_MIN
             time.sleep(backoff)
 

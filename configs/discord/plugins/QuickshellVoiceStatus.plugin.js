@@ -146,8 +146,7 @@ module.exports = class QuickshellVoiceStatus {
     };
   }
 
-  // BetterDiscord's fs shim has no async API, so writes stay synchronous;
-  // _schedulePublish is what keeps them to one per 150ms during calls.
+  // BetterDiscord's fs shim has no async API, so writes stay synchronous; _schedulePublish is what keeps them to one per 150ms during calls.
   _write(payload) {
     if (!this._fs || !this._statePath) return;
     const text = JSON.stringify(payload);
@@ -188,8 +187,7 @@ module.exports = class QuickshellVoiceStatus {
     this._publish();
   }
 
-  // ChannelActions (exported as `default`) owns disconnect(); a plain
-  // VOICE_CHANNEL_SELECT with no channel is the same thing at the dispatcher.
+  // ChannelActions (exported as `default`) owns disconnect(); a plain VOICE_CHANNEL_SELECT with no channel is the same thing at the dispatcher.
   _disconnect() {
     const W = BdApi.Webpack;
     const isActions = (m) =>
@@ -230,8 +228,7 @@ module.exports = class QuickshellVoiceStatus {
     } catch (e) {
       return;
     }
-    // Consumed before it is acted on, so a command that throws cannot be
-    // replayed on every poll for the rest of the session.
+    // Consumed before it is acted on, so a command that throws cannot be replayed on every poll for the rest of the session.
     try {
       this._fs.unlinkSync(this._commandPath);
     } catch (e) {}

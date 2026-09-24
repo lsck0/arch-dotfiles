@@ -1,10 +1,7 @@
 import QtQuick
 import qs.Commons
 
-// Trimmed from omarchy-shell's WidgetButton: same clickable-pill behavior
-// (label, active/dimmed states, hover tooltip), minus the drag-reorder click
-// registration (registerClickTarget/unregisterClickTarget) this bar doesn't
-// implement since it has no editing UI.
+// Trimmed from omarchy-shell's WidgetButton: same clickable-pill behavior (label, active/dimmed states, hover tooltip), minus the drag-reorder click registration (registerClickTarget/unregisterClickTarget) this bar doesn't implement since it has no editing UI.
 Item {
   id: root
 

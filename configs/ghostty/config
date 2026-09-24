@@ -35,3 +35,8 @@ keybind = ctrl+shift+t=unbind
 #https://github.com/hackr-sh/ghostty-shaders
 #custom-shader=./ghostty-shaders/in-game-crt-cursor.glsl
 #custom-shader-animation = false
+
+# Accept OSC 52 clipboard writes (default is allow, set explicit) so a yank from
+# a remote nvim/tmux/herdr over SSH lands in this laptop's clipboard.
+clipboard-write = allow
+clipboard-read = allow

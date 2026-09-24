@@ -6,10 +6,7 @@ import Quickshell.Hyprland
 import qs.Commons
 import "OsdModel.js" as OsdModel
 
-// Adapted from omarchy-shell's Osd.qml: same measured-column layout and IPC
-// contract (`quickshell ipc -p ~/.config/quickshell call osd present '{...}'`), with
-// BorderSurface's multi-side/gradient border swapped for a plain Rectangle
-// border — this repo doesn't need per-side gradient borders, just a card.
+// Adapted from omarchy-shell's Osd.qml: same measured-column layout and IPC contract (`quickshell ipc -p ~/.config/quickshell call osd present '{...}'`), with BorderSurface's multi-side/gradient border swapped for a plain Rectangle border — this repo doesn't need per-side gradient borders, just a card.
 Item {
   id: root
 
@@ -84,9 +81,7 @@ Item {
 
   TextMetrics {
     id: iconMetrics
-    // Icon family: root.icon is always a Nerd Font glyph, and the drawn
-    // Text elements below inherit this via `font: iconMetrics.font`, so
-    // this one line covers both the metrics and the rendering.
+    // Icon family: root.icon is always a Nerd Font glyph, and the drawn Text elements below inherit this via `font: iconMetrics.font`, so this one line covers both the metrics and the rendering.
     font.family: Style.font.iconFamily
     font.pixelSize: Style.font.displayLarge
     text: root.icon
@@ -100,14 +95,7 @@ Item {
 
   IpcHandler {
     target: "osd"
-    // NOT named `show`. `quickshell ipc` has its own `show` subcommand (it
-    // lists every IPC target), so an IpcHandler function called `show`
-    // cannot be invoked from the CLI at all: the parser binds `show` as a
-    // command and then rejects the payload with
-    // "show: The following argument was not expected: {...}".
-    // `call osd close` works fine, which is why the collision hid for so
-    // long — and it meant AppLibrary's launch OSD had never actually
-    // fired. `show` is kept as an alias for the no-argument case.
+    // NOT named `show`.
     function present(payloadJson: string): string {
       root.open(payloadJson)
       return "ok"
@@ -122,21 +110,6 @@ Item {
   }
 
   // One surface per output, but only the FOCUSED one is ever visible.
-  //
-  // This used to be `visible: root.opened` on every screen at once, so a
-  // volume or brightness OSD popped up simultaneously on every monitor —
-  // fine on a single-output laptop, which is why it went unnoticed, but
-  // wrong the moment a second display is plugged in.
-  //
-  // Variants is kept rather than creating one window on the focused screen,
-  // because a PanelWindow that changes `screen` at runtime has to tear down
-  // and rebuild its wayland surface; toggling `visible` on pre-built
-  // surfaces is cheaper and avoids a flicker when focus moves mid-OSD.
-  //
-  // `Hyprland.monitorFor(screen)` is the bridge between a Quickshell screen
-  // and Hyprland's own monitor object; comparing against
-  // `Hyprland.focusedMonitor` is what makes "focused" mean what the
-  // compositor thinks it means, not what Qt guesses.
   Variants {
     model: Quickshell.screens
 
@@ -148,8 +121,7 @@ Item {
       readonly property bool onFocusedMonitor: {
         var mine = Hyprland.monitorFor(modelData)
         var focused = Hyprland.focusedMonitor
-        // Before Hyprland has reported a focused monitor, fall back to
-        // showing it rather than swallowing the OSD entirely.
+        // Before Hyprland has reported a focused monitor, fall back to showing it rather than swallowing the OSD entirely.
         if (!mine || !focused) return true
         return mine.name === focused.name
       }

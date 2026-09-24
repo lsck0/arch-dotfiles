@@ -1,13 +1,9 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-network-qr. Generates a Wi-Fi QR
-# matrix for configs/quickshell/plugins/wifiqr/Panel.qml: a
-# "meta\t<iface>\t<security>\t<ssid>" header (with --meta), then a square
-# 0/1 module matrix the panel renders as native QML rectangles.
+# Verbatim from omarchy's bin/omarchy-network-qr.
 
 set -euo pipefail
 
-# --meta is opt-in so pre-existing consumers of the bare matrix keep
-# parsing this output.
+# --meta is opt-in so pre-existing consumers of the bare matrix keep parsing this output.
 interface=""
 emit_meta=false
 for arg in "$@"; do
@@ -17,10 +13,7 @@ for arg in "$@"; do
   esac
 done
 if [[ -z $interface ]]; then
-  # Prefer the default-route device: it is the connection the panel and the
-  # menu's visibility gate describe. Fall back to the first connected Wi-Fi
-  # device. nmcli localizes state names, so pin the locale, and the prefix
-  # match accepts states like "connected (externally)".
+  # Prefer the default-route device: it is the connection the panel and the menu's visibility gate describe.
   route_device=$(ip route get 1.1.1.1 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')
   if [[ -n $route_device && -d /sys/class/net/$route_device/wireless ]]; then
     interface=$route_device
@@ -62,8 +55,7 @@ if [[ -n $key_management && $key_management != "none" ]]; then
   [[ -n $password ]] || { echo "Could not read the Wi-Fi password" >&2; exit 1; }
   security=WPA
 elif [[ -n $wep_key ]]; then
-  # NetworkManager models WEP as key-mgmt "none" plus a wep-key; encoding it
-  # as an open network would produce a QR that silently fails to join.
+  # NetworkManager models WEP as key-mgmt "none" plus a wep-key; encoding it as an open network would produce a QR that silently fails to join.
   password=$wep_key
   security=WEP
 else
@@ -74,16 +66,10 @@ payload="WIFI:T:$security;S:$(escape_wifi_qr "$ssid");P:$(escape_wifi_qr "$passw
 [[ $hidden == "yes" ]] && payload+="H:true;"
 payload+=";"
 
-# Metadata header ahead of the matrix: the interface that was shared, the
-# security type, and the SSID last so it may contain tabs. The share card
-# renders its title and password row from this line, and a self-detected
-# summon learns which interface to fetch the password for.
+# Metadata header ahead of the matrix: the interface that was shared, the security type, and the SSID last so it may contain tabs.
 [[ $emit_meta == "true" ]] && printf 'meta\t%s\t%s\t%s\n' "$interface" "$security" "$ssid"
 
-# ASCII uses two characters per module. Collapse each pair to one 0/1 value
-# so the shell can render a square matrix directly with native QML rectangles.
-# Margin 4 is the spec quiet zone; the card surround is dark, so this white
-# border is all the scanner gets.
+# ASCII uses two characters per module.
 ascii=$(printf '%s' "$payload" | qrencode --type ASCII --margin 4 --output -)
 while IFS= read -r line; do
   row=

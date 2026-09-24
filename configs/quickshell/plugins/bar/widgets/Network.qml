@@ -5,15 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Every state change goes through
-// toggles/*.sh — same backend as the toggles bar widget and the tmux menu,
-// per the "toggles/*.sh is the only place this logic lives" rule. This
-// widget only *reads*; it never runs rfkill/nmcli/bluetoothctl to write.
-//
-// Bluetooth, wifi and offline mode used to be the exception here, poking
-// those tools inline. That is what hid the offline-mode bug: a bare
-// `rfkill block all` only covers radios, so ethernet stayed up while the
-// panel said "offline". See toggles/toggle-offline.sh for the fix.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "network"
@@ -28,8 +20,7 @@ BarWidget {
   property bool offlineModeOn: false
 
   property bool detailsConnected: false
-  // NM's own verdict: full | limited | portal | none | unknown. Distinct
-  // from detailsConnected, which only says a device has a link.
+  // NM's own verdict: full | limited | portal | none | unknown.
   property string connectivity: "unknown"
   readonly property bool reallyOnline: connectivity === "full"
   property string detailsDevice: ""
@@ -81,13 +72,7 @@ BarWidget {
 
   readonly property string scriptDir: Paths.barWidgets
 
-  // Every toggle is detached and takes real time — a VPN dial-up, an rfkill
-  // round trip, bluetoothctl powering a controller. `Qt.callLater(refreshAll)`
-  // re-read the `get` scripts on the *next frame*, so it always observed the
-  // pre-toggle state and the row appeared not to respond until something else
-  // refreshed it. Re-read on a settle delay instead, and repeat once, because
-  // the slower toggles are not done at 600ms either. The nmcli monitor still
-  // carries anything NetworkManager itself reports.
+  // Every toggle is detached and takes real time — a VPN dial-up, an rfkill round trip, bluetoothctl powering a controller.
   Timer {
     id: toggleSettle
     interval: 600
@@ -110,8 +95,7 @@ BarWidget {
   function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); afterToggle() }
   function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); afterToggle() }
   function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); afterToggle() }
-  // Offline mode tears tunnels down first and takes several seconds, which is
-  // the case the repeated re-read above exists for.
+  // Offline mode tears tunnels down first and takes several seconds, which is the case the repeated re-read above exists for.
   function toggleOfflineMode() { Quickshell.execDetached([toggleDir + "/toggle-offline.sh", "toggle"]); afterToggle() }
 
   Process {
@@ -191,11 +175,7 @@ BarWidget {
     }
   }
 
-  // Event-driven instead of polled. `nmcli monitor` is a long-lived process
-  // that prints a line whenever NM's state changes (device up/down,
-  // connectivity re-check, radio toggled), so the panel reacts immediately
-  // to a change made anywhere -- a keybind, menu.sh, or unplugging a cable --
-  // rather than up to 10s later.
+  // Event-driven instead of polled.
   Process {
     id: nmMonitorProc
     running: true
@@ -204,14 +184,11 @@ BarWidget {
       splitMarker: "\n"
       onRead: nmDebounce.restart()
     }
-    // nmcli monitor exits if NetworkManager itself restarts; the fallback
-    // Timer below is what brings the panel back in that window, and this
-    // restarts the monitor once NM is back.
+    // nmcli monitor exits if NetworkManager itself restarts; the fallback Timer below is what brings the panel back in that window, and this restarts the monitor once NM is back.
     onExited: nmRestartTimer.restart()
   }
 
-  // One NM change fans out into several monitor lines; coalesce them so a
-  // single reconnect doesn't fire refreshAll five times.
+  // One NM change fans out into several monitor lines; coalesce them so a single reconnect doesn't fire refreshAll five times.
   Timer {
     id: nmDebounce
     interval: 400
@@ -224,9 +201,7 @@ BarWidget {
     onTriggered: nmMonitorProc.running = true
   }
 
-  // Fallback only. The monitor above carries normal updates; this catches
-  // what NM does not report -- bluetooth power state, and any window where
-  // the monitor process is down. Was a flat 10s poll of everything.
+  // Fallback only.
   Timer {
     interval: 30000
     running: true
@@ -236,9 +211,6 @@ BarWidget {
   }
 
   // SPEC: "showing connection(s) (ie do we have internet, if so lan/wifi?)".
-  // All six codepoints below are cmap-verified against 0xProto Nerd Font --
-  // note md-lan_connect is U+F0318, NOT U+F0AA8 (that one exists but is
-  // md-credit_card_refund_outline) and there is no nf-fa-network_wired here.
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0
   readonly property string statusIcon: {
     if (offlineModeOn) return "\u{f072}"                                  // fa-plane
@@ -257,9 +229,7 @@ BarWidget {
     }
   }
 
-  // Not a BarIconButton: that renders a single glyph and hard-sets
-  // labelVisible: false, so it cannot show speed text beside the icon.
-  // Same Rectangle+Row+MouseArea idiom as Weather.qml / Media.qml.
+  // Not a BarIconButton: that renders a single glyph and hard-sets labelVisible: false, so it cannot show speed text beside the icon.
   Rectangle {
     anchors.fill: parent
     radius: Style.cornerRadius
@@ -282,10 +252,7 @@ BarWidget {
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
     }
-    // No throughput in the bar. It is the one number here that changes every
-    // second, it is rarely what you want at a glance, and giving it a slot wide
-    // enough not to twitch cost ~120px of a bar that is now full. The panel
-    // still shows it, next to the device and IP it belongs with.
+    // No throughput in the bar.
   }
 
   MouseArea {
@@ -302,11 +269,7 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: { root.refreshAll(); root.refreshWifiList(false) }
-    // Load-bearing. HoverPanel defaults to WlrKeyboardFocus.None, so the
-    // Wi-Fi password TextInput below could take a click but never receive a
-    // keystroke — a secured network simply could not be joined from here.
-    // OnDemand hands focus over on the click and gives it back when the
-    // panel closes.
+    // Load-bearing.
     acceptsKeyboard: true
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
@@ -316,11 +279,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.sm
 
-      // This panel's rows were an in-file `Row_` component; they are the shared
-      // Ui/PanelRow now, along with the equivalent rows in the audio, display,
-      // system and media panels. `stateMarker` is the ●/○ toggle dot; an
-      // action row takes a `glyph` instead, because it runs something rather
-      // than representing on/off.
+      // This panel's rows were an in-file `Row_` component; they are the shared Ui/PanelRow now, along with the equivalent rows in the audio, display, system and media panels.
       component Row_: PanelRow {
         width: content.width
         stateMarker: glyph === ""
@@ -334,9 +293,7 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
         visible: root.detailsConnected
-        // Shown even when a device is "connected", because that is exactly
-        // when it is misleading: a link with an IP but no route out, or a
-        // captive portal, both look connected at the device level.
+        // Shown even when a device is "connected", because that is exactly when it is misleading: a link with an IP but no route out, or a captive portal, both look connected at the device level.
         Row {
           width: parent.width
           Text { width: parent.width * 0.35; text: "Status"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
@@ -531,11 +488,7 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }
-      // The speed test plugin was built, enabled and keepLoaded — and
-      // completely unreachable: nothing in the shell, no keybind and no menu
-      // entry ever summoned `panel.speedtest`, so the only way to run it was
-      // to type the ipc call by hand. This is the button it never had, in the
-      // panel it obviously belongs to.
+      // The speed test plugin was built, enabled and keepLoaded — and completely unreachable: nothing in the shell, no keybind and no menu entry ever summoned `panel.speedtest`, so the only way to run it was to type the ipc call by hand.
       Row_ {
         label: "Internet speed test"
         glyph: "\u{f04c5}"
@@ -545,14 +498,7 @@ BarWidget {
         }
       }
 
-      // panel.wifiqr was the SECOND plugin in exactly the same state: a
-      // finished Wi-Fi share card (QR matrix rendered as native rectangles,
-      // plus a password reveal, with scripts/network-qr.sh and
-      // scripts/network-password.sh behind it), enabled, keepLoaded, and
-      // summoned by nothing. Only shown on Wi-Fi: the card cannot describe an
-      // ethernet link, and network-qr.sh exits with "No active Wi-Fi
-      // connection" — a row that always fails is worse than no row.
-      // md-qrcode U+F0432.
+      // panel.wifiqr was the SECOND plugin in exactly the same state: a finished Wi-Fi share card (QR matrix rendered as native rectangles, plus a password reveal, with scripts/network-qr.sh and scripts/network-password.sh behind it), enabled, keepLoaded, and summoned by nothing.
       Row_ {
         visible: root.detailsConnected && !root.onEthernet
         label: "Share Wi-Fi (QR)"

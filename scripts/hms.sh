@@ -39,38 +39,8 @@ if ! herdr status server 2>/dev/null | grep -q "status: running"; then
   exec herdr
 fi
 
-existing_id=$(herdr workspace list 2>/dev/null \
-  | jq -r --arg label "$label" '.result.workspaces[] | select(.label == $label) | .workspace_id' \
-  | head -n1)
-
-# A fresh workspace opens three tabs: 1 nvim, 2 claude, 3 zsh. herdr has no
-# on-create hook, so lay them out here, the one place workspaces are born.
-# (The cold-start `exec herdr` branch above can't: herdr makes that first
-# workspace itself. Re-run hms to get a laid-out one.)
-setup_tabs() {
-  local ws="$1" created="$2" p1 t1 tab
-  p1=$(jq -r '.result.root_pane.pane_id' <<<"$created")
-  t1=$(jq -r '.result.tab.tab_id' <<<"$created")
-  herdr pane run "$p1" nvim >/dev/null
-  herdr tab rename "$t1" nvim >/dev/null
-  for app in claude zsh; do
-    tab=$(herdr tab create --workspace "$ws" --cwd "$selected" --no-focus)
-    herdr tab rename "$(jq -r '.result.tab.tab_id' <<<"$tab")" "$app" >/dev/null
-    pane=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
-    # zsh is the tab's default shell already; only claude needs launching
-    if [[ "$app" == claude ]]; then
-      herdr pane run "$pane" claude --permission-mode auto >/dev/null
-    fi
-  done
-  herdr tab focus "$t1" >/dev/null
-}
-
-if [[ -n "$existing_id" ]]; then
-  herdr workspace focus "$existing_id" >/dev/null
-else
-  created=$(herdr workspace create --cwd "$selected" --label "$label" --focus)
-  setup_tabs "$(jq -r '.result.workspace.workspace_id' <<<"$created")" "$created"
-fi
+# Focus or create the workspace, laid out as 1 nvim, 2 claude, 3 zsh. herdr has
+herdr-open "$selected" "$label"
 
 # outside herdr: attach a client (extra clients are fine)
 [[ -n "${HERDR_ENV:-}" ]] || exec herdr

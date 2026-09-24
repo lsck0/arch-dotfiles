@@ -1,6 +1,4 @@
-# shellcheck shell=bash
-# Shared by configs/boot/{grub,limine}/link.sh. boot.conf selects exactly one
-# bootloader; only that one is configured, gets the snapshot menu and is signed.
+# shellcheck shell=bash Shared by configs/boot/{grub,limine}/link.sh.
 
 BOOT_MENU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
@@ -24,8 +22,7 @@ esp_supported() {
     fi
 }
 
-# Snapshot entries boot vmlinuz + initramfs from the ESP, so UKI-only presets
-# also build a plain initramfs.
+# Snapshot entries boot vmlinuz + initramfs from the ESP, so UKI-only presets also build a plain initramfs.
 enable_initramfs_images() {
     local preset pkgbase rebuild=false
     for preset in /etc/mkinitcpio.d/*.preset; do
@@ -68,8 +65,7 @@ efi_boot_first() {
     sudo efibootmgr -o "$(IFS=,; echo "${num}${rest[*]:+,${rest[*]}}")" >/dev/null
 }
 
-# Sign boot files if sbctl keys exist. sbctl's pacman hook re-signs them on
-# upgrades once they are in its database.
+# Sign boot files if sbctl keys exist.
 sbctl_sign() {
     command -v sbctl >/dev/null 2>&1 || return 0
     sudo sbctl status 2>/dev/null | grep -qE 'Owner GUID' || return 0

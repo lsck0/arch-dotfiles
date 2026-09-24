@@ -3,27 +3,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# Monitor scale, applied live and then persisted into
-# configs/hyprland/hyprland_monitors.lua so it survives a Hyprland restart.
-#
-# TWO BUGS IN WHAT THIS REPLACES, both silent:
-#
-# 1. Display.qml ran `hyprctl keyword monitor <name>,preferred,auto,<scale>`.
-#    This repo drives Hyprland from Lua configs, and **`hyprctl keyword` does
-#    not work against a non-legacy parser** — it prints "keyword can't work
-#    with non-legacy parsers. Use eval." and **exits 0**. So the old scale
-#    control did nothing at all while reporting success. `hyprctl eval` with
-#    a Lua `hl.monitor{}` call is the form that actually applies.
-#
-# 2. Even had it worked, `preferred,auto` **discards the monitor's actual
-#    mode and position**: it re-derives resolution and refresh from
-#    Hyprland's own preference and moves the output to an auto-computed
-#    spot. Changing a scale should not silently renegotiate the mode. This
-#    reads the live mode and position from `hyprctl monitors -j` and
-#    reapplies them alongside the new scale.
-#
-# Apply-then-persist, in that order and only on success: a scale a monitor
-# cannot actually take is recoverable by not having been written to disk yet.
+# Monitor scale, applied live then persisted to hyprland_monitors.lua.
 
 MONITORS_LUA="$HOME/projects/arch-dotfiles/configs/hyprland/hyprland_monitors.lua"
 
@@ -55,17 +35,13 @@ if ms: print(ms[0]['name'])
 "
 }
 
-# Rewrite `scale = N` inside the hl.monitor block whose output matches.
-# Done in python rather than sed because the value lives several lines below
-# the key that identifies which block to touch.
+# Rewrite scale in the matching hl.monitor block (python, not sed: value sits below the key).
 persist() {
     python3 - "$MONITORS_LUA" "$1" "$2" <<'PY'
 import re, sys
 path, name, scale = sys.argv[1], sys.argv[2], sys.argv[3]
 src = open(path).read()
 
-# Each block is `hl.monitor({ ... })`; find the one whose output matches and
-# replace only its scale.
 def repl(m):
     block = m.group(0)
     if re.search(r'output\s*=\s*"%s"' % re.escape(name), block) is None:
@@ -89,7 +65,7 @@ apply_scale() {
         return 1
     fi
 
-    # Live first. `hyprctl eval`, not `hyprctl keyword` — see the header.
+    # apply live first
     local out
     out=$(hyprctl eval "hl.monitor({output=\"$name\", mode=\"$mode\", position=\"$position\", scale=$scale})" 2>&1 || true)
     if [[ "$out" != *ok* ]]; then
@@ -97,10 +73,7 @@ apply_scale() {
         return 1
     fi
 
-    # Confirm the compositor actually took it before writing to disk. A
-    # fractional scale that does not divide the mode cleanly gets refused or
-    # silently adjusted, and persisting that would make the bad value
-    # survive a restart.
+    # confirm the compositor took it before persisting: a fractional scale
     sleep 0.4
     local applied
     applied=$(monitor_info "$name" | awk '{print $3}')

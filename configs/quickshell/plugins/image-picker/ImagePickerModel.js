@@ -11,10 +11,7 @@ function labelForPath(path) {
   return titleCase(nameForPath(path))
 }
 
-// Themes mode rows carry a 3rd tsv column: the theme JSON's own basename
-// (see theme-list.sh), so a theme picked by its wallpaper's filename never
-// shows the wallpaper's name -- it shows the theme's own name. Falls back
-// to labelForPath for wallpapers-mode rows, which have no 3rd column.
+// Themes mode rows carry a 3rd tsv column: the theme JSON's own basename (see theme-list.sh), so a theme picked by its wallpaper's filename never shows the wallpaper's name -- it shows the theme's own name.
 function labelForImage(image) {
   if (image && image.displayName) return titleCase(image.displayName)
   return labelForPath(image ? image.filePath : "")

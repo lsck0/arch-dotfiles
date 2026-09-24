@@ -6,9 +6,7 @@ import qs.Commons
 import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
 
-// Centered reminders + pomodoro overlay, styled like the app launcher. Typing
-// sets a reminder (minutes, Enter, message, Enter); everything else is clickable.
-// State lives in scripts/reminder.sh and scripts/pomodoro.sh, polled while open.
+// Centered reminders + pomodoro overlay, styled like the app launcher.
 Item {
   id: root
 

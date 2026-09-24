@@ -6,17 +6,7 @@ import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
 
-// Upgraded from the earlier simplified port to match omarchy-shell's fuller
-// Clipboard.qml: split list/preview pane, image thumbnails, PointerMoveGate
-// (keyboard nav doesn't fight stationary-pointer hover churn), ConfirmDialog
-// for Shift+Delete, BorderSurface chrome, and PageUp/PageDown/Home/End nav.
-// Backend stays this repo's own: wl-copy/xdg-open (no omarchy-clipboard-
-// paste-* binaries exist here), capture.sh + ClipboardHistory.js unchanged,
-// history under ~/.local/state/quickshell, IpcHandler for toggle/open/close
-// (upstream has no equivalent in this file — its own menu wires the picker
-// differently). Upstream distinguishes "paste" (simulated typing) from
-// "copy only" — meaningless here since we're copy-only either way, so Enter
-// and Shift+Enter both just copy+close; Alt+Enter opens+closes.
+// Upgraded from the earlier simplified port to match omarchy-shell's fuller Clipboard.qml: split list/preview pane, image thumbnails, PointerMoveGate (keyboard nav doesn't fight stationary-pointer hover churn), ConfirmDialog for Shift+Delete, BorderSurface chrome, and PageUp/PageDown/Home/End nav.
 Item {
   id: root
 
@@ -203,11 +193,7 @@ Item {
     if (!row) return
     root.opened = false
     if (row.entryType === "image") {
-      // Both interpolations quoted. `path` always was; `mime` was not, and it
-      // reaches here from the history JSON rather than from a literal. Today
-      // capture.sh only ever emits one of six hardcoded image/* types, so
-      // nothing can currently exploit it — but it is one unquoted value away
-      // from a shell in a string, and quoting it costs nothing.
+      // Both interpolations quoted.
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
     } else if (row.fullText) {
       Quickshell.execDetached(["bash", "-c", "printf '%s' " + Util.shellQuote(row.fullText) + " | wl-copy"])
@@ -241,8 +227,6 @@ Item {
   }
 
   // Best-effort reap of watchers left behind by a previous shell instance.
-  // Not gating the real watchers on this finishing — setpriv's pdeathsig
-  // means an orphaned watcher dies with its old parent shortly anyway.
   Process {
     id: initProc
     command: ["pkill", "-f", "wl-paste .*--watch .*/quickshell/plugins/clipboard/capture\\.sh"]
@@ -461,8 +445,7 @@ Item {
                   width: ListView.view.width
                   height: root.rowHeight
                   radius: root.cornerRadius
-                  // The previewed row keeps a faint fill before the cursor is engaged,
-                  // so the preview pane always points at a visible row.
+                  // The previewed row keeps a faint fill before the cursor is engaged, so the preview pane always points at a visible row.
                   color: hasCursor ? root.selectedBackground
                     : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
@@ -479,9 +462,7 @@ Item {
                       width: visible ? parent.height : 0
                       height: parent.height
                       source: rowDelegate.previewImage
-                      // Clipboard images are usually screenshots; this draws
-                      // them at row height, so decoding at full size held a
-                      // multi-megabyte buffer per visible row.
+                      // Clipboard images are usually screenshots; this draws them at row height, so decoding at full size held a multi-megabyte buffer per visible row.
                       sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
                       fillMode: Image.PreserveAspectFit
                       asynchronous: true

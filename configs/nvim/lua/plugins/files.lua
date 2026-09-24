@@ -10,7 +10,7 @@ return {
     {
         "nvim-neo-tree/neo-tree.nvim", -- sidebar file tree
         branch = "v3.x",
-        lazy = false,
+        cmd = "Neotree",
         dependencies = {
             "MunifTanjim/nui.nvim",          -- UI component library
             {

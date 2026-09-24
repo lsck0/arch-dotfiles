@@ -5,13 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Was blocked on missing credentials —
-// scaffolded so it's ready the moment real tokens exist. Drop them at:
-//   ~/.config/costs/hetzner_token        (Hetzner Cloud API token)
-//   ~/.config/costs/cloudflare_token     (needs Enterprise plan for billing API)
-//   ~/.config/costs/gcp_billing_sa.json  (service account + BigQuery export)
-// None of these live in git (not this repo, not the configs/secrets
-// submodule) — see costs-fetch.sh for exactly what each one needs.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "costs"

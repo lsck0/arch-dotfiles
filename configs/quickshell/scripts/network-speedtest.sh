@@ -1,12 +1,5 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-network-speedtest except:
-# `omarchy-cmd-present curl` -> `command -v curl` (no local equivalent of
-# that helper, and this is the only place it was used).
-#
-# Measures live internet speed for one direction against fast.com's (Netflix)
-# speedtest CDN, printing one Mbps reading per second until killed. Used by
-# configs/quickshell/plugins/speedtest/Panel.qml, which runs it for a fixed
-# window per direction (see phaseTimer) and SIGTERMs it between phases.
+# Verbatim from omarchy's bin/omarchy-network-speedtest except: `omarchy-cmd-present curl` -> `command -v curl` (no local equivalent of that helper, and this is the only place it was used).
 
 set -e
 

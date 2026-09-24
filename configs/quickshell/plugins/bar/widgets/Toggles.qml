@@ -4,14 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. toggles/*.sh stay the only place
-// toggle logic lives (toggles/menu.sh --fzf is the standing TUI, bound in
-// tmux prefix+m) — this widget is a second consumer of the same backend.
-// toggles/status.sh was toggles/waybar-status.sh until waybar was
-// decommissioned 2026-09-01; it is a plain JSON status emitter now, and this
-// widget is its only remaining caller. Used to shell out to `menu.sh`, which for its default (non-fzf)
-// picker opens walker — a separate GUI window popping up from a bar click.
-// Renders the same toggle list inline instead, via toggles-list.sh.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "toggles"
@@ -42,10 +35,7 @@ BarWidget {
   }
 
   function toggleItem(name) {
-    // Same fix as Notifications.qml's toggleDnd(): wait for the toggle
-    // script to actually exit before refreshing, instead of firing it
-    // detached and refreshing on the next event-loop tick (which reliably
-    // beat the script to the finish and re-displayed the pre-toggle state).
+    // Same fix as Notifications.qml's toggleDnd(): wait for the toggle script to actually exit before refreshing, instead of firing it detached and refreshing on the next event-loop tick (which reliably beat the script to the finish and re-displayed the pre-toggle state).
     if (toggleProc.running) return
     toggleProc.command = [root.toggleDir + "/toggle-" + name + ".sh", "toggle"]
     toggleProc.running = true
@@ -83,13 +73,7 @@ BarWidget {
     }
   }
 
-  // Was 5000ms. This poll is a catch-up for out-of-band changes only --
-  // refresh() already fires immediately after every in-panel toggle (see
-  // Qt.callLater(root.refresh) at the call site) -- so a toggle flipped
-  // from outside quickshell (another keybind, a script) just takes longer
-  // to show up here. 20s keeps that lag imperceptible in practice while
-  // cutting status.sh's ~40-process cost by 4x. See research/ROADMAP.md's "Post-Phase-8" note for the
-  // interval choices and why FileView push updates were rejected.
+  // Was 5000ms.
   Timer {
     interval: 20000
     running: true
@@ -129,9 +113,7 @@ BarWidget {
     Flickable {
       id: togglesFlick
       anchors.fill: parent
-      // Same as the notification history list: bound to the vertical axis and
-      // inert while everything fits, so a horizontal drag cannot slide the
-      // toggle rows off the card.
+      // Same as the notification history list: bound to the vertical axis and inert while everything fits, so a horizontal drag cannot slide the toggle rows off the card.
       contentWidth: width
       contentHeight: content.implicitHeight
       flickableDirection: Flickable.VerticalFlick
@@ -144,10 +126,7 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        // Ui/Toggle.qml floors each row at 54px — ten toggles is ~540px,
-        // taller than most screens want popping open on hover. The
-        // Flickable above caps the panel at 400px and scrolls the rest,
-        // same pattern Notifications.qml uses for its history list.
+        // Ui/Toggle.qml floors each row at 54px — ten toggles is ~540px, taller than most screens want popping open on hover.
         Repeater {
           model: root.items
           Toggle {

@@ -1,37 +1,5 @@
 #!/usr/bin/env bash
-# Severe-weather warnings for the current location, from MeteoAlarm's CAP
-# feeds, sanitised the same way weather-fetch.sh sanitises the forecast.
-#
-# WHY METEOALARM. Open-Meteo — the forecast provider — publishes no warnings
-# at all, and every commercial alternative that does wants an API key. The
-# national meteorological services of ~38 European countries publish theirs
-# through MeteoAlarm as CAP, free and unauthenticated. That is the whole
-# coverage story: this is a European source. Outside that footprint the
-# script reports "unsupported region" rather than inventing a quiet nothing,
-# so the panel can say why it is empty.
-#
-# PRIVACY, and the design it forces. CAP alerts identify their target by
-# place name ("Kreis Traunstein", "Highland & Eilean Siar"). Those names are
-# used *here*, to decide whether a warning applies, and are then dropped.
-#
-# NO FREE TEXT IS EMITTED AT ALL — not headline, not description, not
-# instruction. This is the awkward part and it is deliberate: warning prose
-# names places constantly ("Amber warning for wind affecting Highland"), and
-# it names them in the body as often as in the title, so there is no reliable
-# scrub. Emitting structured fields only — event, awareness level and colour,
-# CAP severity/urgency/certainty, and relative times — means the panel can say
-# "Amber - Wind - starts in 2h, lasts 6h" with no sentence that could carry a
-# place name through. Structurally safe beats textually rich here.
-# The whitelist is asserted at the end, the same way weather-fetch.sh does it.
-#
-# MATCHING, honestly. CAP alerts carry an area polygon *sometimes*; some
-# issuers (Germany's DWD, for one) publish only region codes. So two tiers:
-#   polygon — a real point-in-polygon test, reported as scope "here"
-#   name    — token overlap against the reverse-geocoded county/state,
-#             reported as scope "region", because a county name match is a
-#             coarser claim than a polygon hit
-# Anything else that is live in the country is counted but not listed, so the
-# panel can say "3 more in your country" without implying they apply to you.
+# Severe-weather warnings for the current location, from MeteoAlarm's CAP feeds, sanitised the same way weather-fetch.sh sanitises the forecast.
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
@@ -40,20 +8,14 @@ PLACE_CACHE="$CACHE/weather-place.json"
 FEED_CACHE="$CACHE/weather-alerts-feed.json"
 OUT_CACHE="$CACHE/weather-alerts.json"
 
-# Administrative boundaries do not move. Re-deriving them is a Nominatim call
-# per refresh for an answer that is the same for months.
+# Administrative boundaries do not move.
 PLACE_MAX_AGE=$(( 30 * 24 * 3600 ))
-# Warnings are issued on the scale of hours; national services rate-limit
-# harder than that and the widget refreshes on every hover.
+# Warnings are issued on the scale of hours; national services rate-limit harder than that and the widget refreshes on every hover.
 FEED_MAX_AGE=600
 
 fail() { printf '{"ok":false,"error":"%s","alerts":[]}\n' "$1"; exit 0; }
 
-# The cache directory is NOT guaranteed to exist. weather-fetch.sh caches to a
-# flat ~/.cache/quickshell-weather.json, so nothing else in the weather group
-# creates this subdirectory except weather-radar.sh — and radar and alerts start
-# together on shell start, so relying on that ordering meant alerts failed with
-# "no region" on a fresh machine whenever it won the race.
+# The cache directory is NOT guaranteed to exist.
 mkdir -p "$CACHE" 2>/dev/null || fail "cache unavailable"
 
 fresh() { # path, max-age
@@ -72,14 +34,9 @@ read -r SOURCE COORDS <<<"$("$TOGGLES/toggle-weather-location.sh" resolve 2>/dev
 LAT=${COORDS%%,*}
 LON=${COORDS##*,}
 
-# ---- 1. which country, and which administrative areas ----------------------
-#
-# zoom=8 asks Nominatim for county-level detail: enough to match a CAP region,
-# not so fine that the reply names a street. The coordinate sent is the same
-# 2-decimal-place value the forecast already uses.
+# ---- 1. which country, and which administrative areas ---------------------- zoom=8 asks Nominatim for county-level detail: enough to match a CAP region, not so fine that the reply names a street. The coordinate sent is the same 2-decimal-place value the forecast already uses.
 if ! fresh "$PLACE_CACHE" "$PLACE_MAX_AGE"; then
-    # A User-Agent is mandatory under Nominatim's usage policy; an anonymous
-    # request is refused.
+    # A User-Agent is mandatory under Nominatim's usage policy; an anonymous request is refused.
     curl -s --max-time 15 \
         -A "arch-dotfiles-quickshell/1.0 (personal desktop shell)" \
         "https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=8&accept-language=en&lat=${LAT}&lon=${LON}" \
@@ -90,9 +47,7 @@ if ! fresh "$PLACE_CACHE" "$PLACE_MAX_AGE"; then
 fi
 [[ -s "$PLACE_CACHE" ]] || fail "no region"
 
-# Path passed as argv, not interpolated into the program text: every other
-# python call in this file and its siblings does it that way, and a $HOME
-# containing a quote turns interpolation into a syntax error at best.
+# Path passed as argv, not interpolated into the program text: every other python call in this file and its siblings does it that way, and a $HOME containing a quote turns interpolation into a syntax error at best.
 COUNTRY_CODE=$(python3 - "$PLACE_CACHE" <<'PY' 2>/dev/null
 import json, sys
 try:
@@ -104,11 +59,7 @@ PY
 )
 [[ -z "$COUNTRY_CODE" ]] && fail "no region"
 
-# MeteoAlarm's feed slugs. Written out rather than derived from the country
-# name, because the slug is not a mechanical transform of it in either
-# direction — "gb" is "united-kingdom", "cz" is "czechia", "mk" is
-# "north-macedonia" — and a wrong guess returns an empty 200, which is
-# indistinguishable from "no warnings".
+# MeteoAlarm's feed slugs.
 declare -A SLUGS=(
     [at]=austria [ba]=bosnia-herzegovina [be]=belgium [bg]=bulgaria
     [ch]=switzerland [cy]=cyprus [cz]=czechia [de]=germany [dk]=denmark

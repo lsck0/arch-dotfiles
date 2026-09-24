@@ -19,6 +19,8 @@ git config --global credential.helper store
 git config --global init.defaultBranch master
 git config --global pull.rebase true
 git config --global --type bool push.autoSetupRemote true
+# recurse submodules on fetch/pull/checkout; the initial `git clone` is covered
+git config --global submodule.recurse true
 
 # diff
 git config --global core.pager delta

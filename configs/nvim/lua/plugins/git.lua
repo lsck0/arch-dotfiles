@@ -1,9 +1,13 @@
 return {
-    { "tpope/vim-fugitive" }, -- git commands in vim
+    { "tpope/vim-fugitive", cmd = { "G", "Git", "Gdiffsplit", "Gread", "Gwrite", "Gblame", "Gclog" } }, -- git commands in vim
 
     {
-        "esmuellert/vscode-diff.nvim",             -- VS Code-style diff view
-        dependencies = { "MunifTanjim/nui.nvim" }, -- UI component library
+        "sindrets/diffview.nvim", -- git diff / merge / file-history views
+        cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
+        keys = {
+            { "<leader>gd", "<cmd>DiffviewOpen<cr>",         desc = "Diffview open" },
+            { "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", desc = "File history (current file)" },
+        },
     },
 
     {
@@ -13,7 +17,7 @@ return {
 
     {
         "lewis6991/gitsigns.nvim", -- git status gutter
-        lazy = false,
+        event = { "BufReadPre", "BufNewFile" },
         config = function()
             require("gitsigns").setup()
         end
@@ -28,7 +32,10 @@ return {
     },
 
     {
-        "ThePrimeagen/git-worktree.nvim",    -- git worktree management
+        "ThePrimeagen/git-worktree.nvim", -- git worktree management (bare nvim/neovide only)
+        -- inside tmux/herdr, worktrees are driven by the wtree popup instead.
+        cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION) end,
+        keys = { "<leader>gf", "<leader>gc" },
         dependencies = {
             "nvim-lua/plenary.nvim",         -- Lua utility library
             "nvim-telescope/telescope.nvim", -- fuzzy finder

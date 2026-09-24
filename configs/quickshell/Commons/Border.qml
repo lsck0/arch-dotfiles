@@ -2,19 +2,7 @@ pragma Singleton
 import QtQuick
 import "BorderGeometry.js" as Geometry
 
-// Border-spec factory. A spec carries a colour plus per-side widths, which
-// is what lets BorderSurface pick between the cheap native Rectangle.border
-// path and the Shape-ring path.
-//
-// Same shape as omarchy-shell's Border.qml minus its shell.toml-driven
-// per-surface/per-theme override resolution: this repo has one look, so a
-// spec's colour/width is just what the caller passes (usually a
-// Color.<surface>.* role already derived from wallust), with no override
-// lookup layer on top.
-//
-// Upstream's gradient field is kept in the spec object because
-// BorderGeometry.js and BorderOverlay.qml still read it, but nothing in this
-// repo ever enables it — see Ui/BorderOverlay.qml's note.
+// Border-spec factory.
 QtObject {
   id: root
 
@@ -30,19 +18,13 @@ QtObject {
     }
   }
 
-  // A per-instance colour override if one was given, otherwise the surface
-  // default. Was `localOrSurfaceSpec(section, token, local, default, width)`
-  // — the first two arguments were never read, and both branches produced
-  // the same width, so all it did was pick between two colours.
+  // A per-instance colour override if one was given, otherwise the surface default.
   function surfaceSpec(localColor, defaultColor, width) {
     var chosen = (localColor === undefined || localColor === null) ? defaultColor : localColor
     return flat(chosen, width)
   }
 
-  // Interactive-state border specs, resolved through Style's state engine so
-  // controls in the kit share one ladder. `accent` lets a caller redirect
-  // the selected/focus role at a non-default palette colour (a destructive
-  // button passes its urgent colour here).
+  // Interactive-state border specs, resolved through Style's state engine so controls in the kit share one ladder.
   function controlColor(prefix, foreground, accent) {
     if (prefix === "focus") return Style.focusStateColor(foreground, accent)
     if (prefix === "hover-cursor") return Style.hoverStateColor(foreground, accent)

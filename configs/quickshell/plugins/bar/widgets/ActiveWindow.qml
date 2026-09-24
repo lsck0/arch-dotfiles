@@ -39,12 +39,7 @@ BarWidget {
       textFormat: Text.PlainText
       anchors.verticalCenter: parent.verticalCenter
       anchors.left: parent.left
-      // Capped at maxLabelWidth rather than bound to parent.width: parent's
-      // width derives from root.implicitWidth, which itself reads
-      // labelText.implicitWidth below — binding width to parent.width would
-      // close that loop (Qt warns "Binding loop detected for property
-      // implicitWidth"). elide already clips visually at whatever width
-      // root ends up with, so the exact box width here doesn't matter.
+      // Capped at maxLabelWidth rather than bound to parent.width: parent's width derives from root.implicitWidth, which itself reads labelText.implicitWidth below — binding width to parent.width would close that loop (Qt warns "Binding loop detected for property implicitWidth").
       width: root.maxLabelWidth
       text: root.title
       color: root.bar ? root.bar.barForeground : Color.foreground

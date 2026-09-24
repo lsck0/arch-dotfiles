@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# UTC offset (seconds) for each configured zone, refreshed periodically by
-# Clock.qml so DST transitions get picked up without a subprocess per tick.
+# UTC offset (seconds) for each configured zone, refreshed periodically by Clock.qml so DST transitions get picked up without a subprocess per tick.
 set -euo pipefail
 
 # label:IANA-zone pairs. Glasgow, NA west/east coast, NZ.

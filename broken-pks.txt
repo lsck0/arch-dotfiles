@@ -1,2 +1,12 @@
 AUR:
     - python-vllm-rocm, python-vllm-omni # [llm] LLM serving (AMD), packaging bug as of 15.06.26
+      Link fails: ld.lld: Unknown attribute kind (105)
+      (Producer 'LLVM22.1.8' Reader 'LLVM 22.0.0git').
+      libtorch (python-pytorch-opt-rocm) is built with LTO and its cmake targets
+      propagate -flto=auto to consumers, so vllm's C++ TUs become LLVM 22.1.8
+      bitcode that ROCm's bundled lld (22.0.0git) cannot read. Both packages link
+      the same libtorch, so both break identically.
+      Tried and failed
+        - ROCM_ARCH=gfx1101   (needed anyway: drops unsupported iGPU gfx1036 - works)
+        - makepkg OPTIONS !lto + LTOFLAGS=""   (torch injects -flto regardless)
+        - CC/CXX=/opt/rocm/lib/llvm/bin/clang(++)   (torch/HIP cmake overrides it)

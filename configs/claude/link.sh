@@ -12,6 +12,12 @@ mkdir -p "${HOME}/.claude"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
 tmp=$(mktemp)
-jq '. + {remoteControlAtStartup: true}' "$SETTINGS" > "$tmp"
+# remoteControlAtStartup: RC on for every session (see it from the phone).
+jq '. + {remoteControlAtStartup: true}
+   | .hooks = ((.hooks // {}) + {
+       "UserPromptSubmit": [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh acquire"}]}],
+       "Stop":            [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh release"}]}],
+       "SessionEnd":      [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh release"}]}]
+     })' "$SETTINGS" > "$tmp"
 cat "$tmp" > "$SETTINGS"
 rm -f "$tmp"

@@ -1,21 +1,5 @@
 #!/bin/bash
-# Adapted from omarchy's bin/omarchy-reminder. Sets lightweight desktop
-# notification reminders via systemd-run --user timers (ephemeral,
-# --on-active relative timers; nothing persists across a reboot, matching
-# upstream). Adaptations:
-#   - omarchy-notification-send -> the repo-level notification-send.sh helper.
-#   - omarchy-shell -q omarchy.indicators refresh -> dropped. There is no
-#     "push a refresh to a specific indicator" IPC here; the bar's Reminder
-#     indicator (plugins/bar/indicators/Reminder.qml) polls on its own 5s
-#     Timer instead, matching Dnd.qml/StayAwake.qml's established pattern
-#     in this repo (see their own headers for why: no indicatorHost/
-#     refreshRequested signal machinery is wired here).
-#   - open_interactive(): omarchy-shell shell summon omarchy.reminders "{}"
-#     -> quickshell ipc -p ~/.config/quickshell call shell summon
-#     panel.reminders "{}".
-#   - unit/state-dir prefix: omarchy-reminder-* -> quickshell-reminder-*,
-#     ${XDG_RUNTIME_DIR:-/tmp}/omarchy-reminders ->
-#     .../quickshell-reminders.
+# Adapted from omarchy's bin/omarchy-reminder.
 
 # omarchy:summary=Set and show lightweight desktop notification reminders
 # omarchy:args=[-i|--interactive] | <minutes> [message] | show [-j|--json] | clear
@@ -25,8 +9,6 @@ set -euo pipefail
 
 SELF_DIR="$(dirname "$(readlink -f "$0")")"
 # alert.sh is a sibling here; notification-send.sh is repo-level, three up.
-# Absolute paths, not the PATH symlinks: the systemd --user unit set below gets
-# a minimal environment, and this must work before any link.sh has run.
 ALERT_BIN="$SELF_DIR/alert.sh"
 BELL="󰂞"   # md-bell_ring
 NOTIFY_BIN="$SELF_DIR/../../../scripts/notification-send.sh"
@@ -147,17 +129,13 @@ cancel_reminder() {
   unit=${target%.timer}
   unit=${unit%.service}
 
-  # Only ever touch this script's own units: the argument reaches here from a
-  # QML click handler, and `systemctl stop` on an arbitrary caller-supplied
-  # name is not something to hand out.
+  # Only ever touch this script's own units: the argument reaches here from a QML click handler, and `systemctl stop` on an arbitrary caller-supplied name is not something to hand out.
   if [[ -z $unit || $unit != quickshell-reminder-* ]]; then
     echo "reminder.sh: refusing to cancel non-reminder unit '${target}'" >&2
     return 1
   fi
 
-  # Both units, not just the timer. Stopping the .timer alone leaves the
-  # .service loaded, and an already-elapsed-but-still-running alert keeps
-  # going; `clear` has always stopped both, single-delete used not to.
+  # Both units, not just the timer.
   systemctl --user stop "$unit.timer" "$unit.service" 2>/dev/null || true
   rm -f "$reminder_dir/$unit.message" 2>/dev/null || true
 }
@@ -244,11 +222,7 @@ if [[ -n $custom_message ]]; then
   confirmation_title="$custom_message in ${unit_label}"
 fi
 
-# Fires through alert.sh, not notification-send: a reminder that elapses while
-# you are looking at another workspace must not auto-expire into nothing.
-# alert.sh plays a sound and puts up the large top-right card that has to be
-# dismissed by hand, falling back to a plain notification if quickshell is not
-# running. Deliberate divergence from upstream omarchy, which uses a plain toast.
+# Fires through alert.sh, not notification-send: a reminder that elapses while you are looking at another workspace must not auto-expire into nothing.
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
   bash -c '"$3" "$1" "$4" '"$BELL"' reminder "$5"; rm -f "$2"' bash "$alert_title" "$message_file" "$ALERT_BIN" "$alert_body" "$custom_message"
 

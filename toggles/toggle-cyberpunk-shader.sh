@@ -3,15 +3,11 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# Same shader pair and hyprctl approach the SUPER+SHIFT+C keybind uses
-# directly (hyprland_keybindings.lua); this wraps the same effect with
-# on/off semantics so it also shows up in the toggles menu/waybar.
+# Same shader pair and hyprctl approach the SUPER+SHIFT+C keybind uses directly (hyprland_keybindings.lua); this wraps the same effect with on/off semantics so it also shows up in the toggles menu/waybar.
 DEFAULT_SHADER="${HOME}/.config/hypr/shaders/color-correction.frag"
 CYBERPUNK_SHADER="${HOME}/.config/hypr/shaders/crt-effect.frag"
 
-# `hyprctl keyword` refuses to run against a Lua config ("keyword can't work
-# with non-legacy parsers"), so set the values by evaluating Lua instead.
-# Clearing the shader first is what makes Hyprland pick up the new one.
+# `hyprctl keyword` refuses to run against a Lua config ("keyword can't work with non-legacy parsers"), so set the values by evaluating Lua instead.
 set_shader() {
     local damage=$1 shader=$2
     hyprctl eval 'hl.config({ decoration = { screen_shader = "" } })' >/dev/null

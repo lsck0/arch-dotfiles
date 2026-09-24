@@ -51,8 +51,7 @@ enable_if_present paccache.timer --now
 enable_if_present thermald.service
 mask_if_present NetworkManager-wait-online.service
 
-# ly's PAM stack (auto_start on session open) already starts and unlocks
-# gnome-keyring-daemon with the login password
+# ly's PAM stack (auto_start on session open) already starts and unlocks gnome-keyring-daemon with the login password
 mask_user_if_present gnome-keyring-daemon.service
 mask_user_if_present gnome-keyring-daemon.socket
 

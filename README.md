@@ -52,13 +52,8 @@ ssh-add ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 - add wirguard vpn tunnel
 
 ```bash
-sudo ln -sf ~/projects/arch-dotfiles/configs/secrets/wg0.laptop.conf /etc/wireguard/wg0.conf
+sudo ln -sf ~/projects/arch-dotfiles/configs/secrets/wg0.<platform>.conf /etc/wireguard/wg0.conf
 ```
-
-## Currently Clanker Wanked and Not Reviewed
-
-- Toggles
-- Quickshell
 
 ## Screenshots
 

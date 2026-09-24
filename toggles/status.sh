@@ -11,7 +11,5 @@ while IFS= read -r script; do
 done < <(find . -maxdepth 1 -name 'toggle-*.sh' | sort)
 
 tooltip=$(printf '%s\n' "${lines[@]}")
-# -c: kept single-line for historical reasons (waybar's custom-module exec
-# parsed output line by line). quickshell's Toggles widget is the only caller
-# now and does not care, but a one-line object stays cheap to consume.
+# -c: kept single-line for historical reasons (waybar's custom-module exec parsed output line by line).
 jq -nc --arg text "⚙ $on_count" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

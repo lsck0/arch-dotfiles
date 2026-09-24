@@ -7,14 +7,11 @@ fi
 
 set -ex
 
-# Absolute, because the build below cds into the clone: the old `cd ..` landed
-# in ID-Spoofer/ rather than back here, so `rm -rf ID-Spoofer` deleted nothing
-# and the clone was left sitting inside the dotfiles repo after every install.
+# Absolute, because the build below cds into the clone: the old `cd ..` landed in ID-Spoofer/ rather than back here, so `rm -rf ID-Spoofer` deleted nothing and the clone was left sitting inside the dotfiles repo after every install.
 BASE="$PWD"
 SRC="$BASE/ID-Spoofer"
 
-# A leftover clone from an aborted earlier run would make `git clone` fail, and
-# `set -e` would take the whole script down with it.
+# A leftover clone from an aborted earlier run would make `git clone` fail, and `set -e` would take the whole script down with it.
 rm -rf "$SRC"
 trap 'rm -rf "$SRC"' EXIT
 

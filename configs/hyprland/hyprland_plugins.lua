@@ -13,9 +13,7 @@ plugin_config("dynamic_cursors", {
     enabled = true,
     mode = "none",
 
-    -- Shake to find: magnify the cursor while it is being shaken. Every value
-    -- is spelled out rather than left to the plugin's defaults, since this is
-    -- the only part of dynamic_cursors actually in use (mode is "none").
+    -- Shake to find: magnify the cursor while it is being shaken.
     shake = {
         enabled = true,
 
@@ -29,8 +27,7 @@ plugin_config("dynamic_cursors", {
         -- how long it stays magnified after the shake stops
         timeout = 500,
 
-        -- mode is "none", so there is no tilt/rotate to show while shaking;
-        -- kept explicit so switching mode later does not silently change this.
+        -- mode is "none", so there is no tilt/rotate to show while shaking; kept explicit so switching mode later does not silently change this.
         effects = true,
     },
 

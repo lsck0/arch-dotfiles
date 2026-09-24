@@ -1,0 +1,30 @@
+#!/usr/sbin/nft -f
+# Additive inbound firewall that coexists with Portmaster, Docker, LXC and libvirt.
+
+add table inet fw
+delete table inet fw
+table inet fw {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+        meta l4proto { icmp, ipv6-icmp } accept
+
+        # trust everything arriving on a virtual/internal interface
+        iifname "docker*" accept
+        iifname "br-*" accept
+        iifname "veth*" accept
+        iifname "virbr*" accept
+        iifname "waydroid*" accept
+        iifname "lxc*" accept
+        iifname "tun*" accept
+        iifname "wg*" accept
+
+        # LAN-only services on the physical uplink: ssh, KDE Connect
+        ip  saddr { 192.168.0.0/16, 10.0.0.0/8 } tcp dport { 22, 1716 } accept
+        ip  saddr { 192.168.0.0/16, 10.0.0.0/8 } udp dport 1716 accept
+        ip6 saddr fe80::/10 tcp dport { 22, 1716 } accept
+    }
+}

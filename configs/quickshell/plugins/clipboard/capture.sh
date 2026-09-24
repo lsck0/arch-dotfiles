@@ -1,7 +1,5 @@
 #!/bin/bash
-# Verbatim from omarchy-shell: captures the current clipboard as a JSON entry
-# on stdout. In watch mode, wl-paste invokes this with the payload on stdin
-# and the mime as $1. Without arguments, it snapshots the current selection.
+# Verbatim from omarchy-shell: captures the current clipboard as a JSON entry on stdout.
 
 set -o pipefail
 

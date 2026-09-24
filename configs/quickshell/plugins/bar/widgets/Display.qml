@@ -5,55 +5,20 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. Monitor scale changes at runtime go
-// through `hyprctl eval` executing the Lua `hl.monitor({...})` table
-// constructor (via scripts/set-monitor-scale.sh) — this Hyprland config is
-// loaded through the non-legacy Lua parser (configs/hyprland/*.lua), and
-// `hyprctl keyword monitor ...` unconditionally refuses to run under it
-// ("keyword can't work with non-legacy parsers"), which is why the scale
-// buttons used to silently do nothing. Runtime-only, not persisted to
-// hyprland_monitors.lua, so a bad choice is reversible with `hyprctl
-// reload` rather than editing the actual config.
-//
-// Brightness is ONE slider driving every connected monitor together, not
-// one slider per output. Each output is still addressed individually on the
-// backend (brightnessctl for the laptop panel, ddcutil per-bus for external
-// DP/HDMI monitors — see scripts/monitor-brightness.sh for why), but the
-// panel only ever shows a single control: a bar with per-monitor sliders
-// that all move together the instant you touch one is not "one slider", and
-// this desktop's whole point is two identical panels that stay in sync.
-//
-// The backend call (ddcutil over DDC/CI) is the slow part — tens to
-// hundreds of ms per monitor even with the --bus fast path — so it is NOT
-// invoked on every pointer-move tick while dragging. PanelSlider already
-// separates its instantly-updating drag position (`liveValue`, driving the
-// visible fill/knob) from the committed `value`; `onMoved` only updates the
-// local `brightnessPct` (paints instantly, zero backend cost) and the
-// actual ddcutil/brightnessctl calls fire once, from `onReleased`. That is
-// the fix for the reported lag/flicker: previously every mouse-move fired a
-// Quickshell.execDetached per monitor per pixel of drag.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "display"
 
-  // Per-monitor state is still tracked (needed to know which outputs exist
-  // and to seed the slider from the hardware's actual current value), but
-  // the UI only ever surfaces one aggregate number.
+  // Per-monitor state is still tracked (needed to know which outputs exist and to seed the slider from the hardware's actual current value), but the UI only ever surfaces one aggregate number.
   property var brightnessByMonitor: ({})
   property real brightnessPct: 50
-  // Seeded once from the first `get` that comes back, so the initial poll
-  // populating brightnessByMonitor doesn't fight a value the user is
-  // actively dragging, and two monitors with slightly different starting
-  // brightness don't make the slider jump after the first paints.
+  // Seeded once from the first `get` that comes back, so the initial poll populating brightnessByMonitor doesn't fight a value the user is actively dragging, and two monitors with slightly different starting brightness don't make the slider jump after the first paints.
   property bool brightnessSeeded: false
   // `monitors all`, so disabled outputs stay listed and can be turned back on.
   property var monitors: []
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
-  // Read from toggle-font.sh's own `shortlist`, not listed again here. The
-  // panel used to carry a hardcoded four of the script's six, so the chip row
-  // and the keybind that cycles the same setting disagreed about which fonts
-  // exist — and the script already filters to what is actually installed,
-  // which a literal cannot.
+  // Read from toggle-font.sh's own `shortlist`, not listed again here.
   property var fontChoices: []
   readonly property var fontSizes: [12, 13, 14, 16, 18]
 
@@ -78,9 +43,7 @@ BarWidget {
     Quickshell.execDetached([Paths.shellScripts + "/monitor-brightness.sh", "set", name, String(pct)])
   }
 
-  // The one place that actually talks to hardware. Called once per commit
-  // (slider release, or a wheel tick, both of which fire `released` exactly
-  // once) rather than per drag tick — see the header comment on why.
+  // The one place that actually talks to hardware.
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
@@ -93,29 +56,11 @@ BarWidget {
   }
 
   function openWallpaperPicker() {
-    // `wallpaper-picker`, NOT switch-wallpaper.sh. With no arguments that
-    // script falls through to an fzf+chafa picker, which needs a terminal —
-    // launched detached from the shell it has no tty, so this button ran a
-    // program that immediately gave up and nothing appeared. wallpaper-picker
-    // is the wrapper that summons the native overlay, and it is the only
-    // caller that passes `showLabels: true`, which is what puts the wallpaper
-    // name under the selection.
+    // `wallpaper-picker`, NOT switch-wallpaper.sh.
     Quickshell.execDetached([Paths.shellScripts + "/wallpaper-picker.sh"])
   }
 
-  // FONT CHANGES GO THROUGH toggles/toggle-font.sh, like every other state
-  // change in this repo.
-  //
-  // These two used to be `sed -i` calls written out inline here, reaching into
-  // ~/.config/ghostty and ~/.config/zed from a QML widget. toggle-font.sh was
-  // written specifically to replace them (its header says so) and then this
-  // file was never switched over, so the panel kept the old half-a-job copy:
-  // it missed zed's terminal `font_family`, emacs, nvim, discord, spotify, GTK
-  // and Qt/KDE entirely, and — the visible symptom — it never touched
-  // quickshell's own theme.json, so the chip highlight below (which compares
-  // against Style.fontFamily) could never light up for the family you just
-  // picked. The script covers all of them and validates that the family is
-  // actually installed before writing anything.
+  // FONT CHANGES GO THROUGH toggles/toggle-font.sh, like every other state change in this repo.
   function setFont(family) {
     Quickshell.execDetached([root.fontScript, "set", family])
     fontSettle.restart()
@@ -128,9 +73,7 @@ BarWidget {
 
   readonly property string fontScript: Paths.toggle("toggle-font.sh")
 
-  // The family is readable straight off the live theme; the SIZE shown here is
-  // the terminal/editor size (toggle-font.sh's reference value), which is not
-  // the same number as quickshell's own base size, so it has to be asked for.
+  // The family is readable straight off the live theme; the SIZE shown here is the terminal/editor size (toggle-font.sh's reference value), which is not the same number as quickshell's own base size, so it has to be asked for.
   property int currentFontSize: 0
 
   function refreshFontSize() {
@@ -149,8 +92,7 @@ BarWidget {
     }
   }
 
-  // The installed families are fixed for the session — fonts are not installed
-  // while the shell is up — so this reads once at startup rather than per open.
+  // The installed families are fixed for the session — fonts are not installed while the shell is up — so this reads once at startup rather than per open.
   Process {
     id: fontListProc
     command: [root.fontScript, "shortlist"]
@@ -165,9 +107,7 @@ BarWidget {
     }
   }
 
-  // The script rewrites a dozen files and only then does quickshell's own
-  // theme.json land; re-read once it has had a moment, so the selected chip
-  // moves on its own rather than on the next hover.
+  // The script rewrites a dozen files and only then does quickshell's own theme.json land; re-read once it has had a moment, so the selected chip moves on its own rather than on the next hover.
   Timer {
     id: fontSettle
     interval: 600
@@ -195,9 +135,7 @@ BarWidget {
     refreshMonitors()
   }
 
-  // Fire-and-forget Process instances, one per get, created on demand so
-  // concurrent per-monitor refreshes (there can be several outputs) don't
-  // share/overwrite a single Process's state mid-flight.
+  // Fire-and-forget Process instances, one per get, created on demand so concurrent per-monitor refreshes (there can be several outputs) don't share/overwrite a single Process's state mid-flight.
   Component {
     id: brightnessGetComponent
     Process {
@@ -234,23 +172,13 @@ BarWidget {
         } catch (e) {
           return
         }
-        // Seed the slider from the hardware exactly once, so it opens showing
-        // the real brightness. Every later read is panel-driven — see below.
+        // Seed the slider from the hardware exactly once, so it opens showing the real brightness.
         if (!root.brightnessSeeded) root.refreshAllBrightness()
       }
     }
   }
 
   // Monitors only, and only while the panel is up.
-  //
-  // This used to poll every 5s forever AND call refreshAllBrightness() on
-  // every reply, which meant a `ddcutil getvcp` per external monitor every
-  // five seconds for the whole session — a DDC/CI round trip is ~0.4s of i2c
-  // traffic each (see scripts/monitor-brightness.sh), so the shell was
-  // permanently talking to the monitors to refresh a number nobody was
-  // looking at. Hover already calls refreshMonitors(), and the panel reads
-  // brightness when it becomes visible; this only keeps the list current
-  // while it stays open.
   Timer {
     interval: 5000
     running: panel.visible
@@ -277,19 +205,12 @@ BarWidget {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
-    // Shared HoverPanel geometry, like every other panel. This used to
-    // re-specify `anchors`/`margins` itself with `top: root.barSize + 4`,
-    // which is exactly the double-count HoverPanel's own margins comment
-    // warns about: the bar already reserves its height through
-    // exclusiveZone, so adding barSize again dropped this one panel ~30px
-    // below all the others and opened a dead gap the pointer had to cross
-    // before hoverCloseTimer gave up.
+    // Shared HoverPanel geometry, like every other panel.
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
-    // Talking to a monitor over DDC/CI is slow, so read the hardware only
-    // when this panel is actually on screen — see refreshAllBrightness().
+    // Talking to a monitor over DDC/CI is slow, so read the hardware only when this panel is actually on screen — see refreshAllBrightness().
     onOpened: {
       root.refreshMonitors()
       root.refreshAllBrightness()
@@ -307,9 +228,7 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        // A value beside its label — Style.emphasis.dim, matching every
-        // other "current reading" caption in the shell (e.g. Weather's
-        // current-conditions subtitle) instead of a one-off opacity.
+        // A value beside its label — Style.emphasis.dim, matching every other "current reading" caption in the shell (e.g. Weather's current-conditions subtitle) instead of a one-off opacity.
         Text {
           text: Math.round(root.brightnessPct) + "%"
             + (root.activeMonitors.length > 1 ? "  ·  " + root.activeMonitors.length + " monitors" : "")
@@ -319,10 +238,7 @@ BarWidget {
           font.family: Style.font.family
         }
 
-        // Single slider for every connected monitor. `onMoved` only paints
-        // (PanelSlider's own liveValue keeps the drag instantly responsive);
-        // the ddcutil/brightnessctl calls fire once from `onReleased`, not
-        // on every drag tick — see the header comment.
+        // Single slider for every connected monitor.
         PanelSlider {
           width: parent.width
           bar: root.bar

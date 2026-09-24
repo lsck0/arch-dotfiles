@@ -5,24 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell. The SPEC asks for "OBS status:
-// LIVE/RECORDING with stats like bitrate, dropped frames etc".
-//
-// The data comes from obs-status.py, a long-lived obs-websocket client read
-// through a SplitParser — the same shape as System.qml/system-stats.sh rather
-// than a process per sample. Its header explains why the connection details
-// are read from obs-websocket's own config file and never duplicated here.
-//
-// PRESENCE IS THE POINT. The widget does not exist on the bar unless OBS is
-// running: a permanent "OBS: not running" chip is a line of noise 99% of the
-// time. Once OBS is up it shows idle state, and when an output starts it
-// becomes the loudest thing in the bar, because going live without noticing —
-// or, worse, believing you are live when the stream dropped — is the failure
-// this widget exists to prevent.
-//
-// Glyphs verified BY NAME against the 0xProto Nerd Font cmap: md-record
-// U+F044A, md-video U+F0567, md-pause U+F03E4, md-alert_circle U+F0028,
-// md-speedometer U+F04C5, md-harddisk U+F02CA, md-movie_open U+F0FCE.
+// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "obs"
@@ -53,60 +36,31 @@ BarWidget {
   property string scene: ""
   property var scenes: []
 
-  // Mute state for the six audio sources this repo's OBS scene collection
-  // defines (configs/obs/Untitled.json) — keyed by the short label
-  // obs-status.py's MUTE_SOURCES maps to the real OBS input name ("Mic" ->
-  // "Mic/Aux", "Desktop" -> "Desktop Audio", the rest are the per-app
-  // pipewire captures). A label missing from the payload (source not present
-  // in whatever OBS has loaded) just never gets a key here, and the pill
-  // below renders it dim/unmuted rather than guessing.
+  // Mute state for the six audio sources this repo's OBS scene collection defines (configs/obs/Untitled.json) — keyed by the short label obs-status.py's MUTE_SOURCES maps to the real OBS input name ("Mic" -> "Mic/Aux", "Desktop" -> "Desktop Audio", the rest are the per-app pipewire captures).
   readonly property var muteSources: ["Mic", "Chromium", "Discord", "Firefox", "Spotify", "Desktop"]
   property var mutes: ({})
 
-  // Live bitrates, derived here rather than read from OBS: obs-websocket
-  // reports cumulative session bytes, not a rate. Two successive samples and
-  // the wall time between them is the whole calculation, and doing it in the
-  // widget keeps the helper stateless.
-  //
-  // Streaming and recording are tracked SEPARATELY because they are separate
-  // outputs with separate encoders — a local recording is routinely a much
-  // higher bitrate than the stream going out, and the two run at the same time
-  // often enough that one number for both would be wrong in whichever mode you
-  // happened to care about.
+  // Live bitrates, derived here rather than read from OBS: obs-websocket reports cumulative session bytes, not a rate.
   property real prevStreamBytes: -1
   property real prevRecordBytes: -1
   property real prevSampleMs: 0
   property real bitrateKbps: 0
   property real recordKbps: 0
 
-  // How long the free disk lasts at the current recording rate. The one number
-  // that turns "333 GB free" into something actionable mid-session.
+  // How long the free disk lasts at the current recording rate.
   readonly property real diskSecondsLeft:
     recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
 
   readonly property bool active: streaming || recording
 
-  // The state colour, used by the dot AND the label. Streaming outranks
-  // recording: if both outputs are running, the one with an audience is the
-  // one you must not lose track of.
+  // The state colour, used by the dot AND the label.
   readonly property color stateColor: (degraded || faulted)
     ? Color.semantic.warn
     : (streaming ? Color.semantic.live : (recording ? Color.semantic.recording : Color.muted))
-  // Reconnecting is the state worth shouting about: the bar still says LIVE
-  // while the stream is, in fact, not reaching anyone.
+  // Reconnecting is the state worth shouting about: the bar still says LIVE while the stream is, in fact, not reaching anyone.
   readonly property bool degraded: streamReconnecting || dropPct >= 1.0 || congestion >= 0.3
 
-  // OBS IS RUNNING BUT THE HELPER CANNOT TALK TO IT — obs-websocket switched
-  // off, a password this side does not have, the python module missing. The
-  // helper goes to some trouble to distinguish those and report which; that
-  // was wasted, because `visible: connected` hid the widget in exactly the
-  // cases it had something to say, panel and all. So the error reports itself.
-  //
-  // Gated on `obsSeen`, so a machine that never opens OBS still gets no chip:
-  // the helper is not even started until `pgrep -x obs` succeeds, and a
-  // permanent "OBS: disabled" on a bar belonging to someone who does not
-  // stream is precisely the noise this widget's header rejects. `obsSeen` goes
-  // back to false when OBS exits, so a closed OBS is not a fault either.
+  // OBS IS RUNNING BUT THE HELPER CANNOT TALK TO IT — obs-websocket switched off, a password this side does not have, the python module missing.
   readonly property bool faulted: obsSeen && !connected && errorText !== ""
 
   visible: connected || faulted
@@ -179,9 +133,7 @@ BarWidget {
     var nowMs = Date.now()
     var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0
 
-    // Only between two samples of the SAME session. Restarting an output resets
-    // its byte counter, and differencing across that reset yields a large
-    // negative rate; ignoring the decrease and re-baselining is correct.
+    // Only between two samples of the SAME session.
     function rate(now, prev) {
       if (prev < 0 || now < prev || deltaS <= 0.2) return -1
       return Math.max(0, (now - prev) * 8 / 1000 / deltaS)
@@ -200,9 +152,7 @@ BarWidget {
     } else if (!recording) {
       recordKbps = 0
     }
-    // A paused recording deliberately keeps its last rate rather than decaying
-    // to zero: the disk estimate below is about what resuming will cost, and
-    // zeroing it would read as "infinite headroom" at exactly the wrong moment.
+    // A paused recording deliberately keeps its last rate rather than decaying to zero: the disk estimate below is about what resuming will cost, and zeroing it would read as "infinite headroom" at exactly the wrong moment.
 
     streamBytes = sBytes
     prevStreamBytes = sBytes
@@ -210,34 +160,7 @@ BarWidget {
     prevSampleMs = nowMs
   }
 
-  // Start the helper only once OBS is actually running, and stop it again when
-  // OBS goes away.
-  //
-  // The helper is a Python process — ~13 MB of resident memory for something
-  // that, on a normal day, sits in a reconnect loop against a program that is
-  // not running. Holding that for the life of the shell is exactly the kind of
-  // always-on cost a status widget should not impose.
-  //
-  // DETECTION IS BY PROCESS, NOT BY WINDOW. The obvious cheap answer is
-  // ToplevelManager: no fork, no timer, fires the instant a window maps. It
-  // does not work here. Measured on this machine with OBS open and recording,
-  // OBS's only mapped toplevel was a CEF browser-source dialog whose appId and
-  // class are both the EMPTY STRING — and the main window was not mapped at
-  // all, because OBS was sitting in the tray. An appId match would have found
-  // nothing while OBS was demonstrably running.
-  //
-  // So: `pgrep -x obs`, triggered on shell start, on any toplevel change (a
-  // free, event-driven hint that something launched), and on a fallback timer
-  // for the tray-only case where no window ever appears. Process detection is
-  // what lets OBS sit minimised in the tray without blinding the widget.
-  //
-  // The probe also has to run the other way round. `obsSeen` used to latch
-  // true for the life of the shell, so quitting OBS left the helper looping
-  // against a dead socket and the chip stuck on the bar reading
-  // "[Errno 111] Connection refused" — the `faulted` branch below, firing for
-  // a fault that is just OBS being closed. Losing the connection is therefore
-  // a question, not an answer: re-probe, and if the process is gone, clear
-  // `obsSeen` so the helper stops and the widget leaves the bar.
+  // Start the helper only once OBS is actually running, and stop it again when OBS goes away.
   property bool obsSeen: false
 
   function probeForObs() {
@@ -246,17 +169,14 @@ BarWidget {
 
   Process {
     id: obsProbe
-    // -x so it cannot match this very command line, the trap Appendix A
-    // records for `pgrep -f`.
+    // -x so it cannot match this very command line, the trap Appendix A records for `pgrep -f`.
     command: ["pgrep", "-x", "obs"]
     onExited: function (exitCode) {
       root.obsSeen = exitCode === 0
     }
   }
 
-  // Drop every reading from the session that just ended. Without this the last
-  // values stay latched and a later OBS launch shows the previous session's
-  // stats until the first sample lands.
+  // Drop every reading from the session that just ended.
   onObsSeenChanged: if (!obsSeen) {
     connected = false
     errorText = ""
@@ -280,13 +200,7 @@ BarWidget {
   }
 
   Timer {
-    // Two jobs, two rates. While OBS is closed this is the slow hunt for it:
-    // one fork a minute. While OBS is running but the helper has lost its
-    // session, it is the check for whether OBS is still there at all, and that
-    // wants to be quick — it is the delay before the chip disappears.
-    //
-    // Idle while OBS is running and connected, which is the whole point: no
-    // forks at all in the common case.
+    // Two jobs, two rates.
     interval: root.obsSeen ? 3000 : 60000
     running: !root.obsSeen || !root.connected
     repeat: true
@@ -295,8 +209,6 @@ BarWidget {
   }
 
   // The helper's stdin is the command channel back into OBS — see its header.
-  // One already-authenticated session carries both directions, so a button
-  // press is a single request rather than a fresh websocket handshake.
   function send(command) {
     if (!statusProc.running) return
     statusProc.write(JSON.stringify(command) + "\n")
@@ -316,10 +228,7 @@ BarWidget {
         } catch (e) {}
       }
     }
-    // The helper reports a rejected command here — an OBS request that came
-    // back with result: false. Surfaced rather than swallowed: a control that
-    // silently does nothing is the worst kind, and this is the only place the
-    // reason exists.
+    // The helper reports a rejected command here — an OBS request that came back with result: false.
     stderr: SplitParser {
       splitMarker: "\n"
       onRead: function (line) { if (line) console.warn(line) }
@@ -338,17 +247,13 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    // The state dot. Red while live, amber while merely recording, dim while
-    // OBS is open and doing nothing. It pulses only when something is actually
-    // being captured — a permanently blinking bar item stops being a signal.
+    // The state dot.
     Rectangle {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(8)
       height: width
       radius: width / 2
-      // Recording red and live red are the convention every camera and every
-      // broadcast desk already uses; this is the same deliberate exception to
-      // the palette that the weather awareness colours are.
+      // Recording red and live red are the convention every camera and every broadcast desk already uses; this is the same deliberate exception to the palette that the weather awareness colours are.
       color: root.stateColor
 
       SequentialAnimation on opacity {
@@ -363,8 +268,6 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       // Streaming wins the label, and says so even while also recording.
-      // "REC" while live would understate it: a dropped recording costs a
-      // file, a dropped stream costs the audience.
       text: {
         if (root.faulted) return "OBS ⚠"
         if (root.streamReconnecting) return "RECONNECTING"
@@ -373,9 +276,7 @@ BarWidget {
         if (root.recording) return root.recordPaused ? "REC PAUSED" : "REC"
         return "OBS"
       }
-      // Tinted to the state, not left on the bar foreground. The dot alone was
-      // the only thing separating "live" from "recording" at a glance, and a
-      // 8px dot is not enough to carry that difference.
+      // Tinted to the state, not left on the bar foreground.
       color: root.active || root.faulted
         ? root.stateColor
         : (root.bar ? root.bar.barForeground : Color.foreground)
@@ -413,9 +314,7 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
-    // Same label/value row as System.qml's panel. Duplicated rather than
-    // hoisted into Ui/: it is nine lines, and the two panels have already
-    // drifted apart once on alignment.
+    // Same label/value row as System.qml's panel.
     component Row_: Row {
       property string label: ""
       property string value: ""
@@ -441,9 +340,7 @@ BarWidget {
       }
     }
 
-    // A labelled button. PanelActionButton is icon-first and sizes itself to a
-    // square; these need a glyph *and* a word, because "stop" is the one
-    // control in this panel where guessing wrong is expensive.
+    // A labelled button.
     component Action: Rectangle {
       property string glyph: ""
       property string label: ""
@@ -492,11 +389,7 @@ BarWidget {
 
       PanelSectionHeader { text: "OBS" }
 
-      // AT THE TOP, NOT THE BOTTOM. This used to be the last child of the
-      // panel, under five sections of readouts — and unreachable anyway, since
-      // the widget hid itself whenever there was an error to report. When the
-      // helper cannot reach OBS this line is the only content that means
-      // anything, so it leads.
+      // AT THE TOP, NOT THE BOTTOM.
       Rectangle {
         width: parent.width
         height: faultText.implicitHeight + Style.spacing.sm * 2
@@ -520,19 +413,7 @@ BarWidget {
         }
       }
 
-      // --- controls ---
-      //
-      // First, above the readouts. The reason to open this panel mid-session is
-      // almost always to act, not to read: scrolling past five rows of stats to
-      // reach "stop recording" is the wrong shape for a control surface.
-      //
-      // Deliberately no confirmation dialog on stop. A stop is recoverable (the
-      // file is kept, the stream can be restarted) and a modal between the user
-      // and "stop streaming" is its own hazard.
-      // Hidden, not dimmed, while the helper has no session: every one of these
-      // sends a command down a pipe nothing is reading. A control that silently
-      // does nothing is the worst kind — this file's own words, a few lines
-      // down, about the pause button.
+      // --- controls --- First, above the readouts.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
@@ -558,15 +439,7 @@ BarWidget {
 
         Action {
           width: (parent.width - Style.spacing.sm * 2) / 3
-          // Only meaningful while recording, and OBS rejects it otherwise, so
-          // it is dimmed and inert rather than silently failing.
-          //
-          // Note that OBS itself decides whether a pause sticks. Measured on
-          // this machine: ToggleRecordPause returns result: true with
-          // outputPaused: true, and a second later the recording reports
-          // running again — some recording configurations simply do not
-          // support pausing, and OBS reports success anyway. Nothing to fix on
-          // this side; the 1s poll will show the real state either way.
+          // Only meaningful while recording, and OBS rejects it otherwise, so it is dimmed and inert rather than silently failing.
           opacity: root.recording ? 1 : 0.35
           enabled: root.recording
           glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}"   // md-play / md-pause
@@ -580,8 +453,6 @@ BarWidget {
       PanelSectionHeader { text: "SCENES"; visible: root.connected }
 
       // Flow, not a Row: scene names are user-chosen and there are seven here.
-      // A single row would either overflow the card or elide every label into
-      // uselessness, and a switcher you cannot read the labels of is not one.
       Flow {
         width: parent.width
         spacing: Style.spacing.sm
@@ -612,8 +483,7 @@ BarWidget {
       PanelSeparator { visible: root.connected }
       PanelSectionHeader { text: "AUDIO"; visible: root.connected }
 
-      // Quick mute toggles for the scene collection's sources. Live (unmuted)
-      // sources are lit like a selected chip; muted ones are dimmed.
+      // Quick mute toggles for the scene collection's sources.
       Flow {
         width: parent.width
         spacing: Style.spacing.sm
@@ -652,17 +522,14 @@ BarWidget {
                   : (root.streaming ? Color.semantic.live : Color.menu.text)
         dim: !root.streaming && !root.streamReconnecting
       }
-      // Stream and recording each show their own elapsed time. They start at
-      // different moments more often than not, and the bar can only afford one
-      // clock, so the panel is where the pair has to be readable.
+      // Stream and recording each show their own elapsed time.
       Row_ { visible: root.streaming; label: "Elapsed"; value: root.clock(root.streamSeconds) }
       Row_ { visible: root.streaming; label: "Bitrate"; value: Math.round(root.bitrateKbps) + " kbps" }
       Row_ { visible: root.streaming; label: "Sent"; value: root.bytesText(root.streamBytes) }
       Row_ {
         visible: root.streaming
         label: "Dropped frames"
-        // The percentage is the number that matters; the raw count is there so
-        // "0.4%" can be checked against "is that 4 frames or 4000".
+        // The percentage is the number that matters; the raw count is there so "0.4%" can be checked against "is that 4 frames or 4000".
         value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
         valueColor: root.dropPct >= 1.0 ? Color.semantic.warn : Color.menu.text
       }
@@ -683,15 +550,11 @@ BarWidget {
         dim: !root.recording
       }
       Row_ { visible: root.recording; label: "Elapsed"; value: root.clock(root.recordSeconds) }
-      // Recording gets its own bitrate, not the stream's: the local file is
-      // routinely encoded far heavier than what goes out to the platform, and
-      // while both outputs run the two numbers are genuinely different.
+      // Recording gets its own bitrate, not the stream's: the local file is routinely encoded far heavier than what goes out to the platform, and while both outputs run the two numbers are genuinely different.
       Row_ { visible: root.recording; label: "Bitrate"; value: Math.round(root.recordKbps) + " kbps" }
       Row_ { visible: root.recording; label: "Written"; value: root.bytesText(root.recordBytes) }
       Row_ { label: "Disk free"; value: root.gb(root.freeDiskMb) }
-      // The number that makes "333 GB free" mean something mid-session. Only
-      // once there is a measured rate to divide by — before that it would be
-      // an estimate built on nothing.
+      // The number that makes "333 GB free" mean something mid-session.
       Row_ {
         visible: root.recording && root.diskSecondsLeft > 0
         label: "Disk headroom"
@@ -703,10 +566,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "SKIPPED FRAMES" }
 
-      // Render and encode skips are separate rows because they have separate
-      // causes and separate fixes: render skips mean the machine cannot draw
-      // the scene fast enough, encode skips mean it cannot encode it fast
-      // enough. Summing them hides which.
+      // Render and encode skips are separate rows because they have separate causes and separate fixes: render skips mean the machine cannot draw the scene fast enough, encode skips mean it cannot encode it fast enough.
       Row_ {
         label: "Rendering"
         value: root.renderSkipped + " / " + root.renderTotal

@@ -97,6 +97,21 @@ alias sshpc="ssh luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
+# git clone always pulls submodules (no native config covers the initial clone)
+git() {
+  if [[ "$1" == clone ]]; then
+    command git clone --recurse-submodules "${@:2}"
+  else
+    command git "$@"
+  fi
+}
+
+# Remote Control needs feature-flag eval, which DO_NOT_TRACK disables. Drop it
+# for claude only, so RC works while DO_NOT_TRACK still covers everything else.
+claude() {
+  env -u DO_NOT_TRACK claude "$@"
+}
+
 fastfetch
 
 eval "$(mise activate zsh)"

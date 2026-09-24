@@ -2,26 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 
-// The button. One component for every clickable thing in the kit.
-// States compose independently and are applied in priority order:
-//
-//   pressed (mouse down)         pressed fill
-//   activeFocus (Tab focus)      focus fill + focus border token
-//   hasCursor || hover           hover-cursor fill (+ border if `bordered`)
-//   selected                     selected fill + optional selected border
-//   active                       selected fill
-//   idle                         transparent or normal border if `bordered`
-//
-// All fills/borders come from `qs.Commons.Style` tokens. Upstream also reads
-// per-instance overrides from shell.toml's [controls]/[tooltip] sections via
-// Border.surfaceSpec/controlHasWidth — this repo dropped
-// that override layer (one wallust theme, not swappable ones, see Commons/
-// Color.qml's own note), so those calls are replaced below with the plain
-// Border.flat/Style.* fallback path they'd always resolve to anyway once no
-// override is present.
-//
-// Emits `hovered(bool)` so panels with their own keyboard cursor model
-// can update state on mouse enter/leave.
+// The button.
 BorderSurface {
   id: root
 
@@ -70,9 +51,7 @@ BorderSurface {
   Keys.onEnterPressed: if (focusable) root.clicked()
   Keys.onSpacePressed: if (focusable) root.clicked()
 
-  // Reserve the largest border any visual state can paint. Otherwise a
-  // borderless idle button grows by a pixel per side on hover/focus and
-  // relayouts neighboring controls.
+  // Reserve the largest border any visual state can paint.
   implicitWidth: row.implicitWidth + horizontalPadding * 2 + _reservedBorderLeft + _reservedBorderRight
   implicitHeight: row.implicitHeight + verticalPadding * 2 + _reservedBorderTop + _reservedBorderBottom
   radius: Style.cornerRadius
@@ -106,9 +85,7 @@ BorderSurface {
     Border.left(_selectedBorderSpec),
     bordered ? Border.left(_normalBorderSpec) : 0)
   readonly property real _reservedContentLeftInset: _reservedBorderLeft + leftPadding
-  // Style.selectedBorderWidth is 0 by default in this repo (no dedicated
-  // selected-state border token), so this matches upstream's
-  // Border.controlHasWidth("selected") for the no-override case exactly.
+  // Style.selectedBorderWidth is 0 by default in this repo (no dedicated selected-state border token), so this matches upstream's Border.controlHasWidth("selected") for the no-override case exactly.
   readonly property var _borderSpec: _showFocusRing ? _focusBorderSpec
     : hot                      ? _hoverBorderSpec
     : selected                 ? (Style.selectedBorderWidth > 0 ? _selectedBorderSpec : (bordered ? _normalBorderSpec : Border.none()))
@@ -122,13 +99,7 @@ BorderSurface {
     : active               ? Style.selectedFillFor(root.foreground, root.accent)
     : background
 
-  // Border follows the same state precedence as fill. Buttons stay
-  // borderless at rest unless `bordered` is set, but hover-cursor/focus
-  // always use the shared cursor border so the keyboard target is visible
-  // and consistent with the rest of the kit. Selected borders are off by
-  // default for plain buttons; explicitly bordered buttons keep their
-  // normal border when selected unless selected-border-width opts in to a
-  // dedicated selected border.
+  // Border follows the same state precedence as fill.
   borderSpec: _borderSpec
 
   Behavior on color { ColorAnimation { duration: 120 } }

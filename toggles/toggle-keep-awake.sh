@@ -3,10 +3,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# "Don't turn off PC" mode: holds a systemd-inhibit lock against both sleep
-# and idle, tracked via a PID file. hypridle respects dbus/systemd idle
-# inhibitors by default (ignore_dbus_inhibit is unset in hypridle.conf), so
-# this blocks the dim/lock/screen-off/suspend chain too, not just suspend.
+# "Don't turn off PC" mode: holds a systemd-inhibit lock against both sleep and idle, tracked via a PID file.
 PIDFILE="$TOGGLES_STATE_DIR/keep-awake.pid"
 
 check() {

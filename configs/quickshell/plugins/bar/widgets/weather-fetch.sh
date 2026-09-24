@@ -1,28 +1,8 @@
 #!/usr/bin/env bash
-# Fetches the three tiers the SPEC asks for (current, 24h hourly, 3-day) in
-# ONE Open-Meteo request, and re-emits a sanitised subset for Weather.qml.
-#
-# The sanitising is the point, not a formality. Open-Meteo's response echoes
-# back `latitude`, `longitude`, `timezone`, `timezone_abbreviation` and
-# `elevation`, and the API can also return `sunrise`/`sunset` — every one of
-# which identifies where the user is. The SPEC says the widget must "use the
-# current location but NOT REVEAL IT".
-#
-# Rather than asking QML to remember never to bind those, they are dropped
-# here: the JSON that reaches the widget contains only whitelisted numeric
-# fields, so no future edit to the QML can leak a location that was never
-# handed to it. That is a structural guarantee instead of a discipline one.
-#
-# Deliberately NOT requested at all: sunrise, sunset, daylight_duration.
-# Sunrise time plus a date pins latitude, and the clock offset gives
-# longitude — it is the sharpest geolocation oracle in the whole API.
-# UV is fetched for *current* only, never hourly, for the same reason: a
-# full-day UV curve peaks at local solar noon, which is the same oracle in
-# slower motion.
+# Fetches the three tiers the SPEC asks for (current, 24h hourly, 3-day) in ONE Open-Meteo request, and re-emits a sanitised subset for Weather.qml.
 set -uo pipefail
 
-# Overridable for a checkout that is not at the default location, matching
-# Commons/Paths.qml's QS_DOTFILES_DIR.
+# Overridable for a checkout that is not at the default location, matching Commons/Paths.qml's QS_DOTFILES_DIR.
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-weather.json"
 
@@ -38,17 +18,13 @@ URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}"
 URL+="&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,surface_pressure"
 URL+="&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code"
 URL+="&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max"
-# timezone=auto is resolved server-side from coordinates it already has, so
-# it discloses nothing extra — but the resolved name never reaches the UI.
-# Fetch four calendar days so the UI can omit today and still show three
-# complete forecast rows starting tomorrow.
+# timezone=auto is resolved server-side from coordinates it already has, so it discloses nothing extra — but the resolved name never reaches the UI.
 URL+="&timezone=auto&forecast_days=4&forecast_hours=24"
 
 RAW=$(curl -s --max-time 12 "$URL" 2>/dev/null || true)
 
 if [[ -z "$RAW" ]]; then
-    # Stale-if-error: a cached reading beats an empty panel, and the widget
-    # is told the data is stale so it can say so.
+    # Stale-if-error: a cached reading beats an empty panel, and the widget is told the data is stale so it can say so.
     if [[ -s "$CACHE" ]]; then
         python3 -c "
 import json,sys

@@ -10,12 +10,7 @@ Item {
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
-  // barForeground, not foreground — this repo's Bar.qml exposes the bar text
-  // color as `barForeground` (Bar.qml:50); `bar.foreground` is undefined and
-  // silently yields "Unable to assign [undefined] to QColor" at runtime.
-  // Third occurrence of this exact naming mismatch (see Tray.qml:25 and the
-  // Phase 3 notes in research/ROADMAP.md) — check this name before adding new
-  // bar.* reads.
+  // barForeground, not foreground — this repo's Bar.qml exposes the bar text color as `barForeground` (Bar.qml:50); `bar.foreground` is undefined and silently yields "Unable to assign [undefined] to QColor" at runtime.
   property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Color.accent) : Style.selectedFill
   property color fillColor: bar ? bar.barForeground : Color.foreground
   property color knobColor: bar ? bar.barForeground : Color.foreground
@@ -24,10 +19,7 @@ Item {
   property real knobSize: Math.max(14, Math.round(Style.spacing.controlHeight * 0.38))
   property real liveValue: value
 
-  // macOS-style notches. When > 1, that many evenly-spaced tick marks are cut
-  // into the track (drawn in the panel background color, so only the part
-  // crossing the track shows). Purely visual — snapping is the caller's job via
-  // `integer`/`step` or an index-based value. Default 0 leaves the track plain.
+  // macOS-style notches.
   property int tickCount: 0
   property color tickColor: bar ? bar.background : Color.background
 
@@ -36,8 +28,7 @@ Item {
   signal moved(real value)
   signal released(real value)
 
-  // Right-click is a secondary action on the whole track — audio uses it to
-  // mute the channel the slider belongs to. Dragging stays left-button only.
+  // Right-click is a secondary action on the whole track — audio uses it to mute the channel the slider belongs to.
   signal rightClicked()
 
   implicitWidth: Style.space(200)
@@ -139,8 +130,7 @@ Item {
     }
     onReleased: function(mouse) {
       if (mouse.button !== Qt.LeftButton) return
-      // Captured first: clearing dragging re-evaluates bindings like the seek bar's
-      // `value`, which would reset liveValue and report the old position.
+      // Captured first: clearing dragging re-evaluates bindings like the seek bar's `value`, which would reset liveValue and report the old position.
       var target = root.liveValue
       root.dragging = false
       root.released(target)

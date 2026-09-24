@@ -3,14 +3,6 @@ local s = ls.snippet
 local i = ls.insert_node
 local t = ls.text_node
 
-
---
--- ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
---   BANNER SNIPPETS
--- ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
---
-
-
 local function make_banner_snippets(open, line, mid, close)
     return {
         s("banner", {
@@ -57,13 +49,6 @@ ls.add_snippets("plaintex", vim.deepcopy(tex_style))
 ls.add_snippets("lua", vim.deepcopy(lua_style))
 
 
---
--- ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
--- RUST SNIPPETS
--- ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
---
-
-
 ls.add_snippets("rust", {
     s("struct", {
         t("#[derive(Debug, Clone)]"),
@@ -79,4 +64,27 @@ ls.add_snippets("rust", {
         t("{"),
         t("}"),
     })
+})
+
+ls.add_snippets("c", {
+    s("sec", { -- l-style section banner
+        t({ "/*", " * ─────────────────────────────────────────────────────────────────────────────", " * " }),
+        i(1, "SECTION"),
+        t({ "", " * ─────────────────────────────────────────────────────────────────────────────", " */", "" }),
+    }),
+    s("const", { -- named constant with derivation comment
+        t("// "), i(1, "why: measured against, trades off, breaks above/below"),
+        t({ "", "#define " }), i(2, "NAME"), t(" "), i(3, "value"),
+    }),
+    s("assert", { t("assert("), i(1, "cond"), t(");") }),
+    -- doxygen helpers (tag completion + full block)
+    s("brief", { t("/** @brief "), i(1, "summary"), t(" */") }),
+    s("param", { t("@param "), i(1, "name"), t(" "), i(2, "desc") }),
+    s("return", { t("@return "), i(1, "desc") }),
+    s("doc", {
+        t({ "/**", " * @brief " }), i(1, "summary"),
+        t({ "", " *", " * @param " }), i(2, "name"), t(" "), i(3, "desc"),
+        t({ "", " * @return " }), i(4, "desc"),
+        t({ "", " */" }),
+    }),
 })

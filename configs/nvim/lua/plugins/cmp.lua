@@ -60,6 +60,9 @@ return {
                 ["<C-f>"] = { "scroll_documentation_down", "fallback" },
             },
 
+            -- function signature hints while typing arguments
+            signature = { enabled = true },
+
             completion = {
                 list = { selection = { preselect = true, auto_insert = false } },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
