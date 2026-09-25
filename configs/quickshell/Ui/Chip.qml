@@ -27,7 +27,16 @@ Rectangle {
     : hot ? Style.hoverFill
     : Style.normalFill
 
+  // Accent outline on hover, matching the kit's other controls; border draws inward so it never shifts the label.
+  border.color: Style.hoverBorderColor
+  border.width: hot && !selected ? Style.hoverBorderWidth : 0
+
   Behavior on color { ColorAnimation { duration: 100 } }
+
+  // Subtle tactile press; fires only on the pressed state change.
+  transformOrigin: Item.Center
+  scale: mouse.pressed ? 0.98 : 1.0
+  Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
 
   // Accent neon bloom on the selected chip.
   layer.enabled: Style.fx.glow > 0 && selected
