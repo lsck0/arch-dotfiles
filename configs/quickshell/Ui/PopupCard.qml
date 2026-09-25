@@ -163,6 +163,12 @@ PopupWindow {
       NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
     }
 
+    // Subtle fade-paired slide; both Behaviors fire only on the open/close state change, never continuously.
+    transform: Translate {
+      y: root.open ? 0 : ((root.bar && root.bar.position === "bottom") ? Style.space(6) : -Style.space(6))
+      Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    }
+
     Item {
       id: contentHolder
       anchors.fill: parent

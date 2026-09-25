@@ -36,6 +36,26 @@ BarWidget {
   property var tempHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
+  // Reactor criticality: nominal -> elevated -> high -> critical, mapped to the shell's semantic colours.
+  function critLoad(pct) {
+    if (pct >= 92) return Color.semantic.live
+    if (pct >= 80) return Color.semantic.recording
+    if (pct >= 60) return Color.semantic.warn
+    return Color.accent
+  }
+  function critTemp(t) {
+    if (t >= 85) return Color.semantic.live
+    if (t >= 75) return Color.semantic.recording
+    if (t >= 60) return Color.semantic.warn
+    return Color.accent
+  }
+  function tempState(t) {
+    if (t >= 85) return "CRITICAL"
+    if (t >= 75) return "HIGH"
+    if (t >= 60) return "ELEVATED"
+    return "NOMINAL"
+  }
+
   readonly property var batteryDevice: UPower.displayDevice
   readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
   readonly property bool onBattery: UPower.onBattery === true
@@ -275,78 +295,48 @@ BarWidget {
     }
   }
 
-  // Big glowing hero numeral (a percentage) that opens a section.
-  component Hero: Row {
-    property int pct: 0
-    property color tint: Color.accent
-    spacing: Style.spacing.xxs
+  // One HUD telemetry cell: tracked uppercase key stacked over a bright mono value. Sized to fit a two-column Grid.
+  component HudStat: Column {
+    property string label: ""
+    property string value: ""
+    property color tint: Color.foreground
+    width: parent ? (parent.width - parent.spacing) / 2 : 0
+    spacing: Style.spacing.hairline
     Text {
-      id: heroNum
-      anchors.bottom: parent.bottom
-      text: parent.pct
-      color: parent.tint
-      font.family: Style.font.family
-      font.pixelSize: Math.round(Style.font.display * 1.7)
-      font.bold: true
-      font.letterSpacing: Style.displayTracking
-      layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Style.fx.glowColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
-    }
-    Text {
-      anchors.bottom: heroNum.bottom
-      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
-      text: "%"
-      color: parent.tint
+      text: parent.label
+      color: Color.menu.text
       opacity: Style.emphasis.dim
       font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking * 0.4
+    }
+    Text {
+      text: parent.value
+      color: parent.tint
+      opacity: Style.emphasis.strong
+      font.family: Style.font.family
       font.pixelSize: Style.font.title
+      font.letterSpacing: Style.displayTracking
     }
   }
 
-  // History sparkline + current-value bar gauge, with an optional tracked label + live readout, shown under each metric section.
-  component MetricGraph: Column {
-    id: mg
-    property var history: []
-    property real fraction: 0
+  // One labelled row in the flux heatmap's left gutter, height matched to a heatmap band.
+  component FluxLabel: Item {
+    property string text: ""
     property color tint: Color.accent
-    property string label: ""
-    property string readout: ""
-    property int maxValue: 100
     width: parent ? parent.width : 0
-    spacing: Style.spacing.xs
-    Row {
-      width: mg.width
-      visible: mg.label !== ""
-      Text {
-        width: parent.width * 0.5
-        text: mg.label
-        color: mg.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.bold: true
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: Style.headerTracking
-      }
-      Text {
-        width: parent.width * 0.5
-        horizontalAlignment: Text.AlignRight
-        text: mg.readout
-        color: mg.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.displayTracking
-      }
+    Text {
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      text: parent.text
+      color: parent.tint
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.bold: true
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking * 0.4
     }
-    Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
-    BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
   }
 
   HoverPanel {
@@ -419,7 +409,210 @@ BarWidget {
       }
       PanelSeparator {}
 
-      SectionHead { text: "CPU" }
+      // ---- REACTOR CORE ------------------------------------------------- Core temperature is the reactor's criticality; CPU/MEM/GPU orbit as containment gauges.
+      Item {
+        id: reactor
+        width: parent.width
+        height: Style.space(228)
+        readonly property real cx: width / 2
+        readonly property real cy: height / 2
+        readonly property real orbit: Style.space(88)
+        readonly property int satSize: Style.space(50)
+        readonly property real heatFrac: Math.max(0, Math.min(1, root.tempC / 100))
+        readonly property color coreColor: root.critTemp(root.tempC)
+
+        // Containment ring + plasma core, centred.
+        Item {
+          id: coreBox
+          width: Style.space(108)
+          height: width
+          anchors.centerIn: parent
+
+          // Outer containment ring gauge, sweeping the core temperature.
+          RadialGauge {
+            anchors.fill: parent
+            active: panel.visible
+            value: reactor.heatFrac
+            color: reactor.coreColor
+            trackColor: Util.alpha(Color.foreground, 0.12)
+            thickness: Style.space(5)
+            startAngle: 130
+            sweepAngle: 280
+            ticks: 24
+          }
+
+          // Plasma bloom: a soft glowing disc whose size + tint track core heat.
+          Rectangle {
+            id: halo
+            anchors.centerIn: parent
+            width: coreBox.width * (0.42 + 0.20 * reactor.heatFrac)
+            height: width
+            radius: width / 2
+            color: Util.alpha(reactor.coreColor, 0.10 + 0.16 * reactor.heatFrac)
+            Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+            Behavior on color { ColorAnimation { duration: 400 } }
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: reactor.coreColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius * 2
+              autoPaddingEnabled: true
+            }
+          }
+
+          // Core readout: big temperature numeral, unit, and criticality state word.
+          Column {
+            anchors.centerIn: parent
+            spacing: 0
+            Row {
+              anchors.horizontalCenter: parent.horizontalCenter
+              spacing: Style.spacing.xxs
+              Text {
+                id: coreNum
+                anchors.bottom: parent.bottom
+                text: root.tempC
+                color: reactor.coreColor
+                font.family: Style.font.family
+                font.pixelSize: Style.font.display
+                font.bold: true
+                font.letterSpacing: Style.displayTracking
+                Behavior on color { ColorAnimation { duration: 400 } }
+                layer.enabled: Style.fx.glow > 0
+                layer.effect: MultiEffect {
+                  shadowEnabled: true
+                  shadowColor: reactor.coreColor
+                  shadowBlur: 1.0
+                  shadowVerticalOffset: 0
+                  shadowHorizontalOffset: 0
+                  blurMax: Style.fx.glowRadius
+                  autoPaddingEnabled: true
+                }
+              }
+              Text {
+                anchors.bottom: coreNum.bottom
+                anchors.bottomMargin: Math.round(Style.font.display * 0.16)
+                text: "°C"
+                color: reactor.coreColor
+                opacity: Style.emphasis.dim
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: root.tempState(root.tempC)
+              color: reactor.coreColor
+              opacity: Style.emphasis.dim
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.capitalization: Font.AllUppercase
+              font.letterSpacing: Style.headerTracking * 0.5
+            }
+          }
+        }
+
+        // CPU satellite (upper-left orbit).
+        RadialGauge {
+          width: reactor.satSize; height: reactor.satSize
+          x: reactor.cx + reactor.orbit * Math.cos(210 * Math.PI / 180) - width / 2
+          y: reactor.cy + reactor.orbit * Math.sin(210 * Math.PI / 180) - height / 2
+          active: panel.visible
+          value: root.cpuPct / 100
+          color: root.critLoad(root.cpuPct)
+          thickness: Style.space(3)
+          ticks: 12
+          text: root.cpuPct + "%"
+          subText: "CPU"
+          textSize: Style.font.body
+        }
+        // GPU satellite (upper-right orbit).
+        RadialGauge {
+          width: reactor.satSize; height: reactor.satSize
+          x: reactor.cx + reactor.orbit * Math.cos(330 * Math.PI / 180) - width / 2
+          y: reactor.cy + reactor.orbit * Math.sin(330 * Math.PI / 180) - height / 2
+          active: panel.visible
+          value: root.gpuPct / 100
+          color: root.critLoad(root.gpuPct)
+          thickness: Style.space(3)
+          ticks: 12
+          text: root.gpuPct + "%"
+          subText: "GPU"
+          textSize: Style.font.body
+        }
+        // MEM satellite (lower orbit).
+        RadialGauge {
+          width: reactor.satSize; height: reactor.satSize
+          x: reactor.cx + reactor.orbit * Math.cos(90 * Math.PI / 180) - width / 2
+          y: reactor.cy + reactor.orbit * Math.sin(90 * Math.PI / 180) - height / 2
+          active: panel.visible
+          value: root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb : 0
+          color: root.critLoad(root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0)
+          thickness: Style.space(3)
+          ticks: 12
+          text: root.memTotalGb > 0 ? Math.round(root.memUsedGb / root.memTotalGb * 100) + "%" : "0%"
+          subText: "MEM"
+          textSize: Style.font.body
+        }
+      }
+
+      PanelSeparator {}
+      SectionHead { text: "FLUX TELEMETRY" }
+      // Scrolling waterfall: one history band per subsystem, hottest cells map to criticality colours.
+      Row {
+        width: parent.width
+        spacing: Style.spacing.sm
+        Column {
+          id: fluxLabels
+          width: Style.space(34)
+          height: flux.height
+          FluxLabel { height: flux.height / 4; text: "CPU"; tint: root.critLoad(root.cpuPct) }
+          FluxLabel { height: flux.height / 4; text: "MEM"; tint: root.critLoad(root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0) }
+          FluxLabel { height: flux.height / 4; text: "GPU"; tint: root.critLoad(root.gpuPct) }
+          FluxLabel { height: flux.height / 4; text: "TMP"; tint: root.critTemp(root.tempC) }
+        }
+        Heatmap {
+          id: flux
+          width: parent.width - fluxLabels.width - parent.spacing
+          height: Style.space(88)
+          active: panel.visible
+          rows: [
+            { values: root.cpuHist, max: 100 },
+            { values: root.memHist, max: 100 },
+            { values: root.gpuHist, max: 100 },
+            { values: root.tempHist, max: 100 }
+          ]
+        }
+      }
+      // Time axis: oldest sample left, live edge right (60 samples at a ~5s tick).
+      Row {
+        width: parent.width
+        Text {
+          width: parent.width / 2
+          text: "5 MIN"
+          color: Color.menu.text
+          opacity: Style.emphasis.faint
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: Style.headerTracking * 0.4
+        }
+        Text {
+          width: parent.width / 2
+          horizontalAlignment: Text.AlignRight
+          text: "LIVE"
+          color: Color.accent
+          opacity: Style.emphasis.dim
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: Style.headerTracking * 0.4
+        }
+      }
+
+      PanelSeparator {}
+      SectionHead { text: "HUD READOUT" }
       Text {
         width: parent.width
         visible: root.cpuName.length > 0
@@ -430,100 +623,53 @@ BarWidget {
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-      // Big glowing CPU hero, live secondary readouts flush right.
-      Item {
-        width: parent.width
-        implicitHeight: Math.max(cpuHero.implicitHeight, cpuReads.implicitHeight)
-        height: implicitHeight
-        Hero { id: cpuHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: root.cpuPct }
-        Column {
-          id: cpuReads
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: parent.width * 0.56
-          spacing: Style.spacing.xs
-          Row_ { label: "Clock"; value: root.freqMhz + " MHz" }
-          Row_ { label: "Package temp"; value: root.tempC + "°C" }
-          // No sensor → no row. A "Package power unavailable" line is noise.
-          Row_ { visible: root.powerW !== null; label: "Package power"; value: root.powerW + " W" }
-        }
-      }
-      MetricGraph { label: "Usage"; readout: root.cpuPct + "%"; history: root.cpuHist; fraction: root.cpuPct / 100 }
-      // Temperature history, the same wiring as the other metrics, tinted with the urgent (heat) colour.
-      MetricGraph { label: "Temp"; readout: root.tempC + "°C"; history: root.tempHist; fraction: root.tempC / 100; tint: Color.urgent }
-
-      PanelSeparator {}
-      SectionHead { text: "MEMORY" }
-      Row_ { label: "Used"; value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GB" }
-      // No SMBIOS reading (VM, permission denied, etc.) → row absent rather than a placeholder.
-      Row_ {
-        visible: root.memType !== "" || root.memSpeedMts > 0
-        label: "Type"
-        value: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : ""].filter(function(v) { return v }).join(" · ")
-      }
-      Row_ {
-        visible: root.memChannels > 0
-        label: "Channels"
-        value: root.memChannels + (root.memChannels > 1 ? "-channel" : " channel")
-      }
-      MetricGraph {
-        label: "Usage"
-        readout: root.memTotalGb > 0 ? Math.round(root.memUsedGb / root.memTotalGb * 100) + "%" : "0%"
-        history: root.memHist
-        fraction: root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb : 0
-      }
-
-      PanelSeparator {}
-      SectionHead { text: "GPU" }
       Text {
         width: parent.width
         visible: root.gpuName.length > 0
         text: root.gpuName
         color: Color.menu.text
         opacity: Style.emphasis.dim
-        font.family: Style.font.family; font.pixelSize: Style.font.caption
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-      // Big glowing GPU hero, clock + VRAM flush right.
-      Item {
+      // Two-column mono readout matrix. Invisible cells collapse out of the grid.
+      Grid {
+        id: hudGrid
         width: parent.width
-        implicitHeight: Math.max(gpuHero.implicitHeight, gpuReads.implicitHeight)
-        height: implicitHeight
-        Hero { id: gpuHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: root.gpuPct }
-        Column {
-          id: gpuReads
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          width: parent.width * 0.56
-          spacing: Style.spacing.xs
-          Row_ { label: "Clock"; value: root.gpuFreqMhz + " MHz" }
-          // VRAM is only shown where it's a real concept — an integrated GPU has no separate video memory, so the row is simply absent rather than showing "—" or a paragraph explaining why.
-          Row_ {
-            visible: root.gpuVendor !== "intel"
-            label: "VRAM"
-            value: root.vramTotalMb !== null
-              ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB"
-              : "unavailable"
-            dim: root.vramTotalMb === null
-          }
+        columns: 2
+        spacing: Style.spacing.md
+        HudStat { label: "CPU CLK"; value: root.freqMhz + " MHz" }
+        HudStat { label: "PKG TEMP"; value: root.tempC + " °C"; tint: root.critTemp(root.tempC) }
+        HudStat { visible: root.powerW !== null; label: "PKG PWR"; value: root.powerW + " W" }
+        HudStat { label: "MEMORY"; value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + "G" }
+        HudStat {
+          visible: root.memType !== "" || root.memSpeedMts > 0
+          label: "MEM TYPE"
+          value: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : ""].filter(function(v) { return v }).join(" · ")
+        }
+        HudStat { visible: root.memChannels > 0; label: "CHANNELS"; value: root.memChannels + "-CH" }
+        HudStat { label: "GPU CLK"; value: root.gpuFreqMhz + " MHz" }
+        HudStat {
+          visible: root.gpuVendor !== "intel"
+          label: "VRAM"
+          value: root.vramTotalMb !== null
+            ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB" : "N/A"
+          tint: root.vramTotalMb === null ? Color.menu.text : Color.foreground
+        }
+        HudStat {
+          visible: root.batteryPresent
+          label: "BATTERY"
+          value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " · " + root.batteryTime : "")
+        }
+        HudStat {
+          visible: root.batteryPresent
+          label: "STATE"
+          value: root.onBattery ? "DISCHARGE" : "CHARGE"
         }
       }
-      MetricGraph { label: "Usage"; readout: root.gpuPct + "%"; history: root.gpuHist; fraction: root.gpuPct / 100 }
 
       PanelSeparator {}
-      SectionHead { text: "BATTERY"; visible: root.batteryPresent }
-      Row_ {
-        visible: root.batteryPresent
-        label: "Charge"
-        value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " · " + root.batteryTime : "")
-      }
-      Row_ {
-        visible: root.batteryPresent
-        label: "State"
-        value: root.onBattery ? "On battery" : "Charging"
-      }
-
-      PanelSeparator { visible: root.batteryPresent }
       SectionHead { text: "POWER MODE" }
 
       // Any override made here is deliberately session-only: it never survives a reboot, matching the requested "overridable but non-persistent" policy.

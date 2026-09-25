@@ -34,10 +34,14 @@ PanelWindow {
   // Emitted every time the panel comes up, however it was opened.
   signal opened()
 
-  visible: bar !== null && bar.activePanel === moduleName
-  // One handler: QML allows a signal only one handler per object, and a second `onVisibleChanged` here is a load-time error, not an addition.
-  onVisibleChanged: {
-    if (!visible) return
+  // Logical open state; the window stays mapped briefly after it clears so the card can fade+slide out instead of vanishing.
+  readonly property bool shown: bar !== null && bar.activePanel === moduleName
+  readonly property real slideDistance: Style.space(6)
+  readonly property real slideClosedY: (bar && bar.position === "bottom") ? slideDistance : -slideDistance
+
+  visible: shown || body.opacity > 0
+  onShownChanged: {
+    if (!shown) return
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
     opened()
   }
@@ -69,22 +73,6 @@ PanelWindow {
   WlrLayershell.keyboardFocus: root.acceptsKeyboard
     ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-  // The card is inset from the window by exactly the shadow offset, so the hard shadow has somewhere to land.
-  BorderSurface {
-    id: card
-    x: 0
-    y: 0
-    width: parent.width - Style.shadowOffset
-    height: parent.height - Style.shadowOffset
-    color: Color.menu.background
-    borderSpec: Border.flat(Color.menu.border, Style.normalBorderWidth)
-    radius: Style.cornerRadius
-    padding: root.padding
-
-    // Neon HUD corner brackets framing the panel.
-    HudFrame { margin: -Style.space(3) }
-  }
-
   // Do not place a click-eating MouseArea over the card: panel controls (calendar, sliders, buttons, and text fields) must receive pointer input.
 
   HoverHandler {
@@ -95,23 +83,50 @@ PanelWindow {
     }
   }
 
+  // Everything visible fades and slides together on open/close; both Behaviors fire only on the `shown` state change, never continuously.
   Item {
-    id: inner
-    x: card.contentLeftInset
-    y: card.contentTopInset
-    width: card.width - card.contentLeftInset - card.contentRightInset
-    height: card.height - card.contentTopInset - card.contentBottomInset
-  }
+    id: body
+    anchors.fill: parent
+    opacity: root.shown ? 1.0 : 0.0
+    Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+    transform: Translate {
+      y: root.shown ? 0 : root.slideClosedY
+      Behavior on y { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+    }
 
-  // Optional terminal-window title strip: `> TITLE _` with decorative chrome and a hard accent rule, additive overlay so empty-title panels are unchanged.
-  Item {
-    id: titleBar
-    visible: root.title.length > 0
-    z: 4
-    x: card.contentLeftInset
-    y: card.contentTopInset
-    width: card.width - card.contentLeftInset - card.contentRightInset
-    height: visible ? titleRow.implicitHeight + Style.spacing.xxs + titleRule.height : 0
+    // The card is inset from the window by exactly the shadow offset, so the hard shadow has somewhere to land.
+    BorderSurface {
+      id: card
+      x: 0
+      y: 0
+      width: parent.width - Style.shadowOffset
+      height: parent.height - Style.shadowOffset
+      color: Color.menu.background
+      borderSpec: Border.flat(Color.menu.border, Style.normalBorderWidth)
+      radius: Style.cornerRadius
+      padding: root.padding
+
+      // Neon HUD corner brackets framing the panel.
+      HudFrame { margin: -Style.space(3) }
+    }
+
+    Item {
+      id: inner
+      x: card.contentLeftInset
+      y: card.contentTopInset
+      width: card.width - card.contentLeftInset - card.contentRightInset
+      height: card.height - card.contentTopInset - card.contentBottomInset
+    }
+
+    // Optional terminal-window title strip: `> TITLE _` with decorative chrome and a hard accent rule, additive overlay so empty-title panels are unchanged.
+    Item {
+      id: titleBar
+      visible: root.title.length > 0
+      z: 4
+      x: card.contentLeftInset
+      y: card.contentTopInset
+      width: card.width - card.contentLeftInset - card.contentRightInset
+      height: visible ? titleRow.implicitHeight + Style.spacing.xxs + titleRule.height : 0
 
     Row {
       id: titleRow
@@ -175,6 +190,7 @@ PanelWindow {
       anchors.topMargin: Style.spacing.xxs
       height: Math.max(1, Style.space(1))
       color: Util.alpha(Color.accent, 0.8)
+    }
     }
   }
 }

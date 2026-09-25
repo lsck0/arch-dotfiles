@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Effects
 import qs.Commons
 
@@ -60,7 +59,6 @@ BorderSurface {
   readonly property bool hot: mouseArea.containsMouse || hasCursor
   readonly property bool _showFocusRing: focusable && activeFocus
   readonly property color _selectedColor: Style.selectedStateColor(root.foreground, root.accent)
-  readonly property var _tooltipBorderSpec: Border.flat(root.tooltipBorder, Math.max(1, Style.normalBorderWidth))
   readonly property var _focusBorderSpec: Border.controlSpec("focus", root.foreground, root.accent)
   readonly property var _hoverBorderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   readonly property var _selectedBorderSpec: Border.controlSpec("selected", root.foreground, root.accent)
@@ -105,6 +103,11 @@ BorderSurface {
 
   Behavior on color { ColorAnimation { duration: 120 } }
 
+  // Subtle tactile press; fires only on the pressed state change.
+  transformOrigin: Item.Center
+  scale: mouseArea.pressed ? 0.98 : 1.0
+  Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+
   // Accent neon bloom on the focused/selected/active/pressed states.
   readonly property bool _glowing: Style.fx.glow > 0 && (_showFocusRing || selected || active || mouseArea.pressed)
   layer.enabled: _glowing
@@ -118,27 +121,14 @@ BorderSurface {
     autoPaddingEnabled: true
   }
 
-  ToolTip {
+  // Shared tooltip chrome so every button matches PanelToolTip (prompt tag, corner radius).
+  PanelToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse
     text: root.tooltipText
-    delay: 400
-    padding: 0
-    background: BorderSurface {
-      color: root.tooltipBackground
-      borderSpec: root._tooltipBorderSpec
-      radius: 0
-    }
-    contentItem: Text {
-      textFormat: Text.PlainText
-      text: root.tooltipText
-      color: root.tooltipForeground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
-      leftPadding: Border.left(root._tooltipBorderSpec) + Style.spacing.controlPaddingX
-      rightPadding: Border.right(root._tooltipBorderSpec) + Style.spacing.controlPaddingX
-      topPadding: Border.top(root._tooltipBorderSpec) + Style.spacing.controlPaddingY
-      bottomPadding: Border.bottom(root._tooltipBorderSpec) + Style.spacing.controlPaddingY
-    }
+    fontFamily: root.fontFamily
+    panelForeground: root.tooltipForeground
+    panelBackground: root.tooltipBackground
+    panelBorder: root.tooltipBorder
   }
 
   Row {

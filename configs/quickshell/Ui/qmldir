@@ -31,3 +31,5 @@ ToggleSwitch 1.0 ToggleSwitch.qml
 WidgetButton 1.0 WidgetButton.qml
 Sparkline 1.0 Sparkline.qml
 BarGauge 1.0 BarGauge.qml
+RadialGauge 1.0 RadialGauge.qml
+Heatmap 1.0 Heatmap.qml

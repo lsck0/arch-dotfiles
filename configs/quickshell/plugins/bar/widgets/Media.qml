@@ -3,6 +3,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -115,6 +116,45 @@ BarWidget {
     return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
   }
 
+  // ---- album art (out-of-process fetch) ---------------------------------
+
+  // http(s) art must NOT reach a Qt Image: Qt's in-process TLS crashes loading the CA bundle. Remote art is downloaded out-of-process to a per-URL cache file instead.
+  readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
+  readonly property string artCacheDir:
+    (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell/mediaart"
+  // Stable per-URL filename so repeated tracks reuse the cached file.
+  readonly property string artCacheFile:
+    root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
+
+  // What the art Image actually loads: local URLs directly, remote URLs only once cached on disk.
+  property string artSource: ""
+  // The remote URL a download was last started for, so a miss is not retried in a loop.
+  property string artFetchedUrl: ""
+
+  // Local / file:// / data: art is used as-is; remote art points at its cache file, which may already exist.
+  function refreshArt() {
+    artProc.running = false
+    var u = root.artUrl
+    if (!u) { root.artSource = ""; return }
+    if (!root.artRemote) { root.artSource = u; return }
+    root.artSource = "file://" + root.artCacheFile
+  }
+
+  onArtUrlChanged: refreshArt()
+
+  // Out-of-process download; the Image is only pointed at the file after curl exits 0.
+  Process {
+    id: artProc
+    command: ["curl", "-sfL", "--max-time", "8", "--create-dirs", "-o", root.artCacheFile, root.artUrl]
+    onExited: function (exitCode) {
+      if (exitCode !== 0) return
+      if (root.artFetchedUrl !== root.artUrl) return
+      // A source string that has not changed will not reload once the file appears.
+      root.artSource = ""
+      root.artSource = "file://" + root.artCacheFile
+    }
+  }
+
   // Players with MPRIS Volume are driven through it: Spotify re-applies its own volume to the stream on every track change, undoing a PipeWire-level change.
   readonly property var playerStreams: {
     var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
@@ -181,6 +221,7 @@ BarWidget {
     updatePlayer()
     if (playing) lastPlayingAt = Date.now()
     Cava.source = spectrumSource
+    refreshArt()
   }
 
   Timer {
@@ -208,6 +249,15 @@ BarWidget {
   implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
+  // Per-bar visualizer colour: accent hue nudged across frequency, brightness/alpha per role.
+  function specColor(frac, valMul, a) {
+    var c = Color.accent
+    var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
+    if (h < 0) h += 1
+    else if (h > 1) h -= 1
+    return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
+  }
+
   function fmtTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) return "0:00"
     var total = Math.floor(seconds)
@@ -232,7 +282,7 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.sm
 
-    // Six Rectangles, not Canvas/Shape/ShaderEffect.
+    // Plain Rectangles, not Canvas/Shape/ShaderEffect.
     Row {
       id: spectrum
       anchors.verticalCenter: parent.verticalCenter
@@ -256,15 +306,18 @@ BarWidget {
       Repeater {
         model: Cava.barCount
         delegate: Rectangle {
+          id: sbar
           required property int index
           readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
+          readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
           width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
           radius: 0
           antialiasing: false
-          // Full-accent neon bar with a bright cap fading to a faint base.
+          // Mirrored neon bar: bright hue-shifted core fading to faint tips.
           gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.lighter(Color.accent, 1.35) }
-            GradientStop { position: 1.0; color: Util.alpha(Color.accent, 0.25) }
+            GradientStop { position: 0.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
+            GradientStop { position: 0.5; color: root.specColor(sbar.frac, 1.5, 1.0) }
+            GradientStop { position: 1.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
           }
           opacity: 0.4 + level * 0.6
           anchors.verticalCenter: parent.verticalCenter
@@ -379,13 +432,20 @@ BarWidget {
           Image {
             id: art
             anchors.fill: parent
-            source: root.artUrl
+            source: root.artSource
             // Album art arrives at whatever size the player publishes — often 1000x1000 or larger — and is drawn in a 72px box.
             sourceSize.width: Math.ceil(artFrame.width * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
             visible: status === Image.Ready
+            // A missing cache file for remote art triggers one out-of-process download.
+            onStatusChanged: {
+              if (status === Image.Error && root.artRemote && root.artFetchedUrl !== root.artUrl) {
+                root.artFetchedUrl = root.artUrl
+                artProc.running = true
+              }
+            }
           }
 
           // Not every player publishes art, and a published URL can still fail to load (stale file:// path, unreachable http://).
@@ -450,6 +510,94 @@ BarWidget {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
+          }
+        }
+      }
+
+      // --- visualizer: taller mirrored spectrum with decaying peak caps, the panel centerpiece ---
+      Item {
+        id: panelSpectrum
+        width: parent.width
+        height: Style.space(72)
+        visible: panel.visible && Cava.available
+        // Peak-hold: raised instantly to each new frame, decayed only on the next frame (data-driven, no free timer).
+        property var peaks: Cava.zeroed()
+        onVisibleChanged: if (!visible) peaks = Cava.zeroed()
+
+        Connections {
+          target: Cava
+          enabled: panelSpectrum.visible
+          function onValuesChanged() {
+            var n = Cava.barCount, prev = panelSpectrum.peaks, out = []
+            for (var i = 0; i < n; i++) {
+              var v = Math.min(1, (Cava.values[i] || 0) / 100)
+              var pk = prev[i] || 0
+              out.push(v >= pk ? v : Math.max(v, pk - 0.035))
+            }
+            panelSpectrum.peaks = out
+          }
+        }
+
+        // Blooms as one neon unit rather than glowing each bar separately.
+        layer.enabled: Style.fx.glow > 0
+        layer.effect: MultiEffect {
+          shadowEnabled: true
+          shadowColor: Style.fx.glowColor
+          shadowBlur: 1.0
+          shadowVerticalOffset: 0
+          shadowHorizontalOffset: 0
+          blurMax: Style.fx.glowRadius
+          autoPaddingEnabled: true
+        }
+
+        Row {
+          id: panelBars
+          anchors.fill: parent
+          spacing: Math.max(1, Style.spacing.xxs - 1)
+
+          Repeater {
+            model: Cava.barCount
+            delegate: Item {
+              id: pbar
+              required property int index
+              readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
+              readonly property real peak: Math.min(1, (panelSpectrum.peaks[index] || 0))
+              readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
+              width: Math.max(2, Math.floor((panelBars.width - panelBars.spacing * (Cava.barCount - 1)) / Cava.barCount))
+              height: panelSpectrum.height
+
+              // Mirrored bar: grows from the centre line up and down.
+              Rectangle {
+                anchors.centerIn: parent
+                width: parent.width
+                radius: 0
+                antialiasing: false
+                height: Math.max(2, parent.height * Math.pow(pbar.level, 0.6))
+                opacity: 0.45 + pbar.level * 0.55
+                gradient: Gradient {
+                  GradientStop { position: 0.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
+                  GradientStop { position: 0.5; color: root.specColor(pbar.frac, 1.5, 1.0) }
+                  GradientStop { position: 1.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
+                }
+                Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+              }
+
+              // Peak caps float at the recent max on both sides of the centre line.
+              Rectangle {
+                width: parent.width
+                height: Math.max(1, Style.spacing.xxs - 1)
+                color: root.specColor(pbar.frac, 1.6, 0.9)
+                y: pbar.height / 2 - pbar.height / 2 * Math.pow(pbar.peak, 0.6) - height
+                Behavior on y { NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+              }
+              Rectangle {
+                width: parent.width
+                height: Math.max(1, Style.spacing.xxs - 1)
+                color: root.specColor(pbar.frac, 1.6, 0.9)
+                y: pbar.height / 2 + pbar.height / 2 * Math.pow(pbar.peak, 0.6)
+                Behavior on y { NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+              }
+            }
           }
         }
       }

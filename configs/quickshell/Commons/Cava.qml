@@ -7,7 +7,7 @@ import Quickshell.Io
 Singleton {
   id: root
 
-  readonly property int barCount: 18
+  readonly property int barCount: 24
 
   // 0-100 per band, matching ascii_max_range below so a value maps straight onto "percent of full bar height" with no scaling at the call site.
   property var values: [0, 0, 0, 0, 0, 0]
