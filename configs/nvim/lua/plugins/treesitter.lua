@@ -69,7 +69,8 @@ return {
     {
         "nvim-treesitter/nvim-treesitter", -- syntax highlighting/parsing
         branch = "main",
-        lazy = false,
+        event = { "BufReadPost", "BufNewFile" }, -- load on first real buffer, before FileType highlight
+        cmd = { "TSUpdate", "TSInstall" },
         build = ":TSUpdate",
         dependencies = {
             { "nvim-treesitter/nvim-treesitter-context" }, -- sticky function context

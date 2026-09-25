@@ -14,15 +14,15 @@ success_symbol = '[λ](bold green)'
 error_symbol = '[λ](bold red)'
 
 [directory]
-style = 'bold cyan'
+style = 'bold blue'
 read_only = ' '
 read_only_style = 'bold red'
 truncation_symbol = '…/'
-format = '[\[](bold cyan)[$path]($style)[$read_only]($read_only_style)[\]](bold cyan) '
+format = '[\[](bold blue)[$path]($style)[$read_only]($read_only_style)[\]](bold blue) '
 
 [git_branch]
 symbol = ' '
-style = 'bold cyan'
+style = 'bold blue'
 format = '[$symbol$branch]($style) '
 
 [sudo]

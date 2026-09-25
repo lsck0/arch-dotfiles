@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 
+here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
 if ! command -v plymouth-set-default-theme >/dev/null 2>&1; then
     exit 0
 fi
 
 set -ex
+
+theme=cyberpunk
+sudo install -d /usr/share/plymouth/themes/"$theme"
+sudo install -Dm644 "$here/theme/$theme"/* /usr/share/plymouth/themes/"$theme"/
 
 config=/etc/mkinitcpio.conf
 backup="${config}.arch-dotfiles-backup"
@@ -35,7 +41,7 @@ if 'plymouth' not in hooks and 'sd-plymouth' not in hooks:
     print('plymouth: added %s after %s' % (wanted, anchor))
 PY
 
-sudo plymouth-set-default-theme spinner
+sudo plymouth-set-default-theme "$theme"
 
 cmdline=/etc/kernel/cmdline
 if [[ ! -f "$cmdline" ]]; then

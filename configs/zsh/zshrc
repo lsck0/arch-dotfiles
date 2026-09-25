@@ -112,7 +112,8 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-fastfetch
+# only greet on login shells at a real tty; skip dumb terminals and subshells.
+[[ -o login && -t 1 && "$TERM" != dumb ]] && fastfetch
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"

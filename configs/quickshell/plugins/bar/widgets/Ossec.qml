@@ -67,7 +67,7 @@ BarWidget {
     color: Color.urgent
     visible: Style.fx.glow > 0 && root.ok && root.high > 0
     opacity: Style.fx.glowAlpha(0.9)
-    layer.enabled: true
+    layer.enabled: Style.fx.glow > 0
     layer.effect: MultiEffect {
       blurEnabled: true
       blur: 1.0

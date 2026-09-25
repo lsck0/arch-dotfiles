@@ -70,12 +70,11 @@ set_wallpaper() {
     # Read by lua/theme.lua at startup, and by the live nvim nudge below.
     printf '%s\n' "$NVIM_THEME" > "$HOME/.cache/wal/nvim_theme"
 
-    # GTK/Qt themes.
-    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py || true
-
+    # GTK/Qt themes. generate-oomox-colors output is consumed only by the two themix-multi-export jobs, so chain all three in one backgrounded subshell to keep them off the return-path critical section.
     # `timeout` + `9>&-`: themix-multi-export has a real upstream bug (three of its export layout entries — qt5ct, qt6ct, gtk4-oodwaita — used to ship a bare "~" default_path; fixed in configs/oomox/*.json, but kept defensive here since it's an upstream bug, not ours, and could regress if the export layout is ever regenerated from the GUI). Before that fix, the plugin's os.path.isdir("~") check always failed (unexpanded tilde), so it fell through to writing straight over the home directory -> IsADirectoryError raised inside a GTK idle callback that never reaches the CLI's own app.quit() — the process hangs forever instead of exiting. `timeout` bounds that. `9>&-` closes this invocation's lock fd in the child: background jobs inherit open fds by default, so without this a themix process that outlives the script (hung OR just slow) would hold the flock open indefinitely and wedge every subsequent wallpaper switch — exactly what `timeout` guards against for hangs, `9>&-` guards against for the ordinary case of "still running after the parent script's own critical section is done and it moved on". Every background job below gets the same treatment for the same reason — importantly including pywal-spicetify, which actually RESTARTS Spotify as a side effect: that new Spotify process is long-lived (stays open for the rest of the desktop session) and would otherwise hold this invocation's lock open for hours, silently no-opping every wallpaper switch after it. This is not hypothetical — it happened for real in production use. -k 5: SIGTERM alone doesn't reap this hang (wedged in a GTK main-loop iteration, so CPython never runs the handler). 42 survivors seen.
-    timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- &
-    timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- &
+    ( ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py && \
+      timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
+      timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
 
     # apply the new colors to other programs
     pywalfox update 9>&- &
@@ -101,12 +100,14 @@ set_wallpaper() {
     hyprctl reload config-only 9>&- &
 
     # update hyprlock config.
-    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb($(sed -n '1p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb($(sed -n '2p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb($(sed -n '3p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb($(sed -n '4p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb($(sed -n '5p' ~/.cache/wal/colors-rgb))|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$BACKGROUND_GLASS = rgba([^)]*)|\$BACKGROUND_GLASS = rgba($(sed -n '1p' ~/.cache/wal/colors-rgb),0.55)|" ~/.config/hypr/hyprlock.conf
+    # Read the wal RGB palette once: rgb[0]=color0 ... rgb[15]=color15.
+    mapfile -t rgb < ~/.cache/wal/colors-rgb
+    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb(${rgb[0]})|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb(${rgb[15]})|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb(${rgb[2]})|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb(${rgb[3]})|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb(${rgb[4]})|" ~/.config/hypr/hyprlock.conf && \
+    sed -i "s|\$BACKGROUND_GLASS = rgba([^)]*)|\$BACKGROUND_GLASS = rgba(${rgb[0]},0.55)|" ~/.config/hypr/hyprlock.conf
 
     # update zed and vscodium themes
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-editor-themes.sh 9>&- &
@@ -132,8 +133,9 @@ set_wallpaper() {
     fi
 
     # SYNCHRONOUS — see the hyprlock.conf comment above for why: this is the other rename-race-prone step, and the lock must stay held for it, not get inherited into a background job.
-    rgb1=$(sed -n '1p' ~/.cache/wal/colors-rgb)
-    rgb2=$(sed -n '2p' ~/.cache/wal/colors-rgb)
+    # rgb[] read once above: color0=background, color4=cyan accent.
+    rgb1="${rgb[0]}"
+    accent="${rgb[4]}"
     # --font stays untouched (no -e for it) when the read above failed, same "leave it alone" rule as gtk-font-name below — never write an empty `--font: ;` into the live BetterDiscord theme.
     font_expr=()
     [[ -n "$ui_family" ]] && font_expr=(-e "s|\\--font: .*$|\\--font: \"${ui_family}\";|")
@@ -141,8 +143,8 @@ set_wallpaper() {
     if [[ -f "$discord_theme" ]]; then
         discord_tmp=$(mktemp)
         if sed \
-            -e "s|\\--accentcolor: .*$|\\--accentcolor: ${rgb2};|" \
-            -e "s|\\--accentcolor2: .*$|\\--accentcolor2: ${rgb2};|" \
+            -e "s|\\--accentcolor: .*$|\\--accentcolor: ${accent};|" \
+            -e "s|\\--accentcolor2: .*$|\\--accentcolor2: ${accent};|" \
             -e "s|\\--backgroundprimary: .*$|\\--backgroundprimary: ${rgb1};|" \
             -e "s|\\--backgroundsecondary: .*$|\\--backgroundsecondary: ${rgb1};|" \
             -e "s|\\--backgroundsecondaryalt: .*$|\\--backgroundsecondaryalt: ${rgb1};|" \
@@ -191,7 +193,7 @@ set_wallpaper() {
     # Same idea for emacs, through the entry point its own startup uses (configs/emacs/ui.el).
     if command -v emacsclient >/dev/null 2>&1; then
         timeout 5 emacsclient --eval '(my/apply-system-theme)' \
-            >/dev/null 2>&1 || true
+            >/dev/null 2>&1 9>&- || true &
     fi
 
     # Re-source the generated tmux colours on every running server, so open sessions recolour without a restart.
@@ -206,7 +208,7 @@ set_wallpaper() {
     timeout 5 gdbus call --session --dest com.mitchellh.ghostty \
         --object-path /com/mitchellh/ghostty \
         --method org.gtk.Actions.Activate reload-config '[]' '{}' \
-        >/dev/null 2>&1 || true
+        >/dev/null 2>&1 9>&- || true &
 
     # No notification-daemon restart: quickshell's notifications plugin recolours live from Commons/Color.qml, which watches colors.json itself.
 

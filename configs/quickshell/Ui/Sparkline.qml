@@ -22,7 +22,7 @@ Item {
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
 
-  // Pulsing leading dot: a phase the Canvas reads to size the dot's halo.
+  // Pulsing leading dot: a phase the overlay dots bind to, so the pulse never repaints the Canvas.
   property real pulse: 0
   SequentialAnimation on pulse {
     running: root.visible
@@ -30,11 +30,34 @@ Item {
     NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
     NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }
   }
-  onPulseChanged: cv.requestPaint()
+
+  // Pixel position of the newest sample, mirrored from the Canvas mapping so the overlay dot tracks it without a repaint. px(n-1) is always the right edge.
+  readonly property point lastPoint: {
+    var v = root.values || []
+    var n = v.length
+    var w = width, h = height
+    if (n < 1) return Qt.point(w, h)
+    var mn = root.minValue, mx = root.maxValue
+    if (mx <= mn) {
+      mn = Infinity; mx = -Infinity
+      for (var i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
+      var pad = (mx - mn) * 0.15
+      if (!(pad > 0)) pad = 1
+      mn -= pad; mx += pad
+    }
+    var ly = h - ((v[n - 1] - mn) / (mx - mn)) * h
+    return Qt.point(w, ly)
+  }
 
   Canvas {
     id: cv
     anchors.fill: parent
+
+    // Area-fill gradient cached and rebuilt only when height/color/alpha change, not every paint.
+    property var gradCache: null
+    property real gradH: -1
+    property string gradKey: ""
+
     onPaint: {
       var ctx = getContext("2d")
       ctx.reset()
@@ -64,30 +87,46 @@ Item {
       function px(i) { return n > 1 ? i * stepX : w }
       function py(val) { return h - ((val - mn) / (mx - mn)) * h }
 
-      // area fill: accent, bright under the line fading to nothing at the base
-      var grad = ctx.createLinearGradient(0, 0, 0, h)
-      grad.addColorStop(0, Qt.rgba(c.r, c.g, c.b, root.fillAlpha))
-      grad.addColorStop(1, Qt.rgba(c.r, c.g, c.b, 0))
+      // area fill: accent, bright under the line fading to nothing at the base (gradient cached)
+      var key = c.toString() + "|" + root.fillAlpha
+      if (!cv.gradCache || cv.gradH !== h || cv.gradKey !== key) {
+        var grad = ctx.createLinearGradient(0, 0, 0, h)
+        grad.addColorStop(0, Qt.rgba(c.r, c.g, c.b, root.fillAlpha))
+        grad.addColorStop(1, Qt.rgba(c.r, c.g, c.b, 0))
+        cv.gradCache = grad; cv.gradH = h; cv.gradKey = key
+      }
       ctx.beginPath()
       ctx.moveTo(px(0), py(v[0]))
       for (var j = 1; j < n; j++) ctx.lineTo(px(j), py(v[j]))
       ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
-      ctx.fillStyle = grad; ctx.fill()
+      ctx.fillStyle = cv.gradCache; ctx.fill()
 
       // the curve
       ctx.beginPath()
       ctx.moveTo(px(0), py(v[0]))
       for (var k = 1; k < n; k++) ctx.lineTo(px(k), py(v[k]))
       ctx.strokeStyle = c; ctx.lineWidth = root.lineWidth; ctx.stroke()
-
-      // pulsing leading-edge dot at the newest sample
-      var lx = px(n - 1), ly = py(v[n - 1])
-      var halo = 2.5 + root.pulse * 3
-      ctx.beginPath(); ctx.arc(lx, ly, halo, 0, Math.PI * 2)
-      ctx.fillStyle = Qt.rgba(c.r, c.g, c.b, 0.18 + root.pulse * 0.12); ctx.fill()
-      ctx.beginPath(); ctx.arc(lx, ly, 2, 0, Math.PI * 2)
-      ctx.fillStyle = Qt.lighter(c, 1.4); ctx.fill()
     }
+  }
+
+  // Pulsing leading-edge dot, an overlay so its animation never triggers a Canvas repaint.
+  Rectangle {
+    id: haloDot
+    visible: (root.values || []).length > 0
+    width: 5; height: 5; radius: 2.5
+    color: root.color
+    x: root.lastPoint.x - width / 2
+    y: root.lastPoint.y - height / 2
+    scale: 1 + root.pulse * 1.2
+    opacity: 0.18 + root.pulse * 0.12
+  }
+  Rectangle {
+    id: coreDot
+    visible: (root.values || []).length > 0
+    width: 4; height: 4; radius: 2
+    color: Qt.lighter(root.color, 1.4)
+    x: root.lastPoint.x - width / 2
+    y: root.lastPoint.y - height / 2
   }
 
   layer.enabled: Style.fx.glow > 0

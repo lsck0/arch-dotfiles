@@ -16,7 +16,7 @@
     {
       "type": "custom",
       "format": "----------------------------------",
-      "outputColor": "cyan",
+      "outputColor": "blue",
     },
     {
       "type": "kernel",
@@ -63,7 +63,7 @@
     {
       "type": "custom",
       "format": "----------------------------------",
-      "outputColor": "cyan",
+      "outputColor": "blue",
     },
     "break",
   ],

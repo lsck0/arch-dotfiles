@@ -1070,9 +1070,15 @@ fi
 
 ## REMOVE PASSWORD FROM SUDO
 
-if ! sudo grep -qE "^${USER} ALL=\(ALL\) NOPASSWD: ALL$" /etc/sudoers; then
-    echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+# write to a validated drop-in so a bad edit can never lock out sudo
+sudoers_tmp=$(mktemp)
+printf '%s\n' "$USER ALL=(ALL) NOPASSWD: ALL" > "$sudoers_tmp"
+if sudo visudo -cf "$sudoers_tmp"; then
+    sudo install -m440 "$sudoers_tmp" "/etc/sudoers.d/10-${USER}-nopasswd"
+else
+    echo "ERROR: sudoers rule failed validation; leaving sudo config untouched" >&2
 fi
+rm -f "$sudoers_tmp"
 
 ## LINK PACMAN CONFIG
 
@@ -1170,10 +1176,10 @@ fi
 
 ## LINK
 
-echo "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config"      | sudo tee -a /etc/security/pam_env.conf
-echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       | sudo tee -a /etc/security/pam_env.conf
-echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
-echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
+grep -qF "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config"      /etc/security/pam_env.conf || echo "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config"      | sudo tee -a /etc/security/pam_env.conf
+grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       /etc/security/pam_env.conf || echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"       | sudo tee -a /etc/security/pam_env.conf
+grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
+grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
 while IFS= read -r script; do
     dir=$(dirname "$script"); base=$(basename "$script")
@@ -1196,7 +1202,7 @@ WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkamb
 ## CLEANUP
 
 sudo rm -rf "${HOME}/go"
-sudo rm -rf ${HOME}/.cache/yay/
+sudo rm -rf "${HOME}/.cache/yay/"
 
 ## SUMMARY
 

@@ -1,11 +1,11 @@
-# ly-style GRUB theme: black ground, one white-bordered box, monospace text,
-# key hints top-left. @PLACEHOLDERS@ are filled by render.py.
+# Cyberpunk/terminal GRUB theme: near-black ground, cyan HUD box + accents,
+# dim mono text, key hints top-left. @PLACEHOLDERS@ are filled by render.py.
 
 title-text: ""
-desktop-color: "#000000"
+desktop-color: "#0B0E14"
 message-font: "@FONT@"
-message-color: "#ffffff"
-message-bg-color: "#000000"
+message-color: "#C2C3C5"
+message-bg-color: "#0B0E14"
 terminal-font: "@FONT@"
 terminal-box: "box_*.png"
 
@@ -15,7 +15,7 @@ terminal-box: "box_*.png"
     width = 100%
     height = @ITEM_HEIGHT@
     font = "@FONT@"
-    color = "#ffffff"
+    color = "#39BAE6"
     text = "enter boot    e edit    c console    esc back"
 }
 
@@ -26,8 +26,8 @@ terminal-box: "box_*.png"
     height = @ITEM_HEIGHT@
     align = "center"
     font = "@FONT@"
-    color = "#ffffff"
-    text = "@HOSTNAME@"
+    color = "#39BAE6"
+    text = "[ @HOSTNAME@ ]"
 }
 
 + boot_menu {
@@ -37,9 +37,9 @@ terminal-box: "box_*.png"
     height = 50%
     menu_pixmap_style = "box_*.png"
     item_font = "@FONT@"
-    item_color = "#ffffff"
+    item_color = "#C2C3C5"
     selected_item_font = "@FONT@"
-    selected_item_color = "#000000"
+    selected_item_color = "#0B0E14"
     selected_item_pixmap_style = "select_*.png"
     item_height = @ITEM_HEIGHT@
     item_padding = @PAD@
@@ -58,6 +58,6 @@ terminal-box: "box_*.png"
     height = @ITEM_HEIGHT@
     align = "center"
     font = "@FONT@"
-    color = "#808080"
+    color = "#5A616E"
     text = "booting in %d s"
 }

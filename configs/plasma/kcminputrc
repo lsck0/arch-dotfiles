@@ -5,4 +5,5 @@ NaturalScroll=true
 NaturalScroll=true
 
 [Mouse]
+cursorSize=30
 cursorTheme=BreezeX-RosePine-Linux

@@ -33,7 +33,7 @@ autocmd("BufWritePre", {
 
 -- reload files changed on disk (replaces neovim-auto-autoread)
 vim.o.autoread = true
-autocmd({ "FocusGained", "TermClose", "TermLeave", "CursorHold" }, {
+autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     desc = "Reload files changed outside nvim",
     group = group("auto-read", { clear = true }),
     callback = function()

@@ -6,13 +6,13 @@
 # terminal "default" and the BRIGHT modifier. Those slots are painted
 # by pywal (via colors-kitty.conf), so this scheme tracks the wallpaper
 # palette for free: no fixed 256-cube hex values are used anywhere.
-# Accent = ANSI cyan/magenta (pywal slots 6/5), matrix-green executables.
+# Accent = ANSI blue/magenta (pywal slots 4/5), matrix-green executables.
 
 from __future__ import (absolute_import, division, print_function)
 
 from ranger.gui.colorscheme import ColorScheme
 from ranger.gui.color import (
-    black, blue, cyan, green, magenta, red, white, yellow, default,
+    black, blue, green, magenta, red, white, yellow, default,
     normal, bold, reverse, dim, BRIGHT,
     default_colors,
 )
@@ -47,9 +47,9 @@ class Cyberpunk(ColorScheme):
             if context.container:
                 fg = red
             if context.directory:
-                # Directories: bright neon cyan, bold.
+                # Directories: bright neon blue, bold.
                 attr |= bold
-                fg = cyan
+                fg = blue
                 fg += BRIGHT
             elif context.executable and not \
                     any((context.media, context.container,
@@ -68,7 +68,7 @@ class Cyberpunk(ColorScheme):
                     attr |= bold
                     fg += BRIGHT
             if context.link:
-                fg = cyan if context.good else magenta
+                fg = blue if context.good else magenta
             if context.tag_marker and not context.selected:
                 attr |= bold
                 if fg in (red, magenta):
@@ -95,27 +95,27 @@ class Cyberpunk(ColorScheme):
                     fg = magenta
 
             if context.inactive_pane:
-                fg = cyan
+                fg = blue
 
         elif context.in_titlebar:
-            # Titlebar: bold accent, hostname/path in neon cyan.
+            # Titlebar: bold accent, hostname/path in neon blue.
             attr |= bold
             if context.hostname:
-                fg = red if context.bad else cyan
+                fg = red if context.bad else blue
             elif context.directory:
-                fg = cyan
+                fg = blue
                 fg += BRIGHT
             elif context.tab:
                 if context.good:
                     bg = magenta
                     fg = black
             elif context.link:
-                fg = cyan
+                fg = blue
 
         elif context.in_statusbar:
             if context.permissions:
                 if context.good:
-                    fg = cyan
+                    fg = blue
                 elif context.bad:
                     fg = magenta
             if context.marked:
@@ -124,7 +124,7 @@ class Cyberpunk(ColorScheme):
                 fg += BRIGHT
             if context.frozen:
                 attr |= bold | reverse
-                fg = cyan
+                fg = blue
                 fg += BRIGHT
             if context.message:
                 if context.bad:
@@ -134,7 +134,7 @@ class Cyberpunk(ColorScheme):
             if context.loaded:
                 bg = self.progress_bar_color
             if context.vcsinfo:
-                fg = cyan
+                fg = blue
                 attr &= ~bold
             if context.vcscommit:
                 fg = yellow
@@ -149,7 +149,7 @@ class Cyberpunk(ColorScheme):
 
         if context.in_taskview:
             if context.title:
-                fg = cyan
+                fg = blue
             if context.selected:
                 attr |= reverse
             if context.loaded:
@@ -163,7 +163,7 @@ class Cyberpunk(ColorScheme):
             if context.vcsconflict:
                 fg = magenta
             elif context.vcsuntracked:
-                fg = cyan
+                fg = blue
             elif context.vcschanged:
                 fg = red
             elif context.vcsunknown:

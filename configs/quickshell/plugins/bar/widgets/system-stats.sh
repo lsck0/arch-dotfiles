@@ -42,6 +42,28 @@ fi
 gpu_rc6=$gpu_card/gt/gt0/rc6_residency_ms  # i915 only
 rapl=/sys/class/powercap/intel-rapl:0/energy_uj  # i915 platforms only
 
+# CPU package temperature: resolve one hwmon temp*_input path once, then cat it each tick (avoids spawning sensors|jq every sample).
+cpu_temp_path=""
+for h in /sys/class/hwmon/hwmon*; do
+    [[ -f "$h/name" ]] || continue
+    case "$(cat "$h/name" 2>/dev/null)" in
+    k10temp|coretemp|zenpower) ;;
+    *) continue ;;
+    esac
+    # Prefer a label naming the package (Tctl/Tdie/Package), else fall back to temp1_input.
+    for lbl in "$h"/temp*_label; do
+        [[ -f "$lbl" ]] || continue
+        case "$(cat "$lbl" 2>/dev/null)" in
+        Tctl|Tdie|Package*|"CPU Temperature")
+            cand="${lbl%_label}_input"
+            [[ -r "$cand" ]] && { cpu_temp_path="$cand"; break; }
+            ;;
+        esac
+    done
+    [[ -z "$cpu_temp_path" && -r "$h/temp1_input" ]] && cpu_temp_path="$h/temp1_input"
+    [[ -n "$cpu_temp_path" ]] && break
+done
+
 # RAM type/speed/channel count from SMBIOS, via passwordless sudo dmidecode (this machine's sudoers grants NOPASSWD: ALL — see configs/sudoers).
 mem_type=""
 mem_speed_mts=0
@@ -56,12 +78,13 @@ if command -v dmidecode >/dev/null 2>&1; then
 fi
 : "${mem_type:=}" "${mem_speed_mts:=0}" "${mem_channels:=0}"
 
-# Package temperature: try every known "this is the CPU package" sensors label, across chips, in priority order.
+# Package temperature from the cached hwmon path; milli-degree -> degree. Empty if unresolved.
 read_temp() {
-    sensors -j 2>/dev/null | jq -r '
-        def pick(k): [.[] | to_entries[] | select(.key == k) | (.value.temp1_input // .value.temp2_input // .value.temp3_input)] | first;
-        (pick("Package id 0") // pick("Tctl") // pick("Tdie") // pick("CPU Temperature") // pick("temp1")) // empty
-    ' | cut -d. -f1
+    [[ -n "$cpu_temp_path" ]] || return
+    local raw
+    raw=$(cat "$cpu_temp_path" 2>/dev/null) || return
+    [[ "$raw" =~ ^-?[0-9]+$ ]] || return
+    awk -v m="$raw" 'BEGIN { printf "%d", m / 1000 }'
 }
 
 # amdgpu power: power1_average (newer amdgpu) then power1_input (older).
@@ -88,6 +111,7 @@ prev_rc6=$(cat "$gpu_rc6" 2>/dev/null || echo 0)
 prev_t_ms=$(date +%s%3N)
 prev_energy=0
 ((power_ok)) && prev_energy=$(cat "$rapl" 2>/dev/null || echo 0)
+prev_temp=0
 
 # First sample uses a SHORT window so the bar has real numbers within a fraction of a second of the shell starting.
 delay=0.3
@@ -145,7 +169,8 @@ while :; do
 
     freq_mhz=$(($(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null || echo 0) / 1000))
     temp=$(read_temp)
-    temp=${temp:-0}
+    temp=${temp:-$prev_temp}
+    prev_temp=$temp
     mem_avail_kb=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)
 
     jq -nc \
