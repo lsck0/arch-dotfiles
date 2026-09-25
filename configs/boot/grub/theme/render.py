@@ -19,8 +19,17 @@ FONTS = [
     "/usr/share/fonts/TTF/0xProtoNerdFontMono-Regular.ttf",
     "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
 ]
-WHITE = (0xFF, 0xFF, 0xFF, 0xFF)
-BLACK = (0x00, 0x00, 0x00, 0xFF)
+# Static cyberpunk palette matching the quickshell shell; boot is pre-pywal.
+BG = "#0B0E14"
+ACCENT = "#39BAE6"
+ACCENT_BRIGHT = "#73D0FF"
+FG = "#C2C3C5"
+
+
+def rgba(hexstr):
+    # Parse "#rrggbb" into an opaque (r, g, b, a) tuple.
+    h = hexstr.lstrip("#")
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 0xFF)
 
 
 def png(path, width, height, rgba):
@@ -48,17 +57,17 @@ def main():
     out, size, hostname = Path(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
     out.mkdir(parents=True, exist_ok=True)
 
-    # 9-slice box like ly's border: white edges, black inside.
+    # 9-slice HUD box: accent cyan edges, near-black inside.
     b = max(1, size // 12)
     for part, (w, h) in {
         "nw": (b, b), "n": (1, b), "ne": (b, b),
         "w": (b, 1), "e": (b, 1),
         "sw": (b, b), "s": (1, b), "se": (b, b),
     }.items():
-        png(out / f"box_{part}.png", w, h, WHITE)
-    png(out / "box_c.png", 1, 1, BLACK)
-    # Selected entry is an inverted bar, as in a tty.
-    png(out / "select_c.png", 1, 1, WHITE)
+        png(out / f"box_{part}.png", w, h, rgba(ACCENT))
+    png(out / "box_c.png", 1, 1, rgba(BG))
+    # Selected entry is a brighter-accent bar, as in a tty highlight.
+    png(out / "select_c.png", 1, 1, rgba(ACCENT_BRIGHT))
 
     font_name = ""
     font = next((f for f in FONTS if Path(f).is_file()), None)

@@ -55,7 +55,7 @@ BarWidget {
     color: Color.accent
     visible: Style.fx.glow > 0
     opacity: Style.fx.glowAlpha(0.8)
-    layer.enabled: true
+    layer.enabled: Style.fx.glow > 0
     layer.effect: MultiEffect {
       blurEnabled: true
       blur: 1.0

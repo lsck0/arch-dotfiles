@@ -3,7 +3,7 @@ config-file=~/.cache/wal/ghostty.conf
 app-notifications = false
 confirm-close-surface = false
 
-background-opacity = 0.9
+background-opacity = 1
 background-opacity-cells = true
 
 # hackerman terminal: solid blinking block cursor

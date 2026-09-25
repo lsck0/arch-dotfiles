@@ -1,0 +1,121 @@
+# Cyberpunk boot splash: dark terminal, accent progress bar, blinking caret.
+# Palette is static (pre-userspace): bg #0B0E14, accent #39BAE6, dim fg #C2C3C5.
+# API matches the stock /usr/share/plymouth/themes/script example.
+
+# Static near-black background (#0B0E14).
+Window.SetBackgroundTopColor(0.043, 0.055, 0.078);
+Window.SetBackgroundBottomColor(0.043, 0.055, 0.078);
+
+screen.width = Window.GetWidth();
+screen.height = Window.GetHeight();
+screen.x = Window.GetX();
+screen.y = Window.GetY();
+
+# Accent (#39BAE6) and dim fg (#C2C3C5) as 0..1 floats.
+accent.r = 0.224; accent.g = 0.729; accent.b = 0.902;
+dim.r = 0.761; dim.g = 0.765; dim.b = 0.773;
+
+#----------------------------------------- Prompt line --------------------------------
+
+prompt.image = Image.Text("> booting archlinux", accent.r, accent.g, accent.b);
+prompt.sprite = Sprite(prompt.image);
+prompt.x = screen.x + screen.width / 2 - prompt.image.GetWidth() / 2;
+prompt.y = screen.y + screen.height * 0.42;
+prompt.sprite.SetPosition(prompt.x, prompt.y, 5);
+
+# Blinking block caret sits just after the prompt text.
+caret.image = Image("caret.png");
+caret.sprite = Sprite(caret.image);
+caret.x = prompt.x + prompt.image.GetWidth() + 6;
+caret.y = prompt.y + prompt.image.GetHeight() / 2 - caret.image.GetHeight() / 2;
+caret.sprite.SetPosition(caret.x, caret.y, 5);
+
+#----------------------------------------- Progress bar --------------------------------
+
+bar_bg.image = Image("bar_bg.png");
+bar_bg.sprite = Sprite(bar_bg.image);
+bar_bg.x = screen.x + screen.width / 2 - bar_bg.image.GetWidth() / 2;
+bar_bg.y = screen.y + screen.height * 0.56;
+bar_bg.sprite.SetPosition(bar_bg.x, bar_bg.y, 1);
+
+bar_fg.original = Image("bar_fg.png");
+bar_fg.sprite = Sprite();
+bar_fg.sprite.SetPosition(bar_bg.x, bar_bg.y, 2);
+
+fun progress_callback(duration, progress)
+  {
+    width = Math.Int(bar_fg.original.GetWidth() * progress);
+    if (width < 1) width = 1;
+    if (bar_fg.image.GetWidth() != width)
+      {
+        bar_fg.image = bar_fg.original.Scale(width, bar_fg.original.GetHeight());
+        bar_fg.sprite.SetImage(bar_fg.image);
+        bar_fg.sprite.SetPosition(bar_bg.x, bar_bg.y, 2);
+      }
+  }
+
+Plymouth.SetBootProgressFunction(progress_callback);
+
+#----------------------------------------- Caret blink --------------------------------
+
+tick = 0;
+
+fun refresh_callback()
+  {
+    tick++;
+    # Refresh runs ~50Hz; toggle roughly twice a second.
+    if (Math.Int(tick / 25) % 2)
+      caret.sprite.SetOpacity(1);
+    else
+      caret.sprite.SetOpacity(0);
+  }
+
+Plymouth.SetRefreshFunction(refresh_callback);
+
+#----------------------------------------- Status message --------------------------------
+
+message.sprite = Sprite();
+
+fun display_message_callback(text)
+  {
+    message.image = Image.Text(text, dim.r, dim.g, dim.b);
+    message.sprite.SetImage(message.image);
+    message.x = screen.x + screen.width / 2 - message.image.GetWidth() / 2;
+    message.y = screen.y + screen.height * 0.64;
+    message.sprite.SetPosition(message.x, message.y, 5);
+  }
+
+fun hide_message_callback(text)
+  {
+    message.sprite = Sprite();
+  }
+
+Plymouth.SetDisplayMessageFunction(display_message_callback);
+Plymouth.SetHideMessageFunction(hide_message_callback);
+
+#----------------------------------------- Password prompt --------------------------------
+
+fun display_password_callback(prompt_text, bullets)
+  {
+    bullet_string = "";
+    for (i = 0; i < bullets; i++)
+      bullet_string += "*";
+    pw.image = Image.Text(prompt_text + " " + bullet_string, accent.r, accent.g, accent.b);
+    pw.sprite = Sprite(pw.image);
+    pw.x = screen.x + screen.width / 2 - pw.image.GetWidth() / 2;
+    pw.y = screen.y + screen.height * 0.72;
+    pw.sprite.SetPosition(pw.x, pw.y, 6);
+    global.pw = pw;
+  }
+
+fun display_normal_callback()
+  {
+    if (global.pw)
+      {
+        pw.sprite = Sprite();
+        global.pw = pw;
+      }
+  }
+
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);

@@ -61,7 +61,10 @@ BarWidget {
   Process {
     id: statusProc
     running: true
-    command: [Paths.barWidget("homelab-status.py")]
+    // Poll fast with full detail while the panel is open; slow summary-only (problemCount/alerts) when closed.
+    command: panel.visible
+      ? [Paths.barWidget("homelab-status.py"), "30"]
+      : [Paths.barWidget("homelab-status.py"), "300", "--summary"]
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {
@@ -84,6 +87,15 @@ BarWidget {
             ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) * 100 : 0)
         } catch (e) {}
       }
+    }
+  }
+
+  // Restart the poller so the new cadence/mode takes effect the moment the panel opens or closes.
+  Connections {
+    target: panel
+    function onVisibleChanged() {
+      statusProc.running = false
+      statusProc.running = true
     }
   }
 

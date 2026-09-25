@@ -749,7 +749,7 @@ BarWidget {
       source: root.trayIconSource(trayIconRoot.icon)
       // Always hidden — used only as a texture source for the MultiEffect.
       visible: false
-      layer.enabled: true
+      layer.enabled: Style.fx.glow > 0
     }
 
     MultiEffect {

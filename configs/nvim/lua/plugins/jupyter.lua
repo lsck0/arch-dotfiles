@@ -11,7 +11,7 @@ return {
     {
         -- Round-trip .ipynb <-> markdown so notebooks open as plain text buffers.
         "GCBallesteros/jupytext.nvim",
-        lazy = false,
+        event = { "BufReadCmd *.ipynb" }, -- load before its own BufReadCmd converts the notebook
         opts = {
             -- percent, not markdown: an .ipynb round-trips to a .py with `# %%` cell markers.
             style = "percent",

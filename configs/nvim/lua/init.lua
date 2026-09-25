@@ -25,7 +25,8 @@ require("lazy").setup({
     },
 
     defaults = { lazy = false },
-    checker = { enabled = true, notify = false },
+    -- disabled: the checker git-fetches every plugin in the background, hurting startup/runtime.
+    checker = { enabled = false, notify = false },
 })
 
 require("theme").apply_from_marker()

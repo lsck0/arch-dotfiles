@@ -210,7 +210,8 @@ return {
             }
             -- point pyright at the project's virtualenv so poetry-installed
             local function project_python(root)
-                if not root then return nil end
+                -- root can be vim.NIL (userdata) from a JSON-null rootPath; NIL is truthy, so type-check
+                if type(root) ~= "string" or root == "" then return nil end
                 local venv = vim.env.VIRTUAL_ENV
                 if venv and vim.fn.executable(venv .. "/bin/python") == 1 then
                     return venv .. "/bin/python"
@@ -220,7 +221,8 @@ return {
                 end
                 if vim.fn.filereadable(root .. "/pyproject.toml") == 1
                     and vim.fn.executable("poetry") == 1 then
-                    local out = vim.trim(vim.fn.system({ "poetry", "-C", root, "env", "info", "-e" }))
+                    -- timeout so a slow poetry cannot block LSP init
+                    local out = vim.trim(vim.fn.system({ "timeout", "2", "poetry", "-C", root, "env", "info", "-e" }))
                     if vim.v.shell_error == 0 and out ~= "" then return out end
                 end
             end

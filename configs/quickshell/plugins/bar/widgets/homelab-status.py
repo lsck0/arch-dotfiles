@@ -25,7 +25,10 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
-INTERVAL = int(sys.argv[1]) if len(sys.argv) > 1 else 30
+# --summary fetches only what the bar icon needs (problemCount + alerts); full mode fetches the whole panel.
+SUMMARY = "--summary" in sys.argv[1:]
+_POSITIONAL = [a for a in sys.argv[1:] if not a.startswith("-")]
+INTERVAL = int(_POSITIONAL[0]) if _POSITIONAL else 30
 # Targets seen within this window count as fleet members; the scrape sweeps whole /24s.
 SEEN = "6h"
 IPV4 = r"\d+\.\d+\.\d+\.\d+"
@@ -323,7 +326,7 @@ def fetch(url, timeout=5):
         return json.loads(response.read().decode())
 
 
-def sample(src):
+def sample(src, summary=False):
     if not src["by_ip"]:
         return {"ok": False, "error": "source"}
     if not src["prometheus"]:
@@ -383,6 +386,11 @@ def sample(src):
     except Exception:
         pass
 
+    services_sorted = sorted(services.values(), key=lambda s: (s.get("order", 1000), s["id"], s["name"]))
+    # Summary mode: the bar icon needs only problemCount (alerts + down services) and links; skip every host/storage/traffic/Loki query.
+    if summary:
+        return {"ok": True, "links": src["links"], "services": services_sorted, "alerts": alerts}
+
     host = 'instance="%s:9100"' % src["host_ip"]
     nas = 'instance="%s:9100",mountpoint="/"' % src["nas_ip"]
     mem_total = scalar("node_memory_MemTotal_bytes{%s}" % host)
@@ -405,7 +413,7 @@ def sample(src):
     return {
         "ok": True,
         "links": src["links"],
-        "services": sorted(services.values(), key=lambda s: (s.get("order", 1000), s["id"], s["name"])),
+        "services": services_sorted,
         "alerts": alerts,
         "host": {
             "cpuPct": rounded(scalar('100 * (1 - avg(rate(node_cpu_seconds_total{mode="idle",%s}[5m])))' % host), 0),
@@ -439,10 +447,24 @@ def try_clients(src):
         return {}
 
 
+_SOURCE = None
+
+
+def cached_source():
+    # The homelab shape is static at runtime, so parse the nix/inventory files once; keep retrying only while the checkout is missing.
+    global _SOURCE
+    if _SOURCE is not None:
+        return _SOURCE
+    src = source()
+    if src.get("by_ip"):
+        _SOURCE = src
+    return src
+
+
 def main():
     while True:
         try:
-            line = sample(source())
+            line = sample(cached_source(), summary=SUMMARY)
         except Exception as exc:
             line = {"ok": False, "error": type(exc).__name__}
         print(json.dumps(line), flush=True)

@@ -1,0 +1,5 @@
+# This repo is PUBLIC. The vault lives in $HOME (~/Vault.hc, ~/Vault), NOT here.
+# Never add an encrypted container or its mountpoint to the repo.
+*.hc
+*.tc
+Vault/
