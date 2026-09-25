@@ -77,6 +77,7 @@ $env.config.buffer_editor = "nvim"
 # -------------------------------------------------------------------- aliases
 
 alias b = bat
+alias cat = bat
 alias cdi = zi
 alias convert = magick
 alias cp = cp -v
@@ -89,6 +90,7 @@ alias ldocker = lazydocker
 alias lgit = lazygit
 alias lgithub = gh-dash
 alias ljj = lazyjj
+alias ljournal = lazyjournal
 def ljournal [...args] { lazyjournal -T (date now | format date "%:z") ...$args }
 alias lsql = lazysql
 alias lt = eza -lah --tree

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -29,6 +30,11 @@ BarWidget {
   property string detailsMac: ""
   property int detailsRxKbps: 0
   property int detailsTxKbps: 0
+
+  // Rolling throughput history for the panel sparklines (newest last, capped).
+  property var rxHist: []
+  property var txHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   property var wifiNetworks: []
   property string connectingSsid: ""
@@ -144,6 +150,8 @@ BarWidget {
           root.detailsMac = d.mac || ""
           root.detailsRxKbps = d.rxKbps || 0
           root.detailsTxKbps = d.txKbps || 0
+          root.rxHist = root._push(root.rxHist, root.detailsRxKbps)
+          root.txHist = root._push(root.txHist, root.detailsTxKbps)
         } catch (e) {}
       }
     }
@@ -251,6 +259,17 @@ BarWidget {
         : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
+      // Neon bloom only when a tunnel/radio path is live, so the glow reads as an active state.
+      layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
     // No throughput in the bar.
   }
@@ -259,8 +278,8 @@ BarWidget {
     id: hoverArea
     anchors.fill: parent
     hoverEnabled: true
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -271,13 +290,20 @@ BarWidget {
     onOpened: { root.refreshAll(); root.refreshWifiList(false) }
     // Load-bearing.
     acceptsKeyboard: true
+    title: "NETWORK"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+
+    // Neon HUD corner brackets around the dropdown.
+    HudFrame {}
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.sm
+
+      // Headroom so the terminal title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
       // This panel's rows were an in-file `Row_` component; they are the shared Ui/PanelRow now, along with the equivalent rows in the audio, display, system and media panels.
       component Row_: PanelRow {
@@ -287,7 +313,7 @@ BarWidget {
 
       PanelSectionHeader {
         visible: root.detailsConnected
-        text: "DETAILS"
+        text: "> DETAILS"
       }
       Column {
         width: content.width
@@ -331,7 +357,91 @@ BarWidget {
       PanelSeparator {
         visible: root.detailsConnected
       }
-      PanelSectionHeader { text: "WI-FI NETWORKS" }
+      PanelSectionHeader { visible: root.detailsConnected; text: "> THROUGHPUT" }
+
+      // Big glowing download hero plus rolling down/up history sparklines.
+      Column {
+        visible: root.detailsConnected
+        width: content.width
+        spacing: Style.spacing.xs
+
+        Row {
+          spacing: Style.spacing.xxs
+          Text {
+            id: dlHero
+            anchors.bottom: parent.bottom
+            text: root.fmtSpeed(root.detailsRxKbps)
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Math.round(Style.font.display * 1.1)
+            font.bold: true
+            font.letterSpacing: Style.displayTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+          }
+        }
+
+        Row {
+          width: parent.width
+          Text {
+            width: parent.width * 0.5
+            text: "# DOWN"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking
+          }
+          Text {
+            width: parent.width * 0.5
+            horizontalAlignment: Text.AlignRight
+            text: root.fmtSpeed(root.detailsRxKbps)
+            color: Color.menu.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.displayTracking
+          }
+        }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Color.accent }
+
+        Row {
+          width: parent.width
+          Text {
+            width: parent.width * 0.5
+            text: "# UP"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking
+          }
+          Text {
+            width: parent.width * 0.5
+            horizontalAlignment: Text.AlignRight
+            text: root.fmtSpeed(root.detailsTxKbps)
+            color: Color.menu.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.displayTracking
+          }
+        }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; minValue: 0; maxValue: 0; color: Color.menu.text }
+      }
+
+      PanelSeparator {
+        visible: root.detailsConnected
+      }
+      PanelSectionHeader { text: "> WI-FI NETWORKS" }
 
       Column {
         width: content.width
@@ -358,10 +468,21 @@ BarWidget {
                 anchors.left: parent.left
                 anchors.leftMargin: Style.spacing.md
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.active ? "●" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
+                text: modelData.active ? "*" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
                 color: modelData.active ? Color.menu.selectedText : Color.menu.text
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.iconFamily
+                // The connected network's live dot gets the neon halo.
+                layer.enabled: Style.fx.glow > 0 && modelData.active
+                layer.effect: MultiEffect {
+                  shadowEnabled: true
+                  shadowColor: Style.fx.glowColor
+                  shadowBlur: 1.0
+                  shadowVerticalOffset: 0
+                  shadowHorizontalOffset: 0
+                  blurMax: Style.fx.glowRadius
+                  autoPaddingEnabled: true
+                }
               }
               Text {
                 anchors.left: netIcon.right
@@ -439,7 +560,7 @@ BarWidget {
                 color: Style.selectedFillFor(Color.menu.text, Color.accent)
                 Text {
                   anchors.centerIn: parent
-                  text: root.connectingSsid === modelData.ssid ? "…" : "Connect"
+                  text: root.connectingSsid === modelData.ssid ? "..." : "Connect"
                   color: Color.accent
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
@@ -456,7 +577,7 @@ BarWidget {
 
         Text {
           visible: root.wifiNetworks.length === 0
-          text: "No networks found — scanning…"
+          text: "No networks found — scanning..."
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.caption
@@ -475,19 +596,19 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TUNNELS" }
+      PanelSectionHeader { text: "> TUNNELS" }
       Row_ { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
       Row_ { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       Row_ { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "RADIOS" }
+      PanelSectionHeader { text: "> RADIOS" }
       Row_ { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
       Row_ { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
       Row_ { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TOOLS" }
+      PanelSectionHeader { text: "> TOOLS" }
       // The speed test plugin was built, enabled and keepLoaded — and completely unreachable: nothing in the shell, no keybind and no menu entry ever summoned `panel.speedtest`, so the only way to run it was to type the ipc call by hand.
       Row_ {
         label: "Internet speed test"

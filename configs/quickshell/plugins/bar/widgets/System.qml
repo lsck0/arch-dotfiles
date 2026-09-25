@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
@@ -27,6 +28,13 @@ BarWidget {
   property var powerW: null
   property var vramUsedMb: null
   property var vramTotalMb: null
+
+  // Rolling history for the panel sparklines (newest last, capped).
+  property var cpuHist: []
+  property var gpuHist: []
+  property var memHist: []
+  property var tempHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   readonly property var batteryDevice: UPower.displayDevice
   readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
@@ -89,6 +97,10 @@ BarWidget {
           root.powerW = (s.powerW === undefined) ? null : s.powerW
           root.vramUsedMb = (s.vramUsedMb === undefined) ? null : s.vramUsedMb
           root.vramTotalMb = (s.vramTotalMb === undefined) ? null : s.vramTotalMb
+          root.cpuHist = root._push(root.cpuHist, root.cpuPct)
+          root.gpuHist = root._push(root.gpuHist, root.gpuPct)
+          root.memHist = root._push(root.memHist, root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0)
+          root.tempHist = root._push(root.tempHist, root.tempC)
         } catch (e) {}
       }
     }
@@ -122,6 +134,18 @@ BarWidget {
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
+      // Tight tracking + subtle accent bloom on the mono stat readout.
+      font.letterSpacing: Style.displayTracking
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
 
       // Never drawn; exists only to report the width of the widest value.
       Text {
@@ -139,6 +163,18 @@ BarWidget {
     id: label
     anchors.centerIn: parent
     spacing: Style.spacing.lg
+
+    // Live CPU-history sparkline right on the bar, hidden on a vertical bar where a wide graph does not fit.
+    Sparkline {
+      visible: !root.vertical
+      anchors.verticalCenter: parent.verticalCenter
+      width: Style.space(40)
+      height: Style.space(14)
+      values: root.cpuHist
+      minValue: 0
+      maxValue: 100
+      color: Color.accent
+    }
 
     // md-memory: despite the name it is the square CPU-package glyph.
     Stat { glyph: "\u{f035b}"; widest: "100%"; value: root.cpuPct + "%" }
@@ -173,32 +209,144 @@ BarWidget {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     // PowerModeSelector reads on its own once the panel is visible (triggeredOnStart), so hover has nothing left to prime here.
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
-  // A label/value pair row, reused across the CPU/GPU/RAM sections below instead of hand-rolling the same two-Text-items layout five times.
+  // A terminal-style readout row: uppercase tracked key on the left, bright mono value flush right.
   component Row_: Row {
     property string label: ""
     property string value: ""
     property bool dim: false
-    width: parent.width
+    width: parent ? parent.width : 0
+    spacing: Style.spacing.sm
     Text {
-      width: parent.width * 0.4
+      width: Math.round((parent.width - parent.spacing) * 0.42)
       text: parent.label
       color: Color.menu.text
+      opacity: Style.emphasis.dim
+      elide: Text.ElideRight
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking * 0.4
     }
     Text {
-      width: parent.width * 0.6
+      width: Math.round((parent.width - parent.spacing) * 0.58)
       horizontalAlignment: Text.AlignRight
       text: parent.value
-      color: Color.menu.text
-      opacity: parent.dim ? 0.4 : 1
+      color: Color.foreground
+      opacity: parent.dim ? Style.emphasis.faint : Style.emphasis.strong
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
+      font.letterSpacing: Style.displayTracking
     }
+  }
+
+  // Bracket-framed section head: accent block glyph, tracked uppercase label, phosphor rule filling the row.
+  component SectionHead: Item {
+    property string text: ""
+    width: parent ? parent.width : 0
+    implicitHeight: hdr.implicitHeight
+    height: implicitHeight
+    Text {
+      id: lead
+      anchors.left: parent.left
+      anchors.verticalCenter: hdr.verticalCenter
+      text: "#"
+      color: Color.accent
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      opacity: Style.emphasis.dim
+    }
+    PanelSectionHeader {
+      id: hdr
+      anchors.left: lead.right
+      anchors.leftMargin: Style.spacing.sm
+      text: parent.text
+    }
+    Rectangle {
+      anchors.left: hdr.right
+      anchors.leftMargin: Style.spacing.sm
+      anchors.right: parent.right
+      anchors.verticalCenter: hdr.verticalCenter
+      height: 1
+      color: Util.alpha(Color.accent, 0.35)
+    }
+  }
+
+  // Big glowing hero numeral (a percentage) that opens a section.
+  component Hero: Row {
+    property int pct: 0
+    property color tint: Color.accent
+    spacing: Style.spacing.xxs
+    Text {
+      id: heroNum
+      anchors.bottom: parent.bottom
+      text: parent.pct
+      color: parent.tint
+      font.family: Style.font.family
+      font.pixelSize: Math.round(Style.font.display * 1.7)
+      font.bold: true
+      font.letterSpacing: Style.displayTracking
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
+    }
+    Text {
+      anchors.bottom: heroNum.bottom
+      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
+      text: "%"
+      color: parent.tint
+      opacity: Style.emphasis.dim
+      font.family: Style.font.family
+      font.pixelSize: Style.font.title
+    }
+  }
+
+  // History sparkline + current-value bar gauge, with an optional tracked label + live readout, shown under each metric section.
+  component MetricGraph: Column {
+    id: mg
+    property var history: []
+    property real fraction: 0
+    property color tint: Color.accent
+    property string label: ""
+    property string readout: ""
+    property int maxValue: 100
+    width: parent ? parent.width : 0
+    spacing: Style.spacing.xs
+    Row {
+      width: mg.width
+      visible: mg.label !== ""
+      Text {
+        width: parent.width * 0.5
+        text: mg.label
+        color: mg.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking
+      }
+      Text {
+        width: parent.width * 0.5
+        horizontalAlignment: Text.AlignRight
+        text: mg.readout
+        color: mg.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.letterSpacing: Style.displayTracking
+      }
+    }
+    Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
+    BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
   }
 
   HoverPanel {
@@ -215,29 +363,97 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "System"; fontSize: Style.font.title }
-      PanelSectionHeader { text: "CPU" }
+      // Terminal-window title strip: prompt, panel name, blinking block caret, decorative window chrome.
+      Item {
+        width: parent.width
+        implicitHeight: titleRow.implicitHeight
+        height: implicitHeight
+        Row {
+          id: titleRow
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: ">"
+            color: Color.accent
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+          }
+          PanelSectionHeader { anchors.verticalCenter: parent.verticalCenter; text: "System"; fontSize: Style.font.title }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: "_"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+            SequentialAnimation on opacity {
+              running: true
+              loops: Animation.Infinite
+              NumberAnimation { to: 0.15; duration: 520 }
+              NumberAnimation { to: 1.0; duration: 520 }
+            }
+          }
+        }
+        Text {
+          anchors.right: parent.right
+          anchors.verticalCenter: titleRow.verticalCenter
+          text: "# - x"
+          color: Color.accent
+          opacity: Style.emphasis.faint
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: Style.headerTracking * 0.5
+        }
+      }
+      PanelSeparator {}
+
+      SectionHead { text: "CPU" }
       Text {
         width: parent.width
         visible: root.cpuName.length > 0
         text: root.cpuName + (root.cpuCores > 0 ? " (" + root.cpuCores + " threads)" : "")
         color: Color.menu.text
+        opacity: Style.emphasis.dim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-      Row_ { label: "Usage"; value: root.cpuPct + "%" }
-      Row_ { label: "Clock"; value: root.freqMhz + " MHz" }
-      Row_ { label: "Package temp"; value: root.tempC + "°C" }
-      // No sensor → no row. A "Package power unavailable" line is noise.
-      Row_ {
-        visible: root.powerW !== null
-        label: "Package power"
-        value: root.powerW + " W"
+      // Big glowing CPU hero, live secondary readouts flush right.
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(cpuHero.implicitHeight, cpuReads.implicitHeight)
+        height: implicitHeight
+        Hero { id: cpuHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: root.cpuPct }
+        Column {
+          id: cpuReads
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width * 0.56
+          spacing: Style.spacing.xs
+          Row_ { label: "Clock"; value: root.freqMhz + " MHz" }
+          Row_ { label: "Package temp"; value: root.tempC + "°C" }
+          // No sensor → no row. A "Package power unavailable" line is noise.
+          Row_ { visible: root.powerW !== null; label: "Package power"; value: root.powerW + " W" }
+        }
       }
+      MetricGraph { label: "Usage"; readout: root.cpuPct + "%"; history: root.cpuHist; fraction: root.cpuPct / 100 }
+      // Temperature history, the same wiring as the other metrics, tinted with the urgent (heat) colour.
+      MetricGraph { label: "Temp"; readout: root.tempC + "°C"; history: root.tempHist; fraction: root.tempC / 100; tint: Color.urgent }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "MEMORY" }
+      SectionHead { text: "MEMORY" }
       Row_ { label: "Used"; value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GB" }
       // No SMBIOS reading (VM, permission denied, etc.) → row absent rather than a placeholder.
       Row_ {
@@ -250,31 +466,52 @@ BarWidget {
         label: "Channels"
         value: root.memChannels + (root.memChannels > 1 ? "-channel" : " channel")
       }
+      MetricGraph {
+        label: "Usage"
+        readout: root.memTotalGb > 0 ? Math.round(root.memUsedGb / root.memTotalGb * 100) + "%" : "0%"
+        history: root.memHist
+        fraction: root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb : 0
+      }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "GPU" }
+      SectionHead { text: "GPU" }
       Text {
         width: parent.width
         visible: root.gpuName.length > 0
         text: root.gpuName
         color: Color.menu.text
+        opacity: Style.emphasis.dim
         font.family: Style.font.family; font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-      Row_ { label: "Usage"; value: root.gpuPct + "%" }
-      Row_ { label: "Clock"; value: root.gpuFreqMhz + " MHz" }
-      // VRAM is only shown where it's a real concept — an integrated GPU has no separate video memory, so the row is simply absent rather than showing "—" or a paragraph explaining why.
-      Row_ {
-        visible: root.gpuVendor !== "intel"
-        label: "VRAM"
-        value: root.vramTotalMb !== null
-          ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB"
-          : "unavailable"
-        dim: root.vramTotalMb === null
+      // Big glowing GPU hero, clock + VRAM flush right.
+      Item {
+        width: parent.width
+        implicitHeight: Math.max(gpuHero.implicitHeight, gpuReads.implicitHeight)
+        height: implicitHeight
+        Hero { id: gpuHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: root.gpuPct }
+        Column {
+          id: gpuReads
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width * 0.56
+          spacing: Style.spacing.xs
+          Row_ { label: "Clock"; value: root.gpuFreqMhz + " MHz" }
+          // VRAM is only shown where it's a real concept — an integrated GPU has no separate video memory, so the row is simply absent rather than showing "—" or a paragraph explaining why.
+          Row_ {
+            visible: root.gpuVendor !== "intel"
+            label: "VRAM"
+            value: root.vramTotalMb !== null
+              ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB"
+              : "unavailable"
+            dim: root.vramTotalMb === null
+          }
+        }
       }
+      MetricGraph { label: "Usage"; readout: root.gpuPct + "%"; history: root.gpuHist; fraction: root.gpuPct / 100 }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "BATTERY"; visible: root.batteryPresent }
+      SectionHead { text: "BATTERY"; visible: root.batteryPresent }
       Row_ {
         visible: root.batteryPresent
         label: "Charge"
@@ -287,7 +524,7 @@ BarWidget {
       }
 
       PanelSeparator { visible: root.batteryPresent }
-      PanelSectionHeader { text: "POWER MODE" }
+      SectionHead { text: "POWER MODE" }
 
       // Any override made here is deliberately session-only: it never survives a reboot, matching the requested "overridable but non-persistent" policy.
       PowerModeSelector {
@@ -296,7 +533,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "TOOLS" }
+      SectionHead { text: "TOOLS" }
 
       // panel.disk-speedtest was built, enabled, keepLoaded — and summoned by nothing, the same defect the internet speed test had before the Network panel grew a button for it.
       PanelRow {

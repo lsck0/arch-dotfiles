@@ -621,6 +621,17 @@ Item {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
+                // Neon bloom around the selected wallpaper's frame.
+                layer.enabled: item.selected && Style.fx.glow > 0
+                layer.effect: MultiEffect {
+                  shadowEnabled: true
+                  shadowColor: Style.fx.glowColor
+                  shadowBlur: 1.0
+                  shadowVerticalOffset: 0
+                  shadowHorizontalOffset: 0
+                  blurMax: Style.fx.glowRadius
+                  autoPaddingEnabled: true
+                }
                 ShapePath {
                   fillColor: "transparent"
                   strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
@@ -753,6 +764,105 @@ Item {
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
         }
+
+        // Terminal-window title strip in the carousel headroom: prompt, mode name, blinking caret, match count, decorative chrome.
+        Item {
+          id: pickerTitle
+          anchors.top: parent.top
+          anchors.topMargin: Style.spacing.xs
+          anchors.horizontalCenter: carousel.horizontalCenter
+          width: root.expandedWidth
+          height: Style.space(24)
+
+          Row {
+            id: pickerTitleRow
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.sm
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: ">"
+              color: root.selectedBorder
+              opacity: Style.emphasis.dim
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: (root.modeNames[root.mode] || "").toUpperCase()
+              color: root.foreground
+              style: Text.Outline
+              styleColor: Util.alpha(root.dimColor, 0.7)
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: Style.headerTracking
+              layer.enabled: Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
+            }
+
+            // Blinking block caret.
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: "_"
+              color: root.selectedBorder
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              SequentialAnimation on opacity {
+                running: root.opened
+                loops: Animation.Infinite
+                PropertyAnimation { to: 1; duration: 0 }
+                PauseAnimation { duration: 530 }
+                PropertyAnimation { to: 0; duration: 0 }
+                PauseAnimation { duration: 530 }
+              }
+            }
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: "[" + String(root.filteredCount) + "]"
+              color: root.foreground
+              opacity: Style.emphasis.faint
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          // Decorative window chrome glyphs, non-interactive.
+          Text {
+            anchors.right: parent.right
+            anchors.verticalCenter: pickerTitleRow.verticalCenter
+            textFormat: Text.PlainText
+            text: "[- o x]"
+            color: root.selectedBorder
+            opacity: Style.emphasis.faint
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.headerTracking
+          }
+        }
+
+        // HUD brackets framing the picker card.
+        HudFrame {}
     }
+
+    // CRT scanline overlay across the full-screen picker.
+    Scanlines {}
   }
 }

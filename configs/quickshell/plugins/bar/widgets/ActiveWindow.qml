@@ -41,7 +41,8 @@ BarWidget {
       anchors.left: parent.left
       // Capped at maxLabelWidth rather than bound to parent.width: parent's width derives from root.implicitWidth, which itself reads labelText.implicitWidth below — binding width to parent.width would close that loop (Qt warns "Binding loop detected for property implicitWidth").
       width: root.maxLabelWidth
-      text: root.title
+      // Terminal-prompt prefix for the hackerman look; title text itself is untouched.
+      text: "> " + root.title
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body

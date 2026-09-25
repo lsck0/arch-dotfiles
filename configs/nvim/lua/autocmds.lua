@@ -91,9 +91,18 @@ autocmd("VimEnter", {
         local ft = vim.bo.filetype
         if ft == "gitcommit" or ft == "gitrebase" then return end
         if vim.bo.buftype ~= "" then return end          -- stdin, help, etc.
+        -- belt-and-suspenders: never stack a second tree if one is already open
+        for _, w in ipairs(vim.api.nvim_list_wins()) do
+            local ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
+            if ft == "neo-tree" or ft == "snacks_picker_list" then return end
+        end
         local main = vim.api.nvim_get_current_win()
-        -- pin to git root, not cwd (project.nvim chdirs into nested crates)
-        require("snacks").explorer({ cwd = require("lib.root").git() })
+        -- chdir to the git root and open with NO explicit cwd, so the autocmd,
+        -- replace_netrw and follow_file all resolve the same cwd string. Passing
+        -- differing cwd forms made snacks stack a duplicate root per opener.
+        local root = require("lib.root").git()
+        if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
+        require("snacks").explorer()
         -- the picker grabs focus asynchronously after it opens, so restore focus
         vim.defer_fn(function()
             if vim.api.nvim_win_is_valid(main) then

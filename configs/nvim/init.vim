@@ -10,7 +10,6 @@ highlight BufferOffset guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
 highlight BufferVisible guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
 highlight StatusLine guibg=NONE guifg=NONE ctermbg=NONE ctermfg=NONE
 
-" VIMTEX settings
+" filetype detection + syntax (vimtex settings live in lua/languages/latex.lua)
 filetype plugin indent on
 syntax enable
-let g:vimtex_view_general_viewer = "zathura"

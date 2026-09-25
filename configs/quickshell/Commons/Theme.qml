@@ -25,8 +25,8 @@ QtObject {
   property real foregroundContrast: 7.0
 
   // Saturation/value floors that stop a washed-out wallpaper yielding a grey smudge of an accent, then the contrast ratio it is dragged to.
-  property real accentMinSaturation: 0.45
-  property real accentMinValue: 0.55
+  property real accentMinSaturation: 0.70
+  property real accentMinValue: 0.62
   property real accentContrast: 3.0
 
   property real urgentMinSaturation: 0.55
@@ -38,6 +38,15 @@ QtObject {
 
   // Crossfade duration when the wallpaper (and so the palette) changes.
   property int paletteTransitionMs: 600
+
+  // ------------------------------------------------- hacker fx (sci-fi/CRT) Neon glow, scanlines and HUD framing; all live-tunable, 0 disables each.
+  property real glowStrength: 0.55      // neon bloom on accents/active elements (0..1)
+  property real scanlineOpacity: 0.06   // CRT scanline overlay strength (0..0.3)
+  property int  scanlineSpacing: 3       // px between scanlines
+  property real phosphorBias: 0.0      // 0 = accent follows the wallpaper hue
+  property bool cornerBrackets: true     // HUD corner brackets on panels/cards
+  property real crtFlicker: 0.02         // subtle brightness flicker amplitude (0..0.1)
+  property real matrixRain: 0.5          // digital-rain density on the background (0..1)
 
   // Bumped on every successful (re)load.
   property int revision: 0
@@ -81,6 +90,15 @@ QtObject {
     urgentContrast = _num(p.urgentContrast, urgentContrast, 1, 21)
     mutedContrast = _num(p.mutedContrast, mutedContrast, 1, 21)
     paletteTransitionMs = Math.round(_num(p.transitionMs, paletteTransitionMs, 0, 5000))
+
+    var fx = parsed.fx || {}
+    glowStrength = _num(fx.glowStrength, glowStrength, 0, 1)
+    scanlineOpacity = _num(fx.scanlineOpacity, scanlineOpacity, 0, 0.3)
+    scanlineSpacing = Math.round(_num(fx.scanlineSpacing, scanlineSpacing, 2, 8))
+    phosphorBias = _num(fx.phosphorBias, phosphorBias, 0, 1)
+    cornerBrackets = (fx.cornerBrackets === undefined) ? cornerBrackets : !!fx.cornerBrackets
+    crtFlicker = _num(fx.crtFlicker, crtFlicker, 0, 0.1)
+    matrixRain = _num(fx.matrixRain, matrixRain, 0, 1)
 
     revision++
   }

@@ -146,6 +146,7 @@ PACKAGES=(
     pandoc-cli # [base] document format converter
     parallel # [base] run commands in parallel
     pass # [base] CLI password manager
+    pass-otp # [base] pass TOTP/2FA extension
     pdftk # [base] PDF toolkit
     pipewire # [base] audio/video server
     pipewire-alsa # [base] pipewire ALSA compat
@@ -154,6 +155,7 @@ PACKAGES=(
     plymouth # [base] boot splash screen
     portmaster-bin # [base] application firewall
     procs # [base] modern ps replacement
+    proton-vpn-cli # [base] ProtonVPN CLI (protonvpn command)
     python # [base] theme generator scripts
     python-pywalfox # [base] firefox theme propagator
     python-validity-git # [base] fingerprint reader driver
@@ -429,6 +431,7 @@ PACKAGES=(
     polkit # [desktop] privilege authorization framework
     polkit-kde-agent # [desktop] KDE polkit agent
     proton-authenticator-bin # [desktop] Proton 2FA app
+    proton-pass # [desktop] Proton Pass password manager
     proton-vpn-qt-app # [desktop] ProtonVPN GUI client
     qbittorrent # [desktop] torrent client
     qt5 # [desktop] Qt5 UI toolkit
@@ -499,6 +502,7 @@ PACKAGES=(
     kpat # [gaming] patience card games
     lutris # [gaming] game launcher manager
     mangohud # [gaming] gaming performance overlay
+    millennium # [gaming] Steam client theme loader
     minecraft-launcher # [gaming] Minecraft game launcher
     modrinth-app # [gaming] minecraft mod manager
     nethack # [gaming] roguelike dungeon game
@@ -598,6 +602,7 @@ PACKAGES=(
     cargo-watch # [programming] rebuild on change
     cargo-wizard # [programming] cargo profile helper
     cargo-zigbuild # [programming] cross-compile via zig
+    cbmc # [programming] C/C++ bounded model checker
     cdecl # [programming] C declaration translator
     cgdb # [programming] curses gdb frontend
     clang # [programming] C/C++ compiler
@@ -704,6 +709,7 @@ PACKAGES=(
     nasm # [programming] x86 assembler
     neovide # [programming] neovim GUI frontend
     neovim # [programming] modal text editor
+    neovim-remote # [programming] nvr, vimtex inverse search from zathura
     ninja # [programming] fast build system
     nix # [programming] Nix package manager
     nnd # [programming] linux debugger

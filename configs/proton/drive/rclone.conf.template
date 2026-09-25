@@ -1,0 +1,15 @@
+# TEMPLATE ONLY — never put real credentials here, this repo is PUBLIC.
+# The real config lives at ~/.config/rclone/rclone.conf and is created by
+# `rclone config` (see ../README.md). This file only documents the shape of
+# the [protondrive] remote the mount/bisync units expect.
+
+[protondrive]
+type = protondrive
+username = YOUR_PROTON_EMAIL
+# Obscured, NOT plaintext. Generate with: rclone obscure 'your-password'
+password = OBSCURED_PASSWORD
+# 2fa is only entered live during `rclone config`; it is time-based and is not
+# stored here. rclone persists the derived session instead.
+# 2fa = 000000
+# Only needed in two-password mode (separate mailbox password):
+# mailbox_password = OBSCURED_MAILBOX_PASSWORD

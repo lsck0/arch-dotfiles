@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
@@ -240,6 +241,17 @@ BarWidget {
       // A longer visualizer is easier to read beside the clock/weather.
       width: Style.space(96)
       height: Math.round(root.barSize * 0.5)
+      // The equaliser blooms as one neon unit rather than glowing each bar separately.
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
 
       Repeater {
         model: Cava.barCount
@@ -247,16 +259,19 @@ BarWidget {
           required property int index
           readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
           width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
-          radius: width / 2
-          // Bars tint toward the accent colour as they get louder — reads as a warmer, more "alive" equaliser than a flat single-colour one, and costs nothing extra since it's still a plain Rectangle fill.
-          color: Qt.tint(root.bar ? root.bar.barForeground : Color.foreground,
-            Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, level * 0.55))
-          opacity: 0.85 + level * 0.15
+          radius: 0
+          antialiasing: false
+          // Full-accent neon bar with a bright cap fading to a faint base.
+          gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.lighter(Color.accent, 1.35) }
+            GradientStop { position: 1.0; color: Util.alpha(Color.accent, 0.25) }
+          }
+          opacity: 0.4 + level * 0.6
           anchors.verticalCenter: parent.verticalCenter
           // Floor of 2px so the bars read as a quiet equaliser at rest rather than vanishing entirely between beats.
           height: Math.max(2, Math.min(spectrum.height,
-            spectrum.height * Math.min(100, Math.pow(level, 0.5) * 1.2 * 100) / 100))
-          Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+            spectrum.height * Math.min(100, Math.pow(level, 0.5) * 1.4 * 100) / 100))
+          Behavior on height { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
         }
       }
     }
@@ -319,8 +334,12 @@ BarWidget {
     moduleName: root.moduleName
     // Centre-section widget: opens directly beneath its own trigger.
     anchorWidget: root
+    title: "MEDIA"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+
+    // Neon HUD corner brackets around the dropdown.
+    HudFrame {}
 
     // Second cava reference: keeps the spectrum alive while the panel is open even if playback pauses, so the panel does not visibly lose its equaliser the moment you hit pause inside it.
     Loader {
@@ -340,6 +359,9 @@ BarWidget {
       id: content
       width: parent.width
       spacing: Style.spacing.md
+
+      // Headroom so the terminal title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
       // --- now playing ---
       Row {
@@ -376,6 +398,9 @@ BarWidget {
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.title
           }
+
+          // HUD brackets frame the album art like a targeting readout.
+          HudFrame {}
         }
 
         Column {
@@ -383,14 +408,26 @@ BarWidget {
           spacing: Style.spacing.xxs
           anchors.verticalCenter: parent.verticalCenter
 
+          // Glowing hero: the track title reads as the panel's primary metric.
           Text {
             width: parent.width
             textFormat: Text.PlainText
             text: root.title || "Nothing playing"
             color: Color.menu.text
             font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            font.pixelSize: Style.font.title
+            font.bold: true
             elide: Text.ElideRight
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
           Text {
             width: parent.width
@@ -591,6 +628,17 @@ BarWidget {
         }
       }
 
+      // Segmented volume-level gauge, matching the audio panel.
+      BarGauge {
+        width: content.width
+        height: Style.spacing.md
+        segments: 24
+        visible: root.player !== null
+        opacity: root.volumeAvailable ? 1 : 0.4
+        value: root.playerVolume
+        color: root.playerMuted ? Color.urgent : Color.accent
+      }
+
       // --- player picker, only when there is a choice to make ---
       Column {
         width: parent.width
@@ -598,7 +646,7 @@ BarWidget {
         visible: root.players.length > 1
 
         PanelSeparator {}
-        PanelSectionHeader { text: "PLAYERS" }
+        PanelSectionHeader { text: "> PLAYERS" }
 
         Repeater {
           model: root.players

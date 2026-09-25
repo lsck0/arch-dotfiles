@@ -1,0 +1,97 @@
+#:schema https://yazi-rs.github.io/schemas/theme.json
+# yazi theme -- cyberpunk/terminal rice, colors from the wallust/pywal palette.
+# Wallust renders this into ~/.cache/wal/colors-yazi.toml on every theme switch;
+# yazi's theme.toml is a symlink to that file (see configs/yazi/link.sh).
+# Palette keys colorN are substituted by wallust; literal TOML braces are doubled.
+# color4 is the rice accent (mode/selection/borders); glyphs inherit yazi's preset.
+
+[mgr]
+cwd = {{ fg = "{color4}", bold = true }}
+
+find_keyword  = {{ fg = "{color3}", bold = true, italic = true, underline = true }}
+find_position = {{ fg = "{color5}", bg = "reset", bold = true, italic = true }}
+
+symlink_target = {{ fg = "{color8}", italic = true }}
+
+marker_copied   = {{ fg = "{color2}", bg = "{color2}" }}
+marker_cut      = {{ fg = "{color1}", bg = "{color1}" }}
+marker_marked   = {{ fg = "{color6}", bg = "{color6}" }}
+marker_selected = {{ fg = "{color4}", bg = "{color4}" }}
+
+count_copied   = {{ fg = "{color0}", bg = "{color2}" }}
+count_cut      = {{ fg = "{color0}", bg = "{color1}" }}
+count_selected = {{ fg = "{color0}", bg = "{color4}" }}
+
+border_style = {{ fg = "{color8}" }}
+
+[tabs]
+active   = {{ fg = "{color0}", bg = "{color4}", bold = true }}
+inactive = {{ fg = "{color7}", bg = "{color8}" }}
+sep_inner = {{ open = "", close = "" }}
+sep_outer = {{ open = "", close = "" }}
+
+[mode]
+normal_main = {{ fg = "{color0}", bg = "{color4}", bold = true }}
+normal_alt  = {{ fg = "{color4}", bg = "{color8}" }}
+select_main = {{ fg = "{color0}", bg = "{color5}", bold = true }}
+select_alt  = {{ fg = "{color5}", bg = "{color8}" }}
+unset_main  = {{ fg = "{color0}", bg = "{color1}", bold = true }}
+unset_alt   = {{ fg = "{color1}", bg = "{color8}" }}
+
+[status]
+sep_left  = {{ open = "", close = "" }}
+sep_right = {{ open = "", close = "" }}
+perm_sep        = {{ fg = "{color8}" }}
+perm_type       = {{ fg = "{color4}" }}
+perm_read       = {{ fg = "{color3}" }}
+perm_write      = {{ fg = "{color1}" }}
+perm_exec       = {{ fg = "{color2}" }}
+progress_label  = {{ fg = "{color15}", bold = true }}
+progress_normal = {{ fg = "{color4}", bg = "{color0}" }}
+progress_error  = {{ fg = "{color1}", bg = "{color0}" }}
+
+[which]
+cand            = {{ fg = "{color6}" }}
+rest            = {{ fg = "{color8}" }}
+desc            = {{ fg = "{color5}" }}
+separator_style = {{ fg = "{color8}" }}
+mask            = {{ bg = "{color0}" }}
+
+[confirm]
+border  = {{ fg = "{color4}" }}
+title   = {{ fg = "{color4}" }}
+btn_yes = {{ fg = "{color0}", bg = "{color4}", bold = true }}
+btn_no  = {{ fg = "{color7}" }}
+
+[spot]
+border   = {{ fg = "{color4}" }}
+title    = {{ fg = "{color4}" }}
+tbl_col  = {{ fg = "{color4}" }}
+tbl_cell = {{ fg = "{color5}", reversed = true }}
+
+[notify]
+title_info  = {{ fg = "{color2}" }}
+title_warn  = {{ fg = "{color3}" }}
+title_error = {{ fg = "{color1}" }}
+
+[pick]
+border = {{ fg = "{color4}" }}
+active = {{ fg = "{color5}", bold = true }}
+
+[input]
+border   = {{ fg = "{color4}" }}
+value    = {{ fg = "{color7}" }}
+selected = {{ reversed = true }}
+
+[cmp]
+border = {{ fg = "{color4}" }}
+active = {{ reversed = true }}
+
+[tasks]
+border  = {{ fg = "{color4}" }}
+hovered = {{ fg = "{color5}", bold = true }}
+
+[help]
+border  = {{ fg = "{color4}" }}
+chord   = {{ fg = "{color6}" }}
+hovered = {{ fg = "{color0}", bg = "{color4}", bold = true }}

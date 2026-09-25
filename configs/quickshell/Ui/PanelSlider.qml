@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 Item {
@@ -56,6 +57,18 @@ Item {
     radius: track.radius
     color: root.fillColor
     width: track.width * root.progress
+
+    // Accent neon bloom so the filled portion reads as a live readout.
+    layer.enabled: Style.fx.glow > 0 && width > 0
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
 
     Behavior on width {
       enabled: !root.dragging

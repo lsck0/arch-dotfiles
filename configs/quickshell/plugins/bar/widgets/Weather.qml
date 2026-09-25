@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -278,6 +279,17 @@ BarWidget {
       color: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
+      // A live warning glows in its own awareness colour, not the accent.
+      layer.enabled: Style.fx.glow > 0 && root.alertProminent
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
 
       SequentialAnimation on opacity {
         running: root.alertProminent
@@ -364,10 +376,32 @@ BarWidget {
       onTriggered: root.radarIndex = (root.radarIndex + 1) % root.radarFrames.length
     }
 
+    // Neon HUD corner brackets around the dropdown.
+    HudFrame {}
+
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
+
+      // --- terminal title bar --- Reads like a TUI window header: tracked accent name plus a blinking block caret.
+      Row {
+        width: parent.width
+        spacing: Style.spacing.sm
+        PanelSectionHeader { text: "> WEATHER"; fontSize: Style.font.title }
+        Text {
+          anchors.verticalCenter: parent.verticalCenter
+          text: "_"                                 // blinking block caret
+          color: Color.accent
+          font.family: Style.font.family; font.pixelSize: Style.font.title
+          SequentialAnimation on opacity {
+            loops: Animation.Infinite
+            NumberAnimation { to: 0.15; duration: 600 }
+            NumberAnimation { to: 1.0;  duration: 600 }
+          }
+        }
+      }
+      PanelSeparator {}
 
       // --- alerts --- Above the current conditions, because a warning is the one thing here that is worth interrupting for.
       Column {
@@ -480,17 +514,28 @@ BarWidget {
 
       PanelSeparator { visible: root.alerts.length > 0 || !root.alertsSupported }
 
-      // --- current ---
+      // --- current --- The hero readout: oversized glowing sky glyph and temperature.
       Row {
         width: parent.width
-        spacing: Style.spacing.md
+        spacing: Style.spacing.lg
 
         Text {
           anchors.verticalCenter: parent.verticalCenter
           text: root.current ? root.iconFor(root.current.code, root.current.isDay) : "\u{f0590}"
-          color: Color.menu.text
+          color: Color.accent
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
+          // The live sky condition blooms in the accent.
+          layer.enabled: Style.fx.glow > 0
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Style.fx.glowColor
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowHorizontalOffset: 0
+            blurMax: Style.fx.glowRadius
+            autoPaddingEnabled: true
+          }
         }
 
         Column {
@@ -500,11 +545,23 @@ BarWidget {
             text: root.current ? root.t(root.current.temp) : "—"
             color: Color.menu.text
             font.family: Style.font.family; font.pixelSize: Style.font.display
+            font.letterSpacing: Style.displayTracking
+            // The primary metric glows: a halo behind the numeral, never in the fill.
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
           Text {
             text: root.current
               ? root.labelFor(root.current.code) + "  ·  feels " + root.t(root.current.feelsLike)
-              : (root.errorText || "…")
+              : (root.errorText || "...")
             color: Color.menu.text; opacity: Style.emphasis.dim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
@@ -578,129 +635,86 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "NEXT 24 HOURS" }
+      PanelSectionHeader { text: "> NEXT 24 HOURS" }
 
-      // --- hourly sparkline --- A Canvas is the right tool here, unlike the media visualizer's six bars: this is an actual polyline over 24 points, redrawn only when the data changes (twice an hour), not every frame.
-      Item {
+      // --- hourly temperature curve --- The next-24h series as a glowing HUD sparkline, redrawn only when the data changes.
+      Sparkline {
         width: parent.width
-        height: Style.space(84)
+        height: Style.space(64)
+        visible: root.hourly.length > 0
+        color: Color.menu.text
+        // scale to the temp range (+/-1 padding); defaults 0..1 would push temps off-canvas
+        minValue: {
+          var m = Infinity
+          for (var i = 0; i < root.hourly.length; i++) m = Math.min(m, Number(root.hourly[i].temp))
+          return isFinite(m) ? m - 1 : 0
+        }
+        maxValue: {
+          var m = -Infinity
+          for (var i = 0; i < root.hourly.length; i++) m = Math.max(m, Number(root.hourly[i].temp))
+          return isFinite(m) ? m + 1 : 1
+        }
+        values: {
+          var out = []
+          for (var i = 0; i < root.hourly.length; i++) out.push(Number(root.hourly[i].temp))
+          return out
+        }
+      }
+
+      // --- chance-of-rain bars --- One accent bar per forecast hour, height = probability, with 6-hourly tick labels beneath.
+      Column {
+        width: parent.width
+        spacing: Style.spacing.xxs
         visible: root.hourly.length > 0
 
-        Canvas {
-          id: spark
-          anchors.fill: parent
-          antialiasing: true
-
-          readonly property var pts: root.hourly
-          onPtsChanged: requestPaint()
-          Component.onCompleted: requestPaint()
-
-          onPaint: {
-            var ctx = getContext("2d")
-            ctx.reset()
-            var n = pts.length
-            if (n < 2) return
-
-            var padL = 36, padR = 36, padB = 14, padT = 4
-            var w = width, h = height - padB - padT
-            var lo = Infinity, hi = -Infinity
-            for (var i = 0; i < n; i++) {
-              var v = Number(pts[i].temp)
-              if (v < lo) lo = v
-              if (v > hi) hi = v
+        Item {
+          id: hourlyBars
+          width: parent.width
+          height: Style.space(28)
+          Row {
+            anchors.fill: parent
+            spacing: 1
+            Repeater {
+              model: root.hourly
+              delegate: Item {
+                required property var modelData
+                width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
+                height: hourlyBars.height
+                Rectangle {
+                  anchors.bottom: parent.bottom
+                  width: parent.width
+                  height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(modelData.pop) || 0)) / 100)
+                  color: Util.alpha(Color.accent, 0.55)
+                  antialiasing: false
+                }
+              }
             }
-            if (hi - lo < 1) { hi = lo + 1 }
-            var xs = function (i) { return padL + (i / (n - 1)) * (w - padL - padR) }
-            var ys = function (v) { return padT + h - ((v - lo) / (hi - lo)) * h }
-
-            // Axes make the scale and zero point legible even when the temperature line is nearly flat.
-            ctx.strokeStyle = Color.menu.text
-            ctx.globalAlpha = 0.35
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.moveTo(padL, padT)
-            ctx.lineTo(padL, padT + h)
-            ctx.lineTo(w - padR, padT + h)
-            ctx.stroke()
-            ctx.globalAlpha = 1
-
-            // Vertical temperature scale labels.
-            ctx.fillStyle = Color.menu.text
-            ctx.globalAlpha = 0.65
-            ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
-            ctx.textAlign = "right"
-            ctx.fillText(Math.round(hi) + "°", padL - 5, padT + Style.font.caption)
-            ctx.fillText(Math.round((hi + lo) / 2) + "°", padL - 5, padT + h / 2 + Style.font.caption / 2)
-            ctx.fillText(Math.round(lo) + "°", padL - 5, padT + h)
-            ctx.textAlign = "left"
-            ctx.globalAlpha = 1
-
-            // Rain-probability axis on the right: its own vertical line (like the left temperature axis has), with labels outside it so they read as belonging to that line rather than floating in the plot.
-            ctx.strokeStyle = Color.accent
-            ctx.globalAlpha = 0.35
-            ctx.lineWidth = 1
-            ctx.beginPath()
-            ctx.moveTo(w - padR, padT)
-            ctx.lineTo(w - padR, padT + h)
-            ctx.stroke()
-            ctx.globalAlpha = 1
-
-            ctx.fillStyle = Color.accent
-            ctx.globalAlpha = 0.7
-            ctx.textAlign = "left"
-            ctx.fillText("100%", w - padR + 6, padT + h * 0.4 + Style.font.caption / 2)
-            ctx.fillText("0%", w - padR + 6, padT + h)
-            ctx.globalAlpha = 1
-
-            // Horizontal reference line at zero when it falls in the visible temperature range.
-            if (lo <= 0 && hi >= 0) {
-              ctx.strokeStyle = Color.menu.text
-              ctx.globalAlpha = 0.2
-              ctx.beginPath()
-              ctx.moveTo(padL, ys(0))
-              ctx.lineTo(w - padR, ys(0))
-              ctx.stroke()
-              ctx.globalAlpha = 1
-            }
-
-            // rain bars first, behind the temperature line
-            ctx.fillStyle = Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.35)
-            var bw = Math.max(2, (w - 8) / n - 2)
-            for (i = 0; i < n; i++) {
-              var pop = Math.max(0, Math.min(100, Number(pts[i].pop) || 0))
-              if (pop <= 0) continue
-              // Capped at 60% of the chart, not 100%.
-              var bh = (pop / 100) * h * 0.6
-              ctx.fillRect(xs(i) - bw / 2, padT + h - bh, bw, bh)
-            }
-
-            // temperature line
-            ctx.strokeStyle = Color.menu.text
-            ctx.lineWidth = 1.5
-            ctx.beginPath()
-            for (i = 0; i < n; i++) {
-              var x = xs(i), y = ys(Number(pts[i].temp))
-              if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
-            }
-            ctx.stroke()
-
-            // hour labels every 6h, plus min/max temp markers
-            ctx.fillStyle = Color.menu.text
-            ctx.globalAlpha = 0.5
-            // Quoted: Canvas's CSS-ish font parser drops a family name containing spaces ("Context2D: The font families specified are invalid: 0xProtoNerdFont") and silently falls back.
-            ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
-            for (i = 0; i < n; i += 6) {
-              ctx.fillText(pts[i].h, xs(i) - 6, height - 3)
-            }
-            ctx.globalAlpha = 1
           }
         }
 
-        // Redraw when the palette changes, or the sparkline keeps the old wallpaper's colors until the next fetch.
-        Connections {
-          target: Color
-          function onAccentChanged() { spark.requestPaint() }
-          function onForegroundChanged() { spark.requestPaint() }
+        Row {
+          width: parent.width
+          spacing: 1
+          Repeater {
+            model: root.hourly
+            delegate: Column {
+              required property var modelData
+              required property int index
+              width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
+              spacing: 0
+              // condition icon over the hour label, at each 6h tick
+              Text {
+                text: (index % 6 === 0) ? (modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)) : ""
+                color: Color.accent
+                font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
+              }
+              Text {
+                text: index % 6 === 0 ? modelData.h : ""
+                color: Color.menu.text; opacity: Style.emphasis.faint
+                font.family: Style.font.family; font.pixelSize: Style.font.caption
+              }
+            }
+          }
         }
       }
 
@@ -725,63 +739,89 @@ BarWidget {
         Text {
           width: parent.width / 2
           horizontalAlignment: Text.AlignRight
-          text: "bars = chance of rain"
+          text: "bars > chance of rain"
           color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "3-DAY FORECAST" }
+      PanelSectionHeader { text: "> 3-DAY FORECAST" }
 
-      // --- 3-day ---
-      Column {
+      // --- 3-day --- Compact HUD tiles: tracked day header, sky glyph, hi/lo mono, and a rain gauge.
+      Row {
         width: parent.width
-        spacing: Style.spacing.xs
+        spacing: Style.spacing.sm
 
         Repeater {
           model: root.forecast
-          delegate: Row {
+          delegate: Rectangle {
             required property var modelData
-            width: content.width
-            spacing: Style.spacing.sm
+            width: (content.width - Style.spacing.sm * (root.forecast.length - 1)) / Math.max(1, root.forecast.length)
+            implicitHeight: tile.implicitHeight + Style.spacing.md * 2
+            radius: Style.cornerRadius
+            color: Style.normalFill
 
-            Text {
-              width: Style.space(74)
-              anchors.verticalCenter: parent.verticalCenter
-              text: modelData.label
-              color: Color.menu.text
-              font.family: Style.font.family; font.pixelSize: Style.font.caption
-            }
-            Text {
-              width: Style.space(20)
-              anchors.verticalCenter: parent.verticalCenter
-              // "windy" is derived, not a WMO code — the enum has no windy value, so a strong-breeze day overrides the sky glyph.
-              text: modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)
-              color: Color.menu.text
-              font.family: Style.font.iconFamily; font.pixelSize: Style.font.body
-            }
-            Text {
-              width: Style.space(96)
-              anchors.verticalCenter: parent.verticalCenter
-              text: modelData.windy ? "Windy" : root.labelFor(modelData.code)
-              color: Color.menu.text; opacity: Style.emphasis.dim
-              font.family: Style.font.family; font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-            }
-            Text {
-              width: Style.space(64)
-              anchors.verticalCenter: parent.verticalCenter
-              text: "\u{f0597} " + root.n0(modelData.pop) + "%"
-              color: Color.menu.text; opacity: Style.emphasis.dim
-              // Glyph + digits in one Text: the whole thing takes the icon family.
-              font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
-            }
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.t(modelData.hi) + "  " + root.t(modelData.lo)
-              color: Color.menu.text
-              font.family: Style.font.family; font.pixelSize: Style.font.caption
+            // HUD corner brackets on each forecast tile.
+            HudFrame {}
+
+            Column {
+              id: tile
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.leftMargin: Style.spacing.sm
+              anchors.rightMargin: Style.spacing.sm
+              anchors.topMargin: Style.spacing.md
+              spacing: Style.spacing.xs
+
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: modelData.label
+                color: Color.accent
+                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                font.bold: true
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: Style.headerTracking
+              }
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                // "windy" is derived, not a WMO code — the enum has no windy value, so a strong-breeze day overrides the sky glyph.
+                text: modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)
+                color: Color.menu.text
+                font.family: Style.font.iconFamily; font.pixelSize: Style.font.heading
+              }
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: modelData.windy ? "Windy" : root.labelFor(modelData.code)
+                color: Color.menu.text; opacity: Style.emphasis.dim
+                font.family: Style.font.family; font.pixelSize: Style.font.caption
+                elide: Text.ElideRight
+              }
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: root.t(modelData.hi) + "  " + root.t(modelData.lo)
+                color: Color.menu.text
+                font.family: Style.font.family; font.pixelSize: Style.font.caption
+              }
+              BarGauge {
+                width: parent.width
+                height: Style.spacing.sm
+                segments: 8
+                value: Math.max(0, Math.min(100, Number(modelData.pop) || 0)) / 100
+              }
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: "\u{f0597} " + root.n0(modelData.pop) + "%"
+                color: Color.menu.text; opacity: Style.emphasis.dim
+                // Glyph + digits in one Text: the whole thing takes the icon family.
+                font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
+              }
             }
           }
         }
@@ -789,7 +829,7 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader {
-        text: "RADAR" + (root.radarSpanKm > 0 ? "  ·  " + root.radarSpanKm + " km across" : "")
+        text: "> RADAR" + (root.radarSpanKm > 0 ? "  ·  " + root.radarSpanKm + " km across" : "")
       }
 
       // --- radar loop --- Precipitation only, over a flat surface, with a centre marker.
@@ -821,6 +861,15 @@ BarWidget {
           cache: true
         }
 
+        // A hard accent edge turns the band into a framed scope viewport.
+        Rectangle {
+          anchors.fill: parent
+          color: "transparent"
+          radius: Style.cornerRadius
+          border.width: Style.normalBorderWidth
+          border.color: Util.alpha(Color.accent, Style.hoverBorderAlpha)
+        }
+
         // --- range rings, wind vectors, isobars and a compass --- One Canvas for the entire overlay: they share a coordinate space and a repaint trigger, and the rings used to be separate QML Items on top of the image, which is one more thing to keep aligned for no gain.
         Canvas {
           id: fieldCanvas
@@ -834,6 +883,9 @@ BarWidget {
           onWidthChanged: requestPaint()
           onHeightChanged: requestPaint()
           Component.onCompleted: requestPaint()
+
+          // HUD brackets frame the radar band like a scope readout.
+          HudFrame {}
 
           Connections {
             target: Color
@@ -1096,6 +1148,9 @@ BarWidget {
               ctx.globalAlpha = 1
             }
         }
+
+        // CRT scanlines over the scope, on top of everything.
+        Scanlines {}
       }
 
 
@@ -1150,7 +1205,7 @@ BarWidget {
       Text {
         width: parent.width
         visible: root.radarFrames.length === 0
-        text: radarProc.running ? "Loading radar…" : "Radar unavailable"
+        text: radarProc.running ? "Loading radar..." : "Radar unavailable"
         color: Color.menu.text
         opacity: Style.emphasis.disabled
         font.family: Style.font.family

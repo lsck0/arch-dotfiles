@@ -4,9 +4,9 @@ import Quickshell.Io
 import qs.Commons
 
 /*
- * ─────────────────────────────────────────────────────────────────────────────
+ * -----------------------------------------------------------------------------
  * PowerModeSelector — the TLP power-profile chip row
- * ─────────────────────────────────────────────────────────────────────────────
+ * -----------------------------------------------------------------------------
  *
  * WHAT IT IS. The whole power-mode control: the option list, the reader, the
  * writer, and the ButtonGroup that shows them. Drop it in a panel and it works.
@@ -36,14 +36,15 @@ import qs.Commons
 Item {
   id: root
 
-  // ─────────────────────────────────────────────────────────── CONSTANTS
+  // ----------------------------------------------------------- CONSTANTS
 
   // The four states toggle-powermode.sh accepts.
+  // Labels are display-only (matched by `value`); uppercased for the tracked terminal-chip look.
   readonly property var modeOptions: [
-    { value: "auto",        label: "Auto" },
-    { value: "power-saver", label: "Power saver" },
-    { value: "balanced",    label: "Balanced" },
-    { value: "performance", label: "Performance" }
+    { value: "auto",        label: "AUTO" },
+    { value: "power-saver", label: "POWER SAVER" },
+    { value: "balanced",    label: "BALANCED" },
+    { value: "performance", label: "PERFORMANCE" }
   ]
 
   // Catch-up poll for changes made outside this control — a keybind, toggles/menu.sh, another panel.
@@ -52,7 +53,7 @@ Item {
   // Time for the detached script to fork, source lib.sh, call `sudo tlp` and write its volatile state file before the value is worth re-reading.
   readonly property int applySettleMs: 600
 
-  // ─────────────────────────────────────────────────────────── API
+  // ----------------------------------------------------------- API
 
   // Bind to the containing panel's visibility.
   property bool active: false
@@ -79,7 +80,7 @@ Item {
   implicitWidth: group.implicitWidth
   implicitHeight: group.implicitHeight
 
-  // ─────────────────────────────────────────────────────────── INTERNAL
+  // ----------------------------------------------------------- INTERNAL
 
   QtObject {
     id: internal

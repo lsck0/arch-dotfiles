@@ -128,8 +128,8 @@ BarWidget {
     onPressed: function(b) {
       if (b === Qt.MiddleButton) root.toggleDnd()
     }
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -137,6 +137,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip.
+    title: "NOTIFICATIONS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
@@ -177,6 +179,9 @@ BarWidget {
         // Rows sit closer together than the panel's own sections do: with the borders gone they read as one list, and section spacing between them pulled them back apart into separate things.
         spacing: Style.spacing.xs
 
+        // Headroom so the title strip never overlaps the first row.
+        Item { width: 1; height: Style.spacing.xxxl }
+
         // Same section header as every other panel; the toggle below already says DND state.
         Item {
           width: parent.width
@@ -185,7 +190,7 @@ BarWidget {
             id: notifHeader
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: "NOTIFICATIONS" + (root.history.length > 0 ? " · " + root.history.length : "")
+            text: "HISTORY" + (root.history.length > 0 ? " :: " + root.history.length : "")
           }
           Text {
             id: clearLabel
@@ -199,7 +204,7 @@ BarWidget {
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: { root.dismissAll(); root.bar.closePanel(root.moduleName) }
+              onClicked: { root.dismissAll(); if (root.bar) root.bar.closePanel(root.moduleName) }
             }
           }
         }
@@ -218,11 +223,12 @@ BarWidget {
 
         Text {
           visible: root.history.length === 0
-          text: "Nothing recent"
+          text: "> NOTHING RECENT"
           color: Color.menu.text
           opacity: Style.emphasis.dim
           font.pixelSize: Style.font.body
           font.family: Style.font.family
+          font.letterSpacing: Style.displayTracking
         }
 
         // Rendered with the SAME NotificationCard the toasts use, rather than the two plain Texts that used to live here.
@@ -233,7 +239,7 @@ BarWidget {
             // A row, not a toast — see NotificationCard's `variant`.
             variant: "row"
             now: panel.nowMs
-            // A short history is a detail view, not a list: with one or two entries there is nothing to scan past, so show the message instead of eliding it into "…in the…" above 40px of empty panel.
+            // A short history is a detail view, not a list: with one or two entries there is nothing to scan past, so show the message instead of eliding it into "...in the..." above 40px of empty panel.
             bodyLines: root.history.length <= 2 ? 10 : 3
             width: content.width
             app: modelData.app || ""
@@ -268,5 +274,8 @@ BarWidget {
         GradientStop { position: 1.0; color: Util.alpha(Color.menu.background, 0.95) }
       }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

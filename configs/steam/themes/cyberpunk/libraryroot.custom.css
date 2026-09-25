@@ -1,0 +1,28 @@
+/* Main Steam window -- shared cyberpunk rules first, wal palette overrides last. */
+@import url("shared.css");
+@import url("colors.css");
+
+/* ----- Library specifics: cosmetic only (recolor + inset-shadow border + glow) ----- */
+
+/* Game-list rows: accent tint on hover, stronger tint + edge when selected */
+[class*="gameslistrow"]:hover, [class*="GameListItem"]:hover,
+[class*="_LibraryRow"]:hover, [class*="collectionrow"]:hover {
+  background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+}
+[class*="gameslistrow"][class*="selected"], [class*="GameListItem"][class*="selected"],
+[class*="gameslistrow"][class*="Selected"], [class*="GameListItem"][class*="Selected"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 24%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+}
+
+/* Hero / app-details header region darkened toward the terminal ground */
+[class*="Hero"], [class*="_HeaderTop"], [class*="appdetailsheader"],
+[class*="HeaderContainer"], [class*="TopCapsule"] {
+  background-color: var(--cp-bg) !important;
+}
+
+/* Search / filter fields in the library sidebar read as HUD inputs on focus */
+[class*="search"] input:focus, [class*="Search"] input:focus,
+[class*="filter"] input:focus, [class*="Filter"] input:focus {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 6px -2px var(--cp-accent) !important;
+}

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -14,6 +15,8 @@ BarWidget {
   // Millisecond-precision clock for the panel header only — the bar label and every other consumer (calendar "today", zone offsets, timetravel) only need whole-second resolution, so they keep the cheap 1s timer below.
   property date nowPrecise: new Date()
   property var zoneOffsets: []
+  // World clocks ordered west-to-east by UTC offset.
+  readonly property var sortedZoneOffsets: (root.zoneOffsets || []).slice().sort(function (a, b) { return a.offsetSec - b.offsetSec })
   // Timetravel: hours offset applied to every zone's preview simultaneously, for "what time is it everywhere if we meet 3 hours from now".
   property real travelHours: 0
 
@@ -28,8 +31,6 @@ BarWidget {
     if (!pomoProc.running) pomoProc.running = true
     if (!remindersProc.running) remindersProc.running = true
   }
-
-  Timer { id: pomoDelay; interval: 250; onTriggered: root.refreshPanelData() }
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
@@ -167,10 +168,22 @@ BarWidget {
     id: label
     anchors.centerIn: parent
     textFormat: Text.PlainText
-    text: Qt.formatDateTime(root.now, "ddd dd.MM. HH:mm") + " " + Qt.formatDateTime(root.now, "t")
+    text: Qt.formatDateTime(root.now, "ddd dd.MM. HH:mm")
     color: root.bar ? root.bar.barForeground : Color.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
+    // Tight tracking + subtle accent bloom for the big mono readout.
+    font.letterSpacing: Style.displayTracking
+    layer.enabled: Style.fx.glow > 0
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
   }
 
   MouseArea {
@@ -178,8 +191,8 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -188,6 +201,8 @@ BarWidget {
     moduleName: root.moduleName
     // Opens centred under the clock itself.
     anchorWidget: root
+    // Terminal-window title strip, rendered by the shared card.
+    title: "CLOCK"
     onOpened: root.refreshOffsets()
     // Widened from 320: the pomodoro row (icon + countdown + three buttons) and the six quick-reminder chips both need the extra room.
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
@@ -198,22 +213,45 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.lg
 
+      // Top headroom so the overlaid title strip never covers the hero readout.
+      Item { width: 1; height: Style.spacing.xl }
+
       // Full precision (H:M:S.mmm) at the top, distinct from the bar label's minute resolution — this is the one place in the shell that shows a genuinely live-ticking clock.
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
-        text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss.zzz")
-        color: Color.menu.text
+        text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss.zzz") + " " + Qt.formatDateTime(root.nowPrecise, "t")
+        // Glowing accent mono hero: the shell's one live-ticking readout.
+        color: Color.accent
         font.family: Style.font.family
         font.bold: true
-        font.pixelSize: Style.font.heading
+        font.pixelSize: Style.font.display
         font.letterSpacing: Style.displayTracking
+        layer.enabled: Style.fx.glow > 0
+        layer.effect: MultiEffect {
+          shadowEnabled: true
+          shadowColor: Style.fx.glowColor
+          shadowBlur: 1.0
+          shadowVerticalOffset: 0
+          shadowHorizontalOffset: 0
+          blurMax: Style.fx.glowRadius
+          autoPaddingEnabled: true
+        }
       }
 
       PanelSectionHeader { text: "CALENDAR" + root.dayLabel() }
 
-      Column {
+      // HUD-framed calendar grid: corner brackets over a tracked month header.
+      Item {
         width: parent.width
+        implicitHeight: calGrid.implicitHeight + Style.spacing.sm * 2
+        height: implicitHeight
+
+      Column {
+        id: calGrid
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.xs
 
         Text {
@@ -272,30 +310,66 @@ BarWidget {
           }
         }
       }
+        // HUD corner brackets framing the whole grid.
+        HudFrame {}
+      }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TIMEZONES" }
 
+      // World clocks as a mono terminal table: reticle marker, tracked zone, glowing flush-right time.
       Repeater {
-        model: root.zoneOffsets
-        Row {
+        model: root.sortedZoneOffsets
+        Item {
           required property var modelData
           width: content.width
+          implicitHeight: zoneTime.implicitHeight
+          height: implicitHeight
           Text {
-            width: parent.width * 0.6
+            id: zoneMark
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: ">"
+            color: Color.accent
+            opacity: Style.emphasis.dim
+            font.pixelSize: Style.font.body
+            font.family: Style.font.family
+          }
+          Text {
+            anchors.left: zoneMark.right
+            anchors.leftMargin: Style.spacing.sm
+            anchors.right: zoneTime.left
+            anchors.rightMargin: Style.spacing.sm
+            anchors.verticalCenter: parent.verticalCenter
             text: modelData.zone
             color: Color.menu.text
             font.pixelSize: Style.font.body
             font.family: Style.font.family
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking * 0.4
             elide: Text.ElideRight
           }
           Text {
-            width: parent.width * 0.4
+            id: zoneTime
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.32
             horizontalAlignment: Text.AlignRight
             text: root.timeInZone(modelData.offsetSec)
-            color: Color.menu.text
+            color: Color.accent
             font.pixelSize: Style.font.body
             font.family: Style.font.family
+            font.letterSpacing: Style.displayTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
         }
       }

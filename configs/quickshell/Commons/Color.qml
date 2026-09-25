@@ -33,6 +33,17 @@ QtObject {
                    Math.max(minVal, c.hsvValue), 1)
   }
 
+  // Nudge a colour's hue toward matrix-green (120deg) by `amount`, keeping sat/value.
+  function phosphor(c, amount) {
+    if (!amount) return c
+    var h = c.hsvHue < 0 ? 0.333 : c.hsvHue
+    var d = 0.333 - h
+    if (d > 0.5) d -= 1; else if (d < -0.5) d += 1
+    var nh = h + d * amount
+    if (nh < 0) nh += 1; else if (nh > 1) nh -= 1
+    return Qt.hsva(nh, c.hsvSaturation, c.hsvValue, 1)
+  }
+
   // WCAG relative luminance, then contrast ratio.
   function _lum(c) {
     function ch(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
@@ -159,8 +170,9 @@ QtObject {
       if (special.foreground)
         foreground = legible(Qt.color(special.foreground), background, Theme.foregroundContrast)
       if (colors.color4)
-        accent = legible(vivify(Qt.color(colors.color4),
+        accent = legible(phosphor(vivify(Qt.color(colors.color4),
                                 Theme.accentMinSaturation, Theme.accentMinValue),
+                                Theme.phosphorBias),
                          background, Theme.accentContrast)
       // Urgent keeps its hue but must also be visible; it carries meaning.
       if (colors.color1)

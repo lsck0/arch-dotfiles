@@ -368,7 +368,7 @@ Item {
     })
   }
 
-  // Senders (Discord's Electron client among them) commonly attach the avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw pixel buffer, not a path — which Quickshell exposes only as an in-process `image://…` URL tied to the live Notification object.
+  // Senders (Discord's Electron client among them) commonly attach the avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw pixel buffer, not a path — which Quickshell exposes only as an in-process `image://...` URL tied to the live Notification object.
   function materializeImage(snapshot, done) {
     var url = String((snapshot && snapshot.image) || "")
     if (url.indexOf("image://") !== 0) {

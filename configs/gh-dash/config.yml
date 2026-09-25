@@ -87,6 +87,21 @@ keybindings:
       command: gh-enhance -R {{.RepoName}} {{.PrNumber}}
 repoPaths: {}
 theme:
+  # Static palette (gh-dash cannot read wal live): dark bg, cyan accent.
+  colors:
+    text:
+      primary: "#e0e0e0"
+      secondary: "#39bae6"
+      inverted: "#01060e"
+      faint: "#5c6773"
+      warning: "#e6b450"
+      success: "#aad94c"
+    background:
+      selected: "#0d1420"
+    border:
+      primary: "#39bae6"
+      secondary: "#2d3640"
+      faint: "#1c2430"
   ui:
     sectionsShowCount: true
     table:

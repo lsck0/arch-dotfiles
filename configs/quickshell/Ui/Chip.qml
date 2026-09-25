@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 // The one pick-from-a-set chip for panels: font, size, scale, monitor layout, power mode, reminder presets.
@@ -27,6 +28,18 @@ Rectangle {
     : Style.normalFill
 
   Behavior on color { ColorAnimation { duration: 100 } }
+
+  // Accent neon bloom on the selected chip.
+  layer.enabled: Style.fx.glow > 0 && selected
+  layer.effect: MultiEffect {
+    shadowEnabled: true
+    shadowColor: Style.fx.glowColor
+    shadowBlur: 1.0
+    shadowVerticalOffset: 0
+    shadowHorizontalOffset: 0
+    blurMax: Style.fx.glowRadius
+    autoPaddingEnabled: true
+  }
 
   Text {
     id: label

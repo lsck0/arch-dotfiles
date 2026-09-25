@@ -1,3 +1,4 @@
+set highlight-transparency 0.35
 set selection-clipboard clipboard
 set selection-notification true
 
@@ -21,7 +22,7 @@ set statusbar-home-tilde true
 set statusbar-page-percent true
 set vertical-center true
 set guioptions "sv"
-set font "monospace 11"
+set font "Tektur 11"
 
 map <Button4> navigate previous
 map <Button5> navigate next

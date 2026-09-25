@@ -47,7 +47,7 @@ BarWidget {
       var step = 0.05
       root.source.audio.volume = Math.max(0, Math.min(1, root.volume + (delta > 0 ? step : -step)))
     }
-    onEntered: root.bar.hoverOpen("audio-io")
-    onExited: root.bar.hoverTriggerExit("audio-io")
+    onEntered: if (root.bar) root.bar.hoverOpen("audio-io")
+    onExited: if (root.bar) root.bar.hoverTriggerExit("audio-io")
   }
 }

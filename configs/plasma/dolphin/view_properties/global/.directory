@@ -1,0 +1,11 @@
+[Dolphin]
+PreviewsShown=true
+SortFoldersFirst=true
+SortHiddenLast=true
+SortRole=text
+Version=4
+ViewMode=2
+VisibleRoles=Details_text,Details_size,Details_modificationtime,Details_type
+
+[Settings]
+HiddenFilesShown=false

@@ -9,7 +9,7 @@ if [[ -n "$hyprland_pid" ]]; then
     hyprland_pgid=$(ps -o pgid= -p "$hyprland_pid" 2>/dev/null | tr -d ' ')
 fi
 
-for pid in $(pgrep -f "^quickshell -p" || true); do
+for pid in $(pgrep -x quickshell || true); do
     pgid=$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d ' ')
     # A Quickshell launched by Hyprland may initially share Hyprland's process group.
     if [[ -n "$pgid" && "$pgid" != "$self_pgid" && "$pgid" != "$hyprland_pgid" ]]; then

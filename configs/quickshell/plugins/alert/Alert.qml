@@ -1,6 +1,7 @@
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 
@@ -134,6 +135,92 @@ Item {
             anchors.rightMargin: card.contentRightInset
             spacing: Style.spacing.lg
 
+            // Terminal-window title strip: prompt, alert kind, blinking block caret, timestamp, hard accent rule.
+            Item {
+              width: parent.width
+              implicitHeight: alTitleRow.implicitHeight + Style.spacing.xs + alRule.height
+              height: implicitHeight
+
+              Row {
+                id: alTitleRow
+                anchors.left: parent.left
+                anchors.top: parent.top
+                spacing: Style.spacing.xs
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  textFormat: Text.PlainText
+                  text: ">"
+                  color: Color.accent
+                  opacity: Style.emphasis.dim
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                }
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  textFormat: Text.PlainText
+                  text: card.modelData.kind ? String(card.modelData.kind).toUpperCase() : "ALERT"
+                  color: Color.accent
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  font.bold: true
+                  font.letterSpacing: Style.headerTracking
+                  layer.enabled: Style.fx.glow > 0
+                  layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: Style.fx.glowColor
+                    shadowBlur: 1.0
+                    shadowVerticalOffset: 0
+                    shadowHorizontalOffset: 0
+                    blurMax: Style.fx.glowRadius
+                    autoPaddingEnabled: true
+                  }
+                }
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  textFormat: Text.PlainText
+                  text: "_"
+                  color: Color.accent
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
+                  SequentialAnimation on opacity {
+                    running: true
+                    loops: Animation.Infinite
+                    PropertyAnimation { to: 1; duration: 0 }
+                    PauseAnimation { duration: 530 }
+                    PropertyAnimation { to: 0; duration: 0 }
+                    PauseAnimation { duration: 530 }
+                  }
+                }
+              }
+
+              // Decorative window chrome glyphs, non-interactive.
+              Text {
+                anchors.right: parent.right
+                anchors.verticalCenter: alTitleRow.verticalCenter
+                textFormat: Text.PlainText
+                text: "[- o x]"
+                color: Color.accent
+                opacity: Style.emphasis.faint
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.letterSpacing: Style.headerTracking
+              }
+
+              Rectangle {
+                id: alRule
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: alTitleRow.bottom
+                anchors.topMargin: Style.spacing.xs
+                height: Math.max(1, Style.space(1))
+                color: Util.alpha(Color.accent, 0.8)
+              }
+            }
+
             Item {
               width: parent.width
               height: Math.max(badge.height, texts.implicitHeight)
@@ -150,6 +237,17 @@ Item {
                   color: Color.accent
                   font.family: Style.font.iconFamily
                   font.pixelSize: Style.font.heading + Style.space(4)
+                  // Accent neon bloom on the alert glyph.
+                  layer.enabled: Style.fx.glow > 0
+                  layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowColor: Style.fx.glowColor
+                    shadowBlur: 1.0
+                    shadowVerticalOffset: 0
+                    shadowHorizontalOffset: 0
+                    blurMax: Style.fx.glowRadius
+                    autoPaddingEnabled: true
+                  }
                 }
               }
 
@@ -229,6 +327,10 @@ Item {
               }
             }
           }
+
+          // Terminal HUD framing + CRT scanlines on the alert card.
+          HudFrame {}
+          Scanlines {}
         }
       }
     }

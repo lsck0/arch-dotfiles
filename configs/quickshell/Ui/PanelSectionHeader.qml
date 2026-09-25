@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 // Small-caps-style label that introduces a panel section ("DNS provider", "Wi-Fi networks", "Output device", "Paired devices").
@@ -23,4 +24,16 @@ Text {
 
   // Glyphs can paint above the box Text reserves for them: JetBrainsMono Nerd Font's outlines run 10% of the em past its own ascent, and a patched or user-chosen family can be worse.
   topPadding: Math.ceil(fontSize * 0.15)
+
+  // Accent neon bloom on the section label.
+  layer.enabled: Style.fx.glow > 0
+  layer.effect: MultiEffect {
+    shadowEnabled: true
+    shadowColor: Style.fx.glowColor
+    shadowBlur: 1.0
+    shadowVerticalOffset: 0
+    shadowHorizontalOffset: 0
+    blurMax: Style.fx.glowRadius
+    autoPaddingEnabled: true
+  }
 }

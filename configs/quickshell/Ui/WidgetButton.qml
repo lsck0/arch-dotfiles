@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 // Trimmed from omarchy-shell's WidgetButton: same clickable-pill behavior (label, active/dimmed states, hover tooltip), minus the drag-reorder click registration (registerClickTarget/unregisterClickTarget) this bar doesn't implement since it has no editing UI.
@@ -72,6 +73,18 @@ Item {
     rotation: root.textRotation
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter
+
+    // Accent neon bloom when this widget reads its active color.
+    layer.enabled: Style.fx.glow > 0 && root.active && root.useActiveColor
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
 
     Behavior on color {
       enabled: !root.bar || root.bar.foregroundAnimationEnabled

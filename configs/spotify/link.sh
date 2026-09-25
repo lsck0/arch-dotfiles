@@ -18,8 +18,8 @@ mkdir -p ${HOME}/.config/wal/templates
 ln -sfn ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/color.ini
 ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css
 
-sudo chmod 777 /opt/spotify
-sudo chmod 777 /opt/spotify/Apps -R
+# spicetify writes /opt/spotify and /opt/spotify/Apps/xpui; own them instead of 777.
+sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
 
 spicetify config current_theme wal color_scheme pywal
 spicetify config experimental_features 0

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
@@ -106,8 +107,8 @@ BarWidget {
       var step = 0.05
       root.sink.audio.volume = Math.max(0, Math.min(1, root.volume + (delta > 0 ? step : -step)))
     }
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -116,15 +117,56 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.refreshDevices()
+    title: "AUDIO"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+
+    // Neon HUD corner brackets around the dropdown.
+    HudFrame {}
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "OUTPUT" }
+      // Headroom so the terminal title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
+
+      PanelSectionHeader { text: "> OUTPUT" }
+
+      // Big glowing output-volume hero.
+      Row {
+        spacing: Style.spacing.xxs
+        Text {
+          id: outHero
+          anchors.bottom: parent.bottom
+          text: Math.round(root.volume * 100)
+          color: root.muted ? Color.urgent : Color.accent
+          font.family: Style.font.family
+          font.pixelSize: Math.round(Style.font.display * 1.4)
+          font.bold: true
+          font.letterSpacing: Style.displayTracking
+          layer.enabled: Style.fx.glow > 0
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: root.muted ? Color.urgent : Style.fx.glowColor
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowHorizontalOffset: 0
+            blurMax: Style.fx.glowRadius
+            autoPaddingEnabled: true
+          }
+        }
+        Text {
+          anchors.bottom: outHero.bottom
+          anchors.bottomMargin: Math.round(Style.font.display * 0.35)
+          text: "%"
+          color: root.muted ? Color.urgent : Color.accent
+          opacity: Style.emphasis.dim
+          font.family: Style.font.family
+          font.pixelSize: Style.font.title
+        }
+      }
 
       Row {
         width: content.width
@@ -169,9 +211,18 @@ BarWidget {
         }
       }
 
+      // Segmented output-level gauge.
+      BarGauge {
+        width: content.width
+        height: Style.spacing.md
+        segments: 24
+        value: root.volume
+        color: root.muted ? Color.urgent : Color.accent
+      }
+
       Repeater {
         model: root.sinks
-        // Shared Ui/PanelRow — the ●/○ prefix used to be concatenated into the label string, so the gap after it was whatever the font gave it rather than the row spacing every other list uses.
+        // Shared Ui/PanelRow — the */o prefix used to be concatenated into the label string, so the gap after it was whatever the font gave it rather than the row spacing every other list uses.
         PanelRow {
           required property var modelData
           width: content.width
@@ -183,7 +234,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "MICROPHONE" }
+      PanelSectionHeader { text: "> MICROPHONE" }
 
       Row {
         width: content.width
@@ -228,6 +279,15 @@ BarWidget {
         }
       }
 
+      // Segmented input-level gauge.
+      BarGauge {
+        width: content.width
+        height: Style.spacing.md
+        segments: 24
+        value: root.micVolume
+        color: root.micMuted ? Color.urgent : Color.accent
+      }
+
       // Input devices, directly under the microphone slider they belong to.
       Repeater {
         model: root.sources
@@ -262,6 +322,17 @@ BarWidget {
             color: root.deafened ? Color.urgent : Color.menu.text
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily
+            // Deafened is the live alarm state, so it burns in the urgent colour.
+            layer.enabled: Style.fx.glow > 0 && root.deafened
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Color.urgent
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
           Text {
             anchors.verticalCenter: parent.verticalCenter

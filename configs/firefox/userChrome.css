@@ -57,3 +57,73 @@
 #PersonalToolbar {
   background-image: none !important;
 }
+
+/* ----- Cyberpunk / terminal chrome (matches the Tektur + wal desktop) ----- */
+
+:root {
+  /* Tektur for chrome UI only; sane fallbacks, no web content touched */
+  --rtk-chrome-font: "Tektur", "JetBrainsMono Nerd Font", monospace, sans-serif;
+  /* Reused accent for glows/borders; tracks pywalfox on theme switch */
+  --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
+}
+
+/* Chrome UI adopts Tektur; content documents are never selected here */
+#navigator-toolbox,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar,
+.tabbrowser-tab,
+.toolbarbutton-1,
+#urlbar,
+.urlbarView,
+menupopup,
+panel,
+.menu-text,
+.menupopup-text {
+  font-family: var(--rtk-chrome-font) !important;
+}
+
+/* Sharp ~2px terminal corners on tabs, urlbar and toolbar buttons */
+.tabbrowser-tab .tab-background,
+#urlbar,
+#urlbar-background,
+.toolbarbutton-1 > .toolbarbutton-icon,
+.toolbarbutton-1 > .toolbarbutton-badge-stack {
+  border-radius: 2px !important;
+}
+
+/* Active tab: 1px accent underline plus a low, tight accent glow */
+.tabbrowser-tab[selected] .tab-background {
+  border-bottom: 1px solid var(--rtk-accent) !important;
+  box-shadow: 0 0 6px -1px var(--rtk-accent) !important;
+}
+
+/* Active tab label picks up a faint accent text glow */
+.tabbrowser-tab[selected] .tab-label {
+  text-shadow: 0 0 4px var(--rtk-accent) !important;
+}
+
+/* Nav buttons glow softly on hover */
+.toolbarbutton-1:hover > .toolbarbutton-icon,
+.toolbarbutton-1:hover > .toolbarbutton-badge-stack {
+  box-shadow: 0 0 5px -1px var(--rtk-accent) !important;
+}
+
+/* Urlbar as a HUD terminal input: subtle inner accent border */
+#urlbar,
+#urlbar-background {
+  border: 1px solid color-mix(in srgb, var(--rtk-accent) 45%, transparent) !important;
+}
+
+/* Urlbar on focus: brighter border and a small accent glow */
+#urlbar[focused="true"] > #urlbar-background {
+  border-color: var(--rtk-accent) !important;
+  box-shadow: 0 0 7px -1px var(--rtk-accent) !important;
+}
+
+/* Sleek thin accent scrollbars where reachable from chrome */
+scrollbar,
+menupopup {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--rtk-accent) transparent !important;
+}

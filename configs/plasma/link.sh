@@ -11,6 +11,7 @@ FILES="
     baloofilerc
     kactivitymanagerd-statsrc
     kactivitymanagerdrc
+    dolphinrc
     kcminputrc
     kded5rc
     kded6rc
@@ -32,17 +33,21 @@ DIRS="
     plasma-workspace
 "
 
-mkdir -p ${HOME}/.config ${HOME}/.local/share/color-schemes
+mkdir -p "${HOME}/.config" "${HOME}/.local/share/color-schemes" "${HOME}/.local/share/dolphin/view_properties/global"
 
-ln -sfn ${PWD}/color-schemes/pywal.colors ${HOME}/.local/share/color-schemes/pywal.colors
+ln -sfn "${PWD}/color-schemes/pywal.colors" "${HOME}/.local/share/color-schemes/pywal.colors"
+
+# Dolphin global view properties (Details view, folders-first, remembered hidden toggle).
+ln -sfn "${PWD}/dolphin/view_properties/global/.directory" "${HOME}/.local/share/dolphin/view_properties/global/.directory"
 
 for f in ${FILES}; do
-    ln -sfn ${PWD}/${f} ${HOME}/.config/${f}
+    ln -sfn "${PWD}/${f}" "${HOME}/.config/${f}"
 done
 
 for d in ${DIRS}; do
-    rm -rf ${HOME}/.config/${d}
-    ln -sfn ${PWD}/${d} ${HOME}/.config/${d}
+    # rm only right before the relink so a failed ln can't leave the dir gone.
+    rm -rf "${HOME}/.config/${d}" && ln -sfn "${PWD}/${d}" "${HOME}/.config/${d}" \
+        || { echo "plasma/link.sh: failed to relink ${d}" >&2; exit 1; }
 done
 
 # Install third-party plasmoids

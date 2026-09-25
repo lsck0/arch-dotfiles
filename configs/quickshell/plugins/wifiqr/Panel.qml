@@ -194,6 +194,9 @@ Item {
         anchors.fill: parent
         onClicked: root.dismiss()
       }
+
+      // CRT scanlines behind the floating code, so the QR itself stays clean.
+      Scanlines {}
     }
 
     Item {
@@ -215,23 +218,61 @@ Item {
         // Swallow clicks so only the scrim outside the content dismisses.
         MouseArea { anchors.fill: parent; onClicked: {} }
 
+        // HUD brackets targeting the floating code (fixed light, to read on the dark scrim).
+        HudFrame { color: root.onScrim }
+
         ColumnLayout {
           id: content
           anchors.fill: parent
           spacing: Style.space(16)
 
-          Text {
-            textFormat: Text.PlainText
-            text: (root.ssid || "Wi-Fi").toUpperCase()
-            color: root.onScrimDim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: 2
-            elide: Text.ElideRight
-            Layout.maximumWidth: Style.space(320)
+          // Terminal-window title strip: prompt, SSID, blinking block caret.
+          Row {
             Layout.alignment: Qt.AlignHCenter
-            horizontalAlignment: Text.AlignHCenter
+            spacing: Style.spacing.sm
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: ">"
+              color: root.onScrimDim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              width: Math.min(implicitWidth, Style.space(280))
+              text: (root.ssid || "Wi-Fi").toUpperCase()
+              color: root.onScrim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              font.letterSpacing: Style.headerTracking
+              elide: Text.ElideRight
+              horizontalAlignment: Text.AlignHCenter
+            }
+
+            // Blinking block caret.
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: "_"
+              color: root.onScrim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.bold: true
+              SequentialAnimation on opacity {
+                running: root.opened
+                loops: Animation.Infinite
+                PropertyAnimation { to: 1; duration: 0 }
+                PauseAnimation { duration: 530 }
+                PropertyAnimation { to: 0; duration: 0 }
+                PauseAnimation { duration: 530 }
+              }
+            }
           }
 
           // Render every QR module as an integer-sized native rectangle.
@@ -270,7 +311,7 @@ Item {
 
           Text {
             visible: root.loading
-            text: "Generating QR code…"
+            text: ":: GENERATING QR CODE"
             color: root.onScrimDim
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
@@ -293,7 +334,7 @@ Item {
 
           Text {
             visible: root.showingQr
-            text: "Scan to join this network"
+            text: ":: SCAN TO JOIN THIS NETWORK"
             color: root.onScrimDim
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
@@ -306,7 +347,7 @@ Item {
             visible: root.showingQr && root.secured
             text: root.passwordError !== "" ? root.passwordError
               : root.passwordVisible ? root.password
-              : "Show password"
+              : ":: SHOW PASSWORD"
             color: root.passwordError !== "" ? root.onScrimUrgent : root.onScrim
             opacity: root.passwordVisible || root.passwordError !== "" ? 1 : 0.6
             font.family: root.fontFamily

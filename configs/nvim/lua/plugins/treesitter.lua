@@ -27,6 +27,8 @@ local installed = {
     "hyprlang",
     "java",
     "javascript",
+    "latex",
+    "bibtex",
     "jsdoc",
     "json",
     "kotlin",
@@ -80,6 +82,7 @@ return {
             })
 
             local system_parsers = {
+                nya = vim.fn.stdpath("data") .. "/site/parser/nya.so",
                 lua = "/usr/lib/libtree-sitter-lua.so",
                 markdown = "/usr/lib/libtree-sitter-markdown.so",
                 markdown_inline = "/usr/lib/libtree-sitter-markdown-inline.so",

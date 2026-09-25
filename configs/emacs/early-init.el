@@ -6,7 +6,7 @@
 
 (setq package-enable-at-startup nil)
 
-(defvar my/font-family "0xProto Nerd Font")
+(defvar my/font-family "Tektur")
 (defvar my/font-size 16)
 
 (setq default-frame-alist

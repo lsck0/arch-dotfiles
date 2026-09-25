@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
@@ -31,6 +32,11 @@ BarWidget {
     return BatteryModel.formatDuration(seconds)
   }
 
+  // Rolling charge history for the panel sparkline (newest last, capped), fed by the fraction change signal only.
+  property var chargeHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
+  onFractionChanged: chargeHist = _push(chargeHist, Math.round(fraction * 100))
+
   // Power mode lives entirely in Ui/PowerModeSelector — see its header.
   visible: present
   implicitWidth: present ? button.implicitWidth : 0
@@ -42,8 +48,8 @@ BarWidget {
     bar: root.bar
     text: root.icon
     tooltipText: Math.round(root.fraction * 100) + "% — " + root.modeLabel
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -51,6 +57,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip, rendered by the shared card.
+    title: "BATTERY"
     // Shared panel tokens, like every other hover panel.
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
@@ -60,13 +68,16 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "BATTERY" }
+      // Top headroom so the overlaid title strip never covers the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
+      // Battery icon + glowing hero percentage + mode/remaining readout.
       Row {
         width: content.width
         spacing: Style.spacing.md
 
         Text {
+          anchors.verticalCenter: parent.verticalCenter
           text: root.icon
           color: root.thresholdActive ? Color.urgent : Color.menu.text
           font.pixelSize: Style.font.icon
@@ -75,12 +86,25 @@ BarWidget {
         }
 
         Column {
+          anchors.verticalCenter: parent.verticalCenter
           Text {
+            // Glowing accent hero numeral: the panel's primary metric.
             text: Math.round(root.fraction * 100) + "%"
-            color: Color.menu.text
-            font.pixelSize: Style.font.body
+            color: root.thresholdActive ? Color.urgent : Color.accent
+            font.pixelSize: Style.font.display
             font.family: Style.font.family
             font.bold: true
+            font.letterSpacing: Style.displayTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
           Text {
             text: root.modeLabel + (root.remaining ? " · " + root.remaining : "")
@@ -90,6 +114,36 @@ BarWidget {
             font.family: Style.font.family
           }
         }
+      }
+
+      // Charge level as a segmented gauge over rolling history, terminal metric block.
+      Column {
+        width: content.width
+        spacing: Style.spacing.xs
+        Row {
+          width: parent.width
+          Text {
+            width: parent.width * 0.5
+            text: "CHARGE"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking
+          }
+          Text {
+            width: parent.width * 0.5
+            horizontalAlignment: Text.AlignRight
+            text: Math.round(root.fraction * 100) + "%"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.displayTracking
+          }
+        }
+        Sparkline { width: parent.width; height: Style.space(34); values: root.chargeHist; minValue: 0; maxValue: 100; color: Color.accent }
+        BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.fraction; color: root.thresholdActive ? Color.urgent : Color.accent }
       }
 
       PanelSeparator {}

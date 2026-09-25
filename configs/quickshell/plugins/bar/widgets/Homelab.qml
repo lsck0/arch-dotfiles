@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -21,6 +22,11 @@ BarWidget {
   property var traffic: ({})
   // The four incoming lists, as on the TRMNL dashboard.
   property var clients: ({})
+
+  // Rolling history of host CPU% and memory% for the panel sparklines (newest last, capped).
+  property var cpuHist: []
+  property var memHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   // Link-only entries (up === null) have no state and are left out of the counts.
   readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
@@ -73,6 +79,9 @@ BarWidget {
           root.storage = s.storage || {}
           root.traffic = s.traffic || {}
           root.clients = s.clients || {}
+          root.cpuHist = root._push(root.cpuHist, Number(root.host.cpuPct) || 0)
+          root.memHist = root._push(root.memHist, (Number(root.host.memTotalGb) || 0) > 0
+            ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) * 100 : 0)
         } catch (e) {}
       }
     }
@@ -100,6 +109,17 @@ BarWidget {
       opacity: root.ok && root.problemCount > 0 ? 1 : Style.emphasis.dim
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
+      // Neon halo while the fleet is reporting problems.
+      layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Color.urgent
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
     Text {
       anchors.verticalCenter: parent.verticalCenter
@@ -109,6 +129,16 @@ BarWidget {
       color: Color.urgent
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Color.urgent
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
   }
 
@@ -217,7 +247,8 @@ BarWidget {
           height: parent.height
           width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
           radius: Style.cornerRadius
-          color: Util.alpha(Color.menu.text, 0.12)
+          // Accent-tinted gauge track: reads as a terminal HUD share bar.
+          color: Util.alpha(Color.accent, 0.15)
         }
         Text {
           id: entryName
@@ -290,11 +321,11 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.sm
 
-            // ● up or link-only (never checked), ○ asleep, red when down.
+            // * up or link-only (never checked), o asleep, red when down.
             Text {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
-              text: tile.asleep ? "○" : "●"
+              text: tile.asleep ? "o" : "*"
               color: tile.down ? Color.urgent : Color.menu.text
               opacity: tile.asleep ? Style.emphasis.faint : 1
               font.family: Style.font.family
@@ -324,26 +355,146 @@ BarWidget {
     }
   }
 
+  // Big glowing hero numeral (a percentage) opening a section.
+  component Hero: Row {
+    property int pct: 0
+    property color tint: Color.accent
+    spacing: Style.spacing.xxs
+    Text {
+      id: heroNum
+      anchors.bottom: parent.bottom
+      text: parent.pct
+      color: parent.tint
+      font.family: Style.font.family
+      font.pixelSize: Math.round(Style.font.display * 1.7)
+      font.bold: true
+      font.letterSpacing: Style.displayTracking
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: parent.tint
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
+    }
+    Text {
+      anchors.bottom: heroNum.bottom
+      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
+      text: "%"
+      color: parent.tint
+      opacity: Style.emphasis.dim
+      font.family: Style.font.family
+      font.pixelSize: Style.font.title
+    }
+  }
+
+  // History sparkline + current-value bar gauge under a tracked label with a live readout.
+  component MetricGraph: Column {
+    id: mg
+    property var history: []
+    property real fraction: 0
+    property color tint: Color.accent
+    property string label: ""
+    property string readout: ""
+    property int maxValue: 100
+    width: parent ? parent.width : 0
+    spacing: Style.spacing.xs
+    Row {
+      width: mg.width
+      visible: mg.label !== ""
+      Text {
+        width: parent.width * 0.5
+        text: mg.label
+        color: mg.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking
+      }
+      Text {
+        width: parent.width * 0.5
+        horizontalAlignment: Text.AlignRight
+        text: mg.readout
+        color: mg.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.letterSpacing: Style.displayTracking
+      }
+    }
+    Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
+    BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
+  }
+
+  // Compact tracked label + readout over a single HUD gauge, for ratios with no history.
+  component GaugeRow: Column {
+    id: gr
+    property string label: ""
+    property string readout: ""
+    property real fraction: 0
+    property color tint: Color.accent
+    width: parent ? parent.width : 0
+    spacing: Style.spacing.xxs
+    Row {
+      width: gr.width
+      Text {
+        width: parent.width * 0.5
+        text: gr.label
+        color: gr.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking
+      }
+      Text {
+        width: parent.width * 0.5
+        horizontalAlignment: Text.AlignRight
+        text: gr.readout
+        color: gr.tint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.letterSpacing: Style.displayTracking
+      }
+    }
+    BarGauge { width: gr.width; height: Style.spacing.md; segments: 24; value: gr.fraction; color: gr.tint }
+  }
+
   HoverPanel {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip, rendered by the shared card.
+    title: "Homelab"
     implicitWidth: Style.panelWidth.wide + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2) + Style.shadowOffset
 
-    Column {
+    Flickable {
+      anchors.fill: parent
+      contentWidth: width
+      contentHeight: content.implicitHeight
+      flickableDirection: Flickable.VerticalFlick
+      interactive: contentHeight > height
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+
+      Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "Homelab"; fontSize: Style.font.title }
+      // Top headroom so the overlaid title strip never covers the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
       // ---- unreachable ------------------------------------------------------
       Row_ {
         visible: !root.ok
         label: "Status"
-        value: !root.received ? "Connecting…" : root.error === "source" ? "No homelab checkout" : "Unreachable"
+        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
         alert: root.received
       }
       PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
@@ -388,14 +539,34 @@ BarWidget {
 
         // ---- host -----------------------------------------------------------
         PanelSectionHeader { text: "Host" }
-        Row_ { label: "Usage"; value: root.num(root.host.cpuPct, "%"); url: root.links.proxmox }
-        Row_ {
-          label: "Memory"
-          value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
-          url: root.links.proxmox
+        // Big glowing CPU hero, live secondary readouts flush right.
+        Item {
+          width: parent.width
+          implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
+          height: implicitHeight
+          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Number(root.host.cpuPct) || 0 }
+          Column {
+            id: hostReads
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.6
+            spacing: Style.spacing.xxs
+            Row_ {
+              label: "Memory"
+              value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
+              url: root.links.proxmox
+            }
+            Row_ { label: "Temperature"; value: root.num(root.host.tempC, "°C"); url: root.links.proxmox }
+            Row_ { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+          }
         }
-        Row_ { label: "Temperature"; value: root.num(root.host.tempC, "°C"); url: root.links.proxmox }
-        Row_ { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+        MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
+        MetricGraph {
+          label: "Memory"
+          readout: (Number(root.host.memTotalGb) || 0) > 0 ? Math.round((Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) * 100) + "%" : "0%"
+          history: root.memHist
+          fraction: (Number(root.host.memTotalGb) || 0) > 0 ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) : 0
+        }
 
         // ---- storage --------------------------------------------------------
         PanelSeparator {}
@@ -418,6 +589,24 @@ BarWidget {
             ? "never" : root.ago(root.storage.backupAgeMin)
           alert: root.backupStale
           url: root.links.nas
+        }
+        // Capacity, disk health, and flash wear as HUD gauges.
+        GaugeRow {
+          label: "NAS free"
+          readout: root.num(root.storage.nasFreeGb, " GB")
+          fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
+        }
+        GaugeRow {
+          label: "Disks OK"
+          readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
+          fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
+          tint: root.storage.disksHealthy < root.storage.disksTotal ? Color.urgent : Color.accent
+        }
+        GaugeRow {
+          visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
+          label: "NVMe wear"
+          readout: root.num(root.storage.nvmeWearPct, "%")
+          fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
         }
 
         // ---- traffic --------------------------------------------------------
@@ -495,6 +684,10 @@ BarWidget {
         ServiceGroup { title: "Internal"; group: "internal" }
         ServiceGroup { title: "External"; group: "external" }
       }
+      }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

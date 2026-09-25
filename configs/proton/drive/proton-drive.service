@@ -1,0 +1,22 @@
+[Unit]
+Description=Mount Proton Drive (rclone) under ~/ProtonDrive
+After=network-online.target
+Wants=network-online.target
+# Only start once the rclone remote is configured.
+AssertPathExists=%h/.config/rclone/rclone.conf
+
+[Service]
+Type=notify
+ExecStartPre=/usr/bin/mkdir -p %h/ProtonDrive
+ExecStart=@RCLONE@ mount protondrive: %h/ProtonDrive \
+    --vfs-cache-mode full \
+    --vfs-cache-max-age 24h \
+    --dir-cache-time 12h \
+    --poll-interval 15s \
+    --umask 077
+ExecStop=/usr/bin/fusermount -uz %h/ProtonDrive
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target

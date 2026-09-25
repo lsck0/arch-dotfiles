@@ -1,0 +1,17 @@
+# global latexmk defaults: pdflatex + auto bib (biber for biblatex, else bibtex),
+# synctex, in-place build. Per-project overrides (lualatex/xelatex, a build dir)
+# go in a project-local .latexmkrc or a `% !TEX program = lualatex` magic comment.
+$pdf_mode        = 1;   # 1 = pdflatex (compatible with inputenc/bibtex documents)
+$postscript_mode = 0;
+$dvi_mode        = 0;
+
+$pdflatex = "pdflatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
+$lualatex = "lualatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
+$xelatex  = "xelatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S";
+$biber    = "biber --input-encoding=utf8 --output-encoding=utf8 %O %S";
+$bibtex_use = 2;        # run bibtex/biber as needed; latexmk auto-selects biber for biblatex
+
+$pdf_previewer = "zathura %O %S";
+
+# extra generated files that -c/-C should also remove
+$clean_ext = "synctex.gz synctex.gz(busy) run.xml bbl bcf fdb_latexmk fls nav snm tdo";

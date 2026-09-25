@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import qs.Commons
 
 // Single-line text input with the kit's focus + selection styling.
@@ -37,5 +38,17 @@ TextField {
     color: Style.controlFill(root._focused, root._hot, root.foreground, root.accent)
     borderSpec: root._borderSpec
     radius: Style.cornerRadius
+
+    // Accent neon bloom on the focused field.
+    layer.enabled: Style.fx.glow > 0 && root._focused
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
   }
 }

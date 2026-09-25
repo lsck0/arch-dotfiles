@@ -15,9 +15,25 @@ QtObject {
   function space(px) { return Math.max(0, Math.round(px * scale)) }
   function spaceReal(px) { return Math.max(0, px * scale) }
 
-  // ---------------------------------------------------------- geometry "Refined brutalist" (2026-09-04, second pass).
-  readonly property int cornerRadius: Math.max(0, Math.round(3 * scale))
+  // ---------------------------------------------------------- geometry Sci-fi HUD: near-hard edges, framing carried by fx corner brackets.
+  readonly property int cornerRadius: Math.max(0, Math.round(2 * scale))
   property int gapsOut: 5
+
+  // ---------------------------------------------------------- hacker fx One place every component reads its neon glow / scanline / HUD framing from.
+  readonly property QtObject fx: QtObject {
+    readonly property real glow: Theme.glowStrength
+    readonly property color glowColor: Color.accent
+    readonly property int glowRadius: Math.max(2, Math.round(4 * root.scale))
+    readonly property real scanlineOpacity: Theme.scanlineOpacity
+    readonly property int scanlineSpacing: Math.max(2, Theme.scanlineSpacing)
+    readonly property bool brackets: Theme.cornerBrackets
+    readonly property int bracketLen: root.space(7)
+    readonly property int bracketWidth: Math.max(1, Math.round(1.5 * root.scale))
+    readonly property real flicker: Theme.crtFlicker
+    readonly property real matrixRain: Theme.matrixRain
+    // Convenience: an accent glow at a given intensity multiplier.
+    function glowAlpha(mult) { return Math.min(1, root.fx.glow * (mult === undefined ? 1 : mult)) }
+  }
 
   // ---------------------------------------------------------- state tokens Shared interactive-state tokens for every reusable surface in the kit.
   readonly property real normalFillAlpha: 0.04

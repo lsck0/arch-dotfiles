@@ -11,6 +11,7 @@ import "plugins/appsearch"
 import "plugins/power"
 import "plugins/overview"
 import "plugins/startup"
+import "plugins/matrixrain"
 import "services"
 
 // Entry point.
@@ -610,4 +611,5 @@ ShellRoot {
   PowerMenu {}
   Overview {}
   Startup {}
+  MatrixRain {}
 }

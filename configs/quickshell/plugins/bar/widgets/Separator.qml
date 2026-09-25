@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 
@@ -63,12 +64,25 @@ BarWidget {
   implicitWidth: vertical ? barSize : thickness + pad * 2
   implicitHeight: vertical ? thickness + pad * 2 : barSize
 
-  Rectangle {
+  // Neon terminal divider glyph rather than a hairline rule.
+  Text {
     anchors.centerIn: parent
-    width: root.vertical ? root.barSize * root.extent : root.thickness
-    height: root.vertical ? root.thickness : root.barSize * root.extent
-    radius: root.thickness / 2
-    color: root.bar ? root.bar.barForeground : Color.foreground
-    opacity: 0.18
+    textFormat: Text.PlainText
+    text: root.vertical ? "⋮" : "::"
+    color: Color.accent
+    opacity: 0.5
+    font.family: root.bar ? root.bar.fontFamily : Style.font.family
+    font.pixelSize: Style.font.body
+    font.letterSpacing: Style.headerTracking
+    layer.enabled: Style.fx.glow > 0
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
   }
 }

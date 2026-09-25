@@ -1,6 +1,7 @@
 [Added Associations]
 application/pdf=okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
+x-scheme-handler/proton-inbox=proton-mail.desktop;
 
 [Default Applications]
 application/pdf=okular.desktop
@@ -25,6 +26,15 @@ x-scheme-handler/unknown=firefox.desktop
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 x-scheme-handler/mpv=mpv-scheme-handler.desktop
 application/uproject=com.epicgames.UnrealEngineEditor.desktop
+x-scheme-handler/proton-inbox=proton-mail.desktop
+text/markdown=nvim.desktop
+text/x-shellscript=nvim.desktop
+application/json=nvim.desktop
+text/x-python=nvim.desktop
+text/x-lua=nvim.desktop
+text/x-tex=nvim.desktop
+application/x-shellscript=nvim.desktop
+text/x-csrc=nvim.desktop
 
 [Removed Associations]
 application/pdf=chromium.desktop;

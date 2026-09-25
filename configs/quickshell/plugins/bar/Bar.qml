@@ -3,6 +3,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "widgets"
@@ -166,6 +167,29 @@ PanelWindow {
     anchors.fill: parent
     color: root.background
   }
+
+  // CRT bar chrome: a glowing neon rule along the bottom edge, non-interactive.
+  Rectangle {
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    height: Math.max(1, Style.fx.bracketWidth)
+    color: Color.accent
+    opacity: 0.85
+    layer.enabled: Style.fx.glow > 0
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Color.accent
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
+  }
+
+  // CRT scanlines over the whole bar (sits above widgets via its own z; clicks pass through).
+  Scanlines {}
 
   // THE CENTRE IS ANCHORED TO THE SCREEN, NOT SPLIT BETWEEN THE SIDES.
   Item {

@@ -7,9 +7,9 @@
         }
     },
     "format_on_save": "on",
-    "buffer_font_family": "0xProto Nerd Font",
+    "buffer_font_family": "Tektur",
     "buffer_font_size": 16,
-    "ui_font_family": "0xProto Nerd Font",
+    "ui_font_family": "Tektur",
     "ui_font_size": 16,
     "project_panel": {
         "dock": "left"
@@ -41,7 +41,7 @@
         "shell": {
             "program": "/bin/zsh"
         },
-        "font_family": "0xProto Nerd Font",
+        "font_family": "Tektur",
         "font_size": 16
     },
     "telemetry": {

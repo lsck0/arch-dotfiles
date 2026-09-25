@@ -23,15 +23,39 @@ ToolTip {
     radius: Style.cornerRadius
   }
 
-  contentItem: Text {
-    textFormat: Text.PlainText
-    text: root.text
-    color: root.panelForeground
-    font.family: root.fontFamily
-    font.pixelSize: root.fontSize
-    leftPadding: Border.left(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    rightPadding: Border.right(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    topPadding: Border.top(root.panelBorderSpec) + Style.spacing.controlPaddingY
-    bottomPadding: Border.bottom(root.panelBorderSpec) + Style.spacing.controlPaddingY
+  contentItem: Item {
+    implicitWidth: tagRow.implicitWidth + tagRow.x + rightPad
+    implicitHeight: tagRow.implicitHeight + tagRow.y + botPad
+
+    readonly property real leftPad: Border.left(root.panelBorderSpec) + Style.spacing.controlPaddingX
+    readonly property real rightPad: Border.right(root.panelBorderSpec) + Style.spacing.controlPaddingX
+    readonly property real topPad: Border.top(root.panelBorderSpec) + Style.spacing.controlPaddingY
+    readonly property real botPad: Border.bottom(root.panelBorderSpec) + Style.spacing.controlPaddingY
+
+    Row {
+      id: tagRow
+      x: parent.leftPad
+      y: parent.topPad
+      spacing: Style.spacing.xs
+
+      // Subtle terminal prompt tag in front of the tooltip text.
+      Text {
+        anchors.baseline: tipText.baseline
+        textFormat: Text.PlainText
+        text: ">"
+        color: Color.accent
+        opacity: Style.emphasis.faint
+        font.family: root.fontFamily
+        font.pixelSize: root.fontSize
+      }
+      Text {
+        id: tipText
+        textFormat: Text.PlainText
+        text: root.text
+        color: root.panelForeground
+        font.family: root.fontFamily
+        font.pixelSize: root.fontSize
+      }
+    }
   }
 }
