@@ -2,6 +2,11 @@ local wal = require("wal_colors")
 
 local walGradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
 
+-- neon halo: reuse a pywal accent as a translucent colored shadow
+local function glow(c, a)
+    return (c:gsub("rgb%((%x+)%)", "rgba(%1" .. a .. ")"))
+end
+
 hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
 hl.curve("md3_standard", { type = "bezier", points = { { 0.2, 0 }, { 0, 1 } } })
 hl.curve("md3_decel", { type = "bezier", points = { { 0.05, 0.7 }, { 0.1, 1 } } })
@@ -19,27 +24,27 @@ hl.curve("md2", { type = "bezier", points = { { 0.4, 0 }, { 0.2, 1 } } })
 hl.animation({
     leaf = "windowsIn",
     enabled = true,
-    speed = 3.5,
+    speed = 5,
     bezier = "overshot",
     style = "popin 70%",
 })
 hl.animation({
     leaf = "windowsOut",
     enabled = true,
-    speed = 2.5,
+    speed = 4,
     bezier = "md3_accel",
     style = "popin 70%",
 })
 hl.animation({
     leaf = "windowsMove",
     enabled = true,
-    speed = 3,
+    speed = 4.5,
     bezier = "md3_decel",
 })
 hl.animation({
     leaf = "border",
     enabled = true,
-    speed = 8,
+    speed = 10,
     bezier = "default",
 })
 hl.animation({
@@ -82,7 +87,7 @@ hl.animation({
 hl.animation({
     leaf = "workspaces",
     enabled = true,
-    speed = 1.6,
+    speed = 2.2,
     bezier = "softAcDecel",
     style = "slidefade 15%",
 })
@@ -98,7 +103,7 @@ hl.config({
     general = {
         gaps_in = 4,
         gaps_out = 8,
-        border_size = 2,
+        border_size = 1,
         col = {
             active_border = walGradient,
             inactive_border = "rgba(2a2a2aaa)",
@@ -110,7 +115,7 @@ hl.config({
         active_opacity = 1.0,
         inactive_opacity = 1.0,
         fullscreen_opacity = 1.0,
-        rounding = 6,
+        rounding = 2,
         dim_inactive = false,
         dim_strength = 0.0,
         blur = {
@@ -125,9 +130,10 @@ hl.config({
         },
         shadow = {
             enabled = true,
-            range = 20,
+            range = 12,
             render_power = 3,
-            color = "rgba(00000055)",
+            color = glow(wal.color4, "18"),
+            color_inactive = "rgba(00000066)",
         },
     },
     group = {

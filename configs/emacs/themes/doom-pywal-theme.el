@@ -1,4 +1,8 @@
-; ;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*- ;; Commentary: ; GENERATED FILE — do not edit.
+;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-
+;;; Commentary:
+;; GENERATED FILE — do not edit. Rewritten by
+;; configs/wallust/scripts/generate-editor-themes.sh on every theme switch.
+;;; Code:
 
 (require 'doom-themes)
 

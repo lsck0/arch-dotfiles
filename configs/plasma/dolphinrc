@@ -1,0 +1,46 @@
+[General]
+Version=202
+BrowseThroughArchives=true
+FilterBar=false
+GlobalViewProps=true
+RememberOpenedTabs=false
+ShowFullPath=true
+ShowFullPathInTitlebar=true
+ShowSelectionToggle=false
+UseTabForSwitchingSplitView=true
+
+[CompactMode]
+FontFamily=Tektur
+FontSize=10
+FontWeight=50
+ItalicFont=false
+IconSize=16
+PreviewSize=16
+UseSystemFont=false
+
+[DetailsMode]
+ExpandableFolders=false
+FontFamily=Tektur
+FontSize=10
+FontWeight=50
+ItalicFont=false
+IconSize=22
+PreviewSize=22
+UseSystemFont=false
+
+[IconsMode]
+FontFamily=Tektur
+FontSize=10
+FontWeight=50
+ItalicFont=false
+IconSize=48
+PreviewSize=48
+UseSystemFont=false
+
+[KFileDialog Settings]
+Places Icons Auto-resize=false
+Places Icons Static Size=22
+
+[MainWindow]
+MenuBar=Disabled
+ToolBarsMovable=Disabled

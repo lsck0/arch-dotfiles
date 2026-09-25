@@ -26,7 +26,7 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
-set.guifont = "0xProto Nerd Font:h16"
+set.guifont = "Tektur:h16"
 set.ignorecase = true
 set.inccommand = "split"
 set.laststatus = 3

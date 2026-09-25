@@ -1,12 +1,11 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Shapes
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Centered speed test dialog shared by the network and disk speed tests: two instrument dials -- open 270° arcs, faint tick rings, hubless gradient needles, a digital readout in the middle -- inside a normal panel card.
+// Centered speed test overlay shared by the network and disk speed tests: a terminal-HUD gauge cluster -- two hero numerals with segmented BarGauge meters and live-history Sparklines under uppercase tracked DOWNLOAD/UPLOAD labels, inside a bracket-framed terminal card.
 PanelWindow {
   id: root
 
@@ -25,9 +24,14 @@ PanelWindow {
   property string error: ""
   property string statusText: ""
   property bool open: false
-  // Full-scale latch points for the dials, smallest first.
+  // Full-scale latch points for the gauges, smallest first.
   property var scaleStops: [100, 250, 500, 1000, 2500, 5000, 10000]
   property real fullScale: scaleStops[0]
+
+  // Rolling live-sample history feeding the sparklines (newest last, capped).
+  property var leftHist: []
+  property var rightHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   signal closeRequested()
   signal runAgainRequested()
@@ -49,16 +53,17 @@ PanelWindow {
     fullScale = scaleStops[scaleStops.length - 1]
   }
 
-  onRunningChanged: if (running) resetScale()
+  onRunningChanged: if (running) { resetScale(); leftHist = []; rightHist = [] }
   onScaleStopsChanged: resetScale()
-  onLeftValueChanged: expandScale(leftValue)
-  onRightValueChanged: expandScale(rightValue)
+  onLeftValueChanged: { expandScale(leftValue); if (leftValue > 0) leftHist = _push(leftHist, leftValue) }
+  onRightValueChanged: { expandScale(rightValue); if (rightValue > 0) rightHist = _push(rightHist, rightValue) }
 
   Behavior on fullScale {
     NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
   }
 
   // Card colours.
+  readonly property color cardBackground: Color.menu.background
   readonly property color onCard: Color.menu.text
   readonly property color onCardDim: Util.alpha(Color.menu.text, 0.55)
   readonly property color onCardUrgent: Color.urgent
@@ -69,8 +74,8 @@ PanelWindow {
     if (open) Qt.callLater(function() {
       if (!root.open) return
       keyCatcher.forceActiveFocus()
-      leftDial.ignite()
-      rightDial.ignite()
+      leftGauge.ignite()
+      rightGauge.ignite()
     })
   }
   anchors { top: true; bottom: true; left: true; right: true }
@@ -103,136 +108,200 @@ PanelWindow {
     Item {
       id: cluster
       anchors.fill: parent
-      // Shrink only when the dials genuinely don't fit the output.
+      // Shrink only when the card genuinely doesn't fit the output.
       scale: Math.min(1,
-        (keyCatcher.width - Style.space(32)) / Math.max(1, content.implicitWidth),
-        (keyCatcher.height - Style.space(32)) / Math.max(1, content.implicitHeight))
+        (keyCatcher.width - Style.space(32)) / Math.max(1, card.width),
+        (keyCatcher.height - Style.space(32)) / Math.max(1, card.height))
 
-      // Swallow clicks over the dials so only the surrounding scrim dismisses.
+      // Swallow clicks over the card so only the surrounding scrim dismisses.
       MouseArea {
         anchors.centerIn: parent
-        width: content.implicitWidth + Style.space(48)
-        height: content.implicitHeight + Style.space(48)
+        width: card.width + Style.space(48)
+        height: card.height + Style.space(48)
         onClicked: {}
       }
 
-      ColumnLayout {
-        id: content
+      BorderSurface {
+        id: card
         anchors.centerIn: parent
-        spacing: Style.space(16)
+        color: root.cardBackground
+        borderSpec: Border.flat(Color.accent, Style.normalBorderWidth)
+        padding: Style.space(24)
+        radius: Style.cornerRadius
+        width: inner.implicitWidth + card.contentLeftInset + card.contentRightInset
+        height: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
 
-        Text {
-          textFormat: Text.PlainText
-          visible: root.title !== ""
-          text: root.title.toUpperCase()
-          color: root.onCard
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.title
-          font.bold: true
-          font.letterSpacing: 3
-          Layout.fillWidth: true
-          horizontalAlignment: Text.AlignHCenter
-        }
+        Column {
+          id: inner
+          x: card.contentLeftInset
+          y: card.contentTopInset
+          spacing: Style.space(16)
 
-        Row {
-          spacing: Style.space(64)
-          Layout.alignment: Qt.AlignHCenter
+          // Terminal-window title strip: prompt, name, blinking caret, decorative ASCII chrome, hard rule.
+          Item {
+            width: inner.width
+            implicitHeight: titleRow.implicitHeight
+            height: implicitHeight
+            Row {
+              id: titleRow
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.spacing.xs
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: ">"
+                color: Color.accent
+                opacity: Style.emphasis.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.title
+              }
+              PanelSectionHeader {
+                anchors.verticalCenter: parent.verticalCenter
+                fontFamily: root.fontFamily
+                fontSize: Style.font.title
+                text: root.title !== "" ? root.title : "SPEED TEST"
+              }
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                textFormat: Text.PlainText
+                text: "_"
+                color: Color.accent
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.title
+                layer.enabled: Style.fx.glow > 0
+                layer.effect: MultiEffect {
+                  shadowEnabled: true
+                  shadowColor: Style.fx.glowColor
+                  shadowBlur: 1.0
+                  shadowVerticalOffset: 0
+                  shadowHorizontalOffset: 0
+                  blurMax: Style.fx.glowRadius
+                  autoPaddingEnabled: true
+                }
+                SequentialAnimation on opacity {
+                  running: true
+                  loops: Animation.Infinite
+                  NumberAnimation { to: 0.15; duration: 520 }
+                  NumberAnimation { to: 1.0; duration: 520 }
+                }
+              }
+            }
+            Text {
+              anchors.right: parent.right
+              anchors.verticalCenter: titleRow.verticalCenter
+              textFormat: Text.PlainText
+              text: "[ - o x ]"
+              color: Color.accent
+              opacity: Style.emphasis.faint
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              font.letterSpacing: Style.headerTracking * 0.5
+            }
+          }
+          PanelSeparator { width: inner.width }
 
-          SpeedDial {
-            id: leftDial
-            label: root.leftLabel
-            value: root.leftValue
-            live: root.leftLive
+          // The two hero gauges side by side.
+          Row {
+            spacing: Style.space(28)
+            Gauge {
+              id: leftGauge
+              label: root.leftLabel
+              value: root.leftValue
+              live: root.leftLive
+              history: root.leftHist
+            }
+            Gauge {
+              id: rightGauge
+              label: root.rightLabel
+              value: root.rightValue
+              live: root.rightLive
+              history: root.rightHist
+            }
           }
 
-          SpeedDial {
-            id: rightDial
-            label: root.rightLabel
-            value: root.rightValue
-            live: root.rightLive
+          // PING / progress readout.
+          Text {
+            width: inner.width
+            textFormat: Text.PlainText
+            visible: root.statusText !== ""
+            text: "> " + root.statusText
+            color: root.onCard
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            font.letterSpacing: Style.headerTracking * 0.4
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+          }
+
+          Text {
+            width: inner.width
+            textFormat: Text.PlainText
+            visible: root.failed
+            text: "! " + root.error
+            color: root.onCardUrgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+          }
+
+          // Centered under the gauge pair.
+          Item {
+            width: inner.width
+            implicitHeight: runAgain.implicitHeight
+            height: implicitHeight
+            Button {
+              id: runAgain
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: "[ RUN AGAIN ]"
+              tooltipText: root.runAgainTooltip
+              bordered: true
+              enabled: !root.running
+              opacity: root.running ? 0 : 1
+              foreground: root.onCard
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              horizontalPadding: Style.space(14)
+              verticalPadding: Style.space(4)
+              onClicked: root.runAgainRequested()
+
+              Behavior on opacity {
+                NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+              }
+            }
           }
         }
 
-        // Centered on the dial pair.
-        Button {
-          text: "Run Again"
-          tooltipText: root.runAgainTooltip
-          bordered: true
-          enabled: !root.running
-          opacity: root.running ? 0 : 1
-          foreground: root.onCard
-          fontFamily: root.fontFamily
-          fontSize: Style.font.bodySmall
-          horizontalPadding: Style.space(14)
-          verticalPadding: Style.space(4)
-          Layout.alignment: Qt.AlignHCenter
-          onClicked: root.runAgainRequested()
-
-          Behavior on opacity {
-            NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
-          }
-        }
-
-        Text {
-          textFormat: Text.PlainText
-          visible: root.statusText !== ""
-          text: root.statusText
-          color: root.onCard
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.subtitle
-          font.letterSpacing: 1.5
-          wrapMode: Text.Wrap
-          Layout.maximumWidth: Style.space(560)
-          Layout.alignment: Qt.AlignHCenter
-          horizontalAlignment: Text.AlignHCenter
-        }
-
-        Text {
-          textFormat: Text.PlainText
-          visible: root.failed
-          text: root.error
-          color: root.onCardUrgent
-          font.family: root.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          wrapMode: Text.Wrap
-          Layout.maximumWidth: Style.space(440)
-          Layout.alignment: Qt.AlignHCenter
-          horizontalAlignment: Text.AlignHCenter
-        }
+        // CRT scanline wash over the whole terminal card.
+        Scanlines { }
+        // Neon HUD corner brackets framing the card.
+        HudFrame { }
       }
     }
   }
 
-  // One floating cluster dial: an open 270° scale with the gap at the bottom, a faint tick ring, a glowing accent value arc, a hubless needle that fades toward the pivot, and a digital readout in the middle.
-  component SpeedDial: Item {
-    id: dial
+  // One HUD gauge column: uppercase tracked label, big glowing hero numeral + unit, a segmented BarGauge fill and a live-history Sparkline. Keeps the car-cluster ignition sweep on its own `shown`/`fraction`.
+  component Gauge: Column {
+    id: g
 
     required property string label
     required property real value
     required property bool live
+    property var history: []
+    readonly property real gaugeWidth: Style.space(260)
 
-    readonly property real diameter: Style.space(300)
-    // 0° = 3 o'clock, increasing clockwise (PathAngleArc's convention).
-    readonly property real dialStart: 135
-    readonly property real dialSweep: 270
-    readonly property int tickCount: 46
-    readonly property real arcWidth: Style.space(4)
-    readonly property real arcRadius: diameter / 2 - arcWidth
-    readonly property color trackColor: Util.alpha(root.onCard, 0.14)
-    readonly property color minorTickColor: Util.alpha(root.onCard, 0.12)
-    readonly property color majorTickColor: Util.alpha(root.onCard, 0.3)
-    // The dial that isn't measuring yet sits dimmed until it gets a figure.
+    // The gauge that isn't measuring yet sits dimmed until it gets a figure.
     readonly property bool engaged: live || value > 0
 
     property real shown: 0
-    // The digital readout stays on the real figure while the ignition sweep drives the needle -- a cluster sweeps its gauges, not its numerals.
+    // The numeral stays on the real figure while the ignition sweep drives the fill -- a cluster sweeps its gauges, not its numerals.
     readonly property real reading: ignition.running ? value : shown
     readonly property real fullScale: root.fullScale
     readonly property real fraction: fullScale > 0 ? Math.max(0, Math.min(1, shown / fullScale)) : 0
-    readonly property bool arcVisible: fraction > 0.004
 
-    width: diameter
-    height: diameter
+    width: gaugeWidth
+    spacing: Style.space(10)
     opacity: engaged ? 1 : 0.5
 
     Behavior on opacity {
@@ -253,153 +322,77 @@ PanelWindow {
       ignition.restart()
     }
 
-    // Car-cluster power-on: needle sweeps to full scale and falls back before the live figures take over.
+    // Car-cluster power-on: fill sweeps to full scale and falls back before the live figures take over.
     SequentialAnimation {
       id: ignition
-      NumberAnimation { target: dial; property: "shown"; to: dial.fullScale; duration: 550; easing.type: Easing.InOutCubic }
-      NumberAnimation { target: dial; property: "shown"; to: 0; duration: 650; easing.type: Easing.OutCubic }
-      onFinished: dial.shown = dial.value
+      NumberAnimation { target: g; property: "shown"; to: g.fullScale; duration: 550; easing.type: Easing.InOutCubic }
+      NumberAnimation { target: g; property: "shown"; to: 0; duration: 650; easing.type: Easing.OutCubic }
+      onFinished: g.shown = g.value
     }
 
-    Shape {
-      anchors.fill: parent
-      preferredRendererType: Shape.CurveRenderer
-
-      // Track: the full scale, always visible, dim.
-      ShapePath {
-        strokeWidth: dial.arcWidth
-        strokeColor: dial.trackColor
-        fillColor: "transparent"
-        capStyle: ShapePath.RoundCap
-
-        PathAngleArc {
-          centerX: dial.width / 2
-          centerY: dial.height / 2
-          radiusX: dial.arcRadius
-          radiusY: dial.arcRadius
-          startAngle: dial.dialStart
-          sweepAngle: dial.dialSweep
-        }
-      }
-
-      // Soft under-glow beneath the value arc, standing in for the backlit ring of a real cluster.
-      ShapePath {
-        strokeWidth: dial.arcWidth * 3
-        strokeColor: dial.arcVisible ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18) : "transparent"
-        fillColor: "transparent"
-        capStyle: ShapePath.RoundCap
-
-        PathAngleArc {
-          centerX: dial.width / 2
-          centerY: dial.height / 2
-          radiusX: dial.arcRadius
-          radiusY: dial.arcRadius
-          startAngle: dial.dialStart
-          sweepAngle: dial.dialSweep * dial.fraction
-        }
-      }
-
-      // Value: fills behind the needle.
-      ShapePath {
-        strokeWidth: dial.arcWidth
-        strokeColor: dial.arcVisible ? Color.accent : "transparent"
-        fillColor: "transparent"
-        capStyle: ShapePath.RoundCap
-
-        PathAngleArc {
-          centerX: dial.width / 2
-          centerY: dial.height / 2
-          radiusX: dial.arcRadius
-          radiusY: dial.arcRadius
-          startAngle: dial.dialStart
-          sweepAngle: dial.dialSweep * dial.fraction
-        }
-      }
+    // Uppercase tracked direction label with accent bloom.
+    PanelSectionHeader {
+      width: g.gaugeWidth
+      fontFamily: root.fontFamily
+      fontSize: Style.font.subtitle
+      text: g.label
     }
 
-    // Faint tick ring just inside the arc; every fifth tick is a major.
-    Repeater {
-      model: dial.tickCount
-
-      Item {
-        required property int index
-        readonly property bool major: index % 5 === 0
-
-        anchors.fill: parent
-        rotation: dial.dialStart + (index / (dial.tickCount - 1)) * dial.dialSweep - 270
-
-        Rectangle {
-          anchors.horizontalCenter: parent.horizontalCenter
-          y: dial.arcWidth * 2 + (parent.major ? 0 : Style.space(2))
-          width: parent.major ? Math.max(2, Style.space(2)) : 1
-          height: parent.major ? Style.space(10) : Style.space(6)
-          radius: width / 2
-          color: parent.major ? dial.majorTickColor : dial.minorTickColor
-        }
-      }
-    }
-
-    // Hubless needle: a slender sliver that fades out toward the pivot, so it reads as floating like the rest of the cluster.
-    Item {
-      anchors.fill: parent
-      rotation: dial.dialStart + dial.fraction * dial.dialSweep - 270
-
-      Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: dial.arcWidth * 2 + Style.space(10)
-        width: Math.max(2, Style.space(3))
-        height: dial.diameter * 0.32
-        radius: width / 2
-
-        gradient: Gradient {
-          GradientStop { position: 0.0; color: Color.accent }
-          GradientStop { position: 0.55; color: Color.accent }
-          GradientStop { position: 1.0; color: "transparent" }
-        }
-      }
-    }
-
-    Column {
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.top: parent.verticalCenter
-      anchors.topMargin: Style.space(14)
-      spacing: 0
-
+    // Big glowing hero numeral with its unit trailing.
+    Row {
+      spacing: Style.spacing.xs
       Text {
+        id: heroNum
+        anchors.bottom: parent.bottom
         textFormat: Text.PlainText
-        anchors.horizontalCenter: parent.horizontalCenter
         // Both branches go through the locale: a reading is a measurement, so its separators follow the system's number conventions rather than the interface language.
-        text: dial.reading < 10
-          ? dial.reading.toLocaleString(Qt.locale(), 'f', 1)
-          : Math.round(dial.reading).toLocaleString(Qt.locale(), 'f', 0)
-        color: root.onCard
+        text: g.reading < 10
+          ? g.reading.toLocaleString(Qt.locale(), 'f', 1)
+          : Math.round(g.reading).toLocaleString(Qt.locale(), 'f', 0)
+        color: Color.accent
         font.family: root.fontFamily
-        // Scaled off the dial, not the text ladder: display (base*2) is sized for a dialog and reads as a footnote inside a full-screen gauge.
-        font.pixelSize: Math.round(dial.diameter * 0.2)
+        font.pixelSize: Math.round(g.gaugeWidth * 0.24)
         font.bold: true
+        font.letterSpacing: Style.displayTracking
+        layer.enabled: Style.fx.glow > 0
+        layer.effect: MultiEffect {
+          shadowEnabled: true
+          shadowColor: Style.fx.glowColor
+          shadowBlur: 1.0
+          shadowVerticalOffset: 0
+          shadowHorizontalOffset: 0
+          blurMax: Style.fx.glowRadius
+          autoPaddingEnabled: true
+        }
       }
-
       Text {
+        anchors.bottom: heroNum.bottom
+        anchors.bottomMargin: Math.round(g.gaugeWidth * 0.05)
         textFormat: Text.PlainText
-        anchors.horizontalCenter: parent.horizontalCenter
         text: root.unit
         color: root.onCardDim
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: Style.font.title
       }
     }
 
-    // The 90° gap at the bottom of the scale is where a cluster prints its unit; here it names the direction.
-    Text {
-      textFormat: Text.PlainText
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.bottom: parent.bottom
-      text: dial.label
-      color: root.onCard
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.subtitle
-      font.bold: true
-      font.letterSpacing: 2.5
+    // Segmented current-value gauge (0..1).
+    BarGauge {
+      width: g.gaugeWidth
+      height: Style.space(14)
+      segments: 32
+      value: g.fraction
+      color: Color.accent
+    }
+
+    // Live-sample history graph.
+    Sparkline {
+      width: g.gaugeWidth
+      height: Style.space(46)
+      values: g.history
+      minValue: 0
+      maxValue: g.fullScale
+      color: Color.accent
     }
   }
 }

@@ -10,6 +10,7 @@ ButtonGroup 1.0 ButtonGroup.qml
 Chip 1.0 Chip.qml
 ConfirmDialog 1.0 ConfirmDialog.qml
 HoverPanel 1.0 HoverPanel.qml
+HudFrame 1.0 HudFrame.qml
 OpticalGlyph 1.0 OpticalGlyph.qml
 PanelActionButton 1.0 PanelActionButton.qml
 PanelKeyCatcher 1.0 PanelKeyCatcher.qml
@@ -20,6 +21,7 @@ PanelToolTip 1.0 PanelToolTip.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
 PanelRow 1.0 PanelRow.qml
 PopupCard 1.0 PopupCard.qml
+Scanlines 1.0 Scanlines.qml
 PowerModeSelector 1.0 PowerModeSelector.qml
 ScreenMoveRemap 1.0 ScreenMoveRemap.qml
 SpeedTestOverlay 1.0 SpeedTestOverlay.qml
@@ -27,3 +29,5 @@ TextField 1.0 TextField.qml
 Toggle 1.0 Toggle.qml
 ToggleSwitch 1.0 ToggleSwitch.qml
 WidgetButton 1.0 WidgetButton.qml
+Sparkline 1.0 Sparkline.qml
+BarGauge 1.0 BarGauge.qml

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -43,6 +44,24 @@ BarWidget {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refresh()
+  }
+
+  // Accent neon backlight behind the glyph: the widget only shows at all when updates are pending.
+  Rectangle {
+    anchors.centerIn: parent
+    width: Style.bar.iconCanvas
+    height: width
+    radius: width / 2
+    color: Color.accent
+    visible: Style.fx.glow > 0
+    opacity: Style.fx.glowAlpha(0.8)
+    layer.enabled: true
+    layer.effect: MultiEffect {
+      blurEnabled: true
+      blur: 1.0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
   }
 
   BarIconButton {

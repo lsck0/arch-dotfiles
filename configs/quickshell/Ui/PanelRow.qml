@@ -1,10 +1,11 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 /*
- * ─────────────────────────────────────────────────────────────────────────────
+ * -----------------------------------------------------------------------------
  * PanelRow — the full-width clickable row inside a hover panel
- * ─────────────────────────────────────────────────────────────────────────────
+ * -----------------------------------------------------------------------------
  *
  * WHAT IT IS. One row of a panel list: an optional leading glyph, a label, an
  * optional right-aligned trailing value, a selected state, a hover state, and
@@ -12,13 +13,13 @@ import qs.Commons
  *
  *   PanelRow { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
  *   PanelRow { label: "Internet speed test"; glyph: "\u{f04c5}"; onActivated: ... }
- *   PanelRow { label: "Choose wallpaper…"; filled: true; centered: true; ... }
+ *   PanelRow { label: "Choose wallpaper..."; filled: true; centered: true; ... }
  *
  * WHY IT EXISTS. Thirteen rows across five widgets were hand-rolled from the
  * same Rectangle + Row + MouseArea, in three different idioms: Network's
  * in-file `Row_` (glyph left, state dot, selected fill), Display's and System's
  * one-off buttons (centred label on a resting fill, and only one of the two
- * lit up on hover), and AudioIO's and Media's list rows (●/○ prefix). Same
+ * lit up on hover), and AudioIO's and Media's list rows (star / o prefix). Same
  * gesture, same place on screen, three answers to what it should look like —
  * and a fourth every time someone added one.
  *
@@ -30,7 +31,7 @@ import qs.Commons
 Rectangle {
   id: root
 
-  // ─────────────────────────────────────────────────────────── API
+  // ----------------------------------------------------------- API
 
   property string label: ""
   // Leading icon, drawn in the pinned icon family.
@@ -53,7 +54,7 @@ Rectangle {
 
   signal activated()
 
-  // ─────────────────────────────────────────────────────────── shape
+  // ----------------------------------------------------------- shape
 
   height: Style.row.list
   radius: Style.cornerRadius
@@ -85,6 +86,18 @@ Rectangle {
       color: root._text
       font.family: Style.font.iconFamily
       font.pixelSize: Style.font.icon
+
+      // Accent neon bloom on the active row's glyph.
+      layer.enabled: Style.fx.glow > 0 && root.on
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
 
     Text {
@@ -92,10 +105,22 @@ Rectangle {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.glyph === "" && root.stateMarker
       textFormat: Text.PlainText
-      text: root.on ? "●" : "○"
+      text: root.on ? "*" : "o"
       color: root._text
       font.family: Style.font.family
       font.pixelSize: Style.font.body
+
+      // Accent neon bloom on the lit state marker.
+      layer.enabled: Style.fx.glow > 0 && root.on
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
 
     Text {

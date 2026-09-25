@@ -1,4 +1,10 @@
 local global_opacity = 0.95
+
+-- app-rendered tray/context menus (discord, steam) are their own windows: we
+-- can't style their content, only the frame -- give them rounding.
+for _, cls in ipairs({ "^discord$", "^steam$" }) do
+    hl.window_rule({ match = { class = cls }, rounding = 8 })
+end
 hl.window_rule({
     match = {
         class = "^Spotify$",

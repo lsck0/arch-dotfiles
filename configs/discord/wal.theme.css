@@ -20,7 +20,7 @@
   --textdark: 140, 140, 140;
   --textdarker: 115, 115, 115;
   --textdarkest: 80, 80, 80;
-  --font: "0xProto Nerd Font";
+  --font: "Tektur";
   --backgroundaccent: 50, 50, 50;
   --backgroundprimary: 10, 10, 23;
   --backgroundsecondary: 10, 10, 23;
@@ -41,4 +41,92 @@ img[class=""][src^="/assets/"] {
   border-radius: 50%;
   margin-right: 16px;
   flex: 0 0 auto;
+}
+
+/* ===== Cyberpunk / terminal aesthetic (colors derived from :root vars) ===== */
+
+/* Thin accent scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--accentcolor), 0.5);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--accentcolor));
+}
+
+/* Sharp terminal corners on cards, buttons and inputs */
+button[class*="button"],
+[class*="card"],
+[class*="input"],
+[class*="textArea"],
+[class*="searchBar"],
+[class*="modal"] {
+  border-radius: 2px !important;
+}
+
+/* Accent glow + thin border on high-signal buttons (hover only) */
+button[class*="button"]:hover {
+  box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
+  border: 1px solid rgba(var(--accentcolor), 0.5);
+}
+
+/* Server icon hover gets a subtle accent glow */
+[class*="listItem"]:hover [class*="wrapper"],
+[class*="listItemWrapper"]:hover {
+  box-shadow: 0 0 8px rgba(var(--accentcolor), 0.2);
+}
+
+/* Active / selected channel: accent glow and text lift */
+[class*="modeSelected"] {
+  box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
+}
+[class*="modeSelected"] [class*="name"] {
+  text-shadow: 0 0 4px rgba(var(--accentcolor), 0.2);
+}
+
+/* Mentions glow in the mention color */
+[class*="mention"] {
+  text-shadow: 0 0 4px rgba(var(--mentioncolor), 0.2);
+}
+
+/* Message row hover: faint accent glow */
+li[class*="messageListItem"]:hover {
+  box-shadow: inset 0 0 8px rgba(var(--accentcolor), 0.2);
+}
+
+/* Soft accent glow on the focused chat input, no hard border */
+[class*="channelTextArea"] [class*="scrollableContainer"]:focus-within {
+  box-shadow: 0 0 8px rgba(var(--accentcolor), 0.18);
+}
+
+/* HUD bracket corner accents on the member/user popout, purely cosmetic */
+[class*="userPopout"] {
+  position: relative;
+}
+[class*="userPopout"]::before,
+[class*="userPopout"]::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+[class*="userPopout"]::before {
+  top: 4px;
+  left: 4px;
+  border-top: 1px solid rgba(var(--accentcolor), 0.5);
+  border-left: 1px solid rgba(var(--accentcolor), 0.5);
+}
+[class*="userPopout"]::after {
+  bottom: 4px;
+  right: 4px;
+  border-bottom: 1px solid rgba(var(--accentcolor), 0.5);
+  border-right: 1px solid rgba(var(--accentcolor), 0.5);
 }

@@ -13,7 +13,8 @@ return {
         "xiyaowong/transparent.nvim", -- transparent editor surfaces
         dependencies = { "pywal" },
         init = function()
-            vim.g.transparent_enabled = true
+            -- opaque in neovide: the GUI window has no wallpaper behind it, so a stripped Normal bg renders pure black
+            vim.g.transparent_enabled = vim.g.neovide ~= true
         end,
         config = function()
             require("transparent").setup({
@@ -52,14 +53,17 @@ return {
             })
 
             -- pywal owns the foreground palette; transparent.nvim only removes panel backgrounds, leaving tab text and accents readable.
-            vim.api.nvim_create_autocmd("ColorScheme", {
-                callback = function()
-                    vim.schedule(function()
-                        require("transparent").clear()
-                    end)
-                end,
-            })
-            require("transparent").clear()
+            -- skip entirely under neovide so the theme's opaque bg is kept
+            if not vim.g.neovide then
+                vim.api.nvim_create_autocmd("ColorScheme", {
+                    callback = function()
+                        vim.schedule(function()
+                            require("transparent").clear()
+                        end)
+                    end,
+                })
+                require("transparent").clear()
+            end
         end,
     },
 
@@ -232,10 +236,13 @@ return {
             scroll = { enabled = false }, -- no smooth scrolling
             words = { enabled = true },  -- highlight LSP references under cursor (replaces mini.cursorword)
             -- File browser (snacks, in place of neo-tree), pinned to the git root.
-            explorer = { replace_netrw = true },
+            -- replace_netrw off: the VimEnter autocmd is the SOLE opener, so snacks
+            -- never auto-opens a second instance that stacks a duplicate root.
+            explorer = { replace_netrw = false },
             picker = {
                 sources = {
                     explorer = {
+                        -- off: its BufEnter reveal re-opens with cwd=<file>, stacking a duplicate root
                         follow_file = false,
                         hidden = true, -- show dotfiles on start
                         auto_close = false,

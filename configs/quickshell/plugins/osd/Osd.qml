@@ -1,9 +1,11 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import qs.Commons
+import qs.Ui
 import "OsdModel.js" as OsdModel
 
 // Adapted from omarchy-shell's Osd.qml: same measured-column layout and IPC contract (`quickshell ipc -p ~/.config/quickshell call osd present '{...}'`), with BorderSurface's multi-side/gradient border swapped for a plain Rectangle border — this repo doesn't need per-side gradient borders, just a card.
@@ -165,22 +167,15 @@ Item {
               color: Color.popups.text
             }
           }
-          Rectangle {
+          // Segmented terminal block gauge for the live value.
+          BarGauge {
             visible: root.hasProgress
+            anchors.verticalCenter: parent.verticalCenter
             width: root.barWidth
             height: Math.max(Style.space(6), Style.spacing.sm)
-            anchors.verticalCenter: parent.verticalCenter
-            color: Util.alpha(Color.popups.text, 0.45)
-            Rectangle {
-              height: parent.height
-              width: parent.width * (root.hasProgress ? root.value / root.maxValue : 0)
-              color: Color.accent
-
-              Behavior on width {
-                enabled: root.opened
-                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-              }
-            }
+            segments: 20
+            value: root.maxValue > 0 ? root.value / root.maxValue : 0
+            color: Color.accent
           }
           Text {
             textFormat: Text.PlainText
@@ -193,8 +188,23 @@ Item {
             color: Color.popups.text
             elide: Text.ElideRight
             maximumLineCount: 1
+            // Neon bloom on the live readout.
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
         }
+
+        // Terminal HUD framing + CRT scanlines on the readout card.
+        HudFrame {}
+        Scanlines {}
       }
     }
   }

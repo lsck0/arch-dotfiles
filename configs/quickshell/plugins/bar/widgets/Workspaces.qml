@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
@@ -97,6 +98,27 @@ BarWidget {
           anchors.bottomMargin: Style.bar.pillInset
           radius: Style.cornerRadius
           color: cell.focused ? Style.selectedFill : "transparent"
+        }
+
+        // Hard accent underline + neon bloom marks the active workspace.
+        Rectangle {
+          visible: cell.focused
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: Style.bar.pillInset
+          width: parent.width - Style.bar.pillInset * 2
+          height: Math.max(1, Style.space(2))
+          color: Color.accent
+          layer.enabled: cell.focused && Style.fx.glow > 0
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Style.fx.glowColor
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowHorizontalOffset: 0
+            blurMax: Style.fx.glowRadius
+            autoPaddingEnabled: true
+          }
         }
 
         WidgetButton {

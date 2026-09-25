@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -24,6 +25,10 @@ BarWidget {
     { name: usage.m3_name, tokens: usage.m3_tokens, pct: Number(usage.m3_pct) || 0, cost: usage.m3_cost }
   ].filter(function(m) { return m.name })
 
+  // Rolling history of the worst limit usage for the panel sparkline (newest last, capped).
+  property var pctHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
+
   visible: hasUsage
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
@@ -42,6 +47,7 @@ BarWidget {
         try {
           root.usage = JSON.parse(text || "{}")
           root.received = true
+          if (root.hasUsage) root.pctHist = root._push(root.pctHist, root.worstPct)
         } catch (e) {}
       }
     }
@@ -84,6 +90,18 @@ BarWidget {
       color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
+      // Big readout: tighter tracking and a neon halo, urgent when a limit is close.
+      font.letterSpacing: Style.displayTracking
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: root.tight ? Color.urgent : Style.fx.glowColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
   }
 
@@ -114,7 +132,8 @@ BarWidget {
       height: parent.height
       width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
       radius: Style.cornerRadius
-      color: barRow.alert ? Util.alpha(Color.urgent, 0.18) : Util.alpha(Color.menu.text, 0.12)
+      // Accent-tinted HUD gauge; alert rows keep their urgent fill.
+      color: barRow.alert ? Util.alpha(Color.urgent, 0.18) : Util.alpha(Color.accent, 0.15)
     }
     Text {
       anchors.left: parent.left
@@ -148,11 +167,49 @@ BarWidget {
     }
   }
 
+  // Big glowing hero numeral (a percentage) that opens the panel.
+  component Hero: Row {
+    property int pct: 0
+    property color tint: Color.accent
+    spacing: Style.spacing.xxs
+    Text {
+      id: heroNum
+      anchors.bottom: parent.bottom
+      text: parent.pct
+      color: parent.tint
+      font.family: Style.font.family
+      font.pixelSize: Math.round(Style.font.display * 1.7)
+      font.bold: true
+      font.letterSpacing: Style.displayTracking
+      layer.enabled: Style.fx.glow > 0
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: parent.tint
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
+    }
+    Text {
+      anchors.bottom: heroNum.bottom
+      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
+      text: "%"
+      color: parent.tint
+      opacity: Style.emphasis.dim
+      font.family: Style.font.family
+      font.pixelSize: Style.font.title
+    }
+  }
+
   HoverPanel {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip, rendered by the shared card.
+    title: "Claude Code"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -161,25 +218,66 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      Row {
-        width: parent.width
-        spacing: Style.spacing.sm
-        PanelSectionHeader { text: "Claude Code"; fontSize: Style.font.title }
-        Text {
-          anchors.bottom: parent.bottom
-          text: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
-          color: Color.menu.text
-          opacity: Style.emphasis.faint
-          textFormat: Text.PlainText
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
-      }
+      // Top headroom so the overlaid title strip never covers the hero.
+      Item { width: 1; height: Style.spacing.xl }
 
       BarRow {
         visible: !root.received
         label: "Status"
-        value: "Reading usage…"
+        value: "Reading usage..."
+      }
+
+      // Glowing usage hero (worst of session/week), plan tier + reset beside it, then a usage-over-time graph and gauge.
+      Column {
+        width: parent.width
+        visible: root.hasUsage
+        spacing: Style.spacing.xs
+
+        Item {
+          width: parent.width
+          implicitHeight: Math.max(usageHero.implicitHeight, usageSide.implicitHeight)
+          height: implicitHeight
+          Hero {
+            id: usageHero
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            pct: root.worstPct
+            tint: root.tight ? Color.urgent : Color.accent
+          }
+          Column {
+            id: usageSide
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.56
+            spacing: Style.spacing.xxs
+            Text {
+              width: parent.width
+              horizontalAlignment: Text.AlignRight
+              visible: !!root.usage.sub
+              text: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
+              color: Color.menu.text
+              opacity: Style.emphasis.dim
+              textFormat: Text.PlainText
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
+            }
+            Text {
+              width: parent.width
+              horizontalAlignment: Text.AlignRight
+              text: "SESSION " + root.sessionPct + "% :: WEEK " + root.weekPct + "%"
+              color: root.tight ? Color.urgent : Color.menu.text
+              opacity: Style.emphasis.faint
+              textFormat: Text.PlainText
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.letterSpacing: Style.headerTracking * 0.4
+            }
+          }
+        }
+        // Auto-scaled 0..100 usage trend, urgent-tinted once a limit is close.
+        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Color.urgent : Color.accent }
+        BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.worstPct / 100; color: root.tight ? Color.urgent : Color.accent }
       }
 
       Column {
@@ -276,5 +374,8 @@ BarWidget {
         }
       }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

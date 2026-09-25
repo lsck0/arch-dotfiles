@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Ui
 
 Item {
   id: root
@@ -66,10 +67,24 @@ Item {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
 
+        // Terminal prompt marker in front of the message.
+        Text {
+          id: prompt
+          textFormat: Text.PlainText
+          anchors.left: parent.left
+          anchors.top: parent.top
+          text: ">"
+          color: root.selectedText
+          opacity: Style.emphasis.dim
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.title
+        }
+
         Text {
           id: messageText
           textFormat: Text.PlainText
-          anchors.left: parent.left
+          anchors.left: prompt.right
+          anchors.leftMargin: Style.spacing.sm
           anchors.right: parent.right
           anchors.top: parent.top
           text: root.message
@@ -94,7 +109,7 @@ Item {
               readonly property bool selected: root.selectedIndex === index
               readonly property bool destructive: index === 1
 
-              width: Style.space(88)
+              width: Style.space(104)
               height: Style.space(34)
               color: selected
                 ? (destructive ? Util.alpha(Color.urgent, 0.22) : root.selectedBackground)
@@ -104,13 +119,16 @@ Item {
                 : (selected ? root.selectedText : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
               radius: 0
 
+              // Bracketed uppercase terminal-button label.
               Text {
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
-                text: modelData
+                text: "[ " + modelData + " ]"
                 color: destructive ? (selected ? Color.urgent : root.foreground) : (selected ? root.selectedText : root.foreground)
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: Style.headerTracking * 0.4
               }
 
               MouseArea {
@@ -127,6 +145,9 @@ Item {
           }
         }
       }
+
+      // Neon HUD corner brackets framing the dialog.
+      HudFrame { }
     }
   }
 }

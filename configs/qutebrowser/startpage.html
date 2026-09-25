@@ -16,19 +16,27 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
-        background: var(--background);
+        /* absolute file:// so it resolves even though startpage.html is a symlink (Firefox resolves relative URLs from the symlink's real repo path) */
+        background:
+          linear-gradient(rgba(7, 9, 13, 0.78), rgba(7, 9, 13, 0.78)),
+          url("file:///home/luca/.cache/wal/wallpaper") center / cover no-repeat fixed;
+        background-color: var(--background);
       }
       canvas {
         display: block;
+        position: fixed;
+        inset: 0;
         width: 100vw;
         height: 100vh;
+        z-index: 0;
       }
       #clock {
         position: fixed;
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        font-family: "0xProto Nerd Font", monospace;
+        z-index: 2;
+        font-family: "Tektur", monospace;
         color: var(--foreground);
         text-align: center;
         user-select: none;
@@ -45,7 +53,7 @@
         margin-top: 0.3rem;
       }
     </style>
-    <link rel="stylesheet" href="../../.cache/wal/colors-qutebrowser.css" />
+    <link rel="stylesheet" href="file:///home/luca/.cache/wal/colors-qutebrowser.css" />
   </head>
   <body>
     <canvas id="canvas"></canvas>
@@ -56,41 +64,32 @@
     <script>
       "use strict";
 
+      // Digital-rain background ported from the quickshell matrix lockscreen (plugins/matrixrain/MatrixRain.qml): glyph pool, trail-fade paint, accent heads, per-column drops.
       const canvas = document.getElementById("canvas");
       const context = canvas.getContext("2d");
 
       const style = getComputedStyle(document.documentElement);
-      const background_color = style.getPropertyValue("--background").trim();
-      const cell_color = style.getPropertyValue("--cell").trim();
+      const head_color = style.getPropertyValue("--cell").trim();
 
       const cell_size = 18;
-      const generation_interval = 120;
-      const seed_probability = 0.1;
-      const cell_opacity = 0.45;
-      const corner_radius = 5;
-      const bloom_radius = 15;
+      const trail_fade = 0.12;
+      const charset = "01<>[]{}/\\|=+-*!?$#@abcdef0123456789";
 
-      function with_opacity(hex_color, alpha) {
-        const value = parseInt(hex_color.slice(1), 16);
-        const red = (value >> 16) & 255;
-        const green = (value >> 8) & 255;
-        const blue = value & 255;
-        return "rgba(" + red + ", " + green + ", " + blue + ", " + alpha + ")";
+      function glyph() {
+        return charset.charAt(Math.floor(Math.random() * charset.length));
       }
-
-      const cell_fill = with_opacity(cell_color, cell_opacity);
 
       let columns = 0;
       let rows = 0;
-      let cells = null;
+      let drops = [];
 
-      function cell_index(x, y) {
-        return y * columns + x;
-      }
-
-      function seed_cells() {
-        for (let i = 0; i < cells.length; i++) {
-          cells[i] = Math.random() < seed_probability ? 1 : 0;
+      function seed_drops() {
+        drops = [];
+        for (let c = 0; c < columns; c++) {
+          drops.push({
+            y: -Math.floor(Math.random() * rows),
+            speed: 0.4 + Math.random() * 0.9,
+          });
         }
       }
 
@@ -103,112 +102,43 @@
 
         columns = Math.ceil(window.innerWidth / cell_size);
         rows = Math.ceil(window.innerHeight / cell_size);
-        cells = new Uint8Array(columns * rows);
 
-        seed_cells();
-      }
-
-      function count_neighbours(x, y) {
-        let count = 0;
-
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            if (dx == 0 && dy == 0) {
-              continue;
-            }
-
-            const neighbour_x = (x + dx + columns) % columns;
-            const neighbour_y = (y + dy + rows) % rows;
-            count += cells[cell_index(neighbour_x, neighbour_y)];
-          }
-        }
-
-        return count;
-      }
-
-      let previous_population = -1;
-      let stale_generations = 0;
-
-      function advance_generation() {
-        const next_cells = new Uint8Array(cells.length);
-        let population = 0;
-
-        for (let y = 0; y < rows; y++) {
-          for (let x = 0; x < columns; x++) {
-            const neighbours = count_neighbours(x, y);
-            const alive = cells[cell_index(x, y)];
-            const survives = alive
-              ? neighbours == 2 || neighbours == 3
-              : neighbours == 3;
-
-            next_cells[cell_index(x, y)] = survives ? 1 : 0;
-            if (survives) {
-              population++;
-            }
-          }
-        }
-
-        cells = next_cells;
-
-        if (population == 0) {
-          seed_cells();
-          stale_generations = 0;
-        } else {
-          if (Math.abs(population - previous_population) < 2) {
-            stale_generations++;
-          } else {
-            stale_generations = 0;
-          }
-
-          if (stale_generations > 18) {
-            seed_cells();
-            stale_generations = 0;
-          }
-        }
-
-        previous_population = population;
+        seed_drops();
       }
 
       function draw() {
-        context.fillStyle = background_color;
-        context.fillRect(0, 0, canvas.width, canvas.height);
+        // Fade trails toward TRANSPARENT (erase), so the wallpaper shows through.
+        context.globalCompositeOperation = "destination-out";
+        context.fillStyle = "rgba(0, 0, 0, " + trail_fade + ")";
+        context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+        context.globalCompositeOperation = "source-over";
 
-        context.fillStyle = cell_fill;
-        context.shadowColor = cell_color;
-        context.shadowBlur = bloom_radius;
+        context.fillStyle = head_color;
+        context.font = cell_size + "px \"Tektur\", monospace";
+        context.textBaseline = "top";
 
-        for (let y = 0; y < rows; y++) {
-          for (let x = 0; x < columns; x++) {
-            if (cells[cell_index(x, y)]) {
-              context.beginPath();
-              context.roundRect(
-                x * cell_size + 1,
-                y * cell_size + 1,
-                cell_size - 2,
-                cell_size - 2,
-                corner_radius,
-              );
-              context.fill();
-            }
+        for (let i = 0; i < drops.length; i++) {
+          const row = Math.floor(drops[i].y);
+          if (row >= 0 && row <= rows) {
+            context.fillText(glyph(), i * cell_size, row * cell_size);
+          }
+
+          drops[i].y += drops[i].speed;
+          if (drops[i].y - 16 > rows && Math.random() > 0.975) {
+            drops[i].y = -Math.floor(Math.random() * 8);
+            drops[i].speed = 0.4 + Math.random() * 0.9;
           }
         }
-
-        context.shadowBlur = 0;
       }
 
-      let last_frame_time = performance.now();
-      let elapsed_since_generation = 0;
+      const step_interval = 80;
+      let last_step = 0;
 
       function frame(now) {
-        elapsed_since_generation += now - last_frame_time;
-        last_frame_time = now;
-
-        while (elapsed_since_generation >= generation_interval) {
-          advance_generation();
-          elapsed_since_generation -= generation_interval;
+        if (now - last_step >= step_interval) {
+          draw();
+          last_step = now;
         }
-
-        draw();
         requestAnimationFrame(frame);
       }
 

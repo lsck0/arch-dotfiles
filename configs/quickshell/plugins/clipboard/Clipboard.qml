@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
@@ -390,29 +391,132 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         spacing: root.contentSpacing
 
+        // Uppercase tracked section header with live bracketed entry count, terminal-readout style.
+        Row {
+          id: titleRow
+          width: parent.width
+          spacing: Style.spacing.md
+
+          Text {
+            textFormat: Text.PlainText
+            text: "CLIPBOARD"
+            color: Color.accent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.title
+            font.bold: true
+            font.letterSpacing: Style.headerTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: "[" + String(displayModel.count) + "]"
+            color: root.foreground
+            opacity: Style.emphasis.faint
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.title
+          }
+        }
+
         Rectangle {
           width: parent.width
           height: root.headerHeight
           radius: root.cornerRadius
           color: "transparent"
 
-          Text {
-            textFormat: Text.PlainText
+          // Terminal prompt line: `> query _` with a blinking block caret.
+          Row {
+            id: promptRow
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: root.filterText || "Search clipboard…"
-            color: root.foreground
-            opacity: root.filterText ? 1 : 0.58
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.heading
-            elide: Text.ElideRight
+            spacing: Style.spacing.md
+
+            Text {
+              id: promptGlyph
+              textFormat: Text.PlainText
+              text: ">"
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.heading
+              font.bold: true
+              layer.enabled: Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
+            }
+
+            Text {
+              id: queryText
+              textFormat: Text.PlainText
+              // Hug the typed text so the caret follows it; cap and elide when long.
+              width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
+              text: root.filterText || "Search clipboard..."
+              color: root.foreground
+              opacity: root.filterText ? 1 : 0.58
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.heading
+              elide: Text.ElideRight
+            }
+
+            // Blinking block caret at the input head.
+            Text {
+              id: caret
+              textFormat: Text.PlainText
+              text: "_"
+              color: Color.accent
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.heading
+              layer.enabled: Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
+              SequentialAnimation on opacity {
+                running: root.opened
+                loops: Animation.Infinite
+                PropertyAnimation { to: 1; duration: 0 }
+                PauseAnimation { duration: 530 }
+                PropertyAnimation { to: 0; duration: 0 }
+                PauseAnimation { duration: 530 }
+              }
+            }
+          }
+
+          // Hard accent underline: the terminal input line.
+          Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Math.max(1, Style.space(2))
+            color: Util.alpha(Color.accent, Style.fx.glow > 0 ? 0.9 : 0.55)
           }
         }
 
         Item {
           width: parent.width
-          height: parent.height - root.headerHeight - root.contentSpacing
+          height: parent.height - titleRow.height - root.headerHeight - root.contentSpacing * 2
 
           Row {
             anchors.fill: parent
@@ -450,12 +554,36 @@ Item {
                     : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
                   Row {
+                    id: rowContent
                     anchors.fill: parent
                     anchors.leftMargin: Style.space(12)
                     anchors.rightMargin: Style.space(12)
                     anchors.topMargin: Style.space(6)
                     anchors.bottomMargin: Style.space(6)
                     spacing: Style.space(10)
+
+                    // Reticle marker on the row under the cursor.
+                    Text {
+                      id: reticle
+                      anchors.verticalCenter: parent.verticalCenter
+                      width: Style.space(12)
+                      textFormat: Text.PlainText
+                      text: rowDelegate.hasCursor ? ">" : ""
+                      color: root.selectedText
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.body
+                      horizontalAlignment: Text.AlignHCenter
+                      layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
+                      layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Style.fx.glowColor
+                        shadowBlur: 1.0
+                        shadowVerticalOffset: 0
+                        shadowHorizontalOffset: 0
+                        blurMax: Style.fx.glowRadius
+                        autoPaddingEnabled: true
+                      }
+                    }
 
                     Image {
                       visible: rowDelegate.previewImage.length > 0
@@ -471,7 +599,7 @@ Item {
 
                     Text {
                       textFormat: Text.PlainText
-                      width: parent.width - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
+                      width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
                       height: parent.height
                       text: rowDelegate.previewText
                       color: rowDelegate.hasCursor ? root.selectedText : root.foreground
@@ -481,8 +609,22 @@ Item {
                       elide: Text.ElideRight
                       wrapMode: Text.NoWrap
                       verticalAlignment: Text.AlignVCenter
+                      // Neon bloom on the row under the cursor.
+                      layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
+                      layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Style.fx.glowColor
+                        shadowBlur: 1.0
+                        shadowVerticalOffset: 0
+                        shadowHorizontalOffset: 0
+                        blurMax: Style.fx.glowRadius
+                        autoPaddingEnabled: true
+                      }
                     }
                   }
+
+                  // HUD reticle on the row under the cursor.
+                  HudFrame { visible: rowDelegate.hasCursor && Style.fx.brackets }
 
                   MouseArea {
                     anchors.fill: parent
@@ -544,11 +686,28 @@ Item {
                 color: Util.alpha(root.border, 0.28)
               }
 
+              // Uppercase tracked pane label, terminal-readout style.
+              Text {
+                id: previewLabel
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.leftMargin: root.contentMargin
+                textFormat: Text.PlainText
+                text: ":: PREVIEW"
+                color: Color.accent
+                opacity: Style.emphasis.dim
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                font.letterSpacing: Style.headerTracking
+              }
+
               Text {
                 textFormat: Text.PlainText
                 visible: parent.activeRow && !parent.activeRow.previewImage
                 anchors.fill: parent
                 anchors.leftMargin: root.contentMargin
+                anchors.topMargin: previewLabel.height + Style.spacing.sm
                 text: parent.activeRow ? parent.activeRow.fullText : ""
                 color: root.foreground
                 font.family: root.fontFamily
@@ -562,6 +721,7 @@ Item {
                 visible: parent.activeRow && parent.activeRow.previewImage
                 anchors.fill: parent
                 anchors.leftMargin: root.contentMargin
+                anchors.topMargin: previewLabel.height + Style.spacing.sm
                 source: parent.activeRow ? parent.activeRow.previewImage : ""
                 sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectFit
@@ -573,6 +733,10 @@ Item {
           }
         }
       }
+
+      // Terminal-panel framing over the clipboard card.
+      HudFrame {}
+      Scanlines {}
     }
   }
 }

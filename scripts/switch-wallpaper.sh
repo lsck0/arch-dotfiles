@@ -111,7 +111,10 @@ set_wallpaper() {
     # update zed and vscodium themes
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-editor-themes.sh 9>&- &
 
-    # No chat-client theming: Telegram needs a manual GUI confirmation for a palette file (tdesktop#31183), ZapZap hardcodes its palette, and Signal exposes no theming hook at all.
+    # btop theme from the palette.
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-btop-theme.sh 9>&- &
+
+    # Telegram palette regenerates via the wal/ template (configs/telegram); import is a manual GUI step (tdesktop#31183). ZapZap hardcodes its palette, Signal exposes no theming hook.
 
     # Hermes agent: one YAML skin themes its CLI, TUI and desktop app at once, so this rewrites a single file rather than driving three integrations.
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-hermes-skin.py 9>&- >/dev/null 2>&1 &
@@ -179,7 +182,8 @@ set_wallpaper() {
     done
 
     # Push the active theme to every running nvim through the same lua/theme.lua entry point startup uses, so open buffers recolour exactly as a fresh launch would.
-    for addr in $XDG_RUNTIME_DIR/nvim.*; do
+    for addr in "$XDG_RUNTIME_DIR"/nvim.*; do
+        [ -e "$addr" ] || continue
         nvim --server "$addr" --remote-send \
             "<Esc>:lua require('theme').apply('${NVIM_THEME}')<CR>" 9>&- &
     done

@@ -1,0 +1,30 @@
+/* Friends/chat window -- shared cyberpunk rules first, wal palette overrides last. */
+@import url("shared.css");
+@import url("colors.css");
+
+/* ----- Friends/chat specifics: cosmetic only (recolor + inset-shadow border + glow) ----- */
+
+/* Message entry field as a HUD console line */
+[class*="chatentry"], [class*="ChatEntry"], [class*="MessageEntry"],
+[class*="chatentry"] textarea, [class*="ChatEntry"] textarea {
+  background-color: var(--cp-bg-alt) !important;
+  color: var(--cp-fg) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+}
+[class*="chatentry"]:focus-within, [class*="ChatEntry"]:focus-within,
+[class*="MessageEntry"]:focus-within {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+}
+
+/* Friend rows accent-tinted on hover */
+[class*="friend"]:hover, [class*="Friend"]:hover,
+[class*="chatroom"]:hover, [class*="ChatRoom"]:hover {
+  background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+}
+
+/* Online / in-game status dot recolored to the accent */
+[class*="online"], [class*="Online"], [class*="ingame"], [class*="InGame"],
+[class*="statusField"][class*="online"] {
+  color: var(--cp-accent) !important;
+  border-color: var(--cp-accent) !important;
+}

@@ -2,12 +2,13 @@
 # UTC offset (seconds) for each configured zone, refreshed periodically by Clock.qml so DST transitions get picked up without a subprocess per tick.
 set -euo pipefail
 
-# label:IANA-zone pairs. Glasgow, NA west/east coast, NZ.
+# label:IANA-zone pairs, by region.
 zones=(
-  "Glasgow:Europe/London"
-  "NA West:America/Los_Angeles"
-  "NA East:America/New_York"
-  "NZ:Pacific/Auckland"
+  "UK:Europe/London"
+  "USA East:America/New_York"
+  "USA Central:America/Chicago"
+  "USA West:America/Los_Angeles"
+  "New Zealand:Pacific/Auckland"
 )
 
 out="["

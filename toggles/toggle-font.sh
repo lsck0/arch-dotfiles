@@ -125,7 +125,7 @@ apply_family() {
     local fam=$1 e
     e=$(esc "$fam")
 
-    sed -i "s|^font-family = .*|font-family = $e|" "$GHOSTTY"
+    sed -i "0,/^font-family = /s|^font-family = .*|font-family = $e|" "$GHOSTTY"
 
     # All THREE zed key pairs.
     sed -i -e "s|\"buffer_font_family\": \"[^\"]*\"|\"buffer_font_family\": \"$e\"|" \
@@ -138,7 +138,6 @@ apply_family() {
     # Spotify (via Spicetify's injected user.css).
     sed -i "s|font-family: \"[^\"]*\", \"Symbols Nerd Font\"|font-family: \"$e\", \"Symbols Nerd Font\"|" "$SPOTIFY"
 
-    sed -i "s|^set.guifont = \".*:h\([0-9]*\)\"|set.guifont = \"$e:h\1\"|" "$NVIM"
 
     sed -i "s|^font_family .*|font_family $e|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"

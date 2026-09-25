@@ -44,8 +44,8 @@ BarWidget {
     bar: root.bar
     text: "\u{f1ea}"
     tooltipText: "News (NYT)"
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -54,36 +54,48 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.refresh()
+    // Terminal-window title strip.
+    title: "NEWS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+
+    // Neon HUD corner brackets around the dropdown.
+    HudFrame {}
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "NYT TOP STORIES" }
+      // Headroom so the title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
+
+      PanelSectionHeader {
+        text: "NYT TOP STORIES" + (root.headlines.length > 0 ? " :: " + root.headlines.length : "")
+      }
 
       Repeater {
         model: root.headlines
         Text {
           required property string modelData
           width: content.width
-          text: "• " + modelData
+          text: "> " + modelData
           color: Color.menu.text
           font.pixelSize: Style.font.body
           font.family: Style.font.family
+          font.letterSpacing: Style.displayTracking
           wrapMode: Text.Wrap
         }
       }
 
       Text {
         visible: root.headlines.length === 0
-        text: "Loading…"
+        text: "> LOADING..."
         color: Color.menu.text
         opacity: Style.emphasis.faint
         font.pixelSize: Style.font.body
         font.family: Style.font.family
+        font.letterSpacing: Style.displayTracking
       }
     }
   }

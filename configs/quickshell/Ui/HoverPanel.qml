@@ -1,7 +1,9 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Ui
 
 // Shared chrome + hover wiring for every dropdown-style bar panel: BorderSurface card, a click-eating MouseArea (stops clicks falling through to Bar's dismiss catcher), and a HoverHandler that reports into `bar.hoverPanelEnter/Exit` — the panel-side counterpart to the trigger-side reporting WidgetButton does via its entered()/exited() signals. Callers declare their content as plain children, same as they would inside a bare Column; it lands inside the inset `inner` item via the default-property redirect below.
 PanelWindow {
@@ -10,6 +12,8 @@ PanelWindow {
   property QtObject bar: null
   property string moduleName: ""
   property real padding: Style.spacing.panelPadding
+  // Optional terminal-window title; empty renders no title bar (backward compatible).
+  property string title: ""
   default property alias data: inner.data
 
   // Set this to the BarWidget that triggers the panel and it opens centred beneath that widget.
@@ -76,6 +80,9 @@ PanelWindow {
     borderSpec: Border.flat(Color.menu.border, Style.normalBorderWidth)
     radius: Style.cornerRadius
     padding: root.padding
+
+    // Neon HUD corner brackets framing the panel.
+    HudFrame { margin: -Style.space(3) }
   }
 
   // Do not place a click-eating MouseArea over the card: panel controls (calendar, sliders, buttons, and text fields) must receive pointer input.
@@ -94,5 +101,80 @@ PanelWindow {
     y: card.contentTopInset
     width: card.width - card.contentLeftInset - card.contentRightInset
     height: card.height - card.contentTopInset - card.contentBottomInset
+  }
+
+  // Optional terminal-window title strip: `> TITLE _` with decorative chrome and a hard accent rule, additive overlay so empty-title panels are unchanged.
+  Item {
+    id: titleBar
+    visible: root.title.length > 0
+    z: 4
+    x: card.contentLeftInset
+    y: card.contentTopInset
+    width: card.width - card.contentLeftInset - card.contentRightInset
+    height: visible ? titleRow.implicitHeight + Style.spacing.xxs + titleRule.height : 0
+
+    Row {
+      id: titleRow
+      anchors.top: parent.top
+      anchors.left: parent.left
+      spacing: Style.spacing.xs
+
+      Text {
+        text: "> " + root.title
+        color: Color.accent
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking
+        layer.enabled: Style.fx.glow > 0
+        layer.effect: MultiEffect {
+          shadowEnabled: true
+          shadowColor: Style.fx.glowColor
+          shadowBlur: 1.0
+          shadowVerticalOffset: 0
+          shadowHorizontalOffset: 0
+          blurMax: Style.fx.glowRadius
+          autoPaddingEnabled: true
+        }
+      }
+
+      // Blinking block caret.
+      Text {
+        text: "_"
+        color: Color.accent
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        SequentialAnimation on opacity {
+          running: titleBar.visible
+          loops: Animation.Infinite
+          NumberAnimation { to: 0; duration: 500 }
+          NumberAnimation { to: 1; duration: 500 }
+        }
+      }
+    }
+
+    // Decorative window chrome glyphs, non-interactive.
+    Text {
+      anchors.right: parent.right
+      anchors.verticalCenter: titleRow.verticalCenter
+      text: "[# - x]"
+      color: Color.accent
+      opacity: 0.7
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.letterSpacing: Style.headerTracking
+    }
+
+    // Hard accent rule under the title.
+    Rectangle {
+      id: titleRule
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: titleRow.bottom
+      anchors.topMargin: Style.spacing.xxs
+      height: Math.max(1, Style.space(1))
+      color: Util.alpha(Color.accent, 0.8)
+    }
   }
 }

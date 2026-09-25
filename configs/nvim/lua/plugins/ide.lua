@@ -71,6 +71,8 @@ return {
                 -- pattern-only: the "lsp" method calls the deprecated
                 detection_methods = { "pattern" },
                 patterns = { ".git", "Cargo.toml", "package.json", "flake.nix", "pyproject.toml", "Makefile" },
+                -- no auto-chdir: its DirChanged in a repo spawned a 2nd explorer tree
+                manual_mode = true,
             })
         end,
         keys = {

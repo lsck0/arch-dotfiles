@@ -97,8 +97,8 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -107,6 +107,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.refreshItems()
+    // Terminal-window title strip.
+    title: "TOGGLES"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
 
@@ -126,6 +128,13 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
+        // Headroom so the title strip never overlaps the first row.
+        Item { width: 1; height: Style.spacing.xxxl }
+
+        PanelSectionHeader {
+          text: "SWITCHES" + (root.items.length > 0 ? " :: " + root.items.length : "")
+        }
+
         // Ui/Toggle.qml floors each row at 54px — ten toggles is ~540px, taller than most screens want popping open on hover.
         Repeater {
           model: root.items
@@ -141,13 +150,17 @@ BarWidget {
 
         Text {
           visible: root.items.length === 0
-          text: "Loading…"
+          text: "> LOADING..."
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.body
           font.family: Style.font.family
+          font.letterSpacing: Style.displayTracking
         }
       }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -166,12 +167,52 @@ Item {
                         font.pixelSize: Style.font.title
                         font.bold: true
                         font.letterSpacing: Style.headerTracking
+                        // Accent neon bloom on the title.
+                        layer.enabled: Style.fx.glow > 0
+                        layer.effect: MultiEffect {
+                            shadowEnabled: true
+                            shadowColor: Style.fx.glowColor
+                            shadowBlur: 1.0
+                            shadowVerticalOffset: 0
+                            shadowHorizontalOffset: 0
+                            blurMax: Style.fx.glowRadius
+                            autoPaddingEnabled: true
+                        }
+                    }
+
+                    // Blinking block caret after the title, terminal prompt style.
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        textFormat: Text.PlainText
+                        text: "_"
+                        color: Color.accent
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.title
+                        layer.enabled: Style.fx.glow > 0
+                        layer.effect: MultiEffect {
+                            shadowEnabled: true
+                            shadowColor: Style.fx.glowColor
+                            shadowBlur: 1.0
+                            shadowVerticalOffset: 0
+                            shadowHorizontalOffset: 0
+                            blurMax: Style.fx.glowRadius
+                            autoPaddingEnabled: true
+                        }
+                        SequentialAnimation on opacity {
+                            running: root.opened
+                            loops: Animation.Infinite
+                            PropertyAnimation { to: 1; duration: 0 }
+                            PauseAnimation { duration: 530 }
+                            PropertyAnimation { to: 0; duration: 0 }
+                            PauseAnimation { duration: 530 }
+                        }
                     }
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         textFormat: Text.PlainText
-                        text: String(keyCatcher.ids.length)
+                        // Bracketed count, terminal-readout style.
+                        text: "[" + String(keyCatcher.ids.length) + "]"
                         color: Color.menu.text
                         opacity: 0.45
                         font.family: Style.font.family
@@ -221,6 +262,9 @@ Item {
                             borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
                             clip: true
 
+                            // Glowing HUD reticle on the focused tile.
+                            HudFrame { visible: tile.selected; z: 30 }
+
                             ScreencopyView {
                                 id: capture
 
@@ -234,7 +278,7 @@ Item {
                                 textFormat: Text.PlainText
                                 visible: !capture.hasContent
                                 anchors.centerIn: parent
-                                text: tile.toplevels.length === 0 ? "Empty" : "…"
+                                text: tile.toplevels.length === 0 ? "Empty" : "..."
                                 color: Color.menu.text
                                 opacity: 0.4
                                 font.family: Style.font.family
@@ -273,11 +317,23 @@ Item {
 
                                     Text {
                                         textFormat: Text.PlainText
-                                        text: (tile.modelData === 10 ? "0" : String(tile.modelData))
+                                        // Bracketed workspace label, HUD-grid style.
+                                        text: "[" + (tile.modelData === 10 ? "0" : String(tile.modelData)) + "]"
                                         color: tile.selected ? Color.accent : Color.menu.text
                                         font.family: Style.font.family
                                         font.pixelSize: Style.font.body
                                         font.letterSpacing: Style.headerTracking
+                                        // Bloom the workspace number when this tile is selected.
+                                        layer.enabled: tile.selected && Style.fx.glow > 0
+                                        layer.effect: MultiEffect {
+                                            shadowEnabled: true
+                                            shadowColor: Style.fx.glowColor
+                                            shadowBlur: 1.0
+                                            shadowVerticalOffset: 0
+                                            shadowHorizontalOffset: 0
+                                            blurMax: Style.fx.glowRadius
+                                            autoPaddingEnabled: true
+                                        }
                                     }
 
                                     Text {
@@ -305,6 +361,9 @@ Item {
 
                             }
 
+                            // HUD reticle on the selected workspace.
+                            HudFrame { visible: tile.selected && Style.fx.brackets }
+
                             MouseArea {
                                 anchors.fill: parent
                                 hoverEnabled: true
@@ -328,6 +387,9 @@ Item {
                 }
 
             }
+
+            // CRT scanline overlay across the whole overview.
+            Scanlines {}
 
         }
 

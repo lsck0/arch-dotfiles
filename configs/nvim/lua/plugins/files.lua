@@ -81,7 +81,8 @@ return {
                         always_show = { ".gitignore", ".env" }
                     },
                     follow_current_file = { enabled = true },
-                    hijack_netrw_behavior = "open_default",
+                    -- snacks.explorer owns dir launches; neo-tree stays :Neotree-only
+                    hijack_netrw_behavior = "disabled",
                     use_libuv_file_watcher = true,
                     window = {
                         mappings = {

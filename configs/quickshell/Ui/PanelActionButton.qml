@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 // Small (22×22 by default) icon button used at the right edge of panel rows for inline actions — forget network, confirm passphrase, unpair device, etc. Two visual modes are supported via `hoverColor`: - default: hoverColor === foreground → subtle foreground-tint hover - urgent:  hoverColor === bar.urgent → red-tint hover for destructive actions like forget/unpair `enabled` gates clicks and dims the icon. The component owns its own hover state visuals; mouse hover does NOT update any panel cursor state here because action buttons are not cursor targets — the row they live in is. Set `focusable: true` to make the button keyboard-tabbable with the shared hover-cursor/focus tokens. Use this in form contexts where Tab walks a list of controls; leave it false for the right-edge actions on panel rows, where the row itself owns the keyboard cursor. Set `hasCursor: true` to have the button render the same hover state as mouse hover — so a panel's keyboard cursor lands on it identically. Use this when a PanelActionButton is itself the cursor target rather than one action inside a cursor-owning row. Emits `hovered(bool)` on pointer enter/leave so the panel can update its cursor state to match.
@@ -56,6 +57,18 @@ BorderSurface {
       : Qt.darker(root.foreground, 2.0)
     font.family: root.fontFamily
     font.pixelSize: root.fontSize
+
+    // Accent neon bloom when focused or under the cursor.
+    layer.enabled: Style.fx.glow > 0 && root.enabled && (root._showFocusRing || root._hot)
+    layer.effect: MultiEffect {
+      shadowEnabled: true
+      shadowColor: Style.fx.glowColor
+      shadowBlur: 1.0
+      shadowVerticalOffset: 0
+      shadowHorizontalOffset: 0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
+    }
   }
 
   MouseArea {

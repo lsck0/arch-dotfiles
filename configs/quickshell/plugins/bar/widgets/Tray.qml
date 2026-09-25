@@ -380,10 +380,13 @@ BarWidget {
 
       Text {
         text: "Tray icons"
-        color: root.foreground
+        // Uppercase tracked accent header, matching the shell's PanelSectionHeader.
+        color: Color.accent
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: Style.font.caption
         font.bold: true
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking
       }
 
       // Style.emphasis, not Qt.darker: the shared emphasis ladder is how every other panel de-emphasises secondary text, and darkening the foreground against a dark card reduces contrast instead of softening it.

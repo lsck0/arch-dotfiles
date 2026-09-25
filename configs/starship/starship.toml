@@ -1,5 +1,10 @@
-add_newline = false
+add_newline = true
 command_timeout = 3000
+
+# two-line: info segments on top, the prompt char alone below (cleaner, roomier)
+format = """
+$directory$git_branch$git_status$git_metrics$rust$python$nodejs$golang$lua$nix_shell$cmd_duration$jobs$status
+$character"""
 
 [container]
 disabled = true
@@ -8,13 +13,22 @@ disabled = true
 success_symbol = '[λ](bold green)'
 error_symbol = '[λ](bold red)'
 
+[directory]
+style = 'bold cyan'
+read_only = ' '
+read_only_style = 'bold red'
+truncation_symbol = '…/'
+format = '[\[](bold cyan)[$path]($style)[$read_only]($read_only_style)[\]](bold cyan) '
+
+[git_branch]
+symbol = ' '
+style = 'bold cyan'
+format = '[$symbol$branch]($style) '
+
 [sudo]
 disabled = true
 style = 'bold green'
 symbol = 'su '
-
-[git_status]
-disabled = true
 
 [git_metrics]
 disabled = false
@@ -25,4 +39,64 @@ format = '[+$added]($added_style)/[-$deleted]($deleted_style) '
 symbol = "󰜗 "
 
 [aws]
+disabled = true
+
+# --- richer, cohesive cyberpunk prompt ------------------------------------
+[git_status]
+disabled = false
+style = 'bold red'
+format = '([\[$all_status$ahead_behind\]]($style) )'
+conflicted = '!'
+ahead = '>${count}'
+behind = '<${count}'
+diverged = '<>${count}'
+untracked = '?${count}'
+stashed = '*${count}'
+modified = '~${count}'
+staged = '+${count}'
+renamed = 'r${count}'
+deleted = '-${count}'
+
+[cmd_duration]
+min_time = 500
+style = 'bold yellow'
+format = '[${duration}]($style) '
+
+[status]
+disabled = false
+style = 'bold red'
+symbol = '[x](bold red) '
+format = '[$symbol$status]($style) '
+
+[jobs]
+symbol = '&'
+style = 'bold blue'
+format = '[$symbol$number]($style) '
+
+[rust]
+symbol = ' '
+style = 'bold red'
+format = '[$symbol($version)]($style) '
+
+[python]
+symbol = ' '
+style = 'bold yellow'
+format = '[$symbol($version)]($style) '
+
+[nodejs]
+symbol = ' '
+style = 'bold green'
+format = '[$symbol($version)]($style) '
+
+[golang]
+symbol = ' '
+style = 'bold cyan'
+format = '[$symbol($version)]($style) '
+
+[lua]
+symbol = ' '
+style = 'bold blue'
+format = '[$symbol($version)]($style) '
+
+[package]
 disabled = true

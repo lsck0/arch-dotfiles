@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
@@ -153,6 +154,17 @@ BarWidget {
             ? Color.semantic.speaking
             : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: 140 } }
+          // The speaking ring blooms in Discord's own green.
+          layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Color.semantic.speaking
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowHorizontalOffset: 0
+            blurMax: Style.fx.glowRadius
+            autoPaddingEnabled: true
+          }
         }
 
         // ClippingRectangle, not Rectangle.
@@ -246,6 +258,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip.
+    title: "VOICE"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -254,21 +268,85 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "VOICE · " + root.participants.length + " IN CALL" }
+      // Headroom so the title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
-      Text {
+      // Big glowing hero: how many are in the call, with the channel + speaking count flush right.
+      Item {
         width: parent.width
-        textFormat: Text.PlainText
-        readonly property string base: root.guildName
-          ? root.guildName + "  ·  " + root.channelName
-          : (root.channelName || "Voice call")
-        text: base + (root.speakingCount > 0 ? "  ·  " + root.speakingCount + " speaking" : "")
-        color: Color.menu.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        opacity: Style.emphasis.dim
-        elide: Text.ElideRight
+        implicitHeight: Math.max(voiceHero.implicitHeight, voiceMeta.implicitHeight)
+        height: implicitHeight
+        Row {
+          id: voiceHero
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
+          Text {
+            id: heroNum
+            anchors.bottom: parent.bottom
+            text: root.participants.length
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Math.round(Style.font.display * 1.7)
+            font.bold: true
+            font.letterSpacing: Style.displayTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+          }
+          Text {
+            anchors.bottom: heroNum.bottom
+            anchors.bottomMargin: Math.round(Style.font.body * 0.3)
+            text: "IN CALL"
+            color: Color.accent
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking
+          }
+        }
+        Column {
+          id: voiceMeta
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width * 0.56
+          spacing: Style.spacing.xxs
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            textFormat: Text.PlainText
+            text: root.guildName
+              ? root.guildName + "  ::  " + root.channelName
+              : (root.channelName || "Voice call")
+            color: Color.menu.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            opacity: Style.emphasis.dim
+            elide: Text.ElideRight
+          }
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            visible: root.speakingCount > 0
+            text: root.speakingCount + " SPEAKING"
+            color: Color.semantic.speaking
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking * 0.4
+          }
+        }
       }
+
+      PanelSeparator {}
 
       // --- my own controls --- Mute, deafen and leave: single actions on Discord's media-engine and channel-action modules, the things worth reaching for without switching windows.
       Row {
@@ -407,6 +485,17 @@ BarWidget {
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
+              // Accent glow on whoever is currently talking.
+              layer.enabled: Style.fx.glow > 0 && modelData.speaking
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
             }
             Text {
               id: youLabel
@@ -461,5 +550,8 @@ BarWidget {
         }
       }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

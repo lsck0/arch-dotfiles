@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import qs.Commons
 
 // The button.
@@ -103,6 +104,19 @@ BorderSurface {
   borderSpec: _borderSpec
 
   Behavior on color { ColorAnimation { duration: 120 } }
+
+  // Accent neon bloom on the focused/selected/active/pressed states.
+  readonly property bool _glowing: Style.fx.glow > 0 && (_showFocusRing || selected || active || mouseArea.pressed)
+  layer.enabled: _glowing
+  layer.effect: MultiEffect {
+    shadowEnabled: true
+    shadowColor: Style.fx.glowColor
+    shadowBlur: 1.0
+    shadowVerticalOffset: 0
+    shadowHorizontalOffset: 0
+    blurMax: Style.fx.glowRadius
+    autoPaddingEnabled: true
+  }
 
   ToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse

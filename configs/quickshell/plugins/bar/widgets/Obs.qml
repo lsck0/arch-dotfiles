@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -52,6 +53,11 @@ BarWidget {
     recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
 
   readonly property bool active: streaming || recording
+
+  // Rolling history for the panel sparklines (newest last, capped).
+  property var bitrateHist: []
+  property var dropHist: []
+  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   // The state colour, used by the dot AND the label.
   readonly property color stateColor: (degraded || faulted)
@@ -158,6 +164,10 @@ BarWidget {
     prevStreamBytes = sBytes
     prevRecordBytes = rBytes
     prevSampleMs = nowMs
+
+    // Feed the panel sparklines from the values just computed — history only, no logic change.
+    bitrateHist = _push(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
+    dropHist = _push(dropHist, dropPct)
   }
 
   // Start the helper only once OBS is actually running, and stop it again when OBS goes away.
@@ -255,6 +265,17 @@ BarWidget {
       radius: width / 2
       // Recording red and live red are the convention every camera and every broadcast desk already uses; this is the same deliberate exception to the palette that the weather awareness colours are.
       color: root.stateColor
+      // Glow in the live/record colour while broadcasting.
+      layer.enabled: Style.fx.glow > 0 && root.active
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: root.stateColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
 
       SequentialAnimation on opacity {
         running: root.active
@@ -284,6 +305,17 @@ BarWidget {
       font.pixelSize: Style.font.bodySmall
       font.bold: root.active
       opacity: root.active || root.faulted ? 1 : 0.55
+      // The state word glows in its own colour when live/recording.
+      layer.enabled: Style.fx.glow > 0 && root.active
+      layer.effect: MultiEffect {
+        shadowEnabled: true
+        shadowColor: root.stateColor
+        shadowBlur: 1.0
+        shadowVerticalOffset: 0
+        shadowHorizontalOffset: 0
+        blurMax: Style.fx.glowRadius
+        autoPaddingEnabled: true
+      }
     }
 
     Text {
@@ -311,6 +343,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    // Terminal-window title strip.
+    title: "OBS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -326,8 +360,11 @@ BarWidget {
         text: parent.label
         color: Color.menu.text
         opacity: Style.emphasis.dim
+        elide: Text.ElideRight
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        font.capitalization: Font.AllUppercase
+        font.letterSpacing: Style.headerTracking * 0.4
       }
       Text {
         width: parent.width * 0.55
@@ -337,6 +374,7 @@ BarWidget {
         opacity: parent.dim ? 0.4 : 1
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        font.letterSpacing: Style.displayTracking
       }
     }
 
@@ -387,7 +425,98 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "OBS" }
+      // Headroom so the title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
+
+      // Big glowing hero: live bitrate while streaming, record rate while recording, otherwise output FPS. State + elapsed flush right, kept in OBS's own live/record colours.
+      Item {
+        width: parent.width
+        visible: root.connected
+        implicitHeight: Math.max(obsHero.implicitHeight, obsMeta.implicitHeight)
+        height: implicitHeight
+        Row {
+          id: obsHero
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
+          Text {
+            id: heroNum
+            anchors.bottom: parent.bottom
+            text: root.streaming ? Math.round(root.bitrateKbps)
+                : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0))
+            color: root.active ? root.stateColor : Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Math.round(Style.font.display * 1.7)
+            font.bold: true
+            font.letterSpacing: Style.displayTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: root.active ? root.stateColor : Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+          }
+          Text {
+            anchors.bottom: heroNum.bottom
+            anchors.bottomMargin: Math.round(Style.font.body * 0.3)
+            text: root.active ? "KBPS" : "FPS"
+            color: root.active ? root.stateColor : Color.accent
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking
+          }
+        }
+        Column {
+          id: obsMeta
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          width: parent.width * 0.5
+          spacing: Style.spacing.xxs
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            text: root.streamReconnecting ? "RECONNECTING"
+                : (root.streaming && root.recording ? "LIVE + REC"
+                : (root.streaming ? "LIVE"
+                : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
+            color: root.active ? root.stateColor : Color.menu.text
+            opacity: root.active ? 1 : Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.headerTracking * 0.5
+          }
+          Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignRight
+            visible: root.active
+            text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
+            color: Color.menu.text
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.displayTracking
+          }
+        }
+      }
+
+      // Bitrate history as a glowing HUD sparkline, tinted to the live/record state.
+      Sparkline {
+        width: parent.width
+        height: Style.space(34)
+        visible: root.connected && root.bitrateHist.length > 1
+        values: root.bitrateHist
+        minValue: 0
+        maxValue: 0
+        color: root.active ? root.stateColor : Color.accent
+      }
 
       // AT THE TOP, NOT THE BOTTOM.
       Rectangle {
@@ -505,7 +634,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "STATUS" }
 
-      Row_ { label: "Scene"; value: root.scene || "—"; dim: root.scene === "" }
+      Row_ { label: "Scene"; value: root.scene || "--"; dim: root.scene === "" }
       Row_ { label: "Output FPS"; value: root.fps.toFixed(1) }
       Row_ { label: "Frame render"; value: root.frameTimeMs.toFixed(2) + " ms" }
       Row_ { label: "OBS CPU"; value: root.cpu.toFixed(1) + "%" }
@@ -538,6 +667,24 @@ BarWidget {
         label: "Congestion"
         value: Math.round(root.congestion * 100) + "%"
         valueColor: root.congestion >= 0.3 ? Color.semantic.warn : Color.menu.text
+      }
+      // Congestion as a segmented 0..1 gauge; dropped-frame percentage history as a sparkline.
+      BarGauge {
+        width: parent.width
+        height: Style.spacing.md
+        visible: root.streaming
+        segments: 24
+        value: Math.max(0, Math.min(1, root.congestion))
+        color: root.congestion >= 0.3 ? Color.semantic.warn : Color.accent
+      }
+      Sparkline {
+        width: parent.width
+        height: Style.space(28)
+        visible: root.streaming && root.dropHist.length > 1
+        values: root.dropHist
+        minValue: 0
+        maxValue: 0
+        color: Color.semantic.warn
       }
 
       PanelSeparator {}
@@ -581,5 +728,8 @@ BarWidget {
       }
 
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

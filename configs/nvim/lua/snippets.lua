@@ -88,3 +88,5 @@ ls.add_snippets("c", {
         t({ "", " */" }),
     }),
 })
+
+require("latex_snippets") -- sections, environments, math snippets for tex

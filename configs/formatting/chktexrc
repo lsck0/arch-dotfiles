@@ -1,0 +1,22 @@
+# chktex config (used by texlab's lint). `CmdLine` args apply as if typed.
+# suppress prose-noisy checks: 1 space-after-cmd, 8 dash length,
+# 13 intersentence spacing, 36 space around parens, 44 user regex.
+CmdLine
+{
+    -n1
+    -n8
+    -n13
+    -n36
+    -n44
+}
+
+# strip these commands' arguments before checking, killing false positives
+WipeArg
+{
+    \label:{}
+    \ref:{}
+    \eqref:{}
+    \cite:{}
+    \input:{}
+    \include:{}
+}

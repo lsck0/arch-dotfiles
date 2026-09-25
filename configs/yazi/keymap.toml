@@ -1,0 +1,11 @@
+#:schema https://yazi-rs.github.io/schemas/keymap.json
+
+# Defaults are kept; prepend only a few quality-of-life jumps (no external deps).
+
+[mgr]
+prepend_keymap = [
+	{ on = [ "g", "h" ], run = "cd ~",         desc = "Go home" },
+	{ on = [ "g", "c" ], run = "cd ~/.config", desc = "Go to ~/.config" },
+	{ on = [ "g", "p" ], run = "cd ~/projects", desc = "Go to ~/projects" },
+	{ on = "!", run = 'shell "$SHELL" --block', desc = "Open shell here" },
+]

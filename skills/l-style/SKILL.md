@@ -228,6 +228,7 @@ Usual sections: `CONSTANTS`, `TYPES`, `FUNCTIONS`, `LIFETIME`, `INTERNAL`.
 
 - Inline comments minimal, informative, lowercase. Doc comments (`/** */`, `///`) are prose and keep normal capitalization.
 - Inline comments are one line, maximally. The exception is a file/module header comment explaining the API of the unit below it, which may run several lines. A why that needs a paragraph belongs in the commit message or TODO.md, not stacked above the line.
+- Use only ASCII symbols in code. No Unicode box-drawing, block, or geometric glyphs as decoration (`# _ | [ ] < > / \ + - = : . * o x` instead of `▓ ▉ ■ □ ● ✕ ▶ ┌ ─ │`). Real content (a UI's own icon font glyphs, a language's operators, test data that must contain the character) is exempt; the rule is about decoration.
 - Comment the why, never the what. Anything that looks wrong, arbitrary or removable, and isn't, carries its reason next to it:
   - Workarounds for bugs in a dependency, the compiler, the OS or the hardware. Name the thing, the version range, the issue link, what happens without the workaround, and what would let it be deleted.
   - Edge cases the code exists to handle, with the input that produces them. "The seventh crate in a tick got no sound" beats "handle edge case".

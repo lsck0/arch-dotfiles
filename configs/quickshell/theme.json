@@ -15,20 +15,29 @@
     "wallpaper stays the colour source; these decide how it is interpreted."
   ],
   "font": {
-    "family": "0xProto Nerd Font",
+    "family": "Tektur",
     "size": 12
   },
   "palette": {
     "backgroundValueMin": 0.08,
     "backgroundValueMax": 0.26,
     "foregroundContrast": 7.0,
-    "accentMinSaturation": 0.45,
-    "accentMinValue": 0.55,
+    "accentMinSaturation": 0.7,
+    "accentMinValue": 0.62,
     "accentContrast": 3.0,
     "urgentMinSaturation": 0.55,
     "urgentMinValue": 0.55,
     "urgentContrast": 3.0,
     "mutedContrast": 1.9,
     "transitionMs": 600
+  },
+  "fx": {
+    "glowStrength": 0.22,
+    "scanlineOpacity": 0.06,
+    "scanlineSpacing": 3,
+    "phosphorBias": 0,
+    "cornerBrackets": true,
+    "crtFlicker": 0.02,
+    "matrixRain": 0.5
   }
 }

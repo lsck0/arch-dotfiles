@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -197,8 +198,8 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "󰍹"
-    onEntered: root.bar.hoverOpen(root.moduleName)
-    onExited: root.bar.hoverTriggerExit(root.moduleName)
+    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
+    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
   HoverPanel {
@@ -217,10 +218,52 @@ BarWidget {
       root.refreshFontSize()
     }
 
+    // Terminal-window title strip.
+    title: "DISPLAY"
+
+    // Big glowing hero numeral (a percentage) that opens a section.
+    component Hero: Row {
+      property int pct: 0
+      property color tint: Color.accent
+      spacing: Style.spacing.xxs
+      Text {
+        id: heroNum
+        anchors.bottom: parent.bottom
+        text: parent.pct
+        color: parent.tint
+        font.family: Style.font.family
+        font.pixelSize: Math.round(Style.font.display * 1.7)
+        font.bold: true
+        font.letterSpacing: Style.displayTracking
+        layer.enabled: Style.fx.glow > 0
+        layer.effect: MultiEffect {
+          shadowEnabled: true
+          shadowColor: Style.fx.glowColor
+          shadowBlur: 1.0
+          shadowVerticalOffset: 0
+          shadowHorizontalOffset: 0
+          blurMax: Style.fx.glowRadius
+          autoPaddingEnabled: true
+        }
+      }
+      Text {
+        anchors.bottom: heroNum.bottom
+        anchors.bottomMargin: Math.round(Style.font.display * 0.35)
+        text: "%"
+        color: parent.tint
+        opacity: Style.emphasis.dim
+        font.family: Style.font.family
+        font.pixelSize: Style.font.title
+      }
+    }
+
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.lg
+
+      // Headroom so the title strip never overlaps the first row.
+      Item { width: 1; height: Style.spacing.xl }
 
       PanelSectionHeader { text: "BRIGHTNESS" }
 
@@ -228,14 +271,31 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        // A value beside its label — Style.emphasis.dim, matching every other "current reading" caption in the shell (e.g. Weather's current-conditions subtitle) instead of a one-off opacity.
-        Text {
-          text: Math.round(root.brightnessPct) + "%"
-            + (root.activeMonitors.length > 1 ? "  ·  " + root.activeMonitors.length + " monitors" : "")
-          color: Color.menu.text
-          opacity: Style.emphasis.dim
-          font.pixelSize: Style.font.bodySmall
-          font.family: Style.font.family
+        // Big glowing brightness hero, monitor count + segmented gauge flush right.
+        Item {
+          width: parent.width
+          implicitHeight: Math.max(briHero.implicitHeight, briReads.implicitHeight)
+          height: implicitHeight
+          Hero { id: briHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Math.round(root.brightnessPct) }
+          Column {
+            id: briReads
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width * 0.56
+            spacing: Style.spacing.sm
+            // A value beside its label — Style.emphasis.dim, matching every other "current reading" caption in the shell (e.g. Weather's current-conditions subtitle) instead of a one-off opacity.
+            Text {
+              width: parent.width
+              horizontalAlignment: Text.AlignRight
+              text: root.activeMonitors.length > 1 ? root.activeMonitors.length + " MONITORS" : "1 MONITOR"
+              color: Color.menu.text
+              opacity: Style.emphasis.dim
+              font.pixelSize: Style.font.caption
+              font.family: Style.font.family
+              font.letterSpacing: Style.headerTracking * 0.4
+            }
+            BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.brightnessPct / 100 }
+          }
         }
 
         // Single slider for every connected monitor.
@@ -257,8 +317,8 @@ BarWidget {
         width: parent.width
         // md-image, same action-row shape as the System and Network tools.
         glyph: "\u{f02e9}"
-        label: "Choose wallpaper…"
-        onActivated: { root.openWallpaperPicker(); root.bar.closePanel(root.moduleName) }
+        label: "Choose wallpaper..."
+        onActivated: { root.openWallpaperPicker(); if (root.bar) root.bar.closePanel(root.moduleName) }
       }
 
       PanelSectionHeader { text: "FONT" }
@@ -316,7 +376,7 @@ BarWidget {
             Text {
               text: monitorRow.disabled ? "off"
                 : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
-                  + (monitorRow.mirrorOf ? "  ·  mirroring " + monitorRow.mirrorOf : "")
+                  + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
               color: Color.menu.text
               opacity: Style.emphasis.dim
               font.pixelSize: Style.font.bodySmall
@@ -370,5 +430,8 @@ BarWidget {
         }
       }
     }
+
+    // HUD corner brackets over the panel.
+    HudFrame {}
   }
 }

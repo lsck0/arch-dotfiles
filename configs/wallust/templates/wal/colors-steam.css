@@ -1,0 +1,12 @@
+/* Steam (Millennium) cyberpunk palette -- rendered by wallust from the pywal palette. */
+/* wallust writes this to ~/.cache/wal/colors-steam.css; the theme symlinks it as colors.css. */
+/* Literal CSS braces are doubled; colorN/background/foreground tokens are palette substitutions. */
+:root {{
+  --cp-bg: {background};
+  --cp-bg-alt: {color0};
+  --cp-fg: {foreground};
+  --cp-accent: {color4};
+  --cp-accent-2: {color5};
+  --cp-muted: {color8};
+  --cp-border: {color8};
+}}

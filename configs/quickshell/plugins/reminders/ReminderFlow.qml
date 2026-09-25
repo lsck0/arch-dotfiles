@@ -2,6 +2,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
@@ -27,8 +28,8 @@ Item {
   readonly property string notifyScript: Paths.dotfiles + "/scripts/notification-send.sh"
 
   readonly property string promptText: step === "message"
-    ? "Message for the " + minutes + " min reminder…"
-    : "Remind me in … minutes"
+    ? "Message for the " + minutes + " min reminder..."
+    : "Remind me in ... minutes"
 
   function open(payloadJson) {
     root.opened = true
@@ -184,6 +185,65 @@ Item {
         anchors.rightMargin: card.contentRightInset
         spacing: Style.spacing.lg
 
+        // Terminal-window title strip: prompt, panel name, blinking block caret, decorative chrome.
+        Item {
+          width: parent.width
+          implicitHeight: rtTitleRow.implicitHeight
+          height: implicitHeight
+          Row {
+            id: rtTitleRow
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.xs
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: ">"
+              color: Color.accent
+              opacity: Style.emphasis.dim
+              font.family: Style.font.family
+              font.pixelSize: Style.font.title
+            }
+            PanelSectionHeader { anchors.verticalCenter: parent.verticalCenter; text: "Reminders"; fontSize: Style.font.title }
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: "_"
+              color: Color.accent
+              font.family: Style.font.family
+              font.pixelSize: Style.font.title
+              layer.enabled: Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
+              SequentialAnimation on opacity {
+                running: root.opened
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.15; duration: 520 }
+                NumberAnimation { to: 1.0; duration: 520 }
+              }
+            }
+          }
+          Text {
+            anchors.right: parent.right
+            anchors.verticalCenter: rtTitleRow.verticalCenter
+            textFormat: Text.PlainText
+            text: "[- o x]"
+            color: Color.accent
+            opacity: Style.emphasis.faint
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.headerTracking
+          }
+        }
+        PanelSeparator {}
+
         // ---- new reminder input, same headline field as the app launcher ----
         Item {
           width: parent.width
@@ -198,19 +258,75 @@ Item {
             color: Color.accent
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.heading
+            // Accent neon bloom on the prompt glyph.
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
           }
-          Text {
+          // Terminal prompt line: typed text followed by a blinking block caret.
+          Row {
+            id: rtPromptRow
             anchors.left: inputGlyph.right
             anchors.leftMargin: Style.spacing.lg
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: root.filterText || root.promptText
-            color: Color.menu.text
-            opacity: root.filterText ? 1 : 0.58
-            font.family: Style.font.family
-            font.pixelSize: Style.font.heading
-            elide: Text.ElideRight
+            spacing: Style.spacing.sm
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              width: Math.min(implicitWidth, rtPromptRow.width - rtCaret.width - rtPromptRow.spacing)
+              text: root.filterText || root.promptText
+              color: Color.menu.text
+              opacity: root.filterText ? 1 : 0.58
+              font.family: Style.font.family
+              font.pixelSize: Style.font.heading
+              elide: Text.ElideRight
+            }
+
+            Text {
+              id: rtCaret
+              anchors.verticalCenter: parent.verticalCenter
+              textFormat: Text.PlainText
+              text: "_"
+              color: Color.accent
+              font.family: Style.font.family
+              font.pixelSize: Style.font.heading
+              layer.enabled: Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
+              SequentialAnimation on opacity {
+                running: root.opened
+                loops: Animation.Infinite
+                PropertyAnimation { to: 1; duration: 0 }
+                PauseAnimation { duration: 530 }
+                PropertyAnimation { to: 0; duration: 0 }
+                PauseAnimation { duration: 530 }
+              }
+            }
+          }
+
+          // Hard accent underline: the terminal input line.
+          Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: Math.max(1, Style.space(2))
+            color: Util.alpha(Color.accent, Style.fx.glow > 0 ? 0.9 : 0.55)
           }
         }
 
@@ -388,6 +504,17 @@ Item {
               font.family: Style.font.family
               font.pixelSize: Style.font.display
               font.bold: true
+              // Bloom the big countdown while a block is running.
+              layer.enabled: root.pomo.running && Style.fx.glow > 0
+              layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Style.fx.glowColor
+                shadowBlur: 1.0
+                shadowVerticalOffset: 0
+                shadowHorizontalOffset: 0
+                blurMax: Style.fx.glowRadius
+                autoPaddingEnabled: true
+              }
             }
             Text {
               id: pomoPhase
@@ -429,21 +556,15 @@ Item {
             }
           }
 
-          // Phase progress.
-          Rectangle {
+          // Phase progress as a segmented terminal block gauge.
+          BarGauge {
             width: parent.width
             height: Math.max(4, Style.space(4))
-            radius: height / 2
             visible: root.pomo.running
-            color: Style.selectedFillFor(Color.menu.text, Color.accent)
-            Rectangle {
-              height: parent.height
-              radius: parent.radius
-              color: root.pomo.paused ? Color.menu.text : Color.accent
-              width: root.pomo.totalSeconds > 0
-                ? parent.width * Math.max(0, Math.min(1, 1 - root.pomo.remainingSeconds / root.pomo.totalSeconds)) : 0
-              Behavior on width { NumberAnimation { duration: 900 } }
-            }
+            segments: 32
+            value: root.pomo.totalSeconds > 0
+              ? Math.max(0, Math.min(1, 1 - root.pomo.remainingSeconds / root.pomo.totalSeconds)) : 0
+            color: root.pomo.paused ? Color.menu.text : Color.accent
           }
 
           PanelRow {
@@ -456,6 +577,10 @@ Item {
           }
         }
       }
+
+      // Terminal-panel framing + CRT scanlines over the reminders card.
+      HudFrame {}
+      Scanlines {}
     }
   }
 }

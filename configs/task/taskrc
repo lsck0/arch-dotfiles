@@ -15,6 +15,22 @@ date.iso=yes
 weekstart=Monday
 journal.info=off
 
+# --- human reports (scoped to this db; agent dbs use their own .taskrc) -----
+
+# dash: urgency-ordered overview of everything pending.
+report.dash.description=Human overview, urgency first
+report.dash.columns=id,start.age,project,tags,scheduled.countdown,due.relative,urgency,description.count
+report.dash.labels=ID,Active,Project,Tag,Sched,Due,Urg,Description
+report.dash.filter=status:pending
+report.dash.sort=urgency-
+
+# aging: oldest pending tasks first, to surface what has been sitting.
+report.aging.description=Oldest pending tasks first
+report.aging.columns=id,entry.age,project,tags,due.relative,description.count
+report.aging.labels=ID,Age,Project,Tag,Due,Description
+report.aging.filter=status:pending
+report.aging.sort=entry+
+
 # --- urgency ---------------------------------------------------------------
 
 urgency.user.tag.inbox.coefficient=-2.0

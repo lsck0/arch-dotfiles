@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs.Commons
 
 // Labeled toggle row: title + optional description on the left, a `ToggleSwitch` on the right.
@@ -40,6 +41,18 @@ BorderSurface {
   borderSpec: _borderSpec
 
   Behavior on color { ColorAnimation { duration: 100 } }
+
+  // Accent neon bloom on the focused row; the switch itself glows when on.
+  layer.enabled: Style.fx.glow > 0 && activeFocus
+  layer.effect: MultiEffect {
+    shadowEnabled: true
+    shadowColor: Style.fx.glowColor
+    shadowBlur: 1.0
+    shadowVerticalOffset: 0
+    shadowHorizontalOffset: 0
+    blurMax: Style.fx.glowRadius
+    autoPaddingEnabled: true
+  }
 
   Row {
     id: content

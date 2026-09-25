@@ -135,7 +135,16 @@ vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" }
 
 -- popouts
 vim.keymap.set("n", "<leader>e", function()
-    require("snacks").explorer({ cwd = require("lib.root").git() })
+    -- toggle: close the open tree, else chdir to git root and open (no cwd arg,
+    -- so it never stacks a duplicate root; see the VimEnter autocmd comment).
+    local open = require("snacks.picker").get({ source = "explorer" })
+    if open and #open > 0 then
+        open[1]:close()
+    else
+        local root = require("lib.root").git()
+        if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
+        require("snacks").explorer()
+    end
 end, { desc = "File explorer (snacks)" })
 vim.keymap.set("n", "<leader>g", "<cmd>G<CR>", { desc = "Git (fugitive)" })
 vim.keymap.set("n", "<leader>gg", function() Snacks.lazygit() end, { desc = "Lazygit" })

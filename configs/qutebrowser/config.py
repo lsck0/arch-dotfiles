@@ -1,17 +1,36 @@
+import json
 import os
 
 config.load_autoconfig()
 
-# --------------------------------------------------------------------------- ayu ---------------------------------------------------------------------------
-bg = "#1f2430"
-bg_alt = "#232834"
-fg = "#cbccc6"
-accent = "#ffcc66"  # ayu orange/yellow
-blue = "#73d0ff"
-green = "#bae67e"
-red = "#ff3333"
-comment = "#5c6773"
-sel = "#34455a"
+# --------------------------------------------------------------------------- palette ---------------------------------------------------------------------------
+# Chrome tracks the live pywal palette, read straight from wal's cache on every
+# config eval (:config-source / restart); the ayu block below is the fresh-machine fallback.
+_fb = {
+    "special": {"background": "#1f2430", "foreground": "#cbccc6"},
+    "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e",
+               "color4": "#73d0ff", "color8": "#5c6773"},
+}
+_wal = _fb
+try:
+    with open(os.path.expanduser("~/.cache/wal/colors.json")) as _f:
+        _wal = json.load(_f)
+except (OSError, ValueError):
+    pass
+
+# per-key fallback so a partial/malformed colors.json never raises KeyError
+def _c(section, key):
+    return _wal.get(section, {}).get(key) or _fb[section][key]
+
+bg = _c("special", "background")
+bg_alt = _c("colors", "color0")
+fg = _c("special", "foreground")
+accent = _c("colors", "color4")
+blue = _c("colors", "color4")
+green = _c("colors", "color2")
+red = _c("colors", "color1")
+comment = _c("colors", "color8")
+sel = _c("colors", "color8")
 
 # completion popup
 c.colors.completion.fg = fg
@@ -72,7 +91,7 @@ c.tabs.show = "multiple"  # hide tabbar when only 1 tab
 c.tabs.indicator.width = 2
 c.statusbar.show = "in-mode"  # hide statusbar except command/insert modes
 c.scrolling.smooth = True
-c.fonts.default_family = "0xProto Nerd Font"
+c.fonts.default_family = "Tektur"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 

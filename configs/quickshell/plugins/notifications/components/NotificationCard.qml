@@ -1,6 +1,7 @@
 // Notification card.
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs.Commons
@@ -88,7 +89,7 @@ BorderSurface {
     return Quickshell.iconPath(value, true)
   }
 
-  implicitWidth: Style.panelWidth.normal
+  implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   // Add vertical border insets so mainColumn (inset by border on top/left/right) doesn't push content under the bottom edge.
   implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
   radius: isRow ? Style.cornerRadius : Style.space(8)
@@ -172,6 +173,17 @@ BorderSurface {
           color: Color.notifications.text
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
+          // Neon bloom on a toast's glyph.
+          layer.enabled: !root.isRow && Style.fx.glow > 0
+          layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Style.fx.glowColor
+            shadowBlur: 1.0
+            shadowVerticalOffset: 0
+            shadowHorizontalOffset: 0
+            blurMax: Style.fx.glowRadius
+            autoPaddingEnabled: true
+          }
         }
       }
 
@@ -280,7 +292,7 @@ BorderSurface {
 
     Text {
       anchors.centerIn: parent
-      text: "✕"
+      text: "x"
       color: closeArea.containsMouse ? Color.notifications.text : root.dimColor
       font.pixelSize: Math.round(Style.font.caption * 1.44)
     }
@@ -293,4 +305,8 @@ BorderSurface {
       onClicked: root.closeRequested()
     }
   }
+
+  // Terminal HUD framing + CRT scanlines on free-floating toasts only; panel rows stay clean.
+  HudFrame { visible: !root.isRow && Style.fx.brackets }
+  Scanlines { visible: !root.isRow && (Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0) }
 }

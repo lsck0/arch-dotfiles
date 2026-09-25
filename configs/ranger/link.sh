@@ -7,6 +7,8 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/ranger
+mkdir -p "${HOME}/.config/ranger"
 
-ln -sfn ${PWD}/rc.conf ${HOME}/.config/ranger/rc.conf
+ln -sfn "${PWD}/rc.conf" "${HOME}/.config/ranger/rc.conf"
+ln -sfn "${PWD}/colorschemes" "${HOME}/.config/ranger/colorschemes"
+ln -sfn "${PWD}/plugins" "${HOME}/.config/ranger/plugins"

@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -17,7 +18,7 @@ BarWidget {
   property var recent: []
 
   function tip() {
-    if (!root.received) return "OSSEC: loading…"
+    if (!root.received) return "OSSEC: loading..."
     if (!root.ok) return "OSSEC: alert log unreadable"
     if (root.total === 0) return "OSSEC: no alerts in the last 24h"
     var head = "OSSEC: " + root.total + " alerts / 24h · max level " + root.maxLevel
@@ -54,6 +55,24 @@ BarWidget {
           root.recent = s.recent || []
         } catch (e) {}
       }
+    }
+  }
+
+  // Urgent neon backlight bleeding out from behind the shield while a high-level alert is live.
+  Rectangle {
+    anchors.centerIn: parent
+    width: Style.bar.iconCanvas
+    height: width
+    radius: width / 2
+    color: Color.urgent
+    visible: Style.fx.glow > 0 && root.ok && root.high > 0
+    opacity: Style.fx.glowAlpha(0.9)
+    layer.enabled: true
+    layer.effect: MultiEffect {
+      blurEnabled: true
+      blur: 1.0
+      blurMax: Style.fx.glowRadius
+      autoPaddingEnabled: true
     }
   }
 

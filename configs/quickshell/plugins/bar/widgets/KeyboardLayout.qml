@@ -163,7 +163,8 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.layoutLabel
+    // Uppercase for terminal-HUD consistency; no panel exists on this widget to theme further.
+    text: root.layoutLabel.toUpperCase()
     fontSize: Style.font.caption
     horizontalMargin: 6
     tooltipText: root.layoutFull

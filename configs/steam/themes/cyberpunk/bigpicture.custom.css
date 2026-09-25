@@ -1,0 +1,16 @@
+/* Big Picture window -- shared cyberpunk rules first, wal palette overrides last. */
+@import url("shared.css");
+@import url("colors.css");
+
+/* ----- Big Picture: minimal, dark, accent focus ring only (cosmetic) ----- */
+
+/* Gamepad focus ring in accent so the selected tile/button pops on the dark ground */
+[class*="gpfocus"], [class*="GpFocus"], [class*="focusRing"], [class*="FocusRing"] {
+  outline: 2px solid var(--cp-accent) !important;
+  box-shadow: 0 0 12px -2px var(--cp-accent) !important;
+}
+
+/* Focused item surface takes a faint accent tint */
+[class*="gpfocuswithin"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
+}

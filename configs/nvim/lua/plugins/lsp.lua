@@ -252,6 +252,22 @@ return {
                 },
             })
 
+            -- texlab handles completion + chktex lint; vimtex owns build/preview
+            vim.lsp.config("texlab", {
+                settings = {
+                    texlab = {
+                        build = { onSave = false, forwardSearchAfter = false },
+                        chktex = { onOpenAndSave = false, onEdit = false },
+                        latexindent = { modifyLineBreaks = false },
+                        forwardSearch = {
+                            executable = "zathura",
+                            args = { "--synctex-forward", "%l:1:%f", "%p" },
+                        },
+                        diagnosticsDelay = 300,
+                    },
+                },
+            })
+
             vim.lsp.enable("clangd")
             vim.lsp.enable("pyright")
             vim.lsp.enable("rust_analyzer")

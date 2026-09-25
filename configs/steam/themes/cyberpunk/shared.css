@@ -1,0 +1,106 @@
+/* ----- Cyberpunk Steam theme (Millennium) -- dark HUD, wal accent, sharp corners ----- */
+/* Colors come from colors.css (wallust); these :root values are the static fallbacks. */
+:root {
+  --cp-bg: #01060e;
+  --cp-bg-alt: #0a0f18;
+  --cp-fg: #bfbdb6;
+  --cp-accent: #39bae6;
+  --cp-accent-2: #d2a6ff;
+  --cp-muted: #565b66;
+  --cp-border: #565b66;
+  --cp-font: "Tektur", "JetBrainsMono Nerd Font", sans-serif;
+}
+
+/* Dark ground beneath Steam's own surfaces */
+html, body { background-color: var(--cp-bg) !important; }
+
+/* Tektur on text controls only, so Steam's icon fonts keep their own family */
+body, button, input, textarea, select { font-family: var(--cp-font) !important; }
+
+/* Sharp terminal corners across the client */
+* { border-radius: 0 !important; }
+
+/* Thin accent scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--cp-accent) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--cp-accent) 60%, transparent); }
+::-webkit-scrollbar-thumb:hover { background: var(--cp-accent); }
+
+/* Accent text selection */
+::selection { background: var(--cp-accent) !important; color: var(--cp-bg) !important; }
+
+/* Subtle accent focus glow on interactive elements (outline never shifts layout) */
+button:focus-visible, a:focus-visible, input:focus-visible, [class*="gpfocus"] {
+  outline: 1px solid var(--cp-accent) !important;
+  box-shadow: 0 0 6px -1px var(--cp-accent) !important;
+}
+
+/* Text fields as HUD inputs: dark fill, accent border that brightens on focus */
+input, textarea {
+  background-color: var(--cp-bg-alt) !important;
+  color: var(--cp-fg) !important;
+  border: 1px solid color-mix(in srgb, var(--cp-accent) 40%, transparent) !important;
+}
+input:focus, textarea:focus {
+  border-color: var(--cp-accent) !important;
+  box-shadow: 0 0 6px -2px var(--cp-accent) !important;
+}
+
+/* ----- Deeper pass: accent on Steam components. Inset shadow = border, no reflow. ----- */
+
+/* Buttons as HUD controls: faint accent edge, brighter edge + glow on hover/active */
+button, [class*="DialogButton"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+}
+button:hover, [class*="DialogButton"]:hover {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+}
+button:active, [class*="DialogButton"]:active {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 11px -1px var(--cp-accent) !important;
+}
+
+/* Secondary/alt buttons take the second accent so primary vs secondary read apart */
+[class*="Secondary"]:hover, [class*="secondary"]:hover {
+  box-shadow: inset 0 0 0 1px var(--cp-accent-2), 0 0 8px -2px var(--cp-accent-2) !important;
+}
+
+/* Green Install/Play buttons get accent-tinted rather than stock green */
+[class*="Green"], [class*="appactionbutton"], [class*="AppActionButton"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 22%, var(--cp-bg)) !important;
+  color: var(--cp-fg) !important;
+  box-shadow: inset 0 0 0 1px var(--cp-accent) !important;
+}
+[class*="Green"]:hover, [class*="appactionbutton"]:hover, [class*="AppActionButton"]:hover {
+  background-color: color-mix(in srgb, var(--cp-accent) 34%, var(--cp-bg)) !important;
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 10px -2px var(--cp-accent) !important;
+}
+
+/* Active tab/nav gets an accent underline drawn as an inset shadow (no reflow) */
+[class*="tab"][class*="active"], [class*="Tab"][class*="Active"],
+[class*="Tab"][class*="Selected"], [class*="navtab"][class*="active"] {
+  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+  color: var(--cp-fg) !important;
+}
+
+/* Tooltips and context menus: dark surface, accent edge */
+[class*="tooltip"], [class*="Tooltip"], [class*="_hint"],
+[class*="contextMenu"], [class*="ContextMenu"] {
+  background-color: var(--cp-bg-alt) !important;
+  color: var(--cp-fg) !important;
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 10px -3px var(--cp-accent) !important;
+}
+
+/* Highlighted context-menu / dropdown item reads as accent */
+[class*="contextMenuItem"]:hover, [class*="ContextMenuItem"]:hover,
+[class*="_menuitem"]:hover, [class*="MenuItem"]:hover {
+  background-color: color-mix(in srgb, var(--cp-accent) 24%, transparent) !important;
+  color: var(--cp-fg) !important;
+}
+
+/* Modal / dialog surfaces: dark with an accent frame */
+[class*="ModalPosition"], [class*="DialogContent"], [class*="DialogBody"],
+[class*="_DialogLayout"], [class*="dialog_"] {
+  background-color: var(--cp-bg) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 55%, transparent), 0 0 16px -6px var(--cp-accent) !important;
+}
