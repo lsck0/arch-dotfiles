@@ -1,11 +1,10 @@
 import QtQuick
 import qs.Commons
 
-// A held reference to the Cava singleton's subprocess.
+// holds a Cava refcount while alive
 QtObject {
   id: root
 
-  property bool active: true
   property bool _held: false
 
   function _sync(wanted) {
@@ -14,7 +13,6 @@ QtObject {
     Cava.refCount += wanted ? 1 : -1
   }
 
-  onActiveChanged: _sync(active)
-  Component.onCompleted: _sync(active)
+  Component.onCompleted: _sync(true)
   Component.onDestruction: _sync(false)
 }

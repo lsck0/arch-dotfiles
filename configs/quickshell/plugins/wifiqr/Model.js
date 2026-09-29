@@ -1,4 +1,3 @@
-// Verbatim from omarchy-shell: pure functions, no Omarchy-specific coupling.
 function parseQrOutput(raw) {
   var lines = String(raw || "").trim().split(/\r?\n/).filter(function(line) { return line !== "" })
   var meta = { iface: "", security: "", ssid: "" }
@@ -24,11 +23,4 @@ function parseQrMatrix(lines) {
   }
 
   return { rows: lines, size: size }
-}
-
-if (typeof module !== "undefined") {
-  module.exports = {
-    parseQrOutput: parseQrOutput,
-    parseQrMatrix: parseQrMatrix
-  }
 }

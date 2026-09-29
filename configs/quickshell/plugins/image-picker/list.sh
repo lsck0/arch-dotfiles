@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verbatim from omarchy-shell except cache dir `~/.cache/omarchy/image-selector` -> `~/.cache/quickshell/image-selector`.
+# from omarchy-shell, cache dir moved to ~/.cache/quickshell
 
 image_dirs=${1:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/image-selector
@@ -7,17 +7,14 @@ index_file="$cache_dir/index.tsv"
 
 mkdir -p "$cache_dir"
 
-# Was: for every image WITHOUT a cached thumbnail, md5sum the entire file to look for a "legacy" thumbnail keyed by content hash.
 python3 - "$cache_dir" "$index_file" "$image_dirs" <<'PY' || true
 import hashlib, os, sys, signal
-# The consumer may close the pipe early (a `head`, or the picker being
-# dismissed mid-scan); die quietly rather than dumping a BrokenPipeError.
+# the consumer may close the pipe early
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 cache_dir, index_file, image_dirs = sys.argv[1], sys.argv[2], sys.argv[3]
 EXT = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
 
-# The index maps path+signature -> hash, so an unchanged file keeps its
-# thumbnail across runs even though the hash is derived, not stored per file.
+# index keeps thumbnails stable across runs
 index = {}
 try:
     with open(index_file) as fh:
@@ -51,7 +48,7 @@ for image in sorted(files):
     sys.stdout.flush()
 PY
 
-# Generate any missing thumbnails AFTER the listing is complete, detached, so it never delays the picker opening.
+# thumbnails generated after listing, detached, so opening never waits
 if command -v vipsthumbnail >/dev/null 2>&1; then
   (
     while IFS= read -r dir; do
@@ -64,7 +61,6 @@ if command -v vipsthumbnail >/dev/null 2>&1; then
       hash=$(printf '%s\t%s' "$image" "$signature" | md5sum | cut -d ' ' -f 1)
       thumb="$cache_dir/$hash.jpg"
       [[ -f $thumb ]] && continue
-      # 800px / Q=88, not 400px / Q=80.
       vipsthumbnail "$image" --size 800x800 -o "$thumb[Q=88]" >/dev/null 2>&1 \
         && printf '%s\t%s\t%s\n' "$image" "$signature" "$hash" >>"$index_file"
     done

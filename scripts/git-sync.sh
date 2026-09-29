@@ -5,7 +5,7 @@
 BASE_DIR=$(realpath "${1:-.}")
 JOBS="${GIT_SYNC_JOBS:-8}"
 
-# One `sh -c` per candidate dir (was three `test` execs); prune vendor + heavy trees so find never descends them.
+# prune vendor + heavy trees so find never descends them
 mapfile -t dirs < <(
     find "$BASE_DIR" -maxdepth 4 \
         -type d \( -name vendor -o -name node_modules -o -name .cache -o -name target -o -name .venv -o -name .direnv \) -prune -o \
@@ -33,7 +33,7 @@ for dir in "${dirs[@]}"; do
     (( ${#rel} > pad )) && pad=${#rel}
 done
 
-# Per-repo work; run in parallel. Builds the whole status line, then prints it once (atomic enough for a status log).
+# per-repo work, run in parallel; build the status line then print it once
 sync_one() {
     local dir="$1"
     local rel="${dir#"$BASE_DIR"/}"

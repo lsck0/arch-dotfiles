@@ -25,7 +25,7 @@ local installed = {
     "jinja-lsp",
     "js-debug-adapter",
     "json-lsp",
-    "kulala-fmt",
+    -- kulala-fmt is vendored, see conform below
     "latexindent",
     "lean-language-server",
     "lemminx",
@@ -36,7 +36,7 @@ local installed = {
     "pyright",
     "rust-analyzer",
     "slang-server",
-    "sqruff", -- sqlls (sql-language-server) is unmaintained and crashes on load
+    "sqruff", -- sqlls is unmaintained and crashes on load
 
     "stylua",
     "shfmt",
@@ -52,7 +52,6 @@ local installed = {
     "vim-language-server",
     "yaml-language-server",
     "zls",
-    -- broader popular-language coverage (LSPs)
     "clojure-lsp",
     "elixir-ls",
     "graphql-language-service-cli",
@@ -63,7 +62,7 @@ local installed = {
     "ruby-lsp",
     "svelte-language-server",
     "vue-language-server",
-    -- their formatters
+    -- formatters
     "cljfmt",
     "csharpier",
     "ktlint",
@@ -156,7 +155,7 @@ return {
                 vim.lsp.enable("cobol_ls")
             end
 
-            -- kani projects need these cfgs + nightly; plain Rust must NOT get
+            -- kani projects need these cfgs + nightly, plain rust must not get them
             local function rust_extra_env()
                 local root = vim.fs.root(vim.fn.getcwd(), { "Cargo.toml" }) or vim.fn.getcwd()
                 local f = io.open(root .. "/Cargo.toml")
@@ -189,13 +188,10 @@ return {
             })
 
 
-            -- Root typos-lsp at the dir holding the typos config so its
-            -- extend-words allowlist applies; otherwise it roots elsewhere and
-            -- flags words that are already whitelisted in .typos.toml.
+            -- root at the typos config, else its allowlist is ignored
             vim.lsp.config("typos_lsp", {
                 root_markers = { ".typos.toml", "_typos.toml", "typos.toml", ".git" },
-                -- Fallback base config (skips .tex, allowlists names); a project
-                -- .typos.toml still overrides it.
+                -- fallback config, a project .typos.toml overrides it
                 init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
             })
 
@@ -214,14 +210,14 @@ return {
                 },
             })
 
-            -- In jupytext notebook buffers, drop pyright undefined-var noise for IPython builtins.
+            -- jupytext buffers: drop undefined-var noise for ipython builtins
             local ipython_builtins = {
                 display = true, get_ipython = true, In = true, Out = true,
                 exit = true, quit = true,
             }
-            -- point pyright at the project's virtualenv so poetry-installed
+            -- project venv, so pyright sees poetry-installed packages
             local function project_python(root)
-                -- root can be vim.NIL (userdata) from a JSON-null rootPath; NIL is truthy, so type-check
+                -- a json-null rootPath is vim.NIL, which is truthy
                 if type(root) ~= "string" or root == "" then return nil end
                 local venv = vim.env.VIRTUAL_ENV
                 if venv and vim.fn.executable(venv .. "/bin/python") == 1 then
@@ -321,13 +317,15 @@ return {
                 command = "/usr/local/bin/sort-derives-stdout",
                 stdin = true,
             }
-            -- l-style shell: 4-space indent, indent switch cases, binary ops at
+            -- l-style shell: 4-space indent, indented cases, binary ops lead the line
             require("conform").formatters.shfmt = {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
             -- l-style width for python (black defaults to 88)
             require("conform").formatters.black = { prepend_args = { "--line-length", "120" } }
             require("conform").formatters.isort = { prepend_args = { "--line-length", "120", "--profile", "black" } }
+            -- vendored kulala-fmt, not from mason
+            require("conform").formatters["kulala-fmt"] = { command = vim.fn.stdpath("config") .. "/vendor/kulala-fmt/kulala-fmt" }
 
             require("conform").setup({
                 formatters_by_ft = {

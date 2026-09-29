@@ -12,17 +12,16 @@ theme="${skins}/cyberpunk"
 
 mkdir -p "${theme}"
 
-# Symlink theme files into Steam's Millennium skins dir; the repo stays the source.
 ln -sfn "${PWD}/themes/cyberpunk/skin.json" "${theme}/skin.json"
 ln -sfn "${PWD}/themes/cyberpunk/shared.css" "${theme}/shared.css"
 ln -sfn "${PWD}/themes/cyberpunk/libraryroot.custom.css" "${theme}/libraryroot.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/friends.custom.css" "${theme}/friends.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/bigpicture.custom.css" "${theme}/bigpicture.custom.css"
 
-# colors.css tracks the wallust/pywal palette (rendered to ~/.cache/wal/colors-steam.css each switch); the custom CSS @imports this symlink.
+# wal palette, rendered by wallust on each switch
 ln -sfn "${HOME}/.cache/wal/colors-steam.css" "${theme}/colors.css"
 
-# Seed the cache file from the current palette so the theme colors before the first switch.
+# seed the palette before the first switch
 tpl="${PWD}/../wallust/templates/wal/colors-steam.css"
 out="${HOME}/.cache/wal/colors-steam.css"
 if [ ! -e "$out" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors" ] && [ "$(wc -l < "${HOME}/.cache/wal/colors")" -ge 16 ]; then
@@ -41,7 +40,7 @@ open(out, "w").write(s)
 PY
 fi
 
-# Select the theme in Millennium's config if it has initialized (close Steam first so it is not overwritten on exit).
+# steam overwrites this on exit, close it first
 cfg="${HOME}/.config/millennium/config.json"
 if [ -f "$cfg" ]; then
     python3 - "$cfg" <<'PY'

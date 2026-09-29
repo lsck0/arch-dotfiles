@@ -7,8 +7,7 @@ dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claude-busy"
 
 [ -d "$dir" ] || exit 0
 
-# A marker holds the claude PID. Drop it if that process is gone (crashed or
-# killed without releasing), else the session is genuinely working: block suspend.
+# markers hold the claude pid; drop stale ones from crashed sessions
 busy=0
 for marker in "$dir"/*; do
     [ -e "$marker" ] || continue

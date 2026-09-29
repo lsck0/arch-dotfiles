@@ -30,12 +30,10 @@ return {
                 default_component_configs = {
                     git_status = {
                         symbols = {
-                            -- Change type
                             added     = "+",
                             deleted   = "-",
                             modified  = "~",
                             renamed   = "→",
-                            -- Status type
                             untracked = "?",
                             ignored   = "i",
                             unstaged  = "u",
@@ -81,7 +79,7 @@ return {
                         always_show = { ".gitignore", ".env" }
                     },
                     follow_current_file = { enabled = true },
-                    -- snacks.explorer owns dir launches; neo-tree stays :Neotree-only
+                    -- snacks.explorer owns dir launches
                     hijack_netrw_behavior = "disabled",
                     use_libuv_file_watcher = true,
                     window = {

@@ -10,7 +10,7 @@ for hook in ${PWD}/hooks/*.hook; do
     sudo ln -sfn "${hook}" "/etc/pacman.d/hooks/$(basename "${hook}")"
 done
 
-# cache cleaning for pacman and yay
+# yay cache cleanup
 mkdir -p "${HOME}/.config/systemd/user"
 
 if command -v paccache >/dev/null 2>&1; then

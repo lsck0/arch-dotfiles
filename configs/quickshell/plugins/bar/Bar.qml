@@ -1,6 +1,5 @@
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
@@ -9,27 +8,25 @@ import qs.Ui
 import "widgets"
 import "widgets/BuiltinWidgets.js" as BuiltinWidgets
 
-// Registry-driven left/center/right widget placement (quickshell Phase 2): each section's model comes from `barConfig.layout.<section>`, and BarSection resolves each entry id to a .qml URL through `pluginRegistry` (falling back to its own map of the widgets that ship in widgets/).
 PanelWindow {
   id: root
 
   screen: modelData
   required property var modelData
 
-  // Injected by shell.qml, matching upstream's configureBar() pattern.
+  // injected by shell.qml
   property QtObject pluginRegistry: null
   property var barConfig: null
-  // Named shellHost, not shell: the outer ShellRoot's own `id: shell` would otherwise shadow this property when referenced unqualified from within shell.qml's own `Bar { shell: shell }`-style assignment, silently binding this to itself (still-null) instead of the ancestor.
+  // not `shell`: shell.qml's `id: shell` would shadow it
   property QtObject shellHost: null
-  // Which output shell.qml considers main; empty means "no opinion", in which case every bar renders the full layout (the single-monitor case, and the safe answer if screen names ever stop matching).
+  // empty: every bar renders the full layout
   property string mainScreenName: ""
 
-  // False on every output except the main one.
   readonly property bool isMainScreen: mainScreenName === ""
     || !modelData
     || String(modelData.name) === mainScreenName
 
-  // Tray.qml's ownedByOmarchy() filter reads this as the plain {left,center,right} layout object, not the {layout:{...}} wrapper.
+  // plain {left,center,right}, read by Tray.qml
   readonly property var layoutConfig: {
     if (!barConfig) return null
     if (!isMainScreen && barConfig.secondaryLayout) return barConfig.secondaryLayout
@@ -45,14 +42,14 @@ PanelWindow {
   implicitHeight: Style.bar.sizeHorizontal
   color: "transparent"
 
-  // Hyprland leaves an already-mapped layer surface at its old global position when its monitor moves within the layout — undock, and the bar keeps drawing at the previous origin or off-screen entirely.
+  // hyprland leaves stale layer position after monitor moves
   ScreenMoveRemap { id: screenGuard; window: root }
   visible: !screenGuard.remapping
 
   readonly property bool vertical: false
   readonly property int barSize: Style.bar.sizeHorizontal
   readonly property string fontFamily: Style.resolvedFontFamily
-  // Glyph-bearing widgets must read THIS, not fontFamily.
+  // glyph widgets must use this, not fontFamily
   readonly property string iconFontFamily: Style.font.iconFamily
   readonly property bool foregroundAnimationEnabled: true
   readonly property color barForeground: Color.bar.text
@@ -63,7 +60,7 @@ PanelWindow {
     Util.execDetached(cmd)
   }
 
-  // BarSection's cold-start id → file map mirrors the widget manifests, so check once per session that the two still agree rather than trusting the comment asking the next person to edit both.
+  // verify the builtin map still matches the manifests
   Connections {
     target: root.pluginRegistry
     enabled: root.pluginRegistry !== null
@@ -72,7 +69,7 @@ PanelWindow {
     }
   }
 
-  // Shared popup state: only one widget panel open at a time, and opening a new one closes whatever was open.
+  // only one panel open at a time
   property string activePanel: ""
 
   function togglePanel(id) {
@@ -83,13 +80,12 @@ PanelWindow {
     if (activePanel === id) activePanel = ""
   }
 
-  // Hover-driven panel open/close.
   property bool triggerHovered: false
   property bool panelHovered: false
 
   Timer {
     id: hoverCloseTimer
-    // Sized for the gap between a trigger and its panel, which is now 4px for every widget: centre-section panels open directly under their own trigger (HoverPanel.anchorWidget), and the top margin no longer double-counted the bar's exclusive zone.
+    // covers the 4px trigger-to-panel gap
     interval: 350
     onTriggered: {
       if (!root.triggerHovered && !root.panelHovered) root.activePanel = ""
@@ -123,12 +119,12 @@ PanelWindow {
     hoverCloseTimer.restart()
   }
 
-  // `quickshell ipc -p ~/.config/quickshell call bar open <moduleName>` / `close` / `toggle`.
+  // qs ipc call bar open|close|toggle <panel>
   readonly property string ipcScreenName: modelData ? String(modelData.name) : ""
   readonly property bool ownsGlobalIpcTarget: {
     if (ipcScreenName === "") return true
     if (mainScreenName !== "") return ipcScreenName === mainScreenName
-    // No opinion on which output is main (shell.qml only reports that with no screens at all): fall back to the first one, so exactly one bar still answers to `bar`.
+    // no main screen known: first output owns `bar`
     var screens = Quickshell.screens
     return screens.length === 0 || String(screens[0].name) === ipcScreenName
   }
@@ -139,14 +135,12 @@ PanelWindow {
     function open(panel: string): void { root.activePanel = panel }
     function close(): void { root.activePanel = "" }
     function toggle(panel: string): void { root.togglePanel(panel) }
-    // Which panel this particular bar has open, so a script driving several outputs can tell them apart without guessing.
     function state(): string { return root.activePanel }
   }
 
-  // Bumped whenever anything that can move a widget horizontally changes.
+  // bumped when widgets can move horizontally
   property int layoutRevision: 0
 
-  // Minimal hover tooltip: a small label anchored under whichever widget last asked for one.
   property var tooltipItem: null
   property string tooltipText: ""
 
@@ -168,7 +162,6 @@ PanelWindow {
     color: root.background
   }
 
-  // CRT bar chrome: a glowing neon rule along the bottom edge, non-interactive.
   Rectangle {
     anchors.left: parent.left
     anchors.right: parent.right
@@ -188,14 +181,12 @@ PanelWindow {
     }
   }
 
-  // CRT scanlines over the whole bar (sits above widgets via its own z; clicks pass through).
   Scanlines { flicker: false }
 
-  // THE CENTRE IS ANCHORED TO THE SCREEN, NOT SPLIT BETWEEN THE SIDES.
+  // centre anchored to the screen, not split between sides
   Item {
     anchors.fill: parent
 
-    // The gap a side cluster must leave before the centre one.
     readonly property int keepClear: Style.bar.itemGap * 2
 
     Item {
@@ -243,7 +234,7 @@ PanelWindow {
 
       RowLayout {
         id: rightSection
-        // Anchored to the holder's RIGHT edge, so when the holder is narrower than the cluster it is the leftmost (oldest, most permanent) icons that get clipped and the rightmost that stay — matching the layout note in shell.qml about transient widgets growing leftward.
+        // right-anchored so the leftmost icons clip first
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.bar.itemGap
@@ -254,8 +245,6 @@ PanelWindow {
       }
     }
   }
-
-  // A full-screen click-to-dismiss catcher used to live here.
 
   Rectangle {
     visible: root.tooltipItem !== null

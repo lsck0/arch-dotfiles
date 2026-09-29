@@ -5,28 +5,24 @@ import Quickshell.Wayland
 import qs.Commons
 import "AppSearch.js" as AppSearch
 
-// Shared desktop-application library: the sorted entry list with hidden-entry filtering, the icon fallback index, launch feedback, and entry removal.
 Item {
   id: root
 
   readonly property string shellDir: Paths.shellDir
-  readonly property string homeDir: Paths.home
 
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
 
-  // Maps an icon name to a file on disk (e.g. "omacut" -> ".../apps/omacut.svg"). Used as a fallback for icons that Qt's themed lookup misses because they were installed after this process started (its icon cache never re-scans). Refreshed whenever the app list changes, so newly installed apps get their icon live.
+  // fallback for icons installed after qt cached its theme
   property var iconIndex: ({})
   property var pendingIconIndex: ({})
 
   property int launchSerial: 0
   property int launchToplevelCount: 0
   property var launchActiveToplevel: null
-  // True while the launch OSD is on screen.
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
 
-  // Emitted whenever the visible application set may have changed: desktop entries appeared or vanished, or the hidden-entry filters reloaded.
   signal appsChanged()
 
   function entryName(entry) {
@@ -52,7 +48,6 @@ Item {
     if (value.length === 0) return Quickshell.iconPath("application-x-executable", true)
     if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
     if (value.charAt(0) === "/") return Util.fileUrl(value)
-    // Prefer the context-limited app/device index.
     var found = root.iconIndex[value]
     if (found) return Util.fileUrl(found)
     var themed = Quickshell.iconPath(value, true)
@@ -60,7 +55,6 @@ Item {
     return Quickshell.iconPath("application-x-executable", true)
   }
 
-  // The shell may start before first-install packages have finished placing their icons; consumers call this when they open so icons appear live.
   function refreshIcons() {
     if (!iconIndexScan.running) iconIndexScan.running = true
   }
@@ -69,13 +63,8 @@ Item {
     var id = String(desktopId || "")
     if (!id) return
     root.beginLaunchFeedback(name)
-    // Start gtk-launch inside a scope under app-graphical.slice so apps do not inherit wayland-wm@.service.
+    // uwsm-app so apps do not inherit wayland-wm@.service
     Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(id + ".desktop"))
-  }
-
-  function remove(desktopId, name) {
-    console.warn("AppLibrary.remove: not implemented in this repo (no local"
-      + " equivalent of omarchy-remove-launcher-entry) — id=" + desktopId)
   }
 
   function normalizeDesktopId(id) {
@@ -107,10 +96,9 @@ Item {
   }
 
   function iconIndexScanCommand() {
-    // List app/device icons across the XDG icon dirs and /usr/share/pixmaps as "<path>" lines.
     return [
       'dirs="$HOME/.icons $HOME/.local/share/icons";',
-      // ${d%/} trims a trailing slash: XDG_DATA_DIRS entries are allowed to carry one, and "/usr/share/" + "/icons" indexed every icon under a doubled slash, which then shows up verbatim in every "Cannot open" warning and makes two spellings of one path look like two icons.
+      // ${d%/} avoids doubled slashes from XDG_DATA_DIRS
       'IFS=":"; for d in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do dirs="$dirs ${d%/}/icons"; done; unset IFS;',
       'for ext in svg png; do',
       '  for base in $dirs; do',
@@ -172,7 +160,7 @@ Item {
     property string text: ""
   }
 
-  // Both scans must run in non-login shells.
+  // non-login shells
   Process {
     id: hiddenEntryScan
     command: ["bash", "-c", root.hiddenEntryScanCommand()]
@@ -186,18 +174,17 @@ Item {
     command: ["bash", "-c", root.iconIndexScanCommand()]
     stdout: SplitParser { onRead: function(line) { root.indexIconLine(line) } }
     onStarted: root.pendingIconIndex = ({})
-    // Swapping the property re-evaluates every iconSource() binding, so newly found icons appear without rebuilding the list.
+    // swapping the map re-evaluates every iconSource() binding
     onExited: root.iconIndex = root.pendingIconIndex
   }
 
-  // Coalesces bursts of app-list changes (a package install touches many entries) into a single rescan.
+  // coalesce bursts of app-list changes
   Timer {
     id: iconIndexDebounce
     interval: 750
     onTriggered: if (!iconIndexScan.running) iconIndexScan.running = true
   }
 
-  // Same coalescing for hiddenEntryScan — this was calling `hiddenEntryScan.running = true` directly and unthrottled on every DesktopEntries.applications.onValuesChanged, unlike iconIndexScan right above it.
   Timer {
     id: hiddenEntryDebounce
     interval: 750

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# UTC offset (seconds) for each configured zone, refreshed periodically by Clock.qml so DST transitions get picked up without a subprocess per tick.
+# utc offset in seconds per zone, polled so dst changes are picked up
 set -euo pipefail
 
-# label:IANA-zone pairs, by region.
+# label:iana-zone
 zones=(
   "Central Europe:Europe/Berlin"
   "UK:Europe/London"

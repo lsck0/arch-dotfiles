@@ -5,7 +5,6 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Short compositor-side handoff while the session finishes starting.
 Item {
   id: root
 
@@ -22,7 +21,6 @@ Item {
     model: Quickshell.screens
 
     PanelWindow {
-      id: panel
       required property var modelData
       screen: modelData
       visible: !root.finished
@@ -37,7 +35,6 @@ Item {
         anchors.centerIn: parent
         spacing: Style.spacing.lg
 
-        // Terminal boot line: prompt, wordmark, blinking block caret.
         Row {
           anchors.horizontalCenter: parent.horizontalCenter
           spacing: Style.spacing.sm
@@ -57,9 +54,8 @@ Item {
             color: Color.foreground
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
-            // headerTracking (+2.4), not displayTracking (-0.5): this is a wide-set wordmark, and display tracking is the tight setting for large numerals.
+            // header tracking: wide wordmark, display tracking is for numerals
             font.letterSpacing: Style.headerTracking
-            // Accent neon bloom on the boot wordmark.
             layer.enabled: Style.fx.glow > 0
             layer.effect: MultiEffect {
               shadowEnabled: true
@@ -99,7 +95,6 @@ Item {
           }
         }
 
-        // Uppercase tracked boot status line.
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           text: ":: STARTING SESSION"
@@ -111,10 +106,8 @@ Item {
           font.letterSpacing: Style.headerTracking
         }
 
-        // Airy gap between the wordmark block and the loader.
         Item { width: 1; height: Style.spacing.xl }
 
-        // Segmented terminal boot loader tied to startup progress.
         BarGauge {
           anchors.horizontalCenter: parent.horizontalCenter
           width: Style.space(220)
@@ -124,7 +117,6 @@ Item {
           color: Color.accent
         }
 
-        // Big glowing progress readout.
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           text: Math.round(root.startupProgress * 100) + "%"
@@ -156,7 +148,6 @@ Item {
         }
       }
 
-      // Screen-corner HUD brackets + CRT scanlines on the boot splash.
       HudFrame {}
       Scanlines { flicker: false }
     }

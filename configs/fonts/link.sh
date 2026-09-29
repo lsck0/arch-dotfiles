@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install repo-vendored fonts that have no Arch/AUR package (OFL, redistributable).
+# vendored OFL fonts with no arch package
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 dest="$HOME/.local/share/fonts"

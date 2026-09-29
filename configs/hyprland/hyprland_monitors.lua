@@ -1,6 +1,6 @@
 local platform = require("platform")
 
--- this is for xwayland exclusively
+-- xwayland only
 local xwayland_scale = platform.laptop and "1" or "2"
 hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", xwayland_scale)
 hl.env("GDK_SCALE", xwayland_scale)

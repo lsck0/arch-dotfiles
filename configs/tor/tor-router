@@ -40,7 +40,7 @@ start)
 		exit 1
 	fi
 
-	# Only save the rules when we are sure that everything is working
+	# save only after all checks pass
 	iptables-save >"$RULES4"
 	ip6tables-save >"$RULES6"
 
@@ -57,8 +57,7 @@ start)
 		iptables -A OUTPUT -d "$NET" -j ACCEPT
 	done
 	iptables -A OUTPUT -m owner --uid-owner "$TOR_UID" -j ACCEPT
-	# catch-all: anything not accepted above (ICMP, non-TCP/UDP) must not leak the
-	# real IP outside Tor. Mirrors the IPv6 final REJECT.
+	# catch-all so icmp and other protocols cannot leak
 	iptables -A OUTPUT -j REJECT
 
 	ip6tables -F
@@ -67,8 +66,6 @@ start)
 	for NET in $NON_TOR6 ::1/128; do
 		ip6tables -t nat -A OUTPUT -d "$NET" -j RETURN
 	done
-	# route IPv6 TCP/UDP through Tor's [::1]:9040 TransPort (matches the v4 nat), so
-	# v6 app traffic is anonymized rather than only REJECTed.
 	ip6tables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports "$TRANS_PORT"
 	ip6tables -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$TRANS_PORT"
 	ip6tables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT

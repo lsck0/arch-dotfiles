@@ -1,5 +1,4 @@
-# This repo is PUBLIC. The vault lives in $HOME (~/sync/vault.hc, ~/vault), NOT here.
-# Never add an encrypted container or its mountpoint to the repo.
+# public repo: never commit the vault
 *.hc
 *.tc
 vault/

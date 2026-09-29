@@ -21,7 +21,7 @@ if [[ "$ROOT_FSTYPE" != "btrfs" ]]; then
     exit 0
 fi
 
-# btrfs-mode timeshift requires root mounted from a subvolume named '@' 
+# btrfs mode needs root on a named subvolume like @
 if [[ "$ROOT_OPTS" =~ subvolid=5 ]] || [[ "$ROOT_SUBDIR" == "/" || "$ROOT_SUBDIR" == "" ]]; then
     echo "timeshift: root is top-level btrfs subvol (subvolid=5)" >&2
     echo "timeshift: btrfs-mode needs a named subvol (e.g. '@') as root." >&2
@@ -38,7 +38,7 @@ if [[ -f /etc/timeshift/timeshift.json ]]; then
     fi
 fi
 
-# findmnt reports a btrfs source as "<device>[/<subvol>]"; strip the subvol suffix so lsblk gets a real device node.
+# strip findmnt's [/subvol] suffix for lsblk
 ROOT_DEVICE="${ROOT_SOURCE%%[*}"
 
 ROOT_UUID="$(lsblk -no UUID "$ROOT_DEVICE" 2>/dev/null | head -1 || true)"

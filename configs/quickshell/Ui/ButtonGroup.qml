@@ -1,33 +1,29 @@
 import QtQuick
 import qs.Commons
 
-// Mutually-exclusive row of Buttons — the form-style "pick one of N" pattern (bar position top/right/bottom/left, theme preset chips, etc.).
+// pick-one-of-n chip row
 Row {
   id: root
 
   property var options: []
   property string value: ""
   property color foreground: Color.foreground
-  property color background: Color.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.body
   property bool focusable: true
-  // Stretch chips so the row spans its full width. Needs an explicit width.
+  // stretch chips to the row width, needs an explicit width
   property bool fill: false
 
-  // -1 disables the external cursor highlight (the panel-cursor case).
   property int cursorIndex: -1
 
-  // Internal: which chip h / l / Left / Right is currently sitting on when the group itself has Tab focus.
+  // chip under h/l while the group has tab focus
   property int _focusedIndex: -1
 
   signal changed(string value)
-  signal hovered(int index, bool isHovered)
 
   spacing: Style.spacing.md
 
-  // Width left over past the chips' natural sizes, split evenly between them.
   readonly property int _slack: {
     if (!fill || chips.count === 0) return 0
     var natural = spacing * (chips.count - 1)
@@ -46,12 +42,6 @@ Row {
   }
   function optionLabel(o) {
     return (o && typeof o === "object" && o.label !== undefined) ? String(o.label) : String(o)
-  }
-  function optionIcon(o) {
-    return (o && typeof o === "object" && o.icon) ? String(o.icon) : ""
-  }
-  function optionTooltip(o) {
-    return (o && typeof o === "object" && o.tooltip) ? String(o.tooltip) : ""
   }
 
   function selectedOptionIndex() {
@@ -105,13 +95,11 @@ Row {
       width: implicitWidth + (index === chips.count - 1 ? root._slack - _share * (chips.count - 1) : _share)
       text: root.optionLabel(modelData)
       selected: root.optionValue(modelData) === root.value
-      // Lit by the external panel cursor or by h/l while the group has Tab focus.
       hasCursor: root.cursorIndex === index
         || (root.activeFocus && root._focusedIndex === index)
       fontFamily: root.fontFamily
       fontSize: root.fontSize
       onClicked: root.changed(root.optionValue(modelData))
-      onHovered: function(h) { root.hovered(index, h) }
     }
   }
 }

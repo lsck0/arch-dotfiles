@@ -7,10 +7,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Native workspace overview — `Super+Tab` used to be bound to `hl.dsp.global("overview:toggle")`, a global shortcut name no installed plugin ever registered (checked: `hyprctl plugin list` shows only dynamic-cursors; hyprexpo was never added to hyprpm and isn't built into this Hyprland version).
 Item {
-    // Number keys jump straight to a workspace, the way Super+<n> already does outside the overview — arrows alone meant walking across the grid to reach a workspace you could already name.
-
     id: root
 
     property bool opened: false
@@ -58,7 +55,7 @@ Item {
         root.close();
     }
 
-    // Deliberately NOT restricted to workspaces that currently exist: an overview that refuses to send you to an empty workspace 4 behaves differently from the Super+4 muscle memory it sits on top of.
+    // unrestricted, matching super+n on empty workspaces
     function jumpToWorkspace(number) {
         root.focusAndClose(number);
     }
@@ -83,8 +80,6 @@ Item {
     }
 
     PanelWindow {
-        id: panel
-
         visible: root.opened
         color: "transparent"
         WlrLayershell.namespace: "quickshell-overview"
@@ -149,7 +144,6 @@ Item {
                 }
             }
 
-            // Titled composition rather than a bare floating grid: a header that says what this is, the grid, and a key legend.
             Column {
                 anchors.centerIn: parent
                 spacing: Style.spacing.huge
@@ -167,7 +161,6 @@ Item {
                         font.pixelSize: Style.font.title
                         font.bold: true
                         font.letterSpacing: Style.headerTracking
-                        // Accent neon bloom on the title.
                         layer.enabled: Style.fx.glow > 0
                         layer.effect: MultiEffect {
                             shadowEnabled: true
@@ -180,7 +173,6 @@ Item {
                         }
                     }
 
-                    // Blinking block caret after the title, terminal prompt style.
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         textFormat: Text.PlainText
@@ -211,7 +203,6 @@ Item {
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         textFormat: Text.PlainText
-                        // Bracketed count, terminal-readout style.
                         text: "[" + String(keyCatcher.ids.length) + "]"
                         color: Color.menu.text
                         opacity: 0.45
@@ -242,7 +233,7 @@ Item {
                                 return null;
                             }
                             readonly property var toplevels: workspace ? workspace.toplevels.values : []
-                            // The live thumbnail shows this workspace's most recently active window — the one Hyprland itself would raise on switch — not just array position 0.
+                            // the window hyprland would raise on switch
                             readonly property var primaryToplevel: {
                                 for (var i = 0; i < toplevels.length; i++) if (toplevels[i].activated) {
                                     return toplevels[i];
@@ -252,7 +243,6 @@ Item {
                             readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
                             readonly property bool selected: index === root.selectedIndex
 
-                            // 16:9, matching the actual screen the thumbnail is a photo of.
                             width: Math.max(Style.space(260), Math.min(Style.space(460), (keyCatcher.width - Style.space(160)) / keyCatcher.columns - Style.spacing.xl))
                             height: Math.round(width * 9 / 16)
                             scale: selected ? 1.08 : 1
@@ -262,7 +252,6 @@ Item {
                             borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
                             clip: true
 
-                            // Glowing HUD reticle on the focused tile.
                             HudFrame { visible: tile.selected; z: 30 }
 
                             ScreencopyView {
@@ -299,7 +288,6 @@ Item {
 
                             }
 
-                            // Bottom title bar, over the thumbnail rather than pushing it smaller — same treatment a real window switcher uses.
                             Rectangle {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
@@ -317,13 +305,11 @@ Item {
 
                                     Text {
                                         textFormat: Text.PlainText
-                                        // Bracketed workspace label, HUD-grid style.
                                         text: "[" + (tile.modelData === 10 ? "0" : String(tile.modelData)) + "]"
                                         color: tile.selected ? Color.accent : Color.menu.text
                                         font.family: Style.font.family
                                         font.pixelSize: Style.font.body
                                         font.letterSpacing: Style.headerTracking
-                                        // Bloom the workspace number when this tile is selected.
                                         layer.enabled: tile.selected && Style.fx.glow > 0
                                         layer.effect: MultiEffect {
                                             shadowEnabled: true
@@ -361,7 +347,6 @@ Item {
 
                             }
 
-                            // HUD reticle on the selected workspace.
                             HudFrame { visible: tile.selected && Style.fx.brackets }
 
                             MouseArea {
@@ -388,7 +373,6 @@ Item {
 
             }
 
-            // CRT scanline overlay across the whole overview.
             Scanlines { flicker: false }
 
         }

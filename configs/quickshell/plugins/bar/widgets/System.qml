@@ -6,7 +6,6 @@ import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "system"
@@ -29,19 +28,17 @@ BarWidget {
   property var cpuPowerW: null
   property var gpuPowerW: null
   property real energyKwh: 0
-  // Assumed flat tariff, EUR per kWh.
+  // assumed flat tariff, eur per kwh
   readonly property real pricePerKwh: 0.35
   property var vramUsedMb: null
   property var vramTotalMb: null
 
-  // Rolling history for the panel sparklines (newest last, capped).
   property var cpuHist: []
   property var gpuHist: []
   property var memHist: []
   property var tempHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
-  // Reactor criticality: nominal -> elevated -> high -> critical, mapped to the shell's semantic colours.
   function critLoad(pct) {
     if (pct >= 92) return Color.semantic.live
     if (pct >= 80) return Color.semantic.recording
@@ -77,7 +74,6 @@ BarWidget {
     return hours > 0 ? hours + "h " + minutes + "m" : (minutes > 0 ? minutes + "m" : "")
   }
 
-  // Power mode lives entirely in Ui/PowerModeSelector — reader, writer, option list and chips.
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
@@ -88,9 +84,8 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // Long-lived, not respawned per sample (same shape as Cava.qml/cava and Network.qml's `nmcli monitor` readers) — system-stats.sh streams one JSON line per interval on its own, so this is just a SplitParser reading whatever it prints, forever.
+  // long-lived, the script streams on its own interval
   Process {
-    id: statsProc
     running: true
     command: [Paths.barWidget("system-stats.sh")]
     stdout: SplitParser {
@@ -128,11 +123,10 @@ BarWidget {
     }
   }
 
-  // ONE FIXED-WIDTH SLOT PER STAT, not one long string.
+  // fixed-width slot per stat so the bar does not jitter
   component Stat: Row {
     property string glyph: ""
     property string value: ""
-    // The widest string this stat can ever show.
     property string widest: ""
     spacing: Style.spacing.sm
 
@@ -150,13 +144,11 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       width: Math.ceil(sizer.implicitWidth)
-      // AlignLeft, not AlignRight.
       horizontalAlignment: Text.AlignLeft
       text: parent.value
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
-      // Tight tracking + subtle accent bloom on the mono stat readout.
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
       layer.effect: MultiEffect {
@@ -169,7 +161,7 @@ BarWidget {
         autoPaddingEnabled: true
       }
 
-      // Never drawn; exists only to report the width of the widest value.
+      // invisible, only measures the widest value
       Text {
         id: sizer
         visible: false
@@ -186,7 +178,7 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.lg
 
-    // Live CPU-history sparkline right on the bar, hidden on a vertical bar where a wide graph does not fit.
+    // too wide for a vertical bar
     Sparkline {
       visible: !root.vertical
       anchors.verticalCenter: parent.verticalCenter
@@ -198,26 +190,25 @@ BarWidget {
       color: Color.accent
     }
 
-    // md-memory: despite the name it is the square CPU-package glyph.
+    // md-memory, the cpu package glyph
     Stat { glyph: "\u{f035b}"; widest: "100%"; value: root.cpuPct + "%" }
-    // fa-memory (DIMM stick).
+    // fa-memory
     Stat {
       glyph: "\u{efc5}"
       widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
       value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
     }
-    // md-expansion_card (graphics card)
+    // md-expansion_card
     Stat { glyph: "\u{f08ae}"; widest: "100%"; value: root.gpuPct + "%" }
-    // VRAM only where it's a real concept — see the hover panel's own VRAM row below for why an iGPU has no row here.
+    // an igpu has no dedicated vram
     Stat {
       visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
       glyph: "\u{f061a}"
       widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
       value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
     }
-    // md-thermometer, unit spelled out: a bare "80" sitting between two percentages reads as a third percentage.
+    // md-thermometer, unit spelled out so it does not read as a percentage
     Stat { glyph: "\u{f050f}"; widest: "100°C"; value: root.tempC + "°C" }
-    // Wall-draw watts intentionally not shown in the bar; kept in the HUD panel.
     Stat {
       visible: root.batteryPresent
       glyph: root.batteryIcon
@@ -231,42 +222,10 @@ BarWidget {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    // PowerModeSelector reads on its own once the panel is visible (triggeredOnStart), so hover has nothing left to prime here.
     onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
-  // A terminal-style readout row: uppercase tracked key on the left, bright mono value flush right.
-  component Row_: Row {
-    property string label: ""
-    property string value: ""
-    property bool dim: false
-    width: parent ? parent.width : 0
-    spacing: Style.spacing.sm
-    Text {
-      width: Math.round((parent.width - parent.spacing) * 0.42)
-      text: parent.label
-      color: Color.menu.text
-      opacity: Style.emphasis.dim
-      elide: Text.ElideRight
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking * 0.4
-    }
-    Text {
-      width: Math.round((parent.width - parent.spacing) * 0.58)
-      horizontalAlignment: Text.AlignRight
-      text: parent.value
-      color: Color.foreground
-      opacity: parent.dim ? Style.emphasis.faint : Style.emphasis.strong
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.letterSpacing: Style.displayTracking
-    }
-  }
-
-  // Bracket-framed section head: accent block glyph, tracked uppercase label, phosphor rule filling the row.
   component SectionHead: Item {
     property string text: ""
     width: parent ? parent.width : 0
@@ -298,7 +257,6 @@ BarWidget {
     }
   }
 
-  // One HUD telemetry cell: tracked uppercase key stacked over a bright mono value. Sized to fit a two-column Grid.
   component HudStat: Column {
     property string label: ""
     property string value: ""
@@ -333,7 +291,6 @@ BarWidget {
     }
   }
 
-  // One labelled row in the flux heatmap's left gutter, height matched to a heatmap band.
   component FluxLabel: Item {
     property string text: ""
     property color tint: Color.accent
@@ -351,7 +308,6 @@ BarWidget {
     }
   }
 
-  // One linear bar meter: tracked label, criticality-tinted fill, bright mono value slot.
   component Meter: Item {
     id: meterRoot
     property string label: ""
@@ -364,7 +320,6 @@ BarWidget {
     implicitHeight: Style.space(18)
     height: implicitHeight
 
-    // Left: tracked uppercase subsystem label in a fixed slot.
     Text {
       id: meterLabel
       anchors.left: parent.left
@@ -379,7 +334,7 @@ BarWidget {
       font.letterSpacing: Style.headerTracking * 0.4
     }
 
-    // Right: fixed-width value slot so every row's numerals align on a column.
+    // fixed width so numerals align across rows
     Item {
       id: meterValue
       anchors.right: parent.right
@@ -421,9 +376,7 @@ BarWidget {
       }
     }
 
-    // Middle: thin track between label and value, filled to `frac` in criticality colour.
     Rectangle {
-      id: track
       anchors.left: meterLabel.right
       anchors.leftMargin: Style.spacing.sm
       anchors.right: meterValue.left
@@ -439,7 +392,6 @@ BarWidget {
         width: meterRoot.frac * parent.width
         radius: parent.radius
         color: meterRoot.fill
-        // Animate on data change only, never on a clock.
         Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 250 } }
         layer.enabled: Style.fx.glow > 0
@@ -461,7 +413,6 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // The power-mode chips sit in one horizontal row.
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
     implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
 
@@ -470,7 +421,6 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      // Terminal-window title strip: prompt, panel name, blinking block caret, decorative window chrome.
       Item {
         width: parent.width
         implicitHeight: titleRow.implicitHeight
@@ -526,7 +476,6 @@ BarWidget {
       }
       PanelSeparator {}
 
-      // ---- BAR METERS --------------------------------------------------- Compact linear meters: label, criticality-tinted fill, bright mono value.
       Column {
         width: parent.width
         spacing: Style.spacing.xs
@@ -560,7 +509,6 @@ BarWidget {
 
       PanelSeparator {}
       SectionHead { text: "FLUX TELEMETRY" }
-      // Scrolling waterfall: one history band per subsystem, hottest cells map to criticality colours.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
@@ -586,7 +534,7 @@ BarWidget {
           ]
         }
       }
-      // Time axis: oldest sample left, live edge right (60 samples at a ~5s tick).
+      // 60 samples at a 5s tick
       Row {
         width: parent.width
         Text {
@@ -632,9 +580,7 @@ BarWidget {
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
-      // Two-column mono readout matrix. Invisible cells collapse out of the grid.
       Grid {
-        id: hudGrid
         width: parent.width
         columns: 2
         spacing: Style.spacing.md
@@ -676,7 +622,7 @@ BarWidget {
       PanelSeparator {}
       SectionHead { text: "POWER MODE" }
 
-      // Any override made here is deliberately session-only: it never survives a reboot, matching the requested "overridable but non-persistent" policy.
+      // overrides are session-only by design
       PowerModeSelector {
         width: parent.width
         active: panel.visible
@@ -685,10 +631,9 @@ BarWidget {
       PanelSeparator {}
       SectionHead { text: "TOOLS" }
 
-      // panel.disk-speedtest was built, enabled, keepLoaded — and summoned by nothing, the same defect the internet speed test had before the Network panel grew a button for it.
       PanelRow {
         width: parent.width
-        // md-harddisk U+F02CA, cmap-verified by name.
+        // md-harddisk
         glyph: "\u{f02ca}"
         label: "Disk speed test"
         onActivated: {

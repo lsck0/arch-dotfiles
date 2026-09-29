@@ -5,7 +5,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Centered speed test overlay shared by the network and disk speed tests: a terminal-HUD gauge cluster -- two hero numerals with segmented BarGauge meters and live-history Sparklines under uppercase tracked DOWNLOAD/UPLOAD labels, inside a bracket-framed terminal card.
+// speed test overlay shared by network and disk tests
 PanelWindow {
   id: root
 
@@ -24,11 +24,10 @@ PanelWindow {
   property string error: ""
   property string statusText: ""
   property bool open: false
-  // Full-scale latch points for the gauges, smallest first.
+  // gauge full-scale steps, smallest first
   property var scaleStops: [100, 250, 500, 1000, 2500, 5000, 10000]
   property real fullScale: scaleStops[0]
 
-  // Rolling live-sample history feeding the sparklines (newest last, capped).
   property var leftHist: []
   property var rightHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
@@ -43,7 +42,6 @@ PanelWindow {
   }
 
   function expandScale(value) {
-    // Either reading ranges the entire cluster upward.
     for (var i = 0; i < scaleStops.length; i++) {
       if (value <= scaleStops[i] * 0.92) {
         if (scaleStops[i] > fullScale) fullScale = scaleStops[i]
@@ -62,14 +60,13 @@ PanelWindow {
     NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
   }
 
-  // Card colours.
   readonly property color cardBackground: Color.menu.background
   readonly property color onCard: Color.menu.text
   readonly property color onCardDim: Util.alpha(Color.menu.text, 0.55)
   readonly property color onCardUrgent: Color.urgent
 
   visible: open
-  // The window is instantiated hidden, so re-acquire focus after mapping and fire the ignition sweep once the surface is actually on screen.
+  // refocus and ignite once actually mapped
   onOpenChanged: {
     if (open) Qt.callLater(function() {
       if (!root.open) return
@@ -85,7 +82,6 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Overlay
   WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-  // Ordinary dismiss scrim, the same one every other modal in the shell uses.
   Rectangle {
     anchors.fill: parent
     color: Color.menu.scrim
@@ -106,14 +102,12 @@ PanelWindow {
     Keys.onEnterPressed: if (!root.running) root.runAgainRequested()
 
     Item {
-      id: cluster
       anchors.fill: parent
-      // Shrink only when the card genuinely doesn't fit the output.
       scale: Math.min(1,
         (keyCatcher.width - Style.space(32)) / Math.max(1, card.width),
         (keyCatcher.height - Style.space(32)) / Math.max(1, card.height))
 
-      // Swallow clicks over the card so only the surrounding scrim dismisses.
+      // swallow clicks so only the scrim dismisses
       MouseArea {
         anchors.centerIn: parent
         width: card.width + Style.space(48)
@@ -137,7 +131,6 @@ PanelWindow {
           y: card.contentTopInset
           spacing: Style.space(16)
 
-          // Terminal-window title strip: prompt, name, blinking caret, decorative ASCII chrome, hard rule.
           Item {
             width: inner.width
             implicitHeight: titleRow.implicitHeight
@@ -201,7 +194,6 @@ PanelWindow {
           }
           PanelSeparator { width: inner.width }
 
-          // The two hero gauges side by side.
           Row {
             spacing: Style.space(28)
             Gauge {
@@ -220,7 +212,6 @@ PanelWindow {
             }
           }
 
-          // PING / progress readout.
           Text {
             width: inner.width
             textFormat: Text.PlainText
@@ -246,7 +237,6 @@ PanelWindow {
             horizontalAlignment: Text.AlignHCenter
           }
 
-          // Centered under the gauge pair.
           Item {
             width: inner.width
             implicitHeight: runAgain.implicitHeight
@@ -273,15 +263,12 @@ PanelWindow {
           }
         }
 
-        // CRT scanline wash over the whole terminal card.
         Scanlines { }
-        // Neon HUD corner brackets framing the card.
         HudFrame { }
       }
     }
   }
 
-  // One HUD gauge column: uppercase tracked label, big glowing hero numeral + unit, a segmented BarGauge fill and a live-history Sparkline. Keeps the car-cluster ignition sweep on its own `shown`/`fraction`.
   component Gauge: Column {
     id: g
 
@@ -291,11 +278,10 @@ PanelWindow {
     property var history: []
     readonly property real gaugeWidth: Style.space(260)
 
-    // The gauge that isn't measuring yet sits dimmed until it gets a figure.
     readonly property bool engaged: live || value > 0
 
     property real shown: 0
-    // The numeral stays on the real figure while the ignition sweep drives the fill -- a cluster sweeps its gauges, not its numerals.
+    // the sweep drives the fill, not the numeral
     readonly property real reading: ignition.running ? value : shown
     readonly property real fullScale: root.fullScale
     readonly property real fraction: fullScale > 0 ? Math.max(0, Math.min(1, shown / fullScale)) : 0
@@ -308,7 +294,6 @@ PanelWindow {
       NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
     }
 
-    // Live readings land once a second; glide between them rather than snap.
     Behavior on shown {
       enabled: !ignition.running
       NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
@@ -322,7 +307,6 @@ PanelWindow {
       ignition.restart()
     }
 
-    // Car-cluster power-on: fill sweeps to full scale and falls back before the live figures take over.
     SequentialAnimation {
       id: ignition
       NumberAnimation { target: g; property: "shown"; to: g.fullScale; duration: 550; easing.type: Easing.InOutCubic }
@@ -330,7 +314,6 @@ PanelWindow {
       onFinished: g.shown = g.value
     }
 
-    // Uppercase tracked direction label with accent bloom.
     PanelSectionHeader {
       width: g.gaugeWidth
       fontFamily: root.fontFamily
@@ -338,14 +321,12 @@ PanelWindow {
       text: g.label
     }
 
-    // Big glowing hero numeral with its unit trailing.
     Row {
       spacing: Style.spacing.xs
       Text {
         id: heroNum
         anchors.bottom: parent.bottom
         textFormat: Text.PlainText
-        // Both branches go through the locale: a reading is a measurement, so its separators follow the system's number conventions rather than the interface language.
         text: g.reading < 10
           ? g.reading.toLocaleString(Qt.locale(), 'f', 1)
           : Math.round(g.reading).toLocaleString(Qt.locale(), 'f', 0)
@@ -376,7 +357,6 @@ PanelWindow {
       }
     }
 
-    // Segmented current-value gauge (0..1).
     BarGauge {
       width: g.gaugeWidth
       height: Style.space(14)
@@ -385,7 +365,6 @@ PanelWindow {
       color: Color.accent
     }
 
-    // Live-sample history graph.
     Sparkline {
       width: g.gaugeWidth
       height: Style.space(46)

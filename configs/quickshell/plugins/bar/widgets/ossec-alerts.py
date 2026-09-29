@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""OSSEC HIDS alert summary for the bar, one JSON line per poll, read by Ossec.qml.
-
-The alert log is root-only, so it is read through `sudo -n` (this repo grants
-passwordless sudo). Emits counts over a 24h window, the highest level seen, and
-a few recent alerts for the tooltip. Prints {"ok": false, ...} on any failure,
-which the widget renders as "unreadable" and dims itself.
-"""
+"""OSSEC alert summary for Ossec.qml; the log is root-only, so it is read via sudo -n."""
 
 import json
 import re
@@ -17,7 +11,7 @@ from datetime import datetime
 ALERTS = "/var/lib/ossec-hids/logs/alerts/alerts.log"
 INTERVAL = int(sys.argv[1]) if len(sys.argv) > 1 else 60
 WINDOW = 24 * 3600
-HIGH = 7          # level >= HIGH is a problem worth turning the shield urgent
+HIGH = 7          # turns the shield urgent
 RECENT = 6
 
 ALERT_RE = re.compile(r"^\*\* Alert (\d+)\.\d+:")

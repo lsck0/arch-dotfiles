@@ -3,9 +3,7 @@
 
 usage: render.py <out_dir> <font_px> <hostname>
 
-GRUB fonts are bitmaps, so the font is rasterized at install time for the
-connected display's resolution. Box images are plain 1-colour PNGs, written
-by hand to avoid an image library dependency.
+GRUB fonts are bitmaps, so rasterize at install time for the display size.
 """
 
 import struct
@@ -19,15 +17,13 @@ FONTS = [
     "/usr/share/fonts/TTF/0xProtoNerdFontMono-Regular.ttf",
     "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
 ]
-# Static cyberpunk palette matching the quickshell shell; boot is pre-pywal.
+# static palette, boot runs before pywal
 BG = "#0B0E14"
 ACCENT = "#39BAE6"
 ACCENT_BRIGHT = "#73D0FF"
-FG = "#C2C3C5"
 
 
 def rgba(hexstr):
-    # Parse "#rrggbb" into an opaque (r, g, b, a) tuple.
     h = hexstr.lstrip("#")
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 0xFF)
 
@@ -46,7 +42,7 @@ def png(path, width, height, rgba):
 
 
 def pf2_name(path):
-    # PFF2 chunks are <4-byte tag><u32 BE length><data>; NAME is a NUL-terminated string.
+    # pff2 chunk: 4-byte tag, u32 be length, data
     data = path.read_bytes()
     i = data.index(b"NAME")
     (length,) = struct.unpack(">I", data[i + 4:i + 8])
@@ -57,7 +53,7 @@ def main():
     out, size, hostname = Path(sys.argv[1]), int(sys.argv[2]), sys.argv[3]
     out.mkdir(parents=True, exist_ok=True)
 
-    # 9-slice HUD box: accent cyan edges, near-black inside.
+    # 9-slice hud box
     b = max(1, size // 12)
     for part, (w, h) in {
         "nw": (b, b), "n": (1, b), "ne": (b, b),
@@ -66,7 +62,6 @@ def main():
     }.items():
         png(out / f"box_{part}.png", w, h, rgba(ACCENT))
     png(out / "box_c.png", 1, 1, rgba(BG))
-    # Selected entry is a brighter-accent bar, as in a tty highlight.
     png(out / "select_c.png", 1, 1, rgba(ACCENT_BRIGHT))
 
     font_name = ""

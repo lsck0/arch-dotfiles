@@ -1,0 +1,1124 @@
+*kulala.configuration-options.txt*A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents             *kulala.configuration-options-table-of-contents*
+
+1. Configuration Options  |kulala.configuration-options-configuration-options|
+  - UI Options |kulala.configuration-options-configuration-options-ui-options|
+  - LSP               |kulala.configuration-options-configuration-options-lsp|
+  - Keymaps       |kulala.configuration-options-configuration-options-keymaps|
+  - Script console notify |kulala.configuration-options-configuration-options-script-console-notify|
+  - OpenAPI panel |kulala.configuration-options-configuration-options-openapi-panel|
+
+==============================================================================
+1. Configuration Options  *kulala.configuration-options-configuration-options*
+
+Kulala can be configured with the following options.
+
+
+FULL EXAMPLE
+
+Here is a full example of setting up the Kulala plugin with the available
+`opts`:
+
+See `lua/kulala/config/defaults.lua` for the complete default table. Example
+`opts` for lazy.nvim:
+
+>lua
+    {
+      kulala_core = {
+        path = nil,
+        timeout = 60000,
+        data_dir = nil,
+        download_url = "https://github.com/dont-be-evil-company/kulala-core/releases/download/%s/%s",
+      },
+      session = {
+        restore = true, -- requires `set sessionoptions+=globals`
+      },
+      default_env = "default",
+      environment_scope = "b",
+      vscode_rest_client_environmentvars = false,
+      response_format = {
+        indent = 2,
+        expand_tabs = true,
+        sort_keys = false,
+      },
+      ui = {
+        display_mode = "split",
+        split_direction = "right",
+        default_view = "body",
+        winbar = true,
+        default_winbar_panes = { "body", "headers", "verbose", "script_output", "report" },
+        show_icons = "on_request",
+        max_response_size = 32768,
+        max_request_size = 2048,
+      },
+      lsp = {
+        enable = true,
+        filetypes = { "http", "rest", "javascript", "typescript", "lua" },
+        keymaps = false,
+      },
+      debug = 3,
+      generate_bug_report = false,
+      global_keymaps = false,
+      global_keymaps_prefix = "<leader>R",
+      kulala_keymaps = true,
+      kulala_keymaps_prefix = "",
+      script_console_notify = true,
+      openapi_panel_keymaps = true,
+      openapi_panel = {
+        split = "right",
+        signs = { folded = ">", expanded = "v" },
+      },
+    }
+<
+
+
+KULALA_CORE
+
+kulala-core executable and runtime options. HTTP, gRPC, WebSocket, GraphQL,
+scripting, and authentication are handled by kulala-core.
+
+>lua
+    kulala_core = {
+      path = nil,       -- custom binary path; nil = auto-download
+      timeout = 60000,  -- subprocess timeout in ms; nil = no timeout
+      data_dir = nil,   -- persistence dir for cookies, OAuth, prompts
+      download_url = "https://github.com/dont-be-evil-company/kulala-core/releases/download/%s/%s",
+    }
+<
+
+
+SESSION
+
+Restore request history and UI after sourcing a vim session.
+
+>lua
+    session = {
+      restore = true,
+    }
+<
+
+Requires `set sessionoptions+=globals` in your Neovim config.
+
+
+RESPONSE_FORMAT
+
+JSON pretty-printing options passed to kulala-core.
+
+>lua
+    response_format = {
+      indent = 2,
+      expand_tabs = true,
+      sort_keys = false,
+    }
+<
+
+
+ENVIRONMENT_SCOPE
+
+While using request variables the results will be stored for later use. As
+usual variables they’re file relevant and should be stored in the buffer. If
+you want to share the variables between buffers you can use the global scope.
+
+Possible values:
+
+- `"b"` (buffer)
+- `"g"` (global)
+
+Default: `"b"`
+
+Example:
+
+>lua
+    {
+    "dont-be-evil-company/kulala.nvim",
+      opts = {
+        environment_scope = "b",
+      },
+    }
+<
+
+
+DEFAULT_ENV
+
+Default environment.
+
+See: [Environment files][see-env-files].
+
+Possible values:
+
+- `[any string]`
+
+Default: `"default"`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        default_env = "default",
+      },
+    }
+<
+
+
+VSCODE_REST_CLIENT_ENVIRONMENTVARS
+
+If enabled, Kulala searches for `.vscode/settings.json` or `*.code-workspace`
+files in the current directory and its parents to read the
+`rest-client.environmentVariables` definitions.
+
+If `http-client.env.json` is also present, it’ll be merged (and overwrites
+variables from VSCode).
+
+Possible values:
+
+- `true`
+- `false`
+
+Default: `false`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        vscode_rest_client_environmentvars = true,
+      },
+    }
+<
+
+
+CUSTOM_DYNAMIC_VARIABLES
+
+Define your own dynamic variables here, e.g. $randomEmail
+
+>lua
+    {
+      opts = {
+        ---@type { [string]: fun():string }
+        custom_dynamic_variables = {
+          ["$randomEmail"] = function()
+            local random = math.random(1000, 9999)
+            return "user" .. random .. "@example.com"
+          end,
+        }
+      },
+    }
+<
+
+
+HALT_ON_ERROR
+
+Allows to halt/continue running a sequence of requests when a request failure
+is encountered.
+
+Not set in defaults; configure explicitly to enable. Use `kulala_core.timeout`
+for per-request subprocess timeouts.
+
+
+URLENCODE
+
+Specify how to escape query parameters.
+
+Possible values:
+
+- `always`
+- `skipencoded` = keep already encoded `%xx` as is
+
+Default: `always`
+
+
+URLENCODE_SKIP
+
+Skip urlencoding characters, specified as lua regex pattern.
+
+
+URLENCODE_FORCE
+
+Force urlencoding characters, specified as lua regex pattern.
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        urlencode = "skipencoded",
+        urlencode_skip = "%[%]",
+        urlencode_force = "%(%)",
+      },
+    }
+<
+
+
+CONTENTTYPES
+
+Filetypes, formatters and path resolvers are defined for each content-type in
+an hash array.
+
+Default: not set. See |kulala.automatic-response-formatting.txt| for examples.
+
+>lua
+    contenttypes = {
+      ["application/json"] = {
+        ft = "json",
+        formatter = vim.fn.executable("jq") == 1 and { "jq", "." },
+      },
+      ["application/xml"] = {
+        ft = "xml",
+        formatter = vim.fn.executable("xmllint") == 1 and { "xmllint", "--format", "-" },
+        pathresolver = { "xmllint", "--xpath", "{{path}}", "-" },
+      },
+    },
+<
+
+
+CONTENTTYPES.FT
+
+Default filetype for the given content type.
+
+Possible values:
+
+Any filetype (`:help filetype`) neovim supports.
+
+Default:
+
+>lua
+    contenttypes = {
+      ["application/json"] = {
+        ft = "json",
+      },
+      ["application/xml"] = {
+        ft = "xml",
+      },
+      ["text/html"] = {
+        ft = "html",
+      },
+<
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        contenttypes = {
+          ["text/xml"] = {
+            ft = "xml",
+          },
+        },
+      },
+    }
+<
+
+
+CONTENTTYPES.FORMATTER
+
+Formatters take the response body and produce a beautified / more human
+readable output.
+
+Possible values:
+
+- You can define a commandline which processes the body.
+    The body will be piped as stdin and
+    the output will be used as the formatted body.
+- You can define a lua function `formatted_body = function(body)`
+    which returns the formatted body.
+
+Default:
+
+>lua
+      contenttypes = {
+        ["application/json"] = {
+          ft = "json",
+          formatter = vim.fn.executable("jq") == 1 and { "jq", "." },
+        },
+        ["application/graphql"] = {
+          ft = "graphql",
+          formatter = vim.fn.executable("prettier") == 1 and { "prettier", "--stdin-filepath", "file.graphql" },
+          pathresolver = nil,
+        },
+        ["application/javascript"] = {
+          ft = "javascript",
+          formatter = vim.fn.executable("prettier") == 1 and { "prettier", "--stdin-filepath", "file.js" },
+          pathresolver = nil,
+        },
+        ["application/lua"] = {
+          ft = "lua",
+          formatter = vim.fn.executable("stylua") == 1 and { "stylua", "-" },
+          pathresolver = nil,
+        },
+        ["application/graphql-response+json"] = "application/json",
+        ["application/xml"] = {
+          ft = "xml",
+          formatter = vim.fn.executable("xmllint") == 1 and { "xmllint", "--format", "-" },
+          pathresolver = vim.fn.executable("xmllint") == 1 and { "xmllint", "--xpath", "{{path}}", "-" },
+        },
+        ["text/html"] = {
+          ft = "html",
+          formatter = vim.fn.executable("prettier") == 1 and { "prettier", "--stdin-filepath", "file.html" },
+          pathresolver = nil,
+        },
+      },
+<
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        contenttypes = {
+          ["text/plain"] = {
+            formatter = function(body)
+              return body:lower()
+            end,
+          },
+        },
+      },
+    }
+<
+
+
+CONTENTTYPES.PATHRESOLVER
+
+You can use Request Variables to read values from requests / responses. To
+access a specific value inside a body Kulala gives you the possibility to
+define a path for it.
+
+This is normally JSONPath for JSON or XPath for XML, but can be individually
+defined for any content type.
+
+Possible values:
+
+- You can use an external program which receives the
+    full body as stdin and has to return the selected value in stdout.
+    The placeholder `{{path}}` can be used in any string of
+    this definition and will be replaced by the actual path (after `body.`).
+- Alternative you can give a lua function of `value = function(body, path)`.
+
+Default:
+
+Kulala does not ship default `contenttypes` entries. JSON pretty-printing is
+handled by kulala-core via `response_format`. Configure `contenttypes` to add
+optional per-content-type formatters and path resolvers.
+
+>lua
+    contenttypes = {
+      ["application/json"] = {
+        ft = "json",
+        formatter = vim.fn.executable("jq") == 1 and { "jq", "." },
+      },
+      ["application/xml"] = {
+        pathresolver = { "xmllint", "--xpath", "{{path}}", "-" },
+      },
+    }
+<
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        contenttypes = {
+          ["text/xml"] = {
+            pathresolver = { "xmllint", "--xpath", "{{path}}", "-" },
+          },
+        },
+      },
+    }
+<
+
+
+DEBUG
+
+Enable debug mode.
+
+Possible values:
+
+- `true` - enable debug mode
+- `false` - disable debug mode
+- `1/2/3` - set log level
+    - `0` = silence all notifications
+    - `1` = only error
+    - `2` = error and warn
+    - `3` = error, warn and info
+    - `4` = debug
+
+Default: `3`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        debug = 3,
+      },
+    }
+<
+
+
+GENERATE_BUG_REPORT
+
+Generate a bug report on error.
+
+Default: `false`
+
+
+BEFORE_REQUEST
+
+Enable/disable/customize before_request hook. Default hook is request
+highlight.
+
+>lua
+    {
+      opts = {
+        before_request = true, ---@type boolean|fun(request: DocumentRequest):boolean - return true to continue request execution, false to stop
+      }
+    }
+<
+
+The `after_request` hook can be effectively implemented with the option
+`default_view`, which accepts a function with `Response` object as argument.
+
+
+UI OPTIONS     *kulala.configuration-options-configuration-options-ui-options*
+
+
+UI.DISPLAY_MODE
+
+The display mode.
+
+Can be either `split` or `float`.
+
+Default: `split`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          display_mode = "float",
+        }
+      },
+    }
+<
+
+
+UI.SPLIT_DIRECTION
+
+Split direction.
+
+Only used when `ui.display_mode` is set to `split`.
+
+Possible values:
+
+- `"above"`, `"right"`, `"below"`, `"left"`
+- `"vertical"` (alias for `"right"`)
+- `"horizontal"` (alias for `"below"`)
+- Function returning any of `"above"`, `"right"`, `"below"`, `"left"`
+
+Default: `"right"`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          split_direction = "right",
+        },
+      },
+    }
+<
+
+
+UI.WIN_OPTS
+
+Kualala UI buffer and window options.
+
+Default: `{}`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          ---@type kulala.ui.win_config
+          win_opts = {
+            width = 80,
+            height = 20,
+            split = "vertical",
+            bo = { number = true, wrap = true }, -- buffer options
+            wo = { foldmethod = "indent" }, -- window options
+          },
+        },
+      },
+    }
+<
+
+
+UI.DEFAULT_VIEW
+
+Default view.
+
+Possible values:
+
+- `body`
+- `headers`
+- `headers_body`
+- `verbose`
+- `script_output`
+- `stats`
+- `function(response) ... end`
+
+Default: `body`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          default_view = "body",
+        },
+      },
+    }
+<
+
+Setting the default view to a function allows you to define a custom view
+handler, which will be called with the response object and will override
+default views. The response object has the following properties:
+
+>lua
+    ---@class Response
+    ---@field id string
+    ---@field url string
+    ---@field method string
+    ---@field status boolean
+    ---@field code number -- request command code
+    ---@field response_code number -- http response code
+    ---@field duration number
+    ---@field time number
+    ---@field body string
+    ---@field headers string
+    ---@field errors string
+    ---@field stats table|string
+    ---@field script_pre_output string
+    ---@field script_post_output string
+    ---@field assert_output table
+    ---@field assert_status boolean
+    ---@field buf number
+    ---@field buf_name string
+    ---@field line number
+      local response = {}
+<
+
+
+UI.WINBAR
+
+Enable winbar for result buffer
+
+Possible values:
+
+- `true`
+- `false`
+
+Default: `true`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          winbar = true,
+        },
+      },
+    }
+<
+
+
+UI.DEFAULT_WINBAR_PANES
+
+Default visible winbar panes
+
+Possible values:
+
+- `body`
+- `headers`
+- `headers_body`
+- `verbose`
+- `script_output`
+- `stats`
+- `report`
+
+Default: `body`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          default_winbar_panes = { "body", "headers", "headers_body", "verbose" },
+        },
+      },
+    }
+<
+
+
+UI.WINBAR_LABELS
+
+Customize Winbar labels
+
+>lua
+    winbar_labels = {
+      body = "Body",
+      headers = "Headers",
+      headers_body = "All",
+      verbose = "Verbose",
+      script_output = "Script Output",
+      stats = "Stats",
+      report = "Report",
+      help = "Help"
+    }
+<
+
+
+UI.WINBAR_LABELS_KEYMAPS
+
+Show/hide winbar keymaps in labels
+
+>lua
+    winbar_labels_keymaps = true
+<
+
+
+UI.SHOW_VARIABLE_INFO_TEXT
+
+Enable/disable variable info text.
+
+Possible values:
+
+- `false` = disable variable info text
+- `"float"` = show the variable name and value as float
+
+Default: `always`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          show_variable_info_text = false,
+        },
+      },
+    }
+<
+
+
+UI.SHOW_ICONS
+
+Can be used to show loading, done and error icons in inlay hints or signcolumn
+
+Possible values:
+
+- `"singcolumn"`
+- `"on_request"`
+- `"above_request"`
+- `"below_request"`
+- `nil` (to disable inlay hints)
+
+If `"above_request"` or `"below_request"` is used, the icons will be shown
+above or below the request line.
+
+Default: `"on_request"`.
+
+
+UI.ICONS
+
+Default icons.
+
+Possible values:
+
+- `inlay = { loading = [string], done = [string], error = [string] }`
+- `lualine = [string]`
+
+Default:
+
+>lua
+    icons = {
+      inlay = {
+        loading = "⏳",
+        done = "✔",
+        error = "✘",
+      },
+      lualine = "🐼",
+      textHighlight = "WarningMsg", -- highlight group for request elapsed time
+      loadingHighlight = "Normal",
+      doneHighlight = "String",
+      errorHighlight = "ErrorMsg",
+    },
+<
+
+
+UI.SYNTAX_HL
+
+Highlight groups for http syntax highlighting
+
+>lua
+    {
+      opts = {
+        ui = {
+          ---@type table<string, string|vim.api.keyset.highlight>
+          syntax_hl = {
+            ["@punctuation.bracket.kulala_http"] = "Number",
+            ["@character.special.kulala_http"] = "Special",
+            ["@operator.kulala_http"] = "Special",
+            ["@variable.kulala_http"] = "String",
+            ["@redirect_path.kulala_http"] = "Number",
+            ["@external_body_path.kulala_http"] = "String",
+          },
+        }
+      },
+    }
+<
+
+
+UI.MAX_RESPONSE_SIZE
+
+Do not show responses over maximum size, in bytes
+
+Default: `32768` (32 KB)
+
+
+UI.MAX_REQUEST_SIZE
+
+Used by `Copy as Curl` command to determine whether to inline request body or
+include as a file
+
+Default: `2048` (2 KB)
+
+
+UI.SHOW_REQUEST_SUMMARY
+
+Enable/disable request summary in the output window.
+
+Possible values:
+
+- `true`
+- `false`
+
+Default: `true`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          show_request_summary = false,
+        },
+      },
+    }
+<
+
+
+UI.REPORT OPTIONS
+
+>lua
+      {
+        report = {
+          -- possible values: true | false | "on_error"
+          show_script_output = true,
+          -- possible values: true | false | "on_error" | "failed_only"
+          show_asserts_output = true,
+          -- possible values: true | false
+          show_summary = true,
+        }
+      }
+<
+
+
+UI.REPORT.UI.REPORT.SHOW_SCRIPT_OUTPUT
+
+Shows/hides the script output. `on_error` will show the output only when
+request status is failed.
+
+
+UI.REPORT.UI.REPORT.SHOW_ASSERTS_OUTPUT
+
+Shows/hides the assert output. `on_error` will show the output only when
+request status is failed, `failed_only` will show only the failed asserts.
+
+
+UI.REPORT.UI.REPORT.SHOW_SUMMARY
+
+Shows/hides the stats summary of the test results.
+
+
+UI.SCRATCHPAD_DEFAULT_CONTENTS
+
+Scratchpad default contents.
+
+The contents of the scratchpad when it’s opened via `:lua
+require('kulala').scratchpad()` command.
+
+Possible values:
+
+- `[table of strings]` (each string is a line)
+
+Default:
+
+>lua
+    scratchpad_default_contents = {
+      "@MY_TOKEN_NAME=my_token_value",
+      "",
+      "POST https://echo.kulala.app/post HTTP/1.1",
+      "accept: application/json",
+      "content-type: application/json",
+      "",
+      "{",
+      '  "foo": "bar"',
+      "}",
+    }
+<
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      opts = {
+        ui = {
+          scratchpad_default_contents = {
+            "@AUTH_USERNAME=my_username",
+            "",
+            "POST https://echo.kulala.app/post HTTP/1.1",
+            "accept: application/json",
+            "content-type: application/json",
+            "",
+            "{",
+            '  "baz": "qux"',
+            "}",
+          },
+        },
+      },
+    }
+<
+
+
+UI.DISABLE_NEWS_POPUP
+
+Disable the news popup.
+
+
+UI.LUA_SYNTAX_HL
+
+Enable/disable lua syntax highlighting.
+
+
+UI.PICKERS
+
+Settings for pickers used for Environment, Authentication and Requests
+Managers.
+
+>lua
+    pickers = {
+      snacks = {
+        layout = function()
+          local has_snacks, snacks_picker = pcall(require, "snacks.picker")
+          return not has_snacks and {}
+            or vim.tbl_deep_extend("force", snacks_picker.config.layout("telescope"), {
+              reverse = true,
+              layout = {
+                { { win = "list" }, { height = 1, win = "input" }, box = "vertical" },
+                { win = "preview", width = 0.6 },
+                box = "horizontal",
+                width = 0.8,
+              },
+            })
+        end,
+      },
+    },
+<
+
+
+LSP                   *kulala.configuration-options-configuration-options-lsp*
+
+
+LSP.ENABLE
+
+Enable/disable Kulala LSP server
+
+
+LSP.FILETYPES
+
+Filetypes to attach Kulala LSP to
+
+
+LSP.KEYMAPS
+
+Enable/disable/customize Kulala LSP keymaps
+
+
+LSP.ON_ATTACH
+
+Function called when Kulala LSP attaches to the buffer
+
+
+KEYMAPS           *kulala.configuration-options-configuration-options-keymaps*
+
+
+GLOBAL_KEYMAPS
+
+Set to `true` to enable default keymaps.
+
+Check the |kulala.keymaps.txt| for details.
+
+Default: `false`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      global_keymaps = true,
+    }
+<
+
+
+GLOBAL_KEYMAPS_PREFIX
+
+Prefix for global keymaps
+
+>lua
+    {
+      global_keymaps_prefix = "<leader>R",
+    }
+<
+
+
+KULALA_KEYMAPS
+
+Set to `true` to enable default keymaps for the Kulala UI.
+
+Check the |kulala.keymaps.txt| for details.
+
+Default: `true`
+
+Example:
+
+>lua
+    {
+      "dont-be-evil-company/kulala.nvim",
+      kulala_keymaps = false,
+    }
+<
+
+
+KULALA_KEYMAPS_PREFIX
+
+Prefix for kulala keymaps
+
+>lua
+    {
+      kulala_keymaps_prefix = "",
+    }
+<
+
+
+SCRIPT CONSOLE NOTIFY *kulala.configuration-options-configuration-options-script-console-notify*
+
+Forward script console output to |vim.notify()|: `client.log`, `console.log`,
+`request.skip(message?)` (info), and `request.abort(message?)` (error).
+
+Skipped and aborted requests still show script output in the response body /
+Script Output pane. When enabled, abort/skip messages are not duplicated in the
+Kulala error log if they already appear in the script console.
+
+Possible values:
+
+- `true` (default) - notify in interactive Neovim sessions
+- `false` - disable notifications
+- Table - customize title or handler:
+
+>lua
+    script_console_notify = {
+      enabled = true,
+      title = "kulala",
+      notify = function(message, level, opts, entry)
+        vim.notify(message, level, opts)
+      end,
+    }
+<
+
+Structured `client.test` and `client.assert` lines are shown in the Script
+Output pane only (not forwarded to |vim.notify()|).
+
+
+OPENAPI_PANEL       *kulala.configuration-options-configuration-options-openapi-panel*
+
+Options for the OpenAPI explorer split buffer. See |kulala.openapi.txt|.
+
+>lua
+    openapi_panel = {
+      -- Split placement (same values as `ui.split_direction`)
+      split = "right",
+      signs = { folded = ">", expanded = "v" },
+      highlights = {
+        section = "Title",
+        operation = "Function",
+        parameter = "Identifier",
+        response = "Number",
+        schema = "Type",
+        try_it_out = "String",
+        description = "Comment",
+        badge = "Comment",
+        sign = "Special",
+        value = "Constant",
+      },
+    }
+<
+
+`win_opts` from `ui.win_opts` is merged when opening the explorer window.
+
+
+OPENAPI_PANEL_KEYMAPS
+
+Set to `true` to enable default keymaps in the OpenAPI explorer buffer.
+
+Check |kulala.keymaps-keymaps-openapi-panel-keymaps| and
+|kulala.default-keymaps.txt| for details.
+
+Default: `true`
+
+Example:
+
+>lua
+    {
+      openapi_panel_keymaps = {
+        ["Refresh"] = { "R", function() require("kulala.ui.openapi_panel").refresh() end },
+      },
+    }
+<
+
+vim:tw=78:ts=8:noet:ft=help:norl:

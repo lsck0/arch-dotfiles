@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Keep the system timezone matching where the machine actually is.
+# keep the system timezone matching the machine's location
 
 set -euo pipefail
 
@@ -57,13 +57,13 @@ except Exception:
 
 apply() {
     local dry=${1:-}
-    local cur want tunnel
+    local cur want
 
     if [[ -e "$DISABLED_FLAG" ]]; then
         return 0
     fi
 
-    if tunnel=$(tunnel_up); then
+    if tunnel_up >/dev/null; then
         return 0
     fi
 

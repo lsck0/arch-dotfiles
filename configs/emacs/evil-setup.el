@@ -15,23 +15,21 @@
         evil-respect-visual-line-mode t)
   :config
   (evil-mode 1)
-  ;; jump commands recenter (nvim: C-d/C-u/n/N followed by zz)
+  ;; jump commands recenter, like nvim's zz maps
   (dolist (cmd '(evil-scroll-down evil-scroll-up
                  evil-search-next evil-search-previous
                  evil-goto-line))
     (advice-add cmd :after (lambda (&rest _) (recenter)))))
 
-;; sane vim bindings in every non-editing buffer (dired, magit, compilation…)
+;; vim bindings in dired, magit, compilation, ...
 (use-package evil-collection
   :after evil
   :config (evil-collection-init))
 
-;; mini.surround
 (use-package evil-surround
   :after evil
   :config (global-evil-surround-mode 1))
 
-;; gcc / gc commenting
 (use-package evil-commentary
   :after evil
   :config (evil-commentary-mode 1))

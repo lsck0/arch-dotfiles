@@ -1,4 +1,4 @@
-# This repo is PUBLIC. Never commit real Proton credentials.
+# public repo, no credentials
 *.env
 *.secret
 *.token

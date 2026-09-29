@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 
-// Styled wrapper around Qt Quick Controls ToolTip.
 ToolTip {
   id: root
 
@@ -38,7 +37,6 @@ ToolTip {
       y: parent.topPad
       spacing: Style.spacing.xs
 
-      // Subtle terminal prompt tag in front of the tooltip text.
       Text {
         anchors.baseline: tipText.baseline
         textFormat: Text.PlainText

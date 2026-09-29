@@ -1,26 +1,22 @@
 #!/bin/bash
-# Audible + visual alert that must be dismissed by hand.
-
-# omarchy:summary=Audible, manually-dismissed alert card
-# omarchy:args=<title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
-# omarchy:examples=alert.sh "Reminder" "Check the oven" | alert.sh "Focus done" "Take a break"
+# alert card that must be dismissed by hand
+# usage: <title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
 
 set -uo pipefail
 
 SELF_DIR="$(dirname "$(readlink -f "$0")")"
-# Repo-level scripts/, three levels up from configs/quickshell/scripts/.
 REPO_SCRIPTS="$SELF_DIR/../../../scripts"
 
 TITLE=${1:-Reminder}
 BODY=${2:-}
-GLYPH=${3:-󰀠}   # md-alarm
-# Picks the card's actions: a reminder can be snoozed, a pomodoro stopped.
+GLYPH=${3:-󰀠}
+# reminder can snooze, pomodoro can stop
 KIND=${4:-}
 SNOOZE_MESSAGE=${5:-}
 
 SOUND=/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga
 
-# Played in the foreground, after the card is up: reminders run inside a transient systemd unit, which kills anything backgrounded once this exits.
+# foreground: the systemd unit kills background children on exit
 play_sound() {
     if [[ -r "$SOUND" ]] && command -v pw-play >/dev/null 2>&1; then
         timeout 10 pw-play "$SOUND" >/dev/null 2>&1
@@ -37,7 +33,6 @@ show_card() {
     local payload
     payload=$(jq -cn --arg t "$TITLE" --arg b "$BODY" --arg g "$GLYPH" --arg k "$KIND" --arg m "$SNOOZE_MESSAGE" \
         '{title:$t, body:$b, glyph:$g, kind:$k, message:$m}') || return 1
-    # `summon` prints "ok" on success and "unknown" if the plugin is not registered; a dead shell makes the call itself fail.
     local out
     out=$(timeout 3 quickshell ipc -p "$HOME/.config/quickshell" \
         call shell summon panel.alert "$payload" 2>/dev/null) || return 1
@@ -45,7 +40,7 @@ show_card() {
 }
 
 if ! show_card; then
-    # Shell down, or the overlay unavailable: never drop the alert.
+    # never drop the alert
     "$REPO_SCRIPTS/notification-send.sh" -g "$GLYPH" "$TITLE" "$BODY" || true
 fi
 

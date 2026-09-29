@@ -1,5 +1,4 @@
-# Global fallback for files under $HOME (no root=true, so a project's own
-# root .editorconfig stops before reaching this). l-style: 4-space, 120 cols.
+# global fallback, no root=true so project configs win
 [*]
 charset = utf-8
 end_of_line = lf

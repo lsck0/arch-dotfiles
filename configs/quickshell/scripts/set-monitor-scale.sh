@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Applies a monitor scale change at runtime, keeping the connector's current mode and position untouched.
+# runtime scale change, keeps mode and position
 set -uo pipefail
 
 name="${1:?usage: set-monitor-scale.sh <output-name> <scale>}"

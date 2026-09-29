@@ -70,7 +70,7 @@ return {
             dap.listeners.before.event_terminated["dapui_config"] = close_ui
             dap.listeners.before.event_exited["dapui_config"] = close_ui
 
-            -- buffers without dap configs (empty, dashboard, ...) list every filetype's configs
+            -- buffers without dap configs list every filetype's configs
             dap.providers.configs["fallback"] = function(bufnr)
                 if dap.configurations[vim.bo[bufnr].filetype] then return {} end
                 local all, seen = {}, {}
@@ -160,7 +160,7 @@ return {
                 },
             }, native_attach)
 
-            -- python: debugpy from mason; attach with connect goes straight to a `python -m debugpy --listen 5678` server
+            -- python: debugpy from mason; connect attaches to a `debugpy --listen` server
             local debugpy_python = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
             dap.adapters.python = function(cb, config)
                 if config.request == "attach" and config.connect then

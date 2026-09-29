@@ -7,7 +7,6 @@ import qs.Commons
 import qs.Ui
 import "../../services"
 
-// New widget, not a port of omarchy-shell's plugins/menu/Menu.qml.
 Item {
   id: root
 
@@ -171,7 +170,6 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         spacing: root.contentSpacing
 
-        // Uppercase tracked section header, terminal-readout style.
         Row {
           id: titleRow
           width: parent.width
@@ -200,7 +198,6 @@ Item {
           Text {
             anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.PlainText
-            // Bracketed live match count.
             text: "[" + String(root.entries.length) + "]"
             color: root.foreground
             opacity: 0.45
@@ -215,7 +212,6 @@ Item {
           radius: root.cornerRadius
           color: "transparent"
 
-          // Terminal prompt line: `> query_` with a blinking block caret.
           Row {
             id: promptRow
             anchors.left: parent.left
@@ -246,7 +242,7 @@ Item {
             Text {
               id: queryText
               textFormat: Text.PlainText
-              // Hug the typed text so the caret follows it; cap and elide when long.
+              // hug the text so the caret follows it
               width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
               text: root.filterText || "Search applications..."
               color: root.foreground
@@ -256,7 +252,6 @@ Item {
               elide: Text.ElideRight
             }
 
-            // Blinking block caret at the input head.
             Text {
               id: caret
               textFormat: Text.PlainText
@@ -285,7 +280,6 @@ Item {
             }
           }
 
-          // Hard accent underline: the terminal input line.
           Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -321,7 +315,6 @@ Item {
               anchors.rightMargin: Style.space(10)
               spacing: Style.space(10)
 
-              // Reticle marker on the focused row.
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 width: Style.space(14)
@@ -367,7 +360,6 @@ Item {
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body
                   elide: Text.ElideRight
-                  // Neon bloom on the focused result.
                   layer.enabled: rowDelegate.index === root.selectedIndex && Style.fx.glow > 0
                   layer.effect: MultiEffect {
                     shadowEnabled: true
@@ -394,7 +386,6 @@ Item {
               }
             }
 
-            // HUD reticle on the focused result.
             HudFrame { visible: rowDelegate.index === root.selectedIndex && Style.fx.brackets }
 
             MouseArea {
@@ -402,7 +393,7 @@ Item {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              // Deliberately does NOT drive root.selectedIndex, on hover OR move.
+              // hover deliberately does not move the selection
               onClicked: root.launchAt(rowDelegate.index)
             }
           }
@@ -437,11 +428,9 @@ Item {
         }
       }
 
-      // Terminal-panel framing over the launcher card.
       HudFrame {}
     }
 
-    // CRT scanline overlay across the whole launcher overlay.
     Scanlines { flicker: false }
   }
 }

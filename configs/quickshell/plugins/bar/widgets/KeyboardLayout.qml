@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Ui
@@ -10,21 +9,20 @@ BarWidget {
   id: root
   moduleName: "keyboard-layout"
 
-
   property string layoutFull: ""
-  // The keyboard the last reading spoke for, which is the one a click switches, and separately the one activelayout named as being typed on.
+  // switch target, and the keyboard activelayout named
   property string keyboardName: ""
   property string typedKeyboardName: ""
-  // Keyboards on the seat, buttons and virtual ones excluded, and whether the last reading left that shape in doubt.
+  // excludes buttons and virtual keyboards
   property int keyboardCount: 0
   property bool keyboardUnresolved: false
-  // Nothing to read or switch on the single-layout install most people run, so the widget ships on the bar and stays out of the way until there are two.
+  // hidden until there are two layouts
   property bool multipleLayouts: true
-  // Short language code per layout description ("English (US)": "en"), read from xkb's own table rather than maintained by hand.
+  // xkb brief per layout description
   property var layoutBriefs: ({})
   readonly property string layoutLabel: KeyboardLayoutModel.shortLabel(layoutFull, layoutBriefs)
 
-  // A query already in flight was started before this event, so it may read the layout the switch replaced.
+  // an in-flight query may predate this event
   property bool refreshPending: false
 
   function refresh() {
@@ -37,17 +35,16 @@ BarWidget {
     queryProc.running = true
   }
 
-  // Keyboards someone can actually type on, which is not everything Hyprland calls a keyboard.
   function typedKeyboards(keyboards) {
     return keyboards.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
   }
 
-  // The main flag names no keyboard for long: fcitx5 takes it with the virtual keyboard it binds to inject, which leaves no typed keyboard holding it and nothing to read at all, and once that unbinds it lands on whichever device Hyprland saw last, a power button included.
+  // main flag is unreliable, fcitx5 steals it
   function selectKeyboard(typed) {
     return KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
   }
 
-  // switchxkblayout is a hyprctl command rather than a dispatcher, so it has to be run rather than sent over the dispatch socket.
+  // switchxkblayout is not a dispatcher
   function cycleLayout() {
     if (!root.keyboardName || !root.bar) return
     root.bar.run("hyprctl switchxkblayout " + Util.shellQuote(root.keyboardName) + " next")
@@ -64,13 +61,13 @@ BarWidget {
     function onRawEvent(event) {
       if (!event || !event.name) return
       var name = String(event.name)
-      // The event names the keyboard that switched ahead of the layout it moved to, and that is the keyboard being typed on whatever holds the main flag.
+      // activelayout names the keyboard being typed on
       if (name === "activelayout") {
         const named = KeyboardLayoutModel.eventKeyboardName(event)
         if (named) root.typedKeyboardName = named
       }
 
-      // A reload that adds a layout to kb_layout decides whether the widget shows at all, and leaves every keyboard on the layout it was already reading, so it raises no activelayout to notice it by.
+      // reloads can add a layout without an activelayout event
       if (name.indexOf("activelayout") !== -1 || name === "configreloaded") root.refresh()
     }
   }
@@ -97,13 +94,13 @@ BarWidget {
           return
         }
 
-        // A query the watchdog killed reports nothing at all, and an empty string parses into the same shape a seat with no keyboards would.
+        // a killed query yields no output
         if (!Array.isArray(listed)) return
 
         const typed = root.typedKeyboards(listed)
         const kb = root.selectKeyboard(typed)
         if (!kb || !kb.active_keymap) {
-          // Either the last keyboard has been unplugged, which the label has to stop describing and the click has to stop naming, or keyboards are there and none of them reports a keymap.
+          // unplugged, or no keyboard reports a keymap
           root.keyboardUnresolved = true
           if (typed.length === 0) {
             root.layoutFull = ""
@@ -121,7 +118,7 @@ BarWidget {
     }
   }
 
-  // The table only changes when xkb data is upgraded, so read it at startup and leave it alone.
+  // xkb table only changes on upgrade
   Process {
     id: briefsProc
     command: ["xkbcli", "list", "--load-exotic"]
@@ -137,7 +134,7 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
-  // A query that never returns would freeze the label until the shell restarts, since a Process that is already running can't be re-run.
+  // watchdog: a running Process cannot be re-run
   Timer {
     id: stallTimer
     interval: 5000
@@ -147,7 +144,7 @@ BarWidget {
     }
   }
 
-  // Which keyboard on a crowded seat the label is describing can change without Hyprland announcing it, since a device arriving or leaving raises no event of its own, and that can only be learned by asking.
+  // device hotplug raises no event, so poll
   Timer {
     interval: 10000
     running: !root.keyboardName || root.keyboardUnresolved || root.keyboardCount > 1
@@ -163,7 +160,6 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // Uppercase for terminal-HUD consistency; no panel exists on this widget to theme further.
     text: root.layoutLabel.toUpperCase()
     fontSize: Style.font.caption
     horizontalMargin: 6

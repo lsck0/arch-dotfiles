@@ -5,36 +5,33 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Homelab health from homelab-status.py, which derives the fleet and every link from the homelab source.
 BarWidget {
   id: root
   moduleName: "homelab"
 
   property bool received: false
   property bool ok: false
-  // "source" when the homelab checkout is missing or unreadable, else a network failure.
+  // "source" means no readable homelab checkout
   property string error: ""
-  property var links: ({ homepage: "", grafana: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
+  property var links: ({ homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
   property var services: []
   property var alerts: []
   property var host: ({})
   property var storage: ({})
   property var traffic: ({})
-  // The four incoming lists, as on the TRMNL dashboard.
   property var clients: ({})
 
-  // Rolling history of host CPU% and memory% for the panel sparklines (newest last, capped).
   property var cpuHist: []
   property var memHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
-  // Link-only entries (up === null) have no state and are left out of the counts.
+  // link-only entries have up === null
   readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
   readonly property var downServices: monitored.filter(function(s) { return !s.up && !s.onDemand })
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length
   readonly property int asleepCount: monitored.filter(function(s) { return !s.up && s.onDemand }).length
   readonly property int problemCount: alerts.length + downServices.length
-  // Nightly backups; a day and a bit without one means one was missed.
+  // nightly backups, 26h leaves some slack
   readonly property bool backupStale: storage.backupAgeMin === null || storage.backupAgeMin === undefined
     || storage.backupAgeMin > 26 * 60
 
@@ -61,7 +58,7 @@ BarWidget {
   Process {
     id: statusProc
     running: true
-    // Poll fast with full detail while the panel is open; slow summary-only (problemCount/alerts) when closed.
+    // full detail only while the panel is open
     command: panel.visible
       ? [Paths.barWidget("homelab-status.py"), "30"]
       : [Paths.barWidget("homelab-status.py"), "300", "--summary"]
@@ -78,7 +75,7 @@ BarWidget {
           if (s.links) root.links = s.links
           root.services = s.services || []
           root.alerts = s.alerts || []
-          // summary lines carry no panel detail; keep the last full sample so a hover shows data at once
+          // summary lines carry no host detail, keep the last full sample
           if (!s.host) return
           root.host = s.host
           root.storage = s.storage || {}
@@ -92,7 +89,7 @@ BarWidget {
     }
   }
 
-  // Restart the poller so the new cadence/mode takes effect the moment the panel opens or closes.
+  // restart so the new cadence applies at once
   Connections {
     target: panel
     function onVisibleChanged() {
@@ -123,7 +120,6 @@ BarWidget {
       opacity: root.ok && root.problemCount > 0 ? 1 : Style.emphasis.dim
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
-      // Neon halo while the fleet is reporting problems.
       layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
       layer.effect: MultiEffect {
         shadowEnabled: true
@@ -166,14 +162,13 @@ BarWidget {
     onClicked: root.open(root.links.homepage)
   }
 
-  // System.qml's label/value row, clickable: the hover fill bleeds past the column edge so the text stays aligned with the section headers.
+  // hover fill bleeds past the edge so text stays aligned with headers
   component Row_: Item {
     id: kv
     property string label: ""
     property string value: ""
     property string url: ""
     property bool alert: false
-    // Side information, drawn muted after the value.
     property string note: ""
     width: parent.width
     implicitHeight: valueText.implicitHeight + Style.spacing.xxs * 2
@@ -225,7 +220,6 @@ BarWidget {
     }
   }
 
-  // One of the four incoming lists: a caption, then a row per entry with a bar of its share of the largest row in the same list.
   component ClientList: Column {
     id: list
     property string title: ""
@@ -255,13 +249,12 @@ BarWidget {
         implicitHeight: entryName.implicitHeight + Style.spacing.xxs
 
         Rectangle {
-          // the share bar, drawn behind the text rather than beside it: a separate track would cost width the column does not have
+          // behind the text, the column has no width for a track
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           height: parent.height
           width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
           radius: Style.cornerRadius
-          // Accent-tinted gauge track: reads as a terminal HUD share bar.
           color: Util.alpha(Color.accent, 0.15)
         }
         Text {
@@ -290,7 +283,6 @@ BarWidget {
     }
   }
 
-  // One titled grid of services.
   component ServiceGroup: Column {
     id: groupBox
     property string title: ""
@@ -335,7 +327,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.sm
 
-            // * up or link-only (never checked), o asleep, red when down.
+            // * up or link-only, o asleep
             Text {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
@@ -369,7 +361,6 @@ BarWidget {
     }
   }
 
-  // Big glowing hero numeral (a percentage) opening a section.
   component Hero: Row {
     property int pct: 0
     property color tint: Color.accent
@@ -405,7 +396,6 @@ BarWidget {
     }
   }
 
-  // History sparkline + current-value bar gauge under a tracked label with a live readout.
   component MetricGraph: Column {
     id: mg
     property var history: []
@@ -443,7 +433,6 @@ BarWidget {
     BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
   }
 
-  // Compact tracked label + readout over a single HUD gauge, for ratios with no history.
   component GaugeRow: Column {
     id: gr
     property string label: ""
@@ -482,10 +471,9 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip, rendered by the shared card.
     title: "Homelab"
     implicitWidth: Style.panelWidth.wide + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2) + Style.shadowOffset
+    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
 
     Flickable {
       anchors.fill: parent
@@ -501,10 +489,6 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      // Top headroom so the overlaid title strip never covers the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // ---- unreachable ------------------------------------------------------
       Row_ {
         visible: !root.ok
         label: "Status"
@@ -513,7 +497,7 @@ BarWidget {
       }
       PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
       PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
-      // Off the LAN the monitoring VM is only reachable through WireGuard.
+      // off the lan the monitor vm is only reachable over wireguard
       PanelRow {
         width: parent.width
         visible: root.received && !root.ok && root.error !== "source"
@@ -530,7 +514,6 @@ BarWidget {
         visible: root.ok
         spacing: Style.spacing.md
 
-        // ---- alerts ---------------------------------------------------------
         Column {
           width: parent.width
           visible: root.alerts.length > 0
@@ -551,9 +534,7 @@ BarWidget {
           PanelSeparator {}
         }
 
-        // ---- host -----------------------------------------------------------
         PanelSectionHeader { text: "Host" }
-        // Big glowing CPU hero, live secondary readouts flush right.
         Item {
           width: parent.width
           implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
@@ -582,7 +563,6 @@ BarWidget {
           fraction: (Number(root.host.memTotalGb) || 0) > 0 ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) : 0
         }
 
-        // ---- storage --------------------------------------------------------
         PanelSeparator {}
         PanelSectionHeader { text: "Storage" }
         Row_ {
@@ -604,7 +584,6 @@ BarWidget {
           alert: root.backupStale
           url: root.links.nas
         }
-        // Capacity, disk health, and flash wear as HUD gauges.
         GaugeRow {
           label: "NAS free"
           readout: root.num(root.storage.nasFreeGb, " GB")
@@ -623,7 +602,6 @@ BarWidget {
           fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
         }
 
-        // ---- traffic --------------------------------------------------------
         PanelSeparator {}
         PanelSectionHeader { text: "Traffic" }
         Row_ { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
@@ -635,7 +613,7 @@ BarWidget {
           url: root.links.dashboard
         }
 
-        // ---- incoming ------------------------------------------------------- Who reached the lab from the internet, which is the one thing Prometheus cannot answer: its Traefik counters carry no client detail, so these come from the access log through Loki.
+        // from loki, traefik counters carry no client detail
         Column {
           width: parent.width
           visible: (root.clients.countries || []).length > 0
@@ -672,7 +650,6 @@ BarWidget {
           }
         }
 
-        // ---- services -------------------------------------------------------
         PanelSeparator {}
         PanelSectionHeader { text: "Services" }
         Row_ {
@@ -700,8 +677,5 @@ BarWidget {
       }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

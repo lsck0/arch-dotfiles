@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# JSON snapshot of every toggles/toggle-*.sh for Toggles.qml's hover panel — same discovery + `label`/`get` contract toggles/menu.sh uses, just rendered inline instead of shelling out to walker/fzf.
+# json snapshot of toggles/toggle-*.sh for the Toggles panel
 set -euo pipefail
 
-# Overridable for a checkout that is not at the default location, matching Commons/Paths.qml's QS_DOTFILES_DIR.
+# matches QS_DOTFILES_DIR in Commons/Paths.qml
 TOGGLE_DIR="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 cd "$TOGGLE_DIR"
 
@@ -12,7 +12,7 @@ for script in toggle-*.sh; do
   raw=$("./$script" label)
   on=$("./$script" get)
   label=$(printf '%s' "$raw" | sed -E 's/^[●○] //; s/ \((on|off)\)$//')
-  # binary toggles report get as literal on/off; n-state ones (e.g. toggle-powermode.sh) report their state name instead, or an empty string when no override is forced (auto/hardware default) — "on" here means "away from the off/default state" either way
+  # n-state toggles: any non-default state counts as on
   entry=$(jq -nc --arg name "$name" --arg label "$label" --argjson on "$([[ -n "$on" && "$on" != off && "$on" != balanced ]] && echo true || echo false)" \
     '{name: $name, label: $label, on: $on}')
   entries=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$entries")

@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# One-shot JSON snapshot of the active connection's device/IP/MAC and instantaneous up/down throughput, for Network.qml's details row.
+# json snapshot of the active connection and its throughput
 set -euo pipefail
 
-# NetworkManager's own connectivity verdict: full | limited | portal | none | unknown.
 connectivity=$(nmcli -t -f CONNECTIVITY general 2>/dev/null || echo unknown)
 connectivity=${connectivity:-unknown}
 
-# Real ethernet/wifi only.
 device=$(nmcli -t -f DEVICE,TYPE,STATE dev status 2>/dev/null | awk -F: '$3 == "connected" && ($2 == "ethernet" || $2 == "wifi") {print $1; exit}')
 device=${device:-}
 

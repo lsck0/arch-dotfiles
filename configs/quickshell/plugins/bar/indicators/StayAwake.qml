@@ -4,7 +4,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Adapted from upstream, which reads bar.shell.firstPartyServiceFor( "omarchy.idle") — an idle-management service plugin this repo doesn't have.
 BarIndicator {
   id: root
 
@@ -30,7 +29,6 @@ BarIndicator {
     onExited: root.active = (checkOutput.text || "").trim() === "on"
   }
 
-  // Was 5000ms.
   Timer {
     interval: 15000
     running: true

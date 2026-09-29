@@ -5,7 +5,7 @@ source ./lib.sh
 
 # Resolves the coordinates the weather widget queries with, and owns the manual-override state.
 
-# NOT "$TOGGLES_STATE_DIR/weather-location": toggle_set writes its own on/off bookkeeping to exactly that path, so sharing the name meant toggle_main overwrote the stored coordinates with the literal string "on".
+# not "weather-location": toggle_set owns that path for its on/off state and would overwrite the coords
 MANUAL_FILE="$TOGGLES_STATE_DIR/weather-location.coords"
 
 round2() { awk -v a="$1" -v b="$2" 'BEGIN { printf "%.2f,%.2f", a, b }'; }
@@ -52,7 +52,7 @@ PY
     done
 }
 
-# Last resort, and the one the SPEC's "NOT REVEAL IT" pushes back on: it discloses the public IP to a third party, and behind Tor/ProtonVPN/ WireGuard it returns the exit node's city — silently showing the wrong country's weather while looking perfectly normal.
+# last resort: discloses the public ip to a third party, and behind a tunnel returns the exit node's city
 ipgeo_coords() {
     local j lat lon
     j=$(timeout 8 curl -s --max-time 6 'https://ipapi.co/json/' 2>/dev/null || true)
@@ -101,7 +101,7 @@ clear)
     toggle_set weather-location off
     toggle_notify -a Toggles "Weather Location" "Back to automatic"
     ;;
-# "<source> <lat>,<lon>" — the widget reads both halves so the panel can say how the location was determined without ever rendering the location.
+# "<source> <lat>,<lon>": the widget reads both halves to show how the location was determined
 resolve) resolve ;;
 coords)  read -r _ c <<<"$(resolve)"; echo "${c:-}" ;;
 source)  read -r s _ <<<"$(resolve)"; echo "$s" ;;

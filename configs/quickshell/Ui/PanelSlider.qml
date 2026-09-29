@@ -11,7 +11,7 @@ Item {
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
-  // barForeground, not foreground — this repo's Bar.qml exposes the bar text color as `barForeground` (Bar.qml:50); `bar.foreground` is undefined and silently yields "Unable to assign [undefined] to QColor" at runtime.
+  // Bar exposes barForeground, not foreground
   property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Color.accent) : Style.selectedFill
   property color fillColor: bar ? bar.barForeground : Color.foreground
   property color knobColor: bar ? bar.barForeground : Color.foreground
@@ -20,16 +20,11 @@ Item {
   property real knobSize: Math.max(14, Math.round(Style.spacing.controlHeight * 0.38))
   property real liveValue: value
 
-  // macOS-style notches.
-  property int tickCount: 0
-  property color tickColor: bar ? bar.background : Color.background
-
   onValueChanged: if (!dragging) liveValue = value
 
   signal moved(real value)
   signal released(real value)
 
-  // Right-click is a secondary action on the whole track — audio uses it to mute the channel the slider belongs to.
   signal rightClicked()
 
   implicitWidth: Style.space(200)
@@ -58,7 +53,6 @@ Item {
     color: root.fillColor
     width: track.width * root.progress
 
-    // Accent neon bloom so the filled portion reads as a live readout.
     layer.enabled: Style.fx.glow > 0 && width > 0
     layer.effect: MultiEffect {
       shadowEnabled: true
@@ -76,22 +70,7 @@ Item {
     }
   }
 
-  Repeater {
-    model: root.tickCount > 1 ? root.tickCount : 0
-    Rectangle {
-      required property int index
-      width: Math.max(1, Style.space(2))
-      height: root.trackHeight + Style.space(4)
-      radius: 1
-      color: root.tickColor
-      anchors.verticalCenter: track.verticalCenter
-      x: Math.max(0, Math.min(track.width - width,
-                              track.width * (index / (root.tickCount - 1)) - width / 2))
-    }
-  }
-
   BorderSurface {
-    id: knob
     width: root.knobSize
     height: root.knobSize
     radius: root.knobSize / 2
@@ -143,7 +122,7 @@ Item {
     }
     onReleased: function(mouse) {
       if (mouse.button !== Qt.LeftButton) return
-      // Captured first: clearing dragging re-evaluates bindings like the seek bar's `value`, which would reset liveValue and report the old position.
+      // capture first, clearing dragging resets liveValue
       var target = root.liveValue
       root.dragging = false
       root.released(target)

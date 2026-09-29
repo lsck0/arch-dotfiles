@@ -18,7 +18,6 @@ return {
                     local tex_ft = { "tex", "latex", "markdown" }
                     npairs.add_rules({
                         Rule("$", "$", tex_ft)
-                        -- don't pair if next char is alphanumeric
                             :with_pair(cond.not_after_regex("[%w]")),
                         Rule("\\(", "\\)", tex_ft),
                         Rule("\\[", "\\]", tex_ft),
@@ -34,7 +33,6 @@ return {
 
             { "onsails/lspkind.nvim" }, -- completion kind icons
 
-            -- compat layer for nvim-cmp sources without native blink equivalents
             {
                 "saghen/blink.compat", -- nvim-cmp compat layer
                 version = "2.*",
@@ -60,7 +58,6 @@ return {
                 ["<C-f>"] = { "scroll_documentation_down", "fallback" },
             },
 
-            -- function signature hints while typing arguments
             signature = { enabled = true },
 
             completion = {

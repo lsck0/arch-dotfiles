@@ -20,11 +20,9 @@
 ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   (buffer-face-set :family my/font-family :height (* 10 my/font-size)))
 
-; ; eat: pure elisp, no compilation step, good enough for a fallback setup.
 (use-package eat
   :commands (eat eat-other-window)
   :config (setq eat-kill-buffer-on-exit t)
-  ;; terminals open typeable, like tmux
   :hook ((eat-mode . evil-insert-state)
          (eat-mode . my/eat-style)))
 
@@ -34,7 +32,7 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   (require 'eat)
   (let ((default-directory (my/project-root)))
     (tab-bar-new-tab)
-    ; ; ARG non-numeric = a fresh session, so every tab gets its own shell the ; way every tmux window does.
+    ;; non-numeric arg: a fresh shell per tab
     (switch-to-buffer (eat nil t))
     (tab-bar-rename-tab "term")))
 
@@ -49,24 +47,23 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
       (quit-restore-window win 'bury)     ; never errors on a sole window
     (let* ((default-directory (my/project-root))
            (buf (or (get-buffer my/eat-popup-name)
-                    ; ; `eat-buffer-name' names it up front, so no renaming and ; no clash with the per-tab terminals above
+                    ;; named up front, no clash with the per-tab terminals
                     (save-window-excursion
                       (let ((eat-buffer-name my/eat-popup-name))
                         (eat))))))
       (select-window (display-buffer buf))
       (evil-insert-state))))
 
-; ;;; compile ----------------------------------------------------------------- ; compile-mode.nvim: `m` compiles, output opens below (see popups).
+;;;; compile -----------------------------------------------------------------
 
 (setq compilation-scroll-output 'first-error
       compilation-always-kill t           ; never ask before restarting a build
       compilation-ask-about-save nil      ; save modified buffers silently
       compilation-max-output-line-length nil)
 
-;; render build output colours instead of raw escape codes
 (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
 
-; ;;; popups ------------------------------------------------------------------ ; Replaces the popper package: transient buffers get a dismissable bottom ; window instead of stealing a split.
+;;;; popups ------------------------------------------------------------------
 
 (add-to-list 'display-buffer-alist
              `(,(rx bos (or "*eat-popup*" "*Warnings*" "*Messages*"
@@ -85,7 +82,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 
 ;;;; windows -----------------------------------------------------------------
 
-;; winshift.nvim -> jump/swap windows by letter
 (use-package ace-window
   :commands (ace-window ace-swap-window)
   :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
@@ -93,19 +89,17 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 
 ;;;; editing helpers ---------------------------------------------------------
 
-;; undotree.nvim -> visual undo tree
 (use-package vundo
   :commands vundo
   :config (setq vundo-glyph-alist vundo-unicode-symbols))
 
-; ; trim trailing whitespace only on lines actually edited, so it never ; pollutes a diff with unrelated churn
+;; trim only edited lines, no unrelated diff churn
 (use-package ws-butler
   :hook ((prog-mode . ws-butler-mode)
          (text-mode . ws-butler-mode)))
 
 ;;;; claude (claudecode.nvim) ------------------------------------------------
 
-;; run Claude Code in an eat terminal, tied to the current project.
 (use-package claude-code
   :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
   :after eat
@@ -120,7 +114,7 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
              dap-next dap-step-in dap-step-out)
   :config
   (require 'dap-ui)
-  ;; native + python adapters (missing modules are skipped)
+  ;; missing adapter modules are skipped
   (dolist (m '(dap-gdb-lldb dap-lldb dap-codelldb dap-python))
     (require m nil t))
   (setq dap-python-debugger 'debugpy)
@@ -144,8 +138,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 
 ;;;; testing (neotest core, via compile) -------------------------------------
 
-;; per-mode test runner; nearest/summary/output/watch have no clean Emacs
-;; equivalent (they need neotest's treesitter test detection).
 (defvar my/test-commands
   '((python-ts-mode . "pytest") (python-mode . "pytest")
     (rust-ts-mode . "cargo nextest run") (rust-mode . "cargo nextest run"))

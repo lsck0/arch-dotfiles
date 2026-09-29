@@ -1,7 +1,6 @@
 #:schema https://yazi-rs.github.io/schemas/yazi.json
 
-# Power-user defaults; theme lives in theme.toml (palette-driven, see link.sh).
-# Image preview is left unset so yazi auto-detects the terminal's graphics protocol.
+# image preview unset so yazi auto-detects the protocol
 
 [mgr]
 ratio          = [ 1, 4, 3 ]

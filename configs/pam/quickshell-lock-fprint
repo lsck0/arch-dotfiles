@@ -1,8 +1,4 @@
 #%PAM-1.0
-# quickshell matrix lock: fingerprint auth (ADDITIVE, optional).
-# The locker only starts a conversation against this service when a sensor is
-# enrolled (fprintd-list reports a device); on machines without one it is never
-# touched. Password auth always remains available via the quickshell-lock
-# service, so a missing/failed sensor never locks you out.
+# only used when a sensor is enrolled; password stays in quickshell-lock
 auth       required   pam_fprintd.so
 account    include    system-auth

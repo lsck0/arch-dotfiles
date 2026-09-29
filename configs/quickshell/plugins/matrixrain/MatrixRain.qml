@@ -6,13 +6,11 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// IPC-triggerable digital-rain screensaver: ASCII phosphor rain behind a glowing
-// terminal clock and STANDBY readout. Any key or pointer motion dismisses it.
 Item {
   id: root
 
   property bool opened: false
-  // Grace after opening: ignore the keypress/pointer event that launched it.
+  // grace period: ignore the event that launched it
   property bool armed: false
   Timer { id: armTimer; interval: 450; onTriggered: root.armed = true }
 
@@ -47,24 +45,19 @@ Item {
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
       exclusionMode: ExclusionMode.Ignore
 
-      // Big glowing terminal clock, refreshed once a second while visible.
       property string clockText: "00:00:00"
 
-      // Opaque backdrop so the desktop underneath is fully hidden.
       Rectangle { anchors.fill: parent; color: Color.background }
 
-      // The digital-rain field.
       Canvas {
         id: rain
         anchors.fill: parent
         renderTarget: Canvas.FramebufferObject
 
-        // Per-column head row and fall speed; rebuilt when the grid size changes.
         property var drops: []
         property int cell: Math.max(Style.space(12), Style.font.body)
         property int cols: Math.max(1, Math.floor(width / cell))
         property int rows: Math.max(1, Math.floor(height / cell))
-        // ASCII-only glyph pool (decorative-symbol rule).
         readonly property string charset: "01<>[]{}/\\|=+-*!?$#@abcdef0123456789"
         readonly property int trail: 16
 
@@ -82,8 +75,7 @@ Item {
 
         onPaint: {
           var ctx = getContext("2d")
-          // Fade the previous frame toward the background instead of clearing:
-          // leaves fading trails, draws only the new heads, and never flashes.
+          // fade instead of clear so trails decay without flashing
           var bg = Color.background
           ctx.fillStyle = Qt.rgba(bg.r, bg.g, bg.b, 0.14)
           ctx.fillRect(0, 0, width, height)
@@ -91,7 +83,6 @@ Item {
           ctx.fillStyle = Qt.rgba(lead.r, lead.g, lead.b, 1)
           ctx.font = cell + "px " + Style.font.family
           ctx.textBaseline = "top"
-          // Density gates how many columns actually rain.
           var density = Style.fx.matrixRain
           for (var i = 0; i < drops.length; i++) {
             if ((i % 7) / 7 > density + 0.02) continue
@@ -102,7 +93,6 @@ Item {
         }
       }
 
-      // Advances every column head and repaints; a spent column respawns at the top.
       Timer {
         interval: 90
         running: panel.visible
@@ -128,7 +118,6 @@ Item {
         onTriggered: panel.clockText = Qt.formatDateTime(new Date(), "HH:mm:ss")
       }
 
-      // Any pointer motion or click wakes the session.
       MouseArea {
         anchors.fill: parent
         hoverEnabled: true
@@ -136,7 +125,6 @@ Item {
         onClicked: root.close()
       }
 
-      // Any key wakes the session.
       Item {
         id: keyCatcher
         anchors.fill: parent
@@ -144,7 +132,6 @@ Item {
         Keys.onPressed: function(event) { root.close(); event.accepted = true }
       }
 
-      // Centred HUD readout stack over the rain.
       Column {
         anchors.centerIn: parent
         spacing: Style.spacing.lg
@@ -183,7 +170,6 @@ Item {
         }
       }
 
-      // Wake hint pinned to the bottom, blinking caret terminal-style.
       Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
@@ -218,7 +204,6 @@ Item {
         }
       }
 
-      // Screen-corner HUD brackets + CRT scanlines on top of the rain.
       HudFrame {}
       Scanlines { flicker: false }
     }

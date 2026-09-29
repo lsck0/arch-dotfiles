@@ -1,5 +1,5 @@
 #!/bin/bash
-# Verbatim from omarchy-shell: captures the current clipboard as a JSON entry on stdout.
+# verbatim from omarchy-shell
 
 set -o pipefail
 

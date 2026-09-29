@@ -1,10 +1,10 @@
 return {
     {
         "kristijanhusak/vim-dadbod-ui", -- database browser UI
-        cmd = { "DBUI", "DBUIToggle", "DBUIAddConnection", "DBUIFindBuffer" }, -- load on first DBUI command
+        cmd = { "DBUI", "DBUIToggle", "DBUIAddConnection", "DBUIFindBuffer" },
         dependencies = {
             { "nvim-neotest/nvim-nio" },                                                  -- async IO library
-            { "tpope/vim-dadbod" },                                                       -- database interface (loads with UI)
+            { "tpope/vim-dadbod" },                                                       -- database interface
             { "kristijanhusak/vim-dadbod-completion", ft = { "sql", "mysql", "plsql" } }, -- SQL completion
         },
         init = function()

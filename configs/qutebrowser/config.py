@@ -3,9 +3,7 @@ import os
 
 config.load_autoconfig()
 
-# --------------------------------------------------------------------------- palette ---------------------------------------------------------------------------
-# Chrome tracks the live pywal palette, read straight from wal's cache on every
-# config eval (:config-source / restart); the ayu block below is the fresh-machine fallback.
+# live wal palette, ayu fallback for a fresh machine
 _fb = {
     "special": {"background": "#1f2430", "foreground": "#cbccc6"},
     "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e",
@@ -18,7 +16,6 @@ try:
 except (OSError, ValueError):
     pass
 
-# per-key fallback so a partial/malformed colors.json never raises KeyError
 def _c(section, key):
     return _wal.get(section, {}).get(key) or _fb[section][key]
 
@@ -74,7 +71,7 @@ c.colors.tabs.selected.even.fg = accent
 c.colors.tabs.indicator.start = blue
 c.colors.tabs.indicator.stop = green
 
-# hints (f-mode link labels)
+# hints
 c.colors.hints.bg = accent
 c.colors.hints.fg = bg
 c.colors.hints.match.fg = red
@@ -85,26 +82,26 @@ c.colors.messages.error.bg = red
 c.colors.messages.warning.bg = accent
 c.colors.messages.info.bg = bg
 
-# --------------------------------------------------------------------------- UI ---------------------------------------------------------------------------
+# ui
 c.tabs.position = "top"
-c.tabs.show = "multiple"  # hide tabbar when only 1 tab
+c.tabs.show = "multiple"
 c.tabs.indicator.width = 2
-c.statusbar.show = "in-mode"  # hide statusbar except command/insert modes
+c.statusbar.show = "in-mode"
 c.scrolling.smooth = True
 c.fonts.default_family = "Kode Mono"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 
-# web content dark preference (let sites use their own dark mode)
+# let sites use their own dark mode
 c.colors.webpage.preferred_color_scheme = "dark"
 c.colors.webpage.bg = bg
 
-# --------------------------------------------------------------------------- homepage / new tab ---------------------------------------------------------------------------
+# start page
 _startpage = "file://" + os.path.expanduser("~/.config/qutebrowser/startpage.html")
 c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
 
-# --------------------------------------------------------------------------- search engines ---------------------------------------------------------------------------
+# search engines
 c.url.searchengines = {
     "DEFAULT": "https://www.google.com/search?q={}",
     "ap": "https://archlinux.org/packages/?q={}",
@@ -117,18 +114,17 @@ c.url.searchengines = {
     "yt": "https://youtube.com/results?search_query={}",
 }
 
-# Present as desktop Chrome on every site so bot checks stop firing on the
-# default QtWebEngine UA.
+# chrome ua, the qtwebengine default trips bot checks
 _ua = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
        "Chrome/140.0.0.0 Safari/537.36")
 c.content.headers.user_agent = _ua
 
-# --------------------------------------------------------------------------- keybindings ---------------------------------------------------------------------------
+# keybindings
 config.bind("J", "tab-prev")
 config.bind("K", "tab-next")
 
 config.bind("<Alt+x>", "tab-close")
-config.bind("<Alt+c>", "open -t")  # new tab
+config.bind("<Alt+c>", "open -t")
 for i in range(1, 10):
     config.bind("<Alt+{}>".format(i), "tab-focus {}".format(i))
 

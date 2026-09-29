@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// Base item every bar widget extends: bar (host Bar instance), moduleName (widget id, currently unused without a settings registry), settings (unused for the same reason, kept so upstream widget code needs no edits).
 Item {
   id: root
 
@@ -17,10 +16,9 @@ Item {
     return value === undefined || value === null ? fallback : value
   }
 
-  // This widget's laid-out x within the bar, in bar-content coordinates.
+  // x in bar-content coordinates
   property real barX: 0
 
-  // Always deferred, never computed inline.
   function refreshBarX() { barXSettle.restart() }
 
   Timer {
@@ -33,11 +31,10 @@ Item {
     }
   }
 
-  // Own geometry: fires when this widget's content resizes (a clock ticking to a wider minute, a stats string growing a digit) and when the section repositions it.
   onXChanged: refreshBarX()
   onWidthChanged: refreshBarX()
 
-  // Ancestor geometry: a widget's own x does NOT change when the section containing it slides sideways because a *different* section grew, so watching only the above would drift.
+  // own x does not change when a parent section moves
   Connections {
     target: root.bar
     enabled: root.bar !== null
@@ -45,6 +42,6 @@ Item {
     function onWidthChanged() { root.refreshBarX() }
   }
 
-  // At Component.onCompleted the enclosing RowLayout has not run its layout pass yet, so an immediate read returns 0 for everything.
+  // deferred: layout has not run yet at completion
   Component.onCompleted: refreshBarX()
 }

@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Volume / microphone / brightness keys, routed through the shell.
-
-# omarchy:summary=Adjust volume/mic/brightness/keyboard backlight and show the OSD
-# omarchy:args=volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle
-# omarchy:examples=media-key.sh volume-up | media-key.sh brightness-down | media-key.sh kbd-backlight-up
 
 set -uo pipefail
 
@@ -11,17 +6,17 @@ STEP_VOL=5
 STEP_BRI=5
 QS_CONFIG="$HOME/.config/quickshell"
 
-# Speaks the OSD's OWN vocabulary rather than passing raw glyphs: OsdModel.js's iconFor() maps semantic names ("volume", "volume-muted", "brightness", "microphone-muted", …) to glyphs itself, so the icon set stays owned in one place instead of being duplicated here.
-osd_value() { # semantic-icon, value  -> progress bar
+# semantic icon names, OsdModel.js maps them to glyphs
+osd_value() {
     timeout 2 quickshell ipc -p "$QS_CONFIG" call osd present \
         "$(jq -cn --arg i "$1" --argjson v "$2" '{icon:$i, value:$v}')" >/dev/null 2>&1 || true
 }
-osd_text() {  # semantic-icon, message -> text only
+osd_text() {
     timeout 2 quickshell ipc -p "$QS_CONFIG" call osd present \
         "$(jq -cn --arg i "$1" --arg m "$2" '{icon:$i, message:$m}')" >/dev/null 2>&1 || true
 }
 
-sink_volume() { # integer percent of the DEFAULT sink
+sink_volume() {
     pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | grep -oP '\d+(?=%)' | head -1
 }
 sink_muted() { [[ "$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null)" == *yes* ]]; }
@@ -34,7 +29,7 @@ brightness_pct() {
     ((max > 0)) && echo $(( cur * 100 / max )) || echo 0
 }
 
-# --- keyboard backlight ----------------------------------------------------- A separate device class from the display backlight, and a coarse one: a ThinkPad's tpacpi::kbd_backlight has max_brightness 2, so this is a three-position switch (off / dim / bright), not a percentage.
+# kbd backlight is often a 3-step switch (max 2), not a percentage
 kbd_device() {
     local d
     for d in /sys/class/leds/*kbd_backlight*; do
@@ -43,15 +38,14 @@ kbd_device() {
     return 1
 }
 
-kbd_set() { # device, raw level
+kbd_set() {
     brightnessctl -q -d "$1" set "$2" >/dev/null 2>&1
 }
 
-kbd_osd() { # raw level, raw max
+kbd_osd() {
     local cur=$1 max=$2 pct
     ((max > 0)) || return
     pct=$(( cur * 100 / max ))
-    # Below the bar: at max_brightness 2 there are only three states, and a bare "50%" reads as a continuous dimmer it is not.
     if ((cur == 0)); then
         osd_text "keyboard-backlight-off" "Keyboard light off"
     else
@@ -63,9 +57,9 @@ case "${1:-}" in
 volume-up|volume-down)
     if [[ $1 == volume-up ]]; then
         pactl set-sink-volume @DEFAULT_SINK@ "+${STEP_VOL}%" >/dev/null 2>&1
-        # pactl will happily go past 100% and clip.
+        # pactl can exceed 100%
         v=$(sink_volume); [[ -n "${v:-}" && "$v" -gt 100 ]] && pactl set-sink-volume @DEFAULT_SINK@ 100% >/dev/null 2>&1
-        # Raising the volume unmutes: pressing volume-up on a muted sink and having nothing audible happen is the wrong behaviour.
+        # raising the volume unmutes
         pactl set-sink-mute @DEFAULT_SINK@ 0 >/dev/null 2>&1
     else
         pactl set-sink-volume @DEFAULT_SINK@ "-${STEP_VOL}%" >/dev/null 2>&1
@@ -91,7 +85,7 @@ brightness-up|brightness-down)
         brightnessctl -q set "${STEP_BRI}%+" >/dev/null 2>&1
     else
         brightnessctl -q set "${STEP_BRI}%-" >/dev/null 2>&1
-        # `5%-` can reach 0 and leave a black screen with no obvious way back.
+        # never reach a black screen
         b=$(brightness_pct); [[ -n "${b:-}" && "$b" -lt 1 ]] && brightnessctl -q set 1% >/dev/null 2>&1
     fi
     b=$(brightness_pct); osd_value "brightness" "${b:-0}"
@@ -103,11 +97,10 @@ kbd-backlight-up|kbd-backlight-down|kbd-backlight-toggle)
     case "$1" in
     kbd-backlight-up)     next=$(( cur + 1 )); ((next > max)) && next=$max ;;
     kbd-backlight-down)   next=$(( cur - 1 )); ((next < 0)) && next=0 ;;
-    # Cycle rather than on/off: on a three-position switch, a toggle that only ever visits 0 and max skips the dim setting entirely.
+    # cycle so the dim step is reachable
     kbd-backlight-toggle) next=$(( (cur + 1) % (max + 1) )) ;;
     esac
     kbd_set "$dev" "$next"
-    # $next, not a re-read: it is already clamped to [0,max] and brightnessctl set is synchronous, so reading the device back would cost two more brightnessctl invocations per keypress to learn what we just wrote.
     kbd_osd "$next" "$max"
     ;;
 *)

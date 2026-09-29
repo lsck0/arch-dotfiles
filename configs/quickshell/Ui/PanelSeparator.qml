@@ -2,11 +2,9 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// 1px neon accent divider for panel sections.
 Rectangle {
   id: root
 
-  // Accent by default so the divider reads as a phosphor rule.
   property color foreground: Color.accent
   property real strength: 0.3
 
@@ -16,7 +14,6 @@ Rectangle {
   height: 1
   color: Qt.rgba(foreground.r, foreground.g, foreground.b, strength)
 
-  // Accent neon bloom turns the hairline into a glowing rule.
   layer.enabled: Style.fx.glow > 0
   layer.effect: MultiEffect {
     shadowEnabled: true

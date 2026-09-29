@@ -20,7 +20,7 @@ else
     echo "task: $HOOK not found (timew not installed), skipping hook" >&2
 fi
 
-# bugwarrior stores its issue metadata in taskwarrior UDAs, which taskwarrior only accepts if they are declared.
+# taskwarrior rejects bugwarrior's udas unless declared
 if command -v bugwarrior >/dev/null 2>&1 && [[ -e "$HOME/.config/bugwarrior/bugwarrior.toml" ]]; then
     bugwarrior uda > ~/.config/bugwarrior/uda.taskrc.tmp \
         && mv -f ~/.config/bugwarrior/uda.taskrc.tmp ~/.config/bugwarrior/uda.taskrc \

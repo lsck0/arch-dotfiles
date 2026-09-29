@@ -8,14 +8,13 @@ mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
 
-# custom folder icon for ~/projects (no XDG standard icon exists for it, unlike Desktop/Pictures/etc.) .directory covers Dolphin/KDE; gio metadata covers Nemo/GTK, which ignores .directory Icon=
+# ~/projects icon: .directory for dolphin, gio for nemo
 cat > "${HOME}/projects/.directory" <<'EOF'
 [Desktop Entry]
 Icon=folder-development
 EOF
 command -v gio >/dev/null 2>&1 && gio set "${HOME}/projects" metadata::custom-icon-name folder-development || true
 
-# Hide the desktop entries listed in hidden-apps.list.
 mkdir -p "${HOME}/.local/share/applications"
 while IFS= read -r entry; do
     entry="${entry%%#*}"
@@ -39,7 +38,7 @@ if command -v Hyprland >/dev/null 2>&1; then
     ln -sfn "${PWD}/hyprland-portals.conf" "${HOME}/.config/xdg-desktop-portal/hyprland-portals.conf"
 fi
 
-# sidebar: Syncthing (work) -> NAS (holds it, offsite copy handled on the NAS)
+# gtk sidebar bookmarks
 mkdir -p "${HOME}/.config/gtk-3.0"
 GTK_BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
 for b in "file://${HOME}/projects Projects" "file://${HOME}/sync Syncthing" \
@@ -63,7 +62,7 @@ ET.register_namespace("bookmark", ns)
 tree = ET.parse(path)
 root = tree.getroot()
 
-# Dolphin only seeds defaults into an empty file, so ensure them here.
+# dolphin only seeds defaults into an empty file
 places = [
     (home, "Home", "user-home", True),
     (home + "/projects", "Projects", "folder-development", False),
@@ -94,7 +93,7 @@ for href, title, icon, system in places:
         ET.SubElement(ET.SubElement(info, "metadata", owner="http://www.kde.org"), "isSystemItem").text = "true"
     root.insert(position, bookmark)
     position += 1
-# the old smb bookmark from nas/link.sh
+# drop the old smb bookmark from nas/link.sh
 for child in list(root):
     if child.get("href", "").startswith("smb://10.100.0.10"):
         root.remove(child)

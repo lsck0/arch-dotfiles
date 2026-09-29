@@ -1,5 +1,3 @@
-// Native replacement for wlogout, bound to Super+Shift+E.
-
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -8,46 +6,34 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// wlogout's own layout used `pkill Hyprland` for logout; `hyprctl dispatch exit` is the documented, non-SIGKILL equivalent (see configs/wlogout/layout).
 Item {
     id: root
 
     property bool opened: false
     property int selectedIndex: 0
     readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
-    // Decorative hotkey badges, indexed to match the shortcut map in the key handler.
+    // indexed to match the shortcut map in the key handler
     readonly property var hotkeys: ["L", "E", "H", "S", "R"]
-    // Glyph codepoints resolved to their glyph names via fontTools against 0xProto Nerd Font before use.
     readonly property var actions: [{
-        "id": "lock",
         "label": "Lock",
         "icon": "\u{f023}",
-        "destructive": false,
         "cmd": ["loginctl", "lock-session"]
     }, {
-        "id": "exit",
         "label": "Exit",
         "icon": "\u{f08b}",
-        "destructive": false,
-        // Terminate this session directly instead of asking Hyprland to exit.
+        // terminate the session directly instead of asking hyprland to exit
         "cmd": ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""]
     }, {
-        "id": "suspend",
         "label": "Suspend",
         "icon": "\u{f04b2}",
-        "destructive": false,
         "cmd": ["systemctl", "suspend"]
     }, {
-        "id": "shutdown",
         "label": "Shutdown",
         "icon": "\u{f011}",
-        "destructive": false,
         "cmd": ["systemctl", "poweroff"]
     }, {
-        "id": "reboot",
         "label": "Reboot",
         "icon": "\u{f0709}",
-        "destructive": false,
         "cmd": ["systemctl", "reboot"]
     }]
 
@@ -107,8 +93,6 @@ Item {
     }
 
     PanelWindow {
-        id: panel
-
         visible: root.opened
         color: "transparent"
         WlrLayershell.namespace: "quickshell-powermenu"
@@ -172,7 +156,6 @@ Item {
                 anchors.centerIn: parent
                 spacing: Style.spacing.huge
 
-                // Terminal-window title strip spanning the action row: prompt, SESSION, blinking caret, user handle, decorative chrome, hard accent rule.
                 Item {
                     width: actionRow.width
                     implicitHeight: titleRow.implicitHeight + Style.spacing.sm + titleRule.height
@@ -203,7 +186,6 @@ Item {
                             font.pixelSize: Style.font.title
                             font.bold: true
                             font.letterSpacing: Style.headerTracking
-                            // Accent neon bloom on the title.
                             layer.enabled: Style.fx.glow > 0
                             layer.effect: MultiEffect {
                                 shadowEnabled: true
@@ -216,7 +198,6 @@ Item {
                             }
                         }
 
-                        // Blinking block caret, terminal prompt style.
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             textFormat: Text.PlainText
@@ -256,7 +237,7 @@ Item {
                         }
                     }
 
-                    // Decorative window chrome glyphs, non-interactive.
+                    // decorative, non-interactive
                     Text {
                         anchors.right: parent.right
                         anchors.verticalCenter: titleRow.verticalCenter
@@ -269,7 +250,6 @@ Item {
                         font.letterSpacing: Style.headerTracking
                     }
 
-                    // Hard accent rule under the title.
                     Rectangle {
                         id: titleRule
                         anchors.left: parent.left
@@ -300,7 +280,7 @@ Item {
                             width: Style.space(132)
                             height: Style.space(132)
                             radius: Style.cornerRadius
-                            // State fill tinted onto the opaque menu surface; a bare translucent fill let whatever sat under the scrim read through the tiles.
+                            // tint onto the opaque surface so the scrim does not read through
                             color: Qt.tint(Color.menu.background, selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint))
                             borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
 
@@ -315,7 +295,6 @@ Item {
                                     color: tile.selected ? tile.tint : Color.menu.text
                                     font.family: Style.font.iconFamily
                                     font.pixelSize: Style.font.displayLarge
-                                    // Bloom the icon of the focused action.
                                     layer.enabled: tile.selected && Style.fx.glow > 0
                                     layer.effect: MultiEffect {
                                         shadowEnabled: true
@@ -341,7 +320,6 @@ Item {
 
                             }
 
-                            // Corner hotkey badge, HUD-grid style.
                             Text {
                                 anchors.top: parent.top
                                 anchors.left: parent.left
@@ -356,7 +334,6 @@ Item {
                                 font.letterSpacing: Style.headerTracking
                             }
 
-                            // HUD reticle on the focused action.
                             HudFrame { visible: tile.selected && Style.fx.brackets }
 
                             MouseArea {
@@ -373,7 +350,7 @@ Item {
 
                 }
 
-                // Console command legend: the same hotkeys the key handler accepts.
+                // same hotkeys the key handler accepts
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     textFormat: Text.PlainText
@@ -387,7 +364,6 @@ Item {
 
             }
 
-            // CRT scanline overlay across the session menu.
             Scanlines { flicker: false }
 
         }

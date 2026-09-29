@@ -1,4 +1,4 @@
-# lastsync<dd.mm.yyyy> 15.09.2026
+# lastsync<dd.mm.yyyy> 29.09.2026
 ## Germany
 Server=http://mirror.23m.com/archlinux/$repo/os/$arch
 Server=https://de.arch.niranjan.co/$repo/os/$arch

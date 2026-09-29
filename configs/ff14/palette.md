@@ -45,6 +45,3 @@ Enter these in the Style Editor Colors tab. Alpha is the last two hex digits.
     TextSelectedBg        39BAE655
     NavHighlight          39BAE6FF
     ModalWindowDimBg      0B0E14A6
-
-Accents used: cyan 39BAE6, ground 0B0E14, surface 161D29, text BFBDB6,
-yellow E6B450, red F07178.

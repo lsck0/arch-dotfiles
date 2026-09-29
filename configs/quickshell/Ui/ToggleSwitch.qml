@@ -2,17 +2,14 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// Bare on/off switch: a track with a sliding knob and no label.
 Item {
   id: root
 
   property bool checked: false
-  property bool busy: false
 
-  // Off when the surrounding row owns the click, as in `Toggle`.
+  // off when the surrounding row owns the click
   property bool interactive: true
 
-  // Panel-cursor flag.
   property bool hasCursor: false
 
   property bool cursorRing: interactive
@@ -21,13 +18,11 @@ Item {
   property color foreground: Color.foreground
   property color accent: Color.accent
 
-  signal toggled()
   signal hovered(bool isHovered)
 
   readonly property alias containsMouse: mouse.containsMouse
   readonly property bool hot: hasCursor || mouse.containsMouse
 
-  // `trackHeight` is settable so a compact placement — a switch riding a panel section header, say — can ask for a genuinely smaller control instead of scaling a big one down, which lands the track and knob on fractional pixels and blurs their edges.
   property int trackHeight: Math.max(22, Math.round(Style.spacing.controlHeight * 0.55))
   property int trackWidth: Math.round(trackHeight * 1.9)
   property int knobSize: Math.max(6, Math.round(trackHeight * 0.72))
@@ -57,7 +52,6 @@ Item {
       : Style.normalFillFor(root.foreground, root.accent)
     borderSpec: Border.controlSpec(root.checked ? "selected" : "normal", root.foreground, root.accent)
 
-    // Accent neon bloom reads the "on" state as a lit terminal switch.
     layer.enabled: Style.fx.glow > 0 && root.checked
     layer.effect: MultiEffect {
       shadowEnabled: true
@@ -91,6 +85,5 @@ Item {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     onContainsMouseChanged: root.hovered(containsMouse)
-    onClicked: if (!root.busy) root.toggled()
   }
 }

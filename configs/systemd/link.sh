@@ -51,7 +51,7 @@ enable_if_present paccache.timer --now
 enable_if_present thermald.service
 mask_if_present NetworkManager-wait-online.service
 
-# ly's PAM stack (auto_start on session open) already starts and unlocks gnome-keyring-daemon with the login password
+# ly's pam stack already starts and unlocks the keyring
 mask_user_if_present gnome-keyring-daemon.service
 mask_user_if_present gnome-keyring-daemon.socket
 
@@ -60,3 +60,9 @@ for unit in pipewire-pulse.service pipewire-pulse.socket ssh-agent.service; do
         systemctl --user enable "$unit"
     fi
 done
+
+# weekly trash cleanup, home trash and the tmpfs trash
+install -Dm644 ./trash-empty.service ~/.config/systemd/user/trash-empty.service
+install -Dm644 ./trash-empty.timer ~/.config/systemd/user/trash-empty.timer
+systemctl --user daemon-reload
+systemctl --user enable --now trash-empty.timer

@@ -24,6 +24,7 @@ PACKAGES=(
     btop                     # [base] resource monitor TUI
     btrfs-progs              # [base] btrfs filesystem tools
     caligula                 # [base] disk imaging tool
+    ccid                     # [base] smartcard CCID driver (YubiKey OpenPGP)
     chafa                    # [base] terminal image renderer
     cifs-utils               # [base] SMB/CIFS mount tools
     clonezilla               # [base] disk cloning tool
@@ -92,6 +93,7 @@ PACKAGES=(
     lib32-vulkan-radeon      # [base] 32-bit AMD Vulkan
     libappimage              # [base] AppImage runtime lib
     libev                    # [base] event loop library
+    libfido2                 # [base] FIDO2/U2F device library
     libgcrypt                # [base] crypto library
     libgpg-error             # [base] gpg error codes
     libinput-tools           # [base] libinput debug tools
@@ -142,10 +144,12 @@ PACKAGES=(
     ossec-hids-local         # [base] host intrusion detection
     ouch                     # [base] archive compression tool
     pacman-contrib           # [base] pacman cache cleanup tools
+    pam-u2f                  # [base] FIDO2/U2F PAM module (YubiKey touch auth)
     pandoc-cli               # [base] document format converter
     parallel                 # [base] run commands in parallel
     pass                     # [base] CLI password manager
     pass-otp                 # [base] pass TOTP/2FA extension
+    pcsclite                 # [base] PC/SC smartcard middleware
     pdftk                    # [base] PDF toolkit
     pipewire                 # [base] audio/video server
     pipewire-alsa            # [base] pipewire ALSA compat
@@ -224,6 +228,8 @@ PACKAGES=(
     yay                      # [base] AUR helper
     yazi                     # [base] terminal file manager
     yt-dlp                   # [base] video downloader
+    yubikey-manager          # [base] ykman: OpenPGP/PIV/OATH/OTP config
+    yubikey-personalization  # [base] ykpersonalize: static-pw/chalresp slots
     zip                      # [base] zip archiving tool
     zoxide                   # [base] smarter cd command
     zram-generator           # [base] compressed swap generator
@@ -646,6 +652,7 @@ PACKAGES=(
     ghcup-hs-bin                  # [programming] Haskell toolchain installer
     git-absorb                    # [programming] absorbing submodules
     git-age                       # [programming] git age encryption
+    git-crypt                     # [programming] transparent file encryption for the secrets repo
     git-delta                     # [programming] syntax-highlighting diff pager
     git-filter-repo               # [programming] git history rewriter
     git-lfs                       # [programming] git large file storage
@@ -1155,23 +1162,6 @@ if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]]; then
             || echo "flatpak batch" >>"$FAILURES_FILE"
     fi
 fi
-# Remmina: user-scope flatpak (RDP client), no tray applet at login.
-if command -v flatpak >/dev/null 2>&1; then
-    flatpak remote-add --user --if-not-exists flathub \
-        https://flathub.org/repo/flathub.flatpakrepo \
-        || echo "flatpak user remote-add flathub" >>"$FAILURES_FILE"
-    flatpak install --user -y flathub org.remmina.Remmina \
-        || echo "flatpak user org.remmina.Remmina" >>"$FAILURES_FILE"
-    # Remmina recreates this file enabled if it is missing, so disable it with Hidden=true instead of deleting.
-    remmina_autostart="$HOME/.config/autostart/remmina-applet.desktop"
-    mkdir -p "$(dirname "$remmina_autostart")"
-    if [[ -f "$remmina_autostart" ]]; then
-        sed -i 's/^Hidden=.*/Hidden=true/' "$remmina_autostart"
-        grep -q '^Hidden=' "$remmina_autostart" || echo 'Hidden=true' >>"$remmina_autostart"
-    else
-        printf '[Desktop Entry]\nType=Application\nName=Remmina Applet\nExec=flatpak run org.remmina.Remmina -i\nHidden=true\n' >"$remmina_autostart"
-    fi
-fi
 if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
     if command -v nix >/dev/null 2>&1; then
         sudo systemctl enable --now nix-daemon.socket || true
@@ -1194,8 +1184,7 @@ grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" /etc/security/pam_env.conf || 
 grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
-# Prime the sudo timestamp once; configs/sudo sets timestamp_timeout=240 (4h), so
-# it stays valid through long AUR builds and the link.sh scripts' sudo calls.
+# prime the sudo timestamp; configs/sudo sets timestamp_timeout=240 (4h) so it lasts through the builds
 sudo -v || true
 
 while IFS= read -r script; do

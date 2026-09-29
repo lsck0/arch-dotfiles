@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Single lock entrypoint: route logind/hypridle lock requests to the quickshell
-# matrix lock (ext-session-lock-v1). Idempotent - a no-op if already locked.
-# quickshell is the sole locker (hyprlock removed). If it is unreachable we
-# cannot lock (WlSessionLock needs it); we blank the screen and exit nonzero
-# rather than fake a lock, and hypridle's suspend timer still secures the box.
+# route lock requests to the quickshell lock; no-op if already locked
 
 set -euo pipefail
 
@@ -18,8 +14,7 @@ if command -v quickshell >/dev/null 2>&1 \
   fi
 fi
 
-# quickshell unreachable: no fallback locker. Warn, blank the screen, and exit
-# nonzero (do not fake a lock). The hypridle suspend timer still secures the box.
+# no fallback locker: blank and fail rather than fake a lock
 notify-send -u critical "lock" "quickshell unreachable, cannot lock" 2>/dev/null || true
 hyprctl dispatch dpms off 2>/dev/null || true
 exit 1

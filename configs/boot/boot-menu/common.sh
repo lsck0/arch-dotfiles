@@ -1,4 +1,4 @@
-# shellcheck shell=bash Shared by configs/boot/{grub,limine}/link.sh.
+# shellcheck shell=bash
 
 BOOT_MENU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
@@ -22,7 +22,7 @@ esp_supported() {
     fi
 }
 
-# Snapshot entries boot vmlinuz + initramfs from the ESP, so UKI-only presets also build a plain initramfs.
+# snapshot entries need a plain initramfs, even with uki presets
 enable_initramfs_images() {
     local preset pkgbase rebuild=false
     for preset in /etc/mkinitcpio.d/*.preset; do
@@ -42,7 +42,6 @@ enable_initramfs_images() {
     fi
 }
 
-# boot-menu plus what keeps its entries current: a pacman hook and a timer.
 install_boot_menu() {
     local mode="$1"
     sudo install -Dm755 "$BOOT_MENU_DIR/boot-menu" /usr/local/bin/boot-menu
@@ -54,7 +53,6 @@ install_boot_menu() {
     sudo systemctl enable boot-menu.timer
 }
 
-# Move boot entry $1 to the front of the firmware BootOrder.
 efi_boot_first() {
     local num="$1" order n rest=()
     order="$(sudo efibootmgr | sed -n 's/^BootOrder: //p')"
@@ -65,7 +63,6 @@ efi_boot_first() {
     sudo efibootmgr -o "$(IFS=,; echo "${num}${rest[*]:+,${rest[*]}}")" >/dev/null
 }
 
-# Sign boot files if sbctl keys exist.
 sbctl_sign() {
     command -v sbctl >/dev/null 2>&1 || return 0
     sudo sbctl status 2>/dev/null | grep -qE 'Owner GUID' || return 0

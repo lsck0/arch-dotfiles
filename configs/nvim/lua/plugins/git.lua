@@ -32,8 +32,8 @@ return {
     },
 
     {
-        "ThePrimeagen/git-worktree.nvim", -- git worktree management (bare nvim/neovide only)
-        -- inside tmux/herdr, worktrees are driven by the wtree popup instead.
+        "ThePrimeagen/git-worktree.nvim", -- git worktrees
+        -- tmux/herdr use the wtree popup instead
         cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION) end,
         keys = { "<leader>gf", "<leader>gc" },
         dependencies = {
@@ -89,7 +89,7 @@ return {
         dependencies = {
             "nvim-lua/plenary.nvim",
             "nvim-telescope/telescope.nvim",
-            "nvim-tree/nvim-web-devicons", -- optional if file_panel.icons is a function
+            "nvim-tree/nvim-web-devicons",
         },
     },
 }

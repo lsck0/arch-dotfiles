@@ -3,7 +3,6 @@ import QtQuick.Controls
 import QtQuick.Effects
 import qs.Commons
 
-// Single-line text input with the kit's focus + selection styling.
 TextField {
   id: root
 
@@ -14,7 +13,6 @@ TextField {
   property real horizontalPadding: Style.spacing.controlPaddingX
   property real verticalPadding: Style.spacing.inputPaddingY
 
-  // Panel-cursor flag.
   property bool hasCursor: false
 
   readonly property bool _focused: activeFocus
@@ -39,7 +37,6 @@ TextField {
     borderSpec: root._borderSpec
     radius: Style.cornerRadius
 
-    // Accent neon bloom on the focused field.
     layer.enabled: Style.fx.glow > 0 && root._focused
     layer.effect: MultiEffect {
       shadowEnabled: true

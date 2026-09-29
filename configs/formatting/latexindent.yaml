@@ -1,5 +1,3 @@
-# global latexindent settings, matched to l-style: 4-space indent, no reflow.
-# reached via ~/.indentconfig.yaml (written by link.sh).
 defaultIndent: "    "
 onlyOneBackUp: 1
 maxNumberOfBackUps: 1

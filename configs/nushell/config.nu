@@ -37,8 +37,7 @@ $env.config = {
     }
 
     hooks: {
-        # Gate the direnv fork: skip it unless PWD changed or an .envrc is here,
-        # so a plain prompt in a plain dir costs no subprocess.
+        # only fork direnv when PWD changed or an .envrc is here
         pre_prompt: [{ ||
             if (which direnv | is-empty) { return }
             let changed = (($env.DIRENV_LAST_PWD? | default "") != $env.PWD)
@@ -51,9 +50,6 @@ $env.config = {
             for name in $unset { hide-env -i $name }
             $vars | transpose key value | where value != null | transpose -r -d | load-env
         }]
-        env_change: {
-            PWD: []
-        }
     }
 
     keybindings: [
@@ -119,7 +115,6 @@ alias lt = eza -lah --tree
 alias mkdir = mkdir -v
 alias mv = mv -v
 alias pacman = sudo pacman
-# rm already trashes via config.rm.always_trash; trash-rm is the verbose form.
 alias trash-rm = trash -v
 alias sshnb = ~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.73
 alias sshpc = ~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.138
@@ -128,7 +123,7 @@ alias toron = sudo systemctl start tor-router.service
 
 # ------------------------------------------------------------------ functions
 
-# git clone always pulls submodules (no native config covers the initial clone)
+# no git config covers submodules on the initial clone
 def --wrapped git [...rest] {
     if (($rest | length) > 0) and (($rest | first) == "clone") {
         ^git clone --recurse-submodules ...($rest | skip 1)
@@ -137,14 +132,12 @@ def --wrapped git [...rest] {
     }
 }
 
-# Remote Control needs feature-flag eval, which DO_NOT_TRACK disables. Drop it
-# for claude only, so RC works while DO_NOT_TRACK still covers everything else.
+# remote control breaks under DO_NOT_TRACK
 def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-# tms marks the session so tmux session-init lays out the nvim/claude/zsh stack;
-# clear it afterwards so a plain tmux does not inherit a stale marker.
+# marker for tmux session-init, cleared so plain tmux does not inherit it
 def --wrapped tms [...rest] {
     try { tmux set-environment -g TMS_LAUNCH 1 }
     ^tms ...$rest

@@ -16,7 +16,7 @@ ln -sfn ${PWD}/ssh-add.service ${HOME}/.config/systemd/user/ssh-add.service
 systemctl --user daemon-reload
 systemctl --user enable ssh-add.service
 
-# Authorize the portable identity key (+ this host's own key) BEFORE disabling
+# authorize keys before disabling password auth
 mkdir -p ${HOME}/.ssh && chmod 700 ${HOME}/.ssh
 touch ${HOME}/.ssh/authorized_keys && chmod 600 ${HOME}/.ssh/authorized_keys
 for pub in ../secrets/ssh_publickey.asc ${HOME}/.ssh/id_ed25519.pub; do
@@ -25,7 +25,7 @@ for pub in ../secrets/ssh_publickey.asc ${HOME}/.ssh/id_ed25519.pub; do
     grep -qxF "$key" ${HOME}/.ssh/authorized_keys || echo "$key" >> ${HOME}/.ssh/authorized_keys
 done
 
-# Key-only login (drop-in disables password auth) — only when a key is actually
+# harden only once a key is authorized
 if [ -s "${HOME}/.ssh/authorized_keys" ]; then
     sudo ln -sfn "${PWD}/10-hardening.conf" /etc/ssh/sshd_config.d/10-hardening.conf
     sudo sshd -t && sudo systemctl reload sshd

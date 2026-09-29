@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# The one place the UI font is set, for EVERY app on the system — terminal, editors, the quickshell bar, and (since 2026-09-04) GTK and Qt/KDE, which is what actually covers "all apps": file managers, browsers' chrome, dialogs, system settings.
+# the one place the ui font is set for every app: terminal, editors, quickshell bar, gtk and qt/kde
 
 REPO="$HOME/projects/arch-dotfiles"
 
@@ -19,7 +19,7 @@ QUTEBROWSER_STARTPAGE="$REPO/configs/qutebrowser/startpage.html"
 HYPRLOCK="$REPO/configs/hyprland/hyprlock.conf"
 QUICKSHELL_THEME="$REPO/configs/quickshell/theme.json"
 
-# GTK's settings.ini pair is NOT tracked in this repo (no configs/gtk*): it is generated into ~/.config by scripts/switch-wallpaper.sh, so these are the real paths rather than repo ones.
+# gtk settings.ini is generated into ~/.config by switch-wallpaper.sh, not tracked here, so use real paths
 GTK_DIRS=("$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0")
 
 # Every kdeglobals key that carries a font.
@@ -32,7 +32,7 @@ KDE_FONT_KEYS=(
     "WM:activeFont"
 )
 
-# Cycled by `toggle`, so the setting stays usable from menu.sh and a keybind, and served to quickshell's Display panel by the `shortlist` action below -- the panel had its own hardcoded copy of four of these, so the keybind and the panel offered different sets of fonts for the same setting.
+# cycled by toggle and served to quickshell's Display panel via the shortlist action, so both share one list
 SHORTLIST=(
     "Kode Mono"
     "Tektur"
@@ -44,7 +44,7 @@ SHORTLIST=(
     "CommitMono Nerd Font"
 )
 
-# The family is read from quickshell's theme (ghostty may hold the Mono cut, see mono_family); the size from ghostty.
+# family from quickshell's theme (ghostty may hold the mono cut, see mono_family); size from ghostty
 current_family() {
     jq -er '.font.family' "$QUICKSHELL_THEME" 2>/dev/null || sed -n 's/^font-family = //p' "$GHOSTTY" | head -1
 }
@@ -109,7 +109,7 @@ apply_family_gtk() {
     gsettings set org.gnome.desktop.interface font-name "$fam $size" 2>/dev/null || true
 }
 
-# Qt/KDE. A kdeglobals font value is a comma-separated Qt font string whose FIRST field is the family and second the point size; the remaining 17 fields are weight/style/hinting flags that must survive untouched. Rewrite field 1 only, per key, so smallestReadableFont keeps its 8 while the rest keep 10.
+# qt/kde: a kdeglobals font is a comma-separated qt string; rewrite field 1 (family) only, keep the rest
 apply_family_kde() {
     local fam=$1 entry group key cur rest
     command -v kwriteconfig6 >/dev/null || return 0
@@ -159,7 +159,7 @@ apply_family() {
     sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
     sed -i "s|^\$FONT = .*|\$FONT = $e|" "$HYPRLOCK"
 
-    # quickshell reads theme.json, which it live-watches — no restart, and no sed into a .qml source.
+    # quickshell live-watches theme.json: no restart, no sed into a .qml source
     quickshell_theme_set '.font.family = $v' "$fam"
 
     # The two that actually make this "all apps" rather than "all terminals".

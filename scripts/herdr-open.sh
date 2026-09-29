@@ -6,12 +6,9 @@ set -euo pipefail
 selected="${1:?dir}"
 label="${2:-$(basename "$selected")}"
 
-# herdr pane run types the command into the pane's shell, so a slow direnv/devenv
-# shell that has not reached its prompt yet drops the keystrokes (tabs then get
-# renamed but nvim/claude never launch). Wait for the prompt first.
+# wait for the prompt: herdr pane run drops keystrokes typed before direnv/devenv is ready
 wait_prompt() {
-  # Native server-side wait (one call, no busy-poll subprocess storm). Anchored to
-  # end-of-line so a stray glyph mid-output does not trigger early.
+  # anchored to end-of-line so a stray mid-output glyph does not match early
   herdr pane wait-output --regex '(λ|❯|[$%#])[[:space:]]*$' --timeout 18000 "$1" >/dev/null 2>&1
 }
 

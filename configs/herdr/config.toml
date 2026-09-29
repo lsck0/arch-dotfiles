@@ -31,7 +31,7 @@ sidebar_max_width = 30
 agent_panel_sort = "spaces"
 prompt_new_tab_name = false
 pane_outer_borders = false
-# Reclaim the scrollbar column (the bar on the right of every pane/popup, e.g. hms); wheel/keys still scroll.
+# wheel/keys still scroll
 pane_scrollbars = false
 
 [keys]
@@ -44,7 +44,7 @@ toggle_sidebar = ""               # cleared: prefix+b is the wtree popup, not si
 close_pane = "prefix+q"
 close_tab = "prefix+x"
 detach = ""
-# tmux: bind -n M-H/M-J/M-K/M-L select-pane (alt+hjkl, no prefix)
+# tmux: alt+hjkl select-pane
 focus_pane_left = "alt+h"
 focus_pane_down = "alt+j"
 focus_pane_up = "alt+k"

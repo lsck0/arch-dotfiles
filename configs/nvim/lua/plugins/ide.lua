@@ -13,8 +13,7 @@ return {
             backends = { "lsp", "treesitter", "markdown", "man" },
             layout = { default_direction = "right", min_width = 30 },
             show_guides = true,
-            -- show every symbol kind, not just the default function/class subset
-            -- (a file of #defines/globals/fields otherwise reports "No symbols")
+            -- all kinds, else a file of #defines reports no symbols
             filter_kind = false,
         },
     },
@@ -24,13 +23,13 @@ return {
         event = "VeryLazy",
         dependencies = { "nvim-telescope/telescope-fzf-native.nvim" },
         config = function()
-            -- bar.enable=false: don't attach the top winbar.
+            -- no top winbar, lualine renders it
             require("dropbar").setup({ bar = { enable = false } })
         end,
     },
 
     {
-        "kevinhwang91/nvim-ufo",                     -- modern LSP/treesitter folding
+        "kevinhwang91/nvim-ufo", -- lsp/treesitter folding
         dependencies = { "kevinhwang91/promise-async" },
         event = { "BufReadPost", "BufNewFile" },
         keys = {
@@ -68,10 +67,10 @@ return {
         event = "VeryLazy",
         config = function()
             require("project_nvim").setup({
-                -- pattern-only: the "lsp" method calls the deprecated
+                -- pattern only: the "lsp" method uses a deprecated api
                 detection_methods = { "pattern" },
                 patterns = { ".git", "Cargo.toml", "package.json", "flake.nix", "pyproject.toml", "Makefile" },
-                -- no auto-chdir: its DirChanged in a repo spawned a 2nd explorer tree
+                -- no auto-chdir: it spawned a second explorer tree
                 manual_mode = true,
             })
         end,

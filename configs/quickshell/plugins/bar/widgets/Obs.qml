@@ -6,7 +6,6 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "obs"
@@ -23,7 +22,6 @@ BarWidget {
   property real recordBytes: 0
   property real congestion: 0
   property int droppedFrames: 0
-  property int totalFrames: 0
   property real dropPct: 0
   property real fps: 0
   property real cpu: 0
@@ -37,36 +35,32 @@ BarWidget {
   property string scene: ""
   property var scenes: []
 
-  // Mute state for the six audio sources this repo's OBS scene collection defines (configs/obs/Untitled.json) — keyed by the short label obs-status.py's MUTE_SOURCES maps to the real OBS input name ("Mic" -> "Mic/Aux", "Desktop" -> "Desktop Audio", the rest are the per-app pipewire captures).
+  // labels map to obs inputs via MUTE_SOURCES in obs-status.py
   readonly property var muteSources: ["Mic", "Chromium", "Discord", "Firefox", "Spotify", "Desktop"]
   property var mutes: ({})
 
-  // Live bitrates, derived here rather than read from OBS: obs-websocket reports cumulative session bytes, not a rate.
+  // obs reports cumulative bytes, so rates are derived here
   property real prevStreamBytes: -1
   property real prevRecordBytes: -1
   property real prevSampleMs: 0
   property real bitrateKbps: 0
   property real recordKbps: 0
 
-  // How long the free disk lasts at the current recording rate.
   readonly property real diskSecondsLeft:
     recordKbps > 0 ? (freeDiskMb * 1024 * 8) / recordKbps : 0
 
   readonly property bool active: streaming || recording
 
-  // Rolling history for the panel sparklines (newest last, capped).
   property var bitrateHist: []
   property var dropHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
-  // The state colour, used by the dot AND the label.
   readonly property color stateColor: (degraded || faulted)
     ? Color.semantic.warn
     : (streaming ? Color.semantic.live : (recording ? Color.semantic.recording : Color.muted))
-  // Reconnecting is the state worth shouting about: the bar still says LIVE while the stream is, in fact, not reaching anyone.
   readonly property bool degraded: streamReconnecting || dropPct >= 1.0 || congestion >= 0.3
 
-  // OBS IS RUNNING BUT THE HELPER CANNOT TALK TO IT — obs-websocket switched off, a password this side does not have, the python module missing.
+  // obs runs but the helper cannot reach it
   readonly property bool faulted: obsSeen && !connected && errorText !== ""
 
   visible: connected || faulted
@@ -119,7 +113,6 @@ BarWidget {
     recordBytes = Number(payload.recordBytes) || 0
     congestion = Number(payload.congestion) || 0
     droppedFrames = Number(payload.droppedFrames) || 0
-    totalFrames = Number(payload.totalFrames) || 0
     dropPct = Number(payload.dropPct) || 0
     fps = Number(payload.fps) || 0
     cpu = Number(payload.cpu) || 0
@@ -139,7 +132,7 @@ BarWidget {
     var nowMs = Date.now()
     var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0
 
-    // Only between two samples of the SAME session.
+    // only between two samples of the same session
     function rate(now, prev) {
       if (prev < 0 || now < prev || deltaS <= 0.2) return -1
       return Math.max(0, (now - prev) * 8 / 1000 / deltaS)
@@ -158,19 +151,18 @@ BarWidget {
     } else if (!recording) {
       recordKbps = 0
     }
-    // A paused recording deliberately keeps its last rate rather than decaying to zero: the disk estimate below is about what resuming will cost, and zeroing it would read as "infinite headroom" at exactly the wrong moment.
+    // a paused recording keeps its last rate for the disk estimate
 
     streamBytes = sBytes
     prevStreamBytes = sBytes
     prevRecordBytes = rBytes
     prevSampleMs = nowMs
 
-    // Feed the panel sparklines from the values just computed — history only, no logic change.
     bitrateHist = _push(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
     dropHist = _push(dropHist, dropPct)
   }
 
-  // Start the helper only once OBS is actually running, and stop it again when OBS goes away.
+  // run the helper only while obs runs
   property bool obsSeen: false
 
   function probeForObs() {
@@ -179,14 +171,13 @@ BarWidget {
 
   Process {
     id: obsProbe
-    // -x so it cannot match this very command line, the trap Appendix A records for `pgrep -f`.
+    // -x, pgrep -f would match its own command line
     command: ["pgrep", "-x", "obs"]
     onExited: function (exitCode) {
       root.obsSeen = exitCode === 0
     }
   }
 
-  // Drop every reading from the session that just ended.
   onObsSeenChanged: if (!obsSeen) {
     connected = false
     errorText = ""
@@ -210,7 +201,6 @@ BarWidget {
   }
 
   Timer {
-    // Two jobs, two rates.
     interval: root.obsSeen ? 3000 : 60000
     running: !root.obsSeen || !root.connected
     repeat: true
@@ -218,7 +208,7 @@ BarWidget {
     onTriggered: root.probeForObs()
   }
 
-  // The helper's stdin is the command channel back into OBS — see its header.
+  // stdin is the command channel into obs
   function send(command) {
     if (!statusProc.running) return
     statusProc.write(JSON.stringify(command) + "\n")
@@ -238,7 +228,7 @@ BarWidget {
         } catch (e) {}
       }
     }
-    // The helper reports a rejected command here — an OBS request that came back with result: false.
+    // rejected commands
     stderr: SplitParser {
       splitMarker: "\n"
       onRead: function (line) { if (line) console.warn(line) }
@@ -257,15 +247,12 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    // The state dot.
     Rectangle {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(8)
       height: width
       radius: width / 2
-      // Recording red and live red are the convention every camera and every broadcast desk already uses; this is the same deliberate exception to the palette that the weather awareness colours are.
       color: root.stateColor
-      // Glow in the live/record colour while broadcasting.
       layer.enabled: Style.fx.glow > 0 && root.active
       layer.effect: MultiEffect {
         shadowEnabled: true
@@ -288,7 +275,6 @@ BarWidget {
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
-      // Streaming wins the label, and says so even while also recording.
       text: {
         if (root.faulted) return "OBS ⚠"
         if (root.streamReconnecting) return "RECONNECTING"
@@ -297,7 +283,6 @@ BarWidget {
         if (root.recording) return root.recordPaused ? "REC PAUSED" : "REC"
         return "OBS"
       }
-      // Tinted to the state, not left on the bar foreground.
       color: root.active || root.faulted
         ? root.stateColor
         : (root.bar ? root.bar.barForeground : Color.foreground)
@@ -305,7 +290,6 @@ BarWidget {
       font.pixelSize: Style.font.bodySmall
       font.bold: root.active
       opacity: root.active || root.faulted ? 1 : 0.55
-      // The state word glows in its own colour when live/recording.
       layer.enabled: Style.fx.glow > 0 && root.active
       layer.effect: MultiEffect {
         shadowEnabled: true
@@ -343,12 +327,10 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip.
     title: "OBS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
-    // Same label/value row as System.qml's panel.
     component Row_: Row {
       property string label: ""
       property string value: ""
@@ -378,7 +360,6 @@ BarWidget {
       }
     }
 
-    // A labelled button.
     component Action: Rectangle {
       property string glyph: ""
       property string label: ""
@@ -425,10 +406,6 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      // Headroom so the title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // Big glowing hero: live bitrate while streaming, record rate while recording, otherwise output FPS. State + elapsed flush right, kept in OBS's own live/record colours.
       Item {
         width: parent.width
         visible: root.connected
@@ -507,7 +484,6 @@ BarWidget {
         }
       }
 
-      // Bitrate history as a glowing HUD sparkline, tinted to the live/record state.
       Sparkline {
         width: parent.width
         height: Style.space(34)
@@ -518,7 +494,6 @@ BarWidget {
         color: root.active ? root.stateColor : Color.accent
       }
 
-      // AT THE TOP, NOT THE BOTTOM.
       Rectangle {
         width: parent.width
         height: faultText.implicitHeight + Style.spacing.sm * 2
@@ -542,7 +517,6 @@ BarWidget {
         }
       }
 
-      // --- controls --- First, above the readouts.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
@@ -568,7 +542,7 @@ BarWidget {
 
         Action {
           width: (parent.width - Style.spacing.sm * 2) / 3
-          // Only meaningful while recording, and OBS rejects it otherwise, so it is dimmed and inert rather than silently failing.
+          // obs rejects pause unless recording
           opacity: root.recording ? 1 : 0.35
           enabled: root.recording
           glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}"   // md-play / md-pause
@@ -581,7 +555,7 @@ BarWidget {
       PanelSeparator { visible: root.connected }
       PanelSectionHeader { text: "SCENES"; visible: root.connected }
 
-      // Flow, not a Row: scene names are user-chosen and there are seven here.
+      // flow so long scene lists wrap
       Flow {
         width: parent.width
         spacing: Style.spacing.sm
@@ -593,7 +567,7 @@ BarWidget {
             required property string modelData
             text: modelData
             selected: modelData === root.scene
-            // Switching to the live scene is a no-op in OBS; skip the round trip.
+            // already live, skip the round trip
             onClicked: if (!selected) root.send({ cmd: "setScene", scene: modelData })
           }
         }
@@ -612,7 +586,6 @@ BarWidget {
       PanelSeparator { visible: root.connected }
       PanelSectionHeader { text: "AUDIO"; visible: root.connected }
 
-      // Quick mute toggles for the scene collection's sources.
       Flow {
         width: parent.width
         spacing: Style.spacing.sm
@@ -651,14 +624,12 @@ BarWidget {
                   : (root.streaming ? Color.semantic.live : Color.menu.text)
         dim: !root.streaming && !root.streamReconnecting
       }
-      // Stream and recording each show their own elapsed time.
       Row_ { visible: root.streaming; label: "Elapsed"; value: root.clock(root.streamSeconds) }
       Row_ { visible: root.streaming; label: "Bitrate"; value: Math.round(root.bitrateKbps) + " kbps" }
       Row_ { visible: root.streaming; label: "Sent"; value: root.bytesText(root.streamBytes) }
       Row_ {
         visible: root.streaming
         label: "Dropped frames"
-        // The percentage is the number that matters; the raw count is there so "0.4%" can be checked against "is that 4 frames or 4000".
         value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
         valueColor: root.dropPct >= 1.0 ? Color.semantic.warn : Color.menu.text
       }
@@ -668,7 +639,6 @@ BarWidget {
         value: Math.round(root.congestion * 100) + "%"
         valueColor: root.congestion >= 0.3 ? Color.semantic.warn : Color.menu.text
       }
-      // Congestion as a segmented 0..1 gauge; dropped-frame percentage history as a sparkline.
       BarGauge {
         width: parent.width
         height: Style.spacing.md
@@ -697,11 +667,10 @@ BarWidget {
         dim: !root.recording
       }
       Row_ { visible: root.recording; label: "Elapsed"; value: root.clock(root.recordSeconds) }
-      // Recording gets its own bitrate, not the stream's: the local file is routinely encoded far heavier than what goes out to the platform, and while both outputs run the two numbers are genuinely different.
+      // the recording is often encoded heavier than the stream
       Row_ { visible: root.recording; label: "Bitrate"; value: Math.round(root.recordKbps) + " kbps" }
       Row_ { visible: root.recording; label: "Written"; value: root.bytesText(root.recordBytes) }
       Row_ { label: "Disk free"; value: root.gb(root.freeDiskMb) }
-      // The number that makes "333 GB free" mean something mid-session.
       Row_ {
         visible: root.recording && root.diskSecondsLeft > 0
         label: "Disk headroom"
@@ -713,7 +682,6 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "SKIPPED FRAMES" }
 
-      // Render and encode skips are separate rows because they have separate causes and separate fixes: render skips mean the machine cannot draw the scene fast enough, encode skips mean it cannot encode it fast enough.
       Row_ {
         label: "Rendering"
         value: root.renderSkipped + " / " + root.renderTotal
@@ -728,8 +696,5 @@ BarWidget {
       }
 
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

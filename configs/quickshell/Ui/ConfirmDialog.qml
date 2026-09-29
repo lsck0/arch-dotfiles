@@ -50,7 +50,7 @@ Item {
     BorderSurface {
       id: card
       width: Math.min(parent.width - Style.space(32), Style.space(370))
-      // Grows with the wrapped message so narrow hosts (like the menu card) don't squeeze the text into the buttons.
+      // grows with the wrapped message
       height: card.contentTopInset + card.contentBottomInset + messageText.implicitHeight + Style.space(20) + Style.space(34)
       anchors.centerIn: parent
       color: root.background
@@ -67,7 +67,6 @@ Item {
         anchors.bottomMargin: card.contentBottomInset
         anchors.leftMargin: card.contentLeftInset
 
-        // Terminal prompt marker in front of the message.
         Text {
           id: prompt
           textFormat: Text.PlainText
@@ -119,7 +118,6 @@ Item {
                 : (selected ? root.selectedText : Util.alpha(root.foreground, 0.38)), Style.normalBorderWidth)
               radius: 0
 
-              // Bracketed uppercase terminal-button label.
               Text {
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
@@ -146,7 +144,6 @@ Item {
         }
       }
 
-      // Neon HUD corner brackets framing the dialog.
       HudFrame { }
     }
   }

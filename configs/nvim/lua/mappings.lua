@@ -1,12 +1,9 @@
--- ctrl + s for saving, ctrl + c for exiting insert mode, ctrl + e for exiting terminal mode
 vim.keymap.set("n", "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
 vim.keymap.set("i", "<C-c>", "<ESC>", { desc = "Escape insert mode" })
 vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
 
--- easier macros
 vim.keymap.set('n', '<M-q>', '@', { noremap = true, desc = "Apply macro (@)" })
 
--- neovide zoom (ctrl +/-/0)
 if vim.g.neovide then
     local function scale(factor)
         vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * factor
@@ -17,20 +14,16 @@ if vim.g.neovide then
     vim.keymap.set("n", "<C-0>", function() vim.g.neovide_scale_factor = 1.0 end, { desc = "Neovide zoom reset" })
 end
 
--- clear search highlight
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
 
--- commenting
 vim.keymap.set("n", "<leader>x", "<cmd>normal gcc<CR>", { desc = "Comment line" })
 vim.keymap.set("v", "<leader>x", "<ESC><cmd>normal gvgc<CR>", { desc = "Comment selection" })
 
--- make jump commands also center the screen
 vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Half page down (centered)" })
 vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up (centered)" })
 vim.keymap.set("n", "n", "nzzzv", { desc = "Next search match (centered)" })
 vim.keymap.set("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
 
--- tab navigation + terminal
 vim.keymap.set("n", "<M-t>", function() Snacks.terminal.toggle() end, { desc = "Toggle terminal (float)" })
 vim.keymap.set("n", "<M-w>", function() Snacks.bufdelete() end, { desc = "Close buffer (keep layout)" })
 vim.keymap.set("n", "<M-x>", "<cmd>tabclose <CR>", { desc = "Close tab" })
@@ -41,14 +34,13 @@ vim.keymap.set("n", "<M-3>", "<cmd>tabn 3<CR>", { desc = "Go to tab 3" })
 vim.keymap.set("n", "<M-4>", "<cmd>tabn 4<CR>", { desc = "Go to tab 4" })
 vim.keymap.set("n", "<M-5>", "<cmd>tabn 5<CR>", { desc = "Go to tab 5" })
 
--- resize splits (deferred require so smart-splits lazy-loads on first use)
+-- deferred require: smart-splits lazy-loads on first use
 vim.keymap.set("n", "<C-h>", function() require("smart-splits").resize_left() end, { desc = "Resize split left" })
 vim.keymap.set("n", "<C-j>", function() require("smart-splits").resize_down() end, { desc = "Resize split down" })
 vim.keymap.set("n", "<C-k>", function() require("smart-splits").resize_up() end, { desc = "Resize split up" })
 vim.keymap.set("n", "<C-l>", function() require("smart-splits").resize_right() end, { desc = "Resize split right" })
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>", { desc = "Move window (WinShift)" })
 
--- quickfix/trouble list navigation
 vim.keymap.set("n", "<C-n>", "<cmd>cnext<CR>", { desc = "Next quickfix item" })
 vim.keymap.set("n", "<C-S-n>", "<cmd>cprev<CR>", { desc = "Prev quickfix item" })
 vim.keymap.set("n", "<C-t>", "<cmd>lua require('trouble').next({ skip_groups = true, jump = true })<CR>",
@@ -56,7 +48,7 @@ vim.keymap.set("n", "<C-t>", "<cmd>lua require('trouble').next({ skip_groups = t
 vim.keymap.set("n", "<C-S-t>", "<cmd>lua require('trouble').prev({ skip_groups = true, jump = true })<CR>",
     { desc = "Prev trouble item" })
 
--- telescope pickers: deferred require so telescope lazy-loads on first use
+-- deferred require: telescope lazy-loads on first use
 local function tb(fn, args)
     return function() require("telescope.builtin")[fn](args) end
 end
@@ -79,12 +71,9 @@ vim.keymap.set("n", "<leader>lv", function()
     })
 end, { desc = "Toggle virtual_lines diagnostics" })
 
--- LSP maps are buffer-local, set when a server attaches (the previous global
--- `buffer = bufnr` was nil, so they leaked into every buffer).
 vim.api.nvim_create_autocmd("LspAttach", {
     group = vim.api.nvim_create_augroup("lsp-keymaps", { clear = true }),
     callback = function(ev)
-        -- builtin inlay hints (nvim 0.10+), replaces inlay-hints.nvim
         pcall(vim.lsp.inlay_hint.enable, true, { bufnr = ev.buf })
         local o = { buffer = ev.buf, remap = false }
         local function map(lhs, rhs, desc)
@@ -99,7 +88,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
     end,
 })
 
--- venn.nvim
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>",
     { noremap = true, desc = "Toggle venn (draw boxes)" })
 function _G.Toggle_venn()
@@ -123,7 +111,6 @@ function _G.Toggle_venn()
     end
 end
 
--- debugging
 vim.keymap.set("n", "<leader>dt", "<cmd>lua require('dapui').toggle()<CR>", { desc = "Toggle DAP UI" })
 vim.keymap.set("n", "<leader>b", "<cmd>DapToggleBreakpoint<CR>", { desc = "Toggle breakpoint" })
 vim.keymap.set("n", "<leader>B", "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>",
@@ -133,10 +120,8 @@ vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>", { desc = "Debug: step over"
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into" })
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
--- popouts
 vim.keymap.set("n", "<leader>e", function()
-    -- toggle: close the open tree, else chdir to git root and open (no cwd arg,
-    -- so it never stacks a duplicate root; see the VimEnter autocmd comment).
+    -- no cwd arg, same reason as the VimEnter autocmd
     local open = require("snacks.picker").get({ source = "explorer" })
     if open and #open > 0 then
         open[1]:close()
@@ -169,7 +154,7 @@ vim.api.nvim_create_user_command("Perf", function(o)
             vim.cmd("botright 20split | terminal perf script -i " .. esc .. " | " .. collapser .. " | flamelens")
             vim.cmd("startinsert")
         else
-            vim.fn.jobstart({ "hotspot", file }, { detach = true }) -- GUI, reads perf.data natively
+            vim.fn.jobstart({ "hotspot", file }, { detach = true }) -- gui, reads perf.data natively
         end
     else
         vim.cmd("botright 20split | terminal flamelens " .. esc) -- already-collapsed/folded stacks
@@ -184,7 +169,6 @@ end, { nargs = "?", complete = "file", desc = "Open perf.data in hotspot (GUI)" 
 vim.keymap.set("n", "<leader>pf", "<cmd>Perf<CR>", { desc = "Perf flamegraph (flamelens)" })
 vim.keymap.set("n", "<leader>pg", "<cmd>PerfGui<CR>", { desc = "Perf in hotspot (GUI)" })
 
--- record step: generate the profile the explorers above read.
 vim.api.nvim_create_user_command("CargoFlamegraph", function(o)
     local args = o.args ~= "" and (" " .. o.args) or ""
     vim.cmd("botright 20split | terminal cargo flamegraph" .. args)

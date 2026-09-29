@@ -1,6 +1,4 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-disk-speedtest except: default target_dir under `.../omarchy` -> `.../quickshell`, matching this repo's state/cache dir naming convention elsewhere (clipboard history, notifications).
-
 set -e
 
 if [[ -n ${1:-} && ! -d $1 ]]; then
@@ -43,16 +41,15 @@ alive_workers() {
 }
 
 cleanup() {
-  # Unlink before stopping the workers, so even a cleanup cut short by an impatient SIGKILL has already taken the names off the filesystem.
+  # unlink first so a SIGKILL mid-cleanup leaves no files
   rm -f ${chunk_file:+"$chunk_file"} "${test_files[@]}"
   stop_workers
   rm -f ${chunk_file:+"$chunk_file"} "${test_files[@]}"
 }
-# Armed before any scratch file exists, so a failed preflight check below cannot leak them.
 trap cleanup EXIT
 trap 'exit 143' TERM INT
 
-# Exclusive per-invocation scratch files: predictable names could clobber a user's file, follow a planted symlink, or let overlapping runs delete each other's active files out from under the measurement.
+# mktemp: no clobbering, symlink races or overlapping runs
 chunk_file=$(mktemp /dev/shm/quickshell-disk-speedtest-XXXXXX.src)
 for (( i = 0; i < parallel; i++ )); do
   file=$(mktemp "$target_dir/disk-speedtest-XXXXXX.dat")
@@ -68,9 +65,9 @@ format_rate() {
   }'
 }
 
-# Resolve the block device backing the target directory, so throughput can be sampled from its kernel I/O counters the same way the network speed test samples the interface counters.
 source_dev=$(findmnt -no SOURCE --target "$target_dir" 2>/dev/null)
-source_dev=${source_dev%%\[*} # Strip btrfs subvolume suffix: /dev/sda2[/@home]
+# strip btrfs subvolume suffix
+source_dev=${source_dev%%\[*}
 
 if [[ $source_dev != /dev/* ]]; then
   echo "Cannot find a disk behind $target_dir" >&2
@@ -91,7 +88,7 @@ if (( available_mb < parallel * file_mb * 2 )); then
   exit 1
 fi
 
-# Name the physical disk under test, walking dm-crypt/LVM layers and the partition table up to the whole device that carries the hardware model.
+# walk dm-crypt/lvm and partitions up to the physical disk
 disk=$dev
 while slave=$(ls "/sys/class/block/$disk/slaves" 2>/dev/null | head -1); [[ -n $slave ]]; do
   disk=$slave
@@ -104,10 +101,10 @@ fi
 model=$(lsblk -dno MODEL "/dev/$disk" 2>/dev/null | sed 's/^ *//; s/ *$//')
 echo "disk ${model:-$disk}"
 
-# The stress data must be incompressible so nothing between the write call and the flash can shrink it.
+# incompressible data
 dd if=/dev/urandom of="$chunk_file" bs=${chunk_mb}M count=$((file_mb / chunk_mb)) status=none
 
-# Workers loop only while the main script lives: if cleanup ever loses the race with a kill, an orphaned worker finishes its current pass and stops instead of hammering the disk forever.
+# workers die with the main script even if cleanup loses a race
 write_worker() {
   local file=$1
   while kill -0 $$ 2>/dev/null; do
@@ -155,7 +152,7 @@ run_phase() {
     }')
     echo "$phase $(format_rate "$rate")"
     samples=$((samples + 1))
-    # The first second is warm-up -- governor ramp, crypt workers spinning up -- so the steady-state average starts after it.
+    # first second is warm-up
     if (( samples == 1 )); then
       baseline_sectors=$after
       baseline_time=$end_time
@@ -163,7 +160,7 @@ run_phase() {
     before=$after
   done
 
-  # The workers only stop on their own when dd fails (quota, I/O error, full disk), so any worker gone before the deadline is a failed measurement, not a finished one.
+  # a worker gone before the deadline means dd failed
   alive=$(alive_workers)
   stop_workers
   if (( alive < parallel )); then
@@ -171,7 +168,7 @@ run_phase() {
     exit 1
   fi
 
-  # The figure the dial settles on is the steady-state mean over the whole phase, not whatever rate the final second happened to catch.
+  # final figure is the steady-state mean
   if (( samples > 1 )); then
     rate=$(awk -v before="$baseline_sectors" -v after="$after" -v start="$baseline_time" -v end="$end_time" 'BEGIN {
       secs = end - start
@@ -182,7 +179,7 @@ run_phase() {
   fi
 }
 
-# The read phase runs first, so its data must be staged before any measuring starts.
+# stage data, the read phase runs first
 for file in "${test_files[@]}"; do
   dd if="$chunk_file" of="$file" bs=${chunk_mb}M oflag=direct conv=notrunc status=none 2>/dev/null &
   worker_pids+=("$!")

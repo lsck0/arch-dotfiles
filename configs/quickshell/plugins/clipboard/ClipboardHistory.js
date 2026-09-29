@@ -1,5 +1,5 @@
 .pragma library
-// Verbatim from omarchy-shell: pure functions, no Omarchy-specific coupling.
+// verbatim from omarchy-shell
 
 function normalizeEntry(value) {
   if (typeof value === "string")

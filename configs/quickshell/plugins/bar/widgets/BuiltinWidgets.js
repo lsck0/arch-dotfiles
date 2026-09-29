@@ -1,28 +1,6 @@
 .pragma library
 
-/*
- * ─────────────────────────────────────────────────────────────────────────────
- * BuiltinWidgets — cold-start id → file map for the widgets in this directory
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * WHY IT EXISTS. PluginRegistry's manifest scan is a subprocess, so on a cold
- * boot there is a window where no widget id resolves to anything. The bar must
- * not depend on that scan for its OWN widgets: without this map the first frame
- * creates empty Loaders and never paints a bar at all.
- *
- * So this is a mirror of the `*.manifest.json` files next to it, and the
- * manifest stays the authority — `BarSection` asks the registry first and only
- * falls back here. A mirror can drift, and a drifted entry fails as a widget
- * that silently never appears, which is the worst way for it to fail.
- * `checkDrift` is the guard: it runs once per session after the first scan
- * completes and names any manifest with no entry here, or any entry here with
- * no manifest.
- *
- * The map cannot be computed from the id. `bar.audio-io` is `AudioIO.qml`, not
- * the `AudioIo.qml` a kebab-to-pascal rule produces, and one special case in a
- * derivation rule is worse than a table you can read.
- */
-
+// cold-start mirror of the manifests, id -> file
 const files = {
     "bar.active-window":   "ActiveWindow.qml",
     "bar.agents":          "Agents.qml",
@@ -54,23 +32,15 @@ const files = {
     "bar.workspaces":      "Workspaces.qml"
 };
 
-// "" for an id this directory does not ship, which is the normal answer for a third-party widget and means "let the registry handle it".
+// "" means let the registry handle it
 function fileFor(id) {
     return files[String(id || "")] || "";
 }
 
-// One report per session, not one per bar per section — six identical warnings teach nothing the first did not.
+// report once per session
 let checked = false;
 
-/*
- * Cross-check the map against what the scan actually found. `installedPlugins`
- * is PluginRegistry's id → manifest object; only first-party bar-widget
- * manifests are compared, since everything else legitimately has no entry here.
- *
- * Call after the first successful scan. A drift here is a programmer error —
- * someone added a widget and updated one of the two places — so it is reported
- * loudly rather than worked around.
- */
+// call after the first successful scan
 function checkDrift(installedPlugins, warn) {
     if (checked) return;
     if (!installedPlugins) return;

@@ -9,7 +9,7 @@ return {
             "nvim-neotest/neotest-python",     -- Python test adapter
             "rouge8/neotest-rust",             -- Rust test adapter
         },
-        -- full key specs (with desc) so which-key shows them before neotest loads
+        -- full specs so which-key shows them before neotest loads
         keys = {
             { "<leader>nr", function() require("neotest").run.run() end,                  desc = "Test nearest" },
             { "<leader>nf", function() require("neotest").run.run(vim.fn.expand("%")) end, desc = "Test file" },
@@ -24,7 +24,7 @@ return {
         config = function()
             require("neotest").setup({
                 adapters = {
-                    -- neotest-rust runs cargo-nextest (that's what the adapter is built on).
+                    -- runs cargo-nextest
                     require("neotest-rust")({
                         args = { "--no-fail-fast" },
                         dap_adapter = "codelldb",

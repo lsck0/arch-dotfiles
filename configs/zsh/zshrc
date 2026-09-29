@@ -13,13 +13,12 @@ if [ ! -d "$ZINIT_HOME" ]; then
 fi
 source "${ZINIT_HOME}/zinit.zsh"
 
-# OMZ plugins that ship aliases/keybinds/functions, lazy via zinit snippets.
 zinit ice wait lucid
 zinit snippet OMZP::sudo
 zinit ice wait lucid
 zinit snippet OMZP::git
 
-# fzf keybinds+completion natively (replaces OMZ fzf plugin); fzf 0.48+.
+# native fzf keybinds, needs fzf 0.48+
 zinit ice wait lucid atload'source <(fzf --zsh)'
 zinit light zdharma-continuum/null
 
@@ -35,7 +34,7 @@ zinit light zsh-users/zsh-completions
 zinit ice wait lucid
 zinit light zsh-users/zsh-syntax-highlighting
 
-# compinit MUST load before cdreplay/compdef (OMZ used to do this; it is gone now).
+# compinit must run before cdreplay/compdef
 autoload -Uz compinit
 if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
   compinit -C -d "$HOME/.zcompdump"
@@ -75,6 +74,8 @@ export GOPATH="$HOME/.go"
 export EDITOR=nvim
 export SHELL=zsh
 
+# needs `anonymous-socks.sh up` first
+alias anonymous-socks-proxychains='proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks-proxychains.conf}"'
 alias cat="bat"
 alias cd="z"
 alias convert="magick"
@@ -100,7 +101,7 @@ alias sshpc="~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
-# git clone always pulls submodules (no native config covers the initial clone)
+# no git config covers submodules on the initial clone
 git() {
   if [[ "$1" == clone ]]; then
     command git clone --recurse-submodules "${@:2}"
@@ -109,13 +110,12 @@ git() {
   fi
 }
 
-# Remote Control needs feature-flag eval, which DO_NOT_TRACK disables. Drop it
-# for claude only, so RC works while DO_NOT_TRACK still covers everything else.
+# remote control needs feature flags, which DO_NOT_TRACK disables
 claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-# only greet on login shells at a real tty; skip dumb terminals and subshells.
+# greet only at a real tty
 [[ -o interactive && -t 1 && "$TERM" != dumb ]] && fastfetch
 
 eval "$(mise activate zsh)"
@@ -133,8 +133,7 @@ history_file_pop() {
   history_file_pushed=
 }
 
-# direnv can't own HISTFILE: sharehistory writes the in-memory list on every command, so the list itself is swapped.
-# registered after direnv's precmd hook so DIRENV_HISTFILE is already current.
+# sharehistory ignores a changed HISTFILE; must run after direnv's hook
 history_file_follow_direnv() {
   [[ ${DIRENV_HISTFILE-} == ${history_file_pushed-} ]] && return
   history_file_pop
@@ -143,13 +142,10 @@ history_file_follow_direnv() {
 precmd_functions+=(history_file_follow_direnv)
 eval "$(zoxide init zsh)"
 
-# tms marks the session so tmux session-init lays out the nvim/claude/zsh stack.
+# marker makes tmux session-init build the ide layout
 tms() {
   tmux set-environment -g TMS_LAUNCH 1 2>/dev/null
   command tms "$@"
-  # Clear the marker afterwards: if tms only switched to an existing session the
-  # session-created hook never fired to consume it, and a stale marker would make
-  # the next bare `tmux` build the IDE stack. session-init already unset it on a
-  # real new session, so this is a harmless no-op there.
+  # clear it in case tms only switched sessions
   tmux set-environment -gu TMS_LAUNCH 2>/dev/null
 }

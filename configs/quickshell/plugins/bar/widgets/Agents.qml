@@ -1,11 +1,10 @@
 import QtQuick
 import QtQuick.Effects
-import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Claude Code usage, the same numbers the TRMNL plugin puts on the e-ink display: agent-usage.py runs configs/trmnl-claude's vendored script in --dry-run and hands over the payload it would have posted.
+// claude code usage, same payload as the trmnl display
 BarWidget {
   id: root
   moduleName: "agents"
@@ -16,11 +15,9 @@ BarWidget {
   readonly property int sessionPct: Number(usage.u_session) || 0
   readonly property int weekPct: Number(usage.u_week) || 0
   readonly property int worstPct: Math.max(sessionPct, weekPct)
-  // Clamp the display: the API sometimes reports over 100 once a limit is hit.
+  // api can report over 100 once a limit is hit
   readonly property int worstPctShown: Math.min(100, worstPct)
-  // Which limit is the binding one, so "S"/"W" disambiguates session vs week.
   readonly property string worstWhich: sessionPct >= weekPct ? "S" : "W"
-  // Past this a limit is close enough that it changes what you start next.
   readonly property bool tight: worstPct >= 80
   readonly property bool hasUsage: usage.t_total !== undefined && usage.t_total !== ""
   readonly property var models: [
@@ -29,7 +26,6 @@ BarWidget {
     { name: usage.m3_name, tokens: usage.m3_tokens, pct: Number(usage.m3_pct) || 0, cost: usage.m3_cost }
   ].filter(function(m) { return m.name })
 
-  // Rolling history of the worst limit usage for the panel sparkline (newest last, capped).
   property var pctHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
@@ -57,7 +53,7 @@ BarWidget {
     }
   }
 
-  // The script asks the API for the rate-limit headers, so this is a poll with a cost, small as it is.
+  // each poll costs an api request
   Timer {
     interval: 10 * 60 * 1000
     running: true
@@ -89,13 +85,10 @@ BarWidget {
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
-      // the percentage is the thing worth a glance; tokens are in the panel.
-      // S/W marks whether session or week is the binding limit.
       text: root.worstWhich + " " + root.worstPctShown + "%"
       color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
-      // Big readout: tighter tracking and a neon halo, urgent when a limit is close.
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
       layer.effect: MultiEffect {
@@ -118,13 +111,12 @@ BarWidget {
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
-  // Label, value, and an optional bar drawn behind them.
   component BarRow: Item {
     id: barRow
     property string label: ""
     property string value: ""
     property string note: ""
-    // -1 draws no bar, which is how the plain label/value rows opt out.
+    // -1 draws no bar
     property int pct: -1
     property bool alert: false
     width: parent.width
@@ -137,7 +129,6 @@ BarWidget {
       height: parent.height
       width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
       radius: Style.cornerRadius
-      // Accent-tinted HUD gauge; alert rows keep their urgent fill.
       color: barRow.alert ? Util.alpha(Color.urgent, 0.18) : Util.alpha(Color.accent, 0.15)
     }
     Text {
@@ -172,7 +163,6 @@ BarWidget {
     }
   }
 
-  // Big glowing hero numeral (a percentage) that opens the panel.
   component Hero: Row {
     property int pct: 0
     property color tint: Color.accent
@@ -213,18 +203,14 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip, rendered by the shared card.
     title: "Claude Code"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
-
-      // Top headroom so the overlaid title strip never covers the hero.
-      Item { width: 1; height: Style.spacing.xl }
 
       BarRow {
         visible: !root.received
@@ -232,7 +218,6 @@ BarWidget {
         value: "Reading usage..."
       }
 
-      // Glowing usage hero (worst of session/week), plan tier + reset beside it, then a usage-over-time graph and gauge.
       Column {
         width: parent.width
         visible: root.hasUsage
@@ -280,7 +265,6 @@ BarWidget {
             }
           }
         }
-        // Auto-scaled 0..100 usage trend, urgent-tinted once a limit is close.
         Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Color.urgent : Color.accent }
         BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.worstPct / 100; color: root.tight ? Color.urgent : Color.accent }
       }
@@ -290,7 +274,6 @@ BarWidget {
         visible: root.hasUsage
         spacing: Style.spacing.md
 
-        // ---- limits ---------------------------------------------------------
         PanelSectionHeader { text: "Limits" }
         BarRow {
           label: "Session"
@@ -306,14 +289,13 @@ BarWidget {
           alert: root.weekPct >= 80
         }
         BarRow {
-          // the per-model weekly row only exists when the TUI has been scraped
+          // only present when the tui was scraped
           visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "—"
           label: root.usage.u_model || "Model"
           value: root.usage.u_sonnet + "%"
           pct: Number(root.usage.u_sonnet) || 0
         }
 
-        // ---- today ----------------------------------------------------------
         PanelSeparator {}
         PanelSectionHeader { text: "Today" }
         BarRow { label: "Tokens"; value: root.usage.t_total || "–"; note: root.usage.t_cost || "" }
@@ -331,7 +313,6 @@ BarWidget {
           note: root.usage.fleet || ""
         }
 
-        // ---- week -----------------------------------------------------------
         PanelSeparator {}
         PanelSectionHeader { text: "Week" }
         BarRow { label: "Tokens"; value: root.usage.w_tokens || "–"; note: root.usage.w_cost || "" }
@@ -342,7 +323,6 @@ BarWidget {
         }
         BarRow {
           label: "Daily"
-          // the sparkline is one glyph per day and needs no other treatment
           value: root.usage.spark || ""
           note: (root.usage.streak || 0) + "d streak"
         }
@@ -352,7 +332,6 @@ BarWidget {
           value: root.usage.top_project || ""
         }
 
-        // ---- models ---------------------------------------------------------
         Column {
           width: parent.width
           visible: root.models.length > 0
@@ -379,8 +358,5 @@ BarWidget {
         }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

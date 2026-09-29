@@ -13,18 +13,15 @@
           ("p" "~/projects/"                     "projects")
           ("c" "~/projects/arch-dotfiles/configs/" "configs")))
 
-  ;; dired defaults, shared by dirvish
-  (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first"
+    (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first"
         dired-dwim-target t                        ; other window = default target
         dired-recursive-copies 'always
         dired-recursive-deletes 'top
         dired-kill-when-opening-new-dired-buffer t  ; no buffer pileup
         delete-by-moving-to-trash t)
 
-  ;; the sidebar tracks the buffer you are editing (neo-tree follow)
-  (dirvish-side-follow-mode 1)
+    (dirvish-side-follow-mode 1)
 
-  ; ; Make the sidebar resizable.
   (defun my/dirvish-side-resizable ()
     (when-let* ((dv (dirvish-curr))
                 ((eq (dv-type dv) 'side)))
@@ -32,7 +29,7 @@
       (setq-local window-size-fixed nil)))
   (add-hook 'dirvish-setup-hook #'my/dirvish-side-resizable))
 
-;; open the sidebar at startup like nvim's file tree; stay in the main window
+;; sidebar at startup, focus stays in the main window
 (add-hook 'emacs-startup-hook
           (lambda ()
             (when (display-graphic-p)

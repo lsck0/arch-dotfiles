@@ -1,9 +1,0 @@
-# egress.sh config. Copied to ~/.config/egress/config on first link (mode 600).
-# Per authorized engagement: fill in the jump host and the source IP the client
-# whitelisted, then `egress.sh up`. Leave EGRESS_EXIT_IP empty and egress.sh
-# refuses to start, since it cannot then prove traffic left from the agreed IP.
-
-EGRESS_HOST=""            # ssh destination, e.g. user@jump.example.com
-EGRESS_EXIT_IP=""         # the source IP the engagement authorized
-EGRESS_SOCKS_PORT=9050    # must match proxychains.conf
-EGRESS_RATE=0             # max new SOCKS connections/sec, 0 = uncapped

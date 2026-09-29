@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// HUD corner brackets framing the parent surface (sci-fi terminal look).
 Item {
   id: root
   anchors.fill: parent
@@ -16,22 +15,22 @@ Item {
   // negative pushes the brackets outward, off the content
   property real margin: 0
 
+  // keep opposite arms from meeting on small surfaces
+  readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))
+  readonly property int vlen: Math.max(0, Math.min(len, Math.floor(height / 2) - thick))
+
   component Arm: Rectangle {
     color: root.color
     opacity: root.strength
     antialiasing: false
   }
 
-  // top-left
-  Arm { x: 0; y: 0; width: root.len; height: root.thick }
-  Arm { x: 0; y: 0; width: root.thick; height: root.len }
-  // top-right
-  Arm { anchors.right: parent.right; y: 0; width: root.len; height: root.thick }
-  Arm { anchors.right: parent.right; y: 0; width: root.thick; height: root.len }
-  // bottom-left
-  Arm { x: 0; anchors.bottom: parent.bottom; width: root.len; height: root.thick }
-  Arm { x: 0; anchors.bottom: parent.bottom; width: root.thick; height: root.len }
-  // bottom-right
-  Arm { anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.len; height: root.thick }
-  Arm { anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.thick; height: root.len }
+  Arm { x: 0; y: 0; width: root.hlen; height: root.thick }
+  Arm { x: 0; y: 0; width: root.thick; height: root.vlen }
+  Arm { anchors.right: parent.right; y: 0; width: root.hlen; height: root.thick }
+  Arm { anchors.right: parent.right; y: 0; width: root.thick; height: root.vlen }
+  Arm { x: 0; anchors.bottom: parent.bottom; width: root.hlen; height: root.thick }
+  Arm { x: 0; anchors.bottom: parent.bottom; width: root.thick; height: root.vlen }
+  Arm { anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.hlen; height: root.thick }
+  Arm { anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.thick; height: root.vlen }
 }

@@ -1,10 +1,8 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "toggles"
@@ -13,7 +11,6 @@ BarWidget {
   readonly property string scriptDir: Paths.barWidgets
 
   property string text: "⚙ 0"
-  property string tooltip: ""
   property var items: []
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
@@ -35,7 +32,7 @@ BarWidget {
   }
 
   function toggleItem(name) {
-    // Same fix as Notifications.qml's toggleDnd(): wait for the toggle script to actually exit before refreshing, instead of firing it detached and refreshing on the next event-loop tick (which reliably beat the script to the finish and re-displayed the pre-toggle state).
+    // wait for exit; a detached run raced the refresh
     if (toggleProc.running) return
     toggleProc.command = [root.toggleDir + "/toggle-" + name + ".sh", "toggle"]
     toggleProc.running = true
@@ -56,7 +53,6 @@ BarWidget {
         try {
           var s = JSON.parse(text || "{}")
           root.text = s.text || "⚙ 0"
-          root.tooltip = s.tooltip || ""
         } catch (e) {}
       }
     }
@@ -73,7 +69,6 @@ BarWidget {
     }
   }
 
-  // Was 5000ms.
   Timer {
     interval: 20000
     running: true
@@ -102,20 +97,17 @@ BarWidget {
   }
 
   HoverPanel {
-    id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.refreshItems()
-    // Terminal-window title strip.
     title: "TOGGLES"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
+    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
 
     Flickable {
-      id: togglesFlick
       anchors.fill: parent
-      // Same as the notification history list: bound to the vertical axis and inert while everything fits, so a horizontal drag cannot slide the toggle rows off the card.
+      // vertical only, inert while everything fits
       contentWidth: width
       contentHeight: content.implicitHeight
       flickableDirection: Flickable.VerticalFlick
@@ -128,14 +120,10 @@ BarWidget {
         width: parent.width
         spacing: Style.spacing.xs
 
-        // Headroom so the title strip never overlaps the first row.
-        Item { width: 1; height: Style.spacing.xxxl }
-
         PanelSectionHeader {
           text: "SWITCHES" + (root.items.length > 0 ? " :: " + root.items.length : "")
         }
 
-        // Ui/Toggle.qml floors each row at 54px — ten toggles is ~540px, taller than most screens want popping open on hover.
         Repeater {
           model: root.items
           Toggle {
@@ -159,8 +147,5 @@ BarWidget {
         }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

@@ -1,6 +1,4 @@
-# grub upgrades restore 10_linux as executable; 09_arch replaces it.
-# 15_uki is disabled for the same reason: its `uki` command lists every UKI on
-# the ESP as another entry titled just "Arch".
+# grub upgrades re-enable 10_linux and 15_uki, which 09_arch replaces
 [Trigger]
 Operation = Install
 Operation = Upgrade

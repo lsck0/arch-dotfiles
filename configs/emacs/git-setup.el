@@ -7,7 +7,6 @@
         #'magit-display-buffer-same-window-except-diff-v1
         magit-diff-refine-hunk 'all))
 
-;; gitsigns -> live diff markers in the fringe
 (use-package diff-hl
   :hook ((dired-mode         . diff-hl-dired-mode)
          (magit-pre-refresh  . diff-hl-magit-pre-refresh)
@@ -16,7 +15,6 @@
   (global-diff-hl-mode 1)
   (diff-hl-flydiff-mode 1))               ; update without saving
 
-;; git-conflict.nvim -> built-in smerge, auto-enabled when markers are present
 (defun my/smerge-maybe-enable ()
   "Turn on `smerge-mode' if the buffer contains conflict markers."
   (save-excursion

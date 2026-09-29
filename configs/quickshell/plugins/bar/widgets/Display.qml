@@ -2,24 +2,18 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "display"
 
-  // Per-monitor state is still tracked (needed to know which outputs exist and to seed the slider from the hardware's actual current value), but the UI only ever surfaces one aggregate number.
-  property var brightnessByMonitor: ({})
   property real brightnessPct: 50
-  // Seeded once from the first `get` that comes back, so the initial poll populating brightnessByMonitor doesn't fight a value the user is actively dragging, and two monitors with slightly different starting brightness don't make the slider jump after the first paints.
+  // seed once so later reads don't fight a drag
   property bool brightnessSeeded: false
-  // `monitors all`, so disabled outputs stay listed and can be turned back on.
   property var monitors: []
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
-  // Read from toggle-font.sh's own `shortlist`, not listed again here.
   property var fontChoices: []
   readonly property var fontSizes: [12, 13, 14, 16, 18]
 
@@ -38,13 +32,9 @@ BarWidget {
 
   function setBrightnessFor(name, pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
-    var copy = Object.assign({}, root.brightnessByMonitor)
-    copy[name] = pct
-    root.brightnessByMonitor = copy
     Quickshell.execDetached([Paths.shellScripts + "/monitor-brightness.sh", "set", name, String(pct)])
   }
 
-  // The one place that actually talks to hardware.
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
@@ -57,11 +47,10 @@ BarWidget {
   }
 
   function openWallpaperPicker() {
-    // `wallpaper-picker`, NOT switch-wallpaper.sh.
+    // not switch-wallpaper.sh
     Quickshell.execDetached([Paths.shellScripts + "/wallpaper-picker.sh"])
   }
 
-  // FONT CHANGES GO THROUGH toggles/toggle-font.sh, like every other state change in this repo.
   function setFont(family) {
     Quickshell.execDetached([root.fontScript, "set", family])
     fontSettle.restart()
@@ -74,7 +63,42 @@ BarWidget {
 
   readonly property string fontScript: Paths.toggle("toggle-font.sh")
 
-  // The family is readable straight off the live theme; the SIZE shown here is the terminal/editor size (toggle-font.sh's reference value), which is not the same number as quickshell's own base size, so it has to be asked for.
+  readonly property string shaderScript: Paths.toggle("toggle-shader.sh")
+  property string shaderState: "off"
+  // an in-flight read may predate a change
+  property bool shaderReadQueued: false
+
+  function refreshShader() {
+    if (shaderStateProc.running) root.shaderReadQueued = true
+    else shaderStateProc.running = true
+  }
+
+  function setShader(name) {
+    if (shaderSetProc.running) return
+    shaderSetProc.command = [root.shaderScript, root.shaderState === name ? "off" : name]
+    shaderSetProc.running = true
+  }
+
+  Process {
+    id: shaderStateProc
+    command: [root.shaderScript, "get"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.shaderState = String(text || "").trim()
+    }
+    onExited: {
+      if (!root.shaderReadQueued) return
+      root.shaderReadQueued = false
+      Qt.callLater(root.refreshShader)
+    }
+  }
+
+  Process {
+    id: shaderSetProc
+    onExited: root.refreshShader()
+  }
+
+  // terminal font size, not quickshell's own base size
   property int currentFontSize: 0
 
   function refreshFontSize() {
@@ -93,7 +117,6 @@ BarWidget {
     }
   }
 
-  // The installed families are fixed for the session — fonts are not installed while the shell is up — so this reads once at startup rather than per open.
   Process {
     id: fontListProc
     command: [root.fontScript, "shortlist"]
@@ -108,14 +131,14 @@ BarWidget {
     }
   }
 
-  // The script rewrites a dozen files and only then does quickshell's own theme.json land; re-read once it has had a moment, so the selected chip moves on its own rather than on the next hover.
+  // theme.json lands after the script's other writes
   Timer {
     id: fontSettle
     interval: 600
     onTriggered: root.refreshFontSize()
   }
 
-  // action: "extend", "off", or "mirror:<source output>".
+  // action: extend, off, or mirror:<output>
   function setMonitorLayout(name, action) {
     var args = [Paths.shellScripts + "/set-monitor-layout.sh", name]
     if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
@@ -124,7 +147,7 @@ BarWidget {
     layoutSettleTimer.restart()
   }
 
-  // Hyprland needs a moment to reconfigure outputs before the readback is current.
+  // hyprland needs a moment before readback is current
   Timer {
     id: layoutSettleTimer
     interval: 800
@@ -136,7 +159,7 @@ BarWidget {
     refreshMonitors()
   }
 
-  // Fire-and-forget Process instances, one per get, created on demand so concurrent per-monitor refreshes (there can be several outputs) don't share/overwrite a single Process's state mid-flight.
+  // one process per get so concurrent monitors don't clash
   Component {
     id: brightnessGetComponent
     Process {
@@ -147,14 +170,9 @@ BarWidget {
         waitForEnd: true
         onStreamFinished: {
           var pct = parseInt(String(text || "").trim(), 10)
-          if (!isNaN(pct)) {
-            var copy = Object.assign({}, root.brightnessByMonitor)
-            copy[proc.monitorName] = pct
-            root.brightnessByMonitor = copy
-            if (!root.brightnessSeeded) {
-              root.brightnessPct = pct
-              root.brightnessSeeded = true
-            }
+          if (!isNaN(pct) && !root.brightnessSeeded) {
+            root.brightnessPct = pct
+            root.brightnessSeeded = true
           }
           proc.destroy()
         }
@@ -173,13 +191,11 @@ BarWidget {
         } catch (e) {
           return
         }
-        // Seed the slider from the hardware exactly once, so it opens showing the real brightness.
         if (!root.brightnessSeeded) root.refreshAllBrightness()
       }
     }
   }
 
-  // Monitors only, and only while the panel is up.
   Timer {
     interval: 5000
     running: panel.visible
@@ -206,22 +222,20 @@ BarWidget {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
-    // Shared HoverPanel geometry, like every other panel.
     anchorWidget: root
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
-    // Talking to a monitor over DDC/CI is slow, so read the hardware only when this panel is actually on screen — see refreshAllBrightness().
+    // ddc/ci is slow, so read hardware only while open
     onOpened: {
       root.refreshMonitors()
       root.refreshAllBrightness()
       root.refreshFontSize()
+      root.refreshShader()
     }
 
-    // Terminal-window title strip.
     title: "DISPLAY"
 
-    // Big glowing hero numeral (a percentage) that opens a section.
     component Hero: Row {
       property int pct: 0
       property color tint: Color.accent
@@ -262,16 +276,12 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.lg
 
-      // Headroom so the title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
       PanelSectionHeader { text: "BRIGHTNESS" }
 
       Column {
         width: parent.width
         spacing: Style.spacing.xs
 
-        // Big glowing brightness hero, monitor count + segmented gauge flush right.
         Item {
           width: parent.width
           implicitHeight: Math.max(briHero.implicitHeight, briReads.implicitHeight)
@@ -283,7 +293,6 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width * 0.56
             spacing: Style.spacing.sm
-            // A value beside its label — Style.emphasis.dim, matching every other "current reading" caption in the shell (e.g. Weather's current-conditions subtitle) instead of a one-off opacity.
             Text {
               width: parent.width
               horizontalAlignment: Text.AlignRight
@@ -298,7 +307,6 @@ BarWidget {
           }
         }
 
-        // Single slider for every connected monitor.
         PanelSlider {
           width: parent.width
           bar: root.bar
@@ -315,10 +323,27 @@ BarWidget {
 
       PanelRow {
         width: parent.width
-        // md-image, same action-row shape as the System and Network tools.
         glyph: "\u{f02e9}"
         label: "Choose wallpaper..."
         onActivated: { root.openWallpaperPicker(); if (root.bar) root.bar.closePanel(root.moduleName) }
+      }
+
+      PanelSectionHeader { text: "SHADER" }
+
+      Repeater {
+        model: [
+          { name: "nightlight", label: "Night light" },
+          { name: "color-grading", label: "Color grading" },
+          { name: "cyberpunk", label: "Cyberpunk" }
+        ]
+        PanelRow {
+          required property var modelData
+          width: parent.width
+          stateMarker: true
+          on: root.shaderState === modelData.name
+          label: modelData.label
+          onActivated: root.setShader(modelData.name)
+        }
       }
 
       PanelSectionHeader { text: "FONT" }
@@ -384,7 +409,7 @@ BarWidget {
             }
           }
 
-          // "Off" is hidden on the last active output so the session keeps a screen.
+          // no off on the last active output
           Flow {
             visible: root.monitors.length > 1
             width: parent.width
@@ -420,7 +445,7 @@ BarWidget {
               model: [1, 1.25, 1.5, 1.666667, 2]
               Chip {
                 required property real modelData
-                // Hyprland reports 1.666667 back as 1.6666666, so compare with a tolerance.
+                // hyprland reports 1.666667 as 1.6666666
                 selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
                 text: (Math.round(modelData * 100) / 100) + "x"
                 onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)
@@ -430,8 +455,5 @@ BarWidget {
         }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

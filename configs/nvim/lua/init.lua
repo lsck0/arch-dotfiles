@@ -25,7 +25,7 @@ require("lazy").setup({
     },
 
     defaults = { lazy = false },
-    -- disabled: the checker git-fetches every plugin in the background, hurting startup/runtime.
+    -- off: background git fetches slow startup
     checker = { enabled = false, notify = false },
 })
 

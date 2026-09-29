@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# 3-state power profile switch, matching TLP's own native forced modes (`tlp performance|balanced|power-saver`) rather than power-profiles-daemon (not installed, would conflict with TLP anyway).
+# 3-state switch via tlp's native forced modes (not power-profiles-daemon, which would conflict)
 STATES=(balanced performance power-saver)
 ICONS=(⚖ ⚡ 🔋)
 LABELS=("Balanced" "Performance" "Power Saver")
@@ -16,7 +16,7 @@ index_of() {
         s=${STATES[$i]}
         [[ "$s" == "$1" ]] && { echo "$i"; return; }
     done
-    echo -1 # unset/unrecognized -> no forced override (auto-detect)
+    echo -1 # unset/unrecognized: no forced override (auto-detect)
 }
 
 apply() {
@@ -27,7 +27,7 @@ apply() {
     toggle_notify -a Toggles "Power Mode" "${LABELS[$(index_of "$state")]}"
 }
 
-# Clears any forced override and returns TLP to its own AC/BAT auto-detect (i.e. the real configured default — balanced/power-saver on battery hardware, performance on AC-only hardware). Distinct from `apply`: this does not force one static profile, it un-forces whatever was forced.
+# un-force: return tlp to its own ac/bat auto-detect, not a static profile
 reset_auto() {
     sudo tlp start >/dev/null
     rm -f "$TOGGLES_RUNTIME_DIR/powermode" 2>/dev/null || true
@@ -41,7 +41,7 @@ idx=$(index_of "$state")
 
 case "$action" in
 get)
-    # Empty means "no override" -- the caller should read that as auto / hardware default, not silently coerce it to a state name.
+    # empty means no override: auto / hardware default
     [[ $idx -ge 0 ]] && echo "${STATES[$idx]}" || echo ""
     ;;
 label)

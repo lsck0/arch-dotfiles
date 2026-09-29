@@ -10,7 +10,6 @@ fi
 MARKER="# MARKER:arch-dotfiles/boot/luks"
 CRYPTTAB="/etc/crypttab"
 
-# Detect LUKS partition backends
 mapfile -t LUKS_PARTS < <(lsblk -ln -o NAME,UUID,FSTYPE,TYPE 2>/dev/null \
     | awk '$3 == "crypto_LUKS" && $4 == "part" {print $1, $2}' || true)
 
@@ -19,7 +18,7 @@ if [[ ${#LUKS_PARTS[@]} -eq 0 ]]; then
     exit 0
 fi
 
-# THE ROOT DEVICE MUST NOT GO IN CRYPTTAB.
+# the root device must not go in crypttab
 ROOT_SRC="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
 ROOT_SRC="${ROOT_SRC%%[*}"
 ROOT_BACKING=""
@@ -27,7 +26,7 @@ if [[ "$ROOT_SRC" == /dev/mapper/* ]]; then
     ROOT_BACKING="$(lsblk -lnso NAME,TYPE "$ROOT_SRC" 2>/dev/null | awk '$2 == "part" {print $1; exit}' || true)"
 fi
 
-# Ensure crypttab header + marker exist, back up a pre-existing live file.
+# back up a crypttab we do not manage yet
 sudo mkdir -p "$(dirname "$CRYPTTAB")"
 if [[ -f "$CRYPTTAB" ]]; then
     if ! sudo grep -qF "$MARKER" "$CRYPTTAB" 2>/dev/null; then
@@ -37,14 +36,13 @@ fi
 if [[ ! -f "$CRYPTTAB" ]]; then
     sudo install -m644 "$(dirname "$0")/crypttab" "$CRYPTTAB"
 else
-    # Strip any auto-appended entries from a prior run so we can rewrite cleanly.
+    # drop entries appended by a prior run
     if sudo grep -qF "$MARKER" "$CRYPTTAB" 2>/dev/null; then
         sudo sed -i "/^$MARKER$/,\$d" "$CRYPTTAB"
     fi
     sudo sed -i -e '$a\' "$CRYPTTAB"
 fi
 
-# Append one entry per non-root LUKS partition, idempotent per mapper name.
 added=0
 for entry in "${LUKS_PARTS[@]}"; do
     part="${entry%% *}"
@@ -63,7 +61,7 @@ for entry in "${LUKS_PARTS[@]}"; do
 done
 echo "$MARKER" | sudo tee -a "$CRYPTTAB" >/dev/null
 
-# mkinitcpio: ensure the encrypt hook is present before filesystems.
+# encrypt hook must precede filesystems
 CONF="/etc/mkinitcpio.conf"
 if [[ -f "$CONF" ]]; then
     if grep -qE 'HOOKS=\(.*\bencrypt\b' "$CONF"; then
@@ -100,7 +98,6 @@ PY
     fi
 fi
 
-# Rebuild initramfs so crypttab-backed devices are recognized at boot.
 if command -v mkinitcpio >/dev/null 2>&1; then
     sudo mkinitcpio -P
 fi

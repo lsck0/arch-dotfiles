@@ -9,17 +9,13 @@ import "TrayModel.js" as TrayModel
 
 BarWidget {
   id: root
-  // Matches the registry id exactly (unlike every other widget's short internal name, e.g. Clock's "clock") — persistTrayState() below needs this to find its own shell.json layout entry via updateEntryInline(), and Tray doesn't use moduleName for hover-panel tracking at all (it manages managePopupOpen/trayMenuOpen itself via PopupCard, not bar.activePanel), so there's no other use this could conflict with.
+  // full registry id: persistTrayState keys settings by it
   moduleName: "bar.tray"
 
-  // Always open — the drawer used to only reveal on hover, matching Waybar's tray-expander default, but a systemtray that hides itself behind an extra hover step just to see what's running was reported as more annoying than useful.
-  property bool expanded: true
   property bool managePopupOpen: false
   property bool trayMenuOpen: false
   property var activeTrayItem: null
   property var activeTrayAnchor: null
-  // bar.barForeground, not bar.foreground — this repo's Bar.qml property
-  // name (matches every other existing widget, e.g. Clock.qml/ActiveWindow.qml)
   readonly property color foreground: bar ? bar.barForeground : Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var pinnedIds: settings.pinned instanceof Array ? settings.pinned : []
@@ -29,16 +25,10 @@ BarWidget {
   readonly property var allItems: bucket("all")
   readonly property int drawerCount: drawerItems.length
   readonly property int trayItemExtent: Style.bar.iconSlot
-  // Was 0 — every other bar icon breathes by Style.bar.itemGap (2px) between slots; the tray's own icons had no gap at all, which read as cramped next to the rest of the bar.
   readonly property int trayItemGap: Style.bar.itemGap
   readonly property int trayJoinGap: Style.bar.groupGap
   readonly property int drawerExtent: drawerCount > 0 ? drawerCount * trayItemExtent + (drawerCount - 1) * trayItemGap : 0
-  // Match Waybar's group/tray-expander drawer transition-duration.
-  readonly property int animationDuration: 600
-  property real revealProgress: expanded ? 1 : 0
-  readonly property real revealExtent: drawerExtent * revealProgress
 
-  // Submenu drill-down state.
   property var submenuStack: []
   readonly property int submenuDepth: submenuStack.length
   readonly property string currentTitle: submenuDepth > 0 ? submenuStack[submenuDepth - 1].title : ""
@@ -46,7 +36,7 @@ BarWidget {
     ? submenuStack[submenuDepth - 1].opener.children
     : trayMenuOpener.children
 
-  // Changing level rebuilds the row delegates synchronously, so the next row lands under a cursor that hasn't moved.
+  // swallows the click that lands on the rebuilt level
   property bool menuLevelSettling: false
 
   Component {
@@ -68,9 +58,9 @@ BarWidget {
   function resetTrayMenu() {
     menuLevelSettling = false
     menuLevelSettleTimer.stop()
-    // Flickable keeps its offset across a model swap whenever the new content is still tall enough to hold it, so a menu dismissed while scrolled would otherwise reopen part-way down with its first entries off screen.
+    // flickable keeps its offset across a model swap
     trayMenuFlick.contentY = 0
-    // Clear the reactive stack before tearing anything down, so no binding can read a partially-destroyed opener while this runs.
+    // clear the stack before destroying, so no binding reads a dead opener
     var openers = submenuStack
     submenuStack = []
     for (var i = openers.length - 1; i >= 0; i--) openers[i].opener.destroy()
@@ -100,7 +90,6 @@ BarWidget {
   }
 
   function openTrayMenu(item, anchorItem, mouse) {
-    // `!item` fell into the branch below and then immediately dereferenced `item.display`, so the one case the guard existed for was the one that threw.
     if (!item) return
     if (!item.menu) {
       if (!anchorItem || !anchorItem.QsWindow) return
@@ -109,7 +98,7 @@ BarWidget {
       return
     }
 
-    // Reset before switching items: trayMenuOpener.menu binds to activeTrayItem.menu, so assigning a new item invalidates the old root's children immediately, before any nested opener referencing them would otherwise get torn down.
+    // reset first: a new item invalidates the old children at once
     resetTrayMenu()
     activeTrayItem = item
     activeTrayAnchor = anchorItem
@@ -117,11 +106,11 @@ BarWidget {
   }
 
   function trayIconSource(icon) {
-    // Quickshell already resolves the tray icon into a ready-to-use image:// URL, including a "?path=" fallback search dir for apps that ship their tray icon outside a standard theme (e.g. Steam's flat public/ dir). Hand it straight to IconImage; guessing a theme sub-directory here only broke apps whose layout didn't match the guess.
+    // quickshell already resolves this to an image:// url
     return String(icon || "")
   }
 
-  // Symbolic icons ship a fixed fill (often near-white) that the host is meant to recolor to its foreground; detect them by the freedesktop "-symbolic" name suffix so they can be tinted instead of rendered as-is.
+  // symbolic icons are meant to be recoloured by the host
   function iconIsSymbolic(icon) {
     var name = String(icon || "").split("?")[0]
     return name.slice(-9) === "-symbolic"
@@ -148,8 +137,7 @@ BarWidget {
     var result = []
     for (var i = 0; i < values.length; i++) {
       var item = values[i]
-      // Discord's SNI (id "discord_status_icon_N") ships a raw pixmap that shows
-      // the call/mute speaker state; drop it from the tray entirely.
+      // discord's call-state pixmap icon
       if (String(item.id || "").indexOf("discord_status_icon") === 0) continue
       if (item.status === Status.Passive) continue
       if (ownedByOmarchy(item)) continue
@@ -162,12 +150,8 @@ BarWidget {
     return result
   }
 
-  // Saved to shell.qml's widget-settings file, NOT into the bar layout in
-  // shell.json. Pinning an icon used to rewrite the whole shell config, which
-  // froze the bar layout to disk and stopped shell.qml's builtin layout from
-  // taking effect ever again — see shell.qml's widgetSettings comment.
+  // widget settings file, not the shell.json layout
   function persistTrayState(pinned, hidden) {
-    // bar.shellHost, not bar.shell — see Bar.qml's shellHost property comment: a property literally named "shell" on Bar's type shadows every unqualified `shell.X` reference inside shell.qml's own `Bar { ...
     if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
     root.bar.shellHost.setWidgetSettings(root.moduleName || "bar.tray", { pinned: pinned, hidden: hidden })
   }
@@ -201,10 +185,6 @@ BarWidget {
   implicitWidth: root.vertical ? root.barSize : trayContent.implicitWidth
   implicitHeight: root.vertical ? trayContent.implicitHeight : root.barSize
 
-  Behavior on revealProgress {
-    NumberAnimation { duration: root.animationDuration; easing.type: Easing.OutCubic }
-  }
-
   Loader {
     id: trayContent
     anchors.fill: parent
@@ -223,16 +203,10 @@ BarWidget {
       implicitWidth: pinnedWidth + drawerBlockWidth
       implicitHeight: root.barSize
 
-      // Mask out the empty area the collapsed drawer reserves for its slide-in, so hovering it doesn't trigger expand and clicks pass through.
       containmentMask: QtObject {
         function contains(point: point): bool {
           if (point.y < 0 || point.y > horizontalTrayRoot.height) return false
-          // Drawer reveals leftward; chevron sits at the right end when collapsed and slides left as it opens.
-          var chevronX = root.drawerExtent - root.revealExtent
-          if (point.x >= chevronX && point.x <= horizontalTrayRoot.drawerBlockWidth) return true
-          // Pinned items, placed to the right of the drawer block.
-          var pinnedStart = horizontalTrayRoot.drawerBlockWidth
-          return point.x >= pinnedStart && point.x <= horizontalTrayRoot.implicitWidth
+          return point.x >= 0 && point.x <= horizontalTrayRoot.implicitWidth
         }
       }
 
@@ -243,18 +217,16 @@ BarWidget {
         height: root.barSize
         visible: root.allItems.length > 0
 
-        // Empty-space right-click opens the tray manage popup (previously the chevron's job — the chevron itself is gone).
+        // right-click on empty space opens the manage popup
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.RightButton
-          // `pressed` carries a MouseEvent, not a button number.
           onPressed: function(mouse) {
             if (mouse.button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
           }
         }
 
         Item {
-          id: trayClip
           x: 0
           anchors.verticalCenter: parent.verticalCenter
           width: root.drawerExtent
@@ -262,11 +234,9 @@ BarWidget {
           clip: true
 
           Row {
-            id: trayIcons
-            x: root.drawerExtent - root.revealExtent
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.trayItemGap
-            // layer.enabled removed: the texture pass ate left-clicks on the icons underneath (input was landing on the layer surface, not the delegate MouseAreas).
+            // no layer: it ate clicks meant for the delegates
 
             Repeater {
               model: root.drawerItems
@@ -306,10 +276,7 @@ BarWidget {
       containmentMask: QtObject {
         function contains(point: point): bool {
           if (point.x < 0 || point.x > verticalTrayRoot.width) return false
-          var chevronY = root.drawerExtent - root.revealExtent
-          if (point.y >= chevronY && point.y <= verticalTrayRoot.drawerBlockHeight) return true
-          var pinnedStart = verticalTrayRoot.drawerBlockHeight
-          return point.y >= pinnedStart && point.y <= verticalTrayRoot.implicitHeight
+          return point.y >= 0 && point.y <= verticalTrayRoot.implicitHeight
         }
       }
 
@@ -320,7 +287,7 @@ BarWidget {
         height: verticalTrayRoot.drawerBlockHeight
         visible: root.allItems.length > 0
 
-        // Same two fixes as the horizontal layout above: declared before trayClip so it sits under the icons rather than over them, and taking a MouseEvent rather than a button number.
+        // declared first so it sits under the icons
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.RightButton
@@ -330,7 +297,6 @@ BarWidget {
         }
 
         Item {
-          id: trayClip
           y: 0
           anchors.horizontalCenter: parent.horizontalCenter
           width: root.barSize
@@ -338,11 +304,8 @@ BarWidget {
           clip: true
 
           Column {
-            id: trayIcons
-            y: root.drawerExtent - root.revealExtent
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: root.trayItemGap
-            // layer.enabled removed: the texture pass ate left-clicks on the icons underneath (input was landing on the layer surface, not the delegate MouseAreas).
 
             Repeater {
               model: root.drawerItems
@@ -383,7 +346,6 @@ BarWidget {
 
       Text {
         text: "Tray icons"
-        // Uppercase tracked accent header, matching the shell's PanelSectionHeader.
         color: Color.accent
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
@@ -392,7 +354,6 @@ BarWidget {
         font.letterSpacing: Style.headerTracking
       }
 
-      // Style.emphasis, not Qt.darker: the shared emphasis ladder is how every other panel de-emphasises secondary text, and darkening the foreground against a dark card reduces contrast instead of softening it.
       Text {
         text: "Pinned icons stay visible. Hidden icons never show."
         color: root.foreground
@@ -418,9 +379,7 @@ BarWidget {
         delegate: Item {
           id: rowRoot
           required property var modelData
-          required property int index
           width: manageColumn.width
-          // Was a raw 28/16/8/3 ladder — the only control rows in the shell that did not scale with theme.json's font size, so this popup stayed put while every other panel grew around it.
           implicitHeight: Style.row.control
 
           readonly property string itemId: String(modelData.id || "")
@@ -503,16 +462,14 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.trayMenuOpen
-    // Rows carry their own hover fill, so the card only needs a thin inset.
     padding: Style.spacing.sm
-    // The card fades out over 140ms (visible stays true for that whole time -- see PopupCard's own visible: open || card.opacity > 0), so resetting on "open" would swap a live submenu for the root menu mid-fade: a visible flash, and a resize/reposition if the two have different geometry.
+    // on visible, not open: resetting mid-fade flashes the root menu
     onVisibleChanged: if (!visible) root.resetTrayMenu()
     contentWidth: trayMenuPopup.fittedContentWidth(Style.space(232))
     contentHeight: trayMenuPopup.fittedContentHeight(menuHeaderHeight + trayMenuColumn.implicitHeight, Style.space(420))
 
-    // Column skips invisible children but keeps reporting their height, so read the header's extent through its own visibility.
+    // Column still reports hidden children's height
     readonly property int menuHeaderHeight: menuHeader.visible ? menuHeader.implicitHeight : 0
-    // Check and icon gutters are reserved only when some entry in this level uses them.
     readonly property var menuEntries: root.currentChildren ? root.currentChildren.values : []
     readonly property bool hasCheckColumn: menuEntries.some(e => !e.isSeparator && e.buttonType !== QsMenuButtonType.None)
     readonly property bool hasIconColumn: menuEntries.some(e => !e.isSeparator && String(e.icon || "") !== "")
@@ -524,7 +481,6 @@ BarWidget {
       anchors.fill: parent
       spacing: 0
 
-      // Header for a drilled-into submenu: names where we are and walks back out.
       Column {
         id: menuHeader
         visible: root.submenuDepth > 0
@@ -532,7 +488,6 @@ BarWidget {
         spacing: 0
 
         Item {
-          id: menuBackRow
           width: menuHeader.width
           implicitHeight: Style.space(30)
 
@@ -574,7 +529,6 @@ BarWidget {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               if (root.menuLevelSettling) return
-              // Reset before the model swap so the parent level shows from the top (same ordering as the row delegate below).
               trayMenuFlick.contentY = 0
               root.leaveSubmenu()
             }
@@ -626,7 +580,7 @@ BarWidget {
 
               readonly property string rowText: String(modelData.text || "")
               readonly property string activeTitle: root.activeTrayItem ? String(root.activeTrayItem.title || root.activeTrayItem.id || "") : ""
-              // Both only ever describe the root menu; inside a submenu the first rows are real entries and must not be swallowed.
+              // title row and leading separator exist only at the root
               readonly property bool atRoot: root.submenuDepth === 0
               readonly property bool rootTitleEntry: atRoot && index === 0 && modelData.hasChildren && rowText.toLowerCase() === activeTitle.toLowerCase()
               readonly property bool leadingSeparator: atRoot && modelData.isSeparator && index <= 1
@@ -670,7 +624,6 @@ BarWidget {
               }
 
               Image {
-                id: menuIcon
                 visible: !menuRow.modelData.isSeparator && String(menuRow.modelData.icon || "") !== ""
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
@@ -678,7 +631,7 @@ BarWidget {
                 width: Style.space(16)
                 height: Style.space(16)
                 fillMode: Image.PreserveAspectFit
-                // Decode at physical pixels: IconImage uses the logical size, which leaves PNG icons upscaled and blurry on HiDPI displays.
+                // decode at physical pixels for hidpi
                 sourceSize.width: width * Screen.devicePixelRatio
                 sourceSize.height: height * Screen.devicePixelRatio
                 source: menuRow.modelData.icon
@@ -720,7 +673,7 @@ BarWidget {
                 onClicked: {
                   if (root.menuLevelSettling) return
                   if (menuRow.modelData.hasChildren) {
-                    // Reset scroll BEFORE swapping the model: the swap destroys this delegate synchronously and ids stop resolving after.
+                    // before the swap: it destroys this delegate
                     trayMenuFlick.contentY = 0
                     root.enterSubmenu(menuRow.modelData, menuRow.rowText)
                   } else {
@@ -736,7 +689,6 @@ BarWidget {
     }
   }
 
-  // Renders a tray icon, tinting it toward the bar foreground so every icon blends with the current theme.
   component TrayIcon: Item {
     id: trayIconRoot
     required property var icon
@@ -746,11 +698,11 @@ BarWidget {
       id: trayIconImage
       anchors.fill: parent
       fillMode: Image.PreserveAspectFit
-      // Decode at physical pixels: IconImage uses the logical size, which leaves PNG icons upscaled and blurry on HiDPI displays.
+      // decode at physical pixels for hidpi
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       source: root.trayIconSource(trayIconRoot.icon)
-      // Always hidden — used only as a texture source for the MultiEffect.
+      // texture source for the MultiEffect only
       visible: false
       layer.enabled: Style.fx.glow > 0
     }
@@ -779,14 +731,12 @@ BarWidget {
 
     TrayIcon {
       anchors.centerIn: parent
-      // Was space(12) — every other bar icon renders at iconCanvas (16) inside an iconSlot (30); the tray drew noticeably smaller than its neighbours.
       width: Style.bar.iconCanvas
       height: Style.bar.iconCanvas
       icon: trayItemRoot.modelData.icon
     }
 
     MouseArea {
-      id: mouseArea
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       hoverEnabled: true
@@ -814,7 +764,5 @@ BarWidget {
         trayItemRoot.modelData.scroll(wheel.angleDelta.y, false)
       }
     }
-
-    readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse
   }
 }

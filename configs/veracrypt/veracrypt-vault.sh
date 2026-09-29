@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# VeraCrypt "vault in home" helper: create/mount/dismount an encrypted container.
-# The password is YOUR secret: veracrypt --text prompts for it, this never stores it.
 set -euo pipefail
 
-# Container lives in ~/sync so syncthing carries the ENCRYPTED blob between
-# devices. Mount point is ~/vault, OUTSIDE ~/sync, so decrypted contents never
-# sync. Do not mount on two machines at once (two writers conflict the blob).
+# container syncs via ~/sync, the mountpoint stays outside it
 CONTAINER="${VAULT_HC:-$HOME/sync/vault.hc}"
 MOUNTPOINT="${VAULT_MOUNT:-$HOME/vault}"
 DEFAULT_SIZE="1G"
@@ -20,7 +16,6 @@ usage() {
 }
 
 cmd_create() {
-    # Never overwrite an existing vault: that would destroy its data.
     if [ -e "$CONTAINER" ]; then
         echo "refusing to create: $CONTAINER already exists" >&2
         exit 1

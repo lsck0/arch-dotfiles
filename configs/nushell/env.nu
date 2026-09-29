@@ -18,5 +18,3 @@ $env.PATH = (
     | uniq
     | where { |p| $p != "" }
 )
-
-$env.NU_VENDOR_DIR = $"($env.HOME)/.cache/nushell"

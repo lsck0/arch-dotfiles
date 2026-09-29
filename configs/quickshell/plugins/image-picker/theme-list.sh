@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lists premade-theme wallpapers for image-picker's Themes mode (mode 1).
+# lists theme wallpapers for image-picker's themes mode
 
 theme_dir=${1:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/image-selector
@@ -25,11 +25,7 @@ except OSError:
 if not os.path.isdir(theme_dir):
     sys.exit(0)
 
-# (wallpaper, theme_name) pairs -- theme_name is the JSON's own basename
-# (e.g. "dracula.json" -> "dracula"), carried through as a 3rd tsv column
-# so the picker can label the entry by theme, not by its wallpaper's
-# filename. Dedup by wallpaper: first theme JSON to claim a wallpaper wins
-# the picker entry.
+# (wallpaper, theme name) pairs, first theme to claim a wallpaper wins
 files = []
 seen = set()
 for name in sorted(os.listdir(theme_dir)):
@@ -61,7 +57,7 @@ for image, theme_name in files:
     sys.stdout.flush()
 PY
 
-# Generate any missing thumbnails after the listing, detached — mirrors list.sh's own background pass so the picker never waits on vipsthumbnail.
+# thumbnails generated after listing, detached
 if command -v vipsthumbnail >/dev/null 2>&1; then
   (
     python3 -c '

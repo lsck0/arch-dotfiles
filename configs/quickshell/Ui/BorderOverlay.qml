@@ -3,7 +3,6 @@ import QtQuick.Shapes
 import qs.Commons
 import "../Commons/BorderGeometry.js" as Geometry
 
-// Visual-only border renderer for gradient or per-side-width borders.
 Item {
   id: root
 

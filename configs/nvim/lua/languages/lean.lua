@@ -1,4 +1,3 @@
--- Lean theorem prover.
 return {
     {
         "Julian/lean.nvim",

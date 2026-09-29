@@ -1,16 +1,9 @@
 #!/bin/bash
-# Adapted from omarchy's bin/omarchy-reminder.
-
-# omarchy:summary=Set and show lightweight desktop notification reminders
-# omarchy:args=[-i|--interactive] | <minutes> [message] | show [-j|--json] | clear
-# omarchy:examples=reminder.sh -i | reminder.sh 5 | reminder.sh 30 "Check the oven" | reminder.sh show | reminder.sh show --json | reminder.sh clear
-
 set -euo pipefail
 
 SELF_DIR="$(dirname "$(readlink -f "$0")")"
-# alert.sh is a sibling here; notification-send.sh is repo-level, three up.
 ALERT_BIN="$SELF_DIR/alert.sh"
-BELL="󰂞"   # md-bell_ring
+BELL="󰂞"
 NOTIFY_BIN="$SELF_DIR/../../../scripts/notification-send.sh"
 
 format_remaining() {
@@ -125,17 +118,16 @@ cancel_reminder() {
   local reminder_dir="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
   local unit
 
-  # Accept either "<unit>" or "<unit>.timer" — show --json emits both shapes.
+  # accept unit or unit.timer
   unit=${target%.timer}
   unit=${unit%.service}
 
-  # Only ever touch this script's own units: the argument reaches here from a QML click handler, and `systemctl stop` on an arbitrary caller-supplied name is not something to hand out.
+  # never stop arbitrary caller-supplied units
   if [[ -z $unit || $unit != quickshell-reminder-* ]]; then
     echo "reminder.sh: refusing to cancel non-reminder unit '${target}'" >&2
     return 1
   fi
 
-  # Both units, not just the timer.
   systemctl --user stop "$unit.timer" "$unit.service" 2>/dev/null || true
   rm -f "$reminder_dir/$unit.message" 2>/dev/null || true
 }
@@ -203,7 +195,6 @@ if [[ -z $minutes ]] || [[ ! $minutes =~ ^[0-9]+$ ]] || ((minutes == 0)); then
 fi
 
 unit_label=$( ((minutes == 1)) && echo "1 minute" || echo "${minutes} minutes")
-# The alert card leads with what you asked to be reminded of.
 alert_title=${message:-"Time's up"}
 alert_body="${unit_label/%s/} reminder"
 
@@ -222,7 +213,7 @@ if [[ -n $custom_message ]]; then
   confirmation_title="$custom_message in ${unit_label}"
 fi
 
-# Fires through alert.sh, not notification-send: a reminder that elapses while you are looking at another workspace must not auto-expire into nothing.
+# alert.sh, so an elapsed reminder does not auto-expire
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
   bash -c '"$3" "$1" "$4" '"$BELL"' reminder "$5"; rm -f "$2"' bash "$alert_title" "$message_file" "$ALERT_BIN" "$alert_body" "$custom_message"
 

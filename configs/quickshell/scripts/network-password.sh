@@ -1,6 +1,4 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-network-password.
-
 set -euo pipefail
 
 interface=${1:?Usage: network-password.sh <interface>}
@@ -20,11 +18,11 @@ wep_key=${fields[2]:-}
   exit 1
 }
 if [[ -z $key_management || $key_management == "none" ]]; then
-  # NetworkManager models WEP as key-mgmt "none" plus a wep-key.
+  # nm models wep as key-mgmt none plus a wep-key
   password=$wep_key
   [[ -n $password ]] || { echo "This network has no password" >&2; exit 1; }
 fi
 [[ -n $password ]] || { echo "Could not read the Wi-Fi password" >&2; exit 1; }
 
-# Stdout is a private pipe to the caller; the secret is never an argument, so it never shows up in /proc cmdlines.
+# stdout only, never an argv visible in /proc
 printf '%s\n' "$password"

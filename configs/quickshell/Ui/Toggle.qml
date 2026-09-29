@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// Labeled toggle row: title + optional description on the left, a `ToggleSwitch` on the right.
 BorderSurface {
   id: root
 
@@ -10,10 +9,8 @@ BorderSurface {
   property string description: ""
   property bool checked: false
 
-  // Panel-cursor flag.
   property bool hasCursor: false
 
-  // Switch shape follows the theme by default: pill on round, square on sharp.
   property bool rounded: Style.cornerRadius > 0
 
   property color foreground: Color.foreground
@@ -42,7 +39,6 @@ BorderSurface {
 
   Behavior on color { ColorAnimation { duration: 100 } }
 
-  // Accent neon bloom on the focused row; the switch itself glows when on.
   layer.enabled: Style.fx.glow > 0 && activeFocus
   layer.effect: MultiEffect {
     shadowEnabled: true
@@ -91,7 +87,7 @@ BorderSurface {
       }
     }
 
-    // The row owns the click, so the switch is presentation only here.
+    // the row owns the click
     ToggleSwitch {
       id: track
       checked: root.checked

@@ -1,5 +1,3 @@
-local platform = require("platform")
-
 local mod = "SUPER"
 
 local function shell_bin(name)

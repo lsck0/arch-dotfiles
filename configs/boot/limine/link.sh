@@ -18,7 +18,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 enable_initramfs_images
 install_boot_menu limine
 
-# archinstall deploys limine when it was picked there; otherwise deploy it now.
+# archinstall may already have deployed limine
 LIMINE_EFI="$(sudo /usr/local/bin/boot-menu limine-efi)"
 if [[ -z "$LIMINE_EFI" ]]; then
     LIMINE_EFI="$ESP/EFI/limine/BOOTX64.EFI"
@@ -26,7 +26,7 @@ if [[ -z "$LIMINE_EFI" ]]; then
 fi
 sed "s|@LIMINE_EFI@|$LIMINE_EFI|" "$HERE/limine-deploy.hook" | sudo tee /etc/pacman.d/hooks/limine-deploy.hook >/dev/null
 
-# Firmware entry for limine, first in BootOrder.
+# firmware entry, first in BootOrder
 loader="${LIMINE_EFI#"$ESP"}"
 loader="${loader//\//\\}"
 num="$(sudo efibootmgr | L="$loader" awk 'index(tolower($0), tolower(ENVIRON["L"])) { print substr($1, 5, 4); exit }')"
@@ -39,10 +39,10 @@ else
     efi_boot_first "$num"
 fi
 
-# GRUB is not the bootloader any more; its menu scripts stay but nothing runs them.
+# grub is no longer the bootloader
 sudo rm -f /etc/pacman.d/hooks/grub-disable-10_linux.hook
 
-# Writes limine.conf (kernels + timeshift snapshots) and signs the limine binary.
+# writes limine.conf and signs the limine binary
 sudo /usr/local/bin/boot-menu limine
 
 sbctl_sign "$ESP"/vmlinuz-*

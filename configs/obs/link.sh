@@ -10,17 +10,17 @@ set -ex
 mkdir -p ${HOME}/.config/obs-studio/basic/scenes/
 mkdir -p ${HOME}/.config/obs-studio/basic/profiles/Untitled/
 
-# scene collection carries stream tokens, so it lives in the private secrets submodule, not this public repo
+# scenes carry stream tokens, so they live in secrets
 ln -sfn "$(readlink -f ../secrets/obs-Untitled.json)" ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
 ln -sfn ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
-# global config: SafeMode off + AutomaticSearch on so a missing capture device auto-retries instead of prompting for every source on launch (issue 32)
+# no safe-mode prompt for a missing capture device (issue 32)
 [ -f ${HOME}/.config/obs-studio/global.ini ] || ln -sfn ${PWD}/global.ini ${HOME}/.config/obs-studio/global.ini
 
-# obs-websocket, for the bar's OBS status widget (configs/quickshell/plugins/bar/widgets/obs-status.py).
+# obs-websocket for the bar's obs widget
 OBS_WS_DIR="${HOME}/.config/obs-studio/plugin_config/obs-websocket"
 if [ ! -f "${OBS_WS_DIR}/config.json" ]; then
 	mkdir -p "${OBS_WS_DIR}"
-	# set +x for the rest of the block: this script runs under `set -ex`, and tracing it would print the generated password to the terminal and into any log the link run is captured in.
+	# keep the password out of the trace
 	set +x
 	OBS_WS_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
 	(
@@ -41,7 +41,7 @@ if [ ! -f "${OBS_WS_DIR}/config.json" ]; then
 	set -x
 fi
 
-# Patch the OBS desktop launcher with CEF/Chromium flags
+# cef flags for the desktop launcher
 OBS_FLAGS="--use-fake-ui-for-media-stream --enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults,LocalNetworkAccess"
 OBS_DESKTOP_SRC=/usr/share/applications/com.obsproject.Studio.desktop
 OBS_DESKTOP_DEST="${HOME}/.local/share/applications/com.obsproject.Studio.desktop"

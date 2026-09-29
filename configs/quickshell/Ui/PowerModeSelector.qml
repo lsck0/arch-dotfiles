@@ -3,43 +3,10 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 
-/*
- * -----------------------------------------------------------------------------
- * PowerModeSelector — the TLP power-profile chip row
- * -----------------------------------------------------------------------------
- *
- * WHAT IT IS. The whole power-mode control: the option list, the reader, the
- * writer, and the ButtonGroup that shows them. Drop it in a panel and it works.
- *
- *   PowerModeSelector {
- *     width: parent.width
- *     active: panel.visible     // read the backend only while on screen
- *   }
- *
- * WHY IT EXISTS. System.qml and Battery.qml each carried their own copy of
- * `powerMode`, `powerModeScript`, `refreshPowerMode()`, `setPowerMode()`, a
- * `Process`, a 5s `Timer` and the option array — ~35 identical lines twice, and
- * they had already drifted: System grew the "Auto" chip for the no-override
- * state and Battery never did, so the same setting rendered with nothing
- * selected in one panel and correctly in the other. One definition cannot
- * disagree with itself.
- *
- * WHAT IT DOES NOT DO. It does not own the setting. toggles/toggle-powermode.sh
- * is the single source of truth for power mode, here as everywhere else in this
- * repo; this reads it with `get` and writes it by invoking the script. Nothing
- * is cached across a `set`, the value is re-read from the backend.
- *
- * "" from the script means NO forced override — TLP is on the boot default from
- * configs/tlp/tlp.conf. That is a real state, not a missing reading, so it maps
- * onto a real "Auto" chip rather than leaving the group blank.
- */
+// tlp power-mode chips, toggle-powermode.sh owns the state
 Item {
   id: root
 
-  // ----------------------------------------------------------- CONSTANTS
-
-  // The four states toggle-powermode.sh accepts.
-  // Labels are display-only (matched by `value`); uppercased for the tracked terminal-chip look.
   readonly property var modeOptions: [
     { value: "auto",        label: "AUTO" },
     { value: "power-saver", label: "POWER SAVER" },
@@ -47,24 +14,16 @@ Item {
     { value: "performance", label: "PERFORMANCE" }
   ]
 
-  // Catch-up poll for changes made outside this control — a keybind, toggles/menu.sh, another panel.
+  // catches changes made elsewhere
   readonly property int pollIntervalMs: 5000
 
-  // Time for the detached script to fork, source lib.sh, call `sudo tlp` and write its volatile state file before the value is worth re-reading.
+  // let the detached script finish before re-reading
   readonly property int applySettleMs: 600
 
-  // ----------------------------------------------------------- API
-
-  // Bind to the containing panel's visibility.
   property bool active: false
 
-  // Palette + type, so a panel can match its surroundings.
   property color foreground: Color.menu.text
-  property color background: "transparent"
   property real fontSize: Style.font.caption
-
-  // Current mode as the script reports it. "" is no override (see header).
-  readonly property alias mode: internal.mode
 
   readonly property string script: Paths.toggle("toggle-powermode.sh")
 
@@ -79,8 +38,6 @@ Item {
 
   implicitWidth: group.implicitWidth
   implicitHeight: group.implicitHeight
-
-  // ----------------------------------------------------------- INTERNAL
 
   QtObject {
     id: internal
@@ -117,9 +74,9 @@ Item {
     fill: true
     spacing: Style.spacing.xs
     options: root.modeOptions
+    // "" means no override, shown as auto
     value: internal.mode === "" ? "auto" : internal.mode
     foreground: root.foreground
-    background: root.background
     fontSize: root.fontSize
     onChanged: function(value) { root.apply(value) }
   }

@@ -1,4 +1,3 @@
--- LaTeX luasnip snippets: sections, environments, and math (autosnippets in math zones).
 local ls = require("luasnip")
 local s = ls.snippet
 local i = ls.insert_node
@@ -9,7 +8,7 @@ local rep = require("luasnip.extras").rep
 
 ls.config.set_config({ enable_autosnippets = true })
 
--- vimtex's zone check; pcall-guarded so it is safe before vimtex finishes loading
+-- pcall: vimtex may not be loaded yet
 local function in_math()
     local ok, res = pcall(vim.fn["vimtex#syntax#in_mathzone"])
     return ok and res == 1

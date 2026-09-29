@@ -1,26 +1,24 @@
 #!/usr/bin/env bash
-# Downloads a short precipitation-radar loop centred on the current location and prints a manifest of LOCAL FILE PATHS for Weather.qml to animate.
+# radar loop around the current location, prints a manifest of local frame paths
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/radar"
 MANIFEST="$CACHE_DIR/manifest.json"
 
-# z=7 is roughly a 400 km square at mid latitudes: wide enough to see weather arriving, tight enough that a front is not one undifferentiated smear.
+# z=7 is roughly a 400 km square
 ZOOM=7
 SIZE=512
-# 4 = the "Universal Blue" palette; 1_1 = smoothed, snow shown separately.
+# universal blue palette, smoothed, snow separate
 COLOUR=4
 OPTIONS=1_1
-# Four hours of history at ten-minute steps.
 HISTORY_MIN=240
 STEP_MIN=10
-# The upstream index only advances every ten minutes, so refetching sooner re-downloads identical PNGs.
+# upstream index advances every ten minutes
 MAX_AGE=540
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
-# Serve the cached manifest when it is still current.
 if [[ -s "$MANIFEST" ]]; then
     age=$(( $(date +%s) - $(stat -c %Y "$MANIFEST" 2>/dev/null || echo 0) ))
     if (( age >= 0 && age < MAX_AGE )); then
@@ -34,7 +32,7 @@ read -r SOURCE COORDS <<<"$("$TOGGLES/toggle-weather-location.sh" resolve 2>/dev
 LAT=${COORDS%%,*}
 LON=${COORDS##*,}
 
-# Inside the DWD composite the WMS is used; it needs no index round trip.
+# dwd wms inside germany, rainviewer elsewhere
 if python3 -c "import sys; la, lo = map(float, sys.argv[1:3]); sys.exit(not (47.0 <= la <= 55.1 and 5.8 <= lo <= 15.1))" "$LAT" "$LON"; then
     PROVIDER=dwd
     INDEX=""
@@ -48,7 +46,7 @@ fi
 
 mkdir -p "$CACHE_DIR" || fail "cache unavailable"
 
-# Emit the frames to fetch as "<index> <unix-ts> <url> <is-forecast>" lines.
+# lines of "<index> <unix-ts> <url> <is-forecast>"
 PLAN=$(python3 - "$PROVIDER" "$INDEX" "$HISTORY_MIN" "$STEP_MIN" "$SIZE" "$ZOOM" "$LAT" "$LON" "$COLOUR" "$OPTIONS" <<'PY'
 import json, math, sys, time, urllib.parse
 provider, index = sys.argv[1], sys.argv[2]
@@ -61,7 +59,7 @@ if provider == "dwd":
     x = math.radians(lon) * r
     y = math.log(math.tan(math.pi / 4 + math.radians(lat) / 2)) * r
     half = size * 156543.03392 / 2 ** zoom / 2
-    # The newest composite lands a few minutes after its timestamp.
+    # newest composite lands a few minutes late
     latest = (int(time.time()) - 5 * 60) // (step * 60) * (step * 60)
     for i, ts in enumerate(range(latest - history * 60, latest + 1, step * 60)):
         query = urllib.parse.urlencode({
@@ -79,9 +77,6 @@ try:
 except Exception:
     sys.exit(1)
 radar = d.get("radar") or {}
-# Nowcast frames are appended so the loop runs past "now" into the forecast
-# when the provider has one; they are flagged in the manifest so the UI can
-# say which part of the loop is a prediction.
 frames = [(f, False) for f in (radar.get("past") or [])] + \
          [(f, True) for f in (radar.get("nowcast") or [])]
 if not frames:
@@ -95,7 +90,7 @@ PY
 ) || fail "bad index"
 [[ -z "$PLAN" ]] && fail "bad index"
 
-# EACH REFRESH GETS ITS OWN FRAME DIRECTORY, AND THE MANIFEST IS THE SWITCH.
+# each refresh gets its own frame dir, the manifest is the switch
 NOW=$(date +%s)
 
 STAGE="$CACHE_DIR/f-$NOW"
@@ -103,7 +98,6 @@ export STAGE
 rm -rf "$STAGE"
 mkdir -p "$STAGE" || fail "cache unavailable"
 
-# DOWNLOADED IN PARALLEL.
 while read -r idx ts path is_forecast; do
     [[ -z "${path:-}" ]] && continue
     printf '%s\t%s\t%s\t%s\n' "$idx" "$ts" "$path" "$is_forecast"
@@ -113,12 +107,11 @@ done <<<"$PLAN" > "$STAGE/.plan"
 < "$STAGE/.plan" cut -f1,3 | xargs -P 6 -n 2 bash -c '
     out=$(printf "%s/frame-%02d.png" "$STAGE" "$0")
     curl -sf --max-time 15 -o "$out" "$1" 2>/dev/null || exit 0
-    # A truncated body or an error page is not a usable frame; drop it rather than letting the widget render a hole in the middle of the loop.
+    # drop truncated bodies and error pages
     [[ -s "$out" ]] || { rm -f "$out"; exit 0; }
     head -c 8 "$out" | grep -q PNG || rm -f "$out"
 ' 2>/dev/null
 
-# The frames stay where they were downloaded, so the paths in the manifest are the staging paths.
 ENTRIES=""
 while IFS=$'\t' read -r idx ts path is_forecast; do
     staged=$(printf '%s/frame-%02d.png' "$STAGE" "$idx")
@@ -131,7 +124,7 @@ done < "$STAGE/.plan"
 LIST="$STAGE/.frames"
 printf '%s' "$ENTRIES" > "$LIST"
 
-# The manifest is what reaches QML, and it carries no coordinate: file paths, minutes relative to now, and the span the image covers in kilometres.
+# the manifest carries no coordinates
 PUBLISHED=1
 python3 - "$NOW" "$ZOOM" "$SIZE" "$MANIFEST" "$LIST" "$LAT" "$ATTRIBUTION" <<'PY' || PUBLISHED=0
 import json, os, sys, math
@@ -148,13 +141,12 @@ for line in open(listfile):
     path, ts, is_forecast = parts[0], int(parts[1]), parts[2] == "1"
     frames.append({
         "file": path,
-        # Relative, never absolute: a wall-clock timestamp plus a screenshot
-        # narrows a timezone, and the bar clock already shows local time.
+        # relative so it cannot narrow a timezone
         "minutes": int(round((ts - now) / 60.0)),
         "forecast": is_forecast,
     })
 
-# Web-Mercator ground resolution at this latitude, times the image edge.
+# web mercator ground resolution times image edge
 metres_per_px = 156543.03392 * math.cos(math.radians(lat)) / (2 ** zoom)
 span_km = int(round(size * metres_per_px / 1000.0))
 
@@ -162,8 +154,7 @@ out = {
     "ok": True,
     "frames": frames,
     "spanKm": span_km,
-    # Attribution is a licence condition of both free sources, so the widget
-    # must actually display it.
+    # licence condition, must be displayed
     "attribution": sys.argv[7],
 }
 
@@ -184,17 +175,10 @@ def scan(o, path=""):
 leak = scan(out)
 if leak:
     print(json.dumps({"ok": False, "error": "location field leaked: " + leak}))
-    # Non-zero, so the caller does NOT prune: no manifest was written, the
-    # previous generation is still the live one, and deleting it here would
-    # strand the manifest that still names it.
+    # non-zero so the caller keeps the live generation
     sys.exit(1)
 
-# Written beside the manifest and renamed over it. os.replace is atomic within
-# a filesystem, so a concurrent reader (`cat "$MANIFEST"` on the cached path,
-# which is what most calls do) gets either the whole previous manifest or the
-# whole new one — never a half-written object, and never one naming frames that
-# are mid-delete. The rename is also what publishes this run's frame directory;
-# the exit status tells the shell whether the generation is safe to prune.
+# atomic rename so concurrent readers never see a partial manifest
 ok = True
 try:
     tmp = manifest + ".tmp"
@@ -212,7 +196,7 @@ print(json.dumps(out))
 sys.exit(0 if ok else 1)
 PY
 
-# PRUNE ONLY WHAT THE MANIFEST NO LONGER NAMES, and only once it has been published.
+# prune only after publishing
 if (( PUBLISHED )); then
     for old in "$CACHE_DIR"/f-*; do
         [[ -d "$old" ]] || continue
@@ -221,6 +205,5 @@ if (( PUBLISHED )); then
     done
     rm -f "$CACHE_DIR"/frame-*.png "$CACHE_DIR"/.frames
 else
-    # Nothing published, so this run's frames are unreachable.
     rm -rf "$STAGE"
 fi

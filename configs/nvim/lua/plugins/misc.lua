@@ -70,7 +70,7 @@ return {
     },
     {
         "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
-        -- Not lazy: the plugin has to own BufReadCmd/BufWriteCmd before a file is opened, otherwise the first sops file of a session shows ciphertext.
+        -- not lazy: must own BufReadCmd before the first sops file opens
         lazy = false,
         opts = { disabled = false },
         keys = {
@@ -102,9 +102,9 @@ return {
     },
 
     {
-        "dijeferson/gpg.nvim", -- transparent GPG encryption/decryption for *.gpg/*.asc files
+        "dijeferson/gpg.nvim", -- transparent gpg for *.gpg/*.asc
         opts = {
-            use_armor = true,  -- .asc output, portable for pasting into chats/email
+            use_armor = true, -- .asc output, pasteable
             allow_clipboard = true,
             show_progress = "toast",
         },
@@ -120,7 +120,7 @@ return {
         end,
     },
     {
-        "matthandzel/taskwarrior.nvim", -- taskwarrior integration: edit the task db as a buffer
+        "matthandzel/taskwarrior.nvim", -- edit the task db as a buffer
         config = function()
             require("taskwarrior").setup()
         end,

@@ -1,4 +1,4 @@
--- Silence a third-party plugin's deprecated vim.lsp.buf_get_clients() warning
+-- silence a plugin's deprecated buf_get_clients() warning
 local _deprecate = vim.deprecate
 vim.deprecate = function(name, ...)
     if type(name) == "string" and name:find("buf_get_clients") then return end
@@ -9,7 +9,12 @@ local set = vim.opt
 
 set.clipboard = "unnamedplus"
 
--- Over SSH, yank to the local terminal's clipboard via OSC 52.
+-- synced project wordlist for spell; zg/zw persist here into the dotfiles repo
+set.spellfile = vim.fn.stdpath("config") .. "/spell/en.utf-8.add"
+-- no sentence-start capitalization warnings
+set.spellcapcheck = ""
+
+-- over ssh, yank to the local clipboard via osc 52
 if vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
     local osc = require("vim.ui.clipboard.osc52")
     local function from_reg()
@@ -57,10 +62,8 @@ set.virtualedit = "block"
 set.winborder = "rounded"
 set.wrap = false
 set.modeline = false -- security: no option execution from opened files
--- Never soft-wrap anywhere. Auto-inserted newlines (textwidth + fo 't') are set
--- only for prose filetypes in autocmds.lua, so code is never hard-wrapped mid-line.
 
--- Unused language providers: skip the startup rplugin scan + checkhealth noise.
+-- unused providers: skip the startup rplugin scan
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
 vim.g.loaded_ruby_provider = 0

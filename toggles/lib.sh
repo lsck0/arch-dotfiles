@@ -12,7 +12,7 @@ toggle_set() {
     echo -n "$2" >"$TOGGLES_STATE_DIR/$1"
 }
 
-# Volatile variant backed by tmpfs (XDG_RUNTIME_DIR), for a toggle whose check_fn has no live system state to query and must track its own status — use this instead of toggle_get/toggle_set when the underlying tool resets itself on boot (e.g. TLP always reverts to auto-detect). A persistent file would still say "on" after a reboot that silently cleared it; tmpfs gets wiped at the same time the real state does, so it can't go stale.
+# tmpfs-backed variant for a toggle whose tool resets on boot (e.g. tlp): wiped with the real state, so status can't go stale
 TOGGLES_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/toggles"
 mkdir -p "$TOGGLES_RUNTIME_DIR"
 

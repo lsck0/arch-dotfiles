@@ -1,9 +1,5 @@
 #:schema https://yazi-rs.github.io/schemas/theme.json
-# yazi theme -- cyberpunk/terminal rice, colors from the wallust/pywal palette.
-# Wallust renders this into ~/.cache/wal/colors-yazi.toml on every theme switch;
-# yazi's theme.toml is a symlink to that file (see configs/yazi/link.sh).
-# Palette keys colorN are substituted by wallust; literal TOML braces are doubled.
-# color4 is the rice accent (mode/selection/borders); glyphs inherit yazi's preset.
+# literal braces are doubled for wallust
 
 [mgr]
 cwd = {{ fg = "{color4}", bold = true }}

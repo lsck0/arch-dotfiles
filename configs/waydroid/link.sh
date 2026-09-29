@@ -7,11 +7,10 @@ fi
 
 set -ex
 
-# Android has no scroll-to-zoom gesture, so no waydroid property can add one.
 waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.cursor_on_subsurface true
 
-# Android-side half needs a running session; re-runnable afterwards.
+# android-side settings need a running session
 if waydroid status 2>/dev/null | grep -q "Session:[[:space:]]*RUNNING"; then
     waydroid shell -- settings put global development_settings_enabled 1
     waydroid shell -- settings put global enable_freeform_support 1

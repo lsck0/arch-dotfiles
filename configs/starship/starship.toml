@@ -2,7 +2,6 @@ add_newline = true
 command_timeout = 3000
 scan_timeout = 100
 
-# two-line: info segments on top, the prompt char alone below (cleaner, roomier)
 format = """
 $directory$git_branch$git_status$git_metrics$rust$python$nodejs$golang$lua$nix_shell$cmd_duration$jobs$status
 $character"""
@@ -42,12 +41,10 @@ symbol = "󰜗 "
 [aws]
 disabled = true
 
-# --- richer, cohesive cyberpunk prompt ------------------------------------
 [git_status]
 disabled = false
 style = 'bold red'
-# Conventional starship symbols, presence only (no per-file counts: this repo stays
-# dirty, counts would spam). Counts kept only for ahead/behind, which stay small.
+# presence only, counts would spam on dirty repos
 format = '([\[$all_status$ahead_behind\]]($style) )'
 conflicted = '='
 untracked = '?'

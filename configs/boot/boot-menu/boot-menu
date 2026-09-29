@@ -6,15 +6,7 @@ usage: boot-menu grub-kernels     print one GRUB entry per kernel (for /etc/grub
        boot-menu limine           write limine.conf with kernel and snapshot entries
        boot-menu limine-efi       print the limine EFI binary on the ESP, if any
 
-Entries are named after the kernel package and boot with the arguments from
-/etc/kernel/cmdline.
-
-Kernels and initramfs live on the ESP, outside every snapshot, so a snapshot
-always boots a kernel that is installed *now*. That only works while the
-snapshot still holds that kernel's modules. Per snapshot this lists every
-installed kernel whose modules are in it, `linux` first. When `linux` does not
-match (it was upgraded since), `linux-lts` moves to the top: LTS versions change
-rarely, so it is the kernel most likely to still fit an older snapshot.
+Snapshots boot current ESP kernels, so each lists only kernels whose modules it holds.
 """
 
 import hashlib
@@ -133,7 +125,7 @@ def snapshot_menus(top, kernels):
 
         order = boot_order(kernels, snap / "@")
         if not order:
-            # Nothing matches; offer LTS anyway, it may still get far enough to restore.
+            # nothing matches; lts may still get far enough to restore
             name = FALLBACK if FALLBACK in kernels else sorted(kernels, key=rank)[0]
             entries = [(f"{name} (no matching modules)", name)]
         else:
@@ -172,7 +164,7 @@ def current_subvol(root):
     return root["fsroot"] if root["fstype"] == "btrfs" and root["fsroot"] != "/" else None
 
 
-# GRUB
+# grub
 
 def grub_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -234,7 +226,7 @@ def render_limine(menus, kernels, cmdline, flags, root, esp):
     lines = [LIMINE_MARKER, "timeout: 5", ""]
     args = boot_args(cmdline, flags, current_subvol(root))
     for name in sorted(kernels, key=rank):
-        # Signed UKIs for the normal entries; snapshots need a different root, so plain kernels.
+        # snapshots need a different root, so only normal entries use ukis
         lines += limine_entry(1, f"Arch Linux ({name})", kernels[name], args, esp, uki=True) + [""]
     if menus:
         lines.append("/Timeshift snapshots")
@@ -289,7 +281,7 @@ def write_limine(text):
         return
     enrolled = re.search(rb"\+\+CONFIG_B2SUM_SIGNATURE\+\+([0-9a-f]{128})", efi.read_bytes())
     if changed and enrolled and enrolled.group(1) != b"0" * 128:
-        # limine refuses a config whose checksum does not match the enrolled one.
+        # limine refuses a config that does not match the enrolled checksum
         subprocess.run(["limine", "enroll-config", str(efi), hashlib.blake2b(text.encode()).hexdigest()], check=True)
     sbctl_sign(efi)
 
@@ -310,13 +302,13 @@ def main():
     if root["fsroot"].startswith("/timeshift-btrfs/"):
         message = "boot-menu: running from a timeshift snapshot, not touching the boot menu"
         if mode == "grub-kernels":
-            # Fail so grub-mkconfig aborts and keeps the grub.cfg that still has kernels.
+            # fail so grub-mkconfig keeps the old grub.cfg
             sys.exit(message)
         print(message, file=sys.stderr)
         return
     kernels = installed_kernels()
     if not kernels:
-        # Never write a menu without kernels; the existing one still boots.
+        # never write a menu without kernels
         sys.exit("boot-menu: no kernel with vmlinuz + initramfs in /boot")
     cmdline, flags = base_cmdline(root["uuid"])
     esp = mount_of(ESP)

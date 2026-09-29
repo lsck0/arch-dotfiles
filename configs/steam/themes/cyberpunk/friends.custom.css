@@ -1,10 +1,8 @@
-/* Friends/chat window -- shared cyberpunk rules first, wal palette overrides last. */
+/* colors.css last so it wins */
 @import url("shared.css");
 @import url("colors.css");
 
-/* ----- Friends/chat specifics: cosmetic only (recolor + inset-shadow border + glow) ----- */
-
-/* Message entry field as a HUD console line */
+/* message entry */
 [class*="chatentry"], [class*="ChatEntry"], [class*="MessageEntry"],
 [class*="chatentry"] textarea, [class*="ChatEntry"] textarea {
   background-color: var(--cp-bg-alt) !important;
@@ -16,27 +14,27 @@
   box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
 }
 
-/* Friend rows accent-tinted on hover */
+/* friend rows */
 [class*="friend"]:hover, [class*="Friend"]:hover,
 [class*="chatroom"]:hover, [class*="ChatRoom"]:hover {
   background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
 }
 
-/* Online / in-game status dot recolored to the accent */
+/* status dot */
 [class*="online"], [class*="Online"], [class*="ingame"], [class*="InGame"],
 [class*="statusField"][class*="online"] {
   color: var(--cp-accent) !important;
   border-color: var(--cp-accent) !important;
 }
 
-/* Open/selected chat in the list reads as accent (stripe, no reflow) */
+/* selected chat */
 [class*="chatroom"][class*="selected"], [class*="ChatRoom"][class*="Selected"],
 [class*="friend"][class*="selected"], [class*="Friend"][class*="Selected"] {
   background-color: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
   box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
 }
 
-/* My own outgoing message bubbles take a faint accent tint to read apart */
+/* own messages */
 [class*="mine"] [class*="bubble"], [class*="Mine"] [class*="Bubble"],
 [class*="selfMessage"], [class*="SelfMessage"] {
   background-color: color-mix(in srgb, var(--cp-accent) 14%, var(--cp-bg-alt)) !important;

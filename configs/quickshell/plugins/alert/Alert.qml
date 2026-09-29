@@ -5,14 +5,13 @@ import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 
-// New plugin, not from omarchy-shell.
 Item {
   id: root
 
   property var shell: null
   property var manifest: null
 
-  // A list, not a single alert: two reminders can elapse in the same minute and the second must not silently replace the first.
+  // list: two reminders can elapse in the same minute
   property var alerts: []
 
   property string fontFamily: Style.font.family
@@ -26,7 +25,7 @@ Item {
     next.push({
       title: String(payload.title || "Reminder"),
       body: String(payload.body || ""),
-      glyph: String(payload.glyph || "\u{f0020}"),   // md-alarm, cmap-verified
+      glyph: String(payload.glyph || "\u{f0020}"), // md-alarm
       kind: String(payload.kind || ""),
       message: String(payload.message || ""),
       at: Qt.formatTime(new Date(), "HH:mm")
@@ -54,7 +53,7 @@ Item {
     dismissAt(index)
   }
 
-  // Same main output as the bar and notifications.
+  // same output as the bar
   readonly property var mainScreen: {
     var screens = Quickshell.screens
     var name = root.shell ? root.shell.mainScreenName : ""
@@ -63,7 +62,7 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // close() and dismiss() must stay separate, and only dismiss() may talk to the shell.
+  // only dismiss() may talk to the shell; close() is its hide callback
   function close() {
     root.alerts = []
   }
@@ -78,7 +77,6 @@ Item {
     id: win
     visible: root.alerts.length > 0
     screen: root.mainScreen
-    // Top-right, per the owner's explicit request.
     anchors { top: true; right: true }
     margins { top: Style.bar.sizeHorizontal + Style.spacing.lg; right: Style.spacing.lg }
     implicitWidth: Style.space(440)
@@ -86,11 +84,11 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
-    // OnDemand, not Exclusive: an alert must not steal the keyboard the instant it appears (that would eat keystrokes mid-sentence).
+    // ondemand: an alert must not steal keystrokes
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
 
-    // Keys must attach to an Item, not to the PanelWindow itself — a PanelWindow is a wayland surface interface, and attaching there logs "Could not attach Keys property to ...
+    // keys cannot attach to a PanelWindow
     PanelKeyCatcher {
       anchors.fill: parent
       onCloseRequested: root.dismiss()
@@ -115,7 +113,6 @@ Item {
           radius: Style.cornerRadius
           padding: Style.spacing.panelPadding
 
-          // Slides in from the right edge it is pinned to.
           opacity: 0
           transform: Translate { id: slide; x: Style.space(24) }
           Component.onCompleted: appear.start()
@@ -135,7 +132,6 @@ Item {
             anchors.rightMargin: card.contentRightInset
             spacing: Style.spacing.lg
 
-            // Terminal-window title strip: prompt, alert kind, blinking block caret, timestamp, hard accent rule.
             Item {
               width: parent.width
               implicitHeight: alTitleRow.implicitHeight + Style.spacing.xs + alRule.height
@@ -197,7 +193,7 @@ Item {
                 }
               }
 
-              // Decorative window chrome glyphs, non-interactive.
+              // decorative, non-interactive
               Text {
                 anchors.right: parent.right
                 anchors.verticalCenter: alTitleRow.verticalCenter
@@ -237,7 +233,6 @@ Item {
                   color: Color.accent
                   font.family: Style.font.iconFamily
                   font.pixelSize: Style.font.heading + Style.space(4)
-                  // Accent neon bloom on the alert glyph.
                   layer.enabled: Style.fx.glow > 0
                   layer.effect: MultiEffect {
                     shadowEnabled: true
@@ -294,7 +289,7 @@ Item {
                 id: closeButton
                 anchors.right: parent.right
                 anchors.top: parent.top
-                iconText: "\u{f0156}"          // md-close, cmap-verified
+                iconText: "\u{f0156}" // md-close
                 tooltipText: "Dismiss"
                 foreground: Color.menu.text
                 onClicked: root.dismissAt(card.index)
@@ -328,7 +323,6 @@ Item {
             }
           }
 
-          // Terminal HUD framing + CRT scanlines on the alert card.
           HudFrame {}
           Scanlines {}
         }

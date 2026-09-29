@@ -1,7 +1,5 @@
 # managed by arch-dotfiles/boot/grub
-# /etc/default/grub — installed by link.sh, edits here are overwritten.
-# Kernel entries come from /etc/grub.d/09_arch, with the arguments in
-# /etc/kernel/cmdline, so GRUB_CMDLINE_LINUX is intentionally unused.
+# GRUB_CMDLINE_LINUX unused: 09_arch reads /etc/kernel/cmdline
 
 GRUB_DEFAULT=0
 GRUB_TIMEOUT=5

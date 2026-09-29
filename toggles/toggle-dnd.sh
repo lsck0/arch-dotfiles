@@ -3,11 +3,7 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# Backed by configs/quickshell/plugins/notifications/Service.qml (replaced
-# mako as the active notification daemon — see TODO.md). DND there still
-# writes silenced notifications straight to history (see Service.qml's
-# writeSilenced), so nothing is lost, only silenced, same guarantee mako's
-# `[mode=dnd]` block gave.
+# backed by quickshell notifications Service.qml; dnd still writes silenced notifications to history
 qs_ipc() { quickshell ipc -p "$HOME/.config/quickshell" call notifications "$@"; }
 check() { qs_ipc isDnd; }
 turn_on() { qs_ipc setDnd true >/dev/null; }

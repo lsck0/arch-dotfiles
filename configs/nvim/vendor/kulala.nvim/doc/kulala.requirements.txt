@@ -1,0 +1,75 @@
+*kulala.requirements.txt*   A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents                      *kulala.requirements-table-of-contents*
+
+1. Requirements                             |kulala.requirements-requirements|
+  - Neovim                           |kulala.requirements-requirements-neovim|
+  - kulala-core                 |kulala.requirements-requirements-kulala-core|
+  - Syntax highlighting   |kulala.requirements-requirements-syntax-highlighting|
+2. Optional tools                   |kulala.requirements-optional-tools|
+3. Optional configuration      |kulala.requirements-optional-configuration|
+
+==============================================================================
+1. Requirements                             *kulala.requirements-requirements*
+
+
+NEOVIM                               *kulala.requirements-requirements-neovim*
+
+- Neovim https://github.com/neovim/neovim 0.12+
+
+
+KULALA-CORE                       *kulala.requirements-requirements-kulala-core*
+
+- kulala-core https://github.com/dont-be-evil-company/kulala-core
+
+Kulala downloads and manages the kulala-core binary automatically on first use.
+HTTP, gRPC, WebSocket, GraphQL, scripting, and authentication are handled by
+kulala-core.
+
+You can optionally set `kulala_core.path` in your config to use a custom
+binary.
+
+
+SYNTAX HIGHLIGHTING       *kulala.requirements-requirements-syntax-highlighting*
+
+- Bundled `kulala_http` Tree-sitter parser (installed with the plugin)
+
+If you use Neovim `0.10.x`, you may need to recompile the parser with
+`:TSInstallFromGrammar kulala_http` after installing the Tree-sitter CLI.
+
+
+==============================================================================
+2. Optional tools                   *kulala.requirements-optional-tools*
+
+These are only needed when you configure optional `contenttypes` formatters or
+path resolvers:
+
+- jq https://stedolan.github.io/jq/ - JSON formatting / JSONPath via external tools
+- prettier https://prettier.io - GraphQL, HTML, JavaScript formatting
+- xmllint - XML/HTML formatting and XPath resolution
+- stylua https://github.com/JohnnyMorganz/StyLua - Lua formatting
+- Node.js https://nodejs.org - JavaScript pre/post-request scripts
+
+
+==============================================================================
+3. Optional configuration      *kulala.requirements-optional-configuration*
+
+To make Neovim recognize `.http` files:
+
+>lua
+    vim.filetype.add({
+      extension = {
+        http = "http",
+        rest = "rest",
+      },
+    })
+<
+
+For vim session restoration of request history, add `globals` to
+`sessionoptions`:
+
+>vim
+    set sessionoptions+=globals
+<
+vim:tw=78:ts=8:noet:ft=help:norl:

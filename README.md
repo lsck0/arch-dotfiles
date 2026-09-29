@@ -42,17 +42,22 @@ sudo cryptsetup reencrypt /dev/nvme0n1p2
 git submodule update --init --recursive
 ```
 
-- import shh and pgp keys from secrets submodule
+- decrypt the secrets submodule (git-crypt). Import the GPG key from your own backup first (it is not in the repo), then unlock.
 
 ```bash
-gpg --import ~/projects/arch-dotfiles/configs/secrets/pgp_privatekey.asc
+gpg --import /path/to/gpg-private-key.asc
+( cd ~/projects/arch-dotfiles/configs/secrets && git-crypt unlock )
+```
 
+- set up ssh key from the (now decrypted) secrets submodule
+
+```bash
 sudo chmod 600 ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
 secret-tool store --label="ssh_privatekey passphrase" ssh-key ssh_privatekey
 systemctl --user start ssh-add.service
 ```
 
-- add wirguard vpn tunnel
+- add wireguard vpn tunnel
 
 ```bash
 sudo ln -sf ~/projects/arch-dotfiles/configs/secrets/wg0.<platform>.conf /etc/wireguard/wg0.conf
