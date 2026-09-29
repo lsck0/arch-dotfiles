@@ -42,11 +42,17 @@ sudo cryptsetup reencrypt /dev/nvme0n1p2
 git submodule update --init --recursive
 ```
 
-- decrypt the secrets submodule (git-crypt). Import the GPG key from your own backup first (it is not in the repo), then unlock.
+- decrypt the secrets submodule (git-crypt). Import the PGP key `E7501F533316E9AFC6AAE907122F2CB527D1EFE3` from your own backup first (it is not in the repo), then unlock.
 
 ```bash
 gpg --import /path/to/gpg-private-key.asc
 ( cd ~/projects/arch-dotfiles/configs/secrets && git-crypt unlock )
+```
+
+- give another GPG key access to the secrets (from an unlocked checkout, e.g. for a new machine)
+
+```bash
+( cd ~/projects/arch-dotfiles/configs/secrets && git-crypt add-gpg-user <fingerprint> && git push )
 ```
 
 - set up ssh key from the (now decrypted) secrets submodule
