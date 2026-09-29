@@ -96,6 +96,9 @@ button:active, [class*="DialogButton"]:active {
 [class*="DialogContent"], [class*="DialogBody"],
 [class*="_DialogLayout"], [class*="dialog_"] {
   background-color: var(--cp-bg) !important;
+}
+/* frame on the outer dialog only; substring selectors also hit InnerWidth and BodyText and nest boxes */
+[class~="DialogContent"] {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 55%, transparent), 0 0 16px -6px var(--cp-accent) !important;
 }
 
@@ -140,8 +143,11 @@ html { accent-color: var(--cp-accent); }
   box-shadow: 0 0 8px -3px var(--cp-accent) !important;
 }
 
-/* titlebar */
-[class*="TitleBar"], [class*="titlebar"], [class*="_URLBar"] {
+/* titlebar overlays popup content, so an opaque one covers dialog tops */
+[class*="TitleBar"], [class*="titlebar"] {
+  background-color: transparent !important;
+}
+[class*="_URLBar"] {
   background-color: var(--cp-bg) !important;
 }
 

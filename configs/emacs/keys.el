@@ -104,7 +104,7 @@
   "5" (lambda () (interactive) (tab-bar-select-tab 5))
 
   ;; popups
-  "g" #'magit-status                    ; bind g display-popup -E "lazygit"
+  "g" #'magit-status                    ; nvim <leader>gg lazygit
   "z" #'my/eat-popup                    ; bind z display-popup -E "zsh"
   "t" #'proced                          ; bind p display-popup -E "btop"
   "e" #'my/copy-mode)                   ; bind e copy-mode

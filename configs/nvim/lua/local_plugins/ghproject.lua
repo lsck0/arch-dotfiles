@@ -1,32 +1,38 @@
--- GitHub Projects V2 kanban board. Org + project number from the environment
--- (OCTO_DEFAULT_ORG, OCTO_DEFAULT_PROJECT), so no work identifiers live in the repo.
--- Views: board (kanban), table, list. Tab switches project, / filters, e edits fields.
--- Future: item create/archive/delete are not implemented yet.
+-- GitHub Projects V2 board driven by the project's saved views; org + number from OCTO_DEFAULT_ORG/PROJECT.
 local M = {}
 
 local COL_WIDTH = 30          -- board column display width
 local LIST_WIDTH = 70         -- list-view title truncation
+local TITLE_WIDTH = 46        -- table title column
+local FIELD_WIDTH_MAX = 24    -- other table columns shrink to their widest value
 local LEFT = "  "             -- left margin on grid lines
 local SEP = " │ "             -- between board columns
 local GAP = "  "              -- between table columns
-local NO_STATUS = "(No status)"
 local NS = vim.api.nvim_create_namespace("ghproject")
 local LEGEND =
-    "hjkl move · H/L status · J/K reorder · v view · / filter · e edit · ⏎ open · ⇥ project · r refresh · q quit"
+    "hjkl move · H/L status · J/K reorder · ⇥ view · v layout · p/P project · / search · e edit · ⏎ open · r refresh · q quit"
+
+local LAYOUTS = { BOARD_LAYOUT = "board", TABLE_LAYOUT = "table", ROADMAP_LAYOUT = "table" } -- no roadmap in a terminal
+local LAYOUT_CYCLE = { "board", "table", "list" }
+local DEFAULT_VIEW = { name = "Board", layout = "BOARD_LAYOUT", filter = "", fields = {}, sort = {}, vgroup = "Status" }
+local KEY_ALIASES = { assignee = "assignees", label = "labels", reviewer = "reviewers", repo = "repository" }
+local IS_TYPES = { issue = "Issue", pr = "PullRequest", ["pull-request"] = "PullRequest", draft = "DraftIssue" }
 
 -- module state
-local state = nil        -- current board: { buf, org, num, title, idx, project_id, field_id,
-                         --                  select_fields, columns, cur, frow, view, filter }
+local state = nil        -- current board, see fetch() for its fields
 local cache = {}         -- ["org/num"] = state, so reopening renders before the refresh lands
 local projects = nil     -- [{number, title}] for the org, fetched once
 local projects_org = nil -- the org `projects` was fetched for
 local proj_idx = 1       -- current index into `projects`
 local cur_org = nil      -- org of the open board
 local board_buf = nil    -- the reusable board buffer
+local views_warned = {}  -- ["org/num"] = true once a failed views fetch was reported
 
 -- persistent cache: survives restarts and avoids refetching (and gh rate limits)
 local CACHE_DIR = vim.fn.stdpath("cache") .. "/ghproject"
+local CACHE_VERSION = 3 -- bump when the disk format changes
 local TTL = 300 -- seconds; a cache younger than this skips the background refresh
+local ITEM_LIMIT = "5000" -- gh pages 100 per request; views filter client-side, so every item must be loaded
 
 local function cache_path(key) return CACHE_DIR .. "/" .. key:gsub("[^%w]", "_") .. ".json" end
 
@@ -34,7 +40,7 @@ local function disk_read(key)
     local f = io.open(cache_path(key), "r")
     if not f then return nil end
     local raw = f:read("*a"); f:close()
-    local ok, d = pcall(vim.json.decode, raw)
+    local ok, d = pcall(vim.json.decode, raw, { luanil = { object = true, array = true } })
     return ok and d or nil
 end
 
@@ -56,7 +62,7 @@ local function gh_json(args, cb)
                 cb(false, (res.stderr ~= "" and res.stderr) or "gh exited " .. res.code)
                 return
             end
-            local ok, decoded = pcall(vim.json.decode, res.stdout)
+            local ok, decoded = pcall(vim.json.decode, res.stdout, { luanil = { object = true, array = true } })
             if not ok then
                 cb(false, "bad json from gh")
                 return
@@ -132,7 +138,59 @@ local function rule_line(columns)
     return table.concat(segs, "─┼─")
 end
 
--- client-side filter over already-fetched cards ------------------------------
+-- fields ---------------------------------------------------------------------
+
+-- filter keys compare lowercased with spaces as hyphens ("target-date")
+local function norm(name) return (tostring(name or ""):lower():gsub("%s+", "-")) end
+
+local function field_by_name(fields, name)
+    if not name then return nil end
+    for _, f in ipairs(fields) do
+        if f.name:lower() == name:lower() then return f end
+    end
+end
+
+local function field_by_key(fields, key)
+    key = norm(key)
+    key = KEY_ALIASES[key] or key
+    for _, f in ipairs(fields) do
+        if norm(f.name) == key then return f end
+    end
+end
+
+-- a card's value for a field as lowercase strings, one per list entry
+local function card_values(card, field_name)
+    local lname = field_name:lower()
+    if lname == "title" then return { card.title:lower() } end
+    if lname == "repository" then
+        local full = card.repo_full:lower()
+        return full ~= "" and { full, card.repo:lower() } or {}
+    end
+    local v = card.raw and card.raw[lname]
+    if v == nil or v == "" then return {} end
+    if type(v) ~= "table" then return { tostring(v):lower() } end
+    if v.title then return { tostring(v.title):lower() } end
+    local out = {}
+    for _, e in ipairs(v) do
+        local s = type(e) == "table" and (e.title or e.login or e.name) or e
+        if s then out[#out + 1] = tostring(s):lower() end
+    end
+    return out
+end
+
+local function card_display(card, field_name)
+    local lname = field_name:lower()
+    if lname == "title" then return card.title end
+    if lname == "repository" then return card.repo end
+    local v = card.raw and card.raw[lname]
+    if type(v) ~= "table" then return v ~= nil and tostring(v) or "" end
+    if v.title then return tostring(v.title) end
+    local out = {}
+    for _, e in ipairs(v) do out[#out + 1] = type(e) == "table" and (e.title or e.login or e.name or "") or tostring(e) end
+    return table.concat(out, ", ")
+end
+
+-- filter ---------------------------------------------------------------------
 
 local function match_card(card, q)
     return ((card.title or ""):lower():find(q, 1, true) ~= nil)
@@ -140,40 +198,298 @@ local function match_card(card, q)
         or ((card.repo or ""):lower():find(q, 1, true) ~= nil)
 end
 
--- the columns as the current filter shows them (same order/count, fewer cards)
-local function vcols()
-    if not state.filter or state.filter == "" then return state.columns end
-    local q = state.filter:lower()
-    local out = {}
-    for i, c in ipairs(state.columns) do
-        local cards = {}
-        for _, card in ipairs(c.cards) do
-            if match_card(card, q) then cards[#cards + 1] = card end
+local function tokenize(s)
+    local out, cur, quoted = {}, {}, false
+    for ch in s:gmatch(".") do
+        if ch == '"' then quoted = not quoted end
+        if ch:match("%s") and not quoted then
+            if #cur > 0 then out[#out + 1] = table.concat(cur); cur = {} end
+        else
+            cur[#cur + 1] = ch
         end
-        out[i] = { name = c.name, opt_id = c.opt_id, cards = cards }
     end
+    if #cur > 0 then out[#out + 1] = table.concat(cur) end
     return out
 end
 
--- every visible card, grouped by column order (used by table + list)
+-- comma-separated values as {text, quoted}; quoted values match literally
+local function split_values(s)
+    local out, cur, quoted, was_quoted = {}, {}, false, false
+    for ch in s:gmatch(".") do
+        if ch == '"' then
+            quoted, was_quoted = not quoted, true
+        elseif ch == "," and not quoted then
+            out[#out + 1] = { text = table.concat(cur), quoted = was_quoted }
+            cur, was_quoted = {}, false
+        else
+            cur[#cur + 1] = ch
+        end
+    end
+    out[#out + 1] = { text = table.concat(cur), quoted = was_quoted }
+    return out
+end
+
+local function cmp(a, b)
+    local na, nb = tonumber(a), tonumber(b)
+    if na and nb then a, b = na, nb end
+    return a < b and -1 or (a > b and 1 or 0)
+end
+
+local function value_matcher(spec)
+    local lo, hi = spec:match("^(.-)%.%.(.*)$")
+    if lo then
+        return function(v)
+            return (lo == "" or lo == "*" or cmp(v, lo) >= 0) and (hi == "" or hi == "*" or cmp(v, hi) <= 0)
+        end
+    end
+    local op, rest = spec:match("^([<>]=?)(.+)$")
+    if op then
+        return function(v)
+            local c = cmp(v, rest)
+            if op == ">" then return c > 0 elseif op == ">=" then return c >= 0 elseif op == "<" then return c < 0 end
+            return c <= 0
+        end
+    end
+    if spec:find("*", 1, true) then
+        local pat = "^" .. spec:gsub("[%^%$%(%)%%%.%[%]%+%-%?]", "%%%0"):gsub("%*", ".*") .. "$"
+        return function(v) return v:find(pat) ~= nil end
+    end
+    return function(v) return v == spec end
+end
+
+-- @current/@next/@previous as an iteration title, from the iteration dates the cards carry
+local function iteration_title(s, field, which)
+    local its, seen, lname = {}, {}, field.name:lower()
+    for _, card in ipairs(s.cards) do
+        local it = card.raw and card.raw[lname]
+        if type(it) == "table" and it.startDate and not seen[it.startDate] then
+            seen[it.startDate] = true
+            its[#its + 1] = it
+        end
+    end
+    table.sort(its, function(a, b) return a.startDate < b.startDate end)
+    local today, cur = os.date("%Y-%m-%d"), 0
+    for i, it in ipairs(its) do
+        if it.startDate <= today then cur = i end
+    end
+    local it = its[cur + ({ ["@current"] = 0, ["@next"] = 1, ["@previous"] = -1 })[which]]
+    return it and tostring(it.title):lower() or nil
+end
+
+-- one filter token as a card predicate, nil when this client cannot evaluate it
+local function compile_token(s, token)
+    local neg = token:sub(1, 1) == "-"
+    local body = neg and token:sub(2) or token
+    local key, rest = body:match('^([%w%-_ "]+):(.+)$')
+    local pred
+    if not key then
+        local q = body:gsub('"', ""):lower()
+        pred = function(card) return match_card(card, q) end
+    else
+        key = norm((key:gsub('"', "")))
+        local values = split_values(rest)
+        if key == "is" then
+            local types = {}
+            for _, v in ipairs(values) do
+                local t = IS_TYPES[v.text:lower()]
+                if not t then return nil end -- open/closed/merged: gh item-list carries no state
+                types[t] = true
+            end
+            pred = function(card) return types[card.type] == true end
+        elseif key == "no" or key == "has" then
+            local f = field_by_key(s.fields, values[1].text)
+            if not f then return nil end
+            local want = key == "has"
+            pred = function(card) return (#card_values(card, f.name) > 0) == want end
+        else
+            local f = field_by_key(s.fields, key)
+            if not f then return nil end
+            local matchers = {}
+            for _, v in ipairs(values) do
+                local text = v.text:lower()
+                if text == "@me" then text = (s.viewer or ""):lower() end
+                text = text:gsub("@today", os.date("%Y-%m-%d"))
+                if text == "@current" or text == "@next" or text == "@previous" then
+                    local title = iteration_title(s, f, text)
+                    matchers[#matchers + 1] = function(cv) return cv == title end
+                elseif v.quoted then
+                    matchers[#matchers + 1] = function(cv) return cv == text end
+                else
+                    matchers[#matchers + 1] = value_matcher(text)
+                end
+            end
+            pred = function(card)
+                for _, cv in ipairs(card_values(card, f.name)) do
+                    for _, m in ipairs(matchers) do
+                        if m(cv) then return true end
+                    end
+                end
+                return false
+            end
+        end
+    end
+    if neg then return function(card) return not pred(card) end end
+    return pred
+end
+
+-- tokens AND together; returns the predicate and the tokens it had to ignore
+local function compile_filter(s, filter)
+    local preds, ignored = {}, {}
+    for _, token in ipairs(tokenize(filter or "")) do
+        local p = compile_token(s, token)
+        if p then preds[#preds + 1] = p else ignored[#ignored + 1] = token end
+    end
+    return function(card)
+        for _, p in ipairs(preds) do
+            if not p(card) then return false end
+        end
+        return true
+    end, ignored
+end
+
+-- views ----------------------------------------------------------------------
+
+local function compile_view(s, raw)
+    local pred, ignored = compile_filter(s, raw.filter)
+    local col = field_by_name(s.fields, raw.vgroup)
+    if not col or col.type ~= "ProjectV2SingleSelectField" then col = field_by_name(s.fields, "Status") end
+    local sort = {}
+    for _, k in ipairs(raw.sort or {}) do
+        local f = field_by_name(s.fields, k.name)
+        if f then sort[#sort + 1] = { field = f, desc = k.desc } end
+    end
+    return {
+        name = raw.name,
+        layout = LAYOUTS[raw.layout] or "board",
+        pred = pred,
+        ignored = ignored,
+        col_field = col,
+        group_field = field_by_name(s.fields, raw.group),
+        sort = sort,
+        table_fields = raw.fields or {},
+    }
+end
+
+-- the api ignores tab order, so OCTO_DEFAULT_VIEWS ("18,1,4") lists view numbers first for the default project
+local function ordered_views(s)
+    if #s.views == 0 then return { DEFAULT_VIEW } end
+    if tostring(s.num) ~= vim.env.OCTO_DEFAULT_PROJECT then return s.views end
+    local rank = {}
+    for i, n in ipairs(vim.split(vim.env.OCTO_DEFAULT_VIEWS or "", ",", { trimempty = true })) do rank[tonumber(n)] = i end
+    local out = vim.list_slice(s.views)
+    local pos = {}
+    for i, v in ipairs(out) do pos[v] = i end
+    table.sort(out, function(a, b)
+        local ra, rb = rank[a.number] or math.huge, rank[b.number] or math.huge
+        if ra ~= rb then return ra < rb end
+        return pos[a] < pos[b]
+    end)
+    return out
+end
+
+local function prepare(s)
+    s.cviews = {}
+    for _, raw in ipairs(ordered_views(s)) do s.cviews[#s.cviews + 1] = compile_view(s, raw) end
+    if s.view_idx > #s.cviews then s.view_idx = 1 end
+    s.layout = s.layout or s.cviews[s.view_idx].layout
+    s.vis, s.vc, s.rows = nil, nil, nil
+end
+
+local function cur_view() return state.cviews[state.view_idx] end
+
+local function invalidate() state.vis, state.vc, state.rows = nil, nil, nil end
+
+-- option position for single selects, number when numeric, else the lowercase text
+local function sort_key(card, field)
+    local v = card_values(card, field.name)[1]
+    if v == nil then return nil end
+    for i, o in ipairs(field.options) do
+        if o.name:lower() == v then return i end
+    end
+    return tonumber(v) or v
+end
+
+-- cards the view and search show, in view sort order (project position when unsorted)
+local function visible()
+    if state.vis then return state.vis end
+    local view, q = cur_view(), state.filter and state.filter:lower()
+    local out = {}
+    for _, card in ipairs(state.cards) do
+        if view.pred(card) and (not q or match_card(card, q)) then out[#out + 1] = card end
+    end
+    if #view.sort > 0 then
+        local pos = {}
+        for i, card in ipairs(out) do pos[card] = i end
+        table.sort(out, function(a, b)
+            for _, k in ipairs(view.sort) do
+                local ka, kb = sort_key(a, k.field), sort_key(b, k.field)
+                if type(ka) ~= type(kb) and ka ~= nil and kb ~= nil then ka, kb = tostring(ka), tostring(kb) end
+                if ka ~= kb then
+                    if ka == nil then return false end
+                    if kb == nil then return true end
+                    if k.desc then return ka > kb end
+                    return ka < kb
+                end
+            end
+            return pos[a] < pos[b]
+        end)
+    end
+    state.vis = out
+    return out
+end
+
+-- "No <field>" first (dropped when empty), then options in order or values as first seen
+local function group_by(cards, field)
+    local none = { name = "No " .. field.name, cards = {} }
+    local groups, by_name = { none }, {}
+    for _, o in ipairs(field.options) do
+        local g = { name = o.name, opt_id = o.id, cards = {} }
+        groups[#groups + 1] = g
+        by_name[o.name:lower()] = g
+    end
+    for _, card in ipairs(cards) do
+        local v = card_display(card, field.name)
+        local g = none
+        if v ~= "" then
+            g = by_name[v:lower()]
+            if not g then
+                g = { name = v, cards = {} }
+                groups[#groups + 1] = g
+                by_name[v:lower()] = g
+            end
+        end
+        g.cards[#g.cards + 1] = card
+    end
+    if #none.cards == 0 then table.remove(groups, 1) end
+    return groups
+end
+
+local function vcols()
+    state.vc = state.vc or group_by(visible(), cur_view().col_field)
+    return state.vc
+end
+
+-- table/list rows as groups; one unnamed group for an ungrouped table
+local function row_groups()
+    if state.rows then return state.rows end
+    local view = cur_view()
+    local field = view.group_field or (state.layout == "list" and view.col_field) or nil
+    state.rows = field and group_by(visible(), field) or { { cards = visible() } }
+    return state.rows
+end
+
 local function flat_visible()
     local out = {}
-    for _, c in ipairs(vcols()) do
-        for _, card in ipairs(c.cards) do out[#out + 1] = card end
+    for _, g in ipairs(row_groups()) do
+        for _, card in ipairs(g.cards) do out[#out + 1] = card end
     end
     return out
-end
-
-local function visible_count()
-    local n = 0
-    for _, c in ipairs(vcols()) do n = n + #c.cards end
-    return n
 end
 
 -- selection helpers ----------------------------------------------------------
 
 local function selected()
-    if state.view == "board" then
+    if state.layout == "board" then
         local c = vcols()[state.cur.col]
         return c and c.cards[state.cur.row]
     end
@@ -196,12 +512,9 @@ local function flat_index(card)
     return 1
 end
 
-local function master_col_of(card)
-    for i, c in ipairs(state.columns) do
-        for _, k in ipairs(c.cards) do
-            if k == card then return i end
-        end
-    end
+local function follow(card)
+    state.cur.col, state.cur.row = board_pos(card)
+    state.frow = flat_index(card)
 end
 
 local function clamp_all()
@@ -215,24 +528,45 @@ end
 
 -- rendering ------------------------------------------------------------------
 
-local TABLE_COLS = {
-    { name = "#", w = 7, get = function(c) return "#" .. (c.number or "-") end },
-    { name = "Title", w = 46, get = function(c) return c.title end },
-    { name = "Status", w = 17, get = function(c) return c.status or "" end },
-    { name = "Priority", w = 9, get = function(c) return c.raw and c.raw.priority or "" end },
-    { name = "Size", w = 6, get = function(c) return c.raw and c.raw.size or "" end },
-    { name = "Repo", w = 22, get = function(c) return c.repo or "" end },
-}
+local function table_columns(cards)
+    local names = cur_view().table_fields
+    if #names == 0 then names = { "Title", "Status", "Priority", "Size", "Repository" } end
+    local cols = { { name = "#", w = 7, get = function(c) return "#" .. (c.number or "-") end } }
+    for _, name in ipairs(names) do
+        if name == "Title" then
+            cols[#cols + 1] = { name = name, w = TITLE_WIDTH, get = function(c) return c.title end }
+        else
+            local w = vim.fn.strdisplaywidth(name)
+            for _, c in ipairs(cards) do w = math.max(w, vim.fn.strdisplaywidth(card_display(c, name))) end
+            cols[#cols + 1] = { name = name, w = math.min(w, FIELD_WIDTH_MAX), get = function(c) return card_display(c, name) end }
+        end
+    end
+    return cols
+end
 
 local function render_header(lines, marks)
-    local views = { board = "Board", table = "Table", list = "List" }
     local n = projects and #projects or 1
-    local h = string.format("  %s  [%d/%d]  · %s", state.title or "", state.idx, n, views[state.view])
-    if state.filter then h = h .. string.format("  · filter: %s (%d)", state.filter, visible_count()) end
+    local h = string.format("  %s  [%d/%d]  · %s  · %d items", state.title or "", state.idx, n, state.layout, #visible())
+    if state.filter then h = h .. "  · search: " .. state.filter end
+    local ignored = cur_view().ignored
+    if #ignored > 0 then h = h .. "  · ignored: " .. table.concat(ignored, " ") end
     lines[#lines + 1] = h
+    marks[#marks + 1] = { grp("GhProjectTitle", "Title"), #lines - 1, 0, -1 }
+
+    local line, tabs = LEFT, {}
+    for i, v in ipairs(state.cviews) do
+        local label = " " .. v.name .. " "
+        tabs[i] = { #line, #line + #label }
+        line = line .. label .. (i < #state.cviews and "│" or "")
+    end
+    lines[#lines + 1] = line
+    for i, r in ipairs(tabs) do
+        local g = i == state.view_idx and grp("GhProjectSel", "Visual") or grp("GhProjectHint", "Comment")
+        marks[#marks + 1] = { g, #lines - 1, r[1], r[2] }
+    end
+
     lines[#lines + 1] = "  " .. LEGEND
-    marks[#marks + 1] = { grp("GhProjectTitle", "Title"), 0, 0, -1 }
-    marks[#marks + 1] = { grp("GhProjectHint", "Comment"), 1, 0, -1 }
+    marks[#marks + 1] = { grp("GhProjectHint", "Comment"), #lines - 1, 0, -1 }
 end
 
 local function render_board(lines, marks)
@@ -276,37 +610,49 @@ local function render_board(lines, marks)
 end
 
 local function render_table(lines, marks)
-    local items = flat_visible()
+    local cols = table_columns(flat_visible())
     local hcells = {}
-    for i, tc in ipairs(TABLE_COLS) do hcells[i] = pad(tc.name, tc.w) end
+    for i, tc in ipairs(cols) do hcells[i] = pad(tc.name, tc.w) end
     lines[#lines + 1] = LEFT .. table.concat(hcells, GAP)
     local hln, hr = #lines - 1, ranges(hcells, #LEFT, #GAP)
-    for i = 1, #TABLE_COLS do marks[#marks + 1] = { header_group(i), hln, hr[i][1], hr[i][2] } end
+    for i = 1, #cols do marks[#marks + 1] = { header_group(i), hln, hr[i][1], hr[i][2] } end
 
-    local total = (#TABLE_COLS - 1) * vim.fn.strdisplaywidth(GAP)
-    for _, tc in ipairs(TABLE_COLS) do total = total + tc.w end
+    local total = (#cols - 1) * vim.fn.strdisplaywidth(GAP)
+    for _, tc in ipairs(cols) do total = total + tc.w end
     lines[#lines + 1] = LEFT .. string.rep("─", total)
     marks[#marks + 1] = { grp("GhProjectSep", "Comment"), #lines - 1, 0, -1 }
 
-    local first = #lines
-    for i, card in ipairs(items) do
-        local cells = {}
-        for j, tc in ipairs(TABLE_COLS) do cells[j] = pad(tc.get(card), tc.w) end
-        lines[#lines + 1] = LEFT .. table.concat(cells, GAP)
-        if i == state.frow then marks[#marks + 1] = { grp("GhProjectSel", "Visual"), #lines - 1, 0, -1 } end
+    local idx, cursor = 0, nil
+    for gi, g in ipairs(row_groups()) do
+        if g.name and #g.cards > 0 then
+            lines[#lines + 1] = string.format("  %s  (%d)", g.name, #g.cards)
+            marks[#marks + 1] = { header_group(gi), #lines - 1, 0, -1 }
+        end
+        for _, card in ipairs(g.cards) do
+            idx = idx + 1
+            local cells = {}
+            for j, tc in ipairs(cols) do cells[j] = pad(tc.get(card), tc.w) end
+            lines[#lines + 1] = LEFT .. table.concat(cells, GAP)
+            if idx == state.frow then
+                marks[#marks + 1] = { grp("GhProjectSel", "Visual"), #lines - 1, 0, -1 }
+                cursor = { #lines, #LEFT }
+            end
+        end
     end
-    if items[state.frow] then return { first + state.frow, #LEFT } end
+    return cursor
 end
 
 local function render_list(lines, marks)
     local idx, cursor, first = 0, nil, true
-    for ci, col in ipairs(vcols()) do
-        if #col.cards > 0 then
+    for gi, g in ipairs(row_groups()) do
+        if #g.cards > 0 then
             if not first then lines[#lines + 1] = "" end
             first = false
-            lines[#lines + 1] = string.format("  %s  (%d)", col.name, #col.cards)
-            marks[#marks + 1] = { header_group(ci), #lines - 1, 0, -1 }
-            for _, card in ipairs(col.cards) do
+            if g.name then
+                lines[#lines + 1] = string.format("  %s  (%d)", g.name, #g.cards)
+                marks[#marks + 1] = { header_group(gi), #lines - 1, 0, -1 }
+            end
+            for _, card in ipairs(g.cards) do
                 idx = idx + 1
                 lines[#lines + 1] = string.format("    #%s  %s", card.number or "-", truncate(card.title, LIST_WIDTH))
                 if idx == state.frow then
@@ -327,9 +673,9 @@ local function redraw()
     local lines, marks = {}, {}
     render_header(lines, marks)
     local cursor
-    if s.view == "table" then
+    if s.layout == "table" then
         cursor = render_table(lines, marks)
-    elseif s.view == "list" then
+    elseif s.layout == "list" then
         cursor = render_list(lines, marks)
     else
         cursor = render_board(lines, marks)
@@ -372,60 +718,43 @@ local function open_selected()
     vim.cmd("Octo " .. card.url)
 end
 
--- set the Status of a card to a target option, re-bucketing the model in place
-local function apply_status(card, opt_id, cb)
+local function set_field(card, field, opt)
     gh_json({
         "project", "item-edit",
         "--project-id", state.project_id,
         "--id", card.id,
-        "--field-id", state.field_id,
-        "--single-select-option-id", opt_id,
+        "--field-id", field.id,
+        "--single-select-option-id", opt.id,
         "--format", "json",
     }, function(ok, res)
         if not ok then
-            err("move failed: " .. tostring(res))
+            err("edit failed: " .. tostring(res))
             return
         end
-        local from = master_col_of(card)
-        local target
-        for _, c in ipairs(state.columns) do
-            if c.opt_id == opt_id then target = c end
-        end
-        if from and target then
-            for i, k in ipairs(state.columns[from].cards) do
-                if k == card then table.remove(state.columns[from].cards, i); break end
-            end
-            card.status = target.name
-            if card.raw then card.raw.status = target.name end
-            target.cards[#target.cards + 1] = card
-        end
-        state.cur.col, state.cur.row = board_pos(card)
-        state.frow = flat_index(card)
+        card.raw[field.name:lower()] = opt.name
+        invalidate()
+        follow(card)
         redraw()
-        if cb then cb() end
     end)
 end
 
+-- step the card through the column field's options
 local function move_status(dir)
     local card = selected()
     if not card then return end
-    local ci = master_col_of(card)
-    if not ci then return end
-    local ti = ci + dir
-    if ti < 1 or ti > #state.columns then return end
-    local opt = state.columns[ti].opt_id
-    if not opt then
-        warn("cannot move into " .. NO_STATUS)
-        return
+    local field = cur_view().col_field
+    local v, at = card_values(card, field.name)[1], 0
+    for i, o in ipairs(field.options) do
+        if o.name:lower() == v then at = i end
     end
-    apply_status(card, opt)
+    local opt = field.options[at + dir]
+    if opt then set_field(card, field, opt) end
 end
 
--- pick any single-select field and option, then set it on the selected card
 local function edit_field()
     local card = selected()
     if not card then return end
-    if not state.select_fields or #state.select_fields == 0 then
+    if #state.select_fields == 0 then
         warn("no single-select fields")
         return
     end
@@ -438,37 +767,19 @@ local function edit_field()
             prompt = field.name .. ":",
             format_item = function(o) return o.name end,
         }, function(opt)
-            if not opt then return end
-            if field.id == state.field_id then
-                apply_status(card, opt.id)
-                return
-            end
-            gh_json({
-                "project", "item-edit",
-                "--project-id", state.project_id,
-                "--id", card.id,
-                "--field-id", field.id,
-                "--single-select-option-id", opt.id,
-                "--format", "json",
-            }, function(ok, res)
-                if not ok then
-                    err("edit failed: " .. tostring(res))
-                    return
-                end
-                card.raw = card.raw or {}
-                card.raw[field.name:lower()] = opt.name
-                redraw()
-            end)
+            if opt then set_field(card, field, opt) end
         end)
     end)
 end
 
--- reorder the selected card within its column (Projects V2 item position).
--- gh has no reorder command, so drive the GraphQL mutation directly. Board only.
+-- gh has no reorder command, so drive the GraphQL mutation directly; board only
 local function reorder_selected(dir)
-    if state.view ~= "board" then return end
-    local vc = vcols()
-    local col_v = vc[state.cur.col]
+    if state.layout ~= "board" then return end
+    if #cur_view().sort > 0 then
+        warn("view is sorted, positions do not apply")
+        return
+    end
+    local col_v = vcols()[state.cur.col]
     local card = col_v and col_v.cards[state.cur.row]
     if not card then return end
     local target = state.cur.row + dir
@@ -487,7 +798,7 @@ local function reorder_selected(dir)
             err("reorder failed: " .. tostring(res))
             return
         end
-        local master = state.columns[state.cur.col].cards
+        local master = state.cards
         for i, k in ipairs(master) do
             if k == card then table.remove(master, i); break end
         end
@@ -498,33 +809,44 @@ local function reorder_selected(dir)
             end
         end
         table.insert(master, at, card)
+        invalidate()
         state.cur.row = target
         redraw()
     end)
 end
 
-local function cycle_view()
+local function switch_view(dir)
     local sel = selected()
-    local next_view = { board = "table", table = "list", list = "board" }
-    state.view = next_view[state.view]
-    if sel then
-        state.cur.col, state.cur.row = board_pos(sel)
-        state.frow = flat_index(sel)
+    state.view_idx = (state.view_idx - 1 + dir) % #state.cviews + 1
+    state.layout = cur_view().layout
+    invalidate()
+    if sel then follow(sel) end
+    redraw()
+end
+
+local function cycle_layout()
+    local sel = selected()
+    local i = 1
+    for k, l in ipairs(LAYOUT_CYCLE) do
+        if l == state.layout then i = k end
     end
+    state.layout = LAYOUT_CYCLE[i % #LAYOUT_CYCLE + 1]
+    state.rows = nil
+    if sel then follow(sel) end
     redraw()
 end
 
 local function search()
     vim.ui.input({ prompt = "/" }, function(input)
-        if input == nil then input = "" end
-        input = vim.trim(input)
+        input = vim.trim(input or "")
         state.filter = (input ~= "" and input) or nil
+        invalidate()
         redraw()
     end)
 end
 
 local function nav_vert(d)
-    if state.view == "board" then
+    if state.layout == "board" then
         state.cur.row = state.cur.row + d
     else
         state.frow = state.frow + d
@@ -533,7 +855,7 @@ local function nav_vert(d)
 end
 
 local function nav_horiz(d)
-    if state.view ~= "board" then return end
+    if state.layout ~= "board" then return end
     state.cur.col = state.cur.col + d
     redraw()
 end
@@ -573,9 +895,11 @@ local function set_keys(buf)
     map("K", function() reorder_selected(-1) end)
     map("<S-Down>", function() reorder_selected(1) end)
     map("<S-Up>", function() reorder_selected(-1) end)
-    map("<Tab>", function() switch_project(1) end)
-    map("<S-Tab>", function() switch_project(-1) end)
-    map("v", cycle_view)
+    map("<Tab>", function() switch_view(1) end)
+    map("<S-Tab>", function() switch_view(-1) end)
+    map("v", cycle_layout)
+    map("p", function() switch_project(1) end)
+    map("P", function() switch_project(-1) end)
     map("/", search)
     map("e", edit_field)
     map("<CR>", open_selected)
@@ -587,99 +911,153 @@ end
 
 -- model building -------------------------------------------------------------
 
--- build the column model from field options (order) + items (grouped by status)
-local function build_columns(status_field, items)
-    local columns = { { name = NO_STATUS, opt_id = nil, cards = {} } }
-    local by_name = { [NO_STATUS] = columns[1] }
-    for _, opt in ipairs(status_field.options or {}) do
-        local col = { name = opt.name, opt_id = opt.id, cards = {} }
-        columns[#columns + 1] = col
-        by_name[opt.name] = col
-    end
+local function build_cards(items)
+    local cards = {}
     for _, it in ipairs(items or {}) do
         local content = it.content or {}
-        local col = by_name[it.status or ""] or columns[1]
-        col.cards[#col.cards + 1] = {
+        cards[#cards + 1] = {
             id = it.id,
             title = it.title or content.title or "(untitled)",
             number = content.number,
             url = content.url,
-            status = it.status or "",
+            type = content.type,
+            repo_full = content.repository or "",
             repo = (content.repository and content.repository:match("([^/]+)$")) or "",
-            raw = it, -- table view reads other single-select fields straight off this
+            raw = it,
         }
     end
-    -- drop the No-status column when empty, so it never shows as a stray column
-    if #columns[1].cards == 0 then table.remove(columns, 1) end
-    return columns
+    return cards
 end
 
--- all single-select fields, in field-list order, for the `e` picker (Status included)
-local function select_fields(fields)
+local function build_fields(raw)
     local out = {}
-    for _, f in ipairs(fields or {}) do
-        if f.type == "ProjectV2SingleSelectField" then
-            local opts = {}
-            for _, o in ipairs(f.options or {}) do opts[#opts + 1] = { id = o.id, name = o.name } end
-            out[#out + 1] = { id = f.id, name = f.name, options = opts }
-        end
+    for _, f in ipairs(raw or {}) do
+        local opts = {}
+        for _, o in ipairs(f.options or {}) do opts[#opts + 1] = { id = o.id, name = o.name } end
+        out[#out + 1] = { id = f.id, name = f.name, type = f.type, options = opts }
     end
     return out
 end
 
--- the three gh calls run in parallel (one round trip, not three), then assemble.
--- Only render if this project is still the current one (guards fast switches).
+local function select_fields(fields)
+    local out = {}
+    for _, f in ipairs(fields) do
+        if f.type == "ProjectV2SingleSelectField" then out[#out + 1] = f end
+    end
+    return out
+end
+
+local VIEW_NODE = "number name layout filter"
+    .. " fields(first:50){nodes{... on ProjectV2FieldCommon{name}}}"
+    .. " configuration{visibleFields(first:50){nodes{... on ProjectV2FieldCommon{name}}}}"
+    .. " groupByFields(first:1){nodes{... on ProjectV2FieldCommon{name}}}"
+    .. " verticalGroupByFields(first:1){nodes{... on ProjectV2FieldCommon{name}}}"
+    .. " sortByFields(first:5){nodes{direction field{... on ProjectV2FieldCommon{name}}}}"
+
+local function views_args(org, num)
+    local project = "projectV2(number:$n){views(first:50){nodes{" .. VIEW_NODE .. "}}}"
+    if org == "@me" then
+        return { "api", "graphql", "-f", "query=query($n:Int!){viewer{login " .. project .. "}}", "-F", "n=" .. num }
+    end
+    local q = "query($o:String!,$n:Int!){viewer{login} repositoryOwner(login:$o){... on ProjectV2Owner{" .. project .. "}}}"
+    return { "api", "graphql", "-f", "query=" .. q, "-f", "o=" .. org, "-F", "n=" .. num }
+end
+
+local function parse_views(data)
+    local d = data.data or {}
+    local owner = d.repositoryOwner or d.viewer or {}
+    local nodes = (((owner.projectV2 or {}).views or {}).nodes) or {}
+    local function first_name(conn)
+        local n = conn and conn.nodes and conn.nodes[1]
+        return n and n.name
+    end
+    local views = {}
+    for _, v in ipairs(nodes) do
+        local fields, sort = {}, {}
+        -- configuration keeps the view's column order, plain fields come back in project order
+        local visible = v.configuration and v.configuration.visibleFields or v.fields or {}
+        for _, f in ipairs(visible.nodes or {}) do fields[#fields + 1] = f.name end
+        for _, k in ipairs((v.sortByFields or {}).nodes or {}) do
+            if k.field and k.field.name then sort[#sort + 1] = { name = k.field.name, desc = k.direction == "DESC" } end
+        end
+        views[#views + 1] = {
+            number = v.number,
+            name = v.name,
+            layout = v.layout,
+            filter = v.filter or "",
+            fields = fields,
+            group = first_name(v.groupByFields),
+            vgroup = first_name(v.verticalGroupByFields),
+            sort = sort,
+        }
+    end
+    return views, d.viewer and d.viewer.login
+end
+
+-- the gh calls run in parallel, then assemble; renders only if this project is still current
 local function fetch(org, num, buf, key, title, idx)
-    local got, pending, dead = {}, 3, false
-    local function one(name, args)
+    local got, pending, dead = {}, 4, false
+    local function assemble()
+        local fields = build_fields(got.fields.fields)
+        if not field_by_name(fields, "Status") then err("no Status field on this project"); return end
+        local prev = cache[key]
+        local views, viewer = {}, nil
+        if got.views then
+            views, viewer = parse_views(got.views)
+        elseif prev then
+            views, viewer = prev.views, prev.viewer
+        end
+        local built = {
+            buf = buf,
+            org = org,
+            num = num,
+            title = title,
+            idx = idx,
+            project_id = got.view.id,
+            fields = fields,
+            select_fields = select_fields(fields),
+            cards = build_cards(got.items.items),
+            views = views,
+            viewer = viewer,
+            cur = (prev and prev.cur) or { col = 1, row = 1 },
+            frow = (prev and prev.frow) or 1,
+            view_idx = (prev and prev.view_idx) or 1,
+            layout = prev and prev.layout,
+            filter = prev and prev.filter,
+            ts = os.time(),
+        }
+        prepare(built)
+        cache[key] = built
+        disk_write(key, {
+            v = CACHE_VERSION, org = org, num = num, title = title, project_id = built.project_id,
+            fields = fields, cards = built.cards, views = views, viewer = viewer, ts = built.ts,
+        })
+        if proj_idx ~= idx or not vim.api.nvim_buf_is_valid(buf) then return end
+        state = built
+        set_keys(buf)
+        redraw()
+    end
+    local function one(name, args, optional)
         gh_json(args, function(ok, data)
             if dead then return end
-            if not ok then dead = true; err(tostring(data)); return end
+            if not ok and not optional then dead = true; err(tostring(data)); return end
+            if not ok then
+                if not views_warned[key] then warn("saved views unavailable: " .. tostring(data)) end
+                views_warned[key] = true
+                data = nil
+            end
             got[name] = data
             pending = pending - 1
-            if pending > 0 then return end
-            local status_field
-            for _, f in ipairs(got.fields.fields or {}) do
-                if f.name == "Status" then status_field = f end
-            end
-            if not status_field then err("no Status field on this project"); return end
-            local prev = cache[key]
-            local built = {
-                buf = buf,
-                org = org,
-                num = num,
-                title = title,
-                idx = idx,
-                project_id = got.view.id,
-                field_id = status_field.id,
-                select_fields = select_fields(got.fields.fields),
-                columns = build_columns(status_field, got.items.items),
-                cur = (prev and prev.cur) or { col = 1, row = 1 },
-                frow = (prev and prev.frow) or 1,
-                view = (prev and prev.view) or "board",
-                filter = prev and prev.filter or nil,
-            }
-            built.ts = os.time()
-            cache[key] = built
-            -- persist the durable board (no buffer handle) for next session
-            disk_write(key, {
-                org = org, num = num, title = title,
-                project_id = built.project_id, field_id = built.field_id,
-                select_fields = built.select_fields, columns = built.columns, ts = built.ts,
-            })
-            if proj_idx ~= idx or not vim.api.nvim_buf_is_valid(buf) then return end
-            state = built
-            set_keys(buf)
-            redraw()
+            if pending == 0 then assemble() end
         end)
     end
     one("view", { "project", "view", num, "--owner", org, "--format", "json" })
     one("fields", { "project", "field-list", num, "--owner", org, "--format", "json", "-L", "50" })
-    one("items", { "project", "item-list", num, "--owner", org, "--format", "json", "-L", "200" })
+    one("items", { "project", "item-list", num, "--owner", org, "--format", "json", "-L", ITEM_LIMIT })
+    one("views", views_args(org, num), true)
 end
 
--- render the project at `idx` (memory, then disk, then a background refresh).
--- force=true always refetches; otherwise a cache younger than TTL skips the network.
+-- render the project at `idx` from memory, then disk, then a background refresh unless the cache is fresh
 load_board = function(idx, force)
     proj_idx = idx
     local p = projects[idx]
@@ -691,8 +1069,10 @@ load_board = function(idx, force)
     local cached = cache[key]
     if not cached then
         local d = disk_read(key)
-        if d then
-            d.cur = { col = 1, row = 1 }; d.frow = 1; d.view = "board"
+        if d and d.v == CACHE_VERSION then
+            d.cur, d.frow, d.view_idx, d.views = { col = 1, row = 1 }, 1, 1, d.views or {}
+            d.select_fields = select_fields(d.fields)
+            prepare(d)
             cache[key] = d; cached = d
         end
     end
@@ -708,7 +1088,6 @@ load_board = function(idx, force)
         vim.api.nvim_buf_set_lines(board_buf, 0, -1, false, { "", "  loading " .. title .. " ..." })
         vim.bo[board_buf].modifiable = false
     end
-    -- skip the refetch when the cache is fresh, unless forced
     if not force and cached and cached.ts and (os.time() - cached.ts) < TTL then return end
     fetch(cur_org, num, board_buf, key, title, idx)
 end
@@ -727,8 +1106,7 @@ local function pick_project_index(default_num, cb)
     cb()
 end
 
--- fetch the org's project list once, pick the default's index, then run cb().
--- disk cache serves it offline; a fresh cache skips the gh call entirely.
+-- fetch the org's project list once (disk cache serves it offline), pick the default, then cb()
 local function ensure_projects(default_num, cb)
     if projects and projects_org == cur_org then cb(); return end
     local pkey = "projects/" .. cur_org
@@ -770,15 +1148,12 @@ function M.open_board()
     if fresh then
         board_buf = vim.api.nvim_create_buf(true, true)
         vim.bo[board_buf].buftype = "nofile"
-        -- hide, not wipe: opening a card must leave the board reachable via <C-o>/:b
-        vim.bo[board_buf].bufhidden = "hide"
+        vim.bo[board_buf].bufhidden = "hide" -- hide, not wipe: an opened card must leave the board reachable
     end
     vim.api.nvim_win_set_buf(0, board_buf)
     if fresh then
         pcall(vim.api.nvim_buf_set_name, board_buf, "ghproject://board")
-        -- set filetype once the buffer is in the window, so the ftplugin's window
-        -- options land on the right window
-        vim.bo[board_buf].filetype = "ghproject"
+        vim.bo[board_buf].filetype = "ghproject" -- set once in the window, so ftplugin window options land there
     end
 
     ensure_projects(num, function() load_board(proj_idx) end)
