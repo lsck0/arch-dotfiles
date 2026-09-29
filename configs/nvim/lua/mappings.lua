@@ -182,3 +182,7 @@ end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> p
 
 vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
 vim.keymap.set("n", "<leader>pr", ":PerfRecord ", { desc = "perf record a command" })
+
+-- cycle buffer tabs (barbar); note: shadows <C-i> jump on <Tab>
+vim.keymap.set("n", "<Tab>", "<cmd>BufferNext<CR>", { desc = "Next buffer" })
+vim.keymap.set("n", "<S-Tab>", "<cmd>BufferPrevious<CR>", { desc = "Prev buffer" })
