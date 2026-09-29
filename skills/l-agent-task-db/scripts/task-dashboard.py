@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Human-facing view of an l-agent-task-db taskwarrior instance: exactly
 what's queued, what stage every ticket is in, and what needs the human's
-input right now. Read-only — never modifies the db.
+input right now. Read-only: never modifies the db.
 
 Usage: task-dashboard.py [project-dir]   (defaults to $PWD)
 Resolution order for the taskrc: <project-dir>/tasks/.taskrc if a
 project-dir arg was given, else $TASKRC if set, else ./tasks/.taskrc.
 """
+import glob
 import json
 import os
 import shutil
@@ -52,11 +53,21 @@ def stage_of(task):
     return "-"
 
 
-def question_file(task):
+def question_file(task, root):
     for a in task.get("annotations", []):
         desc = a.get("description", "")
         if "tasks/context/questions/" in desc:
             return desc.split("context: ", 1)[-1]
+    # unannotated: fall back to the <uuid8>-<slug> file name
+    hits = sorted(glob.glob(os.path.join(root, "tasks", "context", "questions", task["uuid"][:8] + "-*.md")))
+    return os.path.relpath(hits[0], root) if hits else None
+
+
+def pr_link(task):
+    for a in task.get("annotations", []):
+        desc = a.get("description", "")
+        if desc.startswith("pr: ") or "/pull/" in desc:
+            return desc.split("pr: ", 1)[-1]
     return None
 
 
@@ -75,7 +86,7 @@ def one_line(description):
     overflows the dashboard's aligned layout."""
     text = " ".join(description.split())
     if len(text) > DESC_MAX_CHARS:
-        text = text[:DESC_MAX_CHARS - 1].rstrip() + "…"
+        text = text[:DESC_MAX_CHARS - 3].rstrip() + "..."
     return text
 
 
@@ -86,10 +97,10 @@ def fmt(task):
 def clip(line, width):
     """Hard-clip an already-assembled line to the terminal width so a
     narrow pane (e.g. Herdr) never wraps mid-word into a garbled,
-    pipe-fenced mess — one line in, one line out, always."""
+    pipe-fenced mess: one line in, one line out, always."""
     if len(line) <= width:
         return line
-    return line[: max(width - 1, 0)].rstrip() + "…"
+    return line[: max(width - 3, 0)].rstrip() + "..."
 
 
 def main():
@@ -111,10 +122,16 @@ def main():
                and "agent-task" not in t.get("tags", [])]
     agent = [t for t in pending if "agent-task" in t.get("tags", [])]
 
-    needs_clarification = [t for t in agent if "human-clarification-needed" in t.get("tags", [])]
-    needs_review = [t for t in agent if "human-review-ready" in t.get("tags", [])]
-    blocking = needs_clarification + needs_review
-    active = [t for t in agent if t.get("start") and t not in blocking]
+    root = os.path.dirname(os.path.dirname(taskrc))
+    gated = [t for t in agent if {"human-clarification-needed", "human-review-ready"} & set(t.get("tags", []))]
+    answered = [t for t in gated if "human-answered" in t.get("tags", [])]
+    needs_clarification = [t for t in gated if t not in answered
+                           and "human-clarification-needed" in t.get("tags", [])]
+    needs_review = [t for t in gated if t not in answered
+                    and "human-review-ready" in t.get("tags", [])]
+    blocking = gated
+    active = [t for t in agent if t not in blocking
+              and (t.get("start") or stage_of(t) != "-")]
     blocked = [t for t in agent if t not in blocking and t not in active
                and blocked_by(t, by_uuid)]
     ready = [t for t in agent if t not in blocking and t not in active
@@ -125,7 +142,7 @@ def main():
         key=lambda t: t.get("end", ""), reverse=True,
     )[:RECENT_COMPLETED_LIMIT]
 
-    print(f"=== task db: {os.path.dirname(os.path.dirname(taskrc))} ===")
+    print(f"=== task db: {root} ===")
 
     print(hdr("PROMPTS awaiting decomposition", len(prompts)))
     for t in prompts:
@@ -135,18 +152,24 @@ def main():
 
     print(hdr("NEEDS CLARIFICATION", len(needs_clarification)))
     for t in needs_clarification:
-        qf = question_file(t)
+        qf = question_file(t, root)
         out(f"  {fmt(t)}  [{t.get('project', '-')}] [{stage_of(t)}]")
         if qf:
             out(f"        -> {qf}")
 
-    print(hdr("SPEC READY FOR YOUR REVIEW", len(needs_review)))
+    print(hdr("PR READY FOR YOUR REVIEW", len(needs_review)))
     for t in needs_review:
+        out(f"  {fmt(t)}  [{t.get('project', '-')}] [{stage_of(t)}]")
+        out(f"        -> {pr_link(t) or '(no PR annotated)'}")
+
+    print(hdr("ANSWERED, AWAITING AGENT", len(answered)))
+    for t in answered:
         out(f"  {fmt(t)}  [{t.get('project', '-')}] [{stage_of(t)}]")
 
     print(hdr("IN PROGRESS", len(active)))
     for t in active:
-        out(f"  {fmt(t)}  [{t.get('project', '-')}] [{stage_of(t)}]  (started {t['start']})")
+        started = f"  (started {t['start']})" if t.get("start") else "  (paused)"
+        out(f"  {fmt(t)}  [{t.get('project', '-')}] [{stage_of(t)}]{started}")
 
     print(hdr("READY (queued, unblocked)", len(ready)))
     by_project = defaultdict(list)

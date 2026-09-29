@@ -11,7 +11,7 @@ live with.
 - Idiomatic use of the language/framework vs. the project's own conventions.
 - Naming, structure, dead code, duplication, error handling sloppiness.
 - Maintainability: would a stranger understand this without the author.
-- Every finding concrete and located — never "polish this."
+- Every finding concrete and located, never "polish this."
 
 Write to the target file, then stop. No file given -> answer in chat.
 

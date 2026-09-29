@@ -183,3 +183,18 @@ end, { nargs = "?", complete = "file", desc = "Open perf.data in hotspot (GUI)" 
 
 vim.keymap.set("n", "<leader>pf", "<cmd>Perf<CR>", { desc = "Perf flamegraph (flamelens)" })
 vim.keymap.set("n", "<leader>pg", "<cmd>PerfGui<CR>", { desc = "Perf in hotspot (GUI)" })
+
+-- record step: generate the profile the explorers above read.
+vim.api.nvim_create_user_command("CargoFlamegraph", function(o)
+    local args = o.args ~= "" and (" " .. o.args) or ""
+    vim.cmd("botright 20split | terminal cargo flamegraph" .. args)
+    vim.cmd("startinsert")
+end, { nargs = "*", desc = "cargo flamegraph (writes flamegraph.svg)" })
+
+vim.api.nvim_create_user_command("PerfRecord", function(o)
+    vim.cmd("botright 20split | terminal perf record -g -- " .. o.args)
+    vim.cmd("startinsert")
+end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> perf.data" })
+
+vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
+vim.keymap.set("n", "<leader>pr", ":PerfRecord ", { desc = "perf record a command" })

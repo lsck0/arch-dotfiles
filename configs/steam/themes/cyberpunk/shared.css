@@ -8,13 +8,13 @@
   --cp-accent-2: #d2a6ff;
   --cp-muted: #565b66;
   --cp-border: #565b66;
-  --cp-font: "Tektur", "JetBrainsMono Nerd Font", sans-serif;
+  --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
 }
 
 /* Dark ground beneath Steam's own surfaces */
 html, body { background-color: var(--cp-bg) !important; }
 
-/* Tektur on text controls only, so Steam's icon fonts keep their own family */
+/* Kode Mono on text controls only, so Steam's icon fonts keep their own family */
 body, button, input, textarea, select { font-family: var(--cp-font) !important; }
 
 /* Sharp terminal corners across the client */
@@ -98,9 +98,73 @@ button:active, [class*="DialogButton"]:active {
   color: var(--cp-fg) !important;
 }
 
-/* Modal / dialog surfaces: dark with an accent frame */
-[class*="ModalPosition"], [class*="DialogContent"], [class*="DialogBody"],
+/* Modal / dialog surfaces: dark with an accent frame. NOT ModalPosition: that is
+   the full-screen positioner, so framing it drew an offset border + black overlay. */
+[class*="DialogContent"], [class*="DialogBody"],
 [class*="_DialogLayout"], [class*="dialog_"] {
   background-color: var(--cp-bg) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 55%, transparent), 0 0 16px -6px var(--cp-accent) !important;
 }
+
+/* Dialog header/footer bars ride the terminal ground with a thin accent seam */
+[class*="DialogHeader"], [class*="DialogFooter"] {
+  background-color: var(--cp-bg-alt) !important;
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+}
+
+/* ----- Settings + form controls: native accent, HUD toggles/dropdowns ----- */
+
+/* Native checkboxes, radios, ranges and progress tint to the accent for free */
+html { accent-color: var(--cp-accent); }
+
+/* Steam's own toggle switches read as accent when on */
+[class*="DialogToggle"][class*="On"], [class*="Toggle_On"], [class*="toggle_On"] {
+  background-color: var(--cp-accent) !important;
+  box-shadow: 0 0 8px -2px var(--cp-accent) !important;
+}
+
+/* Dropdown / combo controls as HUD fields */
+[class*="DialogDropDown"], [class*="_DropDown"], [class*="dropDown"] {
+  background-color: var(--cp-bg-alt) !important;
+  color: var(--cp-fg) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+}
+[class*="DialogDropDown"]:hover, [class*="_DropDown"]:hover, [class*="dropDown"]:hover {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+}
+
+/* Selected page in the settings left-nav reads as accent (inset stripe, no reflow) */
+[class*="PageListItem"][class*="Active"], [class*="pagedsettings"][class*="Active"],
+[class*="SettingsPage"][class*="active"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 18%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+  color: var(--cp-fg) !important;
+}
+
+/* ----- Progress + downloads: accent fill on the terminal ground ----- */
+[class*="ProgressBar"] [class*="Fill"], [class*="progressbar"] [class*="fill"],
+[class*="_Progress"] [class*="_Bar"], [class*="downloadbar"] [class*="fill"] {
+  background-color: var(--cp-accent) !important;
+  box-shadow: 0 0 8px -3px var(--cp-accent) !important;
+}
+
+/* ----- Titlebar / top chrome: dark ground so the HUD stays seamless ----- */
+[class*="TitleBar"], [class*="titlebar"], [class*="_URLBar"] {
+  background-color: var(--cp-bg) !important;
+}
+
+/* ----- Notifications / toasts: dark surface, accent frame + faint glow ----- */
+[class*="notificationgroup"], [class*="Notification"], [class*="_Toast"], [class*="toast_"] {
+  background-color: var(--cp-bg-alt) !important;
+  color: var(--cp-fg) !important;
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 12px -4px var(--cp-accent) !important;
+}
+
+/* Small count/unread badges pop in the accent */
+[class*="_Badge"], [class*="unreadcount"], [class*="UnreadCount"] {
+  background-color: var(--cp-accent) !important;
+  color: var(--cp-bg) !important;
+}
+
+/* Text links underline in the accent on hover (color left alone so capsules stay legible) */
+a:hover { text-decoration-color: var(--cp-accent) !important; }

@@ -24,9 +24,13 @@ return {
                 },
             }
 
-            -- preview: zathura with synctex forward/inverse search
-            vim.g.vimtex_view_method = "zathura"
-            vim.g.vimtex_view_forward_search_on_start = true
+            -- preview: zathura_simple avoids the xdotool window-ID lookup that
+            -- fails on Wayland ("Viewer cannot find Zathura window ID!");
+            -- synctex forward/inverse search still works.
+            vim.g.vimtex_view_method = "zathura_simple"
+            -- off: it spawned the viewer + ran synctex on every open, lagging the
+            -- buffer for seconds. Forward search still works on demand (\lv).
+            vim.g.vimtex_view_forward_search_on_start = false
 
             -- editing: folding, toc, conceal (needs conceallevel, set per-buffer below)
             vim.g.vimtex_fold_enabled = 1
@@ -38,8 +42,10 @@ return {
             }
             vim.g.tex_conceal = "abdmg"
 
-            -- quickfix: don't jump on build, and drop noise that isn't actionable
-            vim.g.vimtex_quickfix_mode = 0
+            -- quickfix: open on real errors (not warnings) without stealing the
+            -- cursor, so build failures are actually visible; drop non-actionable noise.
+            vim.g.vimtex_quickfix_mode = 2
+            vim.g.vimtex_quickfix_open_on_warning = 0
             vim.g.vimtex_quickfix_ignore_filters = {
                 "Underfull",
                 "Overfull",

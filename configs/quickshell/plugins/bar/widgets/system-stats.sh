@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Streams one JSON line per sample: CPU, memory, GPU (busy/clock/VRAM/power) and package temperature/power.
+# Streams one JSON line per sample: CPU, memory, GPU (busy/clock/VRAM), temperature and CPU+GPU power/energy.
 set -uo pipefail
 
 INTERVAL=${1:-5}
@@ -40,7 +40,17 @@ if [[ "$gpu_vendor" == amd ]]; then
 fi
 
 gpu_rc6=$gpu_card/gt/gt0/rc6_residency_ms  # i915 only
-rapl=/sys/class/powercap/intel-rapl:0/energy_uj  # i915 platforms only
+# CPU package energy counter; the intel-rapl name is used on AMD Zen too.
+rapl=/sys/class/powercap/intel-rapl:0/energy_uj
+rapl_max=$(cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null || echo 0)
+# Energy used since login: kept on tmpfs so a shell restart does not reset it.
+energy_file=${XDG_RUNTIME_DIR:-/tmp}/quickshell-energy-wh
+# Wall-power estimate: RAM, board, drives and fans are not metered, so add a fixed
+# overhead and the PSU's conversion loss on top of the measured CPU + GPU draw.
+OVERHEAD_W=40
+PSU_EFFICIENCY=0.9
+energy_wh=$(cat "$energy_file" 2>/dev/null || echo 0)
+[[ "$energy_wh" =~ ^[0-9.]+$ ]] || energy_wh=0
 
 # CPU package temperature: resolve one hwmon temp*_input path once, then cat it each tick (avoids spawning sensors|jq every sample).
 cpu_temp_path=""
@@ -101,7 +111,7 @@ read_amdgpu_power() {
 }
 
 power_ok=0
-[[ "$gpu_vendor" != amd && -r "$rapl" ]] && power_ok=1
+[[ -r "$rapl" ]] && power_ok=1
 
 mem_total_kb=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
 
@@ -128,6 +138,8 @@ while :; do
         'BEGIN { dt = t2 - t1; di = i2 - i1; printf "%.0f", (dt > 0 ? (dt - di) * 100 / dt : 0) }')
 
     power_w=null
+    cpu_power_w=null
+    gpu_power_w=null
     vram_used_mb=null
     vram_total_mb=null
     gpu_freq=0
@@ -141,7 +153,7 @@ while :; do
             vram_used_mb=$(awk -v b="$vram_used_b" 'BEGIN { printf "%.0f", b / 1048576 }')
             vram_total_mb=$(awk -v b="$vram_total_b" 'BEGIN { printf "%.0f", b / 1048576 }')
         fi
-        power_w=$(read_amdgpu_power)
+        gpu_power_w=$(read_amdgpu_power)
         rc6=$prev_rc6  # unused on this path
     else
         rc6=$(cat "$gpu_rc6" 2>/dev/null || echo 0)
@@ -155,18 +167,30 @@ while :; do
             }')
         gpu_freq=$(cat "$gpu_card/gt_act_freq_mhz" 2>/dev/null || echo 0)
 
-        # Package power from the RAPL energy counter.
-        if ((power_ok)); then
-            energy=$(cat "$rapl" 2>/dev/null || echo 0)
-            power_w=$(awk -v e1="$prev_energy" -v e2="$energy" -v t1="$prev_t_ms" -v t2="$t_ms" \
-                'BEGIN {
-                    de = e2 - e1; dt = (t2 - t1) / 1000
-                    if (de < 0 || dt <= 0) { print "null" } else { printf "%.1f", de / 1000000 / dt }
-                }')
-            prev_energy=$energy
-        fi
     fi
 
+    # Package power from the RAPL energy counter.
+    if ((power_ok)); then
+        energy=$(cat "$rapl" 2>/dev/null || echo 0)
+        cpu_power_w=$(awk -v e1="$prev_energy" -v e2="$energy" -v max="$rapl_max" -v t1="$prev_t_ms" -v t2="$t_ms" \
+            'BEGIN {
+                de = e2 - e1; dt = (t2 - t1) / 1000
+                if (de < 0 && max > 0) de += max
+                if (de < 0 || dt <= 0) { print "null" } else { printf "%.1f", de / 1000000 / dt }
+            }')
+        prev_energy=$energy
+    fi
+
+    # Estimated wall power = (CPU package + discrete GPU + overhead) / PSU efficiency.
+    if [[ "$cpu_power_w" != null || "$gpu_power_w" != null ]]; then
+        read -r power_w energy_wh < <(awk -v c="$cpu_power_w" -v g="$gpu_power_w" -v e="$energy_wh" \
+            -v o="$OVERHEAD_W" -v eff="$PSU_EFFICIENCY" -v t1="$prev_t_ms" -v t2="$t_ms" \
+            'BEGIN {
+                w = ((c == "null" ? 0 : c) + (g == "null" ? 0 : g) + o) / eff
+                printf "%.1f %.4f", w, e + w * (t2 - t1) / 3600000
+            }')
+        echo "$energy_wh" > "$energy_file"
+    fi
     freq_mhz=$(($(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null || echo 0) / 1000))
     temp=$(read_temp)
     temp=${temp:-$prev_temp}
@@ -183,13 +207,15 @@ while :; do
         --arg memType "$mem_type" --argjson memSpeedMts "${mem_speed_mts:-0}" --argjson memChannels "${mem_channels:-0}" \
         --argjson gpuPct "${gpu_pct:-0}" --argjson gpuFreqMhz "${gpu_freq:-0}" \
         --argjson powerW "${power_w:-null}" \
+        --argjson cpuPowerW "${cpu_power_w:-null}" --argjson gpuPowerW "${gpu_power_w:-null}" \
+        --argjson energyKwh "$(awk -v e="$energy_wh" 'BEGIN { printf "%.4f", e / 1000 }')" \
         --argjson vramUsedMb "${vram_used_mb:-null}" --argjson vramTotalMb "${vram_total_mb:-null}" \
         '{cpuName:$cpuName, cpuCores:$cpuCores, gpuName:$gpuName, gpuVendor:$gpuVendor,
           cpu:$cpu, freqMhz:$freqMhz, tempC:$tempC,
           memUsedGb:$memUsedGb, memTotalGb:$memTotalGb,
           memType:$memType, memSpeedMts:$memSpeedMts, memChannels:$memChannels,
           gpuPct:$gpuPct, gpuFreqMhz:$gpuFreqMhz,
-          powerW:$powerW,
+          powerW:$powerW, cpuPowerW:$cpuPowerW, gpuPowerW:$gpuPowerW, energyKwh:$energyKwh,
           vramUsedMb:$vramUsedMb, vramTotalMb:$vramTotalMb}'
 
     pu=$cu; pn=$cn; ps=$cs; pi=$ci

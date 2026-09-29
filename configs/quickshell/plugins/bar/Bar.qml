@@ -189,7 +189,7 @@ PanelWindow {
   }
 
   // CRT scanlines over the whole bar (sits above widgets via its own z; clicks pass through).
-  Scanlines {}
+  Scanlines { flicker: false }
 
   // THE CENTRE IS ANCHORED TO THE SCREEN, NOT SPLIT BETWEEN THE SIDES.
   Item {

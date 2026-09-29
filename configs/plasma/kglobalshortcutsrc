@@ -278,3 +278,10 @@ _launch=Meta+A
 
 [services][nemo.desktop]
 _launch=Meta+E
+
+[services][org.qutebrowser.qutebrowser.desktop]
+_launch=Meta+Shift+A
+
+[services][org.kde.spectacle.desktop]
+CurrentMonitorScreenShot=none
+OpenWithoutScreenshot=none

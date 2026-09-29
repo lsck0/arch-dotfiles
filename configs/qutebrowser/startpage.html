@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>start</title>
+    <title>home</title>
     <style>
       :root {
         --background: #07090d;
@@ -36,7 +36,7 @@
         top: 50%;
         transform: translate(-50%, -50%);
         z-index: 2;
-        font-family: "Tektur", monospace;
+        font-family: "Kode Mono", monospace;
         color: var(--foreground);
         text-align: center;
         user-select: none;
@@ -52,6 +52,32 @@
         color: var(--muted);
         margin-top: 0.3rem;
       }
+      #search {
+        position: fixed;
+        left: 50%;
+        top: calc(50% + 8rem);
+        transform: translateX(-50%);
+        z-index: 3;
+        width: min(38rem, 80vw);
+        /* hidden until the first printable keypress reveals it (see script) */
+        display: none;
+      }
+      #q {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.7rem 1rem;
+        font-family: "Kode Mono", monospace;
+        font-size: 1.1rem;
+        color: var(--foreground);
+        background: rgba(7, 9, 13, 0.72);
+        border: 1px solid var(--cell);
+        border-radius: 6px;
+        outline: none;
+        text-align: center;
+      }
+      #q::placeholder {
+        color: var(--muted);
+      }
     </style>
     <link rel="stylesheet" href="file:///home/luca/.cache/wal/colors-qutebrowser.css" />
   </head>
@@ -61,6 +87,10 @@
       <div id="time">--:--</div>
       <div id="date"></div>
     </div>
+    <form id="search" action="https://www.google.com/search" method="get">
+      <input id="q" name="q" type="text" autocomplete="off"
+             placeholder="search google" />
+    </form>
     <script>
       "use strict";
 
@@ -114,7 +144,7 @@
         context.globalCompositeOperation = "source-over";
 
         context.fillStyle = head_color;
-        context.font = cell_size + "px \"Tektur\", monospace";
+        context.font = cell_size + "px \"Kode Mono\", monospace";
         context.textBaseline = "top";
 
         for (let i = 0; i < drops.length; i++) {
@@ -163,6 +193,36 @@
 
       update_clock();
       setInterval(update_clock, 10000);
+
+      // Search box is hidden until the first printable keypress; the char that
+      // triggers it is appended manually so it is never dropped.
+      const search_form = document.getElementById("search");
+      const search_input = document.getElementById("q");
+
+      function hide_search() {
+        search_form.style.display = "none";
+        search_input.value = "";
+      }
+
+      document.addEventListener("keydown", function (event) {
+        if (document.activeElement === search_input) return; // already typing
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
+        if (event.key.length !== 1) return; // one printable char only
+        event.preventDefault();
+        search_form.style.display = "block";
+        search_input.value += event.key;
+        search_input.focus();
+      });
+
+      search_input.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          hide_search();
+          search_input.blur();
+        }
+      });
+      search_input.addEventListener("blur", function () {
+        if (search_input.value === "") hide_search();
+      });
     </script>
   </body>
 </html>

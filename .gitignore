@@ -1,10 +1,9 @@
 *.log
 .Rhistory
-# VeraCrypt vault lives in $HOME, never the repo; block it if run from repo dir.
-Vault.hc
-/Vault/
+*.hc
 FAILURES
 __pycache__
 boot.conf
 configs/obs/Untitled.json
+errors.txt
 groups.conf

@@ -78,7 +78,9 @@ BarWidget {
           if (s.links) root.links = s.links
           root.services = s.services || []
           root.alerts = s.alerts || []
-          root.host = s.host || {}
+          // summary lines carry no panel detail; keep the last full sample so a hover shows data at once
+          if (!s.host) return
+          root.host = s.host
           root.storage = s.storage || {}
           root.traffic = s.traffic || {}
           root.clients = s.clients || {}

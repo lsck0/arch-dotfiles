@@ -51,6 +51,27 @@
       (eat-emacs-mode)
     (evil-normal-state)))
 
+(defun my/toggle-diagnostic-lines ()
+  "nvim SPC lv: toggle inline end-of-line flymake diagnostics."
+  (interactive)
+  (if (boundp 'flymake-show-diagnostics-at-end-of-line)
+      (progn
+        (setq flymake-show-diagnostics-at-end-of-line
+              (not flymake-show-diagnostics-at-end-of-line))
+        (when (bound-and-true-p flymake-mode) (flymake-mode 1))
+        (message "flymake inline diagnostics %s"
+                 (if flymake-show-diagnostics-at-end-of-line "on" "off")))
+    (message "flymake-show-diagnostics-at-end-of-line unavailable (needs Emacs 30+)")))
+
+(defun my/claude-toggle ()
+  "nvim SPC c c: toggle the Claude window, starting it if none exists."
+  (interactive)
+  ;; claude-code is deferred (:after eat); load it before calling its private fn.
+  (require 'claude-code)
+  (if (claude-code--find-all-claude-buffers)
+      (claude-code-toggle)
+    (call-interactively #'claude-code)))
+
 ; ;;; ------------------------------------------------------------------------ ;;; tmux layer: C-q ;;; ------------------------------------------------------------------------ ; tmux "pane" -> Emacs window, tmux "window" -> tab-bar tab.
 
 (defvar my/tmux-map (make-sparse-keymap)
@@ -142,6 +163,13 @@
 ; ; nvim binds bare `m` to compile-mode (not mark-set); mode maps such as ; dired's `m` still win, because they are more specific.
 (general-nmap "m" #'compile)
 
+;; nvim-dap function keys: continue/step, no prefix (nvim binds them in normal)
+(general-def 'global
+  "<f5>"  #'my/dap-continue
+  "<f10>" #'dap-next
+  "<f11>" #'dap-step-in
+  "<f12>" #'dap-step-out)
+
 ; ;;; ------------------------------------------------------------------------ ;;; nvim layer: SPC leader ;;; ------------------------------------------------------------------------
 
 (general-create-definer my/leader
@@ -160,11 +188,19 @@
   ;; popouts
   "e" #'dirvish-side                     ; neo-tree sidebar
   "o" #'dirvish                          ; oil, edit the directory as a buffer
-  "g" #'magit-status                     ; fugitive
-  "t" #'consult-flymake                  ; trouble
+  ;; g/t/s are prefixes (Emacs cannot make one key both a leaf and a prefix like
+  ;; nvim does), so the primary action doubles the letter.
+  "gg" #'magit-status                    ; nvim g: fugitive status
+  "gy" #'git-link                        ; nvim gy: open line on remote
+  "gh" #'magit-log-buffer-file           ; nvim gh: file history
+  "gd" #'magit-diff-buffer-file          ; nvim gd: diff current file
+  "tt" #'consult-flymake                 ; nvim t: trouble diagnostics
+  "ts" #'consult-eglot-symbols           ; nvim ts: trouble symbols
+  "tl" #'xref-find-references            ; nvim tl: trouble lsp references
 
   ; ; spectre.
-  "s" #'project-query-replace-regexp
+  "ss" #'project-query-replace-regexp
+  "sw" #'my/replace-symbol               ; nvim sw: replace word under cursor
   "S" #'my/replace-symbol
 
   ;; telescope
@@ -175,9 +211,29 @@
   "fr" #'consult-recent-file
   "f*" #'my/grep-string
 
-  ;; claude (leader c in nvim); more under claude-code's own transient
-  "cc" #'claude-code
-  "ct" #'claude-code-toggle
+  ;; claude (leader c in nvim). accept/deny diff have no equivalent: the
+  ;; terminal claude-code.el has no MCP diff protocol, you accept in the TUI.
+  "cc" #'my/claude-toggle                 ; toggle Claude Code
+  "cf" #'claude-code-switch-to-buffer     ; focus Claude
+  "cs" #'claude-code-send-region          ; send selection
+  "cb" #'claude-code-send-buffer-file     ; add current buffer to context
+
+  ;; debugging (nvim-dap)
+  "dt" #'my/dap-ui-toggle                 ; toggle DAP UI
+  "b"  #'dap-breakpoint-toggle            ; toggle breakpoint
+  "B"  #'dap-breakpoint-condition         ; conditional breakpoint
+
+  ;; testing (neotest). nearest/summary/output/watch need neotest: unbound.
+  "na" #'my/test-all
+  "nf" #'my/test-file
+  "nl" #'my/test-last
+  "nx" #'my/test-stop
+
+  ;; profiling (perf flamegraphs)
+  "pf" #'my/perf-flamegraph               ; flamelens
+  "pg" #'my/perf-hotspot                  ; hotspot GUI
+  "pc" #'my/perf-cargo-flamegraph         ; cargo flamegraph
+  "pr" #'my/perf-record                   ; perf record -g
 
   ;; jupyter cells (leader j in nvim)
   "je" #'code-cells-eval
@@ -193,18 +249,24 @@
   "lr" #'eglot-rename
   "le" #'consult-flymake
   "lo" #'flymake-show-buffer-diagnostics
-  "ln" #'flymake-goto-next-error)
+  "ln" #'flymake-goto-next-error
+  "ls" #'consult-eglot-symbols            ; nvim ls: workspace symbols
+  "lF" #'apheleia-format-buffer           ; nvim lF: manual format
+  "lv" #'my/toggle-diagnostic-lines)      ; nvim lv: toggle inline diagnostics
+
+;; name the leader prefixes so which-key reads like nvim's whichkey groups
+(which-key-add-key-based-replacements
+  "SPC f" "find"      "SPC l" "lsp"    "SPC c" "claude"
+  "SPC d" "debug"     "SPC n" "test"   "SPC p" "profiling"
+  "SPC j" "jupyter"   "SPC t" "trouble"
+  "SPC g" "git"       "SPC s" "search/replace")
 
 ; ;;; ------------------------------------------------------------------------ ;;; package-local maps ;;; ------------------------------------------------------------------------
 
-;; mini.surround: add / delete / replace. evil-surround's own ys/ds/cs stay live.
+;; Surround via evil-surround's own ys/ds/cs (normal) + S (visual). The old
+;; ea/ed/er binds made `e` a prefix and killed the end-of-word motion.
 (with-eval-after-load 'evil-surround
-  (evil-define-key 'normal evil-surround-mode-map
-    "ea" 'evil-surround-region
-    "ed" 'evil-surround-delete
-    "er" 'evil-surround-change)
-  (evil-define-key 'visual evil-surround-mode-map
-    "ea" 'evil-surround-region))
+  (evil-define-key 'visual evil-surround-mode-map "S" 'evil-surround-region))
 
 ;; telescope picker navigation; M-q sends results to an editable wgrep buffer
 (with-eval-after-load 'vertico

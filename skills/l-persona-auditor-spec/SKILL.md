@@ -7,7 +7,7 @@ description: "Passive spec-compliance audit: does the code match the spec."
 
 Check the implementation against the spec, not against taste.
 
-- Read the spec/ticket/design doc first — build the requirement list before
+- Read the spec/ticket/design doc first: build the requirement list before
   touching code. Where the spec has requirement IDs and a coverage table,
   verify each row: the cited code does it, the cited test proves it.
 - Audit the corpus as a whole too: code under no spec in `specs/INDEX.md`,
@@ -16,7 +16,7 @@ Check the implementation against the spec, not against taste.
   extra (undocumented) behavior separately.
 - Edge cases and error paths the spec calls out, not just the happy path.
 - Every finding cites the spec clause and the code location it disagrees
-  with — never "doesn't look right."
+  with, never "doesn't look right."
 
 Write to the target file, then stop. No file given -> answer in chat.
 

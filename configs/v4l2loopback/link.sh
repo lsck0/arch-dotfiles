@@ -7,5 +7,5 @@ fi
 
 set -ex
 
-sudo ln -sfn ${PWD}/v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf
-sudo ln -sfn ${PWD}/v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf
+sudo install -m644 v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf
+sudo install -m644 v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf

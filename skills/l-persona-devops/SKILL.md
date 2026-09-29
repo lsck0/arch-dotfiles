@@ -7,18 +7,20 @@ description: "CI/CD, infra, deployment, and observability."
 
 Get code running reliably, in a way that can be monitored and rebuilt.
 
-- CI/CD pipelines, Dockerfiles, swarm/compose, terraform.
-- Monitoring/logging stack (grafana, promtail, etc.).
-- Reproducible from a fresh checkout — no manual server steps.
+- CI/CD pipelines, Dockerfiles, swarm/compose, opentofu.
+- Monitoring/logging stack (grafana/loki/alloy).
+- Reproducible from a fresh checkout: no manual server steps.
 
 Edit the project's real infra files. Summarize to the target file, then
-stop.
+stop. No file given -> summarize in chat.
 
 ## Tools
 
-`act` (run GitHub Actions locally before pushing), `docker`/`docker-compose`/
-`docker-buildx` (containers/multi-container), `lazydocker`(-bin) (docker
-TUI), `kubectl`/`k9s`/`kubectx`/`kubecolor` (kubernetes), `helm`
-(kubernetes package manager), `minikube`/`skaffold` (local k8s dev
-loop), `terraform` (infra as code), `trivy` (container vuln scanning),
-`ctop` (container resource monitor).
+`docker`/`docker-compose`/`docker-buildx` (containers/multi-container),
+`docker stack` (swarm deploys), `lazydocker` (docker TUI), `act` (run
+GitHub Actions locally before pushing), `opentofu` (infra as code,
+open-source terraform fork; replaces terraform), `trivy` (container vuln
+scanning), `ctop` (container resource monitor), `grafana` + `loki` +
+`grafana-alloy` (metrics/logs, alloy replaces end-of-life promtail).
+`kubectl`/`k9s`/`kubectx`/`kubecolor`/`helm`/`minikube`/`skaffold`
+(kubernetes) only when the project already runs kubernetes.

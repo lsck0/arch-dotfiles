@@ -4,7 +4,7 @@
 LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-    # Self-healing: background jobs spawned below (themix-multi-export, pywalfox, etc.) inherit this fd, so the lock is intentionally held until all of them finish, not just the synchronous prologue — that's what actually closes the inode-rename race across two whole invocations, not just their fast paths. The failure mode that bites is a background job that HANGS rather than exits: it holds fd 9 forever and every future switch silently no-ops. This has already happened for real — themix-multi-export enters an infinite GTK idle loop (never reaching its own app.quit()) when it hits a certain upstream oomox bug (IsADirectoryError inside an exception handler that never unblocks the main loop; see the `timeout` wrapped around it below, which is the actual fix for the hang itself). This mtime check is the safety net for the NEXT thing that hangs in a way nobody anticipated: a switch legitimately never takes anywhere near 90s end-to-end (slowest steps are ~1.5s each and run in parallel), so a lock older than that is unambiguously stale, not just slow.
+    # Stale-lock breaker: background jobs below inherit fd 9, so the lock is held until they all finish (closes the rename race across invocations). A hung background job holds fd 9 forever and no-ops every future switch; a real switch never runs near 90s, so an older lock is stale, not slow.
     if [[ -e "$LOCK_FILE" ]]; then
         age=$(( $(date +%s) - $(stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0) ))
         if (( age > 90 )); then
@@ -25,6 +25,10 @@ fi
 
 set_wallpaper() {
     local file="$1"
+
+    # Guard: a nonexistent path would symlink wal/wallpaper to nothing and make
+    # every downstream generator re-run on a broken palette.
+    [[ -f "$file" ]] || { echo "wallpaper not found: $file" >&2; return 1; }
 
     # Background.qml refreshes on startup or over IPC only — it does not watch the symlink — so the shell has to be told, not just pointed at the file.
     ln -sfn "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
@@ -51,7 +55,7 @@ set_wallpaper() {
         fi
     done
     if [[ -n "$THEME_JSON" ]]; then
-        # `wallust cs` regenerates every downstream template (ghostty, kitty, tmux, hyprlock's colors-rgb, …) from the theme's palette; copying colors.json alone would leave all of them stale.
+        # `wallust cs` regenerates every downstream template (ghostty, kitty, tmux, …) from the theme's palette; copying colors.json alone would leave all of them stale.
         wallust cs -s "$THEME_NAME"
 
         # Optional per-theme "font" field, applied through toggle-font.sh's own `set` — the single place every font change in this repo goes through.
@@ -71,19 +75,21 @@ set_wallpaper() {
     printf '%s\n' "$NVIM_THEME" > "$HOME/.cache/wal/nvim_theme"
 
     # GTK/Qt themes. generate-oomox-colors output is consumed only by the two themix-multi-export jobs, so chain all three in one backgrounded subshell to keep them off the return-path critical section.
-    # `timeout` + `9>&-`: themix-multi-export has a real upstream bug (three of its export layout entries — qt5ct, qt6ct, gtk4-oodwaita — used to ship a bare "~" default_path; fixed in configs/oomox/*.json, but kept defensive here since it's an upstream bug, not ours, and could regress if the export layout is ever regenerated from the GUI). Before that fix, the plugin's os.path.isdir("~") check always failed (unexpanded tilde), so it fell through to writing straight over the home directory -> IsADirectoryError raised inside a GTK idle callback that never reaches the CLI's own app.quit() — the process hangs forever instead of exiting. `timeout` bounds that. `9>&-` closes this invocation's lock fd in the child: background jobs inherit open fds by default, so without this a themix process that outlives the script (hung OR just slow) would hold the flock open indefinitely and wedge every subsequent wallpaper switch — exactly what `timeout` guards against for hangs, `9>&-` guards against for the ordinary case of "still running after the parent script's own critical section is done and it moved on". Every background job below gets the same treatment for the same reason — importantly including pywal-spicetify, which actually RESTARTS Spotify as a side effect: that new Spotify process is long-lived (stays open for the rest of the desktop session) and would otherwise hold this invocation's lock open for hours, silently no-opping every wallpaper switch after it. This is not hypothetical — it happened for real in production use. -k 5: SIGTERM alone doesn't reap this hang (wedged in a GTK main-loop iteration, so CPython never runs the handler). 42 survivors seen.
+    # `timeout -k 5`: themix-multi-export can hang forever on an upstream oomox bug (bare "~" default_path -> IsADirectoryError in a GTK idle callback that never reaches app.quit(); fixed in configs/oomox/*.json but kept defensive against a GUI regeneration), and SIGTERM cannot reap a GTK-main-loop hang so -k forces SIGKILL. `9>&-` drops this invocation's lock fd in every child, else a background job that outlives the script (a hung themix, or the long-lived Spotify that pywal-spicetify restarts) holds the flock and no-ops every later switch.
     ( ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py && \
       timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
       timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
 
     # apply the new colors to other programs
     pywalfox update 9>&- &
-    # pywal-spicetify launches/restarts Spotify to patch it (see the flock comment above this block).
+    # Spotify + Discord colours. Synchronous: the Discord block below reads its output.
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-spicetify-colors.py
+    # Spotify gets restarted to repatch it (see the flock comment above this block).
     (
       was_running=0
       pgrep -x spotify >/dev/null && was_running=1
-      ~/projects/arch-dotfiles/configs/wallust/scripts/generate-spicetify-colors.py && pywal-spicetify wal
-      # pywal-spicetify runs `spicetify apply`, which renames the client's CSS classes away from what the DOM uses; undo that and reload the client it just started, or it comes up with the layout stripped.
+      spicetify -n apply
+      # `spicetify apply` renames the client's CSS classes away from what the DOM uses; undo that and reload the client it just started, or it comes up with the layout stripped.
       ~/projects/arch-dotfiles/configs/spotify/spicetify-unmap-classes.py || true
       pkill -x spotify
       if [ "$was_running" = 1 ]; then
@@ -99,21 +105,15 @@ set_wallpaper() {
     # The lua config reads ~/.cache/wal/colors itself, and hyprland does not watch that file.
     hyprctl reload config-only 9>&- &
 
-    # update hyprlock config.
-    # Read the wal RGB palette once: rgb[0]=color0 ... rgb[15]=color15.
-    mapfile -t rgb < ~/.cache/wal/colors-rgb
-    sed -i "s|\$BACKGROUND = rgb([^)]*)|\$BACKGROUND = rgb(${rgb[0]})|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$FOREGROUND = rgb([^)]*)|\$FOREGROUND = rgb(${rgb[15]})|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR1 = rgb([^)]*)|\$COLOR1 = rgb(${rgb[2]})|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR2 = rgb([^)]*)|\$COLOR2 = rgb(${rgb[3]})|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$COLOR3 = rgb([^)]*)|\$COLOR3 = rgb(${rgb[4]})|" ~/.config/hypr/hyprlock.conf && \
-    sed -i "s|\$BACKGROUND_GLASS = rgba([^)]*)|\$BACKGROUND_GLASS = rgba(${rgb[0]},0.55)|" ~/.config/hypr/hyprlock.conf
 
     # update zed and vscodium themes
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-editor-themes.sh 9>&- &
 
     # btop theme from the palette.
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-btop-theme.sh 9>&- &
+
+    # gh-dash theme from the palette (re-read on its next launch).
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-ghdash-theme.sh 9>&- &
 
     # Telegram palette regenerates via the wal/ template (configs/telegram); import is a manual GUI step (tdesktop#31183). ZapZap hardcodes its palette, Signal exposes no theming hook.
 
@@ -132,15 +132,20 @@ set_wallpaper() {
         ui_font=""
     fi
 
-    # SYNCHRONOUS — see the hyprlock.conf comment above for why: this is the other rename-race-prone step, and the lock must stay held for it, not get inherited into a background job.
-    # rgb[] read once above: color0=background, color4=cyan accent.
-    rgb1="${rgb[0]}"
-    accent="${rgb[4]}"
+    # SYNCHRONOUS: this is the other rename-race-prone step, and the lock must stay held for it, not get inherited into a background job.
+    # Same conditioned palette as Spotify, so the two match side by side.
+    spice() { grep -m1 "^$1 " ~/.cache/wal/colors-spicetify.ini | awk '{print $3}' | sed 's/../0x& /g' | xargs printf '%d,%d,%d'; }
+    rgb1=$(spice main)
+    accent=$(spice button)
+    raised=$(spice highlight)
+    floating=$(spice main-elevated)
+    text=$(spice text)
+    subtext=$(spice subtext)
     # --font stays untouched (no -e for it) when the read above failed, same "leave it alone" rule as gtk-font-name below — never write an empty `--font: ;` into the live BetterDiscord theme.
     font_expr=()
     [[ -n "$ui_family" ]] && font_expr=(-e "s|\\--font: .*$|\\--font: \"${ui_family}\";|")
     discord_theme="$HOME/.config/BetterDiscord/themes/wal.theme.css"
-    if [[ -f "$discord_theme" ]]; then
+    if [[ -f "$discord_theme" && -n "$rgb1" && -n "$accent" ]]; then
         discord_tmp=$(mktemp)
         if sed \
             -e "s|\\--accentcolor: .*$|\\--accentcolor: ${accent};|" \
@@ -149,6 +154,11 @@ set_wallpaper() {
             -e "s|\\--backgroundsecondary: .*$|\\--backgroundsecondary: ${rgb1};|" \
             -e "s|\\--backgroundsecondaryalt: .*$|\\--backgroundsecondaryalt: ${rgb1};|" \
             -e "s|\\--backgroundtertiary: .*$|\\--backgroundtertiary: ${rgb1};|" \
+            -e "s|\\--backgroundaccent: .*$|\\--backgroundaccent: ${raised};|" \
+            -e "s|\\--backgroundfloating: .*$|\\--backgroundfloating: ${floating};|" \
+            -e "s|\\--textbrightest: .*$|\\--textbrightest: ${text};|" \
+            -e "s|\\--textbrighter: .*$|\\--textbrighter: ${text};|" \
+            -e "s|\\--textdark: .*$|\\--textdark: ${subtext};|" \
             "${font_expr[@]}" \
             "$discord_theme" > "$discord_tmp" && [[ -s "$discord_tmp" ]]; then
             # Same inode, so BD sees a modify rather than a delete.
@@ -162,7 +172,7 @@ set_wallpaper() {
     theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
     (gsettings set org.gnome.desktop.interface gtk-theme '' && gsettings set org.gnome.desktop.interface gtk-theme "$theme") 9>&- &
 
-    # apps that read gtk-3.0/gtk-4.0 settings.ini directly instead of gsettings (nwg-look used to be a manual step for exactly this) SYNCHRONOUS — third and last of the rename-race-prone `sed -i` steps; see the hyprlock.conf comment above.
+    # apps that read gtk-3.0/gtk-4.0 settings.ini directly instead of gsettings (nwg-look used to be a manual step for exactly this) SYNCHRONOUS: third and last of the rename-race-prone `sed -i` steps.
     for gtkdir in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
         mkdir -p "$gtkdir"
         ini="$gtkdir/settings.ini"
@@ -259,8 +269,7 @@ main() {
     WALLPAPERS="$(find "$WALLPAPER_DIR" \
         -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
         -exec basename {} \; \
-        | sort)\
-    "
+        | sort)"
 
     # use cli provided wallpaper filepath
     if [[ -n "$1" ]]; then

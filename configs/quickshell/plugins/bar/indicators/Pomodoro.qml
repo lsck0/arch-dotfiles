@@ -3,13 +3,14 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Commons
 import qs.Ui
 
 // Glyphs verified by name in the 0xProto Nerd Font cmap: md-timer_sand U+F051F, md-coffee U+F0176.
 BarIndicator {
     id: root
 
-    readonly property string pomodoroScript: Quickshell.env("HOME") + "/.local/bin/pomodoro"
+    readonly property string pomodoroScript: Paths.bin("pomodoro")
     property bool running: false
     property bool paused: false
     property string phase: "idle"

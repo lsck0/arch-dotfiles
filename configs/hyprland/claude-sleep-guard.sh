@@ -15,7 +15,9 @@ dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claude-busy"
 mkdir -p "$dir"
 
 case "$action" in
-    acquire) : > "$dir/$sid" ;;
+    # Store the claude PID so the guard can drop the marker if the session dies
+    # without releasing (crash/kill), instead of blocking suspend on a time window.
+    acquire) echo "$PPID" > "$dir/$sid" ;;
     release) rm -f "$dir/$sid" ;;
     *) echo "usage: claude-sleep-guard acquire|release [session-id]" >&2; exit 2 ;;
 esac

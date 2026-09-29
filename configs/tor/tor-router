@@ -1,0 +1,110 @@
+#!/bin/bash
+# transparent tor routing for IPv4 and IPv6 (based on edu4rdshl/tor-router)
+
+RULES4="/var/tmp/tor-router.save"
+RULES6="/var/tmp/tor-router6.save"
+
+TRANS_PORT="9040"
+DNS_PORT="6669"
+
+case "$1" in
+start)
+	if test -f "$RULES4" || test -f "$RULES6"; then
+		echo "$RULES4 or $RULES6 exists. Either delete it, or stop tor-router first."
+		exit 1
+	fi
+
+	NON_TOR4="192.168.1.0/24 192.168.0.0/24 10.0.0.0/8"
+	# link-local only; loopback handled separately
+	NON_TOR6="fe80::/10"
+
+	if command -v pacman >/dev/null; then
+		TOR_UID=$(id -u tor)
+	elif command -v apt >/dev/null; then
+		TOR_UID=$(id -u debian-tor)
+	elif command -v dnf >/dev/null; then
+		TOR_UID=$(id -u toranon)
+	else
+		echo "Unknown distro, please report the issue to https://github.com/edu4rdshl/tor-router/issues"
+		exit 1
+	fi
+
+	if ! command -v tor >/dev/null; then
+		echo "You need to install the tor package."
+		exit 1
+	elif ! systemctl is-active tor.service >/dev/null; then
+		echo "The tor service is not active, please start the tor service before running the script."
+		exit 1
+	elif ! command -v iptables >/dev/null || ! command -v ip6tables >/dev/null; then
+		echo "You need to install the iptables package."
+		exit 1
+	fi
+
+	# Only save the rules when we are sure that everything is working
+	iptables-save >"$RULES4"
+	ip6tables-save >"$RULES6"
+
+	iptables -F
+	iptables -t nat -A OUTPUT -m owner --uid-owner "$TOR_UID" -j RETURN
+	iptables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+	for NET in $NON_TOR4 127.0.0.0/9 127.128.0.0/10; do
+		iptables -t nat -A OUTPUT -d "$NET" -j RETURN
+	done
+	iptables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports "$TRANS_PORT"
+	iptables -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$TRANS_PORT"
+	iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+	for NET in $NON_TOR4 127.0.0.0/8; do
+		iptables -A OUTPUT -d "$NET" -j ACCEPT
+	done
+	iptables -A OUTPUT -m owner --uid-owner "$TOR_UID" -j ACCEPT
+	# catch-all: anything not accepted above (ICMP, non-TCP/UDP) must not leak the
+	# real IP outside Tor. Mirrors the IPv6 final REJECT.
+	iptables -A OUTPUT -j REJECT
+
+	ip6tables -F
+	ip6tables -t nat -A OUTPUT -m owner --uid-owner "$TOR_UID" -j RETURN
+	ip6tables -t nat -A OUTPUT -p udp --dport 53 -j REDIRECT --to-ports "$DNS_PORT"
+	for NET in $NON_TOR6 ::1/128; do
+		ip6tables -t nat -A OUTPUT -d "$NET" -j RETURN
+	done
+	# route IPv6 TCP/UDP through Tor's [::1]:9040 TransPort (matches the v4 nat), so
+	# v6 app traffic is anonymized rather than only REJECTed.
+	ip6tables -t nat -A OUTPUT -p tcp --syn -j REDIRECT --to-ports "$TRANS_PORT"
+	ip6tables -t nat -A OUTPUT -p udp -j REDIRECT --to-ports "$TRANS_PORT"
+	ip6tables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+	for NET in $NON_TOR6 ::1/128; do
+		ip6tables -A OUTPUT -d "$NET" -j ACCEPT
+	done
+	ip6tables -A OUTPUT -m owner --uid-owner "$TOR_UID" -j ACCEPT
+	# any other IPv6 traffic must not leak
+	ip6tables -A OUTPUT -j REJECT
+	;;
+
+stop)
+	if test -f "$RULES4" || test -f "$RULES6"; then
+		echo "Restoring previous rules"
+		if test -f "$RULES4"; then
+			iptables -F
+			iptables -t nat -F
+			iptables-restore <"$RULES4" && rm "$RULES4"
+		fi
+		if test -f "$RULES6"; then
+			ip6tables -F
+			ip6tables -t nat -F
+			ip6tables-restore <"$RULES6" && rm "$RULES6"
+		fi
+	else
+		echo "$RULES4 does not exist. Not doing anything."
+		exit
+	fi
+	;;
+
+restart)
+	"$0" stop
+	sleep 1
+	"$0" start
+	;;
+*)
+	echo "Usage: $0 {start|stop|restart}"
+	;;
+esac

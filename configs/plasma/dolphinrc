@@ -1,5 +1,23 @@
+[CompactMode]
+FontFamily=Kode Mono
+FontSize=10
+FontWeight=50
+IconSize=16
+ItalicFont=false
+PreviewSize=16
+UseSystemFont=false
+
+[DetailsMode]
+ExpandableFolders=false
+FontFamily=Kode Mono
+FontSize=10
+FontWeight=50
+IconSize=22
+ItalicFont=false
+PreviewSize=22
+UseSystemFont=false
+
 [General]
-Version=202
 BrowseThroughArchives=true
 FilterBar=false
 GlobalViewProps=true
@@ -7,33 +25,17 @@ RememberOpenedTabs=false
 ShowFullPath=true
 ShowFullPathInTitlebar=true
 ShowSelectionToggle=false
+ShowSpaceInfo=true
+ShowZoomSlider=true
 UseTabForSwitchingSplitView=true
-
-[CompactMode]
-FontFamily=Tektur
-FontSize=10
-FontWeight=50
-ItalicFont=false
-IconSize=16
-PreviewSize=16
-UseSystemFont=false
-
-[DetailsMode]
-ExpandableFolders=false
-FontFamily=Tektur
-FontSize=10
-FontWeight=50
-ItalicFont=false
-IconSize=22
-PreviewSize=22
-UseSystemFont=false
+Version=202
 
 [IconsMode]
-FontFamily=Tektur
+FontFamily=Kode Mono
 FontSize=10
 FontWeight=50
-ItalicFont=false
 IconSize=48
+ItalicFont=false
 PreviewSize=48
 UseSystemFont=false
 
@@ -43,4 +45,6 @@ Places Icons Static Size=22
 
 [MainWindow]
 MenuBar=Disabled
-ToolBarsMovable=Disabled
+
+[PlacesPanel]
+IconSize=22

@@ -3,8 +3,8 @@
         "data": [
             {
                 "abmLevel": 0,
-                "allowDdcCi": true,
-                "allowSdrSoftwareBrightness": false,
+                "allowDdcCi": false,
+                "allowSdrSoftwareBrightness": true,
                 "autoBrightnessCurve": [
                     0,
                     0,
@@ -20,7 +20,7 @@
                 ],
                 "autoRotation": "InTabletMode",
                 "automaticBrightness": false,
-                "brightness": 0.5,
+                "brightness": 1,
                 "colorPowerTradeoff": "PreferEfficiency",
                 "colorProfileSource": "sRGB",
                 "connectorName": "DP-1",
@@ -54,8 +54,8 @@
             },
             {
                 "abmLevel": 0,
-                "allowDdcCi": true,
-                "allowSdrSoftwareBrightness": false,
+                "allowDdcCi": false,
+                "allowSdrSoftwareBrightness": true,
                 "autoBrightnessCurve": [
                     0,
                     0,
@@ -71,7 +71,7 @@
                 ],
                 "autoRotation": "InTabletMode",
                 "automaticBrightness": false,
-                "brightness": 0.5,
+                "brightness": 1,
                 "colorPowerTradeoff": "PreferEfficiency",
                 "colorProfileSource": "sRGB",
                 "connectorName": "DP-2",

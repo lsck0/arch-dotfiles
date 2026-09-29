@@ -43,6 +43,7 @@ const files = {
     "bar.news":            "News.qml",
     "bar.notifications":   "Notifications.qml",
     "bar.obs":             "Obs.qml",
+    "bar.ossec":           "Ossec.qml",
     "bar.separator":       "Separator.qml",
     "bar.spacer":          "Spacer.qml",
     "bar.system":          "System.qml",

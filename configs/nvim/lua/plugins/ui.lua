@@ -193,6 +193,7 @@ return {
 
     {
         "folke/snacks.nvim", -- QoL utility bundle
+        priority = 1000, -- load before other eager UI plugins (snacks health rec)
         opts = {
             bigfile = { enabled = true },
             dashboard = {

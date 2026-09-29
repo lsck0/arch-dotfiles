@@ -1,6 +1,7 @@
 https://accounts.hetzner.com/login                                                as hetzner
 https://adventofcode.com/                                                         as aoc
 https://amazon.de
+https://app.hackthebox.com/home                                                   as htb
 https://archlinux.org/packages                                                    as archpackages
 https://arxiv.org
 https://aur.archlinux.org                                                         as aur
@@ -10,12 +11,12 @@ https://cloudflare.com/
 https://craftofexile.com/                                                         as poecraft
 https://detexify.kirelabs.org/classify.html                                       as detexify
 https://drive.proton.me                                                           as protondrive
-https://ecampus.uni-goettingen.de
+https://ecampus.uni-goettingen.de                                                 as ecampus
 https://excalidraw.com
 https://github.com
 https://gnu.org/software/libc/manual/pdf/libc.pdf                                 as libcmanual
 https://guide.handmadehero.org                                                    as handmadehero
-https://homepage.lsck0.dev                                                        as homelab
+https://homelab.lsck0.dev                                                         as homelab
 https://mirror.dogado.de/tex-archive/graphics/pgf/contrib/tikz-cd/tikz-cd-doc.pdf as tikzcd
 https://pathofexile.com/trade                                                     as poetrade
 https://poe.ninja                                                                 as poeninja
@@ -25,6 +26,6 @@ https://twitch.com
 https://wiki.libsdl.org/SDL3/APIByCategory                                        as sdl3docs
 https://wolframalpha.com
 https://www.deutsche-bank.de/pk.html                                              as deutsche-bank
-https://www.kraken.com/c
+https://www.kraken.com/c                                                          as kraken
 https://www.kreissparkasse-eichsfeld.de/de/home.html                              as ksk
 https://youtube.com

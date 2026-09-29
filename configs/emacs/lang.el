@@ -57,6 +57,13 @@
                            :extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani"
                                       :RUSTUP_TOOLCHAIN "nightly"))))))
 
+;; nvim parity: workspace symbols (SPC ls/ts) and open-line-on-remote (SPC gy).
+(use-package consult-eglot
+  :commands (consult-eglot-symbols))
+(use-package git-link
+  :commands (git-link git-link-homepage)
+  :config (setq git-link-open-in-browser t))
+
 ;; floating hover box (SPC l i), instead of the echo-area one-liner
 (use-package eldoc-box
   :hook (eglot-managed-mode . eldoc-box-hover-at-point-mode))

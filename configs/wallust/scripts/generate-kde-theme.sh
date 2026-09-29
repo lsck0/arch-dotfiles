@@ -58,6 +58,32 @@ write_set() {
 # color8 (bright black) is the dimmed-text colour.
 inactive="$c8"
 
+# Window-manager titlebar. Different keys from a Colors:* set, and previously
+# ungenerated - so the kwin frame kept a stale off-palette value and made every
+# KDE window stand out from the flat wal rice. Track it: active frame = window
+# bg (blends into the window body), inactive = the darker c0.
+write_wm() {
+    local file="$1"
+    kwriteconfig6 --file "$file" --group WM --key activeBackground "$bg"
+    kwriteconfig6 --file "$file" --group WM --key activeBlend "$bg"
+    kwriteconfig6 --file "$file" --group WM --key activeForeground "$fg"
+    kwriteconfig6 --file "$file" --group WM --key inactiveBackground "$c0"
+    kwriteconfig6 --file "$file" --group WM --key inactiveBlend "$c0"
+    kwriteconfig6 --file "$file" --group WM --key inactiveForeground "$inactive"
+}
+
+# Inactive-window header set: a complete Breeze scheme carries this, so unfocused
+# Dolphin/System-Settings headers stay on-palette instead of falling back.
+write_header_inactive() {
+    local file="$1" k
+    for k in BackgroundNormal:"$c0" BackgroundAlternate:"$bg" ForegroundNormal:"$inactive" \
+             ForegroundInactive:"$inactive" ForegroundActive:"$accent" DecorationFocus:"$accent" \
+             DecorationHover:"$accent" ForegroundLink:"$c6" ForegroundVisited:"$c5" \
+             ForegroundNegative:"$negative" ForegroundNeutral:"$neutral" ForegroundPositive:"$positive"; do
+        kwriteconfig6 --file "$file" --group "Colors:Header" --group Inactive --key "${k%%:*}" "${k#*:}"
+    done
+}
+
 # The named color-scheme file feeds Dolphin/KDE's scheme picker; regenerate it so it tracks the wallpaper instead of drifting from kdeglobals.
 SCHEME="$HOME/.local/share/color-schemes/pywal.colors"
 mkdir -p "$(dirname "$SCHEME")"
@@ -72,6 +98,8 @@ for f in "$KDEGLOBALS" "$SCHEME"; do
     write_set "$f" "Colors:Complementary" "$bg" "$c0" "$fg" "$inactive"
     # Selection inverts: the accent becomes the background, so selected text needs the window background as its foreground to stay readable.
     write_set "$f" "Colors:Selection"     "$accent" "$accent" "$bg" "$fg"
+    write_header_inactive "$f"
+    write_wm "$f"
     # Name the scheme so KDE's own UI doesn't claim an unrelated preset is active.
     kwriteconfig6 --file "$f" --group "General" --key ColorScheme "pywal"
     kwriteconfig6 --file "$f" --group "General" --key AccentColor "$accent"

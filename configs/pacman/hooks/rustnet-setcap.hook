@@ -7,4 +7,4 @@ Target = rustnet
 [Action]
 Description = Granting rustnet packet-capture capabilities (so it runs without sudo)
 When = PostTransaction
-Exec = /usr/bin/setcap cap_net_raw,cap_bpf,cap_perfmon+eip /usr/bin/rustnet
+Exec = /usr/bin/setcap cap_net_raw,cap_bpf,cap_perfmon+ep /usr/bin/rustnet

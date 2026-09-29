@@ -5,9 +5,20 @@ set -euo pipefail
 
 dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claude-busy"
 
-# A marker is touched once at a turn's start and removed at its end.
-find "$dir" -maxdepth 1 -type f -mmin +120 -delete 2>/dev/null || true
+[ -d "$dir" ] || exit 0
 
-# block suspend if any session is still busy
-find "$dir" -maxdepth 1 -type f -mmin -120 2>/dev/null | grep -q . && exit 1
+# A marker holds the claude PID. Drop it if that process is gone (crashed or
+# killed without releasing), else the session is genuinely working: block suspend.
+busy=0
+for marker in "$dir"/*; do
+    [ -e "$marker" ] || continue
+    pid="$(cat "$marker" 2>/dev/null || true)"
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+        busy=1
+    else
+        rm -f "$marker" 2>/dev/null || true
+    fi
+done
+
+[ "$busy" -eq 1 ] && exit 1
 exit 0

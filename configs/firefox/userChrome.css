@@ -58,16 +58,16 @@
   background-image: none !important;
 }
 
-/* ----- Cyberpunk / terminal chrome (matches the Tektur + wal desktop) ----- */
+/* ----- Cyberpunk / terminal chrome (matches the Kode Mono + wal desktop) ----- */
 
 :root {
-  /* Tektur for chrome UI only; sane fallbacks, no web content touched */
-  --rtk-chrome-font: "Tektur", "JetBrainsMono Nerd Font", monospace, sans-serif;
+  /* Kode Mono for chrome UI only; sane fallbacks, no web content touched */
+  --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
   /* Reused accent for glows/borders; tracks pywalfox on theme switch */
   --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
 }
 
-/* Chrome UI adopts Tektur; content documents are never selected here */
+/* Chrome UI adopts Kode Mono; content documents are never selected here */
 #navigator-toolbox,
 #TabsToolbar,
 #nav-bar,

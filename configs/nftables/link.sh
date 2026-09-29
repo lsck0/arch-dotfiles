@@ -7,6 +7,8 @@ set -ex
 # .nft lives in /etc (real file), so no /home dependency at boot
 sudo mkdir -p /etc/nftables.d
 sudo install -m 644 fw-inbound.nft /etc/nftables.d/fw-inbound.nft
-sudo ln -sfn "${PWD}/fw-inbound.service" /etc/systemd/system/fw-inbound.service
+sudo install -m 644 fw-inbound.service /etc/systemd/system/fw-inbound.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now fw-inbound.service
+sudo systemctl enable fw-inbound.service
+# restart, not `enable --now`: an already-running unit would not reload the ruleset.
+sudo systemctl restart fw-inbound.service

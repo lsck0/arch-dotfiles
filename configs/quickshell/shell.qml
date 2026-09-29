@@ -12,6 +12,7 @@ import "plugins/power"
 import "plugins/overview"
 import "plugins/startup"
 import "plugins/matrixrain"
+import "plugins/lock"
 import "services"
 
 // Entry point.
@@ -612,4 +613,5 @@ ShellRoot {
   Overview {}
   Startup {}
   MatrixRain {}
+  Lock {}
 }

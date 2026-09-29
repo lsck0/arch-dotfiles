@@ -11,6 +11,9 @@ Id_9=efb5580d-9f01-4f06-bd5b-5ca5e3833fcb
 Number=9
 Rows=1
 
+[NightColor]
+Mode=Constant
+
 [Tiling][1154b8fc-0cd9-4c1a-9ac4-5c3614539c68][81abcf71-3cc5-44d0-a2a7-d282e77fcdd3]
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
@@ -129,3 +132,7 @@ Scale=1.6
 [org.kde.kdecoration2]
 BorderSize=Normal
 BorderSizeAuto=false
+
+[EdgeBarrier]
+CornerBarrier=false
+EdgeBarrier=0

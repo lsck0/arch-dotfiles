@@ -1,4 +1,4 @@
-set highlight-transparency 0.35
+set highlight-transparency 0.6
 set selection-clipboard clipboard
 set selection-notification true
 
@@ -22,7 +22,7 @@ set statusbar-home-tilde true
 set statusbar-page-percent true
 set vertical-center true
 set guioptions "sv"
-set font "Tektur 11"
+set font "Kode Mono 11"
 
 map <Button4> navigate previous
 map <Button5> navigate next

@@ -77,6 +77,13 @@ frames recolour on a theme switch exactly as a fresh launch would."
       tab-bar-format '(tab-bar-format-tabs tab-bar-separator))
 (tab-bar-mode 1)
 
+;; doom-themes-base styles tab-bar (via tab-line) but not the tab labels; make
+;; them match the modeline. inherit tracks live theme switches, no box = flat.
+(set-face-attribute 'tab-bar-tab nil
+                    :inherit 'tab-line-tab-current :box nil :weight 'bold)
+(set-face-attribute 'tab-bar-tab-inactive nil
+                    :inherit 'tab-line-tab-inactive :box nil :weight 'normal)
+
 ;;;; visual aids ------------------------------------------------------------
 
 ;; indent-blankline -> indent-bars

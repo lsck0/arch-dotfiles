@@ -63,18 +63,18 @@ ForegroundPositive=39,174,96
 ForegroundVisited=210,166,255
 
 [Colors:Header][Inactive]
-BackgroundAlternate[$d]
-BackgroundNormal[$d]
-DecorationFocus[$d]
-DecorationHover[$d]
-ForegroundActive[$d]
-ForegroundInactive[$d]
-ForegroundLink[$d]
-ForegroundNegative[$d]
-ForegroundNeutral[$d]
-ForegroundNormal[$d]
-ForegroundPositive[$d]
-ForegroundVisited[$d]
+BackgroundAlternate=11,14,20
+BackgroundNormal=1,6,14
+DecorationFocus=57,186,230
+DecorationHover=57,186,230
+ForegroundActive=57,186,230
+ForegroundInactive=86,91,102
+ForegroundLink=149,230,203
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=86,91,102
+ForegroundPositive=39,174,96
+ForegroundVisited=210,166,255
 
 [Colors:Selection]
 BackgroundAlternate=57,186,230
@@ -135,18 +135,18 @@ ForegroundVisited=210,166,255
 [General]
 AccentColor=57,186,230
 ColorScheme=pywal
-ColorSchemeHash=edcdbfc7c907a819b1b133c7dc59ff4965d57ef6
+ColorSchemeHash=32d6e937d60c21928ae47bb3b52deeac3b9e768c
 TerminalApplication=ghostty
 TerminalService=com.mitchellh.ghostty.desktop
 XftAntialias=true
 XftHintStyle=hintslight
 XftSubPixel=none
-accentColorFromWallpaper=true
-fixed=Tektur,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-font=Tektur,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-menuFont=Tektur,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-smallestReadableFont=Tektur,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-toolBarFont=Tektur,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+accentColorFromWallpaper=false
+fixed=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+font=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+menuFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+smallestReadableFont=Kode Mono,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+toolBarFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
 
 [Icons]
 Theme=breeze-dark
@@ -175,10 +175,10 @@ Speedbar Width=172
 View Style=DetailTree
 
 [WM]
-activeBackground=11,16,25
-activeBlend=11,16,25
-activeFont=Tektur,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-activeForeground=194,195,197
-inactiveBackground=11,16,25
-inactiveBlend=11,16,25
-inactiveForeground=194,195,197
+activeBackground=11,14,20
+activeBlend=11,14,20
+activeFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+activeForeground=191,189,182
+inactiveBackground=1,6,14
+inactiveBlend=1,6,14
+inactiveForeground=86,91,102

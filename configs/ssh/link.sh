@@ -12,6 +12,9 @@ sudo systemctl enable sshd
 mkdir -p ${HOME}/.config/systemd/user
 
 ln -sfn ${PWD}/ssh-agent.service ${HOME}/.config/systemd/user/ssh-agent.service
+ln -sfn ${PWD}/ssh-add.service ${HOME}/.config/systemd/user/ssh-add.service
+systemctl --user daemon-reload
+systemctl --user enable ssh-add.service
 
 # Authorize the portable identity key (+ this host's own key) BEFORE disabling
 mkdir -p ${HOME}/.ssh && chmod 700 ${HOME}/.ssh

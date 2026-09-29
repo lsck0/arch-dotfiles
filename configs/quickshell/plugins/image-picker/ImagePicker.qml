@@ -588,8 +588,11 @@ Item {
                   id: thumbImage
                   anchors.fill: parent
                   source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                  // Decode no wider than this image can ever be drawn.
-                  sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
+                  // Decode at the actual draw width, not expandedWidth: the Repeater
+                  // holds all ~258 delegates, so decoding every unselected 108px slice
+                  // at 768px cost ~1.4GB of retained pixmaps. Only the selected slice
+                  // needs the wide decode.
+                  sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   // Was false, which decoded every image on the UI thread — so opening the picker froze the shell while it worked through them.
                   asynchronous: true
@@ -601,11 +604,13 @@ Item {
                   id: fullImage
                   anchors.fill: parent
                   source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
-                  // Same cap as the thumbnail layer: this is the full-size original, shown in the same 768px box.
+                  // Full-size original for the selected item only, shown in the 768px box.
                   sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   asynchronous: true
-                  cache: true
+                  // cache off: only one is ever shown, caching them retained every
+                  // full-res original the user scrolled through.
+                  cache: false
                   smooth: true
                   opacity: status === Image.Ready ? 1 : 0
                   Behavior on opacity { NumberAnimation { duration: 150 } }
@@ -863,6 +868,6 @@ Item {
     }
 
     // CRT scanline overlay across the full-screen picker.
-    Scanlines {}
+    Scanlines { flicker: false }
   }
 }

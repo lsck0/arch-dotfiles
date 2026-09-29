@@ -9,14 +9,18 @@ This repository contains my system setup and configuration files, which are syml
 
 ## Layout
 
-- `config/<name>`: config/setup for tools/tasks.
+- `configs/<name>`: config/setup for tools/tasks.
 - `keyboard/`: the firmware for my keyboard.
 - `scripts/`: scripts that are meant to be called directly.
+- `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
 - `themes/`: color themes that are propagated through the system.
 - `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
+- `toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
 - `weblinks/`: browser independent bookmarks.
 - `install.sh`: list of installed packages and bootstrapping script.
+- `sync.sh`: stages everything, makes a signed `Generation: <n>` commit and pushes.
+- `TODO.md`: tracker for open fixes and features.
 
 ## Conventions
 

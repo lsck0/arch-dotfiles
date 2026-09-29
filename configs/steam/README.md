@@ -2,7 +2,7 @@
 
 Cyberpunk/hacker dark theming for the modern Steam client (the 2023+ Chromium
 "Steam UI"), matching the rest of the rice: dark ground, wal accent, sharp
-corners, thin accent scrollbars, Tektur on text controls.
+corners, thin accent scrollbars, Kode Mono on text controls.
 
 ## Mechanism
 
@@ -62,9 +62,16 @@ Steam if it does not apply immediately.
 
 ## Notes
 
-- Steam's inner class names are hashed, so `shared.css` sticks to robust global
-  rules (background, scrollbars, selection, corners, focus glow, form fields);
-  it is a solid foundation, not a per-widget reskin.
-- Tektur is applied to text controls only (`body, button, input, textarea,
+- Steam's inner class names are hashed, so the theme sticks to robust
+  substring selectors (`[class*="..."]`) on stable English name fragments.
+  `shared.css` covers the whole client: background, scrollbars, selection,
+  corners, focus glow, form fields, buttons, tabs, tooltips, context menus,
+  modals plus dialog headers/footers, native control accent, toggles,
+  dropdowns, settings-page nav, download/progress bars, titlebar, toasts and
+  badges. `libraryroot` adds store capsules, shelf headers and download rows;
+  `friends` adds selected chats and own-message bubbles; `bigpicture` adds the
+  gamepad focus ring and active top-nav section. Fragments that never match a
+  given palette simply do nothing, so it stays safe on client updates.
+- Kode Mono is applied to text controls only (`body, button, input, textarea,
   select`); Steam sets its own font-family on many containers, so some text
   keeps Steam's font, and this avoids clobbering its icon glyphs.

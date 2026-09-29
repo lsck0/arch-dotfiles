@@ -1,0 +1,15 @@
+[Unit]
+Description=Load the secrets ssh key into ssh-agent
+# keyring is unlocked by the login PAM stack, which is done once the graphical session is up
+Requires=ssh-agent.service
+After=ssh-agent.service graphical-session.target
+
+[Service]
+Type=oneshot
+Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
+Environment=SSH_ASKPASS=%h/projects/arch-dotfiles/configs/ssh/ssh-askpass-keyring.sh
+Environment=SSH_ASKPASS_REQUIRE=force
+ExecStart=/usr/bin/ssh-add %h/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
+
+[Install]
+WantedBy=graphical-session.target

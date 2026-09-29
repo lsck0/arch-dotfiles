@@ -442,6 +442,6 @@ Item {
     }
 
     // CRT scanline overlay across the whole launcher overlay.
-    Scanlines {}
+    Scanlines { flicker: false }
   }
 }

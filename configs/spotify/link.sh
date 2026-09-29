@@ -12,8 +12,6 @@ if [ ! -d ${HOME}/.config/spicetify/Themes/.git ]; then
 fi
 
 mkdir -p ${HOME}/.config/spicetify/Themes/wal
-# pywal-spicetify panics unless pywal's template dir exists, even though wallust generates the colors.
-mkdir -p ${HOME}/.config/wal/templates
 
 ln -sfn ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/color.ini
 ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css

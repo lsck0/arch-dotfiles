@@ -1,9 +1,12 @@
 {
-    "editor.fontFamily": "'0xProto Nerd Font', 'monospace'",
+    "editor.fontFamily": "'Kode Mono', 'monospace'",
     "editor.fontSize": 14,
     "editor.formatOnSave": true,
+    "editor.lineNumbers": "relative",
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true,
     "telemetry.telemetryLevel": "off",
+    "workbench.colorTheme": "Default Dark Modern",
+    "vim.useSystemClipboard": true,
     "workbench.colorCustomizations": {}
 }

@@ -7,6 +7,17 @@ fi
 
 set -ex
 
+mkdir -p "${HOME}/sync" "${HOME}/vault"
 mkdir -p "${HOME}/.local/bin"
 chmod 755 "${PWD}/veracrypt-vault.sh"
 ln -sfn "${PWD}/veracrypt-vault.sh" "${HOME}/.local/bin/veracrypt-vault"
+
+# Create the container on first run when a terminal is present; the password
+# prompt cannot run in the non-interactive install link loop (stdin /dev/null).
+if [ ! -e "${HOME}/sync/vault.hc" ]; then
+    if [ -t 0 ] && [ -t 1 ]; then
+        "${PWD}/veracrypt-vault.sh" create
+    else
+        echo "veracrypt-vault: no TTY; create the 1G container later with: veracrypt-vault create" >&2
+    fi
+fi

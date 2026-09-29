@@ -33,12 +33,20 @@ function M.dot()
         return "."
     end
 
-    local params = vim.lsp.util.make_position_params(0, "utf-8")
+    -- Only C/C++ reach here, and only if clangd is attached; otherwise a plain ".".
+    local clients = vim.lsp.get_clients({ bufnr = 0, name = "clangd" })
+    if #clients == 0 then
+        return "."
+    end
+    -- Use clangd's own offset encoding (it runs utf-16), else columns are wrong.
+    local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
+    -- Short timeout: this blocks the UI on a very common keystroke, so cap the
+    -- worst-case stall at 40ms and fall back to "." rather than hang.
     local responses = vim.lsp.buf_request_sync(
         0,
         "textDocument/hover",
         params,
-        100
+        40
     )
 
     if not responses then

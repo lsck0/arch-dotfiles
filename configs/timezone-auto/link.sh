@@ -11,7 +11,7 @@ mkdir -p ${HOME}/.config/systemd/user
 
 ln -sfn ${PWD}/timezone-auto.service ${HOME}/.config/systemd/user/timezone-auto.service
 ln -sfn ${PWD}/timezone-auto.timer ${HOME}/.config/systemd/user/timezone-auto.timer
-sudo ln -sfn ${PWD}/49-timezone-auto.rules /etc/polkit-1/rules.d/49-timezone-auto.rules
+sudo install -m644 49-timezone-auto.rules /etc/polkit-1/rules.d/49-timezone-auto.rules
 
 systemctl --user daemon-reload
 systemctl --user enable --now timezone-auto.timer

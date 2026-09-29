@@ -130,10 +130,15 @@ BarWidget {
   property string artSource: ""
   // The remote URL a download was last started for, so a miss is not retried in a loop.
   property string artFetchedUrl: ""
+  // Retry budget per URL: a repeat track whose cache file was evicted or written
+  // corrupt used to never re-download (artFetchedUrl already matched), so the art
+  // stayed blank until the URL changed. Reset on every new URL.
+  property int artTries: 0
 
   // Local / file:// / data: art is used as-is; remote art points at its cache file, which may already exist.
   function refreshArt() {
     artProc.running = false
+    root.artTries = 0
     var u = root.artUrl
     if (!u) { root.artSource = ""; return }
     if (!root.artRemote) { root.artSource = u; return }
@@ -222,6 +227,18 @@ BarWidget {
     if (playing) lastPlayingAt = Date.now()
     Cava.source = spectrumSource
     refreshArt()
+    artPruneProc.running = true
+  }
+
+  // One file per distinct track accumulates in the art cache forever; prune to the
+  // newest 200 on startup so it cannot grow unbounded on disk.
+  Process {
+    id: artPruneProc
+    command: ["sh", "-c",
+      "d=\"${1:?}\"; [ -d \"$d\" ] || exit 0; " +
+      "ls -1t \"$d\" 2>/dev/null | tail -n +201 | " +
+      "while IFS= read -r f; do [ -n \"$f\" ] && rm -f -- \"${d:?}/${f:?}\"; done",
+      "sh", root.artCacheDir]
   }
 
   Timer {
@@ -441,7 +458,8 @@ BarWidget {
             visible: status === Image.Ready
             // A missing cache file for remote art triggers one out-of-process download.
             onStatusChanged: {
-              if (status === Image.Error && root.artRemote && root.artFetchedUrl !== root.artUrl) {
+              if (status === Image.Error && root.artRemote && root.artTries < 2) {
+                root.artTries += 1
                 root.artFetchedUrl = root.artUrl
                 artProc.running = true
               }

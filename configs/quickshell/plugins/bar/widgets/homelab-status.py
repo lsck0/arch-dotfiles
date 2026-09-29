@@ -157,6 +157,8 @@ def source():
 
     monitor = next((vms[i] for i, t in texts.items() if re.search(r"services\.prometheus\s*=\s*\{", t)), None)
     monitor_text = texts.get(monitor["id"], "") if monitor else ""
+    # Alerting may live in Grafana instead; querying an absent Alertmanager costs a timeout per poll.
+    has_am = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{", monitor_text) is not None
     am_port = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{.{0,400}?\bport\s*=\s*(\d+)", monitor_text, re.S)
     exporters = [ip for ip in re.findall(r'"(%s):9100"' % IPV4, monitor_text) if ip not in by_ip]
     # Path is relative to the instance file, wherever the dashboards live.
@@ -193,7 +195,7 @@ def source():
         "subnets": subnets,
         "host_ip": host_ip,
         "prometheus": "http://%s:9090" % monitor["ip"] if monitor else "",
-        "alertmanager": "http://%s:%s" % (monitor["ip"], am_port.group(1) if am_port else "9093") if monitor else "",
+        "alertmanager": "http://%s:%s" % (monitor["ip"], am_port.group(1) if am_port else "9093") if monitor and has_am else "",
         "nas_ip": nas["ip"] if nas else "",
         "links": {
             "homepage": (named("homepage") or {}).get("url", ""),
@@ -366,23 +368,47 @@ def sample(src, summary=False):
         known.update(name=item["name"].lower(), group="infra", order=order,
                      url=item["href"] or known["url"])
 
+    def target_name(target):
+        """vm-110, 10.100.0.110:9100 or a bare name -> the fleet name, plus whether that VM is disabled."""
+        if not target:
+            return "", False
+        m = re.match(r"^vm-(\d+)$", target)
+        vm = next((v for v in src["by_ip"].values() if m and v["id"] == int(m.group(1))), None) if m \
+            else vm_for(target, src) if re.match(IPV4, target) else None
+        return (vm["name"], vm.get("enabled") == "false") if vm else (target, False)
+
     alerts = []
     try:
-        for a in fetch(src["alertmanager"] + "/api/v2/alerts?active=true&silenced=false&inhibited=false"):
-            labels, notes = a.get("labels", {}), a.get("annotations", {})
-            try:
-                age = int((now - calendar.timegm(time.strptime(a.get("startsAt", "")[:19], "%Y-%m-%dT%H:%M:%S"))) / 60)
-            except ValueError:
-                age = 0
-            if "instance" in labels and vm_for(labels["instance"], src).get("enabled") == "false":
-                continue
-            alerts.append({
-                "name": labels.get("alertname", "alert"),
-                "target": vm_for(labels["instance"], src)["name"] if "instance" in labels else "",
-                "summary": notes.get("summary", ""),
-                "severity": labels.get("severity", ""),
-                "minutes": max(0, age),
-            })
+        if src["alertmanager"]:
+            for a in fetch(src["alertmanager"] + "/api/v2/alerts?active=true&silenced=false&inhibited=false"):
+                labels, notes = a.get("labels", {}), a.get("annotations", {})
+                try:
+                    age = int((now - calendar.timegm(time.strptime(a.get("startsAt", "")[:19], "%Y-%m-%dT%H:%M:%S"))) / 60)
+                except ValueError:
+                    age = 0
+                if "instance" in labels and vm_for(labels["instance"], src).get("enabled") == "false":
+                    continue
+                alerts.append({
+                    "name": labels.get("alertname", "alert"),
+                    "target": vm_for(labels["instance"], src)["name"] if "instance" in labels else "",
+                    "summary": notes.get("summary", ""),
+                    "severity": labels.get("severity", ""),
+                    "minutes": max(0, age),
+                })
+        else:
+            # Grafana-managed alerting: the monitor VM exports firing alerts as a gauge valued with their start time.
+            for labels, started in query("homelab_alert_firing"):
+                target, disabled = target_name(labels.get("target", ""))
+                if disabled:
+                    continue
+                alerts.append({
+                    "name": labels.get("alertname", "alert"),
+                    "target": target,
+                    "summary": labels.get("summary", ""),
+                    "severity": labels.get("severity", ""),
+                    "minutes": max(0, int((now - started) / 60)),
+                })
+            alerts.sort(key=lambda a: a["minutes"])
     except Exception:
         pass
 

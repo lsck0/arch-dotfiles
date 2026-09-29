@@ -34,6 +34,8 @@ KDE_FONT_KEYS=(
 
 # Cycled by `toggle`, so the setting stays usable from menu.sh and a keybind, and served to quickshell's Display panel by the `shortlist` action below -- the panel had its own hardcoded copy of four of these, so the keybind and the panel offered different sets of fonts for the same setting.
 SHORTLIST=(
+    "Kode Mono"
+    "Tektur"
     "0xProto Nerd Font"
     "JetBrainsMono Nerd Font"
     "FiraCode Nerd Font"
@@ -42,9 +44,9 @@ SHORTLIST=(
     "CommitMono Nerd Font"
 )
 
-# ghostty is the reference for both values: it is the only target whose format is a single unambiguous line for each.
+# The family is read from quickshell's theme (ghostty may hold the Mono cut, see mono_family); the size from ghostty.
 current_family() {
-    sed -n 's/^font-family = //p' "$GHOSTTY" | head -1
+    jq -er '.font.family' "$QUICKSHELL_THEME" 2>/dev/null || sed -n 's/^font-family = //p' "$GHOSTTY" | head -1
 }
 current_size() {
     sed -n 's/^font-size = //p' "$GHOSTTY" | head -1
@@ -121,25 +123,38 @@ apply_family_kde() {
     done
 }
 
+# Terminals and editors need fixed pitch: a proportional family maps to its monospace partner.
+declare -A MONO_PARTNER=(["Tektur"]="Kode Mono")
+mono_family() {
+    local fam=$1 partner=${MONO_PARTNER[$1]:-}
+    if [[ -n "$partner" ]] && is_installed "$partner"; then
+        echo "$partner"
+    else
+        echo "$fam"
+    fi
+}
+
 apply_family() {
-    local fam=$1 e
+    local fam=$1 e m
     e=$(esc "$fam")
+    m=$(esc "$(mono_family "$fam")")
 
-    sed -i "0,/^font-family = /s|^font-family = .*|font-family = $e|" "$GHOSTTY"
+    sed -i "0,/^font-family = /s|^font-family = .*|font-family = $m|" "$GHOSTTY"
 
-    # All THREE zed key pairs.
-    sed -i -e "s|\"buffer_font_family\": \"[^\"]*\"|\"buffer_font_family\": \"$e\"|" \
+    # All THREE zed key pairs; only the UI one may be proportional.
+    sed -i -e "s|\"buffer_font_family\": \"[^\"]*\"|\"buffer_font_family\": \"$m\"|" \
            -e "s|\"ui_font_family\": \"[^\"]*\"|\"ui_font_family\": \"$e\"|" \
-           -e "s|\"font_family\": \"[^\"]*\"|\"font_family\": \"$e\"|" "$ZED"
+           -e "s|\"font_family\": \"[^\"]*\"|\"font_family\": \"$m\"|" "$ZED"
 
-    sed -i "s|^(defvar my/font-family \".*\")|(defvar my/font-family \"$e\")|" "$EMACS"
+    sed -i "s|^(defvar my/font-family \".*\")|(defvar my/font-family \"$m\")|" "$EMACS"
+    sed -i "s|^set.guifont = \"[^:]*:|set.guifont = \"$m:|" "$NVIM"
     sed -i "s|^  --font: \".*\";|  --font: \"$e\";|" "$DISCORD"
 
     # Spotify (via Spicetify's injected user.css).
     sed -i "s|font-family: \"[^\"]*\", \"Symbols Nerd Font\"|font-family: \"$e\", \"Symbols Nerd Font\"|" "$SPOTIFY"
 
 
-    sed -i "s|^font_family .*|font_family $e|" "$KITTY"
+    sed -i "s|^font_family .*|font_family $m|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
     sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
     sed -i "s|^\$FONT = .*|\$FONT = $e|" "$HYPRLOCK"

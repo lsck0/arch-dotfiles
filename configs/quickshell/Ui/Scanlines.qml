@@ -10,6 +10,9 @@ Item {
 
   property int spacing: Style.fx.scanlineSpacing
   property real strength: Style.fx.scanlineOpacity
+  // The brightness flicker is a full-surface accent flash; harmless on small
+  // widgets, a whole-screen flicker on fullscreen surfaces. Those opt out.
+  property bool flicker: true
 
   Canvas {
     id: cv
@@ -40,9 +43,9 @@ Item {
     anchors.fill: parent
     color: Color.accent
     opacity: 0
-    visible: Style.fx.flicker > 0
+    visible: root.flicker && Style.fx.flicker > 0
     SequentialAnimation on opacity {
-      running: Style.fx.flicker > 0
+      running: root.flicker && Style.fx.flicker > 0
       loops: Animation.Infinite
       NumberAnimation { to: Style.fx.flicker; duration: 90 }
       NumberAnimation { to: 0; duration: 130 }

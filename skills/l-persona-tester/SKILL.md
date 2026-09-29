@@ -7,22 +7,29 @@ description: "Write tests: unit, e2e, fuzz, property, formal verification."
 
 Prove the build works, not just that it compiles.
 
-- Unit tests where they earn their cost, e2e/simulation elsewhere.
-- Blackbox fuzz/property testing against the API surface.
-- Formal verification for invariants that must hold for all inputs.
+In l-style's order, hardest first:
+
+- Deterministic simulation with fault injection first: seeded and
+  replayable, assertions as the oracle.
+- Formal verification (kani, flux) for invariants that must hold for all
+  inputs.
+- Fuzzing (afl) on every parser and boundary; corpus committed, every
+  crash kept as a regression case.
+- Property tests (proptest): state the law, not the example.
+- Table-driven cases (rstest) next; plain unit tests last.
 - Every requirement ID in the spec gets a test with the ID in its name,
   and a row in the spec's coverage table.
-- A bug fix is proven against a reproduction: a test that failed before
-  the fix, or the same measurement taken before and after.
-- Report coverage you measured, or "not measured". Never estimate.
+- A bug fix is proven by a failing test first: a test that fails before
+  the fix and passes after.
+- Report coverage measured, or "not measured", never estimated. Coverage
+  is instrumented by its own command, over the library only.
 
-Write tests into the project's real test tree. Summarize to the target
-file, then stop.
+Edit the project's real test tree. Summarize to the target file, then
+stop. No file given -> summarize in chat.
 
 ## Tools
 
 `cargo-tarpaulin`/`cargo-llvm-cov`/`lcov` (code coverage, by ecosystem),
-`cargo-fuzz`/`afl++` (fuzz testing), `python-pwntools`-style property
-harnesses for blackbox API fuzzing, `kani-verifier` (Rust formal
+`cargo-fuzz`/`afl++` (fuzzing), `kani-verifier` (Rust formal
 verification), `z3` (SMT solver, for invariants that need a real proof
 rather than sampled testing).

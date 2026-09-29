@@ -12,11 +12,11 @@ QtObject {
   readonly property string colorsPath: home + "/.cache/wal/colors.json"
 
   // Every one of the 40-odd role colours below is a binding on these five, so animating the roots animates the entire palette — five Behaviors instead of forty-four.
-  property color foreground: "#c2c3c5"
-  property color background: "#0b1019"
-  property color accent: "#B68B74"
-  property color urgent: "#62524F"
-  property color muted: "#5a616e"
+  property color foreground: "#bfbdb6"
+  property color background: "#0b0e14"
+  property color accent: "#39bae6"
+  property color urgent: "#f07178"
+  property color muted: "#565b66"
 
   // ---- palette conditioning (adapted from Ryoku's Wallust.qml) ---------- wallust reports whatever the wallpaper happens to contain, and some wallpapers are a bad basis for a UI: a bright one yields a background too light to read white-ish text on, a washed-out one yields an accent with no presence, and either can put accent and surface close enough together that selected text disappears. These three functions are the conditioning layer that makes any wallpaper safe, applied in applyColors() below. The extraction backend is untouched — this is math on wallust's own colors.json, not a replacement for it. Their thresholds are Theme.qml properties rather than literals, because "how dark should any wallpaper be forced" is a taste decision that belongs to the user, not to this file.
 

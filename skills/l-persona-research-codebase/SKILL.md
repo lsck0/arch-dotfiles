@@ -15,7 +15,7 @@ Write to the target file, then stop. No file given -> answer in chat.
 
 ## Tools
 
-`ripgrep` (`rg`, fast recursive search), `ast-grep` (structural search —
+`ripgrep` (`rg`, fast recursive search), `ast-grep` (structural search,
 find by code shape, not just text), `tokei`/`cloc` (language/line
 breakdown before diving in), `fd` (fast file-name search), `onefetch`
 (repo overview at a glance).

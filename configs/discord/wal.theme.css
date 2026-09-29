@@ -20,7 +20,7 @@
   --textdark: 140, 140, 140;
   --textdarker: 115, 115, 115;
   --textdarkest: 80, 80, 80;
-  --font: "Tektur";
+  --font: "Kode Mono";
   --backgroundaccent: 50, 50, 50;
   --backgroundprimary: 10, 10, 23;
   --backgroundsecondary: 10, 10, 23;
@@ -41,6 +41,21 @@ img[class=""][src^="/assets/"] {
   border-radius: 50%;
   margin-right: 16px;
   flex: 0 0 auto;
+}
+
+/* Apply the UI font. Discord ignores --font on its own, so override its native
+   font variables and force the family on the app root. */
+:root {
+  --font-primary: var(--font), sans-serif;
+  --font-display: var(--font), sans-serif;
+  --font-headline: var(--font), sans-serif;
+  --font-feature-settings: normal;
+}
+body,
+#app-mount,
+[class*="app-"],
+[class*="base-"] {
+  font-family: var(--font), sans-serif !important;
 }
 
 /* ===== Cyberpunk / terminal aesthetic (colors derived from :root vars) ===== */

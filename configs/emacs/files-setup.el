@@ -32,5 +32,11 @@
       (setq-local window-size-fixed nil)))
   (add-hook 'dirvish-setup-hook #'my/dirvish-side-resizable))
 
+;; open the sidebar at startup like nvim's file tree; stay in the main window
+(add-hook 'emacs-startup-hook
+          (lambda ()
+            (when (display-graphic-p)
+              (save-selected-window (dirvish-side)))))
+
 (provide 'files-setup)
 ;;; files-setup.el ends here

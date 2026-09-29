@@ -11,11 +11,9 @@ how an agent does a task, not a separate agent.
 
 Before starting non-trivial work, check if a persona matches the domain
 and load it. Discover the current set dynamically instead of hardcoding
-a list — a new persona shows up with zero changes elsewhere:
-
-```python
-personas = [s for s in skills_list()["skills"] if s["name"].startswith("l-persona-")]
-```
+a list, so a new persona shows up with zero changes elsewhere: list the
+installed skills whose name starts with `l-persona-` (Hermes:
+`skills_list()`; Claude Code: the skill listing in context).
 
 ## Current personas
 
@@ -30,7 +28,7 @@ personas = [s for s in skills_list()["skills"] if s["name"].startswith("l-person
 | `l-persona-design-uiux`               | Design UI flows, interaction, accessibility, and i18n.            |
 | `l-persona-programmer`                | Implement tickets: write the actual code.                         |
 | `l-persona-investigator`              | Root-cause bugs and incidents: logs, commits, stack traces.       |
-| `l-persona-pentester`                 | Blackbox pentest: attack the running system, find real breaks.    |
+| `l-persona-pentester`                 | Realistic adversary emulation against authorized, scoped targets. |
 | `l-persona-auditor-security`          | Passive security audit: code, config, CI/CD, dependencies.        |
 | `l-persona-auditor-performance`       | Audit code for wasted throughput: data structures, cache, allocs. |
 | `l-persona-auditor-spec`              | Passive spec-compliance audit: does the code match the spec.      |
@@ -41,4 +39,4 @@ personas = [s for s in skills_list()["skills"] if s["name"].startswith("l-person
 | `l-persona-tester`                    | Write tests: unit, e2e, fuzz, property, formal verification.      |
 | `l-persona-reviewer`                  | Independent review: conventions, style, and correctness.          |
 
-Not exhaustive, the discovery snippet above is the source of truth.
+Not exhaustive; the installed skill listing is the source of truth.

@@ -4,6 +4,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 set -ex
 
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos" "${HOME}/projects"
+mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
 
@@ -38,10 +39,15 @@ if command -v Hyprland >/dev/null 2>&1; then
     ln -sfn "${PWD}/hyprland-portals.conf" "${HOME}/.config/xdg-desktop-portal/hyprland-portals.conf"
 fi
 
-# ~/projects in the file manager sidebars: GTK bookmarks for Nemo, user-places.xbel for Dolphin
+# sidebar: Syncthing (work) -> NAS (holds it, offsite copy handled on the NAS)
 mkdir -p "${HOME}/.config/gtk-3.0"
-grep -qxF "file://${HOME}/projects Projects" "${HOME}/.config/gtk-3.0/bookmarks" 2>/dev/null \
-    || echo "file://${HOME}/projects Projects" >> "${HOME}/.config/gtk-3.0/bookmarks"
+GTK_BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
+for b in "file://${HOME}/projects Projects" "file://${HOME}/sync Syncthing" \
+    "file://${HOME}/nas NAS" "file://${HOME}/vault Vault"; do
+    sed -i "\\|^${b%% *} |d" "$GTK_BOOKMARKS" 2>/dev/null || true
+    echo "$b" >> "$GTK_BOOKMARKS"
+done
+sed -i '\|^smb://10\.100\.0\.10[89]/homelab |d' "$GTK_BOOKMARKS"
 
 PLACES="${HOME}/.local/share/user-places.xbel"
 mkdir -p "${HOME}/.local/share"
@@ -57,11 +63,13 @@ ET.register_namespace("bookmark", ns)
 tree = ET.parse(path)
 root = tree.getroot()
 
-# Dolphin only seeds its defaults into an empty file, and nas/link.sh may already
-# have added a bookmark, so the standard places are ensured here as well.
+# Dolphin only seeds defaults into an empty file, so ensure them here.
 places = [
     (home, "Home", "user-home", True),
     (home + "/projects", "Projects", "folder-development", False),
+    (home + "/sync", "Syncthing", "folder-sync", False),
+    (home + "/nas", "NAS", "folder-network", False),
+    (home + "/vault", "Vault", "folder-locked", False),
     (home + "/desktop", "Desktop", "user-desktop", True),
     (home + "/documents", "Documents", "folder-documents", True),
     (home + "/downloads", "Downloads", "folder-downloads", True),
@@ -86,5 +94,9 @@ for href, title, icon, system in places:
         ET.SubElement(ET.SubElement(info, "metadata", owner="http://www.kde.org"), "isSystemItem").text = "true"
     root.insert(position, bookmark)
     position += 1
+# the old smb bookmark from nas/link.sh
+for child in list(root):
+    if child.get("href", "").startswith("smb://10.100.0.10"):
+        root.remove(child)
 tree.write(path, encoding="UTF-8", xml_declaration=True)
 EOF

@@ -17,5 +17,5 @@ if [ -f "${GPARTED_DESKTOP_SRC}" ]; then
 fi
 
 if [[ -d /etc/polkit-1/rules.d ]]; then
-    sudo ln -sfn ${PWD}/50-gparted-nopasswd.rules /etc/polkit-1/rules.d/50-gparted-nopasswd.rules
+    sudo install -m644 50-gparted-nopasswd.rules /etc/polkit-1/rules.d/50-gparted-nopasswd.rules
 fi

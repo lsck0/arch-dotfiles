@@ -1,5 +1,4 @@
-# This repo is PUBLIC. Never commit real Proton credentials or rclone config.
-rclone.conf
+# This repo is PUBLIC. Never commit real Proton credentials.
 *.env
 *.secret
 *.token
