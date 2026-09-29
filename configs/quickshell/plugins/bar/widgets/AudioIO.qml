@@ -6,7 +6,6 @@ import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "audio-io"
@@ -45,10 +44,9 @@ BarWidget {
     if (source && source.audio) source.audio.muted = !source.audio.muted
   }
 
-  // "Deafened" is both ends muted at once — the state a call app means by the word.
   readonly property bool deafened: muted && micMuted
 
-  // Undeafening restores both to unmuted rather than to whatever they were before.
+  // undeafen unmutes both, not the prior state
   function toggleDeafen() {
     var target = !deafened
     if (sink && sink.audio) sink.audio.muted = target
@@ -59,7 +57,6 @@ BarWidget {
     if (!devicesProc.running) devicesProc.running = true
   }
 
-  // Re-read after pactl has had a moment to apply.
   Timer {
     id: devicesSettle
     interval: 250
@@ -119,22 +116,15 @@ BarWidget {
     onOpened: root.refreshDevices()
     title: "AUDIO"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
-
-    // Neon HUD corner brackets around the dropdown.
-    HudFrame {}
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      // Headroom so the terminal title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
       PanelSectionHeader { text: "> OUTPUT" }
 
-      // Big glowing output-volume hero.
       Row {
         spacing: Style.spacing.xxs
         Text {
@@ -211,7 +201,6 @@ BarWidget {
         }
       }
 
-      // Segmented output-level gauge.
       BarGauge {
         width: content.width
         height: Style.spacing.md
@@ -222,7 +211,6 @@ BarWidget {
 
       Repeater {
         model: root.sinks
-        // Shared Ui/PanelRow — the */o prefix used to be concatenated into the label string, so the gap after it was whatever the font gave it rather than the row spacing every other list uses.
         PanelRow {
           required property var modelData
           width: content.width
@@ -279,7 +267,6 @@ BarWidget {
         }
       }
 
-      // Segmented input-level gauge.
       BarGauge {
         width: content.width
         height: Style.spacing.md
@@ -288,7 +275,6 @@ BarWidget {
         color: root.micMuted ? Color.urgent : Color.accent
       }
 
-      // Input devices, directly under the microphone slider they belong to.
       Repeater {
         model: root.sources
         PanelRow {
@@ -303,7 +289,6 @@ BarWidget {
 
       PanelSeparator {}
 
-      // Deafen spans both sections, so it goes last rather than inside either.
       Rectangle {
         width: content.width
         height: Style.row.list
@@ -317,12 +302,10 @@ BarWidget {
           spacing: Style.spacing.sm
           Text {
             anchors.verticalCenter: parent.verticalCenter
-            // md-headphones_off / md-headphones, both cmap-verified.
             text: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
             color: root.deafened ? Color.urgent : Color.menu.text
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily
-            // Deafened is the live alarm state, so it burns in the urgent colour.
             layer.enabled: Style.fx.glow > 0 && root.deafened
             layer.effect: MultiEffect {
               shadowEnabled: true

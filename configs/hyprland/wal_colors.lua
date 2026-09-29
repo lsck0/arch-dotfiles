@@ -21,9 +21,6 @@ end
 
 local M = read_colors() or {}
 
-M.background = M.color0
-M.foreground = M.color7
-
 return setmetatable(M, {
     __index = function()
         return FALLBACK

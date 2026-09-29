@@ -1,6 +1,6 @@
 local platform = require("platform")
 
--- the desktop splits 1-4 and 5-9 across its two screens, the notebook puts everything on its one panel
+-- desktop: 1-4 left, 5-9 right; laptop: all on the panel
 local workspace_monitor = platform.laptop
     and { "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1" }
     or { "DP-2", "DP-2", "DP-2", "DP-2", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1" }
@@ -54,7 +54,7 @@ hl.window_rule({
     no_initial_focus = true,
 })
 
--- for whatever reason that tool flashes a window... so move it out of the way
+-- it flashes a window, move it offscreen
 hl.window_rule({
     match = {
         class = "^multi_export_cli.py$",

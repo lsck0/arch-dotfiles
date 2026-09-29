@@ -1,4 +1,4 @@
--- Helpers for writing in l-style (section banners, doc comments).
+-- l-style helpers: banners, doc comments
 return {
     {
         "LudoPinelli/comment-box.nvim", -- box/line existing text or a selection

@@ -13,7 +13,7 @@ return {
         "xiyaowong/transparent.nvim", -- transparent editor surfaces
         dependencies = { "pywal" },
         init = function()
-            -- opaque in neovide: the GUI window has no wallpaper behind it, so a stripped Normal bg renders pure black
+            -- opaque in neovide: no wallpaper behind it, a stripped bg renders black
             vim.g.transparent_enabled = vim.g.neovide ~= true
         end,
         config = function()
@@ -52,8 +52,6 @@ return {
                 exclude_groups = {},
             })
 
-            -- pywal owns the foreground palette; transparent.nvim only removes panel backgrounds, leaving tab text and accents readable.
-            -- skip entirely under neovide so the theme's opaque bg is kept
             if not vim.g.neovide then
                 vim.api.nvim_create_autocmd("ColorScheme", {
                     callback = function()
@@ -67,7 +65,7 @@ return {
         end,
     },
 
-    -- Real colorscheme plugins, applied by themes.lua.
+    -- colorschemes, applied by lua/theme.lua
     { "folke/tokyonight.nvim",      lazy = true },
     { "Shatur/neovim-ayu",          lazy = true },
     {
@@ -119,12 +117,9 @@ return {
                 sections = {
                     lualine_a = { "mode" },
                     lualine_b = { "branch", "diff", "diagnostics" },
-                    -- dropbar breadcrumbs (path + symbols) rendered at the bottom via lualine.
+                    -- dropbar breadcrumbs
                     lualine_c = { { function() return "%{%v:lua.dropbar()%}" end } },
-                    lualine_x = {
-                        -- active LSP name hidden (issue 10)
-                        "filetype",
-                    },
+                    lualine_x = { "filetype" },
                     lualine_y = {},
                     lualine_z = { "location" },
                 },
@@ -145,7 +140,7 @@ return {
     },
 
     {
-        "HiPhish/rainbow-delimiters.nvim", -- rainbow bracket colors (indent guides now via snacks.indent)
+        "HiPhish/rainbow-delimiters.nvim", -- rainbow bracket colors
         event = { "BufReadPost", "BufNewFile" },
         config = function()
             local highlight = {
@@ -167,7 +162,7 @@ return {
         "NvChad/nvim-colorizer.lua", -- inline color previews
         event = "VeryLazy",
         config = function()
-            -- Named colors (black/red/...) and tailwind matches turn any
+            -- names/tailwind only in css-like filetypes, else plain words get colored
             require("colorizer").setup({
                 user_default_options = {
                     mode = "virtualtext",
@@ -196,30 +191,17 @@ return {
         priority = 1000, -- load before other eager UI plugins (snacks health rec)
         opts = {
             bigfile = { enabled = true },
-            dashboard = {
-                enabled = false,
-                preset = {
-                    keys = {
-                        { icon = " ", key = "n", desc = "New File", action = ":ene | startinsert" },
-                        { icon = " ", key = "f", desc = "Find File", action = ":lua Snacks.dashboard.pick('files')" },
-                        { icon = " ", key = "g", desc = "Find Text", action = ":lua Snacks.dashboard.pick('live_grep')" },
-                        { icon = " ", key = "r", desc = "Recent Files", action = ":lua Snacks.dashboard.pick('oldfiles')" },
-                        { icon = "󰒲 ", key = "L", desc = "Lazy", action = ":Lazy", enabled = package.loaded.lazy ~= nil },
-                        { icon = " ", key = "q", desc = "Quit", action = ":qa" },
-                    },
-                }
-            },
+            dashboard = { enabled = false },
             image = {
                 enabled = true,
                 doc = {
-                    -- Cap rendered diagram/image size (was full-window huge
                     max_width = 60,
                     max_height = 24,
                 },
                 convert = {
                     magick = {
                         pdf = {
-                            "-density", 192, "{src}[0]", "-background", "white", "-alpha", "remove", -- "-trim"
+                            "-density", 192, "{src}[0]", "-background", "white", "-alpha", "remove",
                         },
                     }
                 },
@@ -231,19 +213,17 @@ return {
                     }
                 }
             },
-            -- noice + nvim-notify already handle notifications; don't double up
+            -- noice + nvim-notify handle notifications
             notifier = { enabled = false },
-            indent = { enabled = true }, -- indent guides + scope (replaces indent-blankline)
+            indent = { enabled = true }, -- indent guides + scope
             scroll = { enabled = false }, -- no smooth scrolling
-            words = { enabled = true },  -- highlight LSP references under cursor (replaces mini.cursorword)
-            -- File browser (snacks, in place of neo-tree), pinned to the git root.
-            -- replace_netrw off: the VimEnter autocmd is the SOLE opener, so snacks
-            -- never auto-opens a second instance that stacks a duplicate root.
+            words = { enabled = true },  -- highlight lsp references under cursor
+            -- the VimEnter autocmd is the only opener, else roots stack
             explorer = { replace_netrw = false },
             picker = {
                 sources = {
                     explorer = {
-                        -- off: its BufEnter reveal re-opens with cwd=<file>, stacking a duplicate root
+                        -- off: its reveal reopens with cwd=<file>, stacking a root
                         follow_file = false,
                         hidden = true, -- show dotfiles on start
                         auto_close = false,
@@ -267,7 +247,7 @@ return {
         },
         config = function(_, opts)
             require("snacks").setup(opts)
-            -- Diagrams only in normal mode: snacks re-evaluates image visibility on every ModeChanged, so hide them all in insert.
+            -- hide inline images in insert mode
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()
@@ -288,7 +268,7 @@ return {
             "MunifTanjim/nui.nvim", -- UI component library
             {
                 "rcarriga/nvim-notify", -- notification popups
-                -- transparent.nvim strips NotifyBackground, so set an explicit background_colour.
+                -- transparent.nvim strips NotifyBackground
                 opts = { background_colour = "#000000", render = "compact" },
             },
         },
@@ -300,7 +280,7 @@ return {
                 },
                 messages = { enabled = true },
                 cmdline = { enabled = true },
-                -- don't pop up for trivial edits (yank/delete/paste line counts).
+                -- no popups for trivial edit messages
                 routes = {
                     { filter = { event = "msg_show", kind = "search_count" }, opts = { skip = true } },
                     { filter = { event = "msg_show", find = "%d+ lines yanked" }, opts = { skip = true } },

@@ -1,12 +1,9 @@
 import QtQuick
 import QtQuick.Effects
-import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "costs"
@@ -16,11 +13,10 @@ BarWidget {
   property var gcp: null
 
   readonly property bool anyConfigured: hetzner !== null || cloudflare !== null || gcp !== null
-  // Combined monthly spend (rough: currencies are shown per row) and the largest single bill, for the hero and share gauges.
+  // rough: currencies differ per provider
   readonly property real totalCost: (Number(hetzner) || 0) + (Number(cloudflare) || 0) + (Number(gcp) || 0)
   readonly property real maxCost: Math.max(Number(hetzner) || 0, Number(cloudflare) || 0, Number(gcp) || 0)
 
-  // Rolling history of combined spend for the sparkline (newest last, capped).
   property var costHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
@@ -66,7 +62,6 @@ BarWidget {
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
 
-  // One provider: uppercase label, glowing mono figure flush right, and a segmented HUD gauge of its share of the largest bill.
   component CostRow: Column {
     id: cr
     property string label: ""
@@ -94,7 +89,6 @@ BarWidget {
         opacity: cr.amount !== null ? Style.emphasis.strong : Style.emphasis.faint
         font.pixelSize: Style.font.body
         font.family: Style.font.family
-        // Big figure: tight tracking and an accent glow once a real number is in.
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0 && cr.amount !== null
         layer.effect: MultiEffect {
@@ -122,21 +116,16 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip, rendered by the shared card.
     title: "Cloud Costs"
     onOpened: root.refresh()
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.sm
 
-      // Top headroom so the overlaid title strip never covers the hero.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // Glowing combined-spend hero with a spend-over-time sparkline.
       Column {
         width: parent.width
         visible: root.anyConfigured
@@ -187,7 +176,7 @@ BarWidget {
             font.letterSpacing: Style.headerTracking
           }
         }
-        // Auto-scaled: maxValue <= minValue tells the sparkline to fit its own data.
+        // maxValue <= minValue means auto-scale
         Sparkline { width: parent.width; height: Style.space(30); values: root.costHist; minValue: 0; maxValue: 0; color: Color.accent }
       }
 
@@ -208,8 +197,5 @@ BarWidget {
         font.family: Style.font.family
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

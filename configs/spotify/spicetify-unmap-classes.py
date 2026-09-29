@@ -1,22 +1,5 @@
 #!/usr/bin/env python3
-"""Undo spicetify's css-map class rename in the patched Spotify client.
-
-spicetify rewrites Spotify's hashed CSS class names to friendly ones
-(iRGr6yO6lPcAKUoT -> Root__top-container) so themes can target them. Since
-Spotify 1.2.96 the UI code that emits those class names no longer lives in the
-files spicetify patches, so only the CSS side gets renamed: every renamed rule,
-including the root grid layout, stops matching the DOM and the client renders
-as an unstyled column.
-
-Only the classes spicetify could not rename on the JS side are reverted: where
-the hash still occurs in the client's own scripts, spicetify renames both sides
-and the friendly name is what ends up in the DOM. Selectors are rebuilt from
-the pristine xpui.spa spicetify backed up, so the two cases can be told apart
-per rule. Declarations are left as spicetify
-wrote them, which is where the pywal colors live. user.css is left alone: its
-selectors are legacy names from much older Spotify builds, and pointing them at
-today's elements moves the layout around instead of only recolouring it.
-"""
+"""Revert spicetify class renames the spotify js no longer emits (spotify >= 1.2.96)."""
 
 import json
 import re
@@ -66,7 +49,7 @@ def main() -> int:
         if css.name in SKIP or css.name not in pristine:
             continue
 
-        # What spicetify's rename turns each pristine selector into, so patched selectors can be looked up and swapped back for the original.
+        # patched selector -> original selector
         original = {}
         source = pristine[css.name]
         for start, end in preludes(source):

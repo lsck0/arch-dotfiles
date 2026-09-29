@@ -30,17 +30,8 @@ function layoutHasWidget(layout, id) {
   return false
 }
 
-// LocalSend's item shows no state, offers only Open and Quit, and its primary click is a no-op, so Share > Receive is the whole surface.
+// localsend's tray item adds nothing over share > receive
 function ownedByOmarchy(item, layout) {
   return itemNamed(item, "localsend")
     || (layoutHasWidget(layout, "omarchy.dropbox") && itemNamed(item, "dropbox"))
-}
-
-if (typeof module !== "undefined") {
-  module.exports = {
-    itemNamed: itemNamed,
-    entryId: entryId,
-    layoutHasWidget: layoutHasWidget,
-    ownedByOmarchy: ownedByOmarchy
-  }
 }

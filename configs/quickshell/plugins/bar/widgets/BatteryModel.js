@@ -1,5 +1,3 @@
-// Trimmed from upstream's power/Model.js: kept only the generic UPower-device helpers (battery icon/fraction/charge-threshold/mode-label), which operate purely on the shape Quickshell.Services.UPower already exposes.
-
 function batteryFraction(device) {
   return device && device.isPresent ? Math.max(0, Math.min(1, device.percentage)) : 0
 }
@@ -44,7 +42,7 @@ function modeLabel(device, onBattery, states) {
   return "Charging"
 }
 
-// mm:ss-free "Xh Ym" formatting for UPower's timeToEmpty/timeToFull, which are seconds.
+// seconds -> "Xh Ym"
 function formatDuration(seconds) {
   var total = Math.max(0, Math.round(Number(seconds) || 0))
   var hours = Math.floor(total / 3600)
@@ -52,14 +50,4 @@ function formatDuration(seconds) {
   if (hours <= 0 && minutes <= 0) return ""
   if (hours <= 0) return minutes + "m"
   return hours + "h " + minutes + "m"
-}
-
-if (typeof module !== "undefined") {
-  module.exports = {
-    batteryFraction: batteryFraction,
-    chargeThresholdActive: chargeThresholdActive,
-    batteryIcon: batteryIcon,
-    modeLabel: modeLabel,
-    formatDuration: formatDuration
-  }
 }

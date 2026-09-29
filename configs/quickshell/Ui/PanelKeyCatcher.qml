@@ -1,6 +1,5 @@
 import QtQuick
 
-// Drop-in key dispatcher for keyboard-driven panels.
 Item {
   id: root
 

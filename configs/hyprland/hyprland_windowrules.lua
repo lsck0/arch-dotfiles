@@ -1,7 +1,6 @@
 local global_opacity = 0.95
 
--- app-rendered tray/context menus (discord, steam) are their own windows: we
--- can't style their content, only the frame -- give them rounding.
+-- their app-drawn menus are windows, only the frame is styleable
 for _, cls in ipairs({ "^discord$", "^steam$" }) do
     hl.window_rule({ match = { class = cls }, rounding = 8 })
 end
@@ -71,7 +70,6 @@ hl.window_rule({
     center = true,
 })
 
--- pavucontrol
 hl.window_rule({
     match = {
         class = "^org.pulseaudio.pavucontrol$",
@@ -80,7 +78,6 @@ hl.window_rule({
     size = "1080 720",
 })
 
--- wayland-boomer
 hl.window_rule({
     match = {
         title = "^wayland-boomer$",
@@ -108,7 +105,6 @@ hl.window_rule({
     size = "1080 720",
 })
 
--- mission control
 hl.window_rule({
     match = {
         class = "^io.missioncenter.MissionCenter$",
@@ -117,7 +113,6 @@ hl.window_rule({
     size = "1080 720",
 })
 
--- steam
 hl.window_rule({
     match = {
         class = "^steam$",
@@ -132,7 +127,6 @@ hl.window_rule({
     float = false,
 })
 
--- gnyame
 hl.window_rule({
     match = {
         title = "^gnyame$",

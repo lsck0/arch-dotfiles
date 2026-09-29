@@ -7,7 +7,6 @@ import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
 
-// Upgraded from the earlier simplified port to match omarchy-shell's fuller Clipboard.qml: split list/preview pane, image thumbnails, PointerMoveGate (keyboard nav doesn't fight stationary-pointer hover churn), ConfirmDialog for Shift+Delete, BorderSurface chrome, and PageUp/PageDown/Home/End nav.
 Item {
   id: root
 
@@ -194,7 +193,6 @@ Item {
     if (!row) return
     root.opened = false
     if (row.entryType === "image") {
-      // Both interpolations quoted.
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
     } else if (row.fullText) {
       Quickshell.execDetached(["bash", "-c", "printf '%s' " + Util.shellQuote(row.fullText) + " | wl-copy"])
@@ -227,7 +225,7 @@ Item {
     onFileChanged: reload()
   }
 
-  // Best-effort reap of watchers left behind by a previous shell instance.
+  // reap watchers left by a previous shell
   Process {
     id: initProc
     command: ["pkill", "-f", "wl-paste .*--watch .*/quickshell/plugins/clipboard/capture\\.sh"]
@@ -391,7 +389,6 @@ Item {
         anchors.leftMargin: card.contentLeftInset
         spacing: root.contentSpacing
 
-        // Uppercase tracked section header with live bracketed entry count, terminal-readout style.
         Row {
           id: titleRow
           width: parent.width
@@ -434,7 +431,6 @@ Item {
           radius: root.cornerRadius
           color: "transparent"
 
-          // Terminal prompt line: `> query _` with a blinking block caret.
           Row {
             id: promptRow
             anchors.left: parent.left
@@ -463,9 +459,8 @@ Item {
             }
 
             Text {
-              id: queryText
               textFormat: Text.PlainText
-              // Hug the typed text so the caret follows it; cap and elide when long.
+              // hug the text so the caret follows it
               width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
               text: root.filterText || "Search clipboard..."
               color: root.foreground
@@ -475,7 +470,6 @@ Item {
               elide: Text.ElideRight
             }
 
-            // Blinking block caret at the input head.
             Text {
               id: caret
               textFormat: Text.PlainText
@@ -504,7 +498,6 @@ Item {
             }
           }
 
-          // Hard accent underline: the terminal input line.
           Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -549,12 +542,11 @@ Item {
                   width: ListView.view.width
                   height: root.rowHeight
                   radius: root.cornerRadius
-                  // The previewed row keeps a faint fill before the cursor is engaged, so the preview pane always points at a visible row.
+                  // selected row keeps a faint fill before the cursor engages
                   color: hasCursor ? root.selectedBackground
                     : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
                   Row {
-                    id: rowContent
                     anchors.fill: parent
                     anchors.leftMargin: Style.space(12)
                     anchors.rightMargin: Style.space(12)
@@ -562,7 +554,6 @@ Item {
                     anchors.bottomMargin: Style.space(6)
                     spacing: Style.space(10)
 
-                    // Reticle marker on the row under the cursor.
                     Text {
                       id: reticle
                       anchors.verticalCenter: parent.verticalCenter
@@ -590,7 +581,7 @@ Item {
                       width: visible ? parent.height : 0
                       height: parent.height
                       source: rowDelegate.previewImage
-                      // Clipboard images are usually screenshots; this draws them at row height, so decoding at full size held a multi-megabyte buffer per visible row.
+                      // decode at row height, not full size
                       sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
                       fillMode: Image.PreserveAspectFit
                       asynchronous: true
@@ -609,7 +600,6 @@ Item {
                       elide: Text.ElideRight
                       wrapMode: Text.NoWrap
                       verticalAlignment: Text.AlignVCenter
-                      // Neon bloom on the row under the cursor.
                       layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
                       layer.effect: MultiEffect {
                         shadowEnabled: true
@@ -623,7 +613,6 @@ Item {
                     }
                   }
 
-                  // HUD reticle on the row under the cursor.
                   HudFrame { visible: rowDelegate.hasCursor && Style.fx.brackets }
 
                   MouseArea {
@@ -686,7 +675,6 @@ Item {
                 color: Util.alpha(root.border, 0.28)
               }
 
-              // Uppercase tracked pane label, terminal-readout style.
               Text {
                 id: previewLabel
                 anchors.top: parent.top
@@ -734,7 +722,6 @@ Item {
         }
       }
 
-      // Terminal-panel framing over the clipboard card.
       HudFrame {}
       Scanlines {}
     }

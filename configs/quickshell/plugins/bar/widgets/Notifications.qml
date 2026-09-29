@@ -1,12 +1,10 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "../../notifications/components"
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "notifications"
@@ -28,7 +26,6 @@ BarWidget {
     if (!historyProc.running) historyProc.running = true
   }
 
-  // Open whatever a history entry points at.
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()
     if (!want) return null
@@ -57,7 +54,7 @@ BarWidget {
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
     }
-    // byId wants an actual desktop-file id; the notification's app_name is a display name ("Discord", "Firefox"), so heuristicLookup is the one that usually matches.
+    // app_name is a display name, so heuristicLookup usually matches
     var candidates = [entry.appIcon, entry.app]
     for (var i = 0; i < candidates.length; i++) {
       var id = String(candidates[i] || "").trim()
@@ -69,11 +66,10 @@ BarWidget {
         return
       }
     }
-    // Nothing to open — a shell-generated notification with no action.
   }
 
   function toggleDnd() {
-    // A real child Process, not execDetached + Qt.callLater.
+    // wait for exit before refreshing
     if (toggleProc.running) return
     toggleProc.running = true
   }
@@ -137,14 +133,13 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip.
     title: "NOTIFICATIONS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2) + Style.shadowOffset
+    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
 
     onOpened: root.refreshHistory()
 
-    // And keep it current while it stays open: a notification arriving with the panel already up should appear in the list, not wait for the next hover.
+    // keep the list current while open
     Timer {
       interval: 4000
       running: panel.visible
@@ -152,7 +147,6 @@ BarWidget {
       onTriggered: root.refreshHistory()
     }
 
-    // One clock for the whole list.
     property double nowMs: Date.now()
     Timer {
       interval: 30000
@@ -165,7 +159,7 @@ BarWidget {
     Flickable {
       id: historyFlick
       anchors.fill: parent
-      // contentWidth + VerticalFlick, matching Tray's menu Flickable: without them contentWidth defaults to -1 and a horizontal drag slides the whole list sideways with nothing to scroll to.
+      // without contentWidth a horizontal drag slides the list
       contentWidth: width
       contentHeight: content.implicitHeight
       flickableDirection: Flickable.VerticalFlick
@@ -176,13 +170,8 @@ BarWidget {
       Column {
         id: content
         width: parent.width
-        // Rows sit closer together than the panel's own sections do: with the borders gone they read as one list, and section spacing between them pulled them back apart into separate things.
         spacing: Style.spacing.xs
 
-        // Headroom so the title strip never overlaps the first row.
-        Item { width: 1; height: Style.spacing.xxxl }
-
-        // Same section header as every other panel; the toggle below already says DND state.
         Item {
           width: parent.width
           implicitHeight: Math.max(notifHeader.implicitHeight, clearLabel.implicitHeight)
@@ -215,7 +204,6 @@ BarWidget {
           description: "Silence new notification popups"
           checked: root.dndOn
           onClicked: root.toggleDnd()
-          // Borderless like every other row in this panel; the switch itself carries the affordance.
           borderSpec: Border.flat("transparent", 0)
         }
 
@@ -231,15 +219,13 @@ BarWidget {
           font.letterSpacing: Style.displayTracking
         }
 
-        // Rendered with the SAME NotificationCard the toasts use, rather than the two plain Texts that used to live here.
         Repeater {
           model: root.history
           delegate: NotificationCard {
             required property var modelData
-            // A row, not a toast — see NotificationCard's `variant`.
             variant: "row"
             now: panel.nowMs
-            // A short history is a detail view, not a list: with one or two entries there is nothing to scan past, so show the message instead of eliding it into "...in the..." above 40px of empty panel.
+            // few entries: show the full body
             bodyLines: root.history.length <= 2 ? 10 : 3
             width: content.width
             app: modelData.app || ""
@@ -253,14 +239,14 @@ BarWidget {
             cornerRadius: Style.cornerRadius
 
             onCardClicked: root.openEntry(modelData)
-            // The daemon owns the history files, so removing one entry from the panel would desync it.
+            // the daemon owns history, so clear all
             onCloseRequested: root.dismissAll()
           }
         }
       }
     }
 
-    // The list is clipped mid-row when there is more history than panel, with nothing to say so — it just looked like a rendering cut.
+    // fade hints at clipped rows
     Rectangle {
       anchors.left: parent.left
       anchors.right: parent.right
@@ -274,8 +260,5 @@ BarWidget {
         GradientStop { position: 1.0; color: Util.alpha(Color.menu.background, 0.95) }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

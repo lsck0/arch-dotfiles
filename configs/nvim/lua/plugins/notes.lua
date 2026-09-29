@@ -34,7 +34,7 @@ return {
             require("render-markdown").enable()
             require("render-markdown").setup({
                 completions = { lsp = { enabled = true } },
-                -- "hide" conceals the fence rows, and snacks.image anchors mermaid diagrams to the opening fence, hiding them too.
+                -- not "hide": mermaid images anchor to the fence and would vanish
                 code = { border = "thin" },
                 anti_conceal = {
                     ignore = {

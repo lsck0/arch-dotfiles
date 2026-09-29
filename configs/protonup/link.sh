@@ -16,7 +16,7 @@ install_proton_ge() {
     local api="https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases/latest"
     local tag asset url sum_url tmp
 
-    # An unauthenticated GitHub API call is rate-limited and returns an error object rather than a release; without this check the script would build a "null-x86_64" URL and die on the 404 under `set -e`.
+    # rate-limited api returns an error object, not a release
     tag=$(curl -fsSL "$api" | jq -r '.tag_name // empty')
     if [ -z "$tag" ]; then
         echo "protonup: could not resolve latest proton-ge release, skipping" >&2
@@ -24,7 +24,7 @@ install_proton_ge() {
     fi
     asset="${tag}-x86_64"
 
-    # Upstream tarballs unpack to <tag>-x86_64, not <tag>.
+    # tarballs unpack to <tag>-x86_64
     if [ -d "$COMPAT_DIR/$asset" ]; then
         return
     fi

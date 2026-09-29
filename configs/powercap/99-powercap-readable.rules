@@ -1,2 +1,2 @@
-# Make Intel RAPL energy counters world-readable.
+# world-readable rapl energy counters
 SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod -R a+r /sys/devices/virtual/powercap"

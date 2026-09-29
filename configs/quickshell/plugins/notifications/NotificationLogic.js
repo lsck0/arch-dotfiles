@@ -5,13 +5,12 @@ function isChromiumDerived(app, appIcon) {
          source.indexOf("opera") >= 0
 }
 
-// True when a `<...>` run is an image tag, so the name is read the way Qt's parser reads it: after the `<`, the leading run of letters and digits.
+// matches qt's tag-name parsing
 function isImageTag(tag) {
   var name = /^<[^A-Za-z0-9]*([A-Za-z0-9]+)/.exec(tag)
   return !!name && name[1].toLowerCase() === "img"
 }
 
-// The body renders as StyledText so notifications can use the markup the body-markup capability advertises (see Service.qml).
 function stripImageTags(text) {
   var out = ""
   var i = 0
@@ -25,7 +24,7 @@ function stripImageTags(text) {
 
     out += text.slice(i, open)
 
-    // An unterminated tag at the end of the string still reaches the renderer, which closes it itself, so treat the remainder as one tag.
+    // qt closes an unterminated trailing tag itself
     var close = text.indexOf(">", open)
     var tag = close === -1 ? text.slice(open) : text.slice(open, close + 1)
 
@@ -36,7 +35,6 @@ function stripImageTags(text) {
   return out
 }
 
-// What the card renders, and the last thing to touch the string before Qt parses it.
 function styledBody(body, app, appIcon) {
   return stripImageTags(sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>"))
 }
@@ -93,12 +91,10 @@ function glyphFromHints(hints) {
   return stringHint(hints, "omarchy-glyph")
 }
 
-// The click action: a JSON argv string from omarchy-notification-send --exec.
 function execArgvFromHints(hints) {
   return stringHint(hints, "omarchy-exec-argv")
 }
 
-// Validate a persisted omarchy-exec-argv into a runnable argv, or null.
 function parseExecArgv(value) {
   var text = String(value || "")
   if (!text) return null
@@ -143,14 +139,12 @@ function snapshotOf(notification, timestamp) {
   }
 }
 
-// Everything the popup card draws, and therefore everything an in-place update has to write through to the row and its file.
 var POPUP_ROLES = ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout"]
 
 function popupRoles() {
   return POPUP_ROLES
 }
 
-// Whether a refresh has anything to write.
 function popupRowChanged(row, updated) {
   var current = row || {}
   var next = updated || {}
@@ -161,7 +155,7 @@ function popupRowChanged(row, updated) {
   return false
 }
 
-// A client updating a notification through replaces_id keeps the identity of the popup it took over: the file name is the timestamp and id the popup was first persisted under, and the restore, replace and archive paths all key off that name.
+// replaces_id keeps the original file name identity
 function replacementSnapshot(notification, originalId, timestamp) {
   var updated = snapshotOf(notification, timestamp)
   updated.id = originalId
@@ -187,7 +181,6 @@ function historyEntry(value, normalUrgency) {
   }
 }
 
-// notifications.json holds nothing but the last-set DND preference now that history is a directory of files.
 function parseSettings(raw) {
   var text = String(raw || "").trim()
   if (!text) return { error: false, dnd: null, legacy: false }
@@ -204,14 +197,11 @@ function parseSettings(raw) {
   }
 }
 
-// ---------------------------------------------------- popup persistence Each on-screen popup is mirrored to its own file under ~/.local/state/omarchy/notifications/ so toasts survive shell restarts (e.g. the restart `omarchy-update` performs). The file exists exactly as long as the popup is on screen: it is written when the toast appears and moved into the history/ subdirectory when the toast expires, is dismissed, or its action is invoked. History is those moved files, newest last-10.
-
 function popupEntry(value, normalUrgency) {
   var entry = historyEntry(value, normalUrgency)
   var expire = Number((value || {}).expireTimeout || 0)
   if (!isFinite(expire) || expire < 0) expire = 0
   entry.expireTimeout = expire
-  // Absolute expiry deadline, set only when a restore resets a surviving popup's display lifetime.
   var deadline = Number((value || {}).deadline || 0)
   if (isFinite(deadline) && deadline > 0) entry.deadline = deadline
   return entry
@@ -221,8 +211,7 @@ function popupFileName(entry) {
   return imageStem(entry) + ".json"
 }
 
-// ---------------------------------------------------- persisted images A notification's images only exist while it is live: Chromium-family senders (all Omarchy web apps) delete their scoped /tmp files on close, and image-data hints surface as in-process image:// URLs that die with the server object.
-
+// images are copied since senders delete them on close
 var PERSISTED_IMAGE_ROLES = ["appIcon", "image"]
 
 function imageStem(entry) {
@@ -230,7 +219,6 @@ function imageStem(entry) {
   return String(e.timestamp || 0) + "-" + String(e.originalId || 0)
 }
 
-// The filesystem path behind a file-backed image value, or "" for anything a copy can't capture: themed icon names, in-process image:// URLs, empty.
 function localImageFile(value) {
   var s = String(value || "")
   if (s.indexOf("file://") === 0) {
@@ -240,7 +228,6 @@ function localImageFile(value) {
   return s.charAt(0) === "/" ? s : ""
 }
 
-// The entry as it should hit the disk, plus the copies that make it true.
 function persistablePopup(entry, imagesDir) {
   var e = entry || {}
   var out = {}
@@ -263,11 +250,10 @@ function persistablePopup(entry, imagesDir) {
 }
 
 function serializePopup(entry, normalUrgency) {
-  // Compact (single-line) on purpose: restore cats every file together and parses line by line, which only works when each file is one line.
+  // single line: restore parses files line by line
   return JSON.stringify(popupEntry(entry, normalUrgency))
 }
 
-// Parse the concatenation of every persisted popup file into entries, newest-first.
 function parsePopupFiles(raw, normalUrgency) {
   var lines = String(raw || "").split("\n")
   var entries = []
@@ -278,14 +264,13 @@ function parsePopupFiles(raw, normalUrgency) {
       var value = JSON.parse(line)
       if (value && typeof value === "object") entries.push(popupEntry(value, normalUrgency))
     } catch (e) {
-      // A torn write from a crash mid-save — skip the line, keep the rest.
+      // torn write, skip the line
     }
   }
   entries.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
   return entries
 }
 
-// A persisted popup whose lifetime already ran out would have expired on screen had the shell kept running, so it is not restored.
 function popupExpired(entry, duration, now) {
   var deadline = Number((entry || {}).deadline || 0)
   if (isFinite(deadline) && deadline > 0) return Number(now) >= deadline
@@ -294,25 +279,6 @@ function popupExpired(entry, duration, now) {
   return (Number(now) - Number((entry || {}).timestamp || 0)) >= lifetime
 }
 
-function popupPlacement(barPosition, barClearance, gapsOut) {
-  var position = String(barPosition || "top")
-  var clearance = Number(barClearance)
-  var gap = Number(gapsOut)
-  if (!isFinite(clearance)) clearance = 0
-  if (!isFinite(gap)) gap = 0
-
-  return {
-    anchors: { top: true, bottom: false, left: false, right: true },
-    margins: {
-      top: position === "top" ? clearance : gap,
-      bottom: gap,
-      left: gap,
-      right: position === "right" ? clearance : gap
-    }
-  }
-}
-
-// The archived files are the history.
 function historyRows(raw, liveRows, normalUrgency, limit) {
   var max = limit === undefined || limit === null ? 10 : Number(limit)
   if (isNaN(max)) max = 10
@@ -335,36 +301,4 @@ function historyRows(raw, liveRows, normalUrgency, limit) {
   collect(parsePopupFiles(raw, normalUrgency))
   out.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
   return out.slice(0, max)
-}
-
-if (typeof module !== "undefined") {
-  module.exports = {
-    isChromiumDerived: isChromiumDerived,
-    sanitizeBody: sanitizeBody,
-    styledBody: styledBody,
-    summaryStartsWithGlyph: summaryStartsWithGlyph,
-    shouldBypassDnd: shouldBypassDnd,
-    isEphemeralApp: isEphemeralApp,
-    stringHint: stringHint,
-    glyphFromHints: glyphFromHints,
-    execArgvFromHints: execArgvFromHints,
-    parseExecArgv: parseExecArgv,
-    shouldRenderCompactGlyph: shouldRenderCompactGlyph,
-    snapshotOf: snapshotOf,
-    popupRoles: popupRoles,
-    popupRowChanged: popupRowChanged,
-    replacementSnapshot: replacementSnapshot,
-    historyEntry: historyEntry,
-    parseSettings: parseSettings,
-    historyRows: historyRows,
-    popupEntry: popupEntry,
-    popupFileName: popupFileName,
-    imageStem: imageStem,
-    localImageFile: localImageFile,
-    persistablePopup: persistablePopup,
-    serializePopup: serializePopup,
-    parsePopupFiles: parsePopupFiles,
-    popupExpired: popupExpired,
-    popupPlacement: popupPlacement
-  }
 }

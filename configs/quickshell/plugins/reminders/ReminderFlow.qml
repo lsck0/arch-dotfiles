@@ -7,7 +7,6 @@ import qs.Commons
 import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
 
-// Centered reminders + pomodoro overlay, styled like the app launcher.
 Item {
   id: root
 
@@ -48,11 +47,6 @@ Item {
     root.opened = false
     if (root.shell && typeof root.shell.hide === "function")
       root.shell.hide((root.manifest && root.manifest.id) || "panel.reminders")
-  }
-
-  function toggle() {
-    if (root.opened) root.dismiss()
-    else root.open("{}")
   }
 
   function refresh() {
@@ -168,7 +162,7 @@ Item {
             root.submit()
             event.accepted = true
           } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
-            // The minutes step only takes digits; the message step takes anything.
+            // minutes step takes digits only
             if (root.step === "message" || /[0-9]/.test(event.text)) root.filterText += event.text
             event.accepted = true
           }
@@ -185,7 +179,6 @@ Item {
         anchors.rightMargin: card.contentRightInset
         spacing: Style.spacing.lg
 
-        // Terminal-window title strip: prompt, panel name, blinking block caret, decorative chrome.
         Item {
           width: parent.width
           implicitHeight: rtTitleRow.implicitHeight
@@ -244,7 +237,6 @@ Item {
         }
         PanelSeparator {}
 
-        // ---- new reminder input, same headline field as the app launcher ----
         Item {
           width: parent.width
           height: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
@@ -254,11 +246,10 @@ Item {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.PlainText
-            text: root.step === "message" ? "\u{f009f}" : "\u{f0a92}"   // md-bell_ring_outline / md-bell_plus_outline
+            text: root.step === "message" ? "\u{f009f}" : "\u{f0a92}" // md-bell_ring_outline / md-bell_plus_outline
             color: Color.accent
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.heading
-            // Accent neon bloom on the prompt glyph.
             layer.enabled: Style.fx.glow > 0
             layer.effect: MultiEffect {
               shadowEnabled: true
@@ -270,7 +261,6 @@ Item {
               autoPaddingEnabled: true
             }
           }
-          // Terminal prompt line: typed text followed by a blinking block caret.
           Row {
             id: rtPromptRow
             anchors.left: inputGlyph.right
@@ -320,7 +310,6 @@ Item {
             }
           }
 
-          // Hard accent underline: the terminal input line.
           Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
@@ -342,7 +331,6 @@ Item {
           font.pixelSize: Style.font.caption
         }
 
-        // Quick reminders, spread across the full width.
         Row {
           id: chips
           width: parent.width
@@ -362,7 +350,6 @@ Item {
 
         PanelSeparator {}
 
-        // ---- reminders ----
         Column {
           width: parent.width
           spacing: Style.spacing.xs
@@ -401,7 +388,7 @@ Item {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 textFormat: Text.PlainText
-                text: "\u{f009c}"   // md-bell_outline
+                text: "\u{f009c}" // md-bell_outline
                 color: Color.accent
                 font.family: Style.font.iconFamily
                 font.pixelSize: Style.font.icon
@@ -445,7 +432,7 @@ Item {
                 id: cancel
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                iconText: "\u{f0156}"   // md-close
+                iconText: "\u{f0156}" // md-close
                 tooltipText: "Cancel reminder"
                 foreground: Color.menu.text
                 onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
@@ -456,7 +443,6 @@ Item {
 
         PanelSeparator {}
 
-        // ---- pomodoro ----
         Column {
           width: parent.width
           spacing: Style.spacing.md
@@ -465,7 +451,7 @@ Item {
             width: parent.width
             height: pomoHeader.implicitHeight
             PanelSectionHeader { id: pomoHeader; text: "Pomodoro" }
-            // One dot per focus block in the current set; a long break follows the last.
+            // one dot per focus block; a long break follows the last
             Row {
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
@@ -504,7 +490,6 @@ Item {
               font.family: Style.font.family
               font.pixelSize: Style.font.display
               font.bold: true
-              // Bloom the big countdown while a block is running.
               layer.enabled: root.pomo.running && Style.fx.glow > 0
               layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -533,21 +518,21 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.sm
               PanelActionButton {
-                iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}"   // md-play / md-pause
+                iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
                 tooltipText: root.pomo.paused ? "Resume" : "Pause"
                 foreground: Color.menu.text
                 fontSize: Style.font.heading
                 onClicked: root.run([root.pomodoroScript, "toggle"])
               }
               PanelActionButton {
-                iconText: "\u{f04ad}"   // md-skip_next
+                iconText: "\u{f04ad}" // md-skip_next
                 tooltipText: "Skip to next phase"
                 foreground: Color.menu.text
                 fontSize: Style.font.heading
                 onClicked: root.run([root.pomodoroScript, "skip"])
               }
               PanelActionButton {
-                iconText: "\u{f04db}"   // md-stop
+                iconText: "\u{f04db}" // md-stop
                 tooltipText: "Stop"
                 foreground: Color.menu.text
                 fontSize: Style.font.heading
@@ -556,7 +541,6 @@ Item {
             }
           }
 
-          // Phase progress as a segmented terminal block gauge.
           BarGauge {
             width: parent.width
             height: Math.max(4, Style.space(4))
@@ -570,7 +554,7 @@ Item {
           PanelRow {
             width: parent.width
             visible: !root.pomo.running
-            glyph: "\u{f040a}"   // md-play
+            glyph: "\u{f040a}" // md-play
             label: "Start a " + (root.pomo.defaultWork || 25) + " min focus block"
             filled: true
             onActivated: root.run([root.pomodoroScript, "start"])
@@ -578,7 +562,6 @@ Item {
         }
       }
 
-      // Terminal-panel framing + CRT scanlines over the reminders card.
       HudFrame {}
       Scanlines {}
     }

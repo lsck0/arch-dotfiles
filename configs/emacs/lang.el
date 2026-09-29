@@ -4,7 +4,7 @@
 
 (setq treesit-font-lock-level 4)
 
-;; nvim-treesitter -> auto-install grammars and route major modes to *-ts-mode
+;; auto-install grammars, route major modes to *-ts-mode
 (use-package treesit-auto
   :init (setq treesit-auto-install 'prompt)
   :config
@@ -28,11 +28,10 @@
         eglot-events-buffer-size 0        ; don't log every LSP message
         eglot-extend-to-xref t)
 
-  ;; inlay-hints.nvim
-  (add-hook 'eglot-managed-mode-hook
+    (add-hook 'eglot-managed-mode-hook
             (lambda () (when (eglot-managed-p) (eglot-inlay-hints-mode 1))))
 
-  ;; vimtex + texlab: LaTeX through eglot (builtin eglot has no texlab entry)
+  ;; builtin eglot has no texlab entry
   (add-to-list 'eglot-server-programs
                '((latex-mode tex-mode bibtex-mode LaTeX-mode)
                  . ("texlab")))
@@ -44,11 +43,9 @@
                '(jai-mode . ("jails" "-jai_path" "/home/luca/.jai"
                              "-jai_exe_name" "jai-linux")))
 
-  ;; marksman for markdown (nvim added the marksman LSP)
-  (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
+    (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
 
-  ;; rust-analyzer: allFeatures + kani cfg flags + nightly clippy (nvim parity)
-  (setq-default eglot-workspace-configuration
+    (setq-default eglot-workspace-configuration
                 '(:rust-analyzer
                   (:cargo (:allFeatures t
                            :extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani"
@@ -57,14 +54,13 @@
                            :extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani"
                                       :RUSTUP_TOOLCHAIN "nightly"))))))
 
-;; nvim parity: workspace symbols (SPC ls/ts) and open-line-on-remote (SPC gy).
 (use-package consult-eglot
   :commands (consult-eglot-symbols))
 (use-package git-link
   :commands (git-link git-link-homepage)
   :config (setq git-link-open-in-browser t))
 
-;; floating hover box (SPC l i), instead of the echo-area one-liner
+;; floating hover box instead of the echo area
 (use-package eldoc-box
   :hook (eglot-managed-mode . eldoc-box-hover-at-point-mode))
 
@@ -74,22 +70,21 @@
   :ensure nil
   :hook (prog-mode . flymake-mode)
   :config
-  ;; nvim diagnostics virtual_text; built in since Emacs 30, so no sideline
+  ;; built in since emacs 30, so no sideline package
   (setq flymake-show-diagnostics-at-end-of-line 'short
         flymake-no-changes-timeout 0.5))
 
 ;;;; formatting --------------------------------------------------------------
 
-;; conform.nvim -> apheleia, async format-on-save (never blocks the cursor)
+;; async format-on-save
 (use-package apheleia
   :init (apheleia-global-mode 1)
   :config
-  ;; isort + black for python
   (setf (alist-get 'python-mode    apheleia-mode-alist) '(isort black)
         (alist-get 'python-ts-mode apheleia-mode-alist) '(isort black))
   (dolist (m '(c-mode c-ts-mode c++-mode c++-ts-mode))
     (setf (alist-get m apheleia-mode-alist) 'clang-format))
-  ;; rust: rustfmt -> leptosfmt -> sortderives. Missing binaries are skipped.
+  ;; missing formatter binaries are skipped
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
         (alist-get 'sortderives apheleia-formatters) '("sort-derives-stdout"))
   (dolist (m '(rust-mode rust-ts-mode))
@@ -97,7 +92,6 @@
   (dolist (m '(typescript-ts-mode tsx-ts-mode js-ts-mode
                html-mode css-ts-mode scss-mode))
     (setf (alist-get m apheleia-mode-alist) 'prettier))
-  ;; conform parity: go, shell, lua, nix
   (setf (alist-get 'gofumpt apheleia-formatters) '("gofumpt")
         (alist-get 'nixfmt  apheleia-formatters) '("nixfmt"))
   (dolist (m '(go-mode go-ts-mode))     (setf (alist-get m apheleia-mode-alist) '(goimports gofumpt)))
@@ -105,7 +99,7 @@
   (dolist (m '(lua-mode lua-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'stylua))
   (dolist (m '(nix-mode nix-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'nixfmt)))
 
-; ;;; major modes not bundled with Emacs -------------------------------------- ; Rust, Go, Lua, Python, JS/TS, C/C++, JSON, YAML, bash and friends all have ; built-in *-ts-mode; treesit-auto wires them up.
+;;;; major modes not bundled with Emacs --------------------------------------
 
 (use-package haskell-mode :defer t)
 (use-package zig-mode     :defer t)
@@ -123,7 +117,7 @@
 
 ;;;; notebooks (molten + jupytext.nvim) --------------------------------------
 
-;; code-cells: `# %%` cell navigation/eval, and .ipynb round-trip via jupytext.
+;; `# %%` cells, .ipynb round-trip via jupytext
 (use-package code-cells
   :hook ((python-mode python-ts-mode markdown-mode) . code-cells-mode-maybe))
 

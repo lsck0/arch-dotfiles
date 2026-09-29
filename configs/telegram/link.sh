@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-# Telegram lives in /usr/sbin, which is not always on PATH; accept either.
+# telegram lives in /usr/sbin, not always on PATH
 if ! command -v Telegram >/dev/null 2>&1 && [ ! -x /usr/sbin/Telegram ]; then
     exit 0
 fi
@@ -10,11 +10,11 @@ set -ex
 
 mkdir -p "${HOME}/.cache/wal" "${HOME}/.local/share/TelegramDesktop"
 
-# Palette tracks the wallust/pywal palette (rendered to ~/.cache/wal/colors-telegram.tdesktop-palette each switch); expose a stable import path.
+# stable import path for the wallust-rendered palette
 cache="${HOME}/.cache/wal/colors-telegram.tdesktop-palette"
 ln -sfn "$cache" "${HOME}/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette"
 
-# Seed the cache file from the current palette so a first import works before the first switch.
+# seed the render so the first import works before a wallpaper switch
 tpl="${PWD}/../wallust/templates/wal/colors-telegram.tdesktop-palette"
 if [ ! -e "$cache" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors.sh" ]; then
     python3 - "$tpl" "${HOME}/.cache/wal/colors.sh" "$cache" <<'PY'

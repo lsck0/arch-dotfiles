@@ -1,7 +1,7 @@
 hl.config({
     input = {
         kb_layout = "de",
-        -- nodeadkeys: ^ ` ' type immediately, no dead-key wait (programming).
+        -- ^ ` ' type immediately
         kb_variant = "nodeadkeys",
         kb_options = "ctrl:nocaps",
         follow_mouse = 1,

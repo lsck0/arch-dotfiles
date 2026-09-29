@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lay out a fresh tmux session as three windows: 1 nvim, 2 claude, 3 zsh.
+# lay out a fresh session as 1 nvim, 2 claude, 3 zsh
 
 set -euo pipefail
 
@@ -8,16 +8,13 @@ session="$(tmux display-message -p '#{session_id}')"
 
 [[ "$(tmux display-message -p -t "$session" '#{session_windows}')" == 1 ]] || exit 0
 
-# Only lay out nvim/claude/zsh for sessions opened via tms (it sets this marker).
-# Bare `tmux` sessions stay a single plain shell.
+# only tms-launched sessions get the layout
 [[ "$(tmux show-environment -g TMS_LAUNCH 2>/dev/null)" == "TMS_LAUNCH=1" ]] || exit 0
 tmux set-environment -gu TMS_LAUNCH 2>/dev/null || true
 
 cwd="$(tmux display-message -p -t "$session" '#{pane_current_path}')"
 
-# Wait until the pane's zsh is idle at its prompt before typing. A devenv/direnv
-# shell is slow to start, and zsh resets the tty on init, flushing keystrokes
-# typed ahead of the prompt (which dropped the nvim/claude launch).
+# zsh init flushes keys typed before the prompt, so wait for it
 wait_prompt() {
     local target=$1 i last
     for ((i = 0; i < 120; i++)); do
@@ -32,11 +29,10 @@ wait_prompt "${session}:1"
 tmux send-keys -t "${session}:1" 'NVIM_TMS=1 nvim' Enter
 
 tmux new-window -d -t "$session" -c "$cwd" -n claude
-claude-trust "$cwd"   # skip the workspace trust dialog for this repo
+claude-trust "$cwd"
 wait_prompt "${session}:claude"
 tmux send-keys -t "${session}:claude" 'claude --permission-mode auto' Enter
 
 tmux new-window -d -t "$session" -c "$cwd" -n zsh
-# zsh is the window's default shell already; nothing to launch
 
 tmux select-window -t "${session}:1"

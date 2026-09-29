@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# JSON snapshot of sinks/sources for AudioIO.qml's device picker.
+# json snapshot of sinks and sources
 set -euo pipefail
 
 default_sink=$(pactl get-default-sink)

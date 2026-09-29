@@ -54,12 +54,6 @@ except (ValueError, tarfile.ReadError, zipfile.BadZipFile):
     pass
 PY
 
-if python3 - "$archive" "$stage" <<'PY'
-import sys, zipfile, tarfile
-p=sys.argv[1]
-print('zip' if zipfile.is_zipfile(p) else ('tar' if tarfile.is_tarfile(p) else 'other'))
-PY
-then :; fi
 kind=$(python3 - "$archive" <<'PY'
 import sys, zipfile, tarfile
 p=sys.argv[1]

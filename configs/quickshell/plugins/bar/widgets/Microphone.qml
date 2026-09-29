@@ -1,9 +1,7 @@
 import QtQuick
-import Quickshell
 import Quickshell.Services.Pipewire
 import qs.Ui
 
-// Adapted from omarchy-shell: middle-click opened Omarchy's own audio panel via its shell IPC, which doesn't exist here.
 BarWidget {
   id: root
   moduleName: "microphone"

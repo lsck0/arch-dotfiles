@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
-# A coarse grid of wind and surface pressure over the same square the radar loop covers, emitted in IMAGE COORDINATES so Weather.qml can draw a vector field and isobars on top of the radar without ever being told where it is.
+# wind/pressure grid over the radar square, in image coordinates
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/weather-field.json"
 
-# The extent comes from the RADAR MANIFEST, not from a copy of the radar's zoom and tile size.
+# extent comes from the radar manifest
 RADAR_MANIFEST="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/radar/manifest.json"
 GRID=5
 MAX_AGE=540
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
-# Same reason as weather-alerts.sh: nothing guarantees ~/.cache/quickshell exists.
 mkdir -p "$(dirname "$CACHE")" 2>/dev/null || fail "cache unavailable"
 
 if [[ -s "$CACHE" ]]; then
@@ -28,9 +27,7 @@ read -r SOURCE COORDS <<<"$("$TOGGLES/toggle-weather-location.sh" resolve 2>/dev
 LAT=${COORDS%%,*}
 LON=${COORDS##*,}
 
-# No radar means nothing to overlay, and no extent to match.
 [[ -s "$RADAR_MANIFEST" ]] || fail "no radar"
-# Path as argv, not interpolated into the program text — see the same change in weather-alerts.sh.
 SPAN_KM=$(python3 - "$RADAR_MANIFEST" <<'PY' 2>/dev/null
 import json, sys
 try:
@@ -41,28 +38,24 @@ PY
 )
 [[ "${SPAN_KM:-0}" -gt 0 ]] || fail "no radar extent"
 
-# Build the grid, call the API, and reduce to image coordinates — all in one place so the raw coordinates never leave this process.
+# raw coordinates never leave this process
 python3 - "$LAT" "$LON" "$SPAN_KM" "$GRID" "$CACHE" <<'PY'
 import json, math, sys, urllib.parse, urllib.request
 
 lat0, lon0 = float(sys.argv[1]), float(sys.argv[2])
 span_km, grid, cache = int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
 
-# The radar image spans `span_km` edge to edge, so the grid reaches half that
-# from the centre in each direction.
 half_m = span_km * 1000.0 / 2.0
 
-# Metres to degrees. Longitude degrees shrink with latitude, which matters at
-# this span — ignoring it would skew the field sideways.
+# longitude degrees shrink with latitude
 dlat = half_m / 111320.0
 dlon = half_m / (111320.0 * max(0.15, math.cos(math.radians(lat0))))
 
-points = []          # (u, v, lat, lon); u,v are 0..1 from the image's top-left
+points = []          # (u, v, lat, lon), u,v 0..1 from top-left
 for row in range(grid):
     for col in range(grid):
         u = col / (grid - 1.0)
         v = row / (grid - 1.0)
-        # v grows downward in image space, and latitude grows upward.
         points.append((u, v,
                        lat0 + dlat * (1.0 - 2.0 * v),
                        lon0 + dlon * (2.0 * u - 1.0)))
@@ -70,11 +63,7 @@ for row in range(grid):
 query = urllib.parse.urlencode({
     "latitude": ",".join("%.4f" % p[2] for p in points),
     "longitude": ",".join("%.4f" % p[3] for p in points),
-    # pressure_msl, NOT surface_pressure. Surface pressure is station pressure
-    # and falls ~12 hPa per 100 m of altitude, so contouring it draws the
-    # terrain: the first run over this grid spanned 936-1024 hPa purely from
-    # elevation. Mean-sea-level pressure is the field isobars are actually
-    # defined on.
+    # msl, surface pressure would contour the terrain
     "current": "wind_speed_10m,wind_direction_10m,pressure_msl",
     "timezone": "auto",
 })
@@ -87,7 +76,7 @@ except Exception:
     print('{"ok":false,"error":"offline"}')
     raise SystemExit
 
-# One coordinate yields an object, several yield a list. Normalise.
+# one coordinate yields an object, not a list
 if isinstance(payload, dict):
     payload = [payload]
 if not isinstance(payload, list) or len(payload) != len(points):
@@ -107,7 +96,7 @@ for (u, v, _lat, _lon), entry in zip(points, payload):
         "u": round(u, 4),
         "v": round(v, 4),
         "wind": round(float(speed), 1),
-        # Meteorological convention: the direction the wind comes FROM.
+        # direction the wind comes from
         "dir": int(round(float(direction))) % 360,
     }
     if pressure is not None:
@@ -132,7 +121,7 @@ if pressures:
     out["pressureMin"] = round(min(pressures), 1)
     out["pressureMax"] = round(max(pressures), 1)
 
-# Same assertion as the other two: a loud failure beats a quiet disclosure.
+# fail loudly if a location field leaks
 BANNED = {"latitude", "longitude", "lat", "lon", "elevation", "timezone",
           "timezone_abbreviation", "location", "place"}
 def scan(node, path=""):

@@ -1,6 +1,6 @@
 [Unit]
 Description=Load the secrets ssh key into ssh-agent
-# keyring is unlocked by the login PAM stack, which is done once the graphical session is up
+# keyring is unlocked once the graphical session is up
 Requires=ssh-agent.service
 After=ssh-agent.service graphical-session.target
 

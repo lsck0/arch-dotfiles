@@ -1,13 +1,10 @@
 import QtQuick
 import QtQuick.Effects
-import Quickshell
-import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 import "BatteryModel.js" as BatteryModel
 
-// New widget, not a literal port.
 BarWidget {
   id: root
   moduleName: "battery"
@@ -32,12 +29,11 @@ BarWidget {
     return BatteryModel.formatDuration(seconds)
   }
 
-  // Rolling charge history for the panel sparkline (newest last, capped), fed by the fraction change signal only.
+  // sparkline history, capped at 60
   property var chargeHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
   onFractionChanged: chargeHist = _push(chargeHist, Math.round(fraction * 100))
 
-  // Power mode lives entirely in Ui/PowerModeSelector — see its header.
   visible: present
   implicitWidth: present ? button.implicitWidth : 0
   implicitHeight: present ? button.implicitHeight : 0
@@ -57,21 +53,15 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip, rendered by the shared card.
     title: "BATTERY"
-    // Shared panel tokens, like every other hover panel.
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      // Top headroom so the overlaid title strip never covers the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // Battery icon + glowing hero percentage + mode/remaining readout.
       Row {
         width: content.width
         spacing: Style.spacing.md
@@ -81,14 +71,12 @@ BarWidget {
           text: root.icon
           color: root.thresholdActive ? Color.urgent : Color.menu.text
           font.pixelSize: Style.font.icon
-          // iconFamily: root.icon is a Nerd Font glyph.
           font.family: Style.font.iconFamily
         }
 
         Column {
           anchors.verticalCenter: parent.verticalCenter
           Text {
-            // Glowing accent hero numeral: the panel's primary metric.
             text: Math.round(root.fraction * 100) + "%"
             color: root.thresholdActive ? Color.urgent : Color.accent
             font.pixelSize: Style.font.display
@@ -116,7 +104,6 @@ BarWidget {
         }
       }
 
-      // Charge level as a segmented gauge over rolling history, terminal metric block.
       Column {
         width: content.width
         spacing: Style.spacing.xs
@@ -149,7 +136,6 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "POWER MODE" }
 
-      // This was a hand-rolled Repeater of Rectangles offering only the three forced modes, so the default state (no override) matched no chip and the group read as "nothing selected".
       PowerModeSelector {
         width: content.width
         active: panel.visible

@@ -9,5 +9,5 @@ set -ex
 
 mkdir -p "${HOME}/.config/gtk-3.0"
 
-# User-level override loaded after the oomox theme; see gtk.css header for why this survives palette regen.
+# overlays the oomox theme, survives palette regen
 ln -sfn "${PWD}/gtk.css" "${HOME}/.config/gtk-3.0/gtk.css"

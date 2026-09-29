@@ -22,7 +22,6 @@ if sbctl status 2>/dev/null | grep -qE 'Secure Boot:\s+(\S+\s+)?Enabled'; then
     echo "sbctl: Secure Boot already enabled" >&2
 fi
 
-# SIGN EVERY UNSIGNED BOOT FILE, AND ADD IT TO SBCTL'S DATABASE.
 sign_unsigned_boot_files() {
     local out paths=() p signed=0
 
@@ -30,7 +29,7 @@ sign_unsigned_boot_files() {
     mapfile -t paths < <(printf '%s\n' "$out" \
         | sed -n 's|^[^/]*\(/.*\) is not signed$|\1|p')
 
-    # verify only walks the ESP.
+    # sbctl verify only walks the esp
     local cand
     for cand in \
         /boot/vmlinuz-linux /boot/vmlinuz-linux-lts /boot/vmlinuz-linux-zen \
@@ -60,7 +59,7 @@ sign_unsigned_boot_files() {
         signed=$(( signed + 1 ))
     done
 
-    # Re-sign anything already in the database that verify did not list
+    # re-sign database entries verify did not list
     sudo sbctl sign-all
 
     echo "sbctl: signed and registered $signed boot file(s)" >&2
@@ -78,13 +77,12 @@ if [[ "$need_sign" == "true" ]]; then
         exit 0
     fi
 
-    # Keys present?
     if ! echo "$st" | grep -qE 'Owner GUID'; then
         echo "sbctl: creating keys" >&2
         sudo sbctl create-keys
     fi
 
-    # SIGN BEFORE ENROLLING.
+    # sign before enrolling
     echo "sbctl: signing boot files before enrollment" >&2
     sign_unsigned_boot_files
 
@@ -100,7 +98,7 @@ fi
 echo "sbctl: signing ESP boot files" >&2
 sign_unsigned_boot_files
 
-# sbctl-mkinitcpio hook auto-signs kernels/UKIs at initcpio build time
+# auto-signs kernels and ukis on initcpio builds
 if command -v sbctl-mkinitcpio >/dev/null 2>&1; then
     sudo systemctl enable sbctl-mkinitcpio.path 2>/dev/null || true
     sudo systemctl enable sbctl-mkinitcpio.service 2>/dev/null || true

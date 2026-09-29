@@ -1,5 +1,5 @@
 ---@meta
--- Type stub for `hl`, the global Hyprland Lua config API.
+-- type stub for the global hyprland api
 ---@class HlDispatchers
 ---@field dpms fun(opts: table): any
 ---@field exec_cmd fun(cmd: string): any

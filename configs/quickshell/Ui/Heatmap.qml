@@ -2,18 +2,12 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// Scrolling 2D waterfall / flux heatmap: one horizontal row of history per
-// metric, newest sample flush right, intensity colour-mapped from a near-empty
-// accent wash through accent to hot criticality (warn -> recording -> live).
-// It scrolls exactly one column per data sample because it repaints only when
-// `rows` changes (the ~5s tick) or on resize -- never on a clock. Paint is
-// gated on `active` and glow on Style.fx.glow.
+// repaints only on new rows or resize, so it scrolls one column per sample
 Item {
   id: root
 
-  // [{ values: [numbers, newest last], max: Number }] -- one entry per metric row.
+  // [{ values: [newest last], max }]
   property var rows: []
-  // History capacity; column width is width / cols so columns stay stable as data streams in.
   property int cols: 60
   property bool active: true
   property real cellGap: 1
@@ -26,7 +20,6 @@ Item {
   onWidthChanged: cv.requestPaint()
   onHeightChanged: cv.requestPaint()
 
-  // Five-stop plasma colour ramp shared by every cell.
   function _mix(a, b, t) {
     return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t,
                    a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t)
@@ -47,7 +40,7 @@ Item {
   Canvas {
     id: cv
     anchors.fill: parent
-    // Canvas drops requestPaint before it is available; paint once it is ready.
+    // requestPaint is dropped until the canvas is available
     onAvailableChanged: if (available) requestPaint()
     Component.onCompleted: requestPaint()
 
@@ -76,7 +69,6 @@ Item {
           ctx.fillRect(x, y0 + g, cellW + 0.6, rowH - g * 2)
         }
       }
-      // Faint row separators.
       ctx.strokeStyle = Util.alpha(Color.foreground, 0.10)
       ctx.lineWidth = 1
       for (var s = 1; s < nr; s++) {

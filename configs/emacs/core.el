@@ -27,12 +27,11 @@
       tramp-persistency-file-name  (my/cache "tramp")
       url-configuration-directory  (my/cache "url/"))
 
-;; no swap/backup/lock clutter (nvim: noswapfile, nobackup, noundofile)
+;; no swap/backup/lock clutter
 (setq make-backup-files nil
       auto-save-default nil
       create-lockfiles nil)
 
-;; restore cursor position, remember recent files and minibuffer history
 (save-place-mode 1)
 (recentf-mode 1)
 (setq recentf-max-saved-items 200)
@@ -42,7 +41,7 @@
 
 (setq-default vc-follow-symlinks t)
 
-;; autoread (nvim: autoread + checktime)
+;; autoread
 (setq global-auto-revert-non-file-buffers t
       auto-revert-verbose nil)
 (global-auto-revert-mode 1)
@@ -55,23 +54,21 @@
 
 ;;;; editing ----------------------------------------------------------------
 
-;; indent: 4 spaces, expandtab
 (setq-default indent-tabs-mode nil
               tab-width 4
               standard-indent 4)
 (setq backward-delete-char-untabify-method 'hungry)
 
-;; smartcase search (nvim: ignorecase + smartcase)
+;; smartcase search
 (setq case-fold-search t)
 
-;; parens + autopairs (nvim: mini.pairs, matchparen)
 (show-paren-mode 1)
 (setq show-paren-delay 0)
 (electric-pair-mode 1)
 
 ;;;; display ----------------------------------------------------------------
 
-;; number + relativenumber, with numbertoggle: absolute in insert, relative else
+;; absolute line numbers in insert, relative else
 (setq display-line-numbers-type 'relative)
 (global-display-line-numbers-mode 1)
 (add-hook 'evil-insert-state-entry-hook (lambda () (setq display-line-numbers t)))
@@ -96,7 +93,7 @@
 
 ;;;; input ------------------------------------------------------------------
 
-;; clipboard = unnamedplus; plain line scroll (pixel-precision lags on 4k + big font)
+;; plain line scroll: pixel precision lags on 4k + big font
 (setq select-enable-clipboard t
       mouse-wheel-progressive-speed nil
       mouse-wheel-follow-mouse t

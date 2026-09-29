@@ -1,6 +1,6 @@
 ;;; early-init.el --- pre-GUI setup -*- lexical-binding: t; -*-
 
-;; Crank GC for startup; init.el restores sane values on emacs-startup-hook.
+;; max gc for startup, init.el restores it
 (setq gc-cons-threshold most-positive-fixnum
       gc-cons-percentage 0.6)
 

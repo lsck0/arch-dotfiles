@@ -69,7 +69,7 @@ return {
     {
         "nvim-treesitter/nvim-treesitter", -- syntax highlighting/parsing
         branch = "main",
-        event = { "BufReadPost", "BufNewFile" }, -- load on first real buffer, before FileType highlight
+        event = { "BufReadPost", "BufNewFile" }, -- before FileType highlight
         cmd = { "TSUpdate", "TSInstall" },
         build = ":TSUpdate",
         dependencies = {

@@ -1,78 +1,5 @@
 .pragma library
 
-function clamp(value, min, max) {
-  var n = Number(value)
-  if (!isFinite(n)) return min
-  return Math.max(min, Math.min(max, n))
-}
-
-function clampAlpha(value) {
-  return clamp(value, 0, 1)
-}
-
-function padHex(value) {
-  var n = clamp(Math.round(Number(value)), 0, 255)
-  var h = n.toString(16)
-  return h.length < 2 ? "0" + h : h
-}
-
-function qmlHexColor(rgb, alphaByte) {
-  var rgbPart = String(rgb || "").replace(/^#/, "")
-  var a = clamp(Math.round(Number(alphaByte)), 0, 255)
-
-  if (typeof Qt !== "undefined" && Qt.rgba && rgbPart.length >= 6) {
-    return Qt.rgba(
-      parseInt(rgbPart.substring(0, 2), 16) / 255,
-      parseInt(rgbPart.substring(2, 4), 16) / 255,
-      parseInt(rgbPart.substring(4, 6), 16) / 255,
-      a / 255
-    )
-  }
-
-  var aHex = padHex(a)
-  return aHex.toLowerCase() === "ff" ? "#" + rgbPart : "#" + rgbPart + aHex
-}
-
-function canonicalColor(value, alpha) {
-  var a = alpha === undefined || alpha === null ? 1 : clampAlpha(alpha)
-  var s = String(value || "").replace(/^\s+|\s+$/g, "")
-  var m
-
-  m = s.match(/^#([0-9A-Fa-f]{3})$/)
-  if (m) {
-    var sh = m[1]
-    return qmlHexColor(
-      sh.charAt(0) + sh.charAt(0)
-        + sh.charAt(1) + sh.charAt(1)
-        + sh.charAt(2) + sh.charAt(2),
-      a * 255
-    )
-  }
-
-  m = s.match(/^#([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?$/)
-  if (m) {
-    var colorAlpha = m[2] ? parseInt(m[2], 16) / 255 : 1
-    return qmlHexColor(m[1], colorAlpha * a * 255)
-  }
-
-  m = s.match(/^[Rr][Gg][Bb]\(([0-9A-Fa-f]{6})\)$/)
-  if (m) return qmlHexColor(m[1], a * 255)
-
-  m = s.match(/^[Rr][Gg][Bb][Aa]\(([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})\)$/)
-  if (m) return qmlHexColor(m[1], (parseInt(m[2], 16) / 255) * a * 255)
-
-  m = s.match(/^[Rr][Gg][Bb]\(([0-9]+),([0-9]+),([0-9]+)\)$/)
-  if (m) return qmlHexColor(padHex(m[1]) + padHex(m[2]) + padHex(m[3]), a * 255)
-
-  m = s.match(/^[Rr][Gg][Bb][Aa]\(([0-9]+),([0-9]+),([0-9]+),([0-9.]+)\)$/)
-  if (m) return qmlHexColor(padHex(m[1]) + padHex(m[2]) + padHex(m[3]), clampAlpha(m[4]) * a * 255)
-
-  m = s.match(/^0x([0-9A-Fa-f]{2})([0-9A-Fa-f]{6})$/)
-  if (m) return qmlHexColor(m[2], (parseInt(m[1], 16) / 255) * a * 255)
-
-  return s
-}
-
 function parseWidthSpec(value, fallback) {
   var fb = Number(fallback)
   if (!isFinite(fb) || fb < 0) fb = 0
@@ -93,43 +20,6 @@ function parseWidthSpec(value, fallback) {
   if (nums.length === 2) return { top: nums[0], right: nums[1], bottom: nums[0], left: nums[1] }
   if (nums.length === 3) return { top: nums[0], right: nums[1], bottom: nums[2], left: nums[1] }
   return { top: nums[0], right: nums[1], bottom: nums[2], left: nums[3] }
-}
-
-function withSideOverrides(widths, top, right, bottom, left) {
-  var out = {
-    top: Number(widths && widths.top) || 0,
-    right: Number(widths && widths.right) || 0,
-    bottom: Number(widths && widths.bottom) || 0,
-    left: Number(widths && widths.left) || 0,
-  }
-  if (top !== undefined && top !== null && top !== "") out.top = Math.max(0, Number(top) || 0)
-  if (right !== undefined && right !== null && right !== "") out.right = Math.max(0, Number(right) || 0)
-  if (bottom !== undefined && bottom !== null && bottom !== "") out.bottom = Math.max(0, Number(bottom) || 0)
-  if (left !== undefined && left !== null && left !== "") out.left = Math.max(0, Number(left) || 0)
-  return out
-}
-
-function parseGradientSpec(value, fallbackColor, alpha) {
-  var s = String(value || "").replace(/^\s+|\s+$/g, "")
-  var colors = []
-  var angle = 0
-  var parts = s.length > 0 ? s.split(/\s+/) : []
-
-  for (var i = 0; i < parts.length; i++) {
-    var part = parts[i]
-    var angleMatch = part.match(/^(-?\d+(?:\.\d+)?)deg$/)
-    if (angleMatch) angle = Number(angleMatch[1])
-    else colors.push(canonicalColor(part, alpha))
-  }
-
-  if (colors.length === 0 && fallbackColor !== undefined && fallbackColor !== null)
-    colors.push(canonicalColor(fallbackColor, alpha))
-
-  return {
-    colors: colors,
-    angle: isFinite(angle) ? angle : 0,
-    enabled: colors.length > 1,
-  }
 }
 
 function isUniform(widths) {
@@ -269,7 +159,6 @@ function radiiFit(w, h, r) {
     && r.trry + r.brry <= h
 }
 
-// Internal geometry output used by ringPath and focused topology tests.
 function borderPaths(w, h, radius, widths) {
   w = Math.max(0, Number(w) || 0)
   h = Math.max(0, Number(h) || 0)
@@ -312,7 +201,7 @@ function borderPaths(w, h, radius, widths) {
     blry: Math.max(0, outerRadii.bl.ry - bottom),
   }
 
-  // Normalizing an inner radius that cannot fit can move its tangent beyond the outer rounded boundary.
+  // an unfit inner radius would poke past the outer curve
   if (!radiiFit(iw, ih, desiredInnerRadii)) return [outerPath]
 
   var innerRadii = normalizeRadii(iw, ih, desiredInnerRadii)

@@ -1,5 +1,3 @@
-// Notification service.
-
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -15,7 +13,7 @@ import "NotificationLogic.js" as NotificationLogic
 Item {
   id: service
 
-  // Injected by shell.qml's ensureService() -- see header comment.
+  // injected by shell.qml ensureService()
   property var shell: null
 
   readonly property string home: Quickshell.env("HOME")
@@ -25,10 +23,9 @@ Item {
   readonly property string historyDir: popupStateDir + "history/"
   readonly property string imagesDir: popupStateDir + "images/"
   readonly property int cornerRadius: Style.cornerRadius
-  // Fixed top bar, always -- see header comment.
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
 
-  // Live Notification objects by originalId, kept OUT of the ListModels: a QObject stored in a model role becomes a dangling C++ pointer when the server destroys the notification (sender close, DND untrack, dismiss), and the next read of that role segfaults in QQmlListModel::data.
+  // kept out of the model: stale qobject roles segfault
   property var liveRefs: ({})
 
   PersistentProperties {
@@ -49,12 +46,10 @@ Item {
     persisted.doNotDisturb = !!value
   }
 
-  property alias popupModel: popupModel
   ListModel { id: popupModel }
 
   readonly property int historyLimit: 10
 
-  // Shared "now" for every visible toast's timestamp.
   property double popupNowMs: Date.now()
   Timer {
     interval: 20000
@@ -85,7 +80,6 @@ Item {
     return Math.round(ms)
   }
 
-  // DND bypass: only let through notifications we trust to be intentional and rare.
   function shouldBypassDnd(notification) {
     return NotificationLogic.shouldBypassDnd(notification, NotificationUrgency.Critical)
   }
@@ -137,11 +131,9 @@ Item {
         try {
           updated = NotificationLogic.replacementSnapshot(notification, resolved.originalId, resolved.timestamp)
         } catch (e) {
-          // Torn down by the server while the write was queued.
+          // torn down while the write was queued
         }
-        // Compare the UNRESOLVED input against the fresh snapshot: `resolved` has
-        // its image rewritten to a materialized.png, so it would always differ from
-        // `updated` (still image://) and re-encode the PNG forever, burning a core.
+        // compare unresolved input, else the png re-encodes forever
         if (updated && NotificationLogic.popupRowChanged(written, updated)) {
           service.writeSilenced(notification, updated)
           return
@@ -156,7 +148,6 @@ Item {
     try {
       notification.tracked = false
     } catch (e) {
-      // Object already destroyed by the server -- nothing left to release.
     }
   }
 
@@ -237,7 +228,6 @@ Item {
           else ref.dismiss()
         }
       } catch (e) {
-        // Object already torn down by the server -- nothing to dismiss.
       }
     }
   }
@@ -246,7 +236,6 @@ Item {
     while (popupModel.count > 0) dismissPopup(0)
   }
 
-  // Run the popup's click action, then dismiss.
   function invokePopupDefault(index) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
@@ -277,7 +266,6 @@ Item {
     dismissPopup(index)
   }
 
-  // Best-effort: focus a Hyprland window whose class contains the notification's app name (case-insensitive substring).
   function focusApp(entry) {
     if (!entry || !entry.app) return
     focusAppProc.command = ["bash", "-c",
@@ -296,7 +284,6 @@ Item {
     running: false
   }
 
-  // ---------------------------------------------------- popup persistence
   property var restoredPopups: ({})
   property var popupFileQueue: []
   property var runningPopupFileJobDone: null
@@ -371,7 +358,7 @@ Item {
     })
   }
 
-  // Senders (Discord's Electron client among them) commonly attach the avatar/media as the "image-data"/"image_data"/"icon_data" hint — a raw pixel buffer, not a path — which Quickshell exposes only as an in-process `image://...` URL tied to the live Notification object.
+  // image-data hints are in-process image:// urls, save them to disk
   function materializeImage(snapshot, done) {
     var url = String((snapshot && snapshot.image) || "")
     if (url.indexOf("image://") !== 0) {
@@ -379,10 +366,9 @@ Item {
       return
     }
 
-    // A notification arriving in the moments before the surface finishes mapping has nothing to render into.
+    // grab surface not mapped yet
     if (!imageGrabWindow.backingWindowVisible) {
       if (service.pendingGrabs.length >= service.pendingGrabsMax) {
-        // Bounded on purpose: a notification storm during startup must not grow this without limit.
         done(snapshot)
         return
       }
@@ -430,7 +416,6 @@ Item {
     else saver.statusChanged.connect(finish)
   }
 
-  // Grabs that arrived before the surface was mapped. See materializeImage.
   readonly property int pendingGrabsMax: 16
   property var pendingGrabs: []
 
@@ -445,16 +430,13 @@ Item {
   PanelWindow {
     id: imageGrabWindow
 
-    // Mapped for the whole session.
     visible: true
     screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
     implicitWidth: 1
     implicitHeight: 1
     color: "transparent"
-    // Anchored so the compositor has a definite placement; it is one pixel of fully transparent nothing in the top-left corner, under every window.
     anchors { top: true; left: true }
     exclusionMode: ExclusionMode.Ignore
-    // Empty input region: this must never eat a click, and a 1x1 surface in the corner is exactly where a stray click would be hardest to explain.
     mask: Region {}
     WlrLayershell.namespace: "quickshell-notification-image-grab"
     WlrLayershell.layer: WlrLayer.Background
@@ -479,7 +461,6 @@ Item {
       popupStateDir, NotificationLogic.imageStem(row), imagesDir])
   }
 
-  // ---------------------------------------------------- history
   readonly property string trimHistoryScript:
     "ls -1 \"$hist\" 2>/dev/null | sort -n | head -n \"-$limit\" | while IFS= read -r stale; do rm -f \"$hist/$stale\" \"$imgs/${stale%.json}\"-*; done"
 
@@ -667,8 +648,6 @@ Item {
     })
   }
 
-  // ---------------------------------------------------- settings persistence
-
   FileView {
     id: settingsFile
     path: service.settingsPath
@@ -723,8 +702,6 @@ Item {
       service.sweepOrphanImages()
     })
   }
-
-  // ---------------------------------------------------- IPC `quickshell ipc -p ~/.config/quickshell call notifications <method>`.
 
   IpcHandler {
     target: "notifications"
@@ -792,10 +769,7 @@ Item {
     function ping(): string { return "ok" }
   }
 
-  // ---------------------------------------------------- server
-
   NotificationServer {
-    id: server
     keepOnReload: false
     imageSupported: true
     actionsSupported: true
@@ -808,9 +782,6 @@ Item {
     }
   }
 
-  // -------------------------------------------------------------- popup UI One PanelWindow on the primary output holding the stacked toast cards.
-
-  // Toasts appear on the output you are looking at, not on the main one.
   readonly property var focusedScreen: {
     var screens = Quickshell.screens
     var focused = Hyprland.focusedMonitor
@@ -821,7 +792,7 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // NOT Osd.qml's one-window-per-screen-toggle-visible pattern, even though that avoids rebuilding a wayland surface.
+  // pinned while toasts are up so they do not jump outputs
   property var popupScreen: null
 
   Connections {
@@ -836,7 +807,6 @@ Item {
     model: service.popupScreen ? [service.popupScreen] : []
 
     PanelWindow {
-      id: popupWindow
       required property var modelData
       screen: modelData
       visible: popupModel.count > 0
@@ -911,7 +881,6 @@ Item {
               image: cardSlot.image
               urgency: cardSlot.urgency
               timestamp: cardSlot.timestamp
-              // A toast is nearly always "now", which the card renders as the word rather than a clock reading — but a popup replayed from history is not, and without a reference time it would show a bare timestamp with nothing to compare it against.
               now: service.popupNowMs
               cornerRadius: service.cornerRadius
               glyph: cardSlot.glyph

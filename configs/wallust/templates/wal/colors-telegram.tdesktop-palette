@@ -1,4 +1,4 @@
-// Telegram Desktop cyberpunk palette rendered by wallust from the pywal palette (color4 = accent); re-import after a switch, see configs/telegram/README.md.
+// re-import in telegram after a theme switch
 windowBg: {background}; // white: fallback for background
 windowFg: {foreground}; // black: fallback for text
 windowBgOver: {color4}1f; // light gray: fallback for background with mouse over

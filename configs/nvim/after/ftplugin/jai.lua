@@ -1,4 +1,4 @@
--- jails LSP for Jai: no mason package, so start it per-buffer.
+-- no mason package for jails, so start it per buffer
 vim.lsp.start({
     name = "jails",
     cmd = { "jails", "-jai_path", "/home/luca/.jai", "-jai_exe_name", "jai-linux" },

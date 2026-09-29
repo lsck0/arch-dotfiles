@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NYT's free public RSS feed — no API key/subscription needed, unlike most outlets' actual news APIs.
+# nyt public rss, no api key needed
 set -euo pipefail
 
 curl -s --max-time 8 "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml" | python3 -c '

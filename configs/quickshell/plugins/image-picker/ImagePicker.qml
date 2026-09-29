@@ -8,18 +8,15 @@ import qs.Commons
 import qs.Ui
 import "ImagePickerModel.js" as ImagePickerModel
 
-// Adapted from omarchy-shell almost verbatim -- the skewed-carousel image grid (Shape-masked slices, MultiEffect masking, filter-by-name) is unchanged; only the OMARCHY_PATH/env-var plumbing differs: - scriptPath()/list.sh: this repo's own plugin dir instead of an OMARCHY_PATH checkout.
 Item {
   id: root
 
   readonly property string pluginDir: Paths.plugin("image-picker")
-  property var shell: null
-  property var manifest: null
 
   property string imageDirs: Paths.wallpapers
-  // Handwritten premade themes, scanned as their own mode via theme-list.sh, which reads each themes/*.json's own "wallpaper" field rather than listing image files directly -- the JSON is the source of truth, not a themes/wallpapers/<name> filename convention.
+  // themes mode reads each theme json's "wallpaper" field
   property string themeDirs: Paths.themes
-  // 0 = wallpapers (auto-generate palette via wallust), 1 = premade themes.
+  // 0 = wallpapers (wallust palette), 1 = premade themes
   property int mode: 0
   property var modeNames: ["Wallpapers", "Themes"]
   property string imageRows: ""
@@ -37,7 +34,6 @@ Item {
   property int applySerial: 0
   property string doneFile: ""
   property string filterText: ""
-  // Cache filter results and filtered positions.
   property var filterMatches: []
   property var filterPositions: []
   property int filteredCount: 0
@@ -108,7 +104,6 @@ Item {
     return ImagePickerModel.labelForPath(path)
   }
 
-  // Themes mode: label by the theme JSON's own name (carried through list rows as displayName), not by its wallpaper's filename.
   function labelForImage(image) {
     return ImagePickerModel.labelForImage(image)
   }
@@ -215,22 +210,6 @@ Item {
     root.opened = false
   }
 
-  function closeSelector(nextDoneFile) {
-    requestSerial += 1
-
-    if (requestActive)
-      finishDoneFile(doneFile)
-
-    if (nextDoneFile && nextDoneFile !== doneFile)
-      finishDoneFile(nextDoneFile)
-
-    requestActive = false
-    selectionFile = ""
-    doneFile = ""
-    filterText = ""
-    root.opened = false
-  }
-
   function loadRows(rows, reveal) {
     var newImages = ImagePickerModel.loadRows(rows)
 
@@ -305,18 +284,15 @@ Item {
     loadImagesProc.activeSerial = serial
     loadImagesProc.queuedSerial = 0
     loadImagesProc.queuedDirs = ""
-    // Themes mode (1) lists theme JSONs' own "wallpaper" fields via theme-list.sh; wallpapers mode (0) lists image files directly via list.sh.
     var script = root.mode === 1 ? "theme-list.sh" : "list.sh"
     loadImagesProc.command = [root.scriptPath(script), dirs]
     loadImagesProc.running = true
   }
 
-  // The directory set for the active mode: wallpapers (auto-generate palette) or the premade themes' wallpapers.
   function activeDirs() {
     return root.mode === 1 ? root.themeDirs : root.imageDirs
   }
 
-  // Up/Down switches mode (wallpapers <-> themes) and re-scans the other directory set.
   function switchMode() {
     var next = root.mode === 1 ? 0 : 1
     root.mode = next
@@ -330,7 +306,7 @@ Item {
     root.startImageScan(root.requestSerial, root.activeDirs())
   }
 
-  // Coalesces the per-line stream into a few visible updates rather than 262 model rebuilds — one per row would be far more expensive than the wait it replaces.
+  // batches streamed rows instead of one rebuild per line
   Timer {
     id: streamFlush
     interval: 120
@@ -353,7 +329,6 @@ Item {
     property int activeSerial: 0
     property int queuedSerial: 0
     property string queuedDirs: ""
-    // Streams.
     property string streamBuffer: ""
     stdout: SplitParser {
       splitMarker: "\n"
@@ -361,7 +336,6 @@ Item {
         if (loadImagesProc.activeSerial !== root.requestSerial) return
         if (!line) return
         loadImagesProc.streamBuffer += line + "\n"
-        // Reveal on the first batch so something is on screen immediately, then keep appending.
         streamFlush.restart()
       }
     }
@@ -379,7 +353,7 @@ Item {
     }
   }
 
-  // Lifecycle hooks invoked by shell.summon/shell.hide.
+  // lifecycle hooks called by shell.summon/shell.hide
   function open(payload) {
     var args = {}
     if (payload) {
@@ -395,34 +369,12 @@ Item {
     var filter = args.filterable === true || args.filterable === "true"
     imageDirs = dirs
     themeDirs = tDirs
-    // Which group to land on.
     if (args.mode === 1) mode = 1; else mode = 0
     openSelector(dirs, rows, sel, selFile, doneF, labels, filter)
   }
 
   function close() {
     cancel()
-  }
-
-  function preloadRows(nextImageRows, nextSelectedImage, nextShowLabels, nextFilterable) {
-    // Theme/background set hooks can warm selector rows after a picker was dismissed.
-    if (opened || requestActive) return
-
-    requestSerial += 1
-    imageRows = nextImageRows
-    selectedImage = nextSelectedImage
-    showLabels = nextShowLabels === true || nextShowLabels === "true"
-    filterable = nextFilterable === true || nextFilterable === "true"
-    filterText = ""
-    layoutSettled = false
-
-    if (imageRows && imageRows === loadedImageRows && imageArray.length > 0) {
-      selectedIndex = selectedImageIndex()
-      rebuildFilterCache()
-      imagesLoaded = true
-    } else if (imageRows) {
-      loadRows(imageRows, false)
-    }
   }
 
   Process {
@@ -439,14 +391,11 @@ Item {
   }
 
   PanelWindow {
-    id: panel
-
     visible: root.opened
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     WlrLayershell.namespace: "quickshell-image-selector"
     WlrLayershell.layer: WlrLayer.Overlay
-    // Was `root.opened && root.imagesLoaded`.
     WlrLayershell.keyboardFocus: root.opened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
 
@@ -463,7 +412,6 @@ Item {
     }
 
     Item {
-      id: card
       visible: root.opened && root.imagesLoaded && root.layoutSettled && root.imageArray.length > 0
       width: Math.min(parent.width - 80, root.expandedWidth + 13 * (root.sliceWidth + root.sliceSpacing) + 40)
       height: root.expandedHeight + Style.space(30) + root.bottomChromeHeight
@@ -507,7 +455,6 @@ Item {
               root.selectAdjacent(1)
               event.accepted = true
             } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-              // Up/Down toggles between the two groups: wallpapers (auto- generate the theme) and premade themes (each with its own wallpaper + hand-authored palette).
               root.switchMode()
               event.accepted = true
             } else if (root.filterable && event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127 && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
@@ -527,7 +474,6 @@ Item {
 
               readonly property var imageData: root.imageArray[index]
               readonly property string filePath: imageData ? imageData.filePath : ""
-              readonly property string fileName: imageData ? imageData.fileName : ""
               readonly property string thumbnailPath: imageData ? imageData.thumbnailPath : ""
 
               readonly property bool matched: root.itemMatches(index)
@@ -583,33 +529,25 @@ Item {
                   maskSpreadAtMin: 0.3
                 }
 
-                // Two layers, not one.
+                // thumbnail below, full-res original fades in on top
                 Image {
-                  id: thumbImage
                   anchors.fill: parent
                   source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                  // Decode at the actual draw width, not expandedWidth: the Repeater
-                  // holds all ~258 delegates, so decoding every unselected 108px slice
-                  // at 768px cost ~1.4GB of retained pixmaps. Only the selected slice
-                  // needs the wide decode.
+                  // decode at draw width: every delegate stays alive
                   sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
-                  // Was false, which decoded every image on the UI thread — so opening the picker froze the shell while it worked through them.
                   asynchronous: true
                   cache: true
                   smooth: true
                 }
 
                 Image {
-                  id: fullImage
                   anchors.fill: parent
                   source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
-                  // Full-size original for the selected item only, shown in the 768px box.
                   sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectCrop
                   asynchronous: true
-                  // cache off: only one is ever shown, caching them retained every
-                  // full-res original the user scrolled through.
+                  // only one full-res image is shown, do not cache them
                   cache: false
                   smooth: true
                   opacity: status === Image.Ready ? 1 : 0
@@ -626,7 +564,6 @@ Item {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
-                // Neon bloom around the selected wallpaper's frame.
                 layer.enabled: item.selected && Style.fx.glow > 0
                 layer.effect: MultiEffect {
                   shadowEnabled: true
@@ -658,14 +595,13 @@ Item {
           }
         }
 
-        // Search chip: hidden until you type.
         BorderSurface {
           id: searchChip
           readonly property bool focused: searchInput.activeFocus
           readonly property bool hot: searchHover.hovered
           visible: root.filterable && root.filterText.length > 0
 
-          // EVERY way out of the search field has to hand focus back, not just the two that remembered to.
+          // every way out of the search field must hand focus back
           onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
 
           anchors.top: carousel.bottom
@@ -712,14 +648,12 @@ Item {
             Keys.onEscapePressed: function (event) {
               if (text.length > 0) {
                 text = ""
-                // searchChip.onVisibleChanged also returns focus to the carousel; this is the explicit path for the same thing.
                 carousel.forceActiveFocus()
               } else {
                 root.cancel()
               }
               event.accepted = true
             }
-            // Up/Down switches group from the search field too (focus lands here when filterable).
             Keys.onUpPressed: function (event) { root.switchMode(); event.accepted = true }
             Keys.onDownPressed: function (event) { root.switchMode(); event.accepted = true }
           }
@@ -753,7 +687,6 @@ Item {
         }
 
         Text {
-          id: selectedLabel
           textFormat: Text.PlainText
           visible: root.showLabels
           anchors.top: root.filterable ? searchChip.bottom : carousel.bottom
@@ -770,9 +703,7 @@ Item {
           elide: Text.ElideRight
         }
 
-        // Terminal-window title strip in the carousel headroom: prompt, mode name, blinking caret, match count, decorative chrome.
         Item {
-          id: pickerTitle
           anchors.top: parent.top
           anchors.topMargin: Style.spacing.xs
           anchors.horizontalCenter: carousel.horizontalCenter
@@ -819,7 +750,6 @@ Item {
               }
             }
 
-            // Blinking block caret.
             Text {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
@@ -849,7 +779,6 @@ Item {
             }
           }
 
-          // Decorative window chrome glyphs, non-interactive.
           Text {
             anchors.right: parent.right
             anchors.verticalCenter: pickerTitleRow.verticalCenter
@@ -863,11 +792,9 @@ Item {
           }
         }
 
-        // HUD brackets framing the picker card.
         HudFrame {}
     }
 
-    // CRT scanline overlay across the full-screen picker.
     Scanlines { flicker: false }
   }
 }

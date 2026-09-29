@@ -1,6 +1,4 @@
 #!/bin/bash
-# Verbatim from omarchy's bin/omarchy-network-speedtest except: `omarchy-cmd-present curl` -> `command -v curl` (no local equivalent of that helper, and this is the only place it was used).
-
 set -e
 
 direction="${1:-}"
@@ -67,7 +65,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Round-robin across the returned URLs so we spread load across Netflix OCA nodes.
+# round-robin to spread load across fast.com nodes
 traffic_worker() {
   local urls=("$@")
   local url_count=${#urls[@]}

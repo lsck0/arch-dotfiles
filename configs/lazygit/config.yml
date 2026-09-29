@@ -1,7 +1,6 @@
-# ~/.config/lazygit/config.yml (linked by link.sh)
 gui:
   nerdFontsVersion: "3"
-  # ANSI names track the live pywal palette; blue = accent/color4.
+  # ansi names track the pywal palette
   theme:
     activeBorderColor:
       - blue
@@ -13,7 +12,7 @@ gui:
     optionsTextColor:
       - blue
 git:
-  # --no-gitconfig: gitconfig sets delta.navigate, which breaks inside lazygit. Cycle with `|`.
+  # --no-gitconfig: delta.navigate breaks inside lazygit
   diffRenderers:
     - command: delta --no-gitconfig --dark --paging=never --line-numbers
       name: delta

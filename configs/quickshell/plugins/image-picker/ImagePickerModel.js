@@ -1,4 +1,4 @@
-// Verbatim from omarchy-shell: pure functions, no Omarchy-specific coupling.
+// verbatim from omarchy-shell
 function nameForPath(path) {
   return String(path || "").split("/").pop().replace(/\.[^/.]+$/, "")
 }
@@ -11,7 +11,7 @@ function labelForPath(path) {
   return titleCase(nameForPath(path))
 }
 
-// Themes mode rows carry a 3rd tsv column: the theme JSON's own basename (see theme-list.sh), so a theme picked by its wallpaper's filename never shows the wallpaper's name -- it shows the theme's own name.
+// themes mode labels by theme name, not wallpaper file
 function labelForImage(image) {
   if (image && image.displayName) return titleCase(image.displayName)
   return labelForPath(image ? image.filePath : "")
@@ -36,7 +36,6 @@ function loadRows(rows) {
 
     images.push({
       filePath: path,
-      fileName: fileName,
       thumbnailPath: columns[1] || path,
       displayName: columns[2] || ""
     })
@@ -87,24 +86,4 @@ function indexForSelectedImage(images, selectedImage) {
   }
 
   return 0
-}
-
-function nextSelectedIndexForFilter(images, selectedIndex, filterText) {
-  if (itemMatches(images, selectedIndex, filterText)) return selectedIndex
-  return firstMatchingIndex(images, filterText)
-}
-
-if (typeof module !== "undefined") {
-  module.exports = {
-    nameForPath: nameForPath,
-    labelForPath: labelForPath,
-    labelForImage: labelForImage,
-    loadRows: loadRows,
-    itemMatches: itemMatches,
-    firstMatchingIndex: firstMatchingIndex,
-    filteredPosition: filteredPosition,
-    selectedFilteredPosition: selectedFilteredPosition,
-    indexForSelectedImage: indexForSelectedImage,
-    nextSelectedIndexForFilter: nextSelectedIndexForFilter
-  }
 }

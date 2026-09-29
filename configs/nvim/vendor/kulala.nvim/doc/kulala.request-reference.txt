@@ -1,0 +1,344 @@
+*kulala.request-reference.txt*A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents                 *kulala.request-reference-table-of-contents*
+
+1. Scripts request reference|kulala.request-reference-scripts-request-reference|
+  - request.variables.get|kulala.request-reference-scripts-request-reference-request.variables.get|
+  - request.variables.set|kulala.request-reference-scripts-request-reference-request.variables.set|
+  - request.body.getRaw|kulala.request-reference-scripts-request-reference-request.body.getraw|
+  - request.body.tryGetSubstituted|kulala.request-reference-scripts-request-reference-request.body.trygetsubstituted|
+  - request.body.getComputed|kulala.request-reference-scripts-request-reference-request.body.getcomputed|
+  - request.environment.get|kulala.request-reference-scripts-request-reference-request.environment.get|
+  - request.headers.all|kulala.request-reference-scripts-request-reference-request.headers.all|
+  - request.headers.findByName|kulala.request-reference-scripts-request-reference-request.headers.findbyname|
+  - request.method|kulala.request-reference-scripts-request-reference-request.method|
+  - request.url.getRaw|kulala.request-reference-scripts-request-reference-request.url.getraw|
+  - request.url.tryGetSubstituted|kulala.request-reference-scripts-request-reference-request.url.trygetsubstituted|
+  - request.skip|kulala.request-reference-scripts-request-reference-request.skip|
+  - request.abort|kulala.request-reference-scripts-request-reference-request.abort|
+  - request.replay|kulala.request-reference-scripts-request-reference-request.replay|
+  - request.iteration|kulala.request-reference-scripts-request-reference-request.iteration|
+
+==============================================================================
+1. Scripts request reference*kulala.request-reference-scripts-request-reference*
+
+These helper functions are available in the request object in scripts.
+
+
+REQUEST.VARIABLES.GET*kulala.request-reference-scripts-request-reference-request.variables.get*
+
+Get a request variable.
+
+Request variables are only available for the duration of the request.
+
+>javascript
+    request.variables.get("SOME_TOKEN");
+    request.variables.get("SOME.DEEP.VAR");
+<
+
+
+REQUEST.VARIABLES.SET*kulala.request-reference-scripts-request-reference-request.variables.set*
+
+Set a request variable.
+
+Request variables are only available for the duration of the request.
+
+>javascript
+    request.variables.set("SOME_TOKEN", "123");
+    request.variables.set("SOME.DEEP.VAR, "123");
+<
+
+
+REQUEST.BODY.GETRAW*kulala.request-reference-scripts-request-reference-request.body.getraw*
+
+Returns the request body `string` in the raw format (or `undefined` if there is
+no body).
+
+If the body contains variables, their names are displayed instead of their
+values. For example:
+
+>javascript
+    client.log(request.body.getRaw());
+<
+
+
+REQUEST.BODY.TRYGETSUBSTITUTED*kulala.request-reference-scripts-request-reference-request.body.trygetsubstituted*
+
+Returns the request body with variables substituted (or `undefined` if there is
+no body).
+
+>javascript
+    client.log(request.body.tryGetSubstituted());
+<
+
+
+REQUEST.BODY.GETCOMPUTED*kulala.request-reference-scripts-request-reference-request.body.getcomputed*
+
+Returns the `string` request body as sent via curl; with variables substituted,
+or `undefined` if there is no body.
+
+Useful if you want to see the request body as it was sent to the server.
+
+The `tryGetSubstituted` method will substitute variables with their values, but
+leave the rest of the body as is.
+
+If you have a GraphQL query in the body, for example, the `getComputed` method
+will show the query as it was sent to the server, which is quite different from
+the substituted version.
+
+As an example, if you have a request body like this:
+
+>graphql
+    query getRestClient($name: String!) {
+      restclient(name: $name) {
+        id
+        name
+        editorsSupported {
+          name
+        }
+      }
+    }
+    
+    {
+      "variables": {
+        "name": "{{ENV_VAR_CLIENT_NAME}}"
+      }
+    }
+<
+
+Then the `getComputed` method will return the body as it was sent to the
+server:
+
+>json
+    {"query": "query getRestClient($name: String!) { restclient(name: $name) { id name editorsSupported { name } } } ", "variables": {"variables": {"name": "kulala"}}}
+<
+
+whereas the `tryGetSubstituted` method will return the body with variables
+substituted as seen in your script:
+
+>graphql
+    query getRestClient($name: String!) {
+      restclient(name: $name) {
+        id
+        name
+        editorsSupported {
+          name
+        }
+      }
+    }
+    
+    {
+      "variables": {
+        "name": "kulala"
+      }
+    }
+<
+
+The `getComputed` method is always `undefined` for binary bodies.
+
+
+REQUEST.ENVIRONMENT.GET*kulala.request-reference-scripts-request-reference-request.environment.get*
+
+Retrieves a value of the environment variable identified by its name or returns
+null if it doesn’t exist.
+
+>javascript
+    client.log(request.environment.get("SOME_ENV_VAR"));
+<
+
+
+REQUEST.HEADERS.ALL*kulala.request-reference-scripts-request-reference-request.headers.all*
+
+Returns all request header objects.
+
+Each header object has the following methods:
+
+- `name()` - Returns the name of the header.
+- `getRawValue()` - Returns the value of the header in the raw format.
+- `tryGetSubstituted()` - Returns the value of the header with variables substituted.
+
+>javascript
+    const headers = request.headers.all();
+    for (const header of headers) {
+      client.log(header.name());
+      client.log(header.getRawValue());
+      client.log(header.tryGetSubstituted());
+    }
+<
+
+
+REQUEST.HEADERS.FINDBYNAME*kulala.request-reference-scripts-request-reference-request.headers.findbyname*
+
+Returns a request header object identified by its name.
+
+The header object has the following methods:
+
+- `name()` - Returns the name of the header.
+- `getRawValue()` - Returns the value of the header in the raw format.
+- `tryGetSubstituted()` - Returns the value of the header with variables substituted.
+
+>javascript
+    const contentTypeHeader = request.headers.findByName("Content-Type");
+    if (contentTypeHeader) {
+      client.log(contentTypeHeader.name());
+      client.log(contentTypeHeader.getRawValue());
+      client.log(contentTypeHeader.tryGetSubstituted());
+    }
+<
+
+
+REQUEST.METHOD*kulala.request-reference-scripts-request-reference-request.method*
+
+Returns the request method.
+
+Such as `GET`, `POST`, `PUT`, `DELETE`, etc.
+
+>javascript
+    client.log(request.method());
+<
+
+
+REQUEST.URL.GETRAW*kulala.request-reference-scripts-request-reference-request.url.getraw*
+
+Returns the request URL in the raw format, without any substitutions.
+
+>javascript
+    client.log(request.url.getRaw());
+<
+
+
+REQUEST.URL.TRYGETSUBSTITUTED*kulala.request-reference-scripts-request-reference-request.url.trygetsubstituted*
+
+Returns the request URL with variables substituted.
+
+>javascript
+    client.log(request.url.tryGetSubstituted());
+<
+
+
+REQUEST.SKIP *kulala.request-reference-scripts-request-reference-request.skip*
+
+Skips the current request without sending HTTP and moves to the next one.
+Soft skip: the run continues (does not trigger |halt_on_error|). Pre-request
+scripts only. Alias of `$kulala.request.skip(message?)`.
+
+An optional message is shown at info level in the script console and response
+body (without duplicating `client.log` output).
+
+`client.log` output before skip is shown in the response script console.
+
+>javascript
+    client.log("before skip");
+    request.skip("not applicable in dev");
+    // or: $kulala.request.skip();
+<
+
+
+REQUEST.ABORT *kulala.request-reference-scripts-request-reference-request.abort*
+
+Aborts the current request without sending HTTP, as a failure. Pre-request
+scripts only. Unlike skip, this is an error and respects |halt_on_error|.
+Alias of `$kulala.request.abort(message?)`.
+
+An optional message is shown at error level in the script console and response
+body. When |kulala.configuration-options-configuration-options-script-console-notify| is enabled, the message is not duplicated in
+the Kulala error log.
+
+>javascript
+    client.log("before abort");
+    request.abort("missing token");
+    // or: $kulala.request.abort("missing token");
+<
+
+
+REQUEST.REPLAY*kulala.request-reference-scripts-request-reference-request.replay*
+
+Replays the current request. Useful for conditional requests, see below.
+Alias of `$kulala.request.replay()`.
+
+>javascript
+    request.replay();
+<
+
+
+REQUEST.ITERATION*kulala.request-reference-scripts-request-reference-request.iteration*
+
+Returns the current count of request replays.
+
+>javascript
+    request.replay();
+<
+
+
+CONDITIONAL REQUESTS
+
+>http
+    < {%
+      if (!client.global.get("Token")) {
+        request.skip()
+      }
+    %}
+    
+    @URL = "500"
+    GET https://echo.kulala.app/status/{{URL}}
+    
+    > {%
+      console.log(response.responseCode)
+    
+      if (response.responseCode === 500) {
+        request.variables.set('URL', "200");
+        request.replay()
+      }
+    %}
+<
+
+
+ITERATING OVER RESULTS AND MAKING REQUESTS FOR EACH ITEM
+
+>http
+    ### Request_one
+    
+    POST https://echo.kulala.app/post HTTP/1.1
+    Accept: application/json
+    Content-Type: application/json
+    
+    {
+      "results": [
+        { "id": 1, "desc": "some_username" },
+        { "id": 2, "desc": "another_username" }
+      ]
+    }
+    
+    > {%
+      client.global.set("results", response.body.json.results); // save results to global variable, as js does not have access to responses history
+    %}
+    
+    
+    ### Request_two
+    
+    < {%
+      const results = client.global.get("results");
+      if (!results) { return; }
+      
+      const item = results[request.iteration() - 1]; // get item by index
+    
+      if (!item) { 
+        client.global.set("results", null);
+        return request.skip(); // skip if no more items
+      }
+    
+      client.log(item);
+    
+      const url = "https://echo.kulala.app/get";
+      request.variables.set("url", url + "?" + item.desc); // update url variable, cannot access request.url_raw like in lua
+    %}
+    
+    GET {{url}}
+    
+    > {%
+      const results = client.global.get("results");
+      if (results) { request.replay(); }
+    %}
+<
+vim:tw=78:ts=8:noet:ft=help:norl:

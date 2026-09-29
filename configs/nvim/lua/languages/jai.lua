@@ -1,4 +1,4 @@
--- Jai. Syntax plugin here; the jails LSP is started per-buffer in
+-- jails lsp starts in after/ftplugin/jai.lua
 return {
     { "rluba/jai.vim", ft = "jai" },
 }

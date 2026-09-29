@@ -1,0 +1,153 @@
+*kulala.openapi.txt*        A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents                           *kulala.openapi-table-of-contents*
+
+1. OpenAPI                                            |kulala.openapi-openapi|
+  - Directive                              |kulala.openapi-openapi-directive|
+  - Explorer UI                         |kulala.openapi-openapi-explorer-ui|
+  - Parent scripts                 |kulala.openapi-openapi-parent-scripts|
+  - Local spec files               |kulala.openapi-openapi-local-spec-files|
+  - Try it out                         |kulala.openapi-openapi-try-it-out|
+  - LSP completions               |kulala.openapi-openapi-lsp-completions|
+  - Clear schema cache            |kulala.openapi-openapi-clear-schema-cache|
+
+==============================================================================
+1. OpenAPI                                            *kulala.openapi-openapi*
+
+Load an OpenAPI (Swagger) specification and browse operations in a foldable
+explorer similar to the Swagger web UI. Parsing, indexing, and caching are
+handled by kulala-core so the same feature can be reused in other Kulala tools.
+
+
+DIRECTIVE                              *kulala.openapi-openapi-directive*
+
+Mark a request block with `# @kulala-openapi-explorer`. The request line points
+at the spec URL or a local file path.
+
+The legacy `# @kulala-openapi-json` directive is no longer supported; use
+`@kulala-openapi-explorer` instead.
+
+Add `# @kulala-openapi-no-cache` on the same block to skip schema caching and
+reload the spec from source every time the explorer opens.
+
+title="echo-openapi.http"
+
+>http
+    ### echo-openapi
+
+    # @kulala-openapi-explorer
+
+    GET https://echo.kulala.app/openapi.json HTTP/1.1
+<
+
+Running this block loads the spec (remote HTTP GET or local file read), runs
+attached pre/post-request scripts, and opens the OpenAPI explorer instead of the
+standard Kulala response buffer.
+
+Headers on the parent HTTP block apply to spec load and to each operation run.
+Operation-specific headers from the explorer (parameters, Accept, etc.) override
+headers with the same name.
+
+
+TRY IT OUT                             *kulala.openapi-openapi-try-it-out*
+
+Each operation includes a **Try it out** section with editable parameter and
+body values (defaults from the spec).
+
+- `e` - edit the field under the cursor. Free-text and request body fields open
+  in a new tab; `:w` writes the buffer back into the explorer. Enum fields open
+  a picker; array enums open a multi-select: fzf-lua with Tab to toggle when
+  available, otherwise a focused checklist float. For optional arrays, choose
+  `(none)` (or leave all unchecked) to send no value.
+- `f` - load file contents into the Try it out field under the cursor
+  (free-text and request body fields; enum fields still use `e`)
+- `<CR>` - run the operation using current Try it out values
+- `Y` - yank the operation under the cursor as a standalone `.http` request
+  (current Try it out values, parent headers; no explorer operator or scripts)
+
+**Accept (media type)** appears under **Try it out** and under each response
+that declares content types (same as Swagger UI). Press `e` to pick a value;
+it sets the `Accept` request header. Enum parameters also open a picker and
+show "Available values" in their description. Array enum parameters (e.g.
+`fields` as `array[string]`) use a multi-select picker; selected values are
+sent as repeated query params (`fields=id&fields=name`).
+
+Operation runs use the standard Kulala response UI. Pre/post-request scripts
+from the parent OpenAPI block (and shared blocks) run for each request.
+
+
+PARENT SCRIPTS                     *kulala.openapi-openapi-parent-scripts*
+
+Pre-request and post-request scripts on the parent OpenAPI block (and shared
+blocks) run when:
+
+- The explorer is opened (spec load)
+- The explorer is refreshed (`R` in the explorer, or
+  |kulala.public-methods-open-openapi-explorer| after clearing cache)
+- An operation is run from Try it out
+
+Use `request.skip(message?)` or `request.abort(message?)` in pre-request
+scripts to control spec load or individual operations. See
+|kulala.request-reference.txt|.
+
+
+LSP COMPLETIONS                   *kulala.openapi-openapi-lsp-completions*
+
+After an OpenAPI spec is loaded and cached (by running the `@kulala-openapi-explorer`
+block or opening the explorer), kulala-core offers completions in other requests
+in the same file:
+
+- Request URL line - paths and full URLs from the spec
+- Headers - header parameters defined in the spec
+
+Hover on a request URL line shows matching operation summary when available.
+
+
+EXPLORER UI                         *kulala.openapi-openapi-explorer-ui*
+
+The explorer opens as a split buffer (`kulala://openapi-explorer`) so the
+response UI can appear alongside it.
+
+Default keymaps (override via `openapi_panel_keymaps` in your Kulala config,
+same style as `kulala_keymaps`; see
+|kulala.configuration-options-configuration-options-openapi-panel|):
+
+- `<Tab>` or `za` - toggle fold
+- `e` - edit Try it out field under cursor (new tab for text/body; `:w` applies)
+- `f` - load file contents into the Try it out field under cursor
+- `Y` - yank the selected operation as a standalone `.http` request
+- `R` - refresh the spec from source (clears cache for this spec; keeps Try it
+  out values and folds when possible)
+- `<CR>` - run the selected operation (with Try it out values)
+- `q` - close the explorer
+
+Operation runs use the standard Kulala response UI. Pre/post-request scripts
+from the parent OpenAPI block (and shared blocks) run for both the spec load and
+each operation run.
+
+You can also open the explorer via the code action "Open OpenAPI explorer" or
+`:lua require("kulala").open_openapi_explorer()`.
+
+
+LOCAL SPEC FILES               *kulala.openapi-openapi-local-spec-files*
+
+Relative and absolute filesystem paths are supported on the request line.
+
+title="local-spec.http"
+
+>http
+    ### local-spec
+
+    # @kulala-openapi-explorer
+
+    GET ./openapi.yaml HTTP/1.1
+<
+
+
+CLEAR SCHEMA CACHE            *kulala.openapi-openapi-clear-schema-cache*
+
+`:lua require("kulala").clear_openapi_schema_cache()` clears all cached specs.
+Pass a cache key (host name or absolute file path) to clear one entry.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

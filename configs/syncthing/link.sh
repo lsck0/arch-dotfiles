@@ -10,13 +10,11 @@ set -ex
 mkdir -p "${HOME}/sync"
 
 STATE="${HOME}/.local/state/syncthing"
-# Per-host identity, mirroring the per-platform wg configs. cert.pem + key.pem are
-# the device ID; config.xml names the paired devices and the folder.
+# per-host device identity
 SECRET_DIR="../secrets/syncthing/$(hostname)"
 
 if [ -f "${SECRET_DIR}/config.xml" ] && [ -f "${SECRET_DIR}/key.pem" ]; then
-    # Reproduce the authed device from secrets: install before the daemon starts,
-    # so it comes up already paired. The database and GUI TLS cert regenerate.
+    # install before the daemon starts so it comes up paired
     systemctl --user stop syncthing.service 2>/dev/null || true
     mkdir -p "${STATE}"
     install -m 600 "${SECRET_DIR}/config.xml" "${STATE}/config.xml"
@@ -26,8 +24,7 @@ if [ -f "${SECRET_DIR}/config.xml" ] && [ -f "${SECRET_DIR}/key.pem" ]; then
     exit 0
 fi
 
-# No secrets for this host: fresh identity, folder created via the API, device
-# pairing done manually in the UI (http://127.0.0.1:8384).
+# no secrets: fresh identity, pair manually in the ui
 systemctl --user enable --now syncthing.service || true
 for _ in $(seq 1 30); do
     if syncthing cli show system >/dev/null 2>&1; then break; fi

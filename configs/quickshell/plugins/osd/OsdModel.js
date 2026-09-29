@@ -4,7 +4,7 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
-// Widest glyph iconFor can return, so the icon column doesn't jitter as the icon changes at different volume thresholds.
+// widest glyph, keeps the icon column from jittering
 var widestIcon = ""
 
 function iconFor(name, percent) {
@@ -15,7 +15,7 @@ function iconFor(name, percent) {
   if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return ""
   if (n === "microphone" || n === "mic") return ""
   if (n === "brightness" || n === "display") return ""
-  // md-keyboard U+F030C / md-keyboard_off U+F0310, both verified by name against the 0xProto Nerd Font cmap.
+  // md-keyboard / md-keyboard_off
   if (n === "keyboard-backlight-off" || n === "kbd-backlight-off") return "\u{f0310}"
   if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
   if (n.length > 0) return name
@@ -33,7 +33,6 @@ function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, r
   var parsedDuration = parseInt(rawDuration || "1200", 10)
 
   return {
-    iconKey: String(iconName || "").toLowerCase(),
     maxValue: maxValue,
     hasProgress: hasProgress,
     value: value,

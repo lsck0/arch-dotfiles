@@ -1,0 +1,24 @@
+{
+  "name": "kulala.nvim",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Marco Kellershoff <marco@the-dont-be-evil-company>",
+  "license": "MIT",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.15.1",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "devDependencies": {
+    "conventional-changelog": "8.1.0",
+    "conventional-changelog-conventionalcommits": "10.2.1",
+    "tree-sitter-cli": "0.26.11"
+  }
+}

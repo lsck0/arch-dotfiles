@@ -4,7 +4,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Adapted from omarchy-shell almost verbatim -- the shared gauge-cluster overlay (Ui/SpeedTestOverlay.qml, already ported and unchanged) dressed for the internet speed test: download and upload dials in Mbps, titled with the connection under test.
 Item {
   id: root
 
@@ -27,7 +26,7 @@ Item {
   property bool running: false
   property bool expectedStop: false
   property bool pendingRun: false
-  property string phase: ""        // "down" | "up" | ""
+  property string phase: "" // "down" | "up" | ""
   property string stderrText: ""
   property string downloadMbps: ""
   property string uploadMbps: ""
@@ -54,7 +53,7 @@ Item {
     root.opened = false
     root.pendingRun = false
     phaseTimer.stop()
-    // Clear the phase before killing the process: onExited advances to the upload phase when it still reads "down".
+    // clear phase first: onExited advances to upload on "down"
     root.phase = ""
     root.running = false
     if (speedTestProc.running) {
@@ -107,7 +106,7 @@ Item {
 
   function runSpeedTest() {
     if (speedTestProc.running) {
-      // A dismissal's SIGTERM is still in flight; Process.running stays true until the child exits, so queue the fresh run for onExited.
+      // sigterm still in flight, queue the run for onExited
       if (expectedStop) pendingRun = true
       return
     }
@@ -178,7 +177,7 @@ Item {
   Process {
     id: speedTestProc
     stdout: SplitParser { onRead: function(line) { root.updateSpeedTestLine(line) } }
-    // Exit and stream-finished have no guaranteed order: when a failed exit beat the collector and published the generic message, replace it with the specific one once it lands.
+    // exit and stderr eof race; prefer the specific message
     stderr: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -215,7 +214,7 @@ Item {
     onTriggered: root.stopPhase()
   }
 
-  // Names the connection under test when the summoner didn't.
+  // names the connection when the summoner did not
   Process {
     id: statusProc
     command: ["bash", root.networkDetailsScript]

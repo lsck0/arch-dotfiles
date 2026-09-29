@@ -41,7 +41,6 @@ unset __MISE_DIFF __MISE_WATCH __MISE_SESSION MISE_SHELL 2>/dev/null
 
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
-# sudo pacman-key --refresh-keys
 
 yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
 flatpak update --assumeyes

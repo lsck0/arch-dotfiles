@@ -9,7 +9,6 @@ autocmd("TextYankPost", {
     end,
 })
 
--- Auto-insert real newlines in prose only (never in code): textwidth + fo 't'.
 autocmd("FileType", {
     desc = "Hard-wrap prose at textwidth",
     group = group("prose-hardwrap", { clear = true }),
@@ -32,7 +31,6 @@ autocmd("BufReadPost", {
     end,
 })
 
--- auto-create parent dirs on save (replaces mkdir.nvim)
 autocmd("BufWritePre", {
     desc = "Create missing parent directories on save",
     group = group("mkdir-on-save", { clear = true }),
@@ -42,7 +40,6 @@ autocmd("BufWritePre", {
     end,
 })
 
--- reload files changed on disk (replaces neovim-auto-autoread)
 vim.o.autoread = true
 autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     desc = "Reload files changed outside nvim",
@@ -52,7 +49,6 @@ autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     end,
 })
 
--- relativenumber in normal, absolute in insert/unfocused (replaces nvim-numbertoggle)
 autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter" }, {
     desc = "Relative line numbers when active",
     group = group("numbertoggle", { clear = true }),
@@ -74,8 +70,7 @@ autocmd("FileType", {
     callback = function(args)
         local buf = args.buf
         local ft = vim.bo[buf].filetype
-        -- tex keeps vim syntax: treesitter clears it and vimtex's mathzone check
-        -- (which drives the math autosnippets + conceal) needs syntax=tex.
+        -- tex keeps vim syntax: vimtex mathzone detection needs it
         if ft == "tex" or ft == "plaintex" or ft == "bib" then return end
         local lang = vim.treesitter.language.get_lang(ft) or ft
         if pcall(vim.treesitter.start, buf, lang) then
@@ -84,7 +79,6 @@ autocmd("FileType", {
     end,
 })
 
--- spell check for prose filetypes
 autocmd("FileType", {
     desc = "Enable spell check for prose",
     group = group("prose-spell", { clear = true }),
@@ -95,31 +89,28 @@ autocmd("FileType", {
     end,
 })
 
--- open the snacks.explorer sidebar on startup, cursor stays in the main buffer.
 autocmd("VimEnter", {
     desc = "Auto-open file explorer sidebar",
     group = group("auto-explorer", { clear = true }),
     callback = function()
         if vim.g.started_by_firenvim then return end
-        -- only auto-open the tree for nvim launched via tms/hms (they set NVIM_TMS).
+        -- only for tms/hms launches
         if vim.env.NVIM_TMS ~= "1" then return end
         if vim.fn.argc() > 1 then return end            -- diff/multi-file: leave alone
         local ft = vim.bo.filetype
         if ft == "gitcommit" or ft == "gitrebase" then return end
         if vim.bo.buftype ~= "" then return end          -- stdin, help, etc.
-        -- belt-and-suspenders: never stack a second tree if one is already open
+        -- never stack a second tree
         for _, w in ipairs(vim.api.nvim_list_wins()) do
             local ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
             if ft == "neo-tree" or ft == "snacks_picker_list" then return end
         end
         local main = vim.api.nvim_get_current_win()
-        -- chdir to the git root and open with NO explicit cwd, so the autocmd,
-        -- replace_netrw and follow_file all resolve the same cwd string. Passing
-        -- differing cwd forms made snacks stack a duplicate root per opener.
+        -- tcd, then open without cwd: differing cwd forms stacked duplicate roots
         local root = require("lib.root").git()
         if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
         require("snacks").explorer()
-        -- the picker grabs focus asynchronously after it opens, so restore focus
+        -- the picker grabs focus async, take it back
         vim.defer_fn(function()
             if vim.api.nvim_win_is_valid(main) then
                 vim.api.nvim_set_current_win(main)
@@ -128,7 +119,7 @@ autocmd("VimEnter", {
     end,
 })
 
--- flag jupytext notebook buffers so the pyright handler can drop IPython-builtin noise.
+-- read by the pyright handler in plugins/lsp.lua
 autocmd("FileType", {
     desc = "Detect jupytext notebook buffers",
     group = group("jupytext-detect", { clear = true }),
@@ -144,8 +135,7 @@ autocmd("FileType", {
     end,
 })
 
--- Never persist plaintext of secret/env/encrypted buffers: undofile writes them
--- to ~/.local/state/nvim/undo and shada keeps yanks. Disable both for those.
+-- undofile and shada would persist secret plaintext
 autocmd({ "BufReadPre", "BufNewFile" }, {
     desc = "No undo/shada history for secret files",
     group = group("no-secret-history", { clear = true }),
@@ -154,5 +144,14 @@ autocmd({ "BufReadPre", "BufNewFile" }, {
         vim.opt_local.undofile = false
         vim.opt_local.swapfile = false
         vim.opt.shada = ""
+    end,
+})
+
+-- no capitalization spell errors, reapplied after every theme switch
+autocmd({ "ColorScheme", "VimEnter" }, {
+    desc = "Clear SpellCap highlight",
+    group = group("no-spellcap", { clear = true }),
+    callback = function()
+        vim.api.nvim_set_hl(0, "SpellCap", {})
     end,
 })

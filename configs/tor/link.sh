@@ -10,7 +10,7 @@ set -ex
 # real files in /etc, tor runs as its own user and must not depend on /home
 sudo install -m 644 torrc /etc/tor/torrc
 sudo install -m 755 tor-router /usr/bin/tor-router
-# tor-router.service is what the toron/toroff zsh aliases start/stop.
+# started by the toron/toroff aliases
 sudo install -m 644 tor-router.service /etc/systemd/system/tor-router.service
 
 sudo systemctl daemon-reload

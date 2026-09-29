@@ -1,7 +1,5 @@
 #%PAM-1.0
-# quickshell matrix lock: password auth (MANDATORY).
-# Mirrors the system-auth stack, so pam_unix validates the password and
-# pam_faillock still enforces lockout on repeated failures. Fingerprint is a
-# separate, additive service (quickshell-lock-fprint) - not part of this file.
+# optional yubikey touch, nouserok falls through to password
+auth       sufficient pam_u2f.so nouserok cue authfile=/home/luca/.config/Yubico/u2f_keys
 auth       include    system-auth
 account    include    system-auth

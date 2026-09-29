@@ -2,7 +2,6 @@ pragma Singleton
 import QtQuick
 import "BorderGeometry.js" as Geometry
 
-// Border-spec factory.
 QtObject {
   id: root
 
@@ -18,13 +17,11 @@ QtObject {
     }
   }
 
-  // A per-instance colour override if one was given, otherwise the surface default.
   function surfaceSpec(localColor, defaultColor, width) {
     var chosen = (localColor === undefined || localColor === null) ? defaultColor : localColor
     return flat(chosen, width)
   }
 
-  // Interactive-state border specs, resolved through Style's state engine so controls in the kit share one ladder.
   function controlColor(prefix, foreground, accent) {
     if (prefix === "focus") return Style.focusStateColor(foreground, accent)
     if (prefix === "hover-cursor") return Style.hoverStateColor(foreground, accent)
@@ -52,12 +49,6 @@ QtObject {
     return flat(color, controlWidth(prefix))
   }
 
-  function withWidth(spec, width) {
-    if (!spec) return flat("transparent", 0)
-    return { color: spec.color, gradient: spec.gradient, widths: Geometry.parseWidthSpec(width, 0) }
-  }
-
-  function isNone(spec) { return !spec || Geometry.maxWidth(spec.widths) <= 0 }
   function needsOverlay(spec) { return Geometry.needsOverlay(spec) }
   function canUseNative(spec) { return Geometry.canUseNative(spec) }
   function top(spec) { return spec && spec.widths ? spec.widths.top : 0 }

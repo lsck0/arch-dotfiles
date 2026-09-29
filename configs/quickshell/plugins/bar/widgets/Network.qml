@@ -2,11 +2,9 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "network"
@@ -16,13 +14,13 @@ BarWidget {
   property string homeVpnState: "off"
   property string protonVpnState: "off"
   property string torState: "off"
-  property bool egressOn: false
+  property bool anonymousSocksOn: false
+  property bool anonymousNetworkPersonaOn: false
   property bool btPowered: false
   property bool wifiOn: true
   property bool offlineModeOn: false
 
   property bool detailsConnected: false
-  // NM's own verdict: full | limited | portal | none | unknown.
   property string connectivity: "unknown"
   readonly property bool reallyOnline: connectivity === "full"
   property string detailsDevice: ""
@@ -32,7 +30,6 @@ BarWidget {
   property int detailsRxKbps: 0
   property int detailsTxKbps: 0
 
-  // Rolling throughput history for the panel sparklines (newest last, capped).
   property var rxHist: []
   property var txHist: []
   function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
@@ -41,7 +38,6 @@ BarWidget {
   property string connectingSsid: ""
   property string connectError: ""
 
-  // Format KB/s value: >= 1024 → X.Y MB/s, otherwise X KB/s
   function fmtSpeed(kbps) {
     if (kbps >= 1024)
       return (Math.round(kbps / 1024 * 10) / 10) + " MB/s"
@@ -55,7 +51,8 @@ BarWidget {
     homeVpnProc.running = true
     protonVpnProc.running = true
     torProc.running = true
-    egressProc.running = true
+    anonymousSocksProc.running = true
+    anonymousNetworkPersonaProc.running = true
     btProc.running = true
     wifiProc.running = true
     rfkillProc.running = true
@@ -80,7 +77,7 @@ BarWidget {
 
   readonly property string scriptDir: Paths.barWidgets
 
-  // Every toggle is detached and takes real time — a VPN dial-up, an rfkill round trip, bluetoothctl powering a controller.
+  // toggles are detached and slow, so re-read a few times
   Timer {
     id: toggleSettle
     interval: 600
@@ -101,11 +98,19 @@ BarWidget {
   function toggleHomeVpn() { Quickshell.execDetached([toggleDir + "/toggle-vpn.sh", "toggle"]); afterToggle() }
   function toggleProtonVpn() { Quickshell.execDetached([toggleDir + "/toggle-protonvpn.sh", "toggle"]); afterToggle() }
   function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); afterToggle() }
-  // Egress dials an ssh -D tunnel and verifies its exit IP, which takes a moment; afterToggle's repeated re-read covers it.
-  function toggleEgress() { Quickshell.execDetached([toggleDir + "/toggle-egress.sh", "toggle"]); afterToggle() }
+  // exit verification can outlast afterToggle, so refresh on exit
+  function toggleAnonymousSocks() {
+    if (!anonymousSocksToggleProc.running) anonymousSocksToggleProc.running = true
+    afterToggle()
+  }
+  Process {
+    id: anonymousSocksToggleProc
+    command: [root.toggleDir + "/toggle-anonymous-socks.sh", "toggle"]
+    onExited: root.afterToggle()
+  }
+  function toggleAnonymousNetworkPersona() { Quickshell.execDetached([toggleDir + "/toggle-anonymous-network-persona.sh", "toggle"]); afterToggle() }
   function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); afterToggle() }
   function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); afterToggle() }
-  // Offline mode tears tunnels down first and takes several seconds, which is the case the repeated re-read above exists for.
   function toggleOfflineMode() { Quickshell.execDetached([toggleDir + "/toggle-offline.sh", "toggle"]); afterToggle() }
 
   Process {
@@ -124,9 +129,14 @@ BarWidget {
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.torState = String(text || "off").trim() }
   }
   Process {
-    id: egressProc
-    command: [root.toggleDir + "/toggle-egress.sh", "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.egressOn = String(text || "").trim() === "on" }
+    id: anonymousSocksProc
+    command: [root.toggleDir + "/toggle-anonymous-socks.sh", "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousSocksOn = String(text || "").trim() === "on" }
+  }
+  Process {
+    id: anonymousNetworkPersonaProc
+    command: [root.toggleDir + "/toggle-anonymous-network-persona.sh", "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousNetworkPersonaOn = String(text || "").trim() === "on" }
   }
   Process {
     id: btProc
@@ -192,7 +202,6 @@ BarWidget {
     }
   }
 
-  // Event-driven instead of polled.
   Process {
     id: nmMonitorProc
     running: true
@@ -201,11 +210,11 @@ BarWidget {
       splitMarker: "\n"
       onRead: nmDebounce.restart()
     }
-    // nmcli monitor exits if NetworkManager itself restarts; the fallback Timer below is what brings the panel back in that window, and this restarts the monitor once NM is back.
+    // exits when networkmanager restarts
     onExited: nmRestartTimer.restart()
   }
 
-  // One NM change fans out into several monitor lines; coalesce them so a single reconnect doesn't fire refreshAll five times.
+  // one nm change emits several lines
   Timer {
     id: nmDebounce
     interval: 400
@@ -218,7 +227,7 @@ BarWidget {
     onTriggered: nmMonitorProc.running = true
   }
 
-  // Fallback only.
+  // fallback poll
   Timer {
     interval: 30000
     running: true
@@ -227,7 +236,6 @@ BarWidget {
     onTriggered: root.refreshAll()
   }
 
-  // SPEC: "showing connection(s) (ie do we have internet, if so lan/wifi?)".
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0
   readonly property string statusIcon: {
     if (offlineModeOn) return "\u{f072}"                                  // fa-plane
@@ -246,7 +254,6 @@ BarWidget {
     }
   }
 
-  // Not a BarIconButton: that renders a single glyph and hard-sets labelVisible: false, so it cannot show speed text beside the icon.
   Rectangle {
     anchors.fill: parent
     radius: Style.cornerRadius
@@ -268,7 +275,6 @@ BarWidget {
         : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
-      // Neon bloom only when a tunnel/radio path is live, so the glow reads as an active state.
       layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
       layer.effect: MultiEffect {
         shadowEnabled: true
@@ -280,7 +286,6 @@ BarWidget {
         autoPaddingEnabled: true
       }
     }
-    // No throughput in the bar.
   }
 
   MouseArea {
@@ -297,24 +302,17 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: { root.refreshAll(); root.refreshWifiList(false) }
-    // Load-bearing.
+    // wifi password input needs keyboard
     acceptsKeyboard: true
     title: "NETWORK"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
-
-    // Neon HUD corner brackets around the dropdown.
-    HudFrame {}
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.sm
 
-      // Headroom so the terminal title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // This panel's rows were an in-file `Row_` component; they are the shared Ui/PanelRow now, along with the equivalent rows in the audio, display, system and media panels.
       component Row_: PanelRow {
         width: content.width
         stateMarker: glyph === ""
@@ -328,7 +326,6 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
         visible: root.detailsConnected
-        // Shown even when a device is "connected", because that is exactly when it is misleading: a link with an IP but no route out, or a captive portal, both look connected at the device level.
         Row {
           width: parent.width
           Text { width: parent.width * 0.35; text: "Status"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
@@ -368,7 +365,6 @@ BarWidget {
       }
       PanelSectionHeader { visible: root.detailsConnected; text: "> THROUGHPUT" }
 
-      // Big glowing download hero plus rolling down/up history sparklines.
       Column {
         visible: root.detailsConnected
         width: content.width
@@ -377,7 +373,6 @@ BarWidget {
         Row {
           spacing: Style.spacing.xxs
           Text {
-            id: dlHero
             anchors.bottom: parent.bottom
             text: root.fmtSpeed(root.detailsRxKbps)
             color: Color.accent
@@ -459,9 +454,7 @@ BarWidget {
         Repeater {
           model: root.wifiNetworks
           delegate: Column {
-            id: netDelegate
             required property var modelData
-            required property int index
             width: content.width
 
             Rectangle {
@@ -481,7 +474,6 @@ BarWidget {
                 color: modelData.active ? Color.menu.selectedText : Color.menu.text
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.iconFamily
-                // The connected network's live dot gets the neon halo.
                 layer.enabled: Style.fx.glow > 0 && modelData.active
                 layer.effect: MultiEffect {
                   shadowEnabled: true
@@ -505,7 +497,6 @@ BarWidget {
                 font.family: Style.font.family
                 elide: Text.ElideRight
               }
-              // Right-aligned like PanelRow's trailing value.
               Text {
                 id: netSignal
                 anchors.right: parent.right
@@ -535,7 +526,6 @@ BarWidget {
             }
 
             Row {
-              id: passwordField
               visible: netRow.pendingConnect && !modelData.active
               width: parent.width
               spacing: Style.spacing.xs
@@ -609,7 +599,8 @@ BarWidget {
       Row_ { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
       Row_ { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       Row_ { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
-      Row_ { label: "Test Egress"; on: root.egressOn; onActivated: root.toggleEgress() }
+      Row_ { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
+      Row_ { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "> RADIOS" }
@@ -619,7 +610,6 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader { text: "> TOOLS" }
-      // The speed test plugin was built, enabled and keepLoaded — and completely unreachable: nothing in the shell, no keybind and no menu entry ever summoned `panel.speedtest`, so the only way to run it was to type the ipc call by hand.
       Row_ {
         label: "Internet speed test"
         glyph: "\u{f04c5}"
@@ -629,7 +619,6 @@ BarWidget {
         }
       }
 
-      // panel.wifiqr was the SECOND plugin in exactly the same state: a finished Wi-Fi share card (QR matrix rendered as native rectangles, plus a password reveal, with scripts/network-qr.sh and scripts/network-password.sh behind it), enabled, keepLoaded, and summoned by nothing.
       Row_ {
         visible: root.detailsConnected && !root.onEthernet
         label: "Share Wi-Fi (QR)"

@@ -4,7 +4,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Adapted from omarchy-shell: omarchy-reminder -> this repo's own configs/quickshell/scripts/reminder.sh.
 BarIndicator {
   id: root
 
@@ -53,7 +52,6 @@ BarIndicator {
     }
   }
 
-  // Was 5000ms.
   Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
   onPressed: function() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mark a claude session busy (working, not idle at the prompt) so the machine won't auto-suspend.
+# mark a claude session busy so the machine won't auto-suspend
 
 set -euo pipefail
 
@@ -15,8 +15,7 @@ dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/claude-busy"
 mkdir -p "$dir"
 
 case "$action" in
-    # Store the claude PID so the guard can drop the marker if the session dies
-    # without releasing (crash/kill), instead of blocking suspend on a time window.
+    # pid lets the guard drop markers of dead sessions
     acquire) echo "$PPID" > "$dir/$sid" ;;
     release) rm -f "$dir/$sid" ;;
     *) echo "usage: claude-sleep-guard acquire|release [session-id]" >&2; exit 2 ;;

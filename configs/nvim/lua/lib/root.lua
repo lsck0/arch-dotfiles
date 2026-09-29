@@ -1,4 +1,4 @@
--- Resolve the git root to pin the file explorer to, so project.nvim chdir'ing into a nested crate (macros/, runner/) never re-roots the tree.
+-- git root, so a nested crate never re-roots the explorer
 local M = {}
 
 function M.git()

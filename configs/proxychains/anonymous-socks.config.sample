@@ -1,0 +1,15 @@
+# copied to ~/.config/anonymous-socks/config on first link
+
+ANONYMOUS_SOCKS_PORT=9061          # must match proxychains.conf, not tor's 9050
+ANONYMOUS_SOCKS_RATE=0             # new connections/sec, 0 = uncapped
+ANONYMOUS_SOCKS_TOR_BIN=tor
+
+# pool ports PORT..PORT+N-1, see `anonymous-socks.sh proxylist`
+ANONYMOUS_SOCKS_POOL_SIZE=10
+
+ANONYMOUS_SOCKS_CONTROL_PORT=9161
+ANONYMOUS_SOCKS_MAX_CIRCUIT_DIRTINESS=600
+
+# persona reorder only hits rfc1918 destinations; never with the global persona toggle
+ANONYMOUS_SOCKS_PERSONA=1
+ANONYMOUS_SOCKS_PERSONA_OS=windows # windows, macos, ios, linux, android

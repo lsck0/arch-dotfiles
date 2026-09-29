@@ -16,12 +16,12 @@ mkdir -p ${HOME}/.config/spicetify/Themes/wal
 ln -sfn ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/color.ini
 ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css
 
-# spicetify writes /opt/spotify and /opt/spotify/Apps/xpui; own them instead of 777.
+# spicetify writes here, own it instead of 777
 sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
 
 spicetify config current_theme wal color_scheme pywal
 spicetify config experimental_features 0
-# On, it strips every [dir=ltr] rule too, and Spotify's spacing lives in those.
+# on, it also strips the [dir=ltr] rules spotify spacing lives in
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 

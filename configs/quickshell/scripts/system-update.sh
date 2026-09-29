@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Interactive system update, launched from the bar's update indicator (plugins/bar/widgets/SystemUpdate.qml) and usable on its own from a terminal.
 set -uo pipefail
 
 if ! command -v yay >/dev/null 2>&1; then
@@ -11,7 +10,6 @@ echo "==> Repo + AUR packages"
 yay -Syu
 status=$?
 
-# Orphans accumulate quietly and are only ever noticed as disk usage.
 orphans=$(pacman -Qtdq 2>/dev/null || true)
 if [[ -n "$orphans" ]]; then
     echo
@@ -26,7 +24,7 @@ else
     echo "Update exited with status $status." >&2
 fi
 
-# The caller is a terminal opened purely for this, so it would vanish with the result still on screen for a fraction of a second.
+# the terminal was opened just for this, keep it up
 echo
 read -r -n 1 -p "Press any key to close… "
 echo

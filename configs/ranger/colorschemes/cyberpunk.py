@@ -1,14 +1,5 @@
-# This file is part of the arch-dotfiles ranger config.
-# License: GNU GPL version 3, matching ranger's own colorscheme license.
-#
-# "cyberpunk": an accent-forward, dark, neon-terminal colorscheme.
-# It only ever names the 8 ANSI color slots (black..white) plus the
-# terminal "default" and the BRIGHT modifier. Those slots are painted
-# by pywal (via colors-kitty.conf), so this scheme tracks the wallpaper
-# palette for free: no fixed 256-cube hex values are used anywhere.
-# Accent = ANSI blue/magenta (pywal slots 4/5), matrix-green executables.
-
-from __future__ import (absolute_import, division, print_function)
+# license: gpl-3, matching ranger's colorschemes
+# only ansi slots, so it follows the wal palette
 
 from ranger.gui.colorscheme import ColorScheme
 from ranger.gui.color import (
@@ -19,7 +10,6 @@ from ranger.gui.color import (
 
 
 class Cyberpunk(ColorScheme):
-    # Loading bar rides the magenta accent slot.
     progress_bar_color = magenta
 
     def use(self, context):  # pylint: disable=too-many-branches,too-many-statements
@@ -30,14 +20,12 @@ class Cyberpunk(ColorScheme):
 
         elif context.in_browser:
             if context.selected:
-                # Selected row: neon accent bar via reverse video.
                 attr = reverse | bold
             else:
                 attr = normal
             if context.empty or context.error:
                 bg = red
             if context.border:
-                # Subtle borders: plain terminal default fg.
                 fg = default
             if context.media:
                 if context.image:
@@ -47,14 +35,12 @@ class Cyberpunk(ColorScheme):
             if context.container:
                 fg = red
             if context.directory:
-                # Directories: bright neon blue, bold.
                 attr |= bold
                 fg = blue
                 fg += BRIGHT
             elif context.executable and not \
                     any((context.media, context.container,
                          context.fifo, context.socket)):
-                # Executables: matrix bright green.
                 attr |= bold
                 fg = green
                 fg += BRIGHT
@@ -77,14 +63,12 @@ class Cyberpunk(ColorScheme):
                     fg = magenta
                 fg += BRIGHT
             if not context.selected and (context.cut or context.copied):
-                # Cut/copied: dimmed so pending files recede.
                 attr |= dim
                 fg = white
             if context.main_column:
                 if context.selected:
                     attr |= bold
                 if context.marked:
-                    # Marked files: bold magenta accent.
                     attr |= bold
                     fg = magenta
                     fg += BRIGHT
@@ -98,7 +82,6 @@ class Cyberpunk(ColorScheme):
                 fg = blue
 
         elif context.in_titlebar:
-            # Titlebar: bold accent, hostname/path in neon blue.
             attr |= bold
             if context.hostname:
                 fg = red if context.bad else blue

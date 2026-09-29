@@ -8,7 +8,7 @@ return {
         branch = "harpoon2",
         keys = { "<leader>a", "<leader>h", "<leader>1", "<leader>2", "<leader>3", "<leader>4", "<leader>5" },
         config = function()
-            -- having this in the mapping file caused some issues lol
+            -- set up here, mappings.lua caused issues
             require("harpoon"):setup()
 
             local harpoon = require("harpoon")
@@ -35,7 +35,6 @@ return {
             require("telescope").setup({
                 defaults = {
                     file_ignore_patterns = ignore_filetypes_list,
-                    -- ivy-style: all pickers open from below
                     layout_strategy = "bottom_pane",
                     layout_config = { height = 25 },
                     sorting_strategy = "ascending",
@@ -44,7 +43,7 @@ return {
                         i = {
                             ["<C-k>"] = "move_selection_next",
                             ["<C-j>"] = "move_selection_previous",
-                            -- C-a, not C-q: Ctrl+Q is the tmux/herdr prefix.
+                            -- not C-q: tmux/herdr prefix
                             ["<C-a>"] = function(prompt_bufnr)
                                 actions.smart_send_to_qflist(prompt_bufnr)
                                 actions.open_qflist(prompt_bufnr)

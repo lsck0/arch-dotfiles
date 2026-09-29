@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Streams homelab health as one JSON line per poll, read by Homelab.qml.
-
-The homelab's shape is read from its source checkout on every poll:
-src/inventory.json (written by sync.sh from instances.tf) for VMs and their
-enabled state, modules/routes.nix plus the Traefik instances for links, and
-whichever instance enables Prometheus for where to query. Only live state comes
-from Prometheus/Alertmanager/Loki. Disabled VMs are left out entirely.
-
-The "incoming" lists are the same four the TRMNL homelab dashboard draws, from
-the same source: Traefik's JSON access log, shipped to Loki by promtail. They
-are the only thing here that Prometheus cannot answer, because its Traefik
-counters carry no client detail at all.
-"""
+"""Streams homelab health as one JSON line per poll for Homelab.qml."""
 
 import calendar
 import json
@@ -25,18 +13,17 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
-# --summary fetches only what the bar icon needs (problemCount + alerts); full mode fetches the whole panel.
+# --summary: only what the bar icon needs
 SUMMARY = "--summary" in sys.argv[1:]
 _POSITIONAL = [a for a in sys.argv[1:] if not a.startswith("-")]
 INTERVAL = int(_POSITIONAL[0]) if _POSITIONAL else 30
-# Targets seen within this window count as fleet members; the scrape sweeps whole /24s.
+# the scrape sweeps whole /24s, so only recently seen targets count
 SEEN = "6h"
 IPV4 = r"\d+\.\d+\.\d+\.\d+"
-# How far back the incoming lists look, and how many rows each one keeps.
 CLIENT_WINDOW = "24h"
 CLIENT_ROWS = 8
 
-# Traefik logs the User-Agent verbatim, which is thousands of distinct strings and useless as a series label, so Loki folds it into a family before the count.
+# fold raw user agents into a family before counting
 AGENT_FAMILY = (
     '{{ if or (contains "bot" .ua) (contains "Bot" .ua) (contains "crawl" .ua)'
     ' (contains "spider" .ua) }}bot'
@@ -79,7 +66,7 @@ def homepage_group(text, group):
 
 
 def dashboard_url_path(board):
-    """/d/<uid>/<slug>?… with the dashboard's own default time range, variables and refresh."""
+    """/d/<uid>/<slug>?... with the dashboard's default range, variables and refresh."""
     uid = board.get("uid", "")
     if not uid:
         return ""
@@ -123,7 +110,7 @@ def source():
     for vm in vms.values():
         if vm["type"] in ("internal", "external") and vm["ip"]:
             subnets.setdefault(vm["type"], vm["ip"].rsplit(".", 1)[0])
-    # Each subnet's .1 gateway is the router VM.
+    # each subnet's .1 gateway is the router vm
     router = next((vm for vm in vms.values() if vm["type"] == "router"), None)
     if router:
         for subnet in subnets.values():
@@ -133,7 +120,7 @@ def source():
     domain = re.search(r"\$\{r\.host\}\.([a-z0-9.-]+)`", everything)
     domain = domain.group(1) if domain else ""
 
-    # routes.nix: a VM with several routes keeps the one on the plain web port.
+    # a vm with several routes keeps the one on the web port
     candidates = {}
     if domain:
         for host, vmid, port in re.findall(
@@ -141,7 +128,7 @@ def source():
             rank = 0 if int(port) in (80, 443) else 1
             candidates.setdefault(int(vmid), []).append((rank, "%s.%s" % (host, domain)))
 
-    # Hand-written routers in the Traefik instances: the dashboard and non-VM backends.
+    # hand-written traefik routers: the dashboard and non-vm backends
     external = {}
     for vmid, text in texts.items():
         for host, service in re.findall(r'rule\s*=\s*"Host\(`([^`$]+)`\)";\s*service\s*=\s*"([^"]+)"', text):
@@ -157,11 +144,11 @@ def source():
 
     monitor = next((vms[i] for i, t in texts.items() if re.search(r"services\.prometheus\s*=\s*\{", t)), None)
     monitor_text = texts.get(monitor["id"], "") if monitor else ""
-    # Alerting may live in Grafana instead; querying an absent Alertmanager costs a timeout per poll.
+    # an absent alertmanager would cost a timeout per poll
     has_am = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{", monitor_text) is not None
     am_port = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{.{0,400}?\bport\s*=\s*(\d+)", monitor_text, re.S)
     exporters = [ip for ip in re.findall(r'"(%s):9100"' % IPV4, monitor_text) if ip not in by_ip]
-    # Path is relative to the instance file, wherever the dashboards live.
+    # path is relative to the instance file
     dashboard = re.search(r"(\.{1,2}/[\w./-]*\.json)", monitor_text)
     dashboard_path = ""
     if dashboard:
@@ -175,13 +162,13 @@ def source():
 
     host_ip = exporters[0] if exporters else ""
     grafana = monitor["url"] if monitor else ""
-    # The Grafana tile opens straight into the dashboard.
+    # the grafana tile opens the dashboard
     if monitor and grafana and dashboard_path:
         monitor["url"] = grafana + dashboard_path
     nas = named("nas")
     infra = next((homepage_group(t, "Infra") for t in texts.values() if "- Infra:" in t), [])
 
-    # Loki's address is wherever promtail is told to push.
+    # loki is wherever promtail pushes
     push = re.search(r"https?://(%s:\d+)/loki/api/v1/push" % IPV4, read("modules", "base.nix"))
     ingress = next((vmid for vmid, text in texts.items()
                     if vms[vmid]["type"] == "external" and "homelab.traefik" in text), None)
@@ -199,7 +186,6 @@ def source():
         "nas_ip": nas["ip"] if nas else "",
         "links": {
             "homepage": (named("homepage") or {}).get("url", ""),
-            "grafana": grafana,
             "dashboard": grafana + dashboard_path if grafana and dashboard_path else grafana,
             "alerts": grafana + "/alerting/list" if grafana else "",
             "proxmox": external.get(host_ip, ""),
@@ -229,19 +215,14 @@ def human_count(n):
 
 
 def bars(pairs, scale=None):
-    """(name, count) pairs -> rows the panel draws without arithmetic.
-
-    `pct` is the share of the largest row, not of the total: the question a
-    glance asks is which of these is big next to its neighbours, and a total
-    share makes every row after the first a sliver.
-    """
+    """(name, count) pairs -> rows; pct is the share of the largest row, not the total."""
     top = scale if scale is not None else max([c for _, c in pairs] or [0])
     return [{"name": n, "count": human_count(c),
              "pct": int(round(100 * c / top)) if top else 0} for n, c in pairs]
 
 
 def clients(src):
-    """The four incoming lists, from Traefik's access log by way of Loki."""
+    """Incoming lists from traefik's access log via loki."""
     if not src["loki"] or not src["ingress"]:
         return {}
     stream = '{job="traefik-access", host="%s"}' % src["ingress"]
@@ -264,7 +245,7 @@ def clients(src):
         rows.sort(key=lambda kv: -kv[1])
         return bars(rows[:CLIENT_ROWS])
 
-    # A request with no Cf-Ipcountry did not arrive through Cloudflare, which means someone dialled the address rather than the hostname.
+    # no cf-ipcountry means it bypassed cloudflare
     countries = ranked(
         "topk(%d, sum by (country) (count_over_time(%s[%s])))" % (CLIENT_ROWS, stream, window),
         "country", "direct")
@@ -294,7 +275,7 @@ def clients(src):
             continue
     total = sum(by_status.values())
 
-    # ClientHost is the visitor and not the proxy: the Cloudflare ranges are trusted on the entrypoint, so Traefik resolves the forwarded address.
+    # traefik trusts cloudflare ranges, so ClientHost is the visitor
     seen = instant('count(count by (ip) (count_over_time(%s | json ip="ClientHost" [%s])))'
                    % (stream, window))
     try:
@@ -305,7 +286,7 @@ def clients(src):
     rows = [("requests", total), ("visitors", visitors)]
     rows.extend((c, by_status.get(c, 0.0)) for c in ("2xx", "3xx", "4xx", "5xx"))
     traffic = bars(rows, scale=total)
-    # the first two are not a share of the requests, so they get no bar
+    # requests and visitors get no bar
     for row in traffic[:2]:
         row["pct"] = 0
 
@@ -347,15 +328,15 @@ def sample(src, summary=False):
     seen = 'up{job="homelab-node-exporter"} and on(instance) max_over_time(up{job="homelab-node-exporter"}[%s]) > 0' % SEEN
     for metric, value in query(seen):
         vm = vm_for(metric.get("instance", ""), src)
-        # Disabled VMs are meant to be off; a removed one that is down is just gone.
+        # skip disabled vms and removed ones that are down
         if vm.get("enabled") == "false" or (value != 1 and vm["id"] == 100000):
             continue
-        # The router answers on both subnets; one row is enough.
+        # the router answers on both subnets
         entry = services.setdefault((vm["id"], vm["name"]), {k: vm[k] for k in ("id", "name", "url", "onDemand")})
         entry["group"] = "infra" if vm.get("type") == "router" else vm.get("type") or "internal"
         entry["up"] = entry.get("up", False) or value == 1
 
-    # Infra comes from homepage's own Infra group; machines Prometheus already watches keep that state, the rest are probed, and link-only ones have none.
+    # infra follows homepage; unwatched hosts are probed, link-only ones get none
     for order, item in enumerate(src["infra"]):
         address = re.match(r"^\w+://([^/:]+)", item["ping"] or item["href"])
         ip = address.group(1) if address else ""
@@ -369,7 +350,7 @@ def sample(src, summary=False):
                      url=item["href"] or known["url"])
 
     def target_name(target):
-        """vm-110, 10.100.0.110:9100 or a bare name -> the fleet name, plus whether that VM is disabled."""
+        """vm-110, an address or a name -> (fleet name, disabled)."""
         if not target:
             return "", False
         m = re.match(r"^vm-(\d+)$", target)
@@ -381,7 +362,7 @@ def sample(src, summary=False):
     try:
         if src["alertmanager"]:
             for a in fetch(src["alertmanager"] + "/api/v2/alerts?active=true&silenced=false&inhibited=false"):
-                labels, notes = a.get("labels", {}), a.get("annotations", {})
+                labels = a.get("labels", {})
                 try:
                     age = int((now - calendar.timegm(time.strptime(a.get("startsAt", "")[:19], "%Y-%m-%dT%H:%M:%S"))) / 60)
                 except ValueError:
@@ -391,12 +372,10 @@ def sample(src, summary=False):
                 alerts.append({
                     "name": labels.get("alertname", "alert"),
                     "target": vm_for(labels["instance"], src)["name"] if "instance" in labels else "",
-                    "summary": notes.get("summary", ""),
-                    "severity": labels.get("severity", ""),
                     "minutes": max(0, age),
                 })
         else:
-            # Grafana-managed alerting: the monitor VM exports firing alerts as a gauge valued with their start time.
+            # grafana alerting: a gauge valued with the start time
             for labels, started in query("homelab_alert_firing"):
                 target, disabled = target_name(labels.get("target", ""))
                 if disabled:
@@ -404,8 +383,6 @@ def sample(src, summary=False):
                 alerts.append({
                     "name": labels.get("alertname", "alert"),
                     "target": target,
-                    "summary": labels.get("summary", ""),
-                    "severity": labels.get("severity", ""),
                     "minutes": max(0, int((now - started) / 60)),
                 })
             alerts.sort(key=lambda a: a["minutes"])
@@ -413,7 +390,6 @@ def sample(src, summary=False):
         pass
 
     services_sorted = sorted(services.values(), key=lambda s: (s.get("order", 1000), s["id"], s["name"]))
-    # Summary mode: the bar icon needs only problemCount (alerts + down services) and links; skip every host/storage/traffic/Loki query.
     if summary:
         return {"ok": True, "links": src["links"], "services": services_sorted, "alerts": alerts}
 
@@ -461,7 +437,7 @@ def sample(src, summary=False):
             "externalRps": rps("external"),
             "errorRps": rounded(scalar('sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))') or 0, 2),
         },
-        # Loki is a separate service from the one this poll depends on, so a failure here costs the four lists and nothing else on the panel.
+        # a loki failure only costs the incoming lists
         "clients": try_clients(src),
     }
 
@@ -477,7 +453,7 @@ _SOURCE = None
 
 
 def cached_source():
-    # The homelab shape is static at runtime, so parse the nix/inventory files once; keep retrying only while the checkout is missing.
+    # parse once, retry only while the checkout is missing
     global _SOURCE
     if _SOURCE is not None:
         return _SOURCE

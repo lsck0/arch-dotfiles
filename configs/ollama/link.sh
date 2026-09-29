@@ -7,7 +7,6 @@ fi
 
 set -ex
 
-# Drop-in so ollama keeps models loaded (fast minuet completion).
 sudo mkdir -p /etc/systemd/system/ollama.service.d
 sudo ln -sfn "${PWD}/keep-alive.conf" /etc/systemd/system/ollama.service.d/keep-alive.conf
 sudo systemctl daemon-reload

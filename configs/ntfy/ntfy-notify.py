@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Forwards ntfy topic messages to the desktop notification server.
-
-Server and topics are read from the homelab source: every
-`"https://<server>/${var}"` URL there, with `var` resolved in the same file.
-Alertmanager and Grafana post their raw webhook JSON to ntfy, so those payloads
-are summarised instead of shown verbatim.
-"""
+"""Forwards ntfy topics from the homelab source to desktop notifications."""
 
 import html
 import json
@@ -20,9 +14,9 @@ import urllib.request
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "ntfy-notify")
 LAST_ID = os.path.join(STATE_DIR, "last-id")
-# Alert group key -> the notification id currently on screen for it.
+# alert group key -> notification id on screen
 OPEN_ALERTS = os.path.join(STATE_DIR, "open-alerts.json")
-# Messages missed while offline are replayed, but not a backlog older than this.
+# max age of replayed messages
 MAX_REPLAY_S = 3600
 
 
@@ -129,12 +123,12 @@ def notify(msg):
     if isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
         title, body, urgency, click = webhook_summary(payload)
         app, glyph = "Homelab", "\U000f048d"
-        # A firing critical alert is posted with no expiry on purpose — it must not scroll away while nobody is looking.
+        # no expiry on purpose, critical alerts must not scroll away
         key = group_key(payload)
         opened = open_alerts_read()
         previous = opened.pop(key, 0)
         if payload.get("status") == "firing":
-            # Replace rather than stack: a group that re-fires (a new alert joins it, Alertmanager repeats it) should update the card that is already up, not add another identical one.
+            # re-firing groups replace their card instead of stacking
             new_id = notify_send(app, glyph, urgency, title, body, click, replaces=previous)
             if new_id:
                 opened[key] = new_id
@@ -176,7 +170,7 @@ def subscribe(server, names, since):
     url = "%s/%s/json" % (server, ",".join(urllib.parse.quote(n) for n in names))
     if query:
         url += "?" + urllib.parse.urlencode(query)
-    # ntfy sends a keepalive every 45s, so a silent minute means a dead connection.
+    # keepalive is 45s, so silence means a dead connection
     request = urllib.request.Request(url, headers={"User-Agent": "ntfy-notify"})
     with urllib.request.urlopen(request, timeout=90) as stream:
         for raw in stream:
@@ -185,10 +179,10 @@ def subscribe(server, names, since):
             except ValueError:
                 continue
             if msg.get("event") != "message":
-                # Keeps last-id fresh while connected, so a quiet hour is not mistaken for downtime.
+                # a quiet hour is not downtime
                 if os.path.exists(LAST_ID):
                     os.utime(LAST_ID)
-                # A rotated topic in the homelab source reconnects on the next keepalive.
+                # reconnect when the homelab topics change
                 if subscriptions().get(server) != names:
                     return
                 continue
@@ -207,7 +201,7 @@ def main():
                 print("ntfy-notify: no ntfy topics in %s" % HOMELAB_DIR, file=sys.stderr)
                 time.sleep(300)
                 continue
-            # One stream; the homelab publishes to a single ntfy server.
+            # the homelab uses a single ntfy server
             server, names = next(iter(subs.items()))
             subscribe(server, names, read_last_id())
         except Exception as exc:

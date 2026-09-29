@@ -1,4 +1,4 @@
--- Copilot-style inline completion (ghost text), powered by a local ollama code model over its OpenAI-compatible FIM endpoint.
+-- ghost-text completion from a local ollama fim model
 return {
     {
         "milanglacier/minuet-ai.nvim",
@@ -6,7 +6,7 @@ return {
         event = "InsertEnter",
         opts = {
             provider = "openai_fim_compatible",
-            -- keystroke -> request debounce/throttle, so it does not fire on
+            -- don't fire a request on every keystroke
             throttle = 1000,
             debounce = 400,
             -- cap how much surrounding code is sent, so prompt eval stays cheap
@@ -15,8 +15,7 @@ return {
             request_timeout = 4,
             provider_options = {
                 openai_fim_compatible = {
-                    -- ollama needs no key; return a literal so it never depends on
-                    -- an env var (neovide GUI has no $TERM, which nil-crashed the old value).
+                    -- literal: an env lookup nil-crashed in neovide
                     api_key = function() return "ollama" end,
                     name = "Ollama",
                     end_point = "http://localhost:11434/v1/completions",
@@ -29,12 +28,11 @@ return {
                 },
             },
             virtualtext = {
-                -- ghost text in every filetype; add an ignore list here if noisy
                 auto_trigger_ft = { "*" },
                 auto_trigger_ignore_ft = { "TelescopePrompt", "snacks_picker_input" },
                 keymap = {
-                    accept = "<A-a>",      -- accept the whole suggestion
-                    accept_line = "<A-l>", -- accept one line
+                    accept = "<A-a>",
+                    accept_line = "<A-l>",
                     accept_n_lines = "<A-z>",
                     next = "<A-]>",
                     prev = "<A-[>",

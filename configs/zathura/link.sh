@@ -10,6 +10,6 @@ set -ex
 mkdir -p "$HOME/.config/zathura" "$HOME/.cache/wal"
 ln -sfn "${PWD}/zathurarc" "$HOME/.config/zathura/zathurarc"
 
-# zathurarc's `include` is resolved next to the config file and does not expand ~, so the wallust palette is reached through a link rather than a path.
+# include does not expand ~, so link the palette beside zathurarc
 [[ -e "$HOME/.cache/wal/colors-zathura" ]] || : > "$HOME/.cache/wal/colors-zathura"
 ln -sfn "$HOME/.cache/wal/colors-zathura" "$HOME/.config/zathura/colors-zathura"

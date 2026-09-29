@@ -7,10 +7,9 @@ fi
 
 set -ex
 
-# Validate before installing so a bad edit can never lock out sudo. Symlinks are
-# not usable in /etc/sudoers.d (sudo requires root:root 0440), so copy it.
+# validate first; sudoers.d needs a root:root 0440 copy, not a symlink
 if sudo visudo -cf 00_luca; then
     sudo install -m440 -o root -g root 00_luca /etc/sudoers.d/00_luca
 fi
-# Drop the old passwordless drop-in if a previous install created it.
+# legacy passwordless drop-in
 sudo rm -f "/etc/sudoers.d/10-${USER}-nopasswd"

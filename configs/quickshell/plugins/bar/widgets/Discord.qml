@@ -6,20 +6,18 @@ import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "discord"
 
-  // Written by the BetterDiscord plugin.
+  // written by the betterdiscord plugin
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
     runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
-  // The way back in.
   readonly property string commandPath:
     runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : ""
 
-  // Written with `printf`, not a FileView: FileView owns its path for reading and re-arms a watch on it, which is the wrong shape for a write-only drop box that the other side immediately unlinks.
+  // printf, not FileView: the plugin unlinks the file on read
   function send(cmd) {
     if (!root.commandPath) return
     const target = Util.shellQuote(root.commandPath)
@@ -29,10 +27,8 @@ BarWidget {
         + " > " + tmp + " && mv -f " + tmp + " " + target])
   }
 
-  // One place for the chip geometry: the ring is drawn outside the avatar, so the widget's own width has to account for it and the badge hangs off the corner by the same amount.
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
-  // The disc behind an avatar, shown while the image loads and behind the initial when there is none.
   readonly property color avatarBacking: Util.alpha(Color.menu.text, 0.12)
 
   property bool inVoice: false
@@ -43,7 +39,7 @@ BarWidget {
   property var participants: []
   property real updatedAt: 0
 
-  // Discord can die without its plugin's stop() ever running, leaving the last call frozen on disk.
+  // discord can die without the plugin clearing the file
   property real nowMs: Date.now()
   readonly property bool stale: updatedAt > 0 && (nowMs - updatedAt) > 50000
   readonly property bool live: inVoice && !stale
@@ -53,7 +49,6 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // Only ticks while there is something to age out.
   Timer {
     interval: 5000
     running: root.inVoice
@@ -91,14 +86,12 @@ BarWidget {
   }
 
   FileView {
-    id: stateFile
-    // Empty path when there is no runtime directory — FileView simply never loads, so `inVoice` stays false and the widget stays off the bar.
     path: root.statePath
     watchChanges: root.statePath !== ""
     printErrors: false
     onLoaded: {
       root.apply(text())
-      // The plugin writes temp-file-then-rename, which replaces the inode the watch is attached to.
+      // rename replaces the watched inode
       Util.rearmWatch(this)
     }
     onLoadFailed: root.inVoice = false
@@ -112,15 +105,14 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // The bar shows the faces, because "who is in this call and who is talking" is the whole question.
   Row {
     id: trigger
     anchors.centerIn: parent
-    // Wider than the usual xs: each chip now carries a ring outside its own bounds, so neighbours at xs spacing would have their rings touching.
+    // rings sit outside each chip
     spacing: Style.spacing.lg
 
     Repeater {
-      // The whole list is the model, with the tail hidden, rather than a `.slice(0, 5)`: slicing builds a new array on every update, and every new array rebuilds all five delegates — including their avatars — each time somebody starts or stops talking.
+      // not sliced: a new array rebuilds every avatar
       model: root.participants
 
       delegate: Item {
@@ -128,7 +120,6 @@ BarWidget {
         required property var modelData
         required property int index
         anchors.verticalCenter: parent.verticalCenter
-        // Capped: a twelve-person call would otherwise push the centre section off its own axis.
         visible: index < 5
         width: root.avatarSize
         height: root.avatarSize
@@ -136,11 +127,9 @@ BarWidget {
         readonly property bool silenced:
           modelData.selfDeaf || modelData.deaf || modelData.selfMute || modelData.mute
 
-        // The "icons that move" from the SPEC.
         scale: modelData.speaking ? 1.14 : 1.0
         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
 
-        // The ring lives OUTSIDE the clipped avatar, drawn as a border on a slightly larger circle behind it.
         Rectangle {
           anchors.centerIn: parent
           width: parent.width + root.ringWidth * 2
@@ -149,12 +138,10 @@ BarWidget {
           color: "transparent"
           antialiasing: true
           border.width: root.ringWidth
-          // Discord's own speaking green — a convention people already read, the same deliberate exception to the palette as the OBS record red.
           border.color: modelData.speaking && !parent.silenced
             ? Color.semantic.speaking
             : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: 140 } }
-          // The speaking ring blooms in Discord's own green.
           layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
           layer.effect: MultiEffect {
             shadowEnabled: true
@@ -167,9 +154,7 @@ BarWidget {
           }
         }
 
-        // ClippingRectangle, not Rectangle.
         ClippingRectangle {
-          id: avatarFrame
           anchors.fill: parent
           radius: width / 2
           color: root.avatarBacking
@@ -179,7 +164,6 @@ BarWidget {
             id: avatarImage
             anchors.fill: parent
             source: modelData.avatar || ""
-            // Decode at twice the drawn size, not at it.
             sourceSize.width: Math.ceil(width * 2 * Screen.devicePixelRatio)
             sourceSize.height: Math.ceil(height * 2 * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
@@ -188,12 +172,10 @@ BarWidget {
             smooth: true
             mipmap: true
             visible: status === Image.Ready
-            // `chip.silenced`, not `parent.parent.silenced`.
             opacity: chip.silenced ? Style.emphasis.faint : 1
             Behavior on opacity { NumberAnimation { duration: 140 } }
           }
 
-          // Not every avatar loads (offline, blocked CDN, a user with none); the initial on a tinted disc is a real fallback rather than an empty hole.
           Text {
             anchors.centerIn: parent
             visible: !avatarImage.visible
@@ -206,14 +188,14 @@ BarWidget {
           }
         }
 
-        // Deafened outranks muted: someone deafened is also muted, and two badges on a 22px avatar is two illegible marks instead of one legible one.
+        // one badge only: deafened outranks muted
         Rectangle {
           visible: parent.silenced
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.rightMargin: -root.ringWidth
           anchors.bottomMargin: -root.ringWidth
-          // Even, so the centre lands on a whole pixel.
+          // even, so the centre lands on a whole pixel
           width: 2 * Math.round(root.avatarSize * 0.58 / 2)
           height: width
           radius: width / 2
@@ -258,20 +240,15 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    // Terminal-window title strip.
     title: "VOICE"
     implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
 
-      // Headroom so the title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // Big glowing hero: how many are in the call, with the channel + speaking count flush right.
       Item {
         width: parent.width
         implicitHeight: Math.max(voiceHero.implicitHeight, voiceMeta.implicitHeight)
@@ -348,7 +325,6 @@ BarWidget {
 
       PanelSeparator {}
 
-      // --- my own controls --- Mute, deafen and leave: single actions on Discord's media-engine and channel-action modules, the things worth reaching for without switching windows.
       Row {
         width: parent.width
         spacing: Style.spacing.sm
@@ -368,7 +344,7 @@ BarWidget {
           Row {
             anchors.centerIn: parent
             spacing: Style.spacing.xs
-            // OpticalGlyph, not a bare Text: centring an icon-font line box against a body-font line box lines up two different ascents, so the mic and headphone marks read as sitting low next to their labels.
+            // OpticalGlyph centres icon and body fonts
             OpticalGlyph {
               anchors.verticalCenter: parent.verticalCenter
               width: Style.font.caption
@@ -415,7 +391,6 @@ BarWidget {
           width: (parent.width - Style.spacing.sm * 2) / 3
           glyph: "\u{f03f5}"   // md-phone_hangup
           label: "Leave"
-          // Always in the urgent style: it ends the call.
           on: true
           onActivated: {
             root.send("disconnect")
@@ -438,9 +413,7 @@ BarWidget {
             width: Style.space(26)
             height: width
 
-            // Same reasoning as the bar chip: real rounded clipping, ring drawn outside the clipped area, decode at 2x the drawn size.
             ClippingRectangle {
-              id: panelAvatar
               anchors.fill: parent
               anchors.margins: Style.space(2)
               radius: width / 2
@@ -485,7 +458,6 @@ BarWidget {
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
-              // Accent glow on whoever is currently talking.
               layer.enabled: Style.fx.glow > 0 && modelData.speaking
               layer.effect: MultiEffect {
                 shadowEnabled: true
@@ -509,7 +481,6 @@ BarWidget {
             }
           }
 
-          // Every state gets its own glyph here, unlike the bar, where space only allows the strongest one.
           Row {
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(74)
@@ -550,8 +521,5 @@ BarWidget {
         }
       }
     }
-
-    // HUD corner brackets over the panel.
-    HudFrame {}
   }
 }

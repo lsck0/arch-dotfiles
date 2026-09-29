@@ -1,0 +1,56 @@
+*kulala.websockets.txt*     A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents                        *kulala.websockets-table-of-contents*
+
+1. Websockets                                   |kulala.websockets-websockets|
+  - Usage                                 |kulala.websockets-websockets-usage|
+
+==============================================================================
+1. Websockets                                   *kulala.websockets-websockets*
+
+You can make persistent connections to a WebSocket server in Kulala just as you
+would make HTTP requests. Connections are handled natively by kulala-core - no
+separate `websocat` installation is required.
+
+
+USAGE                                     *kulala.websockets-websockets-usage*
+
+
+ESTABLISHING A WEBSOCKET CONNECTION
+
+To establish a websocket connection, use the following format:
+
+>http
+    WS wss://echo.websocket.org
+
+    { "name": "world" }
+<
+
+If there is a body in the request, it is sent when the connection opens.
+Use `===` to script further messages. See |kulala.websockets-websockets-usage|.
+
+
+MESSAGES
+
+Separate client messages in the request body with `===`. The next message is
+sent immediately. Put `=== wait-for-server` before a message to send it only
+after one server message arrives. Repeat that line to wait for more than one
+server message.
+
+Incoming messages are prefixed with `<--` and outgoing messages with `-->`.
+Both are shown in chronological order in the body view.
+
+
+SENDING MESSAGES
+
+Messages separated with `===` are sent automatically when the connection
+opens. To send more, type the message and press `<CR>`.
+
+
+CLOSING THE CONNECTION
+
+To close the connection, press `<C-c>`.
+
+
+vim:tw=78:ts=8:noet:ft=help:norl:

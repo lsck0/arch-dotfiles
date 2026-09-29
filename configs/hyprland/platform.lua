@@ -30,9 +30,7 @@ local portable = DMI_PORTABLE[tonumber(first_line("/sys/class/dmi/id/chassis_typ
 
 local M = {}
 
-M.host = host
 M.profile = PROFILES[host] or (portable and "laptop" or "desktop")
 M.laptop = M.profile == "laptop"
-M.desktop = not M.laptop
 
 return M

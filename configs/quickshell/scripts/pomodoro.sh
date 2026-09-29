@@ -1,20 +1,14 @@
 #!/bin/bash
-# Pomodoro timer, built the same way scripts/reminder.sh is: the phase countdown lives in a `systemd-run --user` transient timer, not in the shell.
-
-# omarchy:summary=Pomodoro work/break timer with desktop notifications
-# omarchy:args=start [work] [break] | stop | pause | resume | skip | status [-j|--json]
-# omarchy:examples=pomodoro.sh start | pomodoro.sh start 50 10 | pomodoro.sh status --json | pomodoro.sh skip
+# phases run as systemd-run --user transient timers
 
 set -euo pipefail
 
 SELF=$(readlink -f "$0")
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-pomodoro"
 STATE="$STATE_DIR/state.json"
-# Each armed phase gets its OWN unit name.
 UNIT_PREFIX=quickshell-pomodoro
 GLYPH="󰔟"
 
-# Classic pomodoro: 25 work, 5 short break, 15 long break after every 4th work phase.
 DEF_WORK=25
 DEF_BREAK=5
 DEF_LONG=15
@@ -24,7 +18,6 @@ mkdir -p "$STATE_DIR"
 
 now() { date +%s; }
 
-# Two tiers on purpose.
 ALERT="$(dirname "$SELF")/alert.sh"
 
 notify() {
@@ -45,7 +38,7 @@ write_state() {
           remaining:$remaining,work:$work,break:$brk,long:$long}' >"$STATE"
 }
 
-# Stops outstanding *timers* only, never .service units: when this runs from inside a firing phase, that phase's own service is still executing.
+# timers only: a firing phase's own service is still running
 cancel_timer() {
     local t
     while read -r t; do
@@ -69,14 +62,6 @@ phase_label() {
     break) echo "Break" ;;
     long) echo "Long break" ;;
     *) echo "Idle" ;;
-    esac
-}
-
-phase_minutes() {
-    case "$1" in
-    work) jqs '.work // 25' ;;
-    break) jqs '.break // 5' ;;
-    long) jqs '.long // 15' ;;
     esac
 }
 
@@ -122,7 +107,6 @@ resume() {
     notify "Pomodoro resumed" "$(fmt "$remaining") left"
 }
 
-# Advance to the next phase.
 advance() {
     [[ "$(jqs '.running')" == "true" ]] || exit 0
     local phase cycle work brk long next next_min

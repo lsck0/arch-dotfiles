@@ -1,4 +1,4 @@
--- :LPromptBuffer / :LPromptSelection Send buffer/selection text to the one hermes agent this editor owns.
+-- send buffer/selection to this editor's hermes agent, or add it as a +prompt task
 local M = {}
 
 local HERMES_AGENT_NAME = "lprompt-hermes"
@@ -67,8 +67,6 @@ local function herdr_json(args)
     return decoded
 end
 
-local hermes_pane = nil
-
 local function lookup_hermes()
     local decoded, err = herdr_json({ "herdr", "agent", "list" })
     if not decoded then
@@ -97,7 +95,6 @@ local function find_or_start_hermes_target()
         return nil, err
     end
     if existing then
-        hermes_pane = existing
         return existing
     end
 
@@ -114,13 +111,11 @@ local function find_or_start_hermes_target()
     if start.code ~= 0 then
         local raced = lookup_hermes()
         if raced then
-            hermes_pane = raced
             return raced
         end
         return nil, "herdr agent start failed: " .. vim.trim(start.stderr or start.stdout or "")
     end
 
-    hermes_pane = new_pane_id
     return new_pane_id
 end
 
@@ -140,7 +135,6 @@ local function send_to_hermes(text)
         { text = true }
     ):wait()
     if prompt.code ~= 0 then
-        hermes_pane = nil
         vim.notify(
             "LPrompt: herdr agent prompt failed: " .. vim.trim(prompt.stderr or prompt.stdout or ""),
             vim.log.levels.WARN

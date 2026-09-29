@@ -1,4 +1,4 @@
-# Deploy the upgraded limine binary to the ESP; zz-boot-menu.hook signs it after.
+# zz-boot-menu.hook signs the binary afterwards
 [Trigger]
 Operation = Install
 Operation = Upgrade

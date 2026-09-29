@@ -1,10 +1,8 @@
 import QtQuick
-import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// Verbatim from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "active-window"
@@ -39,9 +37,8 @@ BarWidget {
       textFormat: Text.PlainText
       anchors.verticalCenter: parent.verticalCenter
       anchors.left: parent.left
-      // Capped at maxLabelWidth rather than bound to parent.width: parent's width derives from root.implicitWidth, which itself reads labelText.implicitWidth below — binding width to parent.width would close that loop (Qt warns "Binding loop detected for property implicitWidth").
+      // fixed width: parent.width would loop through implicitWidth
       width: root.maxLabelWidth
-      // Terminal-prompt prefix for the hackerman look; title text itself is untouched.
       text: "> " + root.title
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family

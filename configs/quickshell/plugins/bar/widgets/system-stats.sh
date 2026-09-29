@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Streams one JSON line per sample: CPU, memory, GPU (busy/clock/VRAM), temperature and CPU+GPU power/energy.
+# streams one json line of system stats per sample
 set -uo pipefail
 
 INTERVAL=${1:-5}
 
-# --- static identity, read once -------------------------------------------
 cpu_name=$(grep -m1 '^model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//;s/ *$//')
 cpu_cores=$(nproc 2>/dev/null || echo 0)
 gpu_name=$(lspci -mm 2>/dev/null | awk -F'"' '/VGA compatible controller|3D controller/ { print $6; exit }')
@@ -18,7 +17,7 @@ case "$gpu_vendor_raw" in
 *) gpu_vendor=unknown ;;
 esac
 
-# Locate this GPU's /sys/class/drm/cardN — matched by PCI vendor:device id (lspci -n) against each card's device/{vendor,device} rather than by name/position, since card numbering is not guaranteed to match discovery order across reboots.
+# match the drm card by pci address, card numbering is not stable
 gpu_card=""
 gpu_pci=$(lspci -Dnmm 2>/dev/null | awk '/ 0300: | 0302: /{ print $1; exit }')
 if [[ -n "$gpu_pci" ]]; then
@@ -30,7 +29,6 @@ if [[ -n "$gpu_pci" ]]; then
 fi
 [[ -z "$gpu_card" ]] && gpu_card=/sys/class/drm/card1  # last-resort guess
 
-# amdgpu's hwmon dir, for power1_average/power1_input.
 amdgpu_hwmon=""
 if [[ "$gpu_vendor" == amd ]]; then
     for h in "$gpu_card"/device/hwmon/hwmon*; do
@@ -40,19 +38,18 @@ if [[ "$gpu_vendor" == amd ]]; then
 fi
 
 gpu_rc6=$gpu_card/gt/gt0/rc6_residency_ms  # i915 only
-# CPU package energy counter; the intel-rapl name is used on AMD Zen too.
+# intel-rapl is also the name on amd zen
 rapl=/sys/class/powercap/intel-rapl:0/energy_uj
 rapl_max=$(cat /sys/class/powercap/intel-rapl:0/max_energy_range_uj 2>/dev/null || echo 0)
-# Energy used since login: kept on tmpfs so a shell restart does not reset it.
+# on tmpfs so a shell restart does not reset it
 energy_file=${XDG_RUNTIME_DIR:-/tmp}/quickshell-energy-wh
-# Wall-power estimate: RAM, board, drives and fans are not metered, so add a fixed
-# overhead and the PSU's conversion loss on top of the measured CPU + GPU draw.
+# unmetered ram, board, drives and fans
 OVERHEAD_W=40
 PSU_EFFICIENCY=0.9
 energy_wh=$(cat "$energy_file" 2>/dev/null || echo 0)
 [[ "$energy_wh" =~ ^[0-9.]+$ ]] || energy_wh=0
 
-# CPU package temperature: resolve one hwmon temp*_input path once, then cat it each tick (avoids spawning sensors|jq every sample).
+# resolve the hwmon path once instead of spawning sensors every tick
 cpu_temp_path=""
 for h in /sys/class/hwmon/hwmon*; do
     [[ -f "$h/name" ]] || continue
@@ -60,7 +57,7 @@ for h in /sys/class/hwmon/hwmon*; do
     k10temp|coretemp|zenpower) ;;
     *) continue ;;
     esac
-    # Prefer a label naming the package (Tctl/Tdie/Package), else fall back to temp1_input.
+    # prefer the package label, else temp1_input
     for lbl in "$h"/temp*_label; do
         [[ -f "$lbl" ]] || continue
         case "$(cat "$lbl" 2>/dev/null)" in
@@ -74,7 +71,7 @@ for h in /sys/class/hwmon/hwmon*; do
     [[ -n "$cpu_temp_path" ]] && break
 done
 
-# RAM type/speed/channel count from SMBIOS, via passwordless sudo dmidecode (this machine's sudoers grants NOPASSWD: ALL — see configs/sudoers).
+# dmidecode needs passwordless sudo
 mem_type=""
 mem_speed_mts=0
 mem_channels=0
@@ -88,7 +85,6 @@ if command -v dmidecode >/dev/null 2>&1; then
 fi
 : "${mem_type:=}" "${mem_speed_mts:=0}" "${mem_channels:=0}"
 
-# Package temperature from the cached hwmon path; milli-degree -> degree. Empty if unresolved.
 read_temp() {
     [[ -n "$cpu_temp_path" ]] || return
     local raw
@@ -97,7 +93,7 @@ read_temp() {
     awk -v m="$raw" 'BEGIN { printf "%d", m / 1000 }'
 }
 
-# amdgpu power: power1_average (newer amdgpu) then power1_input (older).
+# power1_average on newer amdgpu, power1_input on older
 read_amdgpu_power() {
     [[ -n "$amdgpu_hwmon" ]] || { echo null; return; }
     local raw=""
@@ -115,7 +111,6 @@ power_ok=0
 
 mem_total_kb=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
 
-# --- sampling loop --------------------------------------------------------
 read -r _ pu pn ps pi _ < /proc/stat
 prev_rc6=$(cat "$gpu_rc6" 2>/dev/null || echo 0)
 prev_t_ms=$(date +%s%3N)
@@ -123,7 +118,7 @@ prev_energy=0
 ((power_ok)) && prev_energy=$(cat "$rapl" 2>/dev/null || echo 0)
 prev_temp=0
 
-# First sample uses a SHORT window so the bar has real numbers within a fraction of a second of the shell starting.
+# short first window so the bar fills in fast
 delay=0.3
 while :; do
     sleep "$delay"
@@ -154,7 +149,7 @@ while :; do
             vram_total_mb=$(awk -v b="$vram_total_b" 'BEGIN { printf "%.0f", b / 1048576 }')
         fi
         gpu_power_w=$(read_amdgpu_power)
-        rc6=$prev_rc6  # unused on this path
+        rc6=$prev_rc6  # keeps prev_rc6 as is
     else
         rc6=$(cat "$gpu_rc6" 2>/dev/null || echo 0)
         gpu_pct=$(awk -v r1="$prev_rc6" -v r2="$rc6" -v t1="$prev_t_ms" -v t2="$t_ms" \
@@ -169,7 +164,6 @@ while :; do
 
     fi
 
-    # Package power from the RAPL energy counter.
     if ((power_ok)); then
         energy=$(cat "$rapl" 2>/dev/null || echo 0)
         cpu_power_w=$(awk -v e1="$prev_energy" -v e2="$energy" -v max="$rapl_max" -v t1="$prev_t_ms" -v t2="$t_ms" \
@@ -181,7 +175,6 @@ while :; do
         prev_energy=$energy
     fi
 
-    # Estimated wall power = (CPU package + discrete GPU + overhead) / PSU efficiency.
     if [[ "$cpu_power_w" != null || "$gpu_power_w" != null ]]; then
         read -r power_w energy_wh < <(awk -v c="$cpu_power_w" -v g="$gpu_power_w" -v e="$energy_wh" \
             -v o="$OVERHEAD_W" -v eff="$PSU_EFFICIENCY" -v t1="$prev_t_ms" -v t2="$t_ms" \

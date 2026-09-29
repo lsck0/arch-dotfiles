@@ -1,4 +1,4 @@
--- image.nvim queries the terminal for the kitty graphics protocol at startup.
+-- image.nvim needs the kitty graphics protocol
 local function terminal_graphics()
     if vim.g.neovide then return false end
     local term = vim.env.TERM or ""
@@ -9,24 +9,23 @@ end
 
 return {
     {
-        -- Round-trip .ipynb <-> markdown so notebooks open as plain text buffers.
+        -- open .ipynb as text
         "GCBallesteros/jupytext.nvim",
-        event = { "BufReadCmd *.ipynb" }, -- load before its own BufReadCmd converts the notebook
+        event = { "BufReadCmd *.ipynb" }, -- load before its BufReadCmd runs
         opts = {
-            -- percent, not markdown: an .ipynb round-trips to a .py with `# %%` cell markers.
+            -- .py with `# %%` cell markers
             style = "percent",
             output_extension = "auto",
             force_ft = nil,
         },
     },
     {
-        -- Run notebook/python cells inside nvim via a Jupyter kernel, with inline plots.
+        -- run cells in a jupyter kernel
         "benlubas/molten-nvim",
         version = "^1.0.0",
         build = ":UpdateRemotePlugins",
         dependencies = {
             {
-                -- molten renders plots through image.nvim.
                 "3rd/image.nvim",
                 cond = terminal_graphics,
                 opts = {
@@ -37,12 +36,12 @@ return {
         },
         ft = { "python", "markdown", "quarto" },
         init = function()
-            -- no kitty graphics (neovide, plain terminal): text-only output, no image.nvim, no crash.
+            -- text-only output without kitty graphics
             vim.g.molten_image_provider = terminal_graphics() and "image.nvim" or "none"
             vim.g.molten_output_win_max_height = 20
             vim.g.molten_auto_open_output = false
             vim.g.molten_wrap_output = true
-            vim.g.molten_virt_text_output = true  -- show output as virtual text below the cell
+            vim.g.molten_virt_text_output = true
             vim.g.molten_virt_lines_off_by_1 = true
         end,
         keys = {

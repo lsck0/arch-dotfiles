@@ -1,8 +1,4 @@
-# Cyberpunk boot splash: dark terminal, accent progress bar, blinking caret.
-# Palette is static (pre-userspace): bg #0B0E14, accent #39BAE6, dim fg #C2C3C5.
-# API matches the stock /usr/share/plymouth/themes/script example.
-
-# Static near-black background (#0B0E14).
+# static palette, no wal before userspace
 Window.SetBackgroundTopColor(0.043, 0.055, 0.078);
 Window.SetBackgroundBottomColor(0.043, 0.055, 0.078);
 
@@ -11,13 +7,11 @@ screen.height = Window.GetHeight();
 screen.x = Window.GetX();
 screen.y = Window.GetY();
 
-# Accent (#39BAE6) and dim fg (#C2C3C5) as 0..1 floats.
 accent.r = 0.224; accent.g = 0.729; accent.b = 0.902;
 dim.r = 0.761; dim.g = 0.765; dim.b = 0.773;
 
-#----------------------------------------- Prompt line --------------------------------
+# prompt line
 
-# Text tracks the plymouth mode so shutdown/reboot do not read "booting".
 mode = Plymouth.GetMode();
 prompt_text = "> booting archlinux";
 if (mode == "shutdown") prompt_text = "> shutting down archlinux";
@@ -29,14 +23,13 @@ prompt.x = screen.x + screen.width / 2 - prompt.image.GetWidth() / 2;
 prompt.y = screen.y + screen.height * 0.42;
 prompt.sprite.SetPosition(prompt.x, prompt.y, 5);
 
-# Blinking block caret sits just after the prompt text.
 caret.image = Image("caret.png");
 caret.sprite = Sprite(caret.image);
 caret.x = prompt.x + prompt.image.GetWidth() + 6;
 caret.y = prompt.y + prompt.image.GetHeight() / 2 - caret.image.GetHeight() / 2;
 caret.sprite.SetPosition(caret.x, caret.y, 5);
 
-#----------------------------------------- Progress bar --------------------------------
+# progress bar
 
 bar_bg.image = Image("bar_bg.png");
 bar_bg.sprite = Sprite(bar_bg.image);
@@ -62,14 +55,14 @@ fun progress_callback(duration, progress)
 
 Plymouth.SetBootProgressFunction(progress_callback);
 
-#----------------------------------------- Caret blink --------------------------------
+# caret blink
 
 tick = 0;
 
 fun refresh_callback()
   {
     tick++;
-    # Refresh runs ~50Hz; toggle roughly twice a second.
+    # refresh runs ~50hz
     if (Math.Int(tick / 25) % 2)
       caret.sprite.SetOpacity(1);
     else
@@ -78,7 +71,7 @@ fun refresh_callback()
 
 Plymouth.SetRefreshFunction(refresh_callback);
 
-#----------------------------------------- Status message --------------------------------
+# status message
 
 message.sprite = Sprite();
 
@@ -99,7 +92,7 @@ fun hide_message_callback(text)
 Plymouth.SetDisplayMessageFunction(display_message_callback);
 Plymouth.SetHideMessageFunction(hide_message_callback);
 
-#----------------------------------------- Password prompt --------------------------------
+# password prompt
 
 fun display_password_callback(prompt_text, bullets)
   {

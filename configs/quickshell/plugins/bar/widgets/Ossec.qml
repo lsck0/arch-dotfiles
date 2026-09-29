@@ -5,7 +5,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// OSSEC HIDS alerts in the bar.
 BarWidget {
   id: root
   moduleName: "ossec"
@@ -37,7 +36,6 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   Process {
-    id: proc
     running: true
     command: [Paths.barWidget("ossec-alerts.py")]
     stdout: SplitParser {
@@ -58,7 +56,6 @@ BarWidget {
     }
   }
 
-  // Urgent neon backlight bleeding out from behind the shield while a high-level alert is live.
   Rectangle {
     anchors.centerIn: parent
     width: Style.bar.iconCanvas
@@ -84,7 +81,6 @@ BarWidget {
     text: "\u{f0ce4}"
     slotSize: Style.bar.statusSlot
     fontSize: Style.font.caption
-    // urgent (activeColor) when a high-level alert is live, dimmed otherwise
     active: root.ok && root.high > 0
     dimmed: !active
     tooltipText: root.tip()

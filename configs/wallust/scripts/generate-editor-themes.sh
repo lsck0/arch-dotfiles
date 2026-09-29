@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Regenerates the Zed pywal theme and VSCodium's workbench.colorCustomizations from pywal's colors.json.
+# zed, vscodium, herdr and emacs themes from pywal colors.json
 set -euo pipefail
 
-# Install a generated file WITHOUT replacing the destination inode.
+# replace the symlink target, not the link
 install_through_symlink() {
     local src=$1 dest=$2 real
     real=$(readlink -f "$dest" 2>/dev/null || echo "$dest")
     mv "$src" "$real"
 }
-
 
 COLORS_JSON="$HOME/.cache/wal/colors.json"
 ZED_THEME="$HOME/projects/arch-dotfiles/configs/zed/themes/pywal.json"
@@ -21,7 +20,7 @@ EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 bg=$(jq -r '.special.background' "$COLORS_JSON")
 fg=$(jq -r '.special.foreground' "$COLORS_JSON")
 
-# Decided on the RAW background, before the HSV floor below clamps it into a fixed dark band: after that clamp every palette looks dark, so it can no longer tell a light theme (ayu-light, solarized-dawn) from a dark one.
+# detect light themes before bg is floored dark
 if python3 -c "
 import sys
 hx = '$bg'.lstrip('#')
@@ -29,17 +28,17 @@ r, g, b = (int(hx[i:i+2], 16) / 255 for i in (0, 2, 4))
 sys.exit(0 if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5 else 1)
 "; then
     EMACS_MODE=light
-    EMACS_BG=$bg           # unfloored: the floor below would force it dark
-    EMACS_DARKEN=lighten   # "starker background" runs the other way on light
+    EMACS_BG=$bg
+    EMACS_DARKEN=lighten
     EMACS_LIGHTEN=darken
 else
     EMACS_MODE=dark
-    EMACS_BG=""            # filled in with the floored $bg below
+    EMACS_BG=""
     EMACS_DARKEN=darken
     EMACS_LIGHTEN=lighten
 fi
 
-# Floor bg's HSV value the same way configs/quickshell/Commons/Color.qml's toneMap(bg, 0.08, 0.26) does for the shell's own background.
+# same floor as Color.qml toneMap(bg, 0.08, 0.26)
 bg=$(python3 -c "
 import colorsys
 hx = '$bg'.lstrip('#')
@@ -67,7 +66,7 @@ c13=$(jq -r '.colors.color13' "$COLORS_JSON")
 c14=$(jq -r '.colors.color14' "$COLORS_JSON")
 c15=$(jq -r '.colors.color15' "$COLORS_JSON")
 
-# --- Zed theme extension ---
+# zed
 mkdir -p "$(dirname "$ZED_THEME")"
 jq -n \
   --arg bg "$bg" --arg fg "$fg" \
@@ -138,7 +137,7 @@ jq -n \
     }]
   }' > "$ZED_THEME"
 
-# --- VSCodium workbench.colorCustomizations ---
+# vscodium
 if [[ -d "$(dirname "$VSCODE_SETTINGS")" ]] || mkdir -p "$(dirname "$VSCODE_SETTINGS")" 2>/dev/null; then
   [[ -f "$VSCODE_SETTINGS" ]] || echo '{}' > "$VSCODE_SETTINGS"
   tmp=$(mktemp)
@@ -158,10 +157,9 @@ if [[ -d "$(dirname "$VSCODE_SETTINGS")" ]] || mkdir -p "$(dirname "$VSCODE_SETT
     }' "$VSCODE_SETTINGS" > "$tmp" && mv "$tmp" "$VSCODE_SETTINGS"
 fi
 
-# --- herdr [theme.custom] (marker-delimited surgical replace — config.toml is hand-written/tracked, so this must never touch anything outside the markers) ---
+# herdr: only rewrite between the pywal markers
 HERDR_CONFIG="$HOME/.config/herdr/config.toml"
 
-# herdr's own background.
 herdr_bg=$(python3 -c "
 import colorsys
 hx = '$bg'.lstrip('#')
@@ -172,7 +170,6 @@ r, g, b = colorsys.hsv_to_rgb(h, s, v)
 print('#%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255)))
 ")
 if [[ -f "$HERDR_CONFIG" ]] && grep -q "# BEGIN PYWAL THEME" "$HERDR_CONFIG"; then
-  # Only sidebar_bg/panel_bg/active_row_bg/selection_bg/accent/red/green used to be set here.
   read -r active_row_bg selection_bg surface_dim surface0 surface1 overlay0 overlay1 subtext0 < <(python3 -c "
 fg = '$fg'.lstrip('#')
 bg = '$herdr_bg'.lstrip('#')
@@ -184,7 +181,6 @@ def blend(t):
         round(fgc * t + bgc * (1 - t)),
         round(fb * t + bb * (1 - t)),
     )
-# Issue 21 v3: v2 pulled the whole ramp too close to bg on top of an already-too-dark bg, compounding into TOOOOO DARK.
 print(blend(0.06), blend(0.11), blend(0.0), blend(0.08), blend(0.14), blend(0.22), blend(0.34), blend(0.65))
 ")
 
@@ -227,7 +223,7 @@ print(blend(0.06), blend(0.11), blend(0.0), blend(0.08), blend(0.14), blend(0.22
   herdr server reload-config >/dev/null 2>&1 || true
 fi
 
-# --- Emacs: doom-pywal theme --- Emacs gets a real generated `doom-themes` theme rather than a face-by-face override list: doom-themes-base.el already defines ~500 faces (org, magit, lsp, treemacs, …) in terms of a fixed palette vocabulary, so emitting just that vocabulary buys every one of them.
+# emacs doom theme
 mkdir -p "$EMACS_THEME_DIR"
 cat > "$EMACS_THEME" <<EOF
 ;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-

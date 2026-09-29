@@ -146,7 +146,7 @@ module.exports = class QuickshellVoiceStatus {
     };
   }
 
-  // BetterDiscord's fs shim has no async API, so writes stay synchronous; _schedulePublish is what keeps them to one per 150ms during calls.
+  // bd fs shim has no async api; _schedulePublish throttles writes
   _write(payload) {
     if (!this._fs || !this._statePath) return;
     const text = JSON.stringify(payload);
@@ -187,7 +187,7 @@ module.exports = class QuickshellVoiceStatus {
     this._publish();
   }
 
-  // ChannelActions (exported as `default`) owns disconnect(); a plain VOICE_CHANNEL_SELECT with no channel is the same thing at the dispatcher.
+  // fallback: a VOICE_CHANNEL_SELECT with no channel also disconnects
   _disconnect() {
     const W = BdApi.Webpack;
     const isActions = (m) =>
@@ -221,14 +221,14 @@ module.exports = class QuickshellVoiceStatus {
 
   _pollCommands() {
     if (!this._fs || !this._commandPath) return;
-    if (!this._fs.existsSync(this._commandPath)) return; // the normal case
+    if (!this._fs.existsSync(this._commandPath)) return;
     let text;
     try {
       text = this._fs.readFileSync(this._commandPath, "utf8");
     } catch (e) {
       return;
     }
-    // Consumed before it is acted on, so a command that throws cannot be replayed on every poll for the rest of the session.
+    // unlink first so a throwing command is never replayed
     try {
       this._fs.unlinkSync(this._commandPath);
     } catch (e) {}
@@ -251,7 +251,7 @@ module.exports = class QuickshellVoiceStatus {
     }
   }
 
-  // Speaking toggles many times a second in a call; one snapshot per 150ms is plenty.
+  // speaking flips many times a second in a call
   _schedulePublish() {
     if (this._publishTimer) return;
     this._publishTimer = setTimeout(() => {
@@ -293,7 +293,7 @@ module.exports = class QuickshellVoiceStatus {
     for (const key of ["voice", "speaking", "media", "selected"])
       this._subscribe(this._stores[key]);
 
-    // Watch for commands; the slow poll only covers a watcher that died.
+    // slow poll only covers a dead watcher
     try {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
         if (name === "quickshell-discord-cmd") this._pollCommands();

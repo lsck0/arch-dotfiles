@@ -3,22 +3,20 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 
-// Instance, not a singleton — see BarWidgetRegistry for rationale.
 QtObject {
   id: registry
 
   property string home: Quickshell.env("HOME")
-  // Deliberately outside ~/.config/quickshell: that path is a symlink into this git-tracked repo (configs/quickshell/link.sh), so a third-party plugin dropped there would land inside dotfiles version control by accident.
+  // outside ~/.config/quickshell, which symlinks into this repo
   property string pluginsDir: home + "/.local/share/quickshell/plugins"
 
-  // Set by shell.qml at startup so we can also scan bundled first-party plugins.
   property string firstPartyDir: ""
 
-  // Wired by shell.qml so the registry can read the canonical shell.json without owning file IO itself.
+  // wired by shell.qml, which owns shell.json
   property var shellConfigProvider: null
   property var shellConfigMutator: null
 
-  // { pluginId: manifest } — manifests have __sourceDir and __isFirstParty stamped in.
+  // id to manifest, with __sourceDir and __isFirstParty added
   property var installedPlugins: ({})
   property int registryRevision: 0
   property bool scanning: false
@@ -26,10 +24,6 @@ QtObject {
 
   signal pluginsChanged()
   signal scanFinished()
-  signal pluginLoadFailed(string id, string error)
-  signal localPluginChanged(string id)
-
-  // ---------------------------------------------------------------- helpers
 
   function isSafeEntryPoint(value) {
     if (typeof value !== "string" || value.length === 0) return false
@@ -75,7 +69,6 @@ QtObject {
         return null
       }
     }
-    // Every entry point must be a relative path inside the plugin's source directory.
     for (var key in manifest.entryPoints) {
       if (!isSafeEntryPoint(manifest.entryPoints[key])) {
         console.warn("PluginRegistry: unsafe entryPoint '" + key + "'='"
@@ -92,7 +85,7 @@ QtObject {
     if (!ep) return ""
     var dir = manifest.__sourceDir || ""
     if (!dir) return ""
-    // Defense in depth: even after validateManifest, confirm the resolved path stays inside the plugin's sourceDir.
+    // defense in depth on top of validateManifest
     var resolved = dir.replace(/\/$/, "") + "/" + String(ep)
     var expectedPrefix = dir.replace(/\/$/, "") + "/"
     if (resolved.indexOf(expectedPrefix) !== 0) {
@@ -102,7 +95,6 @@ QtObject {
     return Util.fileUrl(resolved)
   }
 
-  // Enabled = the plugin id is referenced somewhere in shell.json.
   function isEnabled(id) {
     var key = String(id)
     var manifest = installedPlugins[key]
@@ -130,7 +122,7 @@ QtObject {
 
   function resolveEnabledId(id) {
     var key = Util.canonicalWidgetId(String(id || ""))
-    // Callers keep using the built-in id after cloning; the enabled local manifest is the implementation that should receive the call.
+    // route a built-in id to its enabled clone
     for (var candidate in installedPlugins) {
       var manifest = installedPlugins[candidate]
       var metadata = manifest && Util.isPlainObject(manifest.omarchy) ? manifest.omarchy : null
@@ -140,7 +132,6 @@ QtObject {
     return key
   }
 
-  // A bar widget is on when it sits in the bar, whoever shipped it.
   function inBar(id) {
     var config = shellConfigProvider ? shellConfigProvider() : null
     return findEntryLocation(config, id).kind === "bar"
@@ -173,7 +164,7 @@ QtObject {
     return { found: false }
   }
 
-  // A caller naming a widget that has been cloned means the clone that took its place, the way resolveEnabledId routes calls to it.
+  // falls back to the clone that replaced id
   function findRelativeBarLocation(config, id, section) {
     var location = findBarLocation(config, id, section)
     if (location.found) return location
@@ -270,13 +261,13 @@ QtObject {
     return ""
   }
 
-  // put is the unattended verb: where enable errors, it falls back, and it leaves a widget that is already on the bar where its owner put it.
+  // unattended enable: never moves a widget already on the bar
   function putBarWidget(id, placement) {
     if (inBar(id)) return ""
     var config = shellConfigProvider ? shellConfigProvider() : null
-    // Enabling a source whose clone is active switches back to the built-in, which is the owner's call, not an unattended caller's.
+    // switching back from a clone is the owner's call
     if (findRelativeBarLocation(config, id, "").found) return ""
-    // The manifest scan is a subprocess and IPC answers before it returns, so an id it has not reached yet is not one that does not exist.
+    // scan still running, id may just not be seen yet
     if (scanning && !installedPlugins[Util.canonicalWidgetId(String(id))]) return "not ready"
     var target = Util.isPlainObject(placement) ? Util.cloneJson(placement) : {}
     var relativeId = String(target.before || target.after || "")
@@ -345,7 +336,6 @@ QtObject {
     if (!Array.isArray(config.plugins)) config.plugins = []
   }
 
-  // Bar widgets use the default section declared in their manifest, falling back to center.
   function removeDisabled(config, id) {
     if (!Array.isArray(config.disabledPlugins)) return
     config.disabledPlugins = config.disabledPlugins.filter(function(entry) { return entry !== id })
@@ -503,7 +493,6 @@ QtObject {
       else if (location.kind === "bar") config.bar.layout[location.section].splice(location.index, 1)
       else if (location.kind === "plugin") config.plugins.splice(location.index, 1)
 
-      // Dropping the layout entry is the whole story for a widget.
       if (isFirstParty && !isBarWidget) addDisabled(config, key)
     })
     if (lastEnableError) return false
@@ -512,13 +501,7 @@ QtObject {
     return true
   }
 
-  // ---------------------------------------------------------------- scanning
-
-  // Output format produced by the rescan script:
-  //   ===<kind>::<absolute-source-dir>===
-  //   ... raw manifest.json content ...
-  //   === EOM ===
-  // (repeating for every manifest found)
+  // blocks of ===<kind>::<dir>=== manifest === EOM ===
   function parseScanOutput(text) {
     var lines = String(text || "").split("\n")
     var firstParty = {}
@@ -567,7 +550,6 @@ QtObject {
 
     var merged = {}
     for (var fk in firstParty) merged[fk] = firstParty[fk]
-    // Third-party plugins never shadow first-party ids.
     for (var tk in thirdParty) {
       if (firstParty[tk] || String(tk).indexOf("omarchy.") === 0) {
         console.warn("PluginRegistry: plugin " + tk
@@ -596,42 +578,13 @@ QtObject {
   }
 
   property Process initProcess: Process {
-    onExited: {
-      localPluginWatcher.running = true
-      registry.rescan()
-    }
-  }
-
-  property Process localPluginWatcher: Process {
-    command: [
-      "inotifywait",
-      "-m",
-      "-r",
-      "-q",
-      "-e",
-      "close_write,create,delete,move",
-      "--format",
-      "%w%f",
-      registry.pluginsDir
-    ]
-    stdout: SplitParser {
-      onRead: function(path) {
-        var pluginId = registry.localPluginIdForPath(path)
-        if (pluginId) registry.localPluginChanged(pluginId)
-      }
-    }
-    onExited: localPluginWatcherRestart.restart()
-  }
-
-  property Timer localPluginWatcherRestart: Timer {
-    interval: 1000
-    onTriggered: localPluginWatcher.running = true
+    onExited: registry.rescan()
   }
 
   function rescan() {
     if (scanning) return
     scanning = true
-    // $0 = first-party dir, $1 = third-party dir.
+    // $0 first-party dir, $1 third-party dir
     var script = ""
       + "emit_manifest() { local kind=\"$1\"; local manifest=\"$2\"; local sub; "
       + "  if [[ ${manifest##*/} == \"manifest.json\" ]]; then sub=\"${manifest%/manifest.json}\"; else sub=\"$(dirname -- \"$manifest\")\"; fi; "
@@ -641,7 +594,7 @@ QtObject {
       + "}; "
       + "scan_firstparty() { local dir=\"$1\"; "
       + "  [[ -d \"$dir\" ]] || return 0; "
-      // -L: this repo's plugins dir is reached through a symlink chain (~/.config/quickshell/plugins -> configs/quickshell/plugins), and plain `find` does not descend into a symlinked starting path the way -mindepth/-maxdepth here need — confirmed directly: identical command found 0 manifests without -L, all 16 with it.
+      // -L: the plugins dir is reached through symlinks
       + "  while IFS= read -r manifest; do emit_manifest firstparty \"$manifest\"; done < <(find -L \"$dir\" -mindepth 2 -maxdepth 3 -type f \\( -name manifest.json -o -name '*.manifest.json' \\) | sort); "
       + "}; "
       + "scan_thirdparty() { local dir=\"$1\"; "
@@ -660,20 +613,6 @@ QtObject {
   function ensureUserDir() {
     initProcess.command = ["bash", "-c", "mkdir -p \"$0\"", registry.pluginsDir]
     initProcess.running = true
-  }
-
-  function localPluginIdForPath(filePath) {
-    var base = pluginsDir.replace(/\/$/, "") + "/"
-    var path = String(filePath || "").trim()
-    if (path.indexOf(base) !== 0) return ""
-
-    var relative = path.slice(base.length)
-    // Hidden entries are not plugins: clone staging dirs, remove backups.
-    if (relative.indexOf(".") === 0) return ""
-    if (relative.indexOf("/.git/") !== -1 || relative.endsWith("/.git")) return ""
-
-    var slash = relative.indexOf("/")
-    return slash === -1 ? relative : relative.slice(0, slash)
   }
 
   Component.onCompleted: ensureUserDir()

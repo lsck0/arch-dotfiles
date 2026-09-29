@@ -4,7 +4,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Verbatim from omarchy-shell except `omarchy-disk-speedtest` -> `disk-speedtest` (this repo's configs/quickshell/scripts/disk-speedtest.sh, symlinked into ~/.local/bin by configs/quickshell/link.sh) and the fallback manifest id in dismiss().
 Item {
   id: root
 
@@ -15,7 +14,7 @@ Item {
   property bool running: false
   property bool expectedStop: false
   property bool pendingRun: false
-  property string phase: ""             // "read" | "write" | ""
+  property string phase: "" // "read" | "write" | ""
   property string diskName: ""
   property string writeMBps: ""
   property string readMBps: ""
@@ -27,11 +26,11 @@ Item {
     runTest()
   }
 
-  // Host-initiated close (`shell hide`).
+  // called by shell hide
   function close() {
     opened = false
     pendingRun = false
-    // Clear the phase before killing the process, so onExited reads the stop as a dismissal rather than a failed run.
+    // clear phase first so onExited reads a dismissal, not a failure
     phase = ""
     running = false
     if (proc.running) {
@@ -48,7 +47,7 @@ Item {
 
   function runTest() {
     if (proc.running) {
-      // A dismissal's SIGTERM is still in flight; Process.running stays true until the child exits, so queue the fresh run for onExited.
+      // sigterm still in flight, queue the run for onExited
       if (expectedStop) pendingRun = true
       return
     }
@@ -67,7 +66,7 @@ Item {
     return isFinite(value) && value > 0 ? value : 0
   }
 
-  // Lines are "disk <model>", then "read <MB/s>" once a second, then "write <MB/s>".
+  // lines: "disk <model>", "read <MB/s>", "write <MB/s>"
   function updateLine(line) {
     var parts = String(line).trim().split(/\s+/)
     if (parts.length < 2) return
@@ -90,7 +89,7 @@ Item {
     id: proc
     command: [Paths.bin("disk-speedtest")]
     stdout: SplitParser { onRead: function(line) { root.updateLine(line) } }
-    // Exit and stream-finished have no guaranteed order: when a failed exit beat the collector and published the generic message, replace it with the specific one once it lands.
+    // exit and stderr eof race; prefer the specific message
     stderr: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

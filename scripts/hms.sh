@@ -22,8 +22,7 @@ for entry in "${dirs[@]}"; do
     full="$(dirname "$gitdir")"
     display="${full#"$path"/}"
     repos+=("$display"$'\t'"$full")
-    # exclude nested package/vendor repos (emacs elpa, node_modules, cargo) so the
-    # list matches tms: real projects only, not dependency checkouts.
+    # exclude nested package/vendor repos so the list is real projects only
   done < <(fd --type d --hidden --no-ignore --max-depth "$depth" \
     --exclude elpa --exclude node_modules --exclude .cargo --exclude vendor --exclude target \
     '^\.git$' "$path" 2>/dev/null)
@@ -31,11 +30,7 @@ done
 
 [[ ${#repos[@]} -gt 0 ]] || { echo "no git repos found under tms search_dirs" >&2; exit 1; }
 
-# Match tms's ratatui picker: its picker_colors are named ANSI colors (highlight
-# LightBlue=12, highlight_text Black=0, info LightYellow=11, prompt LightGreen=10),
-# so use the same ANSI indices (both resolve through the terminal palette). No fzf
-# border or margin: herdr runs hms in a popup that already draws the frame, so a
-# fzf border would double it. No pointer/marker glyph: selection is the highlight bg.
+# ansi indices match tms's picker_colors; herdr popup already draws the frame so no fzf border
 selected_line=$(printf '%s\n' "${repos[@]}" | sort -u -t$'\t' -k1,1 \
   | fzf --prompt="> " --delimiter=$'\t' --with-nth=1 \
         --border=none --no-scrollbar --pointer=' ' --marker=' ' --gutter=' ' \
@@ -46,8 +41,7 @@ selected="${selected_line#*$'\t'}"
 
 label=$(basename "$selected")
 
-# Cold start: bring up the headless server first, then build the labelled
-# workspace, so hms works even with no herdr instance already running.
+# cold start: bring up the headless server first so hms works with none running
 if ! herdr status server 2>/dev/null | grep -q "status: running"; then
   setsid -f herdr server >/dev/null 2>&1
   for _ in $(seq 1 100); do
@@ -58,7 +52,6 @@ if ! herdr status server 2>/dev/null | grep -q "status: running"; then
     || { echo "hms: herdr server failed to start within 10s" >&2; exit 1; }
 fi
 
-# Focus or create the workspace, laid out as 1 nvim, 2 claude, 3 zsh.
 herdr-open "$selected" "$label"
 
 # outside herdr: attach a client (extra clients are fine)

@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
-import qs.Commons
 import qs.Ui
 
-// Simplified from upstream's 471-line settings-driven, dynamically- reconfigurable indicator cluster (6 possible indicators, hover-reveal for inactive ones, per-instance settings UI).
 BarWidget {
   id: root
   moduleName: "indicators"
@@ -19,7 +17,7 @@ BarWidget {
     rowSpacing: 0
     columnSpacing: 0
 
-    // Loader.implicitWidth/implicitHeight already mirror the loaded item's implicit size automatically (they are read-only — assigning them throws "Invalid property assignment" and fails the whole widget).
+    // Loader implicit size is read-only, do not assign it
     Loader {
       source: "../indicators/StayAwake.qml"
       onLoaded: if (item) item.bar = root.bar

@@ -10,5 +10,5 @@ sudo install -m 644 fw-inbound.nft /etc/nftables.d/fw-inbound.nft
 sudo install -m 644 fw-inbound.service /etc/systemd/system/fw-inbound.service
 sudo systemctl daemon-reload
 sudo systemctl enable fw-inbound.service
-# restart, not `enable --now`: an already-running unit would not reload the ruleset.
+# restart: `enable --now` would not reload a running unit
 sudo systemctl restart fw-inbound.service

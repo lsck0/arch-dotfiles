@@ -11,5 +11,5 @@ while IFS= read -r script; do
 done < <(find . -maxdepth 1 -name 'toggle-*.sh' | sort)
 
 tooltip=$(printf '%s\n' "${lines[@]}")
-# -c: kept single-line for historical reasons (waybar's custom-module exec parsed output line by line).
+# single-line output: waybar's custom-module exec parsed it line by line
 jq -nc --arg text "⚙ $on_count" --arg tooltip "$tooltip" '{text: $text, tooltip: $tooltip}'

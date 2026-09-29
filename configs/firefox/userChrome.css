@@ -1,28 +1,11 @@
-/* Semi-transparent app shell (tab strip, nav bar, sidebar) so Firefox sits in
- * the desktop like every other window: hyprland_windowrules.lua gives Spotify,
- * ghostty, discord, kitty, nemo and wofi a 0.95 window opacity, but Firefox is
- * deliberately not in that list — a window rule dims web content too, which
- * makes pages unreadable. Doing it here instead keeps content fully opaque and
- * only thins the chrome.
- *
- * Colors are not hardcoded: --lwt-accent-color / --toolbar-bgcolor are set by
- * the pywalfox theme, which switch-wallpaper.sh refreshes (`pywalfox update`)
- * on every theme switch, so color-mix() tracks the palette automatically and
- * only contributes the alpha.
- *
- * Requires toolkit.legacyUserProfileCustomizations.stylesheets (set in the
- * user.js next to this file).
- */
+/* translucent chrome here, a window rule would dim web content too */
 
 :root {
   /* matches global_opacity in configs/hyprland/hyprland_windowrules.lua */
   --appshell-opacity: 95%;
 }
 
-/* The window itself must carry an alpha channel, otherwise the toolbox blends
- * against an opaque backdrop and nothing shows through. Web content stays
- * opaque because browser.tabs.allow_transparent_browser is left at its default
- * false, so the content area paints its own background over this. */
+/* window needs alpha or nothing shows through */
 :root,
 #main-window {
   background-color: transparent !important;
@@ -50,24 +33,18 @@
   ) !important;
 }
 
-/* The individual bars inside the toolbox must not stack their own opaque fill
- * on top of the blended one above, or the alpha compounds away. */
+/* stacked bar fills would compound the alpha away */
 #navigator-toolbox > *,
 #nav-bar,
 #PersonalToolbar {
   background-image: none !important;
 }
 
-/* ----- Cyberpunk / terminal chrome (matches the Kode Mono + wal desktop) ----- */
-
 :root {
-  /* Kode Mono for chrome UI only; sane fallbacks, no web content touched */
   --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
-  /* Reused accent for glows/borders; tracks pywalfox on theme switch */
   --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
 }
 
-/* Chrome UI adopts Kode Mono; content documents are never selected here */
 #navigator-toolbox,
 #TabsToolbar,
 #nav-bar,
@@ -83,7 +60,6 @@ panel,
   font-family: var(--rtk-chrome-font) !important;
 }
 
-/* Sharp ~2px terminal corners on tabs, urlbar and toolbar buttons */
 .tabbrowser-tab .tab-background,
 #urlbar,
 #urlbar-background,
@@ -92,36 +68,30 @@ panel,
   border-radius: 2px !important;
 }
 
-/* Active tab: 1px accent underline plus a low, tight accent glow */
 .tabbrowser-tab[selected] .tab-background {
   border-bottom: 1px solid var(--rtk-accent) !important;
   box-shadow: 0 0 6px -1px var(--rtk-accent) !important;
 }
 
-/* Active tab label picks up a faint accent text glow */
 .tabbrowser-tab[selected] .tab-label {
   text-shadow: 0 0 4px var(--rtk-accent) !important;
 }
 
-/* Nav buttons glow softly on hover */
 .toolbarbutton-1:hover > .toolbarbutton-icon,
 .toolbarbutton-1:hover > .toolbarbutton-badge-stack {
   box-shadow: 0 0 5px -1px var(--rtk-accent) !important;
 }
 
-/* Urlbar as a HUD terminal input: subtle inner accent border */
 #urlbar,
 #urlbar-background {
   border: 1px solid color-mix(in srgb, var(--rtk-accent) 45%, transparent) !important;
 }
 
-/* Urlbar on focus: brighter border and a small accent glow */
 #urlbar[focused="true"] > #urlbar-background {
   border-color: var(--rtk-accent) !important;
   box-shadow: 0 0 7px -1px var(--rtk-accent) !important;
 }
 
-/* Sleek thin accent scrollbars where reachable from chrome */
 scrollbar,
 menupopup {
   scrollbar-width: thin !important;

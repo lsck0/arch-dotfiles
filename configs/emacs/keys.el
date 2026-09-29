@@ -66,13 +66,13 @@
 (defun my/claude-toggle ()
   "nvim SPC c c: toggle the Claude window, starting it if none exists."
   (interactive)
-  ;; claude-code is deferred (:after eat); load it before calling its private fn.
+  ;; deferred behind eat, load before calling its private fn
   (require 'claude-code)
   (if (claude-code--find-all-claude-buffers)
       (claude-code-toggle)
     (call-interactively #'claude-code)))
 
-; ;;; ------------------------------------------------------------------------ ;;; tmux layer: C-q ;;; ------------------------------------------------------------------------ ; tmux "pane" -> Emacs window, tmux "window" -> tab-bar tab.
+;;;; tmux layer: C-q ---------------------------------------------------------
 
 (defvar my/tmux-map (make-sparse-keymap)
   "Bindings under the tmux prefix C-q.")
@@ -109,7 +109,7 @@
   "t" #'proced                          ; bind p display-popup -E "btop"
   "e" #'my/copy-mode)                   ; bind e copy-mode
 
-;; bind -n M-H/J/K/L select-pane: move focus, no prefix needed
+;; move focus, no prefix
 (general-define-key
  :states '(normal insert visual motion emacs)
  :keymaps 'override
@@ -118,38 +118,33 @@
  "M-K" #'windmove-up
  "M-L" #'windmove-right)
 
-; ;;; ------------------------------------------------------------------------ ;;; nvim layer: bare maps ;;; ------------------------------------------------------------------------
+;;;; nvim layer: bare maps -----------------------------------------------------
 
-;; C-s save, C-c leave insert, Esc clear search highlight
 (general-def 'global "C-s" #'save-buffer)
 (general-imap "C-c" #'evil-normal-state)
 (general-nmap "<escape>" #'evil-ex-nohighlight)
 
-;; neovide zoom: scale the current buffer only, C-0 resets
+;; zoom the current buffer only
 (general-def 'global
   "C-+" #'text-scale-increase
   "C-=" #'text-scale-increase
   "C--" #'text-scale-decrease
   "C-0" #'my/zoom-reset)
 
-;; M-q == @ (run macro)
 (general-nmap "M-q" #'my/run-macro)
 
-;; smart-splits resize (tmux M-HJKL moves focus, these change size)
 (general-nmap
   "C-h" (my/resize #'shrink-window-horizontally 5)
   "C-l" (my/resize #'enlarge-window-horizontally 5)
   "C-j" (my/resize #'shrink-window 3)
   "C-k" (my/resize #'enlarge-window 3))
 
-;; quickfix / trouble navigation
 (general-nmap
   "C-n"   #'flymake-goto-next-error
   "C-S-n" #'flymake-goto-prev-error
   "C-t"   #'flymake-goto-next-error
   "C-S-t" #'flymake-goto-prev-error)
 
-; ; tabs + terminal.
 (general-def 'global
   "M-t" #'my/eat-tab
   "M-x" #'tab-bar-close-tab
@@ -160,17 +155,16 @@
   "M-4" (lambda () (interactive) (tab-bar-select-tab 4))
   "M-5" (lambda () (interactive) (tab-bar-select-tab 5)))
 
-; ; nvim binds bare `m` to compile-mode (not mark-set); mode maps such as ; dired's `m` still win, because they are more specific.
+;; mode maps such as dired's `m` still win
 (general-nmap "m" #'compile)
 
-;; nvim-dap function keys: continue/step, no prefix (nvim binds them in normal)
 (general-def 'global
   "<f5>"  #'my/dap-continue
   "<f10>" #'dap-next
   "<f11>" #'dap-step-in
   "<f12>" #'dap-step-out)
 
-; ;;; ------------------------------------------------------------------------ ;;; nvim layer: SPC leader ;;; ------------------------------------------------------------------------
+;;;; nvim layer: SPC leader ----------------------------------------------------
 
 (general-create-definer my/leader
   :states '(normal visual)
@@ -188,8 +182,7 @@
   ;; popouts
   "e" #'dirvish-side                     ; neo-tree sidebar
   "o" #'dirvish                          ; oil, edit the directory as a buffer
-  ;; g/t/s are prefixes (Emacs cannot make one key both a leaf and a prefix like
-  ;; nvim does), so the primary action doubles the letter.
+  ;; g/t/s are prefixes, so the primary action doubles the letter
   "gg" #'magit-status                    ; nvim g: fugitive status
   "gy" #'git-link                        ; nvim gy: open line on remote
   "gh" #'magit-log-buffer-file           ; nvim gh: file history
@@ -198,7 +191,6 @@
   "ts" #'consult-eglot-symbols           ; nvim ts: trouble symbols
   "tl" #'xref-find-references            ; nvim tl: trouble lsp references
 
-  ; ; spectre.
   "ss" #'project-query-replace-regexp
   "sw" #'my/replace-symbol               ; nvim sw: replace word under cursor
   "S" #'my/replace-symbol
@@ -211,8 +203,7 @@
   "fr" #'consult-recent-file
   "f*" #'my/grep-string
 
-  ;; claude (leader c in nvim). accept/deny diff have no equivalent: the
-  ;; terminal claude-code.el has no MCP diff protocol, you accept in the TUI.
+  ;; no accept/deny diff: claude-code.el has no mcp diff protocol
   "cc" #'my/claude-toggle                 ; toggle Claude Code
   "cf" #'claude-code-switch-to-buffer     ; focus Claude
   "cs" #'claude-code-send-region          ; send selection
@@ -223,7 +214,6 @@
   "b"  #'dap-breakpoint-toggle            ; toggle breakpoint
   "B"  #'dap-breakpoint-condition         ; conditional breakpoint
 
-  ;; testing (neotest). nearest/summary/output/watch need neotest: unbound.
   "na" #'my/test-all
   "nf" #'my/test-file
   "nl" #'my/test-last
@@ -235,7 +225,6 @@
   "pc" #'my/perf-cargo-flamegraph         ; cargo flamegraph
   "pr" #'my/perf-record                   ; perf record -g
 
-  ;; jupyter cells (leader j in nvim)
   "je" #'code-cells-eval
   "jn" #'code-cells-forward-cell
   "jp" #'code-cells-backward-cell
@@ -254,41 +243,36 @@
   "lF" #'apheleia-format-buffer           ; nvim lF: manual format
   "lv" #'my/toggle-diagnostic-lines)      ; nvim lv: toggle inline diagnostics
 
-;; name the leader prefixes so which-key reads like nvim's whichkey groups
 (which-key-add-key-based-replacements
   "SPC f" "find"      "SPC l" "lsp"    "SPC c" "claude"
   "SPC d" "debug"     "SPC n" "test"   "SPC p" "profiling"
   "SPC j" "jupyter"   "SPC t" "trouble"
   "SPC g" "git"       "SPC s" "search/replace")
 
-; ;;; ------------------------------------------------------------------------ ;;; package-local maps ;;; ------------------------------------------------------------------------
+;;;; package-local maps --------------------------------------------------------
 
-;; Surround via evil-surround's own ys/ds/cs (normal) + S (visual). The old
-;; ea/ed/er binds made `e` a prefix and killed the end-of-word motion.
+;; not ea/ed/er: an `e` prefix kills the end-of-word motion
 (with-eval-after-load 'evil-surround
   (evil-define-key 'visual evil-surround-mode-map "S" 'evil-surround-region))
 
-;; telescope picker navigation; M-q sends results to an editable wgrep buffer
+;; M-q exports results to an editable wgrep buffer
 (with-eval-after-load 'vertico
   (general-def vertico-map
     "C-j" #'vertico-next
     "C-k" #'vertico-previous
     "M-q" #'embark-export))
 
-;; telescope actions
 (with-eval-after-load 'embark
   (general-def 'global
     "C-." #'embark-act
     "M-." #'embark-dwim))
 
-;; nvim-cmp: C-SPC complete, C-e abort, CR confirm
 (with-eval-after-load 'corfu
   (general-def corfu-map
     "C-SPC" #'completion-at-point
     "C-e"   #'corfu-quit
     "RET"   #'corfu-insert))
 
-; ; oil.nvim movement inside dired.
 (with-eval-after-load 'dired
   (evil-define-key 'normal dired-mode-map
     "h" #'dired-up-directory
@@ -297,7 +281,7 @@
     (kbd "<backspace>") #'dired-up-directory
     (kbd "DEL")         #'dired-up-directory))
 
-;; leave the terminal: C-e (nvim <C-\><C-n>) or C-q e (tmux copy-mode)
+;; leave the terminal, like nvim's <C-\><C-n>
 (with-eval-after-load 'eat
   (general-def eat-semi-char-mode-map "C-e" #'eat-emacs-mode)
   (general-def eat-char-mode-map      "C-e" #'eat-emacs-mode))

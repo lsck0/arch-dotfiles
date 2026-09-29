@@ -1,28 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a Hermes skin from the current wallpaper palette.
-
-Hermes has a real, documented theming SDK — see
-/opt/hermes-agent/hermes_cli/skin_engine.py — and it is unusually good for
-this purpose: a single YAML in ~/.hermes/skins/<name>.yaml themes the CLI, the
-TUI *and* the Electron desktop app at once, because the gateway resolves the
-active skin and pushes it to every surface. So this writes one file rather
-than reaching into three.
-
-That is also why nothing here touches /opt/hermes-agent: the package's own
-themes are `presets.ts`/built-ins, and editing them would be undone by the
-next update. A user skin is the supported seam.
-
-Colour discipline is the same as everywhere else in this repo (see
-configs/wallust/scripts/lib/palette.py): the background is tone-mapped into a dark band, every
-surface is lifted off it rather than pulled from the photo, and every
-foreground is computed against the surface it is drawn on rather than assigned
-from a palette slot. Hermes' schema has ~40 colour keys and most of them are
-text on a specific background, so slot-assignment would reproduce the exact
-low-contrast pairings that made nemo unreadable.
-
-Run with --activate to also switch Hermes to this skin (only needed once;
-after that the file is regenerated in place and Hermes picks it up).
-"""
+"""Generate a Hermes skin from the wallpaper palette; --activate selects it."""
 
 import json
 import os
@@ -76,21 +53,17 @@ def main():
     alt = vivify(slot("color5", "#A76495"), 0.35, 0.55)
     cool = vivify(slot("color6", "#A76495"), 0.35, 0.55)
 
-    # Surfaces, lifted off the base rather than taken from the photo.
     status_bg = lift(bg, 0.045)
     menu_bg = lift(bg, 0.045)
     menu_current = lift(bg, 0.11)
 
     fg = readable_on(bg, raw_fg, 7.0)
-    # De-emphasis needs a CEILING, not a floor: `readable_on(..., 2.4)` leaves an already-legible foreground untouched, so "dim" came out identical to body text.
     dim = dim_toward(fg, bg, 2.6)
 
-    # Semantic roles are hue-anchored, not slot-derived.
     urgent = semantic("error", accent, bg)
     good = semantic("ok", accent, bg)
     warn = semantic("warn", accent, bg)
 
-    # Diff fills, computed here (not inline in `palette`) because the word colors below need to contrast against THEM, not against `bg`.
     diff_added_bg = mix(good, WHITE, 0.88)
     diff_removed_bg = mix(urgent, WHITE, 0.88)
 
@@ -101,16 +74,13 @@ def main():
         return rgb_to_hex(c, "#")
 
     palette = {
-        # No "background" key: the TUI paints it via OSC 11, which makes the terminal opaque.
-
-        # Banner / panels
+        # no background key: tui would paint it opaque via osc 11
         "banner_border": on(bg, accent, 3.0),
         "banner_title": on(bg, accent, 4.5),
         "banner_accent": on(bg, accent, 4.5),
         "banner_dim": hx(dim),
         "banner_text": hx(fg),
 
-        # General UI
         "ui_accent": on(bg, accent, 4.5),
         "ui_label": on(bg, alt, 4.5),
         "ui_ok": on(bg, good, 4.5),
@@ -119,26 +89,23 @@ def main():
         "ui_tool": on(bg, accent, 4.5),
         "ui_thinking": hx(dim),
 
-        # Diffs. diff_added/diff_removed are FILLS (backgroundColor on the whole line); diff_added_word/diff_removed_word are the TEXT drawn on top of that same fill (see hermes_cli/tui_dist/entry.js: one Text node gets `backgroundColor: diffAdded, color: diffAddedWord`) — they are not drawn on the app background, so contrast-checking them against `bg` (as a first version of this did) picked a vivid green/red that barely contrasts against the pale fill beneath it, reading as a near-blank white/pale blob. Fill stays pale (mixed 88% toward white, matching the built-in skin's own #dcffdc/ #ffdcdc pastel intensity rather than a vivid full-bleed color); word color is contrast-checked against THAT fill instead — readable_on auto-picks the dark pole since the fill is light.
+        # word colours sit on the pale diff fill, not on bg
         "diff_added": hx(diff_added_bg),
         "diff_removed": hx(diff_removed_bg),
         "diff_added_word": on(diff_added_bg, good, 4.5),
         "diff_removed_word": on(diff_removed_bg, urgent, 4.5),
 
-        # Syntax
         "syntax_string": on(bg, good, 4.5),
         "syntax_number": on(bg, cool, 4.5),
         "syntax_keyword": on(bg, accent, 4.5),
         "syntax_comment": hx(dim),
 
-        # Prompt / response
         "prompt": hx(fg),
         "input_rule": on(bg, accent, 3.0),
         "response_border": on(bg, accent, 3.0),
         "session_label": on(bg, alt, 4.5),
         "session_border": hx(dim),
 
-        # Status bar — its own surface, so its text is measured against that rather than against the app background.
         "status_bar_bg": hx(status_bg),
         "status_bar_text": on(status_bg, raw_fg, 4.5),
         "status_bar_strong": on(status_bg, accent, 4.5),
@@ -148,7 +115,6 @@ def main():
         "status_bar_bad": on(status_bg, warn, 4.5),
         "status_bar_critical": on(status_bg, urgent, 4.5),
 
-        # TUI chrome
         "voice_status_bg": hx(status_bg),
         "selection_bg": hx(menu_current),
         "completion_menu_bg": hx(menu_bg),
@@ -164,7 +130,6 @@ def main():
     }
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    # Hand-rolled YAML rather than pulling in pyyaml: the document is a flat map of strings and quoting every value is unambiguous, so a dependency would buy nothing.
     lines = [
         "# Generated by configs/wallust/scripts/generate-hermes-skin.py from the current",
         "# wallpaper palette. Regenerated on every wallpaper change — any edit",
@@ -198,7 +163,6 @@ def main():
     print("wrote %s (%d colours)" % (OUT, len(palette)))
 
     if "--activate" in sys.argv:
-        # Only needed once.
         try:
             subprocess.run(["hermes", "skin", "use", SKIN_NAME],
                            check=False, timeout=60,

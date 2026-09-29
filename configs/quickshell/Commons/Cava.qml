@@ -3,30 +3,27 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Audio spectrum source for the media visualizer: `cava` as a subprocess, parsed from its raw ASCII output.
+// spectrum for the media visualizer from cava's raw ascii output
 Singleton {
   id: root
 
   readonly property int barCount: 24
 
-  // 0-100 per band, matching ascii_max_range below so a value maps straight onto "percent of full bar height" with no scaling at the call site.
+  // 0-100 per band, see ascii_max_range
   property var values: [0, 0, 0, 0, 0, 0]
 
   property bool available: false
 
-  // The whole idle-CPU story.
+  // cava only runs while referenced
   property int refCount: 0
 
-  readonly property bool active: cavaProc.running
-
-  // Its own config, never ~/.config/cava/config: this must not collide with a terminal cava setup the user may keep separately.
+  // own config, never the user's ~/.config/cava
   readonly property string confPath:
     (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-cava.conf"
 
-  // WHICH audio to analyse.
   property string source: ""
 
-  // Changing `source` rewrites configText, but a running cava has already read its config file, so the process has to come back for the change to mean anything.
+  // cava reads its config once, so restart on change
   onSourceChanged: restart()
 
   function restart() {
@@ -35,7 +32,6 @@ Singleton {
     cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 })
   }
 
-  // sensitivity=300 with autosens=0 was measured, not guessed.
   readonly property string configText:
     "[general]\n" +
     "framerate=25\n" +
@@ -82,7 +78,7 @@ Singleton {
     id: cavaProc
     running: root.available && root.refCount > 0
 
-    // The config text is passed as an argv element rather than heredoc'd into the script, so nothing in it can be re-interpreted by the shell.
+    // config via argv so the shell never interprets it
     command: ["sh", "-c",
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",
       "sh", root.configText, root.confPath]
@@ -93,7 +89,7 @@ Singleton {
       splitMarker: "\n"
       onRead: function (data) {
         if (root.refCount <= 0 || !data) return
-        // cava emits a TRAILING semicolon, so a 6-bar frame splits into 7 parts with the last one empty.
+        // trailing semicolon yields one extra empty part
         var parts = data.split(";")
         if (parts.length < root.barCount) return
         var out = []

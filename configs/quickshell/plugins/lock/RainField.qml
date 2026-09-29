@@ -1,13 +1,10 @@
 import QtQuick
 import qs.Commons
 
-// Digital-rain field, ported from the matrixrain screensaver so the lock IS the
-// rain. Self-contained: drives its own paint + advance timers while `running`.
 Item {
   id: root
   property bool running: true
 
-  // Opaque backdrop so nothing underneath shows through.
   Rectangle { anchors.fill: parent; color: Color.background }
 
   Canvas {
@@ -15,12 +12,10 @@ Item {
     anchors.fill: parent
     renderTarget: Canvas.FramebufferObject
 
-    // Per-column head row and fall speed; rebuilt when the grid size changes.
     property var drops: []
     property int cell: Math.max(Style.space(12), Style.font.body)
     property int cols: Math.max(1, Math.floor(width / cell))
     property int rows: Math.max(1, Math.floor(height / cell))
-    // ASCII-only glyph pool.
     readonly property string charset: "01<>[]{}/\\|=+-*!?$#@abcdef0123456789"
     readonly property int trail: 16
 
@@ -37,7 +32,7 @@ Item {
 
     onPaint: {
       var ctx = getContext("2d")
-      // Fade the previous frame toward the background: fading trails, only new heads.
+      // fade the previous frame so trails decay
       var bg = Color.background
       ctx.fillStyle = Qt.rgba(bg.r, bg.g, bg.b, 0.14)
       ctx.fillRect(0, 0, width, height)
@@ -55,7 +50,6 @@ Item {
     }
   }
 
-  // Advances every column head and repaints; a spent column respawns at the top.
   Timer {
     interval: 90
     running: root.running

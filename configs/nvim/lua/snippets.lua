@@ -77,7 +77,7 @@ ls.add_snippets("c", {
         t({ "", "#define " }), i(2, "NAME"), t(" "), i(3, "value"),
     }),
     s("assert", { t("assert("), i(1, "cond"), t(");") }),
-    -- doxygen helpers (tag completion + full block)
+    -- doxygen
     s("brief", { t("/** @brief "), i(1, "summary"), t(" */") }),
     s("param", { t("@param "), i(1, "name"), t(" "), i(2, "desc") }),
     s("return", { t("@return "), i(1, "desc") }),
@@ -89,4 +89,4 @@ ls.add_snippets("c", {
     }),
 })
 
-require("latex_snippets") -- sections, environments, math snippets for tex
+require("latex_snippets")

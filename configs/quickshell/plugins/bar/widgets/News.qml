@@ -1,11 +1,8 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "news"
@@ -49,26 +46,18 @@ BarWidget {
   }
 
   HoverPanel {
-    id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.refresh()
-    // Terminal-window title strip.
     title: "NEWS"
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
-
-    // Neon HUD corner brackets around the dropdown.
-    HudFrame {}
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.md
-
-      // Headroom so the title strip never overlaps the first row.
-      Item { width: 1; height: Style.spacing.xl }
 
       PanelSectionHeader {
         text: "NYT TOP STORIES" + (root.headlines.length > 0 ? " :: " + root.headlines.length : "")

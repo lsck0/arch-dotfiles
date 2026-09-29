@@ -1,5 +1,3 @@
-// Notification card.
-
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Layouts
@@ -16,24 +14,21 @@ BorderSurface {
   property string summary: ""
   property string body: ""
   property string image: ""
-  // Nerd Font glyph rendered in the icon slot when no real icon is set.
+  // nerd font glyph shown when no icon is set
   property string glyph: ""
-  // NotificationUrgency: Low=0, Normal=1, Critical=2 (upstream).
+  // low=0, normal=1, critical=2
   property int urgency: 1
   property double timestamp: 0
   property int cornerRadius: 0
 
-  // "toast"  — a free-floating popup over the desktop.
+  // "toast" or "row" (panel list entry)
   property string variant: "toast"
   readonly property bool isRow: variant === "row"
 
-  // How many lines of body to show before eliding.
   property int bodyLines: 3
 
-  // Wall-clock reference for the relative timestamp.
   property double now: 0
 
-  // A clock time, with the day added once it is no longer today.
   function formatTime(ts, ref) {
     if (!ts) return ""
     var ms = ts * (ts < 1e12 ? 1000 : 1)
@@ -50,7 +45,6 @@ BorderSurface {
                    : Qt.formatDateTime(when, "dd.MM. HH:mm")
   }
 
-  // The card's text family.
   property string fontFamily: Style.font.family
 
   readonly property bool hovered: hoverTracker.hovered
@@ -58,7 +52,7 @@ BorderSurface {
 
   signal closeRequested()
   signal cardClicked()
-  // Prefer per-notification media/avatar data, then fall back to the app icon.
+  // prefer notification image over app icon
   readonly property string smallIconSource: image.length > 0 ? image : iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
   readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource, singleLineToast)
@@ -71,8 +65,7 @@ BorderSurface {
 
   readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
   readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
-  readonly property color accentColor: urgency === 2 ? Color.urgent : (urgency === 0 ? dimColor : Color.notifications.countdown)
-  // A row draws no outline at all; a critical one keeps a left-edge accent instead, which is the only urgency cue it still needs inside a panel.
+  // rows use a left accent bar instead of a border
   readonly property var cardBorderSpec: isRow
     ? Border.flat("transparent", 0)
     : Border.flat(urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, 0.5), 1)
@@ -90,10 +83,9 @@ BorderSurface {
   }
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
-  // Add vertical border insets so mainColumn (inset by border on top/left/right) doesn't push content under the bottom edge.
+  // border insets keep content off the bottom edge
   implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
   radius: isRow ? Style.cornerRadius : Style.space(8)
-  // A row is transparent at rest and lights up on hover, exactly like every other selectable row in the shell (audio devices, Wi-Fi networks, tunnels).
   color: isRow
     ? (hovered ? Style.hoverFill : "transparent")
     : Color.notifications.background
@@ -103,7 +95,7 @@ BorderSurface {
 
   HoverHandler { id: hoverTracker }
 
-  // Urgency rule for a row, standing in for the border a toast gets.
+  // critical row accent
   Rectangle {
     visible: root.isRow && root.urgency === 2
     anchors.left: parent.left
@@ -147,7 +139,6 @@ BorderSurface {
 
       Item {
         id: smallIconSlot
-        // Smaller in a list: at 32 the avatar dominated a two-line row and left the text looking like a caption hung off a picture.
         Layout.preferredWidth: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.preferredHeight: visible ? (root.isRow ? Style.space(24) : Style.space(32)) : 0
         Layout.alignment: Qt.AlignVCenter
@@ -173,7 +164,6 @@ BorderSurface {
           color: Color.notifications.text
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
-          // Neon bloom on a toast's glyph.
           layer.enabled: !root.isRow && Style.fx.glow > 0
           layer.effect: MultiEffect {
             shadowEnabled: true
@@ -203,14 +193,13 @@ BorderSurface {
         Layout.rightMargin: Style.space(10)
         spacing: Style.space(2)
 
-        // WHO AND WHEN.
         Row {
           Layout.fillWidth: true
           spacing: Style.spacing.xs
           visible: root.app.length > 0 || root.timeLabel.length > 0
 
           readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
-          // Row's own `spacing` sat between "App" and the dot, but the gap after the dot was two literal space glyphs baked into timeText's string — a different, font-dependent width, so the two gaps either side of "·" never matched.
+          // dot gets its own slot so both gaps match
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
 
           Text {
@@ -227,7 +216,6 @@ BorderSurface {
             id: dotText
             textFormat: Text.PlainText
             visible: parent.showDot
-            // Middot, not a wider gap: "App 6  1m" still reads as one phrase whatever the spacing, because both halves are the same weight and colour.
             text: "·"
             color: Color.notifications.text
             opacity: Style.emphasis.faint
@@ -250,7 +238,6 @@ BorderSurface {
           Layout.fillWidth: true
           visible: root.summary.length > 0
           text: root.summary
-          // Was a hardcoded "Liberation Sans" (upstream carry, unexplained).
           font.family: root.fontFamily
           color: Color.notifications.text
           font.pixelSize: Style.font.body
@@ -277,7 +264,6 @@ BorderSurface {
     }
   }
 
-  // Hover-revealed close.
   Item {
     anchors.top: parent.top
     anchors.right: parent.right
@@ -306,7 +292,6 @@ BorderSurface {
     }
   }
 
-  // Terminal HUD framing + CRT scanlines on free-floating toasts only; panel rows stay clean.
   HudFrame { visible: !root.isRow && Style.fx.brackets }
   Scanlines { visible: !root.isRow && (Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0) }
 }

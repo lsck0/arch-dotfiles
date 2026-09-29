@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Spotify's spicetify colour scheme from the current wallpaper palette.
-
-Writes ~/.cache/wal/colors-spicetify.ini (also read for the Discord theme) and
-the wal theme's color.ini as its only [pywal] section. pywal-spicetify used to do
-the color.ini part, but it leaves stray keys behind on every run.
-
-This replaces a wallust template that mapped raw palette slots onto spicetify's
-legacy key names (accent, banner, header...). Current Spotify builds only read
-the modern keys below, so every missing one fell back to Spotify's stock green
-and grey, and the slots that did land were unconditioned (a near-black
-"accent", body text in the cursor colour). Roles here follow quickshell's
-Commons/Color.qml so Spotify matches the bar.
-"""
+"""Write ~/.cache/wal/colors-spicetify.ini and the wal theme color.ini."""
 
 import json
 import os
@@ -54,7 +42,6 @@ def main():
         except (ValueError, IndexError):
             return hex_to_rgb(fallback)
 
-    # Same conditioning and contrast targets as Color.qml / Theme.qml defaults.
     bg = tone_map(slot("background", "#0b1019"), BG_VALUE_MIN, BG_VALUE_MAX)
     fg = readable_on(bg, slot("foreground", "#c2c3c5"), 7.0)
     accent = readable_on(bg, vivify(slot("color4", "#B68B74"), 0.45, 0.55), 3.0)
@@ -86,7 +73,7 @@ def main():
         ("notification", notify_bg),
         ("notification-error", semantic("error", accent, bg, 3.0)),
         ("misc", muted),
-        # Referenced by configs/spotify/user.css, not by Spotify itself.
+        # used by configs/spotify/user.css
         ("card-background", highlight),
         ("card-hover", highlight),
         ("gradienttop", card),
@@ -96,7 +83,7 @@ def main():
     width = max(len(k) for k, _ in values)
     body = "".join("%s = %s\n" % (k.ljust(width), rgb_to_hex(v)) for k, v in values)
     write(OUT, body)
-    # color.ini is a symlink into the repo; write through it, not over it.
+    # color.ini is a symlink into the repo, write through it
     if os.path.isdir(os.path.dirname(THEME_INI)):
         write(os.path.realpath(THEME_INI), "[pywal]\n" + body)
     return 0

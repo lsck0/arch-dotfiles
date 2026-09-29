@@ -2,7 +2,7 @@
 
 ;;;; theme + font -----------------------------------------------------------
 
-; ; Follows the desktop theme instead of pinning one palette.
+;; follows the desktop theme
 (defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
 
 (defconst my/system-theme-alist
@@ -47,7 +47,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (my/apply-system-theme)
   (doom-themes-org-config))
 
-;; family/size come from early-init.el so the first frame is already correct
+;; family/size from early-init.el so the first frame is right
 (dolist (face '(default fixed-pitch variable-pitch))
   (set-face-attribute face nil
                       :family my/font-family
@@ -57,7 +57,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;;;; bottom bar -------------------------------------------------------------
 
-;; lualine -> doom-modeline: mode, branch, diff, diagnostics, file, position
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
   :config
@@ -68,7 +67,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;;;; top bar ----------------------------------------------------------------
 
-; ; Native tab-bar tabs are the tmux-window / nvim-tab equivalent.
+;; tab-bar tabs = tmux windows / nvim tabs
 (setq tab-bar-show 1
       tab-bar-new-tab-choice #'my/projects-dired
       tab-bar-tab-hints t                 ; number each tab
@@ -77,8 +76,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
       tab-bar-format '(tab-bar-format-tabs tab-bar-separator))
 (tab-bar-mode 1)
 
-;; doom-themes-base styles tab-bar (via tab-line) but not the tab labels; make
-;; them match the modeline. inherit tracks live theme switches, no box = flat.
+;; doom-themes skips tab labels; inherit so theme switches carry over
 (set-face-attribute 'tab-bar-tab nil
                     :inherit 'tab-line-tab-current :box nil :weight 'bold)
 (set-face-attribute 'tab-bar-tab-inactive nil
@@ -86,7 +84,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;;;; visual aids ------------------------------------------------------------
 
-;; indent-blankline -> indent-bars
 (use-package indent-bars
   :hook (prog-mode . indent-bars-mode)
   :config
@@ -97,7 +94,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
 (use-package rainbow-delimiters
   :hook (prog-mode . rainbow-delimiters-mode))
 
-;; todo-comments.nvim
 (use-package hl-todo
   :hook (prog-mode . hl-todo-mode)
   :config
@@ -105,11 +101,10 @@ frames recolour on a theme switch exactly as a fresh launch would."
         '(("TODO" . "#ff7eb6") ("FIXME" . "#ee5396")
           ("HACK" . "#ffe97b") ("NOTE" . "#33b1ff"))))
 
-;; nvim-treesitter-context -> sticky header with the enclosing definition
+;; sticky header with the enclosing definition
 (use-package topsy
   :hook (prog-mode . topsy-mode))
 
-;; Land in ~/projects instead of *scratch* (nvim/tmux both start in a project)
 (setq initial-buffer-choice #'my/projects-dired)
 
 (provide 'ui)

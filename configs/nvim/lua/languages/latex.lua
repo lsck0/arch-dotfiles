@@ -1,7 +1,7 @@
--- LaTeX. latexindent/chktex configs live in configs/formatting, .latexmkrc in configs/latex.
+-- latexindent/chktex configs: configs/formatting, .latexmkrc: configs/latex
 return {
     {
-        "jbyuki/nabla.nvim", -- inline math preview (unicode art, works in the terminal)
+        "jbyuki/nabla.nvim", -- inline math preview
         ft = { "tex", "plaintex", "markdown" },
         keys = {
             { "<leader>lp", function() require("nabla").popup() end, desc = "Math preview (popup)" },
@@ -12,8 +12,7 @@ return {
         "lervag/vimtex",
         ft = { "tex", "plaintex" },
         init = function()
-            -- build: latexmk; engine + bib come from ~/.latexmkrc (pdflatex default, in-place).
-            -- a project wanting lualatex/xelatex or a build dir adds its own .latexmkrc.
+            -- engine and bib come from ~/.latexmkrc
             vim.g.vimtex_compiler_method = "latexmk"
             vim.g.vimtex_compiler_latexmk = {
                 options = {
@@ -24,15 +23,11 @@ return {
                 },
             }
 
-            -- preview: zathura_simple avoids the xdotool window-ID lookup that
-            -- fails on Wayland ("Viewer cannot find Zathura window ID!");
-            -- synctex forward/inverse search still works.
+            -- zathura_simple: the xdotool window lookup fails on wayland
             vim.g.vimtex_view_method = "zathura_simple"
-            -- off: it spawned the viewer + ran synctex on every open, lagging the
-            -- buffer for seconds. Forward search still works on demand (\lv).
+            -- off: spawning the viewer on open lagged the buffer for seconds
             vim.g.vimtex_view_forward_search_on_start = false
 
-            -- editing: folding, toc, conceal (needs conceallevel, set per-buffer below)
             vim.g.vimtex_fold_enabled = 1
             vim.g.vimtex_toc_config = {
                 name = "TOC",
@@ -42,8 +37,7 @@ return {
             }
             vim.g.tex_conceal = "abdmg"
 
-            -- quickfix: open on real errors (not warnings) without stealing the
-            -- cursor, so build failures are actually visible; drop non-actionable noise.
+            -- open quickfix on errors only, without stealing the cursor
             vim.g.vimtex_quickfix_mode = 2
             vim.g.vimtex_quickfix_open_on_warning = 0
             vim.g.vimtex_quickfix_ignore_filters = {
@@ -58,7 +52,7 @@ return {
                 callback = function()
                     vim.opt_local.conceallevel = 2
                     vim.opt_local.spell = true
-                    vim.opt_local.spelllang = "en_us"
+                    vim.opt_local.spelllang = "en"
                     vim.opt_local.wrap = true
                 end,
             })

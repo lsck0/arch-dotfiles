@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Fetches the three tiers the SPEC asks for (current, 24h hourly, 3-day) in ONE Open-Meteo request, and re-emits a sanitised subset for Weather.qml.
+# current, hourly and daily forecast in one request, sanitised for Weather.qml
 set -uo pipefail
 
-# Overridable for a checkout that is not at the default location, matching Commons/Paths.qml's QS_DOTFILES_DIR.
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-weather.json"
 
@@ -18,13 +17,12 @@ URL="https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}"
 URL+="&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,surface_pressure"
 URL+="&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code"
 URL+="&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,uv_index_max"
-# timezone=auto is resolved server-side from coordinates it already has, so it discloses nothing extra — but the resolved name never reaches the UI.
 URL+="&timezone=auto&forecast_days=4&forecast_hours=24"
 
 RAW=$(curl -s --max-time 12 "$URL" 2>/dev/null || true)
 
 if [[ -z "$RAW" ]]; then
-    # Stale-if-error: a cached reading beats an empty panel, and the widget is told the data is stale so it can say so.
+    # stale-if-error
     if [[ -s "$CACHE" ]]; then
         python3 -c "
 import json,sys
@@ -50,12 +48,7 @@ c = d["current"]
 hr = d.get("hourly", {})
 dy = d["daily"]
 
-# "Windy" is NOT a WMO weather code — the enum only covers
-# clear/cloud/fog/drizzle/rain/snow/thunderstorm. The SPEC's three-way
-# "sunny, rain, windy" summary therefore has to be derived: take the code
-# for the sunny/rain axis, then override to windy above a threshold.
-# Beaufort 6 ("strong breeze") = 39 km/h, chosen because it is a real
-# scale boundary rather than a round number picked by feel.
+# windy is not a wmo code, beaufort 6
 WINDY_KMH = 39.0
 
 def g(src, key, i=None, default=None):
@@ -69,9 +62,7 @@ def g(src, key, i=None, default=None):
 hours = []
 times = hr.get("time", []) or []
 for i in range(len(times)):
-    # Only the hour-of-day is emitted, never the date or the full timestamp.
-    # The hour is already visible on the user's own bar clock, so it adds
-    # nothing a screenshot did not already show.
+    # hour only, never the full timestamp
     try:
         hh = datetime.datetime.fromisoformat(times[i]).strftime("%H")
     except Exception:
@@ -110,8 +101,7 @@ for i in range(len(dtimes)):
 
 out = {
     "ok": True,
-    # How the location was determined — NOT where it is. Lets the panel be
-    # honest about "this is a timezone-wide guess" without naming a place.
+    # how the location was found, not where
     "source": source,
     "stale": False,
     "current": {
@@ -137,9 +127,7 @@ out = {
     "daily": days,
 }
 
-# Assert the whitelist actually held, rather than trusting that it did.
-# If a location-bearing key ever reaches this point, emit an error instead
-# of leaking it — a loud failure beats a quiet disclosure.
+# fail loudly if a location field leaks
 BANNED = {"latitude", "longitude", "timezone", "timezone_abbreviation",
           "elevation", "sunrise", "sunset", "daylight_duration",
           "nearest_area", "location"}

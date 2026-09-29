@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// Non-interactive CRT scanline + subtle flicker overlay for any surface.
 Item {
   id: root
   anchors.fill: parent
@@ -10,8 +9,7 @@ Item {
 
   property int spacing: Style.fx.scanlineSpacing
   property real strength: Style.fx.scanlineOpacity
-  // The brightness flicker is a full-surface accent flash; harmless on small
-  // widgets, a whole-screen flicker on fullscreen surfaces. Those opt out.
+  // fullscreen surfaces opt out of the flash
   property bool flicker: true
 
   Canvas {
@@ -38,7 +36,6 @@ Item {
     }
   }
 
-  // CRT brightness flicker
   Rectangle {
     anchors.fill: parent
     color: Color.accent

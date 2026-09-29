@@ -3,21 +3,18 @@ import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 
-// A hairline rule between groups of bar widgets.
+// divider between groups of bar widgets
 BarWidget {
   id: root
   moduleName: "separator"
 
-  // Rule thickness along the bar's short axis; the padding either side is what actually does the grouping work, so it is the larger number and the one a caller usually wants to tune.
   readonly property int thickness: Math.max(1, Style.space(1))
   readonly property int pad: setting("pad", Style.bar.groupGap)
-  // Short of the full bar height on purpose: a rule that reaches the edges reads as a hard division, which is too strong for a grouping hint.
-  readonly property real extent: setting("extent", 0.45)
 
-  // ---- don't separate nothing from something ------------------------------ Half this bar's widgets hide themselves when they have nothing to say — OBS when it is not running, Discord when there is no call, the tray with no items, indicators with nothing indicated.
+  // hide unless there is visible content on both sides
   property bool hasNeighbours: false
 
-  // BarSection's delegate is a Loader, so this widget's parent is that Loader and its parent is the section's RowLayout.
+  // parent is the BarSection Loader, its parent the RowLayout
   readonly property Item ownLoader: parent
   readonly property Item section: ownLoader ? ownLoader.parent : null
 
@@ -33,7 +30,7 @@ BarWidget {
       if (!loader || loader === ownLoader) return false
       var item = loader.item
       if (!item || !item.visible) return false
-      // A separator is not content, and neither is a zero-width widget that is nominally visible (Indicators does exactly that when all three of its indicators are inactive).
+      // separators and zero-width widgets are not content
       if (item.moduleName === "separator") return false
       return item.implicitWidth > 0
     }
@@ -45,7 +42,7 @@ BarWidget {
     return before && after
   }
 
-  // Deferred and coalesced, for the same reason BarWidget defers barX: these signals fire *during* the layout pass, when sibling geometry is still half-settled, and several of them land per change.
+  // deferred: layout signals fire before sibling geometry settles
   Timer {
     id: settle
     interval: 32
@@ -64,7 +61,6 @@ BarWidget {
   implicitWidth: vertical ? barSize : thickness + pad * 2
   implicitHeight: vertical ? thickness + pad * 2 : barSize
 
-  // Neon terminal divider glyph rather than a hairline rule.
   Text {
     anchors.centerIn: parent
     textFormat: Text.PlainText

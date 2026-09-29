@@ -1,5 +1,4 @@
-# Cyberpunk/terminal GRUB theme: near-black ground, cyan HUD box + accents,
-# dim mono text, key hints top-left. @PLACEHOLDERS@ are filled by render.py.
+# @PLACEHOLDERS@ are filled by render.py
 
 title-text: ""
 desktop-color: "#0B0E14"

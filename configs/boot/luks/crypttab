@@ -1,6 +1,2 @@
-# /etc/crypttab — LUKS device options
-# Options used:
-#   luks                                              detect LUKS header
-#   discard                                           pass TRIM/UNMAP through
-#   perf-no-read-workqueue, perf-no-write-workqueue   reduce dm-crypt per-bio latency on kernels ≥ 5.9
+# perf-no-*-workqueue lowers dm-crypt latency (kernel >= 5.9)
 # MARKER:arch-dotfiles/boot/luks - do not edit entries below this line manually

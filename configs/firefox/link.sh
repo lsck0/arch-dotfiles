@@ -7,10 +7,9 @@ fi
 
 set -ex
 
-# fix pywalfox not seeing configs
+# pywalfox looks in ~/.config/firefox
 ln -sfn ${HOME}/.config/mozilla/firefox ${HOME}/.config/firefox
 
-# Transparent app shell + the pref that makes userChrome.css load at all.
 PROFILES_INI="${HOME}/.config/mozilla/firefox/profiles.ini"
 if [[ -f "$PROFILES_INI" ]]; then
     while read -r profile; do

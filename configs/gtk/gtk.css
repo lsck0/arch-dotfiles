@@ -1,45 +1,27 @@
-/*
- * User-level GTK3 override: cyberpunk/terminal accents for Nemo.
- *
- * Load order matters. GTK loads the active theme first
- * (~/.themes/oomox-colors-oomox/gtk-3.0/gtk.css, regenerated every
- * wallpaper switch by themix-multi-export), then loads THIS file
- * (~/.config/gtk-3.0/gtk.css) on top of it. The switch-wallpaper.sh
- * pipeline only ever writes ~/.themes/... and settings.ini, never this
- * path, so an overlay placed here survives every palette regeneration.
- *
- * Every colour below references an @define-color name that the active
- * oomox theme already defines, so the accents track the wallpaper
- * palette. No hardcoded hex. alpha()/shade() keep the strength low.
- */
+/* overlay on the oomox theme; palette regen never writes this path */
 
-/* Preserve the pre-existing import (live oomox palette, loaded relative to this file). */
+/* live oomox palette */
 @import 'colors.css';
 
-/* Chrome font only, with a safe fallback so nothing turns unreadable. */
 .nemo-window { font-family: "Kode Mono", sans-serif; }
 
-/* Thin accent hairline separating the toolbar/headerbar from the view. */
 .nemo-window .toolbar,
 .nemo-window headerbar {
   border-bottom: 1px solid alpha(@theme_selected_bg_color, 0.5);
 }
 
-/* Sharp ~2px corners on the toolbar and pathbar buttons. */
 .nemo-window .toolbar button,
 .nemo-window .path-bar button,
 .nemo-window headerbar button {
   border-radius: 2px;
 }
 
-/* Faint accent underline on the location bar and search entry. */
 .nemo-window .path-bar,
 .nemo-window .toolbar entry,
 .nemo-window entry.search {
   border-bottom: 1px solid alpha(@theme_selected_bg_color, 0.6);
 }
 
-/* Thin accent scrollbars. */
 .nemo-window scrollbar slider {
   background-color: alpha(@theme_selected_bg_color, 0.55);
   border: none;
@@ -48,12 +30,10 @@
   border-radius: 2px;
 }
 
-/* Full accent on the scrollbar under the pointer. */
 .nemo-window scrollbar slider:hover {
   background-color: @theme_selected_bg_color;
 }
 
-/* Quiet edge on the sidebar, lifting to an accent when hovered. */
 .nemo-window .sidebar {
   border-right: 1px solid alpha(@borders, 0.8);
 }
@@ -61,31 +41,26 @@
   border-right: 1px solid alpha(@theme_selected_bg_color, 0.5);
 }
 
-/* Crisp accent stripe on the hovered item (inset, no blur = no glow). */
 .nemo-window .sidebar row:hover,
 .nemo-window treeview.view:hover {
   box-shadow: inset 2px 0 alpha(@theme_selected_bg_color, 0.7);
 }
 
-/* Solid accent stripe marking the current/selected item. */
 .nemo-window .sidebar row:selected,
 .nemo-window treeview.view:selected {
   box-shadow: inset 2px 0 @theme_selected_bg_color;
 }
 
-/* Faint accent wash behind the selected sidebar row, under the stripe above. */
 .nemo-window .sidebar row:selected {
   background-color: alpha(@theme_selected_bg_color, 0.14);
 }
 
-/* Content pane sits on the dark view ground, matching the rest of the desktop. */
 .nemo-window .view,
 .nemo-window treeview.view,
 .nemo-window iconview {
   background-color: @theme_base_color;
 }
 
-/* Toolbar buttons light up with an accent tint + faint glow on hover. */
 .nemo-window .toolbar button:hover,
 .nemo-window .path-bar button:hover,
 .nemo-window headerbar button:hover {
@@ -93,14 +68,12 @@
   box-shadow: 0 0 5px alpha(@theme_selected_bg_color, 0.45);
 }
 
-/* Current breadcrumb segment reads as accent so the location stands out. */
 .nemo-window .path-bar button:checked,
 .nemo-window .path-bar button.current {
   color: @theme_selected_bg_color;
   box-shadow: inset 0 -2px @theme_selected_bg_color;
 }
 
-/* Location and search entries get an accent border + subtle glow when focused. */
 .nemo-window .toolbar entry:focus,
 .nemo-window entry.search:focus,
 .nemo-window entry:focus-within {
@@ -108,24 +81,20 @@
   box-shadow: 0 0 5px alpha(@theme_selected_bg_color, 0.5);
 }
 
-/* Active view tab underlined in accent (only shown with multiple tabs open). */
 .nemo-window notebook > header tab:checked {
   box-shadow: inset 0 -2px @theme_selected_bg_color;
 }
 
-/* Drag-select rubberband tinted to the accent. */
 .nemo-window rubberband,
 .nemo-window .view rubberband {
   background-color: alpha(@theme_selected_bg_color, 0.25);
   border: 1px solid @theme_selected_bg_color;
 }
 
-/* File-operation progress bars fill in accent. */
 .nemo-window progressbar > trough > progress {
   background-color: @theme_selected_bg_color;
 }
 
-/* Thin hairline lifting the status bar off the view. */
 .nemo-window statusbar,
 .nemo-window .nemo-status-bar {
   border-top: 1px solid alpha(@borders, 0.8);

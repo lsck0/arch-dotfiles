@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# JSON array of nearby Wi-Fi networks for Network.qml's SSID list.
+# json array of nearby wifi networks
 set -euo pipefail
 
 if [[ "${1:-}" == "rescan" ]]; then

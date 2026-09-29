@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Rewrites gh-dash's theme.colors block from pywal's colors.json, in place.
-# gh-dash re-reads config on launch (no live reload), so this seeds the file.
+# rewrites the theme.colors block of gh-dash/config.yml in place
 set -euo pipefail
 
 COLORS_JSON="$HOME/.cache/wal/colors.json"
@@ -20,10 +19,9 @@ c3=$(j '.colors.color3')
 c4=$(j '.colors.color4')
 c8=$(j '.colors.color8')
 
-# accent drives secondary text + primary border, matching Color.accent in the bar.
 accent="$c4"
 
-# selected background: bg lifted toward the accent so a highlighted row reads.
+# bg mixed 12% toward accent
 selected=$(python3 - "$bg" "$accent" <<'PY'
 import sys
 def h(x): x=x.lstrip('#'); return [int(x[i:i+2],16) for i in (0,2,4)]
@@ -32,7 +30,6 @@ print('#%02x%02x%02x'%tuple(round(a[i]+(b[i]-a[i])*0.12) for i in range(3)))
 PY
 )
 
-# Map palette -> gh-dash theme.colors keys, lowercased to match the file.
 lc() { printf '%s' "$1" | tr 'A-Z' 'a-z'; }
 python3 - "$CONFIG" "$(lc "$fg")" "$(lc "$accent")" "$(lc "$bg")" \
     "$(lc "$c8")" "$(lc "$c3")" "$(lc "$c2")" "$(lc "$selected")" \
@@ -58,7 +55,7 @@ block = f"""  colors:
 lines = open(cfg).read().splitlines(keepends=True)
 out, i, n = [], 0, len(lines)
 while i < n:
-    # Replace the block from `  colors:` up to the next top-of-theme key `  ui:`.
+    # replace up to the next `  ui:` key
     if lines[i].startswith("  colors:"):
         out.append(block)
         i += 1

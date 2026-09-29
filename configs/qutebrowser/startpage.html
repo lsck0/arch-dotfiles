@@ -16,7 +16,7 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
-        /* absolute file:// so it resolves even though startpage.html is a symlink (Firefox resolves relative URLs from the symlink's real repo path) */
+        /* absolute url, firefox resolves relative to the symlink target */
         background:
           linear-gradient(rgba(7, 9, 13, 0.78), rgba(7, 9, 13, 0.78)),
           url("file:///home/luca/.cache/wal/wallpaper") center / cover no-repeat fixed;
@@ -59,7 +59,7 @@
         transform: translateX(-50%);
         z-index: 3;
         width: min(38rem, 80vw);
-        /* hidden until the first printable keypress reveals it (see script) */
+        /* shown on first printable keypress */
         display: none;
       }
       #q {
@@ -94,7 +94,7 @@
     <script>
       "use strict";
 
-      // Digital-rain background ported from the quickshell matrix lockscreen (plugins/matrixrain/MatrixRain.qml): glyph pool, trail-fade paint, accent heads, per-column drops.
+      // digital rain, ported from the quickshell matrix lock
       const canvas = document.getElementById("canvas");
       const context = canvas.getContext("2d");
 
@@ -137,7 +137,7 @@
       }
 
       function draw() {
-        // Fade trails toward TRANSPARENT (erase), so the wallpaper shows through.
+        // erase trails so the wallpaper shows through
         context.globalCompositeOperation = "destination-out";
         context.fillStyle = "rgba(0, 0, 0, " + trail_fade + ")";
         context.fillRect(0, 0, window.innerWidth, window.innerHeight);
@@ -194,8 +194,7 @@
       update_clock();
       setInterval(update_clock, 10000);
 
-      // Search box is hidden until the first printable keypress; the char that
-      // triggers it is appended manually so it is never dropped.
+      // append the triggering char so it is not dropped
       const search_form = document.getElementById("search");
       const search_input = document.getElementById("q");
 
@@ -205,9 +204,9 @@
       }
 
       document.addEventListener("keydown", function (event) {
-        if (document.activeElement === search_input) return; // already typing
+        if (document.activeElement === search_input) return;
         if (event.ctrlKey || event.altKey || event.metaKey) return;
-        if (event.key.length !== 1) return; // one printable char only
+        if (event.key.length !== 1) return;
         event.preventDefault();
         search_form.style.display = "block";
         search_input.value += event.key;

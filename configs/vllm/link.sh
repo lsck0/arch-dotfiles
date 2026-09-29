@@ -15,19 +15,18 @@ VLLM_PREFIX=/opt/vllm
 VLLM_WHEELS_URL=https://wheels.vllm.ai/rocm/
 VLLM_VERSION=0.30.0+rocm723
 VLLM_OMNI_VERSION=0.30.0
-# the rocm wheels are cp312 only; uv pulls its own 3.12 so the system python stays out of it.
+# rocm wheels are cp312 only
 VLLM_PYTHON_VERSION=3.12
 
-# vllm.service runs as root, so the venv is root-owned and not writable by the user.
 sudo env UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
     uv venv --allow-existing --python "$VLLM_PYTHON_VERSION" "${VLLM_PREFIX}/venv"
-# mooncake bundles glog 0.4, rocprofiler-sdk loads the system glog 0.7, both register gflag 'v' and abort the import.
+# mooncake's bundled glog clashes with system glog and aborts the import
 sudo env UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
     uv pip install --python "${VLLM_PREFIX}/venv" --extra-index-url "$VLLM_WHEELS_URL" \
     --excludes "${PWD}/uv-excludes.txt" "vllm==${VLLM_VERSION}" "vllm-omni==${VLLM_OMNI_VERSION}"
 sudo uv pip uninstall --python "${VLLM_PREFIX}/venv" -r "${PWD}/uv-excludes.txt"
 
-# torch's RUNPATH is $ORIGIN, so the stub beside libtorch is found without LD_LIBRARY_PATH.
+# torch RUNPATH is $ORIGIN, so the stub is found beside libtorch
 torch_lib_dir="$("${VLLM_PREFIX}/venv/bin/python" -c 'import sysconfig; print(sysconfig.get_path("platlib"))')/torch/lib"
 stub_build_dir="$(mktemp -d)"
 cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 \

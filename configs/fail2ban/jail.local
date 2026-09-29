@@ -6,6 +6,6 @@ maxretry = 5
 
 [sshd]
 enabled = true
-# real sshd is on 2222; without this the ban would target 22 (the endlessh decoy).
+# 22 is the endlessh decoy
 port = 2222
 backend = systemd

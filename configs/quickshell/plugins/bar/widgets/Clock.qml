@@ -2,25 +2,21 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// New widget, not from omarchy-shell.
 BarWidget {
   id: root
   moduleName: "clock"
 
   property date now: new Date()
-  // Millisecond-precision clock for the panel header only — the bar label and every other consumer (calendar "today", zone offsets, timetravel) only need whole-second resolution, so they keep the cheap 1s timer below.
+  // panel header only, everything else uses the 1s tick
   property date nowPrecise: new Date()
   property var zoneOffsets: []
-  // World clocks ordered west-to-east by UTC offset.
   readonly property var sortedZoneOffsets: (root.zoneOffsets || []).slice().sort(function (a, b) { return a.offsetSec - b.offsetSec })
-  // Timetravel: hours offset applied to every zone's preview simultaneously, for "what time is it everywhere if we meet 3 hours from now".
+  // timetravel offset in hours
   property real travelHours: 0
 
-  // Pomodoro and reminders live in the shell-owned helpers under configs/quickshell/scripts/ (linked into ~/.local/bin), backed by systemd --user timers, so the notification still fires with the shell restarted or dead.
   readonly property string pomodoroScript: Paths.bin("pomodoro")
   readonly property string reminderScript: Paths.bin("reminder")
 
@@ -42,10 +38,9 @@ BarWidget {
     Behavior on color { ColorAnimation { duration: 100 } }
   }
 
-  // The date the calendar and the zone list are pointed at: now, shifted by the timetravel slider.
   readonly property date travelledNow: new Date(now.getTime() + travelHours * 3600000)
 
-  // The calendar grid is expensive to rebuild — 42 delegates — and it only changes when the travelled *day* does.
+  // rebuild the grid only when the travelled day changes
   readonly property string calendarKey: Qt.formatDate(travelledNow, "yyyy-MM-dd")
   property var calendarModel: []
   onCalendarKeyChanged: calendarModel = calendarWeeks()
@@ -87,7 +82,7 @@ BarWidget {
     return Qt.formatTime(new Date(root.travelledNow.getTime() + offsetSec * 1000), "HH:mm")
   }
 
-  // The slider steps in half hours, so toFixed(0) rendered +1.5h and +2h identically as "+2h" — the header claimed a different offset from the one the zone list below it was actually showing.
+  // half-hour steps need one decimal
   function dayLabel() {
     if (root.travelHours === 0) return ""
     var sign = root.travelHours > 0 ? "+" : "−"
@@ -132,7 +127,6 @@ BarWidget {
     }
   }
 
-  // Only while the panel is actually open.
   Timer {
     interval: 1000
     running: root.bar !== null && root.bar.activePanel === root.moduleName
@@ -148,7 +142,7 @@ BarWidget {
     onTriggered: root.now = new Date()
   }
 
-  // 30ms (~33fps) rather than a true 1ms tick: the header only needs to look continuously live to the eye, and this panel is the only consumer of nowPrecise, so it only runs while open.
+  // 30ms is enough to look live
   Timer {
     interval: 30
     running: root.bar !== null && root.bar.activePanel === root.moduleName
@@ -172,7 +166,6 @@ BarWidget {
     color: root.bar ? root.bar.barForeground : Color.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
-    // Tight tracking + subtle accent bloom for the big mono readout.
     font.letterSpacing: Style.displayTracking
     layer.enabled: Style.fx.glow > 0
     layer.effect: MultiEffect {
@@ -196,32 +189,23 @@ BarWidget {
   }
 
   HoverPanel {
-    id: panel
     bar: root.bar
     moduleName: root.moduleName
-    // Opens centred under the clock itself.
     anchorWidget: root
-    // Terminal-window title strip, rendered by the shared card.
     title: "CLOCK"
     onOpened: root.refreshOffsets()
-    // Widened from 320: the pomodoro row (icon + countdown + three buttons) and the six quick-reminder chips both need the extra room.
     implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.lg
 
-      // Top headroom so the overlaid title strip never covers the hero readout.
-      Item { width: 1; height: Style.spacing.xl }
-
-      // Full precision (H:M:S.mmm) at the top, distinct from the bar label's minute resolution — this is the one place in the shell that shows a genuinely live-ticking clock.
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
         text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss.zzz") + " " + Qt.formatDateTime(root.nowPrecise, "t")
-        // Glowing accent mono hero: the shell's one live-ticking readout.
         color: Color.accent
         font.family: Style.font.family
         font.bold: true
@@ -241,7 +225,6 @@ BarWidget {
 
       PanelSectionHeader { text: "CALENDAR" + root.dayLabel() }
 
-      // HUD-framed calendar grid: corner brackets over a tracked month header.
       Item {
         width: parent.width
         implicitHeight: calGrid.implicitHeight + Style.spacing.sm * 2
@@ -310,14 +293,12 @@ BarWidget {
           }
         }
       }
-        // HUD corner brackets framing the whole grid.
         HudFrame {}
       }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TIMEZONES" }
 
-      // World clocks as a mono terminal table: reticle marker, tracked zone, glowing flush-right time.
       Repeater {
         model: root.sortedZoneOffsets
         Item {
@@ -377,7 +358,6 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "TIMETRAVEL" }
 
-      // Drag/scroll to preview every zone (and the calendar) at an offset from now, for planning across timezones.
       PanelSlider {
         width: parent.width
         value: root.travelHours
@@ -411,7 +391,6 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "TIMERS" }
 
-      // Reminders and the pomodoro live in the centered overlay (plugins/reminders).
       PanelRow {
         width: parent.width
         glyph: root.pomo.running ? (root.pomo.phase === "work" ? "\u{f051f}" : "\u{f0176}") : "\u{f009c}"

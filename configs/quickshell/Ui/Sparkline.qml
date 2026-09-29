@@ -2,14 +2,14 @@ import QtQuick
 import QtQuick.Effects
 import qs.Commons
 
-// Glowing telemetry graph: HUD gridlines, gradient area fill, curve, and a
-// pulsing leading-edge dot. Values are a numeric array, newest last.
+// values newest last
 Item {
   id: root
 
   property var values: []
   property real minValue: 0
-  property real maxValue: 0        // <= minValue auto-scales (both ends) to the data
+  // <= minValue auto-scales to the data
+  property real maxValue: 0
   property color color: Color.accent
   property real lineWidth: 1.6
   property real fillAlpha: 0.22
@@ -22,7 +22,7 @@ Item {
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
 
-  // Pulsing leading dot: a phase the overlay dots bind to, so the pulse never repaints the Canvas.
+  // drives the overlay dots so the pulse never repaints the canvas
   property real pulse: 0
   SequentialAnimation on pulse {
     running: root.visible
@@ -31,7 +31,7 @@ Item {
     NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }
   }
 
-  // Pixel position of the newest sample, mirrored from the Canvas mapping so the overlay dot tracks it without a repaint. px(n-1) is always the right edge.
+  // mirrors the canvas mapping for the newest sample
   readonly property point lastPoint: {
     var v = root.values || []
     var n = v.length
@@ -53,7 +53,6 @@ Item {
     id: cv
     anchors.fill: parent
 
-    // Area-fill gradient cached and rebuilt only when height/color/alpha change, not every paint.
     property var gradCache: null
     property real gradH: -1
     property string gradKey: ""
@@ -66,7 +65,6 @@ Item {
       var w = width, h = height
       var c = root.color
 
-      // HUD gridlines (faint), always drawn so an empty/flat graph still reads as a gauge.
       ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.10)
       ctx.lineWidth = 1
       for (var g = 1; g <= 3; g++) {
@@ -87,7 +85,6 @@ Item {
       function px(i) { return n > 1 ? i * stepX : w }
       function py(val) { return h - ((val - mn) / (mx - mn)) * h }
 
-      // area fill: accent, bright under the line fading to nothing at the base (gradient cached)
       var key = c.toString() + "|" + root.fillAlpha
       if (!cv.gradCache || cv.gradH !== h || cv.gradKey !== key) {
         var grad = ctx.createLinearGradient(0, 0, 0, h)
@@ -101,7 +98,6 @@ Item {
       ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
       ctx.fillStyle = cv.gradCache; ctx.fill()
 
-      // the curve
       ctx.beginPath()
       ctx.moveTo(px(0), py(v[0]))
       for (var k = 1; k < n; k++) ctx.lineTo(px(k), py(v[k]))
@@ -109,9 +105,7 @@ Item {
     }
   }
 
-  // Pulsing leading-edge dot, an overlay so its animation never triggers a Canvas repaint.
   Rectangle {
-    id: haloDot
     visible: (root.values || []).length > 0
     width: 5; height: 5; radius: 2.5
     color: root.color
@@ -121,7 +115,6 @@ Item {
     opacity: 0.18 + root.pulse * 0.12
   }
   Rectangle {
-    id: coreDot
     visible: (root.values || []).length > 0
     width: 4; height: 4; radius: 2
     color: Qt.lighter(root.color, 1.4)

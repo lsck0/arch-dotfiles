@@ -13,9 +13,7 @@ ln -sfn ${PWD}/tmux.conf ${HOME}/.config/tmux/tmux.conf
 
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm || true
 
-# Install the @plugin list so tpm sources each plugin's .tmux; it otherwise only
-# clones on prefix+I, so a fresh machine never binds them (tmux-fingers `o` etc).
-# The fingers binary itself comes from the tmux-fingers package, not this clone.
+# tpm otherwise only installs plugins on prefix+I
 TMUX_PLUGIN_MANAGER_PATH="${HOME}/.tmux/plugins" \
     ~/.tmux/plugins/tpm/bin/install_plugins || true
 

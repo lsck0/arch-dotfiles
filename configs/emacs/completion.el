@@ -28,7 +28,7 @@
         register-preview-delay 0.5
         xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
-  ;; telescope file_ignore_patterns: skip .git and binaries
+  ;; skip .git and binaries
   (setq consult-ripgrep-args
         (concat "rg --null --line-buffered --color=never --max-columns=1000 "
                 "--path-separator / --smart-case --no-heading --with-filename "
@@ -38,7 +38,7 @@
         '("fd" "--full-path" "--color=never" "--hidden" "-E" ".git"
           "-E" "*.{png,jpg,jpeg,webp,pdf,ico,odt,xlsx}")))
 
-;; telescope actions; embark-export + wgrep = spectre's "apply to all"
+;; embark-export + wgrep: edit all matches
 (use-package embark)
 
 (use-package embark-consult
@@ -66,7 +66,6 @@
   :after corfu
   :config (add-to-list 'corfu-margin-formatters #'nerd-icons-corfu-formatter))
 
-;; extra completion sources: filenames, buffer words, mode keywords
 (use-package cape
   :init
   (add-hook 'completion-at-point-functions #'cape-file)
@@ -75,7 +74,6 @@
 
 ;;;; local AI completion (minuet.nvim) --------------------------------------
 
-;; minuet-ai: ghost-text completion from a local ollama FIM model, no API key.
 (use-package minuet
   :hook (prog-mode . minuet-auto-suggestion-mode)
   :config

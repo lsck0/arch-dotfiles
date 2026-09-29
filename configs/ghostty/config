@@ -6,7 +6,6 @@ confirm-close-surface = false
 background-opacity = 1
 background-opacity-cells = true
 
-# hackerman terminal: solid blinking block cursor
 cursor-style = block
 cursor-style-blink = true
 mouse-hide-while-typing = true
@@ -20,11 +19,11 @@ window-height = 35
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 
-# no dead space under the tmux status bar: drop the default 2pt top/bottom
+# no gap under the tmux status bar
 window-padding-y = 0,0
 window-padding-balance = true
 
-# this blocks tab switching in nvim
+# frees these for nvim
 keybind = alt+1=unbind
 keybind = alt+2=unbind
 keybind = alt+3=unbind
@@ -35,7 +34,6 @@ keybind = ctrl+shift+n=unbind
 keybind = ctrl+shift+p=unbind
 keybind = ctrl+shift+t=unbind
 
-# Accept OSC 52 clipboard writes (default is allow, set explicit) so a yank from
-# a remote nvim/tmux/herdr over SSH lands in this laptop's clipboard.
+# osc 52, so remote yanks over ssh reach the local clipboard
 clipboard-write = allow
 clipboard-read = allow

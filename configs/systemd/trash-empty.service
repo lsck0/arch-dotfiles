@@ -1,0 +1,9 @@
+[Unit]
+Description=Empty user trash
+
+[Service]
+Type=oneshot
+# home trash keeps a 7-day recovery window; the tmpfs trash is volatile, wiped whole
+ExecStart=/usr/bin/trash-empty -f 7
+ExecStart=/usr/bin/find /tmp/.Trash-%U -mindepth 1 -delete
+SuccessExitStatus=0 1

@@ -1,0 +1,51 @@
+*kulala.automatic-response-formatting.txt*A fully-featured REST Client Interface for Neovim.
+
+==============================================================================
+Table of Contents     *kulala.automatic-response-formatting-table-of-contents*
+
+1. Automatic Response Formatting|kulala.automatic-response-formatting-automatic-response-formatting|
+
+==============================================================================
+1. Automatic Response Formatting*kulala.automatic-response-formatting-automatic-response-formatting*
+
+JSON response pretty-printing is handled by kulala-core via the
+`response_format` option (see |kulala.configuration-options.txt|).
+
+You can additionally configure per-content-type formatters in the optional
+`contenttypes` table. Kulala parses the response `Content-Type` header and, if
+a matching entry exists, applies the configured formatter.
+
+
+EXAMPLE
+
+>lua
+    opts = {
+      contenttypes = {
+        ["application/json"] = {
+          ft = "json",
+          formatter = vim.fn.executable("jq") == 1 and { "jq", "." },
+        },
+        ["application/xml"] = {
+          ft = "xml",
+          formatter = vim.fn.executable("xmllint") == 1 and { "xmllint", "--format", "-" },
+          pathresolver = vim.fn.executable("xmllint") == 1 and { "xmllint", "--xpath", "{{path}}", "-" },
+        },
+        ["text/html"] = {
+          ft = "html",
+          formatter = vim.fn.executable("prettier") == 1 and { "prettier", "--stdin-filepath", "file.html" },
+        },
+      },
+    }
+<
+
+Keys are regex-matched against the `Content-Type` header, so `["json"] =
+"application/json"` also matches `application/json; charset=utf-8`.
+
+`formatter` can be a shell command (body piped to stdin) or a Lua function
+`function(body) return formatted_body end`.
+
+`pathresolver` resolves request variable paths in response bodies. Use an
+external tool with a `{{path}}` placeholder, or a Lua function
+`function(body, path) return value end`.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

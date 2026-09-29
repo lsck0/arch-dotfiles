@@ -7,18 +7,7 @@ import Quickshell.Services.Pam
 import qs.Commons
 import qs.Ui
 
-// Secure Wayland lock: the matrix rain IS the lock screen.
-//
-// ext-session-lock-v1 via WlSessionLock keeps the compositor session locked even
-// if this process dies (fail-secure) - not a bypassable top-layer overlay.
-// Auth is PAM: password (mandatory) via /etc/pam.d/quickshell-lock, plus a
-// CONCURRENT fingerprint conversation (/etc/pam.d/quickshell-lock-fprint) started
-// only when a sensor is enrolled. Two PamContexts (not one combined stack) so a
-// swipe and a typed password race independently instead of blocking each other.
-//
-// IPC target "lock" exposes only lock()/isLocked() - there is deliberately NO
-// unlock IPC, because that would be an auth bypass. Unlock happens only on a
-// successful PAM result.
+// session lock is fail-secure; no unlock ipc on purpose (auth bypass)
 Item {
   id: root
 
@@ -26,10 +15,8 @@ Item {
   property bool authError: false
   property bool fpAvailable: false
   property string primaryScreenName: ""
-  // Password captured at submit time (fed to PAM as its response). The visible
-  // field is the source of truth; this is only the in-flight buffer.
+  // in-flight pam response; the field is the source of truth
   property string _pw: ""
-  // The primary surface's input field, so root can clear it on a failed attempt.
   property var activeField: null
 
   function lock() {
@@ -43,7 +30,7 @@ Item {
     fpDetect.running = true
   }
 
-  // Only a successful PAM result calls this. Not reachable over IPC.
+  // only a successful pam result may call this
   function unlock() {
     root.locked = false
     root.authError = false
@@ -73,7 +60,6 @@ Item {
     function isLocked(): string { return root.locked ? "true" : "false" }
   }
 
-  // ---- fingerprint sensor detection (fprintd-list, as the old launcher did) ----
   Process {
     id: fpDetect
     command: ["bash", "-c",
@@ -89,7 +75,6 @@ Item {
     }
   }
 
-  // ---- PAM: password (mandatory) ----
   PamContext {
     id: pamPw
     config: "quickshell-lock"
@@ -102,7 +87,7 @@ Item {
     onError: function(err) { root.fail(); active = false }
   }
 
-  // ---- PAM: fingerprint (additive, only when a sensor is enrolled) ----
+  // separate context so a swipe and a password race independently
   PamContext {
     id: pamFp
     config: "quickshell-lock-fprint"
@@ -113,14 +98,13 @@ Item {
     }
     onError: function(err) { if (root.locked && root.fpAvailable) fpRetry.restart(); active = false }
   }
-  // pam_fprintd completes per swipe; keep listening until unlock.
+  // pam_fprintd completes per swipe; keep listening
   Timer {
     id: fpRetry
     interval: 800
     onTriggered: if (root.locked && root.fpAvailable) pamFp.start()
   }
 
-  // ---- system stats readout (reuses lockscreen-stats.sh, with timeout) ----
   property string statsText: ""
   Process {
     id: statsProc
@@ -135,7 +119,6 @@ Item {
     onTriggered: statsProc.running = true
   }
 
-  // ---- clock ----
   property string clockText: "00//00//00"
   property string dateText: ""
   Timer {
@@ -150,13 +133,10 @@ Item {
     }
   }
 
-  // ---- the lock itself ----
   WlSessionLock {
-    id: sessionLock
     locked: root.locked
 
-    // Reinstantiated per screen by quickshell. Rain everywhere; the auth HUD only
-    // on the primary output.
+    // rain on every screen, auth hud only on the primary
     WlSessionLockSurface {
       id: surface
       color: Color.background
@@ -166,7 +146,6 @@ Item {
 
       RainField { anchors.fill: parent; running: surface.visible }
 
-      // Centred auth HUD.
       Column {
         anchors.centerIn: parent
         spacing: Style.spacing.lg
@@ -194,7 +173,6 @@ Item {
           font.letterSpacing: Style.headerTracking
         }
 
-        // Obscured password input.
         Rectangle {
           anchors.horizontalCenter: parent.horizontalCenter
           width: Style.space(320)
@@ -227,7 +205,6 @@ Item {
           }
         }
 
-        // Fingerprint hint - only when a sensor is present.
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           visible: root.fpAvailable
@@ -243,7 +220,6 @@ Item {
         }
       }
 
-      // System stats, bottom-left terminal readout.
       Text {
         anchors.left: parent.left
         anchors.bottom: parent.bottom

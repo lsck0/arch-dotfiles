@@ -1,26 +1,19 @@
 import QtQuick
 
-// Verbatim from omarchy-shell: filters synthetic hover churn from moving delegates under a stationary pointer.
+// ignores hover churn from delegates moving under a still pointer
 QtObject {
   id: root
 
   property Item referenceItem: null
   property real threshold: 1
   property bool primed: false
-  property bool initialSampleAllowed: false
   property real lastX: 0
   property real lastY: 0
 
   function reset() {
     root.primed = false
-    root.initialSampleAllowed = false
     root.lastX = 0
     root.lastY = 0
-  }
-
-  function allowInitialSample() {
-    root.reset()
-    root.initialSampleAllowed = true
   }
 
   function moved(item, mouse) {
@@ -33,15 +26,13 @@ QtObject {
     var point = item.mapToItem(target, mouse.x, mouse.y)
     var firstSample = !root.primed
     var didMove = !firstSample
-      ? Math.abs(point.x - root.lastX) > root.threshold || Math.abs(point.y - root.lastY) > root.threshold
-      : root.initialSampleAllowed
+      && (Math.abs(point.x - root.lastX) > root.threshold || Math.abs(point.y - root.lastY) > root.threshold)
 
     if (firstSample || didMove) {
       root.lastX = point.x
       root.lastY = point.y
     }
     root.primed = true
-    root.initialSampleAllowed = false
 
     return didMove
   }

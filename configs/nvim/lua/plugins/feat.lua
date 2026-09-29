@@ -8,7 +8,7 @@ return {
         },
         config = function()
             vim.g.compile_mode = {
-                ansi_color = { kind = "render" }, -- was baleia_setup (deprecated, removed in v6)
+                ansi_color = { kind = "render" },
             }
         end
     },
@@ -20,7 +20,9 @@ return {
     },
 
     {
-        "mistweaverco/kulala.nvim", -- REST client
+        -- vendored: upstream went private, MIT
+        dir = vim.fn.stdpath("config") .. "/vendor/kulala.nvim", -- REST client
+        name = "kulala.nvim",
         ft = { "http", "rest" },
         opts = {
             global_keymaps = true,

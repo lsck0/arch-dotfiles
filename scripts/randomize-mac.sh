@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# IFACE="wlan0"
 IFACE="enp16s0"
 
 MAC=$(printf '%02x:%02x:%02x:%02x:%02x:%02x' \

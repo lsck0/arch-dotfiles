@@ -8,14 +8,12 @@ import qs.Commons
 import qs.Ui
 import "OsdModel.js" as OsdModel
 
-// Adapted from omarchy-shell's Osd.qml: same measured-column layout and IPC contract (`quickshell ipc -p ~/.config/quickshell call osd present '{...}'`), with BorderSurface's multi-side/gradient border swapped for a plain Rectangle border — this repo doesn't need per-side gradient borders, just a card.
 Item {
   id: root
 
   property bool opened: false
   property string icon: ""
   property string message: ""
-  property string iconKey: ""
   property int value: 0
   property int maxValue: 100
   property bool hasProgress: true
@@ -40,7 +38,6 @@ Item {
 
   function show(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
     var next = OsdModel.stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration)
-    iconKey = next.iconKey
     maxValue = next.maxValue
     hasProgress = next.hasProgress
     value = next.value
@@ -83,7 +80,7 @@ Item {
 
   TextMetrics {
     id: iconMetrics
-    // Icon family: root.icon is always a Nerd Font glyph, and the drawn Text elements below inherit this via `font: iconMetrics.font`, so this one line covers both the metrics and the rendering.
+    // drawn texts reuse this font via iconMetrics.font
     font.family: Style.font.iconFamily
     font.pixelSize: Style.font.displayLarge
     text: root.icon
@@ -97,7 +94,7 @@ Item {
 
   IpcHandler {
     target: "osd"
-    // NOT named `show`.
+    // not show: qs ipc parses show as its own subcommand
     function present(payloadJson: string): string {
       root.open(payloadJson)
       return "ok"
@@ -111,19 +108,18 @@ Item {
     function ping(): string { return "ok" }
   }
 
-  // One surface per output, but only the FOCUSED one is ever visible.
+  // one surface per output, only the focused one visible
   Variants {
     model: Quickshell.screens
 
     PanelWindow {
-      id: osdWindow
       required property var modelData
       screen: modelData
 
       readonly property bool onFocusedMonitor: {
         var mine = Hyprland.monitorFor(modelData)
         var focused = Hyprland.focusedMonitor
-        // Before Hyprland has reported a focused monitor, fall back to showing it rather than swallowing the OSD entirely.
+        // no focused monitor yet: show rather than swallow
         if (!mine || !focused) return true
         return mine.name === focused.name
       }
@@ -167,7 +163,6 @@ Item {
               color: Color.popups.text
             }
           }
-          // Segmented terminal block gauge for the live value.
           BarGauge {
             visible: root.hasProgress
             anchors.verticalCenter: parent.verticalCenter
@@ -188,7 +183,6 @@ Item {
             color: Color.popups.text
             elide: Text.ElideRight
             maximumLineCount: 1
-            // Neon bloom on the live readout.
             layer.enabled: Style.fx.glow > 0
             layer.effect: MultiEffect {
               shadowEnabled: true
@@ -202,7 +196,6 @@ Item {
           }
         }
 
-        // Terminal HUD framing + CRT scanlines on the readout card.
         HudFrame {}
         Scanlines {}
       }

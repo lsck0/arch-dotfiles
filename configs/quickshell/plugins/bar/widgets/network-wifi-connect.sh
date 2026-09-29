@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-# Connect to an SSID: `network-wifi-connect.sh <ssid> [password]`.
+# usage: <ssid> [password]; password falls back to configs/secrets/wifi
 set -euo pipefail
 
 ssid="${1:?ssid required}"
 password="${2:-}"
+
+secrets_wifi="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/configs/secrets/wifi"
+
+# a saved NM profile wins over the secrets map, which may be stale
+has_profile() {
+  local name
+  while IFS= read -r name; do
+    [[ "$(nmcli -g 802-11-wireless.ssid connection show "$name" 2>/dev/null)" == "$ssid" ]] && return 0
+  done < <(nmcli -g TYPE,NAME connection show | sed -n 's/^802-11-wireless://p' | sed 's/\\:/:/g')
+  return 1
+}
+
+if [[ -z "$password" && -r "$secrets_wifi" ]] && ! has_profile; then
+  # ENVIRON, not -v: awk -v expands backslashes in the ssid
+  password=$(ssid="$ssid" awk -F'\t' '$1 == ENVIRON["ssid"] { print $2; exit }' "$secrets_wifi")
+fi
 
 if [[ -n "$password" ]]; then
   nmcli dev wifi connect "$ssid" password "$password"

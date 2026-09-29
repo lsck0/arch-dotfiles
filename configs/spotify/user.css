@@ -17,12 +17,9 @@ body {
   color: var(--spice-text);
 }
 
-/* Don't override grid-template-areas: Spotify sets layout via the
-   `grid-template` shorthand, so a longhand areas override desyncs the row
-   tracks and blanks the content pane. */
+/* no grid-template-areas override, it blanks the content pane */
 
-/* right sidebar: queue + device picker live here — do NOT display:none it
-   (that was the bug that hid both menus) */
+/* never display:none, queue and device picker live here */
 .Root__right-sidebar {
   background-color: var(--spice-main);
 }
@@ -68,17 +65,14 @@ body {
 /* menus */
 .main-card-card {
   background-image: linear-gradient(var(--gradient-colors));
-  border-radius: 10px;
 }
 
 .main-card-card:hover {
   background-color: var(--spice-card-hover);
-  border-radius: 10px;
 }
 
 .main-contextMenu-menuItemButton,
 .main-userWidget-dropDownMenuItemButton {
-  /*border-radius: var(--border-radius-2);*/
   color: var(--spice-text);
   height: 32px;
   padding-left: 8px;
@@ -94,7 +88,6 @@ body {
 }
 #spicetify-home-config button:disabled,
 #spicetify-sidebar-config button:disabled {
-  /*background-color: var(--spice-button-disabled) !important;*/
   color: var(--spice-text) !important;
 }
 
@@ -125,8 +118,6 @@ body {
 .Root__top-container {
   background-color: var(--spice-main);
 }
-
-/* --- cyberpunk/terminal accents: recolor + glow only --- */
 
 /* thin accent scrollbars */
 ::-webkit-scrollbar {

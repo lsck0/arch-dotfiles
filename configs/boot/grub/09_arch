@@ -1,6 +1,5 @@
 #!/bin/sh
-# One entry per installed kernel, named after its package. Replaces 10_linux,
-# which titles every kernel just "Arch".
+# one entry per kernel package, replaces 10_linux
 set -e
 
 exec /usr/local/bin/boot-menu grub-kernels

@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// Rectangle-compatible surface with Omarchy border specs.
 Rectangle {
   id: root
 
@@ -22,7 +21,6 @@ Rectangle {
   readonly property real contentLeftInset: borderLeft + leftPadding
   readonly property bool usesOverlayBorder: Border.needsOverlay(borderSpec)
 
-  // Offset shadow, drawn BEHIND this surface (z: -1) rather than as a blur or glow.
   property bool shadow: true
   property int shadowOffset: Style.shadowOffset
 
@@ -34,9 +32,7 @@ Rectangle {
     height: root.height
     radius: root.radius
     visible: root.shadow && root.shadowOffset > 0
-    // A palette role, not a flat black: over a warm wallpaper a pure-black slab reads as a hole punched in the desktop rather than as depth.
     color: Util.alpha(Color.shadow, Style.shadowAlpha)
-    // The radius is small but non-zero, so an unantialiased edge would show as a jagged corner behind a crisp one.
     antialiasing: true
   }
 
