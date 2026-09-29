@@ -16,7 +16,6 @@ NVIM="$REPO/configs/nvim/lua/options.lua"
 KITTY="$REPO/configs/kitty/kitty.conf"
 QUTEBROWSER="$REPO/configs/qutebrowser/config.py"
 QUTEBROWSER_STARTPAGE="$REPO/configs/qutebrowser/startpage.html"
-HYPRLOCK="$REPO/configs/hyprland/hyprlock.conf"
 QUICKSHELL_THEME="$REPO/configs/quickshell/theme.json"
 
 # gtk settings.ini is generated into ~/.config by switch-wallpaper.sh, not tracked here, so use real paths
@@ -157,7 +156,6 @@ apply_family() {
     sed -i "s|^font_family .*|font_family $m|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
     sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
-    sed -i "s|^\$FONT = .*|\$FONT = $e|" "$HYPRLOCK"
 
     # quickshell live-watches theme.json: no restart, no sed into a .qml source
     quickshell_theme_set '.font.family = $v' "$fam"

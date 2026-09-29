@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Build + install unreal-engine-bin (AUR) from the Epic-login-gated zip, downloaded by hand from
-# https://www.unrealengine.com/linux into the XDG download dir. A newer zip than the AUR pkgver is used as-is.
+# https://www.unrealengine.com/linux into ~/sync. A newer zip than the AUR pkgver is used as-is.
 
 set -euo pipefail
 
 AUR_URL="https://aur.archlinux.org/unreal-engine-bin.git"
-DOWNLOAD_DIR="$(xdg-user-dir DOWNLOAD 2>/dev/null || echo "${HOME}/Downloads")"
+SYNC_DIR="${HOME}/sync"
 # on disk, not /tmp: unpacked engine is ~60 GB and /tmp is tmpfs
 BUILD_DIR="${HOME}/.cache/unreal-engine-bin"
 
@@ -14,9 +14,9 @@ if pacman -Q unreal-engine-bin >/dev/null 2>&1; then
     exit 0
 fi
 
-zip_path=$(find "$DOWNLOAD_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' | sort -V | tail -n 1)
+zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' | sort -V | tail -n 1)
 if [[ -z "$zip_path" ]]; then
-    echo "no Linux_Unreal_Engine_*.zip in ${DOWNLOAD_DIR}, download it from https://www.unrealengine.com/linux" >&2
+    echo "no Linux_Unreal_Engine_*.zip in ${SYNC_DIR}, download it from https://www.unrealengine.com/linux" >&2
     exit 1
 fi
 zip_version=$(basename "$zip_path" .zip)

@@ -13,11 +13,24 @@ if [ ! -d "$ZINIT_HOME" ]; then
 fi
 source "${ZINIT_HOME}/zinit.zsh"
 
-zinit ice wait lucid
-zinit snippet OMZP::sudo
-zinit ice wait lucid
-zinit snippet OMZP::git
+# omz plugins write generated completions here
+export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
+[[ -d "$ZSH_CACHE_DIR/completions" ]] || mkdir -p "$ZSH_CACHE_DIR/completions"
+fpath=("$ZSH_CACHE_DIR/completions" $fpath)
 
+# omz lib, not lazy so its keybindings exist at the first prompt
+for lib in key-bindings completion misc directories grep git clipboard functions; do
+  zinit snippet "OMZL::$lib.zsh"
+done
+unset lib
+
+for plugin in aws docker docker-compose git jj mise nmap node npm rust sudo terraform; do
+  zinit ice wait lucid
+  zinit snippet "OMZP::$plugin"
+done
+unset plugin
+
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
 # native fzf keybinds, needs fzf 0.48+
 zinit ice wait lucid atload'source <(fzf --zsh)'
 zinit light zdharma-continuum/null
@@ -55,6 +68,9 @@ HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
 HISTDUP=erase
 setopt appendhistory
+setopt extended_history
+setopt hist_expire_dups_first
+setopt hist_verify
 setopt hist_find_no_dups
 setopt hist_ignore_all_dups
 setopt hist_ignore_dups
@@ -85,6 +101,7 @@ alias kubectl="kubecolor"
 alias l="eza -lh"
 alias la="eza -lah"
 alias ldocker="lazydocker"
+alias ll="eza -lh"
 alias lgit="lazygit"
 alias lgithub="gh-dash"
 alias ljj="lazyjj"
