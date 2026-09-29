@@ -220,7 +220,7 @@ Item {
 
       // Screen-corner HUD brackets + CRT scanlines on top of the rain.
       HudFrame {}
-      Scanlines {}
+      Scanlines { flicker: false }
     }
   }
 }

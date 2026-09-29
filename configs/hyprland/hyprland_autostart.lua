@@ -10,7 +10,6 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/hypr/manual_link.sh")
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/shimoji/manual_link.sh")
 
-    hl.exec_cmd("xhost + local:")
     hl.exec_cmd("xhost +SI:localuser:root")
     hl.exec_cmd("brightnessctl --device=tpacpi::kbd_backlight set 2")
 end)

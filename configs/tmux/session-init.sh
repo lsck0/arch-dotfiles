@@ -8,6 +8,11 @@ session="$(tmux display-message -p '#{session_id}')"
 
 [[ "$(tmux display-message -p -t "$session" '#{session_windows}')" == 1 ]] || exit 0
 
+# Only lay out nvim/claude/zsh for sessions opened via tms (it sets this marker).
+# Bare `tmux` sessions stay a single plain shell.
+[[ "$(tmux show-environment -g TMS_LAUNCH 2>/dev/null)" == "TMS_LAUNCH=1" ]] || exit 0
+tmux set-environment -gu TMS_LAUNCH 2>/dev/null || true
+
 cwd="$(tmux display-message -p -t "$session" '#{pane_current_path}')"
 
 # Wait until the pane's zsh is idle at its prompt before typing. A devenv/direnv
@@ -24,7 +29,7 @@ wait_prompt() {
 
 tmux rename-window -t "${session}:1" nvim
 wait_prompt "${session}:1"
-tmux send-keys -t "${session}:1" nvim Enter
+tmux send-keys -t "${session}:1" 'NVIM_TMS=1 nvim' Enter
 
 tmux new-window -d -t "$session" -c "$cwd" -n claude
 claude-trust "$cwd"   # skip the workspace trust dialog for this repo

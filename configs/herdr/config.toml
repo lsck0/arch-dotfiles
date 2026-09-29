@@ -31,17 +31,24 @@ sidebar_max_width = 30
 agent_panel_sort = "spaces"
 prompt_new_tab_name = false
 pane_outer_borders = false
+# Reclaim the scrollbar column (the bar on the right of every pane/popup, e.g. hms); wheel/keys still scroll.
+pane_scrollbars = false
 
 [keys]
 prefix = "ctrl+q"
 split_horizontal = "prefix+s"     # tmux: bind s split-window -v (stacked)
+split_vertical = "prefix+v"       # tmux: bind v split-window -h (side by side)
+edit_scrollback = "prefix+e"      # tmux: bind e copy-mode (scrollback/copy)
+settings = ""                     # cleared: prefix+s is split_horizontal, not settings
+toggle_sidebar = ""               # cleared: prefix+b is the wtree popup, not sidebar
 close_pane = "prefix+q"
 close_tab = "prefix+x"
 detach = ""
-focus_pane_left = "prefix+left"
-focus_pane_down = "prefix+down"
-focus_pane_up = "prefix+up"
-focus_pane_right = "prefix+right"
+# tmux: bind -n M-H/M-J/M-K/M-L select-pane (alt+hjkl, no prefix)
+focus_pane_left = "alt+h"
+focus_pane_down = "alt+j"
+focus_pane_up = "alt+k"
+focus_pane_right = "alt+l"
 workspace_picker = ""             # tmux: bind w -> sessionizer popup, not workspace picker
 goto = ""                         # tmux: bind g -> lazygit popup, not goto
 next_tab = ""                     # tmux: bind n -> netscanner popup, not next-window
@@ -56,7 +63,7 @@ previous_agent = "alt+p"
 [[keys.command]]
 key = "prefix+w"
 type = "popup"
-command = "direnv exec . hms"
+command = "hms"
 width = "90%"
 height = "90%"
 
@@ -97,13 +104,6 @@ height = "90%"
 
 [[keys.command]]
 key = "prefix+g"
-type = "popup"
-command = "direnv exec . lazygit"
-width = "90%"
-height = "90%"
-
-[[keys.command]]
-key = "prefix+h"
 type = "popup"
 command = "direnv exec . gh-dash"
 width = "90%"

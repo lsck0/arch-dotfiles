@@ -31,23 +31,24 @@ Code under no spec's `Implemented in` is unspecified: list it at the end
 of `INDEX.md` until a spec covers it.
 
 Corpus and code stay in sync, always. Every change to code under a
-spec's `Implemented in` updates that spec in the same commit or PR,
-inside this workflow or not (a one-line fix included). A spec that
+spec's `Implemented in` updates that spec in the same commit, inside
+this workflow or not (a one-line fix included). A spec that
 disagrees with the code is a bug in one of them; find out which before
 building on either.
 
 ## Two modes
 
-- **Led** — the human is the orchestrator. They lead through the stages,
+- **Led**: the human is the orchestrator. They lead through the stages,
   take the design decisions and iterate on them with you. Stop and ask at
   every design decision, and after every stage and every phase. Nothing
   advances without them.
-- **Autonomous** — an orchestrator skill (`l-multi-agent-mode`,
-  `l-multi-agent-task-mode`) runs the stages. The human appears at three
-  gates only; everything between them runs on its own:
-  1. **Input** — the prompt or issue.
-  2. **Spec** — they accept the spec PR or send feedback.
-  3. **Result** — per phase, they look at the PR and the build it
+- **Autonomous**: an orchestrator skill (`l-multi-agent-mode`,
+  `l-multi-agent-task-mode`, `l-single-agent-task-mode`) runs the stages
+  unattended. The human appears at three gates only; everything between
+  them runs on its own:
+  1. **Input**: the prompt or issue.
+  2. **Spec**: they accept the spec PR or send feedback.
+  3. **Result**: per phase, they look at the PR and the build it
      produced, then merge it or send feedback.
 
 Both modes share the stages, the phase rules and the trace below. Whoever
@@ -110,11 +111,15 @@ enough to skip a spec gates on `DESIGN.md` the same way.
    path known.
 4. Land: conventional commits, one logical change each, every commit
    green; stage named paths only, never `git add -A`. Tick and cite the
-   phase's requirements in `SPEC.md`, update `Implemented in` and
-   `INDEX.md` when code moved, and set the phase's row in `ROADMAP.md`,
-   all in the same PR: after merge the spec describes the merged code.
-   Rebase, push, open the PR with the trace block, return the main checkout to the base branch (or remove the
-   worktree), and stop.
+   phase's requirements in `SPEC.md` and update `Implemented in` and
+   `INDEX.md` when code moved, in the same commit as that code; set the
+   phase's row in `ROADMAP.md` in the same PR. After merge the spec
+   describes the merged code. Rebase, push, open the PR with the trace
+   block, return the main checkout to the base branch (or remove the
+   worktree), and stop. A repo's own commit rule overrides Land (e.g.
+   `l-dotfiles`: never commit or push): stop at a reviewed working tree
+   holding only the phase's changes and report instead; Sync's clean-tree
+   check is waived there.
 5. Report: phase, requirement IDs built, every link, how to run it, every
    check as passed, failed or not run. Never round "could not run" up to
    "passed".
@@ -180,8 +185,9 @@ find the spec, the phase and the requirements.
   `Refs: spec-<nnn>/R-004, #<n>`.
 - **Tests** carry the requirement in their name (`spec003_r004_...`), so
   a grep finds the proof after any refactor.
-  The issue closes when the change is verified, not when a PR merges, so
-  reference it rather than auto-closing it.
+- **Issues**: PRs and commits reference the issue (`Issue:`, `Refs:`),
+  never a closing keyword. It closes when the change is verified, not
+  when a PR merges.
 - **ROADMAP.md** rows link back: each phase lists its PRs and state.
 - Resolving a PR: trace block first, branch name second. Neither present
   -> ask; don't guess the spec.
@@ -210,7 +216,7 @@ one, and don't imitate one that reads like a diary.
 - **Bug fixes** add no requirement: a bug is a gap between an existing
   requirement and the code. If the fix shows a requirement is missing,
   add it to the governing spec.
-- **Decisions**: the only place with dates and history. `- YYYY-MM-DD —
+- **Decisions**: the only place with dates and history. `- YYYY-MM-DD:
   <decision>. Rejected: <A> (<why>), <B> (<why>).`
 
 Ticked lines describe the code as it is: every merge moves lines from
@@ -222,9 +228,9 @@ text: git has the history, `ROADMAP.md` has the way there.
 ```
 | Phase | Delivers (requirements) | Depends on | PRs | State |
 |---|---|---|---|---|
-| p1 | R-001, R-002: <what runs after it> | — | #41 | merged |
+| p1 | R-001, R-002: <what runs after it> | none | #41 | merged |
 | p2 | R-003: <...> | p1 | #44, #45 | in review |
-| p3 | R-004, R-005: <...> | p2 | — | planned |
+| p3 | R-004, R-005: <...> | p2 | none | planned |
 ```
 
 How the spec gets from as-is to target. Phase numbers keep counting up
@@ -235,18 +241,27 @@ be checked against it.
 
 ## Parallelism and model choice
 
-An agent acting as an orchestrator (`l-multi-agent-mode`/
-`l-multi-agent-task-mode`) should:
+This section owns the parallelism rules for `l-multi-agent-mode`,
+`l-multi-agent-task-mode` and `l-single-agent-task-mode`.
+
+**Budget.** Up to 3 independent, non-blocking things at once: worker
+panes, subagents, or plain tool calls (e.g. a web lookup alongside repo
+scaffolding). A ceiling, not a target: run 1 when only 1 is workable.
+Never start a 4th before one of the 3 finishes. Never parallelize a
+dependency (a design review needs the design doc first); a dependency
+chain stays sequential whatever the budget.
+
+**Implementer cap.** At most 2 workstreams implemented concurrently, each
+in its own worktree (below). They count inside the budget of 3, not on
+top of it; the remaining slot goes to research, design or review workers
+and plain tool calls.
+
+An agent acting as an orchestrator should:
 
 - size subagent count and model strength to the stage, small/cheap models
   for research, strong models for design and spec.
 - start every stage with a fresh context.
 - communicate through markdown files in the spec directory.
-
-At most 2 workstreams implemented concurrently, each in its own worktree
-(below). This is a sub-cap on tree-mutating work under the general "up to
-3 independent things at once" budget (`l-agent-task-db`), which still
-governs research/design/review workers and plain tool calls.
 
 ## Parallel implementation: one worktree per workstream
 

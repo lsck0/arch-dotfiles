@@ -11,7 +11,7 @@ QtObject {
   readonly property string path: Quickshell.shellDir + "/theme.json"
 
   // ------------------------------------------------------------------ font Family is the UI/body family only.
-  property string fontFamily: "0xProto Nerd Font"
+  property string fontFamily: "Kode Mono"
   // Base size, in px. The whole scale is derived from it.
   property int fontSize: 12
 

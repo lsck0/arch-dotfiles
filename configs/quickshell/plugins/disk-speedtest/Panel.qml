@@ -88,7 +88,7 @@ Item {
 
   Process {
     id: proc
-    command: [Quickshell.env("HOME") + "/.local/bin/disk-speedtest"]
+    command: [Paths.bin("disk-speedtest")]
     stdout: SplitParser { onRead: function(line) { root.updateLine(line) } }
     // Exit and stream-finished have no guaranteed order: when a failed exit beat the collector and published the generic message, replace it with the specific one once it lands.
     stderr: StdioCollector {

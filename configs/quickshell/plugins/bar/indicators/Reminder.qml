@@ -1,13 +1,14 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Commons
 import qs.Ui
 
 // Adapted from omarchy-shell: omarchy-reminder -> this repo's own configs/quickshell/scripts/reminder.sh.
 BarIndicator {
   id: root
 
-  readonly property string reminderScript: Quickshell.env("HOME") + "/.local/bin/reminder"
+  readonly property string reminderScript: Paths.bin("reminder")
 
   property int reminderCount: 0
   property string tooltip: ""

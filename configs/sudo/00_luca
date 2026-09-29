@@ -1,0 +1,6 @@
+# Password-required sudo. NOPASSWD is intentionally omitted: passwordless sudo
+# turns any code running as this user into instant root.
+luca ALL=(ALL) ALL
+# Cache credentials for 4 hours after one password entry, so long installs and
+# work sessions do not re-prompt repeatedly.
+Defaults:luca timestamp_timeout=240

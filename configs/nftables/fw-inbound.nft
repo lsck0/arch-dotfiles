@@ -4,13 +4,27 @@
 add table inet fw
 delete table inet fw
 table inet fw {
+    # Port-knock state. Sets are recreated empty on reload, so re-knock after one.
+    set knock1 { type ipv4_addr; flags timeout; timeout 10s; }
+    set knock2 { type ipv4_addr; flags timeout; timeout 10s; }
+    set ssh_allowed { type ipv4_addr; flags timeout; timeout 1h; }
+
     chain input {
         type filter hook input priority 0; policy drop;
 
         iif "lo" accept
         ct state established,related accept
         ct state invalid drop
-        meta l4proto { icmp, ipv6-icmp } accept
+
+        # ICMP: keep IPv6 (NDP needs it), rate-limit IPv4 echo, allow the useful
+        # error types, drop the rest (timestamp/address-mask leak host info).
+        ip6 nexthdr ipv6-icmp accept
+        ip protocol icmp icmp type echo-request limit rate 5/second accept
+        ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-reply } accept
+        ip protocol icmp drop
+
+        # Black-hole common web ports so a scan sees no-response, not a RST.
+        tcp dport { 80, 443 } drop
 
         # trust everything arriving on a virtual/internal interface
         iifname "docker*" accept
@@ -19,12 +33,27 @@ table inet fw {
         iifname "virbr*" accept
         iifname "waydroid*" accept
         iifname "lxc*" accept
-        iifname "tun*" accept
         iifname "wg*" accept
+        # tun0 is the pentest VPN (e.g. HackTheBox openvpn), a HOSTILE network: do
+        # NOT trust it. Scoped to tun0, not tun*, so a corp/personal openvpn on a
+        # higher tun index gets nothing; widen the device name here if HTB differs.
+        # Only expose the usual pentest listener ranges (reverse shells, file server).
+        iifname "tun0" tcp dport { 4444-4460, 8000-8099, 9001, 9443 } accept
 
-        # LAN-only services on the physical uplink: ssh, KDE Connect
-        ip  saddr { 192.168.0.0/16, 10.0.0.0/8 } tcp dport { 22, 1716 } accept
-        ip  saddr { 192.168.0.0/16, 10.0.0.0/8 } udp dport 1716 accept
+        # Real sshd (2222) is HIDDEN: filtered to scans, opened only for a source
+        # that completed the knock sequence 7001 -> 8002 -> 9003 (within 10s each).
+        ip saddr @ssh_allowed tcp dport 2222 ct state new accept
+        # Highest stage first so one packet advances exactly one step. The knock
+        # ports never accept, so they stay filtered to a scan.
+        tcp dport 9003 ip saddr @knock2 update @ssh_allowed { ip saddr }
+        tcp dport 8002 ip saddr @knock1 update @knock2 { ip saddr }
+        tcp dport 7001 update @knock1 { ip saddr }
+
+        # LAN services: endlessh tarpit on 22 (decoy), KDE Connect 1716. Scoped to
+        # the home LAN + homelab wg only, NOT all 10.0.0.0/8 (that includes the HTB
+        # VPN subnet 10.10.x).
+        ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } tcp dport { 22, 1716 } accept
+        ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } udp dport 1716 accept
         ip6 saddr fe80::/10 tcp dport { 22, 1716 } accept
     }
 }

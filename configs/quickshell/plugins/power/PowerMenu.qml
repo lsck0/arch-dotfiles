@@ -388,7 +388,7 @@ Item {
             }
 
             // CRT scanline overlay across the session menu.
-            Scanlines {}
+            Scanlines { flicker: false }
 
         }
 

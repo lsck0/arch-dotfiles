@@ -389,7 +389,7 @@ Item {
             }
 
             // CRT scanline overlay across the whole overview.
-            Scanlines {}
+            Scanlines { flicker: false }
 
         }
 

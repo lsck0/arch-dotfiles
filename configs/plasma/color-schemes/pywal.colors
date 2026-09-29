@@ -60,6 +60,20 @@ ForegroundNormal=191,189,182
 ForegroundPositive=39,174,96
 ForegroundVisited=210,166,255
 
+[Colors:Header][Inactive]
+BackgroundAlternate=11,14,20
+BackgroundNormal=1,6,14
+DecorationFocus=57,186,230
+DecorationHover=57,186,230
+ForegroundActive=57,186,230
+ForegroundInactive=86,91,102
+ForegroundLink=149,230,203
+ForegroundNegative=218,68,83
+ForegroundNeutral=246,116,0
+ForegroundNormal=86,91,102
+ForegroundPositive=39,174,96
+ForegroundVisited=210,166,255
+
 [Colors:Selection]
 BackgroundAlternate=57,186,230
 BackgroundNormal=57,186,230
@@ -120,3 +134,11 @@ ForegroundVisited=210,166,255
 AccentColor=57,186,230
 ColorScheme=pywal
 Name=pywal
+
+[WM]
+activeBackground=11,14,20
+activeBlend=11,14,20
+activeForeground=191,189,182
+inactiveBackground=1,6,14
+inactiveBlend=1,6,14
+inactiveForeground=86,91,102

@@ -3,9 +3,12 @@
 # The password is YOUR secret: veracrypt --text prompts for it, this never stores it.
 set -euo pipefail
 
-CONTAINER="$HOME/Vault.hc"
-MOUNTPOINT="$HOME/Vault"
-DEFAULT_SIZE="2G"
+# Container lives in ~/sync so syncthing carries the ENCRYPTED blob between
+# devices. Mount point is ~/vault, OUTSIDE ~/sync, so decrypted contents never
+# sync. Do not mount on two machines at once (two writers conflict the blob).
+CONTAINER="${VAULT_HC:-$HOME/sync/vault.hc}"
+MOUNTPOINT="${VAULT_MOUNT:-$HOME/vault}"
+DEFAULT_SIZE="1G"
 
 usage() {
     echo "usage: veracrypt-vault {create [size]|mount|umount|dismount|status}" >&2

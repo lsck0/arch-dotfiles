@@ -5,7 +5,18 @@ autocmd("TextYankPost", {
     desc = "Highlight when yanking text",
     group = group("highlight-yank", { clear = true }),
     callback = function()
-        vim.highlight.on_yank()
+        vim.hl.on_yank()
+    end,
+})
+
+-- Auto-insert real newlines in prose only (never in code): textwidth + fo 't'.
+autocmd("FileType", {
+    desc = "Hard-wrap prose at textwidth",
+    group = group("prose-hardwrap", { clear = true }),
+    pattern = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" },
+    callback = function()
+        vim.opt_local.textwidth = 100
+        vim.opt_local.formatoptions:append("t")
     end,
 })
 
@@ -63,6 +74,9 @@ autocmd("FileType", {
     callback = function(args)
         local buf = args.buf
         local ft = vim.bo[buf].filetype
+        -- tex keeps vim syntax: treesitter clears it and vimtex's mathzone check
+        -- (which drives the math autosnippets + conceal) needs syntax=tex.
+        if ft == "tex" or ft == "plaintex" or ft == "bib" then return end
         local lang = vim.treesitter.language.get_lang(ft) or ft
         if pcall(vim.treesitter.start, buf, lang) then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
@@ -87,6 +101,8 @@ autocmd("VimEnter", {
     group = group("auto-explorer", { clear = true }),
     callback = function()
         if vim.g.started_by_firenvim then return end
+        -- only auto-open the tree for nvim launched via tms/hms (they set NVIM_TMS).
+        if vim.env.NVIM_TMS ~= "1" then return end
         if vim.fn.argc() > 1 then return end            -- diff/multi-file: leave alone
         local ft = vim.bo.filetype
         if ft == "gitcommit" or ft == "gitrebase" then return end
@@ -125,5 +141,18 @@ autocmd("FileType", {
                 return
             end
         end
+    end,
+})
+
+-- Never persist plaintext of secret/env/encrypted buffers: undofile writes them
+-- to ~/.local/state/nvim/undo and shada keeps yanks. Disable both for those.
+autocmd({ "BufReadPre", "BufNewFile" }, {
+    desc = "No undo/shada history for secret files",
+    group = group("no-secret-history", { clear = true }),
+    pattern = { "*/secrets/*", "*.sops.*", "*.env", "*.env.*", ".envrc", "*.gpg", "*.age", "*.asc" },
+    callback = function()
+        vim.opt_local.undofile = false
+        vim.opt_local.swapfile = false
+        vim.opt.shada = ""
     end,
 })

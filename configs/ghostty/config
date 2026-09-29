@@ -11,11 +11,9 @@ cursor-style = block
 cursor-style-blink = true
 mouse-hide-while-typing = true
 
-font-family = 0xProto Nerd Font Mono
+font-family = Kode Mono
 font-family = Symbols Nerd Font Mono
 font-size = 16
-#delta
-adjust-cell-height = -23%
 
 window-width = 115
 window-height = 35
@@ -23,8 +21,7 @@ window-height = 35
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 
 # no dead space under the tmux status bar: drop the default 2pt top/bottom
-# top 0, bottom 10 so the last row isn't clamped to the edge
-window-padding-y = 0,10
+window-padding-y = 0,0
 window-padding-balance = true
 
 # this blocks tab switching in nvim

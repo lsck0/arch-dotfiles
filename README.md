@@ -34,6 +34,8 @@ sudo cryptsetup reencrypt /dev/nvme0n1p2
 
 - run `betterdiscordctl install` after running discord once (including logging in)
 
+- run `~/.millennium/start.sh` after running steam once (including logging in)
+
 - fetch the submodules (needs github auth, do `gh auth login`)
 
 ```bash
@@ -46,7 +48,8 @@ git submodule update --init --recursive
 gpg --import ~/projects/arch-dotfiles/configs/secrets/pgp_privatekey.asc
 
 sudo chmod 600 ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
-ssh-add ~/projects/arch-dotfiles/configs/secrets/ssh_privatekey.asc
+secret-tool store --label="ssh_privatekey passphrase" ssh-key ssh_privatekey
+systemctl --user start ssh-add.service
 ```
 
 - add wirguard vpn tunnel

@@ -6,5 +6,5 @@ LAST_GEN=$(git log --format=%s | grep -m1 -oE '^Generation: [0-9]+' | grep -oE '
 COMMIT_MSG="Generation: $((LAST_GEN + 1))"
 
 git add .
-git commit -S -m "${COMMIT_MSG}"
+git commit -m "${COMMIT_MSG}"
 git push

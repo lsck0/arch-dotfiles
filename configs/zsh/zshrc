@@ -6,20 +6,22 @@ fpath=(~/.zsh/completions $fpath)
 export ZSH_DISABLE_COMPFIX=true
 export ZSH_COMPDUMP="$HOME/.zcompdump"
 
-ZSH=/usr/share/oh-my-zsh/
-ZSH_CACHE_DIR=$HOME/.cache/oh-my-zsh
-if [[ ! -d $ZSH_CACHE_DIR ]]; then
-  mkdir $ZSH_CACHE_DIR
-fi
-plugins=(aws docker docker-compose fzf git jj mise nmap node npm rust sudo terraform)
-source $ZSH/oh-my-zsh.sh
-
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 if [ ! -d "$ZINIT_HOME" ]; then
    mkdir -p "$(dirname $ZINIT_HOME)"
    git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
 fi
 source "${ZINIT_HOME}/zinit.zsh"
+
+# OMZ plugins that ship aliases/keybinds/functions, lazy via zinit snippets.
+zinit ice wait lucid
+zinit snippet OMZP::sudo
+zinit ice wait lucid
+zinit snippet OMZP::git
+
+# fzf keybinds+completion natively (replaces OMZ fzf plugin); fzf 0.48+.
+zinit ice wait lucid atload'source <(fzf --zsh)'
+zinit light zdharma-continuum/null
 
 zinit ice wait lucid
 zinit light Aloxaf/fzf-tab
@@ -33,13 +35,14 @@ zinit light zsh-users/zsh-completions
 zinit ice wait lucid
 zinit light zsh-users/zsh-syntax-highlighting
 
-zinit cdreplay -q
+# compinit MUST load before cdreplay/compdef (OMZ used to do this; it is gone now).
 autoload -Uz compinit
 if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
   compinit -C -d "$HOME/.zcompdump"
 else
   compinit -d "$HOME/.zcompdump"
 fi
+zinit cdreplay -q
 compdef kubecolor=kubectl
 
 autoload zmv
@@ -92,8 +95,8 @@ alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
-alias sshnb="ssh luca@192.168.178.73"
-alias sshpc="ssh luca@192.168.178.138"
+alias sshnb="~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.73"
+alias sshpc="~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
@@ -113,7 +116,7 @@ claude() {
 }
 
 # only greet on login shells at a real tty; skip dumb terminals and subshells.
-[[ -o login && -t 1 && "$TERM" != dumb ]] && fastfetch
+[[ -o interactive && -t 1 && "$TERM" != dumb ]] && fastfetch
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
@@ -139,3 +142,14 @@ history_file_follow_direnv() {
 }
 precmd_functions+=(history_file_follow_direnv)
 eval "$(zoxide init zsh)"
+
+# tms marks the session so tmux session-init lays out the nvim/claude/zsh stack.
+tms() {
+  tmux set-environment -g TMS_LAUNCH 1 2>/dev/null
+  command tms "$@"
+  # Clear the marker afterwards: if tms only switched to an existing session the
+  # session-created hook never fired to consume it, and a stale marker would make
+  # the next bare `tmux` build the IDE stack. session-init already unset it on a
+  # real new session, so this is a harmless no-op there.
+  tmux set-environment -gu TMS_LAUNCH 2>/dev/null
+}

@@ -14,3 +14,10 @@
 [class*="gpfocuswithin"] {
   background-color: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
 }
+
+/* Active top-nav section reads at a glance via accent text + underline */
+[class*="tabbar"] [class*="active"], [class*="TabBar"] [class*="Active"],
+[class*="rootmenu"] [class*="selected"], [class*="RootMenu"] [class*="Selected"] {
+  color: var(--cp-accent) !important;
+  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+}

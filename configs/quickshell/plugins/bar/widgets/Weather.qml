@@ -856,7 +856,8 @@ BarWidget {
           sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
           sourceSize.height: Math.ceil(height * Screen.devicePixelRatio)
           fillMode: Image.PreserveAspectFit
-          asynchronous: false
+          // Decode off the UI thread; frames stay cached, so playback is smooth after the first cycle.
+          asynchronous: true
           smooth: true
           cache: true
         }
@@ -875,6 +876,10 @@ BarWidget {
           id: fieldCanvas
           anchors.fill: parent
           antialiasing: true
+          // Paint the isobar/wind overlay off the main thread so opening the panel
+          // does not block on the marching-squares loop.
+          renderStrategy: Canvas.Threaded
+          renderTarget: Canvas.FramebufferObject
 
           readonly property var cells: root.fieldCells
           readonly property var rings: root.radarRingsKm

@@ -9,7 +9,7 @@ Find out why, not just what.
 
 - Reproduce; if not possible, reconstruct from logs/traces/commits.
 - Bisect: what changed, when, does it correlate.
-- Root cause, not symptom — check sibling code for the same bug class.
+- Root cause, not symptom: check sibling code for the same bug class.
 
 Write to the target file, then stop. No file given -> answer in chat.
 

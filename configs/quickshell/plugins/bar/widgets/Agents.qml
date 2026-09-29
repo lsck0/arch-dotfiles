@@ -16,6 +16,10 @@ BarWidget {
   readonly property int sessionPct: Number(usage.u_session) || 0
   readonly property int weekPct: Number(usage.u_week) || 0
   readonly property int worstPct: Math.max(sessionPct, weekPct)
+  // Clamp the display: the API sometimes reports over 100 once a limit is hit.
+  readonly property int worstPctShown: Math.min(100, worstPct)
+  // Which limit is the binding one, so "S"/"W" disambiguates session vs week.
+  readonly property string worstWhich: sessionPct >= weekPct ? "S" : "W"
   // Past this a limit is close enough that it changes what you start next.
   readonly property bool tight: worstPct >= 80
   readonly property bool hasUsage: usage.t_total !== undefined && usage.t_total !== ""
@@ -85,8 +89,9 @@ BarWidget {
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
-      // the percentage is the thing worth a glance; tokens are in the panel
-      text: root.worstPct + "%"
+      // the percentage is the thing worth a glance; tokens are in the panel.
+      // S/W marks whether session or week is the binding limit.
+      text: root.worstWhich + " " + root.worstPctShown + "%"
       color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
@@ -241,7 +246,7 @@ BarWidget {
             id: usageHero
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            pct: root.worstPct
+            pct: root.worstPctShown
             tint: root.tight ? Color.urgent : Color.accent
           }
           Column {

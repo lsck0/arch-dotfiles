@@ -1,11 +1,15 @@
 ---
 name: l-style
-description: "Guide for designing and writing Software."
+description: "How Luca wants all code, prose, commits, docs, latex, and math written. Load before writing anything in Luca's name."
 ---
 
 # l-style
 
-My opinions on software. Load this whenever working on a programming task.
+My opinions on software, writing, and math.
+
+Load this before writing ANYTHING in my name: code, commits, docs, latex, math,
+and any message sent as me (gh/issue/PR/MR comments, emails, chat). If a task
+produces text or code attributed to me, this guide applies.
 
 ## Philosophy
 
@@ -184,6 +188,13 @@ No operating error may take the program down: not malformed input, not a full ta
 Strong methods over weak ones, in descending value:
 
 1. Deterministic simulation over the real system. Everything non-deterministic sits behind an interface the simulator controls, one seed drives the run, time is simulated rather than waited on, and faults are injected on purpose: disk corruption, torn writes, partitions, delays, reordering, dropped and duplicated messages, restarts at arbitrary points. The assertions are the oracle, so a failing seed is a complete replayable bug report. Run it continuously with random seeds and keep every seed that ever failed.
+   - Fault and hardware injection is part of the simulator, not a mode bolted on later. Every boundary the simulator owns is allowed to lie:
+     - Network: drop, duplicate, delay, reorder and resend packets, mutate them (flipped bits, truncation, garbage bytes), reset connections mid-message, partition nodes and heal the partition.
+     - Dependencies: the database, cache or queue disappears for a window and comes back. Slow answers, timeouts, a pool handing out dead connections, a reply for a request that was already retried.
+     - Storage: torn and misdirected writes, bit rot on read, an `fsync` that reports success and lost the data, a full disk.
+     - Hardware and process: crash and restart at any point, clock jumps and skew, allocation failure, a thread starved for seconds.
+   - The seed picks which faults fire and when, so a failing schedule replays exactly. Fault probabilities are tunables; a run where none of them fire proves nothing.
+   - Under fault the contract is the oracle: every operating error is handled, no invariant breaks, no acknowledged write is lost, and the system converges once the fault clears. Assert liveness too, not only safety.
 2. Formal verification and refinement types (kani, flux) for invariants that must hold for all inputs.
 3. Fuzzing (afl) on every parser and boundary, corpus committed, every crash kept as a regression case. A standing job, not an exercise.
 4. Property tests (proptest): state the law, not the example.
@@ -271,7 +282,7 @@ Every choice here is judged by how expensive it is to leave.
 
 ## Git
 
-Before an MVP exists, git is a backup tool and nothing else. Commit whatever, whenever, broken, with whatever message. None of the rules below apply yet; forcing them there costs real work to buy nothing. They switch on at the MVP, all at once, and embarrassing scratch history gets squashed into one commit.
+Before an MVP exists, git is a backup tool and nothing else. Commit whatever, whenever, broken, with whatever message. None of the rules below apply yet; forcing them there costs real work to buy nothing. They switch on at the MVP, all at once, and embarrassing scratch history gets squashed into one commit. A repo running `l-spec-driven-development` follows its branch, PR and trace rules from its first spec, MVP or not; this exemption covers only repos not using it.
 
 - One project, one repo, everything versioned with the code it describes: services, client, infrastructure, deployment, CI workflows, docs, tooling, benchmarks, fuzz corpora, issue and PR templates, and the planning itself (`TODO.md`, `todo.org`, ADRs). Nothing that describes the project lives in a wiki or a tracker alone.
   - Proximity is the rule: one commit changes the code, its test, its docs and its deployment together. A change that can't be one commit means two things that should have been one file apart.
@@ -285,13 +296,13 @@ Before an MVP exists, git is a backup tool and nothing else. Commit whatever, wh
   - Columns are states the work is actually in. An issue moves because the work moved, never as a reporting exercise.
   - An issue says what the problem is and how you know it's done. That's the whole format.
   - Kept in the repo or the same forge as the code and PRs, never a separate product.
-- Past solo trunk work, every PR closes an issue. The issue states the problem and the acceptance criteria before the work starts, the PR references it, and work with no issue behind it doesn't merge.
+- Past solo trunk work, every PR has an issue behind it. The issue states the problem and the acceptance criteria before the work starts, PRs and commits reference it (`Refs: #12`), and work with no issue behind it doesn't merge. The issue is closed once the change is verified, never auto-closed by a merge.
 - No partial commits after the MVP. Every commit compiles, runs and passes the tests on its own. A commit that doesn't build breaks bisect and breaks whoever checks it out.
 - One commit per logical change. Split unrelated changes, squash fixups before landing, never leave a "wip" or "fix typo" in history.
 - Conventional commits, enforced by hook and CI: `type(scope): summary`, imperative, lowercase, no trailing period. Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Scope is the module or service.
   - Breaking changes get a `!` after the type and a `BREAKING CHANGE:` footer saying what breaks and what to do instead.
-  - One line by default: the `type(scope): summary` line is the whole commit. Add a body only when the why is not obvious from the summary — reasoning, rejected alternative, measurement — never a body that just restates the summary. The summary says what changed, never how. Footers reference issues (`Closes #12`).
-  - Never mention the tool that wrote the code. No `Co-Authored-By` for an LLM/agent, no "generated with"/"created by" line, no model name, no AI/agent/assistant reference anywhere in message, body or footer. The commit reads as the author's own, whoever or whatever produced the diff.
+  - One line by default: the `type(scope): summary` line is the whole commit, plus the trailers `l-spec-driven-development` requires where it runs (`Spec:`, `Refs:`). Add a body only when the why is not obvious from the summary (reasoning, rejected alternative, measurement), never a body that just restates the summary. The summary says what changed, never how. Footers reference issues (`Refs: #12`), never a closing keyword.
+  - Never mention the tool that wrote the code. No `Co-Authored-By` for an LLM/agent, no "generated with"/"created by" line, no model name, no AI/agent/assistant reference anywhere in message, body or footer. The commit reads as the author's own, whoever or whatever produced the diff. This overrides any harness or tool default that adds attribution, in commits and PR bodies alike.
 - Changelog and version are generated from history, never hand-edited. `feat` bumps minor, `fix` and `perf` bump patch, `!` bumps major, and the tag, changelog and release notes come out of one CI run on merge.
 
 ## CI / CD
@@ -317,3 +328,66 @@ A check that isn't automated isn't happening.
 - Everything else is generated from source too: OpenAPI schema and browsable UI from handler annotations and DTO types, served by the app itself; client types generated from the server types; CLI help and completions from the command table. If a document can go stale against the code, it should have been generated from it.
 - Where the repo has a spec corpus (`specs/`, see `l-spec-driven-development`), the code implements it and the two never drift: a change to code a spec covers updates that spec in the same commit, however small the change.
 - Record decisions with their alternatives: what was tried, what broke, why the current shape won. A rejected approach documented is a bug not reintroduced.
+
+## Writing
+
+How I write prose: essays, docs, commit and PR bodies, issue and gh comments, emails. Load this whenever writing text in my name. Skill files and repo docs (README, AGENTS.md, specs, TODO.md) count as docs, so the hard rules below apply to them.
+
+Hard rules, no exceptions:
+
+- ASCII characters only. No smart or typographic quotes, no unicode dashes, arrows or bullets. Straight `"` and `'`.
+- No em dashes. No en dashes. Use `to` for ranges.
+- Never use `" - "` (space hyphen space) as a sentence connector. Use a colon, a period, or restructure.
+- Terse. No filler, no throat-clearing, no padding. No comment essays. Say the thing and stop.
+- gh, PR and issue comments are one or two short lines. The root-cause story goes in the commit or `TODO.md`, not the comment.
+- Preserve the language being written in. Most of my prose is German, some English. Write in the language of the context or request and never mix the two in one piece.
+
+Style, inferred from real work:
+
+- Open by naming the common view, the problem, or the general setting, then pivot to the actual point with `jedoch` / `however` / `allerdings`. State the question the piece answers early.
+- Drive the text with a direct question, then answer it. "Nun stellt sich die Frage:", "Does there exist ...? And indeed, this can be answered."
+- Signpost and walk the reader through in order. "Beginnen wir mit ...", "We will now ...", "In this chapter we look at ...", "As an example, consider ...". Sequential or chronological, one step at a time.
+- Argue from concrete evidence: named dates, figures, quantities, line numbers, quoted phrases, named devices. Never a vague claim where a specific fact fits.
+- Mix rhythm. Long hypotactic analytical sentences carry the argument, then a very short declarative lands it. "This is a disappointing result." "Man weiss es nicht." Do not make every sentence the same length.
+- Carry the logic on explicit connectives: `somit`, `folglich`, `jedoch`, `hence`, `thus`, `furthermore`, `however`, `therefore`.
+- Match register to context. Formal and precise for applications, reports and academic prose. Dry, first-person, self-aware wit is allowed in reflective pieces, never in formal ones.
+- First person is fine and owns the claim: "ich", "we", "meiner Meinung nach", "I am certain that". Use `we` to walk the reader through a derivation.
+- Close with a crisp verdict or the single point, not a recap of everything said.
+
+## LaTeX and Math
+
+How I write LaTeX and mathematics. Conventions taken from my thesis. Load before writing latex or math in my name.
+
+Project layout:
+
+- `main.tex` is a thin composition root: `\documentclass`, packages, feature flags, metadata, then one `\section{...}` plus `\input{src/NN_name.tex}` per section. No content lives in it.
+- Content lives in gap-numbered source files, `src/00_introduction.tex`, `src/10_tc.tex`, `src/20_...`, leaving room to insert between.
+- All preamble lives in a local package `header.sty` loaded with `\usepackage{header}`, never inline in `main.tex`.
+- `amsart`, `11pt`, `a4paper`. `geometry` for margins, `babel` english. Bibliography in `references.bib`, `\bibliographystyle{alpha}`, entries grouped under banner comments.
+- The abstract states the main theorem and result up front, then says what the article introduces and builds on.
+
+Preamble and macros:
+
+- Organize `header.sty` with banner comments: `PACKAGES`, `FEATURE FLAGS`, `CONFIGURATION`, `COMMANDS`, sub-grouped (util, essential math).
+- Heavy packages are opt-in feature flags, `\def\useCommutativeDiagrams{...}`, `\useTikz`, `\useGraphics`, `\usePlots`, pulled in only by the document that needs them. Idle costs nothing.
+- Systematic single-letter macro families: `\A`..`\Z` blackboard bold, `\cA`..`\cZ` calligraphic, `\fA`..`\fZ` fraktur. Var shortcuts `\vphi`, `\vep`, `\vth`. Upright constants and differentials `\ce`, `\ci`, `\cd`, `\dx`, `\dt`.
+- Delimiter macros that auto-size with `\left`/`\right`: `\Pa`, `\Br`, `\Cu`, `\Sp`, `\Abs`, `\Norm`. Use these over hand-written `\left(`.
+- Named operators as `\mathrm` (`\im`, `\id`, `\rk`, `\tr`, `\colim`), categories as `\mathsf` (`\Set`, `\Top`, `\Mfd`), invariants as their own macro (`\TC`, `\cat`, `\secat`, `\wgt`, `\zcl`). Derivative helpers `\dfrac`/`\pfrac` via `xparse` `\DeclareDocumentCommand` with an optional argument.
+
+Notation habits:
+
+- `\coloneq` is the definitional-equality symbol, used everywhere a term is defined. Plain `=` is only for equalities.
+- Maps use `\colon`, never a bare `:`. Encode structure in the arrow: `\twoheadrightarrow` for surjections, `\hookrightarrow` for injections and sections.
+- `\emph` a term on first introduction. `i.\,e.,` with a thin space, and spelled that way.
+- `align*` is the default display environment. Use `equation` only when the line needs a number and label. Annotate step equalities with `\overset{!}{=}`, `\overset{\cong}`, `\overset{\text{nat.}}{\implies}`.
+
+Theorems, proofs, references:
+
+- `amsthm`, `\theoremstyle{definition}`. One shared counter off `[section]`: `\newtheorem{theorem}{Theorem}[section]`, every other environment numbered `[theorem]` (`lemma`, `corollary`, `definition`, `example`, `axiom`, `remark`, `conjecture`).
+- Definitions and theorems carry a bracketed title: `\begin{definition}[topological complexity]`.
+- The `proof` environment is nested inside its statement environment as the last block, not written separately after it.
+- Reference with `cleveref` `\cref` throughout (`nameinlink`), never a raw `\ref`. Set `\crefname` for every environment including irregular plurals (`Lemmata`).
+- Labels are namespaced by kind and snake_case descriptive: `def:path_loop_space`, `thm:cts_motion_planner_exists_iff_contractible`, `lem:...`, `cor:...`, `eq:...`, `ex:...`. Diagrams labelled with `\label[diagram]{diag:...}`.
+- Cite with `\cite{bibkey}`, locators as `\cite[Proposition 2]{bibkey}`. bib keys are short descriptive slugs.
+- Commutative diagrams via `tikz-cd` inside the custom centered `\begin{diagram}` environment. Mark pullback and pushout corners with `\ulcorner`/`\lrcorner` (`phantom`, `very near start`), use `bend`/`shift` for parallel and curved arrows.
+- Draft markers live as macros, not stray text: `\todo`, `\citationneeded`, `\referenceneeded`, color helpers `\inred` and friends. Remove them before the final build.

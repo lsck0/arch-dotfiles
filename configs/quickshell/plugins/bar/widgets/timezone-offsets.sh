@@ -4,6 +4,7 @@ set -euo pipefail
 
 # label:IANA-zone pairs, by region.
 zones=(
+  "Central Europe:Europe/Berlin"
   "UK:Europe/London"
   "USA East:America/New_York"
   "USA Central:America/Chicago"

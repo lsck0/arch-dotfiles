@@ -10,7 +10,7 @@ mkdir -p ~/.jai
 
 ## jai itself
 
-wget $1 -O ~/.jai/jai.zip
+wget "$1" -O ~/.jai/jai.zip
 unzip ~/.jai/jai.zip -d ~/.jai
 mv ~/.jai/jai/* ~/.jai/
 rmdir ~/.jai/jai

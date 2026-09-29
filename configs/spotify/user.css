@@ -1,5 +1,5 @@
 * {
-  font-family: "Tektur", "Symbols Nerd Font", sans-serif !important;
+  font-family: "Kode Mono", "Symbols Nerd Font", sans-serif !important;
 }
 
 body {
@@ -126,24 +126,7 @@ body {
   background-color: var(--spice-main);
 }
 
-/* --- cyberpunk/terminal accents: recolor + glow + scanlines only --- */
-
-/* CRT scanline overlay: fixed pseudo-element, above bg and below content */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.05;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    var(--spice-text) 0px,
-    var(--spice-text) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
+/* --- cyberpunk/terminal accents: recolor + glow only --- */
 
 /* thin accent scrollbars */
 ::-webkit-scrollbar {
@@ -210,4 +193,10 @@ body::after {
 .main-topBar-searchBar:hover,
 .main-topBar-searchBar:focus-within {
   box-shadow: inset 0 0 0 1px var(--spice-button);
+}
+
+/* extra top padding on album/liked/playlist headers */
+.main-entityHeader-container,
+.main-entityHeader-withBackgroundImage {
+  padding-top: 40px !important;
 }

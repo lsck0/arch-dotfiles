@@ -11,3 +11,11 @@ mkdir -p ${HOME}/.config/VSCodium/User
 
 ln -sfn ${PWD}/settings.json ${HOME}/.config/VSCodium/User/settings.json
 ln -sfn ${PWD}/keybindings.json ${HOME}/.config/VSCodium/User/keybindings.json
+
+# vim mode is in settings.json, so install the extension that provides it.
+for bin in codium code; do
+    if command -v "$bin" >/dev/null 2>&1; then
+        "$bin" --install-extension vscodevim.vim >/dev/null 2>&1 || true
+        break
+    fi
+done

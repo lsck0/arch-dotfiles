@@ -14,15 +14,18 @@ Turn a ticket into working code, to the project's own conventions.
   ticked and cited, `Implemented in` and `specs/INDEX.md` current.
 - Run real lint/build/test; don't report done until they pass.
 
-Edit the project's real source tree: the checkout you were started in,
-which may be a worktree. Never switch branches there or touch another
-checkout. Stage named paths only, never `git add -A`.
+Work in the checkout you were started in, which may be a worktree. Create
+and switch branches only as l-spec-driven-development's phase loop says;
+never touch another checkout. Stage named paths only, never `git add -A`.
 
 - A choice the spec doesn't settle is a spec gap: stop and report it,
   don't pick the obvious option.
+- A repo's own commit rule overrides (e.g. l-dotfiles: never commit or
+  push; stop at a clean reviewed tree).
 - Report each check as passed, failed or not run.
 
-Summarize to the target file, then stop.
+Edit the project's real source tree. Summarize to the target file, then
+stop. No file given -> summarize in chat.
 
 ## Tools
 

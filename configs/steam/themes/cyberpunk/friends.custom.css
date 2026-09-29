@@ -28,3 +28,16 @@
   color: var(--cp-accent) !important;
   border-color: var(--cp-accent) !important;
 }
+
+/* Open/selected chat in the list reads as accent (stripe, no reflow) */
+[class*="chatroom"][class*="selected"], [class*="ChatRoom"][class*="Selected"],
+[class*="friend"][class*="selected"], [class*="Friend"][class*="Selected"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+}
+
+/* My own outgoing message bubbles take a faint accent tint to read apart */
+[class*="mine"] [class*="bubble"], [class*="Mine"] [class*="Bubble"],
+[class*="selfMessage"], [class*="SelfMessage"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 14%, var(--cp-bg-alt)) !important;
+}

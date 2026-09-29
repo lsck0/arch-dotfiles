@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate Spotify's spicetify colour scheme from the current wallpaper palette.
 
-Writes ~/.cache/wal/colors-spicetify.ini, which `pywal-spicetify wal` copies
-into the wal theme's color.ini as the [pywal] section and applies.
+Writes ~/.cache/wal/colors-spicetify.ini (also read for the Discord theme) and
+the wal theme's color.ini as its only [pywal] section. pywal-spicetify used to do
+the color.ini part, but it leaves stray keys behind on every run.
 
 This replaces a wallust template that mapped raw palette slots onto spicetify's
 legacy key names (accent, banner, header...). Current Spotify builds only read
@@ -34,6 +35,7 @@ from palette import (  # noqa: E402
 
 CACHE = os.path.expanduser("~/.cache/wal/colors.json")
 OUT = os.path.expanduser("~/.cache/wal/colors-spicetify.ini")
+THEME_INI = os.path.expanduser("~/.config/spicetify/Themes/wal/color.ini")
 
 
 def main():
@@ -93,11 +95,18 @@ def main():
 
     width = max(len(k) for k, _ in values)
     body = "".join("%s = %s\n" % (k.ljust(width), rgb_to_hex(v)) for k, v in values)
-    tmp = OUT + ".tmp"
+    write(OUT, body)
+    # color.ini is a symlink into the repo; write through it, not over it.
+    if os.path.isdir(os.path.dirname(THEME_INI)):
+        write(os.path.realpath(THEME_INI), "[pywal]\n" + body)
+    return 0
+
+
+def write(path, body):
+    tmp = path + ".tmp"
     with open(tmp, "w") as fh:
         fh.write(body)
-    os.replace(tmp, OUT)
-    return 0
+    os.replace(tmp, path)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,8 @@ local installed = {
     "pyright",
     "rust-analyzer",
     "slang-server",
-    "sqlls",
+    "sqruff", -- sqlls (sql-language-server) is unmaintained and crashes on load
+
     "stylua",
     "shfmt",
     "gofumpt",
@@ -187,6 +188,16 @@ return {
                 },
             })
 
+
+            -- Root typos-lsp at the dir holding the typos config so its
+            -- extend-words allowlist applies; otherwise it roots elsewhere and
+            -- flags words that are already whitelisted in .typos.toml.
+            vim.lsp.config("typos_lsp", {
+                root_markers = { ".typos.toml", "_typos.toml", "typos.toml", ".git" },
+                -- Fallback base config (skips .tex, allowlists names); a project
+                -- .typos.toml still overrides it.
+                init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
+            })
 
             vim.lsp.config("ts_ls", {
                 on_attach = function(client, bufnr)

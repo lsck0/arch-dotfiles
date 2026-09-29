@@ -26,3 +26,58 @@
 [class*="filter"] input:focus, [class*="Filter"] input:focus {
   box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 6px -2px var(--cp-accent) !important;
 }
+
+/* ----- Store window (same client window): capsules lift with an accent frame ----- */
+[class*="Capsule"]:hover, [class*="StoreItem"]:hover, [class*="AppCapsule"]:hover,
+[class*="salepreviewwidgets"]:hover {
+  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 10px -3px var(--cp-accent) !important;
+}
+
+/* Collection / shelf headers get a thin accent underline to structure the grid */
+[class*="CollectionsHeader"], [class*="ShelfName"], [class*="_ShelfHeader"] {
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 40%, transparent) !important;
+}
+
+/* Downloads page: the active download row takes a faint accent tint + edge */
+[class*="download"][class*="active"], [class*="Download"][class*="Active"],
+[class*="downloadrow"]:hover, [class*="DownloadRow"]:hover {
+  background-color: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+}
+
+/* ----- App-details page (Install/Play, tabs, achievements) ----- */
+
+/* Big Play/Install action button -> accent HUD button (green/blue -> cyan). */
+[class*="AppActionButton"], [class*="appactionbutton"],
+[class*="PlayButton"], [class*="_PlayButton"],
+[class*="InstallButton"], [class*="Btn_Positive"], [class*="GreenButton"] {
+  background: var(--cp-accent) !important;
+  color: var(--cp-bg) !important;
+  box-shadow: 0 0 12px -3px var(--cp-accent) !important;
+}
+
+/* Detail tab bar (Store Page / Community Hub / ...): accent underline on the active/hovered tab. */
+[class*="AppDetailsTab"], [class*="appdetailstab"], [class*="_NavTab"] {
+  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 25%, transparent) !important;
+}
+[class*="AppDetailsTab"]:hover, [class*="AppDetailsTab"][class*="active"],
+[class*="appdetailstab"][class*="active"], [class*="_NavTab"][class*="active"] {
+  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+  color: var(--cp-fg) !important;
+}
+
+/* Achievement + generic progress fills to accent (blue -> cyan). */
+[class*="chievement"] [class*="Fill"], [class*="chievement"] [class*="fill"],
+[class*="ProgressBar"] div, [class*="progressbar"] div {
+  background-color: var(--cp-accent) !important;
+}
+
+/* Achievement icon chips get a thin accent frame. */
+[class*="chievement"] img {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cp-accent) 30%, transparent) !important;
+}
+
+/* Library sidebar + content scrollbars in accent. */
+[class*="ScrollbarThumb"], [class*="scrollbar"] [class*="thumb"] {
+  background-color: color-mix(in srgb, var(--cp-accent) 55%, transparent) !important;
+}

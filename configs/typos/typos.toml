@@ -1,0 +1,11 @@
+# Global typos-lsp base config. A project .typos.toml still overrides per repo.
+
+[default.extend-words]
+# Names typos would otherwise "correct".
+Sandrock = "Sandrock"
+Luca = "Luca"
+
+[type.tex]
+# LaTeX command names (\vspace, \vfill, \bfseries) are not prose and flood the
+# buffer with false positives; vim's own spell already checks the tex prose.
+check-file = false

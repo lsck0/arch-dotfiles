@@ -1,7 +1,6 @@
 [Added Associations]
 application/pdf=okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
-x-scheme-handler/proton-inbox=proton-mail.desktop;
 
 [Default Applications]
 application/pdf=okular.desktop

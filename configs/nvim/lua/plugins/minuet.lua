@@ -15,8 +15,9 @@ return {
             request_timeout = 4,
             provider_options = {
                 openai_fim_compatible = {
-                    -- ollama needs no key; the client still wants a non-empty value
-                    api_key = "TERM",
+                    -- ollama needs no key; return a literal so it never depends on
+                    -- an env var (neovide GUI has no $TERM, which nil-crashed the old value).
+                    api_key = function() return "ollama" end,
                     name = "Ollama",
                     end_point = "http://localhost:11434/v1/completions",
                     model = "qwen2.5-coder:0.5b",

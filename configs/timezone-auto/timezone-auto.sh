@@ -8,8 +8,6 @@ TOGGLES="$REPO/toggles"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/toggles"
 DISABLED_FLAG="$STATE_DIR/timezone-auto-disabled"
 
-log() { echo "timezone-auto: $*" >&2; }
-
 current_tz() {
     timedatectl show -p Timezone --value 2>/dev/null || true
 }

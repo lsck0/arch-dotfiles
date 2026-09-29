@@ -26,7 +26,7 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
-set.guifont = "Tektur:h16"
+set.guifont = "Kode Mono:h16"
 set.ignorecase = true
 set.inccommand = "split"
 set.laststatus = 3
@@ -56,6 +56,14 @@ set.updatetime = 250
 set.virtualedit = "block"
 set.winborder = "rounded"
 set.wrap = false
+set.modeline = false -- security: no option execution from opened files
+-- Never soft-wrap anywhere. Auto-inserted newlines (textwidth + fo 't') are set
+-- only for prose filetypes in autocmds.lua, so code is never hard-wrapped mid-line.
+
+-- Unused language providers: skip the startup rplugin scan + checkhealth noise.
+vim.g.loaded_node_provider = 0
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_ruby_provider = 0
 
 if vim.g.neovide then
     vim.g.neovide_scale_factor = 1.0
@@ -65,8 +73,8 @@ if vim.g.neovide then
     vim.g.neovide_refresh_rate = 120
     vim.g.neovide_refresh_rate_idle = 5
     vim.g.neovide_cursor_animation_length = 0.05
-    vim.g.neovide_cursor_trail_size = 0.3
-    vim.g.neovide_cursor_vfx_mode = "railgun"
+    vim.g.neovide_cursor_trail_size = 0.0
+    vim.g.neovide_cursor_vfx_mode = "" -- no particle trail dots
     vim.g.neovide_padding_top = 4
     vim.g.neovide_padding_bottom = 4
     vim.g.neovide_padding_left = 6

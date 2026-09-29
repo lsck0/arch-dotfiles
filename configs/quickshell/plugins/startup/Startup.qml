@@ -158,7 +158,7 @@ Item {
 
       // Screen-corner HUD brackets + CRT scanlines on the boot splash.
       HudFrame {}
-      Scanlines {}
+      Scanlines { flicker: false }
     }
   }
 }

@@ -17,7 +17,13 @@ dim.r = 0.761; dim.g = 0.765; dim.b = 0.773;
 
 #----------------------------------------- Prompt line --------------------------------
 
-prompt.image = Image.Text("> booting archlinux", accent.r, accent.g, accent.b);
+# Text tracks the plymouth mode so shutdown/reboot do not read "booting".
+mode = Plymouth.GetMode();
+prompt_text = "> booting archlinux";
+if (mode == "shutdown") prompt_text = "> shutting down archlinux";
+if (mode == "reboot") prompt_text = "> rebooting archlinux";
+if (mode == "suspend") prompt_text = "> suspending archlinux";
+prompt.image = Image.Text(prompt_text, accent.r, accent.g, accent.b);
 prompt.sprite = Sprite(prompt.image);
 prompt.x = screen.x + screen.width / 2 - prompt.image.GetWidth() / 2;
 prompt.y = screen.y + screen.height * 0.42;

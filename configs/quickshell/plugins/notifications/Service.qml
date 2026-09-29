@@ -58,7 +58,7 @@ Item {
   property double popupNowMs: Date.now()
   Timer {
     interval: 20000
-    running: true
+    running: popupModel.count > 0
     repeat: true
     triggeredOnStart: true
     onTriggered: service.popupNowMs = Date.now()
@@ -139,7 +139,10 @@ Item {
         } catch (e) {
           // Torn down by the server while the write was queued.
         }
-        if (updated && NotificationLogic.popupRowChanged(resolved, updated)) {
+        // Compare the UNRESOLVED input against the fresh snapshot: `resolved` has
+        // its image rewritten to a materialized.png, so it would always differ from
+        // `updated` (still image://) and re-encode the PNG forever, burning a core.
+        if (updated && NotificationLogic.popupRowChanged(written, updated)) {
           service.writeSilenced(notification, updated)
           return
         }

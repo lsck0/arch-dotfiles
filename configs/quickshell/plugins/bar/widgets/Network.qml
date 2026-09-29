@@ -16,6 +16,7 @@ BarWidget {
   property string homeVpnState: "off"
   property string protonVpnState: "off"
   property string torState: "off"
+  property bool egressOn: false
   property bool btPowered: false
   property bool wifiOn: true
   property bool offlineModeOn: false
@@ -54,6 +55,7 @@ BarWidget {
     homeVpnProc.running = true
     protonVpnProc.running = true
     torProc.running = true
+    egressProc.running = true
     btProc.running = true
     wifiProc.running = true
     rfkillProc.running = true
@@ -99,6 +101,8 @@ BarWidget {
   function toggleHomeVpn() { Quickshell.execDetached([toggleDir + "/toggle-vpn.sh", "toggle"]); afterToggle() }
   function toggleProtonVpn() { Quickshell.execDetached([toggleDir + "/toggle-protonvpn.sh", "toggle"]); afterToggle() }
   function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); afterToggle() }
+  // Egress dials an ssh -D tunnel and verifies its exit IP, which takes a moment; afterToggle's repeated re-read covers it.
+  function toggleEgress() { Quickshell.execDetached([toggleDir + "/toggle-egress.sh", "toggle"]); afterToggle() }
   function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); afterToggle() }
   function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); afterToggle() }
   // Offline mode tears tunnels down first and takes several seconds, which is the case the repeated re-read above exists for.
@@ -118,6 +122,11 @@ BarWidget {
     id: torProc
     command: [root.toggleDir + "/toggle-tor.sh", "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.torState = String(text || "off").trim() }
+  }
+  Process {
+    id: egressProc
+    command: [root.toggleDir + "/toggle-egress.sh", "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.egressOn = String(text || "").trim() === "on" }
   }
   Process {
     id: btProc
@@ -600,6 +609,7 @@ BarWidget {
       Row_ { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
       Row_ { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       Row_ { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
+      Row_ { label: "Test Egress"; on: root.egressOn; onActivated: root.toggleEgress() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "> RADIOS" }

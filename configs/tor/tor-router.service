@@ -1,0 +1,16 @@
+[Unit]
+Description=Start rules for transparent tor proxy
+After=network-online.target tor.service
+Requires=tor.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/tor-router start
+RemainAfterExit=yes
+ExecStop=/usr/bin/tor-router stop
+TimeoutStopSec=180
+KillMode=process
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

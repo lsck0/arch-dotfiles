@@ -36,7 +36,7 @@ Item {
   // The scrim below is a fixed near-black regardless of theme, so text on it needs a fixed light palette, not the themed foreground.
   readonly property color onScrim: "white"
   readonly property color onScrimDim: Qt.rgba(1, 1, 1, 0.55)
-  readonly property color onScrimUrgent: "#ff6b6b"
+  readonly property color onScrimUrgent: Color.semantic.live
   readonly property string fontFamily: Style.font.family
 
   function open(payloadJson) {
@@ -106,8 +106,8 @@ Item {
       pwProc.running = false
     }
     qrProc.command = requestedIface
-      ? [Quickshell.env("HOME") + "/.local/bin/network-qr", "--meta", requestedIface]
-      : [Quickshell.env("HOME") + "/.local/bin/network-qr", "--meta"]
+      ? [Paths.bin("network-qr"), "--meta", requestedIface]
+      : [Paths.bin("network-qr"), "--meta"]
     qrProc.running = true
   }
 
@@ -129,7 +129,7 @@ Item {
     passwordError = ""
     // Only a deliberate new lookup lowers the canceled-fetch guard, right as it launches -- see the pwProc comment.
     pwExpectedStop = false
-    pwProc.command = [Quickshell.env("HOME") + "/.local/bin/network-password", iface]
+    pwProc.command = [Paths.bin("network-password"), iface]
     pwProc.running = true
   }
 

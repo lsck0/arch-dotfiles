@@ -20,8 +20,34 @@ FORCE_HTTPS=0; WORDLIST=""; DURATION=60; MAX_TIME=0; OUTDIR=""
 COOKIE=""; HEADER=""; YES=0
 DOS=0; STEALTH=0; RATE=0; TOOL_TIMEOUT=0
 COOKIE2=""; HEADER2=""; COLLAB=""; REAUTH_CMD=""; RCE_CMD=""
+SCOPE_FILE=""
 
 usage() { sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+# Refuse any target not on the authorized scope list. A line is an exact host, a
+# domain (matches its subdomains too), or a CIDR (IP targets only). Empty file
+# or no --scope means no gate. Keeps a run inside the rules of engagement.
+scope_check() {
+    local host="$1" line
+    [ -z "$SCOPE_FILE" ] && return 0
+    [ -r "$SCOPE_FILE" ] || { err "scope file unreadable: $SCOPE_FILE"; exit 1; }
+    while IFS= read -r line; do
+        line="${line%%#*}"; line="${line// /}"; [ -n "$line" ] || continue
+        [ "$host" = "$line" ] && return 0
+        case "$host" in *".$line") return 0 ;; esac
+        if printf '%s' "$line" | grep -q '/' && have python3; then
+            python3 - "$host" "$line" <<'PY' && return 0
+import sys, ipaddress
+try:
+    sys.exit(0 if ipaddress.ip_address(sys.argv[1]) in ipaddress.ip_network(sys.argv[2], strict=False) else 1)
+except Exception:
+    sys.exit(1)
+PY
+        fi
+    done < "$SCOPE_FILE"
+    err "target $host not in scope ($SCOPE_FILE): refusing"
+    exit 1
+}
 
 add_targets_file() {
     local f="$1" line
@@ -54,6 +80,7 @@ while [ $# -gt 0 ]; do
         --stealth)      STEALTH=1 ;;
         --rate)         RATE="${2:?--rate needs requests/sec}"; shift ;;
         --tool-timeout) TOOL_TIMEOUT="${2:?--tool-timeout needs seconds}"; shift ;;
+        --scope)        SCOPE_FILE="${2:?--scope needs a file}"; shift ;;
         -h|--help)      usage 0 ;;
         @*)           add_targets_file "${1#@}" ;;
         -*)           err "unknown option: $1"; usage 1 ;;
@@ -84,6 +111,7 @@ if [ "${#TARGETS[@]}" -gt 1 ]; then
     [ "$STEALTH" = 1 ] && passthru+=(--stealth)
     [ "$RATE" -gt 0 ] 2>/dev/null && passthru+=(--rate "$RATE")
     [ "$TOOL_TIMEOUT" -gt 0 ] 2>/dev/null && passthru+=(--tool-timeout "$TOOL_TIMEOUT")
+    [ -n "$SCOPE_FILE" ] && passthru+=(--scope "$SCOPE_FILE")
     [ "$FORCE_HTTPS" = 1 ] && passthru+=(--https)
     [ -n "$WORDLIST" ] && passthru+=(--wordlist "$WORDLIST")
     passthru+=(--duration "$DURATION")
@@ -118,6 +146,7 @@ HOST="${hostport%%:*}"
 [ "$hostport" != "${hostport#*:}" ] && PORT="${hostport##*:}"
 if [ -z "$PORT" ]; then [ "$SCHEME" = "https" ] && PORT=443 || PORT=80; fi
 BASEURL="${SCHEME}://${HOST}:${PORT}${PATHQ}"
+scope_check "$HOST"
 
 # Auth flags
 HTTPX_AUTH=(); NUCLEI_AUTH=(); FFUF_AUTH=(); KATANA_AUTH=(); SQLMAP_AUTH=(); CURL_AUTH=()

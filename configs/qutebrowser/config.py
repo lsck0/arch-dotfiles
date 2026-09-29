@@ -91,7 +91,7 @@ c.tabs.show = "multiple"  # hide tabbar when only 1 tab
 c.tabs.indicator.width = 2
 c.statusbar.show = "in-mode"  # hide statusbar except command/insert modes
 c.scrolling.smooth = True
-c.fonts.default_family = "Tektur"
+c.fonts.default_family = "Kode Mono"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 
@@ -116,6 +116,12 @@ c.url.searchengines = {
     "w": "https://en.wikipedia.org/w/index.php?search={}",
     "yt": "https://youtube.com/results?search_query={}",
 }
+
+# Present as desktop Chrome on every site so bot checks stop firing on the
+# default QtWebEngine UA.
+_ua = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+       "Chrome/140.0.0.0 Safari/537.36")
+c.content.headers.user_agent = _ua
 
 # --------------------------------------------------------------------------- keybindings ---------------------------------------------------------------------------
 config.bind("J", "tab-prev")
