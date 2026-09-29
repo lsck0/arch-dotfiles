@@ -1110,6 +1110,14 @@ retry() {
     done
 }
 
+# Keep the single (timestamp_type=global) sudo credential warm for the whole run,
+# so long AUR builds and makepkg's own pacman calls never re-prompt. Belt to
+# yay --sudoloop's suspenders: this holds even where the helper does not loop.
+sudo -v
+while true; do sudo -n true 2>/dev/null; sleep 50; done &
+SUDO_KEEPALIVE_PID=$!
+trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true' EXIT
+
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
