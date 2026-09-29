@@ -518,7 +518,6 @@ PACKAGES=(
     protonup-git                   # [gaming] Proton-GE installer
     r2modman-bin                   # [gaming] game mod manager
     rcon-cli                       # [gaming] game server RCON client
-    rogue                          # [gaming] roguelike dungeon game
     steam                          # [gaming] gaming platform client
     wayvr-bin                      # [gaming] wayland VR desktop
     xivlauncher-bin                # [gaming] FFXIV game launcher
@@ -1130,10 +1129,10 @@ rustup default stable || true
 
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#PACKAGES[@]} -gt 0 ]]; then
-    if ! retry 7 yay -S --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
+    if ! retry 7 yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
         echo "yay batch failed, falling back to per-package install" >&2
         for pkg in "${PACKAGES[@]}"; do
-            yay -S --needed --noconfirm --mflags --skipinteg "$pkg" \
+            yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "$pkg" \
                 || echo "yay $pkg" >>"$FAILURES_FILE"
         done
     fi

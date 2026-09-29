@@ -56,6 +56,7 @@ return {
         opts = {
             picker = "telescope",
             enable_builtin = true,
+            default_to_projects_v2 = true,
         },
         keys = {
             {
@@ -84,6 +85,38 @@ return {
                     require("octo.utils").create_base_search_command { include_current_repo = true }
                 end,
                 desc = "Search GitHub",
+            },
+            -- org-wide via the private per-repo identity (.identity/env), never hardcoded here
+            {
+                "<leader>oR",
+                function() require("config.octo").org_cmd("Octo repo list %s") end,
+                desc = "List org repos",
+            },
+            {
+                "<leader>oI",
+                function() require("config.octo").org_search("is:issue is:open sort:updated-desc") end,
+                desc = "List org issues",
+            },
+            {
+                "<leader>oP",
+                function() require("config.octo").org_search("is:pr is:open sort:updated-desc") end,
+                desc = "List org PRs",
+            },
+            {
+                "<leader>oO",
+                function() require("config.octo").org_search("") end,
+                desc = "Search org repos",
+            },
+            -- kanban board: move/add or remove the current issue/PR card (projects v2)
+            {
+                "<leader>oc",
+                "<CMD>Octo card set<CR>",
+                desc = "Set project card (kanban)",
+            },
+            {
+                "<leader>oC",
+                "<CMD>Octo card remove<CR>",
+                desc = "Remove project card",
             },
         },
         dependencies = {
