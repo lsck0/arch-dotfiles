@@ -137,8 +137,6 @@ BarWidget {
     var result = []
     for (var i = 0; i < values.length; i++) {
       var item = values[i]
-      // discord's call-state pixmap icon
-      if (String(item.id || "").indexOf("discord_status_icon") === 0) continue
       if (item.status === Status.Passive) continue
       if (ownedByOmarchy(item)) continue
       if (category === "all") {
