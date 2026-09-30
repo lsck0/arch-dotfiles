@@ -28,6 +28,8 @@ set_wallpaper() {
 
     # guard: a missing path would symlink wal/wallpaper to nothing and break every downstream generator
     [[ -f "$file" ]] || { echo "wallpaper not found: $file" >&2; return 1; }
+    # the symlink lives in ~/.cache/wal, so a relative path (install.sh passes one) would point nowhere
+    file=$(realpath "$file")
 
     # Background.qml refreshes over IPC only, it does not watch the symlink
     ln -sfn "$file" "$HOME/.cache/wal/wallpaper" 2>/dev/null
