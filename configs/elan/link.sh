@@ -6,5 +6,4 @@ fi
 
 set -ex
 
-/usr/bin/elan install nightly
 /usr/bin/elan default nightly

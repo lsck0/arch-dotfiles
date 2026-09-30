@@ -38,7 +38,7 @@ if [[ ! -f "$CRYPTTAB" ]]; then
 else
     # drop entries appended by a prior run
     if sudo grep -qF "$MARKER" "$CRYPTTAB" 2>/dev/null; then
-        sudo sed -i "/^$MARKER$/,\$d" "$CRYPTTAB"
+        sudo sed -i "\|^$MARKER\$|,\$d" "$CRYPTTAB" # marker has slashes
     fi
     sudo sed -i -e '$a\' "$CRYPTTAB"
 fi

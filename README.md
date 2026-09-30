@@ -36,6 +36,8 @@ sudo cryptsetup reencrypt /dev/nvme0n1p2
 
 - run `~/.millennium/start.sh` after running steam once (including logging in)
 
+- run `install-jai` and `install-unreal` once syncthing has put their zips into `~/sync`
+
 - fetch the submodules (needs github auth, do `gh auth login`)
 
 ```bash
