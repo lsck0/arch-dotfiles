@@ -437,7 +437,7 @@ PACKAGES=(
     polkit                      # [desktop] privilege authorization framework
     polkit-kde-agent            # [desktop] KDE polkit agent
     proton-authenticator-bin    # [desktop] Proton 2FA app
-    proton-pass                 # [desktop] Proton Pass password manager
+    proton-pass-bin             # [desktop] Proton Pass password manager
     proton-vpn-qt-app           # [desktop] ProtonVPN GUI client
     qbittorrent                 # [desktop] torrent client
     qt5                         # [desktop] Qt5 UI toolkit
@@ -1182,7 +1182,6 @@ if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
             || echo "nix batch" >>"$FAILURES_FILE"
     fi
 fi
-./scripts/install-unreal.sh || echo "scripts/install-unreal.sh" >>"$FAILURES_FILE"
 
 ## LINK
 
