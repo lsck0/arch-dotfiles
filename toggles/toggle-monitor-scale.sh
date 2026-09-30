@@ -48,10 +48,9 @@ def repl(m):
         return block
     return re.sub(r'scale\s*=\s*[0-9.]+', 'scale = %s' % scale, block)
 
-out, n = re.subn(r'hl\.monitor\(\{.*?\}\)', repl, src, flags=re.S), None
-new = out[0]
+new, _ = re.subn(r'hl\.monitor\(\{.*?\}\)', repl, src, flags=re.S)
 if new == src:
-    print("no matching hl.monitor block for %s — not persisted" % name, file=sys.stderr)
+    print("no matching hl.monitor block for %s, not persisted" % name, file=sys.stderr)
     sys.exit(2)
 open(path, 'w').write(new)
 PY

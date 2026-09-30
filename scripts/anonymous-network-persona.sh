@@ -16,7 +16,7 @@ err() { echo "anonymous-network-persona: $*" >&2; }
 
 require_idspoof() {
     command -v idspoof >/dev/null || {
-        err "idspoof not found (build: configs/idspoof/link.sh)"
+        err "idspoof not found (mirror/pkgbuilds/idspoof)"
         exit 1
     }
 }

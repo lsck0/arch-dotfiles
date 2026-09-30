@@ -11,10 +11,6 @@ ln -sfn ${PWD}/Ui ${HOME}/.config/quickshell/Ui
 ln -sfn ${PWD}/plugins ${HOME}/.config/quickshell/plugins
 ln -sfn ${PWD}/services ${HOME}/.config/quickshell/services
 ln -sfn ${PWD}/scripts ${HOME}/.config/quickshell/scripts
-# homelab widget reads its fleet from this checkout
-if [[ ! -d "${HOME}/projects/homelab/.git" ]]; then
-    git clone https://github.com/lsck0/homelab.git "${HOME}/projects/homelab" || true
-fi
 for script in "${PWD}"/scripts/*.sh; do
     ln -sfn "$script" "${HOME}/.local/bin/$(basename "$script" .sh)"
 done

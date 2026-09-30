@@ -7,7 +7,7 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/qutebrowser
+mkdir -p "${HOME}/.config/qutebrowser"
 
-ln -sfn ${PWD}/config.py ${HOME}/.config/qutebrowser/config.py
-ln -sfn ${PWD}/startpage.html ${HOME}/.config/qutebrowser/startpage.html
+ln -sfn "${PWD}/config.py" "${HOME}/.config/qutebrowser/config.py"
+ln -sfn "${PWD}/startpage.html" "${HOME}/.config/qutebrowser/startpage.html"

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if ! command -v msfconsole >/dev/null 2>&1; then
@@ -9,6 +8,7 @@ if ! command -v mise >/dev/null 2>&1 || ! command -v yay >/dev/null 2>&1; then
     exit 0
 fi
 
+# no -x: the psql calls below carry the msf passwords
 set -e
 
 if ! command -v armitage >/dev/null 2>&1; then
@@ -19,14 +19,14 @@ if ! command -v armitage >/dev/null 2>&1; then
     set +x
 fi
 
-
 db_yml=$HOME/.msf4/database.yml
-socket=/tmp/.s.PGSQL.5433
+pg_dir=/tmp
+pg_port=5433
 
 if [[ ! -f "$db_yml" ]]; then
     exit 0
 fi
-if [[ ! -S "$socket" ]]; then
+if [[ ! -S "$pg_dir/.s.PGSQL.$pg_port" ]]; then
     exit 0
 fi
 
@@ -56,14 +56,14 @@ if [[ -z "$msf_pw" ]]; then
     exit 1
 fi
 
-hashes=$(psql -h /tmp -p 5433 -U postgres -d postgres -tAc \
+hashes=$(psql -h "$pg_dir" -p "$pg_port" -U postgres -d postgres -tAc \
     "SELECT rolname || '=' || left(rolpassword, 3) FROM pg_authid WHERE rolname IN ('msf','msftest')" 2>/dev/null || true)
 
 if [[ "$hashes" == *"msf=md5"* ]]; then
     exit 0
 fi
 
-psql -h /tmp -p 5433 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+psql -h "$pg_dir" -p "$pg_port" -U postgres -d postgres -v ON_ERROR_STOP=1 \
     -v msf_pw="$msf_pw" -v msftest_pw="${msftest_pw:-$msf_pw}" <<'SQL'
 SET password_encryption = 'md5';
 ALTER ROLE msf     WITH PASSWORD :'msf_pw';

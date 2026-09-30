@@ -1,6 +1,6 @@
 ; extends
 
-; Fenced code blocks with language identifier - using standard pattern
+; fenced code blocks with a language identifier
 (fenced_code_block
   (info_string
     (language) @injection.language)

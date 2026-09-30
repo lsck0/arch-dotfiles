@@ -55,7 +55,7 @@
                '((c-mode c-ts-mode c++-mode c++-ts-mode)
                  . ("clangd" "--offset-encoding=utf-16" "--background-index")))
   (add-to-list 'eglot-server-programs
-               '(jai-mode . ("jails" "-jai_path" "/home/luca/.jai"
+               `(jai-mode . ("jails" "-jai_path" ,(expand-file-name "~/.jai")
                              "-jai_exe_name" "jai-linux")))
 
   (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))

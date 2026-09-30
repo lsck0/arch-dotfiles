@@ -7,6 +7,5 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.cgdb
-
-ln -sfn ${PWD}/cgdbrc ${HOME}/.cgdb/cgdbrc
+mkdir -p "${HOME}/.cgdb"
+ln -sfn "${PWD}/cgdbrc" "${HOME}/.cgdb/cgdbrc"

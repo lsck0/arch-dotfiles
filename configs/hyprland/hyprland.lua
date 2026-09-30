@@ -1,6 +1,4 @@
-for _, module in ipairs({
-    "platform",
-    "wal_colors",
+local MODULES = {
     "hyprland_autostart",
     "hyprland_cursor",
     "hyprland_input",
@@ -11,9 +9,7 @@ for _, module in ipairs({
     "hyprland_plugins",
     "hyprland_windowrules",
     "hyprland_windows",
-}) do
-    package.loaded[module] = nil
-end
+}
 
 local function optional(module)
     local ok, err = pcall(require, module)
@@ -22,16 +18,15 @@ local function optional(module)
     end
 end
 
-optional("hyprland_autostart")
-optional("hyprland_cursor")
-optional("hyprland_input")
-optional("hyprland_keybindings")
-optional("hyprland_layout")
-optional("hyprland_misc")
-optional("hyprland_monitors")
-optional("hyprland_plugins")
-optional("hyprland_windowrules")
-optional("hyprland_windows")
+-- package.loaded survives a config reload, so drop everything before requiring
+package.loaded["platform"] = nil
+package.loaded["wal_colors"] = nil
+for _, module in ipairs(MODULES) do
+    package.loaded[module] = nil
+end
+for _, module in ipairs(MODULES) do
+    optional(module)
+end
 
 hl.config({
     ecosystem = {

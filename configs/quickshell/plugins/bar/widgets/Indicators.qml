@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import qs.Ui
@@ -17,23 +18,24 @@ BarWidget {
     rowSpacing: 0
     columnSpacing: 0
 
-    // Loader implicit size is read-only, do not assign it
-    Loader {
-      source: "../indicators/StayAwake.qml"
-      onLoaded: if (item) item.bar = root.bar
-      visible: item ? item.visible : true
-    }
+    Repeater {
+      model: ["StayAwake.qml", "Reminder.qml", "Pomodoro.qml"]
 
-    Loader {
-      source: "../indicators/Reminder.qml"
-      onLoaded: if (item) item.bar = root.bar
-      visible: item ? item.visible : true
-    }
+      // Loader implicit size is read-only, do not assign it
+      Loader {
+        id: slot
+        required property string modelData
+        source: "../indicators/" + modelData
+        visible: item ? item.visible : true
 
-    Loader {
-      source: "../indicators/Pomodoro.qml"
-      onLoaded: if (item) item.bar = root.bar
-      visible: item ? item.visible : true
+        // bound, not assigned: these load before BarSection hands this widget its bar
+        Binding {
+          target: slot.item
+          property: "bar"
+          value: root.bar
+          when: slot.item !== null
+        }
+      }
     }
   }
 }

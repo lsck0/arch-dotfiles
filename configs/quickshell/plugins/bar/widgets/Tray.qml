@@ -104,11 +104,6 @@ BarWidget {
     trayMenuOpen = true
   }
 
-  function trayIconSource(icon) {
-    // quickshell already resolves this to an image:// url
-    return String(icon || "")
-  }
-
   // symbolic icons are meant to be recoloured by the host
   function iconIsSymbolic(icon) {
     var name = String(icon || "").split("?")[0]
@@ -190,9 +185,8 @@ BarWidget {
       id: horizontalTrayRoot
 
       readonly property int pinnedWidth: pinnedRow.implicitWidth
-      readonly property int drawerBlockWidth: root.allItems.length > 0 ? root.drawerExtent : 0
 
-      implicitWidth: pinnedWidth + drawerBlockWidth
+      implicitWidth: pinnedWidth + root.drawerExtent
       implicitHeight: root.barSize
 
       containmentMask: QtObject {
@@ -203,9 +197,7 @@ BarWidget {
       }
 
       Item {
-        id: drawerArea
-        x: 0
-        width: horizontalTrayRoot.drawerBlockWidth
+        width: root.drawerExtent
         height: root.barSize
         visible: root.allItems.length > 0
 
@@ -219,7 +211,6 @@ BarWidget {
         }
 
         Item {
-          x: 0
           anchors.verticalCenter: parent.verticalCenter
           width: root.drawerExtent
           height: root.barSize
@@ -236,15 +227,14 @@ BarWidget {
             }
           }
         }
-
       }
 
       Row {
         id: pinnedRow
-        x: drawerArea.x + horizontalTrayRoot.drawerBlockWidth
+        x: root.drawerExtent
         anchors.verticalCenter: parent.verticalCenter
         spacing: root.trayItemGap
-        leftPadding: root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        leftPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? root.trayJoinGap : 0
         Repeater {
           model: root.pinnedItems
           TrayItem {}
@@ -260,10 +250,9 @@ BarWidget {
       id: verticalTrayRoot
 
       readonly property int pinnedHeight: pinnedCol.implicitHeight
-      readonly property int drawerBlockHeight: root.allItems.length > 0 ? root.drawerExtent : 0
 
       implicitWidth: root.barSize
-      implicitHeight: pinnedHeight + drawerBlockHeight
+      implicitHeight: pinnedHeight + root.drawerExtent
 
       containmentMask: QtObject {
         function contains(point: point): bool {
@@ -273,10 +262,8 @@ BarWidget {
       }
 
       Item {
-        id: drawerArea
-        y: 0
         width: root.barSize
-        height: verticalTrayRoot.drawerBlockHeight
+        height: root.drawerExtent
         visible: root.allItems.length > 0
 
         // declared first so it sits under the icons
@@ -289,7 +276,6 @@ BarWidget {
         }
 
         Item {
-          y: 0
           anchors.horizontalCenter: parent.horizontalCenter
           width: root.barSize
           height: root.drawerExtent
@@ -305,15 +291,14 @@ BarWidget {
             }
           }
         }
-
       }
 
       Column {
         id: pinnedCol
-        y: drawerArea.y + verticalTrayRoot.drawerBlockHeight
+        y: root.drawerExtent
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: root.trayItemGap
-        topPadding: root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        topPadding: root.pinnedItems.length > 0 && root.drawerCount > 0 ? root.trayJoinGap : 0
         Repeater {
           model: root.pinnedItems
           TrayItem {}
@@ -693,7 +678,8 @@ BarWidget {
       // decode at physical pixels for hidpi
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
-      source: root.trayIconSource(trayIconRoot.icon)
+      // quickshell already resolves this to an image:// url
+      source: String(trayIconRoot.icon || "")
       // texture source for the MultiEffect only
       visible: false
       layer.enabled: Style.fx.glow > 0

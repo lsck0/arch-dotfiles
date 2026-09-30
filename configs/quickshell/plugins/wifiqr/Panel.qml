@@ -5,7 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
-import "Model.js" as Model
+import "WifiQrModel.js" as WifiQrModel
 
 Item {
   id: root
@@ -58,7 +58,10 @@ Item {
       root.expectedStop = true
       qrProc.running = false
     }
-    if (pwProc.running) pwProc.running = false
+    if (pwProc.running) {
+      root.pwExpectedStop = true
+      pwProc.running = false
+    }
     root.qrSize = 0
     root.qrRows = []
     root.error = ""
@@ -111,7 +114,7 @@ Item {
   }
 
   function updateQr(raw) {
-    var parsed = Model.parseQrOutput(raw)
+    var parsed = WifiQrModel.parseQrOutput(raw)
     qrRows = parsed.matrix.rows
     qrSize = parsed.matrix.size
     if (parsed.meta.ssid !== "") ssid = parsed.meta.ssid

@@ -5,9 +5,11 @@ Item {
   id: root
   anchors.fill: parent
   anchors.margins: margin
-  visible: Style.fx.brackets
+  visible: shown && Style.fx.brackets
   z: 5
 
+  // caller gate, combined with the fx setting
+  property bool shown: true
   property color color: Color.accent
   property int len: Style.fx.bracketLen
   property int thick: Style.fx.bracketWidth

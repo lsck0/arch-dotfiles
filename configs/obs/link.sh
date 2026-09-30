@@ -7,14 +7,14 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/obs-studio/basic/scenes/
-mkdir -p ${HOME}/.config/obs-studio/basic/profiles/Untitled/
+mkdir -p "${HOME}/.config/obs-studio/basic/scenes/"
+mkdir -p "${HOME}/.config/obs-studio/basic/profiles/Untitled/"
 
 # scenes carry stream tokens, so they live in secrets
-ln -sfn "$(readlink -f ../secrets/obs-Untitled.json)" ${HOME}/.config/obs-studio/basic/scenes/Untitled.json
-ln -sfn ${PWD}/basic.ini ${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini
+ln -sfn "$(readlink -f ../secrets/obs-Untitled.json)" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
+ln -sfn "${PWD}/basic.ini" "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini"
 # no safe-mode prompt for a missing capture device (issue 32)
-[ -f ${HOME}/.config/obs-studio/global.ini ] || ln -sfn ${PWD}/global.ini ${HOME}/.config/obs-studio/global.ini
+[ -f "${HOME}/.config/obs-studio/global.ini" ] || ln -sfn "${PWD}/global.ini" "${HOME}/.config/obs-studio/global.ini"
 
 # obs-websocket for the bar's obs widget
 OBS_WS_DIR="${HOME}/.config/obs-studio/plugin_config/obs-websocket"

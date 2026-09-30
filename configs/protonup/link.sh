@@ -33,7 +33,7 @@ install_proton_ge() {
     sum_url="${url%.tar.gz}.sha512sum"
 
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' RETURN
+    trap 'rm -rf "$tmp"; trap - RETURN' RETURN
 
     curl -fL --progress-bar -o "$tmp/$asset.tar.gz" "$url"
     curl -fsSL -o "$tmp/$asset.sha512sum" "$sum_url"
@@ -51,7 +51,7 @@ install_overlay() {
     fi
 
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' RETURN
+    trap 'rm -rf "$tmp"; trap - RETURN' RETURN
 
     curl -fL --progress-bar -o "$tmp/overlay.tar.gz" "$OVERLAY_URL"
     tar -xzf "$tmp/overlay.tar.gz" -C "$COMPAT_DIR"

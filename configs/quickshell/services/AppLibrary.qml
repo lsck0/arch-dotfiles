@@ -8,8 +8,6 @@ import "AppSearch.js" as AppSearch
 Item {
   id: root
 
-  readonly property string shellDir: Paths.shellDir
-
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
 
@@ -73,25 +71,23 @@ Item {
     return value
   }
 
-  function loadConfiguredHides(rawText) {
+  function parseIdSet(rawText) {
     var next = ({})
     var lines = String(rawText || "").split(/\n/)
     for (var i = 0; i < lines.length; i++) {
       var id = root.normalizeDesktopId(lines[i])
       if (id.length > 0) next[id] = true
     }
-    root.configuredHiddenEntryIds = next
+    return next
+  }
+
+  function loadConfiguredHides(rawText) {
+    root.configuredHiddenEntryIds = root.parseIdSet(rawText)
     root.appsChanged()
   }
 
   function loadDesktopHiddenEntries(rawText) {
-    var next = ({})
-    var lines = String(rawText || "").split(/\n/)
-    for (var i = 0; i < lines.length; i++) {
-      var id = root.normalizeDesktopId(lines[i])
-      if (id.length > 0) next[id] = true
-    }
-    root.desktopHiddenEntryIds = next
+    root.desktopHiddenEntryIds = root.parseIdSet(rawText)
     root.appsChanged()
   }
 
@@ -120,11 +116,9 @@ Item {
       root.pendingIconIndex[name] = value
   }
 
-  function hiddenEntryScanCommand() {
-    var desktop = [Quickshell.env("XDG_CURRENT_DESKTOP"), Quickshell.env("XDG_SESSION_DESKTOP"), Quickshell.env("DESKTOP_SESSION")].filter(function(v) { return String(v || "").length > 0 }).join(":")
-    var script = root.shellDir + "/services/hidden-entries.sh"
-    return Util.shellQuote(script) + " " + Util.shellQuote(desktop)
-  }
+  readonly property string sessionDesktops: [
+    Quickshell.env("XDG_CURRENT_DESKTOP"), Quickshell.env("XDG_SESSION_DESKTOP"), Quickshell.env("DESKTOP_SESSION")
+  ].filter(function(v) { return String(v || "").length > 0 }).join(":")
 
   function toplevelCount() {
     try { return ToplevelManager.toplevels.values.length } catch (e) { return 0 }
@@ -155,18 +149,13 @@ Item {
     root.closeLaunchFeedback(root.launchSerial)
   }
 
-  QtObject {
-    id: hiddenEntryOutput
-    property string text: ""
-  }
-
-  // non-login shells
   Process {
     id: hiddenEntryScan
-    command: ["bash", "-c", root.hiddenEntryScanCommand()]
-    stdout: SplitParser { onRead: function(line) { hiddenEntryOutput.text += line + "\n" } }
-    onStarted: hiddenEntryOutput.text = ""
-    onExited: root.loadDesktopHiddenEntries(hiddenEntryOutput.text)
+    command: ["bash", Paths.shellDir + "/services/hidden-entries.sh", root.sessionDesktops]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.loadDesktopHiddenEntries(text)
+    }
   }
 
   Process {

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-
-here="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if ! command -v plymouth-set-default-theme >/dev/null 2>&1; then
     exit 0
@@ -10,7 +9,7 @@ set -ex
 
 theme=cyberpunk
 sudo install -d /usr/share/plymouth/themes/"$theme"
-sudo install -Dm644 "$here/theme/$theme"/* /usr/share/plymouth/themes/"$theme"/
+sudo install -Dm644 "${PWD}/theme/$theme"/*.{plymouth,script,png} /usr/share/plymouth/themes/"$theme"/
 
 config=/etc/mkinitcpio.conf
 backup="${config}.arch-dotfiles-backup"
@@ -50,19 +49,17 @@ if [[ ! -f "$cmdline" ]]; then
     sudo chmod 644 "$cmdline"
 fi
 
-if [[ -f "$cmdline" ]]; then
-    cmdline_backup="${cmdline}.arch-dotfiles-backup"
-    if [[ ! -e "$cmdline_backup" ]]; then
-        sudo install -Dm644 "$cmdline" "$cmdline_backup"
-    fi
-    current="$(cat "$cmdline")"
-    words=" $current "
-    for w in quiet splash; do
-        [[ "$words" == *" $w "* ]] || current="$current $w"
-    done
-    if [[ "$current" != "$(cat "$cmdline")" ]]; then
-        printf '%s\n' "$current" | sudo tee "$cmdline" >/dev/null
-    fi
+cmdline_backup="${cmdline}.arch-dotfiles-backup"
+if [[ ! -e "$cmdline_backup" ]]; then
+    sudo install -Dm644 "$cmdline" "$cmdline_backup"
+fi
+current="$(cat "$cmdline")"
+words=" $current "
+for w in quiet splash; do
+    [[ "$words" == *" $w "* ]] || current="$current $w"
+done
+if [[ "$current" != "$(cat "$cmdline")" ]]; then
+    printf '%s\n' "$current" | sudo tee "$cmdline" >/dev/null
 fi
 
 sudo mkinitcpio -P

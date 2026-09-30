@@ -2,7 +2,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "../../services"
@@ -61,6 +60,12 @@ Item {
     root.filterText = text
     root.selectedIndex = 0
     root.rebuildEntries()
+  }
+
+  // clamps, so an empty list keeps index 0 instead of -1
+  function selectAt(index) {
+    root.selectedIndex = Math.max(0, Math.min(index, root.entries.length - 1))
+    resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
   }
 
   function launchAt(index) {
@@ -126,28 +131,22 @@ Item {
             else root.close()
             event.accepted = true
           } else if (event.key === Qt.Key_Up) {
-            root.selectedIndex = Math.max(0, root.selectedIndex - 1)
-            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+            root.selectAt(root.selectedIndex - 1)
             event.accepted = true
           } else if (event.key === Qt.Key_Down) {
-            root.selectedIndex = Math.min(root.entries.length - 1, root.selectedIndex + 1)
-            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+            root.selectAt(root.selectedIndex + 1)
             event.accepted = true
           } else if (event.key === Qt.Key_PageUp) {
-            root.selectedIndex = Math.max(0, root.selectedIndex - 6)
-            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+            root.selectAt(root.selectedIndex - 6)
             event.accepted = true
           } else if (event.key === Qt.Key_PageDown) {
-            root.selectedIndex = Math.min(root.entries.length - 1, root.selectedIndex + 6)
-            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+            root.selectAt(root.selectedIndex + 6)
             event.accepted = true
           } else if (event.key === Qt.Key_Home) {
-            root.selectedIndex = 0
-            resultList.positionViewAtIndex(0, ListView.Contain)
+            root.selectAt(0)
             event.accepted = true
           } else if (event.key === Qt.Key_End) {
-            root.selectedIndex = root.entries.length - 1
-            resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
+            root.selectAt(root.entries.length - 1)
             event.accepted = true
           } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
             root.launchAt(root.selectedIndex)
@@ -184,15 +183,7 @@ Item {
             font.bold: true
             font.letterSpacing: Style.headerTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
 
           Text {
@@ -200,7 +191,7 @@ Item {
             textFormat: Text.PlainText
             text: "[" + String(root.entries.length) + "]"
             color: root.foreground
-            opacity: 0.45
+            opacity: Style.emphasis.faint
             font.family: root.fontFamily
             font.pixelSize: Style.font.title
           }
@@ -228,15 +219,7 @@ Item {
               font.pixelSize: Style.font.heading
               font.bold: true
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
             }
 
             Text {
@@ -260,15 +243,7 @@ Item {
               font.family: root.fontFamily
               font.pixelSize: Style.font.heading
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
               SequentialAnimation on opacity {
                 running: root.opened
                 loops: Animation.Infinite
@@ -325,15 +300,7 @@ Item {
                 font.pixelSize: Style.font.body
                 horizontalAlignment: Text.AlignHCenter
                 layer.enabled: rowDelegate.index === root.selectedIndex && Style.fx.glow > 0
-                layer.effect: MultiEffect {
-                  shadowEnabled: true
-                  shadowColor: Style.fx.glowColor
-                  shadowBlur: 1.0
-                  shadowVerticalOffset: 0
-                  shadowHorizontalOffset: 0
-                  blurMax: Style.fx.glowRadius
-                  autoPaddingEnabled: true
-                }
+                layer.effect: Glow {}
               }
 
               Image {
@@ -361,15 +328,7 @@ Item {
                   font.pixelSize: Style.font.body
                   elide: Text.ElideRight
                   layer.enabled: rowDelegate.index === root.selectedIndex && Style.fx.glow > 0
-                  layer.effect: MultiEffect {
-                    shadowEnabled: true
-                    shadowColor: Style.fx.glowColor
-                    shadowBlur: 1.0
-                    shadowVerticalOffset: 0
-                    shadowHorizontalOffset: 0
-                    blurMax: Style.fx.glowRadius
-                    autoPaddingEnabled: true
-                  }
+                  layer.effect: Glow {}
                 }
 
                 Text {
@@ -386,7 +345,7 @@ Item {
               }
             }
 
-            HudFrame { visible: rowDelegate.index === root.selectedIndex && Style.fx.brackets }
+            HudFrame { shown: rowDelegate.index === root.selectedIndex }
 
             MouseArea {
               id: rowMouse

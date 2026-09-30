@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 
 BorderSurface {
@@ -39,8 +38,8 @@ BorderSurface {
   Keys.onSpacePressed: if (focusable) root.clicked()
 
   // reserve the widest border any state can paint
-  implicitWidth: row.implicitWidth + horizontalPadding * 2 + _reservedBorderLeft + _reservedBorderRight
-  implicitHeight: row.implicitHeight + verticalPadding * 2 + _reservedBorderTop + _reservedBorderBottom
+  implicitWidth: row.implicitWidth + (horizontalPadding + _reservedBorder) * 2
+  implicitHeight: row.implicitHeight + (verticalPadding + _reservedBorder) * 2
   radius: Style.cornerRadius
 
   readonly property bool hot: mouseArea.containsMouse || hasCursor
@@ -50,26 +49,11 @@ BorderSurface {
   readonly property var _hoverBorderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   readonly property var _selectedBorderSpec: Border.controlSpec("selected", root.foreground, root.accent)
   readonly property var _normalBorderSpec: Border.controlSpec("normal", root.foreground, root.accent)
-  readonly property real _reservedBorderTop: Math.max(
-    focusable ? Border.top(_focusBorderSpec) : 0,
-    Border.top(_hoverBorderSpec),
-    Border.top(_selectedBorderSpec),
-    bordered ? Border.top(_normalBorderSpec) : 0)
-  readonly property real _reservedBorderRight: Math.max(
-    focusable ? Border.right(_focusBorderSpec) : 0,
-    Border.right(_hoverBorderSpec),
-    Border.right(_selectedBorderSpec),
-    bordered ? Border.right(_normalBorderSpec) : 0)
-  readonly property real _reservedBorderBottom: Math.max(
-    focusable ? Border.bottom(_focusBorderSpec) : 0,
-    Border.bottom(_hoverBorderSpec),
-    Border.bottom(_selectedBorderSpec),
-    bordered ? Border.bottom(_normalBorderSpec) : 0)
-  readonly property real _reservedBorderLeft: Math.max(
-    focusable ? Border.left(_focusBorderSpec) : 0,
-    Border.left(_hoverBorderSpec),
-    Border.left(_selectedBorderSpec),
-    bordered ? Border.left(_normalBorderSpec) : 0)
+  readonly property real _reservedBorder: Math.max(
+    focusable ? Border.width(_focusBorderSpec) : 0,
+    Border.width(_hoverBorderSpec),
+    Border.width(_selectedBorderSpec),
+    bordered ? Border.width(_normalBorderSpec) : 0)
   readonly property var _borderSpec: _showFocusRing ? _focusBorderSpec
     : hot                      ? _hoverBorderSpec
     : selected                 ? (Style.selectedBorderWidth > 0 ? _selectedBorderSpec : (bordered ? _normalBorderSpec : Border.none()))
@@ -93,15 +77,7 @@ BorderSurface {
 
   readonly property bool _glowing: Style.fx.glow > 0 && (_showFocusRing || selected || active || mouseArea.pressed)
   layer.enabled: _glowing
-  layer.effect: MultiEffect {
-    shadowEnabled: true
-    shadowColor: Style.fx.glowColor
-    shadowBlur: 1.0
-    shadowVerticalOffset: 0
-    shadowHorizontalOffset: 0
-    blurMax: Style.fx.glowRadius
-    autoPaddingEnabled: true
-  }
+  layer.effect: Glow {}
 
   PanelToolTip {
     visible: root.tooltipText !== "" && mouseArea.containsMouse

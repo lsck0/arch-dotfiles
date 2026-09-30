@@ -6,8 +6,9 @@ fi
 
 set -ex
 
-BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
-if [[ ! -f "$BOOT_STATE" ]] || ! grep -qx sbctl "$BOOT_STATE"; then
+source "$(dirname "$0")/../boot-menu/common.sh"
+
+if ! boot_feature_selected sbctl; then
     exit 0
 fi
 
@@ -73,7 +74,7 @@ if [[ "$need_sign" == "true" ]]; then
     fi
     if ! echo "$st" | grep -qE 'Setup Mode:\s+(\S+\s+)?Enabled'; then
         echo "sbctl: firmware not in Setup Mode and SB not enabled." >&2
-        echo "sbctl: enable Setup Mode / Secure Boot in firmware, then rerun install.sh." >&2
+        echo "sbctl: enable Setup Mode / Secure Boot in firmware, then rerun config.sh." >&2
         exit 0
     fi
 
@@ -90,7 +91,7 @@ if [[ "$need_sign" == "true" ]]; then
         echo "sbctl: enrolling keys (incl. Microsoft DB for dual-boot compat)" >&2
         sudo sbctl enroll-keys -m
     fi
-    echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun install.sh." >&2
+    echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun config.sh." >&2
     echo "sbctl: verify with 'sbctl verify' BEFORE rebooting with Secure Boot on." >&2
     exit 0
 fi

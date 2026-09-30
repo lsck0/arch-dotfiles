@@ -30,10 +30,8 @@ print('#%02x%02x%02x'%tuple(round(a[i]+(b[i]-a[i])*0.12) for i in range(3)))
 PY
 )
 
-lc() { printf '%s' "$1" | tr 'A-Z' 'a-z'; }
-python3 - "$CONFIG" "$(lc "$fg")" "$(lc "$accent")" "$(lc "$bg")" \
-    "$(lc "$c8")" "$(lc "$c3")" "$(lc "$c2")" "$(lc "$selected")" \
-    "$(lc "$c4")" "$(lc "$c8")" "$(lc "$c0")" <<'PY'
+python3 - "$CONFIG" "${fg,,}" "${accent,,}" "${bg,,}" "${c8,,}" "${c3,,}" "${c2,,}" "${selected,,}" \
+    "${c4,,}" "${c8,,}" "${c0,,}" <<'PY'
 import sys
 cfg, primary, secondary, inverted, faint, warning, success, \
     sel, bprimary, bsecondary, bfaint = sys.argv[1:]

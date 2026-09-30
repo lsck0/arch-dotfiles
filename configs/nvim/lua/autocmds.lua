@@ -102,14 +102,11 @@ autocmd("VimEnter", {
         if vim.bo.buftype ~= "" then return end          -- stdin, help, etc.
         -- never stack a second tree
         for _, w in ipairs(vim.api.nvim_list_wins()) do
-            local ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
-            if ft == "snacks_picker_list" then return end
+            local win_ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
+            if win_ft == "snacks_picker_list" then return end
         end
         local main = vim.api.nvim_get_current_win()
-        -- tcd, then open without cwd: differing cwd forms stacked duplicate roots
-        local root = require("lib.root").git()
-        if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
-        require("snacks").explorer()
+        require("lib.explorer").open()
         -- the picker grabs focus async, take it back
         vim.defer_fn(function()
             if vim.api.nvim_win_is_valid(main) then

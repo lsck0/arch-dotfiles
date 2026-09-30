@@ -26,11 +26,9 @@ Item {
     runTest()
   }
 
-  // called by shell hide
   function close() {
     opened = false
     pendingRun = false
-    // clear phase first so onExited reads a dismissal, not a failure
     phase = ""
     running = false
     if (proc.running) {

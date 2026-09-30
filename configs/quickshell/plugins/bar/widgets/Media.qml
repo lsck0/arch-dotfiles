@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.Mpris
 import Quickshell.Services.Pipewire
@@ -202,15 +201,17 @@ BarWidget {
 
   PwObjectTracker { objects: root.playerStreams }
 
-  property real lastPlayingAt: 0
-  property real nowMs: Date.now()
-  readonly property bool recentlyActive:
-    playing || (lastPlayingAt > 0 && (nowMs - lastPlayingAt) < 30000)
+  // stays visible for a while after playback stops
+  readonly property bool recentlyActive: playing || lingerTimer.running
+  onPlayingChanged: if (!playing) lingerTimer.restart()
 
-  onPlayingChanged: if (playing) lastPlayingAt = Date.now()
+  Timer {
+    id: lingerTimer
+    interval: 30000
+  }
+
   Component.onCompleted: {
     updatePlayer()
-    if (playing) lastPlayingAt = Date.now()
     Cava.source = spectrumSource
     refreshArt()
     artPruneProc.running = true
@@ -224,13 +225,6 @@ BarWidget {
       "ls -1t \"$d\" 2>/dev/null | tail -n +201 | " +
       "while IFS= read -r f; do [ -n \"$f\" ] && rm -f -- \"${d:?}/${f:?}\"; done",
       "sh", root.artCacheDir]
-  }
-
-  Timer {
-    interval: 2000
-    repeat: true
-    running: root.player !== null && !root.playing && root.lastPlayingAt > 0
-    onTriggered: root.nowMs = Date.now()
   }
 
   readonly property bool spectrumLive: visible && Cava.available && playing
@@ -288,15 +282,7 @@ BarWidget {
       width: Style.space(96)
       height: Math.round(root.barSize * 0.5)
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Style.fx.glowColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow {}
 
       Repeater {
         model: Cava.barCount
@@ -377,8 +363,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "MEDIA"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     // keeps the spectrum alive while paused with the panel open
     Loader {
@@ -457,15 +443,7 @@ BarWidget {
             font.bold: true
             elide: Text.ElideRight
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Text {
             width: parent.width
@@ -515,15 +493,7 @@ BarWidget {
         }
 
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
 
         Row {
           id: panelBars

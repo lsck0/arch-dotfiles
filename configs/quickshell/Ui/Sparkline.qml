@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 
 // values newest last
@@ -123,13 +122,8 @@ Item {
   }
 
   layer.enabled: Style.fx.glow > 0
-  layer.effect: MultiEffect {
-    shadowEnabled: true
+  layer.effect: Glow {
     shadowColor: root.color
     shadowBlur: 0.7
-    shadowVerticalOffset: 0
-    shadowHorizontalOffset: 0
-    blurMax: Style.fx.glowRadius
-    autoPaddingEnabled: true
   }
 }

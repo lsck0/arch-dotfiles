@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -23,7 +22,6 @@ BarWidget {
 
   property var cpuHist: []
   property var memHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   // link-only entries have up === null
   readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
@@ -31,6 +29,8 @@ BarWidget {
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length
   readonly property int asleepCount: monitored.filter(function(s) { return !s.up && s.onDemand }).length
   readonly property int problemCount: alerts.length + downServices.length
+  readonly property real memFraction: (Number(host.memTotalGb) || 0) > 0
+    ? (Number(host.memUsedGb) || 0) / Number(host.memTotalGb) : 0
   // nightly backups, 26h leaves some slack
   readonly property bool backupStale: storage.backupAgeMin === null || storage.backupAgeMin === undefined
     || storage.backupAgeMin > 26 * 60
@@ -49,7 +49,7 @@ BarWidget {
   }
 
   function num(value, suffix) {
-    return value === null || value === undefined ? "–" : value + (suffix || "")
+    return value === null || value === undefined ? "--" : value + (suffix || "")
   }
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
@@ -81,9 +81,8 @@ BarWidget {
           root.storage = s.storage || {}
           root.traffic = s.traffic || {}
           root.clients = s.clients || {}
-          root.cpuHist = root._push(root.cpuHist, Number(root.host.cpuPct) || 0)
-          root.memHist = root._push(root.memHist, (Number(root.host.memTotalGb) || 0) > 0
-            ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) * 100 : 0)
+          root.cpuHist = Util.historyPush(root.cpuHist, Number(root.host.cpuPct) || 0)
+          root.memHist = Util.historyPush(root.memHist, root.memFraction * 100)
         } catch (e) {}
       }
     }
@@ -121,15 +120,7 @@ BarWidget {
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Color.urgent
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: Color.urgent }
     }
     Text {
       anchors.verticalCenter: parent.verticalCenter
@@ -140,15 +131,7 @@ BarWidget {
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Color.urgent
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: Color.urgent }
     }
   }
 
@@ -163,7 +146,7 @@ BarWidget {
   }
 
   // hover fill bleeds past the edge so text stays aligned with headers
-  component Row_: Item {
+  component StatRow: Item {
     id: kv
     property string label: ""
     property string value: ""
@@ -228,8 +211,7 @@ BarWidget {
 
     Text {
       text: list.title
-      color: Color.menu.text
-      opacity: Style.emphasis.faint
+      color: Color.accent
       textFormat: Text.PlainText
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
@@ -375,15 +357,7 @@ BarWidget {
       font.bold: true
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: parent.tint
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: parent.tint }
     }
     Text {
       anchors.bottom: heroNum.bottom
@@ -393,6 +367,32 @@ BarWidget {
       opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.title
+    }
+  }
+
+  component MetricHeader: Row {
+    id: mh
+    property string label: ""
+    property string readout: ""
+    property color tint: Color.accent
+    Text {
+      width: mh.width * 0.5
+      text: mh.label
+      color: mh.tint
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.bold: true
+      font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.headerTracking
+    }
+    Text {
+      width: mh.width * 0.5
+      horizontalAlignment: Text.AlignRight
+      text: mh.readout
+      color: mh.tint
+      font.family: Style.font.family
+      font.pixelSize: Style.font.caption
+      font.letterSpacing: Style.displayTracking
     }
   }
 
@@ -406,29 +406,7 @@ BarWidget {
     property int maxValue: 100
     width: parent ? parent.width : 0
     spacing: Style.spacing.xs
-    Row {
-      width: mg.width
-      visible: mg.label !== ""
-      Text {
-        width: parent.width * 0.5
-        text: mg.label
-        color: mg.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.bold: true
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: Style.headerTracking
-      }
-      Text {
-        width: parent.width * 0.5
-        horizontalAlignment: Text.AlignRight
-        text: mg.readout
-        color: mg.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.displayTracking
-      }
-    }
+    MetricHeader { width: mg.width; visible: mg.label !== ""; label: mg.label; readout: mg.readout; tint: mg.tint }
     Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
     BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
   }
@@ -441,28 +419,7 @@ BarWidget {
     property color tint: Color.accent
     width: parent ? parent.width : 0
     spacing: Style.spacing.xxs
-    Row {
-      width: gr.width
-      Text {
-        width: parent.width * 0.5
-        text: gr.label
-        color: gr.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.bold: true
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: Style.headerTracking
-      }
-      Text {
-        width: parent.width * 0.5
-        horizontalAlignment: Text.AlignRight
-        text: gr.readout
-        color: gr.tint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.displayTracking
-      }
-    }
+    MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
     BarGauge { width: gr.width; height: Style.spacing.md; segments: 24; value: gr.fraction; color: gr.tint }
   }
 
@@ -472,8 +429,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "Homelab"
-    implicitWidth: Style.panelWidth.wide + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.wide
+    implicitHeight: Math.min(Style.space(880), content.implicitHeight + padding * 2 + titleInset)
 
     Flickable {
       anchors.fill: parent
@@ -485,196 +442,196 @@ BarWidget {
       boundsBehavior: Flickable.StopAtBounds
 
       Column {
-      id: content
-      width: parent.width
-      spacing: Style.spacing.md
-
-      Row_ {
-        visible: !root.ok
-        label: "Status"
-        value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
-        alert: root.received
-      }
-      PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
-      PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
-      // off the lan the monitor vm is only reachable over wireguard
-      PanelRow {
+        id: content
         width: parent.width
-        visible: root.received && !root.ok && root.error !== "source"
-        glyph: "\u{f0582}"   // md-vpn
-        label: "Connect homelab VPN"
-        onActivated: {
-          Quickshell.execDetached([Paths.toggle("toggle-vpn.sh"), "on"])
-          if (root.bar) root.bar.closePanel(root.moduleName)
-        }
-      }
-
-      Column {
-        width: parent.width
-        visible: root.ok
         spacing: Style.spacing.md
 
-        Column {
+        StatRow {
+          visible: !root.ok
+          label: "Status"
+          value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
+          alert: root.received
+        }
+        PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
+        PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
+        // off the lan the monitor vm is only reachable over wireguard
+        PanelRow {
           width: parent.width
-          visible: root.alerts.length > 0
-          spacing: Style.spacing.md
-
-          PanelSectionHeader { text: "Alerts"; foreground: Color.urgent }
-          Repeater {
-            model: root.alerts
-            delegate: Row_ {
-              required property var modelData
-              label: modelData.target || modelData.name
-              value: modelData.target ? modelData.name : ""
-              note: root.ago(modelData.minutes)
-              url: root.links.alerts
-              alert: true
-            }
+          visible: root.received && !root.ok && root.error !== "source"
+          glyph: "\u{f0582}"   // md-vpn
+          label: "Connect homelab VPN"
+          onActivated: {
+            Quickshell.execDetached([Paths.toggle("toggle-vpn.sh"), "on"])
+            if (root.bar) root.bar.closePanel(root.moduleName)
           }
-          PanelSeparator {}
         }
 
-        PanelSectionHeader { text: "Host" }
-        Item {
+        Column {
           width: parent.width
-          implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
-          height: implicitHeight
-          Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Number(root.host.cpuPct) || 0 }
+          visible: root.ok
+          spacing: Style.spacing.md
+
           Column {
-            id: hostReads
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width * 0.6
-            spacing: Style.spacing.xxs
-            Row_ {
-              label: "Memory"
-              value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
-              url: root.links.proxmox
+            width: parent.width
+            visible: root.alerts.length > 0
+            spacing: Style.spacing.md
+
+            PanelSectionHeader { text: "Alerts"; foreground: Color.urgent }
+            Repeater {
+              model: root.alerts
+              delegate: StatRow {
+                required property var modelData
+                label: modelData.target || modelData.name
+                value: modelData.target ? modelData.name : ""
+                note: root.ago(modelData.minutes)
+                url: root.links.alerts
+                alert: true
+              }
             }
-            Row_ { label: "Temperature"; value: root.num(root.host.tempC, "°C"); url: root.links.proxmox }
-            Row_ { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+            PanelSeparator {}
           }
-        }
-        MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
-        MetricGraph {
-          label: "Memory"
-          readout: (Number(root.host.memTotalGb) || 0) > 0 ? Math.round((Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) * 100) + "%" : "0%"
-          history: root.memHist
-          fraction: (Number(root.host.memTotalGb) || 0) > 0 ? (Number(root.host.memUsedGb) || 0) / Number(root.host.memTotalGb) : 0
-        }
 
-        PanelSeparator {}
-        PanelSectionHeader { text: "Storage" }
-        Row_ {
-          label: "NAS free"
-          value: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
-          url: root.links.nas
-        }
-        Row_ {
-          label: "Disks"
-          value: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal, " healthy")
-          alert: root.storage.disksHealthy < root.storage.disksTotal
-          url: root.links.dashboard
-        }
-        Row_ { label: "NVMe wear"; value: root.num(root.storage.nvmeWearPct, "%"); url: root.links.dashboard }
-        Row_ {
-          label: "Last backup"
-          value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
-            ? "never" : root.ago(root.storage.backupAgeMin)
-          alert: root.backupStale
-          url: root.links.nas
-        }
-        GaugeRow {
-          label: "NAS free"
-          readout: root.num(root.storage.nasFreeGb, " GB")
-          fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
-        }
-        GaugeRow {
-          label: "Disks OK"
-          readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
-          fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
-          tint: root.storage.disksHealthy < root.storage.disksTotal ? Color.urgent : Color.accent
-        }
-        GaugeRow {
-          visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
-          label: "NVMe wear"
-          readout: root.num(root.storage.nvmeWearPct, "%")
-          fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
-        }
-
-        PanelSeparator {}
-        PanelSectionHeader { text: "Traffic" }
-        Row_ { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
-        Row_ { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
-        Row_ {
-          label: "Server errors"
-          value: root.num(root.traffic.errorRps, " req/s")
-          alert: root.traffic.errorRps > 0
-          url: root.links.dashboard
-        }
-
-        // from loki, traefik counters carry no client detail
-        Column {
-          width: parent.width
-          visible: (root.clients.countries || []).length > 0
-          spacing: Style.spacing.md
+          PanelSectionHeader { text: "Host" }
+          Item {
+            width: parent.width
+            implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
+            height: implicitHeight
+            Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Number(root.host.cpuPct) || 0 }
+            Column {
+              id: hostReads
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              width: parent.width * 0.6
+              spacing: Style.spacing.xxs
+              StatRow {
+                label: "Memory"
+                value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
+                url: root.links.proxmox
+              }
+              StatRow { label: "Temperature"; value: root.num(root.host.tempC, "°C"); url: root.links.proxmox }
+              StatRow { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+            }
+          }
+          MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
+          MetricGraph {
+            label: "Memory"
+            readout: Math.round(root.memFraction * 100) + "%"
+            history: root.memHist
+            fraction: root.memFraction
+          }
 
           PanelSeparator {}
-          Row {
+          PanelSectionHeader { text: "Storage" }
+          StatRow {
+            label: "NAS free"
+            value: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
+            url: root.links.nas
+          }
+          StatRow {
+            label: "Disks"
+            value: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal, " healthy")
+            alert: root.storage.disksHealthy < root.storage.disksTotal
+            url: root.links.dashboard
+          }
+          StatRow { label: "NVMe wear"; value: root.num(root.storage.nvmeWearPct, "%"); url: root.links.dashboard }
+          StatRow {
+            label: "Last backup"
+            value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
+              ? "never" : root.ago(root.storage.backupAgeMin)
+            alert: root.backupStale
+            url: root.links.nas
+          }
+          GaugeRow {
+            label: "NAS free"
+            readout: root.num(root.storage.nasFreeGb, " GB")
+            fraction: (Number(root.storage.nasTotalGb) || 0) > 0 ? (Number(root.storage.nasFreeGb) || 0) / Number(root.storage.nasTotalGb) : 0
+          }
+          GaugeRow {
+            label: "Disks OK"
+            readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
+            fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
+            tint: root.storage.disksHealthy < root.storage.disksTotal ? Color.urgent : Color.accent
+          }
+          GaugeRow {
+            visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
+            label: "NVMe wear"
+            readout: root.num(root.storage.nvmeWearPct, "%")
+            fraction: (Number(root.storage.nvmeWearPct) || 0) / 100
+          }
+
+          PanelSeparator {}
+          PanelSectionHeader { text: "Traffic" }
+          StatRow { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
+          StatRow { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
+          StatRow {
+            label: "Server errors"
+            value: root.num(root.traffic.errorRps, " req/s")
+            alert: root.traffic.errorRps > 0
+            url: root.links.dashboard
+          }
+
+          // from loki, traefik counters carry no client detail
+          Column {
             width: parent.width
-            spacing: Style.spacing.sm
-            PanelSectionHeader { text: "Incoming" }
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: root.clients.window || ""
-              color: Color.menu.text
-              opacity: Style.emphasis.faint
-              textFormat: Text.PlainText
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+            visible: (root.clients.countries || []).length > 0
+            spacing: Style.spacing.md
+
+            PanelSeparator {}
+            Row {
+              width: parent.width
+              spacing: Style.spacing.sm
+              PanelSectionHeader { text: "Incoming" }
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.clients.window || ""
+                color: Color.menu.text
+                opacity: Style.emphasis.faint
+                textFormat: Text.PlainText
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+
+            Grid {
+              id: clientGrid
+              width: parent.width
+              columns: 4
+              columnSpacing: Style.spacing.lg
+              readonly property real cellWidth:
+                (width - columnSpacing * (columns - 1)) / columns
+
+              ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
+              ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
+              ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
+              ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
             }
           }
 
-          Grid {
-            id: clientGrid
-            width: parent.width
-            columns: 4
-            columnSpacing: Style.spacing.lg
-            readonly property real cellWidth:
-              (width - columnSpacing * (columns - 1)) / columns
-
-            ClientList { width: clientGrid.cellWidth; title: "From"; rows: root.clients.countries || [] }
-            ClientList { width: clientGrid.cellWidth; title: "Clients"; rows: root.clients.agents || [] }
-            ClientList { width: clientGrid.cellWidth; title: "Asking for"; rows: root.clients.hosts || [] }
-            ClientList { width: clientGrid.cellWidth; title: "How it went"; rows: root.clients.traffic || [] }
+          PanelSeparator {}
+          PanelSectionHeader { text: "Services" }
+          StatRow {
+            label: "Up"
+            value: root.upCount + " / " + root.monitored.length
+            url: root.links.homepage
           }
-        }
+          StatRow {
+            visible: root.asleepCount > 0
+            label: "Asleep"
+            value: root.asleepCount
+            url: root.links.homepage
+          }
+          StatRow {
+            visible: root.downServices.length > 0
+            label: "Down"
+            value: root.downServices.map(function(s) { return s.name }).join(", ")
+            alert: true
+            url: root.links.homepage
+          }
 
-        PanelSeparator {}
-        PanelSectionHeader { text: "Services" }
-        Row_ {
-          label: "Up"
-          value: root.upCount + " / " + root.monitored.length
-          url: root.links.homepage
+          ServiceGroup { title: "Infra"; group: "infra" }
+          ServiceGroup { title: "Internal"; group: "internal" }
+          ServiceGroup { title: "External"; group: "external" }
         }
-        Row_ {
-          visible: root.asleepCount > 0
-          label: "Asleep"
-          value: root.asleepCount
-          url: root.links.homepage
-        }
-        Row_ {
-          visible: root.downServices.length > 0
-          label: "Down"
-          value: root.downServices.map(function(s) { return s.name }).join(", ")
-          alert: true
-          url: root.links.homepage
-        }
-
-        ServiceGroup { title: "Infra"; group: "infra" }
-        ServiceGroup { title: "Internal"; group: "internal" }
-        ServiceGroup { title: "External"; group: "external" }
-      }
       }
     }
   }

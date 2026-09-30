@@ -6,8 +6,8 @@ INTERVAL=${1:-5}
 
 cpu_name=$(grep -m1 '^model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//;s/ *$//')
 cpu_cores=$(nproc 2>/dev/null || echo 0)
-gpu_name=$(lspci -mm 2>/dev/null | awk -F'"' '/VGA compatible controller|3D controller/ { print $6; exit }')
-gpu_vendor_raw=$(lspci -mm 2>/dev/null | awk -F'"' '/VGA compatible controller|3D controller/ { print $4; exit }')
+IFS=$'\t' read -r gpu_vendor_raw gpu_name < <(lspci -mm 2>/dev/null \
+    | awk -F'"' '/VGA compatible controller|3D controller/ { print $4 "\t" $6; exit }')
 : "${cpu_name:=unknown}" "${gpu_name:=unknown}" "${gpu_vendor_raw:=unknown}"
 
 case "$gpu_vendor_raw" in
@@ -90,7 +90,7 @@ read_temp() {
     local raw
     raw=$(cat "$cpu_temp_path" 2>/dev/null) || return
     [[ "$raw" =~ ^-?[0-9]+$ ]] || return
-    awk -v m="$raw" 'BEGIN { printf "%d", m / 1000 }'
+    echo $((raw / 1000))
 }
 
 # power1_average on newer amdgpu, power1_input on older
@@ -149,7 +149,7 @@ while :; do
             vram_total_mb=$(awk -v b="$vram_total_b" 'BEGIN { printf "%.0f", b / 1048576 }')
         fi
         gpu_power_w=$(read_amdgpu_power)
-        rc6=$prev_rc6  # keeps prev_rc6 as is
+        rc6=$prev_rc6
     else
         rc6=$(cat "$gpu_rc6" 2>/dev/null || echo 0)
         gpu_pct=$(awk -v r1="$prev_rc6" -v r2="$rc6" -v t1="$prev_t_ms" -v t2="$t_ms" \
@@ -161,7 +161,6 @@ while :; do
                 printf "%.0f", pct
             }')
         gpu_freq=$(cat "$gpu_card/gt_act_freq_mhz" 2>/dev/null || echo 0)
-
     fi
 
     if ((power_ok)); then

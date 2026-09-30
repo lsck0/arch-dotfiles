@@ -7,7 +7,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -- hyprsunset -t 6000 --gamma_max 150")
 
     -- no hyprpm reload here: it raced manual_link.sh's own and unloaded plugins
-    hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/hypr/manual_link.sh")
+    hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/hyprland/manual_link.sh")
     hl.exec_cmd("uwsm app -- ~/projects/arch-dotfiles/configs/shimoji/manual_link.sh")
 
     hl.exec_cmd("xhost +SI:localuser:root")

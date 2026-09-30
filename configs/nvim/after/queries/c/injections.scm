@@ -9,7 +9,6 @@
       (string_content) @injection.content)
     (#set! injection.language "regex")))
 
-; regcomp with raw string if using GNU extension (though C doesn't have raw strings)
 ; pcre_compile("pattern", ...) - PCRE library
 (call_expression
   function: (identifier) @_func (#eq? @_func "pcre_compile")

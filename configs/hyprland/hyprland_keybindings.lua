@@ -4,22 +4,30 @@ local function shell_bin(name)
     return "~/.local/bin/" .. name
 end
 
+local function quickshell_toggle(target)
+    return hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call " .. target .. " toggle")
+end
+
+local function media_key(action)
+    return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
+end
+
 local boomer =
 "wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""
 
-hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call powermenu toggle"))
+hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
     "grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"))
 hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
     "grim -g \"$(hyprctl -j activewindow | jq -r 'select(.at and .size) | \\\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\\\"')\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
-hl.bind(mod .. " + Tab", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call overview toggle"))
+hl.bind(mod .. " + Tab", quickshell_toggle("overview"))
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
 hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
-hl.bind(mod .. " + d", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call appsearch toggle"))
-hl.bind(mod .. " + SHIFT + m", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call matrixrain toggle"))
+hl.bind(mod .. " + d", quickshell_toggle("appsearch"))
+hl.bind(mod .. " + SHIFT + m", quickshell_toggle("matrixrain"))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + n", hl.dsp.exec_cmd("neovide"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
@@ -33,7 +41,7 @@ hl.bind(mod .. " + Q", hl.dsp.window.close())
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mod .. " + s", hl.dsp.focus({ last = true }))
 hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind(mod .. " + v", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call clipboard toggle"))
+hl.bind(mod .. " + v", quickshell_toggle("clipboard"))
 
 hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"))
 
@@ -42,92 +50,65 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"))
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"))
 hl.bind("XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-up"),
-    { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-down"),
-    { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd(shell_bin("media-key") .. " volume-mute"), { locked = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(shell_bin("media-key") .. " mic-mute"), { locked = true })
+hl.bind("XF86AudioRaiseVolume", media_key("volume-up"), { locked = true, repeating = true })
+hl.bind("XF86AudioLowerVolume", media_key("volume-down"), { locked = true, repeating = true })
+hl.bind("XF86AudioMute", media_key("volume-mute"), { locked = true })
+hl.bind("XF86AudioMicMute", media_key("mic-mute"), { locked = true })
 
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(shell_bin("media-key") .. " brightness-up"),
-    { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(shell_bin("media-key") .. " brightness-down"),
-    { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessUp", media_key("brightness-up"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", media_key("brightness-down"), { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd("hyprctl hyprsunset gamma +5"),
     { locked = true, repeating = true })
 hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd("hyprctl hyprsunset gamma -5"),
     { locked = true, repeating = true })
 
-hl.bind("XF86KbdBrightnessUp", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-up"), { locked = true })
-hl.bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-down"), { locked = true })
-hl.bind("XF86KbdLightOnOff", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-toggle"), { locked = true })
-hl.bind(mod .. " + SHIFT + b", hl.dsp.exec_cmd(shell_bin("media-key") .. " kbd-backlight-toggle"), { locked = true })
+hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true })
+hl.bind("XF86KbdBrightnessDown", media_key("kbd-backlight-down"), { locked = true })
+hl.bind("XF86KbdLightOnOff", media_key("kbd-backlight-toggle"), { locked = true })
+hl.bind(mod .. " + SHIFT + b", media_key("kbd-backlight-toggle"), { locked = true })
 
-hl.bind(mod .. " + h", hl.dsp.focus({ direction = "left" }))
-hl.bind(mod .. " + l", hl.dsp.focus({ direction = "right" }))
-hl.bind(mod .. " + k", hl.dsp.focus({ direction = "up" }))
-hl.bind(mod .. " + j", hl.dsp.focus({ direction = "down" }))
-hl.bind(mod .. " + Left", hl.dsp.focus({ direction = "left" }))
-hl.bind(mod .. " + Right", hl.dsp.focus({ direction = "right" }))
-hl.bind(mod .. " + Up", hl.dsp.focus({ direction = "up" }))
-hl.bind(mod .. " + Down", hl.dsp.focus({ direction = "down" }))
-
-hl.bind(mod .. " + SHIFT + h", hl.dsp.window.move({ direction = "l" }))
-hl.bind(mod .. " + SHIFT + l", hl.dsp.window.move({ direction = "r" }))
-hl.bind(mod .. " + SHIFT + k", hl.dsp.window.move({ direction = "u" }))
-hl.bind(mod .. " + SHIFT + j", hl.dsp.window.move({ direction = "d" }))
-hl.bind(mod .. " + SHIFT + Left", hl.dsp.window.move({ direction = "l" }))
-hl.bind(mod .. " + SHIFT + Right", hl.dsp.window.move({ direction = "r" }))
-hl.bind(mod .. " + SHIFT + Up", hl.dsp.window.move({ direction = "u" }))
-hl.bind(mod .. " + SHIFT + Down", hl.dsp.window.move({ direction = "d" }))
+local DIRECTIONS = {
+    { keys = { "h", "Left" }, focus = "left", move = "l" },
+    { keys = { "l", "Right" }, focus = "right", move = "r" },
+    { keys = { "k", "Up" }, focus = "up", move = "u" },
+    { keys = { "j", "Down" }, focus = "down", move = "d" },
+}
+for _, direction in ipairs(DIRECTIONS) do
+    for _, key in ipairs(direction.keys) do
+        hl.bind(mod .. " + " .. key, hl.dsp.focus({ direction = direction.focus }))
+        hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = direction.move }))
+        hl.bind(mod .. " + CTRL + " .. key, hl.dsp.window.move({ into_or_create_group = direction.move }))
+    end
+end
 
 hl.bind(mod .. " + CTRL + w", hl.dsp.group.toggle())
 hl.bind(mod .. " + c", hl.dsp.group.next())
-hl.bind(mod .. " + CTRL + h", hl.dsp.window.move({ into_or_create_group = "l" }))
-hl.bind(mod .. " + CTRL + l", hl.dsp.window.move({ into_or_create_group = "r" }))
-hl.bind(mod .. " + CTRL + k", hl.dsp.window.move({ into_or_create_group = "u" }))
-hl.bind(mod .. " + CTRL + j", hl.dsp.window.move({ into_or_create_group = "d" }))
-hl.bind(mod .. " + CTRL + Left", hl.dsp.window.move({ into_or_create_group = "l" }))
-hl.bind(mod .. " + CTRL + Right", hl.dsp.window.move({ into_or_create_group = "r" }))
-hl.bind(mod .. " + CTRL + Up", hl.dsp.window.move({ into_or_create_group = "u" }))
-hl.bind(mod .. " + CTRL + Down", hl.dsp.window.move({ into_or_create_group = "d" }))
 
-hl.bind(mod .. " + 1", hl.dsp.focus({ workspace = 1 }))
-hl.bind(mod .. " + 2", hl.dsp.focus({ workspace = 2 }))
-hl.bind(mod .. " + 3", hl.dsp.focus({ workspace = 3 }))
-hl.bind(mod .. " + 4", hl.dsp.focus({ workspace = 4 }))
-hl.bind(mod .. " + 5", hl.dsp.focus({ workspace = 5 }))
-hl.bind(mod .. " + 6", hl.dsp.focus({ workspace = 6 }))
-hl.bind(mod .. " + 7", hl.dsp.focus({ workspace = 7 }))
-hl.bind(mod .. " + 8", hl.dsp.focus({ workspace = 8 }))
-hl.bind(mod .. " + 9", hl.dsp.focus({ workspace = 9 }))
-hl.bind(mod .. " + 0", hl.dsp.focus({ workspace = 10 }))
-
-hl.bind(mod .. " + SHIFT + 1", hl.dsp.window.move({ workspace = 1 }))
-hl.bind(mod .. " + SHIFT + 2", hl.dsp.window.move({ workspace = 2 }))
-hl.bind(mod .. " + SHIFT + 3", hl.dsp.window.move({ workspace = 3 }))
-hl.bind(mod .. " + SHIFT + 4", hl.dsp.window.move({ workspace = 4 }))
-hl.bind(mod .. " + SHIFT + 5", hl.dsp.window.move({ workspace = 5 }))
-hl.bind(mod .. " + SHIFT + 6", hl.dsp.window.move({ workspace = 6 }))
-hl.bind(mod .. " + SHIFT + 7", hl.dsp.window.move({ workspace = 7 }))
-hl.bind(mod .. " + SHIFT + 8", hl.dsp.window.move({ workspace = 8 }))
-hl.bind(mod .. " + SHIFT + 9", hl.dsp.window.move({ workspace = 9 }))
-hl.bind(mod .. " + SHIFT + 0", hl.dsp.window.move({ workspace = 10 }))
+for workspace = 1, 10 do
+    local key = tostring(workspace % 10)
+    hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = workspace }))
+    hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace }))
+end
 
 hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
+local RESIZE_STEP = 30
+local RESIZE = {
+    { keys = { "l", "Right" }, x = RESIZE_STEP, y = 0 },
+    { keys = { "h", "Left" }, x = -RESIZE_STEP, y = 0 },
+    { keys = { "k", "Up" }, x = 0, y = -RESIZE_STEP },
+    { keys = { "j", "Down" }, x = 0, y = RESIZE_STEP },
+}
 hl.bind(mod .. " + R", hl.dsp.submap("resize"))
 hl.define_submap("resize", function()
-    hl.bind("l", hl.dsp.window.resize({ x = 30, y = 0, relative = true }), { repeating = true })
-    hl.bind("h", hl.dsp.window.resize({ x = -30, y = 0, relative = true }), { repeating = true })
-    hl.bind("k", hl.dsp.window.resize({ x = 0, y = -30, relative = true }), { repeating = true })
-    hl.bind("j", hl.dsp.window.resize({ x = 0, y = 30, relative = true }), { repeating = true })
-    hl.bind("Right", hl.dsp.window.resize({ x = 30, y = 0, relative = true }), { repeating = true })
-    hl.bind("Left", hl.dsp.window.resize({ x = -30, y = 0, relative = true }), { repeating = true })
-    hl.bind("Up", hl.dsp.window.resize({ x = 0, y = -30, relative = true }), { repeating = true })
-    hl.bind("Down", hl.dsp.window.resize({ x = 0, y = 30, relative = true }), { repeating = true })
+    for _, step in ipairs(RESIZE) do
+        for _, key in ipairs(step.keys) do
+            hl.bind(key, hl.dsp.window.resize({ x = step.x, y = step.y, relative = true }), { repeating = true })
+        end
+    end
 
     hl.bind(mod .. " + R", hl.dsp.submap("reset"))
     hl.bind("Escape", hl.dsp.submap("reset"))
 end)
+

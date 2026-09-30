@@ -63,12 +63,15 @@ vim.keymap.set("n", "<leader>lf", tb("lsp_references"), { desc = "LSP references
 vim.keymap.set("n", "<leader>ls", tb("lsp_dynamic_workspace_symbols"), { desc = "Workspace symbols" })
 vim.keymap.set("n", "<leader>lF", function() require("conform").format({ async = true, lsp_format = "fallback" }) end,
     { desc = "Format buffer" })
+local virtual_text_saved
 vim.keymap.set("n", "<leader>lv", function()
-    local enabled = vim.diagnostic.config().virtual_lines
-    vim.diagnostic.config({
-        virtual_lines = (not enabled) and { current_line = false } or false,
-        virtual_text = enabled and { prefix = "●", spacing = 2, source = "if_many" } or false,
-    })
+    local config = vim.diagnostic.config()
+    if config.virtual_lines then
+        vim.diagnostic.config({ virtual_lines = false, virtual_text = virtual_text_saved })
+    else
+        virtual_text_saved = config.virtual_text
+        vim.diagnostic.config({ virtual_lines = { current_line = false }, virtual_text = false })
+    end
 end, { desc = "Toggle virtual_lines diagnostics" })
 
 vim.api.nvim_create_autocmd("LspAttach", {
@@ -91,8 +94,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>",
     { noremap = true, desc = "Toggle venn (draw boxes)" })
 function _G.Toggle_venn()
-    local venn_enabled = vim.inspect(vim.b.venn_enabled)
-    if venn_enabled == "nil" then
+    if not vim.b.venn_enabled then
         vim.b.venn_enabled = true
         vim.cmd [[setlocal ve=all]]
         vim.api.nvim_buf_set_keymap(0, "n", "<S-Down>", "<C-v>j:VBox<CR>", { noremap = true })
@@ -121,14 +123,11 @@ vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into"
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
 vim.keymap.set("n", "<leader>e", function()
-    -- no cwd arg, same reason as the VimEnter autocmd
     local open = require("snacks.picker").get({ source = "explorer" })
     if open and #open > 0 then
         open[1]:close()
     else
-        local root = require("lib.root").git()
-        if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
-        require("snacks").explorer()
+        require("lib.explorer").open()
     end
 end, { desc = "File explorer (snacks)" })
 vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })

@@ -8,6 +8,7 @@ BarWidget {
   moduleName: "news"
 
   property var headlines: []
+  property bool loaded: false
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
@@ -23,6 +24,7 @@ BarWidget {
       waitForEnd: true
       onStreamFinished: {
         try { root.headlines = JSON.parse(text || "[]") } catch (e) {}
+        root.loaded = true
       }
     }
   }
@@ -51,8 +53,8 @@ BarWidget {
     anchorWidget: root
     onOpened: root.refresh()
     title: "NEWS"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -79,7 +81,7 @@ BarWidget {
 
       Text {
         visible: root.headlines.length === 0
-        text: "> LOADING..."
+        text: root.loaded ? "> NO HEADLINES" : "> LOADING..."
         color: Color.menu.text
         opacity: Style.emphasis.faint
         font.pixelSize: Style.font.body

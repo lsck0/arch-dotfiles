@@ -3,7 +3,7 @@
 set -uo pipefail
 
 TOGGLES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/toggles"
-CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-weather.json"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/weather.json"
 
 fail() { printf '{"ok":false,"error":"%s"}\n' "$1"; exit 0; }
 
@@ -24,12 +24,13 @@ RAW=$(curl -s --max-time 12 "$URL" 2>/dev/null || true)
 if [[ -z "$RAW" ]]; then
     # stale-if-error
     if [[ -s "$CACHE" ]]; then
-        python3 -c "
-import json,sys
-d=json.load(open('$CACHE')); d['stale']=True; print(json.dumps(d))" 2>/dev/null && exit 0
+        python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); d["stale"] = True; print(json.dumps(d))' \
+            "$CACHE" 2>/dev/null && exit 0
     fi
     fail "offline"
 fi
+
+mkdir -p "$(dirname "$CACHE")" 2>/dev/null
 
 python3 - "$RAW" "$SOURCE" "$CACHE" <<'PY'
 import json, sys, datetime

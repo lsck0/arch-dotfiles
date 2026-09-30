@@ -7,10 +7,10 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/VSCodium/User
+mkdir -p "${HOME}/.config/VSCodium/User"
 
-ln -sfn ${PWD}/settings.json ${HOME}/.config/VSCodium/User/settings.json
-ln -sfn ${PWD}/keybindings.json ${HOME}/.config/VSCodium/User/keybindings.json
+ln -sfn "${PWD}/settings.json" "${HOME}/.config/VSCodium/User/settings.json"
+ln -sfn "${PWD}/keybindings.json" "${HOME}/.config/VSCodium/User/keybindings.json"
 
 # settings.json uses vim mode
 for bin in codium code; do

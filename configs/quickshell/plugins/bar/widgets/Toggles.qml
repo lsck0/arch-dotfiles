@@ -7,9 +7,9 @@ BarWidget {
   id: root
   moduleName: "toggles"
 
-
   property string text: "⚙ 0"
   property var items: []
+  property bool itemsLoaded: false
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
@@ -63,6 +63,7 @@ BarWidget {
       waitForEnd: true
       onStreamFinished: {
         try { root.items = JSON.parse(text || "[]") } catch (e) {}
+        root.itemsLoaded = true
       }
     }
   }
@@ -100,8 +101,8 @@ BarWidget {
     anchorWidget: root
     onOpened: root.refreshItems()
     title: "TOGGLES"
-    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow
+    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset)
 
     Flickable {
       anchors.fill: parent
@@ -136,7 +137,7 @@ BarWidget {
 
         Text {
           visible: root.items.length === 0
-          text: "> LOADING..."
+          text: root.itemsLoaded ? "> NO TOGGLES" : "> LOADING..."
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.body

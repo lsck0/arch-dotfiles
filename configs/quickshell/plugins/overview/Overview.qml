@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
@@ -45,11 +44,6 @@ Item {
   function focusAndClose(id) {
     Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + id + "\" })"])
     root.close()
-  }
-
-  // unrestricted, matching super+n on empty workspaces
-  function jumpToWorkspace(number) {
-    root.focusAndClose(number)
   }
 
   IpcHandler {
@@ -113,10 +107,11 @@ Item {
           if (ids.length > 0) root.focusAndClose(ids[root.selectedIndex])
           event.accepted = true
         } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
-          root.jumpToWorkspace(event.key - Qt.Key_0)
+          // unrestricted, matching super+n on empty workspaces
+          root.focusAndClose(event.key - Qt.Key_0)
           event.accepted = true
         } else if (event.key === Qt.Key_0) {
-          root.jumpToWorkspace(10)
+          root.focusAndClose(10)
           event.accepted = true
         }
       }
@@ -139,15 +134,7 @@ Item {
             font.bold: true
             font.letterSpacing: Style.headerTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
 
           Text {
@@ -158,15 +145,7 @@ Item {
             font.family: Style.font.family
             font.pixelSize: Style.font.title
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
             SequentialAnimation on opacity {
               running: root.opened
               loops: Animation.Infinite
@@ -182,7 +161,7 @@ Item {
             textFormat: Text.PlainText
             text: "[" + String(keyCatcher.ids.length) + "]"
             color: Color.menu.text
-            opacity: 0.45
+            opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.title
           }
@@ -225,7 +204,7 @@ Item {
               borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
               clip: true
 
-              HudFrame { visible: tile.selected; z: 30 }
+              HudFrame { shown: tile.selected; z: 30 }
 
               ScreencopyView {
                 id: capture
@@ -241,7 +220,7 @@ Item {
                 anchors.centerIn: parent
                 text: tile.toplevels.length === 0 ? "Empty" : "..."
                 color: Color.menu.text
-                opacity: 0.4
+                opacity: Style.emphasis.faint
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
                 font.italic: true
@@ -277,15 +256,7 @@ Item {
                     font.pixelSize: Style.font.body
                     font.letterSpacing: Style.headerTracking
                     layer.enabled: tile.selected && Style.fx.glow > 0
-                    layer.effect: MultiEffect {
-                      shadowEnabled: true
-                      shadowColor: Style.fx.glowColor
-                      shadowBlur: 1.0
-                      shadowVerticalOffset: 0
-                      shadowHorizontalOffset: 0
-                      blurMax: Style.fx.glowRadius
-                      autoPaddingEnabled: true
-                    }
+                    layer.effect: Glow {}
                   }
 
                   Text {
@@ -293,7 +264,6 @@ Item {
                     width: parent.width - Style.space(50)
                     text: tile.primaryToplevel ? (tile.primaryToplevel.title || "") : (tile.focused ? "Current" : "")
                     color: Color.menu.text
-                    opacity: 0.75
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
@@ -304,14 +274,12 @@ Item {
                     visible: tile.toplevels.length > 1
                     text: "+" + (tile.toplevels.length - 1)
                     color: Color.menu.text
-                    opacity: 0.5
+                    opacity: Style.emphasis.faint
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                   }
                 }
               }
-
-              HudFrame { visible: tile.selected && Style.fx.brackets }
 
               MouseArea {
                 anchors.fill: parent

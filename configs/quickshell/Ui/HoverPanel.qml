@@ -1,9 +1,7 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
-import qs.Ui
 
 // dropdown bar panel chrome, reports hover to the bar
 PanelWindow {
@@ -84,13 +82,9 @@ PanelWindow {
       Behavior on y { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
     }
 
-    // inset by the shadow offset so the shadow fits
     BorderSurface {
       id: card
-      x: 0
-      y: 0
-      width: parent.width - Style.shadowOffset
-      height: parent.height - Style.shadowOffset
+      anchors.fill: parent
       color: Color.menu.background
       borderSpec: Border.flat(Color.menu.border, Style.normalBorderWidth)
       radius: Style.cornerRadius
@@ -116,66 +110,60 @@ PanelWindow {
       width: card.width - card.contentLeftInset - card.contentRightInset
       height: visible ? titleRow.implicitHeight + Style.spacing.xxs + titleRule.height : 0
 
-    Row {
-      id: titleRow
-      anchors.top: parent.top
-      anchors.left: parent.left
-      spacing: Style.spacing.xs
+      Row {
+        id: titleRow
+        anchors.top: parent.top
+        anchors.left: parent.left
+        spacing: Style.spacing.xs
+
+        Text {
+          textFormat: Text.PlainText
+          text: "> " + root.title
+          color: Color.accent
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          font.bold: true
+          font.capitalization: Font.AllUppercase
+          font.letterSpacing: Style.headerTracking
+          layer.enabled: Style.fx.glow > 0
+          layer.effect: Glow {}
+        }
+
+        Text {
+          text: "_"
+          color: Color.accent
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          SequentialAnimation on opacity {
+            running: titleBar.visible
+            loops: Animation.Infinite
+            NumberAnimation { to: 0; duration: 500 }
+            NumberAnimation { to: 1; duration: 500 }
+          }
+        }
+      }
 
       Text {
-        text: "> " + root.title
+        anchors.right: parent.right
+        anchors.verticalCenter: titleRow.verticalCenter
+        textFormat: Text.PlainText
+        text: "[# - x]"
         color: Color.accent
+        opacity: Style.emphasis.dim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
-        font.bold: true
-        font.capitalization: Font.AllUppercase
         font.letterSpacing: Style.headerTracking
-        layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
       }
 
-      Text {
-        text: "_"
-        color: Color.accent
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        SequentialAnimation on opacity {
-          running: titleBar.visible
-          loops: Animation.Infinite
-          NumberAnimation { to: 0; duration: 500 }
-          NumberAnimation { to: 1; duration: 500 }
-        }
+      Rectangle {
+        id: titleRule
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: titleRow.bottom
+        anchors.topMargin: Style.spacing.xxs
+        height: Math.max(1, Style.space(1))
+        color: Util.alpha(Color.accent, 0.8)
       }
-    }
-
-    Text {
-      anchors.right: parent.right
-      anchors.verticalCenter: titleRow.verticalCenter
-      text: "[# - x]"
-      color: Color.accent
-      opacity: 0.7
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.letterSpacing: Style.headerTracking
-    }
-
-    Rectangle {
-      id: titleRule
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: titleRow.bottom
-      anchors.topMargin: Style.spacing.xxs
-      height: Math.max(1, Style.space(1))
-      color: Util.alpha(Color.accent, 0.8)
-    }
     }
   }
 }

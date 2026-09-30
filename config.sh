@@ -33,7 +33,8 @@ while IFS= read -r script; do
         set -o pipefail
         cd "$dir" && bash "$base" </dev/null 2>&1 | tee "${script}.log"
     ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.sh' -not -path "$(pwd)/configs/pacman/*") # pacman linked before the installs
+# sorted path order: configs/projects needs configs/gh's login first; pacman is linked before the installs
+done < <(find "$(pwd)" -type f -name 'link.sh' -not -path "$(pwd)/configs/pacman/*" | sort)
 while IFS= read -r script; do
     dir=$(dirname "$script")
     base=$(basename "$script")
@@ -41,7 +42,7 @@ while IFS= read -r script; do
         set -o pipefail
         cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log"
     ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.py')
+done < <(find "$(pwd)" -type f -name 'link.py' | sort)
 
 ## INIT WALLPAPER AND THEME FILES
 

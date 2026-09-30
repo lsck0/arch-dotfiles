@@ -17,8 +17,8 @@ Repeater {
     id: widgetLoader
     required property var modelData
 
-    readonly property string widgetId: Util.canonicalWidgetId(
-      Util.isPlainObject(modelData) ? modelData.id : modelData)
+    readonly property string widgetId: String(
+      (Util.isPlainObject(modelData) ? modelData.id : modelData) || "")
 
     // cold-start fallback until the registry scan lands
     readonly property string builtinFile: BuiltinWidgets.fileFor(widgetId)

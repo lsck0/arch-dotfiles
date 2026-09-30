@@ -7,15 +7,12 @@ if [[ "${1:-}" == "rescan" ]]; then
   sleep 1.5
 fi
 
-nmcli -t -f ACTIVE,SSID,SIGNAL,SECURITY dev wifi list 2>/dev/null \
-  | awk -F: '
-    BEGIN { print "[" }
-    $2 != "" {
-      if (seen[$2]++) next
-      if (n++ > 0) printf ","
-      gsub(/"/, "\\\"", $2)
-      printf "{\"active\":%s,\"ssid\":\"%s\",\"signal\":%s,\"secure\":%s}",
-        ($1 == "yes" ? "true" : "false"), $2, ($3 == "" ? 0 : $3), ($4 == "" ? "false" : "true")
-    }
-    END { print "]" }
+# ssid last and unescaped, so colons in it stay part of it
+nmcli -t -e no -f ACTIVE,SIGNAL,SECURITY,SSID dev wifi list 2>/dev/null \
+  | jq -Rnc '
+    [inputs
+      | capture("^(?<active>[^:]*):(?<signal>[^:]*):(?<security>[^:]*):(?<ssid>.*)$")
+      | select(.ssid != "")]
+    | reduce .[] as $n ([]; if any(.[]; .ssid == $n.ssid) then . else . + [$n] end)
+    | map({active: (.active == "yes"), ssid, signal: (.signal | tonumber? // 0), secure: (.security != "" and .security != "--")})
   '

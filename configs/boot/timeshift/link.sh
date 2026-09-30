@@ -6,8 +6,9 @@ fi
 
 set -ex
 
-BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
-if [[ ! -f "$BOOT_STATE" ]] || ! grep -qx timeshift "$BOOT_STATE"; then
+source "$(dirname "$0")/../boot-menu/common.sh"
+
+if ! boot_feature_selected timeshift; then
     exit 0
 fi
 

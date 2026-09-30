@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -12,15 +11,13 @@ Item {
   property bool opened: false
   property int selectedIndex: 0
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
-  // indexed to match the shortcut map in the key handler
-  readonly property var hotkeys: ["L", "E", "H", "S", "R"]
   readonly property var actions: [
-    { label: "Lock", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
+    { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
     // terminate the session directly instead of asking hyprland to exit
-    { label: "Exit", icon: "\u{f08b}", cmd: ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""] },
-    { label: "Suspend", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
-    { label: "Shutdown", icon: "\u{f011}", cmd: ["systemctl", "poweroff"] },
-    { label: "Reboot", icon: "\u{f0709}", cmd: ["systemctl", "reboot"] }
+    { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""] },
+    { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
+    { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"] },
+    { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"] }
   ]
 
   function open() {
@@ -39,16 +36,17 @@ Item {
   }
 
   function activate(index) {
-    if (index < 0 || index >= root.actions.length) return
-    root.selectedIndex = index
-    root.runSelected()
-  }
-
-  function runSelected() {
-    var action = root.actions[root.selectedIndex]
+    var action = root.actions[index]
     if (!action) return
     Quickshell.execDetached(action.cmd)
     root.close()
+  }
+
+  function hotkeyIndex(key) {
+    var letter = String.fromCharCode(key).toUpperCase()
+    for (var i = 0; i < root.actions.length; i++)
+      if (root.actions[i].hotkey === letter) return i
+    return -1
   }
 
   IpcHandler {
@@ -102,10 +100,9 @@ Item {
           root.activate(root.selectedIndex)
           event.accepted = true
         } else {
-          var key = String.fromCharCode(event.key).toLowerCase()
-          var shortcuts = { l: 0, e: 1, h: 2, s: 3, r: 4 }
-          if (shortcuts[key] !== undefined) {
-            root.activate(shortcuts[key])
+          var index = root.hotkeyIndex(event.key)
+          if (index >= 0) {
+            root.activate(index)
             event.accepted = true
           }
         }
@@ -146,15 +143,7 @@ Item {
               font.bold: true
               font.letterSpacing: Style.headerTracking
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
             }
 
             Text {
@@ -165,15 +154,7 @@ Item {
               font.family: Style.font.family
               font.pixelSize: Style.font.title
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
               SequentialAnimation on opacity {
                 running: root.opened
                 loops: Animation.Infinite
@@ -254,15 +235,7 @@ Item {
                   font.family: Style.font.iconFamily
                   font.pixelSize: Style.font.displayLarge
                   layer.enabled: tile.selected && Style.fx.glow > 0
-                  layer.effect: MultiEffect {
-                    shadowEnabled: true
-                    shadowColor: Style.fx.glowColor
-                    shadowBlur: 1.0
-                    shadowVerticalOffset: 0
-                    shadowHorizontalOffset: 0
-                    blurMax: Style.fx.glowRadius
-                    autoPaddingEnabled: true
-                  }
+                  layer.effect: Glow {}
                 }
 
                 Text {
@@ -283,7 +256,7 @@ Item {
                 anchors.topMargin: Style.spacing.sm
                 anchors.leftMargin: Style.spacing.sm
                 textFormat: Text.PlainText
-                text: "[" + (root.hotkeys[tile.index] || "") + "]"
+                text: "[" + tile.modelData.hotkey + "]"
                 color: tile.selected ? tile.tint : Color.menu.text
                 opacity: tile.selected ? Style.emphasis.strong : Style.emphasis.faint
                 font.family: Style.font.family
@@ -291,7 +264,7 @@ Item {
                 font.letterSpacing: Style.headerTracking
               }
 
-              HudFrame { visible: tile.selected && Style.fx.brackets }
+              HudFrame { shown: tile.selected }
 
               MouseArea {
                 anchors.fill: parent
@@ -304,11 +277,10 @@ Item {
           }
         }
 
-        // same hotkeys the key handler accepts
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           textFormat: Text.PlainText
-          text: "[L] LOCK    [E] EXIT    [H] SUSPEND    [S] SHUTDOWN    [R] REBOOT"
+          text: root.actions.map(a => "[" + a.hotkey + "] " + a.label.toUpperCase()).join("    ")
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.family: Style.font.family

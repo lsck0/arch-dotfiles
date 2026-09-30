@@ -15,7 +15,7 @@ Item {
   readonly property string statePath: Paths.state + "/network-speedtest.json"
 
   property bool opened: false
-  property bool settingsLoaded: false
+  property bool resultsLoaded: false
   property string pingMs: ""
   property string lastDownloadMbps: ""
   property string lastUploadMbps: ""
@@ -51,7 +51,7 @@ Item {
     root.opened = false
     root.pendingRun = false
     phaseTimer.stop()
-    // clear phase first: onExited advances to upload on "down"
+    // onExited treats !running as a cancel, not a finished phase
     root.phase = ""
     root.running = false
     if (speedTestProc.running) {
@@ -81,8 +81,8 @@ Item {
   }
 
   function loadResults(raw) {
-    if (root.settingsLoaded) return
-    root.settingsLoaded = true
+    if (root.resultsLoaded) return
+    root.resultsLoaded = true
     try {
       var saved = JSON.parse(raw || "{}") || {}
       root.pingMs = saved.pingMs ? String(saved.pingMs) : ""
@@ -92,7 +92,7 @@ Item {
   }
 
   function saveResults() {
-    if (!root.settingsLoaded) return
+    if (!root.resultsLoaded) return
     resultsFile.setText(JSON.stringify({
       version: 1,
       connection: root.connectionName,
@@ -190,6 +190,11 @@ Item {
         root.pendingRun = false
         root.expectedStop = false
         if (root.opened) Qt.callLater(root.runSpeedTest)
+        return
+      }
+
+      if (!root.running) {
+        root.expectedStop = false
         return
       }
 

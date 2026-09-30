@@ -1,5 +1,11 @@
 """Shared palette conditioning; keep in step with quickshell Commons/Color.qml."""
 
+import json
+import os
+import sys
+
+WAL_COLORS_JSON = os.path.expanduser("~/.cache/wal/colors.json")
+
 # wcag aa for body text
 TEXT_RATIO = 4.5
 
@@ -135,3 +141,29 @@ def selection_pair(accent, fg, ratio=TEXT_RATIO):
             return cand, light
         v *= 0.92
     return hsv_to_rgb(h, s, v), [1.0, 1.0, 1.0]
+
+
+def wal_load(program):
+    """Return slot(name, fallback) over wal's colors.json, or None after reporting why it is unreadable."""
+    try:
+        with open(WAL_COLORS_JSON) as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print("%s: cannot read %s: %s" % (program, WAL_COLORS_JSON, exc), file=sys.stderr)
+        return None
+    special, colors = data.get("special", {}), data.get("colors", {})
+
+    def slot(name, fallback):
+        try:
+            return hex_to_rgb(colors.get(name) or special.get(name) or fallback)
+        except (ValueError, IndexError):
+            return hex_to_rgb(fallback)
+
+    return slot
+
+
+def write_atomic(path, body):
+    tmp = path + ".tmp"
+    with open(tmp, "w") as fh:
+        fh.write(body)
+    os.replace(tmp, path)

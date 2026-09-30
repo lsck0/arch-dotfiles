@@ -2,7 +2,7 @@
 set -uo pipefail
 
 if ! command -v yay >/dev/null 2>&1; then
-    echo "yay is not installed — see install.sh" >&2
+    echo "yay is not installed, see install.sh" >&2
     exit 1
 fi
 
@@ -26,6 +26,6 @@ fi
 
 # the terminal was opened just for this, keep it up
 echo
-read -r -n 1 -p "Press any key to close… "
+read -r -n 1 -p "Press any key to close... "
 echo
 exit "$status"

@@ -120,11 +120,11 @@ advance() {
         else
             next=break; next_min=$brk
         fi
-        alert "Focus block done" "Take a $(phase_label "$next" | tr '[:upper:]' '[:lower:]') — ${next_min} min"
+        alert "Focus block done" "Take a $(phase_label "$next" | tr '[:upper:]' '[:lower:]'), ${next_min} min"
     else
         next=work; next_min=$work
         cycle=$((cycle + 1))
-        alert "Break over" "Focus for ${work} min — pomodoro ${cycle}"
+        alert "Break over" "Focus for ${work} min, pomodoro ${cycle}"
     fi
 
     write_state true false "$next" $(( $(now) + next_min * 60 )) "$cycle" 0 "$work" "$brk" "$long"

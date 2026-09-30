@@ -15,9 +15,7 @@
     ("one-dark"       . doom-one)
     ("solarized-dawn" . doom-solarized-light)
     ("tokyo-night"    . doom-tokyo-night))
-  "Theme basenames in themes/ that ship a doom-themes equivalent.
-Names missing here (catppuccin-*, night-owl, void, \"pywal\") fall back to
-the generated doom-pywal theme.")
+  "Theme names from configs/themes with a doom-themes equivalent; the rest use doom-pywal.")
 
 (defun my/system-theme ()
   "Return the doom theme symbol matching the desktop's current theme."

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
@@ -18,7 +17,7 @@ BarWidget {
   }
 
   function scrollWorkspace(direction) {
-    var ids = root.workspaceIds()
+    var ids = root.workspaceIds
     if (ids.length === 0) return
     // this bar's monitor, not the globally focused one
     var currentId = root.activeWorkspaceId !== -1 ? root.activeWorkspaceId : ids[0]
@@ -38,7 +37,7 @@ BarWidget {
   }
 
   // occupied workspaces plus the active one
-  function workspaceIds() {
+  readonly property var workspaceIds: {
     var ids = []
     var values = Hyprland.workspaces.values
     var monitorActiveId = root.activeWorkspaceId
@@ -69,12 +68,12 @@ BarWidget {
     id: grid
     anchors.fill: parent
     anchors.rightMargin: root.trailingGap
-    columns: root.vertical ? 1 : root.workspaceIds().length
+    columns: root.vertical ? 1 : root.workspaceIds.length
     columnSpacing: root.vertical ? 0 : Style.space(1)
     rowSpacing: root.vertical ? Style.space(2) : 0
 
     Repeater {
-      model: root.workspaceIds()
+      model: root.workspaceIds
 
       Item {
         id: cell
@@ -104,15 +103,7 @@ BarWidget {
           height: Math.max(1, Style.space(2))
           color: Color.accent
           layer.enabled: cell.focused && Style.fx.glow > 0
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Style.fx.glowColor
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
+          layer.effect: Glow {}
         }
 
         WidgetButton {

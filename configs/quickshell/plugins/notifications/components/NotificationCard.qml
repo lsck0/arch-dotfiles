@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs.Commons
@@ -19,7 +18,6 @@ BorderSurface {
   // low=0, normal=1, critical=2
   property int urgency: 1
   property double timestamp: 0
-  property int cornerRadius: 0
 
   // "toast" or "row" (panel list entry)
   property string variant: "toast"
@@ -124,9 +122,9 @@ BorderSurface {
     anchors.top: parent.top
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.topMargin: root.borderTop
-    anchors.leftMargin: root.borderLeft
-    anchors.rightMargin: root.borderRight
+    anchors.topMargin: root.borderWidth
+    anchors.leftMargin: root.borderWidth
+    anchors.rightMargin: root.borderWidth
     spacing: 0
 
     RowLayout {
@@ -165,15 +163,7 @@ BorderSurface {
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
           layer.enabled: !root.isRow && Style.fx.glow > 0
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Style.fx.glowColor
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
+          layer.effect: Glow {}
         }
       }
 
@@ -267,8 +257,8 @@ BorderSurface {
   Item {
     anchors.top: parent.top
     anchors.right: parent.right
-    anchors.topMargin: root.borderTop + Style.space(3)
-    anchors.rightMargin: root.borderRight + Style.space(3)
+    anchors.topMargin: root.borderWidth + Style.space(3)
+    anchors.rightMargin: root.borderWidth + Style.space(3)
     width: Style.space(18)
     height: Style.space(18)
     visible: opacity > 0
@@ -292,6 +282,6 @@ BorderSurface {
     }
   }
 
-  HudFrame { visible: !root.isRow && Style.fx.brackets }
-  Scanlines { visible: !root.isRow && (Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0) }
+  HudFrame { shown: !root.isRow }
+  Scanlines { shown: !root.isRow }
 }

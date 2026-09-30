@@ -8,10 +8,10 @@ return {
         branch = "harpoon2",
         keys = { "<leader>a", "<leader>h", "<leader>1", "<leader>2", "<leader>3", "<leader>4", "<leader>5" },
         config = function()
-            -- set up here, mappings.lua caused issues
-            require("harpoon"):setup()
-
+            -- real maps set on load, `keys` above only triggers the lazy load
             local harpoon = require("harpoon")
+            harpoon:setup()
+
             vim.keymap.set("n", "<leader>a", function() harpoon:list():add() end, { desc = "Harpoon: add file" })
             vim.keymap.set("n", "<leader>h", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = "Harpoon: quick menu" })
             vim.keymap.set("n", "<leader>1", function() harpoon:list():select(1) end, { desc = "Harpoon: file 1" })

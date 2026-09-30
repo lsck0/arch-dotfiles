@@ -7,6 +7,5 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/kitty
-
-ln -sfn ${PWD}/kitty.conf ${HOME}/.config/kitty/kitty.conf
+mkdir -p "${HOME}/.config/kitty"
+ln -sfn "${PWD}/kitty.conf" "${HOME}/.config/kitty/kitty.conf"

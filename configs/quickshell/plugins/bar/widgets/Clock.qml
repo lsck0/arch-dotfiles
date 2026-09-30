@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -44,7 +43,10 @@ BarWidget {
   readonly property string calendarKey: Qt.formatDate(travelledNow, "yyyy-MM-dd")
   property var calendarModel: []
   onCalendarKeyChanged: calendarModel = calendarWeeks()
-  Component.onCompleted: calendarModel = calendarWeeks()
+  Component.onCompleted: {
+    calendarModel = calendarWeeks()
+    refreshOffsets()
+  }
 
   function calendarWeeks() {
     var travelled = root.travelledNow
@@ -78,8 +80,11 @@ BarWidget {
     if (!offsetsProc.running) offsetsProc.running = true
   }
 
+  // Qt formats in local time, so shift by local minus zone offset
   function timeInZone(offsetSec) {
-    return Qt.formatTime(new Date(root.travelledNow.getTime() + offsetSec * 1000), "HH:mm")
+    var travelled = root.travelledNow
+    var shiftMs = (travelled.getTimezoneOffset() * 60 + offsetSec) * 1000
+    return Qt.formatTime(new Date(travelled.getTime() + shiftMs), "HH:mm")
   }
 
   // half-hour steps need one decimal
@@ -150,14 +155,6 @@ BarWidget {
     onTriggered: root.nowPrecise = new Date()
   }
 
-  Timer {
-    interval: 15 * 60 * 1000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshOffsets()
-  }
-
   Text {
     id: label
     anchors.centerIn: parent
@@ -168,15 +165,7 @@ BarWidget {
     font.pixelSize: Style.font.body
     font.letterSpacing: Style.displayTracking
     layer.enabled: Style.fx.glow > 0
-    layer.effect: MultiEffect {
-      shadowEnabled: true
-      shadowColor: Style.fx.glowColor
-      shadowBlur: 1.0
-      shadowVerticalOffset: 0
-      shadowHorizontalOffset: 0
-      blurMax: Style.fx.glowRadius
-      autoPaddingEnabled: true
-    }
+    layer.effect: Glow {}
   }
 
   MouseArea {
@@ -194,8 +183,8 @@ BarWidget {
     anchorWidget: root
     title: "CLOCK"
     onOpened: root.refreshOffsets()
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -212,15 +201,7 @@ BarWidget {
         font.pixelSize: Style.font.display
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
       }
 
       PanelSectionHeader { text: "CALENDAR" + root.dayLabel() }
@@ -230,69 +211,67 @@ BarWidget {
         implicitHeight: calGrid.implicitHeight + Style.spacing.sm * 2
         height: implicitHeight
 
-      Column {
-        id: calGrid
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.xs
+        Column {
+          id: calGrid
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.xs
 
-        Text {
-          anchors.horizontalCenter: parent.horizontalCenter
-          textFormat: Text.PlainText
-          text: root.monthLabel().toUpperCase()
-          color: Color.accent
-          opacity: 0.8
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
-          font.letterSpacing: Style.headerTracking
-        }
+          Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            textFormat: Text.PlainText
+            text: root.monthLabel().toUpperCase()
+            color: Color.accent
+            opacity: 0.8
+            font.pixelSize: Style.font.caption
+            font.family: Style.font.family
+            font.letterSpacing: Style.headerTracking
+          }
 
-        Row {
-          width: parent.width
-          Repeater {
-            model: ["S", "M", "T", "W", "T", "F", "S"]
-            Text {
-              required property string modelData
-              width: content.width / 7
-              horizontalAlignment: Text.AlignHCenter
-              text: modelData
-              color: Color.menu.text
-              opacity: Style.emphasis.faint
-              font.pixelSize: Style.font.caption
-              font.family: Style.font.family
+          Row {
+            width: parent.width
+            Repeater {
+              model: ["S", "M", "T", "W", "T", "F", "S"]
+              Text {
+                required property string modelData
+                width: content.width / 7
+                horizontalAlignment: Text.AlignHCenter
+                text: modelData
+                color: Color.menu.text
+                opacity: Style.emphasis.faint
+                font.pixelSize: Style.font.caption
+                font.family: Style.font.family
+              }
             }
           }
-        }
 
-        Repeater {
-          model: root.calendarModel
-          Row {
-            required property var modelData
-            width: content.width
-            Repeater {
-              model: modelData
-              Rectangle {
-                required property var modelData
-                width: content.width / 7
-                height: Style.space(24)
-                radius: Style.cornerRadius
-                color: modelData && modelData.isToday ? Style.selectedFillFor(Color.menu.text, Color.accent) : "transparent"
-                opacity: 1.0
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData ? modelData.day : ""
-                  color: modelData && modelData.isToday ? Color.accent : Color.menu.text
-                  opacity: 1.0
-                  font.bold: modelData && modelData.isToday
-                  font.pixelSize: Style.font.caption
-                  font.family: Style.font.family
+          Repeater {
+            model: root.calendarModel
+            Row {
+              required property var modelData
+              width: content.width
+              Repeater {
+                model: modelData
+                Rectangle {
+                  required property var modelData
+                  width: content.width / 7
+                  height: Style.space(24)
+                  radius: Style.cornerRadius
+                  color: modelData && modelData.isToday ? Style.selectedFillFor(Color.menu.text, Color.accent) : "transparent"
+                  Text {
+                    anchors.centerIn: parent
+                    text: modelData ? modelData.day : ""
+                    color: modelData && modelData.isToday ? Color.accent : Color.menu.text
+                    font.bold: modelData && modelData.isToday
+                    font.pixelSize: Style.font.caption
+                    font.family: Style.font.family
+                  }
                 }
               }
             }
           }
         }
-      }
         HudFrame {}
       }
 
@@ -342,15 +321,7 @@ BarWidget {
             font.family: Style.font.family
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
         }
       }

@@ -5,7 +5,7 @@
 Boot the Arch ISO, enable Secure Boot Setup Mode, get online, then run
 
 ```bash
-curl install-pc.lsck0.dev | sh
+curl https://install-pc.lsck0.dev | sh
 ```
 
-or `curl install-notebook.lsck0.dev | sh` on the laptop.
+or `curl https://install-notebook.lsck0.dev | sh` on the laptop.

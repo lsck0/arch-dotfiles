@@ -4,7 +4,7 @@ BOOT_MENU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
 ESP=/boot
 
-bootloader_selected() {
+boot_feature_selected() {
     [[ -f "$BOOT_STATE" ]] && grep -qx "$1" "$BOOT_STATE"
 }
 

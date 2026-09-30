@@ -7,14 +7,14 @@ fi
 
 set -ex
 
-if [ ! -d ${HOME}/.config/spicetify/Themes/.git ]; then
-    git clone --depth 1 https://github.com/spicetify/spicetify-themes.git ${HOME}/.config/spicetify/Themes/
+if [ ! -d "${HOME}/.config/spicetify/Themes/.git" ]; then
+    git clone --depth 1 https://github.com/spicetify/spicetify-themes.git "${HOME}/.config/spicetify/Themes/"
 fi
 
-mkdir -p ${HOME}/.config/spicetify/Themes/wal
+mkdir -p "${HOME}/.config/spicetify/Themes/wal"
 
-ln -sfn ${PWD}/color.ini ${HOME}/.config/spicetify/Themes/wal/color.ini
-ln -sfn ${PWD}/user.css ${HOME}/.config/spicetify/Themes/wal/user.css
+ln -sfn "${PWD}/color.ini" "${HOME}/.config/spicetify/Themes/wal/color.ini"
+ln -sfn "${PWD}/user.css" "${HOME}/.config/spicetify/Themes/wal/user.css"
 
 # spicetify writes here, own it instead of 777
 sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps

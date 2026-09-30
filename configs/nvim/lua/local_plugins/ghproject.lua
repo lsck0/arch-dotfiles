@@ -975,8 +975,8 @@ local function parse_views(data)
     for _, v in ipairs(nodes) do
         local fields, sort = {}, {}
         -- configuration keeps the view's column order, plain fields come back in project order
-        local visible = v.configuration and v.configuration.visibleFields or v.fields or {}
-        for _, f in ipairs(visible.nodes or {}) do fields[#fields + 1] = f.name end
+        local visible_fields = v.configuration and v.configuration.visibleFields or v.fields or {}
+        for _, f in ipairs(visible_fields.nodes or {}) do fields[#fields + 1] = f.name end
         for _, k in ipairs((v.sortByFields or {}).nodes or {}) do
             if k.field and k.field.name then sort[#sort + 1] = { name = k.field.name, desc = k.direction == "DESC" } end
         end

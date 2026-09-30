@@ -31,6 +31,7 @@ BarIndicator {
       root.tooltip = String(d.tooltip || "Pomodoro: off")
     } catch (e) {
       root.running = false
+      root.phase = "idle"
       root.tooltip = "Pomodoro: off"
     }
   }

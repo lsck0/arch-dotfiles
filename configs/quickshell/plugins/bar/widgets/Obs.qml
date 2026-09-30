@@ -1,6 +1,4 @@
 import QtQuick
-import QtQuick.Effects
-import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import qs.Commons
@@ -53,7 +51,6 @@ BarWidget {
 
   property var bitrateHist: []
   property var dropHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   readonly property color stateColor: (degraded || faulted)
     ? Color.semantic.warn
@@ -90,17 +87,26 @@ BarWidget {
     return Math.round(v / 1024) + " KB"
   }
 
+  function clearSession() {
+    streaming = false
+    streamReconnecting = false
+    recording = false
+    recordPaused = false
+    bitrateKbps = 0
+    recordKbps = 0
+    prevStreamBytes = -1
+    prevRecordBytes = -1
+    prevSampleMs = 0
+    scene = ""
+    scenes = []
+    mutes = ({})
+  }
+
   function apply(payload) {
     connected = payload.connected === true
     errorText = String(payload.error || "")
     if (!connected) {
-      streaming = false
-      recording = false
-      bitrateKbps = 0
-      recordKbps = 0
-      prevStreamBytes = -1
-      prevRecordBytes = -1
-      mutes = ({})
+      clearSession()
       return
     }
 
@@ -158,8 +164,8 @@ BarWidget {
     prevRecordBytes = rBytes
     prevSampleMs = nowMs
 
-    bitrateHist = _push(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
-    dropHist = _push(dropHist, dropPct)
+    bitrateHist = Util.historyPush(bitrateHist, streaming ? bitrateKbps : (recording ? recordKbps : 0))
+    dropHist = Util.historyPush(dropHist, dropPct)
   }
 
   // run the helper only while obs runs
@@ -181,18 +187,7 @@ BarWidget {
   onObsSeenChanged: if (!obsSeen) {
     connected = false
     errorText = ""
-    streaming = false
-    streamReconnecting = false
-    recording = false
-    recordPaused = false
-    bitrateKbps = 0
-    recordKbps = 0
-    prevStreamBytes = -1
-    prevRecordBytes = -1
-    prevSampleMs = 0
-    scene = ""
-    scenes = []
-    mutes = ({})
+    clearSession()
   }
 
   Connections {
@@ -254,15 +249,7 @@ BarWidget {
       radius: width / 2
       color: root.stateColor
       layer.enabled: Style.fx.glow > 0 && root.active
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: root.stateColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: root.stateColor }
 
       SequentialAnimation on opacity {
         running: root.active
@@ -291,15 +278,7 @@ BarWidget {
       font.bold: root.active
       opacity: root.active || root.faulted ? 1 : 0.55
       layer.enabled: Style.fx.glow > 0 && root.active
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: root.stateColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: root.stateColor }
     }
 
     Text {
@@ -328,20 +307,20 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "OBS"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    component Row_: Row {
+    component StatRow: Row {
+      id: statRow
       property string label: ""
       property string value: ""
       property color valueColor: Color.menu.text
       property bool dim: false
       width: parent.width
       Text {
-        width: parent.width * 0.45
-        text: parent.label
+        width: statRow.width * 0.45
+        text: statRow.label
         color: Color.menu.text
-        opacity: Style.emphasis.dim
         elide: Text.ElideRight
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
@@ -349,11 +328,11 @@ BarWidget {
         font.letterSpacing: Style.headerTracking * 0.4
       }
       Text {
-        width: parent.width * 0.55
+        width: statRow.width * 0.55
         horizontalAlignment: Text.AlignRight
-        text: parent.value
-        color: parent.valueColor
-        opacity: parent.dim ? 0.4 : 1
+        text: statRow.value
+        color: statRow.valueColor
+        opacity: statRow.dim ? Style.emphasis.faint : 1
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.letterSpacing: Style.displayTracking
@@ -361,6 +340,7 @@ BarWidget {
     }
 
     component Action: Rectangle {
+      id: action
       property string glyph: ""
       property string label: ""
       property color tint: Color.menu.text
@@ -378,15 +358,15 @@ BarWidget {
         spacing: Style.spacing.xs
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          text: parent.parent.glyph
-          color: parent.parent.tint
+          text: action.glyph
+          color: action.tint
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.caption
         }
         Text {
           anchors.verticalCenter: parent.verticalCenter
-          text: parent.parent.label
-          color: parent.parent.tint
+          text: action.label
+          color: action.tint
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -397,7 +377,7 @@ BarWidget {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: parent.activated()
+        onClicked: action.activated()
       }
     }
 
@@ -427,15 +407,7 @@ BarWidget {
             font.bold: true
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: root.active ? root.stateColor : Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow { shadowColor: root.active ? root.stateColor : Style.fx.glowColor }
           }
           Text {
             anchors.bottom: heroNum.bottom
@@ -607,16 +579,16 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "STATUS" }
 
-      Row_ { label: "Scene"; value: root.scene || "--"; dim: root.scene === "" }
-      Row_ { label: "Output FPS"; value: root.fps.toFixed(1) }
-      Row_ { label: "Frame render"; value: root.frameTimeMs.toFixed(2) + " ms" }
-      Row_ { label: "OBS CPU"; value: root.cpu.toFixed(1) + "%" }
-      Row_ { label: "OBS memory"; value: root.gb(root.memMb) }
+      StatRow { label: "Scene"; value: root.scene || "--"; dim: root.scene === "" }
+      StatRow { label: "Output FPS"; value: root.fps.toFixed(1) }
+      StatRow { label: "Frame render"; value: root.frameTimeMs.toFixed(2) + " ms" }
+      StatRow { label: "OBS CPU"; value: root.cpu.toFixed(1) + "%" }
+      StatRow { label: "OBS memory"; value: root.gb(root.memMb) }
 
       PanelSeparator {}
       PanelSectionHeader { text: "STREAM" }
 
-      Row_ {
+      StatRow {
         label: "State"
         value: root.streamReconnecting ? "Reconnecting"
              : (root.streaming ? "Live" : "Stopped")
@@ -624,16 +596,16 @@ BarWidget {
                   : (root.streaming ? Color.semantic.live : Color.menu.text)
         dim: !root.streaming && !root.streamReconnecting
       }
-      Row_ { visible: root.streaming; label: "Elapsed"; value: root.clock(root.streamSeconds) }
-      Row_ { visible: root.streaming; label: "Bitrate"; value: Math.round(root.bitrateKbps) + " kbps" }
-      Row_ { visible: root.streaming; label: "Sent"; value: root.bytesText(root.streamBytes) }
-      Row_ {
+      StatRow { visible: root.streaming; label: "Elapsed"; value: root.clock(root.streamSeconds) }
+      StatRow { visible: root.streaming; label: "Bitrate"; value: Math.round(root.bitrateKbps) + " kbps" }
+      StatRow { visible: root.streaming; label: "Sent"; value: root.bytesText(root.streamBytes) }
+      StatRow {
         visible: root.streaming
         label: "Dropped frames"
         value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
         valueColor: root.dropPct >= 1.0 ? Color.semantic.warn : Color.menu.text
       }
-      Row_ {
+      StatRow {
         visible: root.streaming
         label: "Congestion"
         value: Math.round(root.congestion * 100) + "%"
@@ -660,18 +632,18 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "RECORDING" }
 
-      Row_ {
+      StatRow {
         label: "State"
         value: root.recordPaused ? "Paused" : (root.recording ? "Recording" : "Stopped")
         valueColor: root.recording ? Color.semantic.recording : Color.menu.text
         dim: !root.recording
       }
-      Row_ { visible: root.recording; label: "Elapsed"; value: root.clock(root.recordSeconds) }
+      StatRow { visible: root.recording; label: "Elapsed"; value: root.clock(root.recordSeconds) }
       // the recording is often encoded heavier than the stream
-      Row_ { visible: root.recording; label: "Bitrate"; value: Math.round(root.recordKbps) + " kbps" }
-      Row_ { visible: root.recording; label: "Written"; value: root.bytesText(root.recordBytes) }
-      Row_ { label: "Disk free"; value: root.gb(root.freeDiskMb) }
-      Row_ {
+      StatRow { visible: root.recording; label: "Bitrate"; value: Math.round(root.recordKbps) + " kbps" }
+      StatRow { visible: root.recording; label: "Written"; value: root.bytesText(root.recordBytes) }
+      StatRow { label: "Disk free"; value: root.gb(root.freeDiskMb) }
+      StatRow {
         visible: root.recording && root.diskSecondsLeft > 0
         label: "Disk headroom"
         value: root.clock(root.diskSecondsLeft) + " at this rate"
@@ -682,13 +654,13 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "SKIPPED FRAMES" }
 
-      Row_ {
+      StatRow {
         label: "Rendering"
         value: root.renderSkipped + " / " + root.renderTotal
         valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01
           ? Color.semantic.warn : Color.menu.text
       }
-      Row_ {
+      StatRow {
         label: "Encoding"
         value: root.encoderSkipped + " / " + root.encoderTotal
         valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01

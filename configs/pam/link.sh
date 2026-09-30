@@ -3,14 +3,14 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -ex
 
-# copies, pam will not follow symlinks into home
-sed "s|@HOME@|$HOME|" quickshell-lock | sudo tee /etc/pam.d/quickshell-lock >/dev/null
-sudo install -m 644 quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint
-
 # optional yubikey touch auth, nouserok falls through to password
 U2F_MODULE=/usr/lib/security/pam_u2f.so
 # fixed origin: one registration (scripts/yubikey.sh init) serves every machine
 U2F_LINE='auth       sufficient pam_u2f.so nouserok cue origin=pam://lsck0 appid=pam://lsck0 authfile='"${HOME}"'/.config/Yubico/u2f_keys'
+
+# copies, pam will not follow symlinks into home
+sed "s#@U2F_LINE@#${U2F_LINE}#" quickshell-lock | sudo tee /etc/pam.d/quickshell-lock >/dev/null
+sudo install -m 644 quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint
 
 pam_u2f_install() {
     # insert before the first system-auth include, else leave untouched

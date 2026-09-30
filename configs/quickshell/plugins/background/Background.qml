@@ -22,10 +22,6 @@ Item {
   property int revealStartedVersion: -1
   property real revealProgress: 1
 
-  function imageUrl(path) {
-    return Util.fileUrl(path)
-  }
-
   function refreshBackground() {
     if (!readlinkProc.running) readlinkProc.running = true
   }
@@ -119,7 +115,6 @@ Item {
       screen: modelData
       anchors { top: true; bottom: true; left: true; right: true }
       color: "transparent"
-      updatesEnabled: true
 
       // hyprland keeps moved layer surfaces at the old origin
       ScreenMoveRemap { id: screenGuard; window: panel }
@@ -152,7 +147,7 @@ Item {
       Image {
         id: base
         anchors.fill: parent
-        source: root.imageUrl(root.displayedBackground)
+        source: Util.fileUrl(root.displayedBackground)
         sourceSize: panel.decodeSize
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -169,7 +164,7 @@ Item {
       Image {
         id: oldFrame
         anchors.fill: parent
-        source: root.imageUrl(root.oldBackground)
+        source: Util.fileUrl(root.oldBackground)
         sourceSize: panel.decodeSize
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
@@ -196,7 +191,7 @@ Item {
         Image {
           id: incomingFrame
           anchors.fill: parent
-          source: root.imageUrl(root.incomingBackground)
+          source: Util.fileUrl(root.incomingBackground)
           sourceSize: panel.decodeSize
           fillMode: Image.PreserveAspectCrop
           asynchronous: true

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
@@ -115,8 +114,8 @@ BarWidget {
     anchorWidget: root
     onOpened: root.refreshDevices()
     title: "AUDIO"
-    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -137,15 +136,7 @@ BarWidget {
           font.bold: true
           font.letterSpacing: Style.displayTracking
           layer.enabled: Style.fx.glow > 0
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: root.muted ? Color.urgent : Style.fx.glowColor
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
+          layer.effect: Glow { shadowColor: root.muted ? Color.urgent : Style.fx.glowColor }
         }
         Text {
           anchors.bottom: outHero.bottom
@@ -195,7 +186,6 @@ BarWidget {
           verticalAlignment: Text.AlignVCenter
           text: Math.round(root.volume * 100) + "%"
           color: Color.menu.text
-          opacity: Style.emphasis.dim
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -261,7 +251,6 @@ BarWidget {
           verticalAlignment: Text.AlignVCenter
           text: Math.round(root.micVolume * 100) + "%"
           color: Color.menu.text
-          opacity: Style.emphasis.dim
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -307,15 +296,7 @@ BarWidget {
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily
             layer.enabled: Style.fx.glow > 0 && root.deafened
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Color.urgent
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow { shadowColor: Color.urgent }
           }
           Text {
             anchors.verticalCenter: parent.verticalCenter

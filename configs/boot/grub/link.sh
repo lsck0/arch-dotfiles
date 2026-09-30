@@ -4,7 +4,7 @@ set -ex
 
 source "$(dirname "$0")/../boot-menu/common.sh"
 
-if ! bootloader_selected grub; then
+if ! boot_feature_selected grub; then
     exit 0
 fi
 if ! command -v grub-install >/dev/null 2>&1; then

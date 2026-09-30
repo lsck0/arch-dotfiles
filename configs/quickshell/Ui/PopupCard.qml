@@ -2,7 +2,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
-import qs.Ui
 
 PopupWindow {
   id: root
@@ -15,7 +14,7 @@ PopupWindow {
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
   property color borderColor: Color.menu.border
-  property var borderSpec: Border.surfaceSpec(borderColor, Color.menu.border, Math.max(1, Style.space(2)))
+  property var borderSpec: Border.flat(borderColor, Math.max(1, Style.space(2)))
   property bool open: false
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
@@ -30,7 +29,7 @@ PopupWindow {
   readonly property real availableCardHeight: screenH > 0
     ? Math.max(120, screenH - ((bar && (bar.position === "top" || bar.position === "bottom")) ? barH : 0) - root.margin * 2)
     : 0
-  readonly property real verticalContentInset: padding * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
+  readonly property real verticalContentInset: (padding + Border.width(borderSpec)) * 2
 
   function fittedContentWidth(width, cap) {
     var desired = Math.max(1, Number(width) || 1)
@@ -67,7 +66,7 @@ PopupWindow {
 
   anchor {
     id: popupAnchor
-    window: anchorItem ? anchorItem.QsWindow.window : null
+    window: root.anchorWindow
     adjustment: PopupAdjustment.Slide
     edges: Edges.Top | Edges.Left
     gravity: Edges.Bottom | Edges.Right

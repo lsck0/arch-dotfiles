@@ -46,9 +46,6 @@ QtObject {
   readonly property int focusBorderWidth: 2
   readonly property int selectedBorderWidth: 2
 
-  readonly property int shadowOffset: 0
-  readonly property real shadowAlpha: 0.0
-
   function normalStateColor(foreground, accent) { return foreground || Color.foreground }
   function hoverStateColor(foreground, accent) { return foreground || Color.foreground }
   function selectedStateColor(foreground, accent) { return accent || Color.accent }

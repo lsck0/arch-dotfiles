@@ -22,6 +22,8 @@ SEEN = "6h"
 IPV4 = r"\d+\.\d+\.\d+\.\d+"
 CLIENT_WINDOW = "24h"
 CLIENT_ROWS = 8
+# sorts after every real vmid
+UNKNOWN_VM_ID = 100000
 
 # fold raw user agents into a family before counting
 AGENT_FAMILY = (
@@ -201,7 +203,7 @@ def vm_for(instance, src):
     if ip in src["by_ip"]:
         return src["by_ip"][ip]
     zone = next((z for z, subnet in src["subnets"].items() if ip.startswith(subnet + ".")), "")
-    return {"id": 100000, "name": ip, "url": "", "onDemand": False, "type": zone}
+    return {"id": UNKNOWN_VM_ID, "name": ip, "url": "", "onDemand": False, "type": zone}
 
 
 def human_count(n):
@@ -310,9 +312,7 @@ def fetch(url, timeout=5):
 
 
 def sample(src, summary=False):
-    if not src["by_ip"]:
-        return {"ok": False, "error": "source"}
-    if not src["prometheus"]:
+    if not src["by_ip"] or not src["prometheus"]:
         return {"ok": False, "error": "source"}
 
     def query(expr):
@@ -329,7 +329,7 @@ def sample(src, summary=False):
     for metric, value in query(seen):
         vm = vm_for(metric.get("instance", ""), src)
         # skip disabled vms and removed ones that are down
-        if vm.get("enabled") == "false" or (value != 1 and vm["id"] == 100000):
+        if vm.get("enabled") == "false" or (value != 1 and vm["id"] == UNKNOWN_VM_ID):
             continue
         # the router answers on both subnets
         entry = services.setdefault((vm["id"], vm["name"]), {k: vm[k] for k in ("id", "name", "url", "onDemand")})
@@ -385,9 +385,9 @@ def sample(src, summary=False):
                     "target": target,
                     "minutes": max(0, int((now - started) / 60)),
                 })
-            alerts.sort(key=lambda a: a["minutes"])
     except Exception:
         pass
+    alerts.sort(key=lambda a: a["minutes"])
 
     services_sorted = sorted(services.values(), key=lambda s: (s.get("order", 1000), s["id"], s["name"]))
     if summary:

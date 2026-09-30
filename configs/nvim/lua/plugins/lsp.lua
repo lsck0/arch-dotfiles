@@ -37,7 +37,6 @@ local installed = {
     "rust-analyzer",
     "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
-
     "stylua",
     "shfmt",
     "gofumpt",
@@ -186,7 +185,6 @@ return {
                     "typescript", "typescriptreact", "vue", "svelte",
                 },
             })
-
 
             -- root at the typos config, else its allowlist is ignored
             vim.lsp.config("typos_lsp", {
@@ -374,9 +372,9 @@ return {
 
             vim.api.nvim_create_user_command("FormatToggle", function(o)
                 if o.bang then
-                    vim.b.disable_autoformat = not vim.b.disable_autoformat -- buffer-local
+                    vim.b.disable_autoformat = not vim.b.disable_autoformat
                 else
-                    vim.g.disable_autoformat = not vim.g.disable_autoformat -- global
+                    vim.g.disable_autoformat = not vim.g.disable_autoformat
                 end
                 vim.notify("autoformat " .. ((vim.g.disable_autoformat or vim.b.disable_autoformat) and "off" or "on"))
             end, { bang = true, desc = "Toggle format-on-save (! = buffer only)" })

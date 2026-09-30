@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # vendored OFL fonts with no arch package
-set -euo pipefail
-cd "$(dirname "$(readlink -f "$0")")"
-dest="$HOME/.local/share/fonts"
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+
+set -ex
+
+dest="${HOME}/.local/share/fonts"
 mkdir -p "$dest"
 for f in *.ttf *.otf; do
     [ -e "$f" ] || continue

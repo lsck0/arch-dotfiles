@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -144,19 +143,19 @@ BarWidget {
     if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
     else args.push(action)
     Quickshell.execDetached(args)
-    layoutSettleTimer.restart()
+    monitorsSettle.restart()
   }
 
   // hyprland needs a moment before readback is current
   Timer {
-    id: layoutSettleTimer
+    id: monitorsSettle
     interval: 800
     onTriggered: root.refreshMonitors()
   }
 
   function setMonitorScale(name, scale) {
     Quickshell.execDetached([Paths.script("set-monitor-scale.sh"), name, String(scale)])
-    refreshMonitors()
+    monitorsSettle.restart()
   }
 
   // one process per get so concurrent monitors don't clash
@@ -223,13 +222,12 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    // ddc/ci is slow, so read hardware only while open
+    // brightness is read once, via refreshMonitors, until seeded
     onOpened: {
       root.refreshMonitors()
-      root.refreshAllBrightness()
       root.refreshFontSize()
       root.refreshShader()
     }
@@ -250,15 +248,7 @@ BarWidget {
         font.bold: true
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
       }
       Text {
         anchors.bottom: heroNum.bottom

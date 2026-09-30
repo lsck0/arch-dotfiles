@@ -7,7 +7,7 @@ function clamp(value, min, max) {
 // widest glyph, keeps the icon column from jittering
 var widestIcon = "\u{f028}"
 
-function iconFor(name, percent) {
+function iconFor(name) {
   var n = String(name || "").toLowerCase()
   if (n === "volume-muted" || n === "volume-mute" || n === "muted" || n === "mute") return "\u{f026}"
   if (n === "volume-low") return "\u{f027}"
@@ -20,8 +20,6 @@ function iconFor(name, percent) {
   if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
   if (n === "launch") return "\u{f14de}"
   if (n.length > 0) return name
-  if (percent <= 33) return "\u{f0e7}"
-  if (percent <= 66) return "\u{f0e7}"
   return "\u{f0e7}"
 }
 
@@ -38,7 +36,7 @@ function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, r
     hasProgress: hasProgress,
     value: value,
     message: String(rawMessage || (hasProgress ? (rawProgressText || percent + "%") : "")),
-    icon: iconFor(iconName, percent),
+    icon: iconFor(iconName),
     duration: isNaN(parsedDuration) ? 1200 : Math.max(0, parsedDuration)
   }
 }

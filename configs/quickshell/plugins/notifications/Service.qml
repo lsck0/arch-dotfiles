@@ -21,7 +21,6 @@ Item {
   readonly property string popupStateDir: stateDir + "notifications/"
   readonly property string historyDir: popupStateDir + "history/"
   readonly property string imagesDir: popupStateDir + "images/"
-  readonly property int cornerRadius: Style.cornerRadius
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
 
   // kept out of the model: stale qobject roles segfault
@@ -684,7 +683,6 @@ Item {
     }
 
     service.settingsLoaded = true
-    if (parsed.legacy) service.scheduleSettingsSave()
   }
 
   function flushSettings() {
@@ -849,25 +847,31 @@ Item {
             implicitHeight: card.implicitHeight
 
             readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout)
-            property real remainingLifetime: 1.0
+            // hover pauses the countdown, leaving resumes the remainder
+            property real remainingMs: cardSlot.lifetime
+            property double resumedAtMs: Date.now()
             readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered
 
-            onSummaryChanged: cardSlot.remainingLifetime = 1.0
-            onBodyChanged: cardSlot.remainingLifetime = 1.0
-            onImageChanged: cardSlot.remainingLifetime = 1.0
+            function restartLifetime() {
+              cardSlot.remainingMs = cardSlot.lifetime
+              cardSlot.resumedAtMs = Date.now()
+              if (cardSlot.ticking) expiryTimer.restart()
+            }
+
+            onTickingChanged: {
+              if (cardSlot.ticking) cardSlot.resumedAtMs = Date.now()
+              else cardSlot.remainingMs = Math.max(0, cardSlot.remainingMs - (Date.now() - cardSlot.resumedAtMs))
+            }
+            onLifetimeChanged: cardSlot.restartLifetime()
+            onSummaryChanged: cardSlot.restartLifetime()
+            onBodyChanged: cardSlot.restartLifetime()
+            onImageChanged: cardSlot.restartLifetime()
 
             Timer {
-              interval: 50
-              repeat: true
+              id: expiryTimer
+              interval: Math.max(1, cardSlot.remainingMs)
               running: cardSlot.ticking
-              onTriggered: {
-                if (cardSlot.lifetime <= 0) return
-                cardSlot.remainingLifetime -= 50.0 / cardSlot.lifetime
-                if (cardSlot.remainingLifetime <= 0) {
-                  cardSlot.remainingLifetime = 0
-                  service.expirePopup(cardSlot.index)
-                }
-              }
+              onTriggered: service.expirePopup(cardSlot.index)
             }
 
             NotificationCard {
@@ -881,7 +885,6 @@ Item {
               urgency: cardSlot.urgency
               timestamp: cardSlot.timestamp
               now: service.popupNowMs
-              cornerRadius: service.cornerRadius
               glyph: cardSlot.glyph
 
               onCloseRequested: service.dismissPopup(cardSlot.index)

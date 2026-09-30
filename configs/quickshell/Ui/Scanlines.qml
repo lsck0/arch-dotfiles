@@ -4,9 +4,11 @@ import qs.Commons
 Item {
   id: root
   anchors.fill: parent
-  visible: Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0
+  visible: shown && (Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0)
   z: 10
 
+  // caller gate, combined with the fx settings
+  property bool shown: true
   property int spacing: Style.fx.scanlineSpacing
   property real strength: Style.fx.scanlineOpacity
   // fullscreen surfaces opt out of the flash

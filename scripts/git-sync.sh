@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Sync all git repos recursively, skipping submodules. Prunes vendor/, heavy
-# build/cache dirs and gitignored repos; fetches/pulls in parallel.
+# Fetch/pull every git repo under a dir in parallel, skipping submodules, vendor/, heavy build/cache and gitignored repos.
 
 BASE_DIR=$(realpath "${1:-.}")
 JOBS="${GIT_SYNC_JOBS:-8}"

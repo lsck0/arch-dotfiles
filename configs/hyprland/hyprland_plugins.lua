@@ -1,12 +1,7 @@
-local function plugin_config(name, opts, aliases)
-    for _, alias in ipairs(aliases or { name }) do
-        if hl.plugin[alias] ~= nil then
-            hl.config({ plugin = { [name] = opts } })
-            return true
-        end
+local function plugin_config(name, opts)
+    if hl.plugin[name] ~= nil then
+        hl.config({ plugin = { [name] = opts } })
     end
-
-    return false
 end
 
 plugin_config("dynamic_cursors", {

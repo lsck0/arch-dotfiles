@@ -5,9 +5,7 @@ CONF="${ANONYMOUS_SOCKS_CONF:-$HOME/.config/anonymous-socks/config}"
 # shellcheck disable=SC1090
 [ -r "$CONF" ] && source "$CONF"
 
-# Own Tor instance, own SOCKSPort. 9061, not Tor's default 9050, so anonymous socks does
-# not collide with a system tor already bound on 127.0.0.1:9050 and keeps its
-# own DataDirectory. Must match proxychains.conf.
+# own Tor instance; 9061 not Tor's default 9050 to avoid colliding with a system tor. Must match proxychains.conf
 PORT="${ANONYMOUS_SOCKS_PORT:-9061}"
 RATE="${ANONYMOUS_SOCKS_RATE:-0}"                 # max new SOCKS connections/sec, 0 = uncapped
 TOR_BIN="${ANONYMOUS_SOCKS_TOR_BIN:-tor}"
@@ -18,55 +16,35 @@ VERIFIED="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks.verified"
 # who applied the idspoof persona: socks or persona; shared with anonymous-network-persona.sh
 IDSPOOF_OWNER="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/idspoof-owner"
 
-# Circuit pool. One Tor daemon, POOL_SIZE SocksPorts on PORT..PORT+POOL_SIZE-1.
-# Each port gets its own SessionGroup, and Tor never shares a circuit across
-# session groups, so every port is an independent exit open at the same time.
-# Route across them with proxychains round_robin (see `anonymous-socks.sh proxylist`).
+# circuit pool: one Tor daemon, POOL_SIZE SocksPorts each in its own SessionGroup so circuits never overlap
 POOL_SIZE="${ANONYMOUS_SOCKS_POOL_SIZE:-10}"
 
-# Control port for SIGNAL NEWNYM (force fresh circuits on demand). Cookie auth,
-# so no password on disk. 9161, clear of the SOCKS pool and Tor's default 9051.
+# control port for SIGNAL NEWNYM, cookie auth; 9161 clear of the pool and Tor's default 9051
 CTRL_PORT="${ANONYMOUS_SOCKS_CONTROL_PORT:-9161}"
 COOKIE="$DATADIR/control_auth_cookie"
 
-# New streams reuse a circuit up to this long, then get a fresh one (new exit).
-# Tor default is 600. Lower it to rotate exits faster; a stream already open
-# keeps its circuit regardless.
+# new streams reuse a circuit up to this long (Tor default 600), then get a fresh exit
 MAX_DIRTINESS_S="${ANONYMOUS_SOCKS_MAX_CIRCUIT_DIRTINESS:-600}"
 
-# Runtime proxychains config, generated on up to match the live pool. Point tools
-# at it to spread each connection round-robin across every pool port.
+# runtime proxychains config, regenerated on up to match the live pool
 PC_CONF="${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks-proxychains.conf}"
 PC_READ_TIMEOUT_MS=15000
 PC_CONNECT_TIMEOUT_MS=8000
 
-# Pool ports, low to high. PORT is the base and index 0.
+# pool ports, low to high; PORT is the base and index 0
 pool_ports() { local i; for ((i = 0; i < POOL_SIZE; i++)); do echo $((PORT + i)); done; }
 
-# Adaptive network persona via idspoof, scoped by destination so it never breaks
-# the pool:
-#   - external (internet, Tor guards): TTL, MSS and sysctl fingerprint only. The
-#     NFQUEUE option reorder is the one layer that mangles Tor's guard SYNs
-#     (verified: TTL and MSS in the same chain are Tor-safe, the reorder is not),
-#     so it is NOT applied externally. Over Tor the target sees the exit anyway.
-#   - internal (RFC1918, link-local): the full persona incl the NFQUEUE reorder,
-#     since a LAN host fingerprints this host at the wire and there is no circuit
-#     to break.
-# On by default. idspoof owns its state under /var/log/idspoof and the rollback.
+# adaptive idspoof persona scoped by destination: external gets TTL/MSS/sysctl only (its NFQUEUE reorder
+# mangles Tor guard SYNs), internal nets get the full persona incl the reorder (LAN fingerprints at the wire)
 PERSONA="${ANONYMOUS_SOCKS_PERSONA:-1}"              # adaptive persona with the tunnel; 0 = disable
 PERSONA_OS="${ANONYMOUS_SOCKS_PERSONA_OS:-windows}"  # idspoof persona: windows, macos, ios, linux, android
 PERSONA_NFQUEUE_NUM=42                               # idspoof's option-reorder queue (its IDSPOOF_NETEMU rule)
-# Destinations that get the full persona incl the NFQUEUE reorder; everything else
-# keeps TTL/MSS/sysctl only, which is Tor-safe.
 PERSONA_INTERNAL_NETS="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16"
 
-# Tor Project's own exit check. Returns {"IsTor":true,"IP":"..."}. Verifying
-# against this proves traffic actually left through a Tor exit; a fixed exit IP
-# cannot be declared because Tor rotates exits per circuit.
+# Tor Project's exit check; verifying against it proves traffic left via a Tor exit (exit IP rotates per circuit)
 TOR_CHECK_URL="${ANONYMOUS_SOCKS_TOR_CHECK_URL:-https://check.torproject.org/api/ip}"
 
-# Tor bootstrap builds a circuit before the first request can exit. Poll check()
-# up to this long after start rather than failing on the first cold attempt.
+# Tor builds a circuit before the first request can exit; poll check() this long after start
 BOOTSTRAP_TIMEOUT_S=60
 BOOTSTRAP_POLL_S=2
 
@@ -80,8 +58,7 @@ is_up() {
     done
 }
 
-# One-place environment probe: refuse to start if tor is missing, naming the
-# install command, rather than half-starting and failing later.
+# refuse to start if tor is missing, naming the install command, rather than half-starting
 require_tor() {
     command -v "$TOR_BIN" >/dev/null || {
         err "tor not found (set ANONYMOUS_SOCKS_TOR_BIN or: sudo pacman -S tor)"
@@ -89,8 +66,7 @@ require_tor() {
     }
 }
 
-# Coarse rules-of-engagement throttle: cap how fast tools may open new SOCKS
-# sessions. Own nft table so it never touches the firewall's inet fw table.
+# cap how fast tools may open new SOCKS sessions; own nft table, never touches the firewall's inet fw table
 rate_on() {
     [ "$RATE" -gt 0 ] 2>/dev/null || return 0
     command -v nft >/dev/null || {
@@ -112,7 +88,7 @@ rate_off() { sudo nft delete table inet anonymous_socks 2>/dev/null || true; }
 persona_on() {
     [ "$PERSONA" = 1 ] || return 0
     command -v idspoof >/dev/null || {
-        err "idspoof not found, persona off (build: configs/idspoof/link.sh)"
+        err "idspoof not found, persona off (mirror/pkgbuilds/idspoof)"
         return 0
     }
     sudo idspoof apply --netident --persona "$PERSONA_OS" -q || {
@@ -126,9 +102,7 @@ persona_on() {
     }
 }
 
-# idspoof installs the option reorder as one blanket rule in mangle/IDSPOOF_NETEMU.
-# Replace it with one copy per internal net, so only internal-bound SYNs are
-# rewritten. Nonzero if idspoof's rule is not found (format changed).
+# replace idspoof's blanket mangle/IDSPOOF_NETEMU reorder with one copy per internal net; nonzero if its rule is gone
 persona_scope_nfqueue() {
     local q=(-p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j NFQUEUE --queue-num "$PERSONA_NFQUEUE_NUM")
     sudo iptables -t mangle -C IDSPOOF_NETEMU "${q[@]}" 2>/dev/null || return 1
@@ -152,9 +126,7 @@ persona_off() {
     rm -f "$IDSPOOF_OWNER"
 }
 
-# Verify one pool port: reachable AND leaving through a Tor exit. Prints
-# "anonymous-socks ok: :PORT tor exit IP" on success, nonzero on any doubt so a caller
-# that gates on this never falls back to the clear route.
+# verify one pool port reachable AND leaving via a Tor exit; nonzero on any doubt so a gating caller fails closed
 check_port() {
     local port="$1" body ip
     body=$(curl -fsS --max-time 15 --socks5-hostname "127.0.0.1:$port" "$TOR_CHECK_URL") \
@@ -208,23 +180,18 @@ newnym() {
     fi
 }
 
-# Emit a proxychains [ProxyList] block that round-robins across the pool, one
-# hop per connection, so each new connection exits on the next port's circuit.
-# Pair with `round_robin` and `chain_len = 1` in proxychains.conf.
+# [ProxyList] block spanning the pool; pair with round_robin and chain_len 1 so each connection exits on the next port
 proxylist() {
     local p
     echo "[ProxyList]"
     for p in $(pool_ports); do echo "socks5 127.0.0.1 $p"; done
 }
 
-# Full proxychains config for the live pool: round_robin with chain_len 1 spreads
-# each new connection onto the next pool port, so load fans out across every
-# circuit. Regenerated on up so it always matches POOL_SIZE.
+# full proxychains config for the live pool; regenerated on up so it always matches POOL_SIZE
 proxyconf() {
     cat <<PC
 # Generated by anonymous-socks.sh on up; regenerated each time. Do not edit by hand.
-# round_robin + chain_len 1: one proxy per connection, advancing each connection,
-# so requests spread evenly across the whole circuit pool.
+# round_robin + chain_len 1: one proxy per connection, so requests spread across the pool.
 round_robin
 chain_len = 1
 proxy_dns
@@ -249,19 +216,13 @@ up() {
     rm -f "$VERIFIED"
     mkdir -p "$DATADIR"
     chmod 700 "$DATADIR"
-    # One SocksPort per pool slot, each its own SessionGroup so Tor never
-    # shares a circuit between them: POOL_SIZE simultaneous independent exits.
-    # Maximum stream isolation on top: IsolateDestAddr + IsolateDestPort put
-    # every distinct destination on its own circuit, IsolateSOCKSAuth splits
-    # by SOCKS credential too.
+    # one SocksPort per slot, each its own SessionGroup plus Isolate* flags: independent per-destination circuits
     local socks_args=() i=0 p
     for p in $(pool_ports); do
         socks_args+=(--SocksPort "127.0.0.1:$p IsolateSOCKSAuth IsolateDestAddr IsolateDestPort SessionGroup=$i")
         i=$((i + 1))
     done
-    # Never read /etc/tor/torrc: the system torrc may set User, which forces a
-    # root start and breaks this unprivileged instance. Run off our own empty
-    # config so only the flags below apply.
+    # never read /etc/tor/torrc: its User directive would force a root start and break this unprivileged instance
     "$TOR_BIN" \
         -f "$DATADIR/torrc" --ignore-missing-torrc \
         --defaults-torrc "$DATADIR/torrc-defaults" --ignore-missing-torrc \

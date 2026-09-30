@@ -9,4 +9,4 @@ set -ex
 
 mkdir -p ~/.zsh/completions
 
-ln -sfn ${PWD}/zshrc ${HOME}/.zshrc
+ln -sfn "${PWD}/zshrc" "${HOME}/.zshrc"

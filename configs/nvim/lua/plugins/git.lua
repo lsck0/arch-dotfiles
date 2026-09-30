@@ -37,8 +37,8 @@ return {
         cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION or vim.env.HERDR_ENV) end,
         keys = { "<leader>gf", "<leader>gc" },
         dependencies = {
-            "nvim-lua/plenary.nvim",         -- Lua utility library
-            "nvim-telescope/telescope.nvim", -- fuzzy finder
+            "nvim-lua/plenary.nvim",
+            "nvim-telescope/telescope.nvim",
         },
         config = function()
             require("git-worktree").setup()

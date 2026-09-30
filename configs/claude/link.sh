@@ -12,8 +12,8 @@ SETTINGS="${HOME}/.claude/settings.json"
 mkdir -p "${HOME}/.claude"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
-ln -sfn "$(pwd)/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
-ln -sfn "$(pwd)/RTK.md" "${HOME}/.claude/RTK.md"
+ln -sfn "${PWD}/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
+ln -sfn "${PWD}/RTK.md" "${HOME}/.claude/RTK.md"
 
 tmp=$(mktemp)
 jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5"}
