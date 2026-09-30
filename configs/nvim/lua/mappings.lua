@@ -113,7 +113,11 @@ function _G.Toggle_venn()
     end
 end
 
-vim.keymap.set("n", "<leader>dt", "<cmd>lua require('dapui').toggle()<CR>", { desc = "Toggle DAP UI" })
+vim.keymap.set("n", "<leader>dt", function()
+    -- dapui errors when dap is not loaded yet
+    require("dap")
+    require("dapui").toggle()
+end, { desc = "Toggle DAP UI" })
 vim.keymap.set("n", "<leader>b", "<cmd>DapToggleBreakpoint<CR>", { desc = "Toggle breakpoint" })
 vim.keymap.set("n", "<leader>B", "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>",
     { desc = "Conditional breakpoint" })

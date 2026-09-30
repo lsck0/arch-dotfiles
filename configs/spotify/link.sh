@@ -16,6 +16,12 @@ mkdir -p "${HOME}/.config/spicetify/Themes/wal"
 ln -sfn "${PWD}/color.ini" "${HOME}/.config/spicetify/Themes/wal/color.ini"
 ln -sfn "${PWD}/user.css" "${HOME}/.config/spicetify/Themes/wal/user.css"
 
+# /opt/spotify only exists once spotify is installed, so gate everything below on it
+if ! pacman -Q spotify >/dev/null 2>&1; then
+    echo "spotify: not installed, skipping spicetify apply" >&2
+    exit 0
+fi
+
 # spicetify writes here, own it instead of 777
 sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
 
@@ -24,11 +30,6 @@ spicetify config experimental_features 0
 # on, it also strips the [dir=ltr] rules spotify spacing lives in
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
-
-if ! pacman -Q spotify >/dev/null 2>&1; then
-    echo "spotify: not installed, skipping spicetify apply" >&2
-    exit 0
-fi
 
 spicetify apply || spicetify backup apply || true
 

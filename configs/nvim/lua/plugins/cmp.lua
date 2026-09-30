@@ -52,8 +52,8 @@ return {
                 ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
                 ["<C-e>"] = { "cancel", "fallback" },
                 ["<CR>"] = { "accept", "fallback" },
-                ["<Tab>"] = { "select_next", "fallback" },
-                ["<S-Tab>"] = { "select_prev", "fallback" },
+                ["<Tab>"] = { "select_next", "snippet_forward", "fallback" },
+                ["<S-Tab>"] = { "select_prev", "snippet_backward", "fallback" },
                 ["<C-b>"] = { "scroll_documentation_up", "fallback" },
                 ["<C-f>"] = { "scroll_documentation_down", "fallback" },
             },
@@ -90,7 +90,8 @@ return {
                 },
                 providers = {
                     commits = {
-                        name = "commits",
+                        -- cmp-commit registers itself as "commit"
+                        name = "commit",
                         module = "blink.compat.source",
                     },
                     conventionalcommits = {

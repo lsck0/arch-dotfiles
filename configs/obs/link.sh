@@ -38,7 +38,6 @@ if [ ! -f "${OBS_WS_DIR}/config.json" ]; then
 	)
 	chmod 600 "${OBS_WS_DIR}/config.json"
 	unset OBS_WS_PASSWORD
-	set -x
 fi
 
 # cef flags for the desktop launcher

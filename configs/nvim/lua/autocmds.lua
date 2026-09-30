@@ -94,7 +94,7 @@ autocmd("VimEnter", {
     group = group("auto-explorer", { clear = true }),
     callback = function()
         if vim.g.started_by_firenvim then return end
-        -- only for tms/hms launches
+        -- only for herdr-open.sh launches
         if vim.env.NVIM_TMS ~= "1" then return end
         if vim.fn.argc() > 1 then return end            -- diff/multi-file: leave alone
         local ft = vim.bo.filetype

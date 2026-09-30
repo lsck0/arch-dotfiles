@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/secrets.sh
+
 if ! command -v sshd >/dev/null 2>&1; then
     exit 0
 fi
@@ -20,7 +22,8 @@ systemctl --user enable ssh-add.service
 mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
 touch "${HOME}/.ssh/authorized_keys" && chmod 600 "${HOME}/.ssh/authorized_keys"
 for pub in ../secrets/ssh_publickey.asc ../yubikey/ssh-*.pub "${HOME}/.ssh/id_ed25519.pub"; do
-    [ -r "$pub" ] || continue
+    # skips a locked secrets blob as well as a missing file
+    secret_is_plaintext "$pub" || continue
     key=$(cat "$pub")
     grep -qxF "$key" "${HOME}/.ssh/authorized_keys" || echo "$key" >> "${HOME}/.ssh/authorized_keys"
 done

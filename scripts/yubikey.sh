@@ -124,6 +124,8 @@ init_age() {
 
 # each step is one touch; no key, no enrollment or no touch just skips
 cmd_unlock() {
+    # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it later
+    sudo systemctl start pcscd.socket 2>/dev/null || true
     if ! present; then
         echo "yubikey: none plugged in, secrets stay as they are"
         return 0

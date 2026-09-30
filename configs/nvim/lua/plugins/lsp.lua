@@ -155,9 +155,8 @@ return {
             end
 
             -- kani projects need these cfgs + nightly, plain rust must not get them
-            local function rust_extra_env()
-                local root = vim.fs.root(vim.fn.getcwd(), { "Cargo.toml" }) or vim.fn.getcwd()
-                local f = io.open(root .. "/Cargo.toml")
+            local function rust_extra_env(root)
+                local f = type(root) == "string" and io.open(root .. "/Cargo.toml")
                 if f then
                     local uses_kani = f:read("*a"):find("kani") ~= nil
                     f:close()
@@ -167,13 +166,21 @@ return {
                 end
                 return vim.empty_dict()
             end
-            local rust_env = rust_extra_env()
 
+            local rust_analyzer_before_init = vim.lsp.config.rust_analyzer.before_init
             vim.lsp.config("rust_analyzer", {
+                -- per client root, so kani and plain crates can share one nvim
+                before_init = function(params, config)
+                    local settings = config.settings["rust-analyzer"]
+                    local env = rust_extra_env(config.root_dir)
+                    settings.cargo.extraEnv = env
+                    settings.check.extraEnv = env
+                    rust_analyzer_before_init(params, config)
+                end,
                 settings = {
                     ["rust-analyzer"] = {
-                        cargo = { allFeatures = true, extraEnv = rust_env },
-                        check = { command = "clippy", extraEnv = rust_env },
+                        cargo = { allFeatures = true },
+                        check = { command = "clippy" },
                     }
                 }
             })
@@ -193,10 +200,22 @@ return {
                 init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
             })
 
+            -- vue_ls forwards script blocks to ts_ls, which needs the vue plugin for that
+            local vue_plugin = vim.fn.stdpath("data")
+                .. "/mason/packages/vue-language-server/node_modules/@vue/language-server"
             vim.lsp.config("ts_ls", {
-                on_attach = function(client, bufnr)
-                    require("twoslash-queries").attach(client, bufnr)
-                end,
+                filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact", "vue" },
+                init_options = {
+                    plugins = {
+                        { name = "@vue/typescript-plugin", location = vue_plugin, languages = { "vue" } },
+                    },
+                },
+                on_attach = {
+                    vim.lsp.config.ts_ls.on_attach,
+                    function(client, bufnr)
+                        require("twoslash-queries").attach(client, bufnr)
+                    end,
+                },
             })
 
             -- system JDK (mise may pin an older java on PATH); java-debug bundle enables dap
@@ -232,7 +251,17 @@ return {
                 end
             end
 
+            local function drop_ipython_noise(buf, diagnostics)
+                if not vim.b[buf].is_jupytext then return diagnostics end
+                return vim.tbl_filter(function(d)
+                    local name = d.code == "reportUndefinedVariable"
+                        and d.message:match('"([%w_]+)"')
+                    return not (name and ipython_builtins[name])
+                end, diagnostics)
+            end
+
             local publish = vim.lsp.handlers["textDocument/publishDiagnostics"]
+            local pull = vim.lsp.handlers["textDocument/diagnostic"]
             vim.lsp.config("pyright", {
                 before_init = function(params, config)
                     local root = params.rootPath
@@ -246,15 +275,15 @@ return {
                 end,
                 handlers = {
                     ["textDocument/publishDiagnostics"] = function(err, result, ctx)
-                        local buf = vim.uri_to_bufnr(result.uri)
-                        if vim.b[buf].is_jupytext then
-                            result.diagnostics = vim.tbl_filter(function(d)
-                                local name = d.code == "reportUndefinedVariable"
-                                    and d.message:match('"([%w_]+)"')
-                                return not (name and ipython_builtins[name])
-                            end, result.diagnostics)
-                        end
+                        result.diagnostics = drop_ipython_noise(vim.uri_to_bufnr(result.uri), result.diagnostics)
                         return publish(err, result, ctx)
+                    end,
+                    -- pyright pulls diagnostics (textDocument/diagnostic), filter those too
+                    ["textDocument/diagnostic"] = function(err, result, ctx)
+                        if result and result.items then
+                            result.items = drop_ipython_noise(ctx.bufnr, result.items)
+                        end
+                        return pull(err, result, ctx)
                     end,
                 },
             })
@@ -290,6 +319,10 @@ return {
                         "rust_analyzer",
                         "tailwindcss",
                         "ts_ls",
+                        -- crash on start: no elixir runtime, JDK crash, bundler perms
+                        "elixirls",
+                        "kotlin_language_server",
+                        "ruby_lsp",
                     }
                 }
             })

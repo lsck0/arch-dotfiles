@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/secrets.sh
+
 if ! command -v syncthing >/dev/null 2>&1; then
     exit 0
 fi
@@ -13,7 +15,7 @@ STATE="${HOME}/.local/state/syncthing"
 # per-host device identity
 SECRET_DIR="../secrets/syncthing/$(hostname)"
 
-if [ -f "${SECRET_DIR}/config.xml" ] && [ -f "${SECRET_DIR}/key.pem" ]; then
+if secret_is_plaintext "${SECRET_DIR}/config.xml" && secret_is_plaintext "${SECRET_DIR}/key.pem"; then
     # install before the daemon starts so it comes up paired
     systemctl --user stop syncthing.service 2>/dev/null || true
     mkdir -p "${STATE}"

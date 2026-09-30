@@ -15,6 +15,10 @@ local function in_math()
 end
 local function math() return in_math() end
 local function not_math() return not in_math() end
+-- typing \sum, \oint, \sqrt must not expand the trigger inside the command name
+local function math_not_command(line_to_cursor, trigger)
+    return in_math() and not line_to_cursor:sub(1, -#trigger - 1):match("\\%a*$")
+end
 
 -- capture group N of a regex trigger, verbatim
 local function cap(n)
@@ -85,11 +89,11 @@ ls.add_snippets("tex", {
     s({ trig = "//", desc = "fraction", snippetType = "autosnippet" },
         fmta("\\frac{<>}{<>}", { i(1), i(2) }), { condition = math }),
     s({ trig = "sq", desc = "sqrt", snippetType = "autosnippet" },
-        fmta("\\sqrt{<>}", { i(1) }), { condition = math }),
+        fmta("\\sqrt{<>}", { i(1) }), { condition = math_not_command }),
     s({ trig = "sum", desc = "sum", snippetType = "autosnippet" },
-        fmta("\\sum_{<>}^{<>}", { i(1, "i=1"), i(2, "n") }), { condition = math }),
+        fmta("\\sum_{<>}^{<>}", { i(1, "i=1"), i(2, "n") }), { condition = math_not_command }),
     s({ trig = "int", desc = "integral", snippetType = "autosnippet" },
-        fmta("\\int_{<>}^{<>}", { i(1), i(2) }), { condition = math }),
+        fmta("\\int_{<>}^{<>}", { i(1), i(2) }), { condition = math_not_command }),
     s({ trig = "->", desc = "to", snippetType = "autosnippet" }, t("\\to "), { condition = math }),
     s({ trig = "!=", desc = "neq", snippetType = "autosnippet" }, t("\\neq "), { condition = math }),
     s({ trig = "([%a])(%d)", regTrig = true, desc = "auto subscript", snippetType = "autosnippet" },

@@ -16,6 +16,19 @@ fi
 export FAILURES_FILE="$(pwd)/FAILURES.install"
 : >"$FAILURES_FILE"
 
+# stage.sh retries an abort but moves on from a run that only logged failures
+EXIT_FAILURES=1
+EXIT_ABORTED=2
+install_finished=0
+on_exit() {
+    kill "${SUDO_KEEPALIVE_PID:-}" 2>/dev/null || true
+    ((install_finished)) || exit "$EXIT_ABORTED"
+}
+trap on_exit EXIT
+
+# stage.sh sets DOTFILES_UNATTENDED, under `script` stdin is a pty even then
+interactive() { [[ -t 0 && -z "${DOTFILES_UNATTENDED:-}" ]]; }
+
 ## PACKAGES
 
 PACKAGES=(
@@ -969,7 +982,7 @@ platform_load "$(pwd)"
 
 
 if [[ ! -f "$GROUPS_STATE" ]]; then
-    if [[ -t 0 ]]; then
+    if interactive; then
         echo "Enter the numbers to DISABLE (space-separated), or enter for all:"
         for i in "${!PKG_GROUPS[@]}"; do
             echo "  $((i + 1))  ${PKG_GROUPS[i]}"
@@ -1052,7 +1065,7 @@ fi
 
 # Partitioning/bootloader is already done by the time install.sh runs
 if [[ ! -f "$BOOT_STATE" ]]; then
-    if [[ -t 0 ]]; then
+    if interactive; then
         echo ""
         echo "Enter the numbers to DISABLE, or enter for all:"
         for i in "${!BOOT_FEATURES[@]}"; do
@@ -1085,7 +1098,7 @@ if ! grep -qxE 'limine|grub' "$BOOT_STATE"; then
     if [[ -f /boot/EFI/GRUB/grubx64.efi ]]; then
         bootloader=grub
     fi
-    if [[ -t 0 ]]; then
+    if interactive; then
         read -rp "Bootloader (limine/grub) [$bootloader]: " answer
         if [[ "$answer" == limine || "$answer" == grub ]]; then
             bootloader=$answer
@@ -1141,18 +1154,23 @@ retry() {
 sudo -v
 while true; do sudo -n true 2>/dev/null; sleep 50; done &
 SUDO_KEEPALIVE_PID=$!
-trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
-sudo pacman -Syyu --noconfirm
+# -uu moves what pacstrap installed from today's mirrors onto the [lsck0] snapshot's versions
+if grep -qxF '[lsck0]' /etc/pacman.conf; then
+    sudo pacman -Syyuu --noconfirm
+else
+    sudo pacman -Syyu --noconfirm
+fi
 
 ## SOURCES
 
 # [lsck0] (configs/pacman/lsck0.conf) is a nightly snapshot of every PACKAGES entry with its dependencies, the
 # aur, cargo and go ones prebuilt; MIRROR_SKIP and what it lacks go to yay, cargo, go and mirror/pkgbuilds
-declare -A MIRROR_HAS=() SKIP=() SYNC_HAS=()
+declare -A MIRROR_HAS=() SKIP=() SYNC_HAS=() OFFICIAL_REPO=()
 while read -r pkg; do MIRROR_HAS[$pkg]=1; done < <(pacman -Slq lsck0 2>/dev/null)
 for name in "${MIRROR_SKIP[@]}"; do SKIP[$name]=1; done
 while read -r pkg; do SYNC_HAS[$pkg]=1; done < <(pacman -Slq; pacman -Sg)
+while read -r repo pkg _; do OFFICIAL_REPO[$pkg]=$repo; done < <(pacman -Sl core extra multilib)
 
 SYNC_PKGS=()
 AUR_PKGS=()
@@ -1160,6 +1178,9 @@ LOCAL_PKGS=()
 for pkg in "${PACKAGES[@]}"; do
     if [[ -d "mirror/pkgbuilds/$pkg" ]] && [[ -n "${SKIP[$pkg]:-}" || -z "${MIRROR_HAS[$pkg]:-}" ]]; then
         LOCAL_PKGS+=("$pkg")
+    elif [[ -n "${SKIP[$pkg]:-}" && -n "${OFFICIAL_REPO[$pkg]:-}" ]]; then
+        # repo/ keeps pacman from taking the [lsck0] copy
+        SYNC_PKGS+=("${OFFICIAL_REPO[$pkg]}/$pkg")
     elif [[ -n "${SKIP[$pkg]:-}" ]]; then
         # aur/ keeps yay from taking the repo copy
         AUR_PKGS+=("aur/$pkg")
@@ -1169,26 +1190,37 @@ for pkg in "${PACKAGES[@]}"; do
         AUR_PKGS+=("$pkg")
     fi
 done
+# prebuilt crates and go modules ride the repo batch, and fall back to cargo and go if it fails
+MIRROR_CARGO_PKGS=()
+MIRROR_GO_PKGS=()
+MIRROR_GO_NAMES=()
 kept=()
 for crate in "${CARGO_PKGS[@]}"; do
-    if [[ -n "${MIRROR_HAS[$crate]:-}" && -z "${SKIP[$crate]:-}" ]]; then SYNC_PKGS+=("$crate"); else kept+=("$crate"); fi
+    if [[ -n "${MIRROR_HAS[$crate]:-}" && -z "${SKIP[$crate]:-}" ]]; then MIRROR_CARGO_PKGS+=("$crate"); else kept+=("$crate"); fi
 done
 CARGO_PKGS=("${kept[@]}")
 kept=()
 for go_pkg in "${GO_PKGS[@]}"; do
     name="${go_pkg%@*}"
     name="${name##*/}"
-    if [[ -n "${MIRROR_HAS[$name]:-}" && -z "${SKIP[$name]:-}" ]]; then SYNC_PKGS+=("$name"); else kept+=("$go_pkg"); fi
+    if [[ -n "${MIRROR_HAS[$name]:-}" && -z "${SKIP[$name]:-}" ]]; then
+        MIRROR_GO_PKGS+=("$go_pkg")
+        MIRROR_GO_NAMES+=("$name")
+    else
+        kept+=("$go_pkg")
+    fi
 done
 GO_PKGS=("${kept[@]}")
-echo "sources: ${#SYNC_PKGS[@]} repo, ${#AUR_PKGS[@]} aur, ${#LOCAL_PKGS[@]} local recipes" >&2
+echo "sources: ${#SYNC_PKGS[@]} repo, $((${#MIRROR_CARGO_PKGS[@]} + ${#MIRROR_GO_PKGS[@]})) prebuilt cargo/go," \
+    "${#AUR_PKGS[@]} aur, ${#LOCAL_PKGS[@]} local recipes" >&2
 
 sudo pacman -S --needed --noconfirm git base-devel
 sudo pacman -S --needed --noconfirm yay || true
 if ! command -v yay >/dev/null 2>&1; then
-    git clone https://aur.archlinux.org/yay.git
-    (cd yay && makepkg -si --noconfirm)
-    rm -rf yay/
+    yay_dir=$(mktemp -d)
+    git clone https://aur.archlinux.org/yay.git "$yay_dir"
+    (cd "$yay_dir" && makepkg -si --noconfirm)
+    rm -rf "$yay_dir"
 fi
 
 # force rustup and stable, since a lot of packages would otherwise install rust and conflict
@@ -1197,14 +1229,24 @@ rustup toolchain install nightly || true
 rustup toolchain install stable || true
 rustup default stable || true
 
-# one download pass for everything prebuilt; on failure yay retries the lot, per package if need be
-if [[ ${#SYNC_PKGS[@]} -gt 0 ]]; then
-    retry 3 sudo pacman -S --needed --noconfirm --ask 4 "${SYNC_PKGS[@]}" || AUR_PKGS+=("${SYNC_PKGS[@]}")
+# one download pass for everything prebuilt, -Syu per attempt since the db goes stale over the hours-long install;
+# on failure yay retries the repo packages, per package if need be, and cargo and go build the rest
+prebuilt_pkgs=("${SYNC_PKGS[@]}" "${MIRROR_CARGO_PKGS[@]}" "${MIRROR_GO_NAMES[@]}")
+if [[ ${#prebuilt_pkgs[@]} -gt 0 ]]; then
+    if ! retry 3 sudo pacman -Syu --needed --noconfirm --ask 4 "${prebuilt_pkgs[@]}"; then
+        AUR_PKGS+=("${SYNC_PKGS[@]}")
+        CARGO_PKGS+=("${MIRROR_CARGO_PKGS[@]}")
+        GO_PKGS+=("${MIRROR_GO_PKGS[@]}")
+    fi
 fi
+
+yay_install() {
+    sudo pacman -Syu --noconfirm && yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "$@"
+}
 
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#AUR_PKGS[@]} -gt 0 ]]; then
-    if ! retry 7 yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "${AUR_PKGS[@]}"; then
+    if ! retry 7 yay_install "${AUR_PKGS[@]}"; then
         echo "yay batch failed, falling back to per-package install" >&2
         for pkg in "${AUR_PKGS[@]}"; do
             yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "$pkg" \
@@ -1256,7 +1298,9 @@ for ((pass = 0; pass < ${#LOCAL_PKGS[@]} && ${#pending[@]} > 0; pass++)); do
     retry_next=()
     for name in "${pending[@]}"; do
         build_dir=$(mktemp -d)
-        (cd "mirror/pkgbuilds/$name" && BUILDDIR="$build_dir" PKGDEST="$build_dir" SRCDEST="$build_dir" \
+        # a copy: pkgver() rewrites the PKGBUILD it runs from
+        cp -r "mirror/pkgbuilds/$name/." "$build_dir"
+        (cd "$build_dir" && BUILDDIR="$build_dir" PKGDEST="$build_dir" SRCDEST="$build_dir" \
             makepkg -si --needed --noconfirm) || retry_next+=("$name")
         rm -rf "$build_dir"
     done
@@ -1272,10 +1316,11 @@ sudo rm -rf "${HOME}/.cache/yay/"
 
 ## SUMMARY
 
+install_finished=1
 if [ -s "$FAILURES_FILE" ]; then
     echo "=== FAILED ==="
     cat "$FAILURES_FILE"
-    exit 1
+    exit "$EXIT_FAILURES"
 fi
 echo "All packages installed. Next: reboot, then ./config.sh"
 rm -f "$FAILURES_FILE"

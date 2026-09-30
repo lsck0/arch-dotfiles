@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/secrets.sh
+
 # without the UUID the timer would fail every 15 minutes for nothing
-if [[ ! -r ../secrets/trmnl-claude.env ]]; then
-    echo "configs/trmnl-claude: no ../secrets/trmnl-claude.env, skipping" >&2
+if ! secret_is_plaintext ../secrets/trmnl-claude.env; then
+    echo "configs/trmnl-claude: no readable ../secrets/trmnl-claude.env, skipping" >&2
     exit 0
 fi
 
