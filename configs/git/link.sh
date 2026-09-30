@@ -4,7 +4,7 @@ if ! command -v git >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/git"
 

@@ -6,7 +6,7 @@ if ! command -v gh >/dev/null 2>&1 || ! grep -qs '^gh[a-z]_' "$TOKEN"; then
     exit 0
 fi
 
-set -ex
+set -e
 
 if ! gh auth status >/dev/null 2>&1; then
     gh auth login --with-token <"$TOKEN"

@@ -10,6 +10,6 @@ if ! command -v cargo-kani >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 cargo kani setup

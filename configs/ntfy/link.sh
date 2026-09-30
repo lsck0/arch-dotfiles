@@ -6,7 +6,7 @@ if [[ ! -d "${HOME}/projects/homelab" ]] || ! command -v notify-send >/dev/null 
     exit 0
 fi
 
-set -ex
+set -e
 
 chmod 755 "${PWD}/ntfy-notify.py"
 install -Dm644 "${PWD}/ntfy-notify.service" "${HOME}/.config/systemd/user/ntfy-notify.service"

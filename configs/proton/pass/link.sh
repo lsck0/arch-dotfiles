@@ -5,7 +5,7 @@ if ! command -v pass >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 if ! pass otp --help >/dev/null 2>&1; then
     echo "proton-pass: 'pass otp' unavailable, install pass-otp (see configs/proton/README.md)" >&2

@@ -5,7 +5,7 @@ if ! command -v easyeffects >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # presets saved in the app land in the repo
 mkdir -p "${HOME}/.config/easyeffects"

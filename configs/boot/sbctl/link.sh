@@ -4,7 +4,7 @@ if ! command -v sbctl >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 source "$(dirname "$0")/../boot-menu/common.sh"
 

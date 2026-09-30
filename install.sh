@@ -2,7 +2,16 @@
 # Stage 2: every package of the platform's groups, compiled ones prebuilt from mirror.lsck0.dev
 
 set -e
-exec > >(tee "install.log") 2>&1
+
+# progress bars need a tty; re-exec under `script` so pacman/yay render live while logging.
+# the headless chain (systemd, no tty) falls through to plain tee.
+if [ -z "${_PTY_LOG:-}" ]; then
+    export _PTY_LOG=1
+    if [ -t 1 ] && command -v script >/dev/null 2>&1; then
+        exec script -qe -c "$0 $*" install.log
+    fi
+    exec > >(tee install.log) 2>&1
+fi
 
 export FAILURES_FILE="$(pwd)/FAILURES.install"
 : >"$FAILURES_FILE"

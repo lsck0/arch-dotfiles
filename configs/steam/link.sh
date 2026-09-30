@@ -5,7 +5,7 @@ if ! command -v steam >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 skins="${HOME}/.local/share/Steam/millennium/themes"
 theme="${skins}/cyberpunk"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 if command -v claude >/dev/null 2>&1; then
     claude plugin marketplace add JuliusBrussee/caveman

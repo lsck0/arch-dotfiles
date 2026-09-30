@@ -5,7 +5,7 @@ if ! command -v codium >/dev/null 2>&1 && ! command -v code >/dev/null 2>&1; the
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/VSCodium/User"
 

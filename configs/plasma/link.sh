@@ -5,7 +5,7 @@ if ! command -v kpackagetool6 >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 FILES="
     baloofilerc

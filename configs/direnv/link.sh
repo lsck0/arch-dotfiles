@@ -6,7 +6,7 @@ if ! command -v direnv >/dev/null 2>&1 || [[ ! -x "$DEVENV" ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/direnv"
 "$DEVENV" direnvrc > "${HOME}/.config/direnv/direnvrc"

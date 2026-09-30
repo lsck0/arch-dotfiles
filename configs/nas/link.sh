@@ -5,7 +5,7 @@ if ! command -v mount.cifs >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo mkdir -p /mnt/homelab
 sed -e "s|@UID@|$(id -u)|" -e "s|@GID@|$(id -g)|" "${PWD}/mnt-homelab.mount" | sudo tee /etc/systemd/system/mnt-homelab.mount >/dev/null

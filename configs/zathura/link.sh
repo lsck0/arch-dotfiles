@@ -5,7 +5,7 @@ if ! command -v zathura >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "$HOME/.config/zathura" "$HOME/.cache/wal"
 ln -sfn "${PWD}/zathurarc" "$HOME/.config/zathura/zathurarc"

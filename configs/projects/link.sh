@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 PROJECTS="${HOME}/projects"
 # github.com/lsck0/<name>; private ones need configs/gh's login, which links first (config.sh runs them sorted)

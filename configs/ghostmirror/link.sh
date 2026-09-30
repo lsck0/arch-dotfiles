@@ -5,7 +5,7 @@ if ! command -v ghostmirror >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # link first, the rebuild writes through it into the repo copy
 sudo ln -sfn "${PWD}/mirrorlist" /etc/pacman.d/mirrorlist

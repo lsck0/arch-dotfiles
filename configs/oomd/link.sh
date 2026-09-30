@@ -5,7 +5,7 @@ if ! systemctl list-unit-files --no-legend systemd-oomd.service | grep -q .; the
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo systemctl enable systemd-oomd.service
 

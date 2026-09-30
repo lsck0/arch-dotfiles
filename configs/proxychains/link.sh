@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
-set -ex
+set -e
 
 mkdir -p "${HOME}/.proxychains"
 ln -sfn "${PWD}/proxychains.conf" "${HOME}/.proxychains/proxychains.conf"

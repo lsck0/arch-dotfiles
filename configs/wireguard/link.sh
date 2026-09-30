@@ -10,6 +10,6 @@ if [[ -z "$WIREGUARD" ]] || ! grep -qs '^\[Interface\]' "../secrets/$WIREGUARD";
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo install -Dm600 "../secrets/$WIREGUARD" /etc/wireguard/wg0.conf

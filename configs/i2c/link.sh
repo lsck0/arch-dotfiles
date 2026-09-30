@@ -5,7 +5,7 @@ if ! command -v ddcutil >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # load i2c-dev at boot so /dev/i2c-* exists before the session starts
 echo "i2c-dev" | sudo tee /etc/modules-load.d/i2c-dev.conf >/dev/null

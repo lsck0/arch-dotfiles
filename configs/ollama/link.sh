@@ -5,7 +5,7 @@ if ! command -v ollama >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo mkdir -p /etc/systemd/system/ollama.service.d
 sudo ln -sfn "${PWD}/keep-alive.conf" /etc/systemd/system/ollama.service.d/keep-alive.conf

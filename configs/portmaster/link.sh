@@ -6,7 +6,7 @@ if [[ ! -d /var/lib/portmaster ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # copy, ProtectHome=read-only blocks portmaster saving through a link into /home
 sudo install -m 644 "${PWD}/config.json" /var/lib/portmaster/config.json

@@ -5,7 +5,7 @@ if ! command -v spicetify >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 if [ ! -d "${HOME}/.config/spicetify/Themes/.git" ]; then
     git clone --depth 1 https://github.com/spicetify/spicetify-themes.git "${HOME}/.config/spicetify/Themes/"

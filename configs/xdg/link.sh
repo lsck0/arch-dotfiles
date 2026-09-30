@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
 mkdir -p "${HOME}/sync" "${HOME}/vault"

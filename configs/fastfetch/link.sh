@@ -5,7 +5,7 @@ if ! command -v fastfetch >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/fastfetch"
 ln -sfn "${PWD}/fastfetch.jsonc" "${HOME}/.config/fastfetch/config.jsonc"

@@ -5,7 +5,7 @@ if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo mkdir -p /etc/sysctl.d
 

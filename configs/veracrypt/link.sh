@@ -5,7 +5,7 @@ if ! command -v veracrypt >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 mkdir -p "${HOME}/.local/bin"

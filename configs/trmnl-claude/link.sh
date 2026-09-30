@@ -7,7 +7,7 @@ if [[ ! -r ../secrets/trmnl-claude.env ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/systemd/user"
 ln -sfn "${PWD}/trmnl-claude.service" "${HOME}/.config/systemd/user/trmnl-claude.service"
