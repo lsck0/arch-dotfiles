@@ -2,5 +2,5 @@
 HOSTNAME=vm-test
 PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
 BOOT_FEATURES=(timeshift sbctl luks grub)
-# mirror/packages.conf entries this machine builds itself instead
+# packages this machine builds itself instead of taking them from the lsck0 mirror
 MIRROR_SKIP=()

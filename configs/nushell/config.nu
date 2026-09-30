@@ -135,13 +135,6 @@ def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-# marker for tmux session-init, cleared so plain tmux does not inherit it
-def --wrapped tms [...rest] {
-    try { tmux set-environment -g TMS_LAUNCH 1 }
-    ^tms ...$rest
-    try { tmux set-environment -gu TMS_LAUNCH }
-}
-
 # --------------------------------------------------------------- integrations
 
 source ~/.cache/nushell/starship.nu

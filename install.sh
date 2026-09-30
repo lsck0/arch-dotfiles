@@ -4,7 +4,7 @@
 set -e
 
 # progress bars need a tty; re-exec under `script` so pacman/yay render live while logging.
-# the headless chain (systemd, no tty) falls through to plain tee.
+# without a tty (piped, cron) fall through to plain tee.
 if [ -z "${_PTY_LOG:-}" ]; then
     export _PTY_LOG=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then
@@ -22,6 +22,7 @@ PACKAGES=(
     age                      # [base] file encryption, opens the YubiKey-sealed secrets key
     age-plugin-yubikey       # [base] age identities in the YubiKey PIV applet
     alsa-firmware            # [base] ALSA sound firmware
+    amd-ucode                # [base] AMD CPU microcode, pacstrap installs it on AMD
     amdgpu_top               # [base] AMD GPU monitor
     app2unit                 # [base] app to systemd unit
     argon2                   # [base] password hashing tool
@@ -46,6 +47,7 @@ PACKAGES=(
     cpufetch                 # [base] CPU info fetcher
     croc                     # [base] secure file transfer
     cronie                   # [base] cron daemon
+    cryptsetup               # [base] LUKS tooling, pacstrap installs it
     cups                     # [base] printing system
     cups-pdf                 # [base] print-to-PDF virtual printer
     curl                     # [base] HTTP client tool
@@ -71,10 +73,12 @@ PACKAGES=(
     gnutls                   # [base] TLS library
     gpg-tui                  # [base] gpg tui
     gping                    # [base] ping with graph
+    grub                     # [base] bootloader, pacstrap installs it
     gufw                     # [base] firewall GUI (ufw)
     gum                      # [base] pretty shell prompts/inputs
     imagemagick              # [base] theme generator dependency
     intel-media-driver       # [base] Intel VAAPI driver
+    intel-ucode              # [base] Intel CPU microcode, pacstrap installs it on Intel
     ipython                  # [base] enhanced Python shell
     iwd                      # [base] iNet wireless daemon
     jolt                     # [base] battery debugging
@@ -139,6 +143,7 @@ PACKAGES=(
     man-pages                # [base] Linux manual pages
     mesa                     # [base] graphics driver library
     metadata-cleaner         # [base] strip file metadata
+    mkinitcpio               # [base] initramfs generator, pacstrap installs it
     mtools                   # [base] DOS filesystem tools
     mtr                      # [base] traceroute + ping
     ncurses                  # [base] terminal UI library
@@ -181,6 +186,7 @@ PACKAGES=(
     rkhunter                 # [base] rootkit detection tool
     rsync                    # [base] file sync tool
     rustnet                  # [base] network monitor TUI
+    rustup                   # [base] rust toolchain manager, installed before the batch so nothing pulls rust
     s-tui                    # [base] CPU stress/monitor TUI
     sane                     # [base] scanner access library
     sbctl                    # [base] Secure Boot key management
@@ -1140,50 +1146,43 @@ trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
 sudo pacman -Syyu --noconfirm
 
-## MIRROR
+## SOURCES
 
-# mirror/packages.conf entries come prebuilt as lsck0-<name> from the homelab mirror; local recipes the
-# machine skips are built here from mirror/pkgbuilds, everything else skipped goes to yay/cargo/go as usual
-declare -A MIRROR_SOURCE=()
-while read -r name source _; do
-    [[ -z "$name" || "$name" == \#* ]] && continue
-    MIRROR_SOURCE[$name]=$source
-done <mirror/packages.conf
+# [lsck0] (configs/pacman/lsck0.conf) is a nightly snapshot of every PACKAGES entry with its dependencies, the
+# aur, cargo and go ones prebuilt; MIRROR_SKIP and what it lacks go to yay, cargo, go and mirror/pkgbuilds
+declare -A MIRROR_HAS=() SKIP=() SYNC_HAS=()
+while read -r pkg; do MIRROR_HAS[$pkg]=1; done < <(pacman -Slq lsck0 2>/dev/null)
+for name in "${MIRROR_SKIP[@]}"; do SKIP[$name]=1; done
+while read -r pkg; do SYNC_HAS[$pkg]=1; done < <(pacman -Slq; pacman -Sg)
 
-# only what the repo holds: pacman/link.sh leaves it out while unreachable, a never built entry is missing
-declare -A MIRROR_TAKE=()
-while read -r pkg; do
-    name="${pkg#lsck0-}"
-    if [[ -n "${MIRROR_SOURCE[$name]:-}" ]]; then MIRROR_TAKE[$name]=1; fi
-done < <(pacman -Slq lsck0 2>/dev/null)
-for name in "${MIRROR_SKIP[@]}"; do unset "MIRROR_TAKE[$name]"; done
-
-MIRROR_PKGS=()
+SYNC_PKGS=()
+AUR_PKGS=()
 LOCAL_PKGS=()
-kept=()
 for pkg in "${PACKAGES[@]}"; do
-    if [[ -n "${MIRROR_TAKE[$pkg]:-}" ]]; then
-        MIRROR_PKGS+=("lsck0-$pkg")
-    elif [[ "${MIRROR_SOURCE[$pkg]:-}" == local ]]; then
+    if [[ -d "mirror/pkgbuilds/$pkg" ]] && [[ -n "${SKIP[$pkg]:-}" || -z "${MIRROR_HAS[$pkg]:-}" ]]; then
         LOCAL_PKGS+=("$pkg")
+    elif [[ -n "${SKIP[$pkg]:-}" ]]; then
+        # aur/ keeps yay from taking the repo copy
+        AUR_PKGS+=("aur/$pkg")
+    elif [[ -n "${SYNC_HAS[$pkg]:-}" ]]; then
+        SYNC_PKGS+=("$pkg")
     else
-        kept+=("$pkg")
+        AUR_PKGS+=("$pkg")
     fi
 done
-PACKAGES=("${kept[@]}")
 kept=()
 for crate in "${CARGO_PKGS[@]}"; do
-    if [[ -n "${MIRROR_TAKE[$crate]:-}" ]]; then MIRROR_PKGS+=("lsck0-$crate"); else kept+=("$crate"); fi
+    if [[ -n "${MIRROR_HAS[$crate]:-}" && -z "${SKIP[$crate]:-}" ]]; then SYNC_PKGS+=("$crate"); else kept+=("$crate"); fi
 done
 CARGO_PKGS=("${kept[@]}")
 kept=()
 for go_pkg in "${GO_PKGS[@]}"; do
     name="${go_pkg%@*}"
     name="${name##*/}"
-    if [[ -n "${MIRROR_TAKE[$name]:-}" ]]; then MIRROR_PKGS+=("lsck0-$name"); else kept+=("$go_pkg"); fi
+    if [[ -n "${MIRROR_HAS[$name]:-}" && -z "${SKIP[$name]:-}" ]]; then SYNC_PKGS+=("$name"); else kept+=("$go_pkg"); fi
 done
 GO_PKGS=("${kept[@]}")
-echo "mirror: ${#MIRROR_PKGS[@]} prebuilt, ${#LOCAL_PKGS[@]} local recipes" >&2
+echo "sources: ${#SYNC_PKGS[@]} repo, ${#AUR_PKGS[@]} aur, ${#LOCAL_PKGS[@]} local recipes" >&2
 
 sudo pacman -S --needed --noconfirm git base-devel
 sudo pacman -S --needed --noconfirm yay || true
@@ -1199,16 +1198,16 @@ rustup toolchain install nightly || true
 rustup toolchain install stable || true
 rustup default stable || true
 
-if [[ ${#MIRROR_PKGS[@]} -gt 0 ]]; then
-    retry 3 sudo pacman -S --needed --noconfirm --ask 4 "${MIRROR_PKGS[@]}" \
-        || echo "mirror batch" >>"$FAILURES_FILE"
+# one download pass for everything prebuilt; on failure yay retries the lot, per package if need be
+if [[ ${#SYNC_PKGS[@]} -gt 0 ]]; then
+    retry 3 sudo pacman -S --needed --noconfirm --ask 4 "${SYNC_PKGS[@]}" || AUR_PKGS+=("${SYNC_PKGS[@]}")
 fi
 
 export yay_skipcheck=true # prevent failing tests to break everything
-if [[ ${#PACKAGES[@]} -gt 0 ]]; then
-    if ! retry 7 yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "${PACKAGES[@]}"; then
+if [[ ${#AUR_PKGS[@]} -gt 0 ]]; then
+    if ! retry 7 yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "${AUR_PKGS[@]}"; then
         echo "yay batch failed, falling back to per-package install" >&2
-        for pkg in "${PACKAGES[@]}"; do
+        for pkg in "${AUR_PKGS[@]}"; do
             yay -S --sudoloop --needed --noconfirm --mflags --skipinteg "$pkg" \
                 || echo "yay $pkg" >>"$FAILURES_FILE"
         done
@@ -1252,15 +1251,20 @@ if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
     fi
 fi
 
-# skipped mirror recipes, in packages.conf order so dependencies build first
-while read -r name source _; do
-    [[ "$source" == local ]] || continue
-    printf '%s\n' "${LOCAL_PKGS[@]}" | grep -qxF "$name" || continue
-    build_dir=$(mktemp -d)
-    (cd "mirror/pkgbuilds/$name" && BUILDDIR="$build_dir" PKGDEST="$build_dir" SRCDEST="$build_dir" \
-        makepkg -si --needed --noconfirm) || echo "local $name" >>"$FAILURES_FILE"
-    rm -rf "$build_dir"
-done <mirror/packages.conf
+# mirror/pkgbuilds recipes the repo does not serve; one may need another, so retry while a pass makes progress
+pending=("${LOCAL_PKGS[@]}")
+for ((pass = 0; pass < ${#LOCAL_PKGS[@]} && ${#pending[@]} > 0; pass++)); do
+    retry_next=()
+    for name in "${pending[@]}"; do
+        build_dir=$(mktemp -d)
+        (cd "mirror/pkgbuilds/$name" && BUILDDIR="$build_dir" PKGDEST="$build_dir" SRCDEST="$build_dir" \
+            makepkg -si --needed --noconfirm) || retry_next+=("$name")
+        rm -rf "$build_dir"
+    done
+    ((${#retry_next[@]} < ${#pending[@]})) || break
+    pending=("${retry_next[@]}")
+done
+for name in "${pending[@]}"; do echo "local $name" >>"$FAILURES_FILE"; done
 
 ## CLEANUP
 

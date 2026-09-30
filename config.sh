@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$(readlink -f "$0")")"
 
 # progress bars need a tty; re-exec under `script` so pacman/yay render live while logging.
-# the headless chain (systemd, no tty) falls through to plain tee.
+# without a tty (piped, cron) fall through to plain tee.
 if [ -z "${_PTY_LOG:-}" ]; then
     export _PTY_LOG=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then

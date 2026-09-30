@@ -161,11 +161,3 @@ history_file_follow_direnv() {
 }
 precmd_functions+=(history_file_follow_direnv)
 eval "$(zoxide init zsh)"
-
-# marker makes tmux session-init build the ide layout
-tms() {
-  tmux set-environment -g TMS_LAUNCH 1 2>/dev/null
-  command tms "$@"
-  # clear it in case tms only switched sessions
-  tmux set-environment -gu TMS_LAUNCH 2>/dev/null
-}
