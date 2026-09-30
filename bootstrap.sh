@@ -263,8 +263,8 @@ User=$USERNAME
 PAMName=login
 WorkingDirectory=/home/$USERNAME/projects/arch-dotfiles
 ExecStart=/home/$USERNAME/projects/arch-dotfiles/stage.sh
-StandardOutput=journal+console
-StandardError=journal+console
+# a tty, not journal+console, so install.sh re-execs under script and pacman draws its bars; install.log keeps the output
+StandardOutput=tty
 TimeoutStartSec=infinity
 
 [Install]

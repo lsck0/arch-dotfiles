@@ -4,5 +4,5 @@ PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu ll
 BOOT_FEATURES=(timeshift sbctl luks grub)
 # secrets tunnel config for wg0
 WIREGUARD=wg0.pc.conf
-# mirror/packages.conf entries this machine builds itself instead
+# packages this machine builds itself instead of taking them from the lsck0 mirror
 MIRROR_SKIP=()
