@@ -1,8 +1,5 @@
 /* overlay on the oomox theme; palette regen never writes this path */
 
-/* live oomox palette */
-@import 'colors.css';
-
 .nemo-window { font-family: "Kode Mono", sans-serif; }
 
 .nemo-window .toolbar,
