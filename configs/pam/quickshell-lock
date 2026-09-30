@@ -1,5 +1,5 @@
 #%PAM-1.0
 # optional yubikey touch, nouserok falls through to password
-auth       sufficient pam_u2f.so nouserok cue authfile=@HOME@/.config/Yubico/u2f_keys
+auth       sufficient pam_u2f.so nouserok cue origin=pam://lsck0 appid=pam://lsck0 authfile=@HOME@/.config/Yubico/u2f_keys
 auth       include    system-auth
 account    include    system-auth

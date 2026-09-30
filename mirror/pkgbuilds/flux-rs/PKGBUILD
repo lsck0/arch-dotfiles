@@ -1,8 +1,5 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-#
-# Flux loads rustc_driver from its pinned nightly at run time through rustup, so the toolchain named
-# in /usr/lib/flux/rust-toolchain.toml has to be installed per user; configs/flux/link.sh does that
-# and points ~/.flux at /usr/lib/flux.
+# runs on its pinned nightly via rustup; configs/flux/link.sh installs that toolchain and links ~/.flux
 pkgname=flux-rs
 pkgver=r0
 pkgrel=1

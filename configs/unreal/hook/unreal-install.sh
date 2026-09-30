@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Build + install unreal-engine-bin (AUR) from the Epic-login-gated zip, downloaded by hand from
-# https://www.unrealengine.com/linux into ~/sync. A newer zip than the AUR pkgver is used as-is.
+# unreal-engine-bin from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded); runs on every ~/sync change
 
 set -euo pipefail
 
@@ -16,8 +15,7 @@ fi
 
 zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' | sort -V | tail -n 1)
 if [[ -z "$zip_path" ]]; then
-    echo "no Linux_Unreal_Engine_*.zip in ${SYNC_DIR}, download it from https://www.unrealengine.com/linux" >&2
-    exit 1
+    exit 0
 fi
 zip_version=$(basename "$zip_path" .zip)
 zip_version=${zip_version#Linux_Unreal_Engine_}
@@ -36,5 +34,7 @@ if [[ "$zip_version" != "$aur_version" ]]; then
 fi
 
 ln -s "$zip_path" "Linux_Unreal_Engine_${zip_version}.zip"
+# the pacman step's sudo takes a YubiKey touch (pam_u2f); without one this fails and the next ~/sync change retries
+notify-send -a Unreal "Unreal Engine" "Touch the YubiKey to install ${zip_version}" 2>/dev/null || true
 # uncompressed package: zstd over ~60 GB of engine takes longer than the install is worth
 PKGEXT=.pkg.tar makepkg -si --noconfirm

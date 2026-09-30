@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-# Runs the install chain unattended, one stage per boot. bootstrap.sh arms it: dotfiles-stage.service
-# starts this script as the user after every boot while /var/lib/dotfiles-stage/next exists, with a
-# temporary LUKS keyfile in the initramfs and passwordless sudo so nothing waits for input.
-#
-#     boot 1: install.sh    packages
-#     boot 2: config.sh     links, then disarm: keyslot and keyfile gone, sudo asks again, service removed
-#     boot 3: normal passphrase prompt and login
-#
-# A failed stage is logged to /var/lib/dotfiles-stage/log and the chain moves on, so it always ends
-# disarmed; rerun the failed script by hand afterwards.
+# One unattended stage per boot, install.sh then config.sh; disarms the temporary keyfile and sudo at the end
 
 set -uo pipefail
 cd "$(dirname "$(readlink -f "$0")")" || exit 1

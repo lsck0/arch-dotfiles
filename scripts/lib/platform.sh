@@ -1,7 +1,5 @@
 # shellcheck shell=bash
-# platforms/<hostname>.sh decides package groups, boot features and mirror use. platform_load sources it
-# and writes groups.conf and boot.conf, which install.sh and the link.sh scripts read; on a machine
-# without a platform file those stay whatever install.sh asked for.
+# platform_load <repo>: platforms/<hostname>.sh decides groups.conf and boot.conf
 
 platform_load() { # repo dir
     local file

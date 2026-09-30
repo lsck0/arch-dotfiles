@@ -13,5 +13,14 @@ if [ -e "${target}" ] && [ ! -L "${target}" ]; then
 fi
 ln -sfn "${PWD}/gpg-agent.conf" "${target}"
 
-# reload keeps cached keys; the ssh socket binds on next login
+# reload keeps cached keys
 gpgconf --reload gpg-agent || true
+
+# Luca Sandrock key: public half always, the private file from unlocked secrets, card stubs if a YubiKey holds it
+GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
+gpg --batch --import luca-sandrock.pub.asc
+echo "${GPG_FINGERPRINT}:6:" | gpg --import-ownertrust
+if grep -qs 'BEGIN PGP PRIVATE KEY' ../secrets/pgp_privatekey.asc; then
+    gpg --batch --import ../secrets/pgp_privatekey.asc
+fi
+gpg --card-status >/dev/null 2>&1 || true

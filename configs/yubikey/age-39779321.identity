@@ -1,0 +1,7 @@
+#       Serial: 39779321, Slot: 1
+#         Name: lsck0
+#      Created: Wed, 30 Sep 2026 14:52:26 +0000
+#   PIN policy: Never  (A PIN is NOT required to decrypt)
+# Touch policy: Always (A physical touch is required for every decryption)
+#    Recipient: age1yubikey1qtpq7nvpdtnktqu0yerz30q75ee4tm685my3jtag0vgzp5jgees9qn9my80
+AGE-PLUGIN-YUBIKEY-1L8A4UQ5Z7UHP72GEWJ98Y

@@ -2,5 +2,7 @@
 HOSTNAME=luca-pc
 PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
 BOOT_FEATURES=(timeshift sbctl luks grub)
+# secrets tunnel config for wg0
+WIREGUARD=wg0.pc.conf
 # mirror/packages.conf entries this machine builds itself instead
 MIRROR_SKIP=()

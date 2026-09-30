@@ -1,0 +1,6 @@
+[Unit]
+Description=Install unreal-engine-bin from the newest ~/sync/Linux_Unreal_Engine_*.zip
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/unreal/hook/unreal-install.sh

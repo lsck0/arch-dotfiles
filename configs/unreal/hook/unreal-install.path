@@ -1,0 +1,9 @@
+[Unit]
+Description=Install Unreal Engine when its zip lands in ~/sync
+
+[Path]
+PathChanged=%h/sync
+MakeDirectory=yes
+
+[Install]
+WantedBy=default.target

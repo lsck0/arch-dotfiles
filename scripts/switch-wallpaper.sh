@@ -40,7 +40,7 @@ set_wallpaper() {
         call background set "$file" >/dev/null 2>&1 || true
 
     # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image
-    THEME_DIR="$HOME/projects/arch-dotfiles/themes"
+    THEME_DIR="$HOME/projects/arch-dotfiles/configs/themes"
     FILE_REAL=$(readlink -f "$file" 2>/dev/null || echo "$file")
     THEME_JSON=""
     THEME_NAME=""

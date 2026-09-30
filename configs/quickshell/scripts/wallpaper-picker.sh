@@ -7,7 +7,7 @@ DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
 SWITCH_WALLPAPER="$DOTFILES/scripts/switch-wallpaper.sh"
 
 REPO_WALLPAPERS="$DOTFILES/wallpapers"
-THEMES_DIR="$DOTFILES/themes"
+THEMES_DIR="$DOTFILES/configs/themes"
 DIR=${1:-$REPO_WALLPAPERS}
 QS_CONFIG="$HOME/.config/quickshell"
 RUN="${XDG_RUNTIME_DIR:-/tmp}"
