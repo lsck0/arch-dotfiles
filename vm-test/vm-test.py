@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
-"""End-to-end test of the dotfiles on a fresh Arch install in a system libvirt VM.
+"""End-to-end test of the dotfiles: bootstrap from a bare Arch ISO in a system libvirt VM, then the chain.
 
-    vm-test.py run [--iso PATH] [--reuse] [--master]
-                                            fresh VM + archinstall (--reuse keeps an installed one), then what a
-                                            human does: log in, clone into ~/projects, ./install.sh, answer sudo
-                                            and prompts; pulls logs, reboots, exits 1 on failures. Tests the local
-                                            working tree (clone, then check out a snapshot bundle) unless --master
-    vm-test.py logs                         pull install.log, FAILURES and every *.log to ~/.cache/vm-test/<name>/logs
+    vm-test.py run [--iso PATH] [--master] [--platform NAME]
+                                            fresh VM with Secure Boot in Setup Mode, boots the iso and runs
+                                            bootstrap.sh like a human would, then waits while stage.sh runs
+                                            install.sh and config.sh on their own boots. Once the chain has
+                                            disarmed: unlock, log in on tty3, verify, pull logs, exit 1 on
+                                            failures. Tests the local working tree (snapshot bundle) unless --master
+    vm-test.py logs                         pull the stage logs, FAILURES.* and every *.log to ~/.cache/vm-test/<name>/logs
     vm-test.py shot                         screenshot to ~/.cache/vm-test/<name>/screen.png
     vm-test.py type TEXT                    type TEXT on the VM console (\\n for enter)
     vm-test.py destroy                      delete the VM and its disk
 
 The VM has no guest agent and user-mode networking. Input goes in through qemu sendkey. State comes back as
 beacons: every typed step ends in a curl to a host server (the guest's 10.0.2.2 is host loopback), which also
-serves archinstall.json and receives the log tarball. Only prompts the guest cannot beacon (LUKS, sudo,
-install.sh questions) are read off the screen with tesseract. Install choices and passwords: archinstall.json.
+serves the snapshot bundle and receives the log tarball. The chain itself runs unattended, so the only screen
+reads (tesseract) are the iso prompt, the passphrase prompt that marks the end of the chain, and logins.
 """
 
 import argparse
@@ -31,21 +32,24 @@ import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-CONFIG = HERE / "archinstall.json"
 REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
 CONNECT = "qemu:///system"      # gnome-boxes saves every session vm when it quits, which stalls a run
 POOL = "default"
 POOL_DIR = "/var/lib/libvirt/images"
 ISO_VOLUME = "vm-test-archlinux.iso"
 USER = "luca"
+PASSWORD = "admin"              # BOOTSTRAP_PASSWORD, LUKS and user alike
+PLATFORM = "vm-test"            # platforms/vm-test.sh
+DISK = "/dev/vda"
 PORT = 8765                     # host loopback, the guest reaches it as 10.0.2.2
 HOST = f"10.0.2.2:{PORT}"
 POLL_S = 15
-DISK_GIB = 200                  # archinstall.json sizes the root partition for exactly this disk
-ARCHINSTALL_TIMEOUT_S = 3600
-INSTALL_TIMEOUT_S = 12 * 3600   # install.sh builds a lot of AUR packages
+DISK_GIB = 200
+BOOTSTRAP_TIMEOUT_S = 3600
+CHAIN_TIMEOUT_S = 12 * 3600     # install.sh plus config.sh, longer when the mirror is down and everything compiles
 BOOT_TIMEOUT_S = 300
 LOGIN_ATTEMPTS = 3
+LOGIN_TTY = 3                   # tty1 carries the chain's console, ly sits on tty2
 SNAPSHOT_REF = "refs/vm-test/snapshot"
 KEY_HOLD_MS = 10
 KEY_GAP_S = 0.03            # a virsh call takes ~6ms, the guest console drops keys at that rate
@@ -231,55 +235,6 @@ def destroy(name: str) -> None:
     virsh("undefine", name, "--nvram", "--storage", "vda", check=False)
 
 
-def archinstall(name: str, iso: Path, host: Host) -> None:
-    destroy(name)
-    subprocess.run([
-        "virt-install", "--connect", CONNECT, "--name", name, "--memory", "12288", "--vcpus", "8",
-        "--cpu", "host-passthrough", "--disk", f"pool={POOL},size={DISK_GIB},format=qcow2,bus=virtio,discard=unmap",
-        "--cdrom", pool_iso(iso), "--osinfo", "archlinux", "--network", "user,model=virtio",
-        "--graphics", "spice", "--video", "virtio", "--noautoconsole",
-        "--boot", "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=no",
-    ], check=True, capture_output=True)
-
-    wait_screen(name, ["root@archiso"], BOOT_TIMEOUT_S)
-    run_step(name, host, "archinstall", f"curl -fsSo cfg.json {HOST}/{CONFIG.name}"
-             f" && archinstall --config cfg.json --silent && {beacon_cmd('archinstall-ok')} || {beacon_cmd('archinstall-fail')}\n",
-             "us")
-    if host.beacon("archinstall-", ARCHINSTALL_TIMEOUT_S) != "archinstall-ok":
-        sys.exit("vm-test: archinstall failed, see `vm-test.py shot`")
-
-    # virt-install keeps the iso only for this first boot and turns the guest reboot into a power off
-    type_text(name, "poweroff\n", "us")
-    deadline = time.time() + BOOT_TIMEOUT_S
-    while virsh("domstate", name, check=False).strip() != "shut off":
-        if time.time() > deadline:
-            sys.exit(f"vm-test: {name} did not power off")
-        time.sleep(POLL_S)
-    virsh("start", name)
-
-
-def unlock_and_login(name: str, password: str, host: Host, reuse: bool) -> None:
-    if reuse:
-        clear_line(name)
-        type_text(name, f"{beacon_cmd('shell')}\n", "de")
-        if host.beacon("shell", 20):
-            return
-    if wait_screen(name, ["assphrase", "root volume", "login:"], BOOT_TIMEOUT_S) in ("assphrase", "root volume"):
-        type_text(name, password + "\n", "de")
-        wait_screen(name, ["login:"], BOOT_TIMEOUT_S)
-    # getty clears the screen as it starts and drops input typed before that, hence the retries
-    for attempt in range(LOGIN_ATTEMPTS):
-        time.sleep(POLL_S)
-        type_text(name, f"{USER}\n", "de")
-        time.sleep(3)
-        type_text(name, f"{password}\n", "de")
-        time.sleep(5)
-        type_text(name, f"{beacon_cmd(f'login-{attempt}')}\n", "de")
-        if host.beacon(f"login-{attempt}", 30):
-            return
-    sys.exit(f"vm-test: login failed {LOGIN_ATTEMPTS} times, see `vm-test.py shot`")
-
-
 def snapshot_bundle(name: str) -> Path:
     """Working tree (untracked included, .gitignore respected) as a commit bundle on top of origin/master."""
     repo = HERE.parent
@@ -297,61 +252,88 @@ def snapshot_bundle(name: str) -> Path:
     return bundle
 
 
-def run_install(name: str, password: str, host: Host, bundle: Path | None) -> tuple[bool, int]:
-    """Type the manual install steps, answer prompts until install.sh ends; (succeeded, sudo prompts answered)."""
+def bootstrap(name: str, iso: Path, host: Host, bundle: Path | None, platform: str) -> None:
+    """Fresh VM, Secure Boot firmware without enrolled keys (Setup Mode), bootstrap.sh from the iso."""
+    destroy(name)
+    subprocess.run([
+        "virt-install", "--connect", CONNECT, "--name", name, "--memory", "12288", "--vcpus", "8",
+        "--cpu", "host-passthrough", "--disk", f"pool={POOL},size={DISK_GIB},format=qcow2,bus=virtio,discard=unmap",
+        "--cdrom", pool_iso(iso), "--osinfo", "archlinux", "--network", "user,model=virtio",
+        "--graphics", "spice", "--video", "virtio", "--noautoconsole", "--features", "smm.state=on",
+        "--boot", "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,"
+                  "firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no",
+    ], check=True, capture_output=True)
+
+    wait_screen(name, ["root@archiso"], BOOT_TIMEOUT_S)
     checkout = ""
     if bundle is not None:
         host.files["snapshot.bundle"] = bundle
         checkout = (f" && curl -so /tmp/snapshot.bundle {HOST}/file/snapshot.bundle"
                     f" && git fetch -q /tmp/snapshot.bundle {SNAPSHOT_REF} && git checkout -q FETCH_HEAD")
-    # a no-op reboot keeps the vm up after a successful run so its logs can be pulled
-    run_step(name, host, "install", f"""mkdir -p ~/projects ~/.vm-test
-printf '#!/bin/sh\\n{beacon_cmd('install-ok')}\\n' > ~/.vm-test/reboot
-chmod +x ~/.vm-test/reboot
-cd ~/projects && git clone {REPO_URL} && cd arch-dotfiles{checkout} && PATH=~/.vm-test:$PATH ./install.sh
-{beacon_cmd('install-exit')}
-""", "de")
-    deadline = time.time() + INSTALL_TIMEOUT_S
-    answered = ""  # tail of the screen we last answered, so a prompt still showing is not answered twice
-    sudo_prompts = 0
-    pending = ""  # prompt screen seen once, answered only if the next poll still shows it
-    while time.time() < deadline:
-        tag = host.beacon("install-", POLL_S)
-        if tag == "install-ok":
-            return True, sudo_prompts
-        if tag == "install-exit":
-            return False, sudo_prompts
-        lines = [line.rstrip(" _") for line in screen_text(name).splitlines() if line.strip(" _")]
-        text = "\n".join(lines[-3:])
-        if text == answered:
-            continue
-        line = lines[-1] if lines else ""
-        # tesseract reads "password" as "passuord", the user name survives; parallel builds can print past the prompt
-        if any(f"for {USER}" in tail_line for tail_line in lines[-3:]):
-            # a sudo without a readable tty prints the prompt and fails at once; only one still waiting blocks a human
-            if text != pending:
-                pending = text
-                continue
-            type_text(name, password + "\n", "de")
-            answered = text
-            sudo_prompts += 1
-            print(f"vm-test: sudo prompt {sudo_prompts} answered", flush=True)
-        elif "Numbers to exclude" in line or "Bootloader (limine/grub)" in line or "[Y/n]" in line:
-            type_text(name, "\n", "de")
-            answered = text
-    sys.exit(f"vm-test: install.sh still running after {INSTALL_TIMEOUT_S}s")
+    # success ends in bootstrap.sh's reboot, which virt-install turns into a power off on this first boot
+    host.upload_to = cache_dir(name) / "bootstrap.log"
+    run_step(name, host, "bootstrap", f"""set -o pipefail
+pacman -Sy --noconfirm --needed git
+cd /tmp && git clone {REPO_URL} && cd arch-dotfiles{checkout} \\
+    && BOOTSTRAP_DISK={DISK} BOOTSTRAP_PASSWORD={PASSWORD} BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh {platform} 2>&1 \\
+    | tee /tmp/bootstrap.log \\
+    || {{ curl -sT /tmp/bootstrap.log {HOST}/bootstrap.log; {beacon_cmd('bootstrap-fail')}; }}
+""", "us")
+    deadline = time.time() + BOOTSTRAP_TIMEOUT_S
+    while virsh("domstate", name, check=False).strip() != "shut off":
+        if host.beacon("bootstrap-fail", POLL_S):
+            sys.exit(f"vm-test: bootstrap.sh failed, see {host.upload_to}")
+        if time.time() > deadline:
+            sys.exit(f"vm-test: bootstrap.sh still running after {BOOTSTRAP_TIMEOUT_S}s")
+    virsh("start", name)
+
+
+def await_chain(name: str) -> None:
+    """The chain boots without a passphrase; the first prompt is the boot after stage.sh disarmed."""
+    start = time.time()
+    wait_screen(name, ["assphrase", "root volume"], CHAIN_TIMEOUT_S)
+    print(f"vm-test: chain done after {(time.time() - start) / 3600:.1f}h", flush=True)
+    type_text(name, PASSWORD + "\n", "de")
+
+
+def login_tty(name: str, host: Host) -> None:
+    # getty clears the screen as it starts and drops input typed before that, hence the retries
+    for attempt in range(LOGIN_ATTEMPTS):
+        time.sleep(POLL_S)
+        virsh("qemu-monitor-command", name, "--hmp", f"sendkey ctrl-alt-f{LOGIN_TTY}")
+        time.sleep(3)
+        type_text(name, f"{USER}\n", "de")
+        time.sleep(3)
+        type_text(name, f"{PASSWORD}\n", "de")
+        time.sleep(5)
+        type_text(name, f"{beacon_cmd(f'login-{attempt}')}\n", "de")
+        if host.beacon(f"login-{attempt}", 30):
+            return
+    sys.exit(f"vm-test: login failed {LOGIN_ATTEMPTS} times, see `vm-test.py shot`")
 
 
 def pull_logs(name: str, host: Host) -> Path:
+    """Stage logs plus the chain's end state as verify.log key=value lines; needs a shell on the guest."""
     out = cache_dir(name)
     tgz = out / "logs.tgz"
     tgz.unlink(missing_ok=True)
     host.upload_to = tgz
     host.uploaded.clear()
     clear_line(name)
-    run_step(name, host, "logs", "cd ~/projects/arch-dotfiles && sudo -n journalctl -b --no-pager -o short-iso -t sudo > sudo-journal.log;"
-             " tar czf /tmp/vm-test-logs.tgz install.log $(ls FAILURES 2>/dev/null) $(find . -name '*.log');"
-             f" curl -sT /tmp/vm-test-logs.tgz {HOST}/logs.tgz\n", "de")
+    run_step(name, host, "logs", f"""cd ~/projects/arch-dotfiles
+sudo -k
+{{
+    echo "stage_armed=$(test -e /var/lib/dotfiles-stage/next && echo yes || echo no)"
+    echo "sudo_passwordless=$(sudo -n true 2>/dev/null && echo yes || echo no)"
+    echo "keyfile_present=$(test -e /etc/cryptsetup-keys.d/root.key && echo yes || echo no)"
+    echo "luks_keyslots=$(echo {PASSWORD} | sudo -S cryptsetup luksDump {DISK}2 2>/dev/null | grep -cE '^  [0-9]+: luks2')"
+    echo "secure_boot=$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{{print $NF}}')"
+}} > verify.log
+cp /var/lib/dotfiles-stage/log stage.log
+echo {PASSWORD} | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log
+tar czf /tmp/vm-test-logs.tgz $(ls FAILURES.* 2>/dev/null) $(find . -name '*.log')
+curl -sT /tmp/vm-test-logs.tgz {HOST}/logs.tgz
+""", "de")
     if not host.uploaded.wait(timeout=120):
         sys.exit("vm-test: no log upload arrived, see `vm-test.py shot`")
     shutil.rmtree(out / "logs", ignore_errors=True)
@@ -360,47 +342,57 @@ def pull_logs(name: str, host: Host) -> Path:
     return out / "logs"
 
 
+# the chain's end state, anything else means stage.sh left the machine armed or half set up
+EXPECTED = {"stage_armed": "no", "sudo_passwordless": "no", "keyfile_present": "no", "luks_keyslots": "1",
+            "secure_boot": "1"}
+
+
+def verify(logs: Path) -> list[str]:
+    problems = []
+    state = dict(line.split("=", 1) for line in (logs / "verify.log").read_text().splitlines() if "=" in line)
+    for key, want in EXPECTED.items():
+        if state.get(key) != want:
+            problems.append(f"{key}={state.get(key)}, expected {want}")
+    for failures in sorted(logs.glob("FAILURES.*")):
+        if failures.read_text().strip():
+            problems.append(f"{failures.name}:\n{failures.read_text().rstrip()}")
+    stage_log = (logs / "stage.log").read_text() if (logs / "stage.log").exists() else ""
+    for stage in ("install", "config"):
+        if f"{stage}: ok" not in stage_log:
+            problems.append(f"stage {stage} did not finish ok, see {stage}.log")
+    return problems
+
+
 # --- commands ---
 
 def cmd_run(args: argparse.Namespace) -> None:
     for tool in ("virt-install", "virsh", "tesseract", "magick"):
         if not shutil.which(tool):
             sys.exit(f"vm-test: {tool} missing")
-    if not args.reuse and not args.iso.is_file():
+    if not args.iso.is_file():
         sys.exit(f"vm-test: no iso at {args.iso}")
-    password = json.loads(CONFIG.read_text())["encryption_password"]
     name = args.name
     host = Host(cache_dir(name) / "logs.tgz")
 
-    if not args.reuse:
-        archinstall(name, args.iso, host)
-    unlock_and_login(name, password, host, args.reuse)
-    ok, sudo_prompts = run_install(name, password, host, None if args.master else snapshot_bundle(name))
+    bootstrap(name, args.iso, host, None if args.master else snapshot_bundle(name), args.platform)
+    await_chain(name)
+    login_tty(name, host)
     logs = pull_logs(name, host)
     print(f"vm-test: logs in {logs}")
-    # a human types the sudo password once and walks away; a second prompt would hang the real install
-    if sudo_prompts > 1:
-        print(f"vm-test: install.sh asked for the sudo password {sudo_prompts} times, expected once")
-        ok = False
-
-    failures = logs / "FAILURES"
-    if not ok or (failures.exists() and failures.read_text().strip()):
-        print(failures.read_text() if failures.exists() else "install.sh aborted, see install.log", end="")
-        sys.exit(1)
-
-    type_text(name, f"echo {password} | sudo -S reboot\n", "de")
-    wait_screen(name, ["assphrase", "root volume"], BOOT_TIMEOUT_S)
-    type_text(name, password + "\n", "de")
-    time.sleep(BOOT_TIMEOUT_S // 5)
+    problems = verify(logs)
+    virsh("qemu-monitor-command", name, "--hmp", "sendkey ctrl-alt-f2")
+    time.sleep(5)
     print(cmd_shot(args))
-    print("vm-test: install succeeded, the screenshot shows the first boot")
+    if problems:
+        print("\n".join(problems))
+        sys.exit(1)
+    print("vm-test: chain succeeded, the screenshot shows the login manager")
 
 
 def cmd_logs(args: argparse.Namespace) -> None:
     logs = pull_logs(args.name, Host(cache_dir(args.name) / "logs.tgz"))
     print(logs)
-    if (logs / "FAILURES").exists():
-        print((logs / "FAILURES").read_text(), end="")
+    print("\n".join(verify(logs)))
 
 
 def cmd_shot(args: argparse.Namespace) -> Path:
@@ -425,7 +417,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run", parents=[common])
     run.add_argument("--iso", type=Path, default=Path.home() / "downloads" / "archlinux-x86_64.iso")
-    run.add_argument("--reuse", action="store_true", help="skip archinstall, continue on the installed vm")
+    run.add_argument("--platform", default=PLATFORM, help="platforms/<name>.sh for bootstrap.sh")
     run.add_argument("--master", action="store_true", help="test github master instead of the local working tree")
     sub.add_parser("logs", parents=[common])
     sub.add_parser("shot", parents=[common])

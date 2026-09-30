@@ -17,9 +17,3 @@ set -ex
 /usr/bin/ghcup set hls
 /usr/bin/ghcup set stack
 
-SRC="$(mktemp -d)"
-trap 'rm -rf "$SRC"' EXIT
-
-git clone https://github.com/ucsd-progsys/liquid-fixpoint.git "$SRC"
-cd "$SRC"
-~/.ghcup/bin/stack install

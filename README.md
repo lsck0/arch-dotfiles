@@ -2,35 +2,23 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-Run
+Boot the Arch ISO, enable Secure Boot Setup Mode in the firmware, get online (`iwctl` for wifi), then
 
 ```bash
-mkdir -p ~/projects
-git clone https://github.com/lsck0/arch-dotfiles.git ~/projects/arch-dotfiles/
-cd ~/projects/arch-dotfiles/
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash -s -- luca-pc
 ```
 
-after archinstall minimal with btrfs+subvolumes+compression+LUKS and no applications (bluetooth, audio, etc) configured to setup the system.
+with the platform from `platforms/` (`luca-pc`, `luca-notebook`). It asks for one password (LUKS and user), wipes the only disk and installs a minimal system (LUKS2, btrfs subvolumes for timeshift, GRUB). The next two boots run by themselves, `install.sh` (packages) and then `config.sh` (links), chained by `stage.sh`: the disk unlocks with a temporary keyfile and sudo asks nothing until the chain ends, which removes both and reboots into the normal prompts. Secure Boot keys get enrolled on the way. Failures end up in `/var/lib/dotfiles-stage/log` and `FAILURES.*`; rerun the script in question by hand.
 
-For secure boot: Enable Secure Boot + Setup Mode before archinstall.
+The platform file decides package groups, boot features and which prebuilt packages to take. On an existing system `./install.sh`, reboot, `./config.sh` does the same by hand.
 
-`./test` does all of the above in a fresh system libvirt VM (needs the `libvirt` group) from `~/downloads/archlinux-x86_64.iso` (config in `vm-test/`), tests the local working tree (bundled on top of `origin/master`; `--master` tests github master instead) and exits non-zero if `install.sh` reports failures. Logs land in `~/.cache/vm-test/`.
+Everything that would compile locally (see `mirror/packages.conf`) comes prebuilt as `lsck0-<name>` from `https://mirror.lsck0.dev`, built nightly by the homelab; a failed build keeps the previous package. `MIRROR_SKIP` in a platform file builds an entry locally instead.
+
+`./test` runs the whole chain in a fresh libvirt VM (needs the `libvirt` group) from `~/downloads/archlinux-x86_64.iso` (config in `vm-test/`), tests the local working tree (bundled on top of `origin/master`; `--master` tests github master instead) and exits non-zero on failures. Logs land in `~/.cache/vm-test/`.
 
 ## Things to do manually after rebooting
 
 - add fingerprint with `fprintd-enroll` (from fprintd-clients, pulled in by python-validity-git; once per device, persistent across reinstalls)
-
-- tune LUKS for better performance
-
-```bash
-sudo cryptsetup reencrypt /dev/nvme0n1p2 \
-  --type luks2 \
-  --cipher aes-xts-plain64 \
-  --key-size 256 \
-  --sector-size 4096 \
-  --pbkdf argon2id
-```
 
 - log into spotify, discord and steam once; user path units apply spicetify, betterdiscord and millennium afterwards
 

@@ -3,7 +3,18 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -ex
 
-sudo ln -sfn ${PWD}/pacman.conf /etc/pacman.conf
+# trust the mirror.lsck0.dev signing key before pacman.conf names the repo
+fingerprint=$(gpg --show-keys --with-colons archrepo.asc | awk -F: '$1 == "fpr" {print $10; exit}')
+sudo pacman-key --add archrepo.asc
+sudo pacman-key --lsign-key "$fingerprint"
+# a copy, not a link: [lsck0] (lsck0.conf) is appended only while the mirror answers, an unreachable
+# repo fails every sync; rm first so an old link is not written through
+sudo rm -f /etc/pacman.conf
+if curl -fsI -m 10 https://mirror.lsck0.dev/x86_64/lsck0.db >/dev/null; then
+    cat pacman.conf lsck0.conf | sudo tee /etc/pacman.conf >/dev/null
+else
+    sudo install -m644 pacman.conf /etc/pacman.conf
+fi
 mkdir -p "${HOME}/.config/pacman"
 ln -sfn "${PWD}/makepkg.conf" "${HOME}/.config/pacman/makepkg.conf"
 

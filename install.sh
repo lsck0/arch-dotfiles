@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
+# Stage 2, on the installed system: every package of the enabled groups (platforms/<hostname>.sh or asked),
+# prebuilt ones from the homelab mirror, the rest via pacman, yay, cargo, go, flatpak and nix. config.sh
+# links the configs afterwards; bootstrap.sh chains both through stage.sh.
 
 set -e
 exec > >(tee "install.log") 2>&1
 
-export FAILURES_FILE="$(pwd)/FAILURES"
+export FAILURES_FILE="$(pwd)/FAILURES.install"
 : >"$FAILURES_FILE"
 
 # # PACKAGES
@@ -637,6 +640,7 @@ PACKAGES=(
     figlet                        # [programming] ascii text banners
     flamegraph                    # [programming] perf stackcollapse + flamegraph scripts
     flamelens                     # [programming] tui flamegraph viewer
+    flux-rs                       # [programming] rust refinement types, mirror/pkgbuilds
     ftxui                         # [programming] C++ terminal UI lib
     gcc                           # [programming] C/C++ compiler
     gcc-fortran                   # [programming] Fortran compiler
@@ -697,6 +701,7 @@ PACKAGES=(
     lcov                          # [programming] code coverage reports
     libvirt                       # [programming] libvirt
     libxslt                       # [programming] XSLT transform lib
+    liquid-fixpoint               # [programming] horn clause solver, mirror/pkgbuilds
     llvm                          # [programming] compiler infrastructure
     loki                          # [programming] log aggregation backend
     ltrace                        # [programming] library call tracer
@@ -860,6 +865,7 @@ PACKAGES=(
     hydra                   # [pentesting] login brute-forcer
     hysteria                # [pentesting] proxy/tunnel tool
     i2pd                    # [pentesting] I2P network daemon
+    idspoof                 # [pentesting] identity spoofer, mirror/pkgbuilds
     john                    # [pentesting] password cracker
     katana-bin              # [pentesting] web crawling tool
     kismet                  # [pentesting] wireless network detector
@@ -935,10 +941,19 @@ NIX_PKGS=(
     nixpkgs#nixfmt # [programming] nix formatter, nil_ls shells out to this
 )
 
-## PACKAGE GROUPS
+## PLATFORM
 
 GROUPS_STATE="$HOME/projects/arch-dotfiles/groups.conf"
+BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
 PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
+BOOT_FEATURES=(timeshift sbctl luks)
+MIRROR_SKIP=()
+
+source ./scripts/lib/platform.sh
+platform_load "$(pwd)"
+
+## PACKAGE GROUPS
+
 
 if [[ ! -f "$GROUPS_STATE" ]]; then
     if [[ -t 0 ]]; then
@@ -1023,9 +1038,6 @@ fi
 ## BOOT DISK SECURITY (timeshift btrfs snapshots, Secure Boot, LUKS)
 
 # Partitioning/bootloader is already done by the time install.sh runs
-BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
-BOOT_FEATURES=(timeshift sbctl luks)
-
 if [[ ! -f "$BOOT_STATE" ]]; then
     if [[ -t 0 ]]; then
         echo ""
@@ -1118,8 +1130,54 @@ sudo pacman-key --init
 sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
+## MIRROR
+
+# mirror/packages.conf entries come prebuilt as lsck0-<name> from the homelab mirror; local recipes the
+# machine skips are built here from mirror/pkgbuilds, everything else skipped goes to yay/cargo/go as usual
+declare -A MIRROR_SOURCE=()
+while read -r name source _; do
+    [[ -z "$name" || "$name" == \#* ]] && continue
+    MIRROR_SOURCE[$name]=$source
+done <mirror/packages.conf
+
+# only what the repo holds: pacman/link.sh leaves it out while unreachable, a never built entry is missing
+declare -A MIRROR_TAKE=()
+while read -r pkg; do
+    name="${pkg#lsck0-}"
+    if [[ -n "${MIRROR_SOURCE[$name]:-}" ]]; then MIRROR_TAKE[$name]=1; fi
+done < <(pacman -Slq lsck0 2>/dev/null)
+for name in "${MIRROR_SKIP[@]}"; do unset "MIRROR_TAKE[$name]"; done
+
+MIRROR_PKGS=()
+LOCAL_PKGS=()
+kept=()
+for pkg in "${PACKAGES[@]}"; do
+    if [[ -n "${MIRROR_TAKE[$pkg]:-}" ]]; then
+        MIRROR_PKGS+=("lsck0-$pkg")
+    elif [[ "${MIRROR_SOURCE[$pkg]:-}" == local ]]; then
+        LOCAL_PKGS+=("$pkg")
+    else
+        kept+=("$pkg")
+    fi
+done
+PACKAGES=("${kept[@]}")
+kept=()
+for crate in "${CARGO_PKGS[@]}"; do
+    if [[ -n "${MIRROR_TAKE[$crate]:-}" ]]; then MIRROR_PKGS+=("lsck0-$crate"); else kept+=("$crate"); fi
+done
+CARGO_PKGS=("${kept[@]}")
+kept=()
+for go_pkg in "${GO_PKGS[@]}"; do
+    name="${go_pkg%@*}"
+    name="${name##*/}"
+    if [[ -n "${MIRROR_TAKE[$name]:-}" ]]; then MIRROR_PKGS+=("lsck0-$name"); else kept+=("$go_pkg"); fi
+done
+GO_PKGS=("${kept[@]}")
+echo "mirror: ${#MIRROR_PKGS[@]} prebuilt, ${#LOCAL_PKGS[@]} local recipes" >&2
+
+sudo pacman -S --needed --noconfirm git base-devel
+sudo pacman -S --needed --noconfirm yay || true
 if ! command -v yay >/dev/null 2>&1; then
-    sudo pacman -S --needed --noconfirm git base-devel
     git clone https://aur.archlinux.org/yay.git
     (cd yay && makepkg -si --noconfirm)
     rm -rf yay/
@@ -1130,6 +1188,11 @@ sudo pacman -S --needed --noconfirm rustup
 rustup toolchain install nightly || true
 rustup toolchain install stable || true
 rustup default stable || true
+
+if [[ ${#MIRROR_PKGS[@]} -gt 0 ]]; then
+    retry 3 sudo pacman -S --needed --noconfirm --ask 4 "${MIRROR_PKGS[@]}" \
+        || echo "mirror batch" >>"$FAILURES_FILE"
+fi
 
 export yay_skipcheck=true # prevent failing tests to break everything
 if [[ ${#PACKAGES[@]} -gt 0 ]]; then
@@ -1179,41 +1242,15 @@ if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
     fi
 fi
 
-## LINK
-
-grep -qF "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" /etc/security/pam_env.conf || echo "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" /etc/security/pam_env.conf || echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
-
-# refresh the sudo timestamp before the link loop, which installs configs/sudo (global, 240 min)
-sudo -v || true
-
-while IFS= read -r script; do
-    dir=$(dirname "$script")
-    base=$(basename "$script")
-    (
-        set -o pipefail
-        cd "$dir" && bash "$base" </dev/null 2>&1 | tee "${script}.log"
-    ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.sh' -not -path "$(pwd)/configs/pacman/*") # pacman linked before the installs
-while IFS= read -r script; do
-    dir=$(dirname "$script")
-    base=$(basename "$script")
-    (
-        set -o pipefail
-        cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log"
-    ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.py')
-
-## INIT WALLPAPER AND THEME FILES
-
-if command -v git-lfs >/dev/null 2>&1; then
-    git lfs pull || echo "git lfs pull" >>"$FAILURES_FILE"
-fi
-
-WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkambient-1k.jpg >/dev/null 2>/dev/null \
-    || echo "scripts/switch-wallpaper.sh" >>"$FAILURES_FILE"
+# skipped mirror recipes, in packages.conf order so dependencies build first
+while read -r name source _; do
+    [[ "$source" == local ]] || continue
+    printf '%s\n' "${LOCAL_PKGS[@]}" | grep -qxF "$name" || continue
+    build_dir=$(mktemp -d)
+    (cd "mirror/pkgbuilds/$name" && BUILDDIR="$build_dir" PKGDEST="$build_dir" SRCDEST="$build_dir" \
+        makepkg -si --needed --noconfirm) || echo "local $name" >>"$FAILURES_FILE"
+    rm -rf "$build_dir"
+done <mirror/packages.conf
 
 ## CLEANUP
 
@@ -1223,15 +1260,9 @@ sudo rm -rf "${HOME}/.cache/yay/"
 ## SUMMARY
 
 if [ -s "$FAILURES_FILE" ]; then
-    echo "=== FAILED SCRIPTS ==="
+    echo "=== FAILED ==="
     cat "$FAILURES_FILE"
-    echo "Skipping reboot: fix the failures above, then reboot manually." >&2
     exit 1
-else
-    echo "All scripts succeeded."
-    rm -f "$FAILURES_FILE"
 fi
-
-## REBOOT
-
-reboot
+echo "All packages installed. Next: reboot, then ./config.sh"
+rm -f "$FAILURES_FILE"

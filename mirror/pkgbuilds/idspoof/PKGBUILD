@@ -1,0 +1,26 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=idspoof
+pkgver=r0
+pkgrel=1
+pkgdesc="Hardware and network identity spoofer (NubleX/ID-Spoofer)"
+arch=(x86_64)
+url="https://github.com/NubleX/ID-Spoofer"
+license=(MIT)
+makedepends=(git go)
+source=("git+$url.git")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd ID-Spoofer
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd ID-Spoofer/idspoof
+    export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+    make build
+}
+
+package() {
+    install -Dm755 ID-Spoofer/idspoof/bin/idspoof "$pkgdir/usr/bin/idspoof"
+}
