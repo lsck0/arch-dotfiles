@@ -1,0 +1,29 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=liquid-fixpoint
+pkgver=r0
+pkgrel=1
+pkgdesc="Horn clause constraint solver behind Liquid Haskell and Flux"
+arch=(x86_64)
+url="https://github.com/ucsd-progsys/liquid-fixpoint"
+license=(BSD-3-Clause)
+depends=(gmp z3)
+makedepends=(git stack)
+options=(!strip)
+source=("git+$url.git")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd liquid-fixpoint
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd liquid-fixpoint
+    # stack keeps its ghc and package db out of the build user's home
+    export STACK_ROOT="$srcdir/stack"
+    stack --install-ghc build --copy-bins --local-bin-path "$srcdir/bin"
+}
+
+package() {
+    install -Dm755 "$srcdir/bin/fixpoint" "$pkgdir/usr/bin/fixpoint"
+}

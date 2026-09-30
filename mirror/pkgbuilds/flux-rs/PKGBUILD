@@ -1,0 +1,41 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+#
+# Flux loads rustc_driver from its pinned nightly at run time through rustup, so the toolchain named
+# in /usr/lib/flux/rust-toolchain.toml has to be installed per user; configs/flux/link.sh does that
+# and points ~/.flux at /usr/lib/flux.
+pkgname=flux-rs
+pkgver=r0
+pkgrel=1
+pkgdesc="Refinement type checker for Rust"
+arch=(x86_64)
+url="https://github.com/flux-rs/flux"
+license=(MIT Apache-2.0)
+depends=(rustup liquid-fixpoint z3)
+makedepends=(git)
+options=(!strip !lto)
+source=("git+$url.git")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd flux
+    printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd flux
+    # xtask install writes the sysroot to ~/.flux and the binaries to $CARGO_HOME/bin
+    export HOME="$srcdir/home" CARGO_HOME="$srcdir/cargo"
+    mkdir -p "$HOME"
+    local channel
+    channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+    rustup toolchain install "$channel" --profile minimal \
+        --component rust-src,rustc-dev,llvm-tools,rustfmt,clippy
+    cargo xtask install
+}
+
+package() {
+    install -Dm755 -t "$pkgdir/usr/bin" "$srcdir"/cargo/bin/*
+    install -dm755 "$pkgdir/usr/lib/flux"
+    cp -a "$srcdir/home/.flux/." "$pkgdir/usr/lib/flux/"
+    install -Dm644 flux/rust-toolchain.toml "$pkgdir/usr/lib/flux/rust-toolchain.toml"
+}
