@@ -1,0 +1,8 @@
+[Unit]
+Description=Inject betterdiscord after discord installs or updates itself
+
+[Path]
+PathChanged=%h/.config/discord
+
+[Install]
+WantedBy=default.target

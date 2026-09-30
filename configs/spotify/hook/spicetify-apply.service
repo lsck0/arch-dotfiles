@@ -1,0 +1,6 @@
+[Unit]
+Description=Apply spicetify to spotify
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/spotify/hook/spicetify-apply.sh

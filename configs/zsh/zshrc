@@ -19,7 +19,7 @@ export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
 fpath=("$ZSH_CACHE_DIR/completions" $fpath)
 
 # omz lib, not lazy so its keybindings exist at the first prompt
-for lib in key-bindings completion misc directories grep git clipboard functions; do
+for lib in functions key-bindings completion misc directories grep git clipboard; do
   zinit snippet "OMZL::$lib.zsh"
 done
 unset lib

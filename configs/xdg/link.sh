@@ -7,6 +7,8 @@ mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/musi
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
+# folders apps force into ~ (unreal: Library, UnrealEngine), hidden in dolphin/nemo
+ln -sfn "${PWD}/home.hidden" "${HOME}/.hidden"
 
 # ~/projects icon: .directory for dolphin, gio for nemo
 cat > "${HOME}/projects/.directory" <<'EOF'
@@ -40,13 +42,14 @@ fi
 
 # gtk sidebar bookmarks
 mkdir -p "${HOME}/.config/gtk-3.0"
-GTK_BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
-for b in "file://${HOME}/projects Projects" "file://${HOME}/sync Syncthing" \
-    "file://${HOME}/nas NAS" "file://${HOME}/vault Vault"; do
-    sed -i "\\|^${b%% *} |d" "$GTK_BOOKMARKS" 2>/dev/null || true
-    echo "$b" >> "$GTK_BOOKMARKS"
-done
-sed -i '\|^smb://10\.100\.0\.10[89]/homelab |d' "$GTK_BOOKMARKS"
+# owned whole, so bookmarks from older layouts do not linger
+mkdir -p "${HOME}/.config/gtk-3.0"
+cat > "${HOME}/.config/gtk-3.0/bookmarks" <<EOF
+file://${HOME}/projects Projects
+file://${HOME}/sync Syncthing
+file://${HOME}/nas NAS
+file://${HOME}/vault Vault
+EOF
 
 PLACES="${HOME}/.local/share/user-places.xbel"
 mkdir -p "${HOME}/.local/share"
@@ -78,6 +81,11 @@ places = [
     ("remote:/", "Network", "folder-network", True),
     ("trash:/", "Trash", "user-trash", True),
 ]
+# the list above owns every folder bookmark, so leftovers from older layouts go
+managed = {href for href, _, _, _ in places}
+for child in list(root):
+    if child.get("href", "").startswith("file://") and child.get("href") not in managed:
+        root.remove(child)
 position = 0
 for href, title, icon, system in places:
     children = list(root)

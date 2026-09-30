@@ -4,6 +4,8 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 set -ex
 
 sudo ln -sfn ${PWD}/pacman.conf /etc/pacman.conf
+mkdir -p "${HOME}/.config/pacman"
+ln -sfn "${PWD}/makepkg.conf" "${HOME}/.config/pacman/makepkg.conf"
 
 sudo mkdir -p /etc/pacman.d/hooks
 for hook in ${PWD}/hooks/*.hook; do

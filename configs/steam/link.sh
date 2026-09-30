@@ -51,3 +51,6 @@ d.setdefault("themes", {})["activeTheme"] = "cyberpunk"
 json.dump(d, open(p, "w"), indent=2)
 PY
 fi
+
+source ../../scripts/lib/user-hook.sh
+user_hook_install ./hook millennium-link

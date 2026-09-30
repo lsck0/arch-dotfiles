@@ -1,0 +1,9 @@
+[Unit]
+Description=Install JAI when a new beta zip lands in ~/sync
+
+[Path]
+PathChanged=%h/sync
+MakeDirectory=yes
+
+[Install]
+WantedBy=default.target

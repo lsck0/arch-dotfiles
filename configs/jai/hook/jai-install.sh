@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Install JAI + the Jails language server from the newest beta zip in ~/sync (the beta is invite-only, no public URL).
+# jai + jails from the newest ~/sync beta zip; runs on every ~/sync change, so no-op unless the zip is new
 
 set -euo pipefail
 
 SYNC_DIR="${HOME}/sync"
 JAI_DIR="${HOME}/.jai"
+STAMP="${JAI_DIR}/.installed-from"
 
-zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'jai-*.zip' | sort -V | tail -n 1)
+zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'jai-*.zip' 2>/dev/null | sort -V | tail -n 1)
 if [[ -z "$zip_path" ]]; then
-    echo "no jai-*.zip in ${SYNC_DIR}" >&2
-    exit 1
+    exit 0
+fi
+if [[ -f "$STAMP" && "$(cat "$STAMP")" == "$(basename "$zip_path")" ]]; then
+    exit 0
 fi
 
 rm -rf "$JAI_DIR"
@@ -25,3 +28,4 @@ pushd "$JAI_DIR"/jails
 popd
 
 ln -sfn "$JAI_DIR"/jails/bin/jails "$JAI_DIR"/bin/jails
+basename "$zip_path" >"$STAMP"

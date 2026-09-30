@@ -13,8 +13,9 @@ set -e
 
 if ! command -v armitage >/dev/null 2>&1; then
     set -x
-    mise install java@11 gradle@7
-    mise exec java@11 gradle@7 -- yay -S --needed --noconfirm armitage-git
+    # plain java@11 is the 2019 openjdk build, its cacerts reject maven central
+    mise install java@temurin-11 gradle@7
+    mise exec java@temurin-11 gradle@7 -- yay -S --needed --noconfirm armitage-git
     set +x
 fi
 

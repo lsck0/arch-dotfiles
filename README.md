@@ -15,6 +15,8 @@ after archinstall minimal with btrfs+subvolumes+compression+LUKS and no applicat
 
 For secure boot: Enable Secure Boot + Setup Mode before archinstall.
 
+`./test` does all of the above in a fresh system libvirt VM (needs the `libvirt` group) from `~/downloads/archlinux-x86_64.iso` (config in `vm-test/`), clones master from github and exits non-zero if `install.sh` reports failures. Logs land in `~/.cache/vm-test/`.
+
 ## Things to do manually after rebooting
 
 - add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
@@ -30,13 +32,9 @@ sudo cryptsetup reencrypt /dev/nvme0n1p2
   --pbkdf argon2id
 ```
 
-- run `spicetify backup apply && spicetify enable-devtools` after running spotify once (including logging in)
+- log into spotify, discord and steam once; user path units apply spicetify, betterdiscord and millennium afterwards
 
-- run `betterdiscordctl install` after running discord once (including logging in)
-
-- run `~/.millennium/start.sh` after running steam once (including logging in)
-
-- run `install-jai` and `install-unreal` once syncthing has put their zips into `~/sync`
+- run `install-unreal` once syncthing has put its zip into `~/sync` (jai installs itself from there)
 
 - fetch the submodules (needs github auth, do `gh auth login`)
 
