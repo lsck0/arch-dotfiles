@@ -1,14 +1,5 @@
 # Keyboard Software
 
-## Prerequisites:
-
-```bash
-git clone --recursive https://github.com/qmk/qmk_firmware.git ~/projects/qmk_firmware
-ln -sf ~/projects/arch-dotfiles/keyboard/sofle_choc ~/projects/qmk_firmware/keyboards/sofle_choc/keymaps/luca_sofle_choc
-cd ~/projects/qmk_firmware/
-qmk setup
-```
-
 ## Building:
 
 ```bash

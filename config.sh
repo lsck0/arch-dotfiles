@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Stage 3, after install.sh and a reboot: links every configs/*/link.sh (and link.py), then sets up the
-# wallpaper and theme files. Safe to rerun at any time.
+# Stage 3: link every configs/*/link.sh; safe to rerun
 
 set -e
 cd "$(dirname "$(readlink -f "$0")")"
@@ -11,6 +10,11 @@ export FAILURES_FILE="$(pwd)/FAILURES.config"
 
 source ./scripts/lib/platform.sh
 platform_load "$(pwd)"
+
+## SECRETS
+
+# a plugged-in YubiKey pulls and unlocks configs/secrets with two touches, so the links below find them
+./scripts/yubikey.sh unlock || true
 
 ## LINK
 

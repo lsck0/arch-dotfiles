@@ -1,0 +1,34 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=ecgen
+pkgver=r0
+pkgrel=1
+pkgdesc="Tool for generating Elliptic curve domain parameters"
+arch=(x86_64)
+url="https://github.com/J08nY/ecgen"
+license=(GPL-2.0-only)
+depends=(pari)
+makedepends=(git)
+source=("git+$url.git")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd ecgen
+    git describe --long --abbrev=7 | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+prepare() {
+    cd ecgen
+    # pari 2.17 dropped the in-place addiiz
+    sed -i 's/addiiz(j, gen_1, j);/affii(addii(j, gen_1), j);/' src/cm/p1363.c
+}
+
+build() {
+    cd ecgen
+    make
+}
+
+package() {
+    cd ecgen
+    install -Dm755 ecgen "$pkgdir/usr/bin/ecgen"
+    install -Dm644 README.md -t "$pkgdir/usr/share/doc/ecgen"
+}

@@ -1,8 +1,9 @@
-[submodule "configs/ghostty/ghostty-shaders"]
-	path = configs/ghostty/ghostty-shaders
-	url = https://github.com/hackr-sh/ghostty-shaders.git
-    branch = main
 [submodule "configs/secrets"]
 	path = configs/secrets
 	url = https://github.com/lsck0/secrets.git
     branch = master
+[submodule "configs/keyboard/qmk_firmware"]
+	path = configs/keyboard/qmk_firmware
+	url = https://github.com/qmk/qmk_firmware.git
+	shallow = true
+	ignore = untracked

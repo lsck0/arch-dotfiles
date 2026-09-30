@@ -19,7 +19,7 @@ systemctl --user enable ssh-add.service
 # authorize keys before disabling password auth
 mkdir -p ${HOME}/.ssh && chmod 700 ${HOME}/.ssh
 touch ${HOME}/.ssh/authorized_keys && chmod 600 ${HOME}/.ssh/authorized_keys
-for pub in ../secrets/ssh_publickey.asc ${HOME}/.ssh/id_ed25519.pub; do
+for pub in ../secrets/ssh_publickey.asc ../yubikey/ssh-*.pub ${HOME}/.ssh/id_ed25519.pub; do
     [ -r "$pub" ] || continue
     key=$(cat "$pub")
     grep -qxF "$key" ${HOME}/.ssh/authorized_keys || echo "$key" >> ${HOME}/.ssh/authorized_keys

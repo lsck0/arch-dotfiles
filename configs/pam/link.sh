@@ -9,16 +9,19 @@ sudo install -m 644 quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint
 
 # optional yubikey touch auth, nouserok falls through to password
 U2F_MODULE=/usr/lib/security/pam_u2f.so
-U2F_LINE='auth       sufficient pam_u2f.so nouserok cue authfile='"${HOME}"'/.config/Yubico/u2f_keys'
+# fixed origin: one registration (scripts/yubikey.sh init) serves every machine
+U2F_LINE='auth       sufficient pam_u2f.so nouserok cue origin=pam://lsck0 appid=pam://lsck0 authfile='"${HOME}"'/.config/Yubico/u2f_keys'
 
 pam_u2f_install() {
     # insert before the first system-auth include, else leave untouched
     local svc="$1"
     [ -f "$svc" ] || return 0
-    if grep -q 'pam_u2f.so' "$svc"; then return 0; fi
+    if grep -qxF "$U2F_LINE" "$svc"; then return 0; fi
     local tmp
     tmp=$(mktemp)
+    # an older pam_u2f line is replaced, not kept next to the new one
     awk -v line="$U2F_LINE" '
+        /pam_u2f\.so/ { next }
         !added && $1=="auth" && /include/ && /system-auth/ { print line; added=1 }
         { print }
     ' "$svc" >"$tmp"

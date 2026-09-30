@@ -27,7 +27,7 @@ QtObject {
 
   readonly property string toggles: dotfiles + "/toggles"
   readonly property string wallpapers: dotfiles + "/wallpapers"
-  readonly property string themes: dotfiles + "/themes"
+  readonly property string themes: dotfiles + "/configs/themes"
 
   function toggle(name) { return toggles + "/" + name }
 

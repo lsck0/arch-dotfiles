@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Stage 2, on the installed system: every package of the enabled groups (platforms/<hostname>.sh or asked),
-# prebuilt ones from the homelab mirror, the rest via pacman, yay, cargo, go, flatpak and nix. config.sh
-# links the configs afterwards; bootstrap.sh chains both through stage.sh.
+# Stage 2: every package of the platform's groups, compiled ones prebuilt from mirror.lsck0.dev
 
 set -e
 exec > >(tee "install.log") 2>&1
@@ -12,6 +10,8 @@ export FAILURES_FILE="$(pwd)/FAILURES.install"
 # # PACKAGES
 
 PACKAGES=(
+    age                      # [base] file encryption, opens the YubiKey-sealed secrets key
+    age-plugin-yubikey       # [base] age identities in the YubiKey PIV applet
     alsa-firmware            # [base] ALSA sound firmware
     amdgpu_top               # [base] AMD GPU monitor
     app2unit                 # [base] app to systemd unit
@@ -58,6 +58,7 @@ PACKAGES=(
     fzf                      # [base] fuzzy finder
     ghostmirror              # [base] mirrorlist ranking tool
     git                      # [base] version control
+    git-crypt                # [base] transparent encryption of the secrets repo
     gnutls                   # [base] TLS library
     gpg-tui                  # [base] gpg tui
     gping                    # [base] ping with graph
@@ -570,7 +571,6 @@ PACKAGES=(
 
     act                           # [programming] run CI locally
     afl++                         # [programming] fuzzing tool
-    age                           # [programming] file encryption tool
     ali                           # [programming] tui webapp load testing
     android-ndk                   # [programming] Android native dev kit
     android-sdk                   # [programming] Android development kit
@@ -630,7 +630,7 @@ PACKAGES=(
     docker                        # [programming] container runtime
     docker-buildx                 # [programming] docker build extension
     docker-compose                # [programming] multi-container orchestration
-    ecgen-git                     # [programming] elliptic curve generator
+    ecgen                         # [programming] elliptic curve generator, mirror/pkgbuilds
     elan-lean                     # [programming] Lean toolchain manager
     emacs                         # [programming] text editor
     emscripten                    # [programming] C/C++ to wasm
@@ -653,7 +653,6 @@ PACKAGES=(
     ghcup-hs-bin                  # [programming] Haskell toolchain installer
     git-absorb                    # [programming] absorbing submodules
     git-age                       # [programming] git age encryption
-    git-crypt                     # [programming] transparent file encryption for the secrets repo
     git-delta                     # [programming] syntax-highlighting diff pager
     git-filter-repo               # [programming] git history rewriter
     git-lfs                       # [programming] git large file storage

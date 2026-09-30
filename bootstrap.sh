@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
-# Stage 1, run as root from the Arch ISO once the network is up:
-#
-#     curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash
-#
-# Piped, it clones the repo to /tmp and reruns from there; the platform (platforms/<name>.sh) is an
-# argument (`| bash -s -- luca-pc`) or asked for.
-#
-# Wipes the machine's single disk: 1 GiB ESP at /boot, the rest LUKS2 (tuned, see LUKS_FORMAT) holding
-# btrfs with @ @home @log @pkg @.snapshots. Installs a minimal base with GRUB, copies this checkout to
-# ~/projects/arch-dotfiles and arms stage.sh, which runs install.sh and config.sh over the next two
-# boots without asking for anything, then disarms and reboots into the normal prompts.
-#
-# Platform settings live in platforms/<name>.sh and override the defaults below. For unattended runs
-# (vm-test) BOOTSTRAP_DISK, BOOTSTRAP_PASSWORD and BOOTSTRAP_ASSUME_YES=1 skip the prompts.
+# Stage 1, from the Arch ISO via `curl install-pc.lsck0.dev | sh`: wipe the disk, install a base system, arm stage.sh
 
 set -euo pipefail
 
@@ -157,7 +144,7 @@ done
 ucode=amd-ucode
 grep -q GenuineIntel /proc/cpuinfo && ucode=intel-ucode
 pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs cryptsetup grub efibootmgr \
-    networkmanager sudo git zram-generator
+    networkmanager sudo git zram-generator libfido2
 genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
 # boot-menu (configs/boot) reads the root arguments from here, the kernel cmdline alone gets lost on regen
@@ -173,6 +160,13 @@ chmod 600 "$MOUNT$STAGE_KEY_FILE"
 printf '%s' "$PASSWORD" | cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 \
     "$ROOT_PART" "$MOUNT$STAGE_KEY_FILE"
 install -Dm644 /dev/stdin "$MOUNT/etc/mkinitcpio.conf.d/dotfiles-stage.conf" <<<"FILES+=($STAGE_KEY_FILE)"
+
+# a YubiKey plugged in now unlocks the disk by touch from then on; the password keeps working
+if systemd-cryptenroll --fido2-device=list 2>/dev/null | grep -q '^/dev/'; then
+    echo "bootstrap: YubiKey found, touch it (and give its FIDO2 PIN if asked) to enroll it for disk unlock"
+    systemd-cryptenroll --unlock-key-file="$MOUNT$STAGE_KEY_FILE" --fido2-device=auto \
+        --fido2-with-client-pin=no "$ROOT_PART" </dev/tty || echo "bootstrap: YubiKey enrollment skipped"
+fi
 
 arch-chroot "$MOUNT" /bin/bash -euo pipefail -s -- "$HOSTNAME" "$USERNAME" "$KEYMAP" "$TIMEZONE" "$LOCALE" <<'CHROOT'
 hostname=$1 user=$2 keymap=$3 timezone=$4 locale=$5
