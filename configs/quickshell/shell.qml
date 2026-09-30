@@ -166,14 +166,19 @@ ShellRoot {
   }
 
   readonly property string mainScreenName: {
+    var screens = Quickshell.screens
+    // configs name monitors of other machines (DP-2 on the desktop); an absent one would demote every real screen
+    function connected(name) {
+      for (var s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
+      return false
+    }
     var configured = barConfig && barConfig.mainScreen ? String(barConfig.mainScreen) : ""
-    if (configured) return configured
+    if (configured && connected(configured)) return configured
     var workspaces = Hyprland.workspaces.values
     for (var w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
     // workspace 1 only exists while it has windows
-    if (workspaceOneRuleMonitor) return workspaceOneRuleMonitor
-    var screens = Quickshell.screens
+    if (workspaceOneRuleMonitor && connected(workspaceOneRuleMonitor)) return workspaceOneRuleMonitor
     for (var i = 0; i < screens.length; i++)
       if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
     return screens.length > 0 ? String(screens[0].name) : ""
