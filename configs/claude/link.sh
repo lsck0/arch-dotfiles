@@ -12,6 +12,12 @@ SETTINGS="${HOME}/.claude/settings.json"
 mkdir -p "${HOME}/.claude"
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
+# OAuth creds from the secrets repo, so login is automatic; a copy, claude rewrites it on token refresh
+CREDS=../secrets/claude-credentials.json
+if [ ! -s "${HOME}/.claude/.credentials.json" ] && grep -qs claudeAiOauth "$CREDS"; then
+    install -m600 "$CREDS" "${HOME}/.claude/.credentials.json"
+fi
+
 ln -sfn "${PWD}/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
 ln -sfn "${PWD}/RTK.md" "${HOME}/.claude/RTK.md"
 
