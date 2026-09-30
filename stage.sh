@@ -12,14 +12,18 @@ UNIT=/etc/systemd/system/dotfiles-stage.service
 
 log() { echo "$(date -Is) $*" | sudo tee -a "$STATE_DIR/log"; }
 
-# keyslot first: once it is gone the keyfile on the ESP opens nothing
+# idempotent: a re-run after a partial disarm must still finish, so each step tolerates being already done
 disarm() {
     local device
     device=$(<"$STATE_DIR/luks-device")
-    sudo cryptsetup luksRemoveKey "$device" "$KEY_FILE" || return 1
-    sudo rm -f "$KEY_FILE" "$MKINITCPIO_DROPIN"
+    # keyslot first: once it is gone the keyfile on the ESP opens nothing
+    if [[ -f "$KEY_FILE" ]]; then
+        sudo cryptsetup luksRemoveKey "$device" "$KEY_FILE" || return 1
+        sudo rm -f "$KEY_FILE"
+    fi
+    sudo rm -f "$MKINITCPIO_DROPIN"
     sudo mkinitcpio -P || return 1
-    sudo systemctl disable dotfiles-stage.service
+    sudo systemctl disable dotfiles-stage.service || true
     sudo rm -f "$UNIT" "$STATE_DIR/next"
 }
 

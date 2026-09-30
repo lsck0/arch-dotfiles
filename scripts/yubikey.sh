@@ -155,12 +155,13 @@ cmd_unlock() {
         echo ">>> touch the YubiKey to unlock the secrets"
         local key
         key=$(mktemp)
+        # shred even if crypt unlock fails under set -e, so the plaintext key never lingers on tmpfs
+        trap 'shred -u "$key" 2>/dev/null || true; trap - RETURN' RETURN
         if with_touch age -d -i "$identity" -o "$key" "$SEALED_KEY"; then
-            git -C "$SECRETS" crypt unlock "$key"
+            git -C "$SECRETS" crypt unlock "$key" || echo "yubikey: git-crypt unlock failed"
         else
             echo "yubikey: unlock failed or no touch"
         fi
-        shred -u "$key"
     fi
 }
 
