@@ -17,7 +17,7 @@ BarWidget {
   }
 
   function runUpdate() {
-    Quickshell.execDetached(["ghostty", "-e", Paths.bin("system-update")])
+    Quickshell.execDetached(["ghostty", "-e", Paths.script("system-update.sh")])
   }
 
   visible: updateAvailable
@@ -66,7 +66,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: ""
+    text: "\u{f021}"
     slotSize: Style.bar.statusSlot
     fontSize: Style.font.caption
     tooltipText: "Pending system updates"

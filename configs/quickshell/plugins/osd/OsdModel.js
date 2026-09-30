@@ -5,23 +5,24 @@ function clamp(value, min, max) {
 }
 
 // widest glyph, keeps the icon column from jittering
-var widestIcon = ""
+var widestIcon = "\u{f028}"
 
 function iconFor(name, percent) {
   var n = String(name || "").toLowerCase()
-  if (n === "volume-muted" || n === "volume-mute" || n === "muted" || n === "mute") return ""
-  if (n === "volume-low") return ""
-  if (n === "volume-medium" || n === "volume-high" || n === "volume") return ""
-  if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return ""
-  if (n === "microphone" || n === "mic") return ""
-  if (n === "brightness" || n === "display") return ""
+  if (n === "volume-muted" || n === "volume-mute" || n === "muted" || n === "mute") return "\u{f026}"
+  if (n === "volume-low") return "\u{f027}"
+  if (n === "volume-medium" || n === "volume-high" || n === "volume") return "\u{f028}"
+  if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return "\u{f131}"
+  if (n === "microphone" || n === "mic") return "\u{f130}"
+  if (n === "brightness" || n === "display") return "\u{f042}"
   // md-keyboard / md-keyboard_off
   if (n === "keyboard-backlight-off" || n === "kbd-backlight-off") return "\u{f0310}"
   if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
+  if (n === "launch") return "\u{f14de}"
   if (n.length > 0) return name
-  if (percent <= 33) return ""
-  if (percent <= 66) return ""
-  return ""
+  if (percent <= 33) return "\u{f0e7}"
+  if (percent <= 66) return "\u{f0e7}"
+  return "\u{f0e7}"
 }
 
 function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {

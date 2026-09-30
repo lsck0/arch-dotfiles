@@ -100,17 +100,10 @@ QtObject {
     var manifest = installedPlugins[key]
     var config = shellConfigProvider ? shellConfigProvider() : null
     if (manifest) {
-    if (Array.isArray(manifest.kinds) && manifest.kinds.indexOf("bar") !== -1) {
-      var selectedBar = ""
-      if (Util.isPlainObject(config) && Util.isPlainObject(config.bar))
-        selectedBar = Util.canonicalWidgetId(String(config.bar.id || ""))
-      if (!selectedBar) selectedBar = "omarchy.bar"
-      return selectedBar === key
-    }
-    if (isDisabled(config, key)) return false
-    if (Array.isArray(manifest.kinds) && manifest.kinds.indexOf("bar-widget") !== -1)
-      return findBarLocation(config, key, "").found
-    if (manifest.__isFirstParty) return true
+      if (isDisabled(config, key)) return false
+      if (Array.isArray(manifest.kinds) && manifest.kinds.indexOf("bar-widget") !== -1)
+        return findBarLocation(config, key, "").found
+      if (manifest.__isFirstParty) return true
     }
     return findEntryLocation(config, key).found
   }
@@ -176,10 +169,6 @@ QtObject {
   function findEntryLocation(config, id) {
     if (!Util.isPlainObject(config)) return { found: false }
     var key = Util.canonicalWidgetId(String(id))
-    if (Util.isPlainObject(config.bar)) {
-      var selectedBar = Util.canonicalWidgetId(String(config.bar.id || ""))
-      if (selectedBar === key) return { found: true, kind: "bar-option" }
-    }
     if (Util.isPlainObject(config.bar) && Util.isPlainObject(config.bar.layout)) {
       var barLocation = findBarLocation(config, key, "")
       if (barLocation.found) return barLocation
@@ -212,7 +201,7 @@ QtObject {
       return { section: section, index: Math.min(requested, config.bar.layout[section].length) }
     }
 
-    var anchors = { left: "omarchy.workspaces", center: "omarchy.weather", right: "omarchy.tray" }
+    var anchors = { left: "bar.workspaces", center: "bar.weather", right: "bar.tray" }
     var anchor = findRelativeBarLocation(config, anchors[section], section)
     return {
       section: section,
@@ -366,42 +355,30 @@ QtObject {
       var candidateMetadata = candidateManifest && Util.isPlainObject(candidateManifest.omarchy)
         ? candidateManifest.omarchy : null
       if (!candidateMetadata || String(candidateMetadata.clonedFrom || "") !== sourceId) continue
-      if (Array.isArray(candidateManifest.kinds) && candidateManifest.kinds.indexOf("bar") !== -1) {
-        if (Util.canonicalWidgetId(String(config.bar.id || "")) === candidate) return candidate
-      } else if (findEntryLocation(config, candidate).found) {
-        return candidate
-      }
+      if (findEntryLocation(config, candidate).found) return candidate
     }
     return ""
   }
 
   function restoreCloneSource(config, cloneId, sourceId) {
-    var cloneManifest = installedPlugins[cloneId]
-    var isBarOption = cloneManifest && Array.isArray(cloneManifest.kinds)
-      && cloneManifest.kinds.indexOf("bar") !== -1
-    if (isBarOption) {
-      if (sourceId === "omarchy.bar") delete config.bar.id
-      else config.bar.id = sourceId
-    } else {
-      var cloneLocation = findEntryLocation(config, cloneId)
-      if (cloneLocation.kind === "bar") {
-        var cloneEntry = config.bar.layout[cloneLocation.section][cloneLocation.index]
-        var sections = ["left", "center", "right"]
-        for (var s = 0; s < sections.length; s++) {
-          for (var i = config.bar.layout[sections[s]].length - 1; i >= 0; i--) {
-            if (barEntryId(config.bar.layout[sections[s]][i]) === sourceId)
-              config.bar.layout[sections[s]].splice(i, 1)
-          }
+    var cloneLocation = findEntryLocation(config, cloneId)
+    if (cloneLocation.kind === "bar") {
+      var cloneEntry = config.bar.layout[cloneLocation.section][cloneLocation.index]
+      var sections = ["left", "center", "right"]
+      for (var s = 0; s < sections.length; s++) {
+        for (var i = config.bar.layout[sections[s]].length - 1; i >= 0; i--) {
+          if (barEntryId(config.bar.layout[sections[s]][i]) === sourceId)
+            config.bar.layout[sections[s]].splice(i, 1)
         }
-        cloneLocation = findBarLocation(config, cloneId, "")
-        if (cloneLocation.found) {
-          var restoredEntry = Util.isPlainObject(cloneEntry) ? Util.cloneJson(cloneEntry) : {}
-          restoredEntry.id = sourceId
-          config.bar.layout[cloneLocation.section][cloneLocation.index] = restoredEntry
-        }
-      } else if (cloneLocation.kind === "plugin") {
-        config.plugins.splice(cloneLocation.index, 1)
       }
+      cloneLocation = findBarLocation(config, cloneId, "")
+      if (cloneLocation.found) {
+        var restoredEntry = Util.isPlainObject(cloneEntry) ? Util.cloneJson(cloneEntry) : {}
+        restoredEntry.id = sourceId
+        config.bar.layout[cloneLocation.section][cloneLocation.index] = restoredEntry
+      }
+    } else if (cloneLocation.kind === "plugin") {
+      config.plugins.splice(cloneLocation.index, 1)
     }
 
     if (cloneShouldRestoreSource(config, cloneId)) removeDisabled(config, sourceId)
@@ -420,7 +397,6 @@ QtObject {
       console.warn("PluginRegistry.setEnabled: unknown plugin " + key)
       return false
     }
-    var isBarOption = manifest && Array.isArray(manifest.kinds) && manifest.kinds.indexOf("bar") !== -1
     var isBarWidget = manifest && Array.isArray(manifest.kinds) && manifest.kinds.indexOf("bar-widget") !== -1
     var hasNonWidgetKind = manifest && Array.isArray(manifest.kinds)
       && manifest.kinds.some(function(kind) { return kind !== "bar-widget" })
@@ -443,16 +419,6 @@ QtObject {
           restoreCloneSource(config, activeClone, key)
           removeDisabled(config, key)
         }
-      }
-
-      if (isBarOption) {
-        if (value) {
-          config.bar.id = key
-        } else if (Util.canonicalWidgetId(String(config.bar.id || "")) === key) {
-          if (clonedFrom && clonedFrom !== "omarchy.bar") config.bar.id = clonedFrom
-          else delete config.bar.id
-        }
-        return
       }
 
       var isFirstParty = manifest && manifest.__isFirstParty
@@ -551,9 +517,9 @@ QtObject {
     var merged = {}
     for (var fk in firstParty) merged[fk] = firstParty[fk]
     for (var tk in thirdParty) {
-      if (firstParty[tk] || String(tk).indexOf("omarchy.") === 0) {
+      if (firstParty[tk]) {
         console.warn("PluginRegistry: plugin " + tk
-          + " rejected: id is reserved for first-party Omarchy plugins")
+          + " rejected: id is reserved for a first-party plugin")
         continue
       }
       merged[tk] = thirdParty[tk]

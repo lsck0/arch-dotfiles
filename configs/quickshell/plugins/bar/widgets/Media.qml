@@ -761,7 +761,7 @@ BarWidget {
         visible: root.players.length > 1
 
         PanelSeparator {}
-        PanelSectionHeader { text: "> PLAYERS" }
+        PanelSectionHeader { text: "PLAYERS" }
 
         Repeater {
           model: root.players

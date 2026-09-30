@@ -39,20 +39,31 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 (defvar my/eat-popup-name "*eat-popup*"
   "Buffer name of the toggleable bottom terminal.")
 
+(defun my/eat-popup-toggle (name &optional program)
+  "Toggle buffer NAME in a window at the bottom, running PROGRAM (default: shell) at the project."
+  (require 'eat)
+  (if-let* ((win (get-buffer-window name)))
+      (quit-restore-window win 'bury)     ; never errors on a sole window
+    (let* ((default-directory (my/project-root))
+           (buf (or (get-buffer name)
+                    ;; named up front, no clash with the per-tab terminals
+                    (save-window-excursion
+                      (let ((eat-buffer-name name))
+                        (eat program))))))
+      (select-window (display-buffer buf))
+      (evil-insert-state))))
+
 (defun my/eat-popup ()
   "Toggle a shell in a window at the bottom, rooted at the project."
   (interactive)
-  (require 'eat)
-  (if-let* ((win (get-buffer-window my/eat-popup-name)))
-      (quit-restore-window win 'bury)     ; never errors on a sole window
-    (let* ((default-directory (my/project-root))
-           (buf (or (get-buffer my/eat-popup-name)
-                    ;; named up front, no clash with the per-tab terminals
-                    (save-window-excursion
-                      (let ((eat-buffer-name my/eat-popup-name))
-                        (eat))))))
-      (select-window (display-buffer buf))
-      (evil-insert-state))))
+  (my/eat-popup-toggle my/eat-popup-name))
+
+(defun my/eat-popup-command (program)
+  "Command toggling PROGRAM in its own bottom popup, like a tmux display-popup."
+  (lambda ()
+    (interactive)
+    (my/eat-popup-toggle (format "%s<%s>" my/eat-popup-name program)
+                         (concat "direnv exec . " program))))
 
 ;;;; compile -----------------------------------------------------------------
 

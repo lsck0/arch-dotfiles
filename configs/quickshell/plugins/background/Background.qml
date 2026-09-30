@@ -63,7 +63,7 @@ Item {
 
   function openSelector() {
     // no-arg switch-wallpaper.sh needs a terminal, use the picker
-    Util.execDetached(Util.shellQuote(Paths.shellScripts + "/wallpaper-picker.sh"))
+    Util.execDetached(Util.shellQuote(Paths.script("wallpaper-picker.sh")))
   }
 
   Process {

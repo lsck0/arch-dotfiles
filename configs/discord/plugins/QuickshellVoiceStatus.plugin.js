@@ -3,7 +3,7 @@
  * @author Luca
  * @version 1.0.0
  * @description Publish current VC to quickshell.
- * @source https://github.com/luca/arch-dotfiles
+ * @source https://github.com/lsck0/arch-dotfiles
  */
 
 module.exports = class QuickshellVoiceStatus {

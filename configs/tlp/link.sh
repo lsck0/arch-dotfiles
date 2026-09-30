@@ -15,7 +15,6 @@ else
     conf=ac-only.tlp.conf
 fi
 
-# Copy, not symlink: tlp.service is sandboxed (ProtectHome) and cannot read a
-# config that points into /home, so /etc/tlp.conf must be a real file.
+# copy, tlp.service has ProtectHome and cannot follow a link into /home
 sudo install -m 644 "${PWD}/${conf}" /etc/tlp.conf
 sudo systemctl restart tlp

@@ -7,7 +7,6 @@
   "description": "OSSEC HIDS alerts: 24h count, highest level, recent alerts",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Ossec.qml" },
-  "keepLoaded": true,
   "barWidget": {
     "displayName": "OSSEC",
     "description": "OSSEC HIDS alerts: 24h count, highest level, recent alerts",

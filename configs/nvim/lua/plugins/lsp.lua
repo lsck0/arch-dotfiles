@@ -299,17 +299,6 @@ return {
     },
 
     {
-        "antosha417/nvim-lsp-file-operations", -- LSP-aware file ops
-        dependencies = {
-            "nvim-lua/plenary.nvim",           -- Lua utility library
-            "nvim-neo-tree/neo-tree.nvim",     -- sidebar file tree
-        },
-        config = function()
-            require("lsp-file-operations").setup()
-        end,
-    },
-
-    {
         "stevearc/conform.nvim", -- code formatting
         config = function()
             require("conform").formatters.sortderives = {
@@ -335,7 +324,7 @@ return {
                     html = { "prettier" },
                     http = { "kulala-fmt" },
                     javascript = { "prettier" },
-                    latex = { "latexindent" },
+                    plaintex = { "latexindent" },
                     python = { "isort", "black" },
                     rest = { "kulala-fmt" },
                     -- leptosfmt only in leptos projects, else it errors on plain Rust
@@ -350,6 +339,7 @@ return {
                         return fmts
                     end,
                     scss = { "prettier" },
+                    tex = { "latexindent" },
                     typescript = { "prettier" },
                     typescriptreact = { "prettier" },
                     javascriptreact = { "prettier" },

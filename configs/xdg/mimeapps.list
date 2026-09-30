@@ -1,9 +1,9 @@
 [Added Associations]
-application/pdf=okular.desktop;
+application/pdf=org.kde.okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
 
 [Default Applications]
-application/pdf=okular.desktop
+application/pdf=org.kde.okular.desktop
 inode/directory=org.kde.dolphin.desktop
 application/x-www-form-urlencoded=firefox.desktop
 audio/mpeg=mpv.desktop
@@ -19,11 +19,10 @@ x-scheme-handler/betterdiscord=discord.desktop
 x-scheme-handler/http=firefox.desktop
 x-scheme-handler/https=firefox.desktop
 x-scheme-handler/jetbrains=jetbrains-toolbox.desktop
-x-scheme-handler/pdf=okular.desktop
+x-scheme-handler/pdf=org.kde.okular.desktop
 x-scheme-handler/ror2mm=r2modman.desktop
 x-scheme-handler/unknown=firefox.desktop
 x-scheme-handler/claude-cli=claude-code-url-handler.desktop
-x-scheme-handler/mpv=mpv-scheme-handler.desktop
 application/uproject=com.epicgames.UnrealEngineEditor.desktop
 x-scheme-handler/proton-inbox=proton-mail.desktop
 text/markdown=nvim.desktop

@@ -9,13 +9,13 @@ return {
             require("mini.splitjoin").setup()
             require("mini.surround").setup({
                 mappings = {
-                    add = "ea",
-                    delete = "ed",
-                    replace = "er",
-                    find = "ef",
-                    find_left = "eF",
-                    highlight = "eh",
-                    update_n_lines = "en",
+                    add = "gsa",
+                    delete = "gsd",
+                    replace = "gsr",
+                    find = "gsf",
+                    find_left = "gsF",
+                    highlight = "gsh",
+                    update_n_lines = "gsn",
                 }
             })
         end

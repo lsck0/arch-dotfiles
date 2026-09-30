@@ -8,7 +8,6 @@ local boomer =
 "wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""
 
 hl.bind(mod .. " + SHIFT + e", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call powermenu toggle"))
-hl.bind("CTRL + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
     "grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"))
@@ -27,7 +26,7 @@ hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
 hl.bind(mod .. " + t", hl.dsp.exec_cmd("~/projects/arch-dotfiles/toggles/menu.sh"))
 hl.bind(mod .. " + SHIFT + t", hl.dsp.exec_cmd("missioncenter"))
 hl.bind(mod .. " + w", hl.dsp.exec_cmd(shell_bin("wallpaper-picker")))
-hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimoji"))
+hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimeji"))
 hl.bind(mod .. " + x", hl.dsp.exec_cmd("grim -t ppm - | " .. boomer))
 
 hl.bind(mod .. " + Q", hl.dsp.window.close())

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -x
-
 if ! command -v sshd >/dev/null 2>&1; then
     exit 0
 fi
+
+set -ex
 
 sudo systemctl enable sshd
 

@@ -1,20 +1,15 @@
-; Highlights for the nyangine .nya object format.
-; Capture names are the standard nvim-treesitter set, so the editor's active colorscheme styles them
-; with no extra configuration.
+; nyangine .nya object format, standard capture names so any colorscheme styles it
 
-; ── Header ───────────────────────────────────────────────────────────────────
-; The `nya` magic; the version and checksum after it are numbers, caught by the (number) rule below.
+; header: `nya` magic, version and checksum are caught by (number)
 "nya" @keyword
 
-; ── Keys ─────────────────────────────────────────────────────────────────────
+; keys
 (member key: (identifier) @property)
 
-; ── Types ────────────────────────────────────────────────────────────────────
-; The type keyword before a value or an array: b8, u32, f32, string, object, array, and the aliased
-; any / null / object array headers all land here.
+; types: b8, u32, f32, string, object, array and the aliased array headers
 (type) @type.builtin
 
-; ── Literals ───────────────────────────────────────────────────────────────────
+; literals
 (string) @string
 (escape_sequence) @string.escape
 
@@ -24,9 +19,9 @@
 
 (null) @constant.builtin
 
-; ── Comments ───────────────────────────────────────────────────────────────────
+; comments
 (comment) @comment @spell
 
-; ── Punctuation ────────────────────────────────────────────────────────────────
+; punctuation
 [ "{" "}" "[" "]" ] @punctuation.bracket
 [ ":" ";" "," ] @punctuation.delimiter

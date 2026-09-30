@@ -17,6 +17,10 @@ KITTY="$REPO/configs/kitty/kitty.conf"
 QUTEBROWSER="$REPO/configs/qutebrowser/config.py"
 QUTEBROWSER_STARTPAGE="$REPO/configs/qutebrowser/startpage.html"
 QUICKSHELL_THEME="$REPO/configs/quickshell/theme.json"
+VSCODE="$REPO/configs/vscode/settings.json"
+ZATHURA="$REPO/configs/zathura/zathurarc"
+FIREFOX_CHROME="$REPO/configs/firefox/userChrome.css"
+GTK_CSS="$REPO/configs/gtk/gtk.css"
 
 # gtk settings.ini is generated into ~/.config by switch-wallpaper.sh, not tracked here, so use real paths
 GTK_DIRS=("$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0")
@@ -156,6 +160,10 @@ apply_family() {
     sed -i "s|^font_family .*|font_family $m|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
     sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
+    sed -i "s|\"editor.fontFamily\": \"'[^']*'|\"editor.fontFamily\": \"'$m'|" "$VSCODE"
+    sed -i "s|^set font \"[^\"]*\\( [0-9]*\\)\"|set font \"$e\\1\"|" "$ZATHURA"
+    sed -i "s|--rtk-chrome-font: \"[^\"]*\",|--rtk-chrome-font: \"$e\",|" "$FIREFOX_CHROME"
+    sed -i "s|font-family: \"[^\"]*\", sans-serif;|font-family: \"$e\", sans-serif;|" "$GTK_CSS"
 
     # quickshell live-watches theme.json: no restart, no sed into a .qml source
     quickshell_theme_set '.font.family = $v' "$fam"
@@ -194,6 +202,7 @@ apply_ui_size() {
 apply_size() {
     local size=$1
     sed -i "s|^font-size = .*|font-size = $size|" "$GHOSTTY"
+    sed -i "s|^font_size .*|font_size $size|" "$KITTY"
     sed -i -e "s|\"buffer_font_size\": [0-9.]*|\"buffer_font_size\": $size|" \
            -e "s|\"ui_font_size\": [0-9.]*|\"ui_font_size\": $size|" \
            -e "s|\"font_size\": [0-9.]*|\"font_size\": $size|" "$ZED"

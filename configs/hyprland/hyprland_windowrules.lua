@@ -48,13 +48,6 @@ hl.window_rule({
 
 hl.window_rule({
     match = {
-        class = "^wofi$",
-    },
-    opacity = global_opacity,
-})
-
-hl.window_rule({
-    match = {
         initial_title = "^Discord Popout$",
     },
     opacity = 1,

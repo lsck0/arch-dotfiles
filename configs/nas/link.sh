@@ -8,7 +8,7 @@ fi
 set -ex
 
 sudo mkdir -p /mnt/homelab
-sudo cp ${PWD}/mnt-homelab.mount /etc/systemd/system/
+sed -e "s|@UID@|$(id -u)|" -e "s|@GID@|$(id -g)|" "${PWD}/mnt-homelab.mount" | sudo tee /etc/systemd/system/mnt-homelab.mount >/dev/null
 sudo cp ${PWD}/mnt-homelab.automount /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable mnt-homelab.automount

@@ -3,11 +3,11 @@
 
 set -uo pipefail
 
-SELF_DIR="$(dirname "$(readlink -f "$0")")"
-SWITCH_WALLPAPER="$SELF_DIR/../../../scripts/switch-wallpaper.sh"
+DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+SWITCH_WALLPAPER="$DOTFILES/scripts/switch-wallpaper.sh"
 
-REPO_WALLPAPERS="$HOME/projects/arch-dotfiles/wallpapers"
-THEMES_DIR="$HOME/projects/arch-dotfiles/themes"
+REPO_WALLPAPERS="$DOTFILES/wallpapers"
+THEMES_DIR="$DOTFILES/themes"
 DIR=${1:-$REPO_WALLPAPERS}
 QS_CONFIG="$HOME/.config/quickshell"
 RUN="${XDG_RUNTIME_DIR:-/tmp}"

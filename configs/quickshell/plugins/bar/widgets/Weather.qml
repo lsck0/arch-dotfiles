@@ -372,7 +372,7 @@ BarWidget {
       Row {
         width: parent.width
         spacing: Style.spacing.sm
-        PanelSectionHeader { text: "> WEATHER"; fontSize: Style.font.title }
+        PanelSectionHeader { text: "WEATHER"; fontSize: Style.font.title }
         Text {
           anchors.verticalCenter: parent.verticalCenter
           text: "_"
@@ -611,7 +611,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> NEXT 24 HOURS" }
+      PanelSectionHeader { text: "NEXT 24 HOURS" }
 
       Sparkline {
         width: parent.width
@@ -720,7 +720,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> 3-DAY FORECAST" }
+      PanelSectionHeader { text: "3-DAY FORECAST" }
 
       Row {
         width: parent.width
@@ -800,7 +800,7 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader {
-        text: "> RADAR" + (root.radarSpanKm > 0 ? "  ·  " + root.radarSpanKm + " km across" : "")
+        text: "RADAR" + (root.radarSpanKm > 0 ? "  ·  " + root.radarSpanKm + " km across" : "")
       }
 
       Item {

@@ -6,6 +6,7 @@ ln -sfn "${PWD}/stylua.toml"     "${HOME}/.stylua.toml"
 ln -sfn "${PWD}/prettierrc.json" "${HOME}/.prettierrc"
 ln -sfn "${PWD}/editorconfig"    "${HOME}/.editorconfig"
 ln -sfn "${PWD}/chktexrc"        "${HOME}/.chktexrc"
+ln -sfn "${PWD}/rustfmt.toml"    "${HOME}/.rustfmt.toml"
 
 # latexindent finds its config via ~/.indentconfig.yaml
 mkdir -p "${HOME}/.config/latexindent"

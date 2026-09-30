@@ -17,8 +17,8 @@ BarWidget {
   // timetravel offset in hours
   property real travelHours: 0
 
-  readonly property string pomodoroScript: Paths.bin("pomodoro")
-  readonly property string reminderScript: Paths.bin("reminder")
+  readonly property string pomodoroScript: Paths.script("pomodoro.sh")
+  readonly property string reminderScript: Paths.script("reminder.sh")
 
   property var pomo: ({ running: false, paused: false, phase: "idle", label: "Pomodoro", remaining: "", cycle: 0 })
   property var reminders: []

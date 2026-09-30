@@ -11,3 +11,8 @@ max_line_length = 120
 [*.md]
 # trailing two spaces are a hard line break in markdown
 trim_trailing_whitespace = false
+
+[*.sh]
+# match nvim shfmt -ci -bn
+switch_case_indent = true
+binary_next_line = true

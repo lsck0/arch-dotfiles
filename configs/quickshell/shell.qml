@@ -22,12 +22,9 @@ ShellRoot {
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
 
-  readonly property string home: Quickshell.env("HOME")
   readonly property string shellDir: Quickshell.shellDir
   readonly property string firstPartyPluginsDir: shellDir + "/plugins"
-  // runtime state, kept out of the tracked config dir
-  readonly property string userConfigPath:
-    (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/quickshell/shell.json"
+  readonly property string userConfigPath: Paths.state + "/shell.json"
 
   // keep in sync with ~/.local/state/quickshell/shell.json, which overrides it
   readonly property var builtinShellConfig: ({
@@ -103,8 +100,7 @@ ShellRoot {
   }
 
   // per-widget saved state, e.g. tray pins
-  readonly property string widgetSettingsPath:
-    (Quickshell.env("XDG_STATE_HOME") || (home + "/.local/state")) + "/quickshell/widget-settings.json"
+  readonly property string widgetSettingsPath: Paths.state + "/widget-settings.json"
 
   property var widgetSettings: ({})
 
@@ -220,7 +216,10 @@ ShellRoot {
     watchChanges: true
     atomicWrites: true
     printErrors: false
-    onLoaded: shell.applyShellConfig()
+    onLoaded: {
+      shell.applyShellConfig()
+      Util.rearmWatch(this)
+    }
     onLoadFailed: function(error) { shell.applyShellConfig() }
     onFileChanged: reload()
   }

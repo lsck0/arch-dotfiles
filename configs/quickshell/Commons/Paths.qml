@@ -19,6 +19,12 @@ QtObject {
   readonly property string barWidgets: plugins + "/bar/widgets"
   readonly property string shellScripts: shellDir + "/scripts"
 
+  // runtime state, kept out of the tracked config dir
+  readonly property string state: {
+    var base = String(Quickshell.env("XDG_STATE_HOME") || "").trim() || (home + "/.local/state")
+    return base.replace(/\/+$/, "") + "/quickshell"
+  }
+
   readonly property string toggles: dotfiles + "/toggles"
   readonly property string wallpapers: dotfiles + "/wallpapers"
   readonly property string themes: dotfiles + "/themes"
@@ -32,8 +38,7 @@ QtObject {
     return plugins + "/" + pluginDir + (name ? "/" + name : "")
   }
 
-  // link.sh drops the .sh suffix in ~/.local/bin
-  function bin(name) { return home + "/.local/bin/" + name }
+  function script(name) { return shellScripts + "/" + name }
 
   function ipcCall(target, method) {
     var argv = ["quickshell", "ipc", "-p", shellDir, "call", String(target), String(method)]

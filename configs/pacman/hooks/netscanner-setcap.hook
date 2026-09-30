@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = netscanner
+
+[Action]
+Description = Granting netscanner cap_net_raw instead of setuid root
+When = PostTransaction
+Exec = /usr/bin/sh -c 'chmod u-s /usr/bin/netscanner && setcap cap_net_raw+ep /usr/bin/netscanner'

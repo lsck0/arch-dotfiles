@@ -87,7 +87,7 @@ Item {
 
   Process {
     id: proc
-    command: [Paths.bin("disk-speedtest")]
+    command: [Paths.script("disk-speedtest.sh")]
     stdout: SplitParser { onRead: function(line) { root.updateLine(line) } }
     // exit and stderr eof race; prefer the specific message
     stderr: StdioCollector {

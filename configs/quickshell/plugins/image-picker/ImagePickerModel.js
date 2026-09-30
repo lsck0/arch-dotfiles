@@ -1,3 +1,5 @@
+.pragma library
+
 // verbatim from omarchy-shell
 function nameForPath(path) {
   return String(path || "").split("/").pop().replace(/\.[^/.]+$/, "")

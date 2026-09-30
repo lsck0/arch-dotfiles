@@ -3,7 +3,7 @@
   "id": "panel.reminders",
   "name": "Reminders",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "arch-dotfiles",
   "description": "Centered reminders and pomodoro overlay",
   "kinds": [
     "overlay"

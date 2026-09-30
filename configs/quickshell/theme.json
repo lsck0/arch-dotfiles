@@ -1,7 +1,7 @@
 {
   "_comment": [
-    "Live-watched, save to re-theme. Values are the defaults.",
-    "Ranges and meaning: Commons/Theme.qml.",
+    "Live-watched, save to re-theme. Values here override the code defaults.",
+    "Defaults, ranges and meaning: Commons/Theme.qml.",
     "font.size scales the whole shell; icon font is fixed in code.",
     "palette.* conditions wallust colours, it does not replace them."
   ],

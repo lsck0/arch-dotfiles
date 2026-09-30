@@ -41,8 +41,8 @@ return {
                     border = true,
                     mappings = {
                         i = {
-                            ["<C-k>"] = "move_selection_next",
-                            ["<C-j>"] = "move_selection_previous",
+                            ["<C-j>"] = "move_selection_next",
+                            ["<C-k>"] = "move_selection_previous",
                             -- not C-q: tmux/herdr prefix
                             ["<C-a>"] = function(prompt_bufnr)
                                 actions.smart_send_to_qflist(prompt_bufnr)

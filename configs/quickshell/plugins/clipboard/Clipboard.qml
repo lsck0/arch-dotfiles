@@ -18,7 +18,7 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  readonly property string historyPath: Quickshell.env("HOME") + "/.local/state/quickshell/clipboard-history.json"
+  readonly property string historyPath: Paths.state + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
   property color background: Color.menu.background
@@ -220,7 +220,10 @@ Item {
     watchChanges: true
     atomicWrites: true
     printErrors: false
-    onLoaded: root.loadHistory(text())
+    onLoaded: {
+      root.loadHistory(text())
+      Util.rearmWatch(this)
+    }
     onLoadFailed: root.loadHistory("[]")
     onFileChanged: reload()
   }
@@ -637,7 +640,7 @@ Item {
                   width: parent.width * 0.8
 
                   Text {
-                    text: "󰅌"
+                    text: "\u{f014c}"
                     color: root.selectedText
                     opacity: 0.8
                     font.family: Style.font.iconFamily

@@ -42,14 +42,14 @@ Item {
 
   function snoozeAt(index, minutes) {
     var alert = root.alerts[index]
-    var argv = [Paths.bin("reminder"), String(minutes)]
+    var argv = [Paths.script("reminder.sh"), String(minutes)]
     if (alert && alert.message) argv.push(alert.message)
     Quickshell.execDetached(argv)
     dismissAt(index)
   }
 
   function stopPomodoroAt(index) {
-    Quickshell.execDetached([Paths.bin("pomodoro"), "stop"])
+    Quickshell.execDetached([Paths.script("pomodoro.sh"), "stop"])
     dismissAt(index)
   }
 

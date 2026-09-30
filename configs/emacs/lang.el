@@ -13,6 +13,21 @@
 
 ;;;; LSP ---------------------------------------------------------------------
 
+(defun my/cargo-toml-mentions-p (word)
+  "Non-nil when the nearest Cargo.toml above `default-directory' contains WORD."
+  (when-let* ((root (locate-dominating-file default-directory "Cargo.toml")))
+    (with-temp-buffer
+      (insert-file-contents (expand-file-name "Cargo.toml" root))
+      (search-forward word nil t))))
+
+(defun my/eglot-workspace-configuration (_server)
+  "Rust-analyzer settings, with the kani cfgs and nightly only in kani projects."
+  (let ((env (when (my/cargo-toml-mentions-p "kani")
+               '(:extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani" :RUSTUP_TOOLCHAIN "nightly")))))
+    `(:rust-analyzer
+      (:cargo (:allFeatures t ,@env)
+       :check (:command "clippy" ,@env)))))
+
 (use-package eglot
   :ensure nil
   :hook ((c-mode c-ts-mode c++-mode c++-ts-mode
@@ -28,7 +43,7 @@
         eglot-events-buffer-size 0        ; don't log every LSP message
         eglot-extend-to-xref t)
 
-    (add-hook 'eglot-managed-mode-hook
+  (add-hook 'eglot-managed-mode-hook
             (lambda () (when (eglot-managed-p) (eglot-inlay-hints-mode 1))))
 
   ;; builtin eglot has no texlab entry
@@ -43,16 +58,10 @@
                '(jai-mode . ("jails" "-jai_path" "/home/luca/.jai"
                              "-jai_exe_name" "jai-linux")))
 
-    (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
+  (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
 
-    (setq-default eglot-workspace-configuration
-                '(:rust-analyzer
-                  (:cargo (:allFeatures t
-                           :extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani"
-                                      :RUSTUP_TOOLCHAIN "nightly"))
-                   :check (:command "clippy"
-                           :extraEnv (:RUSTFLAGS "--cfg kani_ra --cfg kani"
-                                      :RUSTUP_TOOLCHAIN "nightly"))))))
+  ;; eglot binds default-directory to the project root before calling this
+  (setq-default eglot-workspace-configuration #'my/eglot-workspace-configuration))
 
 (use-package consult-eglot
   :commands (consult-eglot-symbols))
@@ -88,7 +97,12 @@
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
         (alist-get 'sortderives apheleia-formatters) '("sort-derives-stdout"))
   (dolist (m '(rust-mode rust-ts-mode))
-    (setf (alist-get m apheleia-mode-alist) '(rustfmt leptosfmt sortderives)))
+    (setf (alist-get m apheleia-mode-alist) '(rustfmt sortderives)))
+  ;; leptosfmt only in leptos projects, else it errors on plain Rust
+  (dolist (hook '(rust-mode-hook rust-ts-mode-hook))
+    (add-hook hook (lambda ()
+                     (when (my/cargo-toml-mentions-p "leptos")
+                       (setq-local apheleia-formatter '(rustfmt leptosfmt sortderives))))))
   (dolist (m '(typescript-ts-mode tsx-ts-mode js-ts-mode
                html-mode css-ts-mode scss-mode))
     (setf (alist-get m apheleia-mode-alist) 'prettier))

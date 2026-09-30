@@ -25,4 +25,5 @@ This repository contains my system setup and configuration files, which are syml
 ## Conventions
 
 - do not commit or push, I handle this manually with sync.sh
+- commits here are `Generation: <n>` via sync.sh, not conventional commits (overrides l-style's Git section)
 - all system settings have to be reproducible through running install.sh on a fresh system

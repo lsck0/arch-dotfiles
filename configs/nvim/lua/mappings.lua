@@ -131,15 +131,15 @@ vim.keymap.set("n", "<leader>e", function()
         require("snacks").explorer()
     end
 end, { desc = "File explorer (snacks)" })
-vim.keymap.set("n", "<leader>g", "<cmd>G<CR>", { desc = "Git (fugitive)" })
+vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })
 vim.keymap.set("n", "<leader>gg", function() Snacks.lazygit() end, { desc = "Lazygit" })
 vim.keymap.set("n", "<leader>gy", function() Snacks.gitbrowse() end, { desc = "Open line on GitHub" })
 vim.keymap.set("n", "<leader>O", "<cmd>Oil . --float <CR>", { desc = "Oil file manager (float)" })
-vim.keymap.set("n", "<leader>s", "<cmd>lua require('grug-far').open()<CR>", { desc = "Search/replace (grug-far)" })
+vim.keymap.set("n", "<leader>ss", "<cmd>lua require('grug-far').open()<CR>", { desc = "Search/replace (grug-far)" })
 vim.keymap.set("n", "<leader>sw",
     "<cmd>lua require('grug-far').open({ prefills = { search = vim.fn.expand('<cword>') } })<CR>",
     { desc = "Search/replace word under cursor" })
-vim.keymap.set("n", "<leader>t", "<cmd>Trouble diagnostics<CR>", { desc = "Trouble diagnostics" })
+vim.keymap.set("n", "<leader>tt", "<cmd>Trouble diagnostics<CR>", { desc = "Trouble diagnostics" })
 vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "Trouble symbols" })
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })
 vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>", { desc = "Compile (compile-mode)" })

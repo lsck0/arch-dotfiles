@@ -32,7 +32,7 @@ BarWidget {
 
   function setBrightnessFor(name, pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
-    Quickshell.execDetached([Paths.shellScripts + "/monitor-brightness.sh", "set", name, String(pct)])
+    Quickshell.execDetached([Paths.script("monitor-brightness.sh"), "set", name, String(pct)])
   }
 
   function applyBrightnessAll(pct) {
@@ -48,7 +48,7 @@ BarWidget {
 
   function openWallpaperPicker() {
     // not switch-wallpaper.sh
-    Quickshell.execDetached([Paths.shellScripts + "/wallpaper-picker.sh"])
+    Quickshell.execDetached([Paths.script("wallpaper-picker.sh")])
   }
 
   function setFont(family) {
@@ -140,7 +140,7 @@ BarWidget {
 
   // action: extend, off, or mirror:<output>
   function setMonitorLayout(name, action) {
-    var args = [Paths.shellScripts + "/set-monitor-layout.sh", name]
+    var args = [Paths.script("set-monitor-layout.sh"), name]
     if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
     else args.push(action)
     Quickshell.execDetached(args)
@@ -155,7 +155,7 @@ BarWidget {
   }
 
   function setMonitorScale(name, scale) {
-    Quickshell.execDetached([Paths.shellScripts + "/set-monitor-scale.sh", name, String(scale)])
+    Quickshell.execDetached([Paths.script("set-monitor-scale.sh"), name, String(scale)])
     refreshMonitors()
   }
 
@@ -165,7 +165,7 @@ BarWidget {
     Process {
       id: proc
       property string monitorName: ""
-      command: [Paths.shellScripts + "/monitor-brightness.sh", "get", monitorName]
+      command: [Paths.script("monitor-brightness.sh"), "get", monitorName]
       stdout: StdioCollector {
         waitForEnd: true
         onStreamFinished: {
@@ -213,7 +213,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "󰍹"
+    text: "\u{f0379}"
     onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }

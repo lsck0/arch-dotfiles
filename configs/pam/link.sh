@@ -4,7 +4,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 set -ex
 
 # copies, pam will not follow symlinks into home
-sudo install -m 644 quickshell-lock        /etc/pam.d/quickshell-lock
+sed "s|@HOME@|$HOME|" quickshell-lock | sudo tee /etc/pam.d/quickshell-lock >/dev/null
 sudo install -m 644 quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint
 
 # optional yubikey touch auth, nouserok falls through to password

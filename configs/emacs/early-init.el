@@ -7,7 +7,7 @@
 (setq package-enable-at-startup nil)
 
 (defvar my/font-family "Kode Mono")
-(defvar my/font-size 18)
+(defvar my/font-size 16)
 
 (setq default-frame-alist
       `((tool-bar-lines . 0)

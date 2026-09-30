@@ -16,8 +16,7 @@ Item {
   // injected by shell.qml ensureService()
   property var shell: null
 
-  readonly property string home: Quickshell.env("HOME")
-  readonly property string stateDir: home + "/.local/state/quickshell/"
+  readonly property string stateDir: Paths.state + "/"
   readonly property string settingsPath: stateDir + "notifications.json"
   readonly property string popupStateDir: stateDir + "notifications/"
   readonly property string historyDir: popupStateDir + "history/"
@@ -271,7 +270,7 @@ Item {
     focusAppProc.command = ["bash", "-c",
       "addr=$(hyprctl clients -j | jq -r --arg app \"$1\" " +
       "'[.[] | select((.class // \"\") | ascii_downcase | contains($app | ascii_downcase))][0].address // empty'); " +
-      "[[ -n $addr ]] && hyprctl dispatch focuswindow \"address:$addr\"",
+      "[[ -n $addr ]] && hyprctl dispatch \"hl.dsp.focus({ window = 'address:$addr' })\"",
       "--", String(entry.app)]
     focusAppProc.running = true
   }
@@ -585,7 +584,7 @@ Item {
         summary: "No recent notifications",
         body: "",
         image: "",
-        glyph: "󰂚",
+        glyph: "\u{f009a}",
         execArgv: "",
         urgency: NotificationUrgency.Low,
         expireTimeout: 0,

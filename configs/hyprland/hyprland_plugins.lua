@@ -38,21 +38,3 @@ plugin_config("dynamic_cursors", {
         fallback = "clientside",
     },
 })
-
-plugin_config("overview", {
-    showEmptyWorkspace = 0,
-    showNewWorkspace = 0,
-    centerAligned = 1,
-    exitOnClick = 1,
-    exitOnSwitch = 1,
-    panelHeight = 250,
-    affectStrut = 0,
-    panelColor = "rgba(00000066)",
-    workspaceActiveBackground = "rgba(00000066)",
-    workspaceInactiveBackground = "rgba(00000099)",
-}, { "overview", "Hyprspace" })
-
-plugin_config("hyprscrolling", {
-    column_width = 0.8,
-    fullscreen_on_one_column = true,
-})

@@ -7,14 +7,14 @@ import qs.Ui
 BarIndicator {
   id: root
 
-  readonly property string reminderScript: Paths.bin("reminder")
+  readonly property string reminderScript: Paths.script("reminder.sh")
 
   property int reminderCount: 0
   property string tooltip: ""
 
   active: reminderCount > 0
-  activeText: "󰢌"
-  inactiveText: "󰢌"
+  activeText: "\u{f088c}"
+  inactiveText: "\u{f088c}"
   activeTooltipText: tooltip
   inactiveTooltipText: tooltip
 
@@ -23,7 +23,7 @@ BarIndicator {
   }
 
   function openReminderFlow() {
-    Quickshell.execDetached([root.reminderScript, "-i"])
+    Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.reminders", "{}"))
   }
 
   function update(raw) {

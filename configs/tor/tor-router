@@ -14,7 +14,7 @@ start)
 		exit 1
 	fi
 
-	NON_TOR4="192.168.1.0/24 192.168.0.0/24 10.0.0.0/8"
+	NON_TOR4="192.168.178.0/24 10.100.0.0/16"
 	# link-local only; loopback handled separately
 	NON_TOR6="fe80::/10"
 

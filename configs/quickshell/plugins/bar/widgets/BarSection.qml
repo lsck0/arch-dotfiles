@@ -34,8 +34,8 @@ Repeater {
           if (fromRegistry) return fromRegistry
         }
       }
-      if (!builtinFile || !root.bar || !root.bar.shellHost) return ""
-      return Util.fileUrl(root.bar.shellHost.shellDir + "/plugins/bar/widgets/" + builtinFile)
+      if (!builtinFile) return ""
+      return Util.fileUrl(Paths.barWidget(builtinFile))
     }
     source: widgetUrl
 

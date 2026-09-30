@@ -7,15 +7,9 @@ fi
 
 set -ex
 
-ghostmirror \
-    -l ./mirrorlist \
-    -c Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands \
-    -L 30 \
-    -Po -S state,outofdate,morerecent,ping
-
+# link first, the rebuild writes through it into the repo copy
 sudo ln -sfn ${PWD}/mirrorlist /etc/pacman.d/mirrorlist
-
-sudo chown $USER:$USER /etc/pacman.d/mirrorlist
+./mirrorlist-update.sh rebuild
 
 # units installed by hand, not via `ghostmirror -D`
 install -Dm644 ./ghostmirror.service ~/.config/systemd/user/ghostmirror.service

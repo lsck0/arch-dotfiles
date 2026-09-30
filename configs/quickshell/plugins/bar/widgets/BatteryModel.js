@@ -1,3 +1,5 @@
+.pragma library
+
 function batteryFraction(device) {
   return device && device.isPresent ? Math.max(0, Math.min(1, device.percentage)) : 0
 }
@@ -20,13 +22,13 @@ function batteryIcon(device, onBattery, states) {
   var d = device || {}
   if (!d.isPresent) return ""
 
-  var chargingIcons = ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"]
-  var defaultIcons = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+  var chargingIcons = ["\u{f089c}", "\u{f0086}", "\u{f0087}", "\u{f0088}", "\u{f089d}", "\u{f0089}", "\u{f089e}", "\u{f008a}", "\u{f008b}", "\u{f0085}"]
+  var defaultIcons = ["\u{f007a}", "\u{f007b}", "\u{f007c}", "\u{f007d}", "\u{f007e}", "\u{f007f}", "\u{f0080}", "\u{f0081}", "\u{f0082}", "\u{f0079}"]
   var index = Math.max(0, Math.min(9, Math.floor(d.percentage * 10)))
   var threshold = chargeThresholdActive(d, onBattery, states)
 
   if (threshold) return defaultIcons[index]
-  if (d.state === states.FullyCharged) return "󰂅"
+  if (d.state === states.FullyCharged) return "\u{f0085}"
   if (!onBattery) return chargingIcons[index]
   return defaultIcons[index]
 }

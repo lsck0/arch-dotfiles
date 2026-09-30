@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post this machine's Claude Code usage to the TRMNL plugin.
+# post this machine's claude code usage to the trmnl plugin
 set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 ENV_FILE="$DIR/../secrets/trmnl-claude.env"

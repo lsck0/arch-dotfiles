@@ -82,7 +82,7 @@
   (plist-put minuet-openai-fim-compatible-options :name "Ollama")
   (plist-put minuet-openai-fim-compatible-options :api-key (lambda () "ollama"))
   (plist-put minuet-openai-fim-compatible-options :model "qwen2.5-coder:0.5b")
-  (minuet-set-optional-options minuet-openai-fim-compatible-options :max_tokens 128))
+  (minuet-set-optional-options minuet-openai-fim-compatible-options :max_tokens 64))
 
 (provide 'completion)
 ;;; completion.el ends here

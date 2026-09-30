@@ -192,11 +192,14 @@ Item {
   }
 
   FileView {
-    path: root.shellDir + "/launcher.hides"
+    path: Paths.state + "/launcher.hides"
     watchChanges: true
     printErrors: false
-    onLoaded: root.loadConfiguredHides(text())
-    onFileChanged: root.loadConfiguredHides(text())
+    onLoaded: {
+      root.loadConfiguredHides(text())
+      Util.rearmWatch(this)
+    }
+    onFileChanged: reload()
     onLoadFailed: root.loadConfiguredHides("")
   }
 
@@ -217,7 +220,7 @@ Item {
       if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
       root.launchOsdOpen = true
       Quickshell.execDetached(Paths.ipcCall("osd", "present",
-        JSON.stringify({ icon: "󱓞", message: root.launchOsdMessage, duration: 0 })))
+        JSON.stringify({ icon: "launch", message: root.launchOsdMessage, duration: 0 })))
     }
   }
 

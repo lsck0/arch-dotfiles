@@ -7,7 +7,6 @@
   "description": "Homelab health from Prometheus and Alertmanager, with links to every service",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Homelab.qml" },
-  "keepLoaded": true,
   "barWidget": {
     "displayName": "Homelab",
     "description": "Homelab health from Prometheus and Alertmanager, with links to every service",

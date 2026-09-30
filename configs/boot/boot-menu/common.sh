@@ -10,15 +10,15 @@ bootloader_selected() {
 
 esp_supported() {
     if [[ ! -d /sys/firmware/efi ]]; then
-        echo "boot: not UEFI (no /sys/firmware/efi) — only the EFI layout is supported" >&2
+        echo "boot: not UEFI (no /sys/firmware/efi), only the EFI layout is supported" >&2
         return 1
     fi
     if [[ "$(stat -f -c %T "$ESP")" != msdos ]]; then
-        echo "boot: $ESP is not the FAT ESP — only archinstall's ESP-at-/boot layout is supported" >&2
+        echo "boot: $ESP is not the FAT ESP, only archinstall's ESP-at-/boot layout is supported" >&2
         return 1
     fi
     if [[ ! -f "$ESP/vmlinuz-linux-lts" ]]; then
-        echo "boot: linux-lts not installed — snapshots without matching linux modules get no fallback kernel" >&2
+        echo "boot: linux-lts not installed, snapshots without matching linux modules get no fallback kernel" >&2
     fi
 }
 

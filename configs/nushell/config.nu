@@ -95,8 +95,6 @@ $env.config.buffer_editor = "nvim"
 
 alias b = bat
 alias cat = bat
-alias cd = z
-alias cdi = zi
 alias convert = magick
 alias cp = cp -v
 alias downgrade = sudo downgrade
@@ -148,6 +146,8 @@ def --wrapped tms [...rest] {
 
 source ~/.cache/nushell/starship.nu
 source ~/.cache/nushell/zoxide.nu
+alias cd = z
+alias cdi = zi
 source ~/.cache/nushell/mise.nu
 source ~/.cache/nushell/wal.nu
 

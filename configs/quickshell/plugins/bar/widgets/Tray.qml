@@ -9,8 +9,7 @@ import "TrayModel.js" as TrayModel
 
 BarWidget {
   id: root
-  // full registry id: persistTrayState keys settings by it
-  moduleName: "bar.tray"
+  moduleName: "tray"
 
   property bool managePopupOpen: false
   property bool trayMenuOpen: false
@@ -127,18 +126,13 @@ BarWidget {
     return "drawer"
   }
 
-  function ownedByOmarchy(item) {
-    var layout = root.bar && root.bar.layoutConfig ? root.bar.layoutConfig : null
-    return TrayModel.ownedByOmarchy(item, layout)
-  }
-
   function bucket(category) {
     var values = SystemTray.items.values
     var result = []
     for (var i = 0; i < values.length; i++) {
       var item = values[i]
       if (item.status === Status.Passive) continue
-      if (ownedByOmarchy(item)) continue
+      if (TrayModel.hiddenByDefault(item)) continue
       if (category === "all") {
         result.push(item)
         continue
@@ -151,7 +145,7 @@ BarWidget {
   // widget settings file, not the shell.json layout
   function persistTrayState(pinned, hidden) {
     if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
-    root.bar.shellHost.setWidgetSettings(root.moduleName || "bar.tray", { pinned: pinned, hidden: hidden })
+    root.bar.shellHost.setWidgetSettings("bar.tray", { pinned: pinned, hidden: hidden })
   }
 
   function togglePin(iid) {

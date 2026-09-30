@@ -7,8 +7,6 @@ BarWidget {
   id: root
   moduleName: "toggles"
 
-  readonly property string toggleDir: Paths.toggles
-  readonly property string scriptDir: Paths.barWidgets
 
   property string text: "⚙ 0"
   property var items: []
@@ -34,7 +32,7 @@ BarWidget {
   function toggleItem(name) {
     // wait for exit; a detached run raced the refresh
     if (toggleProc.running) return
-    toggleProc.command = [root.toggleDir + "/toggle-" + name + ".sh", "toggle"]
+    toggleProc.command = [Paths.toggle("toggle-" + name + ".sh"), "toggle"]
     toggleProc.running = true
   }
 
@@ -46,7 +44,7 @@ BarWidget {
 
   Process {
     id: statusProc
-    command: [root.toggleDir + "/status.sh"]
+    command: [Paths.toggle("status.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -60,7 +58,7 @@ BarWidget {
 
   Process {
     id: itemsProc
-    command: [root.scriptDir + "/toggles-list.sh"]
+    command: [Paths.barWidget("toggles-list.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {

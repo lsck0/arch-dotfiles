@@ -405,7 +405,7 @@ Item {
             width: parent.width * 0.8
 
             Text {
-              text: "󰀻"
+              text: "\u{f003b}"
               color: root.selectedText
               opacity: 0.8
               font.family: Style.font.iconFamily

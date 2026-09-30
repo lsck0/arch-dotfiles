@@ -105,8 +105,8 @@ Item {
       pwProc.running = false
     }
     qrProc.command = requestedIface
-      ? [Paths.bin("network-qr"), "--meta", requestedIface]
-      : [Paths.bin("network-qr"), "--meta"]
+      ? [Paths.script("network-qr.sh"), "--meta", requestedIface]
+      : [Paths.script("network-qr.sh"), "--meta"]
     qrProc.running = true
   }
 
@@ -128,7 +128,7 @@ Item {
     passwordError = ""
     // only a deliberate lookup lowers the canceled-fetch guard
     pwExpectedStop = false
-    pwProc.command = [Paths.bin("network-password"), iface]
+    pwProc.command = [Paths.script("network-password.sh"), iface]
     pwProc.running = true
   }
 

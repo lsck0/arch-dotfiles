@@ -8,7 +8,8 @@ fi
 
 set -ex
 
-sudo ln -sfn ${PWD}/config.json /var/lib/portmaster/config.json
+# copy, ProtectHome=read-only blocks portmaster saving through a link into /home
+sudo install -m 644 "${PWD}/config.json" /var/lib/portmaster/config.json
 
 if [[ -f /etc/xdg/autostart/portmaster-autostart.desktop ]]; then
     mkdir -p "${HOME}/.config/autostart"

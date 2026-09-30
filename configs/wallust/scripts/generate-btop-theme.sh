@@ -38,24 +38,24 @@ theme[graph_text]="$fg"
 theme[meter_bg]="$c8"
 theme[proc_misc]="$c6"
 
-# Sharp neon frame: one palette hue per box, dim divider.
+# one palette hue per box, dim divider
 theme[cpu_box]="$c4"
 theme[mem_box]="$c6"
 theme[net_box]="$c5"
 theme[proc_box]="$c2"
 theme[div_line]="$c8"
 
-# Temperature: cool green through amber to hot red.
+# temperature: green through amber to red
 theme[temp_start]="$c2"
 theme[temp_mid]="$c3"
 theme[temp_end]="$c1"
 
-# CPU load: blue through magenta to red as it climbs.
+# cpu load: blue through magenta to red
 theme[cpu_start]="$c4"
 theme[cpu_mid]="$c5"
 theme[cpu_end]="$c1"
 
-# Memory: free is green, used is amber-to-red, available/cached are the cool hues.
+# memory: free green, used amber to red, available and cached cool hues
 theme[free_start]="$c2"
 theme[free_mid]="$c6"
 theme[free_end]="$c4"
@@ -69,7 +69,7 @@ theme[cached_start]="$c5"
 theme[cached_mid]="$c4"
 theme[cached_end]="$c6"
 
-# Network: download in cyan-blue, upload in magenta-red.
+# network: download cyan to blue, upload magenta to red
 theme[download_start]="$c6"
 theme[download_mid]="$c4"
 theme[download_end]="$c5"
@@ -77,7 +77,7 @@ theme[upload_start]="$c5"
 theme[upload_mid]="$c1"
 theme[upload_end]="$c3"
 
-# Process list gradient sweeps the accent hues.
+# process list sweeps the accent hues
 theme[process_start]="$c4"
 theme[process_mid]="$c6"
 theme[process_end]="$c2"
