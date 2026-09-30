@@ -68,8 +68,6 @@ QtObject {
   Behavior on urgent     { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
   Behavior on muted      { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
 
-  readonly property color shadow: Qt.darker(root.background, 3.0)
-
   // fixed colours, never follow the wallpaper
   readonly property QtObject semantic: QtObject {
     id: semanticColors

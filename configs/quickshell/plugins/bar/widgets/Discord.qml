@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
@@ -37,11 +36,11 @@ BarWidget {
   property bool selfMute: false
   property bool selfDeaf: false
   property var participants: []
-  property real updatedAt: 0
+  readonly property int avatarCountMax: 5
 
   // discord can die without the plugin clearing the file
-  property real nowMs: Date.now()
-  readonly property bool stale: updatedAt > 0 && (nowMs - updatedAt) > 50000
+  readonly property int staleAfterMs: 50000
+  property bool stale: false
   readonly property bool live: inVoice && !stale
 
   visible: live
@@ -50,10 +49,21 @@ BarWidget {
   implicitHeight: barSize
 
   Timer {
-    interval: 5000
-    running: root.inVoice
-    repeat: true
-    onTriggered: root.nowMs = Date.now()
+    id: staleTimer
+    onTriggered: root.stale = true
+  }
+
+  function armStale(updatedAt) {
+    staleTimer.stop()
+    if (updatedAt <= 0) {
+      stale = false
+      return
+    }
+    var leftMs = staleAfterMs - (Date.now() - updatedAt)
+    stale = leftMs <= 0
+    if (stale) return
+    staleTimer.interval = leftMs
+    staleTimer.start()
   }
 
   readonly property int speakingCount: {
@@ -72,8 +82,7 @@ BarWidget {
       return
     }
     root.inVoice = d.inVoice === true
-    root.updatedAt = Number(d.updatedAt) || 0
-    root.nowMs = Date.now()
+    root.armStale(Number(d.updatedAt) || 0)
     if (!root.inVoice) {
       root.participants = []
       return
@@ -120,7 +129,7 @@ BarWidget {
         required property var modelData
         required property int index
         anchors.verticalCenter: parent.verticalCenter
-        visible: index < 5
+        visible: index < root.avatarCountMax
         width: root.avatarSize
         height: root.avatarSize
 
@@ -143,15 +152,7 @@ BarWidget {
             : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: 140 } }
           layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Color.semantic.speaking
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
+          layer.effect: Glow { shadowColor: Color.semantic.speaking }
         }
 
         ClippingRectangle {
@@ -218,8 +219,8 @@ BarWidget {
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
-      visible: root.participants.length > 5
-      text: "+" + (root.participants.length - 5)
+      visible: root.participants.length > root.avatarCountMax
+      text: "+" + (root.participants.length - root.avatarCountMax)
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
@@ -241,8 +242,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "VOICE"
-    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -268,15 +269,7 @@ BarWidget {
             font.bold: true
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Text {
             anchors.bottom: heroNum.bottom
@@ -306,7 +299,6 @@ BarWidget {
             color: Color.menu.text
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
-            opacity: Style.emphasis.dim
             elide: Text.ElideRight
           }
           Text {
@@ -330,6 +322,7 @@ BarWidget {
         spacing: Style.spacing.sm
 
         component Action: Rectangle {
+          id: action
           property string glyph: ""
           property string label: ""
           property bool on: false
@@ -349,14 +342,14 @@ BarWidget {
               anchors.verticalCenter: parent.verticalCenter
               width: Style.font.caption
               height: Style.font.caption
-              text: parent.parent.glyph
-              color: parent.parent.on ? Color.urgent : Color.menu.text
+              text: action.glyph
+              color: action.on ? Color.urgent : Color.menu.text
               fontSize: Style.font.caption
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter
-              text: parent.parent.label
-              color: parent.parent.on ? Color.urgent : Color.menu.text
+              text: action.label
+              color: action.on ? Color.urgent : Color.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
             }
@@ -367,7 +360,7 @@ BarWidget {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: parent.activated()
+            onClicked: action.activated()
           }
         }
 
@@ -459,15 +452,7 @@ BarWidget {
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
               layer.enabled: Style.fx.glow > 0 && modelData.speaking
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
             }
             Text {
               id: youLabel

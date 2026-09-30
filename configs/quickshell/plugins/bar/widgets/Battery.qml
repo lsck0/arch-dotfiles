@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
@@ -31,8 +30,7 @@ BarWidget {
 
   // sparkline history, capped at 60
   property var chargeHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
-  onFractionChanged: chargeHist = _push(chargeHist, Math.round(fraction * 100))
+  onFractionChanged: chargeHist = Util.historyPush(chargeHist, Math.round(fraction * 100))
 
   visible: present
   implicitWidth: present ? button.implicitWidth : 0
@@ -54,8 +52,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "BATTERY"
-    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -84,15 +82,7 @@ BarWidget {
             font.bold: true
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Text {
             text: root.modeLabel + (root.remaining ? " · " + root.remaining : "")

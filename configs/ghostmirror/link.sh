@@ -8,7 +8,7 @@ fi
 set -ex
 
 # link first, the rebuild writes through it into the repo copy
-sudo ln -sfn ${PWD}/mirrorlist /etc/pacman.d/mirrorlist
+sudo ln -sfn "${PWD}/mirrorlist" /etc/pacman.d/mirrorlist
 ./mirrorlist-update.sh rebuild
 
 # units installed by hand, not via `ghostmirror -D`

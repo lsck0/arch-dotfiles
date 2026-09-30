@@ -19,7 +19,7 @@ turn_on() {
   local out
   out=$(protonvpn connect --country CH 2>&1) || true
   if grep -qi "Authentication required" <<<"$out"; then
-    notify-send -a Toggles -u critical "ProtonVPN" "Not signed in — run 'protonvpn signin' in a terminal first"
+    notify-send -a Toggles -u critical "ProtonVPN" "Not signed in, run 'protonvpn signin' in a terminal first"
   fi
 }
 turn_off() {

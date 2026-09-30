@@ -7,9 +7,9 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/tmux
+mkdir -p "${HOME}/.config/tmux"
 
-ln -sfn ${PWD}/tmux.conf ${HOME}/.config/tmux/tmux.conf
+ln -sfn "${PWD}/tmux.conf" "${HOME}/.config/tmux/tmux.conf"
 
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm || true
 
@@ -17,4 +17,4 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm || true
 TMUX_PLUGIN_MANAGER_PATH="${HOME}/.tmux/plugins" \
     ~/.tmux/plugins/tpm/bin/install_plugins || true
 
-~/.cargo/bin/tms config -p ${HOME}/projects
+~/.cargo/bin/tms config -p "${HOME}/projects"

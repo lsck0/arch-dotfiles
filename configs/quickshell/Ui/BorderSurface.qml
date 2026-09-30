@@ -11,42 +11,12 @@ Rectangle {
   property real bottomPadding: padding
   property real leftPadding: padding
 
-  readonly property real borderTop: Border.top(borderSpec)
-  readonly property real borderRight: Border.right(borderSpec)
-  readonly property real borderBottom: Border.bottom(borderSpec)
-  readonly property real borderLeft: Border.left(borderSpec)
-  readonly property real contentTopInset: borderTop + topPadding
-  readonly property real contentRightInset: borderRight + rightPadding
-  readonly property real contentBottomInset: borderBottom + bottomPadding
-  readonly property real contentLeftInset: borderLeft + leftPadding
-  readonly property bool usesOverlayBorder: Border.needsOverlay(borderSpec)
+  readonly property real borderWidth: Border.width(borderSpec)
+  readonly property real contentTopInset: borderWidth + topPadding
+  readonly property real contentRightInset: borderWidth + rightPadding
+  readonly property real contentBottomInset: borderWidth + bottomPadding
+  readonly property real contentLeftInset: borderWidth + leftPadding
 
-  property bool shadow: true
-  property int shadowOffset: Style.shadowOffset
-
-  Rectangle {
-    z: -1
-    x: root.shadowOffset
-    y: root.shadowOffset
-    width: root.width
-    height: root.height
-    radius: root.radius
-    visible: root.shadow && root.shadowOffset > 0
-    color: Util.alpha(Color.shadow, Style.shadowAlpha)
-    antialiasing: true
-  }
-
-  border.color: Border.canUseNative(borderSpec) ? Border.color(borderSpec) : "transparent"
-  border.width: Border.canUseNative(borderSpec) ? Border.uniformWidth(borderSpec) : 0
-
-  Loader {
-    anchors.fill: parent
-    active: root.usesOverlayBorder
-
-    sourceComponent: BorderOverlay {
-      anchors.fill: parent
-      radius: root.radius
-      borderSpec: root.borderSpec
-    }
-  }
+  border.color: Border.color(borderSpec)
+  border.width: borderWidth
 }

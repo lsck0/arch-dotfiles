@@ -1,14 +1,12 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import qs.Commons
 
 QtObject {
   id: registry
 
-  property string home: Quickshell.env("HOME")
   // outside ~/.config/quickshell, which symlinks into this repo
-  property string pluginsDir: home + "/.local/share/quickshell/plugins"
+  readonly property string pluginsDir: Paths.home + "/.local/share/quickshell/plugins"
 
   property string firstPartyDir: ""
 
@@ -110,11 +108,11 @@ QtObject {
 
   function isDisabled(config, id) {
     return Util.isPlainObject(config) && Array.isArray(config.disabledPlugins)
-      && config.disabledPlugins.indexOf(Util.canonicalWidgetId(String(id))) !== -1
+      && config.disabledPlugins.indexOf(String(id)) !== -1
   }
 
   function resolveEnabledId(id) {
-    var key = Util.canonicalWidgetId(String(id || ""))
+    var key = String(id || "")
     // route a built-in id to its enabled clone
     for (var candidate in installedPlugins) {
       var manifest = installedPlugins[candidate]
@@ -137,13 +135,13 @@ QtObject {
   }
 
   function barEntryId(entry) {
-    return Util.canonicalWidgetId(String(Util.isPlainObject(entry) ? entry.id : entry || ""))
+    return String((Util.isPlainObject(entry) ? entry.id : entry) || "")
   }
 
   function findBarLocation(config, id, section) {
     if (!Util.isPlainObject(config) || !Util.isPlainObject(config.bar)
         || !Util.isPlainObject(config.bar.layout)) return { found: false }
-    var key = Util.canonicalWidgetId(String(id))
+    var key = String(id)
     var sections = ["left", "center", "right"]
     for (var s = 0; s < sections.length; s++) {
       if (section && sections[s] !== section) continue
@@ -162,20 +160,20 @@ QtObject {
     var location = findBarLocation(config, id, section)
     if (location.found) return location
     if (!Util.isPlainObject(config) || !Util.isPlainObject(config.bar)) return { found: false }
-    var clone = activeCloneFor(config, Util.canonicalWidgetId(String(id)))
+    var clone = activeCloneFor(config, String(id))
     return clone ? findBarLocation(config, clone, section) : { found: false }
   }
 
   function findEntryLocation(config, id) {
     if (!Util.isPlainObject(config)) return { found: false }
-    var key = Util.canonicalWidgetId(String(id))
+    var key = String(id)
     if (Util.isPlainObject(config.bar) && Util.isPlainObject(config.bar.layout)) {
       var barLocation = findBarLocation(config, key, "")
       if (barLocation.found) return barLocation
     }
     if (Array.isArray(config.plugins)) {
       for (var j = 0; j < config.plugins.length; j++) {
-        if (config.plugins[j] && Util.canonicalWidgetId(config.plugins[j].id) === key) return { found: true, kind: "plugin", index: j }
+        if (config.plugins[j] && String(config.plugins[j].id || "") === key) return { found: true, kind: "plugin", index: j }
       }
     }
     return { found: false }
@@ -210,7 +208,7 @@ QtObject {
   }
 
   function moveBarEntry(config, id, placement) {
-    var key = Util.canonicalWidgetId(String(id))
+    var key = String(id)
     var source
     if (placement.fromIndex !== undefined && placement.fromIndex !== null) {
       var fromSection = String(placement.fromSection || "")
@@ -257,7 +255,7 @@ QtObject {
     // switching back from a clone is the owner's call
     if (findRelativeBarLocation(config, id, "").found) return ""
     // scan still running, id may just not be seen yet
-    if (scanning && !installedPlugins[Util.canonicalWidgetId(String(id))]) return "not ready"
+    if (scanning && !installedPlugins[String(id)]) return "not ready"
     var target = Util.isPlainObject(placement) ? Util.cloneJson(placement) : {}
     var relativeId = String(target.before || target.after || "")
     if (relativeId) {
@@ -386,7 +384,7 @@ QtObject {
   }
 
   function setEnabled(id, value, placement) {
-    var key = Util.canonicalWidgetId(String(id))
+    var key = String(id)
     lastEnableError = ""
     if (!shellConfigMutator) {
       console.warn("PluginRegistry.setEnabled called before shellConfigMutator wired")
@@ -401,7 +399,7 @@ QtObject {
     var hasNonWidgetKind = manifest && Array.isArray(manifest.kinds)
       && manifest.kinds.some(function(kind) { return kind !== "bar-widget" })
     var metadata = manifest && Util.isPlainObject(manifest.omarchy) ? manifest.omarchy : null
-    var clonedFrom = metadata ? Util.canonicalWidgetId(String(metadata.clonedFrom || "")) : ""
+    var clonedFrom = metadata ? String(metadata.clonedFrom || "") : ""
     shellConfigMutator(function(config) {
       ensureConfigShape(config)
 
@@ -533,13 +531,9 @@ QtObject {
   }
 
   property Process scanProcess: Process {
-    onExited: function(exitCode) {
-      var output = scanStdout.text || ""
-      registry.parseScanOutput(output)
-    }
     stdout: StdioCollector {
-      id: scanStdout
       waitForEnd: true
+      onStreamFinished: registry.parseScanOutput(text)
     }
   }
 

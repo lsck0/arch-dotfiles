@@ -17,7 +17,7 @@
       (string_content) @injection.content))
   (#set! injection.language "sql"))
 
-; query_as("...") - regular function calls  
+; query_as("...") - regular function calls
 (call_expression
   function: (identifier) @_name (#match? @_name "^query")
   arguments: (arguments
@@ -72,7 +72,7 @@
       (string_content) @injection.content))
   (#set! injection.language "sql"))
 
-; ==================== REGEX HIGHLIGHTING ====================
+; regex
 
 ; Regex::new(r"...") or Regex::new("...")
 (call_expression

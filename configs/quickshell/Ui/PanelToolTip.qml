@@ -11,7 +11,7 @@ ToolTip {
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.bodySmall
 
-  readonly property var panelBorderSpec: Border.surfaceSpec(panelBorder, Color.tooltip.border, Style.normalBorderWidth)
+  readonly property var panelBorderSpec: Border.flat(panelBorder, Style.normalBorderWidth)
 
   delay: 400
   padding: 0
@@ -26,10 +26,10 @@ ToolTip {
     implicitWidth: tagRow.implicitWidth + tagRow.x + rightPad
     implicitHeight: tagRow.implicitHeight + tagRow.y + botPad
 
-    readonly property real leftPad: Border.left(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    readonly property real rightPad: Border.right(root.panelBorderSpec) + Style.spacing.controlPaddingX
-    readonly property real topPad: Border.top(root.panelBorderSpec) + Style.spacing.controlPaddingY
-    readonly property real botPad: Border.bottom(root.panelBorderSpec) + Style.spacing.controlPaddingY
+    readonly property real leftPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingX
+    readonly property real rightPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingX
+    readonly property real topPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingY
+    readonly property real botPad: Border.width(root.panelBorderSpec) + Style.spacing.controlPaddingY
 
     Row {
       id: tagRow

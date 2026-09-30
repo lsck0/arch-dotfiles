@@ -22,10 +22,8 @@ command -v quickshell >/dev/null 2>&1 || { echo "quickshell not installed" >&2; 
 # open on the current wallpaper
 CURRENT=$(readlink -f "$HOME/.cache/wal/wallpaper" 2>/dev/null || true)
 
-PHOTO_DIRS="$DIR"
-
 if ! timeout 3 quickshell ipc -p "$QS_CONFIG" call shell summon panel.image-picker \
-        "$(jq -cn --arg d "$PHOTO_DIRS" --arg t "$THEMES_DIR" --arg s "$SEL" --arg f "$DONE" --arg c "$CURRENT" \
+        "$(jq -cn --arg d "$DIR" --arg t "$THEMES_DIR" --arg s "$SEL" --arg f "$DONE" --arg c "$CURRENT" \
             '{imageDirs:$d, themeDirs:$t, mode:0, selectionFile:$s, doneFile:$f, selectedImage:$c, filterable:true, showLabels:true}')" \
         >/dev/null 2>&1; then
     echo "quickshell picker unavailable; falling back to the fzf picker" >&2

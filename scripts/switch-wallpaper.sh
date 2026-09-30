@@ -8,17 +8,17 @@ if ! flock -n 9; then
     if [[ -e "$LOCK_FILE" ]]; then
         age=$(( $(date +%s) - $(stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0) ))
         if (( age > 90 )); then
-            echo "Stale wallpaper-switch lock (${age}s old) — breaking it." >&2
+            echo "Stale wallpaper-switch lock (${age}s old); breaking it." >&2
             exec 9>"$LOCK_FILE.new"
             mv -f "$LOCK_FILE.new" "$LOCK_FILE"
             exec 9>"$LOCK_FILE"
-            flock -n 9 || { echo "Still couldn't acquire lock — skipping." >&2; exit 0; }
+            flock -n 9 || { echo "Still could not acquire lock, skipping." >&2; exit 0; }
         else
-            echo "Another wallpaper switch is already in progress — skipping." >&2
+            echo "Another wallpaper switch is already in progress, skipping." >&2
             exit 0
         fi
     else
-        echo "Another wallpaper switch is already in progress — skipping." >&2
+        echo "Another wallpaper switch is already in progress, skipping." >&2
         exit 0
     fi
 fi

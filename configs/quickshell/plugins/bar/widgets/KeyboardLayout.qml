@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Ui
@@ -35,19 +36,10 @@ BarWidget {
     queryProc.running = true
   }
 
-  function typedKeyboards(keyboards) {
-    return keyboards.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
-  }
-
-  // main flag is unreliable, fcitx5 steals it
-  function selectKeyboard(typed) {
-    return KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
-  }
-
   // switchxkblayout is not a dispatcher
   function cycleLayout() {
-    if (!root.keyboardName || !root.bar) return
-    root.bar.run("hyprctl switchxkblayout " + Util.shellQuote(root.keyboardName) + " next")
+    if (!root.keyboardName) return
+    Quickshell.execDetached(["hyprctl", "switchxkblayout", root.keyboardName, "next"])
     refreshTimer.restart()
   }
 
@@ -97,8 +89,9 @@ BarWidget {
         // a killed query yields no output
         if (!Array.isArray(listed)) return
 
-        const typed = root.typedKeyboards(listed)
-        const kb = root.selectKeyboard(typed)
+        const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
+        // main flag is unreliable, fcitx5 steals it
+        const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
         if (!kb || !kb.active_keymap) {
           // unplugged, or no keyboard reports a keymap
           root.keyboardUnresolved = true

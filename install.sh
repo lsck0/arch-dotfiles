@@ -7,7 +7,7 @@ exec > >(tee "install.log") 2>&1
 export FAILURES_FILE="$(pwd)/FAILURES.install"
 : >"$FAILURES_FILE"
 
-# # PACKAGES
+## PACKAGES
 
 PACKAGES=(
     age                      # [base] file encryption, opens the YubiKey-sealed secrets key
@@ -1006,7 +1006,7 @@ mapfile -t CARGO_PKGS_GIT < <(filter_by_group CARGO_PKGS_GIT)
 mapfile -t GO_PKGS < <(filter_by_group GO_PKGS)
 mapfile -t NIX_PKGS < <(filter_by_group NIX_PKGS)
 
-# nonsense around gpu specific packages
+## GPU PACKAGES
 
 has_amd_gpu() {
     local vendor

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -11,10 +10,16 @@ Item {
   property bool finished: false
   property real startupProgress: 0
 
-  Timer {
-    interval: 1400
+  // one animation for all screens drives both the gauge and the dismissal
+  NumberAnimation {
+    target: root
+    property: "startupProgress"
+    from: 0
+    to: 1
+    duration: 1400
+    easing.type: Easing.InOutQuad
     running: true
-    onTriggered: root.finished = true
+    onFinished: root.finished = true
   }
 
   Variants {
@@ -57,15 +62,7 @@ Item {
             // header tracking: wide wordmark, display tracking is for numerals
             font.letterSpacing: Style.headerTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
 
           Text {
@@ -75,17 +72,9 @@ Item {
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
             SequentialAnimation on opacity {
-              running: true
+              running: !root.finished
               loops: Animation.Infinite
               PropertyAnimation { to: 1; duration: 0 }
               PauseAnimation { duration: 530 }
@@ -126,25 +115,7 @@ Item {
           font.bold: true
           font.letterSpacing: Style.displayTracking
           layer.enabled: Style.fx.glow > 0
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Style.fx.glowColor
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
-        }
-
-        NumberAnimation {
-          target: root
-          property: "startupProgress"
-          from: 0
-          to: 1
-          duration: 1400
-          easing.type: Easing.InOutQuad
-          running: true
+          layer.effect: Glow {}
         }
       }
 

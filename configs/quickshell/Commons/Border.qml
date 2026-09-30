@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
-import "BorderGeometry.js" as Geometry
 
+// uniform border specs { color, width } for BorderSurface
 QtObject {
   id: root
 
@@ -10,16 +10,8 @@ QtObject {
   }
 
   function flat(color, width) {
-    return {
-      color: color || "transparent",
-      widths: Geometry.parseWidthSpec(width, 0),
-      gradient: { colors: [], angle: 0, enabled: false },
-    }
-  }
-
-  function surfaceSpec(localColor, defaultColor, width) {
-    var chosen = (localColor === undefined || localColor === null) ? defaultColor : localColor
-    return flat(chosen, width)
+    var w = Number(width)
+    return { color: color || "transparent", width: isFinite(w) && w > 0 ? w : 0 }
   }
 
   function controlColor(prefix, foreground, accent) {
@@ -49,12 +41,6 @@ QtObject {
     return flat(color, controlWidth(prefix))
   }
 
-  function needsOverlay(spec) { return Geometry.needsOverlay(spec) }
-  function canUseNative(spec) { return Geometry.canUseNative(spec) }
-  function top(spec) { return spec && spec.widths ? spec.widths.top : 0 }
-  function right(spec) { return spec && spec.widths ? spec.widths.right : 0 }
-  function bottom(spec) { return spec && spec.widths ? spec.widths.bottom : 0 }
-  function left(spec) { return spec && spec.widths ? spec.widths.left : 0 }
-  function uniformWidth(spec) { return spec && spec.widths ? spec.widths.top : 0 }
+  function width(spec) { return spec ? spec.width : 0 }
   function color(spec) { return spec ? spec.color : "transparent" }
 }

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -27,7 +26,6 @@ BarWidget {
   ].filter(function(m) { return m.name })
 
   property var pctHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   visible: hasUsage
 
@@ -47,7 +45,7 @@ BarWidget {
         try {
           root.usage = JSON.parse(text || "{}")
           root.received = true
-          if (root.hasUsage) root.pctHist = root._push(root.pctHist, root.worstPct)
+          if (root.hasUsage) root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
         } catch (e) {}
       }
     }
@@ -91,15 +89,7 @@ BarWidget {
       font.pixelSize: Style.font.body
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: root.tight ? Color.urgent : Style.fx.glowColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: root.tight ? Color.urgent : Style.fx.glowColor }
     }
   }
 
@@ -164,34 +154,27 @@ BarWidget {
   }
 
   component Hero: Row {
+    id: hero
     property int pct: 0
     property color tint: Color.accent
     spacing: Style.spacing.xxs
     Text {
       id: heroNum
       anchors.bottom: parent.bottom
-      text: parent.pct
-      color: parent.tint
+      text: hero.pct
+      color: hero.tint
       font.family: Style.font.family
       font.pixelSize: Math.round(Style.font.display * 1.7)
       font.bold: true
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: parent.tint
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: hero.tint }
     }
     Text {
       anchors.bottom: heroNum.bottom
       anchors.bottomMargin: Math.round(Style.font.display * 0.35)
       text: "%"
-      color: parent.tint
+      color: hero.tint
       opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.title
@@ -204,8 +187,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "Claude Code"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content

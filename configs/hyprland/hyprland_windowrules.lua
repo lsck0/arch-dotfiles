@@ -1,50 +1,20 @@
 local global_opacity = 0.95
 
 -- their app-drawn menus are windows, only the frame is styleable
-for _, cls in ipairs({ "^discord$", "^steam$" }) do
-    hl.window_rule({ match = { class = cls }, rounding = 8 })
+for _, class in ipairs({ "^discord$", "^steam$" }) do
+    hl.window_rule({ match = { class = class }, rounding = 8 })
 end
-hl.window_rule({
-    match = {
-        class = "^Spotify$",
-    },
-    opacity = global_opacity,
-})
 
-hl.window_rule({
-    match = {
-        class = "^com.mitchellh.ghostty$",
-    },
-    opacity = global_opacity,
-})
-
-hl.window_rule({
-    match = {
-        class = "^discord$",
-    },
-    opacity = global_opacity,
-})
-
-hl.window_rule({
-    match = {
-        class = "^kitty$",
-    },
-    opacity = global_opacity,
-})
-
-hl.window_rule({
-    match = {
-        class = "^nemo$",
-    },
-    opacity = global_opacity,
-})
-
-hl.window_rule({
-    match = {
-        class = "^org.kde.dolphin$",
-    },
-    opacity = global_opacity,
-})
+for _, class in ipairs({
+    "^Spotify$",
+    "^com.mitchellh.ghostty$",
+    "^discord$",
+    "^kitty$",
+    "^nemo$",
+    "^org.kde.dolphin$",
+}) do
+    hl.window_rule({ match = { class = class }, opacity = global_opacity })
+end
 
 hl.window_rule({
     match = {
@@ -65,14 +35,6 @@ hl.window_rule({
 
 hl.window_rule({
     match = {
-        class = "^org.pulseaudio.pavucontrol$",
-    },
-    float = true,
-    size = "1080 720",
-})
-
-hl.window_rule({
-    match = {
         title = "^wayland-boomer$",
     },
     float = true,
@@ -81,30 +43,14 @@ hl.window_rule({
     no_anim = true,
 })
 
--- file managers
-hl.window_rule({
-    match = {
-        class = "^nemo$",
-    },
-    float = true,
-    size = "1080 720",
-})
-
-hl.window_rule({
-    match = {
-        class = "^org.kde.dolphin$",
-    },
-    float = true,
-    size = "1080 720",
-})
-
-hl.window_rule({
-    match = {
-        class = "^io.missioncenter.MissionCenter$",
-    },
-    float = true,
-    size = "1080 720",
-})
+for _, class in ipairs({
+    "^nemo$",
+    "^org.kde.dolphin$",
+    "^io.missioncenter.MissionCenter$",
+    "^org.pulseaudio.pavucontrol$",
+}) do
+    hl.window_rule({ match = { class = class }, float = true, size = "1080 720" })
+end
 
 hl.window_rule({
     match = {

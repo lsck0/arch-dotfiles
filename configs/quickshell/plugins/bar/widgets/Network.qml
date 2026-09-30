@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -8,7 +7,6 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "network"
-
 
   property string homeVpnState: "off"
   property string protonVpnState: "off"
@@ -31,7 +29,6 @@ BarWidget {
 
   property var rxHist: []
   property var txHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   property var wifiNetworks: []
   property string connectingSsid: ""
@@ -73,7 +70,6 @@ BarWidget {
       : [Paths.barWidget("network-wifi-connect.sh"), ssid]
     connectProc.running = true
   }
-
 
   // toggles are detached and slow, so re-read a few times
   Timer {
@@ -167,8 +163,8 @@ BarWidget {
           root.detailsMac = d.mac || ""
           root.detailsRxKbps = d.rxKbps || 0
           root.detailsTxKbps = d.txKbps || 0
-          root.rxHist = root._push(root.rxHist, root.detailsRxKbps)
-          root.txHist = root._push(root.txHist, root.detailsTxKbps)
+          root.rxHist = Util.historyPush(root.rxHist, root.detailsRxKbps)
+          root.txHist = Util.historyPush(root.txHist, root.detailsTxKbps)
         } catch (e) {}
       }
     }
@@ -274,15 +270,7 @@ BarWidget {
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Style.fx.glowColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow {}
     }
   }
 
@@ -303,17 +291,42 @@ BarWidget {
     // wifi password input needs keyboard
     acceptsKeyboard: true
     title: "NETWORK"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
       width: parent.width
       spacing: Style.spacing.sm
 
-      component Row_: PanelRow {
+      component ToggleRow: PanelRow {
         width: content.width
         stateMarker: glyph === ""
+      }
+
+      component DetailRow: Row {
+        id: detailRow
+        property string label: ""
+        property string value: ""
+        property color valueColor: Color.menu.text
+        property int valueElide: Text.ElideNone
+        width: content.width
+        Text {
+          width: detailRow.width * 0.35
+          text: detailRow.label
+          color: Color.menu.text
+          font.pixelSize: Style.font.caption
+          font.family: Style.font.family
+        }
+        Text {
+          width: detailRow.width * 0.65
+          horizontalAlignment: Text.AlignRight
+          text: detailRow.value
+          color: detailRow.valueColor
+          elide: detailRow.valueElide
+          font.pixelSize: Style.font.caption
+          font.family: Style.font.family
+        }
       }
 
       PanelSectionHeader {
@@ -324,39 +337,19 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
         visible: root.detailsConnected
-        Row {
-          width: parent.width
-          Text { width: parent.width * 0.35; text: "Status"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-          Text {
-            width: parent.width * 0.65
-            horizontalAlignment: Text.AlignRight
-            text: root.connectivityLabel + (root.onEthernet ? "  ·  LAN" : "  ·  Wi-Fi")
-            color: root.reallyOnline ? Color.menu.text : Color.menu.selectedText
-            opacity: root.reallyOnline ? 1.0 : 0.9
-            font.pixelSize: Style.font.caption
-            font.family: Style.font.family
-          }
+        DetailRow {
+          label: "Status"
+          value: root.connectivityLabel + (root.onEthernet ? "  ·  LAN" : "  ·  Wi-Fi")
+          valueColor: root.reallyOnline ? Color.menu.text : Color.menu.selectedText
         }
-        Row {
-          width: parent.width
-          Text { width: parent.width * 0.35; text: "Device"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-          Text { width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; text: root.detailsDevice + (root.detailsSsid ? " (" + root.detailsSsid + ")" : ""); color: Color.menu.text; font.pixelSize: Style.font.caption; font.family: Style.font.family; elide: Text.ElideLeft }
+        DetailRow {
+          label: "Device"
+          value: root.detailsDevice + (root.detailsSsid ? " (" + root.detailsSsid + ")" : "")
+          valueElide: Text.ElideLeft
         }
-        Row {
-          width: parent.width
-          Text { width: parent.width * 0.35; text: "IP"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-          Text { width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; text: root.detailsIp4 || "—"; color: Color.menu.text; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-        }
-        Row {
-          width: parent.width
-          Text { width: parent.width * 0.35; text: "MAC"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-          Text { width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; text: root.detailsMac || "—"; color: Color.menu.text; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-        }
-        Row {
-          width: parent.width
-          Text { width: parent.width * 0.35; text: "Speed"; color: Color.menu.text; opacity: 0.5; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-          Text { width: parent.width * 0.65; horizontalAlignment: Text.AlignRight; text: "↓" + root.fmtSpeed(root.detailsRxKbps) + "  ↑" + root.fmtSpeed(root.detailsTxKbps); color: Color.menu.text; font.pixelSize: Style.font.caption; font.family: Style.font.family }
-        }
+        DetailRow { label: "IP"; value: root.detailsIp4 || "--" }
+        DetailRow { label: "MAC"; value: root.detailsMac || "--" }
+        DetailRow { label: "Speed"; value: "↓" + root.fmtSpeed(root.detailsRxKbps) + "  ↑" + root.fmtSpeed(root.detailsTxKbps) }
       }
       PanelSeparator {
         visible: root.detailsConnected
@@ -379,15 +372,7 @@ BarWidget {
             font.bold: true
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
         }
 
@@ -473,15 +458,7 @@ BarWidget {
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.iconFamily
                 layer.enabled: Style.fx.glow > 0 && modelData.active
-                layer.effect: MultiEffect {
-                  shadowEnabled: true
-                  shadowColor: Style.fx.glowColor
-                  shadowBlur: 1.0
-                  shadowVerticalOffset: 0
-                  shadowHorizontalOffset: 0
-                  blurMax: Style.fx.glowRadius
-                  autoPaddingEnabled: true
-                }
+                layer.effect: Glow {}
               }
               Text {
                 anchors.left: netIcon.right
@@ -530,7 +507,7 @@ BarWidget {
               leftPadding: Style.spacing.lg
 
               Rectangle {
-                width: parent.width - 70 - parent.spacing
+                width: parent.width - parent.leftPadding - connectButton.width - parent.spacing
                 height: Style.row.control
                 radius: Style.cornerRadius
                 color: Style.normalFill
@@ -551,7 +528,8 @@ BarWidget {
                 }
               }
               Rectangle {
-                width: 70
+                id: connectButton
+                width: Style.space(70)
                 height: Style.row.control
                 radius: Style.cornerRadius
                 color: Style.selectedFillFor(Color.menu.text, Color.accent)
@@ -574,7 +552,7 @@ BarWidget {
 
         Text {
           visible: root.wifiNetworks.length === 0
-          text: "No networks found — scanning..."
+          text: "No networks found, scanning..."
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.caption
@@ -594,21 +572,21 @@ BarWidget {
 
       PanelSeparator {}
       PanelSectionHeader { text: "TUNNELS" }
-      Row_ { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
-      Row_ { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
-      Row_ { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
-      Row_ { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
-      Row_ { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
+      ToggleRow { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
+      ToggleRow { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
+      ToggleRow { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
+      ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
+      ToggleRow { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }
-      Row_ { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
-      Row_ { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
-      Row_ { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
+      ToggleRow { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
+      ToggleRow { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
+      ToggleRow { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }
-      Row_ {
+      ToggleRow {
         label: "Internet speed test"
         glyph: "\u{f04c5}"
         onActivated: {
@@ -617,7 +595,7 @@ BarWidget {
         }
       }
 
-      Row_ {
+      ToggleRow {
         visible: root.detailsConnected && !root.onEthernet
         label: "Share Wi-Fi (QR)"
         glyph: "\u{f0432}"

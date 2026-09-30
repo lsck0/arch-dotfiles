@@ -16,4 +16,3 @@ set -ex
 /usr/bin/ghcup set cabal
 /usr/bin/ghcup set hls
 /usr/bin/ghcup set stack
-

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -19,6 +18,9 @@ BarWidget {
   readonly property var daily: report && report.daily ? report.daily : []
   // starts tomorrow, today is the current block
   readonly property var forecast: daily.length > 1 ? daily.slice(1) : []
+  readonly property var hourlyTemps: hourly.map(function (h) { return Number(h.temp) })
+  readonly property real hourlyTempMin: hourlyTemps.length > 0 ? Math.min.apply(null, hourlyTemps) : 0
+  readonly property real hourlyTempMax: hourlyTemps.length > 0 ? Math.max.apply(null, hourlyTemps) : 0
   readonly property string units: report && report.units ? report.units.temp : "°C"
   readonly property string windUnits: report && report.units ? report.units.wind : "km/h"
 
@@ -241,9 +243,10 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
+  // radar only shows in the panel
   Timer {
     interval: 10 * 60 * 1000
-    running: true
+    running: panel.visible
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refreshRadar()
@@ -271,15 +274,7 @@ BarWidget {
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.alertProminent
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow { shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent }
 
       SequentialAnimation on opacity {
         running: root.alertProminent
@@ -316,7 +311,6 @@ BarWidget {
     onEntered: {
       if (root.bar) root.bar.hoverOpen(root.moduleName)
       root.refresh()
-      root.refreshRadar()
     }
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
@@ -326,10 +320,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.panelWidth.wide + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
-
-    onOpened: root.refreshRadar()
+    implicitWidth: Style.panelWidth.wide
+    implicitHeight: content.implicitHeight + padding * 2
 
     component Stat: Column {
       property string glyph: ""
@@ -346,7 +338,7 @@ BarWidget {
         }
         Text {
           text: parent.parent.caption
-          color: Color.menu.text; opacity: Style.emphasis.faint
+          color: Color.menu.text
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
@@ -396,7 +388,7 @@ BarWidget {
           width: parent.width
           visible: !root.alertsSupported
           wrapMode: Text.Wrap
-          text: "No warning service for this region — MeteoAlarm covers Europe only"
+          text: "No warning service for this region: MeteoAlarm covers Europe only"
           color: Color.menu.text
           opacity: Style.emphasis.disabled
           font.family: Style.font.family
@@ -505,15 +497,7 @@ BarWidget {
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
           layer.enabled: Style.fx.glow > 0
-          layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor: Style.fx.glowColor
-            shadowBlur: 1.0
-            shadowVerticalOffset: 0
-            shadowHorizontalOffset: 0
-            blurMax: Style.fx.glowRadius
-            autoPaddingEnabled: true
-          }
+          layer.effect: Glow {}
         }
 
         Column {
@@ -525,15 +509,7 @@ BarWidget {
             font.family: Style.font.family; font.pixelSize: Style.font.display
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Text {
             text: root.current
@@ -583,7 +559,7 @@ BarWidget {
             }
             Text {
               text: "WIND"
-              color: Color.menu.text; opacity: Style.emphasis.faint
+              color: Color.menu.text
               font.family: Style.font.family; font.pixelSize: Style.font.caption
             }
           }
@@ -618,22 +594,10 @@ BarWidget {
         height: Style.space(64)
         visible: root.hourly.length > 0
         color: Color.menu.text
-        // scale to the temp range (+/-1 padding); defaults 0..1 would push temps off-canvas
-        minValue: {
-          var m = Infinity
-          for (var i = 0; i < root.hourly.length; i++) m = Math.min(m, Number(root.hourly[i].temp))
-          return isFinite(m) ? m - 1 : 0
-        }
-        maxValue: {
-          var m = -Infinity
-          for (var i = 0; i < root.hourly.length; i++) m = Math.max(m, Number(root.hourly[i].temp))
-          return isFinite(m) ? m + 1 : 1
-        }
-        values: {
-          var out = []
-          for (var i = 0; i < root.hourly.length; i++) out.push(Number(root.hourly[i].temp))
-          return out
-        }
+        // the 0..1 defaults would push temps off-canvas
+        minValue: root.hourlyTempMin - 1
+        maxValue: root.hourlyTempMax + 1
+        values: root.hourlyTemps
       }
 
       Column {
@@ -697,16 +661,7 @@ BarWidget {
         visible: root.hourly.length > 0
         Text {
           width: parent.width / 2
-          text: {
-            if (!root.hourly.length) return ""
-            var lo = Infinity, hi = -Infinity
-            for (var i = 0; i < root.hourly.length; i++) {
-              var v = Number(root.hourly[i].temp)
-              if (v < lo) lo = v
-              if (v > hi) hi = v
-            }
-            return "temp " + root.t(lo) + " – " + root.t(hi)
-          }
+          text: "temp " + root.t(root.hourlyTempMin) + " – " + root.t(root.hourlyTempMax)
           color: Color.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
@@ -862,250 +817,240 @@ BarWidget {
             function onAccentChanged() { fieldCanvas.requestPaint() }
           }
 
-          // bilinear sample of the pressure grid
-          function pressureAt(gx, gy, n, values) {
+          // bilinear sample of an n x n grid
+          function bilinear(field, n, gx, gy) {
             var x = Math.max(0, Math.min(n - 1.0001, gx))
             var y = Math.max(0, Math.min(n - 1.0001, gy))
             var x0 = Math.floor(x), y0 = Math.floor(y)
             var fx = x - x0, fy = y - y0
-            var v00 = values[y0 * n + x0], v10 = values[y0 * n + x0 + 1]
-            var v01 = values[(y0 + 1) * n + x0], v11 = values[(y0 + 1) * n + x0 + 1]
-            return v00 * (1 - fx) * (1 - fy) + v10 * fx * (1 - fy)
-                 + v01 * (1 - fx) * fy + v11 * fx * fy
+            return field[y0 * n + x0] * (1 - fx) * (1 - fy)
+                 + field[y0 * n + x0 + 1] * fx * (1 - fy)
+                 + field[(y0 + 1) * n + x0] * (1 - fx) * fy
+                 + field[(y0 + 1) * n + x0 + 1] * fx * fy
           }
 
-            onPaint: {
-              var ctx = getContext("2d")
-              ctx.reset()
-              var cells = root.fieldCells
-              if (!cells || cells.length === 0) return
+          onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            var cells = root.fieldCells
+            if (!cells || cells.length === 0) return
 
-              var n = Math.round(Math.sqrt(cells.length))
-              if (n < 2 || n * n !== cells.length) return
+            var n = Math.round(Math.sqrt(cells.length))
+            if (n < 2 || n * n !== cells.length) return
 
-              // use the square's geometry, not the band's
-              var S = radarBox.imgSize
-              var oy = radarBox.yOffset
-              function px(u) { return u * S }
-              function py(v) { return oy + v * S }
+            // use the square's geometry, not the band's
+            var S = radarBox.imgSize
+            var oy = radarBox.yOffset
+            function px(u) { return u * S }
+            function py(v) { return oy + v * S }
+            var level
+            function lerp(p, q, vp, vq) { return p + (q - p) * ((level - vp) / (vq - vp)) }
+            function seg(p, q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y) }
 
-              // isobars, marching squares
-              var values = []
-              var hasPressure = true
-              for (var i = 0; i < cells.length; i++) {
-                if (cells[i].hpa === undefined) { hasPressure = false; break }
-                values.push(Number(cells[i].hpa))
-              }
+            // isobars, marching squares
+            var values = []
+            var hasPressure = true
+            for (var i = 0; i < cells.length; i++) {
+              if (cells[i].hpa === undefined) { hasPressure = false; break }
+              values.push(Number(cells[i].hpa))
+            }
 
-              if (hasPressure && root.fieldPressureMax - root.fieldPressureMin >= 0.8) {
-                // 4 hPa would give one line over a 2 hPa spread
-                var isobarStep = 1.0
-                var firstIsobar = Math.ceil(root.fieldPressureMin / isobarStep) * isobarStep
-                ctx.lineWidth = 1
-                ctx.strokeStyle = Color.menu.text
-                ctx.globalAlpha = 0.42
-                // sub-sampled so isobars curve
-                var sub = 6
-                var cellsAcross = (n - 1) * sub
-                for (var level = firstIsobar; level <= root.fieldPressureMax; level += isobarStep) {
-                  ctx.beginPath()
-                  for (var msRow = 0; msRow < cellsAcross; msRow++) {
-                    for (var msCol = 0; msCol < cellsAcross; msCol++) {
-                      var gx0 = msCol / sub, gy0 = msRow / sub
-                      var gx1 = (msCol + 1) / sub, gy1 = (msRow + 1) / sub
-                      var a = pressureAt(gx0, gy0, n, values)
-                      var b = pressureAt(gx1, gy0, n, values)
-                      var c = pressureAt(gx1, gy1, n, values)
-                      var d = pressureAt(gx0, gy1, n, values)
-                      var idx = (a > level ? 8 : 0) | (b > level ? 4 : 0)
-                              | (c > level ? 2 : 0) | (d > level ? 1 : 0)
-                      if (idx === 0 || idx === 15) continue
+            if (hasPressure && root.fieldPressureMax - root.fieldPressureMin >= 0.8) {
+              // 4 hPa would give one line over a 2 hPa spread
+              var isobarStep = 1.0
+              var firstIsobar = Math.ceil(root.fieldPressureMin / isobarStep) * isobarStep
+              ctx.lineWidth = 1
+              ctx.strokeStyle = Color.menu.text
+              ctx.globalAlpha = 0.42
+              // sub-sampled so isobars curve
+              var sub = 6
+              var cellsAcross = (n - 1) * sub
+              for (level = firstIsobar; level <= root.fieldPressureMax; level += isobarStep) {
+                ctx.beginPath()
+                for (var msRow = 0; msRow < cellsAcross; msRow++) {
+                  for (var msCol = 0; msCol < cellsAcross; msCol++) {
+                    var gx0 = msCol / sub, gy0 = msRow / sub
+                    var gx1 = (msCol + 1) / sub, gy1 = (msRow + 1) / sub
+                    var a = bilinear(values, n, gx0, gy0)
+                    var b = bilinear(values, n, gx1, gy0)
+                    var c = bilinear(values, n, gx1, gy1)
+                    var d = bilinear(values, n, gx0, gy1)
+                    var idx = (a > level ? 8 : 0) | (b > level ? 4 : 0)
+                            | (c > level ? 2 : 0) | (d > level ? 1 : 0)
+                    if (idx === 0 || idx === 15) continue
 
-                      var px0 = px(gx0 / (n - 1)), px1 = px(gx1 / (n - 1))
-                      var py0 = py(gy0 / (n - 1)), py1 = py(gy1 / (n - 1))
-                      function lerp(p, q, vp, vq) { return p + (q - p) * ((level - vp) / (vq - vp)) }
-                      var top = { x: lerp(px0, px1, a, b), y: py0 }
-                      var right = { x: px1, y: lerp(py0, py1, b, c) }
-                      var bottom = { x: lerp(px0, px1, d, c), y: py1 }
-                      var left = { x: px0, y: lerp(py0, py1, a, d) }
+                    var px0 = px(gx0 / (n - 1)), px1 = px(gx1 / (n - 1))
+                    var py0 = py(gy0 / (n - 1)), py1 = py(gy1 / (n - 1))
+                    var top = { x: lerp(px0, px1, a, b), y: py0 }
+                    var right = { x: px1, y: lerp(py0, py1, b, c) }
+                    var bottom = { x: lerp(px0, px1, d, c), y: py1 }
+                    var left = { x: px0, y: lerp(py0, py1, a, d) }
 
-                      function seg(p, q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y) }
-                      switch (idx) {
-                      case 1: case 14: seg(left, bottom); break
-                      case 2: case 13: seg(bottom, right); break
-                      case 3: case 12: seg(left, right); break
-                      case 4: case 11: seg(top, right); break
-                      case 6: case 9:  seg(top, bottom); break
-                      case 7: case 8:  seg(left, top); break
-                      case 5:  seg(left, top); seg(bottom, right); break
-                      case 10: seg(left, bottom); seg(top, right); break
-                      }
+                    switch (idx) {
+                    case 1: case 14: seg(left, bottom); break
+                    case 2: case 13: seg(bottom, right); break
+                    case 3: case 12: seg(left, right); break
+                    case 4: case 11: seg(top, right); break
+                    case 6: case 9:  seg(top, bottom); break
+                    case 7: case 8:  seg(left, top); break
+                    case 5:  seg(left, top); seg(bottom, right); break
+                    case 10: seg(left, bottom); seg(top, right); break
                     }
                   }
-                  ctx.stroke()
                 }
-                ctx.globalAlpha = 1
-              }
-
-              // wind vectors, interpolated onto a denser lattice
-              var ux = [], vy = []
-              for (var c = 0; c < cells.length; c++) {
-                var sp = Number(cells[c].wind) || 0
-                // dir is where the wind comes from, draw where it goes
-                var rr0 = (Number(cells[c].dir) + 180) * Math.PI / 180
-                ux.push(Math.sin(rr0) * sp)
-                vy.push(-Math.cos(rr0) * sp)
-              }
-
-              function sample(field, gx, gy) {
-                var x = Math.max(0, Math.min(n - 1.0001, gx))
-                var y = Math.max(0, Math.min(n - 1.0001, gy))
-                var x0 = Math.floor(x), y0 = Math.floor(y)
-                var fx = x - x0, fy = y - y0
-                return field[y0 * n + x0] * (1 - fx) * (1 - fy)
-                     + field[y0 * n + x0 + 1] * fx * (1 - fy)
-                     + field[(y0 + 1) * n + x0] * (1 - fx) * fy
-                     + field[(y0 + 1) * n + x0 + 1] * fx * fy
-              }
-
-              var maxWind = 1
-              for (var w = 0; w < cells.length; w++)
-                maxWind = Math.max(maxWind, Number(cells[w].wind) || 0)
-
-              // odd so one arrow lands dead centre
-              var density = 17
-              var latticeStep = S / density
-              var arrowReach = latticeStep * 0.28
-
-              ctx.strokeStyle = Color.accent
-              ctx.fillStyle = Color.accent
-              ctx.lineWidth = 1
-
-              for (var gy = 0; gy < density; gy++) {
-                for (var gx = 0; gx < density; gx++) {
-                  var fu = (gx + 0.5) / density
-                  var fv = (gy + 0.5) / density
-                  var x = px(fu), y = py(fv)
-                  if (y < -arrowReach || y > height + arrowReach) continue
-
-                  var sx = sample(ux, fu * (n - 1), fv * (n - 1))
-                  var sy = sample(vy, fu * (n - 1), fv * (n - 1))
-                  var speed = Math.sqrt(sx * sx + sy * sy)
-                  if (speed < 0.01) continue
-                  var dx = sx / speed, dy = sy / speed
-
-                  var strength = Math.min(1, speed / maxWind)
-                  var shaped = Math.sqrt(strength)
-                  var len = arrowReach * (0.55 + 0.45 * shaped)
-                  ctx.globalAlpha = 0.13 + 0.29 * shaped
-
-                  var tipX = x + dx * len, tipY = y + dy * len
-                  ctx.beginPath()
-                  ctx.moveTo(x - dx * len, y - dy * len)
-                  ctx.lineTo(tipX, tipY)
-                  ctx.stroke()
-
-                  var head = Math.max(1.5, arrowReach * 0.46)
-                  var ang = Math.atan2(dx, -dy)
-                  var la = ang + Math.PI * 0.82, ra = ang - Math.PI * 0.82
-                  ctx.beginPath()
-                  ctx.moveTo(tipX, tipY)
-                  ctx.lineTo(tipX + Math.sin(la) * head, tipY - Math.cos(la) * head)
-                  ctx.lineTo(tipX + Math.sin(ra) * head, tipY - Math.cos(ra) * head)
-                  ctx.closePath()
-                  ctx.fill()
-                }
-              }
-              ctx.globalAlpha = 1
-
-              // range rings and centre marker
-              var centreX = px(0.5), centreY = py(0.5)
-              var reachKm = Number(root.radarReachKm) || 0
-              var rings = root.radarRingsKm
-              ctx.textAlign = "center"
-              ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
-              for (var r = 0; r < rings.length; r++) {
-                var km = rings[r]
-                var rad = S / 2 * (Number(km) / Math.max(1, reachKm))
-                // ctx.arc refuses a non-finite or negative radius
-                if (!isFinite(rad) || rad <= 0) continue
-                ctx.strokeStyle = Color.menu.text
-                ctx.globalAlpha = r === 0 ? 0.26 : 0.15
-                ctx.lineWidth = 1
-                ctx.beginPath()
-                ctx.arc(centreX, centreY, rad, 0, Math.PI * 2)
-                ctx.stroke()
-
-                var label = km + " km"
-                var lw = ctx.measureText(label).width
-                ctx.globalAlpha = 1
-                ctx.fillStyle = Color.menu.background
-                // tall enough to hide the ring stroke
-                ctx.fillRect(centreX - lw / 2 - 4, centreY - rad - Style.font.caption * 0.80,
-                             lw + 8, Style.font.caption * 1.30)
-                ctx.fillStyle = Color.menu.text
-                ctx.globalAlpha = 0.5
-                ctx.fillText(label, centreX, centreY - rad + Style.font.caption * 0.28)
-              }
-              ctx.globalAlpha = 1
-
-              var markerR = Math.max(2, (Number(S) || 0) * 0.006)
-              ctx.beginPath()
-              ctx.arc(centreX, centreY, markerR + 1.8, 0, Math.PI * 2)
-              ctx.fillStyle = Color.menu.background
-              ctx.globalAlpha = 0.9
-              ctx.fill()
-              ctx.globalAlpha = 1
-              ctx.beginPath()
-              ctx.arc(centreX, centreY, markerR, 0, Math.PI * 2)
-              ctx.fillStyle = Color.accent
-              ctx.fill()
-
-              // compass
-              var cxc = Math.round(width * 0.115)
-              var cyc = Math.round(height * 0.78)
-              var rr = Math.max(4, Math.min(width, height) * 0.075)
-
-              ctx.beginPath()
-              ctx.arc(cxc, cyc, rr + Style.space(3), 0, Math.PI * 2)
-              ctx.fillStyle = Color.menu.background
-              ctx.globalAlpha = 0.85
-              ctx.fill()
-
-              ctx.strokeStyle = Color.menu.text
-              ctx.lineWidth = 1
-              ctx.globalAlpha = 0.28
-              ctx.beginPath()
-              ctx.arc(cxc, cyc, rr, 0, Math.PI * 2)
-              ctx.stroke()
-
-              ctx.globalAlpha = 0.4
-              for (var q = 0; q < 4; q++) {
-                var qa = q * Math.PI / 2
-                var inner = rr - (q === 0 ? rr * 0.45 : rr * 0.2)
-                ctx.beginPath()
-                ctx.moveTo(cxc + Math.sin(qa) * inner, cyc - Math.cos(qa) * inner)
-                ctx.lineTo(cxc + Math.sin(qa) * rr, cyc - Math.cos(qa) * rr)
                 ctx.stroke()
               }
-
-              ctx.globalAlpha = 0.9
-              ctx.fillStyle = Color.accent
-              ctx.beginPath()
-              ctx.moveTo(cxc, cyc - rr * 0.6)
-              ctx.lineTo(cxc - rr * 0.19, cyc + rr * 0.15)
-              ctx.lineTo(cxc + rr * 0.19, cyc + rr * 0.15)
-              ctx.closePath()
-              ctx.fill()
-
-              // quoted, canvas drops unquoted families with spaces
-              ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
-              ctx.textAlign = "center"
-              ctx.fillStyle = Color.menu.text
-              ctx.globalAlpha = 0.6
-              ctx.fillText("N", cxc, cyc - rr - Style.space(4))
               ctx.globalAlpha = 1
             }
+
+            // wind vectors, interpolated onto a denser lattice
+            var ux = [], vy = []
+            for (var ci = 0; ci < cells.length; ci++) {
+              var sp = Number(cells[ci].wind) || 0
+              // dir is where the wind comes from, draw where it goes
+              var rr0 = (Number(cells[ci].dir) + 180) * Math.PI / 180
+              ux.push(Math.sin(rr0) * sp)
+              vy.push(-Math.cos(rr0) * sp)
+            }
+
+            var maxWind = 1
+            for (var w = 0; w < cells.length; w++)
+              maxWind = Math.max(maxWind, Number(cells[w].wind) || 0)
+
+            // odd so one arrow lands dead centre
+            var density = 17
+            var latticeStep = S / density
+            var arrowReach = latticeStep * 0.28
+
+            ctx.strokeStyle = Color.accent
+            ctx.fillStyle = Color.accent
+            ctx.lineWidth = 1
+
+            for (var gy = 0; gy < density; gy++) {
+              for (var gx = 0; gx < density; gx++) {
+                var fu = (gx + 0.5) / density
+                var fv = (gy + 0.5) / density
+                var x = px(fu), y = py(fv)
+                if (y < -arrowReach || y > height + arrowReach) continue
+
+                var sx = bilinear(ux, n, fu * (n - 1), fv * (n - 1))
+                var sy = bilinear(vy, n, fu * (n - 1), fv * (n - 1))
+                var speed = Math.sqrt(sx * sx + sy * sy)
+                if (speed < 0.01) continue
+                var dx = sx / speed, dy = sy / speed
+
+                var strength = Math.min(1, speed / maxWind)
+                var shaped = Math.sqrt(strength)
+                var len = arrowReach * (0.55 + 0.45 * shaped)
+                ctx.globalAlpha = 0.13 + 0.29 * shaped
+
+                var tipX = x + dx * len, tipY = y + dy * len
+                ctx.beginPath()
+                ctx.moveTo(x - dx * len, y - dy * len)
+                ctx.lineTo(tipX, tipY)
+                ctx.stroke()
+
+                var head = Math.max(1.5, arrowReach * 0.46)
+                var ang = Math.atan2(dx, -dy)
+                var la = ang + Math.PI * 0.82, ra = ang - Math.PI * 0.82
+                ctx.beginPath()
+                ctx.moveTo(tipX, tipY)
+                ctx.lineTo(tipX + Math.sin(la) * head, tipY - Math.cos(la) * head)
+                ctx.lineTo(tipX + Math.sin(ra) * head, tipY - Math.cos(ra) * head)
+                ctx.closePath()
+                ctx.fill()
+              }
+            }
+            ctx.globalAlpha = 1
+
+            // range rings and centre marker
+            var centreX = px(0.5), centreY = py(0.5)
+            var reachKm = Number(root.radarReachKm) || 0
+            var rings = root.radarRingsKm
+            ctx.textAlign = "center"
+            ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
+            for (var r = 0; r < rings.length; r++) {
+              var km = rings[r]
+              var rad = S / 2 * (Number(km) / Math.max(1, reachKm))
+              // ctx.arc refuses a non-finite or negative radius
+              if (!isFinite(rad) || rad <= 0) continue
+              ctx.strokeStyle = Color.menu.text
+              ctx.globalAlpha = r === 0 ? 0.26 : 0.15
+              ctx.lineWidth = 1
+              ctx.beginPath()
+              ctx.arc(centreX, centreY, rad, 0, Math.PI * 2)
+              ctx.stroke()
+
+              var label = km + " km"
+              var lw = ctx.measureText(label).width
+              ctx.globalAlpha = 1
+              ctx.fillStyle = Color.menu.background
+              // tall enough to hide the ring stroke
+              ctx.fillRect(centreX - lw / 2 - 4, centreY - rad - Style.font.caption * 0.80,
+                           lw + 8, Style.font.caption * 1.30)
+              ctx.fillStyle = Color.menu.text
+              ctx.globalAlpha = 0.5
+              ctx.fillText(label, centreX, centreY - rad + Style.font.caption * 0.28)
+            }
+            ctx.globalAlpha = 1
+
+            var markerR = Math.max(2, (Number(S) || 0) * 0.006)
+            ctx.beginPath()
+            ctx.arc(centreX, centreY, markerR + 1.8, 0, Math.PI * 2)
+            ctx.fillStyle = Color.menu.background
+            ctx.globalAlpha = 0.9
+            ctx.fill()
+            ctx.globalAlpha = 1
+            ctx.beginPath()
+            ctx.arc(centreX, centreY, markerR, 0, Math.PI * 2)
+            ctx.fillStyle = Color.accent
+            ctx.fill()
+
+            // compass
+            var cxc = Math.round(width * 0.115)
+            var cyc = Math.round(height * 0.78)
+            var rr = Math.max(4, Math.min(width, height) * 0.075)
+
+            ctx.beginPath()
+            ctx.arc(cxc, cyc, rr + Style.space(3), 0, Math.PI * 2)
+            ctx.fillStyle = Color.menu.background
+            ctx.globalAlpha = 0.85
+            ctx.fill()
+
+            ctx.strokeStyle = Color.menu.text
+            ctx.lineWidth = 1
+            ctx.globalAlpha = 0.28
+            ctx.beginPath()
+            ctx.arc(cxc, cyc, rr, 0, Math.PI * 2)
+            ctx.stroke()
+
+            ctx.globalAlpha = 0.4
+            for (var q = 0; q < 4; q++) {
+              var qa = q * Math.PI / 2
+              var inner = rr - (q === 0 ? rr * 0.45 : rr * 0.2)
+              ctx.beginPath()
+              ctx.moveTo(cxc + Math.sin(qa) * inner, cyc - Math.cos(qa) * inner)
+              ctx.lineTo(cxc + Math.sin(qa) * rr, cyc - Math.cos(qa) * rr)
+              ctx.stroke()
+            }
+
+            ctx.globalAlpha = 0.9
+            ctx.fillStyle = Color.accent
+            ctx.beginPath()
+            ctx.moveTo(cxc, cyc - rr * 0.6)
+            ctx.lineTo(cxc - rr * 0.19, cyc + rr * 0.15)
+            ctx.lineTo(cxc + rr * 0.19, cyc + rr * 0.15)
+            ctx.closePath()
+            ctx.fill()
+
+            // quoted, canvas drops unquoted families with spaces
+            ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
+            ctx.textAlign = "center"
+            ctx.fillStyle = Color.menu.text
+            ctx.globalAlpha = 0.6
+            ctx.fillText("N", cxc, cyc - rr - Style.space(4))
+            ctx.globalAlpha = 1
+          }
         }
 
         Scanlines {}

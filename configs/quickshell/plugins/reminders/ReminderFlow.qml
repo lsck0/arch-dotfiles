@@ -2,7 +2,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "ReminderFlowModel.js" as ReminderFlowModel
@@ -206,15 +205,7 @@ Item {
               font.family: Style.font.family
               font.pixelSize: Style.font.title
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
               SequentialAnimation on opacity {
                 running: root.opened
                 loops: Animation.Infinite
@@ -251,15 +242,7 @@ Item {
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.heading
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Row {
             id: rtPromptRow
@@ -290,15 +273,7 @@ Item {
               font.family: Style.font.family
               font.pixelSize: Style.font.heading
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
               SequentialAnimation on opacity {
                 running: root.opened
                 loops: Animation.Infinite
@@ -491,15 +466,7 @@ Item {
               font.pixelSize: Style.font.display
               font.bold: true
               layer.enabled: root.pomo.running && Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
             }
             Text {
               id: pomoPhase

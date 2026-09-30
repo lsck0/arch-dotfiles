@@ -6,7 +6,6 @@ connectivity=$(nmcli -t -f CONNECTIVITY general 2>/dev/null || echo unknown)
 connectivity=${connectivity:-unknown}
 
 device=$(nmcli -t -f DEVICE,TYPE,STATE dev status 2>/dev/null | awk -F: '$3 == "connected" && ($2 == "ethernet" || $2 == "wifi") {print $1; exit}')
-device=${device:-}
 
 if [[ -z "$device" ]]; then
   jq -nc --arg c "$connectivity" '{connected: false, connectivity: $c}'

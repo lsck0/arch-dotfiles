@@ -9,5 +9,6 @@ import gdb.printing
 ue_printers = os.path.expanduser("~/.config/Epic/GDBPrinters/")
 if os.path.isdir(ue_printers):
     sys.path.append(ue_printers)
-    import UEPrinters
+    from UEPrinters import register_ue_printers
+    register_ue_printers(None)
 end

@@ -15,9 +15,9 @@ hermes profile alias orchestrator --name hermes-orchestrator
 
 # skills into the orchestrator profile too
 mkdir -p "${HOME}/.hermes/profiles/orchestrator/skills"
-for dir in "$(dirname "$(readlink -f "$0")")"/../../skills/l-*/; do
-  name=$(basename "${dir}")
-  ln -sfn "$(cd "${dir}" && pwd)" "${HOME}/.hermes/profiles/orchestrator/skills/${name}"
+for dir in ../../skills/l-*/; do
+    name=$(basename "${dir}")
+    ln -sfn "$(cd "${dir}" && pwd)" "${HOME}/.hermes/profiles/orchestrator/skills/${name}"
 done
 find "${HOME}/.hermes/profiles/orchestrator/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 
@@ -60,7 +60,7 @@ if command -v ollama >/dev/null 2>&1; then
 fi
 
 hermes config set display.interface tui
-"$(dirname "$(readlink -f "$0")")/../wallust/scripts/generate-hermes-skin.py" || true
+../wallust/scripts/generate-hermes-skin.py || true
 hermes skin use wallust || true
 
 # routing: anthropic, then free nous, then vllm gpu, then ollama cpu

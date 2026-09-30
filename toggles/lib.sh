@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for toggle-*.sh scripts: a tiny on/off value store plus a uniform CLI (get/label/on/off/toggle) so menu.sh and the status script can drive every toggle the same way regardless of what it does.
+# Shared helpers for toggle-*.sh: an on/off value store and a uniform get/label/on/off/toggle CLI
 
 TOGGLES_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/toggles"
 mkdir -p "$TOGGLES_STATE_DIR"

@@ -29,9 +29,10 @@ valid_tz() {
 }
 
 detect_tz() {
-    local json tz
-    json=$(timeout 10 curl -s --max-time 8 'https://ipapi.co/json/' 2>/dev/null || true)
-    if [[ -n "$json" ]]; then
+    local url json tz
+    for url in 'https://ipapi.co/json/' 'http://ip-api.com/json/?fields=timezone'; do
+        json=$(timeout 10 curl -s --max-time 8 "$url" 2>/dev/null || true)
+        [[ -n "$json" ]] || continue
         tz=$(python3 -c "
 import json,sys
 try:
@@ -40,18 +41,7 @@ except Exception:
     print('')
 " <<<"$json" 2>/dev/null || true)
         [[ -n "$tz" ]] && { echo "$tz"; return 0; }
-    fi
-    json=$(timeout 10 curl -s --max-time 8 'http://ip-api.com/json/?fields=timezone' 2>/dev/null || true)
-    if [[ -n "$json" ]]; then
-        tz=$(python3 -c "
-import json,sys
-try:
-    print(json.load(sys.stdin).get('timezone') or '')
-except Exception:
-    print('')
-" <<<"$json" 2>/dev/null || true)
-        [[ -n "$tz" ]] && { echo "$tz"; return 0; }
-    fi
+    done
     return 1
 }
 

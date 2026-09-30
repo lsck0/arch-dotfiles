@@ -6,7 +6,7 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/git
+mkdir -p "${HOME}/.config/git"
 
 if command -v git-lfs >/dev/null 2>&1; then
     git lfs install
@@ -32,7 +32,7 @@ git config --global delta.side-by-side true
 # merging
 git config --global merge.conflictStyle zdiff3
 if command -v mergiraf >/dev/null 2>&1; then
-    mergiraf languages --gitattributes > ${HOME}/.config/git/attributes
+    mergiraf languages --gitattributes > "${HOME}/.config/git/attributes"
     git config --global merge.mergiraf.name "mergiraf"
     git config --global merge.mergiraf.driver "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
 fi

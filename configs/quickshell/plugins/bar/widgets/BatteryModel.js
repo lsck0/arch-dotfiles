@@ -7,7 +7,7 @@ function batteryFraction(device) {
 function chargeThresholdActive(device, onBattery, states) {
   var d = device || {}
   var s = states || {}
-  if (!(d && d.isPresent && !onBattery)) return false
+  if (!d.isPresent || onBattery) return false
 
   var fraction = batteryFraction(d)
   if (d.state === s.Discharging) return false
@@ -37,10 +37,9 @@ function modeLabel(device, onBattery, states) {
   var d = device || {}
   if (!d.isPresent) return ""
 
-  var percentage = d.isPresent ? d.percentage : 0
   if (chargeThresholdActive(d, onBattery, states)) return "Threshold"
   if (onBattery) return "On battery"
-  if (!onBattery && percentage >= 1) return "Fully charged"
+  if (d.percentage >= 1) return "Fully charged"
   return "Charging"
 }
 

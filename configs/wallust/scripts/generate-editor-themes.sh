@@ -9,6 +9,7 @@ install_through_symlink() {
     mv "$src" "$real"
 }
 
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 COLORS_JSON="$HOME/.cache/wal/colors.json"
 ZED_THEME="$HOME/projects/arch-dotfiles/configs/zed/themes/pywal.json"
 VSCODE_SETTINGS="$HOME/.config/VSCodium/User/settings.json"
@@ -20,51 +21,34 @@ EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 bg=$(jq -r '.special.background' "$COLORS_JSON")
 fg=$(jq -r '.special.foreground' "$COLORS_JSON")
 
-# detect light themes before bg is floored dark
-if python3 -c "
+# light detection uses the raw bg, before tone_map floors it dark; herdr wants a lighter floor still
+read -r bg_is_light toned_bg herdr_bg < <(python3 - "$bg" "$SCRIPT_DIR/lib" <<'PY'
 import sys
-hx = '$bg'.lstrip('#')
-r, g, b = (int(hx[i:i+2], 16) / 255 for i in (0, 2, 4))
-sys.exit(0 if (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.5 else 1)
-"; then
+sys.path.insert(0, sys.argv[2])
+from palette import hex_to_rgb, rgb_to_hex, tone_map
+raw = hex_to_rgb(sys.argv[1])
+toned = rgb_to_hex(tone_map(raw), "#")
+herdr = rgb_to_hex(tone_map(hex_to_rgb(toned), 0.16, 1.0), "#")
+print(int(0.2126 * raw[0] + 0.7152 * raw[1] + 0.0722 * raw[2] > 0.5), toned, herdr)
+PY
+)
+
+if [[ "$bg_is_light" == 1 ]]; then
     EMACS_MODE=light
     EMACS_BG=$bg
     EMACS_DARKEN=lighten
     EMACS_LIGHTEN=darken
 else
     EMACS_MODE=dark
-    EMACS_BG=""
+    EMACS_BG=$toned_bg
     EMACS_DARKEN=darken
     EMACS_LIGHTEN=lighten
 fi
+bg=$toned_bg
 
-# same floor as Color.qml toneMap(bg, 0.08, 0.26)
-bg=$(python3 -c "
-import colorsys
-hx = '$bg'.lstrip('#')
-r, g, b = (int(hx[i:i+2], 16) / 255 for i in (0, 2, 4))
-h, s, v = colorsys.rgb_to_hsv(r, g, b)
-v = max(0.08, min(0.26, v))
-r, g, b = colorsys.hsv_to_rgb(h, s, v)
-print('#%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255)))
-")
-[[ -n "$EMACS_BG" ]] || EMACS_BG=$bg
-c0=$(jq -r '.colors.color0' "$COLORS_JSON")
-c1=$(jq -r '.colors.color1' "$COLORS_JSON")
-c2=$(jq -r '.colors.color2' "$COLORS_JSON")
-c3=$(jq -r '.colors.color3' "$COLORS_JSON")
-c4=$(jq -r '.colors.color4' "$COLORS_JSON")
-c5=$(jq -r '.colors.color5' "$COLORS_JSON")
-c6=$(jq -r '.colors.color6' "$COLORS_JSON")
-c7=$(jq -r '.colors.color7' "$COLORS_JSON")
-c8=$(jq -r '.colors.color8' "$COLORS_JSON")
-c9=$(jq -r '.colors.color9' "$COLORS_JSON")
-c10=$(jq -r '.colors.color10' "$COLORS_JSON")
-c11=$(jq -r '.colors.color11' "$COLORS_JSON")
-c12=$(jq -r '.colors.color12' "$COLORS_JSON")
-c13=$(jq -r '.colors.color13' "$COLORS_JSON")
-c14=$(jq -r '.colors.color14' "$COLORS_JSON")
-c15=$(jq -r '.colors.color15' "$COLORS_JSON")
+read -r c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 < <(
+    jq -r '[range(16) as $i | .colors["color\($i)"]] | @tsv' "$COLORS_JSON"
+)
 
 # zed
 mkdir -p "$(dirname "$ZED_THEME")"
@@ -160,15 +144,6 @@ fi
 # herdr: only rewrite between the pywal markers
 HERDR_CONFIG="$HOME/.config/herdr/config.toml"
 
-herdr_bg=$(python3 -c "
-import colorsys
-hx = '$bg'.lstrip('#')
-r, g, b = (int(hx[i:i+2], 16) / 255 for i in (0, 2, 4))
-h, s, v = colorsys.rgb_to_hsv(r, g, b)
-v = max(0.16, v)
-r, g, b = colorsys.hsv_to_rgb(h, s, v)
-print('#%02X%02X%02X' % (round(r * 255), round(g * 255), round(b * 255)))
-")
 if [[ -f "$HERDR_CONFIG" ]] && grep -q "# BEGIN PYWAL THEME" "$HERDR_CONFIG"; then
   read -r active_row_bg selection_bg surface_dim surface0 surface1 overlay0 overlay1 subtext0 < <(python3 -c "
 fg = '$fg'.lstrip('#')
@@ -228,8 +203,7 @@ mkdir -p "$EMACS_THEME_DIR"
 cat > "$EMACS_THEME" <<EOF
 ;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;; Commentary:
-;; GENERATED FILE, do not edit. Rewritten by
-;; configs/wallust/scripts/generate-editor-themes.sh on every theme switch.
+;; rewritten by configs/wallust/scripts/generate-editor-themes.sh on every theme switch, do not edit
 ;;; Code:
 
 (require 'doom-themes)

@@ -7,6 +7,5 @@ fi
 
 set -ex
 
-ln -sfn ${PWD}/mise.toml ${HOME}/.mise.toml
-
-mise trust ${HOME}/.mise.toml
+ln -sfn "${PWD}/mise.toml" "${HOME}/.mise.toml"
+mise trust "${HOME}/.mise.toml"

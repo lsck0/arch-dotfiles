@@ -7,4 +7,4 @@ fi
 
 set -ex
 
-ln -sfn ${PWD}/gdbinit ${HOME}/.gdbinit
+ln -sfn "${PWD}/gdbinit" "${HOME}/.gdbinit"

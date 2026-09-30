@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -18,7 +17,6 @@ BarWidget {
   readonly property real maxCost: Math.max(Number(hetzner) || 0, Number(cloudflare) || 0, Number(gcp) || 0)
 
   property var costHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
@@ -38,7 +36,7 @@ BarWidget {
           root.hetzner = d.hetzner !== undefined ? d.hetzner : null
           root.cloudflare = d.cloudflare !== undefined ? d.cloudflare : null
           root.gcp = d.gcp !== undefined ? d.gcp : null
-          if (root.anyConfigured) root.costHist = root._push(root.costHist, root.totalCost)
+          if (root.anyConfigured) root.costHist = Util.historyPush(root.costHist, root.totalCost)
         } catch (e) {}
       }
     }
@@ -57,7 +55,7 @@ BarWidget {
     anchors.fill: parent
     bar: root.bar
     text: "\u{f155}"
-    tooltipText: root.anyConfigured ? "Cloud costs" : "Cloud costs — no credentials configured"
+    tooltipText: root.anyConfigured ? "Cloud costs" : "Cloud costs: no credentials configured"
     onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
@@ -91,15 +89,7 @@ BarWidget {
         font.family: Style.font.family
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0 && cr.amount !== null
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
       }
     }
     BarGauge {
@@ -118,8 +108,8 @@ BarWidget {
     anchorWidget: root
     title: "Cloud Costs"
     onOpened: root.refresh()
-    implicitWidth: Style.panelWidth.narrow + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset + Style.shadowOffset
+    implicitWidth: Style.panelWidth.narrow
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
@@ -154,15 +144,7 @@ BarWidget {
             font.pixelSize: Math.round(Style.font.display * 1.4)
             font.letterSpacing: Style.displayTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
           Text {
             anchors.bottom: heroNum.bottom
@@ -190,7 +172,7 @@ BarWidget {
         visible: !root.anyConfigured
         width: parent.width
         wrapMode: Text.Wrap
-        text: "Drop credentials in ~/.config/costs/ — see costs-fetch.sh for what each provider needs"
+        text: "Drop credentials in ~/.config/costs/, see costs-fetch.sh for what each provider needs"
         color: Color.menu.text
         opacity: Style.emphasis.faint
         font.pixelSize: Style.font.caption

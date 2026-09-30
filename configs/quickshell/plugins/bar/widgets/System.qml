@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
@@ -20,6 +19,7 @@ BarWidget {
   property int tempC: 0
   property real memUsedGb: 0
   property real memTotalGb: 0
+  readonly property real memPct: memTotalGb > 0 ? memUsedGb / memTotalGb * 100 : 0
   property string memType: ""
   property int memSpeedMts: 0
   property int memChannels: 0
@@ -38,7 +38,6 @@ BarWidget {
   property var gpuHist: []
   property var memHist: []
   property var tempHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   function critLoad(pct) {
     if (pct >= 92) return Color.semantic.live
@@ -109,10 +108,10 @@ BarWidget {
           root.energyKwh = s.energyKwh || 0
           root.vramUsedMb = (s.vramUsedMb === undefined) ? null : s.vramUsedMb
           root.vramTotalMb = (s.vramTotalMb === undefined) ? null : s.vramTotalMb
-          root.cpuHist = root._push(root.cpuHist, root.cpuPct)
-          root.gpuHist = root._push(root.gpuHist, root.gpuPct)
-          root.memHist = root._push(root.memHist, root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0)
-          root.tempHist = root._push(root.tempHist, root.tempC)
+          root.cpuHist = Util.historyPush(root.cpuHist, root.cpuPct)
+          root.gpuHist = Util.historyPush(root.gpuHist, root.gpuPct)
+          root.memHist = Util.historyPush(root.memHist, root.memPct)
+          root.tempHist = Util.historyPush(root.tempHist, root.tempC)
         } catch (e) {}
       }
     }
@@ -146,15 +145,7 @@ BarWidget {
       font.pixelSize: Style.font.body
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
-      layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowColor: Style.fx.glowColor
-        shadowBlur: 1.0
-        shadowVerticalOffset: 0
-        shadowHorizontalOffset: 0
-        blurMax: Style.fx.glowRadius
-        autoPaddingEnabled: true
-      }
+      layer.effect: Glow {}
 
       // invisible, only measures the widest value
       Text {
@@ -262,7 +253,6 @@ BarWidget {
     Text {
       text: parent.label
       color: Color.menu.text
-      opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
@@ -322,7 +312,6 @@ BarWidget {
       width: Style.space(34)
       text: meterRoot.label
       color: Color.menu.text
-      opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
@@ -347,15 +336,7 @@ BarWidget {
         font.pixelSize: Style.font.body
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
       }
       Text {
         anchors.left: valPrimary.right
@@ -390,15 +371,7 @@ BarWidget {
         Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 250 } }
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: meterRoot.fill
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow { shadowColor: meterRoot.fill }
       }
     }
   }
@@ -408,8 +381,8 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: content.implicitHeight + padding * 2 + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: content.implicitHeight + padding * 2
 
     Column {
       id: content
@@ -441,15 +414,7 @@ BarWidget {
             font.family: Style.font.family
             font.pixelSize: Style.font.title
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
             SequentialAnimation on opacity {
               running: true
               loops: Animation.Infinite
@@ -483,9 +448,9 @@ BarWidget {
         }
         Meter {
           label: "MEM"
-          fraction: root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb : 0
-          fill: root.critLoad(root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0)
-          value: root.memTotalGb > 0 ? Math.round(root.memUsedGb / root.memTotalGb * 100) + "%" : "0%"
+          fraction: root.memPct / 100
+          fill: root.critLoad(root.memPct)
+          value: Math.round(root.memPct) + "%"
           secondary: root.memUsedGb.toFixed(0) + "/" + root.memTotalGb.toFixed(0) + "G"
         }
         Meter {
@@ -498,7 +463,7 @@ BarWidget {
           label: "TMP"
           fraction: root.tempC / 100
           fill: root.critTemp(root.tempC)
-          value: root.tempC + "C"
+          value: root.tempC + "°C"
         }
       }
 
@@ -512,7 +477,7 @@ BarWidget {
           width: Style.space(34)
           height: flux.height
           FluxLabel { height: flux.height / 4; text: "CPU"; tint: root.critLoad(root.cpuPct) }
-          FluxLabel { height: flux.height / 4; text: "MEM"; tint: root.critLoad(root.memTotalGb > 0 ? root.memUsedGb / root.memTotalGb * 100 : 0) }
+          FluxLabel { height: flux.height / 4; text: "MEM"; tint: root.critLoad(root.memPct) }
           FluxLabel { height: flux.height / 4; text: "GPU"; tint: root.critLoad(root.gpuPct) }
           FluxLabel { height: flux.height / 4; text: "TMP"; tint: root.critTemp(root.tempC) }
         }
@@ -560,7 +525,6 @@ BarWidget {
         visible: root.cpuName.length > 0
         text: root.cpuName + (root.cpuCores > 0 ? " (" + root.cpuCores + " threads)" : "")
         color: Color.menu.text
-        opacity: Style.emphasis.dim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
@@ -570,7 +534,6 @@ BarWidget {
         visible: root.gpuName.length > 0
         text: root.gpuName
         color: Color.menu.text
-        opacity: Style.emphasis.dim
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap

@@ -1,11 +1,8 @@
 local platform = require("platform")
 
 -- desktop: 1-4 right (main), 5-10 left; laptop: all on the panel
-local workspace_monitor = platform.laptop
-    and { "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1" }
-    or { "DP-2", "DP-2", "DP-2", "DP-2", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1" }
-
-for workspace, monitor in ipairs(workspace_monitor) do
+for workspace = 1, 10 do
+    local monitor = platform.laptop and "eDP-1" or (workspace <= 4 and "DP-2" or "DP-1")
     hl.workspace_rule({
         workspace = tostring(workspace),
         monitor = monitor,
@@ -19,39 +16,21 @@ hl.window_rule({
     workspace = "1",
 })
 
-hl.window_rule({
-    match = {
-        class = "^Spotify$",
-    },
-    workspace = "5",
-})
-
-hl.window_rule({
-    match = {
-        class = "^discord$",
-    },
-    workspace = "5",
-})
+for _, class in ipairs({ "^Spotify$", "^discord$" }) do
+    hl.window_rule({
+        match = {
+            class = class,
+        },
+        workspace = "5",
+        no_initial_focus = true,
+    })
+end
 
 hl.window_rule({
     match = {
         class = "^com.obsproject.Studio$",
     },
     workspace = "7",
-})
-
-hl.window_rule({
-    match = {
-        class = "^Spotify$",
-    },
-    no_initial_focus = true,
-})
-
-hl.window_rule({
-    match = {
-        class = "^discord$",
-    },
-    no_initial_focus = true,
 })
 
 -- it flashes a window, move it offscreen

@@ -22,11 +22,9 @@ ShellRoot {
   property PluginRegistry pluginRegistry: PluginRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
 
-  readonly property string shellDir: Quickshell.shellDir
-  readonly property string firstPartyPluginsDir: shellDir + "/plugins"
   readonly property string userConfigPath: Paths.state + "/shell.json"
 
-  // keep in sync with ~/.local/state/quickshell/shell.json, which overrides it
+  // ~/.local/state/quickshell/shell.json replaces this when present
   readonly property var builtinShellConfig: ({
     version: 1,
     bar: {
@@ -163,7 +161,7 @@ ShellRoot {
 
   readonly property string mainScreenName: {
     var screens = Quickshell.screens
-    // configs name monitors of other machines (DP-2 on the desktop); an absent one would demote every real screen
+    // a configured monitor may belong to the other machine
     function connected(name) {
       for (var s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
       return false
@@ -225,11 +223,7 @@ ShellRoot {
   }
 
   Component.onCompleted: {
-    console.log("quickshell plugin registry",
-      "shellDir=" + shell.shellDir,
-      "firstPartyPluginsDir=" + shell.firstPartyPluginsDir,
-      "userConfigPath=" + shell.userConfigPath)
-    pluginRegistry.firstPartyDir = shell.firstPartyPluginsDir
+    pluginRegistry.firstPartyDir = Paths.plugins
     pluginRegistry.shellConfigProvider = function() { return shell.shellConfig }
     pluginRegistry.shellConfigMutator = function(mutate) { shell.mutateShellConfig(mutate) }
     pluginRegistry.rescan()
@@ -320,7 +314,10 @@ ShellRoot {
 
   Connections {
     target: shell.pluginRegistry
-    function onPluginsChanged() { shell._syncServices() }
+    function onPluginsChanged() {
+      shell._syncServices()
+      shell.panelEntries = shell.computePanelEntries()
+    }
   }
 
   // on-demand panel/overlay/menu plugins
@@ -440,11 +437,6 @@ ShellRoot {
       out.push({ id: id, manifest: m, kind: kind, keepLoaded: m.keepLoaded === true })
     }
     return out
-  }
-
-  Connections {
-    target: shell.pluginRegistry
-    function onPluginsChanged() { shell.panelEntries = shell.computePanelEntries() }
   }
 
   Instantiator {

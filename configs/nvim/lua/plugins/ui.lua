@@ -205,13 +205,7 @@ return {
                         },
                     }
                 },
-                math = {
-                    enabled = false,
-                    latex = {
-                        font_size = "Large",
-                        packages = { "tikz-cd", "/home/luca/projects/paper/template/header" },
-                    }
-                }
+                math = { enabled = false },
             },
             -- noice + nvim-notify handle notifications
             notifier = { enabled = false },
@@ -265,7 +259,7 @@ return {
         "folke/noice.nvim",         -- UI for messages/cmdline
         event = "VeryLazy",
         dependencies = {
-            "MunifTanjim/nui.nvim", -- UI component library
+            "MunifTanjim/nui.nvim",
             {
                 "rcarriga/nvim-notify", -- notification popups
                 -- transparent.nvim strips NotifyBackground

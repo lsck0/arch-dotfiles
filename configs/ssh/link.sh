@@ -9,20 +9,20 @@ set -ex
 
 sudo systemctl enable sshd
 
-mkdir -p ${HOME}/.config/systemd/user
+mkdir -p "${HOME}/.config/systemd/user"
 
-ln -sfn ${PWD}/ssh-agent.service ${HOME}/.config/systemd/user/ssh-agent.service
-ln -sfn ${PWD}/ssh-add.service ${HOME}/.config/systemd/user/ssh-add.service
+ln -sfn "${PWD}/ssh-agent.service" "${HOME}/.config/systemd/user/ssh-agent.service"
+ln -sfn "${PWD}/ssh-add.service" "${HOME}/.config/systemd/user/ssh-add.service"
 systemctl --user daemon-reload
 systemctl --user enable ssh-add.service
 
 # authorize keys before disabling password auth
-mkdir -p ${HOME}/.ssh && chmod 700 ${HOME}/.ssh
-touch ${HOME}/.ssh/authorized_keys && chmod 600 ${HOME}/.ssh/authorized_keys
-for pub in ../secrets/ssh_publickey.asc ../yubikey/ssh-*.pub ${HOME}/.ssh/id_ed25519.pub; do
+mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
+touch "${HOME}/.ssh/authorized_keys" && chmod 600 "${HOME}/.ssh/authorized_keys"
+for pub in ../secrets/ssh_publickey.asc ../yubikey/ssh-*.pub "${HOME}/.ssh/id_ed25519.pub"; do
     [ -r "$pub" ] || continue
     key=$(cat "$pub")
-    grep -qxF "$key" ${HOME}/.ssh/authorized_keys || echo "$key" >> ${HOME}/.ssh/authorized_keys
+    grep -qxF "$key" "${HOME}/.ssh/authorized_keys" || echo "$key" >> "${HOME}/.ssh/authorized_keys"
 done
 
 # harden only once a key is authorized

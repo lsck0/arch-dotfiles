@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Effects
 import qs.Commons
 
 TextField {
@@ -27,10 +26,10 @@ TextField {
   selectedTextColor: foreground
   placeholderTextColor: Qt.darker(foreground, 1.6)
 
-  leftPadding: horizontalPadding + Border.left(_borderSpec)
-  rightPadding: horizontalPadding + Border.right(_borderSpec)
-  topPadding: verticalPadding + Border.top(_borderSpec)
-  bottomPadding: verticalPadding + Border.bottom(_borderSpec)
+  leftPadding: horizontalPadding + Border.width(_borderSpec)
+  rightPadding: horizontalPadding + Border.width(_borderSpec)
+  topPadding: verticalPadding + Border.width(_borderSpec)
+  bottomPadding: verticalPadding + Border.width(_borderSpec)
 
   background: BorderSurface {
     color: Style.controlFill(root._focused, root._hot, root.foreground, root.accent)
@@ -38,14 +37,6 @@ TextField {
     radius: Style.cornerRadius
 
     layer.enabled: Style.fx.glow > 0 && root._focused
-    layer.effect: MultiEffect {
-      shadowEnabled: true
-      shadowColor: Style.fx.glowColor
-      shadowBlur: 1.0
-      shadowVerticalOffset: 0
-      shadowHorizontalOffset: 0
-      blurMax: Style.fx.glowRadius
-      autoPaddingEnabled: true
-    }
+    layer.effect: Glow {}
   }
 }

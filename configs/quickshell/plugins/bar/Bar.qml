@@ -2,7 +2,6 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "widgets"
@@ -172,15 +171,7 @@ PanelWindow {
     color: Color.accent
     opacity: 0.85
     layer.enabled: Style.fx.glow > 0
-    layer.effect: MultiEffect {
-      shadowEnabled: true
-      shadowColor: Color.accent
-      shadowBlur: 1.0
-      shadowVerticalOffset: 0
-      shadowHorizontalOffset: 0
-      blurMax: Style.fx.glowRadius
-      autoPaddingEnabled: true
-    }
+    layer.effect: Glow { shadowColor: Color.accent }
   }
 
   Scanlines { flicker: false }
@@ -253,7 +244,7 @@ PanelWindow {
     id: tooltipSurface
     visible: root.tooltipItem !== null
     color: Color.tooltip.background
-    borderSpec: Border.surfaceSpec(Color.tooltip.border, Color.tooltip.border, Style.normalBorderWidth)
+    borderSpec: Border.flat(Color.tooltip.border, Style.normalBorderWidth)
     radius: Style.cornerRadius
     leftPadding: Style.spacing.controlPaddingX
     rightPadding: Style.spacing.controlPaddingX

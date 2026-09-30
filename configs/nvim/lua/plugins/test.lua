@@ -2,10 +2,10 @@ return {
     {
         "nvim-neotest/neotest",                -- test runner framework
         dependencies = {
-            "nvim-neotest/nvim-nio",           -- async IO library
-            "nvim-lua/plenary.nvim",           -- Lua utility library
+            "nvim-neotest/nvim-nio",
+            "nvim-lua/plenary.nvim",
             "antoinemadec/FixCursorHold.nvim", -- CursorHold event fix
-            "nvim-treesitter/nvim-treesitter", -- syntax parsing engine
+            "nvim-treesitter/nvim-treesitter",
             "nvim-neotest/neotest-python",     -- Python test adapter
             "rouge8/neotest-rust",             -- Rust test adapter
         },

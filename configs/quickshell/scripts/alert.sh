@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# alert card that must be dismissed by hand
-# usage: <title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
+# hand-dismissed alert card: <title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
 
 set -uo pipefail
 

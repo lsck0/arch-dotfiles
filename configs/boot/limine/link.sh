@@ -4,7 +4,7 @@ set -ex
 
 source "$(dirname "$0")/../boot-menu/common.sh"
 
-if ! bootloader_selected limine; then
+if ! boot_feature_selected limine; then
     exit 0
 fi
 if [[ ! -f /usr/share/limine/BOOTX64.EFI ]]; then

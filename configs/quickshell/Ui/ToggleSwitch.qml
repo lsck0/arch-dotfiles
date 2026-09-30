@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 
 Item {
@@ -53,15 +52,7 @@ Item {
     borderSpec: Border.controlSpec(root.checked ? "selected" : "normal", root.foreground, root.accent)
 
     layer.enabled: Style.fx.glow > 0 && root.checked
-    layer.effect: MultiEffect {
-      shadowEnabled: true
-      shadowColor: Style.fx.glowColor
-      shadowBlur: 1.0
-      shadowVerticalOffset: 0
-      shadowHorizontalOffset: 0
-      blurMax: Style.fx.glowRadius
-      autoPaddingEnabled: true
-    }
+    layer.effect: Glow {}
 
     Behavior on color { ColorAnimation { duration: 120 } }
 

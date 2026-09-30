@@ -38,6 +38,22 @@ Item {
   property var filterPositions: []
   property int filteredCount: 0
   property var doneFilesToRelease: []
+  property var imageArray: []
+
+  property color dimColor: Color.background
+  property color foreground: Color.imagePicker.text
+  property color scrim: Color.imagePicker.scrim
+  property color selectedBorder: Color.imagePicker.selectedBorder
+  property color unselectedBorder: Color.imagePicker.unselectedBorder
+  property int expandedWidth: 768
+  property int expandedHeight: 475
+  property int sliceWidth: 108
+  property int sliceHeight: 432
+  property int sliceSpacing: -30
+  property int skewOffset: 28
+  property int bottomChromeHeight: showLabels ? (filterable ? 104 : 74) : (filterable ? 60 : 30)
+
+  onOpenedChanged: if (!opened) layoutSettled = false
 
   function rebuildFilterCache() {
     var matches = []
@@ -58,20 +74,6 @@ Item {
     filterPositions = positions
     filteredCount = count
   }
-  property color dimColor: Color.background
-  property color foreground: Color.imagePicker.text
-  property color scrim: Color.imagePicker.scrim
-  property color selectedBorder: Color.imagePicker.selectedBorder
-  property color unselectedBorder: Color.imagePicker.unselectedBorder
-  property int expandedWidth: 768
-  property int expandedHeight: 475
-  property int sliceWidth: 108
-  property int sliceHeight: 432
-  property int sliceSpacing: -30
-  property int skewOffset: 28
-  property int bottomChromeHeight: showLabels ? (filterable ? 104 : 74) : (filterable ? 60 : 30)
-
-  onOpenedChanged: if (!opened) layoutSettled = false
 
   function scriptPath(name) {
     return root.pluginDir + "/" + name
@@ -272,8 +274,6 @@ Item {
     startImageScan(requestSerial, root.activeDirs())
   }
 
-  property var imageArray: []
-
   function startImageScan(serial, dirs) {
     if (loadImagesProc.running) {
       loadImagesProc.queuedSerial = serial
@@ -369,7 +369,7 @@ Item {
     var filter = args.filterable === true || args.filterable === "true"
     imageDirs = dirs
     themeDirs = tDirs
-    if (args.mode === 1) mode = 1; else mode = 0
+    mode = args.mode === 1 ? 1 : 0
     openSelector(dirs, rows, sel, selFile, doneF, labels, filter)
   }
 
@@ -417,167 +417,98 @@ Item {
       height: root.expandedHeight + Style.space(30) + root.bottomChromeHeight
       anchors.centerIn: parent
 
-        MouseArea { anchors.fill: parent; onClicked: {} }
+      MouseArea { anchors.fill: parent; onClicked: {} }
 
-        Item {
-          id: carousel
-          anchors.top: parent.top
-          anchors.topMargin: Style.space(30)
-          anchors.bottom: parent.bottom
-          anchors.bottomMargin: root.bottomChromeHeight
-          anchors.horizontalCenter: parent.horizontalCenter
-          width: root.expandedWidth + 13 * (root.sliceWidth + root.sliceSpacing)
-          clip: false
-          focus: true
+      Item {
+        id: carousel
+        anchors.top: parent.top
+        anchors.topMargin: Style.space(30)
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: root.bottomChromeHeight
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: root.expandedWidth + 13 * (root.sliceWidth + root.sliceSpacing)
+        clip: false
+        focus: true
 
-          readonly property real itemStep: root.sliceWidth + root.sliceSpacing
-          readonly property real previewX: (width - root.expandedWidth) / 2
+        readonly property real itemStep: root.sliceWidth + root.sliceSpacing
+        readonly property real previewX: (width - root.expandedWidth) / 2
 
-          Keys.priority: Keys.BeforeItem
-          Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) {
-              if (root.filterText) {
-                root.updateFilter("")
-              } else {
-                root.cancel()
-              }
-              event.accepted = true
-            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-              root.applySelected()
-              event.accepted = true
-            } else if (event.key === Qt.Key_Backspace) {
-              if (root.filterable) root.updateFilter(root.filterText.slice(0, -1))
-              event.accepted = true
-            } else if (event.key === Qt.Key_Left || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab) {
-              root.selectAdjacent(-1)
-              event.accepted = true
-            } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) {
-              root.selectAdjacent(1)
-              event.accepted = true
-            } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
-              root.switchMode()
-              event.accepted = true
-            } else if (root.filterable && event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127 && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
-              root.updateFilter(root.filterText + event.text)
-              event.accepted = true
+        Keys.priority: Keys.BeforeItem
+        Keys.onPressed: function(event) {
+          if (event.key === Qt.Key_Escape) {
+            if (root.filterText) {
+              root.updateFilter("")
+            } else {
+              root.cancel()
             }
+            event.accepted = true
+          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            root.applySelected()
+            event.accepted = true
+          } else if (event.key === Qt.Key_Backspace) {
+            if (root.filterable) root.updateFilter(root.filterText.slice(0, -1))
+            event.accepted = true
+          } else if (event.key === Qt.Key_Left || (event.key === Qt.Key_Tab && event.modifiers & Qt.ShiftModifier) || event.key === Qt.Key_Backtab) {
+            root.selectAdjacent(-1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Tab) {
+            root.selectAdjacent(1)
+            event.accepted = true
+          } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+            root.switchMode()
+            event.accepted = true
+          } else if (root.filterable && event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127 && (event.modifiers === Qt.NoModifier || event.modifiers === Qt.ShiftModifier)) {
+            root.updateFilter(root.filterText + event.text)
+            event.accepted = true
           }
+        }
 
-          Component.onCompleted: forceActiveFocus()
+        Component.onCompleted: forceActiveFocus()
 
-          Repeater {
-            model: root.imageArray.length
+        Repeater {
+          model: root.imageArray.length
 
-            delegate: Item {
-              id: item
-              required property int index
+          delegate: Item {
+            id: item
+            required property int index
 
-              readonly property var imageData: root.imageArray[index]
-              readonly property string filePath: imageData ? imageData.filePath : ""
-              readonly property string thumbnailPath: imageData ? imageData.thumbnailPath : ""
+            readonly property var imageData: root.imageArray[index]
+            readonly property string filePath: imageData ? imageData.filePath : ""
+            readonly property string thumbnailPath: imageData ? imageData.thumbnailPath : ""
 
-              readonly property bool matched: root.itemMatches(index)
-              readonly property int relativeIndex: root.filteredPosition(index) - root.selectedFilteredPosition()
-              readonly property bool selected: matched && index === root.selectedIndex
-              readonly property bool nearby: matched && Math.abs(relativeIndex) <= 16
-              property bool sourceActivated: nearby
-              onNearbyChanged: if (nearby) sourceActivated = true
+            readonly property bool matched: root.itemMatches(index)
+            readonly property int relativeIndex: root.filteredPosition(index) - root.selectedFilteredPosition()
+            readonly property bool selected: matched && index === root.selectedIndex
+            readonly property bool nearby: matched && Math.abs(relativeIndex) <= 16
+            property bool sourceActivated: nearby
+            onNearbyChanged: if (nearby) sourceActivated = true
 
-              visible: nearby
-              x: selected ? carousel.previewX : (relativeIndex < 0 ? carousel.previewX + relativeIndex * carousel.itemStep : carousel.previewX + root.expandedWidth + root.sliceSpacing + (relativeIndex - 1) * carousel.itemStep)
-              width: selected ? root.expandedWidth : root.sliceWidth
-              height: selected ? root.expandedHeight : root.sliceHeight
-              y: selected ? 0 : (root.expandedHeight - root.sliceHeight) / 2
-              z: selected ? 100 : 50 - Math.min(Math.abs(relativeIndex), 40)
+            visible: nearby
+            x: selected ? carousel.previewX : (relativeIndex < 0 ? carousel.previewX + relativeIndex * carousel.itemStep : carousel.previewX + root.expandedWidth + root.sliceSpacing + (relativeIndex - 1) * carousel.itemStep)
+            width: selected ? root.expandedWidth : root.sliceWidth
+            height: selected ? root.expandedHeight : root.sliceHeight
+            y: selected ? 0 : (root.expandedHeight - root.sliceHeight) / 2
+            z: selected ? 100 : 50 - Math.min(Math.abs(relativeIndex), 40)
 
-              readonly property real skAbs: Math.abs(root.skewOffset)
-              readonly property real topLeft: root.skewOffset >= 0 ? skAbs : 0
-              readonly property real topRight: root.skewOffset >= 0 ? width : width - skAbs
-              readonly property real bottomRight: root.skewOffset >= 0 ? width - skAbs : width
-              readonly property real bottomLeft: root.skewOffset >= 0 ? 0 : skAbs
+            readonly property real skAbs: Math.abs(root.skewOffset)
+            readonly property real topLeft: root.skewOffset >= 0 ? skAbs : 0
+            readonly property real topRight: root.skewOffset >= 0 ? width : width - skAbs
+            readonly property real bottomRight: root.skewOffset >= 0 ? width - skAbs : width
+            readonly property real bottomLeft: root.skewOffset >= 0 ? 0 : skAbs
 
-              Item {
-                id: maskShape
-                anchors.fill: parent
-                visible: false
-                layer.enabled: true
-
-                Shape {
-                  anchors.fill: parent
-                  antialiasing: true
-                  preferredRendererType: Shape.CurveRenderer
-                  ShapePath {
-                    fillColor: "white"
-                    strokeColor: "transparent"
-                    startX: item.topLeft; startY: 0
-                    PathLine { x: item.topRight; y: 0 }
-                    PathLine { x: item.bottomRight; y: item.height }
-                    PathLine { x: item.bottomLeft; y: item.height }
-                    PathLine { x: item.topLeft; y: 0 }
-                  }
-                }
-              }
-
-              Item {
-                anchors.fill: parent
-                layer.enabled: true
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                  maskEnabled: true
-                  maskSource: maskShape
-                  maskThresholdMin: 0.3
-                  maskSpreadAtMin: 0.3
-                }
-
-                // thumbnail below, full-res original fades in on top
-                Image {
-                  anchors.fill: parent
-                  source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                  // decode at draw width: every delegate stays alive
-                  sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
-                  fillMode: Image.PreserveAspectCrop
-                  asynchronous: true
-                  cache: true
-                  smooth: true
-                }
-
-                Image {
-                  anchors.fill: parent
-                  source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
-                  sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
-                  fillMode: Image.PreserveAspectCrop
-                  asynchronous: true
-                  // only one full-res image is shown, do not cache them
-                  cache: false
-                  smooth: true
-                  opacity: status === Image.Ready ? 1 : 0
-                  Behavior on opacity { NumberAnimation { duration: 150 } }
-                }
-
-                Rectangle {
-                  anchors.fill: parent
-                  color: Util.alpha(root.dimColor, item.selected ? 0 : 0.42)
-                }
-              }
+            Item {
+              id: maskShape
+              anchors.fill: parent
+              visible: false
+              layer.enabled: true
 
               Shape {
                 anchors.fill: parent
                 antialiasing: true
                 preferredRendererType: Shape.CurveRenderer
-                layer.enabled: item.selected && Style.fx.glow > 0
-                layer.effect: MultiEffect {
-                  shadowEnabled: true
-                  shadowColor: Style.fx.glowColor
-                  shadowBlur: 1.0
-                  shadowVerticalOffset: 0
-                  shadowHorizontalOffset: 0
-                  blurMax: Style.fx.glowRadius
-                  autoPaddingEnabled: true
-                }
                 ShapePath {
-                  fillColor: "transparent"
-                  strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
-                  strokeWidth: item.selected ? 3 : 1
+                  fillColor: "white"
+                  strokeColor: "transparent"
                   startX: item.topLeft; startY: 0
                   PathLine { x: item.topRight; y: 0 }
                   PathLine { x: item.bottomRight; y: item.height }
@@ -585,214 +516,267 @@ Item {
                   PathLine { x: item.topLeft; y: 0 }
                 }
               }
+            }
 
-              MouseArea {
+            Item {
+              anchors.fill: parent
+              layer.enabled: true
+              layer.smooth: true
+              layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: maskShape
+                maskThresholdMin: 0.3
+                maskSpreadAtMin: 0.3
+              }
+
+              // thumbnail below, full-res original fades in on top
+              Image {
                 anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: item.selected ? root.applySelected() : root.select(index)
+                source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
+                // decode at draw width: every delegate stays alive
+                sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                smooth: true
+              }
+
+              Image {
+                anchors.fill: parent
+                source: (item.selected && item.sourceActivated && item.filePath) ? Util.fileUrl(item.filePath) : ""
+                sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                // only one full-res image is shown, do not cache them
+                cache: false
+                smooth: true
+                opacity: status === Image.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+              }
+
+              Rectangle {
+                anchors.fill: parent
+                color: Util.alpha(root.dimColor, item.selected ? 0 : 0.42)
               }
             }
-          }
-        }
 
-        BorderSurface {
-          id: searchChip
-          readonly property bool focused: searchInput.activeFocus
-          readonly property bool hot: searchHover.hovered
-          visible: root.filterable && root.filterText.length > 0
-
-          // every way out of the search field must hand focus back
-          onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
-
-          anchors.top: carousel.bottom
-          anchors.topMargin: Style.space(10)
-          anchors.horizontalCenter: carousel.horizontalCenter
-          width: Math.min(root.expandedWidth, Style.space(360))
-          height: Style.space(38)
-          radius: Style.cornerRadius
-          color: Style.controlFill(focused, hot, root.foreground, root.selectedBorder)
-          borderSpec: Border.controlSpec(focused ? "focus" : (hot ? "hover-cursor" : "normal"), root.foreground, root.selectedBorder)
-
-          HoverHandler { id: searchHover }
-
-          OpticalGlyph {
-            id: searchIcon
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.md
-            text: "\u{ea6d}" // cod-search, cmap-verified
-            fontSize: Style.font.body
-            color: Util.alpha(root.foreground, 0.65)
-          }
-
-          TextInput {
-            id: searchInput
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: searchIcon.right
-            anchors.leftMargin: Style.spacing.sm
-            anchors.right: clearButton.left
-            anchors.rightMargin: Style.spacing.sm
-            verticalAlignment: TextInput.AlignVCenter
-            text: root.filterText
-            color: root.foreground
-            selectionColor: root.selectedBorder
-            selectedTextColor: root.dimColor
-            font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            focus: searchChip.visible
-            activeFocusOnPress: true
-            selectByMouse: true
-            clip: true
-            onTextChanged: if (text !== root.filterText) root.updateFilter(text)
-            onAccepted: carousel.forceActiveFocus()
-            Keys.onEscapePressed: function (event) {
-              if (text.length > 0) {
-                text = ""
-                carousel.forceActiveFocus()
-              } else {
-                root.cancel()
+            Shape {
+              anchors.fill: parent
+              antialiasing: true
+              preferredRendererType: Shape.CurveRenderer
+              layer.enabled: item.selected && Style.fx.glow > 0
+              layer.effect: Glow {}
+              ShapePath {
+                fillColor: "transparent"
+                strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
+                strokeWidth: item.selected ? 3 : 1
+                startX: item.topLeft; startY: 0
+                PathLine { x: item.topRight; y: 0 }
+                PathLine { x: item.bottomRight; y: item.height }
+                PathLine { x: item.bottomLeft; y: item.height }
+                PathLine { x: item.topLeft; y: 0 }
               }
-              event.accepted = true
             }
-            Keys.onUpPressed: function (event) { root.switchMode(); event.accepted = true }
-            Keys.onDownPressed: function (event) { root.switchMode(); event.accepted = true }
-          }
-
-          Item {
-            id: clearButton
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-            anchors.rightMargin: Style.spacing.sm
-            width: Style.space(22)
-            height: Style.space(22)
-
-            OpticalGlyph {
-              anchors.centerIn: parent
-              text: "\u{f0156}" // md-close, cmap-verified
-              fontSize: Style.font.caption
-              color: Util.alpha(root.foreground, clearHover.hovered ? 1.0 : 0.6)
-            }
-
-            HoverHandler { id: clearHover }
 
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                root.updateFilter("")
-                carousel.forceActiveFocus()
-              }
+              onClicked: item.selected ? root.applySelected() : root.select(index)
             }
           }
         }
+      }
 
-        Text {
-          textFormat: Text.PlainText
-          visible: root.showLabels
-          anchors.top: root.filterable ? searchChip.bottom : carousel.bottom
-          anchors.topMargin: Style.space(8)
-          anchors.horizontalCenter: carousel.horizontalCenter
-          width: root.expandedWidth
-          text: root.currentLabel()
+      BorderSurface {
+        id: searchChip
+        readonly property bool focused: searchInput.activeFocus
+        readonly property bool hot: searchHover.hovered
+        visible: root.filterable && root.filterText.length > 0
+
+        // every way out of the search field must hand focus back
+        onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
+
+        anchors.top: carousel.bottom
+        anchors.topMargin: Style.space(10)
+        anchors.horizontalCenter: carousel.horizontalCenter
+        width: Math.min(root.expandedWidth, Style.space(360))
+        height: Style.space(38)
+        radius: Style.cornerRadius
+        color: Style.controlFill(focused, hot, root.foreground, root.selectedBorder)
+        borderSpec: Border.controlSpec(focused ? "focus" : (hot ? "hover-cursor" : "normal"), root.foreground, root.selectedBorder)
+
+        HoverHandler { id: searchHover }
+
+        OpticalGlyph {
+          id: searchIcon
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.left: parent.left
+          anchors.leftMargin: Style.spacing.md
+          text: "\u{ea6d}" // cod-search, cmap-verified
+          fontSize: Style.font.body
+          color: Util.alpha(root.foreground, 0.65)
+        }
+
+        TextInput {
+          id: searchInput
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.left: searchIcon.right
+          anchors.leftMargin: Style.spacing.sm
+          anchors.right: clearButton.left
+          anchors.rightMargin: Style.spacing.sm
+          verticalAlignment: TextInput.AlignVCenter
+          text: root.filterText
           color: root.foreground
-          style: Text.Outline
-          styleColor: Util.alpha(root.dimColor, 0.7)
-          font.pixelSize: Style.font.display
-          font.weight: Font.DemiBold
-          horizontalAlignment: Text.AlignHCenter
-          elide: Text.ElideRight
+          selectionColor: root.selectedBorder
+          selectedTextColor: root.dimColor
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          focus: searchChip.visible
+          activeFocusOnPress: true
+          selectByMouse: true
+          clip: true
+          onTextChanged: if (text !== root.filterText) root.updateFilter(text)
+          onAccepted: carousel.forceActiveFocus()
+          Keys.onEscapePressed: function (event) {
+            if (text.length > 0) {
+              text = ""
+              carousel.forceActiveFocus()
+            } else {
+              root.cancel()
+            }
+            event.accepted = true
+          }
+          Keys.onUpPressed: function (event) { root.switchMode(); event.accepted = true }
+          Keys.onDownPressed: function (event) { root.switchMode(); event.accepted = true }
         }
 
         Item {
-          anchors.top: parent.top
-          anchors.topMargin: Style.spacing.xs
-          anchors.horizontalCenter: carousel.horizontalCenter
-          width: root.expandedWidth
-          height: Style.space(24)
+          id: clearButton
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.right: parent.right
+          anchors.rightMargin: Style.spacing.sm
+          width: Style.space(22)
+          height: Style.space(22)
 
-          Row {
-            id: pickerTitleRow
-            anchors.left: parent.left
+          OpticalGlyph {
+            anchors.centerIn: parent
+            text: "\u{f0156}" // md-close, cmap-verified
+            fontSize: Style.font.caption
+            color: Util.alpha(root.foreground, clearHover.hovered ? 1.0 : 0.6)
+          }
+
+          HoverHandler { id: clearHover }
+
+          MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              root.updateFilter("")
+              carousel.forceActiveFocus()
+            }
+          }
+        }
+      }
+
+      Text {
+        textFormat: Text.PlainText
+        visible: root.showLabels
+        anchors.top: root.filterable ? searchChip.bottom : carousel.bottom
+        anchors.topMargin: Style.space(8)
+        anchors.horizontalCenter: carousel.horizontalCenter
+        width: root.expandedWidth
+        text: root.currentLabel()
+        color: root.foreground
+        style: Text.Outline
+        styleColor: Util.alpha(root.dimColor, 0.7)
+        font.pixelSize: Style.font.display
+        font.weight: Font.DemiBold
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+      }
+
+      Item {
+        anchors.top: parent.top
+        anchors.topMargin: Style.spacing.xs
+        anchors.horizontalCenter: carousel.horizontalCenter
+        width: root.expandedWidth
+        height: Style.space(24)
+
+        Row {
+          id: pickerTitleRow
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.spacing.sm
+
+          Text {
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.sm
+            textFormat: Text.PlainText
+            text: ">"
+            color: root.selectedBorder
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+          }
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: ">"
-              color: root.selectedBorder
-              opacity: Style.emphasis.dim
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.bold: true
-            }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: (root.modeNames[root.mode] || "").toUpperCase()
+            color: root.selectedBorder
+            style: Text.Outline
+            styleColor: Util.alpha(root.dimColor, 0.7)
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.letterSpacing: Style.headerTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: Glow {}
+          }
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: (root.modeNames[root.mode] || "").toUpperCase()
-              color: root.foreground
-              style: Text.Outline
-              styleColor: Util.alpha(root.dimColor, 0.7)
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: Style.headerTracking
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "_"
-              color: root.selectedBorder
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                PropertyAnimation { to: 1; duration: 0 }
-                PauseAnimation { duration: 530 }
-                PropertyAnimation { to: 0; duration: 0 }
-                PauseAnimation { duration: 530 }
-              }
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "[" + String(root.filteredCount) + "]"
-              color: root.foreground
-              opacity: Style.emphasis.faint
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: "_"
+            color: root.selectedBorder
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            SequentialAnimation on opacity {
+              running: root.opened
+              loops: Animation.Infinite
+              PropertyAnimation { to: 1; duration: 0 }
+              PauseAnimation { duration: 530 }
+              PropertyAnimation { to: 0; duration: 0 }
+              PauseAnimation { duration: 530 }
             }
           }
 
           Text {
-            anchors.right: parent.right
-            anchors.verticalCenter: pickerTitleRow.verticalCenter
+            anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.PlainText
-            text: "[- o x]"
-            color: root.selectedBorder
+            text: "[" + String(root.filteredCount) + "]"
+            color: root.foreground
             opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.headerTracking
           }
         }
 
-        HudFrame {}
+        Text {
+          anchors.right: parent.right
+          anchors.verticalCenter: pickerTitleRow.verticalCenter
+          textFormat: Text.PlainText
+          text: "[- o x]"
+          color: root.selectedBorder
+          opacity: Style.emphasis.faint
+          font.family: Style.font.family
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: Style.headerTracking
+        }
+      }
+
+      HudFrame {}
     }
 
     Scanlines { flicker: false }

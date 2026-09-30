@@ -1,5 +1,5 @@
 .pragma library
-// verbatim from omarchy-shell
+// adapted from omarchy-shell
 
 function normalizeEntry(value) {
   if (typeof value === "string")
@@ -80,10 +80,6 @@ function removeEntryAt(history, index) {
   var next = values.slice()
   next.splice(target, 1)
   return next
-}
-
-function clearHistory() {
-  return []
 }
 
 function parseEntryJson(line) {

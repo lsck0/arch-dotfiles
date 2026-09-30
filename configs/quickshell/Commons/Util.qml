@@ -40,11 +40,6 @@ QtObject {
     return value !== null && typeof value === "object" && !Array.isArray(value)
   }
 
-  // identity, despite the name
-  function canonicalWidgetId(id) {
-    return String(id || "")
-  }
-
   function cloneJson(value) {
     return JSON.parse(JSON.stringify(value === undefined ? null : value))
   }
@@ -69,6 +64,17 @@ QtObject {
     var target = String(key)
     var next = ({})
     for (var k in map) if (k !== target) next[k] = map[k]
+    return next
+  }
+
+  // sparkline window, one sample per poll
+  readonly property int historyCountMax: 60
+
+  // copy-on-write append that keeps the newest historyCountMax samples
+  function historyPush(history, value) {
+    var next = (history || []).slice()
+    next.push(value)
+    if (next.length > historyCountMax) next.shift()
     return next
   }
 }

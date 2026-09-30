@@ -2,7 +2,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 import qs.Ui
 import "ClipboardHistory.js" as ClipboardHistory
@@ -87,7 +86,7 @@ Item {
   }
 
   function confirmClearHistory() {
-    root.history = ClipboardHistory.clearHistory()
+    root.history = []
     root.saveHistory()
     root.selectedIndex = 0
     root.cursorActive = false
@@ -406,15 +405,7 @@ Item {
             font.bold: true
             font.letterSpacing: Style.headerTracking
             layer.enabled: Style.fx.glow > 0
-            layer.effect: MultiEffect {
-              shadowEnabled: true
-              shadowColor: Style.fx.glowColor
-              shadowBlur: 1.0
-              shadowVerticalOffset: 0
-              shadowHorizontalOffset: 0
-              blurMax: Style.fx.glowRadius
-              autoPaddingEnabled: true
-            }
+            layer.effect: Glow {}
           }
 
           Text {
@@ -450,15 +441,7 @@ Item {
               font.pixelSize: Style.font.heading
               font.bold: true
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
             }
 
             Text {
@@ -481,15 +464,7 @@ Item {
               font.family: root.fontFamily
               font.pixelSize: Style.font.heading
               layer.enabled: Style.fx.glow > 0
-              layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowColor: Style.fx.glowColor
-                shadowBlur: 1.0
-                shadowVerticalOffset: 0
-                shadowHorizontalOffset: 0
-                blurMax: Style.fx.glowRadius
-                autoPaddingEnabled: true
-              }
+              layer.effect: Glow {}
               SequentialAnimation on opacity {
                 running: root.opened
                 loops: Animation.Infinite
@@ -568,15 +543,7 @@ Item {
                       font.pixelSize: Style.font.body
                       horizontalAlignment: Text.AlignHCenter
                       layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
-                      layer.effect: MultiEffect {
-                        shadowEnabled: true
-                        shadowColor: Style.fx.glowColor
-                        shadowBlur: 1.0
-                        shadowVerticalOffset: 0
-                        shadowHorizontalOffset: 0
-                        blurMax: Style.fx.glowRadius
-                        autoPaddingEnabled: true
-                      }
+                      layer.effect: Glow {}
                     }
 
                     Image {
@@ -604,19 +571,11 @@ Item {
                       wrapMode: Text.NoWrap
                       verticalAlignment: Text.AlignVCenter
                       layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
-                      layer.effect: MultiEffect {
-                        shadowEnabled: true
-                        shadowColor: Style.fx.glowColor
-                        shadowBlur: 1.0
-                        shadowVerticalOffset: 0
-                        shadowHorizontalOffset: 0
-                        blurMax: Style.fx.glowRadius
-                        autoPaddingEnabled: true
-                      }
+                      layer.effect: Glow {}
                     }
                   }
 
-                  HudFrame { visible: rowDelegate.hasCursor && Style.fx.brackets }
+                  HudFrame { shown: rowDelegate.hasCursor }
 
                   MouseArea {
                     anchors.fill: parent

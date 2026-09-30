@@ -38,7 +38,7 @@ function stripImageTags(text) {
 }
 
 function styledBody(body, app, appIcon) {
-  return stripImageTags(sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>"))
+  return sanitizeBody(body, app, appIcon).replace(/\r\n|\r|\n/g, "<br/>")
 }
 
 function sanitizeBody(body, app, appIcon) {
@@ -185,17 +185,13 @@ function historyEntry(value, normalUrgency) {
 
 function parseSettings(raw) {
   var text = String(raw || "").trim()
-  if (!text) return { error: false, dnd: null, legacy: false }
+  if (!text) return { error: false, dnd: null }
 
   try {
     var parsed = JSON.parse(text)
-    return {
-      error: false,
-      dnd: parsed && typeof parsed.dnd === "boolean" ? parsed.dnd : null,
-      legacy: !!(parsed && (parsed.pending || parsed.past || parsed.entries))
-    }
+    return { error: false, dnd: parsed && typeof parsed.dnd === "boolean" ? parsed.dnd : null }
   } catch (e) {
-    return { error: true, errorMessage: String(e), dnd: null, legacy: false }
+    return { error: true, errorMessage: String(e), dnd: null }
   }
 }
 

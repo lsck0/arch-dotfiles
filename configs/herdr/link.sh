@@ -7,6 +7,5 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/herdr
-
-ln -sfn ${PWD}/config.toml ${HOME}/.config/herdr/config.toml
+mkdir -p "${HOME}/.config/herdr"
+ln -sfn "${PWD}/config.toml" "${HOME}/.config/herdr/config.toml"

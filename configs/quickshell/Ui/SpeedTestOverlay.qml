@@ -1,9 +1,7 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
-import qs.Ui
 
 // speed test overlay shared by network and disk tests
 PanelWindow {
@@ -30,7 +28,6 @@ PanelWindow {
 
   property var leftHist: []
   property var rightHist: []
-  function _push(arr, v) { var a = arr.slice(); a.push(v); if (a.length > 60) a.shift(); return a }
 
   signal closeRequested()
   signal runAgainRequested()
@@ -53,8 +50,8 @@ PanelWindow {
 
   onRunningChanged: if (running) { resetScale(); leftHist = []; rightHist = [] }
   onScaleStopsChanged: resetScale()
-  onLeftValueChanged: { expandScale(leftValue); if (leftValue > 0) leftHist = _push(leftHist, leftValue) }
-  onRightValueChanged: { expandScale(rightValue); if (rightValue > 0) rightHist = _push(rightHist, rightValue) }
+  onLeftValueChanged: { expandScale(leftValue); if (leftValue > 0) leftHist = Util.historyPush(leftHist, leftValue) }
+  onRightValueChanged: { expandScale(rightValue); if (rightValue > 0) rightHist = Util.historyPush(rightHist, rightValue) }
 
   Behavior on fullScale {
     NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
@@ -140,15 +137,6 @@ PanelWindow {
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.xs
-              Text {
-                anchors.verticalCenter: parent.verticalCenter
-                textFormat: Text.PlainText
-                text: ">"
-                color: Color.accent
-                opacity: Style.emphasis.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.title
-              }
               PanelSectionHeader {
                 anchors.verticalCenter: parent.verticalCenter
                 fontFamily: root.fontFamily
@@ -163,15 +151,7 @@ PanelWindow {
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
                 layer.enabled: Style.fx.glow > 0
-                layer.effect: MultiEffect {
-                  shadowEnabled: true
-                  shadowColor: Style.fx.glowColor
-                  shadowBlur: 1.0
-                  shadowVerticalOffset: 0
-                  shadowHorizontalOffset: 0
-                  blurMax: Style.fx.glowRadius
-                  autoPaddingEnabled: true
-                }
+                layer.effect: Glow {}
                 SequentialAnimation on opacity {
                   running: true
                   loops: Animation.Infinite
@@ -336,15 +316,7 @@ PanelWindow {
         font.bold: true
         font.letterSpacing: Style.displayTracking
         layer.enabled: Style.fx.glow > 0
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Style.fx.glowColor
-          shadowBlur: 1.0
-          shadowVerticalOffset: 0
-          shadowHorizontalOffset: 0
-          blurMax: Style.fx.glowRadius
-          autoPaddingEnabled: true
-        }
+        layer.effect: Glow {}
       }
       Text {
         anchors.bottom: heroNum.bottom

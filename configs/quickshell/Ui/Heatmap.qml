@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 
 // repaints only on new rows or resize, so it scrolls one column per sample
@@ -78,14 +77,6 @@ Item {
     }
 
     layer.enabled: Style.fx.glow > 0
-    layer.effect: MultiEffect {
-      shadowEnabled: true
-      shadowColor: Style.fx.glowColor
-      shadowBlur: 0.6
-      shadowVerticalOffset: 0
-      shadowHorizontalOffset: 0
-      blurMax: Style.fx.glowRadius
-      autoPaddingEnabled: true
-    }
+    layer.effect: Glow { shadowBlur: 0.6 }
   }
 }

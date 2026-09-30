@@ -10,7 +10,7 @@ Singleton {
   readonly property int barCount: 24
 
   // 0-100 per band, see ascii_max_range
-  property var values: [0, 0, 0, 0, 0, 0]
+  property var values: zeroed()
 
   property bool available: false
 

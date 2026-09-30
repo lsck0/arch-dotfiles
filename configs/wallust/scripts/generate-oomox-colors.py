@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Generate ~/.cache/wal/colors-oomox with contrast guarantees."""
 
-import json
 import os
 import sys
 
@@ -9,8 +8,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "li
 
 from palette import (  # noqa: E402
     TEXT_RATIO,
-    BG_VALUE_MIN,
-    BG_VALUE_MAX,
     contrast,
     hex_to_rgb,
     lift,
@@ -19,31 +16,19 @@ from palette import (  # noqa: E402
     selection_pair,
     tone_map,
     vivify,
+    wal_load,
+    write_atomic,
 )
 
-CACHE = os.path.expanduser("~/.cache/wal/colors.json")
 OUT = os.path.expanduser("~/.cache/wal/colors-oomox")
 
 
 def main():
-    try:
-        with open(CACHE) as fh:
-            data = json.load(fh)
-    except (OSError, ValueError) as exc:
-        print("generate-oomox-colors: cannot read %s: %s" % (CACHE, exc),
-              file=sys.stderr)
+    slot = wal_load("generate-oomox-colors")
+    if slot is None:
         return 1
 
-    special = data.get("special", {})
-    colors = data.get("colors", {})
-
-    def slot(name, fallback):
-        try:
-            return hex_to_rgb(colors.get(name) or special.get(name) or fallback)
-        except (ValueError, IndexError):
-            return hex_to_rgb(fallback)
-
-    bg = tone_map(slot("background", "#0b1019"), BG_VALUE_MIN, BG_VALUE_MAX)
+    bg = tone_map(slot("background", "#0b1019"))
     raw_fg = slot("foreground", "#c2c3c5")
     accent = vivify(slot("color4", "#B68B74"), 0.45, 0.55)
 
@@ -79,12 +64,8 @@ def main():
              "HDR_BTN_FG", "GTK3_GENERATE_DARK", "ROUNDNESS", "SPACING",
              "GRADIENT"]
 
-    body = "".join("%s=%s\n" % (k, values[k]) for k in order)
-    # atomic write, themix reads this path
-    tmp = OUT + ".tmp"
-    with open(tmp, "w") as fh:
-        fh.write(body)
-    os.replace(tmp, OUT)
+    # atomic, themix reads this path
+    write_atomic(OUT, "".join("%s=%s\n" % (k, values[k]) for k in order))
 
     if "--report" in sys.argv:
         pairs = [("FG/BG", "FG", "BG"), ("MENU", "MENU_FG", "MENU_BG"),

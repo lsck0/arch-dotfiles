@@ -13,15 +13,11 @@ BarWidget {
     ? root.bar.shellHost.serviceFor("service.notifications") : null
   readonly property string historyDir: service ? service.historyDir : ""
 
-  property bool dndOn: false
+  readonly property bool dndOn: service ? service.doNotDisturb : false
   property var history: []
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
-
-  function refreshDnd() {
-    if (!dndProc.running) dndProc.running = true
-  }
 
   function refreshHistory() {
     if (root.historyDir && !historyProc.running) historyProc.running = true
@@ -70,32 +66,14 @@ BarWidget {
   }
 
   function toggleDnd() {
-    // wait for exit before refreshing
-    if (toggleProc.running) return
-    toggleProc.running = true
-  }
-
-  Process {
-    id: toggleProc
-    command: Paths.ipcCall("notifications", "toggleDnd")
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.dndOn = String(text || "").trim() === "on"
-    }
+    if (root.service) root.service.setDoNotDisturb(!root.service.doNotDisturb)
   }
 
   function clearHistory() {
-    Quickshell.execDetached(Paths.ipcCall("notifications", "clear"))
-    Qt.callLater(root.refreshHistory)
-  }
-
-  Process {
-    id: dndProc
-    command: Paths.ipcCall("notifications", "isDnd")
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.dndOn = String(text || "").trim() === "on"
-    }
+    if (!root.service) return
+    root.service.clearHistory()
+    // the delete is queued, a re-read now could resurrect the rows
+    root.history = []
   }
 
   Process {
@@ -107,14 +85,6 @@ BarWidget {
         try { root.history = JSON.parse(text || "[]") } catch (e) {}
       }
     }
-  }
-
-  Timer {
-    interval: 10000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshDnd()
   }
 
   BarIconButton {
@@ -137,8 +107,8 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "NOTIFICATIONS"
-    implicitWidth: Style.panelWidth.normal + Style.shadowOffset
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset) + Style.shadowOffset
+    implicitWidth: Style.panelWidth.normal
+    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset)
 
     onOpened: root.refreshHistory()
 
@@ -239,7 +209,6 @@ BarWidget {
             glyph: modelData.glyph || ""
             urgency: modelData.urgency !== undefined ? modelData.urgency : 1
             timestamp: modelData.timestamp || 0
-            cornerRadius: Style.cornerRadius
 
             onCardClicked: root.openEntry(modelData)
             // the daemon owns history, so clear all

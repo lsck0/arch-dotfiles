@@ -3,19 +3,12 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -ex
 
-mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos" "${HOME}/projects"
+mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
 # folders apps force into ~ (unreal: Library, UnrealEngine), hidden in dolphin/nemo
 ln -sfn "${PWD}/home.hidden" "${HOME}/.hidden"
-
-# ~/projects icon: .directory for dolphin, gio for nemo
-cat > "${HOME}/projects/.directory" <<'EOF'
-[Desktop Entry]
-Icon=folder-development
-EOF
-command -v gio >/dev/null 2>&1 && gio set "${HOME}/projects" metadata::custom-icon-name folder-development || true
 
 mkdir -p "${HOME}/.local/share/applications"
 while IFS= read -r entry; do
@@ -40,9 +33,7 @@ if command -v Hyprland >/dev/null 2>&1; then
     ln -sfn "${PWD}/hyprland-portals.conf" "${HOME}/.config/xdg-desktop-portal/hyprland-portals.conf"
 fi
 
-# gtk sidebar bookmarks
-mkdir -p "${HOME}/.config/gtk-3.0"
-# owned whole, so bookmarks from older layouts do not linger
+# gtk sidebar bookmarks, owned whole so stale entries do not linger
 mkdir -p "${HOME}/.config/gtk-3.0"
 cat > "${HOME}/.config/gtk-3.0/bookmarks" <<EOF
 file://${HOME}/projects Projects
@@ -81,7 +72,7 @@ places = [
     ("remote:/", "Network", "folder-network", True),
     ("trash:/", "Trash", "user-trash", True),
 ]
-# the list above owns every folder bookmark, so leftovers from older layouts go
+# the list above owns every file:// bookmark
 managed = {href for href, _, _, _ in places}
 for child in list(root):
     if child.get("href", "").startswith("file://") and child.get("href") not in managed:
@@ -101,7 +92,7 @@ for href, title, icon, system in places:
         ET.SubElement(ET.SubElement(info, "metadata", owner="http://www.kde.org"), "isSystemItem").text = "true"
     root.insert(position, bookmark)
     position += 1
-# drop the old smb bookmark from nas/link.sh
+# the nas is mounted locally now, a leftover smb bookmark would duplicate it
 for child in list(root):
     if child.get("href", "").startswith("smb://10.100.0.10"):
         root.remove(child)

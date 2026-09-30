@@ -7,6 +7,5 @@ fi
 
 set -ex
 
-mkdir -p ${HOME}/.config/fastfetch
-
-ln -sfn ${PWD}/fastfetch.jsonc ${HOME}/.config/fastfetch/config.jsonc
+mkdir -p "${HOME}/.config/fastfetch"
+ln -sfn "${PWD}/fastfetch.jsonc" "${HOME}/.config/fastfetch/config.jsonc"

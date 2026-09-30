@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stage 1, from the Arch ISO via `curl install-pc.lsck0.dev | sh`: wipe the disk, install a base system, arm stage.sh
+# Stage 1, from the Arch ISO via `curl https://install-pc.lsck0.dev | sh`: wipe the disk, install a base system, arm stage.sh
 
 set -euo pipefail
 

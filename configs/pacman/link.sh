@@ -7,9 +7,9 @@ set -ex
 fingerprint=$(gpg --show-keys --with-colons archrepo.asc | awk -F: '$1 == "fpr" {print $10; exit}')
 sudo pacman-key --add archrepo.asc
 sudo pacman-key --lsign-key "$fingerprint"
-# a copy, not a link: [lsck0] (lsck0.conf) is appended only while the mirror answers, an unreachable
-# repo fails every sync; rm first so an old link is not written through
+# rm first so an old link is not written through
 sudo rm -f /etc/pacman.conf
+# [lsck0] only while the mirror answers, an unreachable repo fails every sync
 if curl -fsI -m 10 https://mirror.lsck0.dev/x86_64/lsck0.db >/dev/null; then
     cat pacman.conf lsck0.conf | sudo tee /etc/pacman.conf >/dev/null
 else
@@ -19,10 +19,10 @@ mkdir -p "${HOME}/.config/pacman"
 ln -sfn "${PWD}/makepkg.conf" "${HOME}/.config/pacman/makepkg.conf"
 
 sudo mkdir -p /etc/pacman.d/hooks
-for hook in ${PWD}/hooks/*.hook; do
+for hook in "${PWD}"/hooks/*.hook; do
     dest="/etc/pacman.d/hooks/$(basename "${hook}")"
     if grep -q '@USER@' "${hook}"; then
-        # copy with @USER@ filled in; rm first so an old link is not written through
+        # copy with @USER@ filled in, rm as above
         sudo rm -f "${dest}"
         sed "s|@USER@|$USER|" "${hook}" | sudo tee "${dest}" >/dev/null
     else

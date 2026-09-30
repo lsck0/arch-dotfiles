@@ -33,7 +33,7 @@ return {
 
     {
         "jiaoshijie/undotree",                  -- undo history tree
-        dependencies = "nvim-lua/plenary.nvim", -- Lua utility library
+        dependencies = "nvim-lua/plenary.nvim",
         config = true,
         keys = {
             { "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },

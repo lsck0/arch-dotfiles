@@ -24,9 +24,7 @@ SCOPE_FILE=""
 
 usage() { sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
-# Refuse any target not on the authorized scope list. A line is an exact host, a
-# domain (matches its subdomains too), or a CIDR (IP targets only). Empty file
-# or no --scope means no gate. Keeps a run inside the rules of engagement.
+# scope gate: keep the run inside the authorized rules of engagement
 scope_check() {
     local host="$1" line
     [ -z "$SCOPE_FILE" ] && return 0
@@ -138,7 +136,7 @@ case "$TARGET" in
         ;;
     *)
         hostport="${TARGET%%/*}"
-        [ "$hostport" != "$TARGET" ] && PATHQ="/${rest#*/}"
+        [ "$hostport" != "$TARGET" ] && PATHQ="/${TARGET#*/}"
         [ "$FORCE_HTTPS" = 1 ] && SCHEME="https"
         ;;
 esac
@@ -153,7 +151,8 @@ HTTPX_AUTH=(); NUCLEI_AUTH=(); FFUF_AUTH=(); KATANA_AUTH=(); SQLMAP_AUTH=(); CUR
 [ -n "$COOKIE" ] && { HTTPX_AUTH+=(-cookie "$COOKIE"); NUCLEI_AUTH+=(-cookie "$COOKIE"); FFUF_AUTH+=(-b "$COOKIE"); KATANA_AUTH+=(-cookie "$COOKIE"); SQLMAP_AUTH+=(--cookie "$COOKIE"); CURL_AUTH+=(-b "$COOKIE"); }
 [ -n "$HEADER" ] && { HTTPX_AUTH+=(-header "$HEADER"); NUCLEI_AUTH+=(-header "$HEADER"); FFUF_AUTH+=(-H "$HEADER"); KATANA_AUTH+=(-header "$HEADER"); SQLMAP_AUTH+=(--header "$HEADER"); CURL_AUTH+=(-H "$HEADER"); }
 
-# # ---------------------------------------------------------------- speed / stealth tuning Derived knobs threaded into every tool so --stealth / --rate change behaviour globally.
+## ---------------------------------------------------------------- speed / stealth tuning
+# derived knobs threaded into every tool so --stealth / --rate change behaviour globally
 THREADS=40; FFUF_RATE=0; NUCLEI_RL=150; KATANA_C=15; KATANA_RL=150
 NMAP_TIMING="-T4"; NAABU_TUNE=(); SQLMAP_TUNE=(); DALFOX_TUNE=(); FFUF_DELAY=()
 PROBE_JITTER=0            # max seconds of random sleep between manual curl probes
@@ -161,7 +160,7 @@ STEALTH_UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 UA=""
 
 if [ "$STEALTH" = 1 ]; then
-    # Blend into background noise: single flow, low packet rate, big random jitter, realistic browser UA, and NO flooding/brute (those are unmistakable).
+    # blend into background noise: single low-rate flow, big jitter, browser UA, no flooding/brute
     DOS=0
     THREADS=1; FFUF_RATE=1; NUCLEI_RL=1; KATANA_C=1; KATANA_RL=2
     NMAP_TIMING="-T1"; NAABU_TUNE=(-rate 10 -c 1); SQLMAP_TUNE=(--delay 4 --random-agent)
@@ -243,7 +242,7 @@ SUMMARY="$OUTDIR/raw/run.log"
 REPORT="$OUTDIR/REPORT.md"
 : > "$SUMMARY"
 
-# Preflight tool inventory: record every expected tool that is not installed so the operator knows which parts of the assessment were skipped for lack of a binary.
+# preflight: record missing expected tools so the operator knows what was skipped
 MISSING_INV="$OUTDIR/raw/missing-inventory.txt"; : > "$MISSING_INV"
 EXPECTED_TOOLS="curl jq tracepath whois host wafw00f gowitness katana \
 subfinder trufflehog gau waybackurls naabu nmap testssl sslscan gobuster ffuf kr \
@@ -405,7 +404,7 @@ rebuild_auth() {
     [ -n "$UA" ] && { HTTPX_AUTH+=(-header "User-Agent: $UA"); NUCLEI_AUTH+=(-header "User-Agent: $UA"); FFUF_AUTH+=(-H "User-Agent: $UA"); KATANA_AUTH+=(-header "User-Agent: $UA"); CURL_AUTH+=(-A "$UA"); }
 }
 
-# Mid-scan session refresh: if the token has expired (base URL now 401/403) and a --reauth-cmd was given, run it to obtain a fresh cookie/header value, then rebuild all auth arrays.
+# mid-scan session refresh: if the token expired and --reauth-cmd is set, refresh and rebuild auth
 reauth_check() {
     [ -z "$REAUTH_CMD" ] && return 0
     [ -z "$COOKIE$HEADER" ] && return 0
@@ -641,7 +640,7 @@ bypass_probe() {
     [ -s "$eps" ] || { echo "no endpoints to test for 403/401 bypass"; return 0; }
     local u base host path code len i=0
     host="${HOST}"
-    # report a bypass only if it's a success code AND the body differs from the catch-all baseline (kills false positives on wildcard-200 servers).
+    # report a bypass only if success code AND body differs from baseline (kills wildcard-200 FPs)
     _try() { # label extra-curl-args... url
         local label="$1"; shift
         _jitter
@@ -693,7 +692,7 @@ misconfig_probe() {
         acao=$(printf '%s' "$hdrs" | grep -i '^access-control-allow-origin:' | head -1)
         acac=$(printf '%s' "$hdrs" | grep -i '^access-control-allow-credentials:' | head -1)
         if printf '%s' "$acao" | grep -qiE "$evil|\*"; then
-            printf 'CORS reflects origin: %s\n  %s\n  %s\n' "$target" "$acao" "${acac:-（no ACAC）}" >> "$out"
+            printf 'CORS reflects origin: %s\n  %s\n  %s\n' "$target" "$acao" "${acac:-(no ACAC)}" >> "$out"
             printf '%s' "$acac" | grep -qi 'true' && printf '  !! reflected origin WITH credentials=true (exploitable)\n' >> "$out"
         fi
     done
@@ -880,7 +879,8 @@ authz_probe() {
             fi
         fi
 
-        # --- mass assignment: privileged fields accepted on write endpoints --- Hardened: compare a benign PUT baseline vs a privileged PUT.
+        # --- mass assignment: privileged fields accepted on write endpoints ---
+        # compare a benign PUT baseline vs a privileged PUT
         if printf '%s' "$u" | grep -qiE '/api/|/v[0-9]+/|/users?|/account|/profile|/settings'; then
             local ma bo bs bl ps pl pf
             ma='{"role":"admin","isAdmin":true,"is_admin":true,"is_staff":true,"account_balance":999999}'
@@ -1098,14 +1098,14 @@ websocket_probe() {
     grep -q WEBSOCKET "$out" 2>/dev/null || echo "no WebSocket (101) endpoints found" >> "$out"
 }
 
-# ---- WebSocket message-level fuzzing (RFC6455 client): speaks WS frames, fuzzes messages (SSTI/SQLi/XSS/oversized/malformed), tests cross-origin handshake (CSWSH).
+# ---- WebSocket message-level fuzzing (RFC6455): SSTI/SQLi/XSS/oversized + cross-origin handshake (CSWSH).
 websocket_fuzz() {
     local out="$OUTDIR/raw/ws-fuzz.txt"; : > "$out"
     have python3 || { echo "python3 missing - cannot fuzz WebSocket" > "$out"; return 0; }
     grep -q WEBSOCKET "$OUTDIR/raw/websocket.txt" 2>/dev/null || { echo "no live WebSocket endpoints to fuzz" > "$out"; return 0; }
     local eps; eps=$(grep -aoE 'https?://[^ ]+' "$OUTDIR/raw/websocket.txt" | sort -u | head -10)
     local tf="$OUTDIR/raw/ws-targets.txt"; printf '%s\n' "$eps" > "$tf"
-    # NOTE: `python3 - <<PY` consumes stdin as the program, so targets are passed via a file argument (argv[3]) rather than piped stdin.
+    # python3 - <<PY consumes stdin as the program, so targets pass via argv[3], not piped stdin
     python3 - "$COOKIE" "$HEADER" "$tf" > "$out" 2>/dev/null <<'PY'
 import sys, socket, ssl, base64, os, struct
 from urllib.parse import urlparse
@@ -1199,7 +1199,7 @@ xxe_probe() {
     grep -q 'XXE CONFIRMED' "$out" 2>/dev/null || echo "no XXE confirmed via file reflection" >> "$out"
 }
 
-# ---- web stack fingerprint: server/CDN + frontend + backend framework, with framework-specific high-value follow-ups.
+# ---- web stack fingerprint: server/CDN + frontend/backend framework + high-value follow-ups.
 fingerprint_stack() {
     _curl_auth
     local out="$OUTDIR/raw/stack.txt"; : > "$out"
@@ -1286,7 +1286,7 @@ deser_probe() {
     grep -qiE 'serialized|VIEWSTATE|DESERIALIZATION|pickle|Marshal' "$out" 2>/dev/null || echo "no serialization markers or deserialization errors found" >> "$out"
 }
 
-# ---- gadget-chain exploitation: build Java (ysoserial) / PHP (phpggc) deser gadgets that trigger an OOB callback (proof of RCE) and fire them at detected deser sinks.
+# ---- gadget-chain exploitation: Java (ysoserial) / PHP (phpggc) gadgets fired at deser sinks for OOB RCE proof.
 exploit_deser() {
     local out="$OUTDIR/raw/deser-exploit.txt"; : > "$out"
     if [ "$DOS" != 1 ]; then echo "gadget exploitation skipped (needs --dos)" > "$out"; return 0; fi
@@ -1431,7 +1431,7 @@ _dump_hits() { # file  regex  header
 _dump_hits "$R/inject-verified.txt" 'CONFIRMED|SQL-ERROR reflected' "Injection (SSTI / cmd / traversal / SQLi / SSRF)"
 _dump_hits "$R/xxe.txt" 'XXE CONFIRMED' "XML external entity (XXE)"
 _dump_hits "$R/deser.txt" 'DESERIALIZATION error|serialized object exposed|__VIEWSTATE present|pickle|Marshal' "Insecure deserialization"
-_dump_hits "$R/deser-exploit.txt" 'gadget .* fired' "Deserialization exploitation (gadget chains dispatched — verify OOB)"
+_dump_hits "$R/deser-exploit.txt" 'gadget .* fired' "Deserialization exploitation (gadget chains dispatched: verify OOB)"
 _dump_hits "$R/ws-fuzz.txt" 'WS-SSTI CONFIRMED|CSWSH|WS-SQL-ERROR|WS-REFLECTION|WS-ERROR-LEAK' "WebSocket message-level findings"
 _dump_hits "$R/smuggling.txt" 'SMUGGLING' "HTTP request smuggling"
 _dump_hits "$R/authz.txt" 'IDOR|BFLA|BROKEN-AUTHZ|OBJECT-ENUMERATION|MASS-ASSIGN' "Broken authorization (IDOR / BFLA / mass-assignment)"
@@ -1445,7 +1445,7 @@ if [ -s "$R/js-secrets.txt" ] && grep -qE '^[0-9]+:' "$R/js-secrets.txt"; then n
 [ -s "$R/graphql/result.txt" ] && grep -qiE 'BATCHING|field-suggestion|mutationType' "$R/graphql/result.txt" && { note "**GraphQL attack surface:**"; note '```'; grep -iE 'BATCHING|field-suggestion|mutationType|introspection OPEN' "$R/graphql/result.txt" | head -8 >> "$REPORT"; note '```'; }
 if ! grep -qiE 'CONFIRMED|IDOR|BFLA|BROKEN-AUTHZ|OBJECT-ENUMERATION|MASS-ASSIGN|alg=none|WEAK HS256|OPEN-REDIRECT|SOURCE-MAP exposed|SQL-ERROR reflected' \
     "$R/inject-verified.txt" "$R/authz.txt" "$R/jwt.txt" "$R/openredirect.txt" "$R/sourcemaps.txt" 2>/dev/null; then
-    note "_no actively-verified vulnerabilities. (Absence is not proof of safety — see template + fuzzing sections below.)_"
+    note "_no actively-verified vulnerabilities. (Absence is not proof of safety: see template + fuzzing sections below.)_"
 fi
 [ -n "$COOKIE2$HEADER2" ] || note "_Tip: supply \`--cookie2/--header2\` (a second, lower-priv session) to unlock cross-user IDOR/BFLA confirmation._"
 [ -n "$COLLAB" ] || note "_Tip: supply \`--collab <oob-host>\` to catch blind SSRF/RCE/log4shell out-of-band._"
@@ -1487,13 +1487,13 @@ if [ -s "$R/graphql/result.txt" ]; then note "**GraphQL:**"; note '```'; sed 's/
 if [ -s "$R/js-endpoints.log" ]; then note "**Endpoints mined from JavaScript ($(wc -l < "$R/js-endpoints.log")):**"; note '```'; head -50 "$R/js-endpoints.log" >> "$REPORT"; note '```'; fi
 if [ -s "$R/method-map.txt" ]; then note "**HTTP method map (verb -> status):**"; note '```'; head -80 "$R/method-map.txt" >> "$REPORT"; note '```'; fi
 if [ -s "$OUTDIR/live-subdomains.txt" ]; then
-    note "**Live subdomains ($(wc -l < "$OUTDIR/live-subdomains.txt")) — re-run the tool against these to widen coverage:**"
+    note "**Live subdomains ($(wc -l < "$OUTDIR/live-subdomains.txt")), re-run the tool against these to widen coverage:**"
     note '```'; sed 's/\x1b\[[0-9;]*m//g' "$OUTDIR/live-subdomains.txt" | head -40 >> "$REPORT"; note '```'
 fi
 
 sect "Access Control & Misconfiguration"
 if grep -q BYPASS "$R/bypass.txt" 2>/dev/null; then
-    note "**401/403 bypass — restricted endpoints reachable via header/path tricks:**"
+    note "**401/403 bypass, restricted endpoints reachable via header/path tricks:**"
     note '```'; grep -B1 BYPASS "$R/bypass.txt" | head -50 >> "$REPORT"; note '```'
 else note "_no 401/403 access-control bypass found._"; fi
 if [ -s "$R/misconfig.txt" ] && grep -qE 'reflects|reflected|present:' "$R/misconfig.txt"; then
@@ -1503,7 +1503,6 @@ else note "_no CORS reflection, host-header injection, or notable well-known fil
 
 sect "Service CVEs & Host Vulns"
 if [ -s "$R/nmap.log" ]; then
-    # Extract detailed vuln lines and CVE IDs
     grep -iE 'VULNERABLE|CVE-[0-9]|sslv3|SWEET32|POODLE|TRACE is enabled|weak|http-slowloris|/tcp *open' "$R/nmap.log" | head -80 >> "$REPORT"
     code "$R/nmap.log" 100
 else note "_no host-level vulnerabilities detected._"; fi
@@ -1614,9 +1613,9 @@ if [ "$have_poc" = 1 ]; then
     note "Generated \`pocs.sh\` (review before running):"; note '```bash'; tail -n +3 "$POCS" | head -40 >> "$REPORT"; note '```'
 else note "_no reproducible PoCs generated (no confirmed active findings)._"; fi
 
-sect "Coverage Gaps — Missing Tools"
+sect "Coverage Gaps: Missing Tools"
 if [ -s "$R/missing-inventory.txt" ] || [ -s "$R/missing-tools.txt" ]; then
-    note "The following tools were **not installed**, so their checks were skipped. Absence of a finding in those areas is not evidence of safety — install and re-run."
+    note "The following tools were **not installed**, so their checks were skipped. Absence of a finding in those areas is not evidence of safety. Install and re-run."
     note '| Tool | Skipped check(s) |'
     note '|---|---|'
     # union of preflight inventory and per-run skips, mapped to the phases they gate

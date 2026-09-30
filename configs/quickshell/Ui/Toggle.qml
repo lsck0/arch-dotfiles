@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 
 BorderSurface {
@@ -40,23 +39,15 @@ BorderSurface {
   Behavior on color { ColorAnimation { duration: 100 } }
 
   layer.enabled: Style.fx.glow > 0 && activeFocus
-  layer.effect: MultiEffect {
-    shadowEnabled: true
-    shadowColor: Style.fx.glowColor
-    shadowBlur: 1.0
-    shadowVerticalOffset: 0
-    shadowHorizontalOffset: 0
-    blurMax: Style.fx.glowRadius
-    autoPaddingEnabled: true
-  }
+  layer.effect: Glow {}
 
   Row {
     id: content
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
-    anchors.leftMargin: root.borderLeft + Style.spacing.rowPaddingX
-    anchors.rightMargin: root.borderRight + Style.spacing.rowPaddingX
+    anchors.leftMargin: root.borderWidth + Style.spacing.rowPaddingX
+    anchors.rightMargin: root.borderWidth + Style.spacing.rowPaddingX
     spacing: Style.spacing.rowPaddingX
 
     Column {

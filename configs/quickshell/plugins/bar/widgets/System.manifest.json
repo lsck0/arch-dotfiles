@@ -4,7 +4,7 @@
   "name": "System",
   "version": "1.0.0",
   "author": "arch-dotfiles",
-  "description": "CPU, memory, disk, temperature, battery and power mode",
+  "description": "CPU, GPU, memory, temperature, battery and power mode",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "System",
-    "description": "CPU, memory, disk, temperature, battery and power mode",
+    "description": "CPU, GPU, memory, temperature, battery and power mode",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

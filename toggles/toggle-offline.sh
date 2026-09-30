@@ -3,8 +3,6 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-# extracted from the quickshell Network widget, which was silently broken inline
-
 TUNNELS=(toggle-vpn.sh toggle-protonvpn.sh toggle-tor.sh)
 
 # offline means both halves are down
