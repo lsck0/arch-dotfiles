@@ -7,6 +7,10 @@ fi
 
 set -e
 
-sudo ln -sfn "${PWD}/NetworkManager.conf" /etc/NetworkManager/NetworkManager.conf
-
-sudo systemctl restart NetworkManager.service
+conf=/etc/NetworkManager/NetworkManager.conf
+# a restart drops wifi for seconds: only on change, then wait so later link.sh (nvim plugins) have network
+if [ "$(readlink "${conf}")" != "${PWD}/NetworkManager.conf" ]; then
+    sudo ln -sfn "${PWD}/NetworkManager.conf" "${conf}"
+    sudo systemctl restart NetworkManager.service
+    nm-online -q --timeout=60 || echo "networkmanager: still offline after 60s" >&2
+fi

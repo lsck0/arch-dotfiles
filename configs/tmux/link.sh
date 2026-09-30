@@ -17,4 +17,7 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm || true
 TMUX_PLUGIN_MANAGER_PATH="${HOME}/.tmux/plugins" \
     ~/.tmux/plugins/tpm/bin/install_plugins || true
 
-~/.cargo/bin/tms config -p "${HOME}/projects"
+# tms comes from cargo or pacman; skip its config when neither installed it
+if command -v tms >/dev/null 2>&1; then
+    tms config -p "${HOME}/projects"
+fi

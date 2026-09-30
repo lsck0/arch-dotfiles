@@ -70,7 +70,7 @@ return {
         "nvim-treesitter/nvim-treesitter", -- syntax highlighting/parsing
         branch = "main",
         event = { "BufReadPost", "BufNewFile" }, -- before FileType highlight
-        cmd = { "TSUpdate", "TSInstall" },
+        cmd = { "TSUpdate", "TSInstall", "TSInstallSync" },
         build = ":TSUpdate",
         dependencies = {
             { "nvim-treesitter/nvim-treesitter-context" }, -- sticky function context
@@ -97,13 +97,23 @@ return {
                 end
             end
 
-            vim.api.nvim_create_autocmd("VimEnter", {
-                group = vim.api.nvim_create_augroup("TreesitterAutoInstall", { clear = true }),
-                once = true,
-                callback = function()
-                    treesitter.install(installed)
-                end,
-            })
+            -- blocking install for headless bootstrap in link.sh
+            vim.api.nvim_create_user_command("TSInstallSync", function()
+                treesitter.install(installed):wait()
+            end, { desc = "Install configured parsers and wait" })
+
+            -- lazy-loaded on a later buffer, VimEnter has already fired then
+            if vim.v.vim_did_enter == 1 then
+                treesitter.install(installed)
+            else
+                vim.api.nvim_create_autocmd("VimEnter", {
+                    group = vim.api.nvim_create_augroup("TreesitterAutoInstall", { clear = true }),
+                    once = true,
+                    callback = function()
+                        treesitter.install(installed)
+                    end,
+                })
+            end
         end,
     },
 }

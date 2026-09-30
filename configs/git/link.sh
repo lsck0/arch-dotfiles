@@ -15,7 +15,8 @@ fi
 # basic
 git config --global user.name "Luca Sandrock"
 git config --global user.email "luca.sandrock@proton.me"
-git config --global credential.helper store
+# no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also
+# persist that gh token into ~/.git-credentials
 git config --global init.defaultBranch master
 git config --global pull.rebase true
 git config --global --type bool push.autoSetupRemote true

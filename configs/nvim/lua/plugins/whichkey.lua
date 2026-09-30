@@ -25,6 +25,7 @@ return {
                 { "<leader>c", group = "claude" },
                 { "<leader>C", group = "comment/doc" },
                 { "<leader>o", group = "github" },
+                { "<leader>m", group = "orgmode" },
                 { "<leader>r", group = "rest" },
                 { "<leader>i", desc = "Import" },
                 { "<leader>u", desc = "Undotree" },

@@ -46,9 +46,11 @@ $env.config = {
             let export = (direnv export json | complete)
             if $export.exit_code != 0 or ($export.stdout | str trim | is-empty) { return }
             let vars = ($export.stdout | from json)
-            let unset = ($vars | transpose key value | where value == null | get key)
-            for name in $unset { hide-env -i $name }
-            $vars | transpose key value | where value != null | transpose -r -d | load-env
+            let pairs = ($vars | transpose key value)
+            for name in ($pairs | where value == null | get key) { hide-env -i $name }
+            let set = ($pairs | where value != null)
+            # load-env on an empty record errors, so only load when something is set
+            if ($set | is-not-empty) { $set | transpose -r -d | load-env }
         }]
     }
 

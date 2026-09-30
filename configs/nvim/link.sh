@@ -9,4 +9,4 @@ set -e
 
 ln -sfn "${PWD}" "$HOME/.config/nvim"
 
-nvim --headless "+Lazy! sync" +MasonToolsInstallSync +qa
+nvim --headless "+Lazy! sync" +MasonToolsInstallSync +TSInstallSync +qa

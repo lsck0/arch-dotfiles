@@ -22,7 +22,47 @@ DOS=0; STEALTH=0; RATE=0; TOOL_TIMEOUT=0
 COOKIE2=""; HEADER2=""; COLLAB=""; REAUTH_CMD=""; RCE_CMD=""
 SCOPE_FILE=""
 
-usage() { sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() {
+    cat <<'EOF'
+usage: server-fucker.sh [options] <target> [target ...]
+
+Authorized web/service assessment against targets you are permitted to test.
+Targets are hosts, IPs or URLs; --scope keeps the run inside a rules-of-engagement file.
+
+targets:
+  --targets FILE      read newline-separated targets from FILE
+  --scope FILE        only test hosts matching FILE (host, .suffix or CIDR per line)
+
+recon/scan:
+  --full-ports        scan all TCP ports, not just the top set
+  --https             force https on the base URL
+  --spa               treat the target as a single-page app when crawling
+  --wordlist FILE     wordlist for content discovery
+  --collab HOST|URL   interactsh/collaborator host for out-of-band checks
+
+auth:
+  --cookie VAL        cookie header for the primary identity
+  --header VAL        extra request header for the primary identity
+  --cookie2 VAL       cookie for a second identity (access-control checks)
+  --header2 VAL       header for a second identity
+  --reauth-cmd CMD    command that prints a fresh session when it expires mid-scan
+
+pace/limits:
+  --stealth           slow, low-noise timing across all tools
+  --rate N            cap requests per second
+  --duration SEC      per-phase budget (default 60)
+  --max-time SEC      overall wall-clock cap
+  --tool-timeout SEC  per-tool timeout (min 10)
+
+output/exec:
+  --out DIR           write findings under DIR
+  --dos               enable flooding / 500-provocation phases (off by default)
+  --rce-cmd CMD       command to run through a confirmed RCE
+  --yes, -y           skip the authorization prompt
+  -h, --help          this help
+EOF
+    exit "${1:-0}"
+}
 
 # scope gate: keep the run inside the authorized rules of engagement
 scope_check() {
