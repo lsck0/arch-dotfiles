@@ -1088,6 +1088,10 @@ fi
 
 ## LINK PACMAN CONFIG
 
+# keyring first: chaotic -U and pacman/link.sh's lsign need it, a fresh bootstrap has it empty
+sudo pacman-key --init
+sudo pacman-key --populate archlinux
+
 # chaotic aur
 sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com || true
 sudo pacman-key --lsign-key 3056513887B78AEB || true
@@ -1125,8 +1129,6 @@ while true; do sudo -n true 2>/dev/null; sleep 50; done &
 SUDO_KEEPALIVE_PID=$!
 trap 'kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
-sudo pacman-key --init
-sudo pacman-key --populate archlinux
 sudo pacman -Syyu --noconfirm
 
 ## MIRROR
