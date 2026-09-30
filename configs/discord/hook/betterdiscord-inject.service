@@ -1,0 +1,6 @@
+[Unit]
+Description=Inject betterdiscord into discord
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/discord/hook/betterdiscord-inject.sh

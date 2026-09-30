@@ -34,6 +34,8 @@ return {
                 ["Find Under"]         = "<M-d>",
                 ["Find Subword Under"] = "<M-d>",
             }
+            -- it borrows autopairs' buffer <BS> map for the session and warns about it every start
+            vim.g.VM_show_warnings = 0
         end
     },
     { "mrjones2014/smart-splits.nvim", lazy = true }, -- resize/navigate splits

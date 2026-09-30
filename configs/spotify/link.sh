@@ -33,3 +33,6 @@ fi
 spicetify apply || spicetify backup apply || true
 
 python3 "${PWD}/spicetify-unmap-classes.py"
+
+source ../../scripts/lib/user-hook.sh
+user_hook_install ./hook spicetify-apply

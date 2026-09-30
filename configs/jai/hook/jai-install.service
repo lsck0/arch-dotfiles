@@ -1,0 +1,6 @@
+[Unit]
+Description=Install JAI from the newest ~/sync/jai-*.zip
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/jai/hook/jai-install.sh

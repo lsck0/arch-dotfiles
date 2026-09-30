@@ -1,0 +1,8 @@
+[Unit]
+Description=Hook millennium into steam after steam bootstraps or updates
+
+[Path]
+PathChanged=%h/.local/share/Steam/ubuntu12_32
+
+[Install]
+WantedBy=default.target

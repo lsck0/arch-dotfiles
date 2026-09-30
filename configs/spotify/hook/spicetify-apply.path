@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply spicetify after the first spotify login
+
+[Path]
+PathChanged=%h/.config/spotify/prefs
+
+[Install]
+WantedBy=default.target
