@@ -6,7 +6,7 @@ if ! command -v ly-dm >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # ly runs at boot before /home is mounted, so install a real file in /etc
 config=/etc/ly/config.ini

@@ -5,7 +5,7 @@ if ! command -v bugwarrior >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "$HOME/.config/bugwarrior" "$HOME/.local/state/bugwarrior"
 ln -sfn "${PWD}/bugwarrior.toml" "$HOME/.config/bugwarrior/bugwarrior.toml"

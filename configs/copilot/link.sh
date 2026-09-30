@@ -4,7 +4,7 @@ if ! command -v copilot >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 SETTINGS="${HOME}/.copilot/settings.json"
 

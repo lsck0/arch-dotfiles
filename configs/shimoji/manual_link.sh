@@ -10,7 +10,7 @@ if [[ -e "$MARKER" ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 for pack in ./*.wlshm; do
     [ -e "$pack" ] || continue

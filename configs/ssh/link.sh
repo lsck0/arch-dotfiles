@@ -5,7 +5,7 @@ if ! command -v sshd >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo systemctl enable sshd
 

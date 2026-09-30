@@ -5,7 +5,7 @@ if ! command -v v4l2-ctl >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo install -m644 v4l2loopback.conf /etc/modules-load.d/v4l2loopback.conf
 sudo install -m644 v4l2loopback-options.conf /etc/modprobe.d/v4l2loopback.conf

@@ -4,7 +4,7 @@ if ! command -v cupsd >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo systemctl enable --now cups.service || true
 command -v avahi-daemon >/dev/null 2>&1 && sudo systemctl enable --now avahi-daemon.service || true

@@ -5,7 +5,7 @@ if ! command -v discord >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 bd="${HOME}/.config/BetterDiscord"
 mkdir -p "${HOME}/.config/discord" "${bd}/plugins" "${bd}/themes"

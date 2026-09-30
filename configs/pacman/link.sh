@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 # trust the mirror.lsck0.dev signing key before pacman.conf names the repo
 fingerprint=$(gpg --show-keys --with-colons archrepo.asc | awk -F: '$1 == "fpr" {print $10; exit}')

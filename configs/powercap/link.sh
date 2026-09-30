@@ -5,7 +5,7 @@ if ! command -v udevadm >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo ln -sfn "${PWD}/99-powercap-readable.rules" /etc/udev/rules.d/99-powercap-readable.rules
 

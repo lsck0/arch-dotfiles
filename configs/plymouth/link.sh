@@ -5,7 +5,7 @@ if ! command -v plymouth-set-default-theme >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 theme=cyberpunk
 sudo install -d /usr/share/plymouth/themes/"$theme"

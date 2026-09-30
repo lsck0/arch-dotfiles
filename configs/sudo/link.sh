@@ -5,7 +5,7 @@ if ! command -v visudo >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # validate first; sudoers.d needs a root:root 0440 copy, not a symlink
 if sudo visudo -cf 00_luca; then

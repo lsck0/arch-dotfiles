@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 ZSH_PATH=$(command -v zsh || true)
 if [[ -n "$ZSH_PATH" ]] && grep -qx "$ZSH_PATH" /etc/shells; then

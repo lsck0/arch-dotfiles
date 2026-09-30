@@ -7,7 +7,7 @@ if [[ ! -f "$SYSROOT/rust-toolchain.toml" ]] || ! command -v rustup >/dev/null 2
     exit 0
 fi
 
-set -ex
+set -e
 
 channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' "$SYSROOT/rust-toolchain.toml")
 rustup toolchain install "$channel" --profile minimal --component rust-src,rustc-dev,llvm-tools

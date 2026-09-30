@@ -6,7 +6,7 @@ if [[ ! -f "$GROUPS_STATE" ]] || ! grep -qx programming "$GROUPS_STATE"; then
     exit 0
 fi
 
-set -ex
+set -e
 
 source ../../scripts/lib/user-hook.sh
 user_hook_install ./hook jai-install

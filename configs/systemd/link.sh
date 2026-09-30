@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 unit_file_present() {
     local unit="$1" lookup="$1"

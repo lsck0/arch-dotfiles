@@ -6,7 +6,7 @@ if ! command -v Telegram >/dev/null 2>&1 && [ ! -x /usr/sbin/Telegram ]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.cache/wal" "${HOME}/.local/share/TelegramDesktop"
 

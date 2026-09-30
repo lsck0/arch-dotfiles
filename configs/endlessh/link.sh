@@ -5,7 +5,7 @@ if ! command -v endlessh >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo install -Dm644 config /etc/endlessh/config
 sudo install -Dm644 override.conf /etc/systemd/system/endlessh.service.d/override.conf

@@ -5,7 +5,7 @@ if ! command -v waydroid >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.cursor_on_subsurface true

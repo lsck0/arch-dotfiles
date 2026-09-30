@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 gnupgdir="${HOME}/.gnupg"
 mkdir -p "${gnupgdir}"

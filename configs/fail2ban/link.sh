@@ -5,7 +5,7 @@ if ! command -v fail2ban-client >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo mkdir -p /etc/fail2ban
 sudo ln -sfn "${PWD}/jail.local" /etc/fail2ban/jail.local

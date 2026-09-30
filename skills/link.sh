@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Makes every skills/l-*/SKILL.md here available.
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.claude/skills" "${HOME}/.copilot/skills" "${HOME}/.hermes/skills"
 

@@ -5,7 +5,7 @@ if ! command -v hermes >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 if [ ! -d "${HOME}/.hermes/profiles/orchestrator" ]; then
     hermes profile create orchestrator --clone --description "Orchestrator. Not for interactive chat."

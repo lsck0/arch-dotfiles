@@ -5,7 +5,7 @@ if ! command -v gparted >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 GPARTED_DESKTOP_SRC=/usr/share/applications/gparted.desktop
 GPARTED_DESKTOP_DEST="${HOME}/.local/share/applications/gparted.desktop"

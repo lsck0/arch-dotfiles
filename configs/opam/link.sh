@@ -4,6 +4,6 @@ if ! command -v opam >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 opam init --no-setup

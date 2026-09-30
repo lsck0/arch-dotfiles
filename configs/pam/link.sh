@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 # optional yubikey touch auth, nouserok falls through to password
 U2F_MODULE=/usr/lib/security/pam_u2f.so

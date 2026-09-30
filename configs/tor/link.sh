@@ -5,7 +5,7 @@ if ! command -v tor >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # real files in /etc, tor runs as its own user and must not depend on /home
 sudo install -m 644 torrc /etc/tor/torrc

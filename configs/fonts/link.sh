@@ -2,7 +2,7 @@
 # vendored OFL fonts with no arch package
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
+set -e
 
 dest="${HOME}/.local/share/fonts"
 mkdir -p "$dest"

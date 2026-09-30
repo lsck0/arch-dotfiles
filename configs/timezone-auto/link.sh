@@ -5,7 +5,7 @@ if [[ ! -d /etc/polkit-1/rules.d ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 mkdir -p "${HOME}/.config/systemd/user"
 

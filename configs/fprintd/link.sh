@@ -5,7 +5,7 @@ if ! systemctl list-unit-files --no-legend python3-validity.service 2>/dev/null 
     exit 0
 fi
 
-set -ex
+set -e
 
 sudo mkdir -p /etc/systemd/system/python3-validity.service.d
 sudo ln -sfn "${PWD}/python3-validity-override.conf" /etc/systemd/system/python3-validity.service.d/override.conf

@@ -9,7 +9,7 @@ if ! rocminfo 2>/dev/null | grep -q '^Agent [0-9]*.*$' || ! rocminfo 2>/dev/null
     exit 0
 fi
 
-set -ex
+set -e
 
 VLLM_PREFIX=/opt/vllm
 VLLM_WHEELS_URL=https://wheels.vllm.ai/rocm/

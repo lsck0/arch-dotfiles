@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -ex
+set -e
 
 source "$(dirname "$0")/../boot-menu/common.sh"
 

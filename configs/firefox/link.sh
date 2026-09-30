@@ -5,7 +5,7 @@ if [[ ! -d "${HOME}/.config/mozilla/firefox" ]]; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # pywalfox looks in ~/.config/firefox
 ln -sfn "${HOME}/.config/mozilla/firefox" "${HOME}/.config/firefox"

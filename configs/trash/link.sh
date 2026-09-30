@@ -5,7 +5,7 @@ if ! command -v trash-empty >/dev/null 2>&1; then
     exit 0
 fi
 
-set -ex
+set -e
 
 # weekly trash cleanup, home trash and the tmpfs trash
 install -Dm644 ./trash-empty.service ~/.config/systemd/user/trash-empty.service
