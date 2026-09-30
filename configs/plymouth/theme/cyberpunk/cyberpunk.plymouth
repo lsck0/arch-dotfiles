@@ -6,4 +6,4 @@ ModuleName=script
 [script]
 ImageDir=/usr/share/plymouth/themes/cyberpunk
 ScriptFile=/usr/share/plymouth/themes/cyberpunk/cyberpunk.script
-ConsoleLogBackgroundColor=0x000000
+ConsoleLogBackgroundColor=0x0B0E14

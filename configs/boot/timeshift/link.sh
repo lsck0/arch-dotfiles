@@ -17,7 +17,7 @@ ROOT_OPTS="$(findmnt -n -o OPTIONS / 2>/dev/null || true)"
 ROOT_SUBDIR="$(findmnt -n -o FSROOT / 2>/dev/null || true)"
 
 if [[ "$ROOT_FSTYPE" != "btrfs" ]]; then
-    echo "timeshift: root fs is $ROOT_FSTYPE, not btrfs — btrfs-mode N/A" >&2
+    echo "timeshift: root fs is $ROOT_FSTYPE, not btrfs, btrfs-mode N/A" >&2
     exit 0
 fi
 

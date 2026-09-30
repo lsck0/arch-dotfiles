@@ -259,7 +259,7 @@ and plain tool calls.
 An agent acting as an orchestrator should:
 
 - size subagent count and model strength to the stage, small/cheap models
-  for research, strong models for design and spec.
+  for research, strong models for design, spec, implementation and review.
 - start every stage with a fresh context.
 - communicate through markdown files in the spec directory.
 

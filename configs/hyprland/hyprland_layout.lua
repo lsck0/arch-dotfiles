@@ -1,9 +1,9 @@
 local platform = require("platform")
 
--- desktop: 1-4 left, 5-9 right; laptop: all on the panel
+-- desktop: 1-4 right (main), 5-10 left; laptop: all on the panel
 local workspace_monitor = platform.laptop
-    and { "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1" }
-    or { "DP-2", "DP-2", "DP-2", "DP-2", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1" }
+    and { "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1", "eDP-1" }
+    or { "DP-2", "DP-2", "DP-2", "DP-2", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1", "DP-1" }
 
 for workspace, monitor in ipairs(workspace_monitor) do
     hl.workspace_rule({

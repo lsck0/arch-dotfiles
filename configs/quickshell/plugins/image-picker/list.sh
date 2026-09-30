@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # from omarchy-shell, cache dir moved to ~/.cache/quickshell
 
 image_dirs=${1:-}

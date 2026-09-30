@@ -3,7 +3,7 @@
   "id": "panel.wifiqr",
   "name": "Wi-Fi QR",
   "version": "1.0.0",
-  "author": "Omarchy",
+  "author": "arch-dotfiles",
   "description": "Share the connected Wi-Fi network as a scannable QR code",
   "kinds": [
     "panel"

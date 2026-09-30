@@ -7,6 +7,9 @@ description: "Write tests: unit, e2e, fuzz, property, formal verification."
 
 Prove the build works, not just that it compiles.
 
+The programmer ships basic tests with the code; add the higher tiers
+(simulation, formal, fuzz, property) on top.
+
 In l-style's order, hardest first:
 
 - Deterministic simulation with fault injection first: seeded and

@@ -8,4 +8,4 @@ Target = spotify
 Description = Re-patching Spotify with spicetify (a Spotify update replaces the patched client)
 When = PostTransaction
 # via link.sh so the class-name fixup runs too
-Exec = /usr/bin/runuser -l luca -c 'cd ~/projects/arch-dotfiles/configs/spotify && bash ./link.sh'
+Exec = /usr/bin/runuser -l @USER@ -c 'cd ~/projects/arch-dotfiles/configs/spotify && bash ./link.sh'

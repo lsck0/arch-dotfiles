@@ -49,11 +49,16 @@ zinit light zsh-users/zsh-syntax-highlighting
 
 # compinit must run before cdreplay/compdef
 autoload -Uz compinit
-if [[ -n "$HOME/.zcompdump"(#qNmh-24) ]]; then
-  compinit -C -d "$HOME/.zcompdump"
-else
-  compinit -d "$HOME/.zcompdump"
-fi
+() {
+  setopt local_options extended_glob
+  # full check at most daily; touch since compinit keeps an unchanged dump's mtime
+  if [[ -n $HOME/.zcompdump(#qN.mh+24) ]]; then
+    compinit -d "$HOME/.zcompdump"
+    touch "$HOME/.zcompdump"
+  else
+    compinit -C -d "$HOME/.zcompdump"
+  fi
+}
 zinit cdreplay -q
 compdef kubecolor=kubectl
 
@@ -66,14 +71,12 @@ bindkey ' ' magic-space
 HISTSIZE=5000
 HISTFILE=~/.zsh_history
 SAVEHIST=$HISTSIZE
-HISTDUP=erase
 setopt appendhistory
 setopt extended_history
 setopt hist_expire_dups_first
 setopt hist_verify
 setopt hist_find_no_dups
 setopt hist_ignore_all_dups
-setopt hist_ignore_dups
 setopt hist_ignore_space
 setopt hist_save_no_dups
 setopt sharehistory

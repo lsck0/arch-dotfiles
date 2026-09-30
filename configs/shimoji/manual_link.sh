@@ -12,7 +12,10 @@ fi
 set -ex
 
 cd "$(dirname "$0")"
-ls *.wlshm | xargs -I {} shimejictl import {}
+for pack in ./*.wlshm; do
+    [ -e "$pack" ] || continue
+    shimejictl import "$pack"
+done
 
 shimejictl config set BREEDING false
 

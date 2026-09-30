@@ -34,7 +34,7 @@ return {
     {
         "ThePrimeagen/git-worktree.nvim", -- git worktrees
         -- tmux/herdr use the wtree popup instead
-        cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION) end,
+        cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION or vim.env.HERDR_ENV) end,
         keys = { "<leader>gf", "<leader>gc" },
         dependencies = {
             "nvim-lua/plenary.nvim",         -- Lua utility library

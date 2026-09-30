@@ -1,3 +1,5 @@
+.pragma library
+
 function parseQrOutput(raw) {
   var lines = String(raw || "").trim().split(/\r?\n/).filter(function(line) { return line !== "" })
   var meta = { iface: "", security: "", ssid: "" }

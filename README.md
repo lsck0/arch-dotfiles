@@ -15,16 +15,16 @@ after archinstall minimal with btrfs+subvolumes+compression+LUKS and no applicat
 
 For secure boot: Enable Secure Boot + Setup Mode before archinstall.
 
-`./test` does all of the above in a fresh system libvirt VM (needs the `libvirt` group) from `~/downloads/archlinux-x86_64.iso` (config in `vm-test/`), clones master from github and exits non-zero if `install.sh` reports failures. Logs land in `~/.cache/vm-test/`.
+`./test` does all of the above in a fresh system libvirt VM (needs the `libvirt` group) from `~/downloads/archlinux-x86_64.iso` (config in `vm-test/`), tests the local working tree (bundled on top of `origin/master`; `--master` tests github master instead) and exits non-zero if `install.sh` reports failures. Logs land in `~/.cache/vm-test/`.
 
 ## Things to do manually after rebooting
 
-- add fingerprint with `fprintd-enroll` (once per device, persistent across reinstalls)
+- add fingerprint with `fprintd-enroll` (from fprintd-clients, pulled in by python-validity-git; once per device, persistent across reinstalls)
 
 - tune LUKS for better performance
 
 ```bash
-sudo cryptsetup reencrypt /dev/nvme0n1p2
+sudo cryptsetup reencrypt /dev/nvme0n1p2 \
   --type luks2 \
   --cipher aes-xts-plain64 \
   --key-size 256 \

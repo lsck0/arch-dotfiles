@@ -9,8 +9,9 @@ BarWidget {
   id: root
   moduleName: "notifications"
 
-  readonly property string toggleScript: Paths.toggle("toggle-dnd.sh")
-  readonly property string historyDir: Quickshell.env("HOME") + "/.local/state/quickshell/notifications/history"
+  readonly property QtObject service: root.bar && root.bar.shellHost
+    ? root.bar.shellHost.serviceFor("service.notifications") : null
+  readonly property string historyDir: service ? service.historyDir : ""
 
   property bool dndOn: false
   property var history: []
@@ -23,7 +24,7 @@ BarWidget {
   }
 
   function refreshHistory() {
-    if (!historyProc.running) historyProc.running = true
+    if (root.historyDir && !historyProc.running) historyProc.running = true
   }
 
   function findEntry(name) {
@@ -76,19 +77,21 @@ BarWidget {
 
   Process {
     id: toggleProc
-    command: [root.toggleScript, "toggle"]
-    running: false
-    onExited: root.refreshDnd()
+    command: Paths.ipcCall("notifications", "toggleDnd")
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.dndOn = String(text || "").trim() === "on"
+    }
   }
 
-  function dismissAll() {
+  function clearHistory() {
     Quickshell.execDetached(Paths.ipcCall("notifications", "clear"))
     Qt.callLater(root.refreshHistory)
   }
 
   Process {
     id: dndProc
-    command: [root.toggleScript, "get"]
+    command: Paths.ipcCall("notifications", "isDnd")
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.dndOn = String(text || "").trim() === "on"
@@ -193,7 +196,7 @@ BarWidget {
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: { root.dismissAll(); if (root.bar) root.bar.closePanel(root.moduleName) }
+              onClicked: { root.clearHistory(); if (root.bar) root.bar.closePanel(root.moduleName) }
             }
           }
         }
@@ -240,7 +243,7 @@ BarWidget {
 
             onCardClicked: root.openEntry(modelData)
             // the daemon owns history, so clear all
-            onCloseRequested: root.dismissAll()
+            onCloseRequested: root.clearHistory()
           }
         }
       }

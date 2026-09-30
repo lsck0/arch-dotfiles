@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # alert card that must be dismissed by hand
 # usage: <title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
 
 set -uo pipefail
 
-SELF_DIR="$(dirname "$(readlink -f "$0")")"
-REPO_SCRIPTS="$SELF_DIR/../../../scripts"
+DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+REPO_SCRIPTS="$DOTFILES/scripts"
 
 TITLE=${1:-Reminder}
 BODY=${2:-}

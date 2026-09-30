@@ -4,6 +4,8 @@ local MARKER = vim.env.HOME .. "/.cache/wal/nvim_theme"
 
 function M.apply(name)
     name = name and name ~= "" and name or "ayu-dark"
+    -- themes without a nvim port use the pywal palette
+    if #vim.api.nvim_get_runtime_file("lua/themes/" .. name .. ".lua", false) == 0 then name = "pywal" end
     local ok, err = pcall(function() require("themes." .. name).apply() end)
     if ok then return end
     vim.schedule(function()

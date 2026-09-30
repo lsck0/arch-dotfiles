@@ -53,13 +53,13 @@ function checkDrift(installedPlugins, warn) {
         if (!Array.isArray(manifest.kinds) || manifest.kinds.indexOf("bar-widget") === -1) continue;
         seen[id] = true;
         if (!files[id])
-            warn("BuiltinWidgets: manifest '" + id + "' has no cold-start entry — "
+            warn("BuiltinWidgets: manifest '" + id + "' has no cold-start entry, "
                 + "the widget will not render until the plugin scan finishes");
     }
 
     for (const id in files) {
         if (!seen[id])
             warn("BuiltinWidgets: '" + id + "' -> " + files[id]
-                + " has no first-party manifest — the entry is dead or the manifest was lost");
+                + " has no first-party manifest: the entry is dead or the manifest was lost");
     }
 }

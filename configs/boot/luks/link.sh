@@ -14,7 +14,7 @@ mapfile -t LUKS_PARTS < <(lsblk -ln -o NAME,UUID,FSTYPE,TYPE 2>/dev/null \
     | awk '$3 == "crypto_LUKS" && $4 == "part" {print $1, $2}' || true)
 
 if [[ ${#LUKS_PARTS[@]} -eq 0 ]]; then
-    echo "luks: no LUKS-encrypted partitions detected — nothing to configure" >&2
+    echo "luks: no LUKS-encrypted partitions detected, nothing to configure" >&2
     exit 0
 fi
 
@@ -35,13 +35,11 @@ if [[ -f "$CRYPTTAB" ]]; then
 fi
 if [[ ! -f "$CRYPTTAB" ]]; then
     sudo install -m644 "$(dirname "$0")/crypttab" "$CRYPTTAB"
-else
-    # drop entries appended by a prior run
-    if sudo grep -qF "$MARKER" "$CRYPTTAB" 2>/dev/null; then
-        sudo sed -i "\|^$MARKER\$|,\$d" "$CRYPTTAB" # marker has slashes
-    fi
-    sudo sed -i -e '$a\' "$CRYPTTAB"
 fi
+# drop the managed block of a prior run, marker to eof
+sudo sed -i "\|^$MARKER\$|,\$d" "$CRYPTTAB" # marker has slashes
+sudo sed -i -e '$a\' "$CRYPTTAB"
+echo "$MARKER" | sudo tee -a "$CRYPTTAB" >/dev/null
 
 added=0
 for entry in "${LUKS_PARTS[@]}"; do
@@ -59,7 +57,6 @@ for entry in "${LUKS_PARTS[@]}"; do
         "$name" "$uuid" | sudo tee -a "$CRYPTTAB" >/dev/null
     added=$(( added + 1 ))
 done
-echo "$MARKER" | sudo tee -a "$CRYPTTAB" >/dev/null
 
 # encrypt hook must precede filesystems
 CONF="/etc/mkinitcpio.conf"
@@ -81,7 +78,7 @@ from pathlib import Path
 p = Path("/etc/mkinitcpio.conf")
 s = p.read_text()
 if "HOOKS=(" not in s:
-    sys.exit("luks: no HOOKS=( line in mkinitcpio.conf — refusing to guess")
+    sys.exit("luks: no HOOKS=( line in mkinitcpio.conf, refusing to guess")
 i = s.index("HOOKS=(")
 j = s.index(")", i) + 1
 block = s[i:j]

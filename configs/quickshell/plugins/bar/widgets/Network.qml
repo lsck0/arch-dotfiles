@@ -9,7 +9,6 @@ BarWidget {
   id: root
   moduleName: "network"
 
-  readonly property string toggleDir: Paths.toggles
 
   property string homeVpnState: "off"
   property string protonVpnState: "off"
@@ -61,8 +60,8 @@ BarWidget {
 
   function refreshWifiList(rescan) {
     wifiScanProc.command = rescan
-      ? [scriptDir + "/network-wifi-scan.sh", "rescan"]
-      : [scriptDir + "/network-wifi-scan.sh"]
+      ? [Paths.barWidget("network-wifi-scan.sh"), "rescan"]
+      : [Paths.barWidget("network-wifi-scan.sh")]
     if (!wifiScanProc.running) wifiScanProc.running = true
   }
 
@@ -70,12 +69,11 @@ BarWidget {
     root.connectingSsid = ssid
     root.connectError = ""
     connectProc.command = password
-      ? [scriptDir + "/network-wifi-connect.sh", ssid, password]
-      : [scriptDir + "/network-wifi-connect.sh", ssid]
+      ? [Paths.barWidget("network-wifi-connect.sh"), ssid, password]
+      : [Paths.barWidget("network-wifi-connect.sh"), ssid]
     connectProc.running = true
   }
 
-  readonly property string scriptDir: Paths.barWidgets
 
   // toggles are detached and slow, so re-read a few times
   Timer {
@@ -95,9 +93,9 @@ BarWidget {
     toggleSettle.restart()
   }
 
-  function toggleHomeVpn() { Quickshell.execDetached([toggleDir + "/toggle-vpn.sh", "toggle"]); afterToggle() }
-  function toggleProtonVpn() { Quickshell.execDetached([toggleDir + "/toggle-protonvpn.sh", "toggle"]); afterToggle() }
-  function toggleTor() { Quickshell.execDetached([toggleDir + "/toggle-tor.sh", "toggle"]); afterToggle() }
+  function toggleHomeVpn() { Quickshell.execDetached([Paths.toggle("toggle-vpn.sh"), "toggle"]); afterToggle() }
+  function toggleProtonVpn() { Quickshell.execDetached([Paths.toggle("toggle-protonvpn.sh"), "toggle"]); afterToggle() }
+  function toggleTor() { Quickshell.execDetached([Paths.toggle("toggle-tor.sh"), "toggle"]); afterToggle() }
   // exit verification can outlast afterToggle, so refresh on exit
   function toggleAnonymousSocks() {
     if (!anonymousSocksToggleProc.running) anonymousSocksToggleProc.running = true
@@ -105,57 +103,57 @@ BarWidget {
   }
   Process {
     id: anonymousSocksToggleProc
-    command: [root.toggleDir + "/toggle-anonymous-socks.sh", "toggle"]
+    command: [Paths.toggle("toggle-anonymous-socks.sh"), "toggle"]
     onExited: root.afterToggle()
   }
-  function toggleAnonymousNetworkPersona() { Quickshell.execDetached([toggleDir + "/toggle-anonymous-network-persona.sh", "toggle"]); afterToggle() }
-  function toggleBluetooth() { Quickshell.execDetached([toggleDir + "/toggle-bluetooth.sh", "toggle"]); afterToggle() }
-  function toggleWifi() { Quickshell.execDetached([toggleDir + "/toggle-wifi.sh", "toggle"]); afterToggle() }
-  function toggleOfflineMode() { Quickshell.execDetached([toggleDir + "/toggle-offline.sh", "toggle"]); afterToggle() }
+  function toggleAnonymousNetworkPersona() { Quickshell.execDetached([Paths.toggle("toggle-anonymous-network-persona.sh"), "toggle"]); afterToggle() }
+  function toggleBluetooth() { Quickshell.execDetached([Paths.toggle("toggle-bluetooth.sh"), "toggle"]); afterToggle() }
+  function toggleWifi() { Quickshell.execDetached([Paths.toggle("toggle-wifi.sh"), "toggle"]); afterToggle() }
+  function toggleOfflineMode() { Quickshell.execDetached([Paths.toggle("toggle-offline.sh"), "toggle"]); afterToggle() }
 
   Process {
     id: homeVpnProc
-    command: [root.toggleDir + "/toggle-vpn.sh", "get"]
+    command: [Paths.toggle("toggle-vpn.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homeVpnState = String(text || "off").trim() }
   }
   Process {
     id: protonVpnProc
-    command: [root.toggleDir + "/toggle-protonvpn.sh", "get"]
+    command: [Paths.toggle("toggle-protonvpn.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.protonVpnState = String(text || "off").trim() }
   }
   Process {
     id: torProc
-    command: [root.toggleDir + "/toggle-tor.sh", "get"]
+    command: [Paths.toggle("toggle-tor.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.torState = String(text || "off").trim() }
   }
   Process {
     id: anonymousSocksProc
-    command: [root.toggleDir + "/toggle-anonymous-socks.sh", "get"]
+    command: [Paths.toggle("toggle-anonymous-socks.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousSocksOn = String(text || "").trim() === "on" }
   }
   Process {
     id: anonymousNetworkPersonaProc
-    command: [root.toggleDir + "/toggle-anonymous-network-persona.sh", "get"]
+    command: [Paths.toggle("toggle-anonymous-network-persona.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousNetworkPersonaOn = String(text || "").trim() === "on" }
   }
   Process {
     id: btProc
-    command: [root.toggleDir + "/toggle-bluetooth.sh", "get"]
+    command: [Paths.toggle("toggle-bluetooth.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.btPowered = String(text || "").trim() === "on" }
   }
   Process {
     id: wifiProc
-    command: [root.toggleDir + "/toggle-wifi.sh", "get"]
+    command: [Paths.toggle("toggle-wifi.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.wifiOn = String(text || "").trim() === "on" }
   }
   Process {
     id: rfkillProc
-    command: [root.toggleDir + "/toggle-offline.sh", "get"]
+    command: [Paths.toggle("toggle-offline.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.offlineModeOn = String(text || "").trim() === "on" }
   }
   Process {
     id: detailsProc
-    command: [root.scriptDir + "/network-details.sh"]
+    command: [Paths.barWidget("network-details.sh")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -320,7 +318,7 @@ BarWidget {
 
       PanelSectionHeader {
         visible: root.detailsConnected
-        text: "> DETAILS"
+        text: "DETAILS"
       }
       Column {
         width: content.width
@@ -363,7 +361,7 @@ BarWidget {
       PanelSeparator {
         visible: root.detailsConnected
       }
-      PanelSectionHeader { visible: root.detailsConnected; text: "> THROUGHPUT" }
+      PanelSectionHeader { visible: root.detailsConnected; text: "THROUGHPUT" }
 
       Column {
         visible: root.detailsConnected
@@ -445,7 +443,7 @@ BarWidget {
       PanelSeparator {
         visible: root.detailsConnected
       }
-      PanelSectionHeader { text: "> WI-FI NETWORKS" }
+      PanelSectionHeader { text: "WI-FI NETWORKS" }
 
       Column {
         width: content.width
@@ -595,7 +593,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> TUNNELS" }
+      PanelSectionHeader { text: "TUNNELS" }
       Row_ { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
       Row_ { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       Row_ { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
@@ -603,13 +601,13 @@ BarWidget {
       Row_ { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> RADIOS" }
+      PanelSectionHeader { text: "RADIOS" }
       Row_ { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
       Row_ { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
       Row_ { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> TOOLS" }
+      PanelSectionHeader { text: "TOOLS" }
       Row_ {
         label: "Internet speed test"
         glyph: "\u{f04c5}"

@@ -1,10 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 SELF_DIR="$(dirname "$(readlink -f "$0")")"
 ALERT_BIN="$SELF_DIR/alert.sh"
 BELL="󰂞"
-NOTIFY_BIN="$SELF_DIR/../../../scripts/notification-send.sh"
+DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+NOTIFY_BIN="$DOTFILES/scripts/notification-send.sh"
 
 format_remaining() {
   local seconds=$1
@@ -35,7 +36,7 @@ active_reminder_timers() {
 }
 
 open_interactive() {
-  quickshell ipc -p "$HOME/.config/quickshell" call shell summon panel.reminders "{}"
+  timeout 3 quickshell ipc -p "$HOME/.config/quickshell" call shell summon panel.reminders "{}"
 }
 
 show_reminders() {

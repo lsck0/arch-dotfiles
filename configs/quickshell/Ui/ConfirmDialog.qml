@@ -12,7 +12,7 @@ Item {
   property int selectedIndex: 1
   property color background: Color.background
   property color foreground: Color.foreground
-  property color scrim: Util.alpha(Color.background, 0.7)
+  property color scrim: Color.scrim
   property color selectedBackground: Util.alpha(Color.foreground, 0.08)
   property color selectedText: Color.accent
   property string fontFamily: Style.font.family

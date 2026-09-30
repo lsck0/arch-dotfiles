@@ -16,5 +16,5 @@ fi
 
 # no fallback locker: blank and fail rather than fake a lock
 notify-send -u critical "lock" "quickshell unreachable, cannot lock" 2>/dev/null || true
-hyprctl dispatch dpms off 2>/dev/null || true
+hyprctl dispatch "hl.dsp.dpms({ mode = 'off' })" 2>/dev/null || true
 exit 1

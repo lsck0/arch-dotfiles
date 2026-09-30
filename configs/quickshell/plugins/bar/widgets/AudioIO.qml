@@ -30,10 +30,10 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   function iconFor() {
-    if (muted) return "󰝟"
-    if (volume > 0.66) return "󰕾"
-    if (volume > 0) return "󰖀"
-    return "󰕿"
+    if (muted) return "\u{f075f}"
+    if (volume > 0.66) return "\u{f057e}"
+    if (volume > 0) return "\u{f0580}"
+    return "\u{f057f}"
   }
 
   function toggleMute() {
@@ -123,7 +123,7 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      PanelSectionHeader { text: "> OUTPUT" }
+      PanelSectionHeader { text: "OUTPUT" }
 
       Row {
         spacing: Style.spacing.xxs
@@ -222,7 +222,7 @@ BarWidget {
       }
 
       PanelSeparator {}
-      PanelSectionHeader { text: "> MICROPHONE" }
+      PanelSectionHeader { text: "MICROPHONE" }
 
       Row {
         width: content.width
@@ -233,7 +233,7 @@ BarWidget {
           height: micSlider.height
           Text {
             anchors.centerIn: parent
-            text: root.micMuted ? "󰍭" : "󰍬"
+            text: root.micMuted ? "\u{f036d}" : "\u{f036c}"
             color: root.micMuted ? Color.urgent : Color.menu.text
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily
@@ -319,7 +319,7 @@ BarWidget {
           }
           Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: root.deafened ? "Deafened — click to restore" : "Deafen (mute in + out)"
+            text: root.deafened ? "Deafened, click to restore" : "Deafen (mute in + out)"
             color: root.deafened ? Color.urgent : Color.menu.text
             font.pixelSize: Style.font.body
             font.family: Style.font.family

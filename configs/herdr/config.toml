@@ -44,11 +44,11 @@ toggle_sidebar = ""               # cleared: prefix+b is the wtree popup, not si
 close_pane = "prefix+q"
 close_tab = "prefix+x"
 detach = ""
-# tmux: alt+hjkl select-pane
-focus_pane_left = "alt+h"
-focus_pane_down = "alt+j"
-focus_pane_up = "alt+k"
-focus_pane_right = "alt+l"
+# tmux: alt+shift+hjkl select-pane, plain alt+hjkl stays with nvim
+focus_pane_left = "alt+shift+h"
+focus_pane_down = "alt+shift+j"
+focus_pane_up = "alt+shift+k"
+focus_pane_right = "alt+shift+l"
 workspace_picker = ""             # tmux: bind w -> sessionizer popup, not workspace picker
 goto = ""                         # tmux: bind g -> gh-dash popup, not goto
 next_tab = ""                     # tmux: bind n -> netscanner popup, not next-window

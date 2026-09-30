@@ -14,7 +14,6 @@ REPOS=(
     "https://github.com/hyprwm/hyprland-plugins|hyprland-plugins"
     "https://github.com/outfoxxed/hy3|hy3"
     "https://github.com/virtcode/hypr-dynamic-cursors|dynamic-cursors"
-    "https://github.com/KZDKM/Hyprspace|Hyprspace"
 )
 
 # headers first: `hyprpm add` refuses to build without them
@@ -39,6 +38,5 @@ for entry in "${REPOS[@]}"; do
 done
 
 hyprpm enable dynamic-cursors || true
-hyprpm enable Hyprspace || true
 
 hyprpm reload

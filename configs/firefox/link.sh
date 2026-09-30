@@ -18,6 +18,8 @@ if [[ -f "$PROFILES_INI" ]]; then
         [[ -d "$dir" ]] || continue
         mkdir -p "${dir}/chrome"
         ln -sfn "${PWD}/userChrome.css" "${dir}/chrome/userChrome.css"
-        ln -sfn "${PWD}/user.js" "${dir}/user.js"
+        # copy with @HOME@ filled in; rm first so an old link is not written through
+        rm -f "${dir}/user.js"
+        sed "s|@HOME@|$HOME|" "${PWD}/user.js" > "${dir}/user.js"
     done < <(sed -n 's/^Path=//p' "$PROFILES_INI")
 fi

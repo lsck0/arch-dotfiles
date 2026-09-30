@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -ex
-
-if [[ ! -x ${PWD}/oom-notify.sh ]]; then
+if ! systemctl list-unit-files --no-legend systemd-oomd.service | grep -q .; then
     exit 0
 fi
+
+set -ex
 
 sudo systemctl enable systemd-oomd.service
 

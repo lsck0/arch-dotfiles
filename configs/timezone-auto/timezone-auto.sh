@@ -86,7 +86,7 @@ apply() {
 
     if timedatectl set-timezone "$want"; then
         command -v notify-send >/dev/null &&
-            notify-send -a Timezone "Timezone updated" "$cur → $want" || true
+            notify-send -a Timezone "Timezone updated" "$cur -> $want" || true
         command -v systemctl >/dev/null &&
             systemctl --user try-restart quickshell.service >/dev/null 2>&1 || true
     else

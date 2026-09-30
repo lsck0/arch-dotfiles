@@ -160,7 +160,7 @@ QtObject {
     readonly property int pillInset: root.space(4)
   }
 
-  // mirrors hyprland general:gaps_out
+  // half of hyprland general:gaps_out
   property Process gapsOutProc: Process {
     id: gapsOutProc
     command: ["hyprctl", "-j", "getoption", "general:gaps_out"]

@@ -8,375 +8,326 @@ import qs.Commons
 import qs.Ui
 
 Item {
-    id: root
+  id: root
 
-    property bool opened: false
-    property int selectedIndex: 0
+  property bool opened: false
+  property int selectedIndex: 0
 
-    function workspaceList() {
-        var values = Hyprland.workspaces.values;
-        var ids = [];
-        for (var i = 0; i < values.length; i++) {
-            var id = values[i].id;
-            if (id > 0)
-                ids.push(id);
+  function workspaceList() {
+    var values = Hyprland.workspaces.values
+    var ids = []
+    for (var i = 0; i < values.length; i++) {
+      var id = values[i].id
+      if (id > 0) ids.push(id)
+    }
+    ids.sort(function(left, right) { return left - right })
+    return ids
+  }
 
-        }
-        ids.sort(function(left, right) {
-            return left - right;
-        });
-        return ids;
+  function open() {
+    var ids = root.workspaceList()
+    var focusedId = Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1
+    var idx = ids.indexOf(focusedId)
+    root.selectedIndex = idx >= 0 ? idx : 0
+    root.opened = true
+    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
+  function close() {
+    root.opened = false
+  }
+
+  function toggle() {
+    if (root.opened) root.close()
+    else root.open()
+  }
+
+  function focusAndClose(id) {
+    Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + id + "\" })"])
+    root.close()
+  }
+
+  // unrestricted, matching super+n on empty workspaces
+  function jumpToWorkspace(number) {
+    root.focusAndClose(number)
+  }
+
+  IpcHandler {
+    target: "overview"
+    function toggle(): string { root.toggle(); return "ok" }
+    function open(): string { root.open(); return "ok" }
+    function close(): string { root.close(); return "ok" }
+  }
+
+  PanelWindow {
+    visible: root.opened
+    color: "transparent"
+    WlrLayershell.namespace: "quickshell-overview"
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    exclusionMode: ExclusionMode.Ignore
+
+    anchors {
+      top: true
+      bottom: true
+      left: true
+      right: true
     }
 
-    function open() {
-        var ids = root.workspaceList();
-        var focusedId = Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1;
-        var idx = ids.indexOf(focusedId);
-        root.selectedIndex = idx >= 0 ? idx : 0;
-        root.opened = true;
-        Qt.callLater(function() {
-            keyCatcher.forceActiveFocus();
-        });
+    Rectangle {
+      anchors.fill: parent
+      color: Color.menu.scrim
     }
 
-    function close() {
-        root.opened = false;
+    MouseArea {
+      anchors.fill: parent
+      onClicked: root.close()
     }
 
-    function toggle() {
-        if (root.opened)
-            root.close();
-        else
-            root.open();
-    }
+    Item {
+      id: keyCatcher
+      readonly property var ids: root.opened ? root.workspaceList() : []
+      readonly property int columns: Math.min(5, Math.max(1, ids.length))
 
-    function focusAndClose(id) {
-        Quickshell.execDetached(["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + id + "\" })"]);
-        root.close();
-    }
-
-    // unrestricted, matching super+n on empty workspaces
-    function jumpToWorkspace(number) {
-        root.focusAndClose(number);
-    }
-
-    IpcHandler {
-        function toggle() : string {
-            root.toggle();
-            return "ok";
+      anchors.fill: parent
+      focus: true
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) {
+        var ids = keyCatcher.ids
+        if (event.key === Qt.Key_Escape) {
+          root.close()
+          event.accepted = true
+        } else if (event.key === Qt.Key_Left) {
+          root.selectedIndex = Math.max(0, root.selectedIndex - 1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Right) {
+          root.selectedIndex = Math.min(ids.length - 1, root.selectedIndex + 1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Up) {
+          root.selectedIndex = Math.max(0, root.selectedIndex - keyCatcher.columns)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Down) {
+          root.selectedIndex = Math.min(ids.length - 1, root.selectedIndex + keyCatcher.columns)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+          if (ids.length > 0) root.focusAndClose(ids[root.selectedIndex])
+          event.accepted = true
+        } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
+          root.jumpToWorkspace(event.key - Qt.Key_0)
+          event.accepted = true
+        } else if (event.key === Qt.Key_0) {
+          root.jumpToWorkspace(10)
+          event.accepted = true
         }
+      }
 
-        function open() : string {
-            root.open();
-            return "ok";
-        }
+      Column {
+        anchors.centerIn: parent
+        spacing: Style.spacing.huge
 
-        function close() : string {
-            root.close();
-            return "ok";
-        }
+        Row {
+          anchors.horizontalCenter: parent.horizontalCenter
+          spacing: Style.spacing.md
 
-        target: "overview"
-    }
-
-    PanelWindow {
-        visible: root.opened
-        color: "transparent"
-        WlrLayershell.namespace: "quickshell-overview"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-        exclusionMode: ExclusionMode.Ignore
-
-        anchors {
-            top: true
-            bottom: true
-            left: true
-            right: true
-        }
-
-        Rectangle {
-            anchors.fill: parent
-            color: Color.menu.scrim
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: root.close()
-        }
-
-        Item {
-            id: keyCatcher
-
-            readonly property var ids: root.opened ? root.workspaceList() : []
-            readonly property int columns: Math.min(5, Math.max(1, ids.length))
-
-            anchors.fill: parent
-            focus: true
-            Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function(event) {
-                var ids = keyCatcher.ids;
-                if (event.key === Qt.Key_Escape) {
-                    root.close();
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Left) {
-                    root.selectedIndex = Math.max(0, root.selectedIndex - 1);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Right) {
-                    root.selectedIndex = Math.min(ids.length - 1, root.selectedIndex + 1);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Up) {
-                    root.selectedIndex = Math.max(0, root.selectedIndex - keyCatcher.columns);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Down) {
-                    root.selectedIndex = Math.min(ids.length - 1, root.selectedIndex + keyCatcher.columns);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    if (ids.length > 0)
-                        root.focusAndClose(ids[root.selectedIndex]);
-
-                    event.accepted = true;
-                } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
-                    root.jumpToWorkspace(event.key - Qt.Key_0);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_0) {
-                    root.jumpToWorkspace(10);
-                    event.accepted = true;
-                }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: "WORKSPACES"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+            font.bold: true
+            font.letterSpacing: Style.headerTracking
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
             }
+          }
 
-            Column {
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: "_"
+            color: Color.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+            layer.enabled: Style.fx.glow > 0
+            layer.effect: MultiEffect {
+              shadowEnabled: true
+              shadowColor: Style.fx.glowColor
+              shadowBlur: 1.0
+              shadowVerticalOffset: 0
+              shadowHorizontalOffset: 0
+              blurMax: Style.fx.glowRadius
+              autoPaddingEnabled: true
+            }
+            SequentialAnimation on opacity {
+              running: root.opened
+              loops: Animation.Infinite
+              PropertyAnimation { to: 1; duration: 0 }
+              PauseAnimation { duration: 530 }
+              PropertyAnimation { to: 0; duration: 0 }
+              PauseAnimation { duration: 530 }
+            }
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: "[" + String(keyCatcher.ids.length) + "]"
+            color: Color.menu.text
+            opacity: 0.45
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+          }
+        }
+
+        Grid {
+          anchors.horizontalCenter: parent.horizontalCenter
+          columns: keyCatcher.columns
+          spacing: Style.spacing.xl
+
+          Repeater {
+            model: keyCatcher.ids
+
+            BorderSurface {
+              id: tile
+              required property var modelData
+              required property int index
+              readonly property var workspace: {
+                var values = Hyprland.workspaces.values
+                for (var i = 0; i < values.length; i++)
+                  if (values[i].id === modelData) return values[i]
+                return null
+              }
+              readonly property var toplevels: workspace ? workspace.toplevels.values : []
+              // the window hyprland would raise on switch
+              readonly property var primaryToplevel: {
+                for (var i = 0; i < toplevels.length; i++)
+                  if (toplevels[i].activated) return toplevels[i]
+                return toplevels.length > 0 ? toplevels[0] : null
+              }
+              readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
+              readonly property bool selected: index === root.selectedIndex
+
+              width: Math.max(Style.space(260), Math.min(Style.space(460), (keyCatcher.width - Style.space(160)) / keyCatcher.columns - Style.spacing.xl))
+              height: Math.round(width * 9 / 16)
+              scale: selected ? 1.08 : 1
+              z: selected ? 10 : 0
+              radius: Style.cornerRadius
+              color: Color.menu.background
+              borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
+              clip: true
+
+              HudFrame { visible: tile.selected; z: 30 }
+
+              ScreencopyView {
+                id: capture
+                anchors.fill: parent
+                live: root.opened && tile.primaryToplevel !== null
+                captureSource: tile.primaryToplevel ? tile.primaryToplevel.wayland : null
+                paintCursor: false
+              }
+
+              Text {
+                textFormat: Text.PlainText
+                visible: !capture.hasContent
                 anchors.centerIn: parent
-                spacing: Style.spacing.huge
+                text: tile.toplevels.length === 0 ? "Empty" : "..."
+                color: Color.menu.text
+                opacity: 0.4
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                font.italic: true
+              }
+
+              Rectangle {
+                anchors.fill: parent
+                color: Util.alpha(Color.background, tile.selected ? 0 : 0.42)
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+              }
+
+              Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: Style.space(30)
+                color: Util.alpha(Color.menu.background, 0.85)
 
                 Row {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: Style.spacing.md
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  anchors.leftMargin: Style.spacing.sm
+                  anchors.rightMargin: Style.spacing.sm
+                  spacing: Style.spacing.sm
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        textFormat: Text.PlainText
-                        text: "WORKSPACES"
-                        color: Color.accent
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.title
-                        font.bold: true
-                        font.letterSpacing: Style.headerTracking
-                        layer.enabled: Style.fx.glow > 0
-                        layer.effect: MultiEffect {
-                            shadowEnabled: true
-                            shadowColor: Style.fx.glowColor
-                            shadowBlur: 1.0
-                            shadowVerticalOffset: 0
-                            shadowHorizontalOffset: 0
-                            blurMax: Style.fx.glowRadius
-                            autoPaddingEnabled: true
-                        }
+                  Text {
+                    textFormat: Text.PlainText
+                    text: "[" + (tile.modelData === 10 ? "0" : String(tile.modelData)) + "]"
+                    color: tile.selected ? Color.accent : Color.menu.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.body
+                    font.letterSpacing: Style.headerTracking
+                    layer.enabled: tile.selected && Style.fx.glow > 0
+                    layer.effect: MultiEffect {
+                      shadowEnabled: true
+                      shadowColor: Style.fx.glowColor
+                      shadowBlur: 1.0
+                      shadowVerticalOffset: 0
+                      shadowHorizontalOffset: 0
+                      blurMax: Style.fx.glowRadius
+                      autoPaddingEnabled: true
                     }
+                  }
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        textFormat: Text.PlainText
-                        text: "_"
-                        color: Color.accent
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.title
-                        layer.enabled: Style.fx.glow > 0
-                        layer.effect: MultiEffect {
-                            shadowEnabled: true
-                            shadowColor: Style.fx.glowColor
-                            shadowBlur: 1.0
-                            shadowVerticalOffset: 0
-                            shadowHorizontalOffset: 0
-                            blurMax: Style.fx.glowRadius
-                            autoPaddingEnabled: true
-                        }
-                        SequentialAnimation on opacity {
-                            running: root.opened
-                            loops: Animation.Infinite
-                            PropertyAnimation { to: 1; duration: 0 }
-                            PauseAnimation { duration: 530 }
-                            PropertyAnimation { to: 0; duration: 0 }
-                            PauseAnimation { duration: 530 }
-                        }
-                    }
+                  Text {
+                    textFormat: Text.PlainText
+                    width: parent.width - Style.space(50)
+                    text: tile.primaryToplevel ? (tile.primaryToplevel.title || "") : (tile.focused ? "Current" : "")
+                    color: Color.menu.text
+                    opacity: 0.75
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        textFormat: Text.PlainText
-                        text: "[" + String(keyCatcher.ids.length) + "]"
-                        color: Color.menu.text
-                        opacity: 0.45
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.title
-                    }
-
+                  Text {
+                    textFormat: Text.PlainText
+                    visible: tile.toplevels.length > 1
+                    text: "+" + (tile.toplevels.length - 1)
+                    color: Color.menu.text
+                    opacity: 0.5
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                  }
                 }
+              }
 
-                Grid {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    columns: keyCatcher.columns
-                    spacing: Style.spacing.xl
+              HudFrame { visible: tile.selected && Style.fx.brackets }
 
-                    Repeater {
-                        model: keyCatcher.ids
+              MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onEntered: root.selectedIndex = tile.index
+                onClicked: root.focusAndClose(tile.modelData)
+              }
 
-                        BorderSurface {
-                            id: tile
-
-                            required property var modelData
-                            required property int index
-                            readonly property var workspace: {
-                                var values = Hyprland.workspaces.values;
-                                for (var i = 0; i < values.length; i++) if (values[i].id === modelData) {
-                                    return values[i];
-                                }
-                                return null;
-                            }
-                            readonly property var toplevels: workspace ? workspace.toplevels.values : []
-                            // the window hyprland would raise on switch
-                            readonly property var primaryToplevel: {
-                                for (var i = 0; i < toplevels.length; i++) if (toplevels[i].activated) {
-                                    return toplevels[i];
-                                }
-                                return toplevels.length > 0 ? toplevels[0] : null;
-                            }
-                            readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
-                            readonly property bool selected: index === root.selectedIndex
-
-                            width: Math.max(Style.space(260), Math.min(Style.space(460), (keyCatcher.width - Style.space(160)) / keyCatcher.columns - Style.spacing.xl))
-                            height: Math.round(width * 9 / 16)
-                            scale: selected ? 1.08 : 1
-                            z: selected ? 10 : 0
-                            radius: Style.cornerRadius
-                            color: Color.menu.background
-                            borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
-                            clip: true
-
-                            HudFrame { visible: tile.selected; z: 30 }
-
-                            ScreencopyView {
-                                id: capture
-
-                                anchors.fill: parent
-                                live: root.opened && tile.primaryToplevel !== null
-                                captureSource: tile.primaryToplevel ? tile.primaryToplevel.wayland : null
-                                paintCursor: false
-                            }
-
-                            Text {
-                                textFormat: Text.PlainText
-                                visible: !capture.hasContent
-                                anchors.centerIn: parent
-                                text: tile.toplevels.length === 0 ? "Empty" : "..."
-                                color: Color.menu.text
-                                opacity: 0.4
-                                font.family: Style.font.family
-                                font.pixelSize: Style.font.body
-                                font.italic: true
-                            }
-
-                            Rectangle {
-                                anchors.fill: parent
-                                color: Util.alpha(Color.background, tile.selected ? 0 : 0.42)
-
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: 150
-                                    }
-
-                                }
-
-                            }
-
-                            Rectangle {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: Style.space(30)
-                                color: Util.alpha(Color.menu.background, 0.85)
-
-                                Row {
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.leftMargin: Style.spacing.sm
-                                    anchors.rightMargin: Style.spacing.sm
-                                    spacing: Style.spacing.sm
-
-                                    Text {
-                                        textFormat: Text.PlainText
-                                        text: "[" + (tile.modelData === 10 ? "0" : String(tile.modelData)) + "]"
-                                        color: tile.selected ? Color.accent : Color.menu.text
-                                        font.family: Style.font.family
-                                        font.pixelSize: Style.font.body
-                                        font.letterSpacing: Style.headerTracking
-                                        layer.enabled: tile.selected && Style.fx.glow > 0
-                                        layer.effect: MultiEffect {
-                                            shadowEnabled: true
-                                            shadowColor: Style.fx.glowColor
-                                            shadowBlur: 1.0
-                                            shadowVerticalOffset: 0
-                                            shadowHorizontalOffset: 0
-                                            blurMax: Style.fx.glowRadius
-                                            autoPaddingEnabled: true
-                                        }
-                                    }
-
-                                    Text {
-                                        textFormat: Text.PlainText
-                                        width: parent.width - Style.space(50)
-                                        text: tile.primaryToplevel ? (tile.primaryToplevel.title || "") : (tile.focused ? "Current" : "")
-                                        color: Color.menu.text
-                                        opacity: 0.75
-                                        font.family: Style.font.family
-                                        font.pixelSize: Style.font.caption
-                                        elide: Text.ElideRight
-                                    }
-
-                                    Text {
-                                        textFormat: Text.PlainText
-                                        visible: tile.toplevels.length > 1
-                                        text: "+" + (tile.toplevels.length - 1)
-                                        color: Color.menu.text
-                                        opacity: 0.5
-                                        font.family: Style.font.family
-                                        font.pixelSize: Style.font.caption
-                                    }
-
-                                }
-
-                            }
-
-                            HudFrame { visible: tile.selected && Style.fx.brackets }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onEntered: root.selectedIndex = tile.index
-                                onClicked: root.focusAndClose(tile.modelData)
-                            }
-
-                            Behavior on scale {
-                                NumberAnimation {
-                                    duration: 150
-                                    easing.type: Easing.OutQuad
-                                }
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
+              Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
             }
-
-            Scanlines { flicker: false }
-
+          }
         }
+      }
 
+      Scanlines { flicker: false }
     }
-
+  }
 }

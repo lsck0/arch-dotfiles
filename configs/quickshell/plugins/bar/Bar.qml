@@ -26,7 +26,7 @@ PanelWindow {
     || !modelData
     || String(modelData.name) === mainScreenName
 
-  // plain {left,center,right}, read by Tray.qml
+  // plain {left,center,right}, read by BarSection.qml
   readonly property var layoutConfig: {
     if (!barConfig) return null
     if (!isMainScreen && barConfig.secondaryLayout) return barConfig.secondaryLayout
@@ -47,6 +47,8 @@ PanelWindow {
   visible: !screenGuard.remapping
 
   readonly property bool vertical: false
+  // read by HoverPanel and PopupCard, the bar is always on top
+  readonly property string position: "top"
   readonly property int barSize: Style.bar.sizeHorizontal
   readonly property string fontFamily: Style.resolvedFontFamily
   // glyph widgets must use this, not fontFamily
@@ -246,14 +248,19 @@ PanelWindow {
     }
   }
 
-  Rectangle {
+  // same surface as Ui/PanelToolTip.qml
+  BorderSurface {
+    id: tooltipSurface
     visible: root.tooltipItem !== null
-    color: Color.background
-    border.color: Color.accent
-    border.width: 1
+    color: Color.tooltip.background
+    borderSpec: Border.surfaceSpec(Color.tooltip.border, Color.tooltip.border, Style.normalBorderWidth)
     radius: Style.cornerRadius
-    height: tooltipLabel.implicitHeight + Style.spacing.sm * 2
-    width: tooltipLabel.implicitWidth + Style.spacing.md * 2
+    leftPadding: Style.spacing.controlPaddingX
+    rightPadding: Style.spacing.controlPaddingX
+    topPadding: Style.spacing.controlPaddingY
+    bottomPadding: Style.spacing.controlPaddingY
+    height: tooltipRow.implicitHeight + contentTopInset + contentBottomInset
+    width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
     x: {
       if (!root.tooltipItem) return 0
       var pos = root.tooltipItem.mapToItem(root.contentItem, 0, root.tooltipItem.height)
@@ -261,14 +268,29 @@ PanelWindow {
     }
     y: root.barSize + 2
 
-    Text {
-      id: tooltipLabel
-      anchors.centerIn: parent
-      textFormat: Text.PlainText
-      text: root.tooltipText
-      color: Color.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.bodySmall
+    Row {
+      id: tooltipRow
+      x: tooltipSurface.contentLeftInset
+      y: tooltipSurface.contentTopInset
+      spacing: Style.spacing.xs
+
+      Text {
+        anchors.baseline: tooltipLabel.baseline
+        textFormat: Text.PlainText
+        text: ">"
+        color: Color.accent
+        opacity: Style.emphasis.faint
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
+      Text {
+        id: tooltipLabel
+        textFormat: Text.PlainText
+        text: root.tooltipText
+        color: Color.tooltip.text
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+      }
     }
   }
 }

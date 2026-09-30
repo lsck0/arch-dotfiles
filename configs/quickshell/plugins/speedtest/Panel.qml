@@ -11,10 +11,8 @@ Item {
   property var manifest: null
 
   readonly property string networkDetailsScript: Paths.barWidget("network-details.sh")
-  readonly property string speedTestScript: Paths.shellScripts + "/network-speedtest.sh"
-  readonly property string statePath:
-    (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
-      + "/quickshell/network-speedtest.json"
+  readonly property string speedTestScript: Paths.script("network-speedtest.sh")
+  readonly property string statePath: Paths.state + "/network-speedtest.json"
 
   property bool opened: false
   property bool settingsLoaded: false

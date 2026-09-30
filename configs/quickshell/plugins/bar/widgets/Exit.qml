@@ -1,19 +1,11 @@
 import QtQuick
-import Quickshell.Io
+import Quickshell
 import qs.Commons
 import qs.Ui
 
 BarWidget {
   id: root
-
   moduleName: "exit"
-
-  readonly property color foreground: bar ? bar.barForeground : Color.foreground
-
-  Process {
-    id: ipcToggle
-    command: Paths.ipcCall("powermenu", "toggle")
-  }
 
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
@@ -25,8 +17,6 @@ BarWidget {
     // fa-sign_out
     text: "\u{f08b}"
     tooltipText: "Power menu"
-    foreground: root.foreground
-    // WidgetButton has no clicked signal
-    onPressed: ipcToggle.running = true
+    onPressed: Quickshell.execDetached(Paths.ipcCall("powermenu", "toggle"))
   }
 }

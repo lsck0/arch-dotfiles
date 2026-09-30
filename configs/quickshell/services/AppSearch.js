@@ -1,3 +1,5 @@
+.pragma library
+
 function entryName(entry) {
   return String((entry && entry.name) || (entry && entry.id) || "")
 }

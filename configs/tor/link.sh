@@ -9,9 +9,10 @@ set -ex
 
 # real files in /etc, tor runs as its own user and must not depend on /home
 sudo install -m 644 torrc /etc/tor/torrc
-sudo install -m 755 tor-router /usr/bin/tor-router
+# /usr/local and a drop-in, the packaged /usr/bin script and unit stay untouched
+sudo install -m 755 tor-router /usr/local/bin/tor-router
 # started by the toron/toroff aliases
-sudo install -m 644 tor-router.service /etc/systemd/system/tor-router.service
+sudo install -Dm 644 tor-router-override.conf /etc/systemd/system/tor-router.service.d/override.conf
 
 sudo systemctl daemon-reload
 sudo systemctl enable tor.service

@@ -19,8 +19,8 @@ tag vocabulary, completion, and the `tasks/context/` question-file
 convention, load `l-agent-task-db` first: hard prerequisite, every time.
 Load `l-personas` for persona discovery and `l-spec-driven-development`
 for the stage shape, the parallelism budget and model-sizing rule
-(small/cheap for research, strong for design/spec/implementation/review):
-the same two skills `l-multi-agent-mode` loads, so live and queue
+(small/cheap models for research, strong models for design, spec,
+implementation and review): the same two skills `l-multi-agent-mode` loads, so live and queue
 orchestration share one persona vocabulary and one stage shape. See the
 description for sibling routing (single-ticket vs. live-no-db).
 
@@ -162,9 +162,9 @@ poll pass, check for unclaimed `+prompt` tasks first, before touching the
      writes `SPEC.md`/`ROADMAP.md`, opens the spec PR and gates with
      `+human-review-ready`.
    No separate testing tickets: testing runs inside each phase ticket.
-   For every ticket it names the model/provider (small/cheap for
-   research, strong for design/spec/implementation/review), plus one
-   model/provider for the phase tickets to come.
+   For every ticket it names the model/provider (small/cheap models for
+   research, strong models for design, spec, implementation and review),
+   plus one model/provider for the phase tickets to come.
 2. From the plan, create the tickets:
    `task add project:<slug>.research +agent-task "technical research"`
    (repeat per ticket, per grouping). Every child gets `+agent-task`,
@@ -330,11 +330,11 @@ herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus
 herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-research-market
 
-# implementer/reviewer/designer workers additionally carry l-style:
+# implementer/reviewer/designer/tester workers additionally carry l-style:
 # every worker that designs or writes code (l-persona-design-* designers,
-# l-persona-programmer, l-persona-reviewer) gets it, since those personas
-# rely on l-style's principles without restating them; research/audit/test
-# personas run persona-only:
+# l-persona-programmer, l-persona-reviewer, l-persona-tester) gets it, since
+# those personas rely on l-style's principles without restating them;
+# research/audit personas run persona-only:
 herdr agent start implementer --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-programmer,l-style
 ```

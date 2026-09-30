@@ -10,8 +10,8 @@ BarIndicator {
   readonly property string toggleScript: Paths.toggle("toggle-keep-awake.sh")
 
   active: false
-  activeText: "󰅶"
-  inactiveText: "󰅶"
+  activeText: "\u{f0176}"
+  inactiveText: "\u{f0176}"
   activeTooltipText: "Allow Idle Lock & Screensaver"
   inactiveTooltipText: "Keep Awake"
 

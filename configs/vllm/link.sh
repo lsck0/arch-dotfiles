@@ -36,7 +36,7 @@ rm -rf "$stub_build_dir"
 
 chmod 755 "${PWD}/vllm-wait-ready.sh"
 
-sudo cp "${PWD}/vllm-proxy.service" /etc/systemd/system/vllm-proxy.service
+sed "s|@HOME@|$HOME|" "${PWD}/vllm-proxy.service" | sudo tee /etc/systemd/system/vllm-proxy.service >/dev/null
 sudo cp "${PWD}/vllm.service" /etc/systemd/system/vllm.service
 sudo cp "${PWD}/vllm.socket" /etc/systemd/system/vllm.socket
 

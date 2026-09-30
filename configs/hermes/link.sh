@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if ! command -v hermes >/dev/null 2>&1; then
     exit 0
@@ -14,7 +15,7 @@ hermes profile alias orchestrator --name hermes-orchestrator
 
 # skills into the orchestrator profile too
 mkdir -p "${HOME}/.hermes/profiles/orchestrator/skills"
-for dir in "$(dirname "$0")"/../../skills/l-*/; do
+for dir in "$(dirname "$(readlink -f "$0")")"/../../skills/l-*/; do
   name=$(basename "${dir}")
   ln -sfn "$(cd "${dir}" && pwd)" "${HOME}/.hermes/profiles/orchestrator/skills/${name}"
 done

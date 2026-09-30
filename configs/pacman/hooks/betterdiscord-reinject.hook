@@ -7,4 +7,4 @@ Target = discord
 [Action]
 Description = Re-injecting BetterDiscord (a Discord update overwrites the patched client, dropping themes/plugins/fonts)
 When = PostTransaction
-Exec = /usr/bin/runuser -l luca -c 'betterdiscordctl install'
+Exec = /usr/bin/runuser -l @USER@ -c 'betterdiscordctl install'

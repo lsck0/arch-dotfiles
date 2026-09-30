@@ -1,3 +1,5 @@
+.pragma library
+
 function validMinutes(value) {
   var minutes = String(value || "").trim()
   return /^[0-9]+$/.test(minutes) && Number(minutes) > 0 ? minutes : ""

@@ -4,7 +4,7 @@
   "name": "Audio I/O",
   "version": "1.0.0",
   "author": "arch-dotfiles",
-  "description": "Audio output device control",
+  "description": "Audio output and microphone device control, mute and deafen",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "Audio I/O",
-    "description": "Audio output device control",
+    "description": "Audio output and microphone device control, mute and deafen",
     "category": "Audio",
     "allowMultiple": false,
     "defaultSection": "right"

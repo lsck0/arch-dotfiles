@@ -45,6 +45,6 @@ table inet fw {
         # endlessh 22, kde connect 1716; not all of 10/8, htb is 10.10.x
         ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } tcp dport { 22, 1716 } accept
         ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } udp dport 1716 accept
-        ip6 saddr fe80::/10 tcp dport { 22, 1716 } accept
+        ip6 saddr fe80::/10 tcp dport 1716 accept
     }
 }

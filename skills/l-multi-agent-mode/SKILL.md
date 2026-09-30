@@ -18,12 +18,13 @@ the stage shape (sync -> reconcile -> research -> design -> review ->
 spec -> spec gate -> phase loop), its file conventions, and its
 parallelism budget and 2-implementer cap ("Parallelism and model
 choice"). Preload `l-style` alongside any worker that designs or writes
-code (the `l-persona-design-*` designers, `l-persona-programmer`, and
-`l-persona-reviewer`), since those personas lean on l-style's principles
-(primitives, monolith-by-default, no sentinels, signature-is-the-product)
-without restating them. `-s` takes a comma-separated list, e.g.
+code (the `l-persona-design-*` designers, `l-persona-programmer`,
+`l-persona-reviewer` and `l-persona-tester`), since those personas lean
+on l-style's principles (primitives, monolith-by-default, no sentinels,
+signature-is-the-product, the testing order) without restating them.
+`-s` takes a comma-separated list, e.g.
 `-s l-persona-design-architecture,l-style`; a worker never sees the skill
-otherwise. Research/audit/test personas run persona-only.
+otherwise. Research and audit personas run persona-only.
 
 ## Precondition
 
@@ -41,9 +42,9 @@ claude`/`codex`/`gemini`, they aren't installed/verified here.
 The task-planner checks which providers are reachable right now (its own
 reachability check) and writes the model/provider for every worker into
 `PLAN.md`, per `l-spec-driven-development`'s model-sizing rule:
-small/cheap for research, strong for design, spec, implementation, and
-review. This skill reads `PLAN.md` and never re-derives it: don't run
-`hermes auth list` yourself, and don't carry a provider choice over from
+small/cheap models for research, strong models for design, spec,
+implementation and review. This skill reads `PLAN.md` and never
+re-derives it: don't run `hermes auth list` yourself, and don't carry a provider choice over from
 another machine or an earlier run. Local inference (`ollama-local`, any
 local model) is excluded by default on any machine; use it only if the
 human asks for it in this run, and then say so in the planner's prompt.
@@ -106,7 +107,7 @@ herdr pane split --current --direction right --cwd "$REPO_DIR" --no-focus
 herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-plan> --provider <provider-from-plan> -s l-persona-research-market
 
-# implementer/reviewer/designer workers additionally carry l-style:
+# implementer/reviewer/designer/tester workers additionally carry l-style:
 herdr agent start programmer --kind hermes --pane <pane_id> --timeout 30000 \
   -- -m <model-from-plan> --provider <provider-from-plan> -s l-persona-programmer,l-style
 ```

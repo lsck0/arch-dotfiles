@@ -22,8 +22,8 @@ Item {
   property var reminders: []
 
   readonly property int cardWidth: Math.min(Style.space(560), panel.width - Style.gapsOut * 2)
-  readonly property string reminderScript: Paths.bin("reminder")
-  readonly property string pomodoroScript: Paths.bin("pomodoro")
+  readonly property string reminderScript: Paths.script("reminder.sh")
+  readonly property string pomodoroScript: Paths.script("pomodoro.sh")
   readonly property string notifyScript: Paths.dotfiles + "/scripts/notification-send.sh"
 
   readonly property string promptText: step === "message"

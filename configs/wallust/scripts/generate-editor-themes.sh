@@ -154,7 +154,7 @@ if [[ -d "$(dirname "$VSCODE_SETTINGS")" ]] || mkdir -p "$(dirname "$VSCODE_SETT
       "focusBorder": $c4,
       "terminal.background": $bg,
       "terminal.foreground": $fg
-    }' "$VSCODE_SETTINGS" > "$tmp" && mv "$tmp" "$VSCODE_SETTINGS"
+    }' "$VSCODE_SETTINGS" > "$tmp" && install_through_symlink "$tmp" "$VSCODE_SETTINGS"
 fi
 
 # herdr: only rewrite between the pywal markers
@@ -228,7 +228,7 @@ mkdir -p "$EMACS_THEME_DIR"
 cat > "$EMACS_THEME" <<EOF
 ;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;; Commentary:
-;; GENERATED FILE — do not edit. Rewritten by
+;; GENERATED FILE, do not edit. Rewritten by
 ;; configs/wallust/scripts/generate-editor-themes.sh on every theme switch.
 ;;; Code:
 
@@ -267,7 +267,7 @@ cat > "$EMACS_THEME" <<EOF
    (cyan       '("$c6"  "$c6"  "brightcyan"    ))
    (dark-cyan  (doom-darken '("$c6" "$c6" "cyan") 0.4))
 
-   ;; mandatory "universal syntax classes" — doom-themes-base errors without them
+   ;; mandatory "universal syntax classes": doom-themes-base errors without them
    (highlight      blue)
    (vertical-bar   (doom-$EMACS_DARKEN bg 0.15))
    (selection      dark-blue)

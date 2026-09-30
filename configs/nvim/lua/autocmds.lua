@@ -103,7 +103,7 @@ autocmd("VimEnter", {
         -- never stack a second tree
         for _, w in ipairs(vim.api.nvim_list_wins()) do
             local ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
-            if ft == "neo-tree" or ft == "snacks_picker_list" then return end
+            if ft == "snacks_picker_list" then return end
         end
         local main = vim.api.nvim_get_current_win()
         -- tcd, then open without cwd: differing cwd forms stacked duplicate roots

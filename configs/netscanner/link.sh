@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-if [[ ! -x /bin/netscanner ]]; then
+if [[ ! -x /usr/bin/netscanner ]]; then
     exit 0
 fi
 
 set -ex
 
-# cap_net_raw instead of setuid root
-sudo chown root:root /bin/netscanner
-sudo chmod u-s /bin/netscanner
-sudo setcap cap_net_raw+ep /bin/netscanner
+# cap_net_raw instead of setuid root, reapplied on upgrade by pacman/hooks/netscanner-setcap.hook
+sudo chmod u-s /usr/bin/netscanner
+sudo setcap cap_net_raw+ep /usr/bin/netscanner

@@ -7,8 +7,6 @@
   "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Obs.qml" },
-  "//keepLoaded": "owns the long-lived obs-status.py subprocess",
-  "keepLoaded": true,
   "barWidget": {
     "displayName": "OBS",
     "description": "OBS Studio live/recording state with bitrate, dropped frames and encoder health",

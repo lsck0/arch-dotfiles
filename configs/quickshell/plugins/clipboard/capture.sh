@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # verbatim from omarchy-shell
 
 set -o pipefail

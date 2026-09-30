@@ -1,3 +1,5 @@
+.pragma library
+
 // xkbcli yaml -> {description: brief}
 function layoutBriefs(text) {
   var briefs = {}

@@ -95,8 +95,8 @@
   ;; windows
   "c" #'tab-bar-new-tab                 ; tmux default: prefix c
   "x" #'tab-bar-close-tab               ; bind x kill-window
-  "n" #'tab-bar-switch-to-next-tab
-  "p" #'tab-bar-switch-to-prev-tab
+  "]" #'tab-bar-switch-to-next-tab      ; n/p are popups, as in tmux/herdr
+  "[" #'tab-bar-switch-to-prev-tab
   "1" (lambda () (interactive) (tab-bar-select-tab 1))
   "2" (lambda () (interactive) (tab-bar-select-tab 2))
   "3" (lambda () (interactive) (tab-bar-select-tab 3))
@@ -104,9 +104,10 @@
   "5" (lambda () (interactive) (tab-bar-select-tab 5))
 
   ;; popups
-  "g" #'magit-status                    ; nvim <leader>gg lazygit
+  "g" (my/eat-popup-command "gh-dash")          ; bind g display-popup -E "gh-dash"
+  "p" (my/eat-popup-command "btop")             ; bind p display-popup -E "btop"
+  "t" (my/eat-popup-command "taskwarrior-tui")  ; bind t display-popup -E "taskwarrior-tui"
   "z" #'my/eat-popup                    ; bind z display-popup -E "zsh"
-  "t" #'proced                          ; bind p display-popup -E "btop"
   "e" #'my/copy-mode)                   ; bind e copy-mode
 
 ;; move focus, no prefix
@@ -180,18 +181,19 @@
   ":" #'execute-extended-command         ; M-x, which nvim took for tabclose
 
   ;; popouts
-  "e" #'dirvish-side                     ; neo-tree sidebar
-  "o" #'dirvish                          ; oil, edit the directory as a buffer
-  ;; g/t/s are prefixes, so the primary action doubles the letter
-  "gg" #'magit-status                    ; nvim g: fugitive status
+  "e" #'dirvish-side                     ; nvim e: snacks explorer sidebar
+  "O" #'dirvish                          ; nvim O: oil, edit the directory as a buffer
+  ;; g/t/s are prefixes, so their primary action sits under the prefix
+  "gg" #'magit-status                    ; nvim gg: lazygit
+  "gs" #'magit-status                    ; nvim gs: fugitive status
   "gy" #'git-link                        ; nvim gy: open line on remote
   "gh" #'magit-log-buffer-file           ; nvim gh: file history
   "gd" #'magit-diff-buffer-file          ; nvim gd: diff current file
-  "tt" #'consult-flymake                 ; nvim t: trouble diagnostics
+  "tt" #'consult-flymake                 ; nvim tt: trouble diagnostics
   "ts" #'consult-eglot-symbols           ; nvim ts: trouble symbols
   "tl" #'xref-find-references            ; nvim tl: trouble lsp references
 
-  "ss" #'project-query-replace-regexp
+  "ss" #'project-query-replace-regexp   ; nvim ss: grug-far
   "sw" #'my/replace-symbol               ; nvim sw: replace word under cursor
   "S" #'my/replace-symbol
 
@@ -251,9 +253,12 @@
 
 ;;;; package-local maps --------------------------------------------------------
 
-;; not ea/ed/er: an `e` prefix kills the end-of-word motion
+;; gs prefix like nvim mini.surround; an `e` prefix kills the end-of-word motion
 (with-eval-after-load 'evil-surround
-  (evil-define-key 'visual evil-surround-mode-map "S" 'evil-surround-region))
+  (evil-define-key '(normal visual) evil-surround-mode-map "gsa" #'evil-surround-region)
+  (evil-define-key 'normal evil-surround-mode-map
+    "gsd" #'evil-surround-delete
+    "gsr" #'evil-surround-change))
 
 ;; M-q exports results to an editable wgrep buffer
 (with-eval-after-load 'vertico

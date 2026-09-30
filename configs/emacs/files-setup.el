@@ -13,14 +13,14 @@
           ("p" "~/projects/"                     "projects")
           ("c" "~/projects/arch-dotfiles/configs/" "configs")))
 
-    (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first"
-        dired-dwim-target t                        ; other window = default target
+  (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first"
+        dired-dwim-target t                         ; other window = default target
         dired-recursive-copies 'always
         dired-recursive-deletes 'top
         dired-kill-when-opening-new-dired-buffer t  ; no buffer pileup
         delete-by-moving-to-trash t)
 
-    (dirvish-side-follow-mode 1)
+  (dirvish-side-follow-mode 1)
 
   (defun my/dirvish-side-resizable ()
     (when-let* ((dv (dirvish-curr))

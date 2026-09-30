@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # lists theme wallpapers for image-picker's themes mode
 
 theme_dir=${1:-}

@@ -12,7 +12,7 @@ if [[ ! -f "$BOOT_STATE" ]] || ! grep -qx sbctl "$BOOT_STATE"; then
 fi
 
 if [[ ! -d /sys/firmware/efi ]]; then
-    echo "sbctl: not UEFI (no /sys/firmware/efi) — Secure Boot N/A on this system" >&2
+    echo "sbctl: not UEFI (no /sys/firmware/efi), Secure Boot N/A on this system" >&2
     exit 0
 fi
 

@@ -291,7 +291,6 @@ PACKAGES=(
     ttf-fira-code                     # [fonts] ligature coding font
     ttf-fira-mono                     # [fonts] monospace font
     ttf-fira-sans                     # [fonts] humanist sans font
-    ttf-firacode-nerd                 # [fonts] Fira Code Nerd Font
     ttf-gentium                       # [fonts] serif Unicode font
     ttf-gentium-book                  # [fonts] serif book font
     ttf-gentium-plus                  # [fonts] extended serif font
@@ -299,7 +298,6 @@ PACKAGES=(
     ttf-gohu-nerd                     # [fonts] Gohu Nerd Font
     ttf-googlesanscode-nerd           # [fonts] Google Sans Code Nerd Font
     ttf-hack                          # [fonts] monospace coding font
-    ttf-hack-nerd                     # [fonts] Hack Nerd Font
     ttf-hanazono                      # [fonts] Japanese CJK font
     ttf-hannom                        # [fonts] Vietnamese Han-Nom font
     ttf-heavydata-nerd                # [fonts] Heavy Data Nerd Font
@@ -779,7 +777,7 @@ PACKAGES=(
     raylib                        # [programming] game programming library
     renderdoc                     # [programming] graphics frame debugger
     reptyr                        # [programming] reattach process to terminal
-    resvg                         # [programming] SVG rendering librar
+    resvg                         # [programming] SVG rendering library
     rgx                           # [programming] regex testing
     ripgrep                       # [programming] fast recursive grep
     rstudio-desktop-bin           # [programming] R development IDE
@@ -1110,9 +1108,7 @@ retry() {
     done
 }
 
-# Keep the single (timestamp_type=global) sudo credential warm for the whole run,
-# so long AUR builds and makepkg's own pacman calls never re-prompt. Belt to
-# yay --sudoloop's suspenders: this holds even where the helper does not loop.
+# keep the default per-tty sudo timestamp warm through the builds; configs/sudo (global, 240 min) links later
 sudo -v
 while true; do sudo -n true 2>/dev/null; sleep 50; done &
 SUDO_KEEPALIVE_PID=$!
@@ -1190,7 +1186,7 @@ grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" /etc/security/pam_env.conf || 
 grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 
-# prime the sudo timestamp; configs/sudo sets timestamp_timeout=240 (4h) so it lasts through the builds
+# refresh the sudo timestamp before the link loop, which installs configs/sudo (global, 240 min)
 sudo -v || true
 
 while IFS= read -r script; do
@@ -1200,7 +1196,7 @@ while IFS= read -r script; do
         set -o pipefail
         cd "$dir" && bash "$base" </dev/null 2>&1 | tee "${script}.log"
     ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.sh')
+done < <(find "$(pwd)" -type f -name 'link.sh' -not -path "$(pwd)/configs/pacman/*") # pacman linked before the installs
 while IFS= read -r script; do
     dir=$(dirname "$script")
     base=$(basename "$script")

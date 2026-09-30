@@ -11,7 +11,7 @@ Wants=network-online.target
 What=//10.100.0.109/homelab
 Where=/mnt/homelab
 Type=cifs
-Options=guest,uid=1000,gid=1000,vers=3.0,_netdev,nofail,file_mode=0664,dir_mode=0775
+Options=guest,uid=@UID@,gid=@GID@,vers=3.0,_netdev,nofail,file_mode=0664,dir_mode=0775
 
 [Install]
 WantedBy=multi-user.target

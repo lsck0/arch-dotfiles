@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
+import "BatteryModel.js" as BatteryModel
 
 BarWidget {
   id: root
@@ -55,23 +56,17 @@ BarWidget {
   readonly property var batteryDevice: UPower.displayDevice
   readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
   readonly property bool onBattery: UPower.onBattery === true
-  readonly property real batteryFraction: batteryPresent
-    ? Math.max(0, Math.min(1, Number(batteryDevice.percentage) || 0)) : 0
-  readonly property string batteryIcon: {
-    if (!batteryPresent) return ""
-    var level = Math.max(0, Math.min(9, Math.floor(batteryFraction * 10)))
-    if (batteryDevice.state === UPowerDeviceState.FullyCharged) return "󰂅"
-    return onBattery
-      ? ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][level]
-      : ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"][level]
-  }
+  readonly property var upowerStates: ({
+    Charging: UPowerDeviceState.Charging,
+    Discharging: UPowerDeviceState.Discharging,
+    FullyCharged: UPowerDeviceState.FullyCharged,
+    PendingCharge: UPowerDeviceState.PendingCharge
+  })
+  readonly property real batteryFraction: BatteryModel.batteryFraction(batteryDevice)
+  readonly property string batteryIcon: BatteryModel.batteryIcon(batteryDevice, onBattery, upowerStates)
   readonly property string batteryTime: {
     if (!batteryPresent) return ""
-    var seconds = onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull
-    var total = Math.max(0, Math.round(Number(seconds) || 0))
-    var hours = Math.floor(total / 3600)
-    var minutes = Math.floor((total % 3600) / 60)
-    return hours > 0 ? hours + "h " + minutes + "m" : (minutes > 0 ? minutes + "m" : "")
+    return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull)
   }
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
