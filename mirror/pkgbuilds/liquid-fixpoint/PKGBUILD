@@ -7,10 +7,14 @@ arch=(x86_64)
 url="https://github.com/ucsd-progsys/liquid-fixpoint"
 license=(BSD-3-Clause)
 depends=(gmp z3)
-makedepends=(git stack)
+makedepends=(git)
 options=(!strip)
-source=("git+$url.git")
-sha256sums=(SKIP)
+# arch's stack (2.11) builds no setup shim against the ghc 9.10 cabal: initialBuildSteps is gone
+_stackver=3.11.1
+source=("git+$url.git"
+        "stack-$_stackver::https://github.com/commercialhaskell/stack/releases/download/v$_stackver/stack-$_stackver-linux-x86_64-bin")
+sha256sums=(SKIP
+            67c66e918801c41ae4d286b1c91f9124f691c1c7d56071b53889cf4a5c667550)
 
 pkgver() {
     cd liquid-fixpoint
@@ -21,7 +25,8 @@ build() {
     cd liquid-fixpoint
     # stack keeps its ghc and package db out of the build user's home
     export STACK_ROOT="$srcdir/stack"
-    stack --install-ghc build --copy-bins --local-bin-path "$srcdir/bin"
+    install -m755 "$srcdir/stack-$_stackver" "$srcdir/stack-bin"
+    "$srcdir/stack-bin" --install-ghc build --copy-bins --local-bin-path "$srcdir/bin"
 }
 
 package() {

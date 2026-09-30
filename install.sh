@@ -393,7 +393,6 @@ PACKAGES=(
 
     ani-cli-git                 # [desktop] anime streaming CLI
     bemenu-wayland              # [desktop] dmenu for wayland
-    benben                      # [desktop] terminal music player
     bleachbit                   # [desktop] disk space cleaner
     blueberry                   # [desktop] bluetooth config GUI
     bookokrat-bin               # [desktop] terminal pdf
