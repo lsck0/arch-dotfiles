@@ -639,7 +639,6 @@ PACKAGES=(
     cargo-shuttle                 # [programming] shuttle.rs deploy CLI
     cargo-sort-derives            # [programming] derive attribute sorter
     cargo-tarpaulin               # [programming] rust code coverage
-    cargo-tauri                   # [programming] tauri app CLI
     cargo-update                  # [programming] update installed crates
     cargo-watch                   # [programming] rebuild on change
     cargo-wizard                  # [programming] cargo profile helper
