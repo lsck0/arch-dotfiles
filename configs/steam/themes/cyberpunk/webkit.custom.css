@@ -51,3 +51,12 @@ body,
 .hero_tag {
   background: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
 }
+
+/* store header: recommendation rows and feature cards */
+._3Z1skIYVoqLbYiP2wy46Ce,
+._16jZ3HEbtaJTl80pQINN2Y {
+  background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+}
+._3Z1skIYVoqLbYiP2wy46Ce:hover {
+  background: color-mix(in srgb, var(--cp-accent) 18%, var(--cp-bg-alt)) !important;
+}
