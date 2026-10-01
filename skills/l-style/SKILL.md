@@ -389,7 +389,8 @@ Preamble and macros:
 - Heavy packages and advanced features are opt-in package options, all off by default: `\usepackage[diagrams, autolabels]{header}` with `tikz`, `diagrams`, `plots`, `graphics`, `code`, `algorithms`, `asymptote`, `glossaries`, `autolabels`, `ids`. Idle costs nothing.
 - Systematic single-letter macro families: `\A` to `\Z` blackboard bold, `\cA` to `\cZ` calligraphic, `\fA` to `\fZ` fraktur. Var shortcuts `\vphi`, `\vep`, `\vth`. Upright constants and differentials `\ce`, `\ci`, `\cd`, `\dx`, `\dt`.
 - Plain `( ) [ ] \{ \} | \|` in math auto-size via the header, so no hand-written `\left(`. Macros for the rest: `\Sp`, `\Abs`, `\Norm`, `\Res`.
-- Named operators as `\mathrm` (`\im`, `\id`, `\rk`, `\tr`, `\colim`), categories as `\mathsf` (`\Set`, `\Top`, `\Mfd`), invariants as their own macro (`\TC`, `\cat`, `\secat`, `\wgt`, `\zcl`). Derivative helpers `\dfrac`/`\pfrac` via `xparse` `\DeclareDocumentCommand` with an optional argument.
+- Named operators via `\DeclareMathOperator` (`\im`, `\id`, `\rk`, `\tr`), with the starred form where the index goes below (`\colim`); categories as `\mathsf` (`\Set`, `\Top`, `\Mfd`), invariants as their own operator (`\TC`, `\cat`, `\secat`, `\wgt`, `\zcl`). Derivative helpers `\derivative`/`\pderivative` via `\NewDocumentCommand`; never redefine a kernel or amsmath macro (`\dfrac`), and letter macros that shadow text commands (`\S`, `\P`, ...) switch on math mode.
+- German documents (babel main language german) get German theorem, cref and task names from the header.
 
 Notation habits:
 
