@@ -15,7 +15,12 @@ BarWidget {
   property bool anonymousNetworkPersonaOn: false
   property bool btPowered: false
   property bool wifiOn: true
+  property bool ethernetOn: false
+  property bool mobileOn: false
+  property bool hasMobile: false
   property bool offlineModeOn: false
+  property string firewallState: "default"
+  property bool isPersonal: false
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
@@ -51,6 +56,9 @@ BarWidget {
     anonymousNetworkPersonaProc.running = true
     btProc.running = true
     wifiProc.running = true
+    ethProc.running = true
+    mobileProc.running = true
+    firewallProc.running = true
     rfkillProc.running = true
     if (!detailsProc.running) detailsProc.running = true
   }
@@ -105,7 +113,10 @@ BarWidget {
   function toggleAnonymousNetworkPersona() { Quickshell.execDetached([Paths.toggle("toggle-anonymous-network-persona.sh"), "toggle"]); afterToggle() }
   function toggleBluetooth() { Quickshell.execDetached([Paths.toggle("toggle-bluetooth.sh"), "toggle"]); afterToggle() }
   function toggleWifi() { Quickshell.execDetached([Paths.toggle("toggle-wifi.sh"), "toggle"]); afterToggle() }
+  function toggleEthernet() { Quickshell.execDetached([Paths.toggle("toggle-ethernet.sh"), "toggle"]); afterToggle() }
+  function toggleMobile() { Quickshell.execDetached([Paths.toggle("toggle-mobile.sh"), "toggle"]); afterToggle() }
   function toggleOfflineMode() { Quickshell.execDetached([Paths.toggle("toggle-offline.sh"), "toggle"]); afterToggle() }
+  function toggleFirewall() { Quickshell.execDetached([Paths.toggle("toggle-firewall.sh"), "toggle"]); afterToggle() }
 
   Process {
     id: homeVpnProc
@@ -141,6 +152,40 @@ BarWidget {
     id: wifiProc
     command: [Paths.toggle("toggle-wifi.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.wifiOn = String(text || "").trim() === "on" }
+  }
+  Process {
+    id: ethProc
+    command: [Paths.toggle("toggle-ethernet.sh"), "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.ethernetOn = String(text || "").trim() === "on" }
+  }
+  Process {
+    id: mobileProc
+    command: [Paths.toggle("toggle-mobile.sh"), "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.mobileOn = String(text || "").trim() === "on" }
+  }
+  // wwan hardware does not appear or vanish at runtime, probe once
+  Component.onCompleted: { hasMobileProc.running = true; userProc.running = true }
+  // the homelab vpn is luca's; a guest never sees the row
+  Process {
+    id: userProc
+    command: ["id", "-un"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.isPersonal = String(text || "").trim() === "luca" }
+  }
+  Process {
+    id: firewallProc
+    command: [Paths.toggle("toggle-firewall.sh"), "get"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.firewallState = String(text || "default").trim() }
+  }
+  Process {
+    id: hasMobileProc
+    command: ["nmcli", "-t", "-f", "TYPE", "device"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var types = String(text || "").trim().split("\n")
+        root.hasMobile = types.indexOf("gsm") !== -1 || types.indexOf("wwan") !== -1
+      }
+    }
   }
   Process {
     id: rfkillProc
@@ -573,7 +618,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "TUNNELS" }
       ToggleRow { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
-      ToggleRow { label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
+      ToggleRow { visible: root.isPersonal; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       ToggleRow { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
       ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
       ToggleRow { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
@@ -581,8 +626,11 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }
       ToggleRow { label: "Wi-Fi"; on: root.wifiOn; onActivated: root.toggleWifi() }
+      ToggleRow { label: "Ethernet"; on: root.ethernetOn; onActivated: root.toggleEthernet() }
+      ToggleRow { visible: root.hasMobile; label: "Mobile"; on: root.mobileOn; onActivated: root.toggleMobile() }
       ToggleRow { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
       ToggleRow { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
+      ToggleRow { label: "Firewall: " + root.firewallState; on: root.firewallState !== "off"; onActivated: root.toggleFirewall() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }

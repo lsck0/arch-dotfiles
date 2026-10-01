@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ../../scripts/lib/personal.sh
+
 if ! command -v git >/dev/null 2>&1; then
     exit 0
 fi
@@ -13,8 +15,11 @@ if command -v git-lfs >/dev/null 2>&1; then
 fi
 
 # basic
-git config --global user.name "Luca Sandrock"
-git config --global user.email "luca.sandrock@proton.me"
+# guests keep the generic config, only luca gets his identity
+if is_personal; then
+    git config --global user.name "Luca Sandrock"
+    git config --global user.email "luca.sandrock@proton.me"
+fi
 # no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also
 # persist that gh token into ~/.git-credentials
 git config --global init.defaultBranch master
@@ -40,7 +45,9 @@ fi
 
 # jj
 if command -v jj >/dev/null 2>&1; then
-    jj config set --user user.name "Luca Sandrock"
-    jj config set --user user.email "luca.sandrock@proton.me"
+    if is_personal; then
+        jj config set --user user.name "Luca Sandrock"
+        jj config set --user user.email "luca.sandrock@proton.me"
+    fi
     jj config set --user ui.default-command log
 fi

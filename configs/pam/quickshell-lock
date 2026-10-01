@@ -1,5 +1,5 @@
 #%PAM-1.0
-# optional yubikey touch, nouserok falls through to password
+# optional yubikey touch; absent entry falls through to the password include
 @U2F_LINE@
 auth       include    system-auth
 account    include    system-auth

@@ -14,6 +14,5 @@ sudo install -m 755 tor-router /usr/local/bin/tor-router
 # started by the toron/toroff aliases
 sudo install -Dm 644 tor-router-override.conf /etc/systemd/system/tor-router.service.d/override.conf
 
+# tor stays on-demand: toron/toroff start tor-router.service, no boot-time tor.service
 sudo systemctl daemon-reload
-sudo systemctl enable tor.service
-sudo systemctl restart tor.service

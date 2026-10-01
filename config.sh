@@ -20,10 +20,15 @@ export FAILURES_FILE="$(pwd)/FAILURES.config"
 source ./scripts/lib/platform.sh
 platform_load "$(pwd)"
 
+# guest gating: a non-luca login skips every personal step, link.sh scripts read PERSONAL
+source ./scripts/lib/personal.sh
+if is_personal; then PERSONAL=1; else PERSONAL=0; fi
+export PERSONAL
+
 ## SECRETS
 
 # a plugged-in YubiKey pulls and unlocks configs/secrets with two touches, so the links below find them
-./scripts/yubikey.sh unlock || true
+if is_personal; then ./scripts/yubikey.sh unlock || true; fi
 
 ## LINK
 

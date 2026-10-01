@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+is_personal || exit 0
+
 # the platform names its tunnel config in the secrets, toggles/toggle-vpn.sh brings wg0 up
 PLATFORM_FILE="../../platforms/$(</etc/hostname).sh"
 WIREGUARD=""

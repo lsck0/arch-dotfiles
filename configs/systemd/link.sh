@@ -42,12 +42,14 @@ enable_if_present avahi-daemon.service
 enable_if_present bluetooth.service
 enable_if_present cronie.service
 enable_if_present cups.socket
-enable_if_present libvirtd.service
+# socket-activated: libvirtd starts on first client, idle otherwise
+enable_if_present libvirtd.socket
 enable_if_present ly@tty2.service
 enable_if_present nix-daemon.socket
 enable_if_present open-fprintd-resume.service
 enable_if_present open-fprintd-suspend.service
-enable_if_present ossec-server.target
+# ossec HIDS runs periodic full-fs integrity scans: a battery drain on the laptop, wanted on the desktop
+compgen -G "/sys/class/power_supply/BAT*" >/dev/null || enable_if_present ossec-server.target
 enable_if_present paccache.timer --now
 enable_if_present thermald.service
 mask_if_present NetworkManager-wait-online.service

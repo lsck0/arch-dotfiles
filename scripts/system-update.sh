@@ -42,7 +42,7 @@ unset __MISE_DIFF __MISE_WATCH __MISE_SESSION MISE_SHELL 2>/dev/null
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 
-yay -Syyu --rebuildall --answerclean A --answerdiff N --noconfirm
+sudo pacman -Syu --noconfirm
 flatpak update --assumeyes
 nix-channel --update
 
@@ -50,16 +50,7 @@ nix-channel --update
 
 run_if_present mise upgrade
 
-if command -v rustup >/dev/null 2>&1; then
-    rustup update
-    if command -v cargo-install-update >/dev/null 2>&1; then
-        cargo install-update -a --locked
-    fi
-fi
-
-run_if_present gup update
-
-run_if_present npm update -g
+run_if_present rustup update
 
 if command -v opam >/dev/null 2>&1; then
     opam update

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+is_personal || exit 0
+
 source ../../scripts/lib/secrets.sh
 
 if ! command -v syncthing >/dev/null 2>&1; then

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Includes: * Network: routing, hyperscaler inference, DNS misconfigs.
+# Scoped server/web security audit: recon plus nuclei/ffuf/httpx against authorized targets.
+# Rate/stealth-tunable and gated by an explicit scope check.
 
 set -uo pipefail
 

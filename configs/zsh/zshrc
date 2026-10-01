@@ -135,8 +135,11 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-# greet only at a real tty
-[[ -o interactive && -t 1 && "$TERM" != dumb ]] && fastfetch
+# greet only at a real tty, once per session: subshells inherit the marker and skip
+if [[ -o interactive && -t 1 && "$TERM" != dumb && -z "$FASTFETCH_SHOWN" ]]; then
+  export FASTFETCH_SHOWN=1
+  fastfetch
+fi
 
 eval "$(mise activate zsh)"
 eval "$(starship init zsh)"

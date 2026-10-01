@@ -30,7 +30,7 @@ BarIndicator {
   }
 
   Timer {
-    interval: 15000
+    interval: 30000
     running: true
     repeat: true
     triggeredOnStart: true

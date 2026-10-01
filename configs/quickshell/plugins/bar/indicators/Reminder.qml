@@ -52,7 +52,7 @@ BarIndicator {
     }
   }
 
-  Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
+  Timer { interval: 60000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
   onPressed: function() {
     root.openReminderFlow()

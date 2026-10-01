@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Claude Code usage for the bar via claude_trmnl.py --dry-run."""
 
+import getpass
 import json
 import pathlib
 import subprocess
@@ -11,7 +12,8 @@ TIMEOUT = 60
 
 
 def main():
-    if not SCRIPT.exists():
+    # the claude usage widget is luca's; a guest gets nothing
+    if getpass.getuser() != "luca" or not SCRIPT.exists():
         print("{}")
         return 0
     try:

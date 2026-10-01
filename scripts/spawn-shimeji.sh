@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Pick a shimeji from `shimejictl list` via picker.sh and summon it.
 
 set -e
 

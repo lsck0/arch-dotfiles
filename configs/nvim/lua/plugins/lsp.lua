@@ -13,6 +13,7 @@ local installed = {
     "dockerfile-language-server",
     "emmet-language-server",
     "eslint-lsp",
+    "glsl_analyzer",
     "gopls",
     "haskell-language-server",
     "hlint",
@@ -34,6 +35,7 @@ local installed = {
     "ormolu",
     "prettierd",
     "pyright",
+    "ruff", -- python lint/format LSP, pyright keeps types
     "rust-analyzer",
     "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
@@ -45,10 +47,12 @@ local installed = {
     "taplo",
     "terraform-ls",
     "texlab",
+    "tinymist", -- typst LSP
     "tree-sitter-cli",
     "typescript-language-server",
     "typos-lsp",
     "vim-language-server",
+    "wgsl-analyzer", -- mason package hyphenated, lspconfig server is wgsl_analyzer
     "yaml-language-server",
     "zls",
     "clojure-lsp",
@@ -305,6 +309,8 @@ return {
             })
 
             vim.lsp.enable("clangd")
+            -- godot ships a GDScript server over TCP :6005, no mason package
+            vim.lsp.enable("gdscript")
             vim.lsp.enable("pyright")
             vim.lsp.enable("rust_analyzer")
             vim.lsp.enable("tailwindcss")

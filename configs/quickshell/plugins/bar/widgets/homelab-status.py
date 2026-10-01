@@ -87,6 +87,10 @@ def dashboard_url_path(board):
 
 
 def source():
+    # guests never clone the homelab; short-circuit to the "source" degradation without parsing
+    if not os.path.isdir(HOMELAB_DIR):
+        return {"by_ip": {}, "prometheus": ""}
+
     try:
         inventory = json.loads(read("inventory.json") or "{}")
     except ValueError:

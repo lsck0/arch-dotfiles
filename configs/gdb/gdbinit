@@ -12,3 +12,11 @@ if os.path.isdir(ue_printers):
     from UEPrinters import register_ue_printers
     register_ue_printers(None)
 end
+
+# pwndbg for binary analysis / exploitation, loaded after the UE printers; vanilla gdb if absent
+python
+import os as _os
+_pwndbg = "/usr/share/pwndbg/gdbinit.py"
+if _os.path.exists(_pwndbg):
+    gdb.execute("source " + _pwndbg)
+end
