@@ -18,6 +18,7 @@ FILES="
     kdeglobals
     kglobalshortcutsrc
     ksplashrc
+    kwalletrc
     kwinoutputconfig.json
     kwinrc
     kwinrulesrc
