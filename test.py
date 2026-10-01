@@ -252,7 +252,7 @@ def snapshot_bundle(name: str) -> Path:
     return bundle
 
 
-def bootstrap(name: str, iso: Path, host: Host, bundle: Path | None, platform: str) -> None:
+def bootstrap(name: str, iso: Path, host: Host, bundle: Path | None, platform: str, user: str) -> None:
     """Fresh VM, Secure Boot firmware without enrolled keys (Setup Mode), bootstrap.sh from the iso."""
     destroy(name)
     subprocess.run([
@@ -275,7 +275,7 @@ def bootstrap(name: str, iso: Path, host: Host, bundle: Path | None, platform: s
     run_step(name, host, "bootstrap", f"""set -o pipefail
 pacman -Sy --noconfirm --needed git
 cd /tmp && git clone {REPO_URL} && cd arch-dotfiles{checkout} \\
-    && BOOTSTRAP_DISK={DISK} BOOTSTRAP_PASSWORD={PASSWORD} BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh {platform} 2>&1 \\
+    && BOOTSTRAP_DISK={DISK} BOOTSTRAP_PASSWORD={PASSWORD} BOOTSTRAP_USERNAME={user} BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh {platform} 2>&1 \\
     | tee /tmp/bootstrap.log \\
     || {{ curl -sT /tmp/bootstrap.log {HOST}/bootstrap.log; {beacon_cmd('bootstrap-fail')}; }}
 """, "us")
@@ -296,13 +296,13 @@ def await_chain(name: str) -> None:
     type_text(name, PASSWORD + "\n", "de")
 
 
-def login_tty(name: str, host: Host) -> None:
+def login_tty(name: str, host: Host, user: str) -> None:
     # getty clears the screen as it starts and drops input typed before that, hence the retries
     for attempt in range(LOGIN_ATTEMPTS):
         time.sleep(POLL_S)
         virsh("qemu-monitor-command", name, "--hmp", f"sendkey ctrl-alt-f{LOGIN_TTY}")
         time.sleep(3)
-        type_text(name, f"{USER}\n", "de")
+        type_text(name, f"{user}\n", "de")
         time.sleep(3)
         type_text(name, f"{PASSWORD}\n", "de")
         time.sleep(5)
@@ -374,9 +374,9 @@ def cmd_run(args: argparse.Namespace) -> None:
     name = args.name
     host = Host(cache_dir(name) / "logs.tgz")
 
-    bootstrap(name, args.iso, host, None if args.master else snapshot_bundle(name), args.platform)
+    bootstrap(name, args.iso, host, None if args.master else snapshot_bundle(name), args.platform, args.user)
     await_chain(name)
-    login_tty(name, host)
+    login_tty(name, host, args.user)
     logs = pull_logs(name, host)
     print(f"vm-test: logs in {logs}")
     problems = verify(logs)
@@ -421,6 +421,7 @@ def main() -> None:
     run = sub.add_parser("run", parents=[common])
     run.add_argument("--iso", type=Path, default=Path.home() / "downloads" / "archlinux-x86_64.iso")
     run.add_argument("--platform", default=PLATFORM, help="platforms/<name>.sh for bootstrap.sh")
+    run.add_argument("--user", default=USER, help="BOOTSTRAP_USERNAME; non-luca exercises the guest path")
     run.add_argument("--master", action="store_true", help="test github master instead of the local working tree")
     sub.add_parser("logs", parents=[common])
     sub.add_parser("shot", parents=[common])
