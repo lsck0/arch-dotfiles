@@ -58,7 +58,7 @@ MoveZoomRight=none,none,Move Zoomed Area to Right
 MoveZoomUp=none,none,Move Zoomed Area Upwards
 Overview=Meta+W,Meta+W,Toggle Overview
 Setup Window Shortcut=none,none,Setup Window Shortcut
-Show Desktop=Meta+D,Meta+D,Peek at Desktop
+Show Desktop=none,Meta+D,Peek at Desktop
 Switch One Desktop Down=Meta+Ctrl+Down,Meta+Ctrl+Down,Switch One Desktop Down
 Switch One Desktop Up=Meta+Ctrl+Up,Meta+Ctrl+Up,Switch One Desktop Up
 Switch One Desktop to the Left=Meta+Ctrl+Left,Meta+Ctrl+Left,Switch One Desktop to the Left
@@ -241,7 +241,7 @@ powerProfile=Battery\tMeta+B,Battery\tMeta+B,Switch Power Profile
 [plasmashell]
 Slideshow Wallpaper Next Image=none,none,Next Wallpaper Image
 _k_friendly_name=plasmashell
-activate application launcher=Meta\tAlt+F1,Meta\tAlt+F1,Activate Application Launcher
+activate application launcher=Meta\tAlt+F1\tMeta+D,Meta\tAlt+F1,Activate Application Launcher
 activate task manager entry 1=Meta+1,Meta+1,Activate Task Manager Entry 1
 activate task manager entry 10=none,none,Activate Task Manager Entry 10
 activate task manager entry 2=Meta+2,Meta+2,Activate Task Manager Entry 2

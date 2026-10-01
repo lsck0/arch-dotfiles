@@ -136,3 +136,7 @@ BorderSizeAuto=false
 [EdgeBarrier]
 CornerBarrier=false
 EdgeBarrier=0
+
+[Windows]
+FocusPolicy=FocusFollowsMouse
+NextFocusPrefersMouse=true

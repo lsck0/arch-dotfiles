@@ -18,7 +18,7 @@ ln -sfn "${PWD}/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
 ln -sfn "${PWD}/RTK.md" "${HOME}/.claude/RTK.md"
 
 tmp=$(mktemp)
-jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5"}
+jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5", voice: {enabled: true, mode: "hold"}}
    | .modelSettings["claude-opus-5-5"].effortLevel = "high"
    | .hooks = ((.hooks // {}) + {
        "UserPromptSubmit": [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh acquire"}]}],
