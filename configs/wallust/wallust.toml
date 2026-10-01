@@ -5,3 +5,5 @@ style = "dark"
 
 [templates]
 wal = { template = 'wal/', target = '~/.cache/wal/', pywal = true }
+# millennium serves only files inside the theme dir, a symlink out to ~/.cache never loads
+steam = { template = 'wal/colors-steam.css', target = '~/.local/share/Steam/millennium/themes/cyberpunk/colors.css' }

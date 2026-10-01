@@ -1,0 +1,53 @@
+/* store and community pages (remote web content); only surfaces, sale art and capsules stay; colors.css last so it wins */
+@import url("shared.css");
+@import url("colors.css");
+
+/* page ground; background-color only, so seasonal art images still show */
+body,
+.responsive_page_frame,
+.responsive_page_content,
+.page_content_ctn,
+.home_page_body_ctn {
+  background-color: var(--cp-bg) !important;
+}
+
+/* tinted section bands and tab lists */
+.home_tab_bg_ctn,
+.home_discount_games_ctn,
+._2-rKQdmSx7Khacm27tXK0K,
+._2GxMhpm7OC2WWXN_wjgA78,
+._2-tz2hqtOXPPtMnVPHNSdx {
+  background: color-mix(in srgb, var(--cp-bg-alt) 80%, transparent) !important;
+}
+.ctn_background,
+.tab_row_item,
+.tab_preview,
+._19o1GB7ysfrWKLYpqZ6aXu,
+._1pYnEk5gbmwcthm_TJ9jVl,
+._1DaxYFphX9KPH-YWeuNTvO,
+._3PAP1PfUymQrLEveRsxQxP,
+.discount_prices {
+  background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+}
+.tab_row_item.focus,
+.tab_preview.focus,
+.tab_row_item:hover {
+  background: color-mix(in srgb, var(--cp-accent) 18%, var(--cp-bg-alt)) !important;
+}
+
+/* store nav, search and white buttons */
+._2Cp17yynz2h_StEQZcNnqB,
+._1KU9eASfov1GnFQRbyLIdR,
+.btnv6_white_transparent {
+  background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+  color: var(--cp-fg) !important;
+}
+._1Yo-ZsBr-KbVMyAMXEYszd,
+._1PSb462Tg4S8M046QIk4PM,
+.home_gift_card_link {
+  background: var(--cp-accent) !important;
+  color: var(--cp-bg) !important;
+}
+.hero_tag {
+  background: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+}

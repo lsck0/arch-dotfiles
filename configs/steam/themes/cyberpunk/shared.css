@@ -179,3 +179,126 @@ html { accent-color: var(--cp-accent); }
 
 /* underline only, capsules stay legible */
 a:hover { text-decoration-color: var(--cp-accent) !important; }
+
+/* steam paints its panels on hashed classes, not variables; names change with steam builds,
+   so re-dump the dom when these stop matching */
+
+/* page backdrops: library home, main content, sidebar */
+._3Sb2o_mQ30IDRh0C72QUUu,
+._3VQUewWB8g6Z5qB4C7dGFr,
+._17uEBe5Ri8TMsnfELvs8-N,
+._3x1HklzyDs4TEjACrRO2tB {
+  background: var(--cp-bg) !important;
+}
+
+/* bars and raised panels: top bar, bottom bar, sidebar home, news strip, hours badge */
+._2Dd4T78PcCTUVgOtDGFY5j,
+._3Z7VQ1IMk4E3HsHvrkLNgo,
+._3vCzSrrXZzZjVJFZNg9SGu,
+._2CmrnGY-Amtd83ScJkFvx2,
+._2TKEazUUS3TlniZfpc8OOe,
+._3pSPluBgf0NeR1kkCLWMhR,
+._1LJqx_qFOC8199RBQO5kU8 {
+  background: var(--cp-bg-alt) !important;
+}
+
+/* menu bar dropdowns and the notifications popup */
+.PP7LM0Ow1K5qkR8WElLpt,
+._2EstNjFIIZm_WUSKm5Wt7n,
+._3k90ug209sE23xAMqcM74s,
+._1oERP7bVictkby2hP4BBva {
+  background: var(--cp-bg-alt) !important;
+}
+
+/* steam blue: update banner, event dates, progress, title highlight */
+._2iJsgdTIX9Tj23rWnB7Q-c,
+._3OSZu24hLN7YKjqGi7I2Xp,
+._5wILZhsLODVwGfcJ0hKmJ,
+.title-area-highlight {
+  background: var(--cp-accent) !important;
+}
+
+/* library filter panel and its header */
+._20QAC4WMXm8qFE8waUT5oo,
+.Woh0kBQCmatzC1daBX9i6,
+._276E6ijBpjMA2_iTxNhhjc {
+  background: var(--cp-bg-alt) !important;
+}
+
+/* translucent chips: game tiles, avatar badges, shelf drag handle */
+._3_xMyCJAh_Dv99KgZ54P3j,
+._3yD46y5pd3zOGR7CzKs0mC,
+.RtSv39ZoBOySnb8XQ5hJf,
+._3IWn-2rn7x98o5fDd0rAxb {
+  background: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
+}
+
+/* game page: backdrop, header fade, play bar, panels (activity, friends who play, achievements) */
+._3lDczhulqraStjCitLYJ1K {
+  background: var(--cp-bg) !important;
+}
+.Jbe--NUNw7sxbxGsMSjVa {
+  background: linear-gradient(transparent 0%, color-mix(in srgb, var(--cp-bg) 70%, transparent) 82px, var(--cp-bg) 100%) !important;
+}
+._3fLo166MlaNqP8r8tTyRz,
+._1HZy7BvOZuPT8feUwadL4W,
+.By7D93oEZkZtBeg23NDoR,
+._3QRf-tp5VddAF00vWY5Gn8,
+._31ptFGGMZrSQc5BCX1e5lm,
+._3A_c3YHYd4YIjA8Y-olnPl,
+._38t1mljBjmJfqjpVzMT1CG,
+._2JSyABqFEh-v_dwaTnBydR,
+.bACIuqv-b_9TztCczFK19 {
+  background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+}
+/* install / play button, its dropdown and the loading sweep */
+._3ydigb6zZAjJ0JCDgHwSYA,
+._3pXasCUulX4jjqO79s4q_F {
+  background: var(--cp-accent) !important;
+  color: var(--cp-bg) !important;
+}
+/* gear, info, favorite buttons and the selected game in the list */
+._3qDWQGB0rtwM3qpXTb11Q- {
+  background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+}
+._2-O4ZG0KrnSrzISHBKctFQ {
+  background: color-mix(in srgb, var(--cp-accent) 30%, transparent) !important;
+}
+
+/* store url bar in the client */
+.UkR3sY319PuaUNuUWks2K {
+  background: var(--cp-bg) !important;
+}
+._2m_orETo6AghzAnc0sISCt {
+  background: transparent !important;
+}
+
+/* friends list and chat windows (stable class names) */
+.friendlistListContainer,
+.chatRoomListContainer,
+.chatDialogs,
+.chatWindow,
+.ChatRoomGroupDialog_contents,
+._3Ule3rolhZJiBN4yNNtk1s,
+._2WfNoLBdfKwyutA6ho4aSH {
+  background: var(--cp-bg) !important;
+}
+.friendListHeaderContainer,
+.ChatTabs.titleBarContainer,
+.friendListFooter,
+.chatEntry,
+.chatHeader,
+.friendTab,
+.friendsListSectionTitle,
+.FriendChatTypingNotification,
+.RVIs84dAE6wHcjH9tkinc,
+.VoiceToggle,
+._2XZq-_f6npaQdAgeRzKIkz {
+  background: var(--cp-bg-alt) !important;
+}
+.friendTab.activeTab {
+  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+}
+.singleWindowFocusBar {
+  background: var(--cp-accent) !important;
+}

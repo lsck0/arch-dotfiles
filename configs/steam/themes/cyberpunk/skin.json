@@ -10,5 +10,5 @@
       "TargetCss": "all.custom.css"
     }
   ],
-  "Steam-WebKit": "all.custom.css"
+  "Steam-WebKit": "webkit.custom.css"
 }
