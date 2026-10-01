@@ -13,7 +13,8 @@
           ("p" "~/projects/"                     "projects")
           ("c" "~/projects/arch-dotfiles/configs/" "configs")))
 
-  (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first"
+  ;; -v: version sort puts dotfiles first and file2 before file10; it compares bytes, so capitals sort before lowercase
+  (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first -v"
         dired-dwim-target t                         ; other window = default target
         dired-recursive-copies 'always
         dired-recursive-deletes 'top
@@ -25,9 +26,11 @@
   (defun my/dirvish-side-resizable ()
     (when-let* ((dv (dirvish-curr))
                 ((eq (dv-type dv) 'side)))
-      ;; not (setf (dv-size-fixed dv) ...): :config is expanded before dirvish loads, when that
-      ;; accessor's setter is still unknown and becomes a call to the void `(setf dv-size-fixed)'
-      (setf (cl-struct-slot-value 'dirvish 'size-fixed dv) nil)
+      ;; :config is macroexpanded before dirvish loads, so nothing here may need the struct at
+      ;; expansion time: `(setf (dv-size-fixed dv) ...)' becomes a call to the void
+      ;; `(setf dv-size-fixed)', and `cl-struct-slot-value' inlines `(cl-typep dv 'dirvish)',
+      ;; which falls back to calling the `dirvish' command on DV. Resolve the slot at runtime.
+      (setf (aref dv (cl-struct-slot-offset 'dirvish 'size-fixed)) nil)
       (setq-local window-size-fixed nil)))
   (add-hook 'dirvish-setup-hook #'my/dirvish-side-resizable))
 
