@@ -2,6 +2,7 @@
 
 BOOT_MENU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
+# archinstall mounts the ESP fmask/dmask=0077, so file tests under it need sudo
 ESP=/boot
 
 boot_feature_selected() {
@@ -17,7 +18,7 @@ esp_supported() {
         echo "boot: $ESP is not the FAT ESP, only archinstall's ESP-at-/boot layout is supported" >&2
         return 1
     fi
-    if [[ ! -f "$ESP/vmlinuz-linux-lts" ]]; then
+    if ! sudo test -f "$ESP/vmlinuz-linux-lts"; then
         echo "boot: linux-lts not installed, snapshots without matching linux modules get no fallback kernel" >&2
     fi
 }
@@ -68,7 +69,7 @@ sbctl_sign() {
     sudo sbctl status 2>/dev/null | grep -qE 'Owner GUID' || return 0
     local f
     for f in "$@"; do
-        if [[ -f "$f" ]]; then
+        if sudo test -f "$f"; then
             sudo sbctl sign -s "$f"
         fi
     done
