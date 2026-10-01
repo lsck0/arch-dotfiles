@@ -25,7 +25,9 @@
   (defun my/dirvish-side-resizable ()
     (when-let* ((dv (dirvish-curr))
                 ((eq (dv-type dv) 'side)))
-      (setf (dv-size-fixed dv) nil)
+      ;; not (setf (dv-size-fixed dv) ...): :config is expanded before dirvish loads, when that
+      ;; accessor's setter is still unknown and becomes a call to the void `(setf dv-size-fixed)'
+      (setf (cl-struct-slot-value 'dirvish 'size-fixed dv) nil)
       (setq-local window-size-fixed nil)))
   (add-hook 'dirvish-setup-hook #'my/dirvish-side-resizable))
 
