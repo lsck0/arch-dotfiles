@@ -448,6 +448,7 @@ PACKAGES=(
     konsole                     # [desktop] KDE terminal emulator
     krusader                    # [desktop] total commander
     lib32-gtk3                  # [desktop] 32-bit GTK3
+    libcec                      # [desktop] plasma-bigscreen input handler needs it
     libnotify                   # [desktop] desktop notification lib
     libx11                      # [desktop] X11 client library
     linecast                    # [desktop] tui weather
