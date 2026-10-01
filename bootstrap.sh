@@ -3,6 +3,9 @@
 
 set -euo pipefail
 
+# german keyboard before any prompt; the Arch ISO defaults to us layout
+loadkeys de-latin1 2>/dev/null || true
+
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
 CLONE_DIR=/tmp/arch-dotfiles
 
