@@ -39,12 +39,27 @@ AGENT_FAMILY = (
 )
 
 
+def site_value(match):
+    """${site.lan.proxmox} -> its value in src/site.json, so addresses written that way parse like literals."""
+    value = SITE
+    for key in match.group(1).split("."):
+        value = value.get(key) if isinstance(value, dict) else None
+    return str(value) if value is not None else match.group(0)
+
+
 def read(*parts):
     try:
         with open(os.path.join(HOMELAB_DIR, "src", *parts)) as fh:
-            return fh.read()
+            return re.sub(r"\$\{site\.([\w.]+)\}", site_value, fh.read())
     except OSError:
         return ""
+
+
+try:
+    with open(os.path.join(HOMELAB_DIR, "src", "site.json")) as fh:
+        SITE = json.load(fh)
+except (OSError, ValueError):
+    SITE = {}
 
 
 def homepage_group(text, group):
