@@ -54,6 +54,16 @@ return {
                     vim.opt_local.wrap = true
                 end,
             })
+
+            -- reload sources the paper repo's .latexmkrc stamped ids into; scheduled, checktime in the autocmd never reloads
+            vim.api.nvim_create_autocmd("User", {
+                pattern = { "VimtexEventCompileSuccess", "VimtexEventCompileFailed" },
+                callback = function()
+                    vim.schedule(function()
+                        if vim.fn.getcmdwintype() == "" then vim.cmd.checktime() end
+                    end)
+                end,
+            })
         end,
     },
 }
