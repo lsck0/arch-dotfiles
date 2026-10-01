@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Load it87 and generate a safe /etc/fancontrol, then enable fancontrol. Every fan follows the CPU (Tctl)
-# on a gentle curve with an airflow floor, so no pwmconfig and no per-fan mapping is needed.
+# Load it87 and (re)generate a safe /etc/fancontrol. Runs as fancontrol.service ExecStartPre every boot,
+# so the config always matches the live hwmon numbering (it87 shuffles hwmonN across reboots). Every fan
+# follows the CPU (Tctl) on a gentle curve with an airflow floor, so no pwmconfig and no per-fan mapping.
 
 set -euo pipefail
 
@@ -50,7 +51,7 @@ done
 
 [[ -e /etc/fancontrol && ! -e /etc/fancontrol.pre-dotfiles ]] && cp -a /etc/fancontrol /etc/fancontrol.pre-dotfiles
 {
-    echo "# managed by arch-dotfiles/configs/fancontrol; regenerate with fixfan.sh"
+    echo "# managed by arch-dotfiles/configs/fancontrol; regenerated each boot by fancontrol ExecStartPre"
     echo "INTERVAL=10"
     echo "DEVPATH=$it87=$(devpath_of "$it87") $k10=$(devpath_of "$k10")"
     echo "DEVNAME=$it87=$(cat /sys/class/hwmon/"$it87"/name) $k10=$(cat /sys/class/hwmon/"$k10"/name)"
@@ -64,5 +65,6 @@ done
     echo "MAXPWM=${maxpwm[*]}"
 } >/etc/fancontrol
 
-systemctl enable --now fancontrol.service
-echo "fancontrol: ${#pwms[@]} fan channel(s) on $it87 now follow Tctl (${FLOOR_PWM}/255 floor, full by ${MAXTEMP}C)"
+# no systemctl here: this runs as fancontrol.service ExecStartPre (regenerate for the live hwmon
+# numbering, which shuffles across reboots), so it must not touch the unit it is starting
+echo "fancontrol: ${#pwms[@]} fan channel(s) on $it87 now follow Tctl (${FLOOR_PWM}/255 floor, full by ${MAXTEMP}C)" >&2

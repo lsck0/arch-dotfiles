@@ -17,5 +17,12 @@ sudo install -m644 it87-modprobe.conf /etc/modprobe.d/it87.conf
 # lm_sensors.service only runs `sensors -s` + an optional modprobe, safe with no config present.
 sudo systemctl enable lm_sensors.service
 
-# load it87 now and generate the fancontrol curve, so a new system is quiet without a manual pwmconfig
-sudo bash ./gen-fancontrol.sh || echo "fancontrol: setup deferred (it87 loads on the next boot), rerun fixfan.sh then" >&2
+# fancontrol-gen.service (unsandboxed oneshot) rebuilds /etc/fancontrol for the live hwmon numbering
+# before fancontrol reads it, so a hwmonN reshuffle across reboots never breaks it. fancontrol keeps
+# ProtectSystem=full (it only reads), which is why the regen cannot be its own ExecStartPre.
+sudo install -m755 gen-fancontrol.sh /usr/local/bin/gen-fancontrol
+sudo install -m644 fancontrol-gen.service /etc/systemd/system/fancontrol-gen.service
+sudo install -Dm644 fancontrol-regen.conf /etc/systemd/system/fancontrol.service.d/regen.conf
+sudo systemctl daemon-reload
+sudo systemctl enable fancontrol-gen.service
+sudo systemctl enable --now fancontrol.service

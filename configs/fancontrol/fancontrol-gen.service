@@ -1,0 +1,12 @@
+[Unit]
+Description=Regenerate /etc/fancontrol for the live hwmon numbering
+After=lm_sensors.service
+Before=fancontrol.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/gen-fancontrol
+
+[Install]
+WantedBy=multi-user.target
