@@ -868,6 +868,7 @@ PACKAGES=(
     aircrack-ng             # [pentesting] wifi security auditing
     angryoxide              # [pentesting] tui wifi pentesting
     arjun                   # [pentesting] HTTP param discovery
+    armitage                # [pentesting] metasploit GUI, mirror/pkgbuilds
     arp-scan                # [pentesting] ARP network scanner
     bettercap               # [pentesting] network attack framework
     binsider                # [pentesting] binary analysis TUI
@@ -1091,26 +1092,9 @@ if [[ ! -f "$BOOT_STATE" ]]; then
     cat "$BOOT_STATE" >&2
 fi
 
-# Exactly one bootloader is installed and configured (configs/boot/{limine,grub}).
-if ! grep -qxE 'limine|grub' "$BOOT_STATE"; then
-    bootloader=limine
-    if [[ -f /boot/EFI/GRUB/grubx64.efi ]]; then
-        bootloader=grub
-    fi
-    if interactive; then
-        read -rp "Bootloader (limine/grub) [$bootloader]: " answer
-        if [[ "$answer" == limine || "$answer" == grub ]]; then
-            bootloader=$answer
-        fi
-    fi
-    echo "$bootloader" >>"$BOOT_STATE"
-    echo "Bootloader: $bootloader" >&2
-fi
-if grep -qx grub "$BOOT_STATE"; then
-    PACKAGES+=(grub os-prober update-grub)
-else
-    PACKAGES+=(limine)
-fi
+# grub is the only bootloader (configs/boot/grub), set up by bootstrap.sh and signed by configs/boot/sbctl
+grep -qx grub "$BOOT_STATE" || echo grub >>"$BOOT_STATE"
+PACKAGES+=(grub os-prober update-grub)
 
 ## LINK PACMAN CONFIG
 

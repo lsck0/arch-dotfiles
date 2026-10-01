@@ -40,10 +40,7 @@ sign_unsigned_boot_files() {
         /boot/EFI/Linux/*.efi \
         /boot/EFI/systemd/systemd-bootx64.efi \
         /boot/efi/EFI/BOOT/BOOTX64.EFI \
-        /boot/efi/EFI/systemd/systemd-bootx64.efi \
-        /boot/limine/limine_x64.efi \
-        /boot/efi/limine/limine_x64.efi \
-        /boot/efi/EFI/Limine/limine_x64.efi; do
+        /boot/efi/EFI/systemd/systemd-bootx64.efi; do
         [[ -f "$cand" ]] || continue
         sudo sbctl verify "$cand" 2>/dev/null | grep -q 'is signed' && continue
         paths+=("$cand")

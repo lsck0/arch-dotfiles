@@ -1,23 +1,13 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+# armitage itself comes from the lsck0 mirror now, see mirror/pkgbuilds/armitage
 if ! command -v msfconsole >/dev/null 2>&1; then
-    exit 0
-fi
-if ! command -v mise >/dev/null 2>&1 || ! command -v yay >/dev/null 2>&1; then
     exit 0
 fi
 
 # no -x: the psql calls below carry the msf passwords
 set -e
-
-if ! command -v armitage >/dev/null 2>&1; then
-    set -x
-    # plain java@11 is the 2019 openjdk build, its cacerts reject maven central
-    mise install java@temurin-11 gradle@7
-    mise exec java@temurin-11 gradle@7 -- yay -S --needed --noconfirm armitage-git
-    set +x
-fi
 
 db_yml=$HOME/.msf4/database.yml
 pg_dir=/tmp
