@@ -11,17 +11,11 @@ fi
 
 set -e
 
-# the module loads on next boot (modules-load.d); not modprobed here on purpose, loading a forced
-# SuperIO driver against the running system is a state change left for the reboot.
 sudo install -m644 it87-modules-load.conf /etc/modules-load.d/it87.conf
 sudo install -m644 it87-modprobe.conf /etc/modprobe.d/it87.conf
 
 # lm_sensors.service only runs `sensors -s` + an optional modprobe, safe with no config present.
 sudo systemctl enable lm_sensors.service
 
-# an unconfigured fancontrol can stop a fan, so enable it only once a validated /etc/fancontrol exists
-if [[ -s /etc/fancontrol ]]; then
-    sudo systemctl enable fancontrol.service
-else
-    echo "fancontrol: reboot, then run 'sudo pwmconfig' once to build /etc/fancontrol, then 'sudo systemctl enable --now fancontrol'"
-fi
+# load it87 now and generate the fancontrol curve, so a new system is quiet without a manual pwmconfig
+sudo bash ./gen-fancontrol.sh || echo "fancontrol: setup deferred (it87 loads on the next boot), rerun fixfan.sh then" >&2
