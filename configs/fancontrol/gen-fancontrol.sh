@@ -6,10 +6,10 @@ set -euo pipefail
 
 FORCE_ID=0x8622
 # quiet below MINTEMP, ramp to full by MAXTEMP; ryzen Tctl idles ~45C and boosts to ~85C under load
-MINTEMP=55
-MAXTEMP=88
-# 20% floor: quiet but keeps every fan (and any pump) spinning so a mis-identified channel never stalls
-FLOOR_PWM=51
+MINTEMP=60
+MAXTEMP=85
+# 16% floor: near-silent at idle, still spins every fan so a mis-identified channel never stalls
+FLOOR_PWM=40
 START_PWM=90
 
 hwmon_by_name() {
