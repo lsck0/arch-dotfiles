@@ -82,7 +82,7 @@ BorderSurface {
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   // border insets keep content off the bottom edge
-  implicitHeight: mainColumn.implicitHeight + borderTop + borderBottom
+  implicitHeight: mainColumn.implicitHeight + contentTopInset + contentBottomInset
   radius: isRow ? Style.cornerRadius : Style.space(8)
   color: isRow
     ? (hovered ? Style.hoverFill : "transparent")
