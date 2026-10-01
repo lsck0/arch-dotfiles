@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -13,7 +14,6 @@ Item {
 
   property bool locked: false
   property bool authError: false
-  property bool fpAvailable: false
   property string primaryScreenName: ""
   // in-flight pam response; the field enter was pressed in is the source of truth
   property string _pw: ""
@@ -24,11 +24,9 @@ Item {
     if (root.locked) return
     root.authError = false
     root._pw = ""
-    root.fpAvailable = false
     var scr = Quickshell.screens
     root.primaryScreenName = (scr && scr.length) ? String(scr[0].name) : ""
     root.locked = true
-    fpDetect.running = true
   }
 
   // only a successful pam result may call this
@@ -38,8 +36,6 @@ Item {
     root._pw = ""
     root.clearFields()
     pamPw.active = false
-    pamFp.active = false
-    fpRetry.stop()
   }
 
   function submit() {
@@ -61,21 +57,6 @@ Item {
     function isLocked(): string { return root.locked ? "true" : "false" }
   }
 
-  Process {
-    id: fpDetect
-    command: ["bash", "-c",
-      'command -v fprintd-list >/dev/null 2>&1 || { echo no; exit 0; }; '
-      + 'out=$(timeout 5s fprintd-list "$USER" 2>/dev/null || true); '
-      + 'if grep -qE "^found [1-9][0-9]* devices?$" <<<"$out" '
-      + '&& grep -qE "^ - #[0-9]+: .+" <<<"$out"; then echo yes; else echo no; fi']
-    stdout: StdioCollector {
-      onStreamFinished: {
-        root.fpAvailable = (String(text).trim() === "yes")
-        if (root.fpAvailable && root.locked) pamFp.start()
-      }
-    }
-  }
-
   PamContext {
     id: pamPw
     config: "quickshell-lock"
@@ -86,24 +67,6 @@ Item {
       active = false
     }
     onError: function(err) { root.fail(); active = false }
-  }
-
-  // separate context so a swipe and a password race independently
-  PamContext {
-    id: pamFp
-    config: "quickshell-lock-fprint"
-    onCompleted: function(result) {
-      if (result === PamResult.Success) root.unlock()
-      else if (root.locked && root.fpAvailable) fpRetry.restart()
-      active = false
-    }
-    onError: function(err) { if (root.locked && root.fpAvailable) fpRetry.restart(); active = false }
-  }
-  // pam_fprintd completes per swipe; keep listening
-  Timer {
-    id: fpRetry
-    interval: 800
-    onTriggered: if (root.locked && root.fpAvailable) pamFp.start()
   }
 
   property string statsText: ""
@@ -145,6 +108,23 @@ Item {
       readonly property bool isPrimary:
         root.primaryScreenName === "" || (screen && String(screen.name) === root.primaryScreenName)
 
+      // faint blurred wallpaper; unset while unlocked so each lock decodes the current one
+      Image {
+        anchors.fill: parent
+        source: root.locked ? Util.fileUrl(Quickshell.env("HOME") + "/.cache/wal/wallpaper") : ""
+        cache: false
+        asynchronous: true
+        fillMode: Image.PreserveAspectCrop
+        sourceSize: Qt.size(surface.width, surface.height)
+        opacity: 0.35
+        layer.enabled: true
+        layer.effect: MultiEffect {
+          blurEnabled: true
+          blur: 1.0
+          blurMax: 64
+        }
+      }
+
       RainField { anchors.fill: parent; running: surface.visible }
 
       Column {
@@ -182,6 +162,9 @@ Item {
           border.color: root.authError ? Color.urgent
             : (pwField.activeFocus ? Color.accent : Style.normalBorderColor)
           radius: Style.cornerRadius
+          // hidden until typing starts; keeps focus, so the first key still lands in the field
+          opacity: (pwField.text.length > 0 || root.authError || pamPw.active) ? 1 : 0
+          Behavior on opacity { NumberAnimation { duration: 140 } }
 
           TextField {
             id: pwField
@@ -206,20 +189,6 @@ Item {
               function onClearFields() { pwField.text = "" }
             }
           }
-        }
-
-        Text {
-          anchors.horizontalCenter: parent.horizontalCenter
-          visible: root.fpAvailable
-          textFormat: Text.PlainText
-          text: (pamFp.message && pamFp.message.length) ? (":: " + pamFp.message)
-            : ":: OR SCAN FINGERPRINT"
-          color: pamFp.messageIsError ? Color.urgent : Color.accent
-          opacity: Style.emphasis.dim
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          font.bold: true
-          font.letterSpacing: Style.headerTracking
         }
       }
 

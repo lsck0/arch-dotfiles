@@ -1,5 +1,7 @@
 [Unit]
 Description=Inject betterdiscord into discord
+# discord's first launch rewrites ~/.config/discord in bursts; a start limit would fail the path unit before the modules land
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

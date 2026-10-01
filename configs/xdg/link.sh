@@ -8,7 +8,12 @@ set -e
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
+ln -sfn "${PWD}/user-dirs.conf" "${HOME}/.config/user-dirs.conf"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
+# capitalized defaults xdg-user-dirs-update made before the conf above existed; rmdir keeps any with content
+for dir in Desktop Documents Downloads Music Pictures Projects Public Templates Videos; do
+    rmdir "${HOME}/${dir}" 2>/dev/null || true
+done
 # folders apps force into ~ (unreal: Library, UnrealEngine), hidden in dolphin/nemo
 ln -sfn "${PWD}/home.hidden" "${HOME}/.hidden"
 

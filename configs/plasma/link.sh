@@ -39,6 +39,9 @@ ln -sfn "${PWD}/color-schemes/pywal.colors" "${HOME}/.local/share/color-schemes/
 
 # dolphin global view properties
 ln -sfn "${PWD}/dolphin/view_properties/global/.directory" "${HOME}/.local/share/dolphin/view_properties/global/.directory"
+# dolphin panels: places, information and terminal, no folders tree. only the dock layout key, since
+# dolphin rewrites the rest of this file (window geometry per screen setup) on every close
+kwriteconfig6 --file "${HOME}/.local/state/dolphinstaterc" --group State --key State "$(cat "${PWD}/dolphin/dock-state")"
 
 for f in ${FILES}; do
     ln -sfn "${PWD}/${f}" "${HOME}/.config/${f}"

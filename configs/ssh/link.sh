@@ -24,6 +24,8 @@ ln -sfn "${PWD}/config" "${HOME}/.ssh/config"
 
 # only luca ships keys to authorize
 if is_personal; then
+    # git-crypt checks it out 0644, ssh and ssh-add refuse a key others can read
+    secret_is_plaintext ../secrets/ssh_privatekey.asc && chmod 600 ../secrets/ssh_privatekey.asc
     mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
     touch "${HOME}/.ssh/authorized_keys" && chmod 600 "${HOME}/.ssh/authorized_keys"
     for pub in ../secrets/ssh_publickey.asc ../yubikey/ssh-*.pub "${HOME}/.ssh/id_ed25519.pub"; do

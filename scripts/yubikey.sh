@@ -20,6 +20,8 @@ step() { printf '\n== %s\n' "$*"; }
 present() { command -v ykman >/dev/null && ykman info >/dev/null 2>&1; }
 serial() { ykman info | awk -F': ' '/^Serial number/ {print $2}'; }
 secrets_plain() { grep -qs 'BEGIN PGP PRIVATE KEY' "$SECRETS/pgp_privatekey.asc"; }
+# git-crypt checks files out 0644, and ssh ignores a private key others can read
+private_keys_0600() { chmod 600 "$SECRETS"/*private*key*.asc 2>/dev/null || true; }
 recipient() { sed -n 's/^#[[:space:]]*Recipient: //p' "$1"; }
 
 # the chain reaches this hours after bootstrap, so keep asking for a touch for a while before giving up
@@ -129,7 +131,8 @@ cmd_unlock() {
     if ! present; then
         # no yubikey: the pgp key (git-crypt's gpg user) can still unlock an already-pulled secrets worktree
         if [[ -e "$SECRETS/.git" ]] && ! secrets_plain; then
-            git -C "$SECRETS" crypt unlock || echo "yubikey: no key present and pgp git-crypt unlock failed"
+            git -C "$SECRETS" crypt unlock && private_keys_0600 \
+                || echo "yubikey: no key present and pgp git-crypt unlock failed"
         else
             echo "yubikey: none plugged in, secrets stay as they are"
         fi
@@ -165,7 +168,7 @@ cmd_unlock() {
         # shred even if crypt unlock fails under set -e, so the plaintext key never lingers on tmpfs
         trap 'shred -u "$key" 2>/dev/null || true; trap - RETURN' RETURN
         if with_touch age -d -i "$identity" -o "$key" "$SEALED_KEY"; then
-            git -C "$SECRETS" crypt unlock "$key" || echo "yubikey: git-crypt unlock failed"
+            git -C "$SECRETS" crypt unlock "$key" && private_keys_0600 || echo "yubikey: git-crypt unlock failed"
         else
             echo "yubikey: unlock failed or no touch"
         fi

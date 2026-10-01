@@ -29,15 +29,17 @@ if not m:
     sys.exit('plymouth: no HOOKS=(...) line in /etc/mkinitcpio.conf')
 
 hooks = m.group(1).split()
-wanted = 'sd-plymouth' if 'systemd' in hooks else 'plymouth'
-if 'plymouth' not in hooks and 'sd-plymouth' not in hooks:
+# plymouth 24 dropped sd-plymouth, the plain hook covers systemd initramfs too; migrate old configs
+hooks = ['plymouth' if h == 'sd-plymouth' else h for h in hooks]
+if 'plymouth' not in hooks:
     anchor = next((h for h in ('kms', 'systemd', 'udev', 'base') if h in hooks), None)
     if anchor is None:
         sys.exit('plymouth: HOOKS has no kms/systemd/udev/base to insert after')
-    hooks.insert(hooks.index(anchor) + 1, wanted)
-    s = s[:m.start()] + 'HOOKS=(%s)' % ' '.join(hooks) + s[m.end():]
-    p.write_text(s)
-    print('plymouth: added %s after %s' % (wanted, anchor))
+    hooks.insert(hooks.index(anchor) + 1, 'plymouth')
+    print('plymouth: added plymouth after %s' % anchor)
+new = s[:m.start()] + 'HOOKS=(%s)' % ' '.join(hooks) + s[m.end():]
+if new != s:
+    p.write_text(new)
 PY
 
 sudo plymouth-set-default-theme "$theme"

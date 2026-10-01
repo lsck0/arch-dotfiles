@@ -211,13 +211,6 @@ printf '%s' "$PASSWORD" | cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pb
     "$ROOT_PART" "$MOUNT$STAGE_KEY_FILE"
 install -Dm644 /dev/stdin "$MOUNT/etc/mkinitcpio.conf.d/dotfiles-stage.conf" <<<"FILES+=($STAGE_KEY_FILE)"
 
-# a YubiKey plugged in now unlocks the disk by touch from then on; the password keeps working (luca only)
-if (( PERSONAL )) && systemd-cryptenroll --fido2-device=list 2>/dev/null | grep -q '^/dev/'; then
-    echo "bootstrap: YubiKey found, touch it (and give its FIDO2 PIN if asked) to enroll it for disk unlock"
-    systemd-cryptenroll --unlock-key-file="$MOUNT$STAGE_KEY_FILE" --fido2-device=auto \
-        --fido2-with-client-pin=no "$ROOT_PART" </dev/tty || echo "bootstrap: YubiKey enrollment skipped"
-fi
-
 arch-chroot "$MOUNT" /bin/bash -euo pipefail -s -- "$HOSTNAME" "$USERNAME" "$KEYMAP" "$TIMEZONE" "$LOCALE" <<'CHROOT'
 hostname=$1 user=$2 keymap=$3 timezone=$4 locale=$5
 
@@ -321,7 +314,9 @@ After=network-online.target
 ConditionPathExists=$STAGE_STATE_DIR/next
 
 [Service]
-Type=oneshot
+# not oneshot: multi-user.target would wait for the whole stage, and a link.sh restarting a unit
+# ordered after multi-user.target (tlp) then deadlocks
+Type=exec
 User=$USERNAME
 PAMName=login
 WorkingDirectory=/home/$USERNAME/projects/arch-dotfiles
