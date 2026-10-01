@@ -8,8 +8,9 @@ fi
 
 set -e
 
+# file storage: plasma swaps the secret service to ksecretd, which hides a gnome-keyring token
 if ! gh auth status >/dev/null 2>&1; then
-    gh auth login --with-token <"$TOKEN"
+    gh auth login --insecure-storage --with-token <"$TOKEN"
 fi
 # git over https to github authenticates through gh from here on
 gh auth setup-git

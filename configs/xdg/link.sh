@@ -8,6 +8,9 @@ set -e
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
+# nemo also claims FileManager1 and sorts first; the user dir wins
+mkdir -p "${HOME}/.local/share/dbus-1/services"
+ln -sfn "${PWD}/dolphin.FileManager1.service" "${HOME}/.local/share/dbus-1/services/org.freedesktop.FileManager1.service"
 ln -sfn "${PWD}/user-dirs.conf" "${HOME}/.config/user-dirs.conf"
 ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
 # capitalized defaults xdg-user-dirs-update made before the conf above existed; rmdir keeps any with content

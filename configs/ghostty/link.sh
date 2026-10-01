@@ -8,3 +8,9 @@ fi
 set -e
 
 ln -sfn "${PWD}" "$HOME/.config/ghostty"
+
+dropin="${HOME}/.config/systemd/user/app-com.mitchellh.ghostty.service.d"
+mkdir -p "$dropin"
+ln -sfn "${PWD}/systemd/override.conf" "${dropin}/override.conf"
+systemctl --user daemon-reload
+systemctl --user reset-failed app-com.mitchellh.ghostty.service 2>/dev/null || true
