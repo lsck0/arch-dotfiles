@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+if ! command -v firefox >/dev/null 2>&1; then
+    exit 0
+fi
+
+# a fresh install has no profile until firefox first runs; a headless run creates the default-release one it locks to
+if [[ ! -f "${HOME}/.config/mozilla/firefox/profiles.ini" ]]; then
+    timeout 20 firefox --headless about:blank >/dev/null 2>&1 || true
+fi
 if [[ ! -d "${HOME}/.config/mozilla/firefox" ]]; then
     exit 0
 fi

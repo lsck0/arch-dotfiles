@@ -10,6 +10,7 @@ fi
 
 set -e
 
+sudo install -Dm644 pcsc.rules /etc/polkit-1/rules.d/50-pcsc-wheel.rules
 sudo systemctl enable --now pcscd.socket
 
 # pam_u2f registrations of every enrolled key (scripts/yubikey.sh init)

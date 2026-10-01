@@ -12,6 +12,9 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
+# the homelab ntfy denies anonymous reads; token of its read-only desktop user
+TOKEN_FILE = os.environ.get("NTFY_TOKEN_FILE", os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "..", "secrets", "ntfy-desktop-token"))
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "ntfy-notify")
 LAST_ID = os.path.join(STATE_DIR, "last-id")
 # alert group key -> notification id on screen
@@ -38,6 +41,18 @@ def subscriptions():
             if value and value.group(1) not in found.setdefault(server, []):
                 found[server].append(value.group(1))
     return {server: topics for server, topics in found.items() if topics}
+
+
+def read_token():
+    """Bearer token, or "" while the secret is missing or git-crypt locked."""
+    try:
+        with open(TOKEN_FILE, "rb") as fh:
+            raw = fh.read()
+    except OSError:
+        return ""
+    if raw.startswith(b"\0GITCRYPT"):
+        return ""
+    return raw.decode(errors="replace").strip()
 
 
 def https(url):
@@ -165,13 +180,16 @@ def write_last_id(value):
     os.replace(LAST_ID + ".tmp", LAST_ID)
 
 
-def subscribe(server, names, since):
+def subscribe(server, names, since, token):
     query = {"since": since} if since else {}
     url = "%s/%s/json" % (server, ",".join(urllib.parse.quote(n) for n in names))
     if query:
         url += "?" + urllib.parse.urlencode(query)
     # keepalive is 45s, so silence means a dead connection
-    request = urllib.request.Request(url, headers={"User-Agent": "ntfy-notify"})
+    request = urllib.request.Request(url, headers={
+        "User-Agent": "ntfy-notify",
+        "Authorization": "Bearer " + token,
+    })
     with urllib.request.urlopen(request, timeout=90) as stream:
         for raw in stream:
             try:
@@ -195,6 +213,12 @@ def main():
     delay = 2
     while True:
         started = time.time()
+        # re-read each connect so a rotated token needs no restart
+        token = read_token()
+        if not token:
+            # every subscribe would 403, stop instead of retrying
+            print("ntfy-notify: no token in %s" % TOKEN_FILE, file=sys.stderr)
+            return 0
         try:
             subs = subscriptions()
             if not subs:
@@ -203,7 +227,7 @@ def main():
                 continue
             # the homelab uses a single ntfy server
             server, names = next(iter(subs.items()))
-            subscribe(server, names, read_last_id())
+            subscribe(server, names, read_last_id(), token)
         except Exception as exc:
             print("ntfy-notify: %s" % exc, file=sys.stderr)
         delay = 2 if time.time() - started > 120 else min(delay * 2, 60)

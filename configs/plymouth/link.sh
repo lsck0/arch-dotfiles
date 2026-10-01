@@ -65,3 +65,9 @@ if [[ "$current" != "$(cat "$cmdline")" ]]; then
 fi
 
 sudo mkinitcpio -P
+
+# configs/boot/grub links first and bakes the cmdline into grub.cfg, so rebuild it to pick up splash
+source ../boot/boot-menu/common.sh
+if boot_feature_selected grub && [[ -f "$ESP/grub/grub.cfg" ]]; then
+    sudo grub-mkconfig -o "$ESP/grub/grub.cfg"
+fi

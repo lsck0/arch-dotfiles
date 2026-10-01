@@ -36,6 +36,9 @@ grep -qF "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" /etc/security/pam_env.conf ||
 grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" /etc/security/pam_env.conf || echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" | sudo tee -a /etc/security/pam_env.conf
 grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
 grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
+# zshrc sets GOPATH only for interactive shells; mason's go installs below would otherwise create ~/go
+grep -qF "GOPATH          DEFAULT=@{HOME}/.go" /etc/security/pam_env.conf || echo "GOPATH          DEFAULT=@{HOME}/.go" | sudo tee -a /etc/security/pam_env.conf
+export GOPATH="${HOME}/.go"
 
 # refresh the sudo timestamp before the link loop, which installs configs/sudo (global, 240 min)
 sudo -v || true

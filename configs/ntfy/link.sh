@@ -2,9 +2,17 @@
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 source ../../scripts/lib/personal.sh
+source ../../scripts/lib/secrets.sh
 is_personal || exit 0
 
 command -v notify-send >/dev/null 2>&1 || exit 0
+
+# the homelab ntfy denies anonymous reads, without the token every poll is a 403
+if ! secret_is_plaintext ../secrets/ntfy-desktop-token; then
+    echo "configs/ntfy: no readable ../secrets/ntfy-desktop-token, skipping" >&2
+    systemctl --user disable --now ntfy-notify.service >/dev/null 2>&1 || true
+    exit 0
+fi
 
 set -e
 

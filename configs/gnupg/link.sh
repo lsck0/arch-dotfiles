@@ -9,14 +9,17 @@ gnupgdir="${HOME}/.gnupg"
 mkdir -p "${gnupgdir}"
 chmod 700 "${gnupgdir}"
 
-target="${gnupgdir}/gpg-agent.conf"
-if [ -e "${target}" ] && [ ! -L "${target}" ]; then
-    cp -a "${target}" "${target}.pre-yubikey.bak"
-fi
-ln -sfn "${PWD}/gpg-agent.conf" "${target}"
+for conf in gpg-agent.conf scdaemon.conf; do
+    target="${gnupgdir}/${conf}"
+    if [ -e "${target}" ] && [ ! -L "${target}" ]; then
+        cp -a "${target}" "${target}.pre-yubikey.bak"
+    fi
+    ln -sfn "${PWD}/${conf}" "${target}"
+done
 
-# reload keeps cached keys
+# reload keeps cached keys; scdaemon reads its config only at start
 gpgconf --reload gpg-agent || true
+gpgconf --kill scdaemon || true
 
 # Luca Sandrock key: public half always, the private file from unlocked secrets, card stubs if a YubiKey holds it
 if is_personal; then

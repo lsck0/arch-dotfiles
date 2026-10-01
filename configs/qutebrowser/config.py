@@ -100,6 +100,8 @@ c.colors.webpage.bg = bg
 _startpage = "file://" + os.path.expanduser("~/.config/qutebrowser/startpage.html")
 c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
+# its search form leaves file:// for google, which qtwebengine refuses with ERR_NETWORK_ACCESS_DENIED by default
+config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
 # search engines
 c.url.searchengines = {

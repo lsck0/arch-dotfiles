@@ -17,6 +17,7 @@ ln -sfn "${PWD}/themes/cyberpunk/shared.css" "${theme}/shared.css"
 ln -sfn "${PWD}/themes/cyberpunk/libraryroot.custom.css" "${theme}/libraryroot.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/friends.custom.css" "${theme}/friends.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/bigpicture.custom.css" "${theme}/bigpicture.custom.css"
+ln -sfn "${PWD}/themes/cyberpunk/all.custom.css" "${theme}/all.custom.css"
 
 # wal palette, rendered by wallust on each switch
 ln -sfn "${HOME}/.cache/wal/colors-steam.css" "${theme}/colors.css"
