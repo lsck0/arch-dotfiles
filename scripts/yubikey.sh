@@ -128,6 +128,9 @@ init_age() {
 cmd_unlock() {
     # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it later
     sudo install -Dm644 "$KEY_DIR/pcsc.rules" /etc/polkit-1/rules.d/50-pcsc-wheel.rules 2>/dev/null || true
+    sudo install -Dm644 "$KEY_DIR/70-yubikey-hidraw.rules" /etc/udev/rules.d/70-yubikey-hidraw.rules 2>/dev/null \
+        && sudo udevadm control --reload && sudo udevadm trigger --action=change --subsystem-match=hidraw \
+        && sudo udevadm settle || true
     sudo systemctl start pcscd.socket 2>/dev/null || true
     # polkitd loads the new rule asynchronously
     local tries=0
