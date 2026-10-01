@@ -7,8 +7,9 @@ fi
 
 set -e
 
-sudo mkdir -p /etc/systemd/system/ollama.service.d
-sudo ln -sfn "${PWD}/keep-alive.conf" /etc/systemd/system/ollama.service.d/keep-alive.conf
+# a real file: pid1 loads drop-ins before /home is mounted, a symlink into the repo dangles then
+sudo rm -f /etc/systemd/system/ollama.service.d/keep-alive.conf
+sudo install -Dm644 "${PWD}/keep-alive.conf" /etc/systemd/system/ollama.service.d/keep-alive.conf
 sudo systemctl daemon-reload
 systemctl is-active --quiet ollama && sudo systemctl restart ollama || true
 

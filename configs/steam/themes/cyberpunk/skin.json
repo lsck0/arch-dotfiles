@@ -2,6 +2,13 @@
   "name": "Cyberpunk",
   "author": "Luca Sandrock",
   "description": "Cyberpunk/hacker dark theme: wal-driven accent, sharp corners, thin accent scrollbars.",
-  "version": "1.1.0",
-  "UseDefaultPatches": true
+  "version": "1.2.0",
+  "UseDefaultPatches": true,
+  "Patches": [
+    {
+      "MatchRegexString": ".*",
+      "TargetCss": "all.custom.css"
+    }
+  ],
+  "Steam-WebKit": "all.custom.css"
 }

@@ -255,6 +255,7 @@ PACKAGES=(
     wiki-tui                 # [base] Wikipedia terminal browser
     wireguard-tools          # [base] WireGuard VPN tools
     wireguard-ui-bin         # [base] WireGuard web UI
+    wireless-regdb           # [base] wifi regulatory database, the kernel loads regulatory.db at boot
     wireless_tools           # [base] legacy wireless config
     wpa_supplicant           # [base] wifi authentication daemon
     xdg-ninja                # [base] XDG compliance checker
@@ -667,6 +668,7 @@ PACKAGES=(
     docker                        # [programming] container runtime
     docker-buildx                 # [programming] docker build extension
     docker-compose                # [programming] multi-container orchestration
+    dotnet-sdk                    # [programming] .NET SDK, mason builds csharpier with it
     ecgen                         # [programming] elliptic curve generator, mirror/pkgbuilds
     elan-lean                     # [programming] Lean toolchain manager
     emacs                         # [programming] text editor
@@ -1129,7 +1131,8 @@ PACKAGES+=(grub os-prober update-grub)
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 
-# chaotic aur
+# chaotic aur; the first boot can reach this before NetworkManager is online, and a failed key fetch leaves chaotic off
+nm-online -q --timeout=120 || echo "install: still offline after 120s" >&2
 sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com || true
 sudo pacman-key --lsign-key 3056513887B78AEB || true
 sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' --noconfirm || true

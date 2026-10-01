@@ -126,8 +126,15 @@ init_age() {
 
 # each step is one touch; no key, no enrollment or no touch just skips
 cmd_unlock() {
-    # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it later
+    # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it and its polkit rule later
+    sudo install -Dm644 "$KEY_DIR/pcsc.rules" /etc/polkit-1/rules.d/50-pcsc-wheel.rules 2>/dev/null || true
     sudo systemctl start pcscd.socket 2>/dev/null || true
+    # polkitd picks up the new rule asynchronously, give it a few seconds
+    local tries=0
+    until present || ((++tries >= 5)); do sleep 1; done
+    if ! present && lsusb -d 1050: >/dev/null 2>&1; then
+        echo "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
+    fi
     if ! present; then
         # no yubikey: the pgp key (git-crypt's gpg user) can still unlock an already-pulled secrets worktree
         if [[ -e "$SECRETS/.git" ]] && ! secrets_plain; then

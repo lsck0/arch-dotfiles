@@ -48,6 +48,8 @@ for f in ${FILES}; do
 done
 
 for d in ${DIRS}; do
+    # git drops a dir backup-kde.sh found empty, and a link to it would dangle
+    [[ -d "${PWD}/${d}" ]] || continue
     # rm right before relink so a failed ln cannot leave the dir gone
     rm -rf "${HOME}/.config/${d}" && ln -sfn "${PWD}/${d}" "${HOME}/.config/${d}" \
         || { echo "plasma/link.sh: failed to relink ${d}" >&2; exit 1; }

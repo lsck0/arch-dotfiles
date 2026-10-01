@@ -12,6 +12,7 @@ for _, class in ipairs({
     "^kitty$",
     "^nemo$",
     "^org.kde.dolphin$",
+    "^steam$",
 }) do
     hl.window_rule({ match = { class = class }, opacity = global_opacity })
 end

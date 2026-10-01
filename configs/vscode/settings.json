@@ -9,16 +9,16 @@
   "workbench.colorTheme": "Default Dark Modern",
   "vim.useSystemClipboard": true,
   "workbench.colorCustomizations": {
-    "editor.background": "#091114",
-    "editor.foreground": "#C7C2D8",
-    "sideBar.background": "#091621",
-    "activityBar.background": "#091621",
-    "statusBar.background": "#091621",
-    "titleBar.activeBackground": "#091621",
-    "tab.activeBackground": "#091114",
-    "tab.inactiveBackground": "#091621",
-    "focusBorder": "#8E7982",
-    "terminal.background": "#091114",
-    "terminal.foreground": "#C7C2D8"
+    "editor.background": "#0B0E14",
+    "editor.foreground": "#BFBDB6",
+    "sideBar.background": "#01060E",
+    "activityBar.background": "#01060E",
+    "statusBar.background": "#01060E",
+    "titleBar.activeBackground": "#01060E",
+    "tab.activeBackground": "#0B0E14",
+    "tab.inactiveBackground": "#01060E",
+    "focusBorder": "#39BAE6",
+    "terminal.background": "#0B0E14",
+    "terminal.foreground": "#BFBDB6"
   }
 }

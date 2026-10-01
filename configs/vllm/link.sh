@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+# /etc/profile.d/rocm.sh puts rocm on PATH only for login shells, and config.sh may run outside one
+PATH="${PATH}:/opt/rocm/bin"
 if ! command -v rocminfo >/dev/null 2>&1; then
     exit 0
 fi

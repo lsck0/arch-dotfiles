@@ -8,6 +8,19 @@
   --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
 }
 
+/* steam's own panel and text variables, the ones its css reads */
+:root {
+  --gpBackground-DarkSoft: color-mix(in srgb, var(--cp-bg-alt) 60%, transparent) !important;
+  --gpBackground-DarkMedium: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+  --gpBackground-LightSoft: color-mix(in srgb, var(--cp-accent) 10%, transparent) !important;
+  --gpBackground-LightMedium: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+  --gpStoreLighterGrey: var(--cp-fg) !important;
+  --gpStoreLightestGrey: var(--cp-fg) !important;
+  /* steam's accent blue (links, progress, focus) and highlight yellow */
+  --gpColor-Blue: var(--cp-accent) !important;
+  --gpColor-Yellow: var(--cp-accent-2) !important;
+}
+
 html, body { background-color: var(--cp-bg) !important; }
 
 /* text controls only, keeps steam icon fonts */

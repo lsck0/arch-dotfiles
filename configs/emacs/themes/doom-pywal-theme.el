@@ -10,8 +10,8 @@
   :family 'doom-pywal
   :background-mode 'dark
 
-  ((bg         '("#091114"  "black"   "black"        ))
-   (fg         '("#C7C2D8"  "#bfbfbf"       "brightwhite"  ))
+  ((bg         '("#0B0E14"  "black"   "black"        ))
+   (fg         '("#BFBDB6"  "#bfbfbf"       "brightwhite"  ))
    (bg-alt     (doom-darken bg 0.10))
    (fg-alt     (doom-lighten fg 0.20))
 
@@ -26,17 +26,17 @@
    (base8      (doom-lighten fg 0.20))
 
    (grey       base4)
-   (red        '("#847E89"  "#847E89"  "red"           ))
-   (orange     (doom-blend '("#847E89" "#847E89" "brightred") '("#9E7782" "#9E7782" "yellow") 0.5))
-   (green      '("#5F8496"  "#5F8496"  "green"         ))
-   (teal       (doom-blend '("#5F8496" "#5F8496" "brightgreen") '("#827E92" "#827E92" "cyan") 0.5))
-   (yellow     '("#9E7782"  "#9E7782"  "yellow"        ))
-   (blue       '("#8E7982"  "#8E7982"  "brightblue"    ))
-   (dark-blue  (doom-darken '("#8E7982" "#8E7982" "blue") 0.4))
-   (magenta    '("#6D84A3"  "#6D84A3"  "brightmagenta" ))
-   (violet     (doom-blend '("#6D84A3" "#6D84A3" "magenta") '("#8E7982" "#8E7982" "blue") 0.5))
-   (cyan       '("#827E92"  "#827E92"  "brightcyan"    ))
-   (dark-cyan  (doom-darken '("#827E92" "#827E92" "cyan") 0.4))
+   (red        '("#F07178"  "#F07178"  "red"           ))
+   (orange     (doom-blend '("#F07178" "#F07178" "brightred") '("#E6B450" "#E6B450" "yellow") 0.5))
+   (green      '("#AAD94C"  "#AAD94C"  "green"         ))
+   (teal       (doom-blend '("#AAD94C" "#AAD94C" "brightgreen") '("#95E6CB" "#95E6CB" "cyan") 0.5))
+   (yellow     '("#E6B450"  "#E6B450"  "yellow"        ))
+   (blue       '("#39BAE6"  "#39BAE6"  "brightblue"    ))
+   (dark-blue  (doom-darken '("#39BAE6" "#39BAE6" "blue") 0.4))
+   (magenta    '("#D2A6FF"  "#D2A6FF"  "brightmagenta" ))
+   (violet     (doom-blend '("#D2A6FF" "#D2A6FF" "magenta") '("#39BAE6" "#39BAE6" "blue") 0.5))
+   (cyan       '("#95E6CB"  "#95E6CB"  "brightcyan"    ))
+   (dark-cyan  (doom-darken '("#95E6CB" "#95E6CB" "cyan") 0.4))
 
    ;; mandatory "universal syntax classes": doom-themes-base errors without them
    (highlight      blue)

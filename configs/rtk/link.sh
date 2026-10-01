@@ -6,7 +6,8 @@ fi
 
 set -e
 
-rtk init -g --agent hermes
-rtk init -g --agent claude
-rtk init -g --copilot
-rtk init -g --gemini
+# --auto-patch: unattended, the settings.json patch prompts default to no and the hooks never register
+rtk init -g --auto-patch --agent hermes
+rtk init -g --auto-patch --agent claude
+rtk init -g --auto-patch --copilot
+rtk init -g --auto-patch --gemini

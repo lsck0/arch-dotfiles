@@ -39,4 +39,6 @@ fi
 # hardened baseline for every install: real sshd on knocked 2222, no password, no root password login.
 # a keyless guest then has no remote ssh surface (console login still works)
 sudo ln -sfn "${PWD}/10-hardening.conf" /etc/ssh/sshd_config.d/10-hardening.conf
-sudo sshd -t && sudo systemctl reload sshd
+# host keys only appear on sshd's first start (sshdgenkeys), and sshd -t fails without them on a fresh install
+sudo ssh-keygen -A
+sudo sshd -t && sudo systemctl reload-or-restart sshd

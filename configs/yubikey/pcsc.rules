@@ -1,0 +1,8 @@
+// pcscd grants card access to the active seat session only; config.sh's unattended run under stage.sh is not
+// one, so pcscd refused it and yubikey.sh unlock saw no key
+polkit.addRule(function (action, subject) {
+    if ((action.id == "org.debian.pcsc-lite.access_pcsc" || action.id == "org.debian.pcsc-lite.access_card") &&
+        subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

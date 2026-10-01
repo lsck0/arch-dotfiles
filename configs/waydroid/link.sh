@@ -7,6 +7,11 @@ fi
 
 set -e
 
+# prop set only warns and exits 0 before init, so init first; it downloads the lineage images once
+if waydroid status 2>/dev/null | grep -q 'not initialized'; then
+    sudo waydroid init
+fi
+
 waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.cursor_on_subsurface true
 
