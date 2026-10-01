@@ -63,3 +63,8 @@ fi
 if grep -qE 'pam_(u2f|fprintd)\.so' /etc/pam.d/system-login; then
     sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_(u2f|fprintd)\.so/d' /etc/pam.d/system-login
 fi
+
+# one secret service: kwallet's ksecretd would race gnome-keyring for org.freedesktop.secrets
+if grep -q 'pam_kwallet5\.so' /etc/pam.d/ly 2>/dev/null; then
+    sudo sed -i '/pam_kwallet5\.so/d' /etc/pam.d/ly
+fi
