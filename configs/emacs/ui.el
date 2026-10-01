@@ -103,7 +103,8 @@ frames recolour on a theme switch exactly as a fresh launch would."
 (use-package topsy
   :hook (prog-mode . topsy-mode))
 
-(setq initial-buffer-choice #'my/projects-dired)
+;; empty *scratch* in the main window, the dirvish sidebar already shows the files
+(setq initial-buffer-choice t)
 
 (provide 'ui)
 ;;; ui.el ends here
