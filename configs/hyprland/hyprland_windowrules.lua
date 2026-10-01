@@ -10,6 +10,7 @@ for _, class in ipairs({
     "^com.mitchellh.ghostty$",
     "^discord$",
     "^kitty$",
+    "^neovide$",
     "^nemo$",
     "^org.kde.dolphin$",
     "^steam$",

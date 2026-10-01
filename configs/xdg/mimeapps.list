@@ -1,6 +1,7 @@
 [Added Associations]
 application/pdf=org.kde.okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
+x-scheme-handler/proton-meet=proton-meet.desktop;
 
 [Default Applications]
 application/pdf=org.kde.okular.desktop
@@ -33,6 +34,7 @@ text/x-lua=nvim.desktop
 text/x-tex=nvim.desktop
 application/x-shellscript=nvim.desktop
 text/x-csrc=nvim.desktop
+x-scheme-handler/proton-meet=proton-meet.desktop
 
 [Removed Associations]
 application/pdf=chromium.desktop;
