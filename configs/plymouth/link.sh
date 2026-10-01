@@ -68,6 +68,6 @@ sudo mkinitcpio -P
 
 # configs/boot ran first and baked the cmdline; rebuild for splash
 source ../boot/boot-menu/common.sh
-if boot_feature_selected grub && [[ -f "$ESP/grub/grub.cfg" ]]; then
+if boot_feature_selected grub && sudo test -f "$ESP/grub/grub.cfg"; then
     sudo grub-mkconfig -o "$ESP/grub/grub.cfg"
 fi
