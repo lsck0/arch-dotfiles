@@ -257,12 +257,9 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
   background: var(--cp-accent) !important;
   color: var(--cp-bg) !important;
 }
-/* gear, info, favorite buttons and the selected game in the list */
+/* gear, info, favorite buttons */
 ._3qDWQGB0rtwM3qpXTb11Q- {
   background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
-}
-._2-O4ZG0KrnSrzISHBKctFQ {
-  background: color-mix(in srgb, var(--cp-accent) 30%, transparent) !important;
 }
 
 /* store url bar in the client */
