@@ -1,0 +1,64 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# GUI front end for the Metasploit framework. configs/armitage/link.sh migrates the postgres
+# msf role to an md5 password so the bundled database.yml still authenticates.
+pkgname=armitage
+pkgver=r0
+pkgrel=1
+pkgdesc="GUI front end for the Metasploit Framework"
+arch=(any)
+url="https://github.com/r00t0v3rr1d3/armitage"
+license=(GPL-2.0-or-later)
+depends=(metasploit java-environment postgresql)
+makedepends=(git jdk11-openjdk)
+# replaces the AUR build so a pacman -Syu swaps it for the [lsck0] one
+conflicts=(armitage-git)
+replaces=(armitage-git)
+provides=(armitage-git)
+source=("git+$url.git")
+sha256sums=(SKIP)
+
+pkgver() {
+    cd armitage
+    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/^v//g'
+}
+
+build() {
+    cd armitage
+    # the gradle 6.8 wrapper runs on java 8 to 15, the system default java is too new
+    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk
+    export PATH="$JAVA_HOME/bin:$PATH"
+    # assemble.finalizedBy(copyJar) drops armitage.jar and cortana.jar into ./build
+    ./gradlew --no-daemon assemble
+}
+
+package() {
+    cd armitage
+
+    install -dm755 "$pkgdir/opt/armitage"
+    cp build/*.jar dist/unix/* "$pkgdir/opt/armitage/"
+    # upstream launcher runs java in the cwd, so from /usr/bin it never finds armitage.jar
+    install -Dm755 /dev/stdin "$pkgdir/opt/armitage/armitage" <<-'EOF'
+	#!/bin/sh
+	cd /opt/armitage
+	exec java -XX:+AggressiveHeap -XX:+UseParallelGC -jar armitage.jar "$@"
+	EOF
+    chmod +x "$pkgdir/opt/armitage/teamserver"
+    install -dm755 "$pkgdir/usr/bin"
+    ln -s /opt/armitage/armitage "$pkgdir/usr/bin/armitage"
+
+    install -Dm644 dist/unix/armitage-logo.png "$pkgdir/usr/share/icons/armitage.png"
+    install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/armitage.desktop" <<-'EOF'
+	[Desktop Entry]
+	Type=Application
+	Name=Armitage
+	GenericName=Metasploit GUI
+	Comment=GUI front end for the Metasploit Framework
+	Exec=armitage
+	Icon=armitage
+	Terminal=false
+	Categories=Network;Security;
+	EOF
+
+    install -Dm644 license.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" readme.txt whatsnew.txt
+}
