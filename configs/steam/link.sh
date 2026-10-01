@@ -20,8 +20,7 @@ ln -sfn "${PWD}/themes/cyberpunk/bigpicture.custom.css" "${theme}/bigpicture.cus
 ln -sfn "${PWD}/themes/cyberpunk/all.custom.css" "${theme}/all.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/webkit.custom.css" "${theme}/webkit.custom.css"
 
-# wal palette: wallust writes it into the theme dir on each switch (millennium ignores links out of it);
-# drop the old link into ~/.cache, the seed below fills the gap until the next switch
+# millennium ignores links out of the theme dir, wallust writes a real file
 [ -L "${theme}/colors.css" ] && rm "${theme}/colors.css"
 
 # seed the palette before the first switch

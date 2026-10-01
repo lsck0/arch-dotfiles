@@ -1,4 +1,4 @@
-/* store and community pages (remote web content); only surfaces, sale art and capsules stay; colors.css last so it wins */
+/* store and community pages; colors.css last so it wins */
 @import url("shared.css");
 @import url("colors.css");
 

@@ -13,7 +13,7 @@ if ! pass otp --help >/dev/null 2>&1; then
     echo "proton-pass: 'pass otp' unavailable, install pass-otp (see configs/proton/README.md)" >&2
 fi
 
-# encrypt to the personal key configs/gnupg imports; a guest has none and inits by hand
+# personal key from configs/gnupg; a guest inits by hand
 GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 if [ ! -d "${HOME}/.password-store" ]; then
     if is_personal && gpg --list-keys "$GPG_FINGERPRINT" >/dev/null 2>&1; then

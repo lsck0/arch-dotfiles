@@ -48,7 +48,7 @@ for f in ${FILES}; do
 done
 
 for d in ${DIRS}; do
-    # git drops a dir backup-kde.sh found empty, and a link to it would dangle
+    # git drops empty dirs, a link to one would dangle
     [[ -d "${PWD}/${d}" ]] || continue
     # rm right before relink so a failed ln cannot leave the dir gone
     rm -rf "${HOME}/.config/${d}" && ln -sfn "${PWD}/${d}" "${HOME}/.config/${d}" \

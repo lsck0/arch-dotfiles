@@ -14,7 +14,7 @@
   box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
 }
 
-/* friend and group chat rows only; a substring match also caught the chat window's own containers */
+/* friend and group chat rows */
 .friend:hover, .friendListItem:hover, .ChatRoomListGroupItem:hover,
 [class*="ChatRoomListGroupItem"]:hover {
   background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;

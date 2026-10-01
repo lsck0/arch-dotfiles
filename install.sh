@@ -255,7 +255,7 @@ PACKAGES=(
     wiki-tui                 # [base] Wikipedia terminal browser
     wireguard-tools          # [base] WireGuard VPN tools
     wireguard-ui-bin         # [base] WireGuard web UI
-    wireless-regdb           # [base] wifi regulatory database, the kernel loads regulatory.db at boot
+    wireless-regdb           # [base] wifi regulatory db the kernel loads
     wireless_tools           # [base] legacy wireless config
     wpa_supplicant           # [base] wifi authentication daemon
     xdg-ninja                # [base] XDG compliance checker
@@ -1131,7 +1131,7 @@ PACKAGES+=(grub os-prober update-grub)
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 
-# chaotic aur; the first boot can reach this before NetworkManager is online, and a failed key fetch leaves chaotic off
+# chaotic aur; first boot may get here before the network is up
 nm-online -q --timeout=120 || echo "install: still offline after 120s" >&2
 sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com || true
 sudo pacman-key --lsign-key 3056513887B78AEB || true

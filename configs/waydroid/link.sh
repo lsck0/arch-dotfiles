@@ -7,9 +7,10 @@ fi
 
 set -e
 
-# prop set only warns and exits 0 before init, so init first; it downloads the lineage images once
+# prop set silently no-ops before init
 if waydroid status 2>/dev/null | grep -q 'not initialized'; then
-    sudo waydroid init
+    echo "waydroid: not initialized, run 'sudo waydroid init' then rerun this script" >&2
+    exit 0
 fi
 
 waydroid prop set persist.waydroid.multi_windows true

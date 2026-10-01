@@ -6,7 +6,7 @@ fi
 
 set -e
 
-# --auto-patch: unattended, the settings.json patch prompts default to no and the hooks never register
+# unattended, the patch prompts default to no and hooks never register
 rtk init -g --auto-patch --agent hermes
 rtk init -g --auto-patch --agent claude
 rtk init -g --auto-patch --copilot
