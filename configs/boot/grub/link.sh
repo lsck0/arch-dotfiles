@@ -33,6 +33,12 @@ for status in /sys/class/drm/card*-*/status; do
     fi
 done
 
+# firmware GOP often has no 4k mode, auto then lands on a low mode and the 4k-sized font is huge;
+# 1080p exists on nearly every GOP and gfxterm stays fast there
+if (( gfx_height > 1080 )); then
+    gfx_width=1920
+    gfx_height=1080
+fi
 if (( gfx_width > 0 && gfx_height > 0 )); then
     GFXMODE="${gfx_width}x${gfx_height},auto"
 else
@@ -60,7 +66,6 @@ sudo grub-install --target=x86_64-efi --efi-directory="$ESP" --boot-directory="$
 
 height=$gfx_height
 (( height > 0 )) || height=1080
-# clamp so 4k does not get a giant menu
 font_px=$(( height / 60 ))
 (( font_px > 24 )) && font_px=24
 (( font_px < 12 )) && font_px=12

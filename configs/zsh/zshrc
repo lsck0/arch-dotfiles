@@ -65,7 +65,9 @@ compdef kubecolor=kubectl
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
-bindkey '^e' edit-command-line
+# konsole only runs as dolphin's terminal panel, which clears the line with ^E^U before each cd;
+# ^E opening the editor there would swallow the cd
+[[ -n $KONSOLE_VERSION ]] || bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
 HISTSIZE=5000
@@ -96,7 +98,8 @@ export SHELL=zsh
 # needs `anonymous-socks.sh up` first
 alias anonymous-socks-proxychains='proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks-proxychains.conf}"'
 alias cat="bat"
-alias cd="z"
+# not in konsole: dolphin's panel follows the view with a cd, and zoxide would treat the path as keywords
+[[ -n $KONSOLE_VERSION ]] || alias cd="z"
 alias convert="magick"
 alias cp="cp -v"
 alias downgrade="sudo downgrade"

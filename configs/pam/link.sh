@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wire fingerprint and YubiKey auth into login and sudo; both are additive, password always remains the fallback.
+# Wire fingerprint and YubiKey auth into sudo, additive to the password; login and the lock screen take the password only.
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 source ../../scripts/lib/personal.sh
@@ -20,9 +20,9 @@ has_fprint() {
     command -v fprintd-list >/dev/null 2>&1 && fprintd-list "$(id -un)" >/dev/null 2>&1
 }
 
-# copies, pam will not follow symlinks into home
-sed "s#@U2F_LINE@#${U2F_LINE}#" quickshell-lock | sudo tee /etc/pam.d/quickshell-lock >/dev/null
-sudo install -m 644 quickshell-lock-fprint /etc/pam.d/quickshell-lock-fprint
+# copy, pam will not follow symlinks into home
+sudo install -m 644 quickshell-lock /etc/pam.d/quickshell-lock
+sudo rm -f /etc/pam.d/quickshell-lock-fprint
 
 # insert an auth line before the first system-auth include; replaces an older line of the same module
 pam_auth_install() {
@@ -43,12 +43,15 @@ pam_auth_install() {
     rm -f "$tmp"
 }
 
-# first-inserted sits highest. sudo keeps the yubikey touch first (the habit); login prompts fingerprint first
+# first-inserted sits highest: the yubikey touch stays first (the habit)
 u2f_ok() { is_personal && [ -e "$U2F_MODULE" ]; }
 fprint_ok() { has_fprint && [ -e "$FPRINT_MODULE" ]; }
 
 if u2f_ok; then pam_auth_install /etc/pam.d/sudo "$U2F_LINE" 'pam_u2f\.so'; fi
 if fprint_ok; then pam_auth_install /etc/pam.d/sudo "$FPRINT_LINE" 'pam_fprintd\.so'; fi
 
-if fprint_ok; then pam_auth_install /etc/pam.d/system-login "$FPRINT_LINE" 'pam_fprintd\.so'; fi
-if u2f_ok; then pam_auth_install /etc/pam.d/system-login "$U2F_LINE" 'pam_u2f\.so'; fi
+# login needs the typed password: a sufficient touch or swipe ends the stack before pam_gnome_keyring
+# gets it, and the login keyring then stays locked; strip what older runs put there
+if grep -qE 'pam_(u2f|fprintd)\.so' /etc/pam.d/system-login; then
+    sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_(u2f|fprintd)\.so/d' /etc/pam.d/system-login
+fi

@@ -1,5 +1,7 @@
 [Unit]
 Description=Install unreal-engine-bin from the newest ~/sync/Linux_Unreal_Engine_*.zip
+# syncthing writes into ~/sync in bursts; a start limit would fail the path unit for good
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/secrets.sh
+
 if ! command -v claude >/dev/null 2>&1; then
     exit 0
 fi
@@ -25,3 +27,15 @@ jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5"}
      })' "$SETTINGS" > "$tmp"
 cat "$tmp" > "$SETTINGS"
 rm -f "$tmp"
+
+# login backed up by scripts/backup-claude.sh; only a home that is not logged in yet is seeded
+BACKUP="$(readlink -f ../secrets/claude)"
+if secret_is_plaintext "${BACKUP}/credentials.json" && [ ! -f "${HOME}/.claude/.credentials.json" ]; then
+    umask 077
+    cp "${BACKUP}/credentials.json" "${HOME}/.claude/.credentials.json"
+    [ -f "${HOME}/.claude.json" ] || echo '{}' > "${HOME}/.claude.json"
+    tmp=$(mktemp)
+    jq -s '.[0] + .[1]' "${HOME}/.claude.json" "${BACKUP}/account.json" > "$tmp"
+    cat "$tmp" > "${HOME}/.claude.json"
+    rm -f "$tmp"
+fi

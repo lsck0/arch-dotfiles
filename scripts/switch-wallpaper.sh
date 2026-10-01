@@ -76,11 +76,17 @@ set_wallpaper() {
     # read by lua/theme.lua at startup and the live nvim nudge below
     printf '%s\n' "$NVIM_THEME" > "$HOME/.cache/wal/nvim_theme"
 
+    # themix cannot init gtk without a display; config.sh runs headless in the stage service, and without a
+    # theme there the first login's gtk dialogs (keyring prompt) come up in plain adwaita
+    local themix=(themix-multi-export)
+    if [[ -z "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] && command -v xvfb-run >/dev/null 2>&1; then
+        themix=(xvfb-run -a themix-multi-export)
+    fi
     # gtk/qt themes: chained in one backgrounded subshell, off the return-path critical section
     # timeout -k 5: themix-multi-export can hang forever on an oomox gtk-loop bug that sigterm cannot reap; 9>&- drops the lock fd so a hung child never no-ops later switches
     ( ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py && \
-      timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
-      timeout -k 5 20 themix-multi-export ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
+      timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
+      timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
 
     # apply the new colors to other programs
     pywalfox update 9>&- &

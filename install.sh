@@ -64,6 +64,7 @@ PACKAGES=(
     cups                     # [base] printing system
     cups-pdf                 # [base] print-to-PDF virtual printer
     curl                     # [base] HTTP client tool
+    czmq-git                 # [base] libczmq for ossec-hids-local, which links it without depending on it
     diskwatch                # [base] disk debugging
     dog                      # [base] DNS lookup tool
     downgrade                # [base] pacman package downgrader
@@ -221,6 +222,7 @@ PACKAGES=(
     tar-scripts              # [base] tar helper scripts
     themix-gui-git           # [base] GTK theme exporter
     themix-plugin-base16-git # [base] themix export plugin
+    xorg-server-xvfb         # [base] virtual display for themix-multi-export while config.sh runs headless
     thermald                 # [base] thermal management daemon
     timeshift                # [base] system backup/restore
     timeshift-autosnap       # [base] pacman hook for pre-upgrade snapshots
@@ -442,6 +444,7 @@ PACKAGES=(
     hyprsunset                  # [desktop] blue light filter
     jdownloader2                # [desktop] download manager
     kitty                       # [desktop] GPU terminal emulator
+    konsole                     # [desktop] KDE terminal emulator
     krusader                    # [desktop] total commander
     lib32-gtk3                  # [desktop] 32-bit GTK3
     libnotify                   # [desktop] desktop notification lib

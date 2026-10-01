@@ -23,7 +23,8 @@ disarm() {
     local device
     device=$(<"$STATE_DIR/luks-device")
     # keyslot first: once it is gone the keyfile on the ESP opens nothing
-    if [[ -f "$KEY_FILE" ]]; then
+    # sudo test: /etc/cryptsetup-keys.d is root-only, a plain [[ -f ]] as the user is always false
+    if sudo test -f "$KEY_FILE"; then
         sudo cryptsetup luksRemoveKey "$device" "$KEY_FILE" || return 1
         sudo rm -f "$KEY_FILE"
     fi

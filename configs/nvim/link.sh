@@ -9,4 +9,5 @@ set -e
 
 ln -sfn "${PWD}" "$HOME/.config/nvim"
 
-nvim --headless "+Lazy! sync" +MasonToolsInstallSync +TSInstallSync +qa
+# restore, not sync: pin plugins to lazy-lock.json instead of updating past it
+nvim --headless "+Lazy! restore" +MasonToolsInstallSync +TSInstallSync +qa
