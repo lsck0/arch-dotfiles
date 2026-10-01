@@ -74,18 +74,28 @@ if (( PERSONAL )); then
     source "$PLATFORM_FILE"
     [[ -n "$HOSTNAME" ]] || die "$PLATFORM_FILE sets no HOSTNAME"
 else
-    # guest: no platform file, so ask the hostname and which groups to install
-    read -rp "hostname: " HOSTNAME </dev/tty
+    # guest: no platform file, so take the hostname and groups from env/prompt (env for an unattended run)
+    HOSTNAME="${BOOTSTRAP_HOSTNAME:-}"
+    if [[ -z "$HOSTNAME" ]]; then
+        if [[ "${BOOTSTRAP_ASSUME_YES:-0}" == 1 ]]; then HOSTNAME="$USERNAME-pc"
+        else read -rp "hostname: " HOSTNAME </dev/tty; fi
+    fi
     [[ -n "$HOSTNAME" ]] || die "empty hostname"
-    echo "package groups:" >&2
-    for i in "${!GROUP_UNIVERSE[@]}"; do printf '  %d  %s\n' "$((i + 1))" "${GROUP_UNIVERSE[i]}" >&2; done
-    read -rp "numbers to EXCLUDE (space-separated), enter for all: " -a excludes </dev/tty
-    PKG_GROUPS=()
-    for i in "${!GROUP_UNIVERSE[@]}"; do
-        skip=0
-        for n in "${excludes[@]}"; do [[ "$n" == "$((i + 1))" ]] && skip=1; done
-        (( skip )) || PKG_GROUPS+=("${GROUP_UNIVERSE[i]}")
-    done
+    if [[ -n "${BOOTSTRAP_GROUPS:-}" ]]; then
+        read -ra PKG_GROUPS <<<"$BOOTSTRAP_GROUPS"
+    elif [[ "${BOOTSTRAP_ASSUME_YES:-0}" == 1 ]]; then
+        PKG_GROUPS=("${GROUP_UNIVERSE[@]}")
+    else
+        echo "package groups:" >&2
+        for i in "${!GROUP_UNIVERSE[@]}"; do printf '  %d  %s\n' "$((i + 1))" "${GROUP_UNIVERSE[i]}" >&2; done
+        read -rp "numbers to EXCLUDE (space-separated), enter for all: " -a excludes </dev/tty
+        PKG_GROUPS=()
+        for i in "${!GROUP_UNIVERSE[@]}"; do
+            skip=0
+            for n in "${excludes[@]}"; do [[ "$n" == "$((i + 1))" ]] && skip=1; done
+            (( skip )) || PKG_GROUPS+=("${GROUP_UNIVERSE[i]}")
+        done
+    fi
     BOOT_FEATURES=(timeshift luks grub)
 fi
 [[ $EUID -eq 0 ]] || die "run as root"

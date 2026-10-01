@@ -376,18 +376,19 @@ How I write LaTeX and mathematics. Conventions taken from my thesis.
 
 Project layout:
 
-- `main.tex` is a thin composition root: `\documentclass`, the feature flag `\def`s this document needs, `\usepackage{header}`, metadata, then one `\section{...}` plus `\input{src/NN_name.tex}` per section. No content lives in it.
+- `main.tex` is a thin composition root: `\documentclass`, `\usepackage[<feature flags>]{header}`, metadata, then one `\section{...}` plus `\input{src/NN_name.tex}` per section. No content lives in it.
 - Content lives in gap-numbered source files, `src/00_introduction.tex`, `src/10_tc.tex`, `src/20_...`, leaving room to insert between.
 - All preamble lives in a local package `header.sty` loaded with `\usepackage{header}`, never inline in `main.tex`.
+- Build with latexmk and the project `.latexmkrc`: precompiled preamble, synctex always on, ids stamped when the `ids` flag is set. It reads the header options from `main.tex`, so it is copied as is and never edited per project.
 - `amsart`, `11pt`, `a4paper`. `geometry` for margins, `babel` matching the document language. Bibliography in `references.bib`, `\bibliographystyle{alpha}`, entries grouped under banner comments.
 - The abstract states the main theorem and result up front, then says what the article introduces and builds on.
 
 Preamble and macros:
 
-- Organize `header.sty` with banner comments: `PACKAGES`, `FEATURE FLAGS`, `CONFIGURATION`, `COMMANDS`, sub-grouped (util, essential math).
-- Heavy packages are opt-in feature flags, `\def\useCommutativeDiagrams{...}`, `\useTikz`, `\useGraphics`, `\usePlots`, pulled in only by the document that needs them. Idle costs nothing.
+- Organize `header.sty` with banner comments: `OPTIONS`, `PACKAGES`, `OPTIONAL PACKAGES`, `AUTOMATIC LABELS`, `CONFIGURATION`, `THEOREMS`, `HOMEWORK AND EXAMS`, `COMMANDS`, sub-grouped (util, essential math).
+- Heavy packages and advanced features are opt-in package options, all off by default: `\usepackage[diagrams, autolabels]{header}` with `tikz`, `diagrams`, `plots`, `graphics`, `code`, `algorithms`, `asymptote`, `glossaries`, `autolabels`, `ids`. Idle costs nothing.
 - Systematic single-letter macro families: `\A` to `\Z` blackboard bold, `\cA` to `\cZ` calligraphic, `\fA` to `\fZ` fraktur. Var shortcuts `\vphi`, `\vep`, `\vth`. Upright constants and differentials `\ce`, `\ci`, `\cd`, `\dx`, `\dt`.
-- Delimiter macros that auto-size with `\left`/`\right`: `\Pa`, `\Br`, `\Cu`, `\Sp`, `\Abs`, `\Norm`. Use these over hand-written `\left(`.
+- Plain `( ) [ ] \{ \} | \|` in math auto-size via the header, so no hand-written `\left(`. Macros for the rest: `\Sp`, `\Abs`, `\Norm`, `\Res`.
 - Named operators as `\mathrm` (`\im`, `\id`, `\rk`, `\tr`, `\colim`), categories as `\mathsf` (`\Set`, `\Top`, `\Mfd`), invariants as their own macro (`\TC`, `\cat`, `\secat`, `\wgt`, `\zcl`). Derivative helpers `\dfrac`/`\pfrac` via `xparse` `\DeclareDocumentCommand` with an optional argument.
 
 Notation habits:
@@ -403,7 +404,9 @@ Theorems, proofs, references:
 - Definitions and theorems carry a bracketed title: `\begin{definition}[topological complexity]`.
 - The `proof` environment is nested inside its statement environment as the last block, not written separately after it.
 - Reference with `cleveref` `\cref` throughout (`nameinlink`), never a raw `\ref`. Set `\crefname` for every environment including irregular plurals (`Lemmata`).
-- Labels are namespaced by kind and snake_case descriptive: `def:path_loop_space`, `thm:cts_motion_planner_exists_iff_contractible`, `lem:...`, `cor:...`, `eq:...`, `ex:...`, `ax:...`, `rem:...`, `conj:...`. Diagrams labelled with `\label[diagram]{diag:...}`.
+- Labels are namespaced by the kind written out, never abbreviated, with a kebab-case descriptive slug: `definition:path-loop-space`, `theorem:cts-motion-planner-exists-iff-contractible`, `lemma:...`, `corollary:...`, `example:...`, `axiom:...`, `remark:...`, `conjecture:...`, `equation:...`, `chapter:...`, `section:...`, `subsection:...`. Diagrams labelled with `\label[diagram]{diagram:...}`.
+  - The `autolabels` flag generates exactly these from titles: `\section{Set Theory}` gets `section:set-theory`, `\begin{lemma}[Zorn]` gets `lemma:zorn`. Hand-written labels follow the same scheme.
+  - The `ids` flag adds a stable `<kind>:<ID>` per theorem from `[Zorn|B6AFE]`, which survives renaming the title; reference it where the title may change.
 - Cite with `\cite{bibkey}`, locators as `\cite[Proposition 2]{bibkey}`. bib keys are short descriptive slugs.
 - Commutative diagrams via `tikz-cd` inside the custom centered `\begin{diagram}` environment. Mark pullback and pushout corners with `\ulcorner`/`\lrcorner` (`phantom`, `very near start`), use `bend`/`shift` for parallel and curved arrows.
 - Draft markers live as macros, not stray text: `\todo`, `\citationneeded`, `\referenceneeded`, color helpers `\inred` and friends. Remove them before the final build.

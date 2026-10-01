@@ -127,7 +127,12 @@ cmd_unlock() {
     # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it later
     sudo systemctl start pcscd.socket 2>/dev/null || true
     if ! present; then
-        echo "yubikey: none plugged in, secrets stay as they are"
+        # no yubikey: the pgp key (git-crypt's gpg user) can still unlock an already-pulled secrets worktree
+        if [[ -e "$SECRETS/.git" ]] && ! secrets_plain; then
+            git -C "$SECRETS" crypt unlock || echo "yubikey: no key present and pgp git-crypt unlock failed"
+        else
+            echo "yubikey: none plugged in, secrets stay as they are"
+        fi
         return 0
     fi
     local sn stub identity
