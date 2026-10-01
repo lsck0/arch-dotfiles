@@ -7,7 +7,7 @@ fi
 
 set -e
 
-# a real file: pid1 loads drop-ins before /home is mounted, a symlink into the repo dangles then
+# copied, not linked: pid1 loads drop-ins before /home mounts
 sudo rm -f /etc/systemd/system/ollama.service.d/keep-alive.conf
 sudo install -Dm644 "${PWD}/keep-alive.conf" /etc/systemd/system/ollama.service.d/keep-alive.conf
 sudo systemctl daemon-reload

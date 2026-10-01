@@ -9,9 +9,8 @@ set -e
 
 repo="$(cd ../.. && pwd)"
 
-# 8.x keeps presets in ~/.local/share/easyeffects, ~/.config/easyeffects only holds its db
 for kind in input output; do
-    # stale links from the pre-8.x layout, the app would migrate and trash them
+    # pre-8.x links into the repo; the app would migrate and trash them
     old="${HOME}/.config/easyeffects/${kind}"
     if [ -L "${old}" ]; then
         case "$(readlink "${old}")" in
@@ -24,7 +23,7 @@ done
 mkdir -p "${HOME}/.local/share/easyeffects"
 for kind in input output; do
     dest="${HOME}/.local/share/easyeffects/${kind}"
-    # first launch creates real dirs, rmdir refuses if presets were saved there
+    # first launch makes real dirs; rmdir refuses if presets are inside
     if [ -d "${dest}" ] && [ ! -L "${dest}" ]; then
         rmdir "${dest}" || { echo "easyeffects: move presets from ${dest} into ${PWD}/${kind}" >&2; exit 1; }
     fi

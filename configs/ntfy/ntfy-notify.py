@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
-# the homelab ntfy denies anonymous reads; token of its read-only desktop user
+# homelab ntfy denies anonymous reads
 TOKEN_FILE = os.environ.get("NTFY_TOKEN_FILE", os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "..", "secrets", "ntfy-desktop-token"))
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "ntfy-notify")

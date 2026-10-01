@@ -13,7 +13,7 @@ db_yml=$HOME/.msf4/database.yml
 pg_dir=/tmp
 pg_port=5433
 
-# a fresh install has no msf database; init creates it on $pg_port and leaves postgres running
+# fresh install has no msf db; init leaves postgres up on $pg_port
 if [[ ! -f "$db_yml" ]]; then
     msfdb init --use-defaults --component database
 fi

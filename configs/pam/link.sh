@@ -15,12 +15,12 @@ is_personal && U2F_LINE='auth       sufficient pam_u2f.so cue origin=pam://lsck0
 FPRINT_LINE='auth       sufficient pam_fprintd.so'
 
 # a validity/synaptics sensor uses python-validity + open-fprintd; other readers use fprintd directly
-# the validity unit file ships with the package on every platform, so also require the usb sensor;
-# fprintd-list exits 0 with "No devices found", so look for its per-device line
 has_fprint() {
+    # the validity unit ships everywhere, so also require the usb sensor
     if systemctl list-unit-files --no-legend 'python3-validity.service' 2>/dev/null | grep -q .; then
         lsusb -d 138a: >/dev/null 2>&1 || lsusb -d 06cb: >/dev/null 2>&1 && return 0
     fi
+    # fprintd-list exits 0 even with "No devices found"
     command -v fprintd-list >/dev/null 2>&1 && fprintd-list "$(id -un)" 2>/dev/null | grep -q '^Fingerprints for user'
 }
 
@@ -55,7 +55,6 @@ if u2f_ok; then pam_auth_install /etc/pam.d/sudo "$U2F_LINE" pam_u2f.so; fi
 if fprint_ok; then
     pam_auth_install /etc/pam.d/sudo "$FPRINT_LINE" pam_fprintd.so
 elif grep -qE 'pam_fprintd\.so' /etc/pam.d/sudo; then
-    # no reader: drop what an older run put there
     sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so/d' /etc/pam.d/sudo
 fi
 

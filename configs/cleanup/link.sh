@@ -3,10 +3,10 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-# journald size cap; restart only on change, a restart rotates the running journal.
-# a real file: journald and pid1 read /etc before /home is mounted, so a symlink into the repo dangles at boot
+# journald size cap; restart only on change, a restart rotates the running journal
 journald_conf=/etc/systemd/journald.conf.d/00-size.conf
 if ! cmp -s "${PWD}/journald-size.conf" "${journald_conf}" || [ -L "${journald_conf}" ]; then
+    # copied, not linked: journald reads /etc before /home mounts
     sudo rm -f "${journald_conf}"
     sudo install -Dm644 "${PWD}/journald-size.conf" "${journald_conf}"
     sudo systemctl restart systemd-journald.service

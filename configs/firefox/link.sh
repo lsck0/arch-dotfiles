@@ -5,7 +5,7 @@ if ! command -v firefox >/dev/null 2>&1; then
     exit 0
 fi
 
-# a fresh install has no profile until firefox first runs; a headless run creates the default-release one it locks to
+# no profile until first run; a headless run creates default-release
 if [[ ! -f "${HOME}/.config/mozilla/firefox/profiles.ini" ]]; then
     timeout 20 firefox --headless about:blank >/dev/null 2>&1 || true
 fi

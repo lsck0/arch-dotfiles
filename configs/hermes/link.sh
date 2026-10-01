@@ -52,12 +52,12 @@ if command -v ollama >/dev/null 2>&1; then
     fi
 fi
 
-# default HERMES_HOME so the skin lands in the default profile, wallpaper switches rewrite only that one
+# skin lives in the default profile, wallpaper switches rewrite only that
 HERMES_HOME="${hermes_default}" ../wallust/scripts/generate-hermes-skin.py || true
 mkdir -p "${hermes_orchestrator}/skins"
 ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 
-# --clone copied the default profile before any of this was set, so configure both every run
+# --clone snapshots the default profile once, so configure both
 for hermes_home in "${hermes_default}" "${hermes_orchestrator}"; do
     export HERMES_HOME="${hermes_home}"
 

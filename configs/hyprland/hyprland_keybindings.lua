@@ -12,9 +12,6 @@ local function media_key(action)
     return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
 end
 
-local boomer =
-"wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""
-
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
@@ -35,7 +32,11 @@ hl.bind(mod .. " + t", hl.dsp.exec_cmd("~/projects/arch-dotfiles/toggles/menu.sh
 hl.bind(mod .. " + SHIFT + t", hl.dsp.exec_cmd("missioncenter"))
 hl.bind(mod .. " + w", hl.dsp.exec_cmd(shell_bin("wallpaper-picker")))
 hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimeji"))
-hl.bind(mod .. " + x", hl.dsp.exec_cmd("grim -t ppm - | " .. boomer))
+-- boomer.sh stops hyprland warping the cursor to monitor 0
+hl.bind(mod .. " + x", hl.dsp.exec_cmd("~/projects/arch-dotfiles/configs/hyprland/boomer.sh"))
+-- focused-monitor-only backup; the monitor-0 window rule misplaces it
+-- hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(
+--     "grim -t ppm -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""))
 
 hl.bind(mod .. " + Q", hl.dsp.window.close())
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }))

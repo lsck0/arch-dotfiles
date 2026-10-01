@@ -17,8 +17,7 @@ fi
 
 sudo install -Dm644 config.ini "$config"
 
-# the kernel console maps ly's 24-bit colors onto its 16-slot palette (fg 0x39BAE6 lands on bright cyan),
-# so load slots that hold config.ini's exact colors; grub's theme draws the same hex values
+# console maps ly's 24-bit colors to 16 slots; load config.ini's exact hex
 palette=(
     0b0e14 f07178 aad94c e6b450 39bae6 d2a6ff 1c6e8c bfbdb6
     565b66 f07178 aad94c e6b450 39bae6 d2a6ff 39bae6 bfbdb6
