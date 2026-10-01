@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+
 set -e
 
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
@@ -35,22 +37,24 @@ fi
 
 # gtk sidebar bookmarks, owned whole so stale entries do not linger
 mkdir -p "${HOME}/.config/gtk-3.0"
-cat > "${HOME}/.config/gtk-3.0/bookmarks" <<EOF
-file://${HOME}/projects Projects
-file://${HOME}/sync Syncthing
-file://${HOME}/nas NAS
-file://${HOME}/vault Vault
-EOF
+{
+    echo "file://${HOME}/projects Projects"
+    echo "file://${HOME}/sync Syncthing"
+    # homelab nas topology is luca-only, kept out of a guest's sidebar
+    is_personal && echo "file://${HOME}/nas NAS"
+    echo "file://${HOME}/vault Vault"
+} > "${HOME}/.config/gtk-3.0/bookmarks"
 
 PLACES="${HOME}/.local/share/user-places.xbel"
 mkdir -p "${HOME}/.local/share"
 [ -f "$PLACES" ] || printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
     '<xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks"></xbel>' > "$PLACES"
-python3 - "$PLACES" "file://${HOME}" <<'EOF'
+python3 - "$PLACES" "file://${HOME}" "$(is_personal && echo 1 || echo 0)" <<'EOF'
 import sys
 import xml.etree.ElementTree as ET
 
 path, home = sys.argv[1], sys.argv[2]
+personal = len(sys.argv) > 3 and sys.argv[3] == "1"
 ns = "http://www.freedesktop.org/standards/desktop-bookmarks"
 ET.register_namespace("bookmark", ns)
 tree = ET.parse(path)
@@ -61,7 +65,11 @@ places = [
     (home, "Home", "user-home", True),
     (home + "/projects", "Projects", "folder-development", False),
     (home + "/sync", "Syncthing", "folder-sync", False),
-    (home + "/nas", "NAS", "folder-network", False),
+]
+# homelab nas topology is luca-only, kept out of a guest's places (and removed if a prior run added it)
+if personal:
+    places.append((home + "/nas", "NAS", "folder-network", False))
+places += [
     (home + "/vault", "Vault", "folder-locked", False),
     (home + "/desktop", "Desktop", "user-desktop", True),
     (home + "/documents", "Documents", "folder-documents", True),

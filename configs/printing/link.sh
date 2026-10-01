@@ -6,7 +6,7 @@ fi
 
 set -e
 
-sudo systemctl enable --now cups.service || true
+# cups.socket is enabled on-demand in configs/systemd/link.sh, no boot-time cups.service
 command -v avahi-daemon >/dev/null 2>&1 && sudo systemctl enable --now avahi-daemon.service || true
 
 # network printers advertise over mdns

@@ -18,12 +18,13 @@ REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PLATFORM="${1:-}"
 
 # defaults, overridden per platform
-USERNAME=luca
 KEYMAP=de-latin1
 TIMEZONE=Europe/Berlin
 LOCALE=en_US.UTF-8
 ESP_SIZE_MIB=1024
 HOSTNAME=""
+# every package group; a guest picks from these, platform files pick for luca
+GROUP_UNIVERSE=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
 
 LUKS_NAME=root
 MOUNT=/mnt
@@ -49,23 +50,53 @@ confirm() {
 
 # --- preflight ----------------------------------------------------------------
 
-mapfile -t platforms < <(cd "$REPO/platforms" && for f in *.sh; do echo "${f%.sh}"; done)
-if [[ -z "$PLATFORM" ]]; then
-    echo "platforms: ${platforms[*]}"
-    read -rp "platform: " PLATFORM </dev/tty
+# the username decides personal (luca) vs guest; a guest gets no secrets, identity, or homelab
+USERNAME="${BOOTSTRAP_USERNAME:-}"
+if [[ -z "$USERNAME" ]]; then
+    if [[ "${BOOTSTRAP_ASSUME_YES:-0}" == 1 ]]; then
+        USERNAME=luca
+    else
+        read -rp "username [luca]: " USERNAME </dev/tty; USERNAME="${USERNAME:-luca}"
+    fi
 fi
-PLATFORM_FILE="$REPO/platforms/$PLATFORM.sh"
-[[ -f "$PLATFORM_FILE" ]] || die "unknown platform '$PLATFORM', one of: ${platforms[*]}"
-# shellcheck source=/dev/null
-source "$PLATFORM_FILE"
-[[ -n "$HOSTNAME" ]] || die "$PLATFORM_FILE sets no HOSTNAME"
+PERSONAL=0; [[ "$USERNAME" == luca ]] && PERSONAL=1
+
+if (( PERSONAL )); then
+    # a platform file sets HOSTNAME, PKG_GROUPS, BOOT_FEATURES and WIREGUARD
+    mapfile -t platforms < <(cd "$REPO/platforms" && for f in *.sh; do echo "${f%.sh}"; done)
+    if [[ -z "$PLATFORM" ]]; then
+        echo "platforms: ${platforms[*]}"
+        read -rp "platform: " PLATFORM </dev/tty
+    fi
+    PLATFORM_FILE="$REPO/platforms/$PLATFORM.sh"
+    [[ -f "$PLATFORM_FILE" ]] || die "unknown platform '$PLATFORM', one of: ${platforms[*]}"
+    # shellcheck source=/dev/null
+    source "$PLATFORM_FILE"
+    [[ -n "$HOSTNAME" ]] || die "$PLATFORM_FILE sets no HOSTNAME"
+else
+    # guest: no platform file, so ask the hostname and which groups to install
+    read -rp "hostname: " HOSTNAME </dev/tty
+    [[ -n "$HOSTNAME" ]] || die "empty hostname"
+    echo "package groups:" >&2
+    for i in "${!GROUP_UNIVERSE[@]}"; do printf '  %d  %s\n' "$((i + 1))" "${GROUP_UNIVERSE[i]}" >&2; done
+    read -rp "numbers to EXCLUDE (space-separated), enter for all: " -a excludes </dev/tty
+    PKG_GROUPS=()
+    for i in "${!GROUP_UNIVERSE[@]}"; do
+        skip=0
+        for n in "${excludes[@]}"; do [[ "$n" == "$((i + 1))" ]] && skip=1; done
+        (( skip )) || PKG_GROUPS+=("${GROUP_UNIVERSE[i]}")
+    done
+    BOOT_FEATURES=(timeshift luks grub)
+fi
 [[ $EUID -eq 0 ]] || die "run as root"
 [[ -d /run/archiso ]] || die "not running from the Arch ISO"
 [[ -d /sys/firmware/efi ]] || die "not booted in UEFI mode"
 curl -fsI -m 10 https://archlinux.org >/dev/null || die "no network"
 
 setup_mode="$(od -An -t u1 "/sys/firmware/efi/efivars/SetupMode-$EFI_GLOBAL_GUID" 2>/dev/null | awk '{print $NF}')"
-if [[ "$setup_mode" != 1 ]]; then
+if [[ "$setup_mode" == 1 ]]; then
+    (( PERSONAL )) || BOOT_FEATURES+=(sbctl)
+else
     echo "bootstrap: firmware is not in Secure Boot Setup Mode, so install.sh cannot enroll keys" >&2
     confirm "continue without Secure Boot? [y/N]" y || die "enable Setup Mode in the firmware, then rerun"
 fi
@@ -75,8 +106,14 @@ fi
 DISK="${BOOTSTRAP_DISK:-}"
 if [[ -z "$DISK" ]]; then
     mapfile -t disks < <(lsblk -dnpo NAME,TYPE,RM | awk '$2 == "disk" && $3 == 0 {print $1}' | grep -v -e zram -e loop)
-    (( ${#disks[@]} == 1 )) || die "expected exactly one disk, found: ${disks[*]:-none} (set BOOTSTRAP_DISK)"
-    DISK="${disks[0]}"
+    (( ${#disks[@]} )) || die "no disk found (set BOOTSTRAP_DISK)"
+    if (( ${#disks[@]} == 1 )); then
+        DISK="${disks[0]}"
+    else
+        lsblk -dpo NAME,SIZE,MODEL "${disks[@]}" >&2
+        PS3="disk to erase: "
+        select d in "${disks[@]}"; do [[ -n "$d" ]] && { DISK="$d"; break; }; done </dev/tty
+    fi
 fi
 [[ -b "$DISK" ]] || die "$DISK is not a block device"
 
@@ -149,7 +186,7 @@ genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
 # boot-menu (configs/boot) reads the root arguments from here, the kernel cmdline alone gets lost on regen
 mkdir -p "$MOUNT/etc/kernel"
-echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0" >"$MOUNT/etc/kernel/cmdline"
+echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0" >"$MOUNT/etc/kernel/cmdline"
 
 # stage.sh's temporary unlock: a random key in its own slot, found by systemd-cryptsetup in the
 # initramfs as /etc/cryptsetup-keys.d/<volume>.key; stage.sh kills the slot when the chain ends
@@ -161,8 +198,8 @@ printf '%s' "$PASSWORD" | cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pb
     "$ROOT_PART" "$MOUNT$STAGE_KEY_FILE"
 install -Dm644 /dev/stdin "$MOUNT/etc/mkinitcpio.conf.d/dotfiles-stage.conf" <<<"FILES+=($STAGE_KEY_FILE)"
 
-# a YubiKey plugged in now unlocks the disk by touch from then on; the password keeps working
-if systemd-cryptenroll --fido2-device=list 2>/dev/null | grep -q '^/dev/'; then
+# a YubiKey plugged in now unlocks the disk by touch from then on; the password keeps working (luca only)
+if (( PERSONAL )) && systemd-cryptenroll --fido2-device=list 2>/dev/null | grep -q '^/dev/'; then
     echo "bootstrap: YubiKey found, touch it (and give its FIDO2 PIN if asked) to enroll it for disk unlock"
     systemd-cryptenroll --unlock-key-file="$MOUNT$STAGE_KEY_FILE" --fido2-device=auto \
         --fido2-with-client-pin=no "$ROOT_PART" </dev/tty || echo "bootstrap: YubiKey enrollment skipped"
@@ -238,10 +275,23 @@ done
 
 # --- dotfiles and the stage chain ---------------------------------------------
 
+# luca: pull and unlock the secrets here (the one tap window), so the chained config boot needs no touch
+if (( PERSONAL )); then
+    pacman -Sy --noconfirm --needed age age-plugin-yubikey git-crypt pcsclite ccid libfido2 \
+        || echo "bootstrap: secrets toolchain install failed, config will unlock instead" >&2
+    systemctl start pcscd.socket 2>/dev/null || true
+    ( cd "$REPO" && ./scripts/yubikey.sh unlock ) || echo "bootstrap: secrets unlock skipped" >&2
+fi
+
 home="$MOUNT/home/$USERNAME"
 mkdir -p "$home/projects"
 cp -a "$REPO" "$home/projects/arch-dotfiles"
 rm -f "$home/projects/arch-dotfiles/groups.conf" "$home/projects/arch-dotfiles/boot.conf"
+# a guest has no platform file, so persist the chosen groups/boot for the unattended install
+if (( ! PERSONAL )); then
+    printf '%s\n' "${PKG_GROUPS[@]}" >"$home/projects/arch-dotfiles/groups.conf"
+    printf '%s\n' "${BOOT_FEATURES[@]}" >"$home/projects/arch-dotfiles/boot.conf"
+fi
 arch-chroot "$MOUNT" chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
 
 install -Dm644 /dev/stdin "$MOUNT$STAGE_STATE_DIR/next" <<<"install"

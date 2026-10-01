@@ -60,19 +60,16 @@ p=sys.argv[1]
 print('zip' if zipfile.is_zipfile(p) else ('tar' if tarfile.is_tarfile(p) else 'other'))
 PY
 )
-case "$kind" in
-  zip) python3 - "$archive" "$stage" <<'PY'
-import sys, zipfile
-with zipfile.ZipFile(sys.argv[1]) as z: z.extractall(sys.argv[2])
-PY
-    ;;
-  tar) tar --extract --file "$archive" --directory "$stage" --no-same-owner --no-same-permissions ;;
-  *)
+# 7z extracts what python's zipfile/tarfile cannot (deflate64 and other 7-zip zip methods, rar, 7z)
+extract_7z() {
     command -v 7z >/dev/null || { printf 'unsupported archive (install 7z): %s\n' "$archive" >&2; exit 1; }
+    local listing
     listing=$(7z l -slt -- "$archive")
     python3 - "$listing" <<'PY'
 import sys, re
-s=sys.argv[1]
+# 7z -slt prints an archive header block first; entries start after the ---------- separator
+s=sys.argv[1].split('\n----------\n', 1)
+s=s[1] if len(s) == 2 else ''
 size=sum(int(x) for x in re.findall(r'^Size = (\d+)$', s, re.M))
 entries=len(re.findall(r'^Path = ', s, re.M))
 if entries > 200000 or size > 10*1024**3: raise SystemExit('archive expansion exceeds safety limit')
@@ -82,7 +79,22 @@ for path in re.findall(r'^Path = (.*)$', s, re.M):
         raise SystemExit('unsafe archive path: '+path)
 PY
     7z x -y -o"$stage" -- "$archive" >/dev/null
+}
+
+case "$kind" in
+  zip)
+    # python's zipfile cannot decompress every method 7-zip writes (deflate64), so fall back to 7z
+    if ! python3 - "$archive" "$stage" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z: z.extractall(sys.argv[2])
+PY
+    then
+        rm -rf -- "${stage:?}"/* 2>/dev/null || true
+        extract_7z
+    fi
     ;;
+  tar) tar --extract --file "$archive" --directory "$stage" --no-same-owner --no-same-permissions ;;
+  *) extract_7z ;;
 esac
 
 mkdir -p -- "$dest"

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+
 if ! command -v task >/dev/null 2>&1; then
     exit 0
 fi
@@ -20,8 +22,8 @@ else
     echo "task: $HOOK not found (timew not installed), skipping hook" >&2
 fi
 
-# taskwarrior rejects bugwarrior's udas unless declared
-if command -v bugwarrior >/dev/null 2>&1 && [[ -e "$HOME/.config/bugwarrior/bugwarrior.toml" ]]; then
+# taskwarrior rejects bugwarrior's udas unless declared; bugwarrior itself is luca-only
+if is_personal && command -v bugwarrior >/dev/null 2>&1 && [[ -e "$HOME/.config/bugwarrior/bugwarrior.toml" ]]; then
     bugwarrior uda > ~/.config/bugwarrior/uda.taskrc.tmp \
         && mv -f ~/.config/bugwarrior/uda.taskrc.tmp ~/.config/bugwarrior/uda.taskrc \
         || { rm -f ~/.config/bugwarrior/uda.taskrc.tmp; touch ~/.config/bugwarrior/uda.taskrc; }

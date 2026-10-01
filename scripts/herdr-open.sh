@@ -35,9 +35,8 @@ for app in claude zsh; do
   pane=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
   # zsh is the tab's default shell already; only claude needs launching
   if [[ "$app" == claude ]]; then
-    claude-trust "$selected"   # skip the workspace trust dialog for this repo
     wait_prompt "$pane"
-    herdr pane run "$pane" claude --permission-mode auto >/dev/null
+    herdr pane run "$pane" claude >/dev/null
   fi
 done
 herdr tab focus "$t1" >/dev/null

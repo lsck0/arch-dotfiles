@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Pull the live OBS scene and profile from ~/.config/obs-studio back into the repo.
 
 set -ex
 

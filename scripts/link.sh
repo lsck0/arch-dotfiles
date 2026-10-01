@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Symlink every scripts/*.sh and *.py into /usr/local/bin.
 
 set -ex
 

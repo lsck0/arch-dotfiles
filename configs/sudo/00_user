@@ -1,4 +1,4 @@
 # no NOPASSWD, it would hand root to any user process
-luca ALL=(ALL) ALL
+@USER@ ALL=(ALL) ALL
 # global timestamp so parallel link.sh steps and makepkg reuse one credential cache
-Defaults:luca timestamp_timeout=240,timestamp_type=global
+Defaults:@USER@ timestamp_timeout=240,timestamp_type=global

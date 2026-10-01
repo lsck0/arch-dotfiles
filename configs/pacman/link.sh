@@ -36,7 +36,7 @@ for hook in "${PWD}"/hooks/*.hook; do
     if grep -q '@USER@' "${hook}"; then
         # copy with @USER@ filled in, rm as above
         sudo rm -f "${dest}"
-        sed "s|@USER@|$USER|" "${hook}" | sudo tee "${dest}" >/dev/null
+        sed "s|@USER@|$(id -un)|" "${hook}" | sudo tee "${dest}" >/dev/null
     else
         sudo ln -sfn "${hook}" "${dest}"
     fi

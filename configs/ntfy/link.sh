@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+is_personal || exit 0
+
 command -v notify-send >/dev/null 2>&1 || exit 0
 
 set -e

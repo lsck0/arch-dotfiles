@@ -93,6 +93,7 @@ PACKAGES=(
     intel-media-driver       # [base] Intel VAAPI driver
     intel-ucode              # [base] Intel CPU microcode, pacstrap installs it on Intel
     ipython                  # [base] enhanced Python shell
+    it87-dkms-git            # [base] out-of-tree ITE SuperIO driver, exposes fan RPM/PWM on Gigabyte boards
     iwd                      # [base] iNet wireless daemon
     jolt                     # [base] battery debugging
     jq                       # [base] JSON processor CLI
@@ -149,6 +150,7 @@ PACKAGES=(
     linux-lts-docs           # [base] LTS kernel docs
     linux-lts-headers        # [base] LTS kernel headers
     linux-tools-meta         # [base] kernel perf tools
+    lm_sensors               # [base] hardware sensors, ships fancontrol/pwmconfig/sensors-detect
     lolcat                   # [base] rainbow text output
     lshw                     # [base] hardware lister
     lua51-luautf8            # [base] Lua UTF-8 lib
@@ -157,6 +159,7 @@ PACKAGES=(
     mesa                     # [base] graphics driver library
     metadata-cleaner         # [base] strip file metadata
     mkinitcpio               # [base] initramfs generator, pacstrap installs it
+    modemmanager             # [base] mobile broadband (WWAN), toggle-mobile
     mtools                   # [base] DOS filesystem tools
     mtr                      # [base] traceroute + ping
     ncurses                  # [base] terminal UI library
@@ -538,6 +541,11 @@ PACKAGES=(
     kpat                           # [gaming] patience card games
     lutris                         # [gaming] game launcher manager
     mangohud                       # [gaming] gaming performance overlay
+    glslang                        # [gaming] GLSL/HLSL to SPIR-V compiler
+    shaderc                        # [gaming] shader compilation toolchain
+    spirv-tools                    # [gaming] SPIR-V assembler/validator
+    vulkan-tools                   # [gaming] vulkaninfo/vkcube utilities
+    vulkan-validation-layers       # [gaming] Vulkan validation layers
     millennium                     # [gaming] Steam client theme loader
     minecraft-launcher             # [gaming] Minecraft game launcher
     modrinth-app                   # [gaming] minecraft mod manager
@@ -844,6 +852,20 @@ PACKAGES=(
     uv                            # [programming] fast Python package manager
     vale                          # [programming] prose linter
     valgrind                      # [programming] memory debugging/profiling tool
+    rr                            # [programming] record-replay time-travel debugger
+    delve                         # [programming] go debugger (dap)
+    py-spy                        # [programming] sampling profiler for python
+    tracy                         # [programming] realtime frame profiler
+    kcachegrind                   # [programming] valgrind callgrind/cachegrind GUI
+    ruff                          # [programming] fast python linter/formatter
+    python-hypothesis             # [programming] property-based testing
+    cargo-mutants                 # [programming] rust mutation testing
+    tla-toolbox                   # [programming] TLA+ spec + TLC model checker
+    apalache-bin                  # [programming] TLA+ symbolic model checker
+    typst                         # [programming] modern typesetting
+    tinymist-bin                  # [programming] typst language server
+    deno                          # [programming] secure typescript runtime
+    bun-bin                       # [programming] fast javascript runtime
     vscodium-bin                  # [programming] VS Code de-branded
     wrk                           # [programming] HTTP benchmarking tool
     wscat                         # [programming] websocket CLI client
@@ -882,6 +904,9 @@ PACKAGES=(
     fcrackzip               # [pentesting] zip password cracker
     ffuf-bin                # [pentesting] web fuzzing tool
     foremost                # [pentesting] file carving tool
+    rizin                   # [pentesting] reverse-engineering framework
+    honggfuzz-git           # [pentesting] security-oriented fuzzer
+    python-frida            # [pentesting] dynamic instrumentation toolkit
     gau                     # [pentesting] get-all-urls tool
     ghidra                  # [pentesting] reverse engineering suite
     gobuster                # [pentesting] directory/DNS brute-forcer

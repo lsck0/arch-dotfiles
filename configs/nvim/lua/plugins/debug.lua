@@ -318,4 +318,14 @@ return {
             end
         end
     },
+
+    {
+        -- delve adapter + go configs; reuses the generic <leader>/F5 dap keys
+        "leoluz/nvim-dap-go", -- go debugging via system-wide dlv
+        ft = "go",
+        dependencies = { "mfussenegger/nvim-dap" },
+        config = function()
+            require("dap-go").setup()
+        end,
+    },
 }

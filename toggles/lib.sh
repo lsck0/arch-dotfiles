@@ -34,7 +34,7 @@ toggle_main() {
     local name=$1 label=$2 check_fn=$3 on_fn=$4 off_fn=$5 action=${6:-toggle}
     local current
     current=$("$check_fn")
-    toggle_set "$name" "$current"
+    # only on/off/toggle persist state: label/get are reads, no disk churn
 
     case "$action" in
     get)

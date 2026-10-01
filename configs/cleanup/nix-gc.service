@@ -1,0 +1,6 @@
+[Unit]
+Description=Collect nix store garbage older than 30 days
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nix-collect-garbage --delete-older-than 30d

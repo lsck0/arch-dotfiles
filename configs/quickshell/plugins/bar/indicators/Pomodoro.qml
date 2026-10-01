@@ -49,7 +49,7 @@ BarIndicator {
   }
 
   // no push path, poll like Reminder.qml
-  Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
+  Timer { interval: 30000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
 
   onPressed: function() {
     Quickshell.execDetached([root.pomodoroScript, "toggle"])

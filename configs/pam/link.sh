@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source ../../scripts/lib/personal.sh
+
 set -e
 
-# optional yubikey touch auth, nouserok falls through to password
+# luca gets a yubikey touch-or-password line; a guest gets plain password PAM
 U2F_MODULE=/usr/lib/security/pam_u2f.so
-# fixed origin: one registration (scripts/yubikey.sh init) serves every machine
-U2F_LINE='auth       sufficient pam_u2f.so nouserok cue origin=pam://lsck0 appid=pam://lsck0 authfile='"${HOME}"'/.config/Yubico/u2f_keys'
+# no nouserok: a user absent from the authfile must fall through to the password include, not pass unauthenticated
+U2F_LINE=''
+is_personal && U2F_LINE='auth       sufficient pam_u2f.so cue origin=pam://lsck0 appid=pam://lsck0 authfile='"${HOME}"'/.config/Yubico/u2f_keys'
 
 # copies, pam will not follow symlinks into home
 sed "s#@U2F_LINE@#${U2F_LINE}#" quickshell-lock | sudo tee /etc/pam.d/quickshell-lock >/dev/null
@@ -32,9 +35,7 @@ pam_u2f_install() {
     rm -f "$tmp"
 }
 
-if [ -e "$U2F_MODULE" ]; then
+if is_personal && [ -e "$U2F_MODULE" ]; then
     pam_u2f_install /etc/pam.d/sudo
     pam_u2f_install /etc/pam.d/system-login
-else
-    echo "pam-u2f not installed (${U2F_MODULE} missing); skipping u2f PAM lines" >&2
 fi

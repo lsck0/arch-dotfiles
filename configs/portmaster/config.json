@@ -1,24 +1,26 @@
 {
-    "dns": {
-        "nameservers": [
-            "dns://192.168.178.1",
-            "dot://cloudflare-dns.com?ip=1.1.1.2&name=Cloudflare&blockedif=zeroip",
-            "dot://cloudflare-dns.com?ip=1.0.0.2&name=Cloudflare&blockedif=zeroip"
-        ],
-        "useStaleCache": true
-    },
-    "filter": {
-        "blockInbound": false,
-        "serviceEndpoints": [
-            "+ 127.0.0.1",
-            "+ * tcp/22",
-            "+ * tcp/80",
-            "+ * tcp/443",
-            "+ * tcp/2222",
-            "+ * tcp/7001",
-            "+ * tcp/8002",
-            "+ * tcp/9003",
-            "- *"
-        ]
-    }
+  "dns": {
+    "nameservers": [
+      "dot://cloudflare-dns.com?ip=1.1.1.2&name=Cloudflare&blockedif=zeroip",
+      "dot://cloudflare-dns.com?ip=1.0.0.2&name=Cloudflare&blockedif=zeroip"
+    ],
+    "useStaleCache": true
+  },
+  "filter": {
+    "blockInbound": false,
+    "serviceEndpoints": [
+      "+ 127.0.0.1",
+      "+ * tcp/22",
+      "+ * tcp/2222",
+      "+ * tcp/7001",
+      "+ * tcp/8002",
+      "+ * tcp/9003",
+      "- *"
+    ],
+    "lists": [
+      "TRAC",
+      "MAL",
+      "ADS"
+    ]
+  }
 }

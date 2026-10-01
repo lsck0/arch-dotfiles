@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """End-to-end test of the dotfiles: bootstrap from a bare Arch ISO in a system libvirt VM, then the chain.
 
-    vm-test.py run [--iso PATH] [--master] [--platform NAME]
+    test.py [run] [--iso PATH] [--master] [--platform NAME]
                                             fresh VM with Secure Boot in Setup Mode, boots the iso and runs
                                             bootstrap.sh like a human would, then waits while stage.sh runs
                                             install.sh and config.sh on their own boots. Once the chain has
                                             disarmed: unlock, log in on tty3, verify, pull logs, exit 1 on
                                             failures. Tests the local working tree (snapshot bundle) unless --master
-    vm-test.py logs                         pull the stage logs, FAILURES.* and every *.log to ~/.cache/vm-test/<name>/logs
-    vm-test.py shot                         screenshot to ~/.cache/vm-test/<name>/screen.png
-    vm-test.py type TEXT                    type TEXT on the VM console (\\n for enter)
-    vm-test.py destroy                      delete the VM and its disk
+    test.py logs                            pull the stage logs, FAILURES.* and every *.log to ~/.cache/vm-test/<name>/logs
+    test.py shot                            screenshot to ~/.cache/vm-test/<name>/screen.png
+    test.py type TEXT                       type TEXT on the VM console (\\n for enter)
+    test.py destroy                         delete the VM and its disk
 
 The VM has no guest agent and user-mode networking. Input goes in through qemu sendkey. State comes back as
 beacons: every typed step ends in a curl to a host server (the guest's 10.0.2.2 is host loopback), which also
@@ -39,7 +39,7 @@ POOL_DIR = "/var/lib/libvirt/images"
 ISO_VOLUME = "vm-test-archlinux.iso"
 USER = "luca"
 PASSWORD = "admin"              # BOOTSTRAP_PASSWORD, LUKS and user alike
-PLATFORM = "vm-test"            # platforms/vm-test.sh
+PLATFORM = "test-vm"            # platforms/test-vm.sh, HOSTNAME=test-vm
 DISK = "/dev/vda"
 PORT = 8765                     # host loopback, the guest reaches it as 10.0.2.2
 HOST = f"10.0.2.2:{PORT}"
@@ -126,13 +126,13 @@ def wait_screen(name: str, needles: list[str], timeout_s: int) -> str:
             if needle in text:
                 return needle
         time.sleep(POLL_S)
-    sys.exit(f"vm-test: none of {needles} on screen after {timeout_s}s, see `vm-test.py shot`")
+    sys.exit(f"vm-test: none of {needles} on screen after {timeout_s}s, see `test.py shot`")
 
 
 # --- host server: beacons, config, log upload ---
 
 class Host:
-    """GET /beacon/<tag> records tag, GET /step/<name> serves a step script, GET /<file> serves from vm-test/,
+    """GET /beacon/<tag> records tag, GET /step/<name> serves a step script, GET /<file> serves from the repo root,
     PUT /logs.tgz stores the upload."""
 
     def __init__(self, upload_to: Path):
@@ -237,7 +237,7 @@ def destroy(name: str) -> None:
 
 def snapshot_bundle(name: str) -> Path:
     """Working tree (untracked included, .gitignore respected) as a commit bundle on top of origin/master."""
-    repo = HERE.parent
+    repo = HERE
     index = cache_dir(name) / "snapshot.index"
     index.unlink(missing_ok=True)
     env = {**os.environ, "GIT_INDEX_FILE": str(index)}
@@ -309,7 +309,7 @@ def login_tty(name: str, host: Host) -> None:
         type_text(name, f"{beacon_cmd(f'login-{attempt}')}\n", "de")
         if host.beacon(f"login-{attempt}", 30):
             return
-    sys.exit(f"vm-test: login failed {LOGIN_ATTEMPTS} times, see `vm-test.py shot`")
+    sys.exit(f"vm-test: login failed {LOGIN_ATTEMPTS} times, see `test.py shot`")
 
 
 def pull_logs(name: str, host: Host) -> Path:
@@ -335,7 +335,7 @@ tar czf /tmp/vm-test-logs.tgz $(ls FAILURES.* 2>/dev/null) $(find . -name '*.log
 curl -sT /tmp/vm-test-logs.tgz {HOST}/logs.tgz
 """, "de")
     if not host.uploaded.wait(timeout=120):
-        sys.exit("vm-test: no log upload arrived, see `vm-test.py shot`")
+        sys.exit("vm-test: no log upload arrived, see `test.py shot`")
     shutil.rmtree(out / "logs", ignore_errors=True)
     with tarfile.open(tgz) as tar:
         tar.extractall(out / "logs", filter="data")
@@ -410,6 +410,9 @@ def cmd_destroy(args: argparse.Namespace) -> None:
     destroy(args.name)
 
 
+SUBCOMMANDS = ("run", "logs", "shot", "type", "destroy")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     common = argparse.ArgumentParser(add_help=False)
@@ -425,7 +428,11 @@ def main() -> None:
     typ.add_argument("text")
     typ.add_argument("--layout", choices=["de", "us"], default="de")
     sub.add_parser("destroy", parents=[common])
-    args = parser.parse_args()
+    # run is the default, so ./test.py and ./test.py run behave alike
+    argv = sys.argv[1:]
+    if not argv or (argv[0] not in SUBCOMMANDS and argv[0] not in ("-h", "--help")):
+        argv = ["run", *argv]
+    args = parser.parse_args(argv)
     if args.cmd == "shot":
         print(cmd_shot(args))
         return

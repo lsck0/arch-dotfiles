@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Scaffold an agent task db in a project dir (wraps l-agent-task-db/scaffold.sh).
 
 set -euo pipefail
 

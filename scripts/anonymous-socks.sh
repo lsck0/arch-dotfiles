@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Scoped SOCKS anonymiser: a private Tor instance on 9061, every listed port verified to exit through it.
 set -euo pipefail
 
 CONF="${ANONYMOUS_SOCKS_CONF:-$HOME/.config/anonymous-socks/config}"

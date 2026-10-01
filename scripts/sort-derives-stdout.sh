@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# stdin->stdout filter: reorder a Rust file's #[derive(...)] lists into canonical order.
 
 set -euo pipefail
 

@@ -1,0 +1,4 @@
+# homelab guests, router and proxmox: root, host keys kept current by the homelab's sync.sh
+Host 10.100.0.* 10.200.0.* 192.168.178.29 192.168.178.200
+    User root
+    UserKnownHostsFile ~/.ssh/known_hosts.homelab

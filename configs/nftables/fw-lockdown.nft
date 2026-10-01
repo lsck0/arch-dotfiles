@@ -1,0 +1,13 @@
+#!/usr/sbin/nft -f
+# maximum lockdown: nothing new gets in, only loopback and already-established flows
+
+add table inet fw
+delete table inet fw
+table inet fw {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif "lo" accept
+        ct state established,related accept
+        ct state invalid drop
+    }
+}

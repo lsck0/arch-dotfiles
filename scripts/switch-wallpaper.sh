@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Switch to the next or chosen wallpaper and re-theme with wal. Single-flighted via flock.
 
 # Concurrency guard.
 LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"

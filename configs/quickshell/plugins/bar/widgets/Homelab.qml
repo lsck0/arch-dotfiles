@@ -12,6 +12,8 @@ BarWidget {
   property bool ok: false
   // "source" means no readable homelab checkout
   property string error: ""
+  // no checkout (guest, or not cloned): hidden and no longer polled
+  property bool absent: false
   property var links: ({ homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
   property var services: []
   property var alerts: []
@@ -52,7 +54,8 @@ BarWidget {
     return value === null || value === undefined ? "--" : value + (suffix || "")
   }
 
-  implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
+  visible: !root.absent
+  implicitWidth: root.absent ? 0 : trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   Process {
@@ -71,7 +74,10 @@ BarWidget {
           root.received = true
           root.ok = s.ok === true
           root.error = s.error || ""
-          if (!root.ok) return
+          if (!root.ok) {
+            if (root.error === "source") { root.absent = true; statusProc.running = false }
+            return
+          }
           if (s.links) root.links = s.links
           root.services = s.services || []
           root.alerts = s.alerts || []
@@ -92,6 +98,7 @@ BarWidget {
   Connections {
     target: panel
     function onVisibleChanged() {
+      if (root.absent) return
       statusProc.running = false
       statusProc.running = true
     }

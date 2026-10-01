@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Commit the whole tree as the next "Generation: N" and push.
 
 set -e
 
