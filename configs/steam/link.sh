@@ -18,13 +18,19 @@ ln -sfn "${PWD}/themes/cyberpunk/libraryroot.custom.css" "${theme}/libraryroot.c
 ln -sfn "${PWD}/themes/cyberpunk/friends.custom.css" "${theme}/friends.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/bigpicture.custom.css" "${theme}/bigpicture.custom.css"
 ln -sfn "${PWD}/themes/cyberpunk/all.custom.css" "${theme}/all.custom.css"
+ln -sfn "${PWD}/themes/cyberpunk/webkit.custom.css" "${theme}/webkit.custom.css"
 
-# wal palette, rendered by wallust on each switch
-ln -sfn "${HOME}/.cache/wal/colors-steam.css" "${theme}/colors.css"
+# wal palette: wallust writes it into the theme dir on each switch (millennium ignores links out of it);
+# drop the old link into ~/.cache, the seed below fills the gap until the next switch
+[ -L "${theme}/colors.css" ] && rm "${theme}/colors.css"
 
 # seed the palette before the first switch
 tpl="${PWD}/../wallust/templates/wal/colors-steam.css"
-out="${HOME}/.cache/wal/colors-steam.css"
+out="${theme}/colors.css"
+# a palette rendered before the theme dir existed only needs copying
+if [ ! -e "$out" ] && [ -f "${HOME}/.cache/wal/colors-steam.css" ]; then
+    cp "${HOME}/.cache/wal/colors-steam.css" "$out"
+fi
 if [ ! -e "$out" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors" ] && [ "$(wc -l < "${HOME}/.cache/wal/colors")" -ge 16 ]; then
     mkdir -p "${HOME}/.cache/wal"
     python3 - "$tpl" "${HOME}/.cache/wal/colors" "$out" <<'PY'
