@@ -15,9 +15,10 @@ Item {
   property bool authError: false
   property bool fpAvailable: false
   property string primaryScreenName: ""
-  // in-flight pam response; the field is the source of truth
+  // in-flight pam response; the field enter was pressed in is the source of truth
   property string _pw: ""
   property var activeField: null
+  signal clearFields()
 
   function lock() {
     if (root.locked) return
@@ -35,7 +36,7 @@ Item {
     root.locked = false
     root.authError = false
     root._pw = ""
-    if (root.activeField) root.activeField.text = ""
+    root.clearFields()
     pamPw.active = false
     pamFp.active = false
     fpRetry.stop()
@@ -51,7 +52,7 @@ Item {
   function fail() {
     root.authError = true
     root._pw = ""
-    if (root.activeField) root.activeField.text = ""
+    root.clearFields()
   }
 
   IpcHandler {
@@ -136,7 +137,7 @@ Item {
   WlSessionLock {
     locked: root.locked
 
-    // rain on every screen, auth hud only on the primary
+    // rain and the auth hud on every screen: hyprland gives the keyboard to the surface under the cursor
     WlSessionLockSurface {
       id: surface
       color: Color.background
@@ -149,7 +150,6 @@ Item {
       Column {
         anchors.centerIn: parent
         spacing: Style.spacing.lg
-        visible: surface.isPrimary
 
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
@@ -199,9 +199,12 @@ Item {
             placeholderTextColor: root.authError ? Color.urgent : Qt.darker(Color.foreground, 1.6)
             background: null
             onTextEdited: root.authError = false
-            onAccepted: root.submit()
+            onAccepted: { root.activeField = pwField; root.submit() }
             Keys.onEscapePressed: text = ""
-            Component.onCompleted: if (surface.isPrimary) root.activeField = this
+            Connections {
+              target: root
+              function onClearFields() { pwField.text = "" }
+            }
           }
         }
 
@@ -236,8 +239,8 @@ Item {
       HudFrame {}
       Scanlines { flicker: false }
 
-      onVisibleChanged: if (visible && isPrimary) Qt.callLater(function() { pwField.forceActiveFocus() })
-      Component.onCompleted: if (isPrimary) Qt.callLater(function() { pwField.forceActiveFocus() })
+      onVisibleChanged: if (visible) Qt.callLater(function() { pwField.forceActiveFocus() })
+      Component.onCompleted: Qt.callLater(function() { pwField.forceActiveFocus() })
     }
   }
 }
