@@ -18,27 +18,30 @@ Item {
   // items keep visible: true inside a hidden window, endless animations would tick unseen
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
 
-  Canvas {
-    id: cv
+  // a canvas holds a window-sized image, so it only exists while the window shows
+  Loader {
     anchors.fill: parent
-    visible: root.strength > 0
-    onPaint: {
-      var ctx = getContext("2d")
-      ctx.clearRect(0, 0, width, height)
-      ctx.strokeStyle = Qt.rgba(0, 0, 0, root.strength)
-      ctx.lineWidth = 1
-      for (var y = 0.5; y < height; y += root.spacing) {
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(width, y)
-        ctx.stroke()
+    active: root.onScreen && root.strength > 0
+    sourceComponent: Canvas {
+      id: cv
+      onPaint: {
+        var ctx = getContext("2d")
+        ctx.clearRect(0, 0, width, height)
+        ctx.strokeStyle = Qt.rgba(0, 0, 0, root.strength)
+        ctx.lineWidth = 1
+        for (var y = 0.5; y < height; y += root.spacing) {
+          ctx.beginPath()
+          ctx.moveTo(0, y)
+          ctx.lineTo(width, y)
+          ctx.stroke()
+        }
       }
-    }
-    onWidthChanged: requestPaint()
-    onHeightChanged: requestPaint()
-    Connections {
-      target: Theme
-      function onRevisionChanged() { cv.requestPaint() }
+      onWidthChanged: requestPaint()
+      onHeightChanged: requestPaint()
+      Connections {
+        target: Theme
+        function onRevisionChanged() { cv.requestPaint() }
+      }
     }
   }
 
