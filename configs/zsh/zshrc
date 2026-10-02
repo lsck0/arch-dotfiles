@@ -58,6 +58,8 @@ autoload -Uz compinit
   else
     compinit -C -d "$HOME/.zcompdump"
   fi
+  # source picks up a newer .zwc on its own, bytecode loads faster than parsing the dump
+  [[ $HOME/.zcompdump.zwc -nt $HOME/.zcompdump ]] || zcompile "$HOME/.zcompdump"
 }
 zinit cdreplay -q
 compdef kubecolor=kubectl

@@ -88,6 +88,14 @@ return {
 
     {
         "mason-org/mason.nvim",                              -- LSP/tool installer
+        -- automatic_enable walks every installed server (~200ms), so wait for a real buffer;
+        -- BufReadPre runs before FileType, so the first file still attaches
+        event = { "BufReadPre", "BufNewFile" },
+        cmd = {
+            "Mason", "MasonInstall", "MasonUninstall", "MasonUpdate", "MasonLog",
+            "MasonToolsInstall", "MasonToolsUpdate",
+            "LspInfo", "LspLog", "LspStart", "LspStop", "LspRestart",
+        },
         dependencies = {
             { "neovim/nvim-lspconfig" },                     -- LSP server configs
             { "mason-org/mason-lspconfig.nvim" },            -- mason lspconfig bridge
