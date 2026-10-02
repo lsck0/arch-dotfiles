@@ -135,7 +135,7 @@ PanelWindow {
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           SequentialAnimation on opacity {
-            running: titleBar.visible
+            running: titleBar.visible && root.visible
             loops: Animation.Infinite
             NumberAnimation { to: 0; duration: 500 }
             NumberAnimation { to: 1; duration: 500 }

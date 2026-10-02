@@ -1,7 +1,11 @@
 config-file=~/.cache/wal/ghostty.conf
+# toggle-powermode.sh fills it in power-saver, a dangling link otherwise
+config-file=?~/.cache/ghostty-powersave.conf
 
 app-notifications = false
 confirm-close-surface = false
+# resident systemd instance, +new-window skips the ~2s cold start
+quit-after-last-window-closed = false
 
 background-opacity = 1
 background-opacity-cells = true

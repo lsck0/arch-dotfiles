@@ -8,6 +8,10 @@ source ./lib.sh
 # not "weather-location": toggle_set owns that path for its on/off state and would overwrite the coords
 MANUAL_FILE="$TOGGLES_STATE_DIR/weather-location.coords"
 
+# every weather script resolves and each geoclue lookup wakes the daemon for a wifi scan, so share one answer
+AUTO_CACHE_FILE="$TOGGLES_RUNTIME_DIR/weather-location.auto"
+AUTO_CACHE_MAX_AGE_S=1800
+
 round2() { awk -v a="$1" -v b="$2" 'BEGIN { printf "%.2f,%.2f", a, b }'; }
 
 manual_coords() { [[ -s "$MANUAL_FILE" ]] && cat "$MANUAL_FILE" || true; }
@@ -62,13 +66,25 @@ ipgeo_coords() {
     [[ -n "$lat" && -n "$lon" ]] && round2 "$lat" "$lon" || true
 }
 
-resolve() {
+resolve_auto() {
     local c
-    c=$(manual_coords   || true); [[ -n "$c" ]] && { echo "manual $c"; return; }
     c=$(geoclue_coords  || true); [[ -n "$c" ]] && { echo "geoclue $c"; return; }
     c=$(timezone_coords || true); [[ -n "$c" ]] && { echo "timezone $c"; return; }
     c=$(ipgeo_coords    || true); [[ -n "$c" ]] && { echo "ipgeo $c"; return; }
     echo "none"
+}
+
+resolve() {
+    local c age
+    c=$(manual_coords || true); [[ -n "$c" ]] && { echo "manual $c"; return; }
+    if [[ -s "$AUTO_CACHE_FILE" ]]; then
+        age=$(($(date +%s) - $(stat -c %Y "$AUTO_CACHE_FILE")))
+        ((age < AUTO_CACHE_MAX_AGE_S)) && { cat "$AUTO_CACHE_FILE"; return; }
+    fi
+    c=$(resolve_auto)
+    # a miss is not cached, the next caller retries
+    [[ "$c" != none ]] && echo "$c" >"$AUTO_CACHE_FILE"
+    echo "$c"
 }
 
 check() { [[ -s "$MANUAL_FILE" ]] && echo on || echo off; }

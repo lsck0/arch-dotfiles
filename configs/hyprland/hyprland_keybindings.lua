@@ -20,7 +20,8 @@ hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
     "grim -g \"$(hyprctl -j activewindow | jq -r 'select(.at and .size) | \\\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\\\"')\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
 hl.bind(mod .. " + Tab", quickshell_toggle("overview"))
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("ghostty"))
+-- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}'"))
 hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"))

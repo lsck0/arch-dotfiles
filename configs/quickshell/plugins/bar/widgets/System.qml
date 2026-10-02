@@ -416,7 +416,7 @@ BarWidget {
             layer.enabled: Style.fx.glow > 0
             layer.effect: Glow {}
             SequentialAnimation on opacity {
-              running: true
+              running: panel.visible
               loops: Animation.Infinite
               NumberAnimation { to: 0.15; duration: 520 }
               NumberAnimation { to: 1.0; duration: 520 }

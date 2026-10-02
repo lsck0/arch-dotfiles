@@ -17,7 +17,7 @@ BarWidget {
   }
 
   function runUpdate() {
-    Quickshell.execDetached(["ghostty", "-e", Paths.script("system-update.sh")])
+    Quickshell.execDetached(["ghostty", "+new-window", "-e", Paths.script("system-update.sh")])
   }
 
   visible: updateAvailable

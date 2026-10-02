@@ -12,7 +12,7 @@ pdf_settings_configured: true
 justify_text: false
 invert_scroll_direction: false
 book_sort_order: by_name
-synctex_editor: "ghostty -e nvim +{line} {file}"
+synctex_editor: "ghostty +new-window -e nvim +{line} {file}"
 
 nav_panel_width: 12
 lookup_command: null

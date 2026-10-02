@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Commons
 
 Item {
@@ -13,6 +14,9 @@ Item {
   property real strength: Style.fx.scanlineOpacity
   // fullscreen surfaces opt out of the flash
   property bool flicker: true
+
+  // items keep visible: true inside a hidden window, endless animations would tick unseen
+  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
 
   Canvas {
     id: cv
@@ -44,7 +48,7 @@ Item {
     opacity: 0
     visible: root.flicker && Style.fx.flicker > 0
     SequentialAnimation on opacity {
-      running: root.flicker && Style.fx.flicker > 0
+      running: root.flicker && Style.fx.flicker > 0 && root.onScreen
       loops: Animation.Infinite
       NumberAnimation { to: Style.fx.flicker; duration: 90 }
       NumberAnimation { to: 0; duration: 130 }
