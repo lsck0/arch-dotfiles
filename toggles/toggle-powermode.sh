@@ -19,19 +19,34 @@ index_of() {
     echo -1 # unset/unrecognized: no forced override (auto-detect)
 }
 
+# hyprland and quickshell read the volatile state themselves, only power-saver changes them
+refresh_desktop() {
+    hyprctl reload config-only >/dev/null 2>&1 || true
+    timeout 3 qs ipc -p "$HOME/.config/quickshell" call shell reloadPowerMode >/dev/null 2>&1 || true
+}
+
 apply() {
-    local state=$1
+    local state=$1 was
+    was=$(current)
     sudo tlp "$state"
     toggle_set_volatile powermode "$state"
     toggle_set powermode "$state"
+    if [[ "$was" == power-saver || "$state" == power-saver ]]; then
+        refresh_desktop
+    fi
     toggle_notify -a Toggles "Power Mode" "${LABELS[$(index_of "$state")]}"
 }
 
 # un-force: return tlp to its own ac/bat auto-detect, not a static profile
 reset_auto() {
+    local was
+    was=$(current)
     sudo tlp start >/dev/null
     rm -f "$TOGGLES_RUNTIME_DIR/powermode" 2>/dev/null || true
     toggle_set powermode ""
+    if [[ "$was" == power-saver ]]; then
+        refresh_desktop
+    fi
     toggle_notify -a Toggles "Power Mode" "Auto (default)"
 }
 

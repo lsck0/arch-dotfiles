@@ -9,6 +9,8 @@ local MODULES = {
     "hyprland_plugins",
     "hyprland_windowrules",
     "hyprland_windows",
+    -- last, overrides the rest
+    "hyprland_powersave",
 }
 
 local function optional(module)
