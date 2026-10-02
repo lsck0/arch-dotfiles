@@ -29,7 +29,7 @@ Singleton {
   function restart() {
     if (!cavaProc.running) return
     cavaProc.running = false
-    cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 })
+    cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 && !Power.saver })
   }
 
   readonly property string configText:
@@ -76,7 +76,7 @@ Singleton {
 
   Process {
     id: cavaProc
-    running: root.available && root.refCount > 0
+    running: root.available && root.refCount > 0 && !Power.saver
 
     // config via argv so the shell never interprets it
     command: ["sh", "-c",

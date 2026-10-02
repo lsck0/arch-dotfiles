@@ -62,11 +62,11 @@ QtObject {
   // off until the first load so startup does not fade
   property bool animatePalette: false
 
-  Behavior on foreground { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
-  Behavior on background { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
-  Behavior on accent     { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
-  Behavior on urgent     { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
-  Behavior on muted      { enabled: root.animatePalette; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
+  Behavior on foreground { enabled: root.animatePalette && !Power.saver; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
+  Behavior on background { enabled: root.animatePalette && !Power.saver; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
+  Behavior on accent     { enabled: root.animatePalette && !Power.saver; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
+  Behavior on urgent     { enabled: root.animatePalette && !Power.saver; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
+  Behavior on muted      { enabled: root.animatePalette && !Power.saver; ColorAnimation { duration: Theme.paletteTransitionMs; easing.type: Easing.InOutQuad } }
 
   // fixed colours, never follow the wallpaper
   readonly property QtObject semantic: QtObject {

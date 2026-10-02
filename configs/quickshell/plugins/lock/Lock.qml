@@ -125,7 +125,7 @@ Item {
         }
       }
 
-      RainField { anchors.fill: parent; running: surface.visible }
+      RainField { anchors.fill: parent; running: surface.visible && Style.fx.matrixRain > 0 }
 
       Column {
         anchors.centerIn: parent

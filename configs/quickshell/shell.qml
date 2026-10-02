@@ -496,6 +496,11 @@ ShellRoot {
       })
     }
 
+    // toggle-powermode.sh, after the mode changes
+    function reloadPowerMode(): void {
+      Power.reload()
+    }
+
     function rescanPlugins(): void {
       shell.pluginRegistry.rescan()
     }
