@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.Commons
 
 // values newest last
@@ -21,10 +22,14 @@ Item {
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
 
+  // items keep visible: true inside a hidden window, endless animations would tick unseen
+  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
+
   // drives the overlay dots so the pulse never repaints the canvas
   property real pulse: 0
   SequentialAnimation on pulse {
-    running: root.visible
+    // endless, redraws its window every frame
+    running: root.onScreen && !Power.saver
     loops: Animation.Infinite
     NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
     NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }

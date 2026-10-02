@@ -21,6 +21,15 @@ index_of() {
 
 # hyprland and quickshell read the volatile state themselves, only power-saver changes them
 refresh_desktop() {
+    local ghostty_conf="$TOGGLES_RUNTIME_DIR/ghostty-powersave.conf"
+    if [[ "$(current)" == power-saver ]]; then
+        echo "cursor-style-blink = false" >"$ghostty_conf"
+    else
+        rm -f "$ghostty_conf"
+    fi
+    # ghostty has no config watcher, reload-config is only reachable over d-bus
+    timeout 3 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty \
+        --method org.gtk.Actions.Activate reload-config '[]' '{}' >/dev/null 2>&1 || true
     hyprctl reload config-only >/dev/null 2>&1 || true
     timeout 3 qs ipc -p "$HOME/.config/quickshell" call shell reloadPowerMode >/dev/null 2>&1 || true
 }

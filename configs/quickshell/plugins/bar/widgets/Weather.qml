@@ -371,6 +371,7 @@ BarWidget {
           color: Color.accent
           font.family: Style.font.family; font.pixelSize: Style.font.title
           SequentialAnimation on opacity {
+            running: panel.visible
             loops: Animation.Infinite
             NumberAnimation { to: 0.15; duration: 600 }
             NumberAnimation { to: 1.0;  duration: 600 }

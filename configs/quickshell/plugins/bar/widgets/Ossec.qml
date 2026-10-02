@@ -28,7 +28,7 @@ BarWidget {
   }
 
   function openLog() {
-    Quickshell.execDetached(["ghostty", "-e", "bash", "-lc",
+    Quickshell.execDetached(["ghostty", "+new-window", "-e", "bash", "-lc",
       "sudo -n tail -n 200 -f /var/lib/ossec-hids/logs/alerts/alerts.log"])
   }
 
