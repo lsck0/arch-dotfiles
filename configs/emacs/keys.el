@@ -44,6 +44,22 @@
   "Window resize command calling FN with N, quiet when there is nothing to resize."
   (lambda () (interactive) (ignore-errors (funcall fn n))))
 
+;; which-key reads the command name out of the keymap, so a bare lambda shows up as "??". Everything bound
+;; below therefore gets a name, however small the command.
+(dotimes (i 5)
+  (let ((n (1+ i)))
+    (defalias (intern (format "my/tab-%d" n))
+      (lambda () (interactive) (tab-bar-select-tab n))
+      (format "Select tab-bar tab %d." n))))
+
+(dolist (fn '(("window-widen"  enlarge-window-horizontally 5)
+              ("window-narrow" shrink-window-horizontally  5)
+              ("window-taller" enlarge-window              3)
+              ("window-shorter" shrink-window              3)))
+  (defalias (intern (format "my/%s" (car fn)))
+    (my/resize (nth 1 fn) (nth 2 fn))
+    (format "Resize the current window: %s by %d." (nth 1 fn) (nth 2 fn))))
+
 (defun my/copy-mode ()
   "tmux copy-mode: stop typing into the terminal and navigate with vim keys."
   (interactive)
@@ -72,6 +88,42 @@
       (claude-code-toggle)
     (call-interactively #'claude-code)))
 
+(defun my/claude-focus ()
+  "nvim SPC c f: focus the Claude window."
+  (interactive)
+  (require 'claude-code)
+  (call-interactively #'claude-code-switch-to-buffer))
+
+(defun my/claude-send-region ()
+  "nvim SPC c s: send the active region to Claude."
+  (interactive)
+  (require 'claude-code)
+  (call-interactively #'claude-code-send-region))
+
+(defun my/claude-send-buffer-file ()
+  "nvim SPC c b: add the current buffer file to Claude."
+  (interactive)
+  (require 'claude-code)
+  (call-interactively #'claude-code-send-buffer-file))
+
+(defun my/eglot-code-actions ()
+  "nvim SPC l a: LSP code actions."
+  (interactive)
+  (require 'eglot)
+  (call-interactively #'eglot-code-actions))
+
+(defun my/eglot-rename ()
+  "nvim SPC l r: LSP rename."
+  (interactive)
+  (require 'eglot)
+  (call-interactively #'eglot-rename))
+
+;; named, for the same which-key reason as the tab and resize commands above
+(dolist (program '("gh-dash" "btop" "taskwarrior-tui"))
+  (defalias (intern (format "my/popup-%s" program))
+    (my/eat-popup-command program)
+    (format "Toggle %s in a bottom popup." program)))
+
 ;;;; tmux layer: C-q ---------------------------------------------------------
 
 (defvar my/tmux-map (make-sparse-keymap)
@@ -97,16 +149,16 @@
   "x" #'tab-bar-close-tab               ; bind x kill-window
   "]" #'tab-bar-switch-to-next-tab      ; n/p are popups, as in tmux/herdr
   "[" #'tab-bar-switch-to-prev-tab
-  "1" (lambda () (interactive) (tab-bar-select-tab 1))
-  "2" (lambda () (interactive) (tab-bar-select-tab 2))
-  "3" (lambda () (interactive) (tab-bar-select-tab 3))
-  "4" (lambda () (interactive) (tab-bar-select-tab 4))
-  "5" (lambda () (interactive) (tab-bar-select-tab 5))
+  "1" #'my/tab-1
+  "2" #'my/tab-2
+  "3" #'my/tab-3
+  "4" #'my/tab-4
+  "5" #'my/tab-5
 
   ;; popups
-  "g" (my/eat-popup-command "gh-dash")          ; bind g display-popup -E "gh-dash"
-  "p" (my/eat-popup-command "btop")             ; bind p display-popup -E "btop"
-  "t" (my/eat-popup-command "taskwarrior-tui")  ; bind t display-popup -E "taskwarrior-tui"
+  "g" #'my/popup-gh-dash                ; bind g display-popup -E "gh-dash"
+  "p" #'my/popup-btop                   ; bind p display-popup -E "btop"
+  "t" #'my/popup-taskwarrior-tui        ; bind t display-popup -E "taskwarrior-tui"
   "z" #'my/eat-popup                    ; bind z display-popup -E "zsh"
   "e" #'my/copy-mode)                   ; bind e copy-mode
 
@@ -135,10 +187,10 @@
 (general-nmap "M-q" #'my/run-macro)
 
 (general-nmap
-  "C-h" (my/resize #'shrink-window-horizontally 5)
-  "C-l" (my/resize #'enlarge-window-horizontally 5)
-  "C-j" (my/resize #'shrink-window 3)
-  "C-k" (my/resize #'enlarge-window 3))
+  "C-h" #'my/window-narrow
+  "C-l" #'my/window-widen
+  "C-j" #'my/window-shorter
+  "C-k" #'my/window-taller)
 
 (general-nmap
   "C-n"   #'flymake-goto-next-error
@@ -150,11 +202,11 @@
   "M-t" #'my/eat-tab
   "M-x" #'tab-bar-close-tab
   "M-c" #'tab-bar-new-tab
-  "M-1" (lambda () (interactive) (tab-bar-select-tab 1))
-  "M-2" (lambda () (interactive) (tab-bar-select-tab 2))
-  "M-3" (lambda () (interactive) (tab-bar-select-tab 3))
-  "M-4" (lambda () (interactive) (tab-bar-select-tab 4))
-  "M-5" (lambda () (interactive) (tab-bar-select-tab 5)))
+  "M-1" #'my/tab-1
+  "M-2" #'my/tab-2
+  "M-3" #'my/tab-3
+  "M-4" #'my/tab-4
+  "M-5" #'my/tab-5)
 
 ;; mode maps such as dired's `m` still win
 (general-nmap "m" #'compile)
@@ -207,9 +259,9 @@
 
   ;; no accept/deny diff: claude-code.el has no mcp diff protocol
   "cc" #'my/claude-toggle                 ; toggle Claude Code
-  "cf" #'claude-code-switch-to-buffer     ; focus Claude
-  "cs" #'claude-code-send-region          ; send selection
-  "cb" #'claude-code-send-buffer-file     ; add current buffer to context
+  "cf" #'my/claude-focus                  ; focus Claude
+  "cs" #'my/claude-send-region            ; send selection
+  "cb" #'my/claude-send-buffer-file       ; add current buffer to context
 
   ;; debugging (nvim-dap)
   "dt" #'my/dap-ui-toggle                 ; toggle DAP UI
@@ -236,8 +288,8 @@
   "ld" #'xref-find-definitions
   "lf" #'xref-find-references
   "li" #'eldoc-box-help-at-point
-  "la" #'eglot-code-actions
-  "lr" #'eglot-rename
+  "la" #'my/eglot-code-actions
+  "lr" #'my/eglot-rename
   "le" #'consult-flymake
   "lo" #'flymake-show-buffer-diagnostics
   "ln" #'flymake-goto-next-error
@@ -249,7 +301,9 @@
   "SPC f" "find"      "SPC l" "lsp"    "SPC c" "claude"
   "SPC d" "debug"     "SPC n" "test"   "SPC p" "profiling"
   "SPC j" "jupyter"   "SPC t" "trouble"
-  "SPC g" "git"       "SPC s" "search/replace")
+  "SPC g" "git"       "SPC s" "search/replace"
+  ;; prefixes whose keys only exist once the package loads; without these which-key shows the raw key
+  "C-q" "tmux"        "gs" "surround")
 
 ;;;; package-local maps --------------------------------------------------------
 

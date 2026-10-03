@@ -5,6 +5,5 @@ FAILURES*
 __pycache__
 boot.conf
 configs/obs/Untitled.json
-errors.txt
 groups.conf
 configs/plasma/*.lock

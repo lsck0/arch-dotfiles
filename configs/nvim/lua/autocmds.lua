@@ -116,6 +116,17 @@ autocmd("VimEnter", {
     end,
 })
 
+autocmd({ "BufWinEnter", "WinEnter" }, {
+    desc = "Reveal the current file in the explorer sidebar",
+    group = group("explorer-follow", { clear = true }),
+    callback = function()
+        -- scheduled: on BufWinEnter the window still reports the outgoing buffer
+        vim.schedule(function()
+            pcall(function() require("lib.explorer").reveal_current() end)
+        end)
+    end,
+})
+
 -- read by the pyright handler in plugins/lsp.lua
 autocmd("FileType", {
     desc = "Detect jupytext notebook buffers",

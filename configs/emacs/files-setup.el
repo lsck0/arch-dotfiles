@@ -21,7 +21,47 @@
         dired-kill-when-opening-new-dired-buffer t  ; no buffer pileup
         delete-by-moving-to-trash t)
 
-  (dirvish-side-follow-mode 1)
+  ;; not `dirvish-side-follow-mode': it runs from `buffer-list-update-hook', which fires for any buffer that
+  ;; merely becomes current -- a background process buffer, a `with-current-buffer' inside eglot or diff-hl --
+  ;; and then re-roots the sidebar at that buffer's `default-directory'. Hence the jumping. Drive the follow
+  ;; off the selected window instead, after a short debounce, so the tree only ever expands to the file
+  ;; actually on screen, and re-roots only on a real project switch.
+  (defvar my/dirvish-side-follow-timer nil)
+
+  (defun my/dirvish-side-follow--now ()
+    (setq my/dirvish-side-follow-timer nil)
+    (when-let* ((win (ignore-errors (dirvish-side--session-visible-p)))
+                (sel (selected-window))
+                ((not (eq sel win)))
+                ((not (window-minibuffer-p sel)))
+                ((not (active-minibuffer-window)))
+                (file (buffer-local-value 'buffer-file-name (window-buffer sel)))
+                ((not (string-suffix-p "COMMIT_EDITMSG" file)))
+                ((not (equal file (with-selected-window win (dirvish-prop :index))))))
+      (let ((root (with-selected-window win (expand-file-name default-directory)))
+            ;; a file outside the tree re-roots at its project, never at its own directory
+            (project (with-current-buffer (window-buffer sel)
+                       (or (dirvish--vc-root-dir) default-directory))))
+        (with-selected-window win
+          (let (buffer-list-update-hook window-buffer-change-functions)
+            (unless (string-prefix-p root (expand-file-name file))
+              (dirvish--find-entry 'find-alternate-file project)))
+          (dirvish-winbuf-change-h win)
+          (unwind-protect
+              (if dirvish-side-auto-expand
+                  (dirvish-subtree-expand-to file)
+                (dired-goto-file file))
+            (dirvish--redisplay))))))
+
+  (defun my/dirvish-side-follow (&rest _)
+    "Schedule a sidebar follow; coalesces the burst of hooks a window change fires."
+    (unless my/dirvish-side-follow-timer
+      (setq my/dirvish-side-follow-timer
+            (run-with-idle-timer 0.1 nil #'my/dirvish-side-follow--now))))
+
+  (remove-hook 'buffer-list-update-hook #'dirvish-side--auto-jump)
+  (add-hook 'window-buffer-change-functions #'my/dirvish-side-follow)
+  (add-hook 'window-selection-change-functions #'my/dirvish-side-follow)
 
   (defun my/dirvish-side-resizable ()
     (when-let* ((dv (dirvish-curr))

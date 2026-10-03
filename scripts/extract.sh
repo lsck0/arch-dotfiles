@@ -16,7 +16,8 @@ dest_root=$(readlink -f -- "${2:-$PWD}")
 dest="$dest_root/$base"
 [[ ! -e "$dest" ]] || { printf 'destination already exists: %s\n' "$dest" >&2; exit 1; }
 
-stage=$(mktemp -d "${TMPDIR:-/tmp}/extract.XXXXXX")
+# next to the destination, not in /tmp: tmpfs is ram, and a big archive staged there would be written twice
+stage=$(mktemp -d -- "$dest_root/.extract.XXXXXX") || exit 1
 cleanup() { rm -rf -- "$stage"; }
 trap cleanup EXIT
 

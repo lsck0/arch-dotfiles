@@ -61,6 +61,11 @@ while IFS= read -r script; do
     ) || echo "$script" >>"$FAILURES_FILE"
 done < <(find "$(pwd)" -type f -name 'link.py' | sort)
 
+## PATCHES
+
+# one-shot fixups for system state an older config left behind; see patches/README.md
+./scripts/apply-patches.sh || echo "scripts/apply-patches.sh" >>"$FAILURES_FILE"
+
 ## INIT WALLPAPER AND THEME FILES
 
 if command -v git-lfs >/dev/null 2>&1; then

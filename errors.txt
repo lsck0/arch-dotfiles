@@ -1,0 +1,9 @@
+- when booting, yubikey and fingerprint blink for several seconds, why??
+  fingerprint: likely fixed. configs/fprintd/python3-validity-override.conf set Restart=always RestartSec=2
+  while systemd's default start limit is 5 starts per 10s, so a sensor that is not ready right after usb
+  enumeration got re-powered five times back to back and the unit ended up failed anyway. now
+  StartLimitIntervalSec=300 / StartLimitBurst=10 / RestartSec=15. confirm on the notebook:
+  systemctl status python3-validity && journalctl -b -u python3-validity
+  yubikey: not reproducible on luca-pc. journalctl -b shows nothing touching it at boot, pcscd.service is
+  inactive (socket-activated only) and pam has no u2f in system-login. check on the notebook with
+  journalctl -b -o short-monotonic | grep -iE 'pcscd|scdaemon|u2f|fido|yubi|p11' before changing anything.

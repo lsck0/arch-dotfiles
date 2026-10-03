@@ -81,7 +81,7 @@ BarWidget {
   // long-lived, the script streams on its own interval
   Process {
     running: true
-    command: [Paths.barWidget("system-stats.sh")]
+    command: [Paths.barWidget("system-stats.sh"), root.onBattery ? "15" : "10"]
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {

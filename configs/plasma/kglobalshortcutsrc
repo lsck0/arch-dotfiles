@@ -276,8 +276,5 @@ _launch=Meta+Return
 [services][firefox.desktop]
 _launch=Meta+A
 
-[services][org.kde.dolphin.desktop]
-_launch=Meta+E
-
 [services][org.qutebrowser.qutebrowser.desktop]
 _launch=Meta+Shift+A

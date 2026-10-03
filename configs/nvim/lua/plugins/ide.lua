@@ -63,7 +63,7 @@ return {
     },
 
     {
-        "ahmedkhalf/project.nvim", -- project root detection + switcher
+        "ahmedkhalf/project.nvim", -- project root detection
         event = "VeryLazy",
         config = function()
             require("project_nvim").setup({
@@ -74,16 +74,6 @@ return {
                 manual_mode = true,
             })
         end,
-        keys = {
-            {
-                "<leader>fp",
-                function()
-                    require("telescope").load_extension("projects")
-                    vim.cmd("Telescope projects")
-                end,
-                desc = "Projects",
-            },
-        },
     },
 
     {
