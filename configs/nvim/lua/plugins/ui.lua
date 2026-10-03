@@ -217,9 +217,13 @@ return {
             picker = {
                 sources = {
                     explorer = {
-                        -- off: its reveal reopens with cwd=<file>, stacking a root
+                        -- off: its reveal reopens with cwd=<file>, stacking a root.
+                        -- lib/explorer.lua reveals instead, inside the current root only.
                         follow_file = false,
                         hidden = true, -- show dotfiles on start
+                        ignored = true, -- and gitignored files; they are still dimmed by the git status
+                        -- fd only skipped .git because of --no-ignore, which `ignored` just removed
+                        exclude = { "**/.git" },
                         auto_close = false,
                         jump = { close = false },
                         -- custom layout: list window only, no input/title box

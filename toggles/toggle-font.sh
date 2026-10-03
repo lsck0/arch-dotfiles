@@ -81,7 +81,7 @@ esc() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
 quickshell_theme_set() {
     local filter=$1 value=$2 tmp
     [[ -f "$QUICKSHELL_THEME" ]] || { echo "missing $QUICKSHELL_THEME" >&2; return 1; }
-    tmp=$(mktemp)
+    tmp="${QUICKSHELL_THEME}.new.$$"
     if jq --arg v "$value" "$filter" "$QUICKSHELL_THEME" >"$tmp"; then
         mv "$tmp" "$QUICKSHELL_THEME"
     else

@@ -2,7 +2,7 @@
 # streams one json line of system stats per sample
 set -uo pipefail
 
-INTERVAL=${1:-5}
+INTERVAL=${1:-10}
 
 cpu_name=$(grep -m1 '^model name' /proc/cpuinfo | cut -d: -f2- | sed 's/^ *//;s/ *$//')
 cpu_cores=$(nproc 2>/dev/null || echo 0)

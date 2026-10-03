@@ -58,6 +58,8 @@ vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
+-- same repo list as `hms` and tms's popup, not only the dirs this nvim has visited
+vim.keymap.set("n", "<leader>fp", function() require("lib.projects").pick() end, { desc = "Projects" })
 vim.keymap.set("n", "<leader>le", tb("diagnostics"), { desc = "Diagnostics (telescope)" })
 vim.keymap.set("n", "<leader>lf", tb("lsp_references"), { desc = "LSP references" })
 vim.keymap.set("n", "<leader>ls", tb("lsp_dynamic_workspace_symbols"), { desc = "Workspace symbols" })

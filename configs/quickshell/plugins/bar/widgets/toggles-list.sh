@@ -9,8 +9,8 @@ cd "$TOGGLE_DIR"
 entries="[]"
 for script in toggle-*.sh; do
   name=$(basename "$script" .sh | sed 's/^toggle-//')
-  raw=$("./$script" label)
-  on=$("./$script" get)
+  raw=$("./$script" label 2>/dev/null || printf '○ %s (error)' "$name")
+  on=$("./$script" get 2>/dev/null || printf off)
   label=$(printf '%s' "$raw" | sed -E 's/^[●○] //; s/ \((on|off)\)$//')
   # n-state toggles: any non-default state counts as on
   entry=$(jq -nc --arg name "$name" --arg label "$label" --argjson on "$([[ -n "$on" && "$on" != off && "$on" != balanced ]] && echo true || echo false)" \

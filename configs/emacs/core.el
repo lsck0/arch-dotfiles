@@ -4,6 +4,11 @@
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
+;; early-init.el sets these (and toggle-font.sh rewrites them there); emacs --batch -l init.el never reads
+;; it, so declare neutral fallbacks rather than a second copy of the real values that could drift
+(defvar my/font-family "monospace")
+(defvar my/font-size 16)
+
 ;;;; runtime state ----------------------------------------------------------
 
 (defvar my/cache-dir

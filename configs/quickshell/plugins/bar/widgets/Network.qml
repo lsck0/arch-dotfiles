@@ -268,7 +268,7 @@ BarWidget {
 
   // fallback poll
   Timer {
-    interval: 30000
+    interval: 120000
     running: true
     repeat: true
     triggeredOnStart: true
