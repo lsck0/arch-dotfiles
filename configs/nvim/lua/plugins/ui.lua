@@ -226,6 +226,17 @@ return {
                         exclude = { "**/.git" },
                         auto_close = false,
                         jump = { close = false },
+                        actions = {
+                            -- H hides dotfiles and gitignored files together, or shows both again
+                            toggle_hidden_ignored = function(picker)
+                                local show = not picker.opts.hidden
+                                picker.opts.hidden = show
+                                picker.opts.ignored = show
+                                picker.list:set_target()
+                                picker:find()
+                            end,
+                        },
+                        win = { list = { keys = { ["H"] = "toggle_hidden_ignored" } } },
                         -- custom layout: list window only, no input/title box
                         layout = {
                             preview = false,

@@ -837,6 +837,7 @@ PACKAGES=(
     sqlite                        # [programming] embedded SQL database
     sqlitebrowser                 # [programming] SQLite database GUI
     sqlx-cli                      # [programming] rust SQL migrations CLI
+    stackit-cli                   # [programming] STACKIT cloud CLI
     strace                        # [programming] syscall tracer
     strace-tui                    # [programming] strace-tui
     taskwarrior-tui               # [programming] taskwarrior terminal UI
