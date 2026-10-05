@@ -25,7 +25,10 @@
     - reboot: binfmt, ip_forward, grub, AQ_DRM_DEVICES
     - bios: identify board revision, update (F13d for rev 1.0/1.1), x3d turbo mode disabled, ccd/smt auto, fast
       boot, memory context restore, re-enroll secure boot keys; then nproc should say 32
-    - lsck0 mirror must build bloodhound-cli, netexec, obs-vkcapture, lib32-obs-vkcapture
+    - lsck0 mirror must build bloodhound-cli, netexec, obs-vkcapture, lib32-obs-vkcapture,
+      certipy-ad, bloodyad, kerbrute-bin, dnsx-bin, amass-bin, theharvester, semgrep-bin, proton-cachyos
+      (aur names unverified, the e2e yay fallback or the builder reveals a typo)
+    - alpaca is a flatpak, installed by install.sh; configs/alpaca/link.sh seeds the ollama and vllm instances
     - retake showcase1.png and showcase2.png (mac address, lan ip, radar region visible)
     - nvim :Lazy clean (git-worktree.nvim removed), rm -rf ~/.tmux/plugins
 
