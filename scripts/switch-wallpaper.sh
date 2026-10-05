@@ -121,6 +121,9 @@ set_wallpaper() {
     # gh-dash reads this on its next launch
     ~/projects/arch-dotfiles/configs/wallust/scripts/generate-ghdash-theme.sh 9>&- &
 
+    # caido webview, applied on its next reload via evenbetter's injected stylesheet
+    ~/projects/arch-dotfiles/configs/wallust/scripts/generate-caido-theme.py 9>&- >/dev/null 2>&1 &
+
     # telegram palette regenerates via the wal/ template; import is a manual gui step (tdesktop#31183)
 
     # hermes: one yaml skin themes its cli, tui and desktop app at once

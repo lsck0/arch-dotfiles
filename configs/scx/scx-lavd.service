@@ -1,0 +1,13 @@
+[Unit]
+Description=sched_ext scheduler (scx_lavd)
+Documentation=https://github.com/sched-ext/scx
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/scx-lavd-mode run
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -14,3 +14,8 @@ unreal_done() {
     ! is_personal || [[ "$form_factor" != desktop ]] || pacman -Q unreal-engine-bin >/dev/null 2>&1
 }
 user_hook_oneshot ./hook unreal-install unreal_done
+
+# bridge and fab plugins from ~/sync, extracted into the installed engine on every run
+if is_personal && [[ "$form_factor" == desktop ]] && pacman -Q unreal-engine-bin >/dev/null 2>&1; then
+    ./install-plugins.sh
+fi

@@ -43,6 +43,7 @@ if secret_is_plaintext configs/secrets/pgp_privatekey.asc; then
     backup ./scripts/backup-gh.sh
     backup ./scripts/backup-dalamud.sh
     backup ./scripts/backup-ffxiv.sh
+    backup ./scripts/backup-caido.sh
 
     # secrets first, so the generation commit below records its new revision
     if [ -n "$(git -C configs/secrets status --porcelain)" ]; then

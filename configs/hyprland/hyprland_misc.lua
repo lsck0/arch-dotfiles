@@ -12,7 +12,7 @@ hl.config({
         vrr = 2,
     },
     render = {
-        -- a lone fullscreen window skips composition; grading lives in the gamma LUT so it still applies, vrr keeps it tear-free
-        direct_scanout = 1,
+        -- 2 not 1: only scan out windows that request it, so a maximized app (unreal editor) does not flicker flipping scanout against its child windows; grading stays in the gamma lut
+        direct_scanout = 2,
     },
 })

@@ -82,6 +82,21 @@ hl.window_rule({
     float = true,
 })
 
+-- unreal's slate child windows (menus, drag previews) tile tiny and mispositioned; float them at their own size, keep the main editor tiled
+hl.window_rule({
+    match = {
+        class = "^UnrealEditor$",
+    },
+    float = true,
+})
+
+hl.window_rule({
+    match = {
+        title = ".* Unreal Editor$",
+    },
+    float = false,
+})
+
 hl.layer_rule({
     name = "quickshell-notifications-no-anim",
     match = {

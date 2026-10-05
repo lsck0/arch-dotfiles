@@ -17,6 +17,12 @@ mkdir -p "${HOME}/.claude"
 ln -sfn "${PWD}/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
 ln -sfn "${PWD}/RTK.md" "${HOME}/.claude/RTK.md"
 
+# caido's vibe-hacking mcp server, so claude can drive the proxy; only connects once enabled in caido
+if command -v caido >/dev/null 2>&1; then
+    claude mcp remove caido -s user >/dev/null 2>&1 || true
+    claude mcp add --transport http --scope user caido http://127.0.0.1:3333/mcp >/dev/null 2>&1 || true
+fi
+
 tmp=$(mktemp)
 jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5", voice: {enabled: true, mode: "hold"}}
    | .modelSettings["claude-opus-5-5"].effortLevel = "high"

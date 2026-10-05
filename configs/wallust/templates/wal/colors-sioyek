@@ -11,3 +11,4 @@ text_highlight_color         {color3}
 search_highlight_color       {color4}
 synctex_highlight_color      {color5}
 page_separator_color         {color8}
+link_highlight_color        {color4}

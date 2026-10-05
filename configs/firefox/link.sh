@@ -20,6 +20,9 @@ set -e
 sudo install -m644 autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
 sudo install -m644 mozilla.cfg /usr/lib/firefox/mozilla.cfg
 
+# default search engine: the enterprise policy is the only reliable path, /etc survives updates
+sudo install -Dm644 policies.json /etc/firefox/policies/policies.json
+
 # pywalfox looks in ~/.config/firefox
 ln -sfn "${HOME}/.config/mozilla/firefox" "${HOME}/.config/firefox"
 

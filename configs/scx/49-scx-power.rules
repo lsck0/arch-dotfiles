@@ -1,0 +1,2 @@
+# reselect the scx_lavd power mode the moment the ac adapter is plugged or unplugged
+SUBSYSTEM=="power_supply", ACTION=="change", RUN+="/usr/bin/systemctl start --no-block scx-mode.service"

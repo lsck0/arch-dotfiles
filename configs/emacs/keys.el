@@ -538,17 +538,6 @@
     "<tab>"     #'tempel-next
     "<backtab>" #'tempel-previous))
 
-;; minuet.nvim virtualtext keymap
-(general-imap
-  "M-]" #'minuet-next-suggestion
-  "M-[" #'minuet-previous-suggestion)
-(with-eval-after-load 'minuet
-  (general-def minuet-active-mode-map
-    "M-a" #'minuet-accept-suggestion
-    "M-l" #'minuet-accept-suggestion-line
-    "M-z" #'minuet-accept-suggestion-line   ; accept_n_lines: a count prefix picks n
-    "M-e" #'minuet-dismiss-suggestion))
-
 ;; checkmate.nvim
 (with-eval-after-load 'markdown-mode
   (evil-define-key 'normal markdown-mode-map (kbd "C-SPC") #'markdown-toggle-gfm-checkbox))

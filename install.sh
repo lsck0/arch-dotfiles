@@ -134,6 +134,7 @@ PACKAGES=(
     libpulse                 # [base] PulseAudio client lib
     libreoffice-fresh        # [desktop] office suite
     libva                    # [base] VAAPI video accel
+    libva-utils              # [hardware] vainfo, verify gpu codec support
     libvips                  # [base] image processing library
     libxcomposite            # [base] X composite extension
     libxinerama              # [base] X multi-monitor lib
@@ -200,6 +201,7 @@ PACKAGES=(
     s-tui                    # [base] CPU stress/monitor TUI
     sane                     # [hardware] scanner access library
     sbctl                    # [hardware] Secure Boot key management
+    scx-scheds               # [hardware] sched_ext perf schedulers
     sd                       # [base] sed alternative CLI
     smartmontools            # [hardware] disk health monitoring
     socat                    # [base] socket relay tool
@@ -553,6 +555,7 @@ PACKAGES=(
     modrinth-app                   # [gaming] minecraft mod manager
     nethack                        # [gaming] roguelike dungeon game
     path-of-building-community-git # [gaming] PoE build planner
+    proton-cachyos                 # [gaming] CachyOS Proton: vkd3d low-latency, reflex, ntsync
     protontricks                   # [gaming] Proton/Wine helper tool
     protonup-git                   # [gaming] Proton-GE installer
     r2modman-bin                   # [gaming] game mod manager
@@ -572,6 +575,7 @@ PACKAGES=(
     giflib                     # [creating] GIF image library
     gifsicle                   # [creating] GIF editing tool
     gimp                       # [creating] image editing suite
+    gpu-screen-recorder        # [creating] low-overhead vaapi capture and replay buffer
     handbrake                  # [creating] video transcoder
     identity                   # [creating] media comparison
     inkscape                   # [creating] vector graphics editor
@@ -896,7 +900,6 @@ PACKAGES=(
     binsider                # [pentesting] binary analysis TUI
     binwalk                 # [pentesting] firmware image extraction
     bloodhound-cli          # [pentesting] BloodHound CE in docker, up/down on demand, mirror/pkgbuilds
-    burpsuite               # [pentesting] web security testing
     caido-desktop           # [pentesting] web security testing, burp alternative
     checksec                # [pentesting] binary hardening checker
     chisel-tunnel-bin       # [pentesting] TCP/UDP tunnel over HTTP
@@ -936,6 +939,13 @@ PACKAGES=(
     metasploit              # [pentesting] exploitation framework
     mitmproxy               # [pentesting] HTTPS intercepting proxy
     naabu-bin               # [pentesting] port scanning tool
+    amass-bin               # [pentesting] attack-surface mapping and subdomain enum
+    bloodyad                # [pentesting] active directory privilege escalation
+    certipy-ad              # [pentesting] AD CS (ESC) enumeration and abuse
+    dnsx-bin                # [pentesting] fast dns resolver, feeds the recon chain
+    kerbrute-bin            # [pentesting] kerberos user and password spraying
+    semgrep-bin             # [pentesting] static analysis for source and CTF audit
+    theharvester            # [pentesting] email and subdomain OSINT
     netexec                 # [pentesting] active directory/windows network pentesting
     netscanner              # [pentesting] network scanning TUI
     nikto                   # [pentesting] web server scanner

@@ -35,3 +35,10 @@ linker) + `sccache` (compiler cache) for Rust/C++ iteration speed,
 `bacon`/`entr` (rebuild-on-change loops), `gdb` (step through a failing
 path), `difftastic` (structural diff for reviewing your own change
 before handoff).
+
+Run any long build or test through `fence` (a zsh function from the
+dotfiles): `fence ./gradlew ...`, `fence make -j`, `fence cargo build`. It
+runs the job in its own systemd scope at low cpu weight, reniced to 19 and
+oom-first, pinned off the v-cache ccd, so a heavy build never starves the
+desktop or a running game nor gets them oom-killed. It no-ops the pin on a
+single-ccd machine and the scope where no user manager is reachable.

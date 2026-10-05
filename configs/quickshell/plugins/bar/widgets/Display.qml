@@ -13,8 +13,6 @@ BarWidget {
   property bool brightnessSeeded: false
   property var monitors: []
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
-  property var fontChoices: []
-  readonly property var fontSizes: [12, 13, 14, 16, 18]
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -44,22 +42,6 @@ BarWidget {
   function refreshMonitors() {
     if (!monitorsProc.running) monitorsProc.running = true
   }
-
-  function openWallpaperPicker() {
-    Quickshell.execDetached([Paths.script("wallpaper-picker.sh")])
-  }
-
-  function setFont(family) {
-    Quickshell.execDetached([root.fontScript, "set", family])
-    fontSettle.restart()
-  }
-
-  function setFontSize(size) {
-    Quickshell.execDetached([root.fontScript, "set-size", String(size)])
-    fontSettle.restart()
-  }
-
-  readonly property string fontScript: Paths.toggle("toggle-font.sh")
 
   readonly property string gradingCli: Paths.dotfiles + "/configs/color-grading/color-grading.py"
   readonly property string shaderScript: Paths.toggle("toggle-shader.sh")
@@ -103,45 +85,6 @@ BarWidget {
     onExited: root.refreshColor()
   }
 
-  // terminal font size, not quickshell's own base size
-  property int currentFontSize: 0
-
-  function refreshFontSize() {
-    if (!fontSizeProc.running) fontSizeProc.running = true
-  }
-
-  Process {
-    id: fontSizeProc
-    command: [root.fontScript, "size"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var n = parseInt(String(text || "").trim(), 10)
-        if (!isNaN(n)) root.currentFontSize = n
-      }
-    }
-  }
-
-  Process {
-    id: fontListProc
-    command: [root.fontScript, "shortlist"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var families = String(text || "").split("\n").filter(function (line) {
-          return line.trim().length > 0
-        })
-        if (families.length > 0) root.fontChoices = families
-      }
-    }
-  }
-
-  // theme.json lands after the script's other writes
-  Timer {
-    id: fontSettle
-    interval: 600
-    onTriggered: root.refreshFontSize()
-  }
 
   function setMonitorLayout(name, action) {
     var args = [Paths.toggle("toggle-monitor-scale.sh"), "layout", name]
@@ -209,8 +152,6 @@ BarWidget {
 
   Component.onCompleted: {
     root.refreshMonitors()
-    fontListProc.running = true
-    root.refreshFontSize()
   }
 
   BarIconButton {
@@ -232,7 +173,6 @@ BarWidget {
 
     onOpened: {
       root.refreshMonitors()
-      root.refreshFontSize()
       root.refreshColor()
     }
 
@@ -313,15 +253,6 @@ BarWidget {
         }
       }
 
-      PanelSectionHeader { text: "WALLPAPER" }
-
-      PanelRow {
-        width: parent.width
-        glyph: "\u{f02e9}"
-        label: "Choose wallpaper..."
-        onActivated: { root.openWallpaperPicker(); if (root.bar) root.bar.closePanel(root.moduleName) }
-      }
-
       PanelSectionHeader { text: "COLOR GRADING" }
 
       Column {
@@ -390,36 +321,6 @@ BarWidget {
               value: shaderItem.active ? root.shaderVariant(root.shaders.current) : ""
               onChanged: function(v) { root.colorRun([root.shaderScript, "set", shaderItem.modelData.name + ":" + v]) }
             }
-          }
-        }
-      }
-
-      PanelSectionHeader { text: "FONT" }
-
-      Flow {
-        width: parent.width
-        spacing: Style.spacing.sm
-        Repeater {
-          model: root.fontChoices
-          Chip {
-            required property string modelData
-            text: modelData
-            selected: Style.fontFamily === modelData
-            onClicked: root.setFont(modelData)
-          }
-        }
-      }
-
-      Flow {
-        width: parent.width
-        spacing: Style.spacing.sm
-        Repeater {
-          model: root.fontSizes
-          Chip {
-            required property int modelData
-            text: String(modelData)
-            selected: root.currentFontSize === modelData
-            onClicked: root.setFontSize(modelData)
           }
         }
       }

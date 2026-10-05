@@ -130,6 +130,42 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
+# computed once: the non v-cache cores (empty on single-ccd) and whether a user scope is usable
+typeset -g _FENCE_CPUS _FENCE_SCOPE
+() {
+  emulate -L zsh
+  local c sz max=0 id
+  typeset -A size_of
+  for c in /sys/devices/system/cpu/cpu<->/cache/index3/size(N); do
+    sz=$(<$c); sz=${sz%%[^0-9]*}
+    [[ -n $sz ]] || continue
+    id=${c#/sys/devices/system/cpu/cpu}; id=${id%%/*}
+    size_of[$id]=$sz
+    (( sz > max )) && max=$sz
+  done
+  local -a build
+  for id in ${(k)size_of}; do
+    (( size_of[$id] < max )) && build+=$id
+  done
+  (( ${#build} )) && _FENCE_CPUS=${(j.,.)build}
+  # the cgroup scope needs a reachable user manager, which a bare wsl root shell lacks
+  systemctl --user show-environment >/dev/null 2>&1 && _FENCE_SCOPE=1
+}
+
+# run a heavy build off the v-cache ccd, low priority, and oom-first; the scope lets
+# systemd-oomd evict the build before desktop apps under memory pressure
+# builtin bg resumes jobs, so this is fence: fence ./gradlew ... / fence make -j / fence cargo build
+fence() {
+  local -a pre=(choom -n 1000 --)
+  [[ -n $_FENCE_CPUS ]] && pre+=(taskset -c "$_FENCE_CPUS")
+  pre+=(nice -n19)
+  if [[ -n $_FENCE_SCOPE ]]; then
+    systemd-run --user --scope --quiet -p CPUWeight=10 "${pre[@]}" "$@"
+  else
+    "${pre[@]}" "$@"
+  fi
+}
+
 # greet on every interactive terminal
 [[ -t 1 && $TERM != dumb ]] && fastfetch
 

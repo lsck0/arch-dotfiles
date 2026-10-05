@@ -1,0 +1,10 @@
+// let the gamemode hook free gpu vram by stopping the local inference services
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.local && subject.active && subject.isInGroup("wheel")) {
+        var unit = action.lookup("unit");
+        if (unit === "vllm-proxy.service" || unit === "vllm.service" || unit === "ollama.service") {
+            return polkit.Result.YES;
+        }
+    }
+});

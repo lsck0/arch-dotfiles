@@ -1,0 +1,6 @@
+[Unit]
+Description=refresh scx_lavd power mode
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/scx-lavd-mode refresh

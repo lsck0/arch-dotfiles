@@ -13,10 +13,10 @@ LEDGER_PACKAGES_DENY='base|base-devel|linux.*|.*-firmware|.*-ucode|grub|efibootm
 # dropped from install.sh before the ledger existed (generation 487, formerly patches 02 and 04): a machine's first run
 # owns the ones still installed, so they are proposed like any dropped package; delete once every machine has a ledger
 LEDGER_PACKAGES_SEED=(
-    betterdiscord-installer betterdiscordctl-git blueberry bootimage cargo-machete cargo-watch cargo-xbuild
-    easyeffects glava gufw hyprsunset iwd libva-intel-driver mise neofetch neovim-remote opentabletdriver-git
-    opentofu python-black python-isort usage virt-manager wireless_tools xf86-input-synaptics xf86-video-amdgpu
-    xf86-video-ati xf86-video-nouveau
+    betterdiscord-installer betterdiscordctl-git blueberry bootimage burpsuite cargo-machete cargo-watch
+    cargo-xbuild easyeffects glava gufw hyprsunset iwd libva-intel-driver mise neofetch neovim-remote
+    opentabletdriver-git opentofu python-black python-isort usage virt-manager wireless_tools xf86-input-synaptics
+    xf86-video-amdgpu xf86-video-ati xf86-video-nouveau
 )
 # a unit name systemctl accepts; one invalid name fails the whole batched is-enabled
 LEDGER_UNIT_NAME='[A-Za-z0-9][A-Za-z0-9:_.-]*(@[A-Za-z0-9:_.-]*)?\.(service|socket|timer|path|mount|automount|target)'

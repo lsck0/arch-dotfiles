@@ -1,0 +1,15 @@
+{
+    "policies": {
+        "SearchEngines": {
+            "Add": [
+                {
+                    "Name": "SearXNG",
+                    "URLTemplate": "https://search.lsck0.dev/search?q={searchTerms}",
+                    "Method": "GET",
+                    "Alias": "sx"
+                }
+            ],
+            "Default": "SearXNG"
+        }
+    }
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # lazy model provisioning, run on first ollama/hermes use, not during config.sh
-# one source for every ollama model: minuet fim, System One, hermes' cpu fallback
+# one source for every ollama model: System One and hermes' cpu fallback
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if ! command -v ollama >/dev/null 2>&1; then
@@ -9,8 +9,8 @@ fi
 
 set -e
 
-# minuet's fim model for nvim, plus the typed-decision models behind /v1/systemone (ollama 0.35+)
-MODELS=(qwen2.5-coder:0.5b)
+# the typed-decision models behind /v1/systemone (ollama 0.35+)
+MODELS=()
 version=$(ollama --version 2>&1 | awk 'END {print $NF}')
 if [[ $(vercmp "$version" 0.35.0) -lt 0 ]]; then
     echo "ollama: $version predates System One, not pulling nimble" >&2

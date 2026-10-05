@@ -93,17 +93,5 @@
 
 (add-hook 'eglot-managed-mode-hook #'my/eglot-capf-with-templates)
 
-;;;; local AI completion (minuet.nvim) --------------------------------------
-
-(use-package minuet
-  :hook (prog-mode . minuet-auto-suggestion-mode)
-  :config
-  (setq minuet-provider 'openai-fim-compatible)
-  (plist-put minuet-openai-fim-compatible-options :end-point "http://localhost:11434/v1/completions")
-  (plist-put minuet-openai-fim-compatible-options :name "Ollama")
-  (plist-put minuet-openai-fim-compatible-options :api-key (lambda () "ollama"))
-  (plist-put minuet-openai-fim-compatible-options :model "qwen2.5-coder:0.5b")
-  (minuet-set-optional-options minuet-openai-fim-compatible-options :max_tokens 64))
-
 (provide 'completion)
 ;;; completion.el ends here

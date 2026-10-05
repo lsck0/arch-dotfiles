@@ -7,6 +7,17 @@ fi
 
 set -e
 
+chmod 755 ./steam-launch.sh
+# route the launcher entry through the wrapper so every game gets gamemode, mangohud and obs capture
+desktop_src=/usr/share/applications/steam.desktop
+desktop_dst="${HOME}/.local/share/applications/steam.desktop"
+if [ -f "$desktop_src" ]; then
+    mkdir -p "$(dirname "$desktop_dst")"
+    # escape sed replacement metacharacters in case the repo path holds \ & or #
+    repl=${PWD//\\/\\\\}; repl=${repl//&/\\&}; repl=${repl//#/\\#}
+    sed "s#/usr/bin/steam#${repl}/steam-launch.sh#g" "$desktop_src" >"$desktop_dst"
+fi
+
 skins="${HOME}/.local/share/Steam/millennium/themes"
 theme="${skins}/cyberpunk"
 
