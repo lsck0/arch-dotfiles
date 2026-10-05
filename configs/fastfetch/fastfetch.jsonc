@@ -74,7 +74,7 @@
     {
       "type": "command",
       "key": "Age",
-      "text": "echo \"$(( ( $(date +%s) - $(date -d \"$(grep -oP '\\[\\K[^\\]]+' /var/log/pacman.log | head -1)\" +%s) ) / 86400 )) days\"",
+      "text": "echo \"$(( ( $(date +%s) - $(date -d \"$(grep -m1 -oP '^\\[\\K[^\\]]+' /var/log/pacman.log)\" +%s) ) / 86400 )) days\"",
     },
     {
       "type": "custom",

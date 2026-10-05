@@ -1,40 +1,16 @@
 .pragma library
 
+// NotificationUrgency values, the enum is not reachable from a .pragma library
+var URGENCY_NORMAL = 1
+var URGENCY_CRITICAL = 2
+
 function isChromiumDerived(app, appIcon) {
-  var source = (String(app || "") + "\n" + String(appIcon || "")).toLowerCase()
-  return source.indexOf("chrom") >= 0 || source.indexOf("brave") >= 0 ||
-         source.indexOf("vivaldi") >= 0 || source.indexOf("microsoft-edge") >= 0 ||
-         source.indexOf("opera") >= 0
+  return /chrom|brave|vivaldi|microsoft-edge|opera/.test((String(app || "") + "\n" + String(appIcon || "")).toLowerCase())
 }
 
-// matches qt's tag-name parsing
-function isImageTag(tag) {
-  var name = /^<[^A-Za-z0-9]*([A-Za-z0-9]+)/.exec(tag)
-  return !!name && name[1].toLowerCase() === "img"
-}
-
+// qt reads the first alnum run after "<" as the tag name and closes an unterminated trailing tag itself
 function stripImageTags(text) {
-  var out = ""
-  var i = 0
-
-  while (i < text.length) {
-    var open = text.indexOf("<", i)
-    if (open === -1) {
-      out += text.slice(i)
-      break
-    }
-
-    out += text.slice(i, open)
-
-    // qt closes an unterminated trailing tag itself
-    var close = text.indexOf(">", open)
-    var tag = close === -1 ? text.slice(open) : text.slice(open, close + 1)
-
-    if (!isImageTag(tag)) out += tag
-    i = close === -1 ? text.length : close + 1
-  }
-
-  return out
+  return text.replace(/<[^A-Za-z0-9>]*img(?![A-Za-z0-9])[^>]*(?:>|$)/gi, "")
 }
 
 function styledBody(body, app, appIcon) {
@@ -50,81 +26,53 @@ function sanitizeBody(body, app, appIcon) {
     .replace(/^\s*(?:https?:\/\/|www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:\/\S*)?\s+/i, "")
 }
 
+// one glyph (a surrogate pair counts as one) followed by at least two spaces
 function summaryStartsWithGlyph(summary) {
-  var text = String(summary || "").replace(/^\s+/, "")
-  if (!text) return false
-
-  var offset = 1
-  var first = text.charCodeAt(0)
-  if (first >= 0xd800 && first <= 0xdbff && text.length > 1) offset = 2
-
-  var spaces = 0
-  while (offset < text.length && text.charAt(offset) === " ") {
-    spaces++
-    offset++
-  }
-
-  return spaces >= 2
+  return /^\s*(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|\S) {2}/.test(String(summary || ""))
 }
 
-function shouldBypassDnd(notification, criticalUrgency) {
+// app name scripts/notification-send.sh uses for reminders, pomodoro and alerts: shown through dnd, never kept in history
+var ACTION_APP = "quickshell-action"
+
+function shouldBypassDnd(notification) {
   var appName = String((notification && notification.appName) || "")
-  if (appName === "omarchy-action") return true
-  return appName === "notify-send" && notification && notification.urgency === criticalUrgency
+  return appName === ACTION_APP || (appName === "notify-send" && notification.urgency === URGENCY_CRITICAL)
 }
 
 function isEphemeralApp(appName) {
-  var name = String(appName || "")
-  return name === "notify-send" || name === "omarchy-action"
+  return appName === "notify-send" || appName === ACTION_APP
 }
 
 function stringHint(hints, name) {
   try {
-    if (hints) {
-      var value = hints[name]
-      if (value !== undefined && value !== null) return String(value)
-    }
+    var value = hints ? hints[name] : undefined
+    if (value !== undefined && value !== null) return String(value)
   } catch (e) {
   }
   return ""
 }
 
-function glyphFromHints(hints) {
-  return stringHint(hints, "omarchy-glyph")
-}
-
-function execArgvFromHints(hints) {
-  return stringHint(hints, "omarchy-exec-argv")
-}
-
 function parseExecArgv(value) {
-  var text = String(value || "")
-  if (!text) return null
-
   var parsed
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(String(value || ""))
   } catch (e) {
     return null
   }
-
   if (!Array.isArray(parsed) || parsed.length === 0) return null
-  for (var i = 0; i < parsed.length; i++) {
-    if (typeof parsed[i] !== "string") return null
-  }
+  if (!parsed.every(function(arg) { return typeof arg === "string" })) return null
   if (!parsed[0] || parsed[0].charAt(0) === "-") return null
   return parsed
 }
 
-function shouldRenderCompactGlyph(glyph, iconSource, singleLineToast) {
-  return String(glyph || "").length > 0 && String(iconSource || "").length === 0 && !!singleLineToast
+function nonNegative(value) {
+  var n = Number(value || 0)
+  return isFinite(n) && n > 0 ? n : 0
 }
 
 function snapshotOf(notification, timestamp) {
   var n = notification || {}
   var id = n.id || 0
-  var expireTimeout = Number(n.expireTimeout || 0)
-  if (!isFinite(expireTimeout) || expireTimeout < 0) expireTimeout = 0
   return {
     id: id,
     originalId: id,
@@ -133,28 +81,18 @@ function snapshotOf(notification, timestamp) {
     summary: String(n.summary || ""),
     body: n.body || "",
     image: n.image || "",
-    glyph: glyphFromHints(n.hints),
-    execArgv: execArgvFromHints(n.hints),
+    glyph: stringHint(n.hints, "omarchy-glyph"),
+    execArgv: stringHint(n.hints, "omarchy-exec-argv"),
     urgency: n.urgency,
-    expireTimeout: expireTimeout,
-    timestamp: timestamp === undefined ? Date.now() : timestamp
+    expireTimeout: nonNegative(n.expireTimeout),
+    timestamp: timestamp
   }
 }
 
 var POPUP_ROLES = ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout"]
 
-function popupRoles() {
-  return POPUP_ROLES
-}
-
 function popupRowChanged(row, updated) {
-  var current = row || {}
-  var next = updated || {}
-  for (var i = 0; i < POPUP_ROLES.length; i++) {
-    var role = POPUP_ROLES[i]
-    if (current[role] !== next[role]) return true
-  }
-  return false
+  return POPUP_ROLES.some(function(role) { return row[role] !== updated[role] })
 }
 
 // replaces_id keeps the original file name identity
@@ -165,7 +103,7 @@ function replacementSnapshot(notification, originalId, timestamp) {
   return updated
 }
 
-function historyEntry(value, normalUrgency) {
+function historyEntry(value) {
   var e = value || {}
   return {
     id: e.id || 0,
@@ -177,32 +115,23 @@ function historyEntry(value, normalUrgency) {
     image: e.image || "",
     glyph: e.glyph || "",
     execArgv: e.execArgv || "",
-    urgency: typeof e.urgency === "number" ? e.urgency : normalUrgency,
+    urgency: typeof e.urgency === "number" ? e.urgency : URGENCY_NORMAL,
     expireTimeout: 0,
     timestamp: e.timestamp || 0
   }
 }
 
-function parseSettings(raw) {
-  var text = String(raw || "").trim()
-  if (!text) return { error: false, dnd: null }
-
-  try {
-    var parsed = JSON.parse(text)
-    return { error: false, dnd: parsed && typeof parsed.dnd === "boolean" ? parsed.dnd : null }
-  } catch (e) {
-    return { error: true, errorMessage: String(e), dnd: null }
-  }
+function popupEntry(value) {
+  var entry = historyEntry(value)
+  entry.expireTimeout = nonNegative((value || {}).expireTimeout)
+  var deadline = nonNegative((value || {}).deadline)
+  if (deadline > 0) entry.deadline = deadline
+  return entry
 }
 
-function popupEntry(value, normalUrgency) {
-  var entry = historyEntry(value, normalUrgency)
-  var expire = Number((value || {}).expireTimeout || 0)
-  if (!isFinite(expire) || expire < 0) expire = 0
-  entry.expireTimeout = expire
-  var deadline = Number((value || {}).deadline || 0)
-  if (isFinite(deadline) && deadline > 0) entry.deadline = deadline
-  return entry
+function imageStem(entry) {
+  var e = entry || {}
+  return String(e.timestamp || 0) + "-" + String(e.originalId || 0)
 }
 
 function popupFileName(entry) {
@@ -211,11 +140,6 @@ function popupFileName(entry) {
 
 // images are copied since senders delete them on close
 var PERSISTED_IMAGE_ROLES = ["appIcon", "image"]
-
-function imageStem(entry) {
-  var e = entry || {}
-  return String(e.timestamp || 0) + "-" + String(e.originalId || 0)
-}
 
 function localImageFile(value) {
   var s = String(value || "")
@@ -227,9 +151,7 @@ function localImageFile(value) {
 }
 
 function persistablePopup(entry, imagesDir) {
-  var e = entry || {}
-  var out = {}
-  for (var key in e) out[key] = e[key]
+  var out = Object.assign({}, entry)
   var copies = []
   for (var i = 0; i < PERSISTED_IMAGE_ROLES.length; i++) {
     var role = PERSISTED_IMAGE_ROLES[i]
@@ -237,7 +159,7 @@ function persistablePopup(entry, imagesDir) {
     if (!value) continue
     var source = localImageFile(value)
     if (source) {
-      var copy = String(imagesDir || "") + imageStem(e) + "-" + role
+      var copy = String(imagesDir || "") + imageStem(out) + "-" + role
       if (source !== copy) copies.push({ from: source, to: copy })
       out[role] = "file://" + copy
     } else if (value.indexOf("image://") === 0) {
@@ -247,56 +169,39 @@ function persistablePopup(entry, imagesDir) {
   return { entry: out, copies: copies }
 }
 
-function serializePopup(entry, normalUrgency) {
-  // single line: restore parses files line by line
-  return JSON.stringify(popupEntry(entry, normalUrgency))
+// single line: restore parses files line by line
+function serializePopup(entry) {
+  return JSON.stringify(popupEntry(entry))
 }
 
-function parsePopupFiles(raw, normalUrgency) {
-  var lines = String(raw || "").split("\n")
+function parsePopupFiles(raw) {
   var entries = []
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim()
-    if (!line) continue
+  String(raw || "").split("\n").forEach(function(line) {
+    if (!line.trim()) return
     try {
       var value = JSON.parse(line)
-      if (value && typeof value === "object") entries.push(popupEntry(value, normalUrgency))
+      if (value && typeof value === "object") entries.push(popupEntry(value))
     } catch (e) {
       // torn write, skip the line
     }
-  }
-  entries.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
-  return entries
+  })
+  return entries.sort(function(a, b) { return b.timestamp - a.timestamp })
 }
 
 function popupExpired(entry, duration, now) {
-  var deadline = Number((entry || {}).deadline || 0)
-  if (isFinite(deadline) && deadline > 0) return Number(now) >= deadline
-  var lifetime = Number(duration || 0)
-  if (!isFinite(lifetime) || lifetime <= 0) return false
-  return (Number(now) - Number((entry || {}).timestamp || 0)) >= lifetime
+  if (entry.deadline) return now >= entry.deadline
+  return duration > 0 && now - entry.timestamp >= duration
 }
 
-function historyRows(raw, liveRows, normalUrgency, limit) {
-  var max = limit === undefined || limit === null ? 10 : Number(limit)
-  if (isNaN(max)) max = 10
-  max = Math.max(0, max)
-
+// live rows win over their own files, newest first
+function historyRows(raw, liveRows, limit) {
   var out = []
   var seen = {}
-  function collect(rows) {
-    for (var i = 0; i < rows.length; i++) {
-      var entry = rows[i]
-      if (!entry) continue
-      var key = popupFileName(entry)
-      if (seen[key]) continue
-      seen[key] = true
-      out.push(historyEntry(entry, normalUrgency))
-    }
-  }
-
-  collect(Array.isArray(liveRows) ? liveRows : [])
-  collect(parsePopupFiles(raw, normalUrgency))
-  out.sort(function(a, b) { return (b.timestamp || 0) - (a.timestamp || 0) })
-  return out.slice(0, max)
+  liveRows.concat(parsePopupFiles(raw)).forEach(function(entry) {
+    var key = popupFileName(entry)
+    if (seen[key]) return
+    seen[key] = true
+    out.push(historyEntry(entry))
+  })
+  return out.sort(function(a, b) { return b.timestamp - a.timestamp }).slice(0, limit)
 }

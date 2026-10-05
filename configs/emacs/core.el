@@ -126,14 +126,81 @@
       bidi-inhibit-bpa t)
 (global-so-long-mode 1)
 
+;;;; server -----------------------------------------------------------------
+
+;; zathura's backward search (scripts/synctex-edit.sh) and switch-wallpaper.sh reach Emacs over emacsclient
+(require 'server)
+(unless (or noninteractive (server-running-p))
+  (server-start))
+
 ;;;; projects ---------------------------------------------------------------
 
 (with-eval-after-load 'project
   (setq project-vc-extra-root-markers '(".project-root" "Cargo.toml" "package.json")))
 
-(defun my/projects-dired ()
-  "Buffer to land in at startup and on a new tab: ~/projects in dired."
-  (dired-noselect "~/projects/"))
+(defconst my/projects-default-dirs '(("~/projects/" . 10))
+  "Search dirs as (PATH . DEPTH) when ~/.config/tms/config.toml has none.")
+
+(defconst my/projects-exclude '("elpa" "node_modules" ".cargo" "vendor" "target")
+  "Vendored repos are not projects; mirrors the --exclude list in scripts/hms.sh.")
+
+(defun my/projects-search-dirs ()
+  "The [[search_dirs]] of ~/.config/tms/config.toml as (PATH . DEPTH), so the picker and hms agree."
+  (let ((file (expand-file-name "~/.config/tms/config.toml"))
+        dirs)
+    (when (file-readable-p file)
+      (with-temp-buffer
+        (insert-file-contents file)
+        (while (re-search-forward (concat "^[ \t]*\\(?:\\(\\[\\[search_dirs]]\\)"
+                                          "\\|path[ \t]*=[ \t]*\"\\([^\"]*\\)\""
+                                          "\\|depth[ \t]*=[ \t]*\\([0-9]+\\)\\)")
+                                  nil t)
+          (cond ((match-beginning 1) (push (cons nil 10) dirs))
+                ((not dirs))
+                ((match-beginning 2) (setcar (car dirs) (match-string 2)))
+                (t (setcdr (car dirs) (string-to-number (match-string 3))))))))
+    (or (seq-filter #'car (nreverse dirs)) my/projects-default-dirs)))
+
+(defun my/project-checkout-p (git)
+  "Whether GIT, a .git entry, marks a checkout: any .git directory, or a .git file pointing into <gitdir>/worktrees/.
+That is how bare-repo layouts show up, while submodules and the bare layout's own root (gitdir: ./.bare) do not."
+  (or (file-directory-p git)
+      (with-temp-buffer
+        (ignore-errors (insert-file-contents git nil 0 4096))
+        (looking-at-p "gitdir: .*/worktrees/[^/\n]+/?$"))))
+
+(defun my/projects-list ()
+  "Every git checkout and worktree under the tms search dirs as (DISPLAY . PATH), sorted by DISPLAY."
+  (unless (executable-find "fd") (user-error "projects: fd is not installed"))
+  (let (out)
+    (pcase-dolist (`(,root . ,depth) (my/projects-search-dirs))
+      (setq root (file-name-as-directory (expand-file-name root)))
+      (when (file-directory-p root)
+        ;; --type f too: a worktree has a .git file, not a directory
+        (dolist (git (apply #'process-lines-ignore-status
+                            "fd" "--hidden" "--no-ignore" "--type" "d" "--type" "f"
+                            "--max-depth" (number-to-string depth)
+                            (append (mapcan (lambda (ex) (list "--exclude" ex)) my/projects-exclude)
+                                    (list "^\\.git$" root))))
+          (let* ((dir (file-name-directory (directory-file-name git)))
+                 (rel (directory-file-name (string-remove-prefix root dir))))
+            (unless (or (rassoc dir out) (not (my/project-checkout-p git)))
+              (push (cons (if (string-empty-p rel) dir rel) dir) out))))))
+    (sort out (lambda (a b) (string< (car a) (car b))))))
+
+(defun my/project-open (dir)
+  "nvim tcd: move to project DIR, re-rooting the sidebar there, then find a file in it."
+  (my/tree-reroot dir)
+  (let ((default-directory dir))
+    (my/find-files)))
+
+(defun my/project-pick ()
+  "nvim SPC f p: the repo list hms and tms show, not only projects visited before."
+  (interactive)
+  (let* ((items (or (my/projects-list)
+                    (user-error "projects: no git repos under the tms search dirs")))
+         (pick (completing-read "Projects: " items nil t)))
+    (my/project-open (cdr (assoc pick items)))))
 
 (provide 'core)
 ;;; core.el ends here

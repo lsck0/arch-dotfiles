@@ -50,6 +50,7 @@ if [[ -z "$msf_pw" ]]; then
     exit 1
 fi
 
+# probe: a query that fails falls through to the reset below, which reports the real error
 hashes=$(psql -h "$pg_dir" -p "$pg_port" -U postgres -d postgres -tAc \
     "SELECT rolname || '=' || left(rolpassword, 3) FROM pg_authid WHERE rolname IN ('msf','msftest')" 2>/dev/null || true)
 

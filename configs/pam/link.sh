@@ -3,6 +3,10 @@
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 source ../../scripts/lib/personal.sh
+source ../../scripts/lib/platform.sh
+
+# windows owns sign-in hardware under wsl: no fingerprint reader, a yubikey only through usbipd
+[[ "$(platform_form_factor ../..)" != wsl ]] || exit 0
 
 set -e
 
@@ -58,8 +62,7 @@ elif grep -qE 'pam_fprintd\.so' /etc/pam.d/sudo; then
     sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so/d' /etc/pam.d/sudo
 fi
 
-# login needs the typed password: a sufficient touch or swipe ends the stack before pam_gnome_keyring
-# gets it, and the login keyring then stays locked; strip what older runs put there
+# login needs the typed password: a sufficient touch or swipe ends the stack before pam_gnome_keyring gets it and the login keyring stays locked; strip what older runs put there
 if grep -qE 'pam_(u2f|fprintd)\.so' /etc/pam.d/system-login; then
     sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_(u2f|fprintd)\.so/d' /etc/pam.d/system-login
 fi

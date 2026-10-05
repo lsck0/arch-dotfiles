@@ -34,5 +34,10 @@
   :after evil
   :config (evil-commentary-mode 1))
 
+;; vim-visual-multi: M-d selects the word and adds the next match, keys.el binds it
+(use-package evil-multiedit
+  :after evil
+  :commands (evil-multiedit-match-symbol-and-next evil-multiedit-match-and-next))
+
 (provide 'evil-setup)
 ;;; evil-setup.el ends here

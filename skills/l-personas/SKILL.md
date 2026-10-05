@@ -15,28 +15,20 @@ a list, so a new persona shows up with zero changes elsewhere: list the
 installed skills whose name starts with `l-persona-` (Hermes:
 `skills_list()`; Claude Code: the skill listing in context).
 
-## Current personas
+The installed skill listing (names plus descriptions) is the only source
+of truth for what personas exist; read it there, never from a copy kept
+here that would drift. Each `l-persona-*` skill's own description says what
+it is for.
 
-| skill                                 | description                                                        |
-| ------------------------------------- | ------------------------------------------------------------------- |
-| `l-persona-research-codebase`         | Search the codebase for patterns, conventions, API boundaries.    |
-| `l-persona-research-literature`       | Search prior art: papers, algorithms, how others solved this.     |
-| `l-persona-research-customers`        | Mine forums/social for user needs, complaints, and requests.      |
-| `l-persona-research-market`           | Survey competitors, alternatives, patents, and licensing.         |
-| `l-persona-design-architecture`       | Design high-level architecture, data flow, and infrastructure.    |
-| `l-persona-design-api`                | Design one module's API: functions, data structures, contracts.   |
-| `l-persona-design-uiux`               | Design UI flows, interaction, accessibility, and i18n.            |
-| `l-persona-programmer`                | Implement tickets: write the actual code.                         |
-| `l-persona-investigator`              | Root-cause bugs and incidents: logs, commits, stack traces.       |
-| `l-persona-pentester`                 | Realistic adversary emulation against authorized, scoped targets. |
-| `l-persona-auditor-security`          | Passive security audit: code, config, CI/CD, dependencies.        |
-| `l-persona-auditor-performance`       | Audit code for wasted throughput: data structures, cache, allocs. |
-| `l-persona-auditor-spec`              | Passive spec-compliance audit: does the code match the spec.      |
-| `l-persona-auditor-general`           | Passive general audit: best practices, style, maintainability.    |
-| `l-persona-devops`                    | CI/CD, infra, deployment, and observability.                      |
-| `l-persona-orchestrator`              | Spawn and direct other agents; the authority over the run.        |
-| `l-persona-orchestrator-task-planner` | Turn a raw ask into an ordered set of tickets.                    |
-| `l-persona-tester`                    | Write tests: unit, e2e, fuzz, property, formal verification.      |
-| `l-persona-reviewer`                  | Independent review: conventions, style, and correctness.          |
+## Worker personas
 
-Not exhaustive; the installed skill listing is the source of truth.
+Two personas are not loaded by hand for a task. They are the roles an
+orchestration mode spawns workers as:
+
+- `l-persona-orchestrator`: owns a multi-agent run, spawns and directs the
+  other workers. Loaded by `l-multi-agent-mode` and `l-multi-agent-task-mode`.
+- `l-persona-orchestrator-task-planner`: turns a raw ask into an ordered
+  set of tickets. Spawned as a worker by those same mode skills.
+
+Everything else is a domain persona you load directly (or that a mode skill
+preloads onto a worker) before doing work in that domain.

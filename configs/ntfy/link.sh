@@ -10,6 +10,7 @@ command -v notify-send >/dev/null 2>&1 || exit 0
 # homelab ntfy denies anonymous reads
 if ! secret_is_plaintext ../secrets/ntfy-desktop-token; then
     echo "configs/ntfy: no readable ../secrets/ntfy-desktop-token, skipping" >&2
+    # never enabled without the token is the common case
     systemctl --user disable --now ntfy-notify.service >/dev/null 2>&1 || true
     exit 0
 fi

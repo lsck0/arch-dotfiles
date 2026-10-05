@@ -20,4 +20,6 @@ Write to the target file, then stop. No file given -> answer in chat.
 bisection when a reliable repro exists), `gdb`/`cgdb` (live/core-dump
 stack traces), `pwndbg` (gdb plugin, better crash introspection),
 `strace`/`ltrace` (syscall/library-call tracing when logs alone don't
-show the failure point).
+show the failure point), `rr` (record-replay time-travel debugging for
+nondeterministic bugs), `bpftrace` (eBPF tracing for kernel/syscall-level
+questions).

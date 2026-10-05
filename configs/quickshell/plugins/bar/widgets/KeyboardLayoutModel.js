@@ -43,10 +43,11 @@ function eventKeyboardName(event) {
   if (!parts) parts = String(event && event.data ? event.data : "").split(",")
 
   var name = String(parts[0] || "")
-  return name.indexOf("hl-virtual-keyboard") === 0 ? "" : name
+  return isTypedKeyboard(name) ? name : ""
 }
 
-var UNTYPED_KEYBOARDS = /^(hl-virtual-keyboard|power-button|sleep-button|lid-switch|video-bus)/
+// hyprland lists every device with key events as a keyboard: mice, mics, speakers, media and power keys
+var UNTYPED_KEYBOARDS = /^(hl-virtual-keyboard|power-button|sleep-button|lid-switch|video-bus)|-(consumer|system)-control|mouse|microphone|speaker|headset|yubikey|hotkeys|extra-buttons/
 
 function isTypedKeyboard(name) {
   return !UNTYPED_KEYBOARDS.test(String(name || ""))

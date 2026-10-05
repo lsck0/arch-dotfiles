@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Switch to the next or chosen wallpaper and re-theme with wal. Single-flighted via flock.
 
+set -euo pipefail
+
 # Concurrency guard.
 LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"
 exec 9>"$LOCK_FILE"
@@ -76,14 +78,12 @@ set_wallpaper() {
     # read by lua/theme.lua at startup and the live nvim nudge below
     printf '%s\n' "$NVIM_THEME" > "$HOME/.cache/wal/nvim_theme"
 
-    # themix cannot init gtk without a display; config.sh runs headless in the stage service, and without a
-    # theme there the first login's gtk dialogs (keyring prompt) come up in plain adwaita
+    # themix cannot init gtk without a display and config.sh runs headless in the stage service, so without a theme the first login's gtk dialogs (keyring prompt) come up in plain adwaita
     local themix=(themix-multi-export)
     if [[ -z "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]] && command -v xvfb-run >/dev/null 2>&1; then
         themix=(xvfb-run -a themix-multi-export)
     fi
-    # gtk/qt themes: chained in one backgrounded subshell, off the return-path critical section
-    # timeout -k 5: themix-multi-export can hang forever on an oomox gtk-loop bug that sigterm cannot reap; 9>&- drops the lock fd so a hung child never no-ops later switches
+    # gtk/qt themes chained in one backgrounded subshell off the return-path critical section; timeout -k 5 because themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap, and 9>&- drops the lock fd so a hung child never no-ops later switches
     ( ~/projects/arch-dotfiles/configs/wallust/scripts/generate-oomox-colors.py && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
@@ -138,8 +138,7 @@ set_wallpaper() {
         ui_font=""
     fi
 
-    # synchronous: rename-race-prone, the lock must stay held (not inherited into a background job)
-    # same conditioned palette as spotify, so the two match
+    # synchronous: rename-race-prone, the lock must stay held (not inherited into a background job); same conditioned palette as spotify, so the two match
     spice() { grep -m1 "^$1 " ~/.cache/wal/colors-spicetify.ini | awk '{print $3}' | sed 's/../0x& /g' | xargs printf '%d,%d,%d'; }
     rgb1=$(spice main)
     accent=$(spice button)
@@ -200,7 +199,7 @@ set_wallpaper() {
     done
 
     # push the theme to every running nvim through the lua/theme.lua entry point startup uses
-    for addr in "$XDG_RUNTIME_DIR"/nvim.*; do
+    for addr in "${XDG_RUNTIME_DIR:-}"/nvim.*; do
         [ -e "$addr" ] || continue
         nvim --server "$addr" --remote-send \
             "<Esc>:lua require('theme').apply('${NVIM_THEME}')<CR>" 9>&- &
@@ -278,7 +277,7 @@ main() {
         | sort)"
 
     # use cli provided wallpaper filepath
-    if [[ -n "$1" ]]; then
+    if [[ -n "${1:-}" ]]; then
         if [[ ! -f "$1" && "$1" != "random" ]]; then
             echo "File does not exist: $1"
             exit 1

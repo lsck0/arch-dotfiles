@@ -1,0 +1,11 @@
+[Unit]
+Description=Inbound lockdown firewall, replaces fw-inbound until stopped
+# shares table inet fw with fw-inbound; a stop is ordered before a start either way, so the old table goes before the new one loads
+Conflicts=fw-inbound.service
+After=fw-inbound.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-lockdown.nft
+ExecStop=/usr/sbin/nft destroy table inet fw

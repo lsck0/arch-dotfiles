@@ -10,9 +10,6 @@ import "WifiQrModel.js" as WifiQrModel
 Item {
   id: root
 
-  property var shell: null
-  property var manifest: null
-
   property bool opened: false
   property string iface: ""
   property string ssid: ""
@@ -38,9 +35,7 @@ Item {
   readonly property color onScrimUrgent: Color.semantic.live
   readonly property string fontFamily: Style.font.family
 
-  function open(payloadJson) {
-    var payload = {}
-    try { payload = JSON.parse(payloadJson || "{}") || {} } catch (e) {}
+  function open(payload) {
     // the generator's meta line overwrites this ssid
     root.ssid = payload.ssid !== undefined ? String(payload.ssid) : ""
     generate(String(payload.iface || ""))
@@ -73,12 +68,6 @@ Item {
     root.password = ""
     root.passwordVisible = false
     root.passwordError = ""
-  }
-
-  function dismiss() {
-    if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "panel.wifiqr")
-    else close()
   }
 
   function generate(requestedIface) {
@@ -192,7 +181,7 @@ Item {
 
       MouseArea {
         anchors.fill: parent
-        onClicked: root.dismiss()
+        onClicked: root.close()
       }
 
       // scanlines behind the code so the qr stays clean
@@ -204,7 +193,7 @@ Item {
       anchors.fill: parent
       focus: true
 
-      Keys.onEscapePressed: root.dismiss()
+      Keys.onEscapePressed: root.close()
 
       Item {
         anchors.centerIn: parent

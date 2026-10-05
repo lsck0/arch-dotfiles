@@ -1,11 +1,9 @@
 set selection-clipboard clipboard
 set selection-notification true
 
-# backward search (ctrl + left click in the pdf -> the latex source). Without this it only worked in a
-# zathura that vimtex itself started with -x; scripts/synctex-edit.sh jumps to whichever editor has the
-# file open, so it works no matter who opened the pdf.
+# alt + left click jumps to that line in the nvim or emacs that has the source open (scripts/synctex-edit.sh)
 set synctex true
-set synctex-edit-modifier ctrl
+set synctex-edit-modifier alt
 set synctex-editor-command "synctex-edit %{input} %{line} %{column}"
 
 set adjust-open width

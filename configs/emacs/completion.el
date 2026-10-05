@@ -72,6 +72,27 @@
   (add-hook 'completion-at-point-functions #'cape-dabbrev)
   (add-hook 'completion-at-point-functions #'cape-keyword))
 
+;;;; snippets (LuaSnip, lua/snippets.lua + lua/latex_snippets.lua) ----------------
+
+;; the templates live in templates.eld; tempel-expand offers a template once its name is typed in full
+(use-package tempel
+  :init
+  (setq tempel-path (expand-file-name "templates.eld" user-emacs-directory))
+  (add-hook 'completion-at-point-functions #'tempel-expand))
+
+;; blink.cmp shows lsp items and snippets in one menu; eglot's capf is buffer-local and would hide tempel
+(defvar-local my/eglot-capf nil
+  "The merged eglot + tempel capf installed in this buffer.")
+
+(defun my/eglot-capf-with-templates ()
+  (setq-local completion-at-point-functions (remq my/eglot-capf completion-at-point-functions))
+  (when (eglot-managed-p)
+    (setq my/eglot-capf (cape-capf-super #'eglot-completion-at-point #'tempel-expand))
+    (setq-local completion-at-point-functions
+                (cons my/eglot-capf (remq #'eglot-completion-at-point completion-at-point-functions)))))
+
+(add-hook 'eglot-managed-mode-hook #'my/eglot-capf-with-templates)
+
 ;;;; local AI completion (minuet.nvim) --------------------------------------
 
 (use-package minuet

@@ -1,0 +1,13 @@
+background_color             {background}
+custom_background_color      {background}
+custom_text_color            {foreground}
+status_bar_color             {background}
+status_bar_text_color        {foreground}
+ui_background_color          {background}
+ui_text_color                {foreground}
+ui_selected_background_color {color4}
+ui_selected_text_color       {background}
+text_highlight_color         {color3}
+search_highlight_color       {color4}
+synctex_highlight_color      {color5}
+page_separator_color         {color8}

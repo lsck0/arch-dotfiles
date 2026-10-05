@@ -137,10 +137,10 @@ BarWidget {
     return result
   }
 
-  // widget settings file, not the shell.json layout
+  // widget-settings.json, keyed by widget name
   function persistTrayState(pinned, hidden) {
     if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
-    root.bar.shellHost.setWidgetSettings("bar.tray", { pinned: pinned, hidden: hidden })
+    root.bar.shellHost.setWidgetSettings("Tray", { pinned: pinned, hidden: hidden })
   }
 
   function togglePin(iid) {

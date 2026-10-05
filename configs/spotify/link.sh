@@ -7,9 +7,8 @@ fi
 
 set -e
 
-if [ ! -d "${HOME}/.config/spicetify/Themes/.git" ]; then
-    git clone --depth 1 https://github.com/spicetify/spicetify-themes.git "${HOME}/.config/spicetify/Themes/"
-fi
+source ../../scripts/lib/fetch.sh
+fetch_git_pinned https://github.com/spicetify/spicetify-themes.git 33a08ea009687f5a42ff678015c28797fe142a7c "${HOME}/.config/spicetify/Themes"
 
 mkdir -p "${HOME}/.config/spicetify/Themes/wal"
 
@@ -22,6 +21,15 @@ if ! pacman -Q spotify >/dev/null 2>&1; then
     exit 0
 fi
 
+# obs taps spotify before the loudness lanes, so normalize here (-14 lufs, no limiter); only while closed, exit rewrites prefs
+if ! pgrep -x spotify >/dev/null; then
+    for prefs in "${HOME}"/.config/spotify/Users/*/prefs; do
+        [ -f "${prefs}" ] || continue
+        sed -i '/^audio\.normalize_v2=/d; /^audio\.loudness\.environment=/d' "${prefs}"
+        printf 'audio.normalize_v2=true\naudio.loudness.environment=1\n' >>"${prefs}"
+    done
+fi
+
 # spicetify writes here, own it instead of 777
 sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
 
@@ -31,9 +39,11 @@ spicetify config experimental_features 0
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
-spicetify apply || spicetify backup apply || true
+spicetify apply || spicetify backup apply
 
 python3 "${PWD}/spicetify-unmap-classes.py"
 
+# first apply waits for the first spotify login; later spotify updates come through the pacman hook
+spotify_patched() { [[ -d /opt/spotify/Apps/xpui ]]; }
 source ../../scripts/lib/user-hook.sh
-user_hook_install ./hook spicetify-apply
+user_hook_oneshot ./hook spicetify-apply spotify_patched

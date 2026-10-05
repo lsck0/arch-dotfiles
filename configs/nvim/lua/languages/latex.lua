@@ -23,10 +23,13 @@ return {
                 },
             }
 
-            -- zathura_simple: the xdotool window lookup fails on wayland
-            vim.g.vimtex_view_method = "zathura_simple"
-            -- off: spawning the viewer on open lagged the buffer for seconds
-            vim.g.vimtex_view_forward_search_on_start = false
+            -- not vimtex's sioyek: its --inverse-search swaps prefs_user.config's synctex-edit for a headless nvim without ft-lazy vimtex
+            -- the running sioyek reuses the window showing the pdf (configs/sioyek), --nofocus keeps the cursor in nvim
+            vim.g.vimtex_view_method = "general"
+            vim.g.vimtex_view_general_viewer = "sioyek"
+            vim.g.vimtex_view_general_options = "--nofocus --forward-search-file @tex --forward-search-line @line @pdf"
+            -- the compile-success autocmd below opens the viewer, a second opener would race it into two windows
+            vim.g.vimtex_view_automatic = 0
 
             vim.g.vimtex_fold_enabled = 1
             vim.g.vimtex_toc_config = {
@@ -55,12 +58,21 @@ return {
                 end,
             })
 
+            -- pywal maps Todo near the background, so vimtex's texCmdTodo (\todo and friends) renders invisible; force a loud marker that survives theme reloads
+            local function draft_markers()
+                vim.api.nvim_set_hl(0, "texCmdTodo", { link = "DiagnosticWarn", bold = true })
+            end
+            vim.api.nvim_create_autocmd("ColorScheme", { callback = draft_markers })
+            draft_markers()
+
             -- reload sources the paper repo's .latexmkrc stamped ids into; scheduled, checktime in the autocmd never reloads
             vim.api.nvim_create_autocmd("User", {
                 pattern = { "VimtexEventCompileSuccess", "VimtexEventCompileFailed" },
-                callback = function()
+                callback = function(args)
                     vim.schedule(function()
                         if vim.fn.getcmdwintype() == "" then vim.cmd.checktime() end
+                        -- forward search after every build, so the pdf follows the line just edited
+                        if args.match == "VimtexEventCompileSuccess" and vim.b.vimtex then vim.cmd.VimtexView() end
                     end)
                 end,
             })

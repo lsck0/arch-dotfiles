@@ -3,7 +3,7 @@ command_timeout = 3000
 scan_timeout = 500
 
 format = """
-$directory$git_branch$git_status$rust$python$nodejs$golang$lua$nix_shell$cmd_duration$jobs$status
+$directory${custom.worktree}$git_branch$git_status$rust$python$nodejs$golang$lua$nix_shell$cmd_duration$jobs$status
 $character"""
 
 [character]
@@ -21,6 +21,19 @@ format = '[\[](bold blue)[$path]($style)[$read_only]($read_only_style)[\]](bold 
 symbol = ' '
 style = 'bold blue'
 format = '[$symbol$branch]($style) '
+
+# linked worktree as repo/worktree since directory truncates to the worktree root, bare repo root as repo/bare
+[custom.worktree]
+when = true
+require_repo = true
+shell = ['sh']
+command = '''git rev-parse --path-format=absolute --git-dir --git-common-dir --is-bare-repository 2>/dev/null | {
+read -r dir; read -r common; read -r bare
+repo=${common%/}; repo=${repo%/.git}; repo=${repo%/.bare}; repo=${repo##*/}
+if [ "$bare" = true ]; then echo "$repo/bare"; elif [ "$dir" != "$common" ]; then echo "$repo/${dir##*/}"; fi
+}'''
+style = 'bold purple'
+format = '([󰙅 $output]($style) )'
 
 [nix_shell]
 symbol = "󰜗 "

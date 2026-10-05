@@ -1,0 +1,6 @@
+{
+    "bitrate": 6000,
+    "keyint_sec": 2,
+    "rate_control": "CBR",
+    "vaapi_device": "/dev/dri/by-path/pci-0000:03:00.0-render"
+}

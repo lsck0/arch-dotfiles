@@ -21,8 +21,7 @@ if [ ! -f "${XLCORE}/dalamudConfig.json" ]; then
     cp -rT "${BACKUP}/pluginConfigs" "${XLCORE}/pluginConfigs"
 fi
 
-# dalamud never installs a plugin its collection names, so a fresh install fetches each one the way the
-# installer would: newest build from the repo it came from, manifest carrying the old collection id
+# dalamud never installs a plugin its collection names, so a fresh install fetches each one the way the installer would: newest build from the repo it came from, manifest carrying the old collection id
 [ -d "${BACKUP}/manifests" ] || exit 0
 
 work=$(mktemp -d)

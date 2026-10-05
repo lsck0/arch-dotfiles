@@ -20,7 +20,7 @@ SECRET_DIR="../secrets/syncthing/$(hostname)"
 
 if secret_is_plaintext "${SECRET_DIR}/config.xml" && secret_is_plaintext "${SECRET_DIR}/key.pem"; then
     # install before the daemon starts so it comes up paired
-    systemctl --user stop syncthing.service 2>/dev/null || true
+    systemctl --user stop syncthing.service
     mkdir -p "${STATE}"
     install -m 600 "${SECRET_DIR}/config.xml" "${STATE}/config.xml"
     install -m 644 "${SECRET_DIR}/cert.pem" "${STATE}/cert.pem"
@@ -30,7 +30,7 @@ if secret_is_plaintext "${SECRET_DIR}/config.xml" && secret_is_plaintext "${SECR
 fi
 
 # no secrets: fresh identity, pair manually in the ui
-systemctl --user enable --now syncthing.service || true
+systemctl --user enable --now syncthing.service
 for _ in $(seq 1 30); do
     if syncthing cli show system >/dev/null 2>&1; then break; fi
     sleep 1

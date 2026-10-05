@@ -1,0 +1,6 @@
+{
+    "keyint_sec": 2,
+    "qp": 20,
+    "rate_control": "CQP",
+    "vaapi_device": "/dev/dri/by-path/pci-0000:03:00.0-render"
+}

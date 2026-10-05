@@ -10,4 +10,4 @@ for f in *.ttf *.otf; do
     [ -e "$f" ] || continue
     install -m644 "$f" "$dest/$f"
 done
-fc-cache -f "$dest" >/dev/null 2>&1 || true
+fc-cache -f "$dest" >/dev/null

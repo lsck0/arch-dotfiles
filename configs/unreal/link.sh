@@ -2,14 +2,15 @@
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 source ../../scripts/lib/personal.sh
-is_personal || exit 0
+source ../../scripts/lib/platform.sh
+source ../../scripts/lib/user-hook.sh
 
-GROUPS_STATE="$HOME/projects/arch-dotfiles/groups.conf"
-if [[ ! -f "$GROUPS_STATE" ]] || ! grep -qx programming "$GROUPS_STATE"; then
-    exit 0
-fi
+form_factor=$(platform_form_factor ../..) || exit 1
 
 set -e
 
-source ../../scripts/lib/user-hook.sh
-user_hook_install ./hook unreal-install
+# a ~60 GB engine is a personal desktop workload; unwanted counts as done, so a hook an older config armed retires
+unreal_done() {
+    ! is_personal || [[ "$form_factor" != desktop ]] || pacman -Q unreal-engine-bin >/dev/null 2>&1
+}
+user_hook_oneshot ./hook unreal-install unreal_done

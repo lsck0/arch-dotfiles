@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
 import "widgets"
-import "widgets/BuiltinWidgets.js" as BuiltinWidgets
+import "../Plugins.js" as Plugins
 
 PanelWindow {
   id: root
@@ -13,10 +13,7 @@ PanelWindow {
   screen: modelData
   required property var modelData
 
-  // injected by shell.qml
-  property QtObject pluginRegistry: null
-  property var barConfig: null
-  // not `shell`: shell.qml's `id: shell` would shadow it
+  // injected by shell.qml, not `shell`: shell.qml's `id: shell` would shadow it
   property QtObject shellHost: null
   // empty: every bar renders the full layout
   property string mainScreenName: ""
@@ -25,12 +22,8 @@ PanelWindow {
     || !modelData
     || String(modelData.name) === mainScreenName
 
-  // plain {left,center,right}, read by BarSection.qml
-  readonly property var layoutConfig: {
-    if (!barConfig) return null
-    if (!isMainScreen && barConfig.secondaryLayout) return barConfig.secondaryLayout
-    return barConfig.layout || null
-  }
+  // {left, center, right} widget names, read by BarSection.qml
+  readonly property var layoutConfig: isMainScreen ? Plugins.bar : Plugins.barSecondary
 
   anchors {
     top: true
@@ -59,15 +52,6 @@ PanelWindow {
 
   function run(cmd) {
     Util.execDetached(cmd)
-  }
-
-  // verify the builtin map still matches the manifests
-  Connections {
-    target: root.pluginRegistry
-    enabled: root.pluginRegistry !== null
-    function onScanFinished() {
-      BuiltinWidgets.checkDrift(root.pluginRegistry.installedPlugins, console.warn)
-    }
   }
 
   // only one panel open at a time

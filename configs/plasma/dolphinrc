@@ -39,6 +39,13 @@ ItalicFont=false
 PreviewSize=48
 UseSystemFont=false
 
+[KDE Action Restrictions]
+action/focus_terminal_panel=false
+action/open_terminal=false
+action/open_terminal_here=false
+action/show_terminal_panel=false
+action/switch_terminal_url_sync=false
+
 [KFileDialog Settings]
 Places Icons Auto-resize=false
 Places Icons Static Size=22

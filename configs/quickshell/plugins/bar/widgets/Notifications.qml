@@ -10,7 +10,7 @@ BarWidget {
   moduleName: "notifications"
 
   readonly property QtObject service: root.bar && root.bar.shellHost
-    ? root.bar.shellHost.serviceFor("service.notifications") : null
+    ? root.bar.shellHost.plugin("service.notifications") : null
   readonly property string historyDir: service ? service.historyDir : ""
 
   readonly property bool dndOn: service ? service.doNotDisturb : false

@@ -1,7 +1,8 @@
 [Unit]
 Description=Install JAI from the newest ~/sync/jai-*.zip
-# syncthing writes into ~/sync in bursts; a start limit would fail the path unit for good
-StartLimitIntervalSec=0
+# syncthing writes into ~/sync in bursts of up to 8 a minute; this only brakes a runaway trigger
+StartLimitIntervalSec=1min
+StartLimitBurst=20
 
 [Service]
 Type=oneshot

@@ -7,8 +7,7 @@ fi
 
 set -e
 
-# real modem present? a qmi/mbim wwan creates a wwan*/wwp* iface and a cdc-wdm node;
-# ID_MM_CANDIDATE is avoided, it tags every serial port MM may probe, not actual modems
+# a qmi/mbim modem creates a wwan*/wwp* iface and a cdc-wdm node; not ID_MM_CANDIDATE, it tags every probeable serial port
 has_modem() {
     local dev
     for dev in /sys/class/net/wwan* /sys/class/net/wwp* /dev/cdc-wdm*; do
@@ -20,13 +19,15 @@ has_modem() {
 }
 # ModemManager drives nmcli radio wwan (toggle-mobile); only run it with a modem, else idle overhead
 if command -v ModemManager >/dev/null 2>&1 && has_modem; then
-    sudo systemctl enable --now ModemManager.service 2>/dev/null || true
+    sudo systemctl enable --now ModemManager.service
 fi
 
 conf=/etc/NetworkManager/NetworkManager.conf
 # a restart drops wifi for seconds: only on change, then wait so later link.sh (nvim plugins) have network
-if [ "$(readlink "${conf}")" != "${PWD}/NetworkManager.conf" ]; then
-    sudo ln -sfn "${PWD}/NetworkManager.conf" "${conf}"
+changed=0
+cmp -s NetworkManager.conf "${conf}" || changed=1
+sudo install -Dm644 NetworkManager.conf "${conf}"
+if ((changed)); then
     sudo systemctl restart NetworkManager.service
     nm-online -q --timeout=60 || echo "networkmanager: still offline after 60s" >&2
 fi

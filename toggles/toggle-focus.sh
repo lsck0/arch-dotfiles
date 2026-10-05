@@ -5,11 +5,11 @@ source ./lib.sh
 
 # focus mode: a scene, not a new capability
 
-PARTS=(dnd keep-awake)
-SCRIPTS=(toggle-dnd.sh toggle-keep-awake.sh)
+PARTS=(dnd keep-awake nightlight)
+SCRIPTS=(toggle-dnd.sh toggle-keep-awake.sh toggle-nightlight.sh)
 SAVE="$TOGGLES_RUNTIME_DIR/focus-previous"
-# the shader slot is n-state, so it is saved by name and put back with `set`, not on/off
-SHADER_SAVE="$TOGGLES_RUNTIME_DIR/focus-previous-shader"
+# the grading preset is n-state: recorded by name next to the on/off parts, put back with `set`
+FOCUS_PRESET=grayscale
 
 check() { toggle_get_volatile focus; }
 
@@ -24,8 +24,8 @@ turn_on() {
         printf '%s %s\n' "${PARTS[$i]}" "$state" >>"$SAVE"
         [[ "$state" == on ]] || "./${SCRIPTS[$i]}" on >/dev/null 2>&1 || true
     done
-    ./toggle-shader.sh get >"$SHADER_SAVE" 2>/dev/null || true
-    ./toggle-shader.sh nightlight >/dev/null 2>&1 || true
+    printf 'color-grading %s\n' "$(./toggle-color-grading.sh get 2>/dev/null || echo default)" >>"$SAVE"
+    ./toggle-color-grading.sh set "$FOCUS_PRESET" >/dev/null 2>&1 || true
     toggle_set_volatile focus on
 }
 
@@ -37,16 +37,15 @@ turn_off() {
         # no record: default to off, the safe direction (never leaves the machine silently muted)
         [[ "${want:-off}" == on ]] || "./${SCRIPTS[$i]}" off >/dev/null 2>&1 || true
     done
+    local preset=""
+    [[ -s "$SAVE" ]] && preset=$(awk '$1 == "color-grading" { print $2 }' "$SAVE")
+    # no record: the default grade
+    if [[ -n "$preset" ]]; then
+        ./toggle-color-grading.sh set "$preset" >/dev/null 2>&1 || true
+    else
+        ./toggle-color-grading.sh on >/dev/null 2>&1 || true
+    fi
     rm -f "$SAVE"
-    # no record: back to the startup grade from hyprland_windows.lua
-    local shader
-    shader=$(cat "$SHADER_SAVE" 2>/dev/null || true)
-    case "$shader" in
-    off | nightlight | color-grading | cyberpunk) ;;
-    *) shader=color-grading ;;
-    esac
-    ./toggle-shader.sh "$shader" >/dev/null 2>&1 || true
-    rm -f "$SHADER_SAVE"
     toggle_set_volatile focus off
 }
 

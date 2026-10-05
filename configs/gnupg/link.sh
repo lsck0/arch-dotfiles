@@ -18,8 +18,8 @@ for conf in gpg-agent.conf scdaemon.conf; do
 done
 
 # reload keeps cached keys; scdaemon reads its config only at start
-gpgconf --reload gpg-agent || true
-gpgconf --kill scdaemon || true
+gpgconf --reload gpg-agent
+gpgconf --kill scdaemon
 
 # Luca Sandrock key: public half always, the private file from unlocked secrets, card stubs if a YubiKey holds it
 if is_personal; then
@@ -29,5 +29,6 @@ if is_personal; then
     if grep -qs 'BEGIN PGP PRIVATE KEY' ../secrets/pgp_privatekey.asc; then
         gpg --batch --import ../secrets/pgp_privatekey.asc
     fi
+    # writes the card stubs when a YubiKey is plugged in, none plugged in is fine
     gpg --card-status >/dev/null 2>&1 || true
 fi

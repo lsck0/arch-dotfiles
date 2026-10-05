@@ -25,6 +25,7 @@ TRMNL_PLUGIN_UUID=...
 ```bash
 ./run.sh --dry-run     # print the payload, post nothing
 ./run.sh               # post once
+./changed.sh           # exit 0 when the timer would post (claude activity or stale data)
 systemctl --user status trmnl-claude.timer
 journalctl --user -u trmnl-claude -n 20
 ```

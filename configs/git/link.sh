@@ -14,14 +14,12 @@ if command -v git-lfs >/dev/null 2>&1; then
     git lfs install
 fi
 
-# basic
 # guests keep the generic config, only luca gets his identity
 if is_personal; then
     git config --global user.name "Luca Sandrock"
     git config --global user.email "luca.sandrock@proton.me"
 fi
-# no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also
-# persist that gh token into ~/.git-credentials
+# no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also persist that gh token into ~/.git-credentials
 git config --global init.defaultBranch master
 git config --global pull.rebase true
 git config --global --type bool push.autoSetupRemote true

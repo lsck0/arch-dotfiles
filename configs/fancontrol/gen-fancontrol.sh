@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Load it87 and (re)generate a safe /etc/fancontrol. Runs as fancontrol.service ExecStartPre every boot,
-# so the config always matches the live hwmon numbering (it87 shuffles hwmonN across reboots). Every fan
-# follows the CPU (Tctl) on a gentle curve with an airflow floor, so no pwmconfig and no per-fan mapping.
+# load it87 and regenerate a safe /etc/fancontrol as fancontrol.service ExecStartPre every boot, so the config matches the live hwmon numbering (it87 shuffles hwmonN across reboots); every fan follows Tctl on a gentle curve with an airflow floor, so no pwmconfig and no per-fan mapping
 
 set -euo pipefail
 
@@ -65,6 +63,5 @@ done
     echo "MAXPWM=${maxpwm[*]}"
 } >/etc/fancontrol
 
-# no systemctl here: this runs as fancontrol.service ExecStartPre (regenerate for the live hwmon
-# numbering, which shuffles across reboots), so it must not touch the unit it is starting
+# no systemctl here: this runs as fancontrol.service ExecStartPre, so it must not touch the unit it is starting
 echo "fancontrol: ${#pwms[@]} fan channel(s) on $it87 now follow Tctl (${FLOOR_PWM}/255 floor, full by ${MAXTEMP}C)" >&2

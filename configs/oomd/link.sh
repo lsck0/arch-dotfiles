@@ -9,8 +9,7 @@ set -e
 
 sudo systemctl enable systemd-oomd.service
 
-# oomd may only kill in app.slice, never hyprland itself
-# copied, not linked: systemd-oomd starts before /home mounts
+# oomd may only kill in app.slice, never hyprland itself; copied not linked because systemd-oomd starts before /home mounts
 sudo rm -f /etc/systemd/oomd.conf.d/10-oomd.conf
 sudo install -Dm644 "${PWD}/oomd.conf" /etc/systemd/oomd.conf.d/10-oomd.conf
 mkdir -p "${HOME}/.config/systemd/user/app.slice.d"

@@ -1,16 +1,12 @@
 #!/usr/bin/env bash
-# Symlink every scripts/*.sh and *.py into /usr/local/bin.
+# Symlink every scripts/*.sh and *.py into ~/.local/bin; user scripts stay out of root's secure_path.
 
-set -ex
+set -e
 
-# Globs, not `ls`: an empty match makes `ls` exit non-zero and take the whole script down under `set -e`.
 shopt -s nullglob
 
-for script in *.sh; do
+mkdir -p "$HOME/.local/bin"
+for script in *.sh *.py; do
     [[ "$script" == "link.sh" ]] && continue
-    sudo ln -sfn "$PWD/$script" "/usr/local/bin/$(basename "$script" .sh)"
-done
-
-for script in *.py; do
-    sudo ln -sfn "$PWD/$script" "/usr/local/bin/$(basename "$script" .py)"
+    ln -sfn "$PWD/$script" "$HOME/.local/bin/${script%.*}"
 done

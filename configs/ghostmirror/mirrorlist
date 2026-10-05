@@ -1,4 +1,7 @@
-# lastsync<dd.mm.yyyy> 01.10.2026
+# lastsync<dd.mm.yyyy> 04.10.2026
+# homelab full mirror (10.100.0.109), internal only, authoritative; public mirrors below are the away-from-home fallback
+Server=http://10.100.0.109:8090/archlinux/$repo/os/$arch
+
 ## Germany
 Server=http://mirror.23m.com/archlinux/$repo/os/$arch
 Server=https://mirror.23m.com/archlinux/$repo/os/$arch

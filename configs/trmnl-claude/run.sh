@@ -9,4 +9,5 @@ ENV_FILE="$DIR/../secrets/trmnl-claude.env"
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 set -a; . "$ENV_FILE"; set +a
 
-exec python3 "$DIR/claude_trmnl.py" "$@"
+# headers: auto drives a claude tui for 20 s (11 s cpu) every run for a per-model row max plans lack
+exec python3 "$DIR/claude_trmnl.py" --usage-method headers "$@"

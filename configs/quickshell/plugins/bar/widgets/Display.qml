@@ -46,7 +46,6 @@ BarWidget {
   }
 
   function openWallpaperPicker() {
-    // not switch-wallpaper.sh
     Quickshell.execDetached([Paths.script("wallpaper-picker.sh")])
   }
 
@@ -62,39 +61,46 @@ BarWidget {
 
   readonly property string fontScript: Paths.toggle("toggle-font.sh")
 
+  readonly property string gradingCli: Paths.dotfiles + "/configs/color-grading/color-grading.py"
   readonly property string shaderScript: Paths.toggle("toggle-shader.sh")
-  property string shaderState: "off"
-  // an in-flight read may predate a change
-  property bool shaderReadQueued: false
+  property var grading: ({ preset: "", nightlight: false, presets: [] })
+  property var shaders: ({ current: "off", shaders: [] })
 
-  function refreshShader() {
-    if (shaderStateProc.running) root.shaderReadQueued = true
-    else shaderStateProc.running = true
+  function refreshColor() {
+    if (!gradingProc.running) gradingProc.running = true
+    if (!shaderProc.running) shaderProc.running = true
   }
 
-  function setShader(name) {
-    if (shaderSetProc.running) return
-    shaderSetProc.command = [root.shaderScript, root.shaderState === name ? "off" : name]
-    shaderSetProc.running = true
+  function colorRun(argv) {
+    if (colorActionProc.running) return
+    colorActionProc.command = argv
+    colorActionProc.running = true
   }
+
+  function shaderName(entry) { return String(entry).split(":")[0] }
+  function shaderVariant(entry) { var i = String(entry).indexOf(":"); return i < 0 ? "" : String(entry).substring(i + 1) }
 
   Process {
-    id: shaderStateProc
-    command: [root.shaderScript, "get"]
+    id: gradingProc
+    command: [root.gradingCli, "status"]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.shaderState = String(text || "").trim()
-    }
-    onExited: {
-      if (!root.shaderReadQueued) return
-      root.shaderReadQueued = false
-      Qt.callLater(root.refreshShader)
+      onStreamFinished: { try { root.grading = JSON.parse(text || "{}") } catch (e) {} }
     }
   }
 
   Process {
-    id: shaderSetProc
-    onExited: root.refreshShader()
+    id: shaderProc
+    command: [root.shaderScript, "status"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: { try { root.shaders = JSON.parse(text || "{}") } catch (e) {} }
+    }
+  }
+
+  Process {
+    id: colorActionProc
+    onExited: root.refreshColor()
   }
 
   // terminal font size, not quickshell's own base size
@@ -137,9 +143,8 @@ BarWidget {
     onTriggered: root.refreshFontSize()
   }
 
-  // action: extend, off, or mirror:<output>
   function setMonitorLayout(name, action) {
-    var args = [Paths.script("set-monitor-layout.sh"), name]
+    var args = [Paths.toggle("toggle-monitor-scale.sh"), "layout", name]
     if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
     else args.push(action)
     Quickshell.execDetached(args)
@@ -154,7 +159,7 @@ BarWidget {
   }
 
   function setMonitorScale(name, scale) {
-    Quickshell.execDetached([Paths.script("set-monitor-scale.sh"), name, String(scale)])
+    Quickshell.execDetached([Paths.toggle("toggle-monitor-scale.sh"), "live", String(scale), name])
     monitorsSettle.restart()
   }
 
@@ -225,11 +230,10 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    // brightness is read once, via refreshMonitors, until seeded
     onOpened: {
       root.refreshMonitors()
       root.refreshFontSize()
-      root.refreshShader()
+      root.refreshColor()
     }
 
     title: "DISPLAY"
@@ -318,21 +322,75 @@ BarWidget {
         onActivated: { root.openWallpaperPicker(); if (root.bar) root.bar.closePanel(root.moduleName) }
       }
 
-      PanelSectionHeader { text: "SHADER" }
+      PanelSectionHeader { text: "COLOR GRADING" }
 
-      Repeater {
-        model: [
-          { name: "nightlight", label: "Night light" },
-          { name: "color-grading", label: "Color grading" },
-          { name: "cyberpunk", label: "Cyberpunk" }
-        ]
+      Column {
+        width: parent.width
+        spacing: Style.spacing.xxs
+
+        Repeater {
+          model: root.grading.presets || []
+          PanelRow {
+            required property var modelData
+            width: parent.width
+            stateMarker: true
+            on: root.grading.preset === modelData.name
+            label: modelData.label
+            onActivated: root.colorRun([Paths.toggle("toggle-color-grading.sh"), "set", modelData.name])
+          }
+        }
+
         PanelRow {
-          required property var modelData
+          width: parent.width
+          glyph: "\u{f0594}"
+          on: root.grading.nightlight === true
+          label: "Night light"
+          onActivated: root.colorRun([Paths.toggle("toggle-nightlight.sh"), "toggle"])
+        }
+      }
+
+      PanelSectionHeader { text: "SHADERS" }
+
+      Column {
+        width: parent.width
+        spacing: Style.spacing.xxs
+
+        PanelRow {
           width: parent.width
           stateMarker: true
-          on: root.shaderState === modelData.name
-          label: modelData.label
-          onActivated: root.setShader(modelData.name)
+          on: root.shaders.current === "off"
+          label: "Off"
+          onActivated: root.colorRun([root.shaderScript, "off"])
+        }
+
+        Repeater {
+          model: root.shaders.shaders || []
+          Column {
+            id: shaderItem
+            required property var modelData
+            readonly property bool active: root.shaderName(root.shaders.current) === modelData.name
+            width: parent.width
+            spacing: Style.spacing.xxs
+
+            PanelRow {
+              width: parent.width
+              stateMarker: true
+              on: shaderItem.active
+              label: shaderItem.modelData.label
+              onActivated: root.colorRun([root.shaderScript, shaderItem.active ? "off" : "set", shaderItem.modelData.name])
+            }
+
+            ButtonGroup {
+              visible: shaderItem.modelData.variants.length > 0
+              width: parent.width
+              fill: true
+              spacing: Style.spacing.xs
+              fontSize: Style.font.caption
+              options: shaderItem.modelData.variants.map(function(v) { return { value: v, label: v.toUpperCase() } })
+              value: shaderItem.active ? root.shaderVariant(root.shaders.current) : ""
+              onChanged: function(v) { root.colorRun([root.shaderScript, "set", shaderItem.modelData.name + ":" + v]) }
+            }
+          }
         }
       }
 

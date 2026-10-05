@@ -39,4 +39,5 @@ chmod 600 "$SOPS_KEYS"
 if grep -qs '^AGE-SECRET-KEY-' ../secrets/age.txt; then
     cat ../secrets/age.txt >>"$SOPS_KEYS"
 fi
+# no YubiKey enrolled yet means no identity files
 cat age-*.identity >>"$SOPS_KEYS" 2>/dev/null || true

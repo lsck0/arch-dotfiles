@@ -3,17 +3,18 @@
 
 set -e
 
-# progress bars need a tty; re-exec under `script` so pacman/yay render live while logging.
-# without a tty (piped, cron) fall through to plain tee.
+# progress bars need a tty: re-exec under `script` so pacman/yay render live while logging, plain tee without one
 if [ -z "${_PTY_LOG:-}" ]; then
     export _PTY_LOG=1
+    # before the re-exec, whose pty stdin would look like a person even under stage.sh's </dev/null
+    [ -t 0 ] || export DOTFILES_UNATTENDED=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then
         exec script -qe -c "$0 $*" install.log
     fi
     exec > >(tee install.log) 2>&1
 fi
 
-export FAILURES_FILE="$(pwd)/FAILURES.install"
+export FAILURES_FILE="$PWD/FAILURES.install"
 : >"$FAILURES_FILE"
 
 # stage.sh retries an abort but moves on from a run that only logged failures
@@ -21,34 +22,32 @@ EXIT_FAILURES=1
 EXIT_ABORTED=2
 install_finished=0
 on_exit() {
-    kill "${SUDO_KEEPALIVE_PID:-}" 2>/dev/null || true
     ((install_finished)) || exit "$EXIT_ABORTED"
 }
 trap on_exit EXIT
-
-# stage.sh sets DOTFILES_UNATTENDED, under `script` stdin is a pty even then
-interactive() { [[ -t 0 && -z "${DOTFILES_UNATTENDED:-}" ]]; }
 
 ## PACKAGES
 
 PACKAGES=(
     age                      # [base] file encryption, opens the YubiKey-sealed secrets key
     age-plugin-yubikey       # [base] age identities in the YubiKey PIV applet
-    alsa-firmware            # [base] ALSA sound firmware
-    amd-ucode                # [base] AMD CPU microcode, pacstrap installs it on AMD
-    amdgpu_top               # [base] AMD GPU monitor
+    alsa-firmware            # [hardware] ALSA sound firmware
+    amd-ucode                # [hardware] AMD CPU microcode, pacstrap installs it on AMD
     app2unit                 # [base] app to systemd unit
+    apparmor                 # [hardware] mandatory access control LSM, parser and stock profiles
+    apparmor.d               # [hardware] aa-install and the browser/discord/zathura profiles (configs/apparmor)
     argon2                   # [base] password hashing tool
     base                     # [base] Arch base group
     base-devel               # [base] Arch build tools
-    bluetui                  # [base] bluetooth tui
-    bluez                    # [base] bluetooth stack
-    bluez-obex               # [base] bluetooth OBEX (file transfer)
-    bluez-utils              # [base] bluetooth utilities
+    bluetui                  # [hardware] bluetooth tui
+    bluez                    # [hardware] bluetooth stack
+    bluez-obex               # [hardware] bluetooth OBEX (file transfer)
+    bluez-utils              # [hardware] bluetooth utilities
     borg                     # [base] deduplicating backup tool
     bpftop                   # [base] bpf monitor
     btop                     # [base] resource monitor TUI
-    btrfs-progs              # [base] btrfs filesystem tools
+    btrfs-progs              # [hardware] btrfs filesystem tools
+    bubblewrap               # [base] unprivileged sandbox, runs untrusted binaries without network
     caligula                 # [base] disk imaging tool
     ccid                     # [base] smartcard CCID driver (YubiKey OpenPGP)
     chafa                    # [base] terminal image renderer
@@ -60,9 +59,9 @@ PACKAGES=(
     cpufetch                 # [base] CPU info fetcher
     croc                     # [base] secure file transfer
     cronie                   # [base] cron daemon
-    cryptsetup               # [base] LUKS tooling, pacstrap installs it
-    cups                     # [base] printing system
-    cups-pdf                 # [base] print-to-PDF virtual printer
+    cryptsetup               # [hardware] LUKS tooling, pacstrap installs it
+    cups                     # [hardware] printing system
+    cups-pdf                 # [hardware] print-to-PDF virtual printer
     curl                     # [base] HTTP client tool
     czmq-git                 # [base] libczmq for ossec-hids-local, which links it without depending on it
     diskwatch                # [base] disk debugging
@@ -71,111 +70,105 @@ PACKAGES=(
     dua-cli                  # [base] disk usage analyzer
     dwarfs                   # [base] compressed read-only fs
     dysk                     # [base] disk usage viewer
-    efibootmgr               # [base] EFI boot manager
+    efibootmgr               # [hardware] EFI boot manager
     eza                      # [base] modern ls replacement
-    fail2ban                 # [base] intrusion prevention tool
+    fail2ban                 # [hardware] intrusion prevention tool
     fastfetch                # [base] system info fetcher
     fd                       # [base] find alternative
     ffmpeg                   # [base] audio/video converter
     file                     # [base] file type detector
     flatpak                  # [base] sandboxed app packages
     freetype2                # [base] font rasterizer
+    fwupd                    # [hardware] lvfs firmware updates (nvme, gpu, usb4, uefi dbx)
     fzf                      # [base] fuzzy finder
+    fzf-tab-git              # [base] fzf for zsh tab completion
     ghostmirror              # [base] mirrorlist ranking tool
     git                      # [base] version control
     git-crypt                # [base] transparent encryption of the secrets repo
     gnutls                   # [base] TLS library
     gpg-tui                  # [base] gpg tui
     gping                    # [base] ping with graph
-    grub                     # [base] bootloader, pacstrap installs it
-    gufw                     # [base] firewall GUI (ufw)
+    grub                     # [hardware] bootloader, pacstrap installs it
     gum                      # [base] pretty shell prompts/inputs
     imagemagick              # [base] theme generator dependency
-    intel-media-driver       # [base] Intel VAAPI driver
-    intel-ucode              # [base] Intel CPU microcode, pacstrap installs it on Intel
+    intel-media-driver       # [hardware] Intel VAAPI driver
+    intel-ucode              # [hardware] Intel CPU microcode, pacstrap installs it on Intel
     ipython                  # [base] enhanced Python shell
-    it87-dkms-git            # [base] out-of-tree ITE SuperIO driver, exposes fan RPM/PWM on Gigabyte boards
-    iwd                      # [base] iNet wireless daemon
-    jolt                     # [base] battery debugging
+    jolt                     # [hardware] battery debugging
     jq                       # [base] JSON processor CLI
     just                     # [base] command runner
     kmon                     # [base] kernel monitor
     knockd                   # [base] port-knock client (knock) for hidden sshd
     lazyjournal              # [base] journalctl/log TUI
     less                     # [base] pager utility
-    lib32-alsa-lib           # [base] 32-bit ALSA lib
-    lib32-alsa-plugins       # [base] 32-bit ALSA plugins
-    lib32-giflib             # [base] 32-bit GIF lib
-    lib32-gnutls             # [base] 32-bit TLS lib
-    lib32-libgcrypt          # [base] 32-bit crypto lib
-    lib32-libgpg-error       # [base] 32-bit gpg errors
-    lib32-libjpeg-turbo      # [base] 32-bit JPEG lib
-    lib32-libldap            # [base] 32-bit LDAP lib
-    lib32-libpng             # [base] 32-bit PNG lib
-    lib32-libpulse           # [base] 32-bit PulseAudio
-    lib32-libva              # [base] 32-bit VAAPI lib
-    lib32-libxcomposite      # [base] 32-bit X composite
-    lib32-libxinerama        # [base] 32-bit Xinerama lib
-    lib32-mesa               # [base] 32-bit Mesa drivers
-    lib32-mpg123             # [base] 32-bit MP3 decoder
-    lib32-ncurses            # [base] 32-bit ncurses lib
-    lib32-opencl-icd-loader  # [base] 32-bit OpenCL loader
-    lib32-sqlite             # [base] 32-bit SQLite lib
-    lib32-vulkan-icd-loader  # [base] 32-bit Vulkan loader
-    lib32-vulkan-radeon      # [base] 32-bit AMD Vulkan
+    lib32-alsa-lib           # [gaming] 32-bit ALSA lib
+    lib32-alsa-plugins       # [gaming] 32-bit ALSA plugins
+    lib32-giflib             # [gaming] 32-bit GIF lib
+    lib32-gnutls             # [gaming] 32-bit TLS lib
+    lib32-libgcrypt          # [gaming] 32-bit crypto lib
+    lib32-libgpg-error       # [gaming] 32-bit gpg errors
+    lib32-libjpeg-turbo      # [gaming] 32-bit JPEG lib
+    lib32-libldap            # [gaming] 32-bit LDAP lib
+    lib32-libpng             # [gaming] 32-bit PNG lib
+    lib32-libpulse           # [gaming] 32-bit PulseAudio
+    lib32-libva              # [gaming] 32-bit VAAPI lib
+    lib32-libxcomposite      # [gaming] 32-bit X composite
+    lib32-libxinerama        # [gaming] 32-bit Xinerama lib
+    lib32-mesa               # [gaming] 32-bit Mesa drivers
+    lib32-mpg123             # [gaming] 32-bit MP3 decoder
+    lib32-ncurses            # [gaming] 32-bit ncurses lib
+    lib32-opencl-icd-loader  # [gaming] 32-bit OpenCL loader
+    lib32-sqlite             # [gaming] 32-bit SQLite lib
+    lib32-vulkan-icd-loader  # [gaming] 32-bit Vulkan loader
+    lib32-vulkan-radeon      # [hardware] 32-bit AMD Vulkan
     libappimage              # [base] AppImage runtime lib
     libev                    # [base] event loop library
     libfido2                 # [base] FIDO2/U2F device library
     libgcrypt                # [base] crypto library
     libgpg-error             # [base] gpg error codes
-    libinput-tools           # [base] libinput debug tools
+    libinput-tools           # [hardware] libinput debug tools
     libjpeg-turbo            # [base] JPEG codec library
     libldap                  # [base] LDAP client library
     libpng                   # [base] PNG image library
     libpqxx                  # [base] C++ postgres client
     libpulse                 # [base] PulseAudio client lib
-    libreoffice-fresh        # [base] office suite
+    libreoffice-fresh        # [desktop] office suite
     libva                    # [base] VAAPI video accel
-    libva-intel-driver       # [base] Intel VAAPI driver
     libvips                  # [base] image processing library
     libxcomposite            # [base] X composite extension
     libxinerama              # [base] X multi-monitor lib
-    linux                    # [base] Linux kernel
-    linux-docs               # [base] kernel documentation
-    linux-firmware           # [base] kernel firmware blobs
-    linux-hardened           # [base] hardened kernel
-    linux-hardened-docs      # [base] hardened kernel docs
-    linux-hardened-headers   # [base] hardened kernel headers
-    linux-headers            # [base] kernel headers
-    linux-lts                # [base] long-term-support kernel
-    linux-lts-docs           # [base] LTS kernel docs
-    linux-lts-headers        # [base] LTS kernel headers
-    linux-tools-meta         # [base] kernel perf tools
-    lm_sensors               # [base] hardware sensors, ships fancontrol/pwmconfig/sensors-detect
+    linux                    # [hardware] Linux kernel
+    linux-firmware           # [hardware] kernel firmware blobs
+    linux-headers            # [hardware] kernel headers
+    linux-lts                # [hardware] long-term-support kernel
+    linux-lts-headers        # [hardware] LTS kernel headers
+    linux-tools-meta         # [hardware] kernel perf tools
+    lm_sensors               # [hardware] hardware sensors, ships fancontrol/pwmconfig/sensors-detect
     lolcat                   # [base] rainbow text output
     lshw                     # [base] hardware lister
     lua51-luautf8            # [base] Lua UTF-8 lib
     lynis                    # [base] security auditing tool
     man-pages                # [base] Linux manual pages
     mesa                     # [base] graphics driver library
-    metadata-cleaner         # [base] strip file metadata
-    mkinitcpio               # [base] initramfs generator, pacstrap installs it
-    modemmanager             # [base] mobile broadband (WWAN), toggle-mobile
+    metadata-cleaner         # [desktop] strip file metadata
+    mkinitcpio               # [hardware] initramfs generator, pacstrap installs it
+    modemmanager             # [hardware] mobile broadband (WWAN), toggle-mobile
     mtools                   # [base] DOS filesystem tools
     mtr                      # [base] traceroute + ping
     ncurses                  # [base] terminal UI library
-    neofetch                 # [base] system info display
-    networkmanager           # [base] network connection manager
-    nftables                 # [base] firewall packet filter
+    networkmanager           # [hardware] network connection manager
+    nftables                 # [hardware] firewall packet filter
     nss-mdns                 # [base] mDNS name resolution
     ntfs-3g                  # [base] NTFS filesystem driver
     nushell                  # [base] structured-data shell
+    oh-my-zsh-git            # [base] zsh libs and plugins, sourced without the framework
     openal                   # [base] 3D audio library
     openbsd-netcat           # [base] netcat networking tool
     opencl-icd-loader        # [base] OpenCL loader
     openssh                  # [base] SSH client/server
     openssl                  # [base] TLS/crypto toolkit
     openvpn                  # [base] VPN client/server
+    os-prober                # [hardware] other systems in grub's menu (GRUB_DISABLE_OS_PROBER=false)
     ossec-hids-local         # [base] host intrusion detection
     ouch                     # [base] archive compression tool
     pacman-contrib           # [base] pacman cache cleanup tools
@@ -186,17 +179,17 @@ PACKAGES=(
     pass-otp                 # [base] pass TOTP/2FA extension
     pcsclite                 # [base] PC/SC smartcard middleware
     pdftk                    # [base] PDF toolkit
-    pipewire                 # [base] audio/video server
-    pipewire-alsa            # [base] pipewire ALSA compat
-    pipewire-pulse           # [base] pipewire pulse compat
-    plasma-integration       # [base] Qt platform theme
-    plymouth                 # [base] boot splash screen
-    portmaster-bin           # [base] application firewall
+    pipewire                 # [hardware] audio/video server
+    pipewire-alsa            # [hardware] pipewire ALSA compat
+    pipewire-pulse           # [hardware] pipewire pulse compat
+    plasma-integration       # [desktop] Qt platform theme
+    plymouth                 # [hardware] boot splash screen
+    portmaster-bin           # [hardware] application firewall
     procs                    # [base] modern ps replacement
     proton-vpn-cli           # [base] ProtonVPN CLI (protonvpn command)
     python                   # [base] theme generator scripts
+    python-evdev             # [hardware] input events for the configs/tablet userspace driver
     python-pywalfox          # [base] firefox theme propagator
-    python-validity-git      # [base] fingerprint reader driver
     ranger                   # [base] terminal file manager
     rar                      # [base] RAR archive tool
     syncthing                # [base] file sync daemon
@@ -205,16 +198,16 @@ PACKAGES=(
     rustnet                  # [base] network monitor TUI
     rustup                   # [base] rust toolchain manager, installed before the batch so nothing pulls rust
     s-tui                    # [base] CPU stress/monitor TUI
-    sane                     # [base] scanner access library
-    sbctl                    # [base] Secure Boot key management
+    sane                     # [hardware] scanner access library
+    sbctl                    # [hardware] Secure Boot key management
     sd                       # [base] sed alternative CLI
-    smartmontools            # [base] disk health monitoring
+    smartmontools            # [hardware] disk health monitoring
     socat                    # [base] socket relay tool
-    sof-firmware             # [base] sound open firmware
+    sof-firmware             # [hardware] sound open firmware
     sshfs                    # [base] SSH filesystem mount
     sshpass                  # [base] non-interactive SSH auth
     starship                 # [base] cross-shell prompt
-    stirling-pdf-bin         # [base] PDF manipulation tool
+    stirling-pdf-bin         # [desktop] PDF manipulation tool
     sudo                     # [base] privilege escalation tool
     superseedr               # [base] terminal torrent
     tailspin                 # [base] logging tool
@@ -223,46 +216,42 @@ PACKAGES=(
     themix-gui-git           # [base] GTK theme exporter
     themix-plugin-base16-git # [base] themix export plugin
     xorg-server-xvfb         # [base] virtual display for themix-multi-export while config.sh runs headless
-    thermald                 # [base] thermal management daemon
-    timeshift                # [base] system backup/restore
-    timeshift-autosnap       # [base] pacman hook for pre-upgrade snapshots
+    thermald                 # [hardware] thermal management daemon
+    timeshift                # [hardware] system backup/restore
+    timeshift-autosnap       # [hardware] pacman hook for pre-upgrade snapshots
     tk                       # [base] Tcl/Tk GUI toolkit
     tldr                     # [base] simplified man pages
-    tlp                      # [base] laptop power management
+    tlp                      # [hardware] laptop power management
     tmux                     # [base] terminal multiplexer
     tmux-fingers             # [base] tmux copy-paste hints
+    tor-router               # [hardware] transparent tor routing, toggles/toggle-tor.sh
     tparted-bin              # [base] partitioning TUI tool
     traceroute               # [base] network route tracer
     trash-cli                # [base] CLI trash bin
     trippy                   # [base] traceroute + ping TUI
     tty-clock                # [base] terminal clock display
     unzip                    # [base] zip extraction tool
-    usage                    # [base] CLI docs generator
     usbtree                  # [base] usb tui
-    v4l-utils                # [base] video4linux utilities
-    v4l2loopback-dkms        # [base] virtual video device
-    v4l2loopback-utils       # [base] v4l2loopback helper tools
+    v4l-utils                # [hardware] video4linux utilities
+    v4l2loopback-dkms        # [hardware] virtual video device
+    v4l2loopback-utils       # [hardware] v4l2loopback helper tools
     ventoy-bin               # [base] multi-boot USB creator
     veracrypt                # [base] disk encryption tool
     vim                      # [base] modal text editor
     vulkan-icd-loader        # [base] Vulkan loader library
-    vulkan-intel             # [base] Intel Vulkan driver
-    vulkan-nouveau           # [base] Nvidia open Vulkan
-    vulkan-radeon            # [base] AMD Vulkan driver
+    vulkan-intel             # [hardware] Intel Vulkan driver
+    vulkan-nouveau           # [hardware] Nvidia open Vulkan
+    vulkan-radeon            # [hardware] AMD Vulkan driver
     wallust-git              # [base] wallpaper colour engine
     wget                     # [base] file download utility
     whois                    # [base] domain lookup tool
     wiki-tui                 # [base] Wikipedia terminal browser
     wireguard-tools          # [base] WireGuard VPN tools
-    wireguard-ui-bin         # [base] WireGuard web UI
-    wireless-regdb           # [base] wifi regulatory db the kernel loads
-    wireless_tools           # [base] legacy wireless config
-    wpa_supplicant           # [base] wifi authentication daemon
+    wireless-regdb           # [hardware] wifi regulatory db the kernel loads
+    wpa_supplicant           # [hardware] wifi authentication daemon
     xdg-ninja                # [base] XDG compliance checker
     xdg-user-dirs            # [base] standard user directories
     xdg-utils                # [base] desktop integration utilities
-    xf86-video-ati           # [base] legacy AMD driver
-    xf86-video-nouveau       # [base] open Nvidia driver
     yay                      # [base] AUR helper
     yazi                     # [base] terminal file manager
     yt-dlp                   # [base] video downloader
@@ -270,8 +259,11 @@ PACKAGES=(
     yubikey-personalization  # [base] ykpersonalize: static-pw/chalresp slots
     zip                      # [base] zip archiving tool
     zoxide                   # [base] smarter cd command
-    zram-generator           # [base] compressed swap generator
+    zram-generator           # [hardware] compressed swap generator
     zsh                      # [base] Z shell
+    zsh-autosuggestions      # [base] zsh history suggestions
+    zsh-completions          # [base] extra zsh completions
+    zsh-syntax-highlighting  # [base] zsh command line highlighting
 
     noto-fonts                        # [fonts] Google Noto fonts
     noto-fonts-emoji                  # [fonts] Noto emoji fonts
@@ -413,13 +405,13 @@ PACKAGES=(
     ani-cli-git                 # [desktop] anime streaming CLI
     bemenu-wayland              # [desktop] dmenu for wayland
     bleachbit                   # [desktop] disk space cleaner
-    blueberry                   # [desktop] bluetooth config GUI
     bookokrat-bin               # [desktop] terminal pdf
     brightnessctl               # [desktop] backlight control
     chromium                    # [desktop] web browser
     cpio                        # [desktop] hyprpm extracts Hyprland headers with it
     cups-pk-helper              # [desktop] cups polkit helper
     dolphin                     # [desktop] file manager (default; nemo kept alongside)
+    feather-wallet              # [desktop] monero wallet, wallets live in ~/sync/monero
     filezilla                   # [desktop] FTP client
     firefox                     # [desktop] web browser
     flat-remix-gtk              # [desktop] GTK theme
@@ -442,13 +434,11 @@ PACKAGES=(
     hyprland                    # [desktop] wayland compositor
     hyprpicker                  # [desktop] wayland color picker
     hyprpm                      # [desktop] hyprland plugin manager
-    hyprsunset                  # [desktop] blue light filter
     jdownloader2                # [desktop] download manager
     kitty                       # [desktop] GPU terminal emulator
     konsole                     # [desktop] KDE terminal emulator
     krusader                    # [desktop] total commander
     lib32-gtk3                  # [desktop] 32-bit GTK3
-    libcec                      # [desktop] plasma-bigscreen input handler needs it
     libnotify                   # [desktop] desktop notification lib
     libx11                      # [desktop] X11 client library
     linecast                    # [desktop] tui weather
@@ -469,7 +459,16 @@ PACKAGES=(
     onlyoffice-bin              # [desktop] office document suite
     pavucontrol                 # [desktop] PulseAudio volume GUI
     piper                       # [desktop] mouse config GUI
-    plasma                      # [desktop] KDE desktop environment
+    plasma-desktop              # [desktop] plasma fallback session, not the plasma group (drkonqi, discover, krdp, bigscreen)
+    bluedevil                   # [desktop] plasma bluetooth applet
+    kdeconnect                  # [desktop] phone integration, firewall allows 1716
+    kdeplasma-addons            # [desktop] plasma weather and keyboard indicator applets
+    kscreen                     # [desktop] plasma display configuration
+    plasma-nm                   # [desktop] plasma network applet
+    plasma-pa                   # [desktop] plasma volume applet
+    plasma-vault                # [desktop] plasma vault applet
+    print-manager               # [desktop] plasma printer applet
+    xdg-desktop-portal-kde      # [desktop] file chooser and settings portal, configs/xdg/hyprland-portals.conf
     playerctl                   # [desktop] media player control
     polkit                      # [desktop] privilege authorization framework
     polkit-kde-agent            # [desktop] KDE polkit agent
@@ -477,9 +476,7 @@ PACKAGES=(
     proton-pass-bin             # [desktop] Proton Pass password manager
     proton-vpn-qt-app           # [desktop] ProtonVPN GUI client
     qbittorrent                 # [desktop] torrent client
-    qt5                         # [desktop] Qt5 UI toolkit
     qt5-wayland                 # [desktop] Qt5 wayland platform
-    qt6                         # [desktop] Qt6 UI toolkit
     qt6-wayland                 # [desktop] Qt6 wayland platform
     quickshell                  # [desktop] wayland status bar shell
     qutebrowser                 # [desktop] keyboard-driven web browser
@@ -506,8 +503,6 @@ PACKAGES=(
     xdg-desktop-portal-gtk      # [desktop] GTK desktop portal
     xdg-desktop-portal-hyprland # [desktop] hyprland desktop portal
     xdg-user-dirs-gtk           # [desktop] user dirs GTK integration
-    xf86-input-synaptics        # [desktop] touchpad driver
-    xf86-video-amdgpu           # [desktop] AMD video driver
     xorg-server                 # [desktop] X11 display server
     xorg-xauth                  # [desktop] X11 auth utility
     xorg-xev                    # [desktop] X11 event viewer
@@ -519,10 +514,7 @@ PACKAGES=(
     zathura                     # [desktop] minimal document viewer
     zathura-pdf-mupdf           # [desktop] zathura PDF backend
     ddcutil                     # [desktop] DDC/CI monitor brightness control
-    xrdp                        # [desktop] RDP server for remote desktop
 
-    betterdiscord-installer # [socials] BetterDiscord installer
-    betterdiscordctl-git    # [socials] BetterDiscord CLI installer
     chatuino-bin            # [socials] tui twitch
     discord                 # [socials] chat/voice app
     discordo-git            # [socials] terminal discord client
@@ -544,6 +536,9 @@ PACKAGES=(
     gamescope                      # [gaming] gaming compositor
     heroic-games-launcher-bin      # [gaming] epic/gog launcher
     kpat                           # [gaming] patience card games
+    lact                           # [hardware] AMD GPU control: power limit, fan curve, undervolt
+    lib32-gamemode                 # [gaming] gamemoderun for 32-bit games
+    lib32-mangohud                 # [gaming] mangohud for 32-bit games
     lutris                         # [gaming] game launcher manager
     mangohud                       # [gaming] gaming performance overlay
     glslang                        # [gaming] GLSL/HLSL to SPIR-V compiler
@@ -551,6 +546,8 @@ PACKAGES=(
     spirv-tools                    # [gaming] SPIR-V assembler/validator
     vulkan-tools                   # [gaming] vulkaninfo/vkcube utilities
     vulkan-validation-layers       # [gaming] Vulkan validation layers
+    vkbasalt                       # [gaming] vulkan post-processing layer, opt-in per game
+    lib32-vkbasalt                 # [gaming] vkbasalt for 32-bit games
     millennium                     # [gaming] Steam client theme loader
     minecraft-launcher             # [gaming] Minecraft game launcher
     modrinth-app                   # [gaming] minecraft mod manager
@@ -570,19 +567,18 @@ PACKAGES=(
     cava                       # [creating] audio visualizer
     converseen                 # [creating] batch image converter
     drawy                      # [creating] freehand drawing tool
-    easyeffects                # [creating] audio effects processor
     famistudio-bin             # [creating] NES chiptune tracker
     feh                        # [creating] lightweight image viewer
     giflib                     # [creating] GIF image library
     gifsicle                   # [creating] GIF editing tool
     gimp                       # [creating] image editing suite
-    glava                      # [creating] audio visualizer
     handbrake                  # [creating] video transcoder
     identity                   # [creating] media comparison
     inkscape                   # [creating] vector graphics editor
     kdenlive                   # [creating] video editor
     krita                      # [creating] digital painting app
-    lmms                       # [creating] music production software
+    lib32-obs-vkcapture        # [creating] obs-vkcapture for 32-bit games
+    lmms                      # [creating] music production software
     lorien-bin                 # [creating] infinite canvas drawing
     nsxiv                      # [creating] lightweight image viewer
     obs-audio-wave-bin         # [creating] OBS audio waveform plugin
@@ -590,8 +586,8 @@ PACKAGES=(
     obs-plugin-waveform-bin    # [creating] OBS waveform plugin
     obs-studio                 # [creating] screen recording/streaming
     obs-studio-plugin-browser  # [creating] OBS browser source
+    obs-vkcapture              # [creating] OBS Vulkan/GL game capture, OBS_VKCAPTURE=1 or obs-gamecapture
     openscad                   # [creating] 3D CAD modeler
-    opentabletdriver-git       # [creating] graphics tablet driver
     pitivi                     # [creating] video editor
     python-websocket-client    # [creating] obs-websocket client for the bar's OBS widget
     qpwgraph                   # [creating] pipewire patchbay GUI
@@ -603,11 +599,13 @@ PACKAGES=(
 
     biber        # [latex] bibliography processor
     bibiman-bin  # [latex] tui bibtext manager
+    sioyek-git   # [latex] pdf viewer for latex, synctex both ways (configs/sioyek)
     tectonic     # [latex] LaTeX engine
     texlab       # [latex] LaTeX language server
     texlive      # [latex] LaTeX distribution
     texlive-lang # [latex] LaTeX language packs
     texmaker     # [latex] LaTeX editor
+    zotero-bin   # [latex] reference manager
 
     act                           # [programming] run CI locally
     afl++                         # [programming] fuzzing tool
@@ -638,14 +636,12 @@ PACKAGES=(
     cargo-fuzz                    # [programming] rust fuzzing tool
     cargo-generate                # [programming] rust project templates
     cargo-llvm-cov                # [programming] rust coverage tool
-    cargo-machete                 # [programming] unused deps finder
     cargo-make                    # [programming] rust task runner
     cargo-show-asm                # [programming] rust asm viewer
     cargo-shuttle                 # [programming] shuttle.rs deploy CLI
     cargo-sort-derives            # [programming] derive attribute sorter
     cargo-tarpaulin               # [programming] rust code coverage
     cargo-update                  # [programming] update installed crates
-    cargo-watch                   # [programming] rebuild on change
     cargo-wizard                  # [programming] cargo profile helper
     cargo-zigbuild                # [programming] cross-compile via zig
     cbmc                          # [programming] C/C++ bounded model checker
@@ -682,6 +678,7 @@ PACKAGES=(
     flamelens                     # [programming] tui flamegraph viewer
     flux-rs                       # [programming] rust refinement types, mirror/pkgbuilds
     ftxui                         # [programming] C++ terminal UI lib
+    gap                           # [programming] computational group theory
     gcc                           # [programming] C/C++ compiler
     gcc-fortran                   # [programming] Fortran compiler
     gdb                           # [programming] GNU debugger
@@ -719,6 +716,7 @@ PACKAGES=(
     herdr-bin                     # [programming] AI agent terminal manager
     hermes-agent                  # [programming] AI agent
     hotspot                       # [programming] Linux perf GUI
+    hunspell-en_us                # [programming] spell dictionary for emacs, shares nvim's word list
     hyperfine                     # [programming] command benchmarking tool
     jdk-openjdk                   # [programming] Java JDK (jdtls needs 21+)
     jetbrains-toolbox             # [programming] JetBrains IDE manager
@@ -756,14 +754,12 @@ PACKAGES=(
     miller                        # [programming] CSV/JSON data tool
     mingw-w64-gcc                 # [programming] Windows cross-compiler
     minikube                      # [programming] local kubernetes cluster
-    mise                          # [programming] runtime version manager
     mkcert                        # [programming] local TLS certificates
     mold                          # [programming] fast linker
     nano                          # [programming] terminal text editor
     nasm                          # [programming] x86 assembler
     neovide                       # [programming] neovim GUI frontend
     neovim                        # [programming] modal text editor
-    neovim-remote                 # [programming] nvr, vimtex inverse search from zathura
     ninja                         # [programming] fast build system
     nix                           # [programming] Nix package manager
     nnd                           # [programming] linux debugger
@@ -775,7 +771,6 @@ PACKAGES=(
     opam                          # [programming] OCaml package manager
     openapi-tui                   # [programming] openapi tui
     opencomposite-git             # [programming] OpenXR to OpenVR
-    opentofu                      # [programming] open-source terraform fork
     osmium-tool                   # [programming] OpenStreetMap data tool
     osslsigncode                  # [programming] authenticode signing tool
     osv-scanner                   # [programming] dependency vulnerability scanner
@@ -789,10 +784,8 @@ PACKAGES=(
     pre-commit                    # [programming] git hook manager
     prettier                      # [programming] code formatter
     protobuf                      # [programming] protocol buffers runtime
-    python-black                  # [programming] Python code formatter
     python-faker                  # [programming] fake data generator
     python-ipykernel              # [programming] Jupyter python kernel
-    python-isort                  # [programming] Python import sorter
     python-jsonschema             # [programming] JSON schema validator
     python-jupytext               # [programming] jupytext CLI: .ipynb <-> text
     python-matplotlib             # [programming] Python plotting library
@@ -826,6 +819,7 @@ PACKAGES=(
     ripgrep                       # [programming] fast recursive grep
     rstudio-desktop-bin           # [programming] R development IDE
     rtk                           # [programming] tool compression
+    sagemath                      # [programming] computer algebra system
     samply                        # [programming] sampling profiler
     sccache                       # [programming] compiler cache tool
     sdl3                          # [programming] multimedia/game library
@@ -870,6 +864,7 @@ PACKAGES=(
     apalache-bin                  # [programming] TLA+ symbolic model checker
     typst                         # [programming] modern typesetting
     tinymist-bin                  # [programming] typst language server
+    typstyle                      # [programming] typst formatter
     deno                          # [programming] secure typescript runtime
     bun-bin                       # [programming] fast javascript runtime
     vscodium-bin                  # [programming] VS Code de-branded
@@ -886,12 +881,11 @@ PACKAGES=(
     distrobox    # [qemu] containerized distro tool
     gnome-boxes  # [qemu] VM manager GUI
     qemu-full    # [qemu] machine emulator/virtualizer
-    virt-manager # [qemu] VM management GUI
 
     llmfit                  # [llm] which LLMs fit this hardware (tui/cli)
     ollama                  # [llm] local LLM runner (daemon + CPU backend)
-    ollama-rocm             # [llm] ROCm/HIP GPU backend for ollama (official, gfx1101)
-    python-pytorch-opt-rocm # [llm] ML framework (AMD, AVX2 optimized)
+    ollama-rocm             # [rocm] ROCm/HIP GPU backend for ollama (official, gfx1101)
+    python-pytorch-opt-rocm # [rocm] ML framework (AMD, AVX2 optimized)
 
     aircrack-ng             # [pentesting] wifi security auditing
     angryoxide              # [pentesting] tui wifi pentesting
@@ -900,7 +894,11 @@ PACKAGES=(
     arp-scan                # [pentesting] ARP network scanner
     bettercap               # [pentesting] network attack framework
     binsider                # [pentesting] binary analysis TUI
+    binwalk                 # [pentesting] firmware image extraction
+    bloodhound-cli          # [pentesting] BloodHound CE in docker, up/down on demand, mirror/pkgbuilds
     burpsuite               # [pentesting] web security testing
+    caido-desktop           # [pentesting] web security testing, burp alternative
+    checksec                # [pentesting] binary hardening checker
     chisel-tunnel-bin       # [pentesting] TCP/UDP tunnel over HTTP
     endlessh-git            # [pentesting] SSH tarpit (decoy on 22)
     dalfox-bin              # [pentesting] XSS scanning tool
@@ -908,8 +906,12 @@ PACKAGES=(
     enola                   # [pentesting] search usernames
     exploitdb               # [pentesting] exploit database mirror
     fcrackzip               # [pentesting] zip password cracker
+    feroxbuster-git         # [pentesting] fast content discovery / dir brute force
     ffuf-bin                # [pentesting] web fuzzing tool
     foremost                # [pentesting] file carving tool
+    masscan                 # [pentesting] mass IP port scanner
+    nuclei-bin              # [pentesting] template-based vulnerability scanner
+    responder               # [pentesting] llmnr/nbt-ns/mdns poisoner
     rizin                   # [pentesting] reverse-engineering framework
     honggfuzz-git           # [pentesting] security-oriented fuzzer
     python-frida            # [pentesting] dynamic instrumentation toolkit
@@ -924,6 +926,7 @@ PACKAGES=(
     hysteria                # [pentesting] proxy/tunnel tool
     i2pd                    # [pentesting] I2P network daemon
     idspoof                 # [pentesting] identity spoofer, mirror/pkgbuilds
+    impacket                # [pentesting] windows network protocol toolkit
     john                    # [pentesting] password cracker
     katana-bin              # [pentesting] web crawling tool
     kismet                  # [pentesting] wireless network detector
@@ -933,16 +936,17 @@ PACKAGES=(
     metasploit              # [pentesting] exploitation framework
     mitmproxy               # [pentesting] HTTPS intercepting proxy
     naabu-bin               # [pentesting] port scanning tool
+    netexec                 # [pentesting] active directory/windows network pentesting
     netscanner              # [pentesting] network scanning TUI
     nikto                   # [pentesting] web server scanner
     nmap                    # [pentesting] network mapper scanner
-    nuclei-bin              # [pentesting] vulnerability scanner
     nuclei-templates        # [pentesting] nuclei scan templates
     obfs4proxy              # [pentesting] Tor traffic obfuscator
     pwdsafety               # [pentesting] pwd checking
     pwndbg                  # [pentesting] GDB exploit-dev plugin
     python-pwntools         # [pentesting] exploit development library
     reaver-wps-fork-t6x-git # [pentesting] WPS PIN cracker
+    rustscan                # [pentesting] fast port scanner, feeds nmap
     rz-cutter               # [pentesting] reverse engineering GUI
     seclists                # [pentesting] security wordlists collection
     skipfish                # [pentesting] web app security scanner
@@ -950,33 +954,33 @@ PACKAGES=(
     sqlmap-git              # [pentesting] SQL injection tool
     sslscan                 # [pentesting] TLS/SSL cipher scanner
     subfinder-bin           # [pentesting] subdomain discovery tool
+    tcpdump                 # [pentesting] packet capture CLI
     testssl.sh              # [pentesting] TLS/SSL testing script
-    tor-router              # [pentesting] transparent tor routing
     veil-bin                # [pentesting] antivirus evasion framework
     volatility3-git         # [pentesting] memory forensics framework
     wafw00f                 # [pentesting] WAF fingerprinting tool
     waybackurls             # [pentesting] Wayback Machine URL fetcher
     wireshark-qt            # [pentesting] network protocol analyzer
+    yara                    # [pentesting] malware pattern matching
     zaproxy                 # [pentesting] OWASP ZAP scanner
     proxychains-ng          # [pentesting] proxy chaining (proxychains4)
     shadowsocks-git         # [pentesting] SOCKS5 proxy tunnel
     sliver-git              # [pentesting] C2 framework
 )
 FLATPAK_PKGS=(
-    com.jeffser.Alpaca # [programming] Ollama chat GUI
+    com.jeffser.Alpaca   # [programming] Ollama chat GUI
+    org.remmina.Remmina  # [desktop] remote desktop client
 )
 
 CARGO_PKGS=(
     tmux-sessionizer # [base] tmux project sessionizer
 
-    bootimage     # [programming] bootable kernel images
     cargo-afl     # [programming] AFL fuzzing rust
     cargo-info    # [programming] crate info lookup
     cargo-leptos  # [programming] leptos framework build
     cargo-nextest # [programming] faster rust test runner
     cargo-seek    # [programming] crates.io search tool
     cargo-shear   # [programming] unused deps detector
-    cargo-xbuild  # [programming] cross-compile core std
     irust         # [programming] rust REPL shell
     kani-verifier # [programming] rust formal verifier
     lean-tui      # [programming] Lean theorem prover TUI
@@ -994,55 +998,22 @@ GO_PKGS=(
     github.com/zdyxry/tokui@latest                           # [programming] code stats TUI
 )
 
+# attributes of NIXPKGS, pinned so a Generation installs what it was tested with; bump the rev by hand
+NIXPKGS=github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4
 NIX_PKGS=(
-    nixpkgs#devenv # [programming] reproducible dev environments
-    nixpkgs#nixfmt # [programming] nix formatter, nil_ls shells out to this
+    devenv    # [programming] reproducible dev environments
+    macaulay2 # [programming] commutative algebra/algebraic geometry, aur recipe is a 2019 snapshot on dropped mpir
+    nixfmt    # [programming] nix formatter, nil_ls shells out to this
 )
 
 ## PLATFORM
 
-GROUPS_STATE="$HOME/projects/arch-dotfiles/groups.conf"
-BOOT_STATE="$HOME/projects/arch-dotfiles/boot.conf"
-PKG_GROUPS=(base fonts desktop socials gaming creating latex programming qemu llm pentesting)
-BOOT_FEATURES=(timeshift sbctl luks)
-
 source ./scripts/lib/platform.sh
-platform_load "$(pwd)"
-
-## PACKAGE GROUPS
-
-
-if [[ ! -f "$GROUPS_STATE" ]]; then
-    if interactive; then
-        echo "Enter the numbers to DISABLE (space-separated), or enter for all:"
-        for i in "${!PKG_GROUPS[@]}"; do
-            echo "  $((i + 1))  ${PKG_GROUPS[i]}"
-        done
-        echo ""
-        read -rp "Numbers to exclude (e.g. '5 9', enter for all): " -a nums
-        selected=()
-        for i in "${!PKG_GROUPS[@]}"; do
-            skip=0
-            for n in "${nums[@]}"; do
-                if [[ "$n" == "$((i + 1))" ]]; then
-                    skip=1
-                    break
-                fi
-            done
-            ((skip)) || selected+=("${PKG_GROUPS[i]}")
-        done
-        printf '%s\n' "${selected[@]}" >"$GROUPS_STATE"
-    else
-        printf '%s\n' "${PKG_GROUPS[@]}" >"$GROUPS_STATE"
-    fi
-    echo "Enabled groups:" >&2
-    cat "$GROUPS_STATE" >&2
-fi
-ENABLED_GROUPS=$(cat "$GROUPS_STATE")
+platform_load "$PWD"
 
 filter_by_group() {
-    awk -v arr="$1" -v groups="$ENABLED_GROUPS" '
-        BEGIN { n = split(groups, g, "\n") }
+    awk -v arr="$1" -v groups="${PKG_GROUPS[*]}" '
+        BEGIN { n = split(groups, g, " ") }
         $0 ~ "^" arr "=\\(" { f=1; next }
         f && /^\)/ { f=0 }
         f {
@@ -1054,97 +1025,36 @@ filter_by_group() {
                 }
             }
         }
-    ' "$(pwd)/install.sh"
+    ' "$PWD/install.sh"
 }
 
 mapfile -t PACKAGES < <(filter_by_group PACKAGES)
+PACKAGES+=("${EXTRA_PACKAGES[@]}")
 mapfile -t FLATPAK_PKGS < <(filter_by_group FLATPAK_PKGS)
 mapfile -t CARGO_PKGS < <(filter_by_group CARGO_PKGS)
 mapfile -t CARGO_PKGS_GIT < <(filter_by_group CARGO_PKGS_GIT)
 mapfile -t GO_PKGS < <(filter_by_group GO_PKGS)
 mapfile -t NIX_PKGS < <(filter_by_group NIX_PKGS)
 
-## GPU PACKAGES
-
-has_amd_gpu() {
-    local vendor
-    for vendor in /sys/class/drm/card[0-9]*/device/vendor; do
-        if [[ -r "$vendor" && "$(<"$vendor")" == "0x1002" ]]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-ROCM_PKGS=(ollama-rocm python-pytorch-opt-rocm)
-if ! has_amd_gpu; then
-    kept=()
-    dropped=()
-    for pkg in "${PACKAGES[@]}"; do
-        if printf '%s\n' "${ROCM_PKGS[@]}" | grep -qxF "$pkg"; then
-            dropped+=("$pkg")
-        else
-            kept+=("$pkg")
-        fi
-    done
-    if [[ ${#dropped[@]} -gt 0 ]]; then
-        PACKAGES=("${kept[@]}")
-    fi
-fi
-
-## BOOT DISK SECURITY (timeshift btrfs snapshots, Secure Boot, LUKS)
-
-# Partitioning/bootloader is already done by the time install.sh runs
-if [[ ! -f "$BOOT_STATE" ]]; then
-    if interactive; then
-        echo ""
-        echo "Enter the numbers to DISABLE, or enter for all:"
-        for i in "${!BOOT_FEATURES[@]}"; do
-            echo "  $((i + 1))  ${BOOT_FEATURES[i]}"
-        done
-        echo ""
-        read -rp "Numbers to exclude (e.g. '3', enter for all): " -a bnums
-        selected=()
-        for i in "${!BOOT_FEATURES[@]}"; do
-            skip=0
-            for n in "${bnums[@]}"; do
-                if [[ "$n" == "$((i + 1))" ]]; then
-                    skip=1
-                    break
-                fi
-            done
-            ((skip)) || selected+=("${BOOT_FEATURES[i]}")
-        done
-        printf '%s\n' "${selected[@]}" >"$BOOT_STATE"
-    else
-        printf '%s\n' "${BOOT_FEATURES[@]}" >"$BOOT_STATE"
-    fi
-    echo "Enabled boot features:" >&2
-    cat "$BOOT_STATE" >&2
-fi
-
-# grub is the only bootloader (configs/boot/grub), set up by bootstrap.sh and signed by configs/boot/sbctl
-grep -qx grub "$BOOT_STATE" || echo grub >>"$BOOT_STATE"
-PACKAGES+=(grub os-prober update-grub)
-
 ## LINK PACMAN CONFIG
 
-# keyring first: chaotic -U and pacman/link.sh's lsign need it, a fresh bootstrap has it empty
+# keyring first: pacman/link.sh's lsign needs it, a fresh bootstrap has it empty
 sudo pacman-key --init
 sudo pacman-key --populate archlinux
 
-# chaotic aur; first boot may get here before the network is up
-nm-online -q --timeout=120 || echo "install: still offline after 120s" >&2
-sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com || true
-sudo pacman-key --lsign-key 3056513887B78AEB || true
-sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' --noconfirm || true
+# first boot may get here before the network is up; the syncs below retry, this only spares them the first failures; wsl has no networkmanager
+! command -v nm-online >/dev/null || nm-online -q --timeout=120 || echo "install: still offline after 120s" >&2
 
+# without [lsck0] and its key every sync below would drift off the snapshot, so a failure aborts and stage.sh retries
 pushd ./configs/pacman
 (
     set -o pipefail
     bash ./link.sh 2>&1 | tee ./link.sh.log
-) || echo "configs/pacman/link.sh" >>"$FAILURES_FILE"
+) || { echo "configs/pacman/link.sh" >>"$FAILURES_FILE"; exit "$EXIT_ABORTED"; }
 popd
+
+# a power cut mid-transaction leaves the lock behind, and every retry boot would fail on it
+if [[ -e /var/lib/pacman/db.lck ]] && ! pgrep -x pacman >/dev/null; then sudo rm -f /var/lib/pacman/db.lck; fi
 
 ## INSTALLING ALL THE THINGS
 
@@ -1165,14 +1075,12 @@ retry() {
     done
 }
 
-# keep the default per-tty sudo timestamp warm through the builds; configs/sudo (global, 240 min) links later
-sudo -v
-while true; do sudo -n true 2>/dev/null; sleep 50; done &
-SUDO_KEEPALIVE_PID=$!
+source ./scripts/lib/sudo.sh
+sudo_keepalive_start
 
 ## SOURCES
 
-# [lsck0] (configs/pacman/lsck0.conf) serves every listed package prebuilt; nothing is built here, gaps are only reported
+# [lsck0] (configs/pacman/pacman.conf) serves every listed package prebuilt; nothing is built here, gaps are only reported
 targets=("${PACKAGES[@]}" "${CARGO_PKGS[@]}")
 for go_pkg in "${GO_PKGS[@]}"; do
     name="${go_pkg%@*}"
@@ -1180,7 +1088,7 @@ for go_pkg in "${GO_PKGS[@]}"; do
 done
 for git_pkg in "${CARGO_PKGS_GIT[@]}"; do echo "not on the mirror: cargo $git_pkg" >>"$FAILURES_FILE"; done
 
-sudo pacman -Syy --noconfirm
+retry 3 sudo pacman -Syy --noconfirm
 # pacman reports every target it can not resolve, by name, provide or group, before it gives up
 mapfile -t missing < <(pacman -Sp --noconfirm --print-format '%n' "${targets[@]}" 2>&1 >/dev/null \
     | sed -n 's/^error: target not found: //p')
@@ -1196,34 +1104,38 @@ done
 echo "sources: ${#available[@]} packages in one pass, ${#missing[@]} not on the mirror" >&2
 
 # the one download pass: -uu moves pacstrap's packages onto the snapshot, --ask 4 replaces the old lsck0-* names
-retry 3 sudo pacman -Syyuu --needed --noconfirm --ask 4 "${available[@]}"
+retry 3 sudo pacman -Suu --needed --noconfirm --ask 4 "${available[@]}"
 
+## LEDGER
+
+source ./scripts/lib/ledger.sh
+# which lsck0 snapshot this machine runs: the pin, the db's publish time and its hash
+lsck0_db=/var/lib/pacman/sync/lsck0.db
+echo "${LSCK0_SNAPSHOT:-latest} $(date -ur "$lsck0_db" +%FT%TZ) $(sha256sum <"$lsck0_db" | cut -d' ' -f1)" | ledger_set snapshot
+# after the install pass, so a dropped package only leaves once whatever replaced it is in
+ledger_packages "${targets[@]}" || echo "ledger: removing dropped packages" >>"$FAILURES_FILE"
+
+# stable only, a project pins nightly in its rust-toolchain.toml
 if command -v rustup >/dev/null 2>&1; then
-    rustup toolchain install nightly || true
-    rustup toolchain install stable || true
-    rustup default stable || true
+    rustup default stable || echo "rustup default stable" >>"$FAILURES_FILE"
 fi
 
-if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]]; then
-    if command -v flatpak >/dev/null 2>&1; then
-        sudo flatpak remote-add --if-not-exists flathub \
-            https://dl.flathub.org/repo/flathub.flatpakrepo \
-            || echo "flatpak remote-add flathub" >>"$FAILURES_FILE"
-        flatpak install flathub -y "${FLATPAK_PKGS[@]}" \
-            || echo "flatpak batch" >>"$FAILURES_FILE"
-    fi
+# user scope: a system deploy needs a polkit agent the unattended chain does not have
+if [[ ${#FLATPAK_PKGS[@]} -gt 0 ]] && command -v flatpak >/dev/null 2>&1; then
+    flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+        && flatpak install --user --noninteractive flathub "${FLATPAK_PKGS[@]}" \
+        || echo "flatpak install --user ${FLATPAK_PKGS[*]}" >>"$FAILURES_FILE"
 fi
-if [[ ${#NIX_PKGS[@]} -gt 0 ]]; then
-    if command -v nix >/dev/null 2>&1; then
-        sudo systemctl enable --now nix-daemon.socket || true
-        sudo systemctl start nix-daemon.service || true
-        if [[ ! -d /nix/store ]]; then
-            sudo nix-store --init || true
-        fi
-        nix_profile_cmd=add
-        nix --version 2>/dev/null | grep -qE ' 2\.(1[0-9]|2[0-7])(\.|$)' && nix_profile_cmd=install
-        nix profile "$nix_profile_cmd" --extra-experimental-features 'nix-command flakes' "${NIX_PKGS[@]}" \
-            || echo "nix batch" >>"$FAILURES_FILE"
+
+if [[ ${#NIX_PKGS[@]} -gt 0 ]] && command -v nix >/dev/null 2>&1; then
+    nix_cmd=(nix --extra-experimental-features 'nix-command flakes')
+    sudo systemctl enable --now nix-daemon.socket || echo "nix-daemon.socket" >>"$FAILURES_FILE"
+    # nix profile add stacks a duplicate on every rerun, so only the names the profile lacks
+    mapfile -t nix_missing < <(comm -23 <(printf '%s\n' "${NIX_PKGS[@]}" | sort) \
+        <("${nix_cmd[@]}" profile list --json | jq -r '.elements | keys[]' | sort))
+    if ((${#nix_missing[@]})); then
+        "${nix_cmd[@]}" profile add "${nix_missing[@]/#/$NIXPKGS#}" \
+            || echo "nix profile add ${nix_missing[*]}" >>"$FAILURES_FILE"
     fi
 fi
 

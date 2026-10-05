@@ -6,16 +6,10 @@ fi
 
 set -e
 
-source "$(dirname "$0")/../boot-menu/common.sh"
-
-if ! boot_feature_selected timeshift; then
-    exit 0
-fi
-
-ROOT_SOURCE="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
-ROOT_FSTYPE="$(findmnt -n -o FSTYPE / 2>/dev/null || true)"
-ROOT_OPTS="$(findmnt -n -o OPTIONS / 2>/dev/null || true)"
-ROOT_SUBDIR="$(findmnt -n -o FSROOT / 2>/dev/null || true)"
+ROOT_SOURCE="$(findmnt -n -o SOURCE /)"
+ROOT_FSTYPE="$(findmnt -n -o FSTYPE /)"
+ROOT_OPTS="$(findmnt -n -o OPTIONS /)"
+ROOT_SUBDIR="$(findmnt -n -o FSROOT /)"
 
 if [[ "$ROOT_FSTYPE" != "btrfs" ]]; then
     echo "timeshift: root fs is $ROOT_FSTYPE, not btrfs, btrfs-mode N/A" >&2
@@ -29,34 +23,22 @@ if [[ "$ROOT_OPTS" =~ subvolid=5 ]] || [[ "$ROOT_SUBDIR" == "/" || "$ROOT_SUBDIR
     exit 0
 fi
 
-sudo mkdir -p /etc/timeshift
-
 DEF='"_managed_by": "arch-dotfiles/boot/timeshift"'
-if [[ -f /etc/timeshift/timeshift.json ]]; then
-    if ! sudo grep -qF "$DEF" /etc/timeshift/timeshift.json 2>/dev/null; then
-        sudo install -m644 /etc/timeshift/timeshift.json \
-            /etc/timeshift/timeshift.json.arch-dotfiles-backup 2>/dev/null || true
-    fi
+if [[ -f /etc/timeshift/timeshift.json ]] && ! sudo grep -qF "$DEF" /etc/timeshift/timeshift.json; then
+    sudo install -m644 /etc/timeshift/timeshift.json /etc/timeshift/timeshift.json.arch-dotfiles-backup
 fi
 
-# strip findmnt's [/subvol] suffix for lsblk
-ROOT_DEVICE="${ROOT_SOURCE%%[*}"
-
-ROOT_UUID="$(lsblk -no UUID "$ROOT_DEVICE" 2>/dev/null | head -1 || true)"
-if [[ -z "$ROOT_UUID" ]]; then
-    ROOT_UUID="$(findmnt -n -o UUID / 2>/dev/null || true)"
-fi
+ROOT_UUID="$(findmnt -n -o UUID /)"
 if [[ -z "$ROOT_UUID" ]]; then
     echo "timeshift: cannot determine root UUID for $ROOT_SOURCE" >&2
     exit 1
 fi
 
-sed "s|PLACEHOLDER_ROOT_UUID|$ROOT_UUID|" \
-    "$(dirname "$0")/timeshift.json" | sudo tee /etc/timeshift/timeshift.json >/dev/null
+sed "s|PLACEHOLDER_ROOT_UUID|$ROOT_UUID|" "$(dirname "$0")/timeshift.json" \
+    | sudo install -Dm644 /dev/stdin /etc/timeshift/timeshift.json
 
-# timeshift hard-depends on cronie
-if systemctl list-unit-files --no-legend cronie.service 2>/dev/null | grep -q .; then
-    sudo systemctl enable cronie.service 2>/dev/null || true
-fi
+# timeshift schedules itself: --check writes its hourly /etc/cron.d entry and takes the weekly snapshot when one is due
+sudo systemctl enable --now cronie.service
+sudo timeshift --check --scripted
 
 echo "timeshift: btrfs-mode config written (root UUID $ROOT_UUID)" >&2

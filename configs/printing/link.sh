@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-if ! command -v cupsd >/dev/null 2>&1; then
+source ../../scripts/lib/platform.sh
+# cups also arrives under wsl, as a dependency of hermes-agent, where windows owns the printers
+if ! command -v cupsd >/dev/null 2>&1 || [[ "$(platform_form_factor ../..)" == wsl ]]; then
     exit 0
 fi
 
 set -e
 
-# cups.socket is enabled on-demand in configs/systemd/link.sh, no boot-time cups.service
-command -v avahi-daemon >/dev/null 2>&1 && sudo systemctl enable --now avahi-daemon.service || true
+# cups.socket and avahi-daemon.socket are enabled in configs/systemd/link.sh, nothing starts at boot
 
 # network printers advertise over mdns
 if ! grep -q "mdns_minimal" /etc/nsswitch.conf; then
@@ -17,6 +19,6 @@ fi
 
 # cups-pdf does not create the queue itself
 if ! lpstat -p PDF >/dev/null 2>&1; then
-    sudo lpadmin -p PDF -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E || true
-    sudo lpadmin -d PDF || true
+    sudo lpadmin -p PDF -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E
+    sudo lpadmin -d PDF
 fi

@@ -32,7 +32,7 @@ Six separate faults stack up, and the first two hide the rest:
    the pad plugged in is enough to land in it.
 
    A USB reset does **not** undo this: the device comes back with its mode
-   intact. Nor can the mode be read back — report id 8 is write-only, so
+   intact. Nor can the mode be read back: report id 8 is write-only, so
    `HIDIOCGFEATURE` on it returns `EINVAL`. So the driver does not try to
    reach a known state, it watches what the pen actually sends and toggles
    again when the format is wrong.
@@ -50,7 +50,7 @@ Six separate faults stack up, and the first two hide the rest:
    mapping rule written against the obvious name lands on a pen that never
    moves. Interface 1 also exposes a relative mouse that fights the pen.
 3. **The firmware lies about its own X range.** It declares 0..32767 but only
-   ever emits 16384..32767 — the left edge of the pad reads ~16384 and the
+   ever emits 16384..32767: the left edge of the pad reads ~16384 and the
    right edge ~32767, while Y correctly spans the full range. Map that device
    to an output and half the screen is physically unreachable, which looks
    exactly like a clamped mapping.
@@ -72,7 +72,7 @@ Six separate faults stack up, and the first two hide the rest:
    collection the kernel hands to nobody, so without this driver all of them
    are simply dead. Worse, a few of them *also* emit canned keystrokes through
    the pad's keyboard and consumer collections, which the kernel *does* expose
-   — so one express key muted the machine while doing nothing else useful.
+   so one express key muted the machine while doing nothing else useful.
    The udev rule suppresses those nodes and the driver republishes all 14 from
    the vendor report instead.
 
@@ -105,7 +105,7 @@ collides. Bind them in Hyprland like any other key:
 bind = { "", "F13", "exec", "..." }
 ```
 
-Bit order is not guaranteed to match the physical layout — press each key once
+Bit order is not guaranteed to match the physical layout: press each key once
 and watch which F-code appears.
 
 ## Checking it
@@ -124,14 +124,14 @@ libinput list-devices | grep '^Device.*T1161'
 ```
 
 `test-driver.py` feeds recorded report bytes through a pair of FIFOs, so the
-whole decode path — axis mapping, tip and pressure, pen-lift, all 14 buttons
-and the wrong-mode recovery — is checked without touching the hardware. Run it
+whole decode path (axis mapping, tip and pressure, pen-lift, all 14 buttons
+and the wrong-mode recovery) is checked without touching the hardware. Run it
 after any change to the driver; several of these faults are invisible until a
 pen is physically in range, which makes them miserable to test by hand.
 
 `verify-mapping.py` reconstructs the whole transfer function rather than
 comparing extremes, because a clamped or folded mapping still reaches both
-screen edges. It says "inconclusive" when the pad was not swept fully — a
+screen edges. It says "inconclusive" when the pad was not swept fully: a
 range check alone would have called this tablet healthy while half of it was
 dead.
 
@@ -170,7 +170,7 @@ the defaults. Delete the file to go back to them.
   `73-seat-late.rules`. Hence `71-`.
 - A `USBDEVFS_RESET` ioctl reattaches the pad without clearing its pen mode,
   so it cannot be used to get back to a known state. It also does not re-create
-  the input nodes, which is a second trap — see below.
+  the input nodes, which is a second trap: see below.
 - After changing the rules, `udevadm control --reload` alone is not enough and
   neither is a `USBDEVFS_RESET` ioctl: the reset reattaches the device without
   re-creating its input nodes, so udev replays nothing and the old properties
@@ -183,9 +183,9 @@ the defaults. Delete the file to go back to them.
     echo -n $i | sudo tee /sys/bus/usb/drivers/usbhid/unbind
   done   # then the same with .../bind, then restart tablet-driver
   ```
-- `/usr/lib/modprobe.d/99-opentabletdriver.conf` neuters `hid_uclogic` and
-  `wacom` with `install ... /usr/bin/true`, while the OpenTabletDriver service
-  is disabled. Irrelevant here — this driver needs neither — but it will
-  confuse any attempt to go back to a kernel driver.
+- OpenTabletDriver, if ever installed again, ships
+  `/usr/lib/modprobe.d/99-opentabletdriver.conf`, which neuters `hid_uclogic` and
+  `wacom` with `install ... /usr/bin/true`. This driver needs neither, but it
+  breaks any attempt to go back to a kernel driver. `patches/02` uninstalls it.
 - The pad also presents a fake "Internal CDROM" holding the Windows driver;
   the rules hide it from udisks.

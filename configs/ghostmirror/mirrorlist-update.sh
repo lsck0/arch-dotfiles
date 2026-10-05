@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# temp dir: ghostmirror's rename into root-owned /etc/pacman.d fails but still exits 0
+# runs as root from ghostmirror*.service; ranks into a temp dir so a short list never replaces the current one
 
 set -euo pipefail
 
@@ -32,4 +32,12 @@ if [[ "$count" -lt "$MIRRORS_MIN" ]]; then
     exit 1
 fi
 
-cat "$out" >"$TARGET"
+# homelab first (internal, authoritative), the ranked public mirrors are the away fallback
+{
+    echo "# homelab full mirror (10.100.0.109), internal only, authoritative"
+    echo "Server=http://10.100.0.109:8090/archlinux/\$repo/os/\$arch"
+    echo
+    cat "$out"
+} >"$TARGET.new"
+# rename, so pacman never reads a half-written list
+mv -f "$TARGET.new" "$TARGET"

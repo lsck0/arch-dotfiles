@@ -7,6 +7,7 @@ fi
 
 # no profile until first run; a headless run creates default-release
 if [[ ! -f "${HOME}/.config/mozilla/firefox/profiles.ini" ]]; then
+    # timeout ends the run on purpose, the profile check below is the real result
     timeout 20 firefox --headless about:blank >/dev/null 2>&1 || true
 fi
 if [[ ! -d "${HOME}/.config/mozilla/firefox" ]]; then
@@ -14,6 +15,10 @@ if [[ ! -d "${HOME}/.config/mozilla/firefox" ]]; then
 fi
 
 set -e
+
+# new tab url is only settable from autoconfig in the install dir; files there survive firefox updates
+sudo install -m644 autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
+sudo install -m644 mozilla.cfg /usr/lib/firefox/mozilla.cfg
 
 # pywalfox looks in ~/.config/firefox
 ln -sfn "${HOME}/.config/mozilla/firefox" "${HOME}/.config/firefox"

@@ -1,0 +1,12 @@
+[Unit]
+Description=PipeWire filter chain %i
+After=pipewire.service pipewire-session-manager.service
+BindsTo=pipewire.service
+
+[Service]
+ExecStart=/usr/bin/pipewire -c %i.conf
+Restart=on-failure
+Slice=session.slice
+
+[Install]
+WantedBy=default.target

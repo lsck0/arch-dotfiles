@@ -14,8 +14,6 @@ BarWidget {
   // switch target, and the keyboard activelayout named
   property string keyboardName: ""
   property string typedKeyboardName: ""
-  // excludes buttons and virtual keyboards
-  property int keyboardCount: 0
   property bool keyboardUnresolved: false
   // hidden until there are two layouts
   property bool multipleLayouts: true
@@ -53,7 +51,7 @@ BarWidget {
     function onRawEvent(event) {
       if (!event || !event.name) return
       var name = String(event.name)
-      // activelayout names the keyboard being typed on
+      // activelayout names the keyboard being typed on, hyprland also sends it for a hotplugged device
       if (name === "activelayout") {
         const named = KeyboardLayoutModel.eventKeyboardName(event)
         if (named) root.typedKeyboardName = named
@@ -103,7 +101,6 @@ BarWidget {
         }
 
         root.keyboardUnresolved = false
-        root.keyboardCount = typed.length
         root.keyboardName = String(kb.name || "")
         root.multipleLayouts = kb.layout === undefined || String(kb.layout).indexOf(",") !== -1
         root.layoutFull = kb.active_keymap
@@ -135,14 +132,6 @@ BarWidget {
       queryProc.running = false
       refreshTimer.restart()
     }
-  }
-
-  // device hotplug raises no event, so poll
-  Timer {
-    interval: 10000
-    running: !root.keyboardName || root.keyboardUnresolved || root.keyboardCount > 1
-    repeat: true
-    onTriggered: root.refresh()
   }
 
   visible: layoutLabel !== "" && multipleLayouts

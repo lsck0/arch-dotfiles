@@ -6,48 +6,22 @@ fpath=(~/.zsh/completions $fpath)
 export ZSH_DISABLE_COMPFIX=true
 export ZSH_COMPDUMP="$HOME/.zcompdump"
 
-ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
-if [ ! -d "$ZINIT_HOME" ]; then
-   mkdir -p "$(dirname "$ZINIT_HOME")"
-   git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
-fi
-source "${ZINIT_HOME}/zinit.zsh"
+zmodload -F zsh/stat b:zstat
+# REPLY = cached output of `<tool> <args>`, rerun only when the tool was installed after the cache was written
+zsh_init_cache() {
+  (( $+commands[$1] )) || return 1
+  REPLY=${XDG_CACHE_HOME:-$HOME/.cache}/zsh/init-$1.zsh
+  local -a ctime_s
+  # ctime, since pacman keeps the package build time as the binary's mtime
+  zstat -A ctime_s +ctime -- $commands[$1] $REPLY 2>/dev/null && (( ctime_s[2] > ctime_s[1] )) && return 0
+  [[ -d ${REPLY:h} ]] || mkdir -p ${REPLY:h}
+  "$@" >| $REPLY.$$ && mv -f $REPLY.$$ $REPLY
+}
 
-# omz plugins write generated completions here
+# plain sourcing from packages (oh-my-zsh-git, fzf-tab-git, zsh-autosuggestions, zsh-syntax-highlighting): no plugin manager
+ZSH=/usr/share/oh-my-zsh
 export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
-[[ -d "$ZSH_CACHE_DIR/completions" ]] || mkdir -p "$ZSH_CACHE_DIR/completions"
-fpath=("$ZSH_CACHE_DIR/completions" $fpath)
 
-# omz lib, not lazy so its keybindings exist at the first prompt
-for lib in functions key-bindings completion misc directories grep git clipboard; do
-  zinit snippet "OMZL::$lib.zsh"
-done
-unset lib
-
-for plugin in aws docker docker-compose git jj mise nmap node npm rust sudo terraform; do
-  zinit ice wait lucid
-  zinit snippet "OMZP::$plugin"
-done
-unset plugin
-
-export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
-# native fzf keybinds, needs fzf 0.48+
-zinit ice wait lucid atload'source <(fzf --zsh)'
-zinit light zdharma-continuum/null
-
-zinit ice wait lucid
-zinit light Aloxaf/fzf-tab
-
-zinit ice wait lucid atload'_zsh_autosuggest_start'
-zinit light zsh-users/zsh-autosuggestions
-
-zinit ice wait lucid blockf
-zinit light zsh-users/zsh-completions
-
-zinit ice wait lucid
-zinit light zsh-users/zsh-syntax-highlighting
-
-# compinit must run before cdreplay/compdef
 autoload -Uz compinit
 () {
   setopt local_options extended_glob
@@ -61,14 +35,30 @@ autoload -Uz compinit
   # source picks up a newer .zwc on its own, bytecode loads faster than parsing the dump
   [[ $HOME/.zcompdump.zwc -nt $HOME/.zcompdump ]] || zcompile "$HOME/.zcompdump"
 }
-zinit cdreplay -q
+
+# starship draws the prompt, so omz's async git prompt has nothing to register in precmd
+zstyle ':omz:alpha:lib:git' async-prompt no
+# starship's aws module shows the profile, the omz one would add a second right prompt
+SHOW_AWS_PROMPT=false
+# after compinit, libs and plugins call compdef
+for file in $ZSH/lib/{functions,key-bindings,completion,misc,directories,grep,git,clipboard}.zsh \
+  $ZSH/plugins/{aws,docker-compose,git,nmap,node,npm,sudo,terraform}/*.plugin.zsh; do
+  source $file
+done
+unset file
+
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
+zsh_init_cache fzf --zsh && source $REPLY
+# fzf-tab wraps the completion widget, syntax highlighting wraps every widget so it comes last
+source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
+source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 compdef kubecolor=kubectl
 
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
-# konsole only runs as dolphin's terminal panel, which clears the line with ^E^U before each cd;
-# ^E opening the editor there would swallow the cd
+# konsole only runs as dolphin's terminal panel, which clears the line with ^E^U before each cd; ^E opening the editor there would swallow the cd
 [[ -n $KONSOLE_VERSION ]] || bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
@@ -140,15 +130,13 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-# greet only at a real tty, once per session: subshells inherit the marker and skip
-if [[ -o interactive && -t 1 && "$TERM" != dumb && -z "$FASTFETCH_SHOWN" ]]; then
-  export FASTFETCH_SHOWN=1
-  fastfetch
-fi
+# greet on every interactive terminal
+[[ -t 1 && $TERM != dumb ]] && fastfetch
 
-eval "$(mise activate zsh)"
-eval "$(starship init zsh)"
-eval "$(direnv hook zsh)"
+zsh_init_cache starship init zsh --print-full-init && source $REPLY
+# no right_format in starship.toml, so the right prompt would fork starship per prompt for nothing
+RPROMPT=
+zsh_init_cache direnv hook zsh && source $REPLY
 
 history_file_push() {
   fc -p "$1" $HISTSIZE $SAVEHIST
@@ -168,4 +156,4 @@ history_file_follow_direnv() {
   [[ -z ${DIRENV_HISTFILE-} ]] || history_file_push "$DIRENV_HISTFILE"
 }
 precmd_functions+=(history_file_follow_direnv)
-eval "$(zoxide init zsh)"
+zsh_init_cache zoxide init zsh && source $REPLY

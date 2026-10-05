@@ -1,9 +1,8 @@
 [Unit]
-Description=Refresh boot menu (picks up snapshots made by timeshift's cron schedule)
+Description=Refresh boot menu daily (timeshift's weekly cron snapshots; pacman ones refresh it via zz-boot-menu.hook)
 
 [Timer]
-OnBootSec=2min
-OnCalendar=hourly
+OnCalendar=daily
 Persistent=true
 
 [Install]

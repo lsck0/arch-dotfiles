@@ -1,10 +1,17 @@
 module qs.Commons
+singleton Audio 1.0 Audio.qml
 singleton Border 1.0 Border.qml
 singleton Cava 1.0 Cava.qml
 CavaRef 1.0 CavaRef.qml
 singleton Color 1.0 Color.qml
+singleton DiscordControl 1.0 DiscordControl.qml
+singleton ObsProcess 1.0 ObsProcess.qml
 singleton Paths 1.0 Paths.qml
 singleton Power 1.0 Power.qml
 singleton Style 1.0 Style.qml
 singleton Theme 1.0 Theme.qml
+singleton ToggleEvents 1.0 ToggleEvents.qml
 singleton Util 1.0 Util.qml
+JsonProcess 1.0 JsonProcess.qml
+singleton TimerState 1.0 TimerState.qml
+KeyValueProcess 1.0 KeyValueProcess.qml

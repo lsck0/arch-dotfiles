@@ -45,26 +45,17 @@ HID_ID = f"0003:{VENDOR:08X}:{PRODUCT:08X}"
 PEN_REPORT_ID = 9
 PEN_REPORT_LEN = 10
 
-# Buttons do not travel with the pen. They arrive on interface 2 as report id
-# 1, which the descriptor declares as an opaque 7-byte vendor collection, so
-# no kernel driver turns them into anything -- without this driver all 14 are
-# simply dead. The payload is `01 80 <pen in range> 00 <mask4> <mask5> 00 00`,
-# where the two mask bytes are a plain momentary bitmap: a press sets a bit, a
-# release clears it, and releasing everything sends an all-zero mask.
+# buttons arrive on interface 2 as opaque vendor report id 1 (no kernel driver decodes it); payload `01 80 <in range> 00 <mask4> <mask5> 00 00`, the mask bytes a momentary press/release bitmap
 BUTTON_REPORT_ID = 1
 BUTTON_REPORT_LEN = 8
 
-# The two pen buttons. The barrel and eraser bits in the pen's own report id 9
-# are never set by this device, so these are the only stylus buttons there are.
+# the only stylus buttons: the barrel and eraser bits in pen report id 9 are never set by this device
 PEN_BUTTON_BITS = {
     (5, 0x20): "BTN_STYLUS",   # lower
     (5, 0x10): "BTN_STYLUS2",  # upper
 }
 
-# The 12 express keys on the pad, published as F13..F24: real keycodes that no
-# keyboard produces on its own, so they can be bound in the compositor without
-# colliding with anything. Order is the bit order, which is not necessarily
-# the physical order - rebind to taste.
+# 12 express keys published as F13..F24, keycodes no keyboard emits so they bind without collision; order is bit order not physical, rebind to taste
 EXPRESS_KEY_BITS = [
     (4, 0x01), (4, 0x02), (4, 0x04), (4, 0x08),
     (4, 0x10), (4, 0x20), (4, 0x40), (4, 0x80),
@@ -72,30 +63,16 @@ EXPRESS_KEY_BITS = [
 ]
 EXPRESS_KEY_NAMES = [f"KEY_F{n}" for n in range(13, 25)]
 
-# Status byte of report id 9, per the device's own report descriptor:
-#   bit0 tip switch, bit1 barrel switch, bit2 eraser, bit6 in range.
+# report id 9 status byte, per the device descriptor: bit0 tip, bit1 barrel, bit2 eraser, bit6 in range
 TIP_BIT = 0x01
 BARREL_BIT = 0x02
 ERASER_BIT = 0x04
 IN_RANGE_BIT = 0x40
 
-# The pad almost never announces pen-lift: over 7470 captured reports it sent
-# an out-of-range status exactly once. It simply stops reporting instead. Left
-# alone that freezes the tip in whatever state it last had, so lifting the pen
-# mid-stroke keeps the tip logically down and the next touch somewhere else
-# draws a straight line joining the two.
-#
-# While the pen *is* in range the pad streams continuously at ~300 Hz whether
-# or not anything moves -- in the same capture the only silences longer than
-# 150 ms were the genuine lifts. So a silence is a reliable lift signal.
-# 200 ms is ~60 missed frames: far beyond any jitter, still imperceptible.
+# pad rarely signals pen-lift (1 of 7470 reports), it just stops reporting; in range it streams ~300 Hz, so a silence past 200 ms (~60 frames, still imperceptible) is a reliable lift
 PROXIMITY_TIMEOUT_S = 0.2
-POLL_S = 0.05
 
-# How many unrecognised pen reports to tolerate before toggling the pen mode
-# again. The pad streams at ~300 Hz, so this is a fraction of a second of a
-# pen that is in use, and unreachable while it is merely idle. MAX_RETOGGLES
-# stops a pad that speaks neither format from toggling forever.
+# unrecognised pen reports tolerated before re-toggling the pen mode (~300 Hz, a fraction of a second in use); MAX_RETOGGLES stops a pad that speaks neither format toggling forever
 WRONG_MODE_LIMIT = 100
 MAX_RETOGGLES = 6
 
@@ -103,12 +80,7 @@ MAX_RETOGGLES = 6
 RAW_MAX = 32767
 PRESSURE_MAX = 16383
 
-# Raw pressure cannot be used to tell contact from hover on this pad: hovering
-# reports a constant 29 while a light touch can report as little as 11. Only
-# the tip switch is trustworthy, so pressure is republished as a function of
-# it -- exactly 0 while hovering, and never below TIP_FLOOR while in contact
-# so that anything downstream deriving tip state from a pressure threshold
-# agrees with the tip bit. The remaining range keeps the pressure dynamics.
+# raw pressure cannot tell contact from hover (hover=29, light touch=11), so republish from the tip switch: 0 hovering, >= TIP_FLOOR in contact so pressure-threshold consumers agree with the tip bit
 TIP_FLOOR = 1638  # 10% of PRESSURE_MAX, above libinput's 5% tip threshold
 
 # Physical active area from the interface-2 descriptor, in millimetres.
@@ -118,14 +90,11 @@ AREA_H_MM = 137.0
 # Axis range we publish.  Independent of what the firmware happens to use.
 OUT_MAX = 32767
 
-# Default calibration: the firmware's usable X window.  `--calibrate` measures
-# the real one and writes it to CALIB_PATH, which then takes precedence.
+# default calibration: the firmware's usable X window; `--calibrate` measures the real one into CALIB_PATH, which then wins
 DEFAULT_CALIB = {"x_min": 16384, "x_max": 32767, "y_min": 0, "y_max": 32767}
 CALIB_PATH = "/var/lib/tablet-driver/calibration.json"
 
-# The six-command handshake that leaves sleep mode.  Byte 0 is the report id.
-# Sent as HID feature reports, which is the hidraw equivalent of the Windows
-# driver's SET_REPORT(0x0308) control transfers -- no interface claim needed.
+# six-command handshake leaving sleep mode, byte 0 is the report id; sent as HID feature reports (hidraw equivalent of the Windows driver's SET_REPORT(0x0308)), no interface claim needed
 UNLOCK_COMMANDS = [
     bytes([0x08, 0x03, 0xFC, 0x03, 0x87, 0x00, 0xFF, 0xF0]),
     bytes([0x08, 0x07, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF]),
@@ -256,8 +225,7 @@ def make_uinput(calib: dict):
         bustype=0x03,  # BUS_USB, so udev classifies it like a real tablet
         input_props=[e.INPUT_PROP_DIRECT],
     )
-    # ui.device is resolved by scanning /dev/input for the new node, which
-    # races with udev creating it. Not worth waiting for; it is only a label.
+    # ui.device scans /dev/input for the new node and races udev creating it; not worth waiting for, it is only a label
     node = getattr(getattr(ui, "device", None), "path", None) or "pending"
     log(f"uinput: created {ui.name} at {node}")
     log(
@@ -407,8 +375,7 @@ def run(node: str, calib: dict) -> int:
     fd = os.open(node, os.O_RDONLY | os.O_NONBLOCK)
     log(f"driver: reading pen on {node}")
 
-    # Buttons live on the other interface, which stays alive after the unlock.
-    # Losing it costs the buttons but not the pen, so it is never fatal.
+    # buttons live on the other interface (alive after unlock); losing it costs the buttons but not the pen, so never fatal
     btn_node = find_hidraw("02")
     btn_fd = -1
     if btn_node:
@@ -485,14 +452,15 @@ def run(node: str, calib: dict) -> int:
     try:
         while True:
             watch = [fd] + ([btn_fd] if btn_fd >= 0 else [])
-            ready, _, _ = select.select(watch, [], [], POLL_S)
+            # block until a report arrives, with a deadline only while the pen is in range to catch its silent lift
+            timeout = max(0.0, last_report + PROXIMITY_TIMEOUT_S - time.monotonic()) if in_proximity else None
+            ready, _, _ = select.select(watch, [], [], timeout)
 
             if btn_fd in ready:
                 try:
                     data = os.read(btn_fd, 64)
                     if not data:
-                        # Same EOF trap as the pen node below: select() would
-                        # keep reporting it readable forever.
+                        # same EOF trap as the pen node below: select() keeps reporting it readable forever
                         log("driver: button node reached end of file; "
                             "buttons disabled")
                         release_keys()
@@ -526,10 +494,7 @@ def run(node: str, calib: dict) -> int:
                     leave_proximity()
                 return 0
             if not data:
-                # A hidraw node that disappears normally raises ENODEV above.
-                # An empty read means the other end closed anyway, and since
-                # select() keeps reporting EOF as readable, continuing here
-                # would spin at full tilt instead of noticing.
+                # a vanished hidraw node raises ENODEV above; an empty read means the other end closed, and select() keeps reporting EOF readable so continuing would spin at full tilt
                 log("driver: pen node reached end of file")
                 if in_proximity:
                     leave_proximity()
@@ -537,10 +502,7 @@ def run(node: str, calib: dict) -> int:
             if len(data) < PEN_REPORT_LEN:
                 continue
             if data[0] != PEN_REPORT_ID:
-                # The pen is talking in the format we do not speak, so the
-                # handshake toggled one step too far (see unlock()). Nothing
-                # is broken and nothing needs re-opening: the hidraw nodes
-                # survive a handshake, so toggle again and carry on reading.
+                # pen in the format we do not speak: the handshake toggled one step too far (see unlock()); hidraw nodes survive a handshake, so toggle again and carry on
                 wrong_mode += 1
                 if wrong_mode < WRONG_MODE_LIMIT:
                     continue

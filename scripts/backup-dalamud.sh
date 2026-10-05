@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Pull Dalamud's config, plugin configs and plugin manifests from ~/.xlcore into configs/secrets/dalamud;
-# configs/dalamud/link.sh downloads the plugins again from those manifests.
+# pull Dalamud's config, plugin configs and plugin manifests from ~/.xlcore into configs/secrets/dalamud; configs/dalamud/link.sh downloads the plugins again from those manifests
 
 set -euo pipefail
 shopt -s nullglob
@@ -13,9 +12,7 @@ DEST="${REPO}/configs/secrets/dalamud"
 source "${REPO}/scripts/lib/secrets.sh"
 
 [ -f "${XLCORE}/dalamudConfig.json" ] || { echo "no ${XLCORE}/dalamudConfig.json" >&2; exit 1; }
-# a locked worktree holds GITCRYPT blobs; writing plaintext into it would stage secrets unencrypted
-secret_is_plaintext "${REPO}/configs/secrets/pgp_privatekey.asc" \
-    || { echo "configs/secrets is locked, unlock it first" >&2; exit 1; }
+secret_require_unlocked "${REPO}"
 
 mkdir -p "${DEST}"
 cp -f "${XLCORE}/dalamudConfig.json" "${XLCORE}/dalamudUI.ini" "${DEST}/"

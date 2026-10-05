@@ -1,0 +1,8 @@
+# autostart ids to hide, one per line
+
+# python tray (42 mb) that keeps the socket-activated cupsd running; system-config-printer opens on demand
+print-applet
+# toggles/toggle-weather-location.sh starts the agent per lookup
+geoclue-demo-agent
+# flatpak remmina tray, remmina recreates a missing entry
+remmina-applet

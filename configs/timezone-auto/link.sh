@@ -16,4 +16,5 @@ sudo install -m644 49-timezone-auto.rules /etc/polkit-1/rules.d/49-timezone-auto
 systemctl --user daemon-reload
 systemctl --user enable --now timezone-auto.timer
 
+# offline is fine here, the timer retries
 "${PWD}/timezone-auto.sh" check || true

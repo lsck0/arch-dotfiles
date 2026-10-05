@@ -78,6 +78,33 @@
       #q::placeholder {
         color: var(--muted);
       }
+      #links {
+        position: fixed;
+        left: 50%;
+        bottom: 2.5rem;
+        transform: translateX(-50%);
+        z-index: 2;
+        width: min(60rem, 90vw);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem 1.2rem;
+        font-family: "Kode Mono", monospace;
+        font-size: 0.95rem;
+      }
+      #links a {
+        color: var(--foreground);
+        text-decoration: none;
+      }
+      #links a:hover,
+      #links a:focus,
+      #links a.selected {
+        color: var(--cell);
+        outline: none;
+      }
+      #links a.selected {
+        text-decoration: underline;
+      }
     </style>
     <link rel="stylesheet" href="file:///home/luca/.cache/wal/colors-qutebrowser.css" />
   </head>
@@ -91,6 +118,9 @@
       <input id="q" name="q" type="text" autocomplete="off"
              placeholder="search google" />
     </form>
+    <nav id="links"></nav>
+    <!-- generated from weblinks/links.txt by weblinks/link.py -->
+    <script src="file:///home/luca/projects/arch-dotfiles/weblinks/collection/links.js"></script>
     <script>
       "use strict";
 
@@ -186,6 +216,17 @@
         );
       }
 
+      // bookmarks; links.js is missing until weblinks/link.py ran once
+      const links_nav = document.getElementById("links");
+      const bookmarks = [];
+      for (const link of typeof weblinks === "undefined" ? [] : weblinks) {
+        const anchor = document.createElement("a");
+        anchor.href = link.url;
+        anchor.textContent = link.name;
+        links_nav.appendChild(anchor);
+        bookmarks.push({ anchor: anchor, text: (link.name + " " + link.url).toLowerCase() });
+      }
+
       window.addEventListener("resize", resize);
 
       resize();
@@ -201,6 +242,46 @@
       function hide_search() {
         search_form.style.display = "none";
         search_input.value = "";
+        for (const b of bookmarks) b.anchor.hidden = false;
+      }
+
+      // subsequence fuzzy score; higher means a tighter match, -1 if the query is not a subsequence
+      function fuzzy_score(query, text) {
+        let ti = 0;
+        let score = 0;
+        let streak = 0;
+        for (let qi = 0; qi < query.length; qi++) {
+          const found = text.indexOf(query[qi], ti);
+          if (found === -1) return -1;
+          streak = found === ti ? streak + 1 : 0;
+          score += streak + (found === 0 ? 2 : 0);
+          ti = found + 1;
+        }
+        return score;
+      }
+
+      let matches = [];
+      let selected = -1;
+
+      function render_matches() {
+        for (const b of bookmarks) b.anchor.classList.remove("selected");
+        if (selected >= 0 && selected < matches.length) {
+          matches[selected].anchor.classList.add("selected");
+          matches[selected].anchor.scrollIntoView({ block: "nearest" });
+        }
+      }
+
+      function filter_bookmarks() {
+        const query = search_input.value.trim().toLowerCase();
+        matches = [];
+        for (const b of bookmarks) {
+          const score = query === "" ? 0 : fuzzy_score(query, b.text);
+          b.anchor.hidden = query !== "" && score < 0;
+          if (score >= 0) matches.push({ anchor: b.anchor, score: score });
+        }
+        if (query !== "") matches.sort((a, b) => b.score - a.score);
+        selected = query !== "" && matches.length > 0 ? 0 : -1;
+        render_matches();
       }
 
       document.addEventListener("keydown", function (event) {
@@ -211,16 +292,36 @@
         search_form.style.display = "block";
         search_input.value += event.key;
         search_input.focus();
+        filter_bookmarks();
       });
+
+      search_input.addEventListener("input", filter_bookmarks);
 
       search_input.addEventListener("keydown", function (event) {
         if (event.key === "Escape") {
           hide_search();
+          filter_bookmarks();
           search_input.blur();
+        } else if (event.key === "ArrowDown" && matches.length > 0) {
+          event.preventDefault();
+          selected = (selected + 1) % matches.length;
+          render_matches();
+        } else if (event.key === "ArrowUp" && matches.length > 0) {
+          event.preventDefault();
+          selected = (selected - 1 + matches.length) % matches.length;
+          render_matches();
+        } else if (event.key === "Enter" && selected >= 0) {
+          // a matching bookmark wins; google stays the fallback when nothing matches
+          event.preventDefault();
+          window.location.href = matches[selected].anchor.href;
         }
       });
+
       search_input.addEventListener("blur", function () {
-        if (search_input.value === "") hide_search();
+        if (search_input.value === "") {
+          hide_search();
+          filter_bookmarks();
+        }
       });
     </script>
   </body>

@@ -8,16 +8,13 @@ Item {
   id: root
 
   property var shell: null
-  property var manifest: null
 
   // list: two reminders can elapse in the same minute
   property var alerts: []
 
   property string fontFamily: Style.font.family
 
-  function open(payloadJson) {
-    var payload = ({})
-    try { payload = JSON.parse(payloadJson || "{}") } catch (e) { payload = ({}) }
+  function open(payload) {
     if (!payload.title && !payload.body) return
 
     var next = root.alerts.slice()
@@ -36,7 +33,7 @@ Item {
     var next = root.alerts.slice()
     next.splice(index, 1)
     root.alerts = next
-    if (next.length === 0) dismiss()
+    if (next.length === 0) close()
   }
 
   function snoozeAt(index, minutes) {
@@ -61,15 +58,8 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // only dismiss() may talk to the shell; close() is its hide callback
   function close() {
     root.alerts = []
-  }
-
-  function dismiss() {
-    root.alerts = []
-    if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "panel.alert")
   }
 
   PanelWindow {
@@ -90,7 +80,7 @@ Item {
     // keys cannot attach to a PanelWindow
     PanelKeyCatcher {
       anchors.fill: parent
-      onCloseRequested: root.dismiss()
+      onCloseRequested: root.close()
 
       Column {
         id: stack

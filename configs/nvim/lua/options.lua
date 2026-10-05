@@ -13,6 +13,16 @@ set.clipboard = "unnamedplus"
 set.spellfile = vim.fn.stdpath("config") .. "/spell/en.utf-8.add"
 -- no sentence-start capitalization warnings
 set.spellcapcheck = ""
+-- GitHub is checked as Git + Hub; not noplainbuffer: .txt has no syntax, so it would never be checked at all
+set.spelloptions = "camel"
+-- the .spl is gitignored: rebuild it when a pulled wordlist is newer, else the synced words stay flagged
+do
+    local add = vim.uv.fs_stat(vim.o.spellfile)
+    local spl = vim.uv.fs_stat(vim.o.spellfile .. ".spl")
+    if add and (not spl or spl.mtime.sec < add.mtime.sec) then
+        vim.cmd("silent! mkspell! " .. vim.fn.fnameescape(vim.o.spellfile))
+    end
+end
 
 -- over ssh, yank to the local clipboard via osc 52
 if vim.env.SSH_TTY or vim.env.SSH_CONNECTION then

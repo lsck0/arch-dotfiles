@@ -33,6 +33,8 @@ BarWidget {
   readonly property real pricePerKwh: 0.35
   property var vramUsedMb: null
   property var vramTotalMb: null
+  // null hides the alerts, the helper stays silent without a running, readable ossec
+  property var ossec: null
 
   property var cpuHist: []
   property var gpuHist: []
@@ -49,6 +51,13 @@ BarWidget {
     if (t >= 85) return Color.semantic.live
     if (t >= 75) return Color.semantic.recording
     if (t >= 60) return Color.semantic.warn
+    return Color.accent
+  }
+  // ossec levels run 0 to 15
+  function critLevel(level) {
+    if (level >= 12) return Color.semantic.live
+    if (level >= 10) return Color.semantic.recording
+    if (level >= 7) return Color.semantic.warn
     return Color.accent
   }
 
@@ -82,6 +91,8 @@ BarWidget {
   Process {
     running: true
     command: [Paths.barWidget("system-stats.sh"), root.onBattery ? "15" : "10"]
+    // quickshell does not reap helpers on reload, stop on teardown
+    Component.onDestruction: running = false
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {
@@ -117,18 +128,26 @@ BarWidget {
     }
   }
 
+  JsonProcess {
+    command: [Paths.barWidget("ossec-alerts.py")]
+    streaming: true
+    running: true
+    onParsed: function (data) { root.ossec = data }
+  }
+
   // fixed-width slot per stat so the bar does not jitter
   component Stat: Row {
     property string glyph: ""
     property string value: ""
     property string widest: ""
+    property color tint: root.bar ? root.bar.barForeground : Color.foreground
     spacing: Style.spacing.sm
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: parent.glyph
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: parent.tint
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       opacity: Style.emphasis.dim
@@ -140,7 +159,7 @@ BarWidget {
       width: Math.ceil(sizer.implicitWidth)
       horizontalAlignment: Text.AlignLeft
       text: parent.value
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: parent.tint
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       font.letterSpacing: Style.displayTracking
@@ -167,6 +186,7 @@ BarWidget {
     // too wide for a vertical bar
     Sparkline {
       visible: !root.vertical
+      pulsing: false
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(40)
       height: Style.space(14)
@@ -200,6 +220,14 @@ BarWidget {
       glyph: root.batteryIcon
       widest: "100%"
       value: Math.round(root.batteryFraction * 100) + "%"
+    }
+    // md-shield_alert, only for alerts worth a look
+    Stat {
+      visible: root.ossec !== null && root.ossec.high > 0
+      glyph: "\u{f0ce4}"
+      widest: "99"
+      value: root.ossec ? root.ossec.high : ""
+      tint: Color.semantic.live
     }
   }
 
@@ -574,6 +602,65 @@ BarWidget {
           visible: root.batteryPresent
           label: "STATE"
           value: root.onBattery ? "DISCHARGE" : "CHARGE"
+        }
+      }
+
+      Column {
+        visible: root.ossec !== null
+        width: parent.width
+        spacing: Style.spacing.md
+        PanelSeparator {}
+        SectionHead { text: "ALERTS" }
+        Grid {
+          width: parent.width
+          columns: 2
+          spacing: Style.spacing.md
+          HudStat { label: "24H"; value: root.ossec ? root.ossec.total : "" }
+          HudStat {
+            label: "MAX LEVEL"
+            value: root.ossec ? root.ossec.maxLevel : ""
+            tint: root.critLevel(root.ossec ? root.ossec.maxLevel : 0)
+          }
+        }
+        Column {
+          width: parent.width
+          spacing: Style.spacing.xs
+          Repeater {
+            model: root.ossec ? root.ossec.recent : []
+            Row {
+              required property var modelData
+              width: parent.width
+              spacing: Style.spacing.sm
+              Text {
+                id: alertLevel
+                width: Style.space(28)
+                text: "L" + modelData.level
+                color: root.critLevel(modelData.level)
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+                layer.enabled: Style.fx.glow > 0
+                layer.effect: Glow { shadowColor: alertLevel.color }
+              }
+              Text {
+                width: parent.width - alertLevel.width - alertTime.width - parent.spacing * 2
+                text: modelData.desc
+                elide: Text.ElideRight
+                color: Color.foreground
+                opacity: Style.emphasis.strong
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+              Text {
+                id: alertTime
+                text: modelData.t
+                color: Color.menu.text
+                opacity: Style.emphasis.dim
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+          }
         }
       }
 

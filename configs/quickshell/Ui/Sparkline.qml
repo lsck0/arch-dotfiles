@@ -25,11 +25,12 @@ Item {
   // items keep visible: true inside a hidden window, endless animations would tick unseen
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
 
+  // always-visible hosts (the bar) turn this off, an endless pulse redraws its window every frame
+  property bool pulsing: true
   // drives the overlay dots so the pulse never repaints the canvas
   property real pulse: 0
   SequentialAnimation on pulse {
-    // endless, redraws its window every frame
-    running: root.onScreen && !Power.saver
+    running: root.pulsing && root.onScreen && !Power.saver
     loops: Animation.Infinite
     NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
     NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }

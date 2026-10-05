@@ -1,5 +1,5 @@
 config-file=~/.cache/wal/ghostty.conf
-# toggle-powermode.sh fills it in power-saver, a dangling link otherwise
+# toggle-powermode.sh fills it while saver is on, a dangling link otherwise
 config-file=?~/.cache/ghostty-powersave.conf
 
 app-notifications = false

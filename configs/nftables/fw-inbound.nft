@@ -1,5 +1,8 @@
 #!/usr/sbin/nft -f
-# additive, coexists with portmaster, docker, lxc and libvirt
+# owns only table inet fw: portmaster, docker, fail2ban, wg-quick and tor-router keep their own tables
+
+# container, vm and tunnel interfaces trusted like the host itself; tun0 (pentest vpn) is deliberately not here
+define trusted_ifaces = { "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*", "wg*" }
 
 add table inet fw
 delete table inet fw
@@ -25,14 +28,8 @@ table inet fw {
         # no rst, so scans see filtered
         tcp dport { 80, 443 } drop
 
-        iifname "docker*" accept
-        iifname "br-*" accept
-        iifname "veth*" accept
-        iifname "virbr*" accept
-        iifname "waydroid*" accept
-        iifname "lxc*" accept
-        iifname "wg*" accept
-        # tun0 (not tun*) is the hostile pentest vpn: listener ports only
+        iifname $trusted_ifaces accept
+        # tun0 is the hostile pentest vpn: listener ports only
         iifname "tun0" tcp dport { 4444-4460, 8000-8099, 9001, 9443 } accept
 
         # sshd on 2222 opens only after knocking 7001, 8002, 9003
@@ -46,5 +43,16 @@ table inet fw {
         ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } tcp dport { 22, 1716 } accept
         ip  saddr { 192.168.178.0/24, 10.100.0.0/16 } udp dport 1716 accept
         ip6 saddr fe80::/10 tcp dport 1716 accept
+    }
+
+    # docker, libvirt and waydroid turn ip_forward on, so without this the lan and tun0 could route through this host
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+
+        ct state established,related accept
+        ct state invalid drop
+        iifname $trusted_ifaces accept
+        # published docker/libvirt ports
+        ct status dnat accept
     }
 }

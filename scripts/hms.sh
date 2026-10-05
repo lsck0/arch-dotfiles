@@ -18,12 +18,17 @@ for entry in "${dirs[@]}"; do
   path="${entry%%$'\t'*}"
   depth="${entry##*$'\t'}"
   [[ -d "$path" ]] || continue
-  while IFS= read -r gitdir; do
-    full="$(dirname "$gitdir")"
+  while IFS= read -r git; do
+    # a .git file is a project only as a linked worktree, so submodules and the `gitdir: ./.bare` root stay out
+    if [[ -f "$git" ]]; then
+      read -r line <"$git" || true
+      [[ "$line" =~ ^gitdir:\ .*/worktrees/[^/]+/?$ ]] || continue
+    fi
+    full="$(dirname "$git")"
     display="${full#"$path"/}"
     repos+=("$display"$'\t'"$full")
     # exclude nested package/vendor repos so the list is real projects only
-  done < <(fd --type d --hidden --no-ignore --max-depth "$depth" \
+  done < <(fd --type d --type f --hidden --no-ignore --max-depth "$depth" \
     --exclude elpa --exclude node_modules --exclude .cargo --exclude vendor --exclude target \
     '^\.git$' "$path" 2>/dev/null)
 done

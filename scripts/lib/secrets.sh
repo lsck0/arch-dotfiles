@@ -9,3 +9,8 @@ secret_is_plaintext() {
     magic=$(head -c 9 "$file" 2>/dev/null | tr -d '\0')
     [[ "$magic" != GITCRYPT ]]
 }
+
+# secret_require_unlocked <repo>: exit unless configs/secrets is unlocked, a locked worktree would stage plaintext into GITCRYPT blobs
+secret_require_unlocked() {
+    secret_is_plaintext "$1/configs/secrets/pgp_privatekey.asc" || { echo "configs/secrets is locked, unlock it first" >&2; exit 1; }
+}

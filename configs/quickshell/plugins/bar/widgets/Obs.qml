@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -169,38 +168,12 @@ BarWidget {
   }
 
   // run the helper only while obs runs
-  property bool obsSeen: false
-
-  function probeForObs() {
-    if (!obsProbe.running) obsProbe.running = true
-  }
-
-  Process {
-    id: obsProbe
-    // -x, pgrep -f would match its own command line
-    command: ["pgrep", "-x", "obs"]
-    onExited: function (exitCode) {
-      root.obsSeen = exitCode === 0
-    }
-  }
+  readonly property bool obsSeen: ObsProcess.running
 
   onObsSeenChanged: if (!obsSeen) {
     connected = false
     errorText = ""
     clearSession()
-  }
-
-  Connections {
-    target: ToplevelManager.toplevels
-    function onValuesChanged() { root.probeForObs() }
-  }
-
-  Timer {
-    interval: root.obsSeen ? 3000 : 60000
-    running: !root.obsSeen || !root.connected
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.probeForObs()
   }
 
   // stdin is the command channel into obs

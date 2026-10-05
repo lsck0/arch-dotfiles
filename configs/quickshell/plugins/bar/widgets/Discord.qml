@@ -13,18 +13,6 @@ BarWidget {
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
     runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
-  readonly property string commandPath:
-    runtimeDir ? runtimeDir + "/quickshell-discord-cmd" : ""
-
-  // printf, not FileView: the plugin unlinks the file on read
-  function send(cmd) {
-    if (!root.commandPath) return
-    const target = Util.shellQuote(root.commandPath)
-    const tmp = Util.shellQuote(root.commandPath + ".tmp")
-    Quickshell.execDetached(["bash", "-c",
-      "printf '%s\\n' " + Util.shellQuote(JSON.stringify({ cmd: cmd }))
-        + " > " + tmp + " && mv -f " + tmp + " " + target])
-  }
 
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
@@ -370,7 +358,7 @@ BarWidget {
           glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           label: root.selfMute ? "Unmute" : "Mute"
           on: root.selfMute
-          onActivated: root.send("toggleSelfMute")
+          onActivated: DiscordControl.send("toggleSelfMute")
         }
         Action {
           width: (parent.width - Style.spacing.sm * 2) / 3
@@ -378,7 +366,7 @@ BarWidget {
           glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           label: root.selfDeaf ? "Undeafen" : "Deafen"
           on: root.selfDeaf
-          onActivated: root.send("toggleSelfDeaf")
+          onActivated: DiscordControl.send("toggleSelfDeaf")
         }
         Action {
           width: (parent.width - Style.spacing.sm * 2) / 3
@@ -386,7 +374,7 @@ BarWidget {
           label: "Leave"
           on: true
           onActivated: {
-            root.send("disconnect")
+            DiscordControl.send("disconnect")
             if (root.bar) root.bar.closePanel(root.moduleName)
           }
         }

@@ -1,3 +1,2 @@
-# perf-no-*-workqueue lowers dm-crypt latency (kernel >= 5.9)
-# entries below the marker are rewritten by configs/boot/luks/link.sh, do not edit them
+# perf-no-*-workqueue lowers dm-crypt latency (kernel >= 5.9); entries below the marker are rewritten by configs/boot/luks/link.sh, do not edit them
 # MARKER:arch-dotfiles/boot/luks

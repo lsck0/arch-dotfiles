@@ -1,36 +1,24 @@
-local DMI_PORTABLE = {
-    [8] = true,  -- portable
-    [9] = true,  -- laptop
-    [10] = true, -- notebook
-    [11] = true, -- hand held
-    [14] = true, -- sub notebook
-    [30] = true, -- tablet
-    [31] = true, -- convertible
-    [32] = true, -- detachable
+-- form factor from platforms/<host>.sh, written by scripts/lib/platform.sh during config.sh; no second detection here
+local FORM_FACTORS = {
+    desktop = true,
+    laptop = true,
+    vm = true,
 }
 
-local PROFILES = {
-    ["luca-pc"] = "desktop",
-    ["luca-notebook"] = "laptop",
-}
+local config_home = os.getenv("XDG_CONFIG_HOME") or (os.getenv("HOME") .. "/.config")
+local path = config_home .. "/dotfiles/form-factor"
 
-local function first_line(path)
-    local f = io.open(path, "r")
-    if not f then return nil end
+local f = io.open(path, "r")
+local form_factor = f and f:read("l")
+if f then f:close() end
 
-    local line = f:read("l")
-    f:close()
-
-    if not line or line == "" then return nil end
-    return line
+if not FORM_FACTORS[form_factor] then
+    error("platform: " .. path .. " holds '" .. tostring(form_factor) .. "', not desktop, laptop or vm; run config.sh")
 end
-
-local host = first_line("/etc/hostname") or os.getenv("HOSTNAME") or "unknown"
-local portable = DMI_PORTABLE[tonumber(first_line("/sys/class/dmi/id/chassis_type") or "")] == true
 
 local M = {}
 
-M.profile = PROFILES[host] or (portable and "laptop" or "desktop")
-M.laptop = M.profile == "laptop"
+M.form_factor = form_factor
+M.laptop = form_factor == "laptop"
 
 return M

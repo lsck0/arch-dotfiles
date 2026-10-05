@@ -18,11 +18,16 @@ manual_coords() { [[ -s "$MANUAL_FILE" ]] && cat "$MANUAL_FILE" || true; }
 
 # Needs an authorised agent to be running or it blocks and returns nothing, hence the hard timeout.
 geoclue_coords() {
-    local out lat lon
+    local out lat lon agent_pid
     local demo=/usr/lib/geoclue-2.0/demos/where-am-i
-    [[ -x "$demo" ]] || return 0
+    local agent=/usr/lib/geoclue-2.0/demos/agent
+    [[ -x "$demo" && -x "$agent" ]] || return 0
+    # the agent lives only for this lookup instead of autostarting for the session (configs/xdg/hidden-autostart.list)
+    "$agent" >/dev/null 2>&1 &
+    agent_pid=$!
     # Every one of these needs `|| true`.
     out=$(timeout 8 "$demo" -a 4 -t 6 2>/dev/null || true)
+    kill "$agent_pid" 2>/dev/null || true
     [[ -n "$out" ]] || return 0
     lat=$(grep -oP 'Latitude:\s*\K-?[0-9.]+' <<<"$out" | head -1 || true)
     lon=$(grep -oP 'Longitude:\s*\K-?[0-9.]+' <<<"$out" | head -1 || true)

@@ -293,6 +293,11 @@ module.exports = class QuickshellVoiceStatus {
     for (const key of ["voice", "speaking", "media", "selected"])
       this._subscribe(this._stores[key]);
 
+    // a command written while discord was closed is stale, a keybind mute must never fire on launch
+    try {
+      if (this._commandPath && this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
+    } catch (e) {}
+
     // slow poll only covers a dead watcher
     try {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {

@@ -7,6 +7,8 @@ fi
 
 set -e
 
+source ../../scripts/lib/fetch.sh
+
 FILES="
     baloofilerc
     kactivitymanagerd-statsrc
@@ -40,8 +42,7 @@ ln -sfn "${PWD}/color-schemes/pywal.colors" "${HOME}/.local/share/color-schemes/
 
 # dolphin global view properties
 ln -sfn "${PWD}/dolphin/view_properties/global/.directory" "${HOME}/.local/share/dolphin/view_properties/global/.directory"
-# dolphin panels: places, information and terminal, no folders tree. only the dock layout key, since
-# dolphin rewrites the rest of this file (window geometry per screen setup) on every close
+# dolphin panels: places and information, no folders tree or terminal (kiosk-disabled in dolphinrc); only the dock layout key, since dolphin rewrites the rest of this file (per-screen window geometry) on every close
 kwriteconfig6 --file "${HOME}/.local/state/dolphinstaterc" --group State --key State "$(cat "${PWD}/dolphin/dock-state")"
 
 for f in ${FILES}; do
@@ -58,9 +59,9 @@ done
 
 # third-party plasmoids
 WIDGET_ID="com.github.prayag2.modernclock"
-if ! kpackagetool6 -t Plasma/Applet -l 2>/dev/null | grep -qx "${WIDGET_ID}"; then
+if ! kpackagetool6 -t Plasma/Applet -l | grep -qx "${WIDGET_ID}"; then
     TMP=$(mktemp -d)
-    git clone https://github.com/prayag2/kde_modernclock "${TMP}/kde_modernclock"
+    fetch_git_pinned https://github.com/prayag2/kde_modernclock 5c86f0f23d2646be7e9872fc5e769bdce259af92 "${TMP}/kde_modernclock"
     kpackagetool6 -t Plasma/Applet -i "${TMP}/kde_modernclock/package"
     rm -rf "${TMP}"
 fi

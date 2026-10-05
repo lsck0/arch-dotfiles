@@ -7,6 +7,7 @@ if ! command -v rocminfo >/dev/null 2>&1; then
     exit 0
 fi
 
+# rocminfo errors without a usable amd gpu, that is the skip case
 if ! rocminfo 2>/dev/null | grep -q '^Agent [0-9]*.*$' || ! rocminfo 2>/dev/null | grep -q 'gfx[0-9a-f]\{3,\}'; then
     exit 0
 fi

@@ -159,7 +159,7 @@ export NPM_CONFIG_USERCONFIG=$identity_dir/npmrc
 export DIRENV_HISTFILE=$identity_dir/zsh_history
 [[ -e $DIRENV_HISTFILE ]] || install -m 600 /dev/null "$DIRENV_HISTFILE"
 
-# nvim shada, undo and swap files, mise trust
+# nvim shada, undo and swap files
 export XDG_STATE_HOME=$identity_dir/state
 home_links_set "$personal_state_dir" "$XDG_STATE_HOME" "${STATE_SHARED_ITEMS[@]}"
 export PYTHON_HISTORY=$XDG_STATE_HOME/python_history

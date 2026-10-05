@@ -100,6 +100,15 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 
 ;;;; editing helpers ---------------------------------------------------------
 
+;; harpoon2: a short per-project file list on SPC a / SPC h / SPC 1-5
+(use-package harpoon
+  :commands (harpoon-add-file harpoon-toggle-file
+             harpoon-go-to-1 harpoon-go-to-2 harpoon-go-to-3 harpoon-go-to-4 harpoon-go-to-5)
+  :init
+  (setq harpoon-cache-file (my/cache "harpoon/")
+        harpoon-project-package 'project
+        harpoon-separate-by-branch nil))       ; harpoon2 keys the list by cwd only
+
 (use-package vundo
   :commands vundo
   :config (setq vundo-glyph-alist vundo-unicode-symbols))
@@ -108,6 +117,60 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 (use-package ws-butler
   :hook ((prog-mode . ws-butler-mode)
          (text-mode . ws-butler-mode)))
+
+;;;; sessions (persistence.nvim) ---------------------------------------------
+
+(defvar my/session-dir (my/cache "sessions/")
+  "One desktop per project root below here, plus `last' naming the most recent one.")
+
+(defvar my/session-save t
+  "Nil after SPC q d: the session is not saved on exit.")
+
+(defun my/session--dir (root)
+  "Desktop directory of the project at ROOT."
+  (file-name-as-directory (expand-file-name (md5 (expand-file-name root)) my/session-dir)))
+
+(defun my/session--last ()
+  (expand-file-name "last" my/session-dir))
+
+(defun my/session-save-on-exit ()
+  "persistence.nvim: save the session of the current project on exit, when any file was open."
+  (when (and my/session-save (not noninteractive) (seq-some #'buffer-file-name (buffer-list)))
+    (require 'desktop)
+    (let ((dir (my/session--dir (my/project-root))))
+      (make-directory dir t)
+      (desktop-save dir t)
+      (with-temp-file (my/session--last) (insert dir)))))
+
+(add-hook 'kill-emacs-hook #'my/session-save-on-exit)
+
+(defun my/session--load (dir)
+  "Restore the desktop in DIR; a sidebar window it cannot restore is closed rather than left showing junk."
+  (require 'desktop)
+  (unless (file-exists-p (expand-file-name desktop-base-file-name dir))
+    (user-error "No saved session"))
+  (desktop-read dir)
+  (dolist (win (window-list))
+    (when (and (window-parameter win 'window-side)
+               (not (with-current-buffer (window-buffer win) (derived-mode-p 'dired-mode))))
+      (delete-window win))))
+
+(defun my/session-restore ()
+  "nvim SPC q s: restore the session of the current project."
+  (interactive)
+  (my/session--load (my/session--dir (my/project-root))))
+
+(defun my/session-restore-last ()
+  "nvim SPC q l: restore the most recently saved session."
+  (interactive)
+  (unless (file-exists-p (my/session--last)) (user-error "No saved session"))
+  (my/session--load (with-temp-buffer (insert-file-contents (my/session--last)) (buffer-string))))
+
+(defun my/session-stop ()
+  "nvim SPC q d: stop saving the session on exit."
+  (interactive)
+  (setq my/session-save nil)
+  (message "session: not saved on exit"))
 
 ;;;; claude (claudecode.nvim) ------------------------------------------------
 
@@ -185,6 +248,21 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
 (defun my/test-stop ()
   "neotest stop."
   (interactive) (kill-compilation))
+
+(defun my/test-nearest ()
+  "neotest run nearest: the test function around point."
+  (interactive)
+  (let ((name (or (ignore-errors (treesit-defun-name (treesit-defun-at-point)))
+                  (user-error "No test function at point"))))
+    (my/test--run (if (derived-mode-p 'python-mode 'python-ts-mode)
+                      (format "%s %s -k %s" (my/test--runner)
+                              (shell-quote-argument (buffer-file-name)) (shell-quote-argument name))
+                    (format "%s %s" (my/test--runner) (shell-quote-argument name))))))
+
+(defun my/test-output ()
+  "neotest output: show the last test run."
+  (interactive)
+  (pop-to-buffer (or (get-buffer "*test*") (user-error "No test run yet"))))
 
 ;;;; profiling (perf flamegraphs) --------------------------------------------
 

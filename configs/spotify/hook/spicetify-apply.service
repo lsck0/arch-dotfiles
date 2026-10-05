@@ -1,5 +1,8 @@
 [Unit]
 Description=Apply spicetify to spotify
+# brake for a runaway trigger
+StartLimitIntervalSec=1min
+StartLimitBurst=20
 
 [Service]
 Type=oneshot

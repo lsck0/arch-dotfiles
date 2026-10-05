@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
+# disk throughput behind a dir: "disk <model>", then "read <MB/s>" and "write <MB/s>" each second, steady mean last
 set -e
+source "$(dirname "$(readlink -f "$0")")/lib/speedtest.sh"
 
 if [[ -n ${1:-} && ! -d $1 ]]; then
   echo "Usage: disk-speedtest.sh [target-dir]" >&2
@@ -14,40 +16,16 @@ file_mb=256
 
 mkdir -p "$target_dir"
 
-worker_pids=()
 chunk_file=""
 test_files=()
-
-stop_workers() {
-  local pid
-  for pid in "${worker_pids[@]}"; do
-    [[ -n $pid ]] || continue
-    pkill -TERM -P "$pid" 2>/dev/null || true
-    kill "$pid" 2>/dev/null || true
-  done
-  for pid in "${worker_pids[@]}"; do
-    [[ -n $pid ]] || continue
-    wait "$pid" 2>/dev/null || true
-  done
-  worker_pids=()
-}
-
-alive_workers() {
-  local pid count=0
-  for pid in "${worker_pids[@]}"; do
-    kill -0 "$pid" 2>/dev/null && count=$((count + 1))
-  done
-  echo "$count"
-}
 
 cleanup() {
   # unlink first so a SIGKILL mid-cleanup leaves no files
   rm -f ${chunk_file:+"$chunk_file"} "${test_files[@]}"
-  stop_workers
+  workers_stop
   rm -f ${chunk_file:+"$chunk_file"} "${test_files[@]}"
 }
 trap cleanup EXIT
-trap 'exit 143' TERM INT
 
 # mktemp: no clobbering, symlink races or overlapping runs
 chunk_file=$(mktemp /dev/shm/quickshell-disk-speedtest-XXXXXX.src)
@@ -56,14 +34,6 @@ for (( i = 0; i < parallel; i++ )); do
   chattr +C "$file" 2>/dev/null || true
   test_files+=("$file")
 done
-
-format_rate() {
-  awk -v value="$1" 'BEGIN {
-    if (value <= 0) print "0.0"
-    else if (value < 10) printf "%.1f\n", value
-    else printf "%.0f\n", value
-  }'
-}
 
 source_dev=$(findmnt -no SOURCE --target "$target_dir" 2>/dev/null)
 # strip btrfs subvolume suffix
@@ -142,7 +112,7 @@ run_phase() {
   before=$(device_sectors "$phase")
   deadline=$((SECONDS + phase_seconds))
 
-  while (( SECONDS < deadline )) && (( $(alive_workers) > 0 )); do
+  while (( SECONDS < deadline )) && (( $(workers_alive_count) > 0 )); do
     sleep 1
     after=$(device_sectors "$phase")
     end_time=$EPOCHREALTIME
@@ -150,7 +120,7 @@ run_phase() {
       if (after < before) print 0
       else print (after - before) * 512 / 1000000
     }')
-    echo "$phase $(format_rate "$rate")"
+    echo "$phase $(rate_format "$rate")"
     samples=$((samples + 1))
     # first second is warm-up
     if (( samples == 1 )); then
@@ -161,8 +131,8 @@ run_phase() {
   done
 
   # a worker gone before the deadline means dd failed
-  alive=$(alive_workers)
-  stop_workers
+  alive=$(workers_alive_count)
+  workers_stop
   if (( alive < parallel )); then
     echo "Disk $phase test failed before finishing" >&2
     exit 1
@@ -175,7 +145,7 @@ run_phase() {
       if (secs <= 0 || after < before) print 0
       else print (after - before) * 512 / 1000000 / secs
     }')
-    echo "$phase $(format_rate "$rate")"
+    echo "$phase $(rate_format "$rate")"
   fi
 }
 

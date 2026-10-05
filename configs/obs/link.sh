@@ -13,6 +13,8 @@ mkdir -p "${HOME}/.config/obs-studio/basic/profiles/Untitled/"
 # scenes carry stream tokens, so they live in secrets
 ln -sfn "$(readlink -f ../secrets/obs-Untitled.json)" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
 ln -sfn "${PWD}/basic.ini" "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini"
+ln -sfn "${PWD}/streamEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json"
+ln -sfn "${PWD}/recordEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json"
 # no safe-mode prompt for a missing capture device (issue 32)
 [ -f "${HOME}/.config/obs-studio/global.ini" ] || ln -sfn "${PWD}/global.ini" "${HOME}/.config/obs-studio/global.ini"
 
@@ -40,13 +42,15 @@ if [ ! -f "${OBS_WS_DIR}/config.json" ]; then
 	unset OBS_WS_PASSWORD
 fi
 
-# cef flags for the desktop launcher
-OBS_FLAGS="--use-fake-ui-for-media-stream --enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults,LocalNetworkAccess"
+# cef flags for the desktop launcher: gpu acceleration for browser sources only
+# the obs-websocket dock is same-origin localhost, so no private-network override is needed;
+# media-stream auto-grant is left off, obs captures cam/mic through its own native sources
+OBS_FLAGS="--enable-unsafe-webgpu --enable-features=Vulkan"
 OBS_DESKTOP_SRC=/usr/share/applications/com.obsproject.Studio.desktop
 OBS_DESKTOP_DEST="${HOME}/.local/share/applications/com.obsproject.Studio.desktop"
 if [ -f "${OBS_DESKTOP_SRC}" ]; then
 	mkdir -p "$(dirname "${OBS_DESKTOP_DEST}")"
 	cp "${OBS_DESKTOP_SRC}" "${OBS_DESKTOP_DEST}"
 	sed -i "s|^Exec=obs.*|Exec=obs ${OBS_FLAGS}|" "${OBS_DESKTOP_DEST}"
-	update-desktop-database "${HOME}/.local/share/applications" 2>/dev/null || true
+	update-desktop-database "${HOME}/.local/share/applications"
 fi

@@ -125,6 +125,15 @@ Item {
         }
       }
 
+      // theme wash: the dim wallpaper alone reads as a washed photo, this ties the lock to the pywal palette
+      Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+          GradientStop { position: 0.0; color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.7) }
+          GradientStop { position: 1.0; color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22) }
+        }
+      }
+
       RainField { anchors.fill: parent; running: surface.visible && Style.fx.matrixRain > 0 }
 
       Column {

@@ -3,8 +3,4 @@ set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-check() { [[ "$(nmcli radio wifi 2>/dev/null)" == enabled ]] && echo on || echo off; }
-turn_on() { nmcli radio wifi on; }
-turn_off() { nmcli radio wifi off; }
-
-toggle_main wifi "Wi-Fi" check turn_on turn_off "${1:-toggle}"
+toggle_radio wifi "Wi-Fi" wifi "${1:-toggle}"

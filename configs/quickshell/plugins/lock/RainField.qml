@@ -20,9 +20,10 @@ Item {
     readonly property int trail: 16
 
     function reseed() {
+      var density = Style.fx.matrixRain
       var d = []
       for (var c = 0; c < cols; c++)
-        d.push({ y: -Math.floor(Math.random() * rows), speed: 0.4 + Math.random() * 0.9 })
+        d.push({ y: -Math.floor(Math.random() * rows), speed: 0.4 + Math.random() * 0.9, on: Math.random() < density, row: -1 })
       drops = d
     }
     function glyph() { return charset.charAt(Math.floor(Math.random() * charset.length)) }
@@ -32,19 +33,21 @@ Item {
 
     onPaint: {
       var ctx = getContext("2d")
-      // fade the previous frame so trails decay
+      // fade the previous frame so trails decay evenly, no banding
       var bg = Color.background
-      ctx.fillStyle = Qt.rgba(bg.r, bg.g, bg.b, 0.14)
+      ctx.fillStyle = Qt.rgba(bg.r, bg.g, bg.b, 0.22)
       ctx.fillRect(0, 0, width, height)
       var lead = Qt.lighter(Color.accent, 1.7)
       ctx.fillStyle = Qt.rgba(lead.r, lead.g, lead.b, 1)
       ctx.font = cell + "px " + Style.font.family
       ctx.textBaseline = "top"
-      var density = Style.fx.matrixRain
       for (var i = 0; i < drops.length; i++) {
-        if ((i % 7) / 7 > density + 0.02) continue
+        // active columns chosen at random from density, not a fixed modulo that reads as stripes
+        if (!drops[i].on) continue
         var ry = Math.floor(drops[i].y)
-        if (ry < 0 || ry > rows) continue
+        // paint only when the head enters a new row, so a cell never over-brightens into a solid bar
+        if (ry === drops[i].row || ry < 0 || ry > rows) continue
+        drops[i].row = ry
         ctx.fillText(glyph(), i * cell, ry * cell)
       }
     }
@@ -61,6 +64,8 @@ Item {
         if (d[i].y - rain.trail > rain.rows && Math.random() > 0.975) {
           d[i].y = -Math.floor(Math.random() * 8)
           d[i].speed = 0.4 + Math.random() * 0.9
+          d[i].on = Math.random() < Style.fx.matrixRain
+          d[i].row = -1
         }
       }
       rain.requestPaint()

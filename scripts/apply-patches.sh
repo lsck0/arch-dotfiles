@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
-# Run the one-shot fixups in patches/ that this machine has not seen yet.
-#
-# config.sh relinks configs, so a changed config file lands everywhere on the next run. What it cannot do is
-# undo what an *older* config already did to the system: a renamed script leaves a dangling /usr/local/bin
-# entry, a dropped pam line stays in /etc/pam.d, a replaced unit stays enabled. Without a place for those,
-# the only way to converge a second machine is a reinstall.
-#
-# A patch is patches/NN_<slug>.sh. It runs once per machine, in numeric order, and the name is recorded in
-# $STATE_FILE afterwards. Patches still have to be idempotent: the record lives outside git, so a fresh
-# install or a wiped state dir replays all of them.
-#
+# run patches/NN_<slug>.sh fixups once per machine in numeric order (recorded in $STATE_FILE outside git, so stay idempotent) to undo what an older config did that config.sh relinking cannot: dangling links, stale pam lines, enabled units
 # usage: apply-patches [--list] [--force <name>...] [--dry-run]
 
 set -uo pipefail

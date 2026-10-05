@@ -5,27 +5,24 @@ source ./lib.sh
 
 check() { ip link show proton0 &>/dev/null && echo on || echo off; }
 
-# stop portmaster: its nfqueue interception breaks protonvpn's fwmark routing (no traffic flows)
+# portmaster comes back only if the firewall toggle wants it
+portmaster_restore() { [[ "$(./toggle-firewall.sh get)" == off ]] || sudo systemctl start portmaster.service; }
+
 turn_on() {
+  # protonvpn's own networkmanager kill switch: routes only, owns no nft table
+  protonvpn config set kill-switch standard >/dev/null 2>&1
+  # portmaster's connmark restore overwrites the wireguard fwmark, so tunnel packets would loop back into proton0
   sudo systemctl stop portmaster.service
-  sudo ufw --force reset >/dev/null
-  sudo ufw default deny incoming >/dev/null
-  sudo ufw default allow outgoing >/dev/null
-  sudo ufw default allow routed >/dev/null
-  sudo ufw allow ssh >/dev/null
-  sudo ufw allow http >/dev/null
-  sudo ufw allow https >/dev/null
-  sudo ufw --force enable >/dev/null
   local out
   out=$(protonvpn connect --country CH 2>&1) || true
   if grep -qi "Authentication required" <<<"$out"; then
     notify-send -a Toggles -u critical "ProtonVPN" "Not signed in, run 'protonvpn signin' in a terminal first"
   fi
+  [[ "$(check)" == on ]] || portmaster_restore
 }
 turn_off() {
   protonvpn disconnect >/dev/null 2>&1
-  sudo ufw --force disable >/dev/null 2>&1
-  sudo systemctl start portmaster.service
+  portmaster_restore
 }
 
 toggle_main protonvpn "ProtonVPN" check turn_on turn_off "${1:-toggle}"

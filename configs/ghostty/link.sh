@@ -16,6 +16,7 @@ dropin="${HOME}/.config/systemd/user/app-com.mitchellh.ghostty.service.d"
 mkdir -p "$dropin"
 ln -sfn "${PWD}/systemd/override.conf" "${dropin}/override.conf"
 systemctl --user daemon-reload
+# not loaded yet on a first run, then there is nothing to reset
 systemctl --user reset-failed app-com.mitchellh.ghostty.service 2>/dev/null || true
 # prewarm at login, windows open over d-bus via ghostty +new-window
 systemctl --user enable app-com.mitchellh.ghostty.service

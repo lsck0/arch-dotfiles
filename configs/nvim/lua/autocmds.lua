@@ -89,6 +89,26 @@ autocmd("FileType", {
     end,
 })
 
+-- before auto-explorer: it skips the netrw listing because that is not a normal buffer
+autocmd("VimEnter", {
+    desc = "Directory argument: cd into it and start on an empty buffer, not netrw",
+    group = group("dir-arg", { clear = true }),
+    callback = function()
+        if vim.fn.argc() ~= 1 or vim.fn.isdirectory(vim.fn.argv(0)) == 0 then return end
+        vim.cmd.cd(vim.fn.fnameescape(vim.fn.fnamemodify(vim.fn.argv(0), ":p")))
+        vim.cmd("%argdelete")
+        vim.cmd.enew()
+        local empty = vim.api.nvim_get_current_buf()
+        -- both the directory buffer and the netrw listing netrw swapped in for it
+        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            local listing = vim.bo[buf].filetype == "netrw" or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
+            if buf ~= empty and listing then
+                vim.api.nvim_buf_delete(buf, { force = true })
+            end
+        end
+    end,
+})
+
 autocmd("VimEnter", {
     desc = "Auto-open file explorer sidebar",
     group = group("auto-explorer", { clear = true }),

@@ -210,6 +210,8 @@ COMMANDS = {
     "toggleStream": ("ToggleStream", None),
     "toggleRecord": ("ToggleRecord", None),
     "toggleRecordPause": ("ToggleRecordPause", None),
+    "toggleReplay": ("ToggleReplayBuffer", None),
+    "saveReplay": ("SaveReplayBuffer", None),
     "setScene": ("SetCurrentProgramScene", "sceneName"),
 }
 

@@ -173,8 +173,7 @@ def test_pen_buttons():
     pen, _, _ = drive([pen_report(20000, 100, 0)], buttons)
 
     def transitions(code):
-        # The proximity timeout releases the stylus buttons when the pad goes
-        # quiet, so a leading 0 is expected and carries no information.
+        # the proximity timeout releases stylus buttons when the pad goes quiet, so a leading 0 is expected and carries no information
         seq = pen.values(e.EV_KEY, code)
         while seq and seq[0] == 0:
             seq.pop(0)

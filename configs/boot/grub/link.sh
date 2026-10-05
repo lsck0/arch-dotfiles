@@ -4,12 +4,8 @@ set -e
 
 source "$(dirname "$0")/../boot-menu/common.sh"
 
-if ! boot_feature_selected grub; then
-    exit 0
-fi
 if ! command -v grub-install >/dev/null 2>&1; then
-    echo "grub: selected in boot.conf but not installed" >&2
-    exit 1
+    exit 0
 fi
 esp_supported || exit 0
 
@@ -22,6 +18,7 @@ enable_initramfs_images
 gfx_width=0 gfx_height=0
 for status in /sys/class/drm/card*-*/status; do
     [[ -f "$status" && "$(cat "$status")" == connected ]] || continue
+    # a connector without modes is skipped like a disconnected one
     mode="$(head -1 "$(dirname "$status")/modes" 2>/dev/null || true)"
     [[ "$mode" == *x* ]] || continue
     w="${mode%%x*}"
@@ -33,8 +30,7 @@ for status in /sys/class/drm/card*-*/status; do
     fi
 done
 
-# firmware GOP often has no 4k mode, auto then lands on a low mode and the 4k-sized font is huge;
-# 1080p exists on nearly every GOP and gfxterm stays fast there
+# firmware GOP often has no 4k mode, auto then lands low and the 4k-sized font is huge; 1080p exists on nearly every GOP and gfxterm stays fast there
 if (( gfx_height > 1080 )); then
     gfx_width=1920
     gfx_height=1080
@@ -60,32 +56,38 @@ MODULES=(
     search_fs_file search_fs_uuid search_label serial sleep smbios test tpm true
     video zstd
 )
-# also puts grub first in BootOrder
-sudo grub-install --target=x86_64-efi --efi-directory="$ESP" --boot-directory="$ESP" \
-    --bootloader-id=GRUB --disable-shim-lock --modules="${MODULES[*]}"
 
 height=$gfx_height
 (( height > 0 )) || height=1080
 font_px=$(( height / 60 ))
 (( font_px > 24 )) && font_px=24
 (( font_px < 12 )) && font_px=12
-sudo rm -rf "$ESP/grub/themes/ly"
-sudo python "$HERE/theme/render.py" "$ESP/grub/themes/ly" "$font_px" "$(cat /etc/hostname 2>/dev/null || hostname)"
+
+# grub-install writes grubx64.efi unsigned: only when grub, its modules or the theme changed, signed right after
+stamp_file="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/grub-install"
+stamp=$({ pacman -Q grub; echo "${MODULES[*]} $font_px"; cat /etc/hostname "$HERE"/theme/*; } | sha256sum)
+if [[ "$stamp" != "$(cat "$stamp_file" 2>/dev/null)" ]] || ! sudo test -f "$ESP/EFI/GRUB/grubx64.efi"; then
+    # also puts grub first in BootOrder
+    sudo grub-install --target=x86_64-efi --efi-directory="$ESP" --boot-directory="$ESP" \
+        --bootloader-id=GRUB --disable-shim-lock --modules="${MODULES[*]}"
+    sbctl_sign "$ESP/EFI/GRUB/grubx64.efi" "$ESP/grub/x86_64-efi/core.efi" "$ESP/grub/x86_64-efi/grub.efi"
+    sudo rm -rf "$ESP/grub/themes/ly"
+    sudo python "$HERE/theme/render.py" "$ESP/grub/themes/ly" "$font_px" "$(cat /etc/hostname)"
+    mkdir -p "${stamp_file%/*}"
+    echo "$stamp" >"$stamp_file"
+fi
 
 install_boot_menu grub-snapshots
 
 sudo install -Dm755 "$HERE/09_arch" /etc/grub.d/09_arch
 sudo install -Dm644 "$HERE/grub-disable-10_linux.hook" /etc/pacman.d/hooks/grub-disable-10_linux.hook
 sudo chmod -x /etc/grub.d/10_linux
-# 15_uki duplicates the 09_arch kernels as plain "Arch" entries
+# 15_uki duplicates the 09_arch kernels as plain "Arch" entries; older grub has none
 sudo chmod -x /etc/grub.d/15_uki 2>/dev/null || true
 sudo install -Dm755 "$HERE/41_timeshift" /etc/grub.d/41_timeshift
 
 # limine is no longer the bootloader
 sudo rm -f /etc/pacman.d/hooks/limine-deploy.hook
 
-sudo grub-mkconfig -o "$ESP/grub/grub.cfg"
-
-sbctl_sign "$ESP/EFI/GRUB/grubx64.efi" "$ESP"/vmlinuz-*
-
+# grub-mkconfig and signing run once in config.sh's boot barrier
 echo "grub: installed and first in BootOrder" >&2

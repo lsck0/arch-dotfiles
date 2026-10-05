@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
@@ -9,16 +8,13 @@ import "ReminderFlowModel.js" as ReminderFlowModel
 Item {
   id: root
 
-  property var shell: null
-  property var manifest: null
-
   property bool opened: false
   property string step: "minutes"
   property string minutes: ""
   property string filterText: ""
 
-  property var pomo: ({ running: false, paused: false, phase: "idle", remaining: "", remainingSeconds: 0, totalSeconds: 0, cycle: 0, longEvery: 4, defaultWork: 25 })
-  property var reminders: []
+  readonly property var pomo: TimerState.pomo
+  readonly property var reminders: TimerState.reminders
 
   readonly property int cardWidth: Math.min(Style.space(560), panel.width - Style.gapsOut * 2)
   readonly property string reminderScript: Paths.script("reminder.sh")
@@ -29,12 +25,12 @@ Item {
     ? "Message for the " + minutes + " min reminder..."
     : "Remind me in ... minutes"
 
-  function open(payloadJson) {
+  function open() {
     root.opened = true
     root.step = "minutes"
     root.minutes = ""
     root.filterText = ""
-    root.refresh()
+    TimerState.reload()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
@@ -42,20 +38,9 @@ Item {
     root.opened = false
   }
 
-  function dismiss() {
-    root.opened = false
-    if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "panel.reminders")
-  }
-
-  function refresh() {
-    if (!pomoProc.running) pomoProc.running = true
-    if (!remindersProc.running) remindersProc.running = true
-  }
-
   function run(argv) {
     Quickshell.execDetached(argv)
-    refreshDelay.restart()
+    TimerState.reload()
   }
 
   function remindIn(minutes, message) {
@@ -87,28 +72,8 @@ Item {
     return pomo.phase === "work" ? "Focus" : pomo.phase === "long" ? "Long break" : "Break"
   }
 
-  Timer { id: refreshDelay; interval: 250; onTriggered: root.refresh() }
-  Timer { interval: 1000; repeat: true; running: root.opened; onTriggered: root.refresh() }
-
-  Process {
-    id: pomoProc
-    command: [root.pomodoroScript, "status", "--json"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: { try { root.pomo = JSON.parse(text || "{}") } catch (e) {} }
-    }
-  }
-
-  Process {
-    id: remindersProc
-    command: [root.reminderScript, "show", "--json"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try { root.reminders = JSON.parse(text || "{}").reminders || [] } catch (e) { root.reminders = [] }
-      }
-    }
-  }
+  // the singleton ticks the countdowns only while the overlay is open
+  Binding { target: TimerState; property: "overlayOpen"; value: root.opened }
 
   PanelWindow {
     id: panel
@@ -127,7 +92,7 @@ Item {
 
     MouseArea {
       anchors.fill: parent
-      onClicked: root.dismiss()
+      onClicked: root.close()
     }
 
     BorderSurface {
@@ -152,7 +117,7 @@ Item {
           if (event.key === Qt.Key_Escape) {
             if (root.filterText) root.filterText = ""
             else if (root.step === "message") root.step = "minutes"
-            else root.dismiss()
+            else root.close()
             event.accepted = true
           } else if (event.key === Qt.Key_Backspace) {
             root.filterText = root.filterText.slice(0, -1)
@@ -178,54 +143,7 @@ Item {
         anchors.rightMargin: card.contentRightInset
         spacing: Style.spacing.lg
 
-        Item {
-          width: parent.width
-          implicitHeight: rtTitleRow.implicitHeight
-          height: implicitHeight
-          Row {
-            id: rtTitleRow
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.xs
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: ">"
-              color: Color.accent
-              opacity: Style.emphasis.dim
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
-            }
-            PanelSectionHeader { anchors.verticalCenter: parent.verticalCenter; text: "Reminders"; fontSize: Style.font.title }
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "_"
-              color: Color.accent
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                NumberAnimation { to: 0.15; duration: 520 }
-                NumberAnimation { to: 1.0; duration: 520 }
-              }
-            }
-          }
-          Text {
-            anchors.right: parent.right
-            anchors.verticalCenter: rtTitleRow.verticalCenter
-            textFormat: Text.PlainText
-            text: "[- o x]"
-            color: Color.accent
-            opacity: Style.emphasis.faint
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.headerTracking
-          }
-        }
+        HudTitle { width: parent.width; text: "Reminders"; decor: true; size: Style.font.title; blinking: root.opened }
         PanelSeparator {}
 
         Item {
@@ -264,25 +182,7 @@ Item {
               elide: Text.ElideRight
             }
 
-            Text {
-              id: rtCaret
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "_"
-              color: Color.accent
-              font.family: Style.font.family
-              font.pixelSize: Style.font.heading
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                PropertyAnimation { to: 1; duration: 0 }
-                PauseAnimation { duration: 530 }
-                PropertyAnimation { to: 0; duration: 0 }
-                PauseAnimation { duration: 530 }
-              }
-            }
+            BlinkCaret { id: rtCaret; anchors.verticalCenter: parent.verticalCenter; size: Style.font.heading; running: root.opened }
           }
 
           Rectangle {

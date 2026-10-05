@@ -9,9 +9,7 @@ DEST="${REPO}/configs/secrets/claude"
 source "${REPO}/scripts/lib/secrets.sh"
 
 [ -f "${HOME}/.claude/.credentials.json" ] || { echo "no ~/.claude/.credentials.json, run claude and log in first" >&2; exit 1; }
-# a locked worktree holds GITCRYPT blobs; writing plaintext into it would stage secrets unencrypted
-secret_is_plaintext "${REPO}/configs/secrets/pgp_privatekey.asc" \
-    || { echo "configs/secrets is locked, unlock it first" >&2; exit 1; }
+secret_require_unlocked "${REPO}"
 
 umask 077
 mkdir -p "${DEST}"

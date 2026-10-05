@@ -16,16 +16,8 @@ BarWidget {
   // timetravel offset in hours
   property real travelHours: 0
 
-  readonly property string pomodoroScript: Paths.script("pomodoro.sh")
-  readonly property string reminderScript: Paths.script("reminder.sh")
-
-  property var pomo: ({ running: false, paused: false, phase: "idle", label: "Pomodoro", remaining: "", cycle: 0 })
-  property var reminders: []
-
-  function refreshPanelData() {
-    if (!pomoProc.running) pomoProc.running = true
-    if (!remindersProc.running) remindersProc.running = true
-  }
+  readonly property var pomo: TimerState.pomo
+  readonly property var reminders: TimerState.reminders
 
   implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
@@ -107,44 +99,13 @@ BarWidget {
     }
   }
 
-  Process {
-    id: pomoProc
-    command: [root.pomodoroScript, "status", "--json"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try { root.pomo = JSON.parse(text || "{}") } catch (e) {}
-      }
-    }
-  }
-
-  Process {
-    id: remindersProc
-    command: [root.reminderScript, "show", "--json"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          root.reminders = d.reminders || []
-        } catch (e) { root.reminders = [] }
-      }
-    }
-  }
-
+  // label shows minutes only: wake on the next minute boundary instead of every second
   Timer {
-    interval: 1000
-    running: root.bar !== null && root.bar.activePanel === root.moduleName
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshPanelData()
-  }
-
-  Timer {
-    interval: 1000
+    interval: 60000 - (Date.now() % 60000) + 50
     running: true
     repeat: true
-    onTriggered: root.now = new Date()
+    triggeredOnStart: true
+    onTriggered: { root.now = new Date(); interval = 60000 - (Date.now() % 60000) + 50 }
   }
 
   // 30ms is enough to look live
@@ -182,7 +143,7 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     title: "CLOCK"
-    onOpened: root.refreshOffsets()
+    onOpened: { root.refreshOffsets(); TimerState.reload() }
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 

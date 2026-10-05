@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 
+import json
 import re
-import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
-HOME = str(Path.home())
+BIN = Path.home() / ".local/bin"
 ERROR_MSG = """
 Invalid format: {0}.
 Expected `<url>` or `<url> as <name>`.
 Name has to match /^[a-zA-Z0-9-_]+$/.
 """
 
+links = []
+BIN.mkdir(parents=True, exist_ok=True)
 with open("./links.txt", "r") as file:
     for line in file:
         line = line.strip()
@@ -52,9 +54,13 @@ with open("./links.txt", "r") as file:
         script = Path("./collection") / f"{exec_name}.sh"
         script.write_text(f"#!/bin/sh\nxdg-open {url}\nexit 0\n")
         script.chmod(0o755)
-        subprocess.run(
-            ["sudo", "ln", "-sfn", str(script.resolve()), f"/usr/local/bin/{exec_name}"],
-            check=True,
-        )
+        link = BIN / exec_name
+        link.unlink(missing_ok=True)
+        link.symlink_to(script.resolve())
 
+        links.append({"name": exec_name, "url": url})
         print(f"Created executable {exec_name} for {url}.")
+
+# the browser start pages render these as bookmarks
+Path("./collection/links.js").write_text(f"const weblinks = {json.dumps(links)};\n")
+print(f"Wrote {len(links)} links to collection/links.js.")

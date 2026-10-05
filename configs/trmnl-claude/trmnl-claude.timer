@@ -2,8 +2,8 @@
 Description=Refresh the Claude usage panel on the TRMNL display
 
 [Timer]
-OnStartupSec=3min
-OnUnitActiveSec=15min
+# changed.sh skips the run unless claude was used or the posted data went stale
+OnCalendar=*:0/15
 Persistent=true
 AccuracySec=1min
 

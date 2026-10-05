@@ -1,0 +1,6 @@
+# user-level fallback, a project pyproject.toml or ruff.toml overrides it
+line-length = 120
+
+[lint]
+# black-compatible import sorting, conform and apheleia run it as ruff_organize_imports / ruff-isort
+extend-select = ["I"]

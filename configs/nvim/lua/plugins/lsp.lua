@@ -2,7 +2,6 @@ local installed = {
     "asm-lsp",
     "bash-language-server",
     "bibtex-tidy",
-    "black",
     "clangd",
     "cobol-language-support",
     "codelldb",
@@ -19,7 +18,6 @@ local installed = {
     "hlint",
     "html-lsp",
     "hyprls",
-    "isort",
     "java-debug-adapter",
     "java-test",
     "jdtls",
@@ -148,8 +146,9 @@ return {
             require("mason").setup()
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
-                -- upgrades run from scripts/system-update.sh, not on every startup
-                run_on_start = false,
+                -- installs missing tools on first launch; auto_update stays off so upgrades
+                -- remain in scripts/system-update.sh, not on every startup
+                run_on_start = true,
             })
             vim.lsp.config("clangd", {
                 cmd = {
@@ -307,10 +306,6 @@ return {
                         build = { onSave = false, forwardSearchAfter = false },
                         chktex = { onOpenAndSave = false, onEdit = false },
                         latexindent = { modifyLineBreaks = false },
-                        forwardSearch = {
-                            executable = "zathura",
-                            args = { "--synctex-forward", "%l:1:%f", "%p" },
-                        },
                         diagnosticsDelay = 300,
                     },
                 },
@@ -348,16 +343,13 @@ return {
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,
-                command = "/usr/local/bin/sort-derives-stdout",
+                command = vim.fn.expand("~/.local/bin/sort-derives-stdout"),
                 stdin = true,
             }
             -- l-style shell: 4-space indent, indented cases, binary ops lead the line
             require("conform").formatters.shfmt = {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
-            -- l-style width for python (black defaults to 88)
-            require("conform").formatters.black = { prepend_args = { "--line-length", "120" } }
-            require("conform").formatters.isort = { prepend_args = { "--line-length", "120", "--profile", "black" } }
             -- vendored kulala-fmt, not from mason
             require("conform").formatters["kulala-fmt"] = { command = vim.fn.stdpath("config") .. "/vendor/kulala-fmt/kulala-fmt" }
 
@@ -370,7 +362,7 @@ return {
                     http = { "kulala-fmt" },
                     javascript = { "prettier" },
                     plaintex = { "latexindent" },
-                    python = { "isort", "black" },
+                    python = { "ruff_organize_imports", "ruff_format" }, -- width from configs/formatting/ruff.toml
                     rest = { "kulala-fmt" },
                     -- leptosfmt only in leptos projects, else it errors on plain Rust
                     rust = function(bufnr)
@@ -385,6 +377,7 @@ return {
                     end,
                     scss = { "prettier" },
                     tex = { "latexindent" },
+                    typst = { "typstyle" },
                     typescript = { "prettier" },
                     typescriptreact = { "prettier" },
                     javascriptreact = { "prettier" },

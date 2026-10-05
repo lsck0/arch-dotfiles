@@ -1,0 +1,24 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=bloodhound-cli
+pkgver=0.2.1
+pkgrel=1
+pkgdesc="Installs and runs BloodHound CE as docker compose containers (SpecterOps/bloodhound-cli)"
+arch=(x86_64)
+url="https://github.com/SpecterOps/bloodhound-cli"
+license=(Apache-2.0)
+depends=(docker docker-compose)
+makedepends=(go)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('0870395c3885d95c7cfafadb9b522aa919ad870ccbd3351d58cd0a005db8cdb3')
+
+build() {
+    cd "$pkgname-$pkgver"
+    export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+    # module path differs from the repo name, which is why go install of the repo url fails
+    go build -ldflags "-X 'github.com/SpecterOps/BloodHound_CLI/cmd/config.Version=v$pkgver'" -o bloodhound-cli .
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm755 bloodhound-cli "$pkgdir/usr/bin/bloodhound-cli"
+}

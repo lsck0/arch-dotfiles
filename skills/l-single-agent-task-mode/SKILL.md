@@ -19,11 +19,12 @@ hard prerequisite, every time. See the description for sibling routing
 (multi-role pipeline vs. live-no-db); note the pipeline sibling
 `l-multi-agent-task-mode` requires a live Herdr session, this one does not.
 
-## No Herdr precondition
+## No harness precondition
 
-Unlike the other two modes, this one has no `HERDR_ENV` requirement: it
-runs in a plain Hermes session (including, unlike the other two modes,
-inside a `cronjob` run, since it never spawns panes). This makes it the
+Unlike the other two modes, this one spawns no workers, so it needs neither
+`HERDR_ENV` nor the Agent tool: it runs in a plain Hermes session (including,
+unlike the other two modes, inside a `cronjob` run, since it never spawns
+panes) or directly under Claude Code. This makes it the
 natural body for the self-adjusting backoff poll cron described in
 `l-agent-task-db`: set that cron's `prompt` to invoke this skill against
 the project, and let the run's own progress/no-progress outcome drive the

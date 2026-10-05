@@ -35,10 +35,13 @@ mask_user_if_present() {
     fi
 }
 
-sudo systemctl disable getty@tty2.service || true
+sudo systemctl disable getty@tty2.service
 
 disable_if_present proton.VPN.service
-enable_if_present avahi-daemon.service
+# on demand, not at boot: the socket serves nss-mdns, the alias `enable` would add serves dbus activation
+enable_if_present avahi-daemon.socket
+unit_file_present avahi-daemon.service \
+    && sudo ln -sfn /usr/lib/systemd/system/avahi-daemon.service /etc/systemd/system/dbus-org.freedesktop.Avahi.service
 enable_if_present bluetooth.service
 enable_if_present cronie.service
 enable_if_present cups.socket
@@ -46,13 +49,13 @@ enable_if_present cups.socket
 enable_if_present libvirtd.socket
 enable_if_present ly@tty2.service
 enable_if_present nix-daemon.socket
-enable_if_present open-fprintd-resume.service
-enable_if_present open-fprintd-suspend.service
-# ossec HIDS runs periodic full-fs integrity scans: a battery drain on the laptop, wanted on the desktop
-compgen -G "/sys/class/power_supply/BAT*" >/dev/null || enable_if_present ossec-server.target
+enable_if_present ossec-server.target
 enable_if_present paccache.timer --now
-enable_if_present thermald.service
+# thermald is intel-only, on amd it starts and exits
+grep -q GenuineIntel /proc/cpuinfo && enable_if_present thermald.service
 mask_if_present NetworkManager-wait-online.service
+# wine.conf is the only binfmt rule and nothing execs .exe directly; its binfmt_misc automount held sysinit.target ~1 s
+mask_if_present systemd-binfmt.service
 
 # ly's pam stack already starts and unlocks the keyring
 mask_user_if_present gnome-keyring-daemon.service

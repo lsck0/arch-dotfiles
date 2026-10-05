@@ -10,7 +10,7 @@ Prove the build works, not just that it compiles.
 The programmer ships basic tests with the code; add the higher tiers
 (simulation, formal, fuzz, property) on top.
 
-In l-style's order, hardest first:
+In l-style-testing's order, hardest first (load it):
 
 - Deterministic simulation with fault injection first: seeded and
   replayable, assertions as the oracle.
@@ -32,7 +32,9 @@ stop. No file given -> summarize in chat.
 
 ## Tools
 
-`cargo-tarpaulin`/`cargo-llvm-cov`/`lcov` (code coverage, by ecosystem),
-`cargo-fuzz`/`afl++` (fuzzing), `kani-verifier` (Rust formal
-verification), `z3` (SMT solver, for invariants that need a real proof
-rather than sampled testing).
+`cargo-nextest` (faster Rust test runner), `cargo-tarpaulin`/`cargo-llvm-cov`/`lcov`
+(code coverage, by ecosystem), `cargo-fuzz`/`afl`/`afl++` (fuzzing, the
+`afl` tier named above), `kani-verifier` (Rust formal verification) and
+`flux` (refinement types, the `flux` tier named above), `python-hypothesis`
+(property tests), `cargo-mutants` (mutation testing), `z3` (SMT solver, for
+invariants that need a real proof rather than sampled testing).

@@ -21,11 +21,3 @@ if command -v nix >/dev/null 2>&1; then
     sudo systemctl enable --now nix-gc.timer
 fi
 
-# user trash auto-empty
-if command -v trash-empty >/dev/null 2>&1; then
-    mkdir -p "${HOME}/.config/systemd/user"
-    ln -sfn "${PWD}/trash-empty.service" "${HOME}/.config/systemd/user/trash-empty.service"
-    ln -sfn "${PWD}/trash-empty.timer" "${HOME}/.config/systemd/user/trash-empty.timer"
-    systemctl --user daemon-reload
-    systemctl --user enable --now trash-empty.timer
-fi

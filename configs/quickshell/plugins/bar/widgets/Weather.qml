@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -10,7 +9,6 @@ BarWidget {
 
   // not `data`, which Item already owns
   property var report: null
-  property bool ready: false
   property string errorText: ""
 
   readonly property var current: report && report.current ? report.current : null
@@ -24,42 +22,31 @@ BarWidget {
   readonly property string units: report && report.units ? report.units.temp : "°C"
   readonly property string windUnits: report && report.units ? report.units.wind : "km/h"
 
-  // wmo code to glyph
-  function iconFor(code, isDay) {
+  // wmo code ranges: first, last, day glyph, night glyph, label
+  readonly property var wmo: [
+    [0, 0, "\u{f0599}", "\u{f0594}", "Clear"],
+    [1, 1, "\u{f0595}", "\u{f0f31}", "Mainly clear"],
+    [2, 2, "\u{f0595}", "\u{f0f31}", "Partly cloudy"],
+    [3, 3, "\u{f0590}", "\u{f0590}", "Overcast"],
+    [45, 48, "\u{f0591}", "\u{f0591}", "Fog"],
+    [51, 57, "\u{f0597}", "\u{f0597}", "Drizzle"],
+    [61, 65, "\u{f0596}", "\u{f0596}", "Rain"],
+    [66, 67, "\u{f067f}", "\u{f067f}", "Freezing rain"],
+    [71, 77, "\u{f0598}", "\u{f0598}", "Snow"],
+    [80, 82, "\u{f0596}", "\u{f0596}", "Showers"],
+    [85, 86, "\u{f0598}", "\u{f0598}", "Snow showers"],
+    [95, 95, "\u{f067e}", "\u{f067e}", "Thunderstorm"],
+    [96, 99, "\u{f0592}", "\u{f0592}", "Thunderstorm, hail"]
+  ]
+
+  function wmoFor(code) {
     var c = Number(code)
-    var day = isDay === undefined ? 1 : Number(isDay)
-    if (c === 0) return day ? "\u{f0599}" : "\u{f0594}"          // sunny / night
-    if (c === 1 || c === 2) return day ? "\u{f0595}" : "\u{f0f31}" // partly cloudy
-    if (c === 3) return "\u{f0590}"                               // overcast
-    if (c === 45 || c === 48) return "\u{f0591}"                  // fog
-    if (c >= 51 && c <= 57) return "\u{f0597}"                    // drizzle
-    if (c >= 61 && c <= 65) return "\u{f0596}"                    // rain
-    if (c === 66 || c === 67) return "\u{f067f}"                  // freezing rain
-    if (c >= 71 && c <= 77) return "\u{f0598}"                    // snow
-    if (c >= 80 && c <= 82) return "\u{f0596}"                    // rain showers
-    if (c === 85 || c === 86) return "\u{f0598}"                  // snow showers
-    if (c === 95) return "\u{f067e}"                              // thunderstorm
-    if (c === 96 || c === 99) return "\u{f0592}"                  // thunder + hail
-    return "\u{f0590}"
+    for (var i = 0; i < wmo.length; i++) if (c >= wmo[i][0] && c <= wmo[i][1]) return wmo[i]
+    return [c, c, "\u{f0590}", "\u{f0590}", "—"]
   }
 
-  function labelFor(code) {
-    var c = Number(code)
-    if (c === 0) return "Clear"
-    if (c === 1) return "Mainly clear"
-    if (c === 2) return "Partly cloudy"
-    if (c === 3) return "Overcast"
-    if (c === 45 || c === 48) return "Fog"
-    if (c >= 51 && c <= 57) return "Drizzle"
-    if (c >= 61 && c <= 65) return "Rain"
-    if (c === 66 || c === 67) return "Freezing rain"
-    if (c >= 71 && c <= 77) return "Snow"
-    if (c >= 80 && c <= 82) return "Showers"
-    if (c === 85 || c === 86) return "Snow showers"
-    if (c === 95) return "Thunderstorm"
-    if (c === 96 || c === 99) return "Thunderstorm, hail"
-    return "—"
-  }
+  function iconFor(code, isDay) { return wmoFor(code)[Number(isDay) === 0 ? 3 : 2] }
+  function labelFor(code) { return wmoFor(code)[4] }
 
   // direction the wind comes from
   function compass(deg) {
@@ -70,56 +57,32 @@ BarWidget {
   function t(v) { return (Math.round(Number(v) * 10) / 10) + "°" }
   function n0(v) { return Math.round(Number(v)) }
 
-  visible: ready
+  visible: report !== null
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
   // separate process so a failing warnings feed keeps the forecast
   property var alerts: []
   property int countryOthers: 0
-  property bool alertsSupported: true
 
   // orange and up
   readonly property var topAlert: alerts.length > 0 ? alerts[0] : null
   readonly property bool alertProminent: topAlert !== null && Number(topAlert.level) >= 3
 
-  // meteoalarm's own palette, not the accent
+  // meteoalarm's own palette from yellow (level 2) up, not the accent
   function alertColor(level) {
-    switch (Number(level)) {
-    case 4: return Color.semantic.alertRed
-    case 3: return Color.semantic.alertOrange
-    case 2: return Color.semantic.warn
-    default: return Color.menu.text
-    }
+    return [Color.semantic.warn, Color.semantic.alertOrange, Color.semantic.alertRed][Number(level) - 2] || Color.menu.text
   }
-
-  function alertLabel(level) {
-    switch (Number(level)) {
-    case 4: return "RED"
-    case 3: return "ORANGE"
-    case 2: return "YELLOW"
-    default: return "MINOR"
-    }
-  }
-
-  // relative only, never wall-clock time
-  function inWords(minutes) {
-    if (minutes === null || minutes === undefined) return ""
-    var m = Math.abs(Number(minutes))
-    var text = m < 60 ? m + "m" : (m < 1440 ? Math.round(m / 60) + "h" : Math.round(m / 1440) + "d")
-    return Number(minutes) < 0 ? text + " ago" : "in " + text
-  }
+  function alertLabel(level) { return ["YELLOW", "ORANGE", "RED"][Number(level) - 2] || "MINOR" }
 
   // wind/pressure grid in (u, v) image fractions
-  property var fieldCells: []
-  property real fieldPressureMin: 0
-  property real fieldPressureMax: 0
-  property string fieldWindUnits: "km/h"
-  property string fieldPressureUnits: "hPa"
+  property var field: ({})
+  readonly property var fieldCells: field.cells || []
   readonly property bool hasField: fieldCells.length > 0
 
-  property var radarFrames: []
-  property int radarSpanKm: 0
+  property var radar: ({})
+  readonly property var radarFrames: radar.frames || []
+  readonly property int radarSpanKm: radar.spanKm || 0
 
   // centre marker to square edge
   readonly property real radarReachKm: radarSpanKm > 0 ? radarSpanKm / 2 : 0
@@ -143,113 +106,45 @@ BarWidget {
     return out
   }
   property int radarIndex: 0
+  onRadarChanged: radarIndex = 0
   property bool radarPlaying: true
   readonly property var radarFrame: radarFrames.length > 0
     ? radarFrames[Math.min(radarIndex, radarFrames.length - 1)] : null
 
-  function refresh() {
-    if (!fetchProc.running) fetchProc.running = true
-    if (!alertsProc.running) alertsProc.running = true
-  }
-
-  function refreshRadar() {
-    if (!radarProc.running) radarProc.running = true
-    if (!fieldProc.running) fieldProc.running = true
-  }
-
-  Process {
-    id: fetchProc
-    command: [Paths.barWidget("weather-fetch.sh")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          if (d.ok) {
-            root.report = d
-            root.errorText = ""
-            root.ready = true
-          } else {
-            root.errorText = d.error || "unavailable"
-            // keep the last good reading
-            if (!root.report) root.ready = false
-          }
-        } catch (e) {
-          root.errorText = "parse failed"
-        }
-      }
+  // bar temp needs a background refresh, just slower while the panel is closed; hover also refreshes
+  JsonProcess {
+    id: forecastProc
+    command: [Paths.barWidget("weather.py"), "forecast"]
+    intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
+    onParsed: function (d) {
+      root.errorText = d.ok ? "" : d.error
+      // keep the last good reading
+      if (d.ok) root.report = d
     }
+    onFailed: root.errorText = "parse failed"
   }
 
-  Process {
+  // drives the bar alert icon, so keep a background refresh, slower while closed
+  JsonProcess {
     id: alertsProc
-    command: [Paths.barWidget("weather-alerts.sh")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          root.alertsSupported = d.supported !== false
-          root.alerts = Array.isArray(d.alerts) ? d.alerts : []
-          root.countryOthers = Number(d.countryOthers) || 0
-        } catch (e) {
-          root.alerts = []
-        }
-      }
+    command: [Paths.barWidget("weather.py"), "alerts"]
+    intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
+    onParsed: function (d) {
+      root.alerts = d.alerts
+      root.countryOthers = d.countryOthers || 0
     }
-  }
-
-  Process {
-    id: radarProc
-    command: [Paths.barWidget("weather-radar.sh")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          if (!d.ok) return
-          root.radarFrames = Array.isArray(d.frames) ? d.frames : []
-          root.radarSpanKm = Number(d.spanKm) || 0
-          root.radarIndex = 0
-        } catch (e) {}
-      }
-    }
-  }
-
-  Process {
-    id: fieldProc
-    command: [Paths.barWidget("weather-field.sh")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          if (!d.ok) return
-          root.fieldCells = Array.isArray(d.cells) ? d.cells : []
-          root.fieldPressureMin = Number(d.pressureMin) || 0
-          root.fieldPressureMax = Number(d.pressureMax) || 0
-          root.fieldWindUnits = String(d.windUnits || "km/h")
-          root.fieldPressureUnits = String(d.pressureUnits || "hPa")
-        } catch (e) {}
-      }
-    }
-  }
-
-  Timer {
-    interval: 30 * 60 * 1000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
+    onFailed: root.alerts = []
   }
 
   // radar only shows in the panel
-  Timer {
-    interval: 10 * 60 * 1000
-    running: panel.visible
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshRadar()
+  JsonProcess {
+    id: radarProc
+    command: [Paths.barWidget("weather.py"), "radar"]
+    intervalMs: panel.visible ? 10 * 60 * 1000 : 0
+    onParsed: function (d) {
+      if (d.radar.ok) root.radar = d.radar
+      if (d.field.ok) root.field = d.field
+    }
   }
 
   // not a BarIconButton, it cannot show glyph plus temperature
@@ -310,7 +205,8 @@ BarWidget {
     hoverEnabled: true
     onEntered: {
       if (root.bar) root.bar.hoverOpen(root.moduleName)
-      root.refresh()
+      forecastProc.refresh()
+      alertsProc.refresh()
     }
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }
@@ -320,8 +216,9 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
+    title: "WEATHER"
     implicitWidth: Style.panelWidth.wide
-    implicitHeight: content.implicitHeight + padding * 2
+    implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     component Stat: Column {
       property string glyph: ""
@@ -361,40 +258,10 @@ BarWidget {
       width: parent.width
       spacing: Style.spacing.md
 
-      Row {
-        width: parent.width
-        spacing: Style.spacing.sm
-        PanelSectionHeader { text: "WEATHER"; fontSize: Style.font.title }
-        Text {
-          anchors.verticalCenter: parent.verticalCenter
-          text: "_"
-          color: Color.accent
-          font.family: Style.font.family; font.pixelSize: Style.font.title
-          SequentialAnimation on opacity {
-            running: panel.visible
-            loops: Animation.Infinite
-            NumberAnimation { to: 0.15; duration: 600 }
-            NumberAnimation { to: 1.0;  duration: 600 }
-          }
-        }
-      }
-      PanelSeparator {}
-
       Column {
         width: parent.width
         spacing: Style.spacing.xs
-        visible: root.alerts.length > 0 || !root.alertsSupported
-
-        Text {
-          width: parent.width
-          visible: !root.alertsSupported
-          wrapMode: Text.Wrap
-          text: "No warning service for this region: MeteoAlarm covers Europe only"
-          color: Color.menu.text
-          opacity: Style.emphasis.disabled
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
+        visible: root.alerts.length > 0
 
         Repeater {
           model: root.alerts
@@ -454,10 +321,8 @@ BarWidget {
                 width: parent.width
                 text: {
                   var bits = []
-                  var starts = root.inWords(modelData.startsIn)
-                  var ends = root.inWords(modelData.endsIn)
-                  if (Number(modelData.startsIn) > 0 && starts) bits.push("starts " + starts)
-                  if (ends) bits.push("ends " + ends)
+                  if (Number(modelData.startsIn) > 0) bits.push("starts in " + Util.span(modelData.startsIn))
+                  if (modelData.endsIn !== null) bits.push("ends in " + Util.span(modelData.endsIn))
                   // here is a polygon hit, region only a name match
                   bits.push(modelData.scope === "here" ? "your area" : "your region")
                   if (modelData.certainty) bits.push(String(modelData.certainty).toLowerCase())
@@ -485,7 +350,7 @@ BarWidget {
         }
       }
 
-      PanelSeparator { visible: root.alerts.length > 0 || !root.alertsSupported }
+      PanelSeparator { visible: root.alerts.length > 0 }
 
       Row {
         width: parent.width
@@ -657,22 +522,11 @@ BarWidget {
         }
       }
 
-      Row {
-        width: parent.width
+      Text {
         visible: root.hourly.length > 0
-        Text {
-          width: parent.width / 2
-          text: "temp " + root.t(root.hourlyTempMin) + " – " + root.t(root.hourlyTempMax)
-          color: Color.menu.text; opacity: Style.emphasis.faint
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
-        }
-        Text {
-          width: parent.width / 2
-          horizontalAlignment: Text.AlignRight
-          text: "bars > chance of rain"
-          color: Color.menu.text; opacity: Style.emphasis.faint
-          font.family: Style.font.family; font.pixelSize: Style.font.caption
-        }
+        text: root.t(root.hourlyTempMin) + " – " + root.t(root.hourlyTempMax)
+        color: Color.menu.text; opacity: Style.emphasis.faint
+        font.family: Style.font.family; font.pixelSize: Style.font.caption
       }
 
       PanelSeparator {}
@@ -856,17 +710,17 @@ BarWidget {
               values.push(Number(cells[i].hpa))
             }
 
-            if (hasPressure && root.fieldPressureMax - root.fieldPressureMin >= 0.8) {
+            if (hasPressure && root.field.pressureMax - root.field.pressureMin >= 0.8) {
               // 4 hPa would give one line over a 2 hPa spread
               var isobarStep = 1.0
-              var firstIsobar = Math.ceil(root.fieldPressureMin / isobarStep) * isobarStep
+              var firstIsobar = Math.ceil(root.field.pressureMin / isobarStep) * isobarStep
               ctx.lineWidth = 1
               ctx.strokeStyle = Color.menu.text
               ctx.globalAlpha = 0.42
               // sub-sampled so isobars curve
               var sub = 6
               var cellsAcross = (n - 1) * sub
-              for (level = firstIsobar; level <= root.fieldPressureMax; level += isobarStep) {
+              for (level = firstIsobar; level <= root.field.pressureMax; level += isobarStep) {
                 ctx.beginPath()
                 for (var msRow = 0; msRow < cellsAcross; msRow++) {
                   for (var msCol = 0; msCol < cellsAcross; msCol++) {
@@ -1092,9 +946,7 @@ BarWidget {
             if (!root.radarFrame) return ""
             var m = Number(root.radarFrame.minutes)
             if (root.radarFrame.forecast) return "+" + Math.abs(m) + "m forecast"
-            m = Math.abs(m)
-            if (m === 0) return "now"
-            return (m >= 60 ? Math.floor(m / 60) + "h " + (m % 60) + "m" : m + "m") + " ago"
+            return m === 0 ? "now" : Util.ago(-m)
           }
           color: Color.menu.text
           opacity: root.radarFrame && root.radarFrame.forecast ? 0.85 : 0.6
@@ -1113,30 +965,15 @@ BarWidget {
         font.pixelSize: Style.font.caption
       }
 
-      // overlay legend
-      Row {
+      Text {
         width: parent.width
-        visible: root.hasField
-        Text {
-          width: parent.width / 2
-          text: "arrows: wind, to " + root.fieldWindUnits
-          color: Color.accent
-          opacity: Style.emphasis.faint
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
-        Text {
-          width: parent.width / 2
-          horizontalAlignment: Text.AlignRight
-          text: root.fieldPressureMax > 0
-            ? "isobars 1 " + root.fieldPressureUnits + "  ·  "
-              + root.fieldPressureMin.toFixed(0) + "–" + root.fieldPressureMax.toFixed(0)
-            : ""
-          color: Color.menu.text
-          opacity: Style.emphasis.faint
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
+        visible: root.field.pressureMax > 0
+        horizontalAlignment: Text.AlignRight
+        text: Number(root.field.pressureMin).toFixed(0) + "–" + Number(root.field.pressureMax).toFixed(0) + " " + root.field.pressureUnits
+        color: Color.menu.text
+        opacity: Style.emphasis.faint
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
       }
     }
   }

@@ -20,22 +20,16 @@ done
 # folders apps force into ~ (unreal: Library, UnrealEngine), hidden in dolphin/nemo
 ln -sfn "${PWD}/home.hidden" "${HOME}/.hidden"
 
-mkdir -p "${HOME}/.local/share/applications"
+# a user autostart entry with Hidden=true shadows the system one of the same id
+mkdir -p "${HOME}/.config/autostart"
 while IFS= read -r entry; do
     entry="${entry%%#*}"
     entry="$(echo "$entry" | tr -d '[:space:]')"
     [ -n "$entry" ] || continue
-    cat > "${HOME}/.local/share/applications/${entry}.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=${entry}
-Exec=true
-NoDisplay=true
-Hidden=true
-EOF
-done < "${PWD}/hidden-apps.list"
+    printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$entry" >"${HOME}/.config/autostart/${entry}.desktop"
+done < "${PWD}/hidden-autostart.list"
 command -v update-desktop-database >/dev/null 2>&1 \
-    && update-desktop-database "${HOME}/.local/share/applications" 2>/dev/null || true
+    && update-desktop-database "${HOME}/.local/share/applications"
 
 # portal backend preference for the Hyprland session
 if command -v Hyprland >/dev/null 2>&1; then

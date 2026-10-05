@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SELF_DIR="$(dirname "$(readlink -f "$0")")"
+SELF="$(readlink -f "$0")"
+SELF_DIR="$(dirname "$SELF")"
 ALERT_BIN="$SELF_DIR/alert.sh"
 BELL="󰂞"
 DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
 NOTIFY_BIN="$DOTFILES/scripts/notification-send.sh"
+REMINDER_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
+# quickshell's TimerState watches this; countdowns tick in qml, this only lists active reminders
+INDEX="$REMINDER_DIR/index.json"
+
+# atomic so the watcher never reads a partial write
+write_index() {
+  mkdir -p "$REMINDER_DIR"
+  show_json >"$INDEX.tmp" 2>/dev/null && mv -f "$INDEX.tmp" "$INDEX"
+}
 
 format_remaining() {
   local seconds=$1
@@ -131,6 +141,7 @@ cancel_reminder() {
 
   systemctl --user stop "$unit.timer" "$unit.service" 2>/dev/null || true
   rm -f "$reminder_dir/$unit.message" 2>/dev/null || true
+  write_index
 }
 
 clear_reminders() {
@@ -144,6 +155,7 @@ clear_reminders() {
   fi
 
   rm -f "$reminder_dir"/quickshell-reminder-*.message 2>/dev/null || true
+  write_index
   "$NOTIFY_BIN" -g 󰢌 "All reminders have been cleared"
 }
 
@@ -183,6 +195,10 @@ cancel | delete)
   cancel_reminder "${2:-}"
   exit 0
   ;;
+_reindex)
+  write_index
+  exit 0
+  ;;
 esac
 
 minutes=${1:-}
@@ -214,8 +230,9 @@ if [[ -n $custom_message ]]; then
   confirmation_title="$custom_message in ${unit_label}"
 fi
 
-# alert.sh, so an elapsed reminder does not auto-expire
+# alert.sh, so an elapsed reminder does not auto-expire; _reindex drops it from the watched index on fire
 systemd-run --user --quiet --collect --on-active="${minutes}m" --unit="$unit" \
-  bash -c '"$3" "$1" "$4" '"$BELL"' reminder "$5"; rm -f "$2"' bash "$alert_title" "$message_file" "$ALERT_BIN" "$alert_body" "$custom_message"
+  bash -c '"$3" "$1" "$4" '"$BELL"' reminder "$5"; rm -f "$2"; "$6" _reindex' bash "$alert_title" "$message_file" "$ALERT_BIN" "$alert_body" "$custom_message" "$SELF"
 
+write_index
 "$NOTIFY_BIN" -g "$BELL" "$confirmation_title" "$confirmation"

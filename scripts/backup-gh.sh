@@ -8,9 +8,7 @@ DEST="${REPO}/configs/secrets/github"
 
 source "${REPO}/scripts/lib/secrets.sh"
 
-# a locked worktree holds GITCRYPT blobs; writing plaintext into it would stage secrets unencrypted
-secret_is_plaintext "${REPO}/configs/secrets/pgp_privatekey.asc" \
-    || { echo "configs/secrets is locked, unlock it first" >&2; exit 1; }
+secret_require_unlocked "${REPO}"
 
 token=$(gh auth token -h github.com) || { echo "gh is not logged in, run gh auth login first" >&2; exit 1; }
 # the same shape configs/gh/link.sh accepts, so a broken token never replaces the backup

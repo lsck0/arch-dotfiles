@@ -142,6 +142,8 @@ QtObject {
 
   readonly property real headerTracking: 2.4 * scale
   readonly property real displayTracking: -0.5 * scale
+  // window-control glyphs drawn right of every hud title, decorative only
+  readonly property string decor: "[- o x]"
 
   // fixed slots so bar items align on a grid
   readonly property QtObject bar: QtObject {

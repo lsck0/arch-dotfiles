@@ -9,7 +9,9 @@ set -e
 
 sudo systemctl enable tlp.service
 
-if compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
+source ../../scripts/lib/platform.sh
+form_factor=$(platform_form_factor ../..)
+if [[ "$form_factor" == laptop ]]; then
     conf=bat.tlp.conf
 else
     conf=ac-only.tlp.conf

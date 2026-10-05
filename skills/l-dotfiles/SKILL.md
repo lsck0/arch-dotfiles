@@ -9,21 +9,22 @@ This repository contains my system setup and configuration files, which are syml
 
 ## Layout
 
-- `configs/<name>`: config/setup for tools/tasks.
-- `keyboard/`: the firmware for my keyboard.
+- `configs/<name>`: config/setup for tools/tasks, including `configs/keyboard` (keyboard firmware) and `configs/themes` (color themes propagated through the system).
+- `mirror/`: pkgbuilds and the local package mirror.
+- `patches/`: patch scripts for upstream packages.
+- `platforms/`: per-machine scripts (luca-pc, luca-notebook, test-vm).
 - `scripts/`: scripts that are meant to be called directly.
 - `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
-- `themes/`: color themes that are propagated through the system.
 - `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
 - `toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
 - `weblinks/`: browser independent bookmarks.
 - `install.sh`: list of installed packages and bootstrapping script.
 - `sync.sh`: stages everything, makes a signed `Generation: <n>` commit and pushes.
-- `TODO.md`: tracker for open fixes and features.
+- `errors.txt`: tracker for open fixes and features.
 
 ## Conventions
 
 - do not commit or push, I handle this manually with sync.sh
-- commits here are `Generation: <n>` via sync.sh, not conventional commits (overrides l-style's Git section)
+- commits here are `Generation: <n>` via sync.sh, not conventional commits (overrides l-style-tooling's Git section)
 - all system settings have to be reproducible through running install.sh on a fresh system

@@ -12,6 +12,11 @@ Singleton {
   // 0-100 per band, see ascii_max_range
   property var values: zeroed()
 
+  // peak-hold per band, falls each frame; single source for both visualizers
+  property var peaks: zeroed()
+  // 0-100 units; a held peak empties in ~0.8s at framerate 25
+  readonly property real peakFallPerFrame: 3.5
+
   property bool available: false
 
   // cava only runs while referenced
@@ -36,8 +41,8 @@ Singleton {
     "[general]\n" +
     "framerate=25\n" +
     "bars=" + barCount + "\n" +
-    "autosens=0\n" +
-    "sensitivity=450\n" +
+    "autosens=1\n" +
+    "sensitivity=100\n" +
     "sleep_timer=3\n" +
     "lower_cutoff_freq=50\n" +
     "higher_cutoff_freq=12000\n" +
@@ -49,7 +54,7 @@ Singleton {
     "channels=mono\n" +
     "mono_option=average\n" +
     "\n[smoothing]\n" +
-    "noise_reduction=35\n" +
+    "noise_reduction=20\n" +
     "integral=90\n" +
     "gravity=95\n" +
     "ignore=2\n" +
@@ -83,7 +88,7 @@ Singleton {
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",
       "sh", root.configText, root.confPath]
 
-    onRunningChanged: if (!running) root.values = root.zeroed()
+    onRunningChanged: if (!running) { root.values = root.zeroed(); root.peaks = root.zeroed() }
 
     stdout: SplitParser {
       splitMarker: "\n"
@@ -97,7 +102,13 @@ Singleton {
           var v = parseInt(parts[i], 10)
           out.push(isNaN(v) ? 0 : Math.max(0, Math.min(100, v)))
         }
+        var prev = root.peaks, pk = []
+        for (var j = 0; j < root.barCount; j++) {
+          var p = prev[j] || 0
+          pk.push(out[j] >= p ? out[j] : Math.max(out[j], p - root.peakFallPerFrame))
+        }
         root.values = out
+        root.peaks = pk
       }
     }
   }

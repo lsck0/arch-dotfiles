@@ -12,3 +12,8 @@ getent group libvirt >/dev/null && sudo usermod -aG libvirt "$USER" || echo "ski
 if command -v wireshark >/dev/null 2>&1; then
     sudo usermod -aG wireshark "$USER"
 fi
+
+# polkit lets the gamemode group set cpu governor and gpu performance level without a prompt
+if command -v gamemoded >/dev/null 2>&1; then
+    sudo usermod -aG gamemode "$USER"
+fi

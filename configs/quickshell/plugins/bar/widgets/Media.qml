@@ -250,17 +250,8 @@ BarWidget {
     return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
   }
 
-  function fmtTime(seconds) {
-    if (!isFinite(seconds) || seconds < 0) return "0:00"
-    var total = Math.floor(seconds)
-    var m = Math.floor(total / 60)
-    var s = total % 60
-    if (m >= 60) {
-      var h = Math.floor(m / 60)
-      return h + ":" + String(m % 60).padStart(2, "0") + ":" + String(s).padStart(2, "0")
-    }
-    return m + ":" + String(s).padStart(2, "0")
-  }
+  // sqrt lifts quiet passages, gain makes peaks pop; shared by bars and peak caps
+  function specHeightFrac(level) { return Math.min(1, Math.pow(level, 0.5) * 1.4) }
 
   Rectangle {
     anchors.fill: parent
@@ -286,24 +277,44 @@ BarWidget {
 
       Repeater {
         model: Cava.barCount
-        delegate: Rectangle {
+        delegate: Item {
           id: sbar
           required property int index
-          readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
+          readonly property real level: Math.min(1, (Cava.values && Cava.values[index] || 0) / 100)
+          readonly property real peak: Math.min(1, (Cava.peaks && Cava.peaks[index] || 0) / 100)
           readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
           width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
-          radius: 0
-          antialiasing: false
-          gradient: Gradient {
-            GradientStop { position: 0.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
-            GradientStop { position: 0.5; color: root.specColor(sbar.frac, 1.5, 1.0) }
-            GradientStop { position: 1.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
+          height: spectrum.height
+
+          Rectangle {
+            anchors.centerIn: parent
+            width: parent.width
+            radius: 0
+            antialiasing: false
+            opacity: 0.4 + sbar.level * 0.6
+            // center stop brightens with intensity so loud bars glow hotter
+            gradient: Gradient {
+              GradientStop { position: 0.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
+              GradientStop { position: 0.5; color: root.specColor(sbar.frac, 1.1 + sbar.level, 1.0) }
+              GradientStop { position: 1.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
+            }
+            height: Math.max(2, spectrum.height * root.specHeightFrac(sbar.level))
+            Behavior on height { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
           }
-          opacity: 0.4 + level * 0.6
-          anchors.verticalCenter: parent.verticalCenter
-          height: Math.max(2, Math.min(spectrum.height,
-            spectrum.height * Math.min(100, Math.pow(level, 0.5) * 1.4 * 100) / 100))
-          Behavior on height { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
+
+          // peak caps ride the held maximum, mirrored like the center-out bar
+          Rectangle {
+            width: parent.width; height: 1
+            color: root.specColor(sbar.frac, 1.6, 0.9)
+            y: parent.height / 2 - parent.height / 2 * root.specHeightFrac(sbar.peak) - height
+            Behavior on y { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+          }
+          Rectangle {
+            width: parent.width; height: 1
+            color: root.specColor(sbar.frac, 1.6, 0.9)
+            y: parent.height / 2 + parent.height / 2 * root.specHeightFrac(sbar.peak)
+            Behavior on y { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+          }
         }
       }
     }
@@ -474,23 +485,6 @@ BarWidget {
         width: parent.width
         height: Style.space(72)
         visible: panel.visible && Cava.available
-        // peak hold, decays per cava frame
-        property var peaks: Cava.zeroed()
-        onVisibleChanged: if (!visible) peaks = Cava.zeroed()
-
-        Connections {
-          target: Cava
-          enabled: panelSpectrum.visible
-          function onValuesChanged() {
-            var n = Cava.barCount, prev = panelSpectrum.peaks, out = []
-            for (var i = 0; i < n; i++) {
-              var v = Math.min(1, (Cava.values[i] || 0) / 100)
-              var pk = prev[i] || 0
-              out.push(v >= pk ? v : Math.max(v, pk - 0.035))
-            }
-            panelSpectrum.peaks = out
-          }
-        }
 
         layer.enabled: Style.fx.glow > 0
         layer.effect: Glow {}
@@ -505,8 +499,8 @@ BarWidget {
             delegate: Item {
               id: pbar
               required property int index
-              readonly property real level: Math.min(1, (Cava.values[index] || 0) / 100)
-              readonly property real peak: Math.min(1, (panelSpectrum.peaks[index] || 0))
+              readonly property real level: Math.min(1, (Cava.values && Cava.values[index] || 0) / 100)
+              readonly property real peak: Math.min(1, (Cava.peaks && Cava.peaks[index] || 0) / 100)
               readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
               width: Math.max(2, Math.floor((panelBars.width - panelBars.spacing * (Cava.barCount - 1)) / Cava.barCount))
               height: panelSpectrum.height
@@ -520,7 +514,7 @@ BarWidget {
                 opacity: 0.45 + pbar.level * 0.55
                 gradient: Gradient {
                   GradientStop { position: 0.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
-                  GradientStop { position: 0.5; color: root.specColor(pbar.frac, 1.5, 1.0) }
+                  GradientStop { position: 0.5; color: root.specColor(pbar.frac, 1.1 + pbar.level, 1.0) }
                   GradientStop { position: 1.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
                 }
                 Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
@@ -573,14 +567,14 @@ BarWidget {
           width: parent.width
           Text {
             width: parent.width / 2
-            text: root.player ? root.fmtTime(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
+            text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
             color: Color.menu.text; opacity: 0.6
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
           Text {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
-            text: root.player ? root.fmtTime(root.player.length) : "0:00"
+            text: root.player ? Util.clock(root.player.length) : "0:00"
             color: Color.menu.text; opacity: 0.6
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
@@ -678,9 +672,7 @@ BarWidget {
           height: playerVolumeSlider.height
           Text {
             anchors.centerIn: parent
-            // md-volume_off / high / medium / low
-            text: root.playerMuted ? "\u{f0581}" : root.playerVolume > 0.66 ? "\u{f057e}"
-              : root.playerVolume > 0 ? "\u{f0580}" : "\u{f057f}"
+            text: Audio.volumeIcon(root.playerVolume, root.playerMuted)
             color: root.playerMuted ? Color.urgent : Color.menu.text
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily

@@ -7,10 +7,6 @@
 ![wallpaper picker](showcase/showcase3.png)
 ![clock, system and app launcher](showcase/showcase4.png)
 
-Boot the Arch ISO, enable Secure Boot Setup Mode, get online, then run
-
 ```bash
-curl https://install-pc.lsck0.dev | sh
+curl -fsSLo bootstrap.sh https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh && echo '5b3d24bafb5754daf599d8ddaaa0816632c4b4c52e85dfad6ce047d8b763cd03  bootstrap.sh' | sha256sum -c && bash bootstrap.sh luca-pc
 ```
-
-or `curl https://install-notebook.lsck0.dev | sh` on the laptop.

@@ -4,12 +4,25 @@ local function shell_bin(name)
     return "~/.local/bin/" .. name
 end
 
+local function quickshell_call(target, fn)
+    return hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call " .. target .. " " .. fn)
+end
+
 local function quickshell_toggle(target)
-    return hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call " .. target .. " toggle")
+    return quickshell_call(target, "toggle")
 end
 
 local function media_key(action)
     return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
+end
+
+-- display CTM brightness, the software dimmer below the monitor's own backlight
+local color_grading = "~/projects/arch-dotfiles/configs/color-grading/color-grading.py"
+
+-- obs hotkeys only fire while obs is focused on wayland; obs-status.py exits after stdin eof, timeout covers obs closed
+local function obs_command(cmd)
+    return hl.dsp.exec_cmd("echo '{\"cmd\":\"" .. cmd .. "\"}' | timeout 5 "
+        .. "~/projects/arch-dotfiles/configs/quickshell/plugins/bar/widgets/obs-status.py >/dev/null")
 end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
@@ -19,13 +32,15 @@ hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
 hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
     "grim -g \"$(hyprctl -j activewindow | jq -r 'select(.at and .size) | \\\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\\\"')\" - | wl-copy"))
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
+hl.bind(mod .. " + F9", obs_command("saveReplay"))
+hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"))
 hl.bind(mod .. " + Tab", quickshell_toggle("overview"))
 -- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}'"))
 hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
 hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"))
-hl.bind(mod .. " + SHIFT + m", quickshell_toggle("matrixrain"))
+hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + n", hl.dsp.exec_cmd("neovide"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
@@ -59,9 +74,9 @@ hl.bind("XF86AudioMicMute", media_key("mic-mute"), { locked = true })
 
 hl.bind("XF86MonBrightnessUp", media_key("brightness-up"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", media_key("brightness-down"), { locked = true, repeating = true })
-hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd("hyprctl hyprsunset gamma +5"),
+hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
     { locked = true, repeating = true })
-hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd("hyprctl hyprsunset gamma -5"),
+hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
     { locked = true, repeating = true })
 
 hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true })

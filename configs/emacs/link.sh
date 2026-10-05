@@ -7,9 +7,5 @@ fi
 
 set -e
 
+# packages install themselves on first launch (use-package-always-ensure), not here
 ln -sfn "${PWD}" "$HOME/.config/emacs"
-
-emacs --batch \
-    -l "${HOME}/.config/emacs/early-init.el" \
-    -l "${HOME}/.config/emacs/init.el" \
-    --eval '(princ "emacs: package bootstrap complete\n")'

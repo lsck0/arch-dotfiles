@@ -1,4 +1,2 @@
 # no NOPASSWD, it would hand root to any user process
 @USER@ ALL=(ALL) ALL
-# global timestamp so parallel link.sh steps and makepkg reuse one credential cache
-Defaults:@USER@ timestamp_timeout=240,timestamp_type=global

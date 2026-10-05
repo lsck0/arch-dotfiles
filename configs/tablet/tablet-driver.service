@@ -5,23 +5,19 @@ Documentation=file:/home/luca/projects/arch-dotfiles/configs/tablet/tablet-drive
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/tablet-driver
-# The driver exits 0 when the tablet is unplugged; udev starts it again on
-# the next add event. Only genuine faults are worth retrying.
+# driver exits 0 when unplugged and udev restarts it on the next add; only genuine faults are worth retrying
 Restart=on-failure
 RestartSec=2
 TimeoutStartSec=30
 
-# Holds calibration.json, which --calibrate writes. Must stay in step with
-# CALIB_PATH in tablet-driver.py.
+# holds calibration.json that --calibrate writes; must stay in step with CALIB_PATH in tablet-driver.py
 StateDirectory=tablet-driver
 
-# It needs hidraw (read the pad) and /dev/uinput (publish the corrected pen)
-# and nothing else. ProtectHome is read-only rather than yes because
-# /usr/local/bin/tablet-driver is a symlink into the dotfiles checkout.
+# needs only hidraw (read the pad) and /dev/uinput (publish the pen)
 DeviceAllow=/dev/uinput rw
 DeviceAllow=char-hidraw rw
 ProtectSystem=strict
-ProtectHome=read-only
+ProtectHome=yes
 PrivateTmp=yes
 PrivateNetwork=yes
 NoNewPrivileges=yes

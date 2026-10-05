@@ -5,4 +5,6 @@ export QT_QPA_PLATFORM="wayland;xcb"
 export QT_QPA_PLATFORMTHEME=kde
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export SDL_VIDEO_DRIVER=wayland
+# user scripts (scripts/link.sh) for hyprland binds, units and editors, not only interactive zsh
+export PATH="$PATH:$HOME/.local/bin"
 export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"

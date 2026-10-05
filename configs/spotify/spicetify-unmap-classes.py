@@ -42,8 +42,7 @@ def main() -> int:
             spa.read(n).decode("utf-8", "replace") for n in spa.namelist() if n.endswith(".js")
         )
 
-    # spotify >= 1.2.96 runs xpui-snapshot.js out of the v8 snapshot, not the spa; spicetify extracts and
-    # patches it into xpui/, so a name the patched js emits is in use even when the spa js lacks its hash
+    # spotify >= 1.2.96 runs xpui-snapshot.js from the v8 snapshot, which spicetify patches into xpui/: its names are live too
     live = "\n".join(p.read_text(encoding="utf-8", errors="replace") for p in XPUI.glob("*.js"))
     keep = {h: f for h, f in css_map.items() if h in scripts or f in live}
 

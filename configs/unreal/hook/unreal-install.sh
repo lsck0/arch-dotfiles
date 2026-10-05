@@ -2,6 +2,7 @@
 # unreal-engine-bin from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded); runs on every ~/sync change
 
 set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/../../../scripts/lib/user-hook.sh"
 
 AUR_URL="https://aur.archlinux.org/unreal-engine-bin.git"
 SYNC_DIR="${HOME}/sync"
@@ -12,6 +13,7 @@ SKIP_STAMP="${XDG_STATE_HOME:-${HOME}/.local/state}/unreal-install.skipped"
 
 if pacman -Q unreal-engine-bin >/dev/null 2>&1; then
     echo "unreal-engine-bin already installed"
+    user_hook_retire unreal-install
     exit 0
 fi
 
@@ -22,8 +24,7 @@ fi
 zip_version=$(basename "$zip_path" .zip)
 zip_version=${zip_version#Linux_Unreal_Engine_}
 
-# from the path unit there is no terminal: ask before building, since the install's sudo starts pam_u2f and
-# pam_fprintd and would light the fingerprint reader at every login; run the script by hand to skip the question
+# no terminal means the path unit: ask first, else the install's sudo lights the fingerprint reader at every login
 if [[ ! -t 0 ]]; then
     if [[ -f "$SKIP_STAMP" && "$(cat "$SKIP_STAMP")" == "$zip_version" ]]; then
         exit 0
@@ -70,3 +71,4 @@ makepkg --nodeps --noconfirm
 notify-send -a Unreal "Unreal Engine" "Touch the YubiKey or fingerprint reader to install ${zip_version}" 2>/dev/null || true
 mapfile -t packages < <(makepkg --packagelist)
 sudo pacman -U --noconfirm "${packages[@]}"
+user_hook_retire unreal-install

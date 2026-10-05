@@ -143,7 +143,6 @@ source ~/.cache/nushell/starship.nu
 source ~/.cache/nushell/zoxide.nu
 alias cd = z
 alias cdi = zi
-source ~/.cache/nushell/mise.nu
 source ~/.cache/nushell/wal.nu
 
 if ("TERM" in $env) and $env.TERM != "dumb" and (which fastfetch | is-not-empty) {

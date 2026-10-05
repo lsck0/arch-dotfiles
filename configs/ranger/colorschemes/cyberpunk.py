@@ -1,5 +1,4 @@
-# license: gpl-3, matching ranger's colorschemes
-# only ansi slots, so it follows the wal palette
+# license: gpl-3, matching ranger's colorschemes; only ansi slots, so it follows the wal palette
 
 from ranger.gui.colorscheme import ColorScheme
 from ranger.gui.color import (

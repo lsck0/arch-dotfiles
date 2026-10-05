@@ -1,44 +1,10 @@
 # ===========================================================================
 # SZ PENG YI LTD. [T1161] "Driver Inside" graphics tablet (USB 08f2:6811)
 # ===========================================================================
-#
-# This pad is not usable through the kernel alone, so configs/tablet/
-# tablet-driver.py drives it from userspace and republishes the pen as a
-# virtual tablet. This file gets the kernel's own nodes out of the way and
-# hands the right devices to the right owners. See tablet-driver.py for the
-# full reasoning; the short version:
-#
-#   interface 1  pen as report id 9, axes 0..32767, plus a relative mouse.
-#                Silent until the device is unlocked, live afterwards. The
-#                firmware squeezes X into the upper half of its own declared
-#                range, so the kernel's mapping is unusable.
-#   interface 2  pen as report id 5, axes 0..4095, plus the express keys.
-#                Live until the device is unlocked, silent afterwards. Also
-#                the channel the unlock handshake is sent on.
-#
-# The driver reads interface 1 via hidraw and emits a corrected tablet, so
-# every kernel input node belonging to this device is suppressed here. Two
-# of them would otherwise move the cursor on their own and fight the driver:
-# interface 1's pen (wrong X scale) and interface 1's relative mouse.
-#
-# Ordering: must sort after 60-input-id.rules, which sets the ID_INPUT_*
-# properties matched below, and before 73-seat-late.rules, which acts on the
-# uaccess tag. Hence 71-.
-#
-# Note the single ATTRS key in the event-node rules: udev requires every
-# ATTRS/KERNELS/SUBSYSTEMS/DRIVERS key in one rule to match one and the same
-# parent device, so bInterfaceNumber (on the USB interface) cannot be
-# combined with idVendor (on the USB device). Vendor and product are matched
-# via ENV instead, which is read off this device and carries no such
-# restriction.
+# suppress the kernel's own input nodes so tablet-driver.py owns the pen; ordering 71- sorts after 60-input-id.rules (sets ID_INPUT_*) and before 73-seat-late.rules (uaccess). full reasoning in configs/tablet/README.md
 
 # --- interface 1: suppress everything, the driver owns this interface -----
-#
-# LIBINPUT_IGNORE_DEVICE is libinput's documented opt-out, but it is only
-# read from the event node. The ID_INPUT_* tags have to be cleared on both
-# the event node and its parent input node, because libinput reads them from
-# each and takes the union: clearing them on the event node alone leaves the
-# parent's copy and libinput still sees a tablet.
+# clear ID_INPUT_* on both event and parent input node: libinput reads each and takes the union
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{bInterfaceNumber}=="01", \
   ENV{ID_VENDOR_ID}=="08f2", ENV{ID_MODEL_ID}=="6811", \
   ENV{LIBINPUT_IGNORE_DEVICE}="1", \
@@ -52,17 +18,7 @@ SUBSYSTEM=="input", KERNEL=="input*", \
   ENV{ID_INPUT_TOUCHPAD}="", ENV{ID_INPUT_KEY}="", ENV{ID_INPUT_KEYBOARD}=""
 
 # --- interface 2: suppress the dead pen, leave the rest ------------------
-#
-# After the unlock this pen never reports again, but libinput would still
-# offer it to the compositor as a second tablet with the same name. Hyprland
-# then appends "-1" to whichever of the two it enumerates second, which is
-# how a mapping written against the obvious name ends up on a device that
-# never moves. Matched by its width so that only the pen node is affected
-# and the keyboard and consumer-control nodes are left as they are.
-#
-# Those two are harmless but useless: the express keys do not travel through
-# them. They arrive as vendor report id 1, which no kernel driver decodes, so
-# the driver reads them from hidraw and republishes them itself.
+# suppress the post-unlock dead pen: a second same-name tablet makes Hyprland append "-1" to the wrong device
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{bInterfaceNumber}=="02", \
   ENV{ID_VENDOR_ID}=="08f2", ENV{ID_MODEL_ID}=="6811", \
   ENV{ID_INPUT_TABLET}=="1", \
@@ -74,13 +30,7 @@ SUBSYSTEM=="input", KERNEL=="input*", \
   ENV{ID_INPUT_TABLET}=""
 
 # --- interface 2: suppress the keyboard and consumer-control nodes --------
-#
-# Several express keys are double-reported: besides the vendor report id 1
-# that the driver decodes, the pad also sends canned keystrokes through its
-# keyboard and consumer collections, which the kernel does expose. Left in
-# place, one key both types its F-code and mutes the machine, and others fire
-# volume or undo. Suppressing these nodes leaves the driver's F13..F24 as the
-# only thing the keys produce, so all 12 are freely bindable.
+# express keys double-report canned keystrokes here (one mutes the machine); suppress so only the driver's F13..F24 from vendor report id 1 fire
 SUBSYSTEM=="input", KERNEL=="event*", ATTRS{bInterfaceNumber}=="02", \
   ENV{ID_VENDOR_ID}=="08f2", ENV{ID_MODEL_ID}=="6811", \
   ENV{LIBINPUT_IGNORE_DEVICE}="1", \
@@ -92,10 +42,7 @@ SUBSYSTEM=="input", KERNEL=="input*", \
   ENV{ID_INPUT_KEY}="", ENV{ID_INPUT_KEYBOARD}=""
 
 # --- the virtual devices the driver publishes -----------------------------
-#
-# They have no USB parent, so the ENV-based matches above cannot reach them;
-# the device names set by tablet-driver.py are the handle. uaccess lets the
-# session read them without root.
+# no USB parent, so matched by the names tablet-driver.py sets; uaccess lets the session read them without root
 SUBSYSTEM=="input", ATTRS{name}=="SDD Tablet T1161", TAG+="uaccess"
 SUBSYSTEM=="input", ATTRS{name}=="SDD Tablet T1161 Keys", TAG+="uaccess"
 
@@ -103,17 +50,7 @@ SUBSYSTEM=="input", ATTRS{name}=="SDD Tablet T1161 Keys", TAG+="uaccess"
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="08f2", ATTRS{idProduct}=="6811", TAG+="uaccess"
 
 # --- start the driver when the tablet is plugged in -----------------------
-#
-# SYSTEMD_WANTS rather than RUN+= because RUN must not block and its children
-# are killed when the event finishes.
-#
-# This matches *either* hidraw node, not just interface 2's, because of the
-# single-parent rule noted above: bInterfaceNumber lives on the USB interface
-# and idVendor on the USB device, so the two cannot be combined, and a hidraw
-# node carries no ID_VENDOR_ID property to match instead. Firing twice is
-# harmless - starting an already-running unit is a no-op - and the driver
-# waits for whichever interface it needs rather than assuming either is
-# present yet.
+# SYSTEMD_WANTS not RUN+= (RUN must not block); matches either hidraw node since bInterfaceNumber and idVendor sit on different parents, firing twice is a harmless no-op
 SUBSYSTEM=="hidraw", ACTION=="add", ATTRS{idVendor}=="08f2", \
   ATTRS{idProduct}=="6811", \
   TAG+="systemd", ENV{SYSTEMD_WANTS}+="tablet-driver.service"

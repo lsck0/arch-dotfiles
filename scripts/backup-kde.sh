@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pull live KDE/Plasma config from ~/.config back into configs/plasma/.
 
-set -ex
+set -euo pipefail
 
 REPO="${HOME}/projects/arch-dotfiles/configs/plasma"
 

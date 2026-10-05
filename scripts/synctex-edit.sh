@@ -1,16 +1,5 @@
 #!/usr/bin/env bash
-# zathura's synctex-editor-command: jump from a spot in the pdf back to the latex source.
-#
-# usage: synctex-edit <file> <line> [column]
-#
-# Forward search (source -> pdf) has always worked because vimtex and AUCTeX pass --synctex-forward when they
-# launch the viewer. Backward search did not: zathura only knows an editor command when it was started with
-# -x, so it worked from a vimtex-launched viewer and from nowhere else -- not from latexmk's $pdf_previewer,
-# not from a zathura opened by hand, not from a second pdf opened in the same instance. Setting
-# synctex-editor-command in zathurarc to this script makes it work regardless of who started zathura.
-#
-# The jump goes to whichever editor already has the file open, so clicking in the pdf never spawns a second
-# copy of a buffer that is already in front of you.
+# backward search (pdf spot -> latex source) for sioyek's inverse_search_command and zathura's synctex-editor-command, into whichever editor already has the file open, set in the viewers' own config so it works regardless of who launched them; usage: synctex-edit <file> <line> [column]
 
 set -uo pipefail
 
@@ -27,7 +16,7 @@ column=${3:-0}
     exit 1
 }
 
-# zathura hands out the path synctex recorded, which is relative to the build dir for an out-of-tree build
+# the viewer hands out the path synctex recorded, which is relative to the build dir for an out-of-tree build
 file=$(readlink -f "$file" 2>/dev/null || printf '%s' "$file")
 [[ -n "$column" ]] || column=0
 

@@ -1,8 +1,12 @@
 [Unit]
 Description=Inject betterdiscord after discord installs or updates itself
 
+# discord self-updates and relaunches itself past any launcher wrapper; the config dir around these paths churns every minute
 [Path]
-PathChanged=%h/.config/discord
+# first install, and the old host's removal after a host update
+PathChanged=%h/.config/discord/Discord
+# core module updates: kept on the current host by the inject script
+PathChanged=%h/.local/state/betterdiscord-modules
 
 [Install]
 WantedBy=default.target

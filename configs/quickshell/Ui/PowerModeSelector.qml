@@ -14,12 +14,6 @@ Item {
     { value: "performance", label: "PERFORMANCE" }
   ]
 
-  // catches changes made elsewhere
-  readonly property int pollIntervalMs: 5000
-
-  // let the detached script finish before re-reading
-  readonly property int applySettleMs: 600
-
   property bool active: false
 
   property color foreground: Color.menu.text
@@ -31,10 +25,13 @@ Item {
     if (!getProcess.running) getProcess.running = true
   }
 
+  // the script announces the change over ToggleEvents, which re-reads
   function apply(mode) {
     Quickshell.execDetached([root.script, String(mode)])
-    settleTimer.restart()
   }
+
+  onActiveChanged: if (active) refresh()
+  Component.onCompleted: if (active) refresh()
 
   implicitWidth: group.implicitWidth
   implicitHeight: group.implicitHeight
@@ -54,18 +51,9 @@ Item {
     onExited: internal.mode = String(getOutput.text || "").trim()
   }
 
-  Timer {
-    id: settleTimer
-    interval: root.applySettleMs
-    onTriggered: root.refresh()
-  }
-
-  Timer {
-    interval: root.pollIntervalMs
-    running: root.active
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
+  Connections {
+    target: ToggleEvents
+    function onChanged() { if (root.active) root.refresh() }
   }
 
   ButtonGroup {

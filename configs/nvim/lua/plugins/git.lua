@@ -32,25 +32,6 @@ return {
     },
 
     {
-        "ThePrimeagen/git-worktree.nvim", -- git worktrees
-        -- tmux/herdr use the wtree popup instead
-        cond = function() return not (vim.env.TMUX or vim.env.HERDR_SESSION or vim.env.HERDR_ENV) end,
-        keys = { "<leader>gf", "<leader>gc" },
-        dependencies = {
-            "nvim-lua/plenary.nvim",
-            "nvim-telescope/telescope.nvim",
-        },
-        config = function()
-            require("git-worktree").setup()
-            require("telescope").load_extension("git_worktree")
-
-            local tele = require("telescope").extensions.git_worktree
-            vim.keymap.set("n", "<leader>gf", tele.git_worktrees, { desc = "Git worktrees (telescope)" })
-            vim.keymap.set("n", "<leader>gc", tele.create_git_worktree, { desc = "Create git worktree" })
-        end,
-    },
-
-    {
         "pwntester/octo.nvim", -- github interactions
         cmd = "Octo",
         opts = {

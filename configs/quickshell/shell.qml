@@ -10,92 +10,15 @@ import "plugins/clipboard"
 import "plugins/appsearch"
 import "plugins/power"
 import "plugins/overview"
-import "plugins/startup"
-import "plugins/matrixrain"
 import "plugins/lock"
+import "plugins/Plugins.js" as Plugins
 import "services"
 
 ShellRoot {
   id: shell
 
   // instances, relative-path imports do not share singleton state
-  property PluginRegistry pluginRegistry: PluginRegistry { }
   property AppLibrary appLibrary: AppLibrary { }
-
-  readonly property string userConfigPath: Paths.state + "/shell.json"
-
-  // ~/.local/state/quickshell/shell.json replaces this when present
-  readonly property var builtinShellConfig: ({
-    version: 1,
-    bar: {
-      layout: {
-        left: [
-          { id: "bar.app-menu" },
-          { id: "bar.workspaces" }
-        ],
-        center: [
-          { id: "bar.clock" }, { id: "bar.weather" },
-          { id: "bar.media" }, { id: "bar.obs" }, { id: "bar.discord" }
-        ],
-        right: [
-          { id: "bar.tray" },
-          { id: "bar.separator" },
-          { id: "bar.agents" },
-          { id: "bar.homelab" },
-          { id: "bar.system" },
-          { id: "bar.network" }, { id: "bar.display" }, { id: "bar.audio-io" },
-          { id: "bar.notifications" },
-          { id: "bar.keyboard-layout" },
-          { id: "bar.indicators" },
-          { id: "bar.exit" }
-        ]
-      },
-      // non-main screens
-      secondaryLayout: {
-        left: [{ id: "bar.app-menu" }, { id: "bar.workspaces" }],
-        center: [],
-        right: []
-      }
-    },
-    plugins: []
-  })
-
-  property var shellConfig: builtinShellConfig
-
-  onShellConfigChanged: {
-    pluginRegistry.registryRevision++
-    pluginRegistry.pluginsChanged()
-  }
-
-  function applyShellConfig() {
-    var userText = userConfigFile.text() || ""
-    if (userText.trim()) {
-      try {
-        var parsed = JSON.parse(userText)
-        if (Util.isPlainObject(parsed) && parsed.version === 1) {
-          shellConfig = parsed
-          return
-        }
-        console.warn("shell.json missing version: 1, using builtin defaults")
-      } catch (e) {
-        console.warn("shell.json parse failed, using builtin defaults:", e)
-      }
-    }
-    shellConfig = builtinShellConfig
-  }
-
-  function persistShellConfig(nextConfig) {
-    var payload = Util.cloneJson(nextConfig)
-    payload.version = 1
-    shellConfig = payload
-    userConfigFile.setText(JSON.stringify(payload, null, 2) + "\n")
-  }
-
-  function mutateShellConfig(mutator) {
-    var copy = Util.cloneJson(shellConfig || builtinShellConfig)
-    mutator(copy)
-    persistShellConfig(copy)
-  }
 
   // per-widget saved state, e.g. tray pins
   readonly property string widgetSettingsPath: Paths.state + "/widget-settings.json"
@@ -149,25 +72,13 @@ ShellRoot {
     onFileChanged: reload()
   }
 
-  // shell.json replaces the builtin, so backfill secondaryLayout
-  readonly property var barConfig: {
-    var base = shellConfig && Util.isPlainObject(shellConfig.bar)
-      ? shellConfig.bar : builtinShellConfig.bar
-    if (base && base.secondaryLayout) return base
-    var merged = Util.cloneJson(base)
-    merged.secondaryLayout = builtinShellConfig.bar.secondaryLayout
-    return merged
-  }
-
   readonly property string mainScreenName: {
     var screens = Quickshell.screens
-    // a configured monitor may belong to the other machine
+    // a workspace rule may name the other machine's monitor
     function connected(name) {
       for (var s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
       return false
     }
-    var configured = barConfig && barConfig.mainScreen ? String(barConfig.mainScreen) : ""
-    if (configured && connected(configured)) return configured
     var workspaces = Hyprland.workspaces.values
     for (var w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
@@ -208,281 +119,66 @@ ShellRoot {
     }
   }
 
-  FileView {
-    id: userConfigFile
-    path: shell.userConfigPath
-    watchChanges: true
-    atomicWrites: true
-    printErrors: false
-    onLoaded: {
-      shell.applyShellConfig()
-      Util.rearmWatch(this)
-    }
-    onLoadFailed: function(error) { shell.applyShellConfig() }
-    onFileChanged: reload()
-  }
-
-  Component.onCompleted: {
-    pluginRegistry.firstPartyDir = Paths.plugins
-    pluginRegistry.shellConfigProvider = function() { return shell.shellConfig }
-    pluginRegistry.shellConfigMutator = function(mutate) { shell.mutateShellConfig(mutate) }
-    pluginRegistry.rescan()
-    shell._syncServices()
-    workspaceRulesProc.running = true
-  }
+  Component.onCompleted: workspaceRulesProc.running = true
 
   Variants {
     model: Quickshell.screens
 
     Bar {
-      pluginRegistry: shell.pluginRegistry
-      barConfig: shell.barConfig
       shellHost: shell
       // compared inside Bar: redeclaring modelData here breaks Variants
       mainScreenName: shell.mainScreenName
     }
   }
 
-  // loader for kind "service" plugins
-  Item {
-    id: serviceHost
-    visible: false
-  }
+  // the Plugins.js shell table, each loaded once
+  Variants {
+    id: plugins
+    model: Object.keys(Plugins.shell)
 
-  property var _services: ({})
-
-  function serviceFor(pluginId) {
-    return _services[String(pluginId)] || null
-  }
-
-  function ensureService(pluginId) {
-    var key = String(pluginId)
-    if (_services[key]) return _services[key]
-    var manifest = pluginRegistry && pluginRegistry.installedPlugins
-      ? pluginRegistry.installedPlugins[key] : null
-    if (!manifest) return null
-    if (!Array.isArray(manifest.kinds) || manifest.kinds.indexOf("service") === -1) return null
-    if (!manifest.entryPoints || !manifest.entryPoints.service) return null
-    var url = pluginRegistry.entryPointUrl(manifest, "service")
-    if (!url) return null
-
-    var comp = Qt.createComponent(url, Component.PreferSynchronous)
-    function finalize() {
-      if (comp.status !== Component.Ready) {
-        console.warn("service plugin load failed for " + key + ": " + comp.errorString())
-        return
-      }
-      var inst = comp.createObject(serviceHost)
-      if (!inst) {
-        console.warn("service plugin createObject returned null for", key)
-        return
-      }
-      if ("shell" in inst) inst.shell = shell
-      if ("manifest" in inst) inst.manifest = manifest
-      if ("pluginRegistry" in inst) inst.pluginRegistry = shell.pluginRegistry
-      _services = Util.mapSet(_services, key, inst)
-    }
-    if (comp.status === Component.Loading) {
-      comp.statusChanged.connect(finalize)
-      return null
-    }
-    finalize()
-    return _services[key] || null
-  }
-
-  function _syncServices() {
-    if (!pluginRegistry || !pluginRegistry.installedPlugins) return
-    var plugins = pluginRegistry.installedPlugins
-    for (var id in plugins) {
-      var m = plugins[id]
-      if (!m) continue
-      if (!Array.isArray(m.kinds) || m.kinds.indexOf("service") === -1) continue
-      if (!m.entryPoints || !m.entryPoints.service) continue
-      if (!pluginRegistry.isEnabled(id)) continue
-      if (_services[id]) continue
-      ensureService(id)
-    }
-    for (var existingId in _services) {
-      var stillThere = plugins[existingId]
-      var stillEnabled = stillThere && pluginRegistry.isEnabled(existingId)
-      if (stillThere && stillEnabled) continue
-      var inst = _services[existingId]
-      if (inst && typeof inst.destroy === "function") inst.destroy()
-      _services = Util.mapRemove(_services, existingId)
+    LazyLoader {
+      required property string modelData
+      active: true
+      source: Qt.resolvedUrl("plugins/" + Plugins.shell[modelData])
+      onItemChanged: if (item && "shell" in item) item.shell = shell
     }
   }
 
-  Connections {
-    target: shell.pluginRegistry
-    function onPluginsChanged() {
-      shell._syncServices()
-      shell.panelEntries = shell.computePanelEntries()
-    }
+  function plugin(id) {
+    var loaders = plugins.instances
+    for (var i = 0; i < loaders.length; i++)
+      if (loaders[i].modelData === id) return loaders[i].item
+    return null
   }
 
-  // on-demand panel/overlay/menu plugins
-  property var openPanelIds: ({})
-  property var pendingPayloads: ({})
-
-  function summon(pluginId, payloadJson) {
-    var id = shell.pluginRegistry.resolveEnabledId(pluginId)
-    if (!id) return false
-    var plugins = shell.pluginRegistry.installedPlugins
-    if (!plugins[id]) {
-      console.warn("summon: unknown plugin", id)
+  function summon(id, payloadJson) {
+    var item = plugin(id)
+    if (!item || typeof item.open !== "function") {
+      console.warn("summon: no plugin", id)
       return false
     }
-    if (!shell.pluginRegistry.isEnabled(id)) {
-      console.warn("summon: plugin not enabled, not summoning:", id)
-      return false
-    }
-    openPanelIds = Util.mapSet(openPanelIds, id, true)
-
-    var queue = (pendingPayloads[id] || []).slice()
-    queue.push(payloadJson || "")
-    pendingPayloads = Util.mapSet(pendingPayloads, id, queue)
-
-    deliverIfLoaded(id)
-    return true
-  }
-
-  function hide(pluginId) {
-    var id = shell.pluginRegistry.resolveEnabledId(pluginId)
-    if (!id) return false
-    invokeIfLoaded(id, "close", null)
-    if (!openPanelIds[id]) return true
-    openPanelIds = Util.mapRemove(openPanelIds, id)
-    return true
-  }
-
-  function isPluginOpen(pluginId) {
-    var id = shell.pluginRegistry.resolveEnabledId(pluginId)
-    var loader = panelLoaders[id]
-    if (loader && loader.item && loader.item.opened !== undefined)
-      return loader.item.opened === true
-    return openPanelIds[id] === true
-  }
-
-  function toggle(pluginId, payloadJson) {
-    var id = shell.pluginRegistry.resolveEnabledId(pluginId)
-    return isPluginOpen(id) ? hide(id) : summon(id, payloadJson)
-  }
-
-  property var panelLoaders: ({})
-
-  function registerPanelLoader(pluginId, loader) {
-    panelLoaders = Util.mapSet(panelLoaders, pluginId, loader)
-    deliverIfLoaded(pluginId)
-  }
-
-  function unregisterPanelLoader(pluginId) {
-    if (!panelLoaders[pluginId]) return
-    panelLoaders = Util.mapRemove(panelLoaders, pluginId)
-  }
-
-  function deliverIfLoaded(pluginId) {
-    var loader = panelLoaders[pluginId]
-    if (!loader || !loader.item) return
-    var queue = pendingPayloads[pluginId]
-    if (!Array.isArray(queue) || queue.length === 0) return
-    if (typeof loader.item.open === "function") {
-      for (var i = 0; i < queue.length; i++) {
-        try { loader.item.open(queue[i]) } catch (e) {
-          console.warn("plugin " + pluginId + " open() threw:", e)
-        }
-      }
-    }
-    pendingPayloads = Util.mapRemove(pendingPayloads, pluginId)
-  }
-
-  function invokeIfLoaded(pluginId, method, arg) {
-    var loader = panelLoaders[pluginId]
-    if (!loader || !loader.item) return
-    if (typeof loader.item[method] !== "function") return
-    try { loader.item[method](arg) } catch (e) {
-      console.warn("plugin " + pluginId + " " + method + "() threw:", e)
-    }
-  }
-
-  function callIfLoaded(pluginId, method, arg) {
-    var id = shell.pluginRegistry.resolveEnabledId(pluginId)
-    var loader = panelLoaders[id]
-    if (!loader || !loader.item) return "unknown"
-    if (typeof loader.item[method] !== "function") return "unknown"
+    var payload
     try {
-      var result = loader.item[method](arg)
-      return result === undefined || result === null ? "ok" : String(result)
+      payload = JSON.parse(payloadJson || "{}")
     } catch (e) {
-      console.warn("plugin " + id + " " + method + "() threw:", e)
-      return "error"
+      console.warn("summon: bad payload for", id, e)
+      return false
     }
+    item.open(payload)
+    return true
   }
 
-  property var panelEntries: []
+  // keybinds (hyprland_keybindings.lua) reach discord voice through here
+  IpcHandler {
+    target: "discord"
 
-  function computePanelEntries() {
-    var out = []
-    var plugins = shell.pluginRegistry.installedPlugins
-    var panelKinds = ["panel", "overlay", "menu"]
-    for (var id in plugins) {
-      var m = plugins[id]
-      if (!m || !Array.isArray(m.kinds)) continue
-      var matched = false
-      for (var i = 0; i < panelKinds.length; i++)
-        if (m.kinds.indexOf(panelKinds[i]) !== -1) { matched = true; break }
-      if (!matched) continue
-      if (!shell.pluginRegistry.isEnabled(id)) continue
-      var kind = m.kinds.indexOf("panel") !== -1 ? "panel"
-        : (m.kinds.indexOf("overlay") !== -1 ? "overlay" : "menu")
-      out.push({ id: id, manifest: m, kind: kind, keepLoaded: m.keepLoaded === true })
-    }
-    return out
-  }
-
-  Instantiator {
-    model: shell.panelEntries
-    active: true
-
-    delegate: QtObject {
-      id: panelEntry
-      required property var modelData
-      readonly property string pluginId: modelData.id
-      readonly property var manifest: modelData.manifest
-      readonly property string entryKind: modelData.kind
-      readonly property bool keepLoaded: modelData.keepLoaded === true
-      readonly property string sourceUrl: shell.pluginRegistry.entryPointUrl(manifest, entryKind)
-
-      property Loader panelLoader: Loader {
-        source: panelEntry.sourceUrl
-        active: panelEntry.sourceUrl !== "" && (panelEntry.keepLoaded || shell.openPanelIds[panelEntry.pluginId] === true)
-        asynchronous: true
-        onLoaded: {
-          if (!item) return
-          if ("shell" in item) item.shell = shell
-          if ("manifest" in item) item.manifest = panelEntry.manifest
-          if ("pluginRegistry" in item) item.pluginRegistry = shell.pluginRegistry
-          if ("service" in item) item.service = shell.serviceFor(panelEntry.pluginId)
-          shell.registerPanelLoader(panelEntry.pluginId, this)
-        }
-        onStatusChanged: {
-          if (status === Loader.Error) {
-            var detail = errorString && errorString() ? errorString() : ""
-            if (!detail && sourceComponent) detail = sourceComponent.errorString()
-            console.warn("panel plugin " + panelEntry.pluginId + " failed to load:", detail)
-            shell.hide(panelEntry.pluginId)
-          }
-        }
-        Component.onDestruction: shell.unregisterPanelLoader(panelEntry.pluginId)
-      }
-    }
+    function toggleMute(): bool { return DiscordControl.send("toggleSelfMute") }
+    function toggleDeafen(): bool { return DiscordControl.send("toggleSelfDeaf") }
+    function disconnect(): bool { return DiscordControl.send("disconnect") }
   }
 
   IpcHandler {
     target: "shell"
-
-    function ping(): string {
-      return "ok"
-    }
 
     // palette + fx for toggle-shader.sh
     function palette(): string {
@@ -496,106 +192,13 @@ ShellRoot {
       })
     }
 
-    // toggle-powermode.sh, after the mode changes
+    // toggle-powermode.sh, after saver flips
     function reloadPowerMode(): void {
       Power.reload()
     }
 
-    function rescanPlugins(): void {
-      shell.pluginRegistry.rescan()
-    }
-
-    function reloadConfig(): string {
-      userConfigFile.reload()
-      return "ok"
-    }
-
-    function setPluginEnabled(id: string, enabled: string): string {
-      return shell.pluginRegistry.setEnabled(id, enabled === "true") ? "ok" : "unknown"
-    }
-
-    function enablePlugin(id: string, placementJson: string): string {
-      try {
-        var placement = JSON.parse(placementJson || "{}")
-        if (shell.pluginRegistry.setEnabled(id, true, placement)) return "ok"
-        return shell.pluginRegistry.lastEnableError || "unknown"
-      } catch (e) {
-        return "invalid placement: " + e
-      }
-    }
-
-    // idempotent enable, leaves a placed widget alone
-    function putBarWidget(id: string, placementJson: string): string {
-      try {
-        var error = shell.pluginRegistry.putBarWidget(id, JSON.parse(placementJson || "{}"))
-        return error ? error : "ok"
-      } catch (e) {
-        return "invalid placement: " + e
-      }
-    }
-
-    function moveBarWidget(id: string, placementJson: string): string {
-      try {
-        var error = shell.pluginRegistry.moveBarWidget(id, JSON.parse(placementJson || "{}"))
-        return error ? error : "ok"
-      } catch (e) {
-        return "invalid placement: " + e
-      }
-    }
-
-    function setBarWidget(id: string, key: string, valueJson: string, selectorJson: string): string {
-      try {
-        var value = JSON.parse(valueJson)
-        var selector = JSON.parse(selectorJson || "{}")
-        var error = shell.pluginRegistry.setBarWidget(id, key, value, selector)
-        return error ? error : "ok"
-      } catch (e) {
-        return "invalid widget setting: " + e
-      }
-    }
-
-    function listPlugins(): string {
-      var out = []
-      var plugins = shell.pluginRegistry.installedPlugins
-      for (var id in plugins) {
-        var kinds = plugins[id].kinds || []
-        var isBarWidget = Array.isArray(kinds) && kinds.indexOf("bar-widget") !== -1
-        out.push({
-          id: id,
-          name: plugins[id].name,
-          kinds: kinds,
-          enabled: isBarWidget ? shell.pluginRegistry.inBar(id) : shell.pluginRegistry.isEnabled(id),
-          firstParty: !!plugins[id].__isFirstParty
-        })
-      }
-      out.sort(function(left, right) {
-        var leftName = String(left.name || left.id)
-        var rightName = String(right.name || right.id)
-        if (leftName < rightName) return -1
-        if (leftName > rightName) return 1
-        return String(left.id).localeCompare(String(right.id))
-      })
-      return JSON.stringify(out)
-    }
-
-    function listShellConfig(): string {
-      return JSON.stringify(shell.shellConfig || {})
-    }
-
     function summon(id: string, payloadJson: string): string {
       return shell.summon(id, payloadJson) ? "ok" : "unknown"
-    }
-
-    function hide(id: string): void {
-      shell.hide(id)
-    }
-
-    function toggle(id: string, payloadJson: string): void {
-      shell.toggle(id, payloadJson)
-    }
-
-    function call(id: string, method: string, arg: string): string {
-      return shell.callIfLoaded(id, method, arg)
     }
   }
 
@@ -605,7 +208,5 @@ ShellRoot {
   AppSearch { appLibrary: shell.appLibrary }
   PowerMenu {}
   Overview {}
-  Startup {}
-  MatrixRain {}
   Lock {}
 }

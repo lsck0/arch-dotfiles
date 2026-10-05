@@ -1,5 +1,5 @@
 #!/usr/sbin/nft -f
-# maximum lockdown: nothing new gets in, only loopback and already-established flows
+# maximum lockdown: nothing new gets in or is routed, only loopback and already-established flows
 
 add table inet fw
 delete table inet fw
@@ -9,5 +9,10 @@ table inet fw {
         iif "lo" accept
         ct state established,related accept
         ct state invalid drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+        ct state established,related accept
     }
 }

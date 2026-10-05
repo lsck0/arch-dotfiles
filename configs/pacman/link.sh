@@ -7,39 +7,17 @@ set -e
 fingerprint=$(gpg --show-keys --with-colons archrepo.asc | awk -F: '$1 == "fpr" {print $10; exit}')
 sudo pacman-key --add archrepo.asc
 sudo pacman-key --lsign-key "$fingerprint"
-# rm first so an old link is not written through
-sudo rm -f /etc/pacman.conf
-# [lsck0] only while the mirror answers, an unreachable repo fails every sync
-lsck0=""
-if curl -fsI -m 3 http://10.200.0.210/x86_64/lsck0.db >/dev/null \
-    || curl -fsI -m 10 https://mirror.lsck0.dev/x86_64/lsck0.db >/dev/null; then
-    lsck0=lsck0.conf
-fi
-# [chaotic-aur] only once install.sh got chaotic-mirrorlist, a missing Include fails every pacman call
-chaotic=0
-if [[ -f /etc/pacman.d/chaotic-mirrorlist ]]; then
-    chaotic=1
-fi
-# pacman takes a package from the first repo listing it, so [lsck0] goes above [core]
-awk -v lsck0="$lsck0" -v chaotic="$chaotic" '
-    BEGIN { if (lsck0 != "") while ((getline line < lsck0) > 0) repo = repo line "\n" }
-    /^\[/ { skip = !chaotic && $0 == "[chaotic-aur]" }
-    /^\[core\]$/ { printf "%s", repo }
-    !skip { print }
-' pacman.conf | sudo tee /etc/pacman.conf >/dev/null
+# LSCK0_SNAPSHOT=<YYYY-MM-DD> (platform file or env) pins [lsck0] to that night's dated snapshot instead of the latest
+[[ "${LSCK0_SNAPSHOT:-}" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})?$ ]] || { echo "pacman: LSCK0_SNAPSHOT '$LSCK0_SNAPSHOT' is not YYYY-MM-DD" >&2; exit 1; }
+# [lsck0] always, so an unreachable snapshot fails the sync instead of mixing live core with snapshot sonames; rename, never a half-written file
+sed "/^\[lsck0\]/,/^\[/ s|/\$arch\$|${LSCK0_SNAPSHOT:+/$LSCK0_SNAPSHOT}/\$arch|" pacman.conf | sudo install -m644 /dev/stdin /etc/pacman.conf.new
+sudo mv -f /etc/pacman.conf.new /etc/pacman.conf
 mkdir -p "${HOME}/.config/pacman"
 ln -sfn "${PWD}/makepkg.conf" "${HOME}/.config/pacman/makepkg.conf"
 
-sudo mkdir -p /etc/pacman.d/hooks
-for hook in "${PWD}"/hooks/*.hook; do
-    dest="/etc/pacman.d/hooks/$(basename "${hook}")"
-    if grep -q '@USER@' "${hook}"; then
-        # copy with @USER@ filled in, rm as above
-        sudo rm -f "${dest}"
-        sed "s|@USER@|$(id -un)|" "${hook}" | sudo tee "${dest}" >/dev/null
-    else
-        sudo ln -sfn "${hook}" "${dest}"
-    fi
+# hooks run as root: root-owned copies with @USER@ filled in, never links into the checkout
+for hook in hooks/*.hook; do
+    sed "s|@USER@|$(id -un)|" "${hook}" | sudo install -Dm644 /dev/stdin "/etc/pacman.d/hooks/${hook#hooks/}"
 done
 
 # yay cache cleanup

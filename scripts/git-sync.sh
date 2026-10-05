@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Fetch/pull every git repo under a dir in parallel, skipping submodules, vendor/, heavy build/cache and gitignored repos.
+# Fetch, pull and push every git repo under a dir in parallel, skipping submodules, vendor/, heavy build/cache and gitignored repos.
+
+set -euo pipefail
 
 BASE_DIR=$(realpath "${1:-.}")
 JOBS="${GIT_SYNC_JOBS:-8}"
@@ -18,7 +20,7 @@ mapfile -t dirs < <(
 # Drop repos that their containing repo git-ignores (e.g. build/cache dirs).
 kept=()
 for dir in "${dirs[@]}"; do
-    top=$(git -C "$(dirname "$dir")" rev-parse --show-toplevel 2>/dev/null)
+    top=$(git -C "$(dirname "$dir")" rev-parse --show-toplevel 2>/dev/null || true)
     if [[ -n "$top" && "$top" != "$dir" ]] && git -C "$top" check-ignore -q "$dir" 2>/dev/null; then
         continue
     fi
@@ -94,6 +96,15 @@ sync_one() {
             statuses+=("PULL FAILED")
         elif ! grep -q "Already up to date" <<< "$pull_output"; then
             statuses+=("PULLED")
+        fi
+    fi
+
+    # push commits the remote is missing; non-force, so a diverged branch just reports PUSH FAILED
+    if [[ -n "$upstream" ]] && git -C "$dir" log '@{u}..HEAD' --oneline 2>/dev/null | grep -q .; then
+        if git -C "$dir" push --quiet 2>/dev/null; then
+            statuses=("${statuses[@]/UNPUSHED COMMITS/PUSHED}")
+        else
+            statuses+=("PUSH FAILED")
         fi
     fi
 

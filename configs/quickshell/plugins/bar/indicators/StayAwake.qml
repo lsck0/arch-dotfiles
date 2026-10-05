@@ -29,16 +29,13 @@ BarIndicator {
     onExited: root.active = (checkOutput.text || "").trim() === "on"
   }
 
-  Timer {
-    interval: 30000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
+  Component.onCompleted: refresh()
+
+  // the toggle announces every change, keybinds and the toggles menu included
+  Connections {
+    target: ToggleEvents
+    function onChanged() { root.refresh() }
   }
 
-  onPressed: function() {
-    Quickshell.execDetached([root.toggleScript, "toggle"])
-    Qt.callLater(root.refresh)
-  }
+  onPressed: function() { Quickshell.execDetached([root.toggleScript, "toggle"]) }
 }

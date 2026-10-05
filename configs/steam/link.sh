@@ -58,5 +58,6 @@ json.dump(d, open(p, "w"), indent=2)
 PY
 fi
 
+millennium_linked() { [[ "$(readlink "${HOME}/.local/share/Steam/ubuntu12_32/libXtst.so.6")" == /usr/lib/millennium/* ]]; }
 source ../../scripts/lib/user-hook.sh
-user_hook_install ./hook millennium-link
+user_hook_oneshot ./hook millennium-link millennium_linked

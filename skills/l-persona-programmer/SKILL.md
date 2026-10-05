@@ -31,6 +31,7 @@ stop. No file given -> summarize in chat.
 
 `ast-grep` (structural find/replace across a codebase, safer than
 regex), `sd` (sed alternative for simple substitutions), `mold` (fast
-linker for Rust/C++ iteration speed), `bacon`/`cargo-watch`/`entr`
-(rebuild-on-change loops), `difftastic` (structural diff for reviewing
-your own change before handoff).
+linker) + `sccache` (compiler cache) for Rust/C++ iteration speed,
+`bacon`/`entr` (rebuild-on-change loops), `gdb` (step through a failing
+path), `difftastic` (structural diff for reviewing your own change
+before handoff).

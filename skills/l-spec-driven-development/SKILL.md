@@ -57,7 +57,7 @@ merges, it is never the agent: no merge, no self-approval, no auto-merge.
 ## Stages (drop what a small task doesn't need, keep the order)
 
 **Sync.** Fetch, get onto the up-to-date base branch (`master`
-trunk-based, `dev` on a `prod`/`dev` repo, per `l-style`'s Git section)
+trunk-based, `dev` on a `prod`/`dev` repo, per `l-style-tooling`'s Git section)
 with a clean tree. Abort with a clear message if the tree is dirty or
 diverged. Find the governing specs in `specs/INDEX.md`, or create the
 next `specs/spec-<nnn>-<slug>/` when nothing covers the capability (a repo

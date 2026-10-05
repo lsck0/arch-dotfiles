@@ -6,18 +6,19 @@ if ! command -v shimejictl >/dev/null 2>&1; then
 fi
 
 MARKER="$HOME/.local/state/shimoji-manual-link.done"
-if [[ -e "$MARKER" ]]; then
-    exit 0
-fi
 
 set -e
 
-for pack in ./*.wlshm; do
-    [ -e "$pack" ] || continue
-    shimejictl import "$pack"
-done
-
+# settings are idempotent, apply every run; window interactions let mascots climb and sit on windows
 shimejictl config set BREEDING false
+shimejictl config set WINDOW_INTERACTIONS true
 
-mkdir -p "$(dirname "$MARKER")"
-touch "$MARKER"
+# importing the packs is the one-time part the marker guards
+if [[ ! -e "$MARKER" ]]; then
+    for pack in ./*.wlshm; do
+        [ -e "$pack" ] || continue
+        shimejictl import "$pack"
+    done
+    mkdir -p "$(dirname "$MARKER")"
+    touch "$MARKER"
+fi

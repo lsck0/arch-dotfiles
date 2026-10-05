@@ -7,9 +7,12 @@ fi
 
 set -e
 
+# forward policy lives in table inet fw: docker's own FORWARD drop would also cut libvirt and lxc bridges; applies on next docker start
+sudo install -Dm644 daemon.json /etc/docker/daemon.json
 sudo systemctl enable docker.socket
 
-sudo mkdir -p /etc/cron.daily
-sudo ln -sfn "${PWD}/docker-prune-job.sh" /etc/cron.daily/docker-prune-job
+# copied, not linked: pid1 loads units before /home mounts
+sudo install -Dm644 docker-prune.service /etc/systemd/system/docker-prune.service
+sudo systemctl enable docker-prune.service
 
 sudo gpasswd -a "$USER" docker

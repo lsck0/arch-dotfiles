@@ -1,0 +1,8 @@
+# desktop: aquamarine opens only the firmware's display gpu, not the output-less igpu; cardN since it splits on ':' (by-path has them); delete to revert
+if [ "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/form-factor" 2>/dev/null)" = desktop ]; then
+    for boot_vga in /sys/class/drm/card[0-9]*/device/boot_vga; do
+        [ "$(cat "$boot_vga")" = 1 ] || continue
+        card="${boot_vga%/device/boot_vga}"
+        export AQ_DRM_DEVICES="/dev/dri/${card##*/}"
+    done
+fi

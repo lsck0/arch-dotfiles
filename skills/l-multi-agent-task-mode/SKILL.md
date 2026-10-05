@@ -1,18 +1,20 @@
 ---
 name: l-multi-agent-task-mode
-description: "Self-poll a per-project taskwarrior db and spawn Herdr persona workers to advance multiple +agent-task tickets in parallel through a research->design->spec->phase (implement, review, test, land) pipeline. One ticket at a time, no spawning -> l-single-agent-task-mode; live idea, no db -> l-multi-agent-mode."
+description: "Self-poll a per-project taskwarrior db and spawn persona workers (Herdr/Hermes under HERDR_ENV, else Claude Code Agent tool) to advance multiple +agent-task tickets in parallel through a research->design->spec->phase (implement, review, test, land) pipeline. One ticket at a time, no spawning -> l-single-agent-task-mode; live idea, no db -> l-multi-agent-mode."
 ---
 
-# Multi-agent task mode (self-polling orchestrator + Herdr workers)
+# Multi-agent task mode (self-polling orchestrator + persona workers)
 
-Hermes acts as an orchestrator that manages itself via a per-project
+This instance acts as an orchestrator that manages itself via a per-project
 `l-agent-task-db` (taskwarrior/timewarrior) instead of live human
 direction: it polls `+agent-task` tickets, claims and advances them by
-spawning Herdr persona workers through a fixed pipeline (a worker per
-ticket, or per pipeline stage within one ticket, within the parallelism
-budget in `l-spec-driven-development`, "Parallelism and model choice"),
-and blocks on a human only via `tasks/context/questions/` + tags, never
-via `clarify` (the human isn't necessarily watching a poll pass).
+spawning persona workers through a fixed pipeline (a worker per ticket, or
+per pipeline stage within one ticket, within the parallelism budget in
+`l-spec-driven-development`, "Parallelism and model choice"), and blocks on
+a human only via `tasks/context/questions/` + tags, never via `clarify`
+(the human isn't necessarily watching a poll pass). Workers are Hermes
+panes under `HERDR_ENV=1`, else Claude Code Agent-tool calls (see
+"Precondition: detect the harness").
 
 This skill covers the SPAWNING/DRIVING half. For db layout, scaffolding,
 tag vocabulary, completion, and the `tasks/context/` question-file
@@ -24,15 +26,25 @@ implementation and review): the same two skills `l-multi-agent-mode` loads, so l
 orchestration share one persona vocabulary and one stage shape. See the
 description for sibling routing (single-ticket vs. live-no-db).
 
-Worker harness policy (hard requirement): every worker is a **Hermes
-harness** (`--kind hermes`). Never spawn `--kind claude`, `codex`,
-`gemini`, or any other native CLI: they are not installed/available on
-this machine. One harness, many roles: every worker is differentiated
-only by pane name, prompt, and which **persona skill** it's preloaded
-with, never by harness kind.
+Worker harness policy: one harness per run, many roles. A worker is
+differentiated only by its name, its prompt, and which **persona skill** it
+carries, never by harness kind. Detect the harness once (see "Precondition"
+below) and use that column of the mechanics table throughout:
 
-**Model/provider choice is the task-planner's job, not this skill's.**
-Never hardcode or independently re-derive which provider is available:
+- `HERDR_ENV=1`: every worker is a Hermes pane (`--kind hermes`), never
+  `--kind claude`/`codex`/`gemini` (not installed/available here).
+- Claude Code: every worker is an Agent tool call; a worker persona is an
+  Agent prompt telling the worker to load the `l-persona-*` skill (plus the
+  l-style parts below) before working.
+
+Workers that design or write code (`l-persona-design-*`,
+`l-persona-programmer`, `l-persona-reviewer`, `l-persona-tester`) carry the
+`l-style` core plus `l-style-architecture`; a `l-persona-tester` worker adds
+`l-style-testing`, a latex/math worker adds `l-style-latex`. Research and
+audit personas run persona-only.
+
+**Model choice is the task-planner's job, not this skill's.** Never
+hardcode or independently re-derive which model/provider is available:
 that's exactly the reachability check the `l-persona-orchestrator-task-planner`
 worker already does during Intake (below) and bakes into each ticket's
 `model:`/`provider:` annotation. This skill just reads that annotation
@@ -40,32 +52,40 @@ when spawning:
 ```bash
 task <id> export   # the .annotations[] entry starting "model: <m> provider: <p>"
 ```
+Under Claude Code the model is the Agent tool's `model` override and there
+is no provider; the annotation's model still applies, provider is ignored.
 Fallback ONLY for a ticket that reached this queue without going through
 Intake (e.g. a human added `+agent-task` directly, skipping `+prompt`
 decomposition): spawn one `l-persona-orchestrator-task-planner` worker
 against that single ticket first (same as Intake step 1, scoped to one
 ticket). It annotates the model/provider and, if the ticket has no
-`project:`, assigns one. Don't decide the model yourself, and don't run
-`hermes auth list` from this skill directly.
+`project:`, assigns one. Don't decide the model yourself.
 
-## Precondition
+## Precondition: detect the harness
 
 ```bash
 test "${HERDR_ENV:-}" = 1
 ```
-Stop and tell the user if not running inside Herdr: spawning/driving
-Herdr panes only works live inside a real Herdr session. A `cronjob`
-cannot run this skill (no `HERDR_ENV`). The self-adjusting backoff poll
-cron in `l-agent-task-db` can still keep a project moving unattended by
-invoking `l-single-agent-task-mode` each tick instead: that mode has no
-Herdr requirement, runs under the `orchestrator` Hermes profile
-(`l-agent-task-db`'s "The `orchestrator` Hermes profile" section), and
-works tickets this skill hasn't claimed. Tickets carrying a `+stage-*`
-tag are owned by this skill; single mode skips them, including ones this
-skill left `+human-clarification-needed` or `+human-review-ready`, so
-those resume on the next live pass of this skill. Live Herdr sessions
-running this skill stay on whatever profile launched them (typically
-`default`), since Herdr panes are interactive/observed, not unattended.
+
+- `HERDR_ENV=1`: a live Herdr session; workers are Hermes panes.
+- Otherwise, running under Claude Code: workers are Agent tool calls,
+  running concurrently in the background. There is no `HERDR_ENV`, no
+  panes, no `herdr` CLI, so skip every `herdr` command and use the Claude
+  Code column of the mechanics table.
+
+Either way the taskwarrior db (a plain CLI) works the same. A `cronjob`
+has neither a live Herdr session nor the Agent tool, so it cannot spawn
+workers. The self-adjusting backoff poll cron in `l-agent-task-db` can
+still keep a project moving unattended by invoking
+`l-single-agent-task-mode` each tick instead: that mode spawns nothing,
+runs under the `orchestrator` Hermes profile (`l-agent-task-db`'s
+"The `orchestrator` Hermes profile" section), and works tickets this skill
+hasn't claimed. Tickets carrying a `+stage-*` tag are owned by this skill;
+single mode skips them, including ones this skill left
+`+human-clarification-needed` or `+human-review-ready`, so those resume on
+the next live pass of this skill. Live Hermes sessions running this skill
+stay on whatever profile launched them (typically `default`), since those
+panes are interactive/observed, not unattended.
 
 ## Taskwarrior prerequisite
 
@@ -215,23 +235,34 @@ PR. `+stage-land` covers landing per `l-spec-driven-development`'s Phase
 loop and opening the phase PR. Completion follows `l-agent-task-db`
 ("Completion: `task <id> done`"): the agent marks the ticket done itself.
 
-## Human gates, queue-mode version
+## Human gates (queue mode)
 
-`l-spec-driven-development`'s autonomous gates become `+human-review-ready`
-here: (1) input: the human files the `+prompt` / GitHub issue; (2) the
-spec PR, opened by the `.spec` ticket (amendments to the governing spec
-in `specs/` plus its roadmap phases); (3) each phase PR, opened by its
-`.p<k>` ticket. When a ticket opens one of those PRs, annotate
-`pr: <url>`, tag `+human-review-ready`, `task <id> stop`, and stop
-advancing it until the human sets `+human-answered` (see `l-agent-task-db`
-and "Blocking on a human question" below: same mechanics, different tag).
-Merged -> done (the spec ticket first creates the phase tickets); still
-open -> run Feedback on it and gate again.
+`l-spec-driven-development`'s autonomous gates are not `clarify` calls here
+(no human is guaranteed to watch a poll pass). They become taskwarrior
+tags whose shared mechanics (the start/stop discipline, clearing both the
+block tag and `+human-answered` in one `task modify`, how resume works)
+live in `l-agent-task-db` ("Task lifecycle", "Tag vocabulary",
+"Completion"); this skill does not restate them. Two gate kinds:
 
-Judgment-call decisions that come up mid-stage (not a gate itself) still
-go through `tasks/context/questions/` + `+human-clarification-needed`:
-only calls that materially change the product, never trivia, each with a
-recommendation.
+- **PR gate** (`+human-review-ready`): three points stop for the human: (1)
+  input, the human files the `+prompt`/issue; (2) the spec PR, opened by the
+  `.spec` ticket; (3) each phase PR, opened by its `.p<k>` ticket. When a
+  ticket opens a PR: annotate `pr: <url>`, tag `+human-review-ready`,
+  `task <id> stop`. On resume (per `l-agent-task-db`): `gh pr view <n>
+  --json state`; merged -> `task <id> done` (the spec ticket first creates
+  the phase tickets); open -> run Feedback and gate again.
+- **Clarification gate** (`+human-clarification-needed`): a mid-stage
+  decision only a human can make, and only one that materially changes the
+  product, each with a recommendation, never trivia. Write
+  `tasks/context/questions/<uuid8>-<slug>.md` (`l-agent-task-db`'s shape),
+  tag it, annotate the path, `task <id> stop`. On resume: fold the answer
+  into `tasks/context/design/<uuid8>-*.md`, then continue.
+
+Either way move on to the next claimable task, never wait synchronously. If
+the queue is driven only by the `l-single-agent-task-mode` backoff cron
+(`l-agent-task-db`), that cron skips stage-tagged tickets and does not
+resume this skill's tickets: say so plainly rather than implying the wake-up
+is automatic; they resume on the next live pass of this skill.
 
 ## Queue-poll procedure
 
@@ -261,32 +292,18 @@ recommendation.
      (`tasks/context/` and/or `tasks/agents/<uuid8>-<slug>/`) to
      reconstruct state rather than re-deriving it from conversation
      history.
-   - **Blocked on clarification**: `+human-clarification-needed`
-     present. Check whether the human has added `+human-answered` (see
-     `l-agent-task-db`). If yes: read the filled-in
-     `tasks/context/questions/<uuid8>-*.md`, fold the answers into
-     `tasks/context/design/<uuid8>-*.md`, clear both
-     `+human-clarification-needed` and `+human-answered` in one `task
-     modify` call, `task <id> start`, resume. If not yet answered: skip
-     it, note it in the end-of-poll summary, move to the next claimable
-     task.
-   - **Blocked on PR review**: `+human-review-ready` present. Check
-     whether the human has added `+human-answered`. If yes: check the
-     annotated PR (`gh pr view <n> --json state`) and clear both
-     `+human-review-ready` and `+human-answered` in one `task modify`
-     call. Merged -> spec ticket: create the phase tickets, then `task
-     <id> done`; phase ticket: `task <id> done`. Open -> `task <id>
-     start`, run Feedback on it, gate again. If not yet answered: skip
-     it, note it in the end-of-poll summary, move to the next claimable
-     task.
+   - **Blocked on clarification / PR review**: `+human-clarification-needed`
+     or `+human-review-ready` present. If `+human-answered` is not also set:
+     skip, note it in the end-of-poll summary. If it is set: resume per the
+     "Human gates" section above (its clear-both-tags and merged/open
+     handling), which defers the shared mechanics to `l-agent-task-db`.
    - **Blocked by `depends:`** (`+BLOCKED`, not in the READY set): skip.
-3. Work several independent, non-blocking things at once (separate
-   Herdr panes/tasks whose persona sets don't collide, or a worker pane
-   running alongside an unrelated plain tool call) within the
-   parallelism budget and 2-implementer cap in `l-spec-driven-development`
-   ("Parallelism and model choice"). Never parallelize a genuine
-   dependency chain (e.g. design review needs the design doc to exist
-   first).
+3. Work several independent, non-blocking things at once (separate workers
+   whose persona sets don't collide, or a worker running alongside an
+   unrelated plain tool call) within the parallelism budget and
+   2-implementer cap in `l-spec-driven-development` ("Parallelism and model
+   choice"). Never parallelize a genuine dependency chain (e.g. design
+   review needs the design doc to exist first).
 4. The instant a task reaches a stopping point (question raised, stage
    advanced, PR opened, done), write the tag transition immediately, in
    the same tool call that changed the state: not batched at the end.
@@ -295,84 +312,37 @@ recommendation.
    `+human-clarification-needed` or `+human-review-ready` and where its
    question file/PR is, what was marked done.
 
-## Blocking on a human question (queue mode)
-
-When a stage needs a decision only a human can make and this is a poll
-pass (no live chat turn right now), do NOT call `clarify`. Instead:
-
-1. Write `tasks/context/questions/<uuid8>-<slug>.md` per
-   `l-agent-task-db`'s shape.
-2. `task <id> modify +human-clarification-needed`, annotate with the file
-   path, then `task <id> stop`: it's paused, not actively worked, until
-   answered (see `l-agent-task-db`'s start/stop discipline).
-3. Move on to the next claimable task; never wait synchronously for an
-   answer in queue mode.
-
-The human answers in the file and sets `+human-answered` themselves.
-The next live pass of this skill picks it up. If the project also runs
-the self-adjusting backoff poll cron (`l-agent-task-db`), that cron runs
-`l-single-agent-task-mode`, which skips stage-tagged tickets, so it does
-not resume this ticket: say so plainly rather than implying the wake-up
-is automatic.
-
-The PR gates (`+human-review-ready`) follow the identical mechanic:
-`task <id> modify +human-review-ready`, `task <id> stop`, the human merges
-or reviews the annotated PR and sets `+human-answered` themselves, the
-next pass resumes it; just no question file, since the PR and its
-comments carry the review.
-
-## Spawning a worker pane (mechanics, verified working)
-
-```bash
-herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus
-# -> read new pane id from .result.pane.pane_id
-
-herdr agent start research-market --kind hermes --pane <pane_id> --timeout 30000 \
-  -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-research-market
-
-# implementer/reviewer/designer/tester workers additionally carry l-style:
-# every worker that designs or writes code (l-persona-design-* designers,
-# l-persona-programmer, l-persona-reviewer, l-persona-tester) gets it, since
-# those personas rely on l-style's principles without restating them;
-# research/audit personas run persona-only:
-herdr agent start implementer --kind hermes --pane <pane_id> --timeout 30000 \
-  -- -m <model-from-annotation> --provider <provider-from-annotation> -s l-persona-programmer,l-style
-```
-`-m`/`--provider` after `--` pin whichever model/provider the
-task-planner assigned this ticket (its `"model: ... provider: ..."`
-annotation from Intake), never redecided here. `-s <persona-skill>[,l-style]`
-is what makes this worker behave as that role: pick the persona from
-the discovery step.
-
-Verified behavior: a bare `--kind hermes` start went straight to
-`agent_status: idle` on first run, unlike native `claude`/`codex`/
-`gemini` CLIs, which show a one-time workspace-trust dialog. If a start
-ever times out or comes back `agent_not_ready` anyway:
-```bash
-herdr agent read research-market --source recent-unwrapped --lines 40
-herdr agent get research-market
-```
+## Harness mechanics (one table, both harnesses)
 
 Give every worker a meaningful unique name matching its role
 (`research-market`, `research-codebase`, `design-architecture`,
-`design-reviewer`, `implementer`, `reviewer`, `tester`, or a
-task-specific name for a persona spawned ad hoc).
+`design-reviewer`, `implementer`, `reviewer`, `tester`, or a task-specific
+name). The model comes from the ticket's `model:`/`provider:` annotation
+(Intake), never redecided here. Tell every worker to write its output to a
+durable file under `tasks/context/` or `tasks/agents/<uuid8>-<slug>/`, not
+to pane/chat text; after it settles, read the file directly.
 
-## Driving a worker
+| operation | HERDR_ENV=1 (Hermes panes) | Claude Code (Agent tool) |
+|---|---|---|
+| spawn a worker | `herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus` (read `.result.pane.pane_id`), then `herdr agent start <name> --kind hermes --pane <id> --timeout 30000 -- -m <model> --provider <prov> -s <persona>[,l-style,l-style-architecture[,l-style-testing]]` | one Agent tool call per worker (`subagent_type` general-purpose); set `model` to the annotation's model; the prompt names the role, tells the worker to load the `l-persona-*` skill (and the l-style parts) and to write its output to the durable file then stop |
+| isolate parallel edits | `herdr worktree create`; the worker starts in the worktree root pane and skips the split | pass `isolation: "worktree"` on the Agent call |
+| drive / follow up | `herdr agent prompt <name> "<task, ending in: write to <file>, then stop>" --wait --timeout 120000` | `SendMessage` to the worker's id/name with its context intact |
+| wait for completion | `--wait` blocks until settled; else `herdr agent get <name>` until idle | no polling: background agents run concurrently, completion notifications arrive automatically |
+| read a worker's result | `cat "$PROJECT_DIR/tasks/context/research/<uuid8>-<slug>.md"` | same `cat` of the durable file |
+| cleanup | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | nothing to close; a `worktree` isolation is auto-cleaned when unchanged |
 
-```bash
-herdr agent prompt research-market "<task, ending in: write findings to tasks/context/research/3f2a9c1d-dark-mode-toggle.md, then stop>" --wait --timeout 120000
-```
-`--wait` blocks until the agent settles. Tell the worker to write its
-output to a durable file rather than trusting captured pane text. After
-it settles, verify the artifact exists and read it directly:
-```bash
-cat "$PROJECT_DIR/tasks/context/research/3f2a9c1d-dark-mode-toggle.md"
-```
+`-s <persona-skill>[,l-style,...]` (Hermes) or the load-these-skills
+instruction in the Agent prompt (Claude Code) is what makes a worker behave
+as that role; pick the persona from the discovery step.
+
+Herdr notes: a bare `--kind hermes` start goes straight to `agent_status:
+idle`, unlike native CLIs that show a one-time trust dialog. If a start
+times out or returns `agent_not_ready`, inspect with `herdr agent read
+<name> --source recent-unwrapped --lines 40` and `herdr agent get <name>`.
 
 ## Pipeline stages -> persona mapping
 
-| stage | persona skill | pane name |
+| stage | persona skill | worker name |
 |---|---|---|
 | market research | `l-persona-research-market` | research-market |
 | literature/technical research | `l-persona-research-literature` | research-literature |
@@ -391,20 +361,20 @@ drifts as personas are added/renamed; that skill's dynamic discovery
 snippet is the source of truth, this table is just a pipeline-stage
 convenience mapping over it.
 
-Run every spawned research worker in parallel (spawn all panes first,
-prompt all, then poll each with `herdr agent get <name>` until idle)
-before moving to synthesis.
+Run every spawned research worker in parallel (Hermes: spawn all panes,
+prompt all, then poll each with `herdr agent get <name>` until idle; Claude
+Code: issue all Agent calls in one turn and await their completion
+notifications) before moving to synthesis.
 
 ## Fix loop
 
 Per phase ticket, before IMPLEMENT: fetch, base branch up to date with a
 clean tree (the previous phase merged), then branch
 `<type>/spec-<nnn>-p<k>-<slug>` (`l-spec-driven-development`, Phase
-loop). Two tickets implemented at once each get their own Herdr worktree
-(`l-spec-driven-development`, "Parallel implementation"), within its
-2-implementer cap. The implementer then starts in the worktree's root
-pane instead of a split of `$PROJECT_DIR`, and `tasks/context/` stays in
-the main checkout.
+loop). Two tickets implemented at once each get their own isolated
+worktree (`l-spec-driven-development`, "Parallel implementation"; the
+mechanics table's isolate row), within its 2-implementer cap, and
+`tasks/context/` stays in the main checkout.
 
 ```
 design ticket:  DESIGN -> DESIGN-REVIEW
@@ -428,21 +398,14 @@ the commit to the human, same deference as the "Don't auto-commit" rule
 above. The ticket is `task <id> done` once its PR is merged (see
 `l-agent-task-db`, "Completion").
 
-## Cleanup
-
-Close panes once a stage's worker is no longer needed for live
-monitoring:
-```bash
-herdr pane close <pane_id>
-```
-Remove a ticket's worktree once its PR is open:
-`herdr worktree remove --workspace <id>`. Never close a pane or remove a
-worktree you did not create, and never `herdr server stop`.
+Cleanup is the mechanics table's last row. Under Herdr, never close a pane
+or remove a worktree you did not create, and never `herdr server stop`.
 
 ## Pitfalls
 
-- **A `cronjob` cannot spawn/drive Herdr panes**: `HERDR_ENV` won't be
-  set in a cron job's fresh session, so the precondition fails.
+- **A `cronjob` cannot spawn workers**: it has neither `HERDR_ENV` nor the
+  Agent tool, so neither harness column applies; use the
+  `l-single-agent-task-mode` cron instead.
 - **Numeric ids are for immediate commands only**: long-lived file/dir
   names use `<uuid8>-<slug>`, since taskwarrior renumbers pending ids once
   something completes/deletes.

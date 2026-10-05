@@ -1,0 +1,11 @@
+[Unit]
+Description=Prune docker images, containers and build cache older than a week
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker system prune -af --filter until=168h
+
+[Install]
+# on every docker start instead of a daily cron that socket-activated dockerd until reboot
+WantedBy=docker.service

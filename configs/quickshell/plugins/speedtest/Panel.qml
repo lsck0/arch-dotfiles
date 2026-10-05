@@ -1,254 +1,38 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
 Item {
   id: root
 
-  property var shell: null
-  property var manifest: null
-
-  readonly property string networkDetailsScript: Paths.barWidget("network-details.sh")
-  readonly property string speedTestScript: Paths.script("network-speedtest.sh")
-  readonly property string statePath: Paths.state + "/network-speedtest.json"
-
   property bool opened: false
-  property bool resultsLoaded: false
-  property string pingMs: ""
-  property string lastDownloadMbps: ""
-  property string lastUploadMbps: ""
-  property string connectionName: ""
 
-  property bool running: false
-  property bool expectedStop: false
-  property bool pendingRun: false
-  property string phase: "" // "down" | "up" | ""
-  property string stderrText: ""
-  property string downloadMbps: ""
-  property string uploadMbps: ""
-  property string error: ""
-
-  readonly property real downloadValue: toMbps(downloadMbps)
-  readonly property real uploadValue: toMbps(uploadMbps)
-
-  function toMbps(raw) {
-    var value = parseFloat(raw)
-    return isFinite(value) && value > 0 ? value : 0
+  function open() {
+    opened = true
+    test.start()
   }
 
-  function open(payloadJson) {
-    var payload = {}
-    try { payload = JSON.parse(payloadJson || "{}") || {} } catch (e) {}
-    if (payload.connection !== undefined) root.connectionName = String(payload.connection)
-    else refreshConnectionName()
-    root.opened = true
-    runSpeedTest()
-  }
-
-  function close() {
-    root.opened = false
-    root.pendingRun = false
-    phaseTimer.stop()
-    // onExited treats !running as a cancel, not a finished phase
-    root.phase = ""
-    root.running = false
-    if (speedTestProc.running) {
-      root.expectedStop = true
-      speedTestProc.running = false
-    }
-  }
-
-  function dismiss() {
-    if (root.shell && typeof root.shell.hide === "function")
-      root.shell.hide((root.manifest && root.manifest.id) || "panel.speedtest")
-    else close()
-  }
-
-  function refreshConnectionName() {
-    root.connectionName = ""
-    statusProc.running = false
-    statusProc.running = true
-  }
-
-  function updateSpeedTestLine(line) {
-    var value = parseFloat(line)
-    if (!isFinite(value) || value < 0) return
-
-    if (phase === "down") downloadMbps = String(value)
-    else if (phase === "up") uploadMbps = String(value)
-  }
-
-  function loadResults(raw) {
-    if (root.resultsLoaded) return
-    root.resultsLoaded = true
-    try {
-      var saved = JSON.parse(raw || "{}") || {}
-      root.pingMs = saved.pingMs ? String(saved.pingMs) : ""
-      root.lastDownloadMbps = saved.downloadMbps ? String(saved.downloadMbps) : ""
-      root.lastUploadMbps = saved.uploadMbps ? String(saved.uploadMbps) : ""
-    } catch (e) {}
-  }
-
-  function saveResults() {
-    if (!root.resultsLoaded) return
-    resultsFile.setText(JSON.stringify({
-      version: 1,
-      connection: root.connectionName,
-      pingMs: root.pingMs,
-      downloadMbps: root.lastDownloadMbps,
-      uploadMbps: root.lastUploadMbps
-    }, null, 2) + "\n")
-  }
-
-  function runSpeedTest() {
-    if (speedTestProc.running) {
-      // sigterm still in flight, queue the run for onExited
-      if (expectedStop) pendingRun = true
-      return
-    }
-    error = ""
-    downloadMbps = ""
-    uploadMbps = ""
-    running = true
-    pingProc.running = true
-    startPhase("down")
-  }
-
-  function startPhase(nextPhase) {
-    expectedStop = false
-    phase = nextPhase
-    stderrText = ""
-    speedTestProc.command = ["bash", root.speedTestScript, nextPhase]
-    speedTestProc.running = true
-    phaseTimer.restart()
-  }
-
-  function stopPhase() {
-    phaseTimer.stop()
-    if (speedTestProc.running) {
-      expectedStop = true
-      speedTestProc.running = false
-      return
-    }
-    finishPhase()
-  }
-
-  function finishPhase() {
-    if (phase === "down") {
-      startPhase("up")
-      return
-    }
-
-    phase = ""
-    running = false
-    expectedStop = false
-    root.lastDownloadMbps = root.downloadMbps
-    root.lastUploadMbps = root.uploadMbps
-    root.saveResults()
-  }
-
-  FileView {
-    id: resultsFile
-    path: root.statePath
-    watchChanges: false
-    atomicWrites: true
-    printErrors: false
-    onLoaded: root.loadResults(text())
-    onLoadFailed: root.loadResults("")
-  }
-
-  Process {
-    id: pingProc
-    command: ["ping", "-c", "1", "-W", "2", "1.1.1.1"]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var match = String(text || "").match(/time[=<]([0-9.]+) ms/)
-        root.pingMs = match ? match[1] : ""
-        root.saveResults()
-      }
-    }
-  }
-
-  Process {
-    id: speedTestProc
-    stdout: SplitParser { onRead: function(line) { root.updateSpeedTestLine(line) } }
-    // exit and stderr eof race; prefer the specific message
-    stderr: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        root.stderrText = String(text || "").trim()
-        if (root.error !== "" && root.stderrText !== "") root.error = root.stderrText
-      }
-    }
-    onExited: function(exitCode) {
-      phaseTimer.stop()
-
-      if (root.pendingRun) {
-        root.pendingRun = false
-        root.expectedStop = false
-        if (root.opened) Qt.callLater(root.runSpeedTest)
-        return
-      }
-
-      if (!root.running) {
-        root.expectedStop = false
-        return
-      }
-
-      if (!root.expectedStop && exitCode !== 0) {
-        root.error = root.stderrText || "Speed test failed"
-        root.phase = ""
-        root.running = false
-        return
-      }
-
-      root.expectedStop = false
-      root.finishPhase()
-    }
-  }
-
-  Timer {
-    id: phaseTimer
-    interval: 5000
-    repeat: false
-    onTriggered: root.stopPhase()
-  }
-
-  // names the connection when the summoner did not
-  Process {
-    id: statusProc
-    command: ["bash", root.networkDetailsScript]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          var d = JSON.parse(text || "{}")
-          if (d.ssid) root.connectionName = d.ssid
-          else if (d.device) root.connectionName = d.device
-        } catch (e) {}
-      }
-    }
+  KeyValueProcess {
+    id: test
+    command: [Paths.script("network-speedtest.sh")]
   }
 
   SpeedTestOverlay {
     fontFamily: Style.font.family
     layerNamespace: "quickshell-network-speedtest"
-    title: root.connectionName
+    title: test.values.name || ""
     leftLabel: "DOWNLOAD"
     rightLabel: "UPLOAD"
     runAgainTooltip: "Measure again via fast.com"
-    running: root.running
-    leftValue: root.downloadValue
-    rightValue: root.uploadValue
-    leftLive: root.running && root.phase === "down"
-    rightLive: root.running && root.phase === "up"
-    statusText: root.pingMs !== "" ? "PING " + root.pingMs + " ms" : ""
-    error: root.error
+    running: test.running
+    leftValue: Number(test.values.down) || 0
+    rightValue: Number(test.values.up) || 0
+    leftLive: test.running && test.values.up === undefined
+    rightLive: test.running && test.values.up !== undefined
+    statusText: test.values.ping ? "PING " + test.values.ping + " ms" : ""
+    error: test.error
     open: root.opened
-    onCloseRequested: root.dismiss()
-    onRunAgainRequested: root.runSpeedTest()
+    onCloseRequested: { root.opened = false; test.stop() }
+    onRunAgainRequested: test.start()
   }
 }

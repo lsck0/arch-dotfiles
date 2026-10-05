@@ -3,7 +3,6 @@
 *.hc
 FAILURES*
 __pycache__
-boot.conf
 configs/obs/Untitled.json
-groups.conf
 configs/plasma/*.lock
+platforms/local.sh

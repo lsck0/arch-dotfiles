@@ -1,2 +1,2 @@
-# world-readable rapl energy counters
-SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/chmod -R a+r /sys/devices/virtual/powercap"
+# rapl energy counters for the bar's cpu watts, readable by wheel only: world-readable is the platypus side channel (CVE-2020-8694)
+SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/sh -c 'chgrp -R wheel /sys/devices/virtual/powercap && chmod -R g+r,o-r /sys/devices/virtual/powercap'"

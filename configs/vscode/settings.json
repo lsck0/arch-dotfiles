@@ -6,19 +6,19 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "telemetry.telemetryLevel": "off",
-  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.colorTheme": "Dark Modern",
   "vim.useSystemClipboard": true,
   "workbench.colorCustomizations": {
-    "editor.background": "#0E1016",
-    "editor.foreground": "#CBC5FB",
-    "sideBar.background": "#0C1222",
-    "activityBar.background": "#0C1222",
-    "statusBar.background": "#0C1222",
-    "titleBar.activeBackground": "#0C1222",
-    "tab.activeBackground": "#0E1016",
-    "tab.inactiveBackground": "#0C1222",
-    "focusBorder": "#BCACBE",
-    "terminal.background": "#0E1016",
-    "terminal.foreground": "#CBC5FB"
+    "editor.background": "#1A1B26",
+    "editor.foreground": "#C0CAF5",
+    "sideBar.background": "#15161E",
+    "activityBar.background": "#15161E",
+    "statusBar.background": "#15161E",
+    "titleBar.activeBackground": "#15161E",
+    "tab.activeBackground": "#1A1B26",
+    "tab.inactiveBackground": "#15161E",
+    "focusBorder": "#7AA2F7",
+    "terminal.background": "#1A1B26",
+    "terminal.foreground": "#C0CAF5"
   }
 }

@@ -6,19 +6,13 @@ fi
 
 set -e
 
-source "$(dirname "$0")/../boot-menu/common.sh"
-
-if ! boot_feature_selected sbctl; then
-    exit 0
-fi
-
 if [[ ! -d /sys/firmware/efi ]]; then
     echo "sbctl: not UEFI (no /sys/firmware/efi), Secure Boot N/A on this system" >&2
     exit 0
 fi
 
 need_sign=true
-if sbctl status 2>/dev/null | grep -qE 'Secure Boot:\s+(\S+\s+)?Enabled'; then
+if sbctl status | grep -qE 'Secure Boot:\s+(\S+\s+)?Enabled'; then
     need_sign=false
     echo "sbctl: Secure Boot already enabled" >&2
 fi
@@ -26,7 +20,7 @@ fi
 sign_unsigned_boot_files() {
     local out paths=() p signed=0
 
-    out="$(sudo sbctl verify 2>/dev/null || true)"
+    out="$(sudo sbctl verify)"
     mapfile -t paths < <(printf '%s\n' "$out" \
         | sed -n 's|^[^/]*\(/.*\) is not signed$|\1|p')
 
@@ -34,7 +28,6 @@ sign_unsigned_boot_files() {
     local cand
     for cand in \
         /boot/vmlinuz-linux /boot/vmlinuz-linux-lts /boot/vmlinuz-linux-zen \
-        /boot/vmlinuz-linux-hardened \
         /boot/EFI/BOOT/BOOTX64.EFI \
         /boot/EFI/GRUB/grubx64.efi \
         /boot/EFI/Linux/*.efi \
@@ -42,7 +35,7 @@ sign_unsigned_boot_files() {
         /boot/efi/EFI/BOOT/BOOTX64.EFI \
         /boot/efi/EFI/systemd/systemd-bootx64.efi; do
         [[ -f "$cand" ]] || continue
-        sudo sbctl verify "$cand" 2>/dev/null | grep -q 'is signed' && continue
+        sudo sbctl verify "$cand" | grep -q 'is signed' && continue
         paths+=("$cand")
     done
 
@@ -64,11 +57,7 @@ sign_unsigned_boot_files() {
 }
 
 if [[ "$need_sign" == "true" ]]; then
-    st="$(sbctl status 2>/dev/null || true)"
-    if [[ -z "$st" ]]; then
-        echo "sbctl: cannot read firmware status" >&2
-        exit 0
-    fi
+    st="$(sbctl status)"
     if ! echo "$st" | grep -qE 'Setup Mode:\s+(\S+\s+)?Enabled'; then
         echo "sbctl: firmware not in Setup Mode and SB not enabled." >&2
         echo "sbctl: enable Setup Mode / Secure Boot in firmware, then rerun config.sh." >&2
@@ -84,9 +73,11 @@ if [[ "$need_sign" == "true" ]]; then
     echo "sbctl: signing boot files before enrollment" >&2
     sign_unsigned_boot_files
 
-    if ! sudo sbctl list-enrolled-keys 2>/dev/null | grep -qvE '^\S+:\s*$'; then
-        echo "sbctl: enrolling keys (incl. Microsoft DB for dual-boot compat)" >&2
-        sudo sbctl enroll-keys -m
+    if ! sudo sbctl list-enrolled-keys | grep -qvE '^\S+:\s*$'; then
+        # own keys only, no -m: one esp, no dual boot, and fwupd signs its capsule efi with these keys;
+        # takes effect only on a fresh enroll, so a machine already carrying ms keys must clear sb in firmware and rerun
+        echo "sbctl: enrolling own keys only (clear Secure Boot keys in firmware to re-enroll without Microsoft's)" >&2
+        sudo sbctl enroll-keys
     fi
     echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun config.sh." >&2
     echo "sbctl: verify with 'sbctl verify' BEFORE rebooting with Secure Boot on." >&2
@@ -95,11 +86,5 @@ fi
 
 echo "sbctl: signing ESP boot files" >&2
 sign_unsigned_boot_files
-
-# auto-signs kernels and ukis on initcpio builds
-if command -v sbctl-mkinitcpio >/dev/null 2>&1; then
-    sudo systemctl enable sbctl-mkinitcpio.path 2>/dev/null || true
-    sudo systemctl enable sbctl-mkinitcpio.service 2>/dev/null || true
-fi
 
 echo "sbctl: signing complete. Run 'sbctl verify' to confirm." >&2

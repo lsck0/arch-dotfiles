@@ -5,13 +5,12 @@ cd "$(dirname "$(readlink -f "$0")")"
 picker=gui
 [[ "${1:-}" == "--fzf" ]] && picker=fzf
 
-declare -A LINE_TO_SCRIPT
+declare -A LINE_TO_NAME
 lines=()
-while IFS= read -r script; do
-    line=$("$script" label)
+while IFS=$'\t' read -r name line; do
     lines+=("$line")
-    LINE_TO_SCRIPT["$line"]=$script
-done < <(find . -maxdepth 1 -name 'toggle-*.sh' | sort)
+    LINE_TO_NAME["$line"]=$name
+done < <(./status.sh | jq -r '.[] | [.name, (if .on then "● " else "○ " end) + .label] | @tsv')
 
 if [[ "$picker" == fzf ]]; then
     selected=$(printf '%s\n' "${lines[@]}" | fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel")
@@ -21,5 +20,5 @@ else
 fi
 [[ -z "${selected:-}" ]] && exit 0
 
-script=${LINE_TO_SCRIPT[$selected]:-}
-[[ -n "$script" ]] && exec "$script" toggle
+name=${LINE_TO_NAME[$selected]:-}
+[[ -n "$name" ]] && exec "./toggle-$name.sh" toggle

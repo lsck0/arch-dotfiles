@@ -13,6 +13,6 @@ sudo locale-gen
 
 # hyprland sets its own layout in hyprland_input.lua
 if command -v localectl >/dev/null 2>&1; then
-    sudo localectl set-keymap de-latin1-nodeadkeys || true
-    sudo localectl set-x11-keymap de pc105 nodeadkeys ctrl:nocaps,terminate:ctrl_alt_bksp || true
+    sudo localectl set-keymap de-latin1-nodeadkeys
+    sudo localectl set-x11-keymap de pc105 nodeadkeys ctrl:nocaps,terminate:ctrl_alt_bksp
 fi

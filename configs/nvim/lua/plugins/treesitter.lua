@@ -101,7 +101,7 @@ return {
                 end
             end
 
-            -- blocking install for headless bootstrap in link.sh
+            -- blocking parser install for a headless/manual run; startup installs async below
             vim.api.nvim_create_user_command("TSInstallSync", function()
                 treesitter.install(installed):wait()
             end, { desc = "Install configured parsers and wait" })

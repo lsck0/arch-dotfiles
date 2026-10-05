@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import qs.Commons
 import qs.Ui
 import "../NotificationLogic.js" as NotificationLogic
@@ -27,20 +26,13 @@ BorderSurface {
 
   property double now: 0
 
+  // "now" under a minute, the time today, else the date too; seconds timestamps are scaled up
   function formatTime(ts, ref) {
     if (!ts) return ""
-    var ms = ts * (ts < 1e12 ? 1000 : 1)
-    var when = new Date(ms)
-    if (ref) {
-      var secs = Math.max(0, Math.round((ref - ms) / 1000))
-      if (secs < 60) return "now"
-    }
-    var today = ref ? new Date(ref) : new Date()
-    var sameDay = when.getFullYear() === today.getFullYear()
-      && when.getMonth() === today.getMonth()
-      && when.getDate() === today.getDate()
-    return sameDay ? Qt.formatDateTime(when, "HH:mm")
-                   : Qt.formatDateTime(when, "dd.MM. HH:mm")
+    var when = new Date(ts * (ts < 1e12 ? 1000 : 1))
+    if (ref && Math.round((ref - when.getTime()) / 1000) < 60) return "now"
+    var sameDay = when.toDateString() === (ref ? new Date(ref) : new Date()).toDateString()
+    return Qt.formatDateTime(when, sameDay ? "HH:mm" : "dd.MM. HH:mm")
   }
 
   property string fontFamily: Style.font.family
@@ -51,34 +43,21 @@ BorderSurface {
   signal closeRequested()
   signal cardClicked()
   // prefer notification image over app icon
-  readonly property string smallIconSource: image.length > 0 ? image : iconSource(appIcon)
+  readonly property string smallIconSource: image.length > 0 ? image : Util.iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
-  readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource, singleLineToast)
+  readonly property bool compactGlyph: hasGlyph && smallIconSource.length === 0 && singleLineToast
   readonly property bool hasSmallIcon: smallIconSource.length > 0
   readonly property bool summaryStartsWithGlyph: NotificationLogic.summaryStartsWithGlyph(summary)
   readonly property bool singleLineToast: sanitizedBody.length === 0
   readonly property bool collapseRedundantIcon: singleLineToast && !hasGlyph && summaryStartsWithGlyph
-  readonly property string sanitizedBody: sanitizeBody(body)
+  readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  readonly property color dimColor: Qt.darker(Color.notifications.text, 1.4)
   readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
   // rows use a left accent bar instead of a border
   readonly property var cardBorderSpec: isRow
     ? Border.flat("transparent", 0)
     : Border.flat(urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, 0.5), 1)
-
-  function sanitizeBody(s) {
-    return NotificationLogic.sanitizeBody(s, app, appIcon)
-  }
-
-  function iconSource(icon) {
-    var value = String(icon || "")
-    if (value.length === 0) return ""
-    if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
-    if (value.charAt(0) === "/") return Util.fileUrl(value)
-    return Quickshell.iconPath(value, true)
-  }
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   // border insets keep content off the bottom edge
@@ -192,34 +171,19 @@ BorderSurface {
           // dot gets its own slot so both gaps match
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
 
-          Text {
-            textFormat: Text.PlainText
+          Caption {
             width: Math.min(implicitWidth, parent.width - timeText.implicitWidth - parent.dotSlotWidth - parent.spacing)
             text: root.app
             elide: Text.ElideRight
-            color: Color.notifications.text
-            opacity: Style.emphasis.faint
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
           }
-          Text {
+          Caption {
             id: dotText
-            textFormat: Text.PlainText
             visible: parent.showDot
             text: "·"
-            color: Color.notifications.text
-            opacity: Style.emphasis.faint
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
           }
-          Text {
+          Caption {
             id: timeText
-            textFormat: Text.PlainText
             text: root.timeLabel
-            color: Color.notifications.text
-            opacity: Style.emphasis.faint
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
           }
         }
 
@@ -269,7 +233,7 @@ BorderSurface {
     Text {
       anchors.centerIn: parent
       text: "x"
-      color: closeArea.containsMouse ? Color.notifications.text : root.dimColor
+      color: closeArea.containsMouse ? Color.notifications.text : Qt.darker(Color.notifications.text, 1.4)
       font.pixelSize: Math.round(Style.font.caption * 1.44)
     }
 
@@ -280,6 +244,14 @@ BorderSurface {
       cursorShape: Qt.PointingHandCursor
       onClicked: root.closeRequested()
     }
+  }
+
+  component Caption: Text {
+    textFormat: Text.PlainText
+    color: Color.notifications.text
+    opacity: Style.emphasis.faint
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
   }
 
   HudFrame { shown: !root.isRow }

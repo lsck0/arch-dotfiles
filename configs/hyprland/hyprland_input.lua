@@ -14,23 +14,7 @@ hl.config({
             scroll_factor = 0.5,
         },
         tablet = {
-            -- Confine the pen to the right-hand screen. Without this the pen
-            -- is stretched across the whole layout, so half the tablet lands
-            -- on DP-1. The full tablet surface maps to the full output, which
-            -- is a slight horizontal stretch: the tablet is 205x137mm (3:2)
-            -- and the output is 16:9.
-            --
-            -- Set globally rather than per device on purpose. The tablet
-            -- reports two pen interfaces and the compositor disambiguates
-            -- them by appending "-1" in enumeration order, so a device rule
-            -- can land on the wrong one. See configs/tablet/.
-            --
-            -- The pen that reaches the compositor is the virtual one
-            -- published by configs/tablet/tablet-driver.py, not the kernel's.
-            -- The firmware squeezes X into the upper half of its declared
-            -- range, so mapping the kernel device to an output puts half the
-            -- surface in a dead zone against the screen edge. The driver
-            -- rescales it, and only then is this binding bijective.
+            -- confine the virtual pen (configs/tablet/tablet-driver.py) to DP-2; set globally not per-device because the compositor's "-1" suffix on the two pen interfaces is unstable, see configs/tablet/
             output = "DP-2",
         },
     },

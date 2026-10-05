@@ -24,7 +24,6 @@ gen() {
 
 gen starship.nu starship init nu
 gen zoxide.nu zoxide init nushell
-gen mise.nu mise activate nu
 
 mkdir -p "$HOME/.cache/wal"
 [[ -e "$HOME/.cache/wal/colors-nushell.nu" ]] || : > "$HOME/.cache/wal/colors-nushell.nu"

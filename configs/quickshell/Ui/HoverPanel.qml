@@ -101,69 +101,18 @@ PanelWindow {
       height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
     }
 
-    Item {
+    HudTitle {
       id: titleBar
       visible: root.title.length > 0
       z: 4
       x: card.contentLeftInset
       y: card.contentTopInset
       width: card.width - card.contentLeftInset - card.contentRightInset
-      height: visible ? titleRow.implicitHeight + Style.spacing.xxs + titleRule.height : 0
-
-      Row {
-        id: titleRow
-        anchors.top: parent.top
-        anchors.left: parent.left
-        spacing: Style.spacing.xs
-
-        Text {
-          textFormat: Text.PlainText
-          text: "> " + root.title
-          color: Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          font.bold: true
-          font.capitalization: Font.AllUppercase
-          font.letterSpacing: Style.headerTracking
-          layer.enabled: Style.fx.glow > 0
-          layer.effect: Glow {}
-        }
-
-        Text {
-          text: "_"
-          color: Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          SequentialAnimation on opacity {
-            running: titleBar.visible && root.visible
-            loops: Animation.Infinite
-            NumberAnimation { to: 0; duration: 500 }
-            NumberAnimation { to: 1; duration: 500 }
-          }
-        }
-      }
-
-      Text {
-        anchors.right: parent.right
-        anchors.verticalCenter: titleRow.verticalCenter
-        textFormat: Text.PlainText
-        text: "[# - x]"
-        color: Color.accent
-        opacity: Style.emphasis.dim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.headerTracking
-      }
-
-      Rectangle {
-        id: titleRule
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: titleRow.bottom
-        anchors.topMargin: Style.spacing.xxs
-        height: Math.max(1, Style.space(1))
-        color: Util.alpha(Color.accent, 0.8)
-      }
+      height: visible ? implicitHeight : 0
+      text: root.title
+      decor: true
+      rule: true
+      blinking: visible && root.visible
     }
   }
 }

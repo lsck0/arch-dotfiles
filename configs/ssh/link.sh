@@ -10,7 +10,7 @@ fi
 
 set -e
 
-sudo systemctl enable sshd
+sudo systemctl enable sshd.service
 
 mkdir -p "${HOME}/.config/systemd/user"
 
@@ -36,9 +36,8 @@ if is_personal; then
     done
 fi
 
-# hardened baseline for every install: real sshd on knocked 2222, no password, no root password login.
-# a keyless guest then has no remote ssh surface (console login still works)
-sudo ln -sfn "${PWD}/10-hardening.conf" /etc/ssh/sshd_config.d/10-hardening.conf
+# hardened baseline for every install: real sshd on knocked 2222, no password, no root password login, so a keyless guest has no remote ssh surface (console login still works)
+sudo install -Dm644 10-hardening.conf /etc/ssh/sshd_config.d/10-hardening.conf
 # no host keys before sshd's first start, and sshd -t needs them
 sudo ssh-keygen -A
 sudo sshd -t && sudo systemctl reload-or-restart sshd

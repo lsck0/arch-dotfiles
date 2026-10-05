@@ -8,15 +8,6 @@
   },
   "filter": {
     "blockInbound": false,
-    "serviceEndpoints": [
-      "+ 127.0.0.1",
-      "+ * tcp/22",
-      "+ * tcp/2222",
-      "+ * tcp/7001",
-      "+ * tcp/8002",
-      "+ * tcp/9003",
-      "- *"
-    ],
     "lists": [
       "TRAC",
       "MAL",

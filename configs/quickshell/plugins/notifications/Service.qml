@@ -13,7 +13,7 @@ import "NotificationLogic.js" as NotificationLogic
 Item {
   id: service
 
-  // injected by shell.qml ensureService()
+  // injected by shell.qml
   property var shell: null
 
   readonly property string stateDir: Paths.state + "/"
@@ -26,22 +26,51 @@ Item {
   // kept out of the model: stale qobject roles segfault
   property var liveRefs: ({})
 
-  PersistentProperties {
-    id: persisted
-    reloadableId: "quickshell-notifications"
-    property bool doNotDisturb: false
-    onDoNotDisturbChanged: {
-      if (service._hydrating) return
-      service.scheduleSettingsSave()
+  FileView {
+    id: settingsFile
+    path: service.settingsPath
+    blockLoading: true
+    atomicWrites: true
+    printErrors: false
+    onAdapterUpdated: writeAdapter()
+
+    JsonAdapter {
+      id: settings
+      property bool dnd: false
     }
   }
 
-  property bool _hydrating: false
+  // survive a shell reload so obs closing after a reload still restores dnd
+  PersistentProperties {
+    id: persisted
+    reloadableId: "quickshell-notifications"
+    property bool obsSession: false
+    property bool dndByObs: false
+  }
 
-  readonly property alias doNotDisturb: persisted.doNotDisturb
+  readonly property alias doNotDisturb: settings.dnd
 
+  // user-facing setter: a manual change takes dnd away from obs, so closing obs leaves it alone
   function setDoNotDisturb(value) {
-    persisted.doNotDisturb = !!value
+    persisted.dndByObs = false
+    settings.dnd = !!value
+  }
+
+  // obs turns dnd on while it runs and off on exit, only if dnd was off before it started
+  Connections {
+    target: ObsProcess
+    function onRunningChanged() {
+      // a shell reload re-detects a running obs, the persisted session flag keeps a manual off from flipping back
+      if (ObsProcess.running && !persisted.obsSession) {
+        persisted.obsSession = true
+        persisted.dndByObs = !settings.dnd
+        settings.dnd = true
+      } else if (!ObsProcess.running) {
+        if (persisted.dndByObs) settings.dnd = false
+        persisted.obsSession = false
+        persisted.dndByObs = false
+      }
+    }
   }
 
   ListModel { id: popupModel }
@@ -57,74 +86,51 @@ Item {
     onTriggered: service.popupNowMs = Date.now()
   }
 
-  readonly property int lowPopupDuration: 5000
-  readonly property int normalPopupDuration: 8000
-  readonly property int maxPopupDuration: 30000
+  // shortest popup lifetime by urgency (low, normal, critical), 0 stays until dismissed
+  readonly property var popupMinMs: [5000, 8000, 0]
+  readonly property int popupMaxMs: 30000
 
   function durationFor(urgency, expireTimeout) {
-    switch (urgency) {
-    case NotificationUrgency.Critical:
-      return 0
-    case NotificationUrgency.Low:
-      return Math.min(maxPopupDuration, Math.max(lowPopupDuration, requestedDuration(expireTimeout)))
-    default:
-      return Math.min(maxPopupDuration, Math.max(normalPopupDuration, requestedDuration(expireTimeout)))
-    }
-  }
-
-  function requestedDuration(expireTimeout) {
-    var ms = Number(expireTimeout || 0)
-    if (!isFinite(ms) || ms <= 0) return 0
-    return Math.round(ms)
-  }
-
-  function shouldBypassDnd(notification) {
-    return NotificationLogic.shouldBypassDnd(notification, NotificationUrgency.Critical)
-  }
-
-  function snapshotOf(notification) {
-    return NotificationLogic.snapshotOf(notification, Date.now())
+    var minMs = popupMinMs[urgency] ?? popupMinMs[NotificationUrgency.Normal]
+    return minMs && Math.min(popupMaxMs, Math.max(minMs, Number(expireTimeout) || 0))
   }
 
   function isEphemeral(notification) {
     var transient = false
     try {
       transient = !!(notification.hints && notification.hints["transient"])
-    } catch (e) { transient = false }
+    } catch (e) {
+    }
     return transient || NotificationLogic.isEphemeralApp(String(notification.appName || ""))
   }
 
   function handleNotification(notification) {
     notification.tracked = true
-    var snapshot = snapshotOf(notification)
-    liveRefs[snapshot.originalId] = notification
+    var snapshot = NotificationLogic.snapshotOf(notification, Date.now())
+    var originalId = snapshot.originalId
+    liveRefs[originalId] = notification
     notification.closed.connect(function() {
-      if (service.liveRefs[snapshot.originalId] === notification)
-        delete service.liveRefs[snapshot.originalId]
+      if (service.liveRefs[originalId] === notification) delete service.liveRefs[originalId]
     })
 
-    if (service.doNotDisturb && !shouldBypassDnd(notification)) {
-      if (!isEphemeral(notification)) {
-        writeSilenced(notification, snapshot)
-        return
-      }
-      delete liveRefs[snapshot.originalId]
-      notification.tracked = false
+    if (service.doNotDisturb && !NotificationLogic.shouldBypassDnd(notification)) {
+      if (isEphemeral(notification)) releaseSilenced(notification, originalId)
+      else writeSilenced(notification, snapshot)
       return
     }
 
     persistPopupFile(snapshot)
     watchForUpdates(notification, snapshot)
     Qt.callLater(function() {
-      removePopupsByOriginalId(snapshot.originalId, NotificationLogic.popupFileName(snapshot))
+      removePopupsByOriginalId(originalId, NotificationLogic.popupFileName(snapshot))
       popupModel.insert(0, snapshot)
-      service.refreshPopup(notification, snapshot.originalId, snapshot.timestamp)
+      service.refreshPopup(notification, originalId, snapshot.timestamp)
     })
   }
 
   function writeSilenced(notification, written) {
     service.materializeImage(written, function(resolved) {
-      service.writeHistoryFile(resolved, function() {
+      service.writeEntryFile(resolved, service.historyDir, function() {
         var updated = null
         try {
           updated = NotificationLogic.replacementSnapshot(notification, resolved.originalId, resolved.timestamp)
@@ -165,6 +171,14 @@ Item {
     }
   }
 
+  function rowIndexOf(originalId, timestamp) {
+    for (var i = 0; i < popupModel.count; i++) {
+      var row = popupModel.get(i)
+      if (row && row.originalId === originalId && row.timestamp === timestamp) return i
+    }
+    return -1
+  }
+
   function refreshPopup(notification, originalId, timestamp) {
     if (service.liveRefs[originalId] !== notification) return
 
@@ -175,15 +189,10 @@ Item {
       return
     }
 
-    var roles = NotificationLogic.popupRoles()
-    for (var i = 0; i < popupModel.count; i++) {
-      var row = popupModel.get(i)
-      if (!row || row.originalId !== originalId || row.timestamp !== timestamp) continue
-      if (!NotificationLogic.popupRowChanged(row, updated)) return
-      for (var r = 0; r < roles.length; r++) popupModel.setProperty(i, roles[r], updated[roles[r]])
-      persistPopupFile(updated)
-      return
-    }
+    var index = rowIndexOf(originalId, timestamp)
+    if (index < 0 || !NotificationLogic.popupRowChanged(popupModel.get(index), updated)) return
+    NotificationLogic.POPUP_ROLES.forEach(function(role) { popupModel.setProperty(index, role, updated[role]) })
+    persistPopupFile(updated)
   }
 
   function isRestoredRow(row) {
@@ -200,72 +209,56 @@ Item {
     }
   }
 
-  function dismissPopup(index) {
-    removePopup(index, "dismiss")
-  }
-
-  function expirePopup(index) {
-    removePopup(index, "expire")
-  }
-
+  // reason "expire" tells the sender the popup timed out, anything else is a dismiss
   function removePopup(index, reason) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
-    var originalId = entry ? entry.originalId : -1
     var restored = isRestoredRow(entry)
-    var ref = !restored && originalId >= 0 ? liveRefs[originalId] : null
-    if (entry) {
-      archivePopupFileFor(entry)
-      if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
-    }
+    var ref = !restored && entry.originalId >= 0 ? liveRefs[entry.originalId] : null
+    archivePopupFileFor(entry)
+    if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
     popupModel.remove(index)
-    if (ref) {
-      try {
-        if (ref.tracked) {
-          if (reason === "expire" && typeof ref.expire === "function") ref.expire()
-          else ref.dismiss()
-        }
-      } catch (e) {
+    try {
+      if (ref && ref.tracked) {
+        if (reason === "expire" && typeof ref.expire === "function") ref.expire()
+        else ref.dismiss()
       }
+    } catch (e) {
     }
   }
 
   function clearPopups() {
-    while (popupModel.count > 0) dismissPopup(0)
+    while (popupModel.count > 0) removePopup(0)
   }
 
-  function invokePopupDefault(index) {
-    if (index < 0 || index >= popupModel.count) return
-    var entry = popupModel.get(index)
-
-    var argv = NotificationLogic.parseExecArgv(entry ? entry.execArgv : "")
-    if (argv) {
-      Quickshell.execDetached(argv)
-      dismissPopup(index)
-      return
-    }
-    var ref = entry && !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
-    var invoked = false
+  // true when the live notification had a default action to run
+  function invokeDefaultAction(entry) {
+    var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
     try {
-      if (ref && ref.actions) {
-        for (var i = 0; i < ref.actions.length; i++) {
-          var action = ref.actions[i]
-          if (action && action.identifier === "default") {
-            action.invoke()
-            invoked = true
-            break
-          }
+      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+        var action = ref.actions[i]
+        if (action && action.identifier === "default") {
+          action.invoke()
+          return true
         }
       }
     } catch (e) {
       console.warn("invoke default failed:", e)
     }
-    if (!invoked) focusApp(entry)
-    dismissPopup(index)
+    return false
+  }
+
+  function invokePopupDefault(index) {
+    if (index < 0 || index >= popupModel.count) return
+    var entry = popupModel.get(index)
+    var argv = NotificationLogic.parseExecArgv(entry.execArgv)
+    if (argv) Quickshell.execDetached(argv)
+    else if (!invokeDefaultAction(entry)) focusApp(entry)
+    removePopup(index)
   }
 
   function focusApp(entry) {
-    if (!entry || !entry.app) return
+    if (!entry.app) return
     focusAppProc.command = ["bash", "-c",
       "addr=$(hyprctl clients -j | jq -r --arg app \"$1\" " +
       "'[.[] | select((.class // \"\") | ascii_downcase | contains($app | ascii_downcase))][0].address // empty'); " +
@@ -276,58 +269,45 @@ Item {
 
   Process { id: focusAppProc; running: false }
 
-  Process {
-    id: ensureDirsProc
-    command: ["mkdir", "-p", service.stateDir, service.popupStateDir, service.historyDir, service.imagesDir]
-    running: false
-  }
-
+  // one file job at a time so writes, moves and reads of the same files never interleave
   property var restoredPopups: ({})
-  property var popupFileQueue: []
-  property var runningPopupFileJobDone: null
+  property var fileJobs: []
+  // the job in flight; running lags a start requested before the process is complete
+  property var fileJob: null
 
-  function enqueuePopupFileJob(command, done) {
-    popupFileQueue = popupFileQueue.concat([{ command: command, done: done || null }])
-    runNextPopupFileJob()
+  function enqueueFileJob(command, done) {
+    fileJobs = fileJobs.concat([{ command: command, done: done || null }])
+    runNextFileJob()
   }
 
-  function enqueueHistoryRead() {
-    popupFileQueue = popupFileQueue.concat([{ read: true }])
-    runNextPopupFileJob()
-  }
-
-  function runNextPopupFileJob() {
-    if (readHistoryProc.running || popupFileProc.running) return
-    if (popupFileQueue.length === 0) return
-
-    var job = popupFileQueue[0]
-    popupFileQueue = popupFileQueue.slice(1)
-
-    if (job.read) {
-      startHistoryRead()
-      return
-    }
-
-    popupFileProc.command = job.command
-    service.runningPopupFileJobDone = job.done || null
-    popupFileProc.running = true
+  function runNextFileJob() {
+    if (fileJob || fileJobs.length === 0) return
+    fileJob = fileJobs[0]
+    fileJobs = fileJobs.slice(1)
+    fileJobProc.command = fileJob.command
+    fileJobProc.running = true
   }
 
   Process {
-    id: popupFileProc
+    id: fileJobProc
     running: false
+    stdout: StdioCollector { id: fileJobOut; waitForEnd: true }
+    // the collector finishes before exited fires, so its text is the job's whole stdout
     onExited: {
-      var done = service.runningPopupFileJobDone
-      service.runningPopupFileJobDone = null
-      if (done) {
-        try {
-          done()
-        } catch (e) {
-          console.warn("notifications: file job callback failed:", e)
-        }
+      var done = service.fileJob.done
+      service.fileJob = null
+      try {
+        if (done) done(fileJobOut.text)
+      } catch (e) {
+        console.warn("notifications: file job callback failed:", e)
       }
-      service.runNextPopupFileJob()
+      service.runNextFileJob()
     }
+  }
+
+  // each entry file is one json line, so the concatenation parses line by line
+  function readEntryFiles(dir, done) {
+    enqueueFileJob(["bash", "-c", "awk 1 \"$1\"/*.json 2>/dev/null || true", "--", dir], done)
   }
 
   readonly property string copyImagesScript:
@@ -337,23 +317,31 @@ Item {
     "  shift 2\n" +
     "done\n"
 
+  // keeps the newest $keep files of $dir, with their images in $imgs
+  readonly property string trimScript:
+    "ls -1 \"$dir\" 2>/dev/null | sort -n | head -n \"-$keep\" | while IFS= read -r stale; do rm -f \"$dir/$stale\" \"$imgs/${stale%.json}\"-*; done"
+
+  // copies the entry's images and writes it into dir; history is trimmed to historyLimit
+  function writeEntryFile(entry, dir, done) {
+    var persistable = NotificationLogic.persistablePopup(entry, imagesDir)
+    var command = ["bash", "-c",
+      "dir=\"$1\" keep=\"$2\" name=\"$3\" json=\"$4\" imgs=\"$5\"\n" +
+      "shift 5\n" +
+      "mkdir -p \"$dir\" \"$imgs\" || exit 0\n" +
+      copyImagesScript +
+      "printf '%s\\n' \"$json\" > \"$dir/$name\" || exit 0\n" +
+      (dir === historyDir ? trimScript : ""), "--",
+      dir,
+      String(historyLimit),
+      NotificationLogic.popupFileName(entry),
+      NotificationLogic.serializePopup(persistable.entry),
+      imagesDir]
+    persistable.copies.forEach(function(copy) { command.push(copy.from, copy.to) })
+    enqueueFileJob(command, done)
+  }
+
   function persistPopupFile(snapshot) {
-    service.materializeImage(snapshot, function(resolved) {
-      var persistable = NotificationLogic.persistablePopup(resolved, imagesDir)
-      var command = ["bash", "-c",
-        "mkdir -p \"$1\" \"$2\" || exit 0\n" +
-        "dir=\"$1\" json=\"$3\" name=\"$4\"\n" +
-        "shift 4\n" +
-        copyImagesScript +
-        "printf '%s\\n' \"$json\" > \"$dir/$name\"", "--",
-        popupStateDir,
-        imagesDir,
-        NotificationLogic.serializePopup(persistable.entry, NotificationUrgency.Normal),
-        NotificationLogic.popupFileName(resolved)]
-      for (var i = 0; i < persistable.copies.length; i++)
-        command.push(persistable.copies[i].from, persistable.copies[i].to)
-      enqueuePopupFileJob(command)
-    })
+    service.materializeImage(snapshot, function(resolved) { service.writeEntryFile(resolved, service.popupStateDir) })
   }
 
   // image-data hints are in-process image:// urls, save them to disk
@@ -392,17 +380,9 @@ Item {
         try {
           ok = grabResult.saveToFile(outPath)
         } catch (e) {
-          ok = false
         }
         saver.destroy()
-        if (ok) {
-          var copy = {}
-          for (var k in snapshot) copy[k] = snapshot[k]
-          copy.image = "file://" + outPath
-          done(copy)
-        } else {
-          done(snapshot)
-        }
+        done(ok ? Object.assign({}, snapshot, { image: "file://" + outPath }) : snapshot)
       })
       if (!grabbed) {
         saver.destroy()
@@ -453,22 +433,16 @@ Item {
   }
 
   function deletePopupFileFor(row) {
-    if (!row) return
-    enqueuePopupFileJob(["bash", "-c",
+    enqueueFileJob(["bash", "-c",
       "rm -f \"$1/$2.json\" \"$3/$2\"-*", "--",
       popupStateDir, NotificationLogic.imageStem(row), imagesDir])
   }
 
-  readonly property string trimHistoryScript:
-    "ls -1 \"$hist\" 2>/dev/null | sort -n | head -n \"-$limit\" | while IFS= read -r stale; do rm -f \"$hist/$stale\" \"$imgs/${stale%.json}\"-*; done"
-
   function archivePopupFileFor(row) {
-    if (!row) return
-    enqueuePopupFileJob(["bash", "-c",
-      "mkdir -p \"$1\" || exit 0\n" +
-      "hist=\"$1\" limit=\"$2\" imgs=\"$5\"\n" +
-      "mv -f \"$4/$3\" \"$1/$3\" 2>/dev/null || exit 0\n" +
-      trimHistoryScript, "--",
+    enqueueFileJob(["bash", "-c",
+      "dir=\"$1\" keep=\"$2\" imgs=\"$5\"\n" +
+      "mkdir -p \"$dir\" && mv -f \"$4/$3\" \"$dir/$3\" 2>/dev/null || exit 0\n" +
+      trimScript, "--",
       historyDir,
       String(historyLimit),
       NotificationLogic.popupFileName(row),
@@ -476,40 +450,12 @@ Item {
       imagesDir])
   }
 
-  function writeHistoryFile(entry, done) {
-    if (!entry) {
-      if (done) done()
-      return
-    }
-    var persistable = NotificationLogic.persistablePopup(entry, imagesDir)
-    var command = ["bash", "-c",
-      "mkdir -p \"$1\" \"$5\" || exit 0\n" +
-      "hist=\"$1\" limit=\"$2\" name=\"$3\" json=\"$4\" imgs=\"$5\"\n" +
-      "shift 5\n" +
-      copyImagesScript +
-      "printf '%s\\n' \"$json\" > \"$hist/$name\" || exit 0\n" +
-      trimHistoryScript, "--",
-      historyDir,
-      String(historyLimit),
-      NotificationLogic.popupFileName(entry),
-      NotificationLogic.serializePopup(persistable.entry, NotificationUrgency.Normal),
-      imagesDir]
-    for (var i = 0; i < persistable.copies.length; i++)
-      command.push(persistable.copies[i].from, persistable.copies[i].to)
-    enqueuePopupFileJob(command, done)
-  }
-
   function clearHistory() {
-    enqueuePopupFileJob(["bash", "-c",
-      "for f in \"$1\"/*.json; do\n" +
-      "  [[ -e $f ]] || continue\n" +
-      "  stale=\"${f##*/}\"\n" +
-      "  rm -f \"$f\" \"$2/${stale%.json}\"-*\n" +
-      "done", "--", historyDir, imagesDir])
+    enqueueFileJob(["bash", "-c", "dir=\"$1\" keep=0 imgs=\"$2\"\n" + trimScript, "--", historyDir, imagesDir])
   }
 
   function sweepOrphanImages() {
-    enqueuePopupFileJob(["bash", "-c",
+    enqueueFileJob(["bash", "-c",
       "for img in \"$3\"/*; do\n" +
       "  [[ -e $img ]] || continue\n" +
       "  [[ $img == *.tmp ]] && { rm -f -- \"$img\"; continue; }\n" +
@@ -519,32 +465,15 @@ Item {
       "done", "--", popupStateDir, historyDir, imagesDir])
   }
 
-  Process {
-    id: readHistoryProc
-    running: false
-    onExited: service.runNextPopupFileJob()
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: service.replayHistory(text)
-    }
-  }
-
   property var replayCarryOver: []
   property bool historyReadQueued: false
 
   function showRecentHistory() {
-    if (readHistoryProc.running || service.historyReadQueued) return "ok"
-    service.replayCarryOver = liveRowsForReplay()
+    if (service.historyReadQueued) return "ok"
     service.historyReadQueued = true
-    enqueueHistoryRead()
+    service.replayCarryOver = liveRowsForReplay()
+    readEntryFiles(historyDir, replayHistory)
     return "ok"
-  }
-
-  function startHistoryRead() {
-    service.historyReadQueued = false
-    readHistoryProc.command = ["bash", "-c",
-      "awk 1 \"$1\"/*.json 2>/dev/null || true", "--", historyDir]
-    readHistoryProc.running = true
   }
 
   function liveRowsForReplay() {
@@ -552,43 +481,27 @@ Item {
     for (var i = 0; i < popupModel.count; i++) {
       var row = popupModel.get(i)
       if (!row || row.originalId < 0) continue
-      rows.push(NotificationLogic.persistablePopup({
-        id: row.id,
-        originalId: row.originalId,
-        app: row.app,
-        appIcon: row.appIcon,
-        summary: row.summary,
-        body: row.body,
-        image: row.image,
-        glyph: row.glyph || "",
-        execArgv: row.execArgv || "",
-        urgency: row.urgency,
-        timestamp: row.timestamp
-      }, imagesDir).entry)
+      var entry = { id: row.id, originalId: row.originalId, timestamp: row.timestamp }
+      NotificationLogic.POPUP_ROLES.forEach(function(role) { entry[role] = row[role] })
+      rows.push(NotificationLogic.persistablePopup(entry, imagesDir).entry)
     }
     return rows
   }
 
   function replayHistory(raw) {
-    var rows = NotificationLogic.historyRows(
-      raw, service.replayCarryOver, NotificationUrgency.Normal, service.historyLimit)
+    var rows = NotificationLogic.historyRows(raw, service.replayCarryOver, service.historyLimit)
     service.replayCarryOver = []
+    service.historyReadQueued = false
 
     if (rows.length === 0) {
-      popupModel.insert(0, {
+      popupModel.insert(0, NotificationLogic.historyEntry({
         id: -1,
-        originalId: -1,
-        app: "omarchy-action",
-        appIcon: "",
+        app: NotificationLogic.ACTION_APP,
         summary: "No recent notifications",
-        body: "",
-        image: "",
         glyph: "\u{f009a}",
-        execArgv: "",
         urgency: NotificationUrgency.Low,
-        expireTimeout: 0,
         timestamp: Date.now()
-      })
+      }))
       return
     }
 
@@ -599,105 +512,36 @@ Item {
     }
   }
 
-  Process {
-    id: restorePopupsProc
-    running: false
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: service.restorePopups(text)
-    }
-  }
-
   function restorePopups(raw) {
-    var entries = NotificationLogic.parsePopupFiles(raw, NotificationUrgency.Normal)
     var now = Date.now()
     var live = []
-    for (var i = 0; i < entries.length; i++) {
-      var entry = entries[i]
-      var duration = durationFor(entry.urgency, entry.expireTimeout)
+    NotificationLogic.parsePopupFiles(raw).forEach(function(entry) {
+      var duration = service.durationFor(entry.urgency, entry.expireTimeout)
       if (NotificationLogic.popupExpired(entry, duration, now)) {
-        archivePopupFileFor(entry)
-        continue
+        service.archivePopupFileFor(entry)
+        return
       }
       if (duration > 0) {
         entry.deadline = now + duration
-        persistPopupFile(entry)
+        service.persistPopupFile(entry)
         delete entry.deadline
       }
       live.push(entry)
-    }
-    if (live.length === 0) return
+    })
 
     Qt.callLater(function() {
-      for (var j = 0; j < live.length; j++) {
-        var restored = live[j]
-        var duplicate = false
-        for (var k = 0; k < popupModel.count; k++) {
-          var row = popupModel.get(k)
-          if (row && row.originalId === restored.originalId && row.timestamp === restored.timestamp) {
-            duplicate = true
-            break
-          }
-        }
-        if (duplicate) continue
-        service.restoredPopups[NotificationLogic.popupFileName(restored)] = true
-        popupModel.append(restored)
-      }
+      live.forEach(function(entry) {
+        if (service.rowIndexOf(entry.originalId, entry.timestamp) >= 0) return
+        service.restoredPopups[NotificationLogic.popupFileName(entry)] = true
+        popupModel.append(entry)
+      })
     })
-  }
-
-  FileView {
-    id: settingsFile
-    path: service.settingsPath
-    watchChanges: false
-    atomicWrites: true
-    printErrors: false
-    onLoaded: service.loadSettings(text())
-    onLoadFailed: service.loadSettings("")
-  }
-
-  Timer {
-    id: settingsSaveTimer
-    interval: 200
-    repeat: false
-    onTriggered: service.flushSettings()
-  }
-
-  function scheduleSettingsSave() {
-    if (!service.settingsLoaded) return
-    settingsSaveTimer.restart()
-  }
-
-  property bool settingsLoaded: false
-
-  function loadSettings(raw) {
-    if (service.settingsLoaded) return
-
-    var parsed = NotificationLogic.parseSettings(raw)
-    if (parsed.error) console.warn("notifications: settings parse failed:", parsed.errorMessage || "")
-
-    if (parsed.dnd !== null) {
-      service._hydrating = true
-      persisted.doNotDisturb = parsed.dnd
-      service._hydrating = false
-    }
-
-    service.settingsLoaded = true
-  }
-
-  function flushSettings() {
-    settingsFile.setText(JSON.stringify({ version: 3, dnd: persisted.doNotDisturb }, null, 2) + "\n")
   }
 
   Component.onCompleted: {
-    ensureDirsProc.running = true
-    Qt.callLater(function() {
-      settingsFile.reload()
-      restorePopupsProc.command = ["bash", "-c",
-        "awk 1 \"$1\"/*.json 2>/dev/null || true", "--", service.popupStateDir]
-      restorePopupsProc.running = true
-      service.sweepOrphanImages()
-    })
+    enqueueFileJob(["mkdir", "-p", service.popupStateDir, service.historyDir, service.imagesDir])
+    readEntryFiles(service.popupStateDir, service.restorePopups)
+    sweepOrphanImages()
   }
 
   IpcHandler {
@@ -713,9 +557,7 @@ Item {
     }
 
     function setDnd(value: string): string {
-      var v = String(value || "").toLowerCase()
-      var on = v === "true" || v === "1" || v === "on" || v === "yes"
-      service.setDoNotDisturb(on)
+      service.setDoNotDisturb(["true", "1", "on", "yes"].indexOf(String(value || "").toLowerCase()) >= 0)
       return dndState()
     }
 
@@ -739,7 +581,7 @@ Item {
 
     function dismissOne(): string {
       if (popupModel.count === 0) return "none"
-      service.dismissPopup(0)
+      service.removePopup(0)
       return "ok"
     }
 
@@ -754,11 +596,9 @@ Item {
       if (!needle) return "none"
       var hit = false
       for (var i = popupModel.count - 1; i >= 0; i--) {
-        var row = popupModel.get(i)
-        if (row && String(row.summary || "").indexOf(needle) !== -1) {
-          service.dismissPopup(i)
-          hit = true
-        }
+        if (String(popupModel.get(i).summary || "").indexOf(needle) === -1) continue
+        service.removePopup(i)
+        hit = true
       }
       return hit ? "ok" : "none"
     }
@@ -871,7 +711,7 @@ Item {
               id: expiryTimer
               interval: Math.max(1, cardSlot.remainingMs)
               running: cardSlot.ticking
-              onTriggered: service.expirePopup(cardSlot.index)
+              onTriggered: service.removePopup(cardSlot.index, "expire")
             }
 
             NotificationCard {
@@ -887,7 +727,7 @@ Item {
               now: service.popupNowMs
               glyph: cardSlot.glyph
 
-              onCloseRequested: service.dismissPopup(cardSlot.index)
+              onCloseRequested: service.removePopup(cardSlot.index)
               onCardClicked: service.invokePopupDefault(cardSlot.index)
             }
           }

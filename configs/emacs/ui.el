@@ -67,7 +67,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;; tab-bar tabs = tmux windows / nvim tabs
 (setq tab-bar-show 1
-      tab-bar-new-tab-choice #'my/projects-dired
+      tab-bar-new-tab-choice "*scratch*"  ; nvim :tabnew: an empty buffer, not a file browser
       tab-bar-tab-hints t                 ; number each tab
       tab-bar-close-button-show nil
       tab-bar-new-button-show nil
@@ -105,6 +105,12 @@ frames recolour on a theme switch exactly as a fresh launch would."
 
 ;; empty *scratch* in the main window, the dirvish sidebar already shows the files
 (setq initial-buffer-choice t)
+
+;; highlight on yank, like nvim's TextYankPost vim.hl.on_yank
+(defun my/yank-pulse (beg end &rest _)
+  (pulse-momentary-highlight-region beg end))
+(with-eval-after-load 'evil
+  (advice-add 'evil-yank :after #'my/yank-pulse))
 
 (provide 'ui)
 ;;; ui.el ends here

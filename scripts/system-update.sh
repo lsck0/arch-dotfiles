@@ -1,19 +1,14 @@
 #!/usr/bin/env bash
-# Update all the things.
+# Update all the things: install.sh onto the latest lsck0 snapshot, config.sh, then toolchains and editor plugins.
 
-set -x
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")/.."
 
 echo "ARE U SURE?"
 read -rp "Type 'y' to continue: " confirm
 if [ "$confirm" != "y" ]; then
     echo "Aborting update."
     exit 1
-fi
-
-# Pre-update snapshot
-if command -v timeshift >/dev/null 2>&1 && [ -f /etc/timeshift/timeshift.json ] \
-    && ! grep -q '"do_first_run" : "true"' /etc/timeshift/timeshift.json 2>/dev/null; then
-    sudo timeshift --create --comments "pre-update ($(date -Iseconds))" --tags D
 fi
 
 run_if_present() {
@@ -24,31 +19,12 @@ run_if_present() {
     fi
 }
 
-# disable language shims
-_clean_path=""
-IFS=: read -ra _path_parts <<< "$PATH"
-for _p in "${_path_parts[@]}"; do
-    case "$_p" in
-        */mise/*) ;;  # drop mise install + shim dirs
-        *) _clean_path="${_clean_path:+$_clean_path:}$_p" ;;
-    esac
-done
-export PATH="$_clean_path"
-unset _clean_path _path_parts _p
-unset __MISE_DIFF __MISE_WATCH __MISE_SESSION MISE_SHELL 2>/dev/null
-
-# system packages
-
-sudo pacman-key --init
-sudo pacman-key --populate archlinux
-
-sudo pacman -Syu --noconfirm
-flatpak update --assumeyes
-nix-channel --update
+# timeshift-autosnap snapshots before install.sh's transaction; it exits 1 for logged failures, 2 for an abort that stops here
+./install.sh || (($? == 1))
+./config.sh || echo "system-update: config.sh finished with failures, see FAILURES.config" >&2
+run_if_present flatpak update --assumeyes
 
 # language toolchains
-
-run_if_present mise upgrade
 
 run_if_present rustup update
 
@@ -65,23 +41,14 @@ if command -v ghcup >/dev/null 2>&1; then
     ghcup install stack latest
 fi
 
-# userland
+# userland; protonup and the tmux plugins come from config.sh, the latter pinned
 
-if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ] && command -v hyprpm >/dev/null 2>&1; then
-    yes | hyprpm update -f
-fi
-
-protonup_link="$(dirname "$(readlink -f "$0")")/../configs/protonup/link.sh"
-if [ -d "$HOME/.steam" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
-    "$protonup_link"
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprpm >/dev/null 2>&1; then
+    # not `yes |`: pipefail would fail on yes dying of sigpipe
+    hyprpm update -f < <(yes)
 fi
 
 run_if_present tldr --update_cache
-
-tpm_update="$HOME/.tmux/plugins/tpm/bin/update_plugins"
-if [ -x "$tpm_update" ]; then
-    "$tpm_update" all
-fi
 
 if command -v nvim >/dev/null 2>&1; then
     nvim --headless "+Lazy! sync" +MasonUpdate +MasonToolsUpdateSync \

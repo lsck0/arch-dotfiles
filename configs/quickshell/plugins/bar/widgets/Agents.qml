@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -32,32 +31,15 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  function refresh() {
-    if (!usageProc.running) usageProc.running = true
-  }
-
-  Process {
-    id: usageProc
+  // each poll costs an api request: fresh while shown, slow discovery while hidden
+  JsonProcess {
     command: [Paths.barWidget("agent-usage.py")]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        try {
-          root.usage = JSON.parse(text || "{}")
-          root.received = true
-          if (root.hasUsage) root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
-        } catch (e) {}
-      }
+    intervalMs: root.visible ? 10 * 60 * 1000 : 30 * 60 * 1000
+    onParsed: function (data) {
+      root.usage = data
+      root.received = true
+      if (root.hasUsage) root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
     }
-  }
-
-  // each poll costs an api request
-  Timer {
-    interval: 10 * 60 * 1000
-    running: true
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
   }
 
   Rectangle {

@@ -11,4 +11,8 @@ hl.config({
         mouse_move_enables_dpms = true,
         vrr = 2,
     },
+    render = {
+        -- a lone fullscreen window skips composition; grading lives in the gamma LUT so it still applies, vrr keeps it tear-free
+        direct_scanout = 1,
+    },
 })

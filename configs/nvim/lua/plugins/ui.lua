@@ -237,6 +237,23 @@ return {
                             end,
                         },
                         win = { list = { keys = { ["H"] = "toggle_hidden_ignored" } } },
+                        -- right-aligned marks: md-eye_off on dotfiles, git's seti-ignored on gitignored entries
+                        icons = { git = { ignored = "\u{e668} " } },
+                        format = function(item, picker)
+                            local ret = require("snacks.picker.format").file(item, picker)
+                            -- ignored wins: no hidden mark on an ignored entry or anything inside an ignored dir
+                            local it = item
+                            while it and not it.ignored do it = it.parent end
+                            if item.hidden and not it then
+                                table.insert(ret, {
+                                    col = 0,
+                                    virt_text = { { "\u{f0209} ", "SnacksPickerPathHidden" }, { " " } },
+                                    virt_text_pos = "right_align",
+                                    hl_mode = "combine",
+                                })
+                            end
+                            return ret
+                        end,
                         -- custom layout: list window only, no input/title box
                         layout = {
                             preview = false,

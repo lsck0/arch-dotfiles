@@ -9,7 +9,11 @@ fi
 set -e
 
 # copy, ProtectHome=read-only blocks portmaster saving through a link into /home
-sudo install -m 644 "${PWD}/config.json" /var/lib/portmaster/config.json
+if ! sudo cmp -s config.json /var/lib/portmaster/config.json; then
+    sudo install -m 644 config.json /var/lib/portmaster/config.json
+    # read at start only; stays stopped while toggle-protonvpn.sh or toggle-firewall.sh holds it off
+    sudo systemctl try-restart portmaster.service
+fi
 
 if [[ -f /etc/xdg/autostart/portmaster-autostart.desktop ]]; then
     mkdir -p "${HOME}/.config/autostart"

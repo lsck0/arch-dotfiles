@@ -79,44 +79,19 @@ BarWidget {
     connectProc.running = true
   }
 
-  // toggles are detached and slow, so re-read a few times
-  Timer {
-    id: toggleSettle
-    interval: 600
-    repeat: true
-    property int ticks: 0
-    onTriggered: {
-      root.refreshAll()
-      ticks++
-      if (ticks >= 4) stop()
-    }
-  }
-
-  function afterToggle() {
-    toggleSettle.ticks = 0
-    toggleSettle.restart()
-  }
-
-  function toggleHomeVpn() { Quickshell.execDetached([Paths.toggle("toggle-vpn.sh"), "toggle"]); afterToggle() }
-  function toggleProtonVpn() { Quickshell.execDetached([Paths.toggle("toggle-protonvpn.sh"), "toggle"]); afterToggle() }
-  function toggleTor() { Quickshell.execDetached([Paths.toggle("toggle-tor.sh"), "toggle"]); afterToggle() }
-  // exit verification can outlast afterToggle, so refresh on exit
-  function toggleAnonymousSocks() {
-    if (!anonymousSocksToggleProc.running) anonymousSocksToggleProc.running = true
-    afterToggle()
-  }
-  Process {
-    id: anonymousSocksToggleProc
-    command: [Paths.toggle("toggle-anonymous-socks.sh"), "toggle"]
-    onExited: root.afterToggle()
-  }
-  function toggleAnonymousNetworkPersona() { Quickshell.execDetached([Paths.toggle("toggle-anonymous-network-persona.sh"), "toggle"]); afterToggle() }
-  function toggleBluetooth() { Quickshell.execDetached([Paths.toggle("toggle-bluetooth.sh"), "toggle"]); afterToggle() }
-  function toggleWifi() { Quickshell.execDetached([Paths.toggle("toggle-wifi.sh"), "toggle"]); afterToggle() }
-  function toggleEthernet() { Quickshell.execDetached([Paths.toggle("toggle-ethernet.sh"), "toggle"]); afterToggle() }
-  function toggleMobile() { Quickshell.execDetached([Paths.toggle("toggle-mobile.sh"), "toggle"]); afterToggle() }
-  function toggleOfflineMode() { Quickshell.execDetached([Paths.toggle("toggle-offline.sh"), "toggle"]); afterToggle() }
-  function toggleFirewall() { Quickshell.execDetached([Paths.toggle("toggle-firewall.sh"), "toggle"]); afterToggle() }
+  // each toggle announces its change over ToggleEvents once it settled, which re-reads
+  function runToggle(script) { Quickshell.execDetached([Paths.toggle(script), "toggle"]) }
+  function toggleHomeVpn() { runToggle("toggle-vpn.sh") }
+  function toggleProtonVpn() { runToggle("toggle-protonvpn.sh") }
+  function toggleTor() { runToggle("toggle-tor.sh") }
+  function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.sh") }
+  function toggleAnonymousNetworkPersona() { runToggle("toggle-anonymous-network-persona.sh") }
+  function toggleBluetooth() { runToggle("toggle-bluetooth.sh") }
+  function toggleWifi() { runToggle("toggle-wifi.sh") }
+  function toggleEthernet() { runToggle("toggle-ethernet.sh") }
+  function toggleMobile() { runToggle("toggle-mobile.sh") }
+  function toggleOfflineMode() { runToggle("toggle-offline.sh") }
+  function toggleFirewall() { runToggle("toggle-firewall.sh") }
 
   Process {
     id: homeVpnProc
@@ -164,7 +139,7 @@ BarWidget {
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.mobileOn = String(text || "").trim() === "on" }
   }
   // wwan hardware does not appear or vanish at runtime, probe once
-  Component.onCompleted: { hasMobileProc.running = true; userProc.running = true }
+  Component.onCompleted: { hasMobileProc.running = true; userProc.running = true; refreshAll() }
   // the homelab vpn is luca's; a guest never sees the row
   Process {
     id: userProc
@@ -245,6 +220,8 @@ BarWidget {
     id: nmMonitorProc
     running: true
     command: ["nmcli", "monitor"]
+    // quickshell does not reap helpers on reload, stop on teardown
+    Component.onDestruction: running = false
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: nmDebounce.restart()
@@ -266,13 +243,18 @@ BarWidget {
     onTriggered: nmMonitorProc.running = true
   }
 
-  // fallback poll
+  // vpn, tor, bluetooth and firewall live outside networkmanager
+  Connections {
+    target: ToggleEvents
+    function onChanged() { nmDebounce.restart() }
+  }
+
+  // live throughput for the open panel's sparklines
   Timer {
-    interval: 120000
-    running: true
+    interval: 2000
+    running: panel.visible
     repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refreshAll()
+    onTriggered: if (!detailsProc.running) detailsProc.running = true
   }
 
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0

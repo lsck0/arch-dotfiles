@@ -42,15 +42,8 @@ Item {
   }
 
   function iconSource(icon) {
-    var value = String(icon || "")
-    if (value.length === 0) return Quickshell.iconPath("application-x-executable", true)
-    if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
-    if (value.charAt(0) === "/") return Util.fileUrl(value)
-    var found = root.iconIndex[value]
-    if (found) return Util.fileUrl(found)
-    var themed = Quickshell.iconPath(value, true)
-    if (themed.length > 0) return themed
-    return Quickshell.iconPath("application-x-executable", true)
+    var found = root.iconIndex[String(icon || "")]
+    return (found ? Util.fileUrl(found) : Util.iconSource(icon)) || Quickshell.iconPath("application-x-executable", true)
   }
 
   function refreshIcons() {

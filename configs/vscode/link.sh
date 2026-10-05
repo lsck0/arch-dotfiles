@@ -15,7 +15,7 @@ ln -sfn "${PWD}/keybindings.json" "${HOME}/.config/VSCodium/User/keybindings.jso
 # settings.json uses vim mode
 for bin in codium code; do
     if command -v "$bin" >/dev/null 2>&1; then
-        "$bin" --install-extension vscodevim.vim >/dev/null 2>&1 || true
+        "$bin" --install-extension vscodevim.vim >/dev/null
         break
     fi
 done

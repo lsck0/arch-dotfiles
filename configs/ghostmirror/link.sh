@@ -7,18 +7,15 @@ fi
 
 set -e
 
-# link first, the rebuild writes through it into the repo copy
-sudo ln -sfn "${PWD}/mirrorlist" /etc/pacman.d/mirrorlist
-./mirrorlist-update.sh rebuild
+# the committed ranking seeds a fresh install or replaces the old link into the checkout; the timers keep it current
+if [[ -L /etc/pacman.d/mirrorlist ]] || ! grep -q '^# lastsync' /etc/pacman.d/mirrorlist; then
+    sudo install -Dm644 mirrorlist /etc/pacman.d/mirrorlist
+fi
 
-# units installed by hand, not via `ghostmirror -D`
-install -Dm644 ./ghostmirror.service ~/.config/systemd/user/ghostmirror.service
-install -Dm644 ./ghostmirror.timer ~/.config/systemd/user/ghostmirror.timer
-
-# weekly sort only re-ranks; monthly rebuild picks up new mirrors
-install -Dm644 ./ghostmirror-refresh.service ~/.config/systemd/user/ghostmirror-refresh.service
-install -Dm644 ./ghostmirror-refresh.timer ~/.config/systemd/user/ghostmirror-refresh.timer
-
-systemctl --user daemon-reload
-systemctl --user enable --now ghostmirror.timer
-systemctl --user enable --now ghostmirror-refresh.timer
+# root writes the mirrorlist, so root runs the ranking from a root-owned copy; weekly sort re-ranks, monthly rebuild finds new mirrors
+sudo install -Dm755 mirrorlist-update.sh /usr/local/bin/mirrorlist-update
+for unit in ghostmirror.service ghostmirror.timer ghostmirror-refresh.service ghostmirror-refresh.timer; do
+    sudo install -Dm644 "$unit" "/etc/systemd/system/$unit"
+done
+sudo systemctl daemon-reload
+sudo systemctl enable --now ghostmirror.timer ghostmirror-refresh.timer

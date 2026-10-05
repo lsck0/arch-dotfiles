@@ -276,17 +276,6 @@ Item {
             }
           }
         }
-
-        Text {
-          anchors.horizontalCenter: parent.horizontalCenter
-          textFormat: Text.PlainText
-          text: root.actions.map(a => "[" + a.hotkey + "] " + a.label.toUpperCase()).join("    ")
-          color: Color.menu.text
-          opacity: Style.emphasis.faint
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: Style.headerTracking
-        }
       }
 
       Scanlines { flicker: false }

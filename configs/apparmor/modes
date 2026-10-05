@@ -1,0 +1,4 @@
+# apparmor.d's aa-install: only the include.d profiles, the full set targets gnome/kde and hyprland is unsupported
+default complain
+include full
+reload yes

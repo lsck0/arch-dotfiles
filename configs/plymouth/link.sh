@@ -7,6 +7,8 @@ fi
 
 set -e
 
+source ../boot/boot-menu/common.sh
+
 theme=cyberpunk
 sudo install -d /usr/share/plymouth/themes/"$theme"
 sudo install -Dm644 "${PWD}/theme/$theme"/*.{plymouth,script,png} /usr/share/plymouth/themes/"$theme"/
@@ -44,30 +46,9 @@ PY
 
 sudo plymouth-set-default-theme "$theme"
 
-cmdline=/etc/kernel/cmdline
-if [[ ! -f "$cmdline" ]]; then
-    seed="$(tr ' ' '\n' < /proc/cmdline | grep -vE '^(BOOT_IMAGE|initrd)=' | paste -sd' ')"
-    printf '%s\n' "$seed" | sudo tee "$cmdline" >/dev/null
-    sudo chmod 644 "$cmdline"
+# quiet splash drive plymouth; vt.global_cursor_default=0 stops the text cursor flashing on the vt during the plymouth-to-ly handoff
+if esp_supported; then
+    kernel_cmdline_set quiet splash vt.global_cursor_default=0
 fi
 
-cmdline_backup="${cmdline}.arch-dotfiles-backup"
-if [[ ! -e "$cmdline_backup" ]]; then
-    sudo install -Dm644 "$cmdline" "$cmdline_backup"
-fi
-current="$(cat "$cmdline")"
-words=" $current "
-for w in quiet splash; do
-    [[ "$words" == *" $w "* ]] || current="$current $w"
-done
-if [[ "$current" != "$(cat "$cmdline")" ]]; then
-    printf '%s\n' "$current" | sudo tee "$cmdline" >/dev/null
-fi
-
-sudo mkinitcpio -P
-
-# configs/boot ran first and baked the cmdline; rebuild for splash
-source ../boot/boot-menu/common.sh
-if boot_feature_selected grub && sudo test -f "$ESP/grub/grub.cfg"; then
-    sudo grub-mkconfig -o "$ESP/grub/grub.cfg"
-fi
+# hooks, theme and cmdline reach the initramfs and grub.cfg at config.sh's boot barrier

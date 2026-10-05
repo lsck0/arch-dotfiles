@@ -23,37 +23,13 @@ for dir in ../../skills/l-*/; do
 done
 find "${hermes_orchestrator}/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 
-# local ollama as a model source
+# local ollama as a model source; llama3.1-64k is built lazily by ollama-ensure-models,
+# a fallback-only route here, so it need not exist yet at config time
 have_ollama=0
-if command -v ollama >/dev/null 2>&1; then
-    have_ollama=1
-    ollama_was_active=1
-    if ! systemctl is-active --quiet ollama; then
-        ollama_was_active=0
-        sudo systemctl start ollama
-        for _ in $(seq 1 30); do
-            curl -fs http://localhost:11434/api/version >/dev/null 2>&1 && break
-            sleep 1
-        done
-    fi
-
-    if ! ollama list 2>/dev/null | grep -q '^llama3.1-64k'; then
-        # ollama's default num_ctx is small regardless of the model
-        ollama pull llama3.1:8b
-        tmp_modelfile="$(mktemp)"
-        printf 'FROM llama3.1:8b\nPARAMETER num_ctx 65536\n' > "${tmp_modelfile}"
-        ollama create llama3.1-64k -f "${tmp_modelfile}"
-        rm -f "${tmp_modelfile}"
-        ollama rm llama3.1:8b 2>/dev/null || true
-    fi
-
-    if [ "${ollama_was_active}" -eq 0 ]; then
-        sudo systemctl stop ollama
-    fi
-fi
+command -v ollama >/dev/null 2>&1 && have_ollama=1
 
 # skin lives in the default profile, wallpaper switches rewrite only that
-HERMES_HOME="${hermes_default}" ../wallust/scripts/generate-hermes-skin.py || true
+HERMES_HOME="${hermes_default}" ../wallust/scripts/generate-hermes-skin.py
 mkdir -p "${hermes_orchestrator}/skins"
 ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 
@@ -68,14 +44,14 @@ for hermes_home in "${hermes_default}" "${hermes_orchestrator}"; do
         hermes config set providers.ollama-local.transport chat_completions
 
         # slow cpu-only backends need a long read timeout
-        if ! grep -q '^HERMES_API_TIMEOUT=' "${hermes_home}/.env" 2>/dev/null; then
+        if ! grep -qs '^HERMES_API_TIMEOUT=' "${hermes_home}/.env"; then
             echo 'HERMES_API_TIMEOUT=1800' >> "${hermes_home}/.env"
             chmod 600 "${hermes_home}/.env"
         fi
     fi
 
     hermes config set display.interface tui
-    hermes skin use wallust || true
+    hermes skin use wallust
 
     # routing: anthropic, then free nous, then vllm gpu, then ollama cpu
     hermes config set model.default claude-sonnet-5

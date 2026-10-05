@@ -353,12 +353,8 @@ Item {
     }
   }
 
-  // lifecycle hooks called by shell.summon/shell.hide
-  function open(payload) {
-    var args = {}
-    if (payload) {
-      try { args = JSON.parse(payload) || {} } catch (e) { args = {} }
-    }
+  // called by shell.summon with the parsed payload
+  function open(args) {
     var dirs = String(args.imageDirs || imageDirs)
     var tDirs = String(args.themeDirs || themeDirs)
     var rows = String(args.imageRows || "")

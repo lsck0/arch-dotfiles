@@ -1,79 +1,88 @@
 #!/usr/bin/env bash
 # Stage 3: link every configs/*/link.sh; safe to rerun
 
-set -e
+set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 
-# progress bars need a tty; re-exec under `script` so pacman/yay render live while logging.
-# without a tty (piped, cron) fall through to plain tee.
+# progress bars need a tty; re-exec under `script` so pacman/yay render live while logging, fall through to plain tee without a tty (piped, cron)
 if [ -z "${_PTY_LOG:-}" ]; then
     export _PTY_LOG=1
+    # before the re-exec, whose pty stdin would look like a person even under stage.sh's </dev/null
+    [ -t 0 ] || export DOTFILES_UNATTENDED=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then
         exec script -qe -c "$0 $*" config.log
     fi
     exec > >(tee config.log) 2>&1
 fi
 
-export FAILURES_FILE="$(pwd)/FAILURES.config"
+export FAILURES_FILE="$PWD/FAILURES.config"
 : >"$FAILURES_FILE"
+fail() { echo "$1" >>"$FAILURES_FILE"; }
 
 source ./scripts/lib/platform.sh
-platform_load "$(pwd)"
+platform_load "$PWD"
 
 # guest gating: a non-luca login skips every personal step, link.sh scripts read PERSONAL
 source ./scripts/lib/personal.sh
 if is_personal; then PERSONAL=1; else PERSONAL=0; fi
 export PERSONAL
 
+source ./scripts/lib/sudo.sh
+sudo_keepalive_start
+
 ## SECRETS
 
 # a plugged-in YubiKey pulls and unlocks configs/secrets with two touches, so the links below find them
-if is_personal; then ./scripts/yubikey.sh unlock || true; fi
+if is_personal; then ./scripts/yubikey.sh unlock || fail "scripts/yubikey.sh unlock"; fi
 
 ## LINK
 
-grep -qF "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" /etc/security/pam_env.conf || echo "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" /etc/security/pam_env.conf || echo "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" /etc/security/pam_env.conf || echo "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" | sudo tee -a /etc/security/pam_env.conf
-grep -qF "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" /etc/security/pam_env.conf || echo "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" | sudo tee -a /etc/security/pam_env.conf
 # zshrc sets GOPATH only interactively; mason's go would create ~/go
-grep -qF "GOPATH          DEFAULT=@{HOME}/.go" /etc/security/pam_env.conf || echo "GOPATH          DEFAULT=@{HOME}/.go" | sudo tee -a /etc/security/pam_env.conf
+for line in "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache" \
+    "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state" \
+    "GOPATH          DEFAULT=@{HOME}/.go"; do
+    grep -qF "$line" /etc/security/pam_env.conf || echo "$line" | sudo tee -a /etc/security/pam_env.conf >/dev/null
+done
 export GOPATH="${HOME}/.go"
 
-# refresh the sudo timestamp before the link loop, which installs configs/sudo (global, 240 min)
-sudo -v || true
+# sorted path order: configs/projects needs configs/gh's login first; pacman is linked by install.sh before the installs
+while IFS= read -r script; do
+    runner=bash
+    [[ "$script" == *.py ]] && runner=python
+    (cd "$(dirname "$script")" && "$runner" "$(basename "$script")" </dev/null 2>&1 | tee "${script}.log") || fail "$script"
+done < <(find "$PWD" -type f \( -name link.sh -o -name link.py \) -not -path "$PWD/configs/pacman/*" | sort)
 
-while IFS= read -r script; do
-    dir=$(dirname "$script")
-    base=$(basename "$script")
-    (
-        set -o pipefail
-        cd "$dir" && bash "$base" </dev/null 2>&1 | tee "${script}.log"
-    ) || echo "$script" >>"$FAILURES_FILE"
-# sorted path order: configs/projects needs configs/gh's login first; pacman is linked before the installs
-done < <(find "$(pwd)" -type f -name 'link.sh' -not -path "$(pwd)/configs/pacman/*" | sort)
-while IFS= read -r script; do
-    dir=$(dirname "$script")
-    base=$(basename "$script")
-    (
-        set -o pipefail
-        cd "$dir" && python "$base" </dev/null 2>&1 | tee "${script}.log"
-    ) || echo "$script" >>"$FAILURES_FILE"
-done < <(find "$(pwd)" -type f -name 'link.py' | sort)
+## PRUNE
+
+# root runs nothing from the checkout, and a deleted script leaves no name behind
+find /usr/local/bin -maxdepth 1 -type l -lname "$PWD/*" -exec sudo rm -f {} + || fail "prune /usr/local/bin"
+find "$HOME" "$HOME/.local/bin" -maxdepth 1 -xtype l -lname "$PWD/*" -delete || fail "prune ~ and ~/.local/bin"
 
 ## PATCHES
 
 # one-shot fixups for system state an older config left behind; see patches/README.md
-./scripts/apply-patches.sh || echo "scripts/apply-patches.sh" >>"$FAILURES_FILE"
+./scripts/apply-patches.sh || fail "scripts/apply-patches.sh"
+
+## LEDGER
+
+# after every link.sh and patch, so a unit is owned or dropped by what this run left enabled
+source ./scripts/lib/ledger.sh
+ledger_units "$PWD" || fail "ledger: disabling dropped units"
 
 ## INIT WALLPAPER AND THEME FILES
 
 if command -v git-lfs >/dev/null 2>&1; then
-    git lfs pull || echo "git lfs pull" >>"$FAILURES_FILE"
+    git lfs pull || fail "git lfs pull"
 fi
 
-WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkambient-1k.jpg >/dev/null 2>/dev/null \
-    || echo "scripts/switch-wallpaper.sh" >>"$FAILURES_FILE"
+WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkambient-1k.jpg >/dev/null \
+    || fail "scripts/switch-wallpaper.sh"
+
+## BOOT
+
+# last, so every initramfs, cmdline and grub change of this run is rebuilt once in one order, then signed and verified
+source ./configs/boot/boot-menu/common.sh
+boot_commit || fail "boot barrier (configs/boot/boot-menu/common.sh)"
 
 ## SUMMARY
 

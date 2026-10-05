@@ -29,19 +29,18 @@ valid_tz() {
 }
 
 detect_tz() {
-    local url json tz
-    for url in 'https://ipapi.co/json/' 'http://ip-api.com/json/?fields=timezone'; do
-        json=$(timeout 10 curl -s --max-time 8 "$url" 2>/dev/null || true)
-        [[ -n "$json" ]] || continue
-        tz=$(python3 -c "
+    local json tz
+    # one https provider only: ip-geolocation leaks our ip and location, so no plaintext http and no second phone-home
+    json=$(timeout 10 curl -s --max-time 8 'https://ipapi.co/json/' 2>/dev/null || true)
+    [[ -n "$json" ]] || return 1
+    tz=$(python3 -c "
 import json,sys
 try:
     print(json.load(sys.stdin).get('timezone') or '')
 except Exception:
     print('')
 " <<<"$json" 2>/dev/null || true)
-        [[ -n "$tz" ]] && { echo "$tz"; return 0; }
-    done
+    [[ -n "$tz" ]] && { echo "$tz"; return 0; }
     return 1
 }
 

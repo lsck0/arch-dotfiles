@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
+# root unlocks with an enrolled yubikey (fido2 pin + touch); without the key the passphrase prompt follows after token-timeout (30 s)
 
 set -e
-
-source "$(dirname "$0")/../boot-menu/common.sh"
-
-if ! boot_feature_selected luks; then
-    exit 0
-fi
 
 MARKER="# MARKER:arch-dotfiles/boot/luks"
 CRYPTTAB="/etc/crypttab"
 
-mapfile -t LUKS_PARTS < <(lsblk -ln -o NAME,UUID,FSTYPE,TYPE 2>/dev/null \
-    | awk '$3 == "crypto_LUKS" && $4 == "part" {print $1, $2}' || true)
+mapfile -t LUKS_PARTS < <(lsblk -ln -o NAME,UUID,FSTYPE,TYPE | awk '$3 == "crypto_LUKS" && $4 == "part" {print $1, $2}')
 
 if [[ ${#LUKS_PARTS[@]} -eq 0 ]]; then
     echo "luks: no LUKS-encrypted partitions detected, nothing to configure" >&2
@@ -20,18 +14,18 @@ if [[ ${#LUKS_PARTS[@]} -eq 0 ]]; then
 fi
 
 # the root device must not go in crypttab
-ROOT_SRC="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+ROOT_SRC="$(findmnt -n -o SOURCE /)"
 ROOT_SRC="${ROOT_SRC%%[*}"
 ROOT_BACKING=""
 if [[ "$ROOT_SRC" == /dev/mapper/* ]]; then
-    ROOT_BACKING="$(lsblk -lnso NAME,TYPE "$ROOT_SRC" 2>/dev/null | awk '$2 == "part" {print $1; exit}' || true)"
+    ROOT_BACKING="$(lsblk -lnso NAME,TYPE "$ROOT_SRC" | awk '$2 == "part" {print $1; exit}')"
 fi
 
 # back up a crypttab we do not manage yet
 sudo mkdir -p "$(dirname "$CRYPTTAB")"
 if [[ -f "$CRYPTTAB" ]]; then
-    if ! sudo grep -qF "$MARKER" "$CRYPTTAB" 2>/dev/null; then
-        sudo install -m644 "$CRYPTTAB" "${CRYPTTAB}.arch-dotfiles-backup" 2>/dev/null || true
+    if ! sudo grep -qF "$MARKER" "$CRYPTTAB"; then
+        sudo install -m644 "$CRYPTTAB" "${CRYPTTAB}.arch-dotfiles-backup"
     fi
 fi
 if [[ ! -f "$CRYPTTAB" ]]; then
@@ -51,7 +45,7 @@ for entry in "${LUKS_PARTS[@]}"; do
         continue
     fi
     name="luks-${uuid}"
-    if sudo grep -qE "^${name}\s" "$CRYPTTAB" 2>/dev/null; then
+    if sudo grep -qE "^${name}\s" "$CRYPTTAB"; then
         continue
     fi
     printf '%s\tUUID=%s\tnone\tluks,discard,perf-no-read-workqueue,perf-no-write-workqueue\n' \
@@ -96,8 +90,15 @@ PY
     fi
 fi
 
-if command -v mkinitcpio >/dev/null 2>&1; then
-    sudo mkinitcpio -P
+# sd-encrypt ships the fido2 token plugin; with no token enrolled systemd-cryptsetup falls through to the passphrase or stage.sh's keyfile
+if [[ -n "$ROOT_BACKING" ]]; then
+    source "$(dirname "$0")/../boot-menu/common.sh"
+    kernel_cmdline_set rd.luks.options=fido2-device=auto
+    # enrolling during the stage chain would make its unattended boots wait for a touch
+    if ! sudo cryptsetup luksDump "/dev/$ROOT_BACKING" | grep -q systemd-fido2; then
+        echo "luks: no yubikey enrolled, once the stage chain is done: sudo systemd-cryptenroll --fido2-device=auto /dev/$ROOT_BACKING" >&2
+    fi
 fi
 
+# the encrypt hook lands in the initramfs at config.sh's boot barrier
 echo "luks: crypttab configured, $added non-root LUKS volume(s) added" >&2

@@ -43,13 +43,6 @@ BarWidget {
     if (root.bar) root.bar.closePanel(root.moduleName)
   }
 
-  function ago(minutes) {
-    var m = Math.max(0, Math.round(Number(minutes) || 0))
-    if (m < 60) return m + "m ago"
-    if (m < 2880) return Math.floor(m / 60) + "h ago"
-    return Math.floor(m / 1440) + "d ago"
-  }
-
   function num(value, suffix) {
     return value === null || value === undefined ? "--" : value + (suffix || "")
   }
@@ -61,6 +54,8 @@ BarWidget {
   Process {
     id: statusProc
     running: true
+    // quickshell does not reap helpers on reload, stop on teardown
+    Component.onDestruction: running = false
     // full detail only while the panel is open
     command: panel.visible
       ? [Paths.barWidget("homelab-status.py"), "30"]
@@ -490,7 +485,7 @@ BarWidget {
                 required property var modelData
                 label: modelData.target || modelData.name
                 value: modelData.target ? modelData.name : ""
-                note: root.ago(modelData.minutes)
+                note: Util.ago(modelData.minutes)
                 url: root.links.alerts
                 alert: true
               }
@@ -544,7 +539,7 @@ BarWidget {
           StatRow {
             label: "Last backup"
             value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
-              ? "never" : root.ago(root.storage.backupAgeMin)
+              ? "never" : Util.ago(root.storage.backupAgeMin)
             alert: root.backupStale
             url: root.links.nas
           }
