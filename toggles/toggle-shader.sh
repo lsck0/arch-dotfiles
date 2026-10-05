@@ -178,7 +178,7 @@ set)
     apply "$entry"
     ;;
 *)
-    # a bare entry name, what gamemode/hook.sh restores from `get`
+    # a bare entry name, so `get` output round-trips back through set
     if entry=$(entry_parse "$action" 2>/dev/null); then
         apply "$entry"
     else

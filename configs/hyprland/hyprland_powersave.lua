@@ -1,4 +1,4 @@
--- saver (toggle-powermode.sh: forced power-saver, or auto on battery) or a game under gamemode/hook.sh: drop every gpu-busy effect
+-- power saver (toggle-powermode.sh: forced, or auto on battery): drop every gpu-busy effect
 local runtime = os.getenv("XDG_RUNTIME_DIR")
 if not runtime then return end
 
@@ -10,7 +10,7 @@ local function toggle_get(name)
     return value
 end
 
-if toggle_get("powersaver") ~= "on" and toggle_get("gamemode") ~= "on" then return end
+if toggle_get("powersaver") ~= "on" then return end
 
 hl.config({
     animations = {

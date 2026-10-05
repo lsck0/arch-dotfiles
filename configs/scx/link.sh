@@ -22,5 +22,10 @@ if [[ "$ff" == laptop ]]; then
 fi
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now scx-lavd.service
-[[ "$ff" == laptop ]] && sudo systemctl enable --now scx-mode.timer
+# starting can fail where sched_ext cannot attach (a vm), the next boot starts it
+sudo systemctl enable scx-lavd.service
+sudo systemctl start scx-lavd.service || true
+if [[ "$ff" == laptop ]]; then
+    sudo systemctl enable scx-mode.timer
+    sudo systemctl start scx-mode.timer || true
+fi

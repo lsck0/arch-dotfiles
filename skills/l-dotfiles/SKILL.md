@@ -21,7 +21,6 @@ This repository contains my system setup and configuration files, which are syml
 - `weblinks/`: browser independent bookmarks.
 - `install.sh`: list of installed packages and bootstrapping script.
 - `sync.sh`: stages everything, makes a signed `Generation: <n>` commit and pushes.
-- `errors.txt`: tracker for open fixes and features.
 
 ## Conventions
 
