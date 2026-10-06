@@ -191,7 +191,6 @@ PACKAGES=(
     python                   # [base] theme generator scripts
     python-evdev             # [hardware] input events for the configs/tablet userspace driver
     python-pywalfox          # [base] firefox theme propagator
-    ranger                   # [base] terminal file manager
     rar                      # [base] RAR archive tool
     syncthing                # [base] file sync daemon
     rkhunter                 # [base] rootkit detection tool
