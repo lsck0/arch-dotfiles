@@ -18,8 +18,8 @@ if command -v ModemManager >/dev/null 2>&1 && has_modem; then
     sudo systemctl enable --now ModemManager.service
 fi
 
-source ../../../scripts/lib/platform.sh
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/platform.sh
+source $DOTFILES/scripts/lib/secrets.sh
 
 conf=/etc/NetworkManager/NetworkManager.conf
 dropin=/etc/NetworkManager/conf.d/10-home-wired.conf
@@ -27,7 +27,7 @@ dropin=/etc/NetworkManager/conf.d/10-home-wired.conf
 changed=0
 cmp -s NetworkManager.conf "${conf}" || changed=1
 sudo install -Dm644 NetworkManager.conf "${conf}"
-if [[ "$(platform_form_factor ../../..)" == desktop ]]; then
+if [[ "$(platform_form_factor "$DOTFILES")" == desktop ]]; then
     cmp -s home-wired.conf "${dropin}" || changed=1
     sudo install -Dm644 home-wired.conf "${dropin}"
 elif [[ -e "${dropin}" ]]; then
@@ -40,7 +40,7 @@ if ((changed)); then
 fi
 
 # saved networks in secrets/wifi are home: their profiles keep the hardware mac, every other network gets a random one
-if secret_is_plaintext ../../base/secrets/wifi; then
+if secret_is_plaintext $DOTFILES/secrets/wifi; then
     while IFS=$'\t' read -r ssid _; do
         [[ -n "${ssid}" ]] || continue
         for uuid in $(nmcli -g UUID,TYPE connection show | sed -n 's/:802-11-wireless$//p'); do
@@ -48,7 +48,7 @@ if secret_is_plaintext ../../base/secrets/wifi; then
                 sudo nmcli connection modify "${uuid}" 802-11-wireless.cloned-mac-address permanent
             fi
         done
-    done <../../base/secrets/wifi
+    done <$DOTFILES/secrets/wifi
 fi
 
 # auto idspoof netident persona on untrusted networks; NM refuses a group/world-writable dispatcher

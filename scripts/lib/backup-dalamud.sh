@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# pull Dalamud's config, plugin configs and plugin manifests from ~/.xlcore into configs/base/secrets/dalamud; configs/gaming/dalamud/link.sh downloads the plugins again from those manifests
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# pull Dalamud's config, plugin configs and plugin manifests from ~/.xlcore into secrets/dalamud; configs/gaming/dalamud/link.sh downloads the plugins again from those manifests
 
 set -euo pipefail
 shopt -s nullglob
 
-REPO="${HOME}/projects/arch-dotfiles"
+REPO="$DOTFILES"
 XLCORE="${HOME}/.xlcore"
 # plugin configs carry character names and content ids, so they live in secrets
-DEST="${REPO}/configs/base/secrets/dalamud"
+DEST="${REPO}/secrets/dalamud"
 
 source "${REPO}/scripts/lib/secrets.sh"
 

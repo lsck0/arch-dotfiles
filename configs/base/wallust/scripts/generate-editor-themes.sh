@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # zed, vscodium, herdr and emacs themes from pywal colors.json
 set -euo pipefail
 
@@ -11,9 +12,9 @@ install_through_symlink() {
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 COLORS_JSON="$HOME/.cache/wal/colors.json"
-ZED_THEME="$HOME/projects/arch-dotfiles/configs/programming/zed/themes/pywal.json"
+ZED_THEME="$DOTFILES/configs/programming/zed/themes/pywal.json"
 VSCODE_SETTINGS="$HOME/.config/VSCodium/User/settings.json"
-EMACS_THEME_DIR="$HOME/projects/arch-dotfiles/configs/programming/emacs/themes"
+EMACS_THEME_DIR="$DOTFILES/configs/programming/emacs/themes"
 EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 
 [[ -f "$COLORS_JSON" ]] || exit 0

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# pull caido's plugin set (plugins.db + the plugins dir) into configs/base/secrets/caido; configs/pentesting/caido/link.sh seeds a fresh install from it. projects, login token and settings stay out.
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# pull caido's plugin set (plugins.db + the plugins dir) into secrets/caido; configs/pentesting/caido/link.sh seeds a fresh install from it. projects, login token and settings stay out.
 
 set -euo pipefail
 
-REPO="${HOME}/projects/arch-dotfiles"
+REPO="$DOTFILES"
 CAIDO="${HOME}/.local/share/caido"
-DEST="${REPO}/configs/base/secrets/caido"
+DEST="${REPO}/secrets/caido"
 
 source "${REPO}/scripts/lib/secrets.sh"
 

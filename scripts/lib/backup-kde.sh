@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # Pull live KDE/Plasma config from ~/.config back into configs/desktop/plasma/.
 
 set -euo pipefail
 
-REPO="${HOME}/projects/arch-dotfiles/configs/desktop/plasma"
+REPO="$DOTFILES/configs/desktop/plasma"
 
 FILES="
     baloofilerc

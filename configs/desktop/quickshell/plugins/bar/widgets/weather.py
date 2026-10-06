@@ -38,7 +38,7 @@ import urllib.request
 # CONSTANTS
 # -----------------------------------------------------------------------------
 
-TOGGLES_DIR = os.path.join(os.environ.get("QS_DOTFILES_DIR") or os.path.expanduser("~/projects/arch-dotfiles"), "toggles")
+TOGGLES_DIR = os.path.join(os.environ.get("DOTFILES") or os.environ.get("QS_DOTFILES_DIR") or os.path.expanduser("~/projects/arch-dotfiles"), "scripts/toggles")
 CACHE_DIR = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "quickshell")
 
 # union of everything a provider could hand back that names or narrows the place

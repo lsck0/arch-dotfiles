@@ -3,7 +3,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-source ../../hardware/boot/boot-menu/common.sh
+source $DOTFILES/configs/hardware/boot/boot-menu/common.sh
 
 theme=cyberpunk
 sudo install -d /usr/share/plymouth/themes/"$theme"

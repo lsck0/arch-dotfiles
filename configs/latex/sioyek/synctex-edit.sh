@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # backward search (pdf spot -> latex source) for sioyek's inverse_search_command and zathura's synctex-editor-command, into whichever editor already has the file open, set in the viewers' own config so it works regardless of who launched them; usage: synctex-edit <file> <line> [column]
 
 set -uo pipefail
@@ -69,9 +70,6 @@ try_nvim && exit 0
 try_emacs && exit 0
 
 # nothing had it open: say so rather than guessing which editor to start
-if command -v notification-send >/dev/null 2>&1; then
-    notification-send "synctex" "$(basename "$file"):$line is not open in nvim or emacs"
-else
-    echo "synctex-edit: $file:$line is not open in any running nvim or emacs" >&2
-fi
+"$DOTFILES/scripts/lib/notification-send.sh" "synctex" "$(basename "$file"):$line is not open in nvim or emacs" 2>/dev/null \
+    || echo "synctex-edit: $file:$line is not open in any running nvim or emacs" >&2
 exit 1

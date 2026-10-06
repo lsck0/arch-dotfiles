@@ -28,6 +28,8 @@ lib32-vkbasalt                    # vkbasalt for 32-bit games
 lib32-vulkan-icd-loader           # 32-bit Vulkan loader
 lutris                            # game launcher manager
 mangohud                          # gaming performance overlay
+melonds                           # Nintendo DS emulator
+mgba-qt                           # Game Boy Advance emulator (also GB/GBC)
 millennium                        # Steam client theme loader
 minecraft-launcher                # Minecraft game launcher
 modrinth-app                      # minecraft mod manager
@@ -39,6 +41,7 @@ protontricks                      # Proton/Wine helper tool
 protonup-git                      # Proton-GE installer
 r2modman-bin                      # game mod manager
 rcon-cli                          # game server RCON client
+retroarch                         # multi-system emulator frontend (libretro)
 shaderc                           # shader compilation toolchain
 spirv-tools                       # SPIR-V assembler/validator
 steam                             # gaming platform client

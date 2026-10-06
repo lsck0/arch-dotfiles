@@ -3,9 +3,10 @@
 
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+REPO="$DOTFILES"
 KEY_DIR="$REPO/configs/base/yubikey"
-SECRETS="$REPO/configs/base/secrets"
+SECRETS="$REPO/secrets"
 SEALED_KEY="$KEY_DIR/secrets.key.age"
 GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 PAM_ORIGIN=pam://lsck0
@@ -169,7 +170,7 @@ cmd_unlock() {
         echo ">>> touch the YubiKey to pull the secrets"
         with_touch git -C "$REPO" -c "core.sshCommand=$ssh_command" \
             -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/" \
-            submodule update --init configs/base/secrets || echo "yubikey: pull failed or no touch"
+            submodule update --init secrets || echo "yubikey: pull failed or no touch"
         command rm -f "$key_file"
         [[ -e "$SECRETS/.git" ]] || return 0
     fi

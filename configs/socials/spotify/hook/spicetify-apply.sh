@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # first spicetify apply once spotify is logged in; later spotify updates go through the pacman hook
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/../../../../scripts/lib/user-hook.sh"
+source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/user-hook.sh"
 
 PREFS="${HOME}/.config/spotify/prefs"
 

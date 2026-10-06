@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Pull the live gh token into configs/base/secrets/github; configs/base/gh/link.sh logs gh in with it, and gh then authenticates git.
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# Pull the live gh token into secrets/github; configs/base/gh/link.sh logs gh in with it, and gh then authenticates git.
 
 set -euo pipefail
 
-REPO="${HOME}/projects/arch-dotfiles"
-DEST="${REPO}/configs/base/secrets/github"
+REPO="$DOTFILES"
+DEST="${REPO}/secrets/github"
 
 source "${REPO}/scripts/lib/secrets.sh"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 
 set -e
 

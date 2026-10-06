@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 
 set -e
 
@@ -26,8 +26,8 @@ if is_personal; then
     GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
     gpg --batch --import luca-sandrock.pub.asc
     echo "${GPG_FINGERPRINT}:6:" | gpg --import-ownertrust
-    if grep -qs 'BEGIN PGP PRIVATE KEY' ../../base/secrets/pgp_privatekey.asc; then
-        gpg --batch --import ../../base/secrets/pgp_privatekey.asc
+    if grep -qs 'BEGIN PGP PRIVATE KEY' $DOTFILES/secrets/pgp_privatekey.asc; then
+        gpg --batch --import $DOTFILES/secrets/pgp_privatekey.asc
     fi
     # writes the card stubs when a YubiKey is plugged in, none plugged in is fine
     gpg --card-status >/dev/null 2>&1 || true

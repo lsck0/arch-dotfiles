@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# pull ffxiv game, character and xivlauncher settings into configs/base/secrets/ffxiv; configs/gaming/ffxiv/link.sh restores them
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# pull ffxiv game, character and xivlauncher settings into secrets/ffxiv; configs/gaming/ffxiv/link.sh restores them
 
 set -euo pipefail
 
-REPO="${HOME}/projects/arch-dotfiles"
+REPO="$DOTFILES"
 XLCORE="${HOME}/.xlcore"
 # character folders are named after the content id and the DATs hold macros and gearsets, so they live in secrets
-DEST="${REPO}/configs/base/secrets/ffxiv"
+DEST="${REPO}/secrets/ffxiv"
 
 source "${REPO}/scripts/lib/secrets.sh"
 

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
 # the one place the ui font is set for every app: terminal, editors, quickshell bar, gtk and qt/kde
 
-REPO="$HOME/projects/arch-dotfiles"
+REPO="$DOTFILES"
 
 GHOSTTY="$REPO/configs/desktop/ghostty/config"
 ZED="$REPO/configs/programming/zed/settings.json"

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# run patches/NN_<slug>.sh fixups once per machine in numeric order (recorded in $STATE_FILE outside git, so stay idempotent) to undo what an older config did that config.sh relinking cannot: dangling links, stale pam lines, enabled units
+# run patches/NN_<slug>.sh fixups that undo what an older config did and config.sh relinking cannot: dangling links, stale pam lines, enabled units
+# a patch runs once per machine (recorded in $STATE_FILE, idempotent) and only when it is younger than this machine's install, so a fresh install replays nothing
 # usage: apply-patches [--list] [--force <name>...] [--dry-run]
 
 set -uo pipefail
-cd "$(dirname "$(readlink -f "$0")")/.." || exit 1
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+cd "$DOTFILES" || exit 1
 
 PATCH_DIR="$PWD/patches"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 STATE_FILE="$STATE_DIR/patches-applied"
+INSTALL_FILE="$STATE_DIR/install-date"
 
 mode=run
 dry_run=0
@@ -38,8 +41,19 @@ done
 
 mkdir -p "$STATE_DIR"
 touch "$STATE_FILE"
+# the install moment, stamped on the first run; patches committed before it belong to an earlier machine and never apply here
+[[ -f "$INSTALL_FILE" ]] || date +%s >"$INSTALL_FILE"
+install_date=$(cat "$INSTALL_FILE")
 
 applied() { grep -qxF "$1" "$STATE_FILE"; }
+# a patch's age is its last commit; an uncommitted one falls back to its mtime
+patch_date() {
+    local d
+    d=$(git -C "$DOTFILES" log -1 --format=%ct -- "$1" 2>/dev/null)
+    [[ -n "$d" ]] && { echo "$d"; return; }
+    stat -c %Y "$1"
+}
+younger() { (($(patch_date "$1") > install_date)); }
 
 shopt -s nullglob
 patches=("$PATCH_DIR"/[0-9][0-9]_*.sh)
@@ -48,7 +62,9 @@ patches=("$PATCH_DIR"/[0-9][0-9]_*.sh)
 if [[ "$mode" == list ]]; then
     for patch in "${patches[@]}"; do
         name=$(basename "$patch")
-        if applied "$name"; then printf 'applied  %s\n' "$name"; else printf 'pending  %s\n' "$name"; fi
+        if applied "$name"; then printf 'applied   %s\n' "$name"
+        elif ! younger "$patch"; then printf 'preinstall %s\n' "$name"
+        else printf 'pending   %s\n' "$name"; fi
     done
     exit 0
 fi
@@ -59,7 +75,7 @@ for patch in "${patches[@]}"; do
     wanted=0
     if ((${#forced[@]})); then
         for f in "${forced[@]}"; do [[ "$f" == "$name" || "$f" == "${name%.sh}" ]] && wanted=1; done
-    elif ! applied "$name"; then
+    elif ! applied "$name" && younger "$patch"; then
         wanted=1
     fi
     ((wanted)) || continue

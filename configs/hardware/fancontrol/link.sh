@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/platform.sh
-form_factor=$(platform_form_factor ../../..) || exit 1
+source $DOTFILES/scripts/lib/platform.sh
+form_factor=$(platform_form_factor "$DOTFILES") || exit 1
 [[ "$form_factor" == desktop ]] || exit 0
 
 # the ITE SuperIO + force_id are board-specific: match either the board model or the Gigabyte vendor

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # hand-dismissed alert card: <title> [body] [glyph] [kind: reminder|pomodoro] [snooze message]
 
 set -uo pipefail
 
-DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 REPO_SCRIPTS="$DOTFILES/scripts"
 
 TITLE=${1:-Reminder}
@@ -40,7 +41,7 @@ show_card() {
 
 if ! show_card; then
     # never drop the alert
-    "$REPO_SCRIPTS/notification-send.sh" -g "$GLYPH" "$TITLE" "$BODY" || true
+    "$REPO_SCRIPTS/lib/notification-send.sh" -g "$GLYPH" "$TITLE" "$BODY" || true
 fi
 
 play_sound

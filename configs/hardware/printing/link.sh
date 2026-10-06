@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/platform.sh
+source $DOTFILES/scripts/lib/platform.sh
 # cups also arrives under wsl, as a dependency of hermes-agent, where windows owns the printers
-if ! command -v cupsd >/dev/null 2>&1 || [[ "$(platform_form_factor ../../..)" == wsl ]]; then
+if ! command -v cupsd >/dev/null 2>&1 || [[ "$(platform_form_factor "$DOTFILES")" == wsl ]]; then
     exit 0
 fi
 

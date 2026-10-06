@@ -17,12 +17,12 @@ local function media_key(action)
 end
 
 -- display CTM brightness, the software dimmer below the monitor's own backlight
-local color_grading = "~/projects/arch-dotfiles/configs/desktop/color-grading/color-grading.py"
+local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
 
 -- obs hotkeys only fire while obs is focused on wayland; obs-status.py exits after stdin eof, timeout covers obs closed
 local function obs_command(cmd)
     return hl.dsp.exec_cmd("echo '{\"cmd\":\"" .. cmd .. "\"}' | timeout 5 "
-        .. "~/projects/arch-dotfiles/configs/desktop/quickshell/plugins/bar/widgets/obs-status.py >/dev/null")
+        .. "$DOTFILES/configs/desktop/quickshell/plugins/bar/widgets/obs-status.py >/dev/null")
 end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
@@ -44,12 +44,12 @@ hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"))
 hl.bind(mod .. " + e", hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + n", hl.dsp.exec_cmd("neovide"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
-hl.bind(mod .. " + t", hl.dsp.exec_cmd("~/projects/arch-dotfiles/scripts/toggles/menu.sh"))
+hl.bind(mod .. " + t", hl.dsp.exec_cmd("$DOTFILES/scripts/toggles/menu.sh"))
 hl.bind(mod .. " + SHIFT + t", hl.dsp.exec_cmd("missioncenter"))
 hl.bind(mod .. " + w", hl.dsp.exec_cmd(shell_bin("wallpaper-picker")))
 hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimeji"))
 -- boomer.sh stops hyprland warping the cursor to monitor 0
-hl.bind(mod .. " + x", hl.dsp.exec_cmd("~/projects/arch-dotfiles/configs/desktop/hyprland/boomer.sh"))
+hl.bind(mod .. " + x", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/boomer.sh"))
 -- focused-monitor-only backup; the monitor-0 window rule misplaces it
 -- hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(
 --     "grim -t ppm -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""))

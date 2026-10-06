@@ -2,7 +2,7 @@
 
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
-source ../../../scripts/lib/fetch.sh
+source $DOTFILES/scripts/lib/fetch.sh
 
 if ! command -v curl >/dev/null 2>&1; then
     echo "protonup: curl missing, skipping" >&2

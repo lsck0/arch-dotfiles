@@ -4,7 +4,7 @@
 -- (~/projects/probe/master/uwu), and git-worktree.nvim put them inside `.bare/`. `add` follows the layout instead:
 --   <repo>/.bare + <repo>/branches/<slug>   bare layout of clones-sdd-repos.sh
 --   <bare>/<slug>                            worktrees inside a plain bare repo (~/projects/probe)
---   ~/.worktrees/<repo>/<slug>               normal checkout, as scripts/wtree.sh does
+--   ~/.worktrees/<repo>/<slug>               normal checkout, as configs/base/git/wtree.sh does
 -- Once linked worktrees exist, the dir most of them share wins over all of the above.
 local M = {}
 

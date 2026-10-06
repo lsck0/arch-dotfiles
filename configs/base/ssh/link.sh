@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/secrets.sh
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/personal.sh
 
 set -e
 
@@ -21,10 +21,10 @@ ln -sfn "${PWD}/config" "${HOME}/.ssh/config"
 # only luca ships keys to authorize
 if is_personal; then
     # git-crypt checks it out 0644, ssh and ssh-add refuse a key others can read
-    secret_is_plaintext ../../base/secrets/ssh_privatekey.asc && chmod 600 ../../base/secrets/ssh_privatekey.asc
+    secret_is_plaintext $DOTFILES/secrets/ssh_privatekey.asc && chmod 600 $DOTFILES/secrets/ssh_privatekey.asc
     mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
     touch "${HOME}/.ssh/authorized_keys" && chmod 600 "${HOME}/.ssh/authorized_keys"
-    for pub in ../../base/secrets/ssh_publickey.asc ../../base/yubikey/ssh-*.pub "${HOME}/.ssh/id_ed25519.pub"; do
+    for pub in $DOTFILES/secrets/ssh_publickey.asc $DOTFILES/configs/base/yubikey/ssh-*.pub "${HOME}/.ssh/id_ed25519.pub"; do
         # skips a locked secrets blob as well as a missing file
         secret_is_plaintext "$pub" || continue
         key=$(cat "$pub")
@@ -37,3 +37,7 @@ sudo install -Dm644 10-hardening.conf /etc/ssh/sshd_config.d/10-hardening.conf
 # no host keys before sshd's first start, and sshd -t needs them
 sudo ssh-keygen -A
 sudo sshd -t && sudo systemctl reload-or-restart sshd
+
+# command on PATH, invoked bare by tmux/herdr/nvim/viewers
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$DOTFILES/configs/base/ssh/sshk.sh" "$HOME/.local/bin/sshk"

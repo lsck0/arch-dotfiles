@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/secrets.sh
 
 # written by scripts/backup-ffxiv.sh; dalamud and its plugins are configs/gaming/dalamud
-BACKUP="$(readlink -f ../../base/secrets/ffxiv)"
+BACKUP="$(readlink -f $DOTFILES/secrets/ffxiv)"
 XLCORE="${HOME}/.xlcore"
 
 # skip while XIVLauncher is not installed, or the secrets backup is locked

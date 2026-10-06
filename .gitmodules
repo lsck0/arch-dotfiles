@@ -1,5 +1,5 @@
 [submodule "configs/secrets"]
-	path = configs/base/secrets
+	path = secrets
 	url = https://github.com/lsck0/secrets.git
     branch = master
 [submodule "configs/keyboard/qmk_firmware"]

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # gamemode [custom] hook: free resources for the game, the ini does the core pinning, visuals stay on
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
-source ../../../scripts/toggles/lib.sh
+source $DOTFILES/scripts/toggles/lib.sh
 
 TRMNL_TIMER=trmnl-claude.timer
 # local inference holds the whole gpu vram; free it for the game

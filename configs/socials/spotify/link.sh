@@ -3,7 +3,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-source ../../../scripts/lib/fetch.sh
+source $DOTFILES/scripts/lib/fetch.sh
 fetch_git_pinned https://github.com/spicetify/spicetify-themes.git 33a08ea009687f5a42ff678015c28797fe142a7c "${HOME}/.config/spicetify/Themes"
 
 mkdir -p "${HOME}/.config/spicetify/Themes/wal"
@@ -41,5 +41,5 @@ python3 "${PWD}/spicetify-unmap-classes.py"
 
 # first apply waits for the first spotify login; later spotify updates come through the pacman hook
 spotify_patched() { [[ -d /opt/spotify/Apps/xpui ]]; }
-source ../../../scripts/lib/user-hook.sh
+source $DOTFILES/scripts/lib/user-hook.sh
 user_hook_oneshot ./hook spicetify-apply spotify_patched

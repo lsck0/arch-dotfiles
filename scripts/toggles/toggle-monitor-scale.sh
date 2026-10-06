@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
@@ -6,7 +7,7 @@ source ./lib.sh
 # Monitor scale and layout. `set` applies a scale live, then persists it to hyprland_monitors.lua;
 # `live` and `layout` are runtime only, a reload restores the file. jq, not python: the display panel's chips run `live`.
 
-MONITORS_LUA="$HOME/projects/arch-dotfiles/configs/desktop/hyprland/hyprland_monitors.lua"
+MONITORS_LUA="$DOTFILES/configs/desktop/hyprland/hyprland_monitors.lua"
 
 # every output as json, disabled ones included
 monitors_json() { hyprctl -j monitors all; }

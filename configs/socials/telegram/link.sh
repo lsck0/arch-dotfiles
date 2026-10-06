@@ -15,7 +15,7 @@ cache="${HOME}/.cache/wal/colors-telegram.tdesktop-palette"
 ln -sfn "$cache" "${HOME}/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette"
 
 # seed the render so the first import works before a wallpaper switch
-tpl="${PWD}/../../base/wallust/templates/wal/colors-telegram.tdesktop-palette"
+tpl="${PWD}/$DOTFILES/configs/base/wallust/templates/wal/colors-telegram.tdesktop-palette"
 if [ ! -e "$cache" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors.sh" ]; then
     python3 - "$tpl" "${HOME}/.cache/wal/colors.sh" "$cache" <<'PY'
 import re, sys

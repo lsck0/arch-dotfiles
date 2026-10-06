@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/secrets.sh
 
 set -e
 
@@ -31,7 +31,7 @@ cat "$tmp" > "$SETTINGS"
 rm -f "$tmp"
 
 # login backed up by scripts/backup-claude.sh; only a home that is not logged in yet is seeded
-BACKUP="$(readlink -f ../../base/secrets/claude)"
+BACKUP="$(readlink -f $DOTFILES/secrets/claude)"
 if secret_is_plaintext "${BACKUP}/credentials.json" && [ ! -f "${HOME}/.claude/.credentials.json" ]; then
     umask 077
     cp "${BACKUP}/credentials.json" "${HOME}/.claude/.credentials.json"

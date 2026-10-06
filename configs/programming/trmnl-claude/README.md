@@ -16,7 +16,7 @@ The plugin UUID is a write token, so it lives in the private secrets
 submodule. `link.sh` skips the install when the file is missing.
 
 ```
-# configs/base/secrets/trmnl-claude.env
+# secrets/trmnl-claude.env
 TRMNL_PLUGIN_UUID=...
 ```
 

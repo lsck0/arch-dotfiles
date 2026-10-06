@@ -13,7 +13,7 @@ hermes profile alias orchestrator --name hermes-orchestrator
 
 # skills into the orchestrator profile too
 mkdir -p "${hermes_orchestrator}/skills"
-for dir in ../../../skills/l-*/; do
+for dir in $DOTFILES/skills/l-*/; do
     name=$(basename "${dir}")
     ln -sfn "$(cd "${dir}" && pwd)" "${hermes_orchestrator}/skills/${name}"
 done
@@ -25,7 +25,7 @@ have_ollama=0
 command -v ollama >/dev/null 2>&1 && have_ollama=1
 
 # skin lives in the default profile, wallpaper switches rewrite only that
-HERMES_HOME="${hermes_default}" ../../base/wallust/scripts/generate-hermes-skin.py
+HERMES_HOME="${hermes_default}" $DOTFILES/configs/base/wallust/scripts/generate-hermes-skin.py
 mkdir -p "${hermes_orchestrator}/skins"
 ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 

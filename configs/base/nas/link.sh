@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 is_personal || exit 0
 
 if ! command -v mount.cifs >/dev/null 2>&1; then

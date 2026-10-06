@@ -3,7 +3,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-source ../../../scripts/lib/fetch.sh
+source $DOTFILES/scripts/lib/fetch.sh
 
 FILES="
     baloofilerc

@@ -31,7 +31,7 @@ ln -sfn "${PWD}/themes/cyberpunk/webkit.custom.css" "${theme}/webkit.custom.css"
 [ -L "${theme}/colors.css" ] && rm "${theme}/colors.css"
 
 # seed the palette before the first switch
-tpl="${PWD}/../../base/wallust/templates/wal/colors-steam.css"
+tpl="${PWD}/$DOTFILES/configs/base/wallust/templates/wal/colors-steam.css"
 out="${theme}/colors.css"
 # a palette rendered before the theme dir existed only needs copying
 if [ ! -e "$out" ] && [ -f "${HOME}/.cache/wal/colors-steam.css" ]; then
@@ -66,5 +66,5 @@ PY
 fi
 
 millennium_linked() { [[ "$(readlink "${HOME}/.local/share/Steam/ubuntu12_32/libXtst.so.6")" == /usr/lib/millennium/* ]]; }
-source ../../../scripts/lib/user-hook.sh
+source $DOTFILES/scripts/lib/user-hook.sh
 user_hook_oneshot ./hook millennium-link millennium_linked

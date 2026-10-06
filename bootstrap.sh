@@ -386,7 +386,7 @@ if (( PERSONAL )); then
     pacman -Sy --noconfirm --needed age age-plugin-yubikey git-crypt pcsclite ccid libfido2 \
         || echo "bootstrap: secrets toolchain install failed, config will unlock instead" >&2
     systemctl start pcscd.socket 2>/dev/null || true
-    ( cd "$REPO" && ./scripts/yubikey.sh unlock ) || echo "bootstrap: secrets unlock skipped" >&2
+    ( cd "$REPO" && ./scripts/lib/yubikey.sh unlock ) || echo "bootstrap: secrets unlock skipped" >&2
 fi
 
 user_setup

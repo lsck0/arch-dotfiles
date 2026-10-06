@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/secrets.sh
 
-BACKUP="$(readlink -f ../../base/secrets/dalamud)"
+BACKUP="$(readlink -f $DOTFILES/secrets/dalamud)"
 XLCORE="${HOME}/.xlcore"
 # InstalledFromUrl is "OFFICIAL" for dalamud's own repo; url below is where the script fetches instead
 MAIN_REPO_URL=https://kamori.goats.dev/Plugin/PluginMaster

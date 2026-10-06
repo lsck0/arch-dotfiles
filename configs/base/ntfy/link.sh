@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/secrets.sh
 is_personal || exit 0
 
 command -v notify-send >/dev/null 2>&1 || exit 0
 
 # homelab ntfy denies anonymous reads
-if ! secret_is_plaintext ../../base/secrets/ntfy-desktop-token; then
-    echo "configs/base/ntfy: no readable ../../base/secrets/ntfy-desktop-token, skipping" >&2
+if ! secret_is_plaintext $DOTFILES/secrets/ntfy-desktop-token; then
+    echo "configs/base/ntfy: no readable $DOTFILES/secrets/ntfy-desktop-token, skipping" >&2
     # never enabled without the token is the common case
     systemctl --user disable --now ntfy-notify.service >/dev/null 2>&1 || true
     exit 0

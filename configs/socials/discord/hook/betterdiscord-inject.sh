@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # inject betterdiscord into the running discord host's newest core; runs on every module change, so the injected check comes first
 # no betterdiscordctl: it hardcodes discord_desktop_core-1, and discord ships -2 and up
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/../../../../scripts/lib/fetch.sh"
+source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/fetch.sh"
 
 ASAR="${HOME}/.config/BetterDiscord/data/betterdiscord.asar"
 # runs inside discord with the account token, so a pinned release; bump both together

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 is_personal || exit 0
 
-source ../../../scripts/lib/secrets.sh
+source $DOTFILES/scripts/lib/secrets.sh
 
 set -e
 
@@ -12,7 +12,7 @@ mkdir -p "${HOME}/sync"
 
 STATE="${HOME}/.local/state/syncthing"
 # per-host device identity
-SECRET_DIR="../../base/secrets/syncthing/$(hostname)"
+SECRET_DIR="$DOTFILES/secrets/syncthing/$(hostname)"
 
 if secret_is_plaintext "${SECRET_DIR}/config.xml" && secret_is_plaintext "${SECRET_DIR}/key.pem"; then
     # install before the daemon starts so it comes up paired

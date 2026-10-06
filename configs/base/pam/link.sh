@@ -2,11 +2,11 @@
 # Wire fingerprint and YubiKey auth into sudo, additive to the password; login and the lock screen take the password only.
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
-source ../../../scripts/lib/platform.sh
+source $DOTFILES/scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/platform.sh
 
 # windows owns sign-in hardware under wsl: no fingerprint reader, a yubikey only through usbipd
-[[ "$(platform_form_factor ../../..)" != wsl ]] || exit 0
+[[ "$(platform_form_factor "$DOTFILES")" != wsl ]] || exit 0
 
 set -e
 

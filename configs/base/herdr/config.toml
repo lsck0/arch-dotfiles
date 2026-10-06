@@ -133,7 +133,7 @@ height = "90%"
 [[keys.command]]
 key = "prefix+m"
 type = "popup"
-command = "direnv exec . ~/projects/arch-dotfiles/scripts/toggles/menu.sh --fzf"
+command = "direnv exec . $DOTFILES/scripts/toggles/menu.sh --fzf"
 width = "90%"
 height = "90%"
 

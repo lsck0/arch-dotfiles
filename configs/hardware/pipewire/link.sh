@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/platform.sh
+source $DOTFILES/scripts/lib/platform.sh
 # pipewire also arrives under wsl, as a dependency of the portals, where wslg owns the audio
-if ! command -v pipewire >/dev/null 2>&1 || [[ "$(platform_form_factor ../../..)" == wsl ]]; then
+if ! command -v pipewire >/dev/null 2>&1 || [[ "$(platform_form_factor "$DOTFILES")" == wsl ]]; then
     exit 0
 fi
 

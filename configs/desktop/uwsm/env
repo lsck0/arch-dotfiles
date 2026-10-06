@@ -8,3 +8,4 @@ export SDL_VIDEO_DRIVER=wayland
 # user scripts (scripts/link.sh) for hyprland binds, units and editors, not only interactive zsh
 export PATH="$PATH:$HOME/.local/bin"
 export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
+export DOTFILES="$HOME/projects/arch-dotfiles"

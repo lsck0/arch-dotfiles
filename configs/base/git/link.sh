@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 
 set -e
 
@@ -45,3 +45,7 @@ if command -v jj >/dev/null 2>&1; then
     fi
     jj config set --user ui.default-command log
 fi
+
+# command on PATH, invoked bare by tmux/herdr/nvim/viewers
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$DOTFILES/configs/base/git/wtree.sh" "$HOME/.local/bin/wtree"

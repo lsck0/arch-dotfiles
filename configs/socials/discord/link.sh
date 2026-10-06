@@ -22,5 +22,5 @@ for url in \
     wget "$url" -O "${bd}/plugins/${url##*/}"
 done
 
-source ../../../scripts/lib/user-hook.sh
+source $DOTFILES/scripts/lib/user-hook.sh
 user_hook_install ./hook betterdiscord-inject

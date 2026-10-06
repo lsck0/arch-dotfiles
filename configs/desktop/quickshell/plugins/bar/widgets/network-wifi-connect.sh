@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# usage: <ssid> [password]; password falls back to configs/base/secrets/wifi
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# usage: <ssid> [password]; password falls back to secrets/wifi
 set -euo pipefail
 
 ssid="${1:?ssid required}"
 password="${2:-}"
 
-secrets_wifi="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}/configs/base/secrets/wifi"
+secrets_wifi="${QS_DOTFILES_DIR:-$DOTFILES}/secrets/wifi"
 
 # a saved NM profile wins over the secrets map, which may be stale
 has_profile() {

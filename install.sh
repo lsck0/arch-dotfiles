@@ -14,6 +14,7 @@ if [ -z "${_PTY_LOG:-}" ]; then
     exec > >(tee install.log) 2>&1
 fi
 
+export DOTFILES="$PWD"
 export FAILURES_FILE="$PWD/FAILURES.install"
 : >"$FAILURES_FILE"
 

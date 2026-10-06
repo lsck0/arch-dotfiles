@@ -184,7 +184,7 @@ class Host:
             def log_message(self, *a):
                 pass
 
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+        self.server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def beacon(self, prefix: str, timeout_s: float) -> str | None:
@@ -297,18 +297,26 @@ def await_chain(name: str) -> None:
 
 
 def login_tty(name: str, host: Host, user: str) -> None:
-    # getty clears the screen as it starts and drops input typed before that, hence the retries
-    for attempt in range(LOGIN_ATTEMPTS):
-        time.sleep(POLL_S)
+    # getty clears the screen as it starts and drops input typed before that, so re-login if the polls below never beacon.
+    # the shell start is slow (fastfetch, starship), so poll the beacon several times per login before assuming it dropped.
+    for login_try in range(LOGIN_ATTEMPTS):
+        time.sleep(POLL_S if login_try == 0 else 3)
         virsh("qemu-monitor-command", name, "--hmp", f"sendkey ctrl-alt-f{LOGIN_TTY}")
         time.sleep(3)
         type_text(name, f"{user}\n", "de")
         time.sleep(3)
         type_text(name, f"{PASSWORD}\n", "de")
         time.sleep(5)
-        type_text(name, f"{beacon_cmd(f'login-{attempt}')}\n", "de")
-        if host.beacon(f"login-{attempt}", 30):
-            return
+        # the installed app firewall (portmaster) blocks the host beacon; verify does not need it
+        clear_line(name)
+        type_text(name, f"echo {PASSWORD} | sudo -S systemctl stop portmaster.service 2>/dev/null\n", "de")
+        for poll in range(4):
+            time.sleep(6)
+            clear_line(name)
+            tag = f"login-{login_try}-{poll}"
+            type_text(name, f"{beacon_cmd(tag)}\n", "de")
+            if host.beacon(tag, 15):
+                return
     sys.exit(f"vm-test: login failed {LOGIN_ATTEMPTS} times, see `test.py shot`")
 
 
@@ -369,7 +377,7 @@ def lint_modules() -> list[str]:
     module's config reaching into another module (not base, not itself) must declare it in that module's
     dependencies.txt, so unexpected coupling (programming needing gaming) cannot slip in undeclared."""
     import re
-    configs, root = HERE / "configs", {"scripts", "skills", "platforms", "wallpapers", "patches"}
+    configs, root = HERE / "configs", {"scripts", "skills", "platforms", "wallpapers", "patches", "secrets"}
     modules = {p.parent.name for p in configs.glob("*/packages.txt")}
     names = lambda f: [ln.split("#", 1)[0].split()[0] for ln in f.read_text().splitlines() if ln.split("#", 1)[0].strip()]
     deps = {m: set(names(configs / m / "dependencies.txt")) for m in modules if (configs / m / "dependencies.txt").is_file()}

@@ -66,7 +66,7 @@ vim.keymap.set("n", "<C-S-t>", function() trouble_cycle("prev", "last") end, { d
 local function tb(fn, args)
     return function() require("telescope.builtin")[fn](args) end
 end
-vim.keymap.set("n", "<leader>fc", tb("find_files", { cwd = "~/projects/arch-dotfiles" }),
+vim.keymap.set("n", "<leader>fc", tb("find_files", { cwd = vim.env.DOTFILES or "$DOTFILES" }),
     { desc = "Find files (dotfiles)" })
 vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # keep the system timezone matching the machine's location
 
 set -euo pipefail
 
-REPO="$HOME/projects/arch-dotfiles"
+REPO="$DOTFILES"
 TOGGLES="$REPO/toggles"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/toggles"
 DISABLED_FLAG="$STATE_DIR/timezone-auto-disabled"

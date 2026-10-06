@@ -12,7 +12,7 @@ ln -sfn "${PWD}/keymap.toml" "${HOME}/.config/yazi/keymap.toml"
 ln -sfn "${HOME}/.cache/wal/colors-yazi.toml" "${HOME}/.config/yazi/theme.toml"
 
 # seed it before the first wallpaper switch
-tpl="${PWD}/../../base/wallust/templates/wal/colors-yazi.toml"
+tpl="${PWD}/$DOTFILES/configs/base/wallust/templates/wal/colors-yazi.toml"
 out="${HOME}/.cache/wal/colors-yazi.toml"
 if [ ! -e "$out" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors" ] && [ "$(wc -l < "${HOME}/.cache/wal/colors")" -ge 16 ]; then
     mkdir -p "${HOME}/.cache/wal"

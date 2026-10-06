@@ -3,6 +3,7 @@
 
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
+export DOTFILES="$PWD"
 
 # progress bars need a tty; re-exec under `script` so pacman/yay render live while logging, fall through to plain tee without a tty (piped, cron)
 if [ -z "${_PTY_LOG:-}" ]; then
@@ -32,8 +33,8 @@ sudo_keepalive_start
 
 ## SECRETS
 
-# a plugged-in YubiKey pulls and unlocks configs/base/secrets with two touches, so the links below find them
-if is_personal; then ./scripts/yubikey.sh unlock || fail "scripts/yubikey.sh unlock"; fi
+# a plugged-in YubiKey pulls and unlocks secrets with two touches, so the links below find them
+if is_personal; then ./scripts/lib/yubikey.sh unlock || fail "scripts/yubikey.sh unlock"; fi
 
 ## LINK
 
@@ -65,7 +66,7 @@ find "$HOME" "$HOME/.local/bin" -maxdepth 1 -xtype l -lname "$PWD/*" -delete || 
 ## PATCHES
 
 # one-shot fixups for system state an older config left behind; see patches/README.md
-./scripts/apply-patches.sh || fail "scripts/apply-patches.sh"
+./scripts/lib/apply-patches.sh || fail "scripts/apply-patches.sh"
 
 ## LEDGER
 

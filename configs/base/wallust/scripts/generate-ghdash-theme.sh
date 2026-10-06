@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # rewrites the theme.colors block of gh-dash/config.yml in place
 set -euo pipefail
 
 COLORS_JSON="$HOME/.cache/wal/colors.json"
-CONFIG="$HOME/projects/arch-dotfiles/configs/programming/gh-dash/config.yml"
+CONFIG="$DOTFILES/configs/programming/gh-dash/config.yml"
 
 [[ -f "$COLORS_JSON" ]] || exit 0
 [[ -f "$CONFIG" ]] || exit 0

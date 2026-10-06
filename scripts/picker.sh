@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # styled dmenu
 
 set -uo pipefail
@@ -10,8 +11,8 @@ c() { sed -n "$1p" "$WAL" 2>/dev/null; }
 BG=$(c 1); FG=$(c 8); ACCENT=$(c 3); SEL_FG=$(c 1)
 : "${BG:=#101010}" "${FG:=#d0d0d0}" "${ACCENT:=#5f87af}" "${SEL_FG:=#101010}"
 
-FONT=$(sed -n 's/^font-family = //p' "$HOME/projects/arch-dotfiles/configs/desktop/ghostty/config" 2>/dev/null | head -1)
-SIZE=$(sed -n 's/^font-size = //p' "$HOME/projects/arch-dotfiles/configs/desktop/ghostty/config" 2>/dev/null | head -1)
+FONT=$(sed -n 's/^font-family = //p' "$DOTFILES/configs/desktop/ghostty/config" 2>/dev/null | head -1)
+SIZE=$(sed -n 's/^font-size = //p' "$DOTFILES/configs/desktop/ghostty/config" 2>/dev/null | head -1)
 : "${FONT:=monospace}" "${SIZE:=14}"
 
 exec bemenu \

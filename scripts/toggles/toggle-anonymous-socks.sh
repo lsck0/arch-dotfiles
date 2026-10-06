@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
-ANONYMOUS_SOCKS="$HOME/projects/arch-dotfiles/scripts/anonymous-socks.sh"
+ANONYMOUS_SOCKS="$DOTFILES/scripts/lib/anonymous-socks.sh"
 
 check()    { "$ANONYMOUS_SOCKS" status; }
 turn_on()  { "$ANONYMOUS_SOCKS" up; }

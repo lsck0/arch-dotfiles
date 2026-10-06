@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 
 SELF="$(readlink -f "$0")"
 SELF_DIR="$(dirname "$SELF")"
 ALERT_BIN="$SELF_DIR/alert.sh"
 BELL="󰂞"
-DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
-NOTIFY_BIN="$DOTFILES/scripts/notification-send.sh"
+DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
+NOTIFY_BIN="$DOTFILES/scripts/lib/notification-send.sh"
 REMINDER_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
 # quickshell's TimerState watches this; countdowns tick in qml, this only lists active reminders
 INDEX="$REMINDER_DIR/index.json"

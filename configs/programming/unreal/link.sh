@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
-source ../../../scripts/lib/platform.sh
-source ../../../scripts/lib/user-hook.sh
+source $DOTFILES/scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/platform.sh
+source $DOTFILES/scripts/lib/user-hook.sh
 
-form_factor=$(platform_form_factor ../../..) || exit 1
+form_factor=$(platform_form_factor "$DOTFILES") || exit 1
 
 set -e
 

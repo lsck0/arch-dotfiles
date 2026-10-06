@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # phases run as systemd-run --user transient timers
 
 set -euo pipefail
 
 SELF=$(readlink -f "$0")
-DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-pomodoro"
 STATE="$STATE_DIR/state.json"
 UNIT_PREFIX=quickshell-pomodoro
@@ -22,7 +23,7 @@ now() { date +%s; }
 ALERT="$(dirname "$SELF")/alert.sh"
 
 notify() {
-    "$DOTFILES/scripts/notification-send.sh" -g "$GLYPH" "$1" "${2:-}" || true
+    "$DOTFILES/scripts/lib/notification-send.sh" -g "$GLYPH" "$1" "${2:-}" || true
 }
 alert()  { "$ALERT" "$1" "${2:-}" "$GLYPH" pomodoro || true; }
 

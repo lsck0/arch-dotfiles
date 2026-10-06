@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # connect protonvpn on an untrusted network once it has full connectivity (so a captive portal logs in first),
 # disconnect at home. home is the hardware mac in use (networkmanager's permanent policy). watches NM for changes.
 set -uo pipefail
-TOGGLE="${HOME}/projects/arch-dotfiles/scripts/toggles/toggle-protonvpn.sh"
+TOGGLE="$DOTFILES/scripts/toggles/toggle-protonvpn.sh"
 
 decide() {
     local iface cur perm conn on

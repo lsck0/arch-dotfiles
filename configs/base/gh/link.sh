@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-TOKEN=../../base/secrets/github
+TOKEN=$DOTFILES/secrets/github
 if ! command -v gh >/dev/null 2>&1 || ! grep -qs '^gh[a-z]_' "$TOKEN"; then
     exit 0
 fi

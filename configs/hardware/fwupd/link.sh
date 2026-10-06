@@ -3,7 +3,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-source ../../hardware/boot/boot-menu/common.sh
+source $DOTFILES/configs/hardware/boot/boot-menu/common.sh
 
 sudo install -Dm640 fwupd.conf /etc/fwupd/fwupd.conf
 sudo systemctl try-restart fwupd.service

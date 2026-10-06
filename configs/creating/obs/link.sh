@@ -7,7 +7,7 @@ mkdir -p "${HOME}/.config/obs-studio/basic/scenes/"
 mkdir -p "${HOME}/.config/obs-studio/basic/profiles/Untitled/"
 
 # scenes carry stream tokens, so they live in secrets
-ln -sfn "$(readlink -f ../../base/secrets/obs-Untitled.json)" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
+ln -sfn "$(readlink -f $DOTFILES/secrets/obs-Untitled.json)" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
 ln -sfn "${PWD}/basic.ini" "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini"
 ln -sfn "${PWD}/streamEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json"
 ln -sfn "${PWD}/recordEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json"

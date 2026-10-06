@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Pull the Claude Code login from ~/.claude into configs/base/secrets/claude; configs/programming/claude/link.sh seeds a fresh home with it.
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# Pull the Claude Code login from ~/.claude into secrets/claude; configs/programming/claude/link.sh seeds a fresh home with it.
 
 set -euo pipefail
 
-REPO="${HOME}/projects/arch-dotfiles"
-DEST="${REPO}/configs/base/secrets/claude"
+REPO="$DOTFILES"
+DEST="${REPO}/secrets/claude"
 
 source "${REPO}/scripts/lib/secrets.sh"
 

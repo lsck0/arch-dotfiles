@@ -5,8 +5,8 @@ set -e
 
 sudo systemctl enable tlp.service
 
-source ../../../scripts/lib/platform.sh
-form_factor=$(platform_form_factor ../../..)
+source $DOTFILES/scripts/lib/platform.sh
+form_factor=$(platform_form_factor "$DOTFILES")
 if [[ "$form_factor" == laptop ]]; then
     conf=bat.tlp.conf
 else

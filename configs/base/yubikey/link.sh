@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/personal.sh
+source $DOTFILES/scripts/lib/personal.sh
 is_personal || exit 0
 
 set -e
@@ -11,7 +11,7 @@ sudo install -Dm644 70-yubikey-hidraw.rules /etc/udev/rules.d/70-yubikey-hidraw.
 sudo udevadm control --reload && sudo udevadm trigger --action=change --subsystem-match=hidraw
 sudo systemctl enable --now pcscd.socket
 
-# pam_u2f registrations of every enrolled key (scripts/yubikey.sh init)
+# pam_u2f registrations of every enrolled key (scripts/lib/yubikey.sh init)
 if [[ -f u2f_keys ]]; then
     mkdir -p "${HOME}/.config/Yubico"
     ln -sfn "${PWD}/u2f_keys" "${HOME}/.config/Yubico/u2f_keys"
@@ -32,8 +32,8 @@ SOPS_KEYS="${HOME}/.config/sops/age/keys.txt"
 mkdir -p "$(dirname "$SOPS_KEYS")"
 : >"$SOPS_KEYS"
 chmod 600 "$SOPS_KEYS"
-if grep -qs '^AGE-SECRET-KEY-' ../../base/secrets/age.txt; then
-    cat ../../base/secrets/age.txt >>"$SOPS_KEYS"
+if grep -qs '^AGE-SECRET-KEY-' $DOTFILES/secrets/age.txt; then
+    cat $DOTFILES/secrets/age.txt >>"$SOPS_KEYS"
 fi
 # no YubiKey enrolled yet means no identity files
 cat age-*.identity >>"$SOPS_KEYS" 2>/dev/null || true

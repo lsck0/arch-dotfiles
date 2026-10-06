@@ -10,7 +10,7 @@ QtObject {
   readonly property string shellDir: Quickshell.shellDir
 
   readonly property string dotfiles: {
-    var configured = String(Quickshell.env("QS_DOTFILES_DIR") || "").trim()
+    var configured = String(Quickshell.env("DOTFILES") || Quickshell.env("QS_DOTFILES_DIR") || "").trim()
     var base = configured || (home + "/projects/arch-dotfiles")
     return base.replace(/\/+$/, "")
   }
@@ -25,9 +25,9 @@ QtObject {
     return base.replace(/\/+$/, "") + "/quickshell"
   }
 
-  readonly property string toggles: dotfiles + "/toggles"
+  readonly property string toggles: dotfiles + "/scripts/toggles"
   readonly property string wallpapers: dotfiles + "/wallpapers"
-  readonly property string themes: dotfiles + "/configs/themes"
+  readonly property string themes: dotfiles + "/configs/base/themes"
 
   function toggle(name) { return toggles + "/" + name }
 

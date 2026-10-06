@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # usage: [image-dir]
 
 set -uo pipefail
 
-DOTFILES="${QS_DOTFILES_DIR:-$HOME/projects/arch-dotfiles}"
+DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 SWITCH_WALLPAPER="$DOTFILES/scripts/switch-wallpaper.sh"
 
 REPO_WALLPAPERS="$DOTFILES/wallpapers"

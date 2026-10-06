@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # Switch to the next or chosen wallpaper and re-theme with wal. Single-flighted via flock.
 
 set -euo pipefail
@@ -43,7 +44,7 @@ set_wallpaper() {
         call background set "$file" >/dev/null 2>&1 || true
 
     # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image
-    THEME_DIR="$HOME/projects/arch-dotfiles/configs/base/themes"
+    THEME_DIR="$DOTFILES/configs/base/themes"
     FILE_REAL=$(readlink -f "$file" 2>/dev/null || echo "$file")
     THEME_JSON=""
     THEME_NAME=""
@@ -65,7 +66,7 @@ set_wallpaper() {
         # optional per-theme font, applied through toggle-font.sh set (the one place font changes go)
         THEME_FONT=$(jq -r '.font // empty' "$THEME_JSON" 2>/dev/null)
         if [[ -n "$THEME_FONT" ]]; then
-            ~/projects/arch-dotfiles/scripts/toggles/toggle-font.sh set "$THEME_FONT" || true
+            $DOTFILES/scripts/toggles/toggle-font.sh set "$THEME_FONT" || true
         fi
 
         # nvim theme dispatch keys off the theme name (lua/themes/<name>.lua), else pywal
@@ -84,20 +85,20 @@ set_wallpaper() {
         themix=(xvfb-run -a themix-multi-export)
     fi
     # gtk/qt themes chained in one backgrounded subshell off the return-path critical section; timeout -k 5 because themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap, and 9>&- drops the lock fd so a hung child never no-ops later switches
-    ( ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-oomox-colors.py && \
+    ( $DOTFILES/configs/base/wallust/scripts/generate-oomox-colors.py && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
 
     # apply the new colors to other programs
     pywalfox update 9>&- &
     # spotify + discord colours; synchronous, the discord block below reads its output
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-spicetify-colors.py
+    $DOTFILES/configs/base/wallust/scripts/generate-spicetify-colors.py
     (
       was_running=0
       pgrep -x spotify >/dev/null && was_running=1
       spicetify -n apply
       # spicetify apply renames css classes away from the dom; undo it or the client comes up stripped
-      ~/projects/arch-dotfiles/configs/socials/spotify/spicetify-unmap-classes.py || true
+      $DOTFILES/configs/socials/spotify/spicetify-unmap-classes.py || true
       pkill -x spotify
       if [ "$was_running" = 1 ]; then
         # spotify is single-instance: wait for the old process to exit before relaunching
@@ -114,27 +115,27 @@ set_wallpaper() {
 
 
     # zed and vscodium themes
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-editor-themes.sh 9>&- &
+    $DOTFILES/configs/base/wallust/scripts/generate-editor-themes.sh 9>&- &
 
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-btop-theme.sh 9>&- &
+    $DOTFILES/configs/base/wallust/scripts/generate-btop-theme.sh 9>&- &
 
     # gh-dash reads this on its next launch
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-ghdash-theme.sh 9>&- &
+    $DOTFILES/configs/base/wallust/scripts/generate-ghdash-theme.sh 9>&- &
 
     # caido webview, applied on its next reload via evenbetter's injected stylesheet
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-caido-theme.py 9>&- >/dev/null 2>&1 &
+    $DOTFILES/configs/base/wallust/scripts/generate-caido-theme.py 9>&- >/dev/null 2>&1 &
 
     # telegram palette regenerates via the wal/ template; import is a manual gui step (tdesktop#31183)
 
     # hermes: one yaml skin themes its cli, tui and desktop app at once
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-hermes-skin.py 9>&- >/dev/null 2>&1 &
+    $DOTFILES/configs/base/wallust/scripts/generate-hermes-skin.py 9>&- >/dev/null 2>&1 &
 
     # kde/qt colours + plasma wallpaper
-    ~/projects/arch-dotfiles/configs/base/wallust/scripts/generate-kde-theme.sh "$file" 9>&- &
+    $DOTFILES/configs/base/wallust/scripts/generate-kde-theme.sh "$file" 9>&- &
 
     # discord theme
-    ui_family=$(~/projects/arch-dotfiles/scripts/toggles/toggle-font.sh get 2>/dev/null || true)
-    ui_size=$(~/projects/arch-dotfiles/scripts/toggles/toggle-font.sh ui-size 2>/dev/null || true)
+    ui_family=$($DOTFILES/scripts/toggles/toggle-font.sh get 2>/dev/null || true)
+    ui_size=$($DOTFILES/scripts/toggles/toggle-font.sh ui-size 2>/dev/null || true)
     if [[ -n "$ui_family" && "$ui_size" =~ ^[0-9]+$ ]]; then
         ui_font="$ui_family $ui_size"
     else
@@ -252,7 +253,7 @@ wallpaper_thumb() {
 export -f wallpaper_thumb
 
 main() {
-    WALLPAPER_DIR="$HOME/projects/arch-dotfiles/wallpapers"
+    WALLPAPER_DIR="$DOTFILES/wallpapers"
     export WALLPAPER_DIR
 
     # non-interactive surface for quickshell's image-picker plugin, ahead of the fzf path

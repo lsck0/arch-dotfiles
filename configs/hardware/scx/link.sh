@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source ../../../scripts/lib/platform.sh
-ff=$(platform_form_factor ../../..)
+source $DOTFILES/scripts/lib/platform.sh
+ff=$(platform_form_factor "$DOTFILES")
 # needs the sched_ext kernel class and the scheduler binary; the wsl kernel has neither
 if [[ ! -d /sys/kernel/sched_ext ]] || ! command -v scx_lavd >/dev/null 2>&1 || [[ "$ff" == wsl ]]; then
     exit 0

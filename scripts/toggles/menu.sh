@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 
@@ -16,7 +17,7 @@ if [[ "$picker" == fzf ]]; then
     selected=$(printf '%s\n' "${lines[@]}" | fzf --prompt="Toggles> " --height=~60% --border --header="enter: toggle | esc: cancel")
 else
     # scripts/picker.sh (pywal-themed bemenu).
-    selected=$(printf '%s\n' "${lines[@]}" | "$HOME/projects/arch-dotfiles/scripts/picker.sh" -p "Toggles")
+    selected=$(printf '%s\n' "${lines[@]}" | "$DOTFILES/scripts/picker.sh" -p "Toggles")
 fi
 [[ -z "${selected:-}" ]] && exit 0
 

@@ -1,6 +1,6 @@
 export DO_NOT_TRACK=1
 
-source ~/.cache/wal/colors.sh
+[ -f ~/.cache/wal/colors.sh ] && source ~/.cache/wal/colors.sh
 
 fpath=(~/.zsh/completions $fpath)
 export ZSH_DISABLE_COMPFIX=true
@@ -84,6 +84,7 @@ path+=("$HOME/.local/bin")
 
 export PATH
 export GOPATH="$HOME/.go"
+export DOTFILES="$HOME/projects/arch-dotfiles"
 export EDITOR=nvim
 export SHELL=zsh
 
@@ -111,8 +112,8 @@ alias mkdir="mkdir -pv"
 alias mv="mv -v"
 alias pacman="sudo pacman"
 alias rm="trash -v"
-alias sshnb="~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.73"
-alias sshpc="~/projects/arch-dotfiles/scripts/sshk.sh luca@192.168.178.138"
+alias sshnb="sshk luca@192.168.178.73"
+alias sshpc="sshk luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
