@@ -12,7 +12,6 @@ BarWidget {
   property string protonVpnState: "off"
   property string torState: "off"
   property bool anonymousSocksOn: false
-  property bool anonymousNetworkPersonaOn: false
   property bool btPowered: false
   property bool wifiOn: true
   property bool ethernetOn: false
@@ -53,7 +52,6 @@ BarWidget {
     protonVpnProc.running = true
     torProc.running = true
     anonymousSocksProc.running = true
-    anonymousNetworkPersonaProc.running = true
     btProc.running = true
     wifiProc.running = true
     ethProc.running = true
@@ -85,7 +83,6 @@ BarWidget {
   function toggleProtonVpn() { runToggle("toggle-protonvpn.sh") }
   function toggleTor() { runToggle("toggle-tor.sh") }
   function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.sh") }
-  function toggleAnonymousNetworkPersona() { runToggle("toggle-anonymous-network-persona.sh") }
   function toggleBluetooth() { runToggle("toggle-bluetooth.sh") }
   function toggleWifi() { runToggle("toggle-wifi.sh") }
   function toggleEthernet() { runToggle("toggle-ethernet.sh") }
@@ -112,11 +109,6 @@ BarWidget {
     id: anonymousSocksProc
     command: [Paths.toggle("toggle-anonymous-socks.sh"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousSocksOn = String(text || "").trim() === "on" }
-  }
-  Process {
-    id: anonymousNetworkPersonaProc
-    command: [Paths.toggle("toggle-anonymous-network-persona.sh"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousNetworkPersonaOn = String(text || "").trim() === "on" }
   }
   Process {
     id: btProc
@@ -603,7 +595,6 @@ BarWidget {
       ToggleRow { visible: root.isPersonal; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
       ToggleRow { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
       ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
-      ToggleRow { label: "Anonymous Network Persona"; on: root.anonymousNetworkPersonaOn; onActivated: root.toggleAnonymousNetworkPersona() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "RADIOS" }

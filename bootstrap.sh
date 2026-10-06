@@ -1,28 +1,10 @@
 #!/usr/bin/env bash
-# Stage 1, from the Arch ISO via the README line: wipe the disk, install a base system, arm stage.sh
-#
-# Integrity chain, each link checked before anything of the next one runs:
-#   1. README.md pins sha256(bootstrap.sh). Its line downloads this file and runs it only if `sha256sum -c`
-#      passes; sync.sh rewrites the pin on every commit. The pin is only as trustworthy as where the README
-#      was read: github.com over TLS (its commit shows Verified), or better an existing checkout whose HEAD
-#      passes `git verify-commit`.
-#   2. This file pins SIGNING_KEY_FINGERPRINT. Run without a checkout, it clones master and execs nothing
-#      from it unless HEAD carries a good signature by that primary key; sync.sh signs every Generation
-#      commit with it. The signature covers the whole tree by hash, the configs/secrets gitlink included.
-#   3. Packages, git and gnupg here included, are checked by pacman against the ISO's archlinux-keyring.
-# Not covered: a replay of an older signed master, the `curl https://install-*.lsck0.dev | sh` short form
-# (homelab and Cloudflare in the path, no pin), and a run from an existing checkout, which trusts that
-# checkout as it is (test.py runs this way).
-# BOOTSTRAP_INSECURE=1 deliberately skips link 2 with a warning, e.g. while master's HEAD is not signed yet.
-#
-# WSL (a platform with FORM_FACTOR=wsl, luca-wsl): run the README line with that platform in the fresh Arch distro's
-# root shell. No disk, keyfile, bootloader or stage chain: keyring, full upgrade, the user with wheel sudo,
-# /etc/wsl.conf (configs/wsl: default user, systemd, hostname) and the verified repo in ~/projects. Then, from
-# Windows, `wsl --terminate archlinux`, reopen it, and run `./install.sh && ./config.sh` as the user.
-#
-# After stage 1: install.sh and config.sh own what they install and enable (scripts/lib/ledger.sh) and remove it
-# only once dropped from the repo, after a confirmation at a terminal. LSCK0_SNAPSHOT=<YYYY-MM-DD> in the platform
-# file or the env pins [lsck0] to that night's dated snapshot (configs/pacman/link.sh).
+# stage 1, from the Arch ISO via the README line: wipe the disk, install a base system, arm stage.sh
+# trust: fetched over https, then master is cloned and nothing runs from it unless HEAD is signed by
+# SIGNING_KEY_FINGERPRINT (sync.sh signs every Generation); packages via the ISO archlinux-keyring
+# BOOTSTRAP_INSECURE=1 skips the signature check, e.g. before master's HEAD is signed
+# wsl (FORM_FACTOR=wsl): run the README line in the fresh distro's root shell, no disk/bootloader/stage;
+# keyring, upgrade, user with wheel sudo, wsl.conf, verified repo; then terminate, reopen, install.sh + config.sh
 
 set -euo pipefail
 

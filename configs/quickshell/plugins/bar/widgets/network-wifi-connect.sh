@@ -16,13 +16,21 @@ has_profile() {
   return 1
 }
 
+home=0
 if [[ -z "$password" && -r "$secrets_wifi" ]] && ! has_profile; then
   # ENVIRON, not -v: awk -v expands backslashes in the ssid
   password=$(ssid="$ssid" awk -F'\t' '$1 == ENVIRON["ssid"] { print $2; exit }' "$secrets_wifi")
+  [[ -n "$password" ]] && home=1
 fi
 
 if [[ -n "$password" ]]; then
   nmcli dev wifi connect "$ssid" password "$password"
 else
   nmcli dev wifi connect "$ssid"
+fi
+
+# a saved network is home: reconnect with the hardware mac so the router's dhcp reservation holds
+if ((home)); then
+  nmcli connection modify "$ssid" 802-11-wireless.cloned-mac-address permanent
+  nmcli connection up "$ssid"
 fi

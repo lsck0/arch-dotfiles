@@ -14,7 +14,7 @@ DATADIR="${ANONYMOUS_SOCKS_TOR_DATADIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/a
 PIDFILE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks.pid"
 # exists only after up verified every port exits through Tor
 VERIFIED="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks.verified"
-# who applied the idspoof persona: socks or persona; shared with anonymous-network-persona.sh
+# who applied the idspoof persona: socks or persona; the networkmanager dispatcher stands down when socks owns it
 IDSPOOF_OWNER="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/idspoof-owner"
 
 # circuit pool: one Tor daemon, POOL_SIZE SocksPorts each in its own SessionGroup so circuits never overlap

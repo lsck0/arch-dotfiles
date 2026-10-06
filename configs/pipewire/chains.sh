@@ -1,39 +1,16 @@
 #!/usr/bin/env bash
-# Renders one filter chain config on stdout: chains.sh lanes|eq. Each chain is
-# its own client (pipewire-chain@<chain>.service), so stopping one leaves the
-# server and the other chain alone.
-#
-# eq: the headset's AutoEq preset (pro-x-2.txt) as a wireplumber smart filter
-# on the headset, so every stream bound for it passes the biquads: games
-# directly, lanes through their default-sink output; other sinks never see it.
-# IIR in the same graph cycle, no added latency; the passive output lets an
-# idle headset suspend. The audio panel's eq switch enables or disables
-# pipewire-chain@eq.service, which is also what persists it.
-#
-# lanes: loudness lanes.
-# A lane is a virtual sink that claims media roles (device.intended-roles), so
-# wireplumber routes every stream of that role into it; roles.conf gives the
-# pulse apps their role. Unclaimed roles (games, system sounds) never touch a
-# lane and stay on the hardware sink with zero added latency.
-#
-# Per lane:  in -> ebur128 -> x gain -> out
-#            gain = fader * amount(clamp(lufs2gain(global lufs, target)))
-#   meter   ebur128 "Global LUFS": gated integrated loudness over the history
-#           window. the gate drops silence, so a voice lull holds the gain
-#           instead of pumping it up; a louder onset takes over within one
-#           400 ms block, a quieter passage only after the window drains
-#           (fast attack, slow release, measured with pink noise steps)
-#   range   clamp on the gain control, bounds both directions
-#   amount  the leveler switch: Mult 1 Add 0 levels, Mult 0 Add 1 passes
-#           unity. the quickshell audio panel flips it with pw-cli and
-#           reads it back from pw-dump, so these names are its contract
-#   fader   the lane's own volume, routed here by capture.volumes so it sits
-#           after the leveler; as stream softvolume it would sit before it
-#           and the leveler would undo every fader move
-#
-# Rejected: one shared leveler for all media evens out the sum, not music
-# against voice. easyeffects needs lsp-plugins and runs every stream through
-# it; ffmpeg loudnorm adds lookahead latency and is not realtime safe.
+# renders one filter chain on stdout: chains.sh lanes|eq. each chain is its own client
+# (pipewire-chain@<chain>.service), so stopping one leaves the server and the other alone.
+# eq: the headset AutoEq preset (pro-x-2.txt) as a wireplumber smart filter on the headset; iir, no added
+# latency, passive output lets an idle headset suspend. the audio panel's eq switch owns pipewire-chain@eq.
+# lanes: a lane is a virtual sink claiming media roles (device.intended-roles); roles.conf gives pulse apps
+# their role, wireplumber routes each role into its lane. unclaimed roles (games, system sounds) stay on the
+# hardware sink, zero added latency.
+#   chain:  in -> ebur128 -> x gain -> out,  gain = fader * amount(clamp(lufs2gain(global lufs, target)))
+#   ebur128 "Global LUFS": gated integrated loudness, so a voice lull holds gain instead of pumping
+#   amount: leveler switch, Mult 1 Add 0 levels / Mult 0 Add 1 unity; the quickshell panel's contract via pw-cli/pw-dump
+#   fader:  the lane volume, routed by capture.volumes to sit after the leveler
+# not easyeffects (pulls lsp-plugins, per-stream) or ffmpeg loudnorm (lookahead latency, not realtime safe)
 set -euo pipefail
 
 # discord voice measured -18.4 lufs at unity: voice passes, normalized spotify (-14) drops 4 lu
