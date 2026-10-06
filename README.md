@@ -8,5 +8,5 @@
 ![clock, system and app launcher](showcase/showcase4.png)
 
 ```bash
-curl install-{pc, notebook, wsl}.lsck0.dev | sh
+curl -fsSL https://install-{pc, notebook, wsl}.lsck0.dev | sh
 ```
