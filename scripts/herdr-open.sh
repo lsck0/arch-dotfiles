@@ -7,9 +7,10 @@ selected="${1:?dir}"
 label="${2:-$(basename "$selected")}"
 
 # wait for the prompt: herdr pane run drops keystrokes typed before direnv/devenv is ready
+# the timeout covers a cold devenv build (nix), which a first session hits
 wait_prompt() {
   # anchored to end-of-line so a stray mid-output glyph does not match early
-  herdr pane wait-output --regex '(λ|❯|[$%#])[[:space:]]*$' --timeout 18000 "$1" >/dev/null 2>&1
+  herdr pane wait-output --regex '(λ|❯|[$%#])[[:space:]]*$' --timeout 600000 "$1" >/dev/null 2>&1
 }
 
 existing_id=$(herdr workspace list 2>/dev/null \
@@ -26,8 +27,8 @@ ws=$(jq -r '.result.workspace.workspace_id' <<<"$created")
 p1=$(jq -r '.result.root_pane.pane_id' <<<"$created")
 t1=$(jq -r '.result.tab.tab_id' <<<"$created")
 
-wait_prompt "$p1"
-herdr pane run "$p1" env NVIM_TMS=1 nvim >/dev/null
+# only run once the prompt is confirmed, so the command is never typed into a shell still loading
+if wait_prompt "$p1"; then herdr pane run "$p1" env NVIM_TMS=1 nvim >/dev/null; fi
 herdr tab rename "$t1" nvim >/dev/null
 for app in claude zsh; do
   tab=$(herdr tab create --workspace "$ws" --cwd "$selected" --no-focus)
@@ -35,8 +36,7 @@ for app in claude zsh; do
   pane=$(jq -r '.result.root_pane.pane_id' <<<"$tab")
   # zsh is the tab's default shell already; only claude needs launching
   if [[ "$app" == claude ]]; then
-    wait_prompt "$pane"
-    herdr pane run "$pane" claude >/dev/null
+    if wait_prompt "$pane"; then herdr pane run "$pane" claude >/dev/null; fi
   fi
 done
 herdr tab focus "$t1" >/dev/null

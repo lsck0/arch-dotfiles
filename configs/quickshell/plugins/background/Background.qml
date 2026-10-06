@@ -57,11 +57,6 @@ Item {
     revealAnimation.restart()
   }
 
-  function openSelector() {
-    // no-arg switch-wallpaper.sh needs a terminal, use the picker
-    Util.execDetached(Util.shellQuote(Paths.script("wallpaper-picker.sh")))
-  }
-
   Process {
     id: readlinkProc
     command: ["readlink", "-f", root.currentBackgroundLink]
@@ -235,12 +230,6 @@ Item {
           panel.maskReady = false
           panel.maybeStartReveal()
         }
-      }
-
-      MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onDoubleClicked: root.openSelector()
       }
     }
   }
