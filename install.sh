@@ -985,6 +985,7 @@ FLATPAK_PKGS=(
 CARGO_PKGS=(
     tmux-sessionizer # [base] tmux project sessionizer
 
+    asm-lsp       # [programming] assembly language server (nvim lsp)
     cargo-afl     # [programming] AFL fuzzing rust
     cargo-info    # [programming] crate info lookup
     cargo-leptos  # [programming] leptos framework build

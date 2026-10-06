@@ -14,14 +14,6 @@ die() { echo "sync: $*" >&2; exit 1; }
 # a failed backup only warns, the rest of the tree still gets committed
 backup() { "$@" || echo "sync: $1 failed, its state is not backed up" >&2; }
 
-# readme_pin_bootstrap: rewrite README.md's pinned sha256 to the bootstrap.sh being committed
-readme_pin_bootstrap() {
-    local sha256
-    sha256=$(sha256sum bootstrap.sh | cut -d' ' -f1)
-    grep -qE '[0-9a-f]{64}  bootstrap\.sh' README.md || die "README.md has no '<sha256>  bootstrap.sh' pin to update"
-    sed -i -E "s/[0-9a-f]{64}  bootstrap\.sh/$sha256  bootstrap.sh/g" README.md
-}
-
 ## PREFLIGHT
 
 # the key bootstrap.sh trusts, so every pushed generation is one a fresh install accepts
@@ -30,7 +22,6 @@ SIGNING_KEY_FINGERPRINT=$(sed -n 's/^SIGNING_KEY_FINGERPRINT=\([0-9A-F]\{40\}\)$
 # an unsigned push would make the next bootstrap refuse master, so stop here instead
 gpg --batch --list-secret-keys "$SIGNING_KEY_FINGERPRINT" >/dev/null 2>&1 \
     || die "no secret key $SIGNING_KEY_FINGERPRINT to sign with, import it: ./scripts/yubikey.sh unlock && ./configs/gnupg/link.sh"
-readme_pin_bootstrap
 
 ## BACKUP
 
