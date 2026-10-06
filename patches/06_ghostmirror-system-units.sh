@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# drop the ghostmirror user units: root ranks the mirrorlist now (configs/ghostmirror system units), the user can no longer write it
+# drop the ghostmirror user units: root ranks the mirrorlist now (configs/base/ghostmirror system units), the user can no longer write it
 
 set -euo pipefail
 

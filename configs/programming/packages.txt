@@ -1,0 +1,286 @@
+act                               # run CI locally
+afl++                             # fuzzing tool
+ali                               # tui webapp load testing
+android-ndk                       # Android native dev kit
+android-sdk                       # Android development kit
+apalache-bin                      # TLA+ symbolic model checker
+appimagetool-git                  # build AppImages
+asm-lsp                           # assembly language server (nvim lsp)
+ast-grep                          # code structural search
+avr-binutils                      # AVR assembler/linker
+avr-gcc                           # AVR C compiler
+avr-gdb                           # AVR debugger
+avr-libc                          # AVR C library
+aws-cli-v2                        # AWS command line
+bacon                             # rust background checker
+bat                               # cat with highlighting
+bc                                # calculator language
+bear                              # compile db generator
+bind                              # DNS utilities
+bloaty                            # binary size profiler
+bpftrace                          # eBPF tracing tool
+bugwarrior                        # bugtracker to taskwarrior
+bun-bin                           # fast javascript runtime
+cargo-afl                         # AFL fuzzing rust
+cargo-audit                       # rust vuln scanner
+cargo-bloat                       # rust binary size
+cargo-deny                        # rust dependency lint
+cargo-edit                        # rust cargo.toml editor
+cargo-expand                      # rust macro expansion
+cargo-flamegraph                  # rust profiler graphs
+cargo-fuzz                        # rust fuzzing tool
+cargo-generate                    # rust project templates
+cargo-info                        # crate info lookup
+cargo-leptos                      # leptos framework build
+cargo-llvm-cov                    # rust coverage tool
+cargo-make                        # rust task runner
+cargo-mutants                     # rust mutation testing
+cargo-nextest                     # faster rust test runner
+cargo-seek                        # crates.io search tool
+cargo-shear                       # unused deps detector
+cargo-show-asm                    # rust asm viewer
+cargo-shuttle                     # shuttle.rs deploy CLI
+cargo-sort-derives                # derive attribute sorter
+cargo-tarpaulin                   # rust code coverage
+cargo-update                      # update installed crates
+cargo-wizard                      # cargo profile helper
+cargo-zigbuild                    # cross-compile via zig
+cbmc                              # C/C++ bounded model checker
+cdecl                             # C declaration translator
+cgdb                              # curses gdb frontend
+chiko                             # gRPC TUI client
+clang                             # C/C++ compiler
+claude-code                       # Claude Code CLI
+cloc                              # count lines of code
+cmake                             # build system generator
+codelldb-bin                      # LLDB debugger extension
+contrast                          # WCAG contrast checker
+cppcheck                          # C/C++ static analysis
+crates-tui-git                    # crates.rs tui
+cross                             # rust cross-compilation
+csvi-bin                          # csv editor
+ctop                              # container resource monitor
+delve                             # go debugger (dap)
+deno                              # secure typescript runtime
+diesel-cli                        # rust ORM CLI
+difftastic                        # structural diff tool
+direnv                            # per-directory env loader
+dnsglobe                          # dns propagation viewer
+docker                            # container runtime
+docker-buildx                     # docker build extension
+docker-compose                    # multi-container orchestration
+dotnet-sdk                        # .NET SDK, mason builds csharpier with it
+ecgen                             # elliptic curve generator, mirror/pkgbuilds
+elan-lean                         # Lean toolchain manager
+emacs                             # text editor
+emscripten                        # C/C++ to wasm
+entr                              # run on file change
+expect                            # scripted terminal automation
+fasm                              # flat assembler
+figlet                            # ascii text banners
+flamegraph                        # perf stackcollapse + flamegraph scripts
+flamelens                         # tui flamegraph viewer
+flux-rs                           # rust refinement types, mirror/pkgbuilds
+ftxui                             # C++ terminal UI lib
+gap                               # computational group theory
+gcc                               # C/C++ compiler
+gcc-fortran                       # Fortran compiler
+gdb                               # GNU debugger
+gemini-cli                        # Google Gemini CLI
+genius                            # math calculator app
+gf2-git                           # debugger
+gh-dash                           # GitHub dashboard TUI
+gh-enhance-bin                    # gh-dash actions extension
+ghcup-hs-bin                      # Haskell toolchain installer
+git-absorb                        # absorbing submodules
+git-age                           # git age encryption
+git-delta                         # syntax-highlighting diff pager
+git-filter-repo                   # git history rewriter
+git-lfs                           # git large file storage
+github-cli                        # GitHub CLI (gh)
+github-copilot-cli                # Copilot CLI tool
+gitleaks                          # git secrets scanner
+glfw                              # OpenGL windowing lib
+glm                               # OpenGL math library
+glow                              # markdown terminal renderer
+gnucobol                          # cobol compiler
+gnuplot                           # plotting utility
+go                                # Go programming language
+go-yq                             # YAML processor CLI (mikefarah)
+godot                             # game engine
+gonzo                             # tui log analysis
+grafana-alloy                     # telemetry collector (promtail successor)
+graphviz                          # graph visualization tool
+grex                              # regex generator
+gup                               # go binary installer/updater
+heaptrack                         # heap memory profiler
+heh                               # byte editor
+helm                              # kubernetes package manager
+help2man                          # generate man pages
+herdr-bin                         # AI agent terminal manager
+hermes-agent                      # AI agent
+hotspot                           # Linux perf GUI
+hunspell-en_us                    # spell dictionary for emacs, shares nvim's word list
+hyperfine                         # command benchmarking tool
+irust                             # rust REPL shell
+jdk-openjdk                       # Java JDK (jdtls needs 21+)
+jetbrains-toolbox                 # JetBrains IDE manager
+jless                             # JSON viewer TUI
+jnv                               # interactive JSON navigator
+jrnl                              # command-line journal
+jujutsu                           # git-compatible VCS
+jupyterlab                        # notebook IDE
+k9s                               # kubernetes TUI
+kani-verifier                     # rust formal verifier
+kcachegrind                       # valgrind callgrind/cachegrind GUI
+kubecolor                         # kubectl colorized output
+kubectl                           # kubernetes CLI
+kubectx                           # kubernetes context switcher
+lazydocker                        # docker TUI
+lazygit                           # git TUI
+lazyjira-bin                      # jira tui
+lazyjj                            # jujutsu TUI
+lazymake-bin                      # makefile TUI
+lazysql                           # SQL database TUI
+lcov                              # code coverage reports
+lean-tui                          # Lean theorem prover TUI
+leptosfmt                         # leptos code formatter
+libvirt                           # libvirt
+libxslt                           # XSLT transform lib
+liquid-fixpoint                   # horn clause solver, mirror/pkgbuilds
+llvm                              # compiler infrastructure
+loki                              # log aggregation backend
+ls-horizons                       # deep space network tracker
+ltrace                            # library call tracer
+luarocks                          # Lua package manager
+make                              # build automation tool
+man-db                            # manual page database
+maven                             # Java build tool
+mdbook                            # markdown book generator
+mergiraf                          # merge conflict resolver
+mermaid-cli                       # diagram generator CLI
+meson                             # build system tool
+micro                             # terminal text editor
+miller                            # CSV/JSON data tool
+mingw-w64-gcc                     # Windows cross-compiler
+minikube                          # local kubernetes cluster
+mkcert                            # local TLS certificates
+mold                              # fast linker
+nano                              # terminal text editor
+nasm                              # x86 assembler
+neovide                           # neovim GUI frontend
+neovim                            # modal text editor
+ninja                             # fast build system
+nix                               # Nix package manager
+nnd                               # linux debugger
+nodejs                            # JavaScript runtime
+npm                               # node package manager
+odin                              # Odin programming language
+oha                               # HTTP load testing
+onefetch                          # git repo summary
+opam                              # OCaml package manager
+openapi-tui                       # openapi tui
+osmium-tool                       # OpenStreetMap data tool
+osslsigncode                      # authenticode signing tool
+osv-scanner                       # dependency vulnerability scanner
+pastel                            # color manipulation CLI
+phoronix-test-suite               # benchmarking suite
+pipeline-gtk                      # GStreamer pipeline debugger
+pkgconf                           # package compile flags
+postgresql                        # relational database
+postgresql-libs                   # postgres client libs
+posting                           # HTTP client TUI
+pre-commit                        # git hook manager
+prettier                          # code formatter
+protobuf                          # protocol buffers runtime
+py-spy                            # sampling profiler for python
+python-faker                      # fake data generator
+python-hypothesis                 # property-based testing
+python-ipykernel                  # Jupyter python kernel
+python-jsonschema                 # JSON schema validator
+python-jupytext                   # jupytext CLI: .ipynb <-> text
+python-matplotlib                 # Python plotting library
+python-numba                      # Python JIT compiler
+python-numpy                      # numerical computing library
+python-openapi-spec-validator     # OpenAPI spec validator
+python-pandas                     # data analysis library
+python-pillow                     # Python imaging library
+python-pip                        # Python package installer
+python-poetry                     # Python dependency manager
+python-pydantic                   # data validation library
+python-pygments                   # syntax highlighting library
+python-pynvim                     # nvim python provider
+python-scikit-learn               # machine learning library
+python-scipy                      # scientific computing library
+python-snakeviz                   # profiler visualization tool
+python-sympy                      # symbolic math library
+python-tree-sitter-html           # HTML parser bindings
+python-tree-sitter-javascript     # JS parser bindings
+python-tree-sitter-json           # JSON parser bindings
+qbe                               # compiler backend
+qmk                               # keyboard firmware framework
+quickjs                           # embeddable JS engine
+r                                 # R statistical language
+raddebugger-git                   # reverse debugger
+raylib                            # game programming library
+renderdoc                         # graphics frame debugger
+reptyr                            # reattach process to terminal
+resvg                             # SVG rendering library
+rgx                               # regex testing
+ripgrep                           # fast recursive grep
+rr                                # record-replay time-travel debugger
+rstudio-desktop-bin               # R development IDE
+rtk                               # tool compression
+ruff                              # fast python linter/formatter
+rustfilt                          # rust symbol demangler
+sagemath                          # computer algebra system
+samply                            # sampling profiler
+sccache                           # compiler cache tool
+sdl3                              # multimedia/game library
+serpl                             # search-replace TUI tool
+skaffold                          # kubernetes dev workflow
+slides-git                        # terminal presentation tool
+sops                              # secrets encryption tool
+speedscope                        # flamegraph profiler viewer
+sqlite                            # embedded SQL database
+sqlitebrowser                     # SQLite database GUI
+sqlx-cli                          # rust SQL migrations CLI
+stackit-cli                       # STACKIT cloud CLI
+strace                            # syscall tracer
+strace-tui                        # strace-tui
+taskwarrior-tui                   # taskwarrior terminal UI
+tauri-cli                         # tauri app CLI
+terraform                         # infrastructure as code
+tesseract                         # OCR engine
+tesseract-data-deu                # German OCR data
+tesseract-data-eng                # English OCR data
+tig                               # git repository browser
+timew                             # time tracking CLI
+tinymist-bin                      # typst language server
+tla-toolbox                       # TLA+ spec + TLC model checker
+tokei                             # code line counter
+tokui                             # code stats TUI
+topology-toolkit                  # scalar field analysis
+tracy                             # realtime frame profiler
+tree-sitter-cli                   # incremental parser generator
+trivy                             # container vulnerability scanner
+trufflehog                        # secrets scanning tool
+trunk                             # rust wasm tooling
+typos                             # source code spell checker (typos-lsp backend)
+typst                             # modern typesetting
+typstyle                          # typst formatter
+updo                              # website uptime monitor
+uv                                # fast Python package manager
+vale                              # prose linter
+valgrind                          # memory debugging/profiling tool
+vscodium-bin                      # VS Code de-branded
+wrk                               # HTTP benchmarking tool
+wscat                             # websocket CLI client
+xh                                # friendly HTTP client
+xplr                              # terminal file picker
+yozefu                            # kafka browser TUI
+z3                                # SMT theorem prover
+zed                               # collaborative code editor
+zig                               # Zig programming language
+zizmor                            # workflow auditing
+identity                          # media comparison

@@ -363,9 +363,51 @@ def verify(logs: Path) -> list[str]:
     return problems
 
 
+def lint_modules() -> list[str]:
+    """static module checks, all fatal. a PKG_GROUPS entry, a dependencies.txt line or a ../../<x>/ ref
+    must name a real module or (for refs) a repo-root dir, so a typo or dropped module is caught. a
+    module's config reaching into another module (not base, not itself) must declare it in that module's
+    dependencies.txt, so unexpected coupling (programming needing gaming) cannot slip in undeclared."""
+    import re
+    configs, root = HERE / "configs", {"scripts", "skills", "platforms", "wallpapers", "patches"}
+    modules = {p.parent.name for p in configs.glob("*/packages.txt")}
+    names = lambda f: [ln.split("#", 1)[0].split()[0] for ln in f.read_text().splitlines() if ln.split("#", 1)[0].strip()]
+    deps = {m: set(names(configs / m / "dependencies.txt")) for m in modules if (configs / m / "dependencies.txt").is_file()}
+    ref = re.compile(r"\.\./\.\./([a-z0-9_-]+)/")
+    problems = []
+    for m, ds in deps.items():
+        for d in ds - modules:
+            problems.append(f"configs/{m}/dependencies.txt: '{d}' is not a module")
+    for name in ("link.sh", "link.py", "common.sh"):
+        for script in configs.rglob(name):
+            src = script.relative_to(configs).parts[0]
+            for tgt in ref.findall(script.read_text(errors="ignore")):
+                if tgt in modules:
+                    if tgt not in (src, "base") and tgt not in deps.get(src, set()):
+                        problems.append(f"{script.relative_to(HERE)}: undeclared dep on '{tgt}', add it to configs/{src}/dependencies.txt")
+                elif tgt not in root:
+                    problems.append(f"{script.relative_to(HERE)}: ../../{tgt}/ is no module or root dir")
+    for pf in (HERE / "platforms").glob("*.sh"):
+        for grp in re.findall(r"PKG_GROUPS=\(([^)]*)\)", pf.read_text()):
+            for g in grp.split():
+                if g not in modules:
+                    problems.append(f"{pf.relative_to(HERE)}: PKG_GROUPS has '{g}', not a module")
+    return problems
+
+
 # --- commands ---
 
+def cmd_lint(args: argparse.Namespace) -> None:
+    problems = lint_modules()
+    if problems:
+        print("\n".join(problems))
+        sys.exit(1)
+    print("vm-test: modules lint clean")
+
+
 def cmd_run(args: argparse.Namespace) -> None:
+    if (problems := lint_modules()):
+        sys.exit("\n".join(problems))
     for tool in ("virt-install", "virsh", "tesseract", "magick"):
         if not shutil.which(tool):
             sys.exit(f"vm-test: {tool} missing")
@@ -410,7 +452,7 @@ def cmd_destroy(args: argparse.Namespace) -> None:
     destroy(args.name)
 
 
-SUBCOMMANDS = ("run", "logs", "shot", "type", "destroy")
+SUBCOMMANDS = ("run", "logs", "shot", "type", "destroy", "lint")
 
 
 def main() -> None:
@@ -429,6 +471,7 @@ def main() -> None:
     typ.add_argument("text")
     typ.add_argument("--layout", choices=["de", "us"], default="de")
     sub.add_parser("destroy", parents=[common])
+    sub.add_parser("lint", parents=[common])
     # run is the default, so ./test.py and ./test.py run behave alike
     argv = sys.argv[1:]
     if not argv or (argv[0] not in SUBCOMMANDS and argv[0] not in ("-h", "--help")):
@@ -437,7 +480,7 @@ def main() -> None:
     if args.cmd == "shot":
         print(cmd_shot(args))
         return
-    {"run": cmd_run, "logs": cmd_logs, "type": cmd_type, "destroy": cmd_destroy}[args.cmd](args)
+    {"run": cmd_run, "logs": cmd_logs, "type": cmd_type, "destroy": cmd_destroy, "lint": cmd_lint}[args.cmd](args)
 
 
 if __name__ == "__main__":

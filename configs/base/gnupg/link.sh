@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
+
+source ../../../scripts/lib/personal.sh
+
+set -e
+
+gnupgdir="${HOME}/.gnupg"
+mkdir -p "${gnupgdir}"
+chmod 700 "${gnupgdir}"
+
+for conf in gpg-agent.conf scdaemon.conf; do
+    target="${gnupgdir}/${conf}"
+    if [ -e "${target}" ] && [ ! -L "${target}" ]; then
+        cp -a "${target}" "${target}.pre-yubikey.bak"
+    fi
+    ln -sfn "${PWD}/${conf}" "${target}"
+done
+
+# reload keeps cached keys; scdaemon reads its config only at start
+gpgconf --reload gpg-agent
+gpgconf --kill scdaemon
+
+# Luca Sandrock key: public half always, the private file from unlocked secrets, card stubs if a YubiKey holds it
+if is_personal; then
+    GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
+    gpg --batch --import luca-sandrock.pub.asc
+    echo "${GPG_FINGERPRINT}:6:" | gpg --import-ownertrust
+    if grep -qs 'BEGIN PGP PRIVATE KEY' ../../base/secrets/pgp_privatekey.asc; then
+        gpg --batch --import ../../base/secrets/pgp_privatekey.asc
+    fi
+    # writes the card stubs when a YubiKey is plugged in, none plugged in is fine
+    gpg --card-status >/dev/null 2>&1 || true
+fi

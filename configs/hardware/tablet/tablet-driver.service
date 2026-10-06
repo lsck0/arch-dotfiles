@@ -1,0 +1,29 @@
+[Unit]
+Description=Userspace driver for the SZ PENG YI [T1161] graphics tablet
+Documentation=file:/home/luca/projects/arch-dotfiles/configs/hardware/tablet/tablet-driver.py
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tablet-driver
+# driver exits 0 when unplugged and udev restarts it on the next add; only genuine faults are worth retrying
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=30
+
+# holds calibration.json that --calibrate writes; must stay in step with CALIB_PATH in tablet-driver.py
+StateDirectory=tablet-driver
+
+# needs only hidraw (read the pad) and /dev/uinput (publish the pen)
+DeviceAllow=/dev/uinput rw
+DeviceAllow=char-hidraw rw
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictRealtime=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

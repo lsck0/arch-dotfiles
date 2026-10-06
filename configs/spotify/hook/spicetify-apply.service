@@ -1,9 +1,0 @@
-[Unit]
-Description=Apply spicetify to spotify
-# brake for a runaway trigger
-StartLimitIntervalSec=1min
-StartLimitBurst=20
-
-[Service]
-Type=oneshot
-ExecStart=%h/projects/arch-dotfiles/configs/spotify/hook/spicetify-apply.sh

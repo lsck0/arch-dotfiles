@@ -32,7 +32,7 @@ sudo_keepalive_start
 
 ## SECRETS
 
-# a plugged-in YubiKey pulls and unlocks configs/secrets with two touches, so the links below find them
+# a plugged-in YubiKey pulls and unlocks configs/base/secrets with two touches, so the links below find them
 if is_personal; then ./scripts/yubikey.sh unlock || fail "scripts/yubikey.sh unlock"; fi
 
 ## LINK
@@ -45,12 +45,16 @@ for line in "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" "XDG_CACHE_HOME  DEFAULT=@
 done
 export GOPATH="${HOME}/.go"
 
-# sorted path order: configs/projects needs configs/gh's login first; pacman is linked by install.sh before the installs
+# only the platform's modules link; the module gate replaces the old per-config guards
+module_dirs=()
+for grp in "${PKG_GROUPS[@]}"; do module_dirs+=("$PWD/configs/$grp"); done
+
+# sorted path order: configs/programming/projects needs configs/base/gh's login first; pacman is linked by install.sh before the installs
 while IFS= read -r script; do
     runner=bash
     [[ "$script" == *.py ]] && runner=python
     (cd "$(dirname "$script")" && "$runner" "$(basename "$script")" </dev/null 2>&1 | tee "${script}.log") || fail "$script"
-done < <(find "$PWD" -type f \( -name link.sh -o -name link.py \) -not -path "$PWD/configs/pacman/*" | sort)
+done < <(find "${module_dirs[@]}" -type f \( -name link.sh -o -name link.py \) -not -path "$PWD/configs/base/pacman/*" | sort)
 
 ## PRUNE
 
@@ -81,8 +85,8 @@ WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkamb
 ## BOOT
 
 # last, so every initramfs, cmdline and grub change of this run is rebuilt once in one order, then signed and verified
-source ./configs/boot/boot-menu/common.sh
-boot_commit || fail "boot barrier (configs/boot/boot-menu/common.sh)"
+source ./configs/hardware/boot/boot-menu/common.sh
+boot_commit || fail "boot barrier (configs/hardware/boot/boot-menu/common.sh)"
 
 ## SUMMARY
 

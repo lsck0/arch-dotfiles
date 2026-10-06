@@ -1,0 +1,3 @@
+devenv     # reproducible dev environments
+macaulay2  # commutative algebra/algebraic geometry, aur recipe is a 2019 snapshot on dropped mpir
+nixfmt     # nix formatter, nil_ls shells out to this

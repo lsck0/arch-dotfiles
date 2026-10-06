@@ -1,0 +1,50 @@
+curseforge                        # mod manager launcher
+gamemode                          # gaming performance daemon
+gamescope                         # gaming compositor
+glslang                           # GLSL/HLSL to SPIR-V compiler
+heroic-games-launcher-bin         # epic/gog launcher
+kpat                              # patience card games
+lib32-alsa-lib                    # 32-bit ALSA lib
+lib32-alsa-plugins                # 32-bit ALSA plugins
+lib32-gamemode                    # gamemoderun for 32-bit games
+lib32-giflib                      # 32-bit GIF lib
+lib32-gnutls                      # 32-bit TLS lib
+lib32-libgcrypt                   # 32-bit crypto lib
+lib32-libgpg-error                # 32-bit gpg errors
+lib32-libjpeg-turbo               # 32-bit JPEG lib
+lib32-libldap                     # 32-bit LDAP lib
+lib32-libpng                      # 32-bit PNG lib
+lib32-libpulse                    # 32-bit PulseAudio
+lib32-libva                       # 32-bit VAAPI lib
+lib32-libxcomposite               # 32-bit X composite
+lib32-libxinerama                 # 32-bit Xinerama lib
+lib32-mangohud                    # mangohud for 32-bit games
+lib32-mesa                        # 32-bit Mesa drivers
+lib32-mpg123                      # 32-bit MP3 decoder
+lib32-ncurses                     # 32-bit ncurses lib
+lib32-opencl-icd-loader           # 32-bit OpenCL loader
+lib32-sqlite                      # 32-bit SQLite lib
+lib32-vkbasalt                    # vkbasalt for 32-bit games
+lib32-vulkan-icd-loader           # 32-bit Vulkan loader
+lutris                            # game launcher manager
+mangohud                          # gaming performance overlay
+millennium                        # Steam client theme loader
+minecraft-launcher                # Minecraft game launcher
+modrinth-app                      # minecraft mod manager
+nethack                           # roguelike dungeon game
+opencomposite-git                 # OpenXR to OpenVR
+path-of-building-community-git    # PoE build planner
+proton-cachyos                    # CachyOS Proton: vkd3d low-latency, reflex, ntsync
+protontricks                      # Proton/Wine helper tool
+protonup-git                      # Proton-GE installer
+r2modman-bin                      # game mod manager
+rcon-cli                          # game server RCON client
+shaderc                           # shader compilation toolchain
+spirv-tools                       # SPIR-V assembler/validator
+steam                             # gaming platform client
+vkbasalt                          # vulkan post-processing layer, opt-in per game
+vulkan-tools                      # vulkaninfo/vkcube utilities
+vulkan-validation-layers          # Vulkan validation layers
+wayvr-bin                         # wayland VR desktop
+wivrn                             # OpenXR streaming server for a wireless quest
+xivlauncher-bin                   # FFXIV game launcher

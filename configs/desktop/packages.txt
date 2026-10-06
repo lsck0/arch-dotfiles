@@ -1,0 +1,115 @@
+ani-cli-git                       # anime streaming CLI
+bemenu-wayland                    # dmenu for wayland
+bleachbit                         # disk space cleaner
+bluedevil                         # plasma bluetooth applet
+bookokrat-bin                     # terminal pdf
+brightnessctl                     # backlight control
+chromium                          # web browser
+cpio                              # hyprpm extracts Hyprland headers with it
+cups-pk-helper                    # cups polkit helper
+ddcutil                           # DDC/CI monitor brightness control
+dolphin                           # file manager (default; nemo kept alongside)
+feather-wallet                    # monero wallet, wallets live in ~/sync/monero
+filezilla                         # FTP client
+firefox                           # web browser
+flat-remix-gtk                    # GTK theme
+font-manager                      # font management GUI
+gearlever                         # AppImage manager
+geogebra-6-bin                    # math/geometry app
+ghostty                           # GPU terminal emulator
+gnome-calculator                  # calculator app
+gnome-calendar                    # calendar app
+gnome-maps                        # maps application
+gnome-text-editor                 # simple text editor
+gparted                           # partition editor GUI
+grim                              # wayland screenshot tool
+gtk3                              # GTK3 toolkit
+gtk4                              # GTK4 toolkit
+headsetcontrol                    # headset control utility
+hollywood                         # fake hacker terminal
+hyprcursor                        # hyprland cursor format
+hypridle                          # hyprland idle daemon
+hyprland                          # wayland compositor
+hyprpicker                        # wayland color picker
+hyprpm                            # hyprland plugin manager
+jdownloader2                      # download manager
+kdeconnect                        # phone integration, firewall allows 1716
+kdeplasma-addons                  # plasma weather and keyboard indicator applets
+kitty                             # GPU terminal emulator
+konsole                           # KDE terminal emulator
+krusader                          # total commander
+kscreen                           # plasma display configuration
+lib32-gtk3                        # 32-bit GTK3
+libnotify                         # desktop notification lib
+libreoffice-fresh                 # office suite
+libx11                            # X11 client library
+linecast                          # tui weather
+localsend                         # local file sharing
+logseq-desktop-bin                # note-taking app
+ly                                # TUI display manager
+lynx                              # text-mode web browser
+metadata-cleaner                  # strip file metadata
+minder                            # mind mapping tool
+mission-center                    # system monitor GUI
+mov-cli                           # terminal movie streamer
+mpg123                            # MP3 player CLI
+mpv                               # media player
+nemo                              # file manager
+nwg-look                          # GTK theme configurator
+obsidian                          # markdown notes app
+obsidian-icon-theme               # Obsidian icon theme
+okular                            # PDF/document viewer
+onlyoffice-bin                    # office document suite
+pavucontrol                       # PulseAudio volume GUI
+piper                             # mouse config GUI
+plasma-desktop                    # plasma fallback session, not the plasma group (drkonqi, discover, krdp, bigscreen)
+plasma-integration                # Qt platform theme
+plasma-nm                         # plasma network applet
+plasma-pa                         # plasma volume applet
+plasma-vault                      # plasma vault applet
+playerctl                         # media player control
+polkit                            # privilege authorization framework
+polkit-kde-agent                  # KDE polkit agent
+print-manager                     # plasma printer applet
+proton-authenticator-bin          # Proton 2FA app
+proton-pass-bin                   # Proton Pass password manager
+proton-vpn-qt-app                 # ProtonVPN GUI client
+qbittorrent                       # torrent client
+qt5-wayland                       # Qt5 wayland platform
+qt6-wayland                       # Qt6 wayland platform
+quickshell                        # wayland status bar shell
+qutebrowser                       # keyboard-driven web browser
+rose-pine-cursor                  # cursor theme
+rose-pine-hyprcursor              # hyprland cursor theme
+slurp                             # wayland region selector
+snapshot                          # GNOME camera app
+sowon-git                         # tsoding timer
+stirling-pdf-bin                  # PDF manipulation tool
+system-config-printer             # printer config GUI
+tlpui                             # TLP configuration GUI
+torbrowser-launcher               # Tor Browser launcher
+uwsm                              # universal wayland session manager
+wayland                           # display server protocol
+wayland-boomer-git                # wayland screen magnifier
+waypipe                           # wayland network forwarding
+wev                               # wayland event viewer
+wine-staging                      # Windows compatibility layer
+wiremix                           # pipewire mixer TUI
+wireplumber                       # pipewire session manager
+wl-clipboard                      # wayland clipboard tool
+wl_shimeji-git                    # desktop mascot pet
+xclip                             # X11 clipboard tool
+xdg-desktop-portal-gtk            # GTK desktop portal
+xdg-desktop-portal-hyprland       # hyprland desktop portal
+xdg-desktop-portal-kde            # file chooser and settings portal, configs/base/xdg/hyprland-portals.conf
+xdg-user-dirs-gtk                 # user dirs GTK integration
+xorg-server                       # X11 display server
+xorg-xauth                        # X11 auth utility
+xorg-xev                          # X11 event viewer
+xorg-xeyes                        # X11 demo eyes
+xorg-xhost                        # X11 access control
+xorg-xinput                       # X11 input config
+xorg-xwayland                     # X11 on wayland
+ydotool                           # generic input automation
+zathura                           # minimal document viewer
+zathura-pdf-mupdf                 # zathura PDF backend

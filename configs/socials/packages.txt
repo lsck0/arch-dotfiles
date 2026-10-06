@@ -1,0 +1,15 @@
+chatuino-bin                      # tui twitch
+discord                           # chat/voice app
+discordo-git                      # terminal discord client
+element                           # matrix chat client
+hexchat                           # IRC client
+proton-mail-bin                   # Proton Mail client
+proton-meet-bin                   # Proton video calls
+signal-desktop                    # encrypted messaging app
+spicetify-cli                     # spotify theming CLI
+spotify                           # music streaming client
+spotify-player                    # terminal spotify client
+teamspeak3                        # voice chat client
+telegram-desktop                  # messaging app
+thunderbird                       # email client
+zapzap                            # WhatsApp desktop client

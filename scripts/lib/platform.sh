@@ -15,9 +15,9 @@ platform_file() {
     return 0
 }
 
-# platform_groups_all <repo>: every group install.sh's lists tag, in first-use order
+# platform_groups_all <repo>: every module, a configs/<module>/ with a packages.txt
 platform_groups_all() {
-    sed -n 's/.*# \[\([a-z]*\)\].*/\1/p' "$1/install.sh" | awk '!seen[$0]++'
+    find "$1/configs" -mindepth 2 -maxdepth 2 -name packages.txt -printf '%h\n' | sed 's#.*/##' | sort
 }
 
 # platform_form_factor <repo>: desktop, laptop, vm or wsl; the platform file's FORM_FACTOR, a probe only without one
@@ -59,8 +59,14 @@ platform_load() {
         echo "platform: $file" >&2
     fi
     ((${#PKG_GROUPS[@]})) || mapfile -t PKG_GROUPS < <(platform_groups_all "$1")
+    # a group that is not a discovered module is a typo or a dropped module, caught here not silently skipped
+    local known grp
+    known=" $(platform_groups_all "$1" | tr '\n' ' ') "
+    for grp in "${PKG_GROUPS[@]}"; do
+        [[ "$known" == *" $grp "* ]] || { echo "platform: PKG_GROUPS has '$grp', not a module in configs/" >&2; return 1; }
+    done
     FORM_FACTOR=$(platform_form_factor "$1") || return 1
-    # configs/pacman/link.sh runs as a child of install.sh
+    # configs/base/pacman/link.sh runs as a child of install.sh
     export FORM_FACTOR LSCK0_SNAPSHOT
     mkdir -p "$(dirname "$PLATFORM_FORM_FACTOR_FILE")"
     echo "$FORM_FACTOR" >"$PLATFORM_FORM_FACTOR_FILE"

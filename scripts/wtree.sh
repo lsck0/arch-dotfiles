@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Branch/worktree selector. New worktrees follow the layout, as configs/nvim/lua/lib/worktree.lua does:
+# Branch/worktree selector. New worktrees follow the layout, as configs/programming/nvim/lua/lib/worktree.lua does:
 #   <repo>/.bare + <repo>/branches/<slug>   bare layout of clones-sdd-repos.sh
 #   <bare>/<slug>                            worktrees inside a plain bare repo (~/projects/probe)
 #   ~/.worktrees/<repo>/<slug>               normal checkout

@@ -1,0 +1,9 @@
+biber                             # bibliography processor
+bibiman-bin                       # tui bibtext manager
+sioyek-git                        # pdf viewer for latex, synctex both ways (configs/latex/sioyek)
+tectonic                          # LaTeX engine
+texlab                            # LaTeX language server
+texlive                           # LaTeX distribution
+texlive-lang                      # LaTeX language packs
+texmaker                          # LaTeX editor
+zotero-bin                        # reference manager

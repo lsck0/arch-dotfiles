@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# helpers for configs/secrets, a git-crypt worktree that is a GITCRYPT blob while locked
+# helpers for configs/base/secrets, a git-crypt worktree that is a GITCRYPT blob while locked
 
 # secret_is_plaintext <file>: file exists, is readable, and is not a locked git-crypt blob
 secret_is_plaintext() {
@@ -10,7 +10,7 @@ secret_is_plaintext() {
     [[ "$magic" != GITCRYPT ]]
 }
 
-# secret_require_unlocked <repo>: exit unless configs/secrets is unlocked, a locked worktree would stage plaintext into GITCRYPT blobs
+# secret_require_unlocked <repo>: exit unless configs/base/secrets is unlocked, a locked worktree would stage plaintext into GITCRYPT blobs
 secret_require_unlocked() {
-    secret_is_plaintext "$1/configs/secrets/pgp_privatekey.asc" || { echo "configs/secrets is locked, unlock it first" >&2; exit 1; }
+    secret_is_plaintext "$1/configs/base/secrets/pgp_privatekey.asc" || { echo "configs/base/secrets is locked, unlock it first" >&2; exit 1; }
 }

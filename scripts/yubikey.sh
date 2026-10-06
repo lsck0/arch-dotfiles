@@ -4,8 +4,8 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
-KEY_DIR="$REPO/configs/yubikey"
-SECRETS="$REPO/configs/secrets"
+KEY_DIR="$REPO/configs/base/yubikey"
+SECRETS="$REPO/configs/base/secrets"
 SEALED_KEY="$KEY_DIR/secrets.key.age"
 GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 PAM_ORIGIN=pam://lsck0
@@ -70,7 +70,7 @@ cmd_init() {
     for step_name in "${steps[@]}"; do
         "init_$step_name" "$sn"
     done
-    step "done: commit configs/yubikey; homelab .sops.yaml needs $(recipient "$KEY_DIR/age-$sn.identity" 2>/dev/null)"
+    step "done: commit configs/base/yubikey; homelab .sops.yaml needs $(recipient "$KEY_DIR/age-$sn.identity" 2>/dev/null)"
 }
 
 init_pins() {
@@ -129,7 +129,7 @@ init_age() {
 
 # each step is one touch; no key, no enrollment or no touch just skips
 cmd_unlock() {
-    # ykman and the age plugin talk to the card through pcscd; configs/yubikey enables it later
+    # ykman and the age plugin talk to the card through pcscd; configs/base/yubikey enables it later
     sudo install -Dm644 "$KEY_DIR/pcsc.rules" /etc/polkit-1/rules.d/50-pcsc-wheel.rules 2>/dev/null || true
     sudo install -Dm644 "$KEY_DIR/70-yubikey-hidraw.rules" /etc/udev/rules.d/70-yubikey-hidraw.rules 2>/dev/null \
         && sudo udevadm control --reload && sudo udevadm trigger --action=change --subsystem-match=hidraw \
@@ -169,7 +169,7 @@ cmd_unlock() {
         echo ">>> touch the YubiKey to pull the secrets"
         with_touch git -C "$REPO" -c "core.sshCommand=$ssh_command" \
             -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/" \
-            submodule update --init configs/secrets || echo "yubikey: pull failed or no touch"
+            submodule update --init configs/base/secrets || echo "yubikey: pull failed or no touch"
         command rm -f "$key_file"
         [[ -e "$SECRETS/.git" ]] || return 0
     fi

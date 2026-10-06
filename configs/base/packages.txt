@@ -1,0 +1,153 @@
+age                               # file encryption, opens the YubiKey-sealed secrets key
+age-plugin-yubikey                # age identities in the YubiKey PIV applet
+app2unit                          # app to systemd unit
+argon2                            # password hashing tool
+base                              # Arch base group
+base-devel                        # Arch build tools
+borg                              # deduplicating backup tool
+bpftop                            # bpf monitor
+btop                              # resource monitor TUI
+bubblewrap                        # unprivileged sandbox, runs untrusted binaries without network
+caligula                          # disk imaging tool
+ccid                              # smartcard CCID driver (YubiKey OpenPGP)
+chafa                             # terminal image renderer
+cifs-utils                        # SMB/CIFS mount tools
+clonezilla                        # disk cloning tool
+cmatrix                           # matrix terminal animation
+coreutils                         # GNU core utilities
+cowsay                            # ascii cow sayings
+cpufetch                          # CPU info fetcher
+croc                              # secure file transfer
+cronie                            # cron daemon
+curl                              # HTTP client tool
+diskwatch                         # disk debugging
+dog                               # DNS lookup tool
+downgrade                         # pacman package downgrader
+dua-cli                           # disk usage analyzer
+dwarfs                            # compressed read-only fs
+dysk                              # disk usage viewer
+eza                               # modern ls replacement
+fastfetch                         # system info fetcher
+fd                                # find alternative
+ffmpeg                            # audio/video converter
+file                              # file type detector
+flatpak                           # sandboxed app packages
+freetype2                         # font rasterizer
+fzf                               # fuzzy finder
+fzf-tab-git                       # fzf for zsh tab completion
+ghostmirror                       # mirrorlist ranking tool
+git                               # version control
+git-crypt                         # transparent encryption of the secrets repo
+gnutls                            # TLS library
+gpg-tui                           # gpg tui
+gping                             # ping with graph
+gum                               # pretty shell prompts/inputs
+imagemagick                       # theme generator dependency
+ipython                           # enhanced Python shell
+jq                                # JSON processor CLI
+just                              # command runner
+kmon                              # kernel monitor
+knockd                            # port-knock client (knock) for hidden sshd
+lazyjournal                       # journalctl/log TUI
+less                              # pager utility
+libappimage                       # AppImage runtime lib
+libev                             # event loop library
+libfido2                          # FIDO2/U2F device library
+libgcrypt                         # crypto library
+libgpg-error                      # gpg error codes
+libjpeg-turbo                     # JPEG codec library
+libldap                           # LDAP client library
+libpng                            # PNG image library
+libpqxx                           # C++ postgres client
+libpulse                          # PulseAudio client lib
+libva                             # VAAPI video accel
+libvips                           # image processing library
+libxcomposite                     # X composite extension
+libxinerama                       # X multi-monitor lib
+lolcat                            # rainbow text output
+lshw                              # hardware lister
+lua51-luautf8                     # Lua UTF-8 lib
+lynis                             # security auditing tool
+man-pages                         # Linux manual pages
+mesa                              # graphics driver library
+mtools                            # DOS filesystem tools
+mtr                               # traceroute + ping
+ncurses                           # terminal UI library
+nss-mdns                          # mDNS name resolution
+ntfs-3g                           # NTFS filesystem driver
+nushell                           # structured-data shell
+oh-my-zsh-git                     # zsh libs and plugins, sourced without the framework
+openal                            # 3D audio library
+openbsd-netcat                    # netcat networking tool
+opencl-icd-loader                 # OpenCL loader
+openssh                           # SSH client/server
+openssl                           # TLS/crypto toolkit
+openvpn                           # VPN client/server
+ouch                              # archive compression tool
+pacman-contrib                    # pacman cache cleanup tools
+pam-u2f                           # FIDO2/U2F PAM module (YubiKey touch auth)
+pandoc-cli                        # document format converter
+parallel                          # run commands in parallel
+pass                              # CLI password manager
+pass-otp                          # pass TOTP/2FA extension
+pcsclite                          # PC/SC smartcard middleware
+pdftk                             # PDF toolkit
+procs                             # modern ps replacement
+proton-vpn-cli                    # ProtonVPN CLI (protonvpn command)
+python                            # theme generator scripts
+python-pywalfox                   # firefox theme propagator
+rar                               # RAR archive tool
+rkhunter                          # rootkit detection tool
+rsync                             # file sync tool
+rustnet                           # network monitor TUI
+rustup                            # rust toolchain manager, installed before the batch so nothing pulls rust
+s-tui                             # CPU stress/monitor TUI
+sd                                # sed alternative CLI
+socat                             # socket relay tool
+sshfs                             # SSH filesystem mount
+sshpass                           # non-interactive SSH auth
+starship                          # cross-shell prompt
+sudo                              # privilege escalation tool
+superseedr                        # terminal torrent
+syncthing                         # file sync daemon
+tailspin                          # logging tool
+tar                               # archiving utility
+tar-scripts                       # tar helper scripts
+themix-gui-git                    # GTK theme exporter
+themix-plugin-base16-git          # themix export plugin
+tk                                # Tcl/Tk GUI toolkit
+tldr                              # simplified man pages
+tmux                              # terminal multiplexer
+tmux-fingers                      # tmux copy-paste hints
+tmux-sessionizer                  # tmux project sessionizer
+tparted-bin                       # partitioning TUI tool
+traceroute                        # network route tracer
+trash-cli                         # CLI trash bin
+trippy                            # traceroute + ping TUI
+tty-clock                         # terminal clock display
+unzip                             # zip extraction tool
+usbtree                           # usb tui
+ventoy-bin                        # multi-boot USB creator
+veracrypt                         # disk encryption tool
+vim                               # modal text editor
+vulkan-icd-loader                 # Vulkan loader library
+wallust-git                       # wallpaper colour engine
+wget                              # file download utility
+whois                             # domain lookup tool
+wiki-tui                          # Wikipedia terminal browser
+wireguard-tools                   # WireGuard VPN tools
+xdg-ninja                         # XDG compliance checker
+xdg-user-dirs                     # standard user directories
+xdg-utils                         # desktop integration utilities
+xorg-server-xvfb                  # virtual display for themix-multi-export while config.sh runs headless
+yay                               # AUR helper
+yazi                              # terminal file manager
+yt-dlp                            # video downloader
+yubikey-manager                   # ykman: OpenPGP/PIV/OATH/OTP config
+yubikey-personalization           # ykpersonalize: static-pw/chalresp slots
+zip                               # zip archiving tool
+zoxide                            # smarter cd command
+zsh                               # Z shell
+zsh-autosuggestions               # zsh history suggestions
+zsh-completions                   # extra zsh completions
+zsh-syntax-highlighting           # zsh command line highlighting

@@ -1,0 +1,166 @@
+onboarding = false
+
+[theme]
+# BEGIN PYWAL THEME
+[theme.custom]
+sidebar_bg = "reset"
+panel_bg = "reset"
+active_row_bg = "#292333"
+selection_bg = "#34293b"
+accent = "#AA6785"
+red = "#A16C97"
+green = "#8678B3"
+surface_dim = "#1c1c29"
+surface0 = "#2d2536"
+surface1 = "#3a2c40"
+overlay0 = "#4b364d"
+overlay1 = "#654361"
+text = "#F290CE"
+subtext0 = "#a76794"
+yellow = "#6A7ABE"
+blue = "#AA6785"
+mauve = "#9672AA"
+teal = "#A96894"
+peach = "#6A7ABE"
+# END PYWAL THEME
+
+[ui]
+sidebar_width = 20
+sidebar_min_width = 14
+sidebar_max_width = 30
+agent_panel_sort = "spaces"
+prompt_new_tab_name = false
+pane_outer_borders = false
+# wheel/keys still scroll
+pane_scrollbars = false
+
+[keys]
+prefix = "ctrl+q"
+split_horizontal = "prefix+s"     # tmux: bind s split-window -v (stacked)
+split_vertical = "prefix+v"       # tmux: bind v split-window -h (side by side)
+edit_scrollback = "prefix+e"      # tmux: bind e copy-mode (scrollback/copy)
+settings = ""                     # cleared: prefix+s is split_horizontal, not settings
+toggle_sidebar = ""               # cleared: prefix+b is the wtree popup, not sidebar
+close_pane = "prefix+q"
+close_tab = "prefix+x"
+detach = ""
+# tmux: alt+shift+hjkl select-pane, plain alt+hjkl stays with nvim
+focus_pane_left = "alt+shift+h"
+focus_pane_down = "alt+shift+j"
+focus_pane_up = "alt+shift+k"
+focus_pane_right = "alt+shift+l"
+workspace_picker = ""             # tmux: bind w -> sessionizer popup, not workspace picker
+goto = ""                         # tmux: bind g -> gh-dash popup, not goto
+next_tab = ""                     # tmux: bind n -> netscanner popup, not next-window
+previous_tab = ""                 # tmux: bind p -> btop popup, not previous-window
+zoom = ""                         # tmux: bind z -> zsh popup, not pane zoom
+new_workspace = ""
+next_workspace = "prefix+]"
+previous_workspace = "prefix+["
+next_agent = "alt+n"
+previous_agent = "alt+p"
+
+[[keys.command]]
+key = "prefix+w"
+type = "popup"
+command = "hms"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+shift+c"
+type = "popup"
+command = "pclone"
+width = "50%"
+height = "12%"
+
+[[keys.command]]
+key = "prefix+b"
+type = "popup"
+command = "wtree"
+width = "60%"
+height = "60%"
+
+[[keys.command]]
+key = "prefix+shift+n"
+type = "popup"
+command = "direnv exec . rustnet"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+shift+s"
+type = "popup"
+command = "direnv exec . lazysql"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+d"
+type = "popup"
+command = "direnv exec . lazydocker"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+g"
+type = "popup"
+command = "direnv exec . gh-dash"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+j"
+type = "popup"
+command = "direnv exec . lazyjj"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+shift+j"
+type = "popup"
+command = "direnv exec . sh -c 'lazyjournal -T \"$(date +%:z)\"'"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+k"
+type = "popup"
+command = "direnv exec . k9s"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+m"
+type = "popup"
+command = "direnv exec . ~/projects/arch-dotfiles/scripts/toggles/menu.sh --fzf"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+n"
+type = "popup"
+command = "direnv exec . netscanner"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+p"
+type = "popup"
+command = "direnv exec . btop"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+t"
+type = "popup"
+command = "direnv exec . taskwarrior-tui"
+width = "90%"
+height = "90%"
+
+[[keys.command]]
+key = "prefix+z"
+type = "popup"
+command = "direnv exec . zsh"
+width = "90%"
+height = "90%"

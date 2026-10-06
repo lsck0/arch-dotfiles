@@ -1,0 +1,9 @@
+[Unit]
+Description=Inject betterdiscord into discord
+# a launch sends the updater a burst of commands; this only brakes a runaway trigger
+StartLimitIntervalSec=1min
+StartLimitBurst=20
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/socials/discord/hook/betterdiscord-inject.sh

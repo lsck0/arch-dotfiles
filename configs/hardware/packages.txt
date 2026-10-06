@@ -1,0 +1,63 @@
+alsa-firmware                     # ALSA sound firmware
+amd-ucode                         # AMD CPU microcode, pacstrap installs it on AMD
+apparmor                          # mandatory access control LSM, parser and stock profiles
+apparmor.d                        # aa-install and the browser/discord/zathura profiles (configs/hardware/apparmor)
+bluetui                           # bluetooth tui
+bluez                             # bluetooth stack
+bluez-obex                        # bluetooth OBEX (file transfer)
+bluez-utils                       # bluetooth utilities
+btrfs-progs                       # btrfs filesystem tools
+cryptsetup                        # LUKS tooling, pacstrap installs it
+cups                              # printing system
+cups-pdf                          # print-to-PDF virtual printer
+efibootmgr                        # EFI boot manager
+fail2ban                          # intrusion prevention tool
+fwupd                             # lvfs firmware updates (nvme, gpu, usb4, uefi dbx)
+grub                              # bootloader, pacstrap installs it
+intel-media-driver                # Intel VAAPI driver
+intel-ucode                       # Intel CPU microcode, pacstrap installs it on Intel
+jolt                              # battery debugging
+lact                              # AMD GPU control: power limit, fan curve, undervolt
+lib32-vulkan-radeon               # 32-bit AMD Vulkan
+libinput-tools                    # libinput debug tools
+libva-utils                       # vainfo, verify gpu codec support
+linux                             # Linux kernel
+linux-firmware                    # kernel firmware blobs
+linux-headers                     # kernel headers
+linux-lts                         # long-term-support kernel
+linux-lts-headers                 # LTS kernel headers
+linux-tools-meta                  # kernel perf tools
+lm_sensors                        # hardware sensors, ships fancontrol/pwmconfig/sensors-detect
+mkinitcpio                        # initramfs generator, pacstrap installs it
+modemmanager                      # mobile broadband (WWAN), toggle-mobile
+networkmanager                    # network connection manager
+nftables                          # firewall packet filter
+os-prober                         # other systems in grub's menu (GRUB_DISABLE_OS_PROBER=false)
+pipewire                          # audio/video server
+pipewire-alsa                     # pipewire ALSA compat
+pipewire-pulse                    # pipewire pulse compat
+plymouth                          # boot splash screen
+portmaster-bin                    # application firewall
+python-evdev                      # input events for the configs/hardware/tablet userspace driver
+sane                              # scanner access library
+sbctl                             # Secure Boot key management
+scx-scheds                        # sched_ext perf schedulers
+smartmontools                     # disk health monitoring
+sof-firmware                      # sound open firmware
+thermald                          # thermal management daemon
+timeshift                         # system backup/restore
+timeshift-autosnap                # pacman hook for pre-upgrade snapshots
+tlp                               # laptop power management
+tor-router                        # transparent tor routing, toggles/toggle-tor.sh
+v4l-utils                         # video4linux utilities
+v4l2loopback-dkms                 # virtual video device
+v4l2loopback-utils                # v4l2loopback helper tools
+vulkan-intel                      # Intel Vulkan driver
+vulkan-nouveau                    # Nvidia open Vulkan
+vulkan-radeon                     # AMD Vulkan driver
+wireless-regdb                    # wifi regulatory db the kernel loads
+wpa_supplicant                    # wifi authentication daemon
+zram-generator                    # compressed swap generator
+endlessh-git                      # SSH tarpit (decoy on 22)
+czmq-git                          # libczmq for ossec-hids-local, which links it without depending on it
+ossec-hids-local                  # host intrusion detection

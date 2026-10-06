@@ -86,7 +86,7 @@ at a glance instead of hand-parsing `task list`/`task export`.
     committed). Never `git add -A`, so unrelated pre-existing files are
     left for the human.
   Auto-export-on-cd requires `eval "$(direnv hook zsh)"` in the shell rc
-  (already wired in this repo's `configs/zsh/zshrc`); without it,
+  (already wired in this repo's `configs/base/zsh/zshrc`); without it,
   `devenv shell` still works, just not automatically on `cd`.
 - One db per root: `taskwarrior-init` on a root that already has one
   reuses it rather than creating a second.
@@ -137,7 +137,7 @@ profile is already running them. So the orchestrator's context settings
 have to be solved by LAUNCHING the self-polling process under the right
 profile, not by anything a skill instructs itself to do once running.
 
-This repo provisions that profile via `configs/hermes/link.sh`
+This repo provisions that profile via `configs/programming/hermes/link.sh`
 (discovered by `install.sh`): a Hermes profile named `orchestrator`,
 cloned from `default` (same model/provider/skills/`.env`), with
 `compression.threshold_tokens: 500000` set ONLY in that profile's

@@ -1,0 +1,99 @@
+/* translucent chrome here, a window rule would dim web content too */
+
+:root {
+  /* matches global_opacity in configs/desktop/hyprland/hyprland_windowrules.lua */
+  --appshell-opacity: 95%;
+}
+
+/* window needs alpha or nothing shows through */
+:root,
+#main-window {
+  background-color: transparent !important;
+}
+
+#navigator-toolbox,
+#titlebar,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar {
+  background-color: color-mix(
+    in srgb,
+    var(--lwt-accent-color, var(--toolbar-bgcolor, Canvas)) var(--appshell-opacity),
+    transparent
+  ) !important;
+}
+
+#sidebar-box,
+#sidebar-header,
+#sidebar-main {
+  background-color: color-mix(
+    in srgb,
+    var(--lwt-accent-color, var(--toolbar-bgcolor, Canvas)) var(--appshell-opacity),
+    transparent
+  ) !important;
+}
+
+/* stacked bar fills would compound the alpha away */
+#navigator-toolbox > *,
+#nav-bar,
+#PersonalToolbar {
+  background-image: none !important;
+}
+
+:root {
+  --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
+  --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
+}
+
+#navigator-toolbox,
+#TabsToolbar,
+#nav-bar,
+#PersonalToolbar,
+.tabbrowser-tab,
+.toolbarbutton-1,
+#urlbar,
+.urlbarView,
+menupopup,
+panel,
+.menu-text,
+.menupopup-text {
+  font-family: var(--rtk-chrome-font) !important;
+}
+
+.tabbrowser-tab .tab-background,
+#urlbar,
+#urlbar-background,
+.toolbarbutton-1 > .toolbarbutton-icon,
+.toolbarbutton-1 > .toolbarbutton-badge-stack {
+  border-radius: 2px !important;
+}
+
+.tabbrowser-tab[selected] .tab-background {
+  border-bottom: 1px solid var(--rtk-accent) !important;
+  box-shadow: 0 0 6px -1px var(--rtk-accent) !important;
+}
+
+.tabbrowser-tab[selected] .tab-label {
+  text-shadow: 0 0 4px var(--rtk-accent) !important;
+}
+
+.toolbarbutton-1:hover > .toolbarbutton-icon,
+.toolbarbutton-1:hover > .toolbarbutton-badge-stack {
+  box-shadow: 0 0 5px -1px var(--rtk-accent) !important;
+}
+
+#urlbar,
+#urlbar-background {
+  border: 1px solid color-mix(in srgb, var(--rtk-accent) 45%, transparent) !important;
+}
+
+#urlbar[focused="true"] > #urlbar-background {
+  border-color: var(--rtk-accent) !important;
+  box-shadow: 0 0 7px -1px var(--rtk-accent) !important;
+}
+
+scrollbar,
+menupopup {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--rtk-accent) transparent !important;
+}

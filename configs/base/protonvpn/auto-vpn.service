@@ -1,0 +1,11 @@
+[Unit]
+Description=Auto ProtonVPN on untrusted networks
+After=NetworkManager.service
+
+[Service]
+ExecStart=%h/projects/arch-dotfiles/configs/base/protonvpn/auto-vpn.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

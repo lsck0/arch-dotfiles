@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Back up live app state into the repo, then commit configs/secrets and the whole tree as the next signed "Generation: N" and push.
+# Back up live app state into the repo, then commit configs/base/secrets and the whole tree as the next signed "Generation: N" and push.
 
 set -e
 cd "$(dirname "$(readlink -f "$0")")"
@@ -21,30 +21,30 @@ SIGNING_KEY_FINGERPRINT=$(sed -n 's/^SIGNING_KEY_FINGERPRINT=\([0-9A-F]\{40\}\)$
 [[ "$SIGNING_KEY_FINGERPRINT" =~ ^[0-9A-F]{40}$ ]] || die "bootstrap.sh has no single SIGNING_KEY_FINGERPRINT=<40 hex>"
 # an unsigned push would make the next bootstrap refuse master, so stop here instead
 gpg --batch --list-secret-keys "$SIGNING_KEY_FINGERPRINT" >/dev/null 2>&1 \
-    || die "no secret key $SIGNING_KEY_FINGERPRINT to sign with, import it: ./scripts/yubikey.sh unlock && ./configs/gnupg/link.sh"
+    || die "no secret key $SIGNING_KEY_FINGERPRINT to sign with, import it: ./scripts/yubikey.sh unlock && ./configs/base/gnupg/link.sh"
 
 ## BACKUP
 
 # link.sh scripts restore all of these on the next config.sh run
-backup ./scripts/backup-kde.sh
-# these write into configs/secrets, which must be unlocked or plaintext would land in a GITCRYPT worktree
-if secret_is_plaintext configs/secrets/pgp_privatekey.asc; then
-    backup ./scripts/backup-obs.sh
-    backup ./scripts/backup-claude.sh
-    backup ./scripts/backup-gh.sh
-    backup ./scripts/backup-dalamud.sh
-    backup ./scripts/backup-ffxiv.sh
-    backup ./scripts/backup-caido.sh
+backup ./scripts/lib/backup-kde.sh
+# these write into configs/base/secrets, which must be unlocked or plaintext would land in a GITCRYPT worktree
+if secret_is_plaintext configs/base/secrets/pgp_privatekey.asc; then
+    backup ./scripts/lib/backup-obs.sh
+    backup ./scripts/lib/backup-claude.sh
+    backup ./scripts/lib/backup-gh.sh
+    backup ./scripts/lib/backup-dalamud.sh
+    backup ./scripts/lib/backup-ffxiv.sh
+    backup ./scripts/lib/backup-caido.sh
 
     # secrets first, so the generation commit below records its new revision
-    if [ -n "$(git -C configs/secrets status --porcelain)" ]; then
-        git -C configs/secrets add -A
-        git -C configs/secrets commit -m "chore(sync): back up live app state"
+    if [ -n "$(git -C configs/base/secrets status --porcelain)" ]; then
+        git -C configs/base/secrets add -A
+        git -C configs/base/secrets commit -m "chore(sync): back up live app state"
     fi
     # submodule update leaves a detached HEAD, so push it to the branch explicitly
-    git -C configs/secrets push origin HEAD:master
+    git -C configs/base/secrets push origin HEAD:master
 else
-    echo "sync: configs/secrets is locked, skipping the obs, claude, gh, dalamud and ffxiv backups" >&2
+    echo "sync: configs/base/secrets is locked, skipping the obs, claude, gh, dalamud and ffxiv backups" >&2
 fi
 
 ## COMMIT

@@ -1,0 +1,4 @@
+distrobox                         # containerized distro tool
+gnome-boxes                       # VM manager GUI
+qemu-full                         # machine emulator/virtualizer
+waydroid                          # Android container runtime

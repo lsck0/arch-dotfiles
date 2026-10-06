@@ -9,7 +9,7 @@ This repository contains my system setup and configuration files, which are syml
 
 ## Layout
 
-- `configs/<name>`: config/setup for tools/tasks, including `configs/keyboard` (keyboard firmware) and `configs/themes` (color themes propagated through the system).
+- `configs/<name>`: config/setup for tools/tasks, including `configs/hardware/keyboard` (keyboard firmware) and `configs/base/themes` (color themes propagated through the system).
 - `mirror/`: pkgbuilds and the local package mirror.
 - `patches/`: patch scripts for upstream packages.
 - `platforms/`: per-machine scripts (luca-pc, luca-notebook, test-vm).
@@ -17,7 +17,7 @@ This repository contains my system setup and configuration files, which are syml
 - `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
 - `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
-- `toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
+- `scripts/toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
 - `weblinks/`: browser independent bookmarks.
 - `install.sh`: list of installed packages and bootstrapping script.
 - `sync.sh`: stages everything, makes a signed `Generation: <n>` commit and pushes.

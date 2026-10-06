@@ -13,9 +13,9 @@ loadkeys de-latin1 2>/dev/null || true
 
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
 CLONE_DIR=/tmp/arch-dotfiles
-# Luca Sandrock <luca.sandrock@proton.me>: `gpg --show-keys configs/gnupg/luca-sandrock.pub.asc`, also https://github.com/lsck0.gpg
+# Luca Sandrock <luca.sandrock@proton.me>: `gpg --show-keys configs/base/gnupg/luca-sandrock.pub.asc`, also https://github.com/lsck0.gpg
 SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
-SIGNING_KEY_FILE=configs/gnupg/luca-sandrock.pub.asc
+SIGNING_KEY_FILE=configs/base/gnupg/luca-sandrock.pub.asc
 
 die() { echo "bootstrap: $*" >&2; exit 1; }
 
@@ -198,7 +198,7 @@ if [[ "${FORM_FACTOR:-}" == wsl ]]; then
     TARGET_ROOT=""
     user_setup
     echo "$HOSTNAME" >/etc/hostname
-    sed -e "s|@USER@|$USERNAME|" -e "s|@HOSTNAME@|$HOSTNAME|" "$REPO/configs/wsl/wsl.conf" | install -Dm644 /dev/stdin /etc/wsl.conf
+    sed -e "s|@USER@|$USERNAME|" -e "s|@HOSTNAME@|$HOSTNAME|" "$REPO/configs/base/wsl/wsl.conf" | install -Dm644 /dev/stdin /etc/wsl.conf
     echo "bootstrap: done. from windows: wsl --terminate archlinux, reopen it (now $USERNAME with systemd), then:"
     echo "  cd ~/projects/arch-dotfiles && ./install.sh && ./config.sh"
     exit 0
@@ -305,7 +305,7 @@ pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs c
     networkmanager sudo git zram-generator libfido2
 genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
-# boot-menu (configs/boot) reads the root arguments from here, the kernel cmdline alone gets lost on regen
+# boot-menu (configs/hardware/boot) reads the root arguments from here, the kernel cmdline alone gets lost on regen
 mkdir -p "$MOUNT/etc/kernel"
 echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0" >"$MOUNT/etc/kernel/cmdline"
 
@@ -336,7 +336,7 @@ mkinitcpio -P
 
 systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
 
-# bootable GRUB; configs/boot/grub reinstalls it with the Secure Boot module set, sbctl signs it
+# bootable GRUB; configs/hardware/boot/grub reinstalls it with the Secure Boot module set, sbctl signs it
 sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"$(cat /etc/kernel/cmdline)\"|" /etc/default/grub
 grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
 # EFI/BOOT/BOOTX64.EFI as well, for firmware that forgets its boot entries
@@ -345,7 +345,7 @@ grub-mkconfig -o /boot/grub/grub.cfg
 CHROOT
 
 # zram swap from the first boot, install.sh compiles for hours before config.sh would link it
-install -Dm644 "$REPO/configs/zram/zram-generator.conf" "$MOUNT/etc/systemd/zram-generator.conf"
+install -Dm644 "$REPO/configs/hardware/zram/zram-generator.conf" "$MOUNT/etc/systemd/zram-generator.conf"
 
 # --- network --------------------------------------------------------------------
 

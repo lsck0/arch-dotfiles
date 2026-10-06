@@ -1,0 +1,2 @@
+ollama-rocm                       # ROCm/HIP GPU backend for ollama (official, gfx1101)
+python-pytorch-opt-rocm           # ML framework (AMD, AVX2 optimized)

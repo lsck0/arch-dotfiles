@@ -1,9 +1,0 @@
-[Unit]
-Description=Install JAI from the newest ~/sync/jai-*.zip
-# syncthing writes into ~/sync in bursts of up to 8 a minute; this only brakes a runaway trigger
-StartLimitIntervalSec=1min
-StartLimitBurst=20
-
-[Service]
-Type=oneshot
-ExecStart=%h/projects/arch-dotfiles/configs/jai/hook/jai-install.sh

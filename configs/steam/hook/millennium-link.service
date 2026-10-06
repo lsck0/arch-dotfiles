@@ -1,6 +1,0 @@
-[Unit]
-Description=Link millennium into steam
-
-[Service]
-Type=oneshot
-ExecStart=%h/projects/arch-dotfiles/configs/steam/hook/millennium-link.sh

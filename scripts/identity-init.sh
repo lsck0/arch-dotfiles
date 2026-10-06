@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Give a repository its own customer identity, see configs/identity/envrc.
+# Give a repository its own customer identity, see configs/programming/identity/envrc.
 
 set -euo pipefail
 
 DOTFILES_DIR=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
-TEMPLATE=$DOTFILES_DIR/configs/identity/envrc
+TEMPLATE=$DOTFILES_DIR/configs/programming/identity/envrc
 ENVRC_LINE='source_env_if_exists .identity/envrc'
 USAGE="usage: identity-init [repo-dir]"
 

@@ -1,0 +1,2 @@
+llmfit                            # which LLMs fit this hardware (tui/cli)
+ollama                            # local LLM runner (daemon + CPU backend)

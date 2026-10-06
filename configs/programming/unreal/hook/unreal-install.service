@@ -1,0 +1,9 @@
+[Unit]
+Description=Install unreal-engine-bin from the newest ~/sync/Linux_Unreal_Engine_*.zip
+# syncthing writes into ~/sync in bursts of up to 8 a minute; this only brakes a runaway trigger
+StartLimitIntervalSec=1min
+StartLimitBurst=20
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/programming/unreal/hook/unreal-install.sh

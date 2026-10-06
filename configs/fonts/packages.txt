@@ -1,0 +1,136 @@
+noto-fonts                        # Google Noto fonts
+noto-fonts-emoji                  # Noto emoji fonts
+noto-fonts-extra                  # Noto extra fonts
+otf-atkinsonhyperlegiblemono-nerd # Atkinson Hyperlegible Mono Nerd Font
+otf-aurulent-nerd                 # Aurulent Sans Nerd Font
+otf-codenewroman-nerd             # Code New Roman Nerd Font
+otf-comicshanns-nerd              # Comic Shanns Nerd Font
+otf-commit-mono-nerd              # Commit Mono Nerd Font
+otf-droid-nerd                    # Droid Sans Mono Nerd Font
+otf-firamono-nerd                 # Fira Mono Nerd Font
+otf-geist-mono-nerd               # Geist Mono Nerd Font
+otf-hasklig-nerd                  # Hasklig Nerd Font
+otf-hermit-nerd                   # Hermit Nerd Font
+otf-monaspace-nerd                # MonoSpace Nerd Font
+otf-opendyslexic-nerd             # OpenDyslexic Nerd Font
+otf-overpass-nerd                 # Overpass Nerd Font
+powerline-fonts                   # powerline symbol fonts
+terminus-font-ttf                 # bitmap terminal font
+ttf-0xproto-nerd                  # 0xProto Nerd Font
+ttf-3270-nerd                     # 3270 Nerd Font
+ttf-adwaitamono-nerd              # Adwaita Mono Nerd Font
+ttf-agave-nerd                    # Agave Nerd Font
+ttf-annotationmono-nerd           # Annotation Mono Nerd Font
+ttf-anonymous-pro                 # monospace font
+ttf-anonymouspro-nerd             # Anonymous Pro Nerd Font
+ttf-arimo-nerd                    # Arimo Nerd Font
+ttf-arphic-ukai                   # Chinese kai font
+ttf-arphic-uming                  # Chinese ming font
+ttf-atkinson-hyperlegible         # accessible reading font
+ttf-baekmuk                       # Korean font family
+ttf-bigblueterminal-nerd          # Big Blue Terminal Nerd Font
+ttf-bitstream-vera-mono-nerd      # Bitstream Vera Mono Nerd Font
+ttf-caladea                       # Cambria-metric font
+ttf-cascadia-code                 # monospace coding font
+ttf-cascadia-code-nerd            # CaskaydiaCove Nerd Font
+ttf-cascadia-mono-nerd            # Cascadia Mono Nerd Font
+ttf-cormorant                     # serif display font
+ttf-cousine-nerd                  # Cousine Nerd Font
+ttf-crimson                       # serif text font
+ttf-crimson-pro                   # serif text font
+ttf-crimson-pro-variable          # variable serif font
+ttf-croscore                      # Chrome OS fonts
+ttf-d2coding-nerd                 # D2Coding Nerd Font
+ttf-daddytime-mono-nerd           # DaddyTime Mono Nerd Font
+ttf-dejavu-nerd                   # DejaVu Nerd Font
+ttf-doulos-sil                    # phonetic Unicode font
+ttf-droid                         # Android system fonts
+ttf-envycoder-nerd                # EnvyCoder Nerd Font
+ttf-eurof                         # Eurostile-style font
+ttf-fantasque-nerd                # Fantasque Sans Mono Nerd Font
+ttf-fantasque-sans-mono           # quirky monospace font
+ttf-fira-code                     # ligature coding font
+ttf-fira-mono                     # monospace font
+ttf-fira-sans                     # humanist sans font
+ttf-firacode-nerd                 # FiraCode Nerd Font
+ttf-gentium                       # serif Unicode font
+ttf-gentium-book                  # serif book font
+ttf-gentium-plus                  # extended serif font
+ttf-go-nerd                       # Go Nerd Font
+ttf-gohu-nerd                     # Gohu Nerd Font
+ttf-googlesanscode-nerd           # Google Sans Code Nerd Font
+ttf-hack                          # monospace coding font
+ttf-hack-nerd                     # Hack Nerd Font
+ttf-hanazono                      # Japanese CJK font
+ttf-hannom                        # Vietnamese Han-Nom font
+ttf-heavydata-nerd                # Heavy Data Nerd Font
+ttf-iawriter-nerd                 # iA Writer Nerd Font
+ttf-ibm-plex                      # IBM typeface family
+ttf-ibmplex-mono-nerd             # IBM Plex Mono Nerd Font
+ttf-inconsolata                   # monospace coding font
+ttf-inconsolata-go-nerd           # Inconsolata Go Nerd Font
+ttf-inconsolata-lgc-nerd          # Inconsolata LGC Nerd Font
+ttf-inconsolata-nerd              # Inconsolata Nerd Font
+ttf-indic-otf                     # Indic script fonts
+ttf-input                         # coding-focused font
+ttf-input-nerd                    # Input font + icons
+ttf-intone-nerd                   # Intone Nerd Font
+ttf-iosevka-nerd                  # Iosevka Nerd Font
+ttf-iosevkaterm-nerd              # Iosevka Term Nerd Font
+ttf-iosevkatermslab-nerd          # Iosevka Term SLAB Nerd Font
+ttf-jetbrains-mono                # monospace coding font
+ttf-jetbrains-mono-nerd           # JetBrains Mono Nerd Font
+ttf-jigmo                         # rare CJK glyphs
+ttf-junicode                      # medievalist Unicode font
+ttf-junicode-variable             # variable medievalist font
+ttf-khmer                         # Khmer script font
+ttf-lato                          # humanist sans font
+ttf-lekton-nerd                   # Lekton Nerd Font
+ttf-liberation-mono-nerd          # Liberation Mono Nerd Font
+ttf-libertinus                    # classic serif family
+ttf-lilex-nerd                    # Lilex Nerd Font
+ttf-linux-libertine               # free serif font
+ttf-linux-libertine-g             # Libertine with graphite
+ttf-martian-mono-nerd             # Martian Mono Nerd Font
+ttf-material-icons                # material design icons
+ttf-material-symbols-variable     # variable material icons
+ttf-meslo-nerd                    # Meslo Nerd Font
+ttf-mona-sans                     # GitHub display font
+ttf-monaspace-frozen              # GitHub monospace font
+ttf-monaspace-variable            # variable monospace font
+ttf-monocraft-git                 # Minecraft-style monospace
+ttf-monofur                       # futuristic monospace font
+ttf-monofur-nerd                  # MonoFur Nerd Font
+ttf-monoid                        # coding-focused monospace
+ttf-monoid-nerd                   # Monoid Nerd Font
+ttf-mononoki-nerd                 # Mononoki Nerd Font
+ttf-montserrat                    # geometric sans font
+ttf-mplus-nerd                    # Mplus Nerd Font
+ttf-ms-fonts                      # Microsoft core fonts
+ttf-nerd-fonts-symbols            # Nerd Fonts Symbols
+ttf-nerd-fonts-symbols-mono       # Nerd Fonts Symbols Mono
+ttf-noto-nerd                     # Noto Nerd Font
+ttf-nunito                        # rounded sans font
+ttf-opensans                      # humanist sans font
+ttf-overpass                      # highway-gothic sans font
+ttf-profont-nerd                  # ProFont Nerd Font
+ttf-proggyclean-nerd              # ProggyClean Nerd Font
+ttf-recursive-nerd                # Recursive Nerd Font
+ttf-roboto                        # Android system font
+ttf-roboto-mono                   # monospace variant font
+ttf-roboto-mono-nerd              # Roboto Mono Nerd Font
+ttf-sarasa-gothic                 # CJK+Latin coding font
+ttf-sazanami                      # Japanese Gothic font
+ttf-scheherazade-new              # Arabic script font
+ttf-sharetech-mono-nerd           # ShareTech Mono Nerd Font
+ttf-sourcecodepro-nerd            # Source Code Pro Nerd Font
+ttf-space-mono-nerd               # Space Mono Nerd Font
+ttf-terminus-nerd                 # Terminus Nerd Font
+ttf-tibetan-machine               # Tibetan script font
+ttf-tinos-nerd                    # Tinos Nerd Font
+ttf-ubuntu-font-family            # Ubuntu system fonts
+ttf-ubuntu-mono-nerd              # Ubuntu Mono Nerd Font
+ttf-ubuntu-nerd                   # Ubuntu Nerd Font
+ttf-victor-mono-nerd              # Victor Mono Nerd Font
+ttf-vlgothic                      # Japanese Gothic font
+ttf-zed-mono-nerd                 # Zed Mono Nerd Font

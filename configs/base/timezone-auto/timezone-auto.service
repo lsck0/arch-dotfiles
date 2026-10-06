@@ -1,0 +1,9 @@
+[Unit]
+Description=Match the system timezone to the machine's actual location
+Documentation=file:%h/projects/arch-dotfiles/configs/base/timezone-auto/timezone-auto.sh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/arch-dotfiles/configs/base/timezone-auto/timezone-auto.sh apply
