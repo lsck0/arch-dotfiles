@@ -84,15 +84,15 @@ def source():
         for zone in lab["zones"].values():
             by_ip[zone["router"]] = router
 
-    # a vm with several routes keeps the one on the web port
+    # a vm with several routes keeps the one named like the vm, else the one on a web port
     candidates = {}
-    for route in lab["routes"].values():
-        if route["vmid"] is not None and route["protocol"] == "http":
-            rank = 0 if route["port"] in WEB_PORTS else 1
-            candidates.setdefault(route["vmid"], []).append((rank, route["host"]))
+    for name, route in lab["routes"].items():
+        vm = vms.get(route["vmid"])
+        if vm and route["protocol"] == "http":
+            rank = (name != vm["name"], route["port"] not in WEB_PORTS, name)
+            candidates.setdefault(vm["id"], []).append((rank, route["host"]))
     for vmid, options in candidates.items():
-        if vmid in vms:
-            vms[vmid]["url"] = "https://" + sorted(options, key=lambda o: o[0])[0][1]
+        vms[vmid]["url"] = "https://" + min(options)[1]
 
     def named(name):
         return next((vm for vm in vms.values() if vm["name"] == name), None)

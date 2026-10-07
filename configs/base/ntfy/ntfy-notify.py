@@ -4,7 +4,6 @@
 import html
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -12,9 +11,14 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
+# the homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix)
+LAB_JSON = os.path.join(HOMELAB_DIR, "src", "generated", "lab.json")
+LAB_SCHEMA = 1
+# the dotfiles checkout: $DOTFILES as link.sh has it, else the one this script lives in (configs/base/ntfy/)
+DOTFILES = os.environ.get("DOTFILES") or os.path.realpath(
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".."))
 # homelab ntfy denies anonymous reads
-TOKEN_FILE = os.environ.get("NTFY_TOKEN_FILE", os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), "..", "secrets", "ntfy-desktop-token"))
+TOKEN_FILE = os.environ.get("NTFY_TOKEN_FILE", os.path.join(DOTFILES, "secrets", "ntfy-desktop-token"))
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "ntfy-notify")
 LAST_ID = os.path.join(STATE_DIR, "last-id")
 # alert group key -> notification id on screen
@@ -24,23 +28,16 @@ MAX_REPLAY_S = 3600
 
 
 def subscriptions():
-    """{server: [topics]} from the homelab's own publisher configuration."""
-    found = {}
-    instances = os.path.join(HOMELAB_DIR, "src", "instances")
+    """{server: [topics]}: the topics the desktop token reads, from the homelab's lab.json."""
     try:
-        names = sorted(os.listdir(instances))
-    except OSError:
-        return found
-    for name in names:
-        if not name.endswith(".nix"):
-            continue
-        with open(os.path.join(instances, name)) as fh:
-            text = fh.read()
-        for server, var in re.findall(r'(https://[^/"\s$]+)/\$\{(\w+)\}', text):
-            value = re.search(r"\b%s\s*=\s*\"([^\"]+)\"" % var, text)
-            if value and value.group(1) not in found.setdefault(server, []):
-                found[server].append(value.group(1))
-    return {server: topics for server, topics in found.items() if topics}
+        with open(LAB_JSON) as fh:
+            lab = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(lab, dict) or lab.get("schema") != LAB_SCHEMA:
+        return {}
+    ntfy = lab["ntfy"]
+    return {ntfy["url"]: ntfy["desktop"]} if ntfy["desktop"] else {}
 
 
 def read_token():
@@ -222,7 +219,7 @@ def main():
         try:
             subs = subscriptions()
             if not subs:
-                print("ntfy-notify: no ntfy topics in %s" % HOMELAB_DIR, file=sys.stderr)
+                print("ntfy-notify: no ntfy topics in %s" % LAB_JSON, file=sys.stderr)
                 time.sleep(300)
                 continue
             # the homelab uses a single ntfy server
