@@ -1,0 +1,22 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=ls-horizons
+pkgver=0.12.0
+pkgrel=1
+pkgdesc="Deep space network tracker"
+arch=(x86_64)
+url="https://github.com/litescript/ls-horizons"
+license=(Apache-2.0)
+makedepends=(git go)
+source=("git+$url.git#tag=v$pkgver")
+sha256sums=(SKIP)
+
+build() {
+    cd $pkgname
+    export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+    go build -o $pkgname ./cmd/ls-horizons
+}
+
+package() {
+    install -Dm755 $pkgname/$pkgname "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 $pkgname/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

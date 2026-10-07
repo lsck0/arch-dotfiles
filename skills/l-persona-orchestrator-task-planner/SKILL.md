@@ -21,8 +21,10 @@ Decide what work is needed before any of it starts.
 - State dependencies between tickets explicitly.
 - Find the governing specs in `specs/INDEX.md` first; plan amendments to
   them, and a new spec only for an uncovered capability.
-- Implementation tickets are roadmap phases: each leaves the system
-  running, reverts on its own, and lands as its own PR.
+- Implementation is delivered as `SPEC.md` Roadmap phases: each leaves
+  the system running, reverts on its own, and lands as its own PR. In
+  queue mode the orchestrator creates those tickets after the spec PR
+  merges; you plan the phases inside the spec, not as tickets.
 - Write each ticket for someone who never opens the code:
   - Title names the symptom or the want, never the fix.
   - Acceptance criteria are outcomes you could watch happen, not steps.
@@ -42,7 +44,7 @@ Two calling contexts, different output:
   plan as `project:<slug>.*` groupings (research, design, spec), the
   tickets within each, and `depends:` ordering between them. Don't plan
   implementation or testing tickets: once the spec PR merges, the
-  orchestrator creates one phase ticket per `ROADMAP.md` row, each running
+  orchestrator creates one phase ticket per `SPEC.md` Roadmap row, each running
   implement -> review -> test -> land. The orchestrator creates the actual
   taskwarrior tickets from what you state; it does not read a `PLAN.md`
   file in this context. State each ticket's model/provider as

@@ -9,7 +9,7 @@ cpio                              # hyprpm extracts Hyprland headers with it
 cups-pk-helper                    # cups polkit helper
 ddcutil                           # DDC/CI monitor brightness control
 dolphin                           # file manager (default; nemo kept alongside)
-feather-wallet                    # monero wallet, wallets live in ~/sync/monero
+feather-wallet-bin                # monero wallet, wallets live in ~/sync/monero
 filezilla                         # FTP client
 firefox                           # web browser
 flat-remix-gtk                    # GTK theme

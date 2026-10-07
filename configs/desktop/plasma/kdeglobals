@@ -23,11 +23,11 @@ IntensityEffect=0
 [Colors:Button]
 BackgroundAlternate=158,72,130
 BackgroundNormal=0,10,37
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -36,12 +36,12 @@ ForegroundVisited=150,114,170
 
 [Colors:Complementary]
 BackgroundAlternate=0,10,37
-BackgroundNormal=15,15,22
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+BackgroundNormal=14,15,22
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -49,13 +49,13 @@ ForegroundPositive=39,174,96
 ForegroundVisited=150,114,170
 
 [Colors:Header]
-BackgroundAlternate=15,15,22
+BackgroundAlternate=14,15,22
 BackgroundNormal=0,10,37
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -63,13 +63,13 @@ ForegroundPositive=39,174,96
 ForegroundVisited=150,114,170
 
 [Colors:Header][Inactive]
-BackgroundAlternate=15,15,22
+BackgroundAlternate=14,15,22
 BackgroundNormal=0,10,37
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=158,72,130
@@ -77,27 +77,27 @@ ForegroundPositive=39,174,96
 ForegroundVisited=150,114,170
 
 [Colors:Selection]
-BackgroundAlternate=170,103,133
-BackgroundNormal=170,103,133
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+BackgroundAlternate=169,103,133
+BackgroundNormal=169,103,133
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=242,144,206
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=15,15,22
+ForegroundNormal=14,15,22
 ForegroundPositive=39,174,96
 ForegroundVisited=150,114,170
 
 [Colors:Tooltip]
 BackgroundAlternate=0,10,37
-BackgroundNormal=15,15,22
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+BackgroundNormal=14,15,22
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -106,12 +106,12 @@ ForegroundVisited=150,114,170
 
 [Colors:View]
 BackgroundAlternate=0,10,37
-BackgroundNormal=15,15,22
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+BackgroundNormal=14,15,22
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -120,12 +120,12 @@ ForegroundVisited=150,114,170
 
 [Colors:Window]
 BackgroundAlternate=0,10,37
-BackgroundNormal=15,15,22
-DecorationFocus=170,103,133
-DecorationHover=170,103,133
-ForegroundActive=170,103,133
+BackgroundNormal=14,15,22
+DecorationFocus=169,103,133
+DecorationHover=169,103,133
+ForegroundActive=169,103,133
 ForegroundInactive=158,72,130
-ForegroundLink=169,104,148
+ForegroundLink=168,104,148
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
 ForegroundNormal=242,144,206
@@ -133,7 +133,7 @@ ForegroundPositive=39,174,96
 ForegroundVisited=150,114,170
 
 [General]
-AccentColor=170,103,133
+AccentColor=169,103,133
 ColorScheme=pywal
 ColorSchemeHash=32d6e937d60c21928ae47bb3b52deeac3b9e768c
 TerminalApplication=ghostty
@@ -175,8 +175,8 @@ Speedbar Width=172
 View Style=DetailTree
 
 [WM]
-activeBackground=15,15,22
-activeBlend=15,15,22
+activeBackground=14,15,22
+activeBlend=14,15,22
 activeFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
 activeForeground=242,144,206
 inactiveBackground=0,10,37

@@ -1,0 +1,27 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=leptosfmt
+pkgver=0.1.33
+pkgrel=1
+pkgdesc="View macro formatter for the Leptos web framework"
+arch=(x86_64)
+url="https://crates.io/crates/leptosfmt"
+license=(MIT Apache-2.0)
+depends=(gcc-libs)
+makedepends=(cargo)
+options=(!lto)
+source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+sha256sums=(7b997abd8dcaee28dd2d2ade9e89218136b017873193cc3bccdbc8dbb9c59ddf)
+
+prepare() {
+    cd $pkgname-$pkgver
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd $pkgname-$pkgver
+    cargo build --frozen --release
+}
+
+package() {
+    install -Dm755 $pkgname-$pkgver/target/release/$pkgname "$pkgdir/usr/bin/$pkgname"
+}

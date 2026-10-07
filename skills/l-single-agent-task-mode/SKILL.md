@@ -17,7 +17,8 @@ For db layout, scaffolding, tag vocabulary, completion, and the
 `tasks/context/` question-file convention, load `l-agent-task-db` first:
 hard prerequisite, every time. See the description for sibling routing
 (multi-role pipeline vs. live-no-db); note the pipeline sibling
-`l-multi-agent-task-mode` requires a live Herdr session, this one does not.
+`l-multi-agent-task-mode` needs a live Herdr session or the Claude Code
+Agent tool to spawn workers, this one needs neither.
 
 ## No harness precondition
 
@@ -55,20 +56,21 @@ the two modes never both work one ticket.
 
 ## `+prompt` tasks
 
-This mode has no Herdr precondition, so it cannot spawn the
+This mode spawns no workers, so it cannot run the
 `l-persona-orchestrator-task-planner` worker `l-multi-agent-task-mode`'s
 intake procedure uses. If a poll pass finds an unclaimed `+prompt` task,
 don't decompose it yourself: flag it in the end-of-pass summary and
-leave it untouched for a live Herdr session running
-`l-multi-agent-task-mode` to pick up.
+leave it untouched for the next live pass of `l-multi-agent-task-mode`.
 
 ## Spec-governed work
 
 A ticket that changes code under a spec's `Implemented in` follows
 `l-spec-driven-development`'s autonomous-mode gates: the change lands as
-a PR with the spec updated in it, then annotate `pr: <url>`, tag
+a PR with the spec updated in it. This mode has no independent reviewer,
+so it cannot merge its own PR: annotate `pr: <url>`, tag
 `+human-review-ready`, `task <id> stop`, and move on. Never merge or
-self-approve. A ticket that needs a new spec plus several roadmap phases
+self-approve. Work the human should not have to review belongs in
+`l-multi-agent-task-mode`. A ticket that needs a new spec plus several roadmap phases
 is a project tree, not single-ticket work (step 5).
 
 ## Working procedure
@@ -85,19 +87,18 @@ is a project tree, not single-ticket work (step 5).
 2. Partition:
    - **Multi-mode owned**: any `+stage-*` tag. Skip, don't mention unless
      it looks stuck.
-   - **Blocked**: `+human-clarification-needed` or `+human-review-ready`
-     present, no `+human-answered` yet: skip, note in the end-of-pass
-     summary.
+   - **Blocked**: `+human-clarification-needed` present, no
+     `+human-answered` yet: skip, note in the end-of-pass summary.
    - **Answered question**: `+human-clarification-needed` +
      `+human-answered` both present: read the filled-in
      `tasks/context/questions/<uuid8>-*.md`, fold the answer into the
      relevant `tasks/context/{research,design}/` doc, clear both tags in
      one `task modify` call, then treat it as workable this pass.
-   - **Answered PR**: `+human-review-ready` + `+human-answered` both
-     present: check the annotated PR (`gh pr view <n> --json state`),
-     clear both tags in one `task modify` call. Merged -> `task <id>
-     done`. Open -> claim it, run `l-spec-driven-development`'s Feedback
-     on the PR, gate again with `+human-review-ready`.
+   - **Waiting on a PR**: `+human-review-ready`: check the annotated PR
+     yourself (`gh pr view <n> --json state,updatedAt,reviews,comments`).
+     Merged -> clear the tag, `task <id> done`. New review or comment ->
+     claim it, run `l-spec-driven-development`'s Feedback on the PR, wait
+     again. Nothing new -> skip, note in the summary.
    - **Workable**: `+agent-task`, pending, `+READY`, no `+stage-*`, no
      `+human-clarification-needed`, no `+human-review-ready`.
 3. Pick the single highest-priority workable task (taskwarrior's own

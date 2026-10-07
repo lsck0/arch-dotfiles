@@ -1,0 +1,22 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=chiko
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="gRPC TUI client"
+arch=(x86_64)
+url="https://github.com/felangga/chiko"
+license=(MIT)
+makedepends=(git go)
+source=("git+$url.git#tag=v$pkgver")
+sha256sums=(SKIP)
+
+build() {
+    cd $pkgname
+    export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
+    go build -o $pkgname ./cmd/chiko
+}
+
+package() {
+    install -Dm755 $pkgname/$pkgname "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 $pkgname/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

@@ -13,6 +13,16 @@ Turn a ticket into working code, to the project's own conventions.
 - The governing spec changes in the same commit as the code: requirements
   ticked and cited, `Implemented in` and `specs/INDEX.md` current.
 - Run real lint/build/test; don't report done until they pass.
+- Tiger Style while writing, not after: asserts on preconditions,
+  postconditions and invariants, bounds written down and asserted, and
+  the spec's Observability section built in the same commit (log events,
+  trace spans, perf scopes, capacity gauges).
+- No comment by default; doc comments in the language's own format on
+  the public API only (`l-style`, Code Style). In my own repos source goes
+  under `src/` and tests under `tests/`, mirroring it (`l-style-tooling`);
+  an existing repo keeps its layout.
+- Know the branch before every commit (`l-spec-driven-development`,
+  Branches).
 
 Work in the checkout you were started in, which may be a worktree. Create
 and switch branches only as l-spec-driven-development's phase loop says;

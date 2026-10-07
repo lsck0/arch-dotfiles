@@ -14,8 +14,8 @@ touches taskwarrior. For a self-polling task queue instead, see
 (works tasks itself, no spawning).
 
 Load `l-personas` for persona discovery and `l-spec-driven-development` for
-the stage shape (sync -> reconcile -> research -> design -> review ->
-spec -> spec gate -> phase loop), its file conventions, and its
+the stage shape (sync -> reconcile -> research -> design -> spec, each
+reviewed -> spec gate -> phase loop), its file conventions, and its
 parallelism budget and 2-implementer cap ("Parallelism and model
 choice"). Any worker that designs or writes code (the `l-persona-design-*`
 designers, `l-persona-programmer`, `l-persona-reviewer`, `l-persona-tester`)
@@ -68,8 +68,9 @@ default on Hermes; use it only if the human asks for it in this run.
 
 ## Workflow
 
-This is `l-spec-driven-development`'s autonomous mode: the human appears
-at input, the spec gate, and each phase PR. Nowhere else.
+This is `l-spec-driven-development`'s autonomous mode: the human reviews
+at input and the spec gate, nowhere else. Under `Merge policy: human` they
+also merge each phase PR, without reading its code.
 
 1. Sync (`l-spec-driven-development`): fetch, base branch up to date with
    a clean tree. Spawn one task-planner worker (persona
@@ -82,16 +83,21 @@ at input, the spec gate, and each phase PR. Nowhere else.
    it: spawn each worker the plan calls for, in the order/parallelism it
    specifies. Every worker's task prompt names `$SPEC_DIR` as where its
    output file goes, and the spec directory it amends.
-3. Drive reconcile, research, design, review and spec autonomously, then
-   open the spec PR and gate on it with `clarify`: the human merges it or
-   gives feedback (run Feedback, gate again).
-4. Phase loop: per `ROADMAP.md` phase, implement -> review -> test with no
-   gate inside; relay a `FAIL` straight back to the programmer worker.
-   Land the phase as its PR (trace block, run and revert lines), then
-   gate with `clarify`: the human looks at the PR and its build, and
-   merges or gives feedback. Merged -> sync the base, next phase.
-   Feedback -> a fresh programmer worker runs Feedback on that PR, gate
-   again.
+3. Drive reconcile, research, design and spec autonomously, each stage
+   followed by a reviewer worker (FAIL -> back to its author), then open
+   the spec PR and wait on it (`l-spec-driven-development`, "GitHub"):
+   the human merges it or gives feedback (run Feedback, wait again). Never
+   ask the human in chat whether it merged; the PR says so.
+4. Phase loop (`l-spec-driven-development`, Phase loop): per `SPEC.md`
+   Roadmap phase, a new branch off the updated base, implement, open the
+   draft PR (trace block, run and revert lines; CI runs on it), then
+   review and test against the PR with no human gate. Relay a `FAIL`
+   straight back to the programmer worker, who pushes fixes to the same
+   PR. Once review, tests and CI pass: `gh pr ready`, then the project's
+   merge policy: merge it, or ask the human and wait on the PR. Clean up
+   the branch, sync the base, next phase. A spec gap that contradicts a
+   signed-off requirement is the one exception: open it as a spec PR and
+   wait on it.
 5. Report COMPLETE after the last phase merged: requirement IDs built,
    every PR, every check as passed/failed/not run.
 
@@ -123,7 +129,7 @@ that is how you target prompts and reads, and how the human reads the team.
 | drive / follow up | `herdr agent prompt <name> "<task, ending in: write to $SPEC_DIR/FILE, then stop>" --wait --timeout 120000` | `SendMessage` to the worker's id/name with its context intact |
 | wait for completion | `--wait` blocks until the agent settles; else `herdr agent get <name>` until idle | no polling: background agents run concurrently and a completion notification arrives automatically |
 | read a worker's result | `cat "$SPEC_DIR/..."` | `cat "$SPEC_DIR/..."` (the worker wrote a durable file) |
-| cleanup | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | nothing to close; a `worktree` isolation is auto-cleaned when unchanged |
+| close a worker | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | a finished agent exits by itself; stop a stale one with `TaskStop <task_id>`; a `worktree` isolation is auto-cleaned when unchanged |
 
 Tell every worker to write its output to a durable file under `$SPEC_DIR`,
 not to pane/chat text: every persona skill already states this discipline.
@@ -135,6 +141,25 @@ times out or returns `agent_not_ready`, inspect with `herdr agent read
 <name> --source recent-unwrapped --lines 40` and `herdr agent get <name>`.
 Never close a pane or remove a worktree you did not create; never `herdr
 server stop`.
+
+## Worker lifecycle
+
+A worker lives for one stage, plus the fix-loop rounds that follow it.
+Keep a list of every worker you spawned (name, pane or agent id) in
+`$SPEC_DIR/WORKERS.md`, so a resumed run knows what it owns
+(`l-multi-agent-task-mode` keeps the same record as `worker:` ticket
+annotations).
+
+- **Finished**: its output file is read and the next stage started.
+  Close it now, unless the next stage prompts it again (the programmer
+  gets the review), and drop it from the list.
+- **Stale**: it settles without writing its file after one follow-up, it
+  is `blocked` on a dialog, or it is still `working`/`unknown` at its
+  timeout (30 minutes for research, design and review, 60 for implement
+  and test) with no new output. Read its last output, close it, and spawn
+  a fresh worker for the stage. Stale twice on one stage: stop and report.
+- **End of run**: close every worker still on the list before the final
+  report.
 
 ## Pitfalls
 

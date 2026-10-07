@@ -6,8 +6,8 @@ RightButton;NoModifier=org.kde.contextmenu
 
 [Containments][1]
 ItemGeometries-1920x1080=Applet-30:1264,32,640,160,0;
-ItemGeometries-2400x1350=Applet-30:1872,32,512,160,0;
-ItemGeometriesHorizontal=Applet-30:1872,32,512,160,0;
+ItemGeometries-2400x1350=Applet-30:1744,32,640,160,0;
+ItemGeometriesHorizontal=Applet-30:1744,32,640,160,0;
 activityId=230c143b-accd-470f-bc9e-bcd19408078e
 formfactor=0
 immutability=1
@@ -25,9 +25,9 @@ DialogHeight=821
 DialogWidth=1128
 
 [Containments][1][General]
-changedPositions={"desktop:/image.png":["1920x1080,2400x1350","0","6"]}
+changedPositions={"desktop:/image.png":["2400x1350,1920x1080","0","6"]}
 lastResolution=2400x1350
-positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","0","4","desktop:/documents","0","0","desktop:/music","0","2","desktop:/pictures","0","3","desktop:/downloads","0","1","desktop:/steam.desktop","0","0","desktop:/dinorawrhehe","0","7","desktop:/image.png","0","6"],"2400x1350":["1","22","desktop:/music","0","2","desktop:/pictures","0","3","desktop:/image.png","0","6","desktop:/documents","0","0","desktop:/projects","0","4","desktop:/downloads","0","1","desktop:/dinorawrhehe","0","7","desktop:/videos","0","5"]}
+positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","0","4","desktop:/documents","0","0","desktop:/music","0","2","desktop:/pictures","0","3","desktop:/downloads","0","1","desktop:/steam.desktop","0","0","desktop:/dinorawrhehe","0","7","desktop:/image.png","0","6"],"2400x1350":["1","22","desktop:/pictures","0","3","desktop:/music","0","2","desktop:/documents","0","0","desktop:/downloads","0","1","desktop:/image.png","0","6","desktop:/dinorawrhehe","0","7","desktop:/videos","0","5","desktop:/projects","0","4"]}
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
@@ -67,7 +67,7 @@ immutability=1
 plugin=org.kde.plasma.digitalclock
 
 [Containments][3][Applets][23][Configuration]
-popupHeight=400
+popupHeight=451
 popupWidth=560
 
 [Containments][3][Applets][23][Configuration][Appearance]
@@ -213,5 +213,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=1,230c143b-accd-470f-bc9e-bcd19408078e,1,desktop:/steam.desktop,0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/videos,desktop:/downloads,desktop:/image.png,desktop:/documents,desktop:/music,desktop:/pictures,desktop:/projects,desktop:/dinorawrhehe
-screenMapping=desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/steam.desktop,1,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e
+itemsOnDisabledScreens=
+screenMapping=desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/steam.desktop,1,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e

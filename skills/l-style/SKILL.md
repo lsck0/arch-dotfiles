@@ -36,7 +36,7 @@ The commit-message rules live in `l-style-tooling` (Git); load it before writing
 - Execute the core feature well; everything else enhances it. Features must interact predictably, and one that only works in isolation isn't done.
 - Complexity comes from the problem or not at all. Power comes from orthogonal primitives that compose, not from a list of special cases.
 - Design by workflow. Start from the sequence a person actually performs and make it short. Nothing gets built that isn't on a real workflow.
-- Abstractions are earned by two real call sites and a problem they remove.
+- Abstractions are earned by three or four real call sites and a problem they remove. Two similar pieces of code are not yet a pattern; extracting them early guesses the shape wrong.
 - Never settle for quick and dirty, and carry no technical debt. If the fix doesn't fit the architecture, change the architecture, but propose it first and do it only when asked; a requested small fix stays small.
 - Idle costs nothing. No polling, no eager startup work for facilities not in use, no allocation on paths that don't need it. Facilities that are off compile out or cost nothing.
 - Fast by construction: right data structure, no work done twice, no allocation in a loop, no round trip that could be a batch.
@@ -78,9 +78,10 @@ Nyangine style everywhere, adapted to each language's casing but not to its habi
 
 Usual sections, lowest level first: `CONSTANTS`, `TYPES`, `INTERNAL`, `LIFETIME`, `FUNCTIONS`.
 
-- Inline comments minimal, informative, lowercase. Doc comments (`/** */`, `///`) are prose and keep normal capitalization.
-- Inline comments are one line, maximally. A why that needs a paragraph is in-code documentation (below) if it must stay visible, otherwise the commit message; never a stack of comment lines.
-- In-code documentation is not a comment and runs as long as it needs: API docs (doc comments `///`, `/** */`, docstrings, the file/module header block described in `l-style-architecture`, API Design) the note on a workaround for a dependency bug, the derivation of a named constant, and a rejected alternative that still constrains the code (in the module header block). It documents the contract or the constraint, not the debugging history.
+- No comment is the default. A name, a type or an assert says it better, and a comment nobody needs is noise that rots. A comment exists only for a reason in the why-list below. Never a comment that restates the code, narrates the steps, labels what a banner already labels, or tells the story of the change (that is the commit message).
+- Inline comments minimal, informative, lowercase, one line maximally. A why that needs a paragraph is in-code documentation (below) if it must stay visible, otherwise the commit message; never a stack of comment lines.
+- Doc comments use the language's own documentation format, the one its generator reads: Doxygen `/** */` in C and C++, `///` and `//!` rustdoc in Rust, Javadoc `/** */` in Java, TSDoc/JSDoc `/** */` in TypeScript and JavaScript, docstrings in Python. They are prose and keep normal capitalization. They go on the public API, and on an internal declaration only when its contract isn't obvious from the signature. A doc comment that repeats the name ("Gets the user") is deleted.
+- In-code documentation is not a comment: API docs, the file/module header block described in `l-style-architecture` (API Design), the note on a workaround for a dependency bug, the derivation of a named constant, and a rejected alternative that still constrains the code (in the module header block). It documents the contract or the constraint, not the debugging history, and stays as short as that allows: one to three lines per prose block is the norm.
 - Use only ASCII symbols in code. No Unicode box-drawing, block, or geometric glyphs as decoration (`# _ | [ ] < > / \ + - = : . * o x` instead of box-drawing lines, shade blocks, filled squares, circles, crosses and triangles). Real content (a UI's own icon font glyphs, a language's operators, test data that must contain the character) is exempt; the rule is about decoration.
 - Comment the why, never the what. Anything that looks wrong, arbitrary or removable, and isn't, carries its reason next to it:
   - Workarounds for bugs in a dependency, the compiler, the OS or the hardware. Name the thing, the version range, the issue link, what happens without the workaround, and what would let it be deleted; this is documentation, so it takes the lines it needs.

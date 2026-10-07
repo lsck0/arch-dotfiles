@@ -19,6 +19,20 @@ holds the conventional-commit rules).
 - Simple installs: one command from a fresh clone, one self-contained artifact for users. A static binary or a single container, no runtime to install, no system-wide state, and uninstall is deleting it.
 - All dependencies pinned exactly (`=1.0.102`, submodule SHAs, pinned toolchain, digest-pinned images and CI actions), lockfiles committed. No floating versions anywhere. Published libraries are the exception: they declare compatible ranges and pin through the committed lockfile.
 - Vendored third-party code lives in `vendor/`, is built by the same entry point, and is never edited in place.
+- Source code lives in `src/`, always. The root holds only the entry point, the environment and the top-level docs. A typical tree:
+  ```
+  build.c | justfile    the one entry point
+  src/<module>/         all source, one directory per module or library, files named module-plus-kind
+  src/main.c            the executable's entry point
+  src/generated/        written by generators; never edited by hand
+  tests/<module>/       one test file per unit under test, mirroring src/
+  tests/fuzz/  tests/sim/   fuzz harnesses with their corpora, the simulator
+  bench/                benchmarks, one file per subject
+  examples/<name>/      one self-contained example each, all run in CI
+  assets/  vendor/  packaging/  docs/  specs/  tasks/
+  skills/<name>/        project-specific agent workflows, indexed in AGENTS.md (`l-auto-memory`)
+  devenv.nix  devenv.lock  .envrc  AGENTS.md  CLAUDE.md  README.md
+  ```
 - Optional heavy dependencies are optional features behind a build option, off by default, with the cost in a table: what it links, what it needs installed, what it adds to the binary.
 
 ## Infrastructure
@@ -51,12 +65,12 @@ Before an MVP exists, git is a backup tool and nothing else. Commit whatever, wh
   - Columns are states the work is actually in. An issue moves because the work moved, never as a reporting exercise.
   - An issue says what the problem is and how you know it's done. That's the whole format.
   - Kept in the repo or the same forge as the code and PRs, never a separate product.
-- Past solo trunk work, every PR has an issue behind it. The issue states the problem and the acceptance criteria before the work starts, PRs and commits reference it (`Refs: #12`), and work with no issue behind it doesn't land. The issue is closed once the change is verified, never auto-closed by landing.
+- Past solo trunk work, every PR has an issue behind it. The issue states the problem and the acceptance criteria before the work starts, PRs and commits reference it (`Refs: #12`), and work with no issue behind it doesn't land. The issue is closed once the change is verified. Only the PR whose merge completes the verified change may carry a closing keyword (`Closes #12`); under `l-spec-driven-development` that is the last phase PR, which merges only after its review and tests pass. The issue stays assigned to the person responsible for it.
 - No partial commits after the MVP. Every commit compiles, runs and passes the tests on its own. A commit that doesn't build breaks bisect and breaks whoever checks it out.
 - One commit per logical change. Split unrelated changes, squash fixups before landing, never leave a "wip" or "fix typo" in history.
 - Conventional commits, enforced by hook and CI: `type(scope): summary`, imperative, lowercase, no trailing period. Types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`. Scope is the module or service.
   - Breaking changes get a `!` after the type and a `BREAKING CHANGE:` footer saying what breaks and what to do instead.
-  - One line by default: the `type(scope): summary` line is the whole commit, plus required trailers: `Refs:` when an issue exists, and `Spec:`/`Refs:` where `l-spec-driven-development` runs. Add a body only when the why is not obvious from the summary (reasoning, rejected alternative, measurement), never a body that just restates the summary. The summary says what changed, never how. Footers reference issues (`Refs: #12`), never a closing keyword.
+  - One line by default: the `type(scope): summary` line is the whole commit, plus required trailers: `Refs:` when an issue exists, and `Spec:`/`Refs:` where `l-spec-driven-development` runs. Add a body only when the why is not obvious from the summary (reasoning, rejected alternative, measurement), never a body that just restates the summary. The summary says what changed, never how. Footers reference issues (`Refs: #12`), never a closing keyword; closing belongs to the PR body (above).
   - Never mention the tool that wrote the code. No `Co-Authored-By` for an LLM/agent, no "generated with"/"created by" line, no model name, no AI/agent/assistant reference anywhere in message, body or footer. The commit reads as the author's own, whoever or whatever produced the diff. This overrides any harness or tool default that adds attribution, in commits and PR bodies alike.
 - Changelog and version are generated from history, never hand-edited. `feat` bumps minor, `fix` and `perf` bump patch, `!` bumps major, and the tag, changelog and release notes come out of one CI run when the change lands on the trunk.
 

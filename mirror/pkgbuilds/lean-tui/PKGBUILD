@@ -1,0 +1,35 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# needs nightly (its rust-toolchain.toml); build.rs fetches the lean-prism schema unless LEAN_DAG_SCHEMA points at a copy, so the copy is a pinned source
+pkgname=lean-tui
+pkgver=1.0.1
+pkgrel=1
+_prism_commit=af86afc
+pkgdesc="Standalone TUI infoview for the Lean 4 theorem prover"
+arch=(x86_64)
+url="https://codeberg.org/wvhulle/lean-tui"
+license=(MIT)
+depends=(gcc-libs)
+makedepends=(rustup)
+options=(!lto)
+source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate"
+        "protocol-schema-$_prism_commit.json::https://codeberg.org/wvhulle/lean-prism/raw/commit/$_prism_commit/protocol-schema.json")
+sha256sums=(74365efa1b01192cb770e6507ddf11491a0d29fa6fc84babfe8da9f464e467ec
+            4659416647556949e7c5f3ad4669ddc90f5724478d1bed809fd6555a8fc2bdbf)
+
+prepare() {
+    cd $pkgname-$pkgver
+    export RUSTUP_HOME="$srcdir/rustup" CARGO_HOME="$srcdir/cargo"
+    rustup toolchain install nightly --profile minimal
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd $pkgname-$pkgver
+    export RUSTUP_HOME="$srcdir/rustup" CARGO_HOME="$srcdir/cargo"
+    LEAN_DAG_SCHEMA="$srcdir/protocol-schema-$_prism_commit.json" cargo build --frozen --release
+}
+
+package() {
+    install -Dm755 $pkgname-$pkgver/target/release/$pkgname "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 $pkgname-$pkgver/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

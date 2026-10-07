@@ -24,6 +24,10 @@ In l-style-testing's order, hardest first (load it):
   and a row in the spec's coverage table.
 - A bug fix is proven by a failing test first: a test that fails before
   the fix and passes after.
+- Run against the PR's branch, with assertions, logging and tracing on.
+  Every failure reported with its seed, the failing assertion's values,
+  and the trace and log lines around it, so the implementer gets the
+  cause, not just the symptom.
 - Report coverage measured, or "not measured", never estimated. Coverage
   is instrumented by its own command, over the library only.
 

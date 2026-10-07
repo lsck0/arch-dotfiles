@@ -11,8 +11,9 @@ direction: it polls `+agent-task` tickets, claims and advances them by
 spawning persona workers through a fixed pipeline (a worker per ticket, or
 per pipeline stage within one ticket, within the parallelism budget in
 `l-spec-driven-development`, "Parallelism and model choice"), and blocks on
-a human only via `tasks/context/questions/` + tags, never via `clarify`
-(the human isn't necessarily watching a poll pass). Workers are Hermes
+a human only via documents: the spec PR and its `QUESTIONS.md`, or
+`tasks/context/questions/` + tags, never via `clarify` (the human isn't
+necessarily watching a poll pass). Workers are Hermes
 panes under `HERDR_ENV=1`, else Claude Code Agent-tool calls (see
 "Precondition: detect the harness").
 
@@ -106,7 +107,7 @@ belongs in this project at all.
       design/3f2a9c1d-dark-mode-toggle.md
     agents/
       3f2a9c1d-dark-mode-toggle/
-        review/{design-review,code-review}.md
+        review/{research-review,design-review,spec-review,code-review}.md
         implementation/report.md
         tests/report.md
 ```
@@ -179,8 +180,9 @@ poll pass, check for unclaimed `+prompt` tasks first, before touching the
    - `project:<slug>.research`: one or more research tickets.
    - `project:<slug>.design`: depends on the research tickets.
    - `project:<slug>.spec`: exactly one ticket, depends on design; it
-     writes `SPEC.md`/`ROADMAP.md`, opens the spec PR and gates with
-     `+human-review-ready`.
+     writes `SPEC.md` with the `.design` ticket's design folded in (see
+     `l-spec-driven-development`, "SPEC.md"), opens the spec PR and gates
+     with `+human-review-ready`.
    No separate testing tickets: testing runs inside each phase ticket.
    For every ticket it names the model/provider (small/cheap models for
    research, strong models for design, spec, implementation and review),
@@ -197,24 +199,28 @@ poll pass, check for unclaimed `+prompt` tasks first, before touching the
    `task <id> annotate "phases: model: <model> provider: <provider>"`, so a
    later poll pass spawning this ticket's worker reads it directly
    instead of re-deriving it (see "Worker harness policy" above).
-3. Write the plan itself to
+3. If the project tracks work in GitHub issues, open the issue for the
+   ask, or use the one the human filed, assigned to the human
+   (`l-spec-driven-development`, "GitHub"), and annotate every created
+   ticket `issue: #<n>`; the spec and phase PRs link it from there.
+4. Write the plan itself to
    `tasks/context/design/<uuid8>-<slug>-intake.md` (uuid8 of the
    `+prompt` task) so the reasoning for the breakdown survives after the
    `+prompt` task closes.
-4. Close the `+prompt` task immediately:
+5. Close the `+prompt` task immediately:
    `task <prompt-id> annotate "decomposed into project:<slug>.*: see tasks/context/design/<uuid8>-<slug>-intake.md"`
    then `task <prompt-id> done`. It was scope, not work; it never sits in
    the `+agent-task` queue itself.
-5. Continue this same poll pass into the newly created tickets per the
+6. Continue this same poll pass into the newly created tickets per the
    normal queue-poll procedure below: decomposition and the first
    claimable child(ren) can happen in the same pass.
 
 **Phase tickets.** When the spec PR is merged, the agent creates one
-phase ticket per `ROADMAP.md` phase:
+phase ticket per `SPEC.md` Roadmap phase:
 `task add project:<slug>.p<k> +agent-task "p<k>: <what runs after it>"`,
 each `depends:` on the previous phase ticket, each annotated
 `model: <model> provider: <provider>` from the `.spec` ticket's
-`phases:` annotation. If the `.spec` ticket carries none, run the
+`phases:` annotation, and `issue: #<n>` from it when one exists. If the `.spec` ticket carries none, run the
 task-planner for the phase tickets first. Then `task <id> done` the
 `.spec` ticket.
 
@@ -225,15 +231,20 @@ Every claimed ticket carries exactly one `+stage-*` tag while claimed
 
 | ticket | stages | done when |
 |---|---|---|
-| `.research` | queued -> research | findings written and checked |
+| `.research` | queued -> research -> research-review | research review passed |
 | `.design` | queued -> design -> design-review | design review passed |
-| `.spec` | queued -> spec | spec PR merged, phase tickets created |
-| `.p<k>` | queued -> implement -> code-review -> test -> land | phase PR merged |
+| `.spec` | queued -> spec -> spec-review | spec PR merged by the human, phase tickets created |
+| `.p<k>` | queued -> implement -> code-review -> test -> land | phase PR merged, per the merge policy |
 
-`+stage-spec` covers writing `SPEC.md`/`ROADMAP.md` and opening the spec
-PR. `+stage-land` covers landing per `l-spec-driven-development`'s Phase
-loop and opening the phase PR. Completion follows `l-agent-task-db`
-("Completion: `task <id> done`"): the agent marks the ticket done itself.
+`+stage-spec` covers writing every `SPEC.md` section
+(`l-spec-driven-development`, "SPEC.md"); `+stage-spec-review` checks
+that none is missing or thin before the spec PR opens. `+stage-implement`
+ends with the phase's draft PR open; review and test run against it.
+`+stage-land` covers the merge step of `l-spec-driven-development`'s
+Phase loop: ready, merge per the project's merge policy, branch cleanup.
+
+Completion follows `l-agent-task-db` ("Completion: `task <id> done`"):
+the agent marks the ticket done itself.
 
 ## Human gates (queue mode)
 
@@ -244,16 +255,25 @@ block tag and `+human-answered` in one `task modify`, how resume works)
 live in `l-agent-task-db` ("Task lifecycle", "Tag vocabulary",
 "Completion"); this skill does not restate them. Two gate kinds:
 
-- **PR gate** (`+human-review-ready`): three points stop for the human: (1)
-  input, the human files the `+prompt`/issue; (2) the spec PR, opened by the
-  `.spec` ticket; (3) each phase PR, opened by its `.p<k>` ticket. When a
-  ticket opens a PR: annotate `pr: <url>`, tag `+human-review-ready`,
-  `task <id> stop`. On resume (per `l-agent-task-db`): `gh pr view <n>
-  --json state`; merged -> `task <id> done` (the spec ticket first creates
-  the phase tickets); open -> run Feedback and gate again.
-- **Clarification gate** (`+human-clarification-needed`): a mid-stage
-  decision only a human can make, and only one that materially changes the
-  product, each with a recommendation, never trivia. Write
+- **PR gate** (`+human-review-ready`): two points stop for the human: (1)
+  input, the human files the `+prompt`/issue; (2) the spec PR, opened by
+  the `.spec` ticket. A phase PR waits on the human only under `Merge
+  policy: human`, or when branch protection blocks the merge; the human
+  then only merges, without reading code. When a ticket waits on a PR:
+  annotate `pr: <url>`, tag `+human-review-ready`, `task <id> stop`. Every
+  poll pass checks each waiting PR itself (`gh pr view <n> --json
+  state,updatedAt,reviews,comments`); the human never tags anything.
+  Merged -> clear `+human-review-ready`, `task <id> done` (the spec ticket
+  first creates the phase tickets). New review or comment -> run Feedback
+  and wait again. Closed unmerged -> `+human-clarification-needed` with
+  the reason.
+- **Clarification gate** (`+human-clarification-needed`): before the
+  spec PR, a decision only a human can make, and only one that materially
+  changes the product, each with a recommendation, never trivia. Prefer
+  the spec PR's `QUESTIONS.md` over a separate question file. After
+  sign-off it is not used: a spec gap that contradicts a signed-off
+  requirement becomes a new spec PR on the phase ticket, waited on with
+  the PR gate (`l-spec-driven-development`, Phase loop step 2). Write
   `tasks/context/questions/<uuid8>-<slug>.md` (`l-agent-task-db`'s shape),
   tag it, annotate the path, `task <id> stop`. On resume: fold the answer
   into `tasks/context/design/<uuid8>-*.md`, then continue.
@@ -266,8 +286,9 @@ is automatic; they resume on the next live pass of this skill.
 
 ## Queue-poll procedure
 
-1. Export current state as JSON and parse in Python; never hand-parse
-   `task list` text:
+1. Reap orphaned workers left by an earlier pass (see "Worker
+   lifecycle"). Then export current state as JSON and parse in Python;
+   never hand-parse `task list` text:
    ```bash
    task '(+agent-task or +prompt)' status:pending export
    task +agent-task +READY export    # the READY set: no open depends:, not waiting
@@ -292,11 +313,13 @@ is automatic; they resume on the next live pass of this skill.
      (`tasks/context/` and/or `tasks/agents/<uuid8>-<slug>/`) to
      reconstruct state rather than re-deriving it from conversation
      history.
-   - **Blocked on clarification / PR review**: `+human-clarification-needed`
-     or `+human-review-ready` present. If `+human-answered` is not also set:
-     skip, note it in the end-of-poll summary. If it is set: resume per the
-     "Human gates" section above (its clear-both-tags and merged/open
-     handling), which defers the shared mechanics to `l-agent-task-db`.
+   - **Waiting on a PR**: `+human-review-ready`. Check the PR per the PR
+     gate above; nothing changed -> skip, note it in the end-of-poll
+     summary.
+   - **Blocked on clarification**: `+human-clarification-needed`. If
+     `+human-answered` is not also set: skip, note it in the summary. If
+     it is set: resume per the "Human gates" section above, which defers
+     the shared mechanics to `l-agent-task-db`.
    - **Blocked by `depends:`** (`+BLOCKED`, not in the READY set): skip.
 3. Work several independent, non-blocking things at once (separate workers
    whose persona sets don't collide, or a worker running alongside an
@@ -307,7 +330,8 @@ is automatic; they resume on the next live pass of this skill.
 4. The instant a task reaches a stopping point (question raised, stage
    advanced, PR opened, done), write the tag transition immediately, in
    the same tool call that changed the state: not batched at the end.
-5. End the pass with `task <id> stop` on every ticket still started and
+5. End the pass by closing every worker still open (see "Worker
+   lifecycle"), then `task <id> stop` on every ticket still started, and
    a short summary: what advanced (with new stage per task), what's now
    `+human-clarification-needed` or `+human-review-ready` and where its
    question file/PR is, what was marked done.
@@ -324,12 +348,12 @@ to pane/chat text; after it settles, read the file directly.
 
 | operation | HERDR_ENV=1 (Hermes panes) | Claude Code (Agent tool) |
 |---|---|---|
-| spawn a worker | `herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus` (read `.result.pane.pane_id`), then `herdr agent start <name> --kind hermes --pane <id> --timeout 30000 -- -m <model> --provider <prov> -s <persona>[,l-style,l-style-architecture[,l-style-testing]]` | one Agent tool call per worker (`subagent_type` general-purpose); set `model` to the annotation's model; the prompt names the role, tells the worker to load the `l-persona-*` skill (and the l-style parts) and to write its output to the durable file then stop |
+| spawn a worker | `herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus` (read `.result.pane.pane_id`), then `herdr agent start <name> --kind hermes --pane <id> --timeout 30000 -- -m <model> --provider <prov> -s <persona>[,l-style,l-style-architecture[,l-style-testing]]` | one Agent tool call per worker (`subagent_type` general-purpose, never `fork`: a worker starts from the durable files, not this context); set `model` to the annotation's model; the prompt names the role, tells the worker to load the `l-persona-*` skill (and the l-style parts) and to write its output to the durable file then stop |
 | isolate parallel edits | `herdr worktree create`; the worker starts in the worktree root pane and skips the split | pass `isolation: "worktree"` on the Agent call |
 | drive / follow up | `herdr agent prompt <name> "<task, ending in: write to <file>, then stop>" --wait --timeout 120000` | `SendMessage` to the worker's id/name with its context intact |
 | wait for completion | `--wait` blocks until settled; else `herdr agent get <name>` until idle | no polling: background agents run concurrently, completion notifications arrive automatically |
 | read a worker's result | `cat "$PROJECT_DIR/tasks/context/research/<uuid8>-<slug>.md"` | same `cat` of the durable file |
-| cleanup | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | nothing to close; a `worktree` isolation is auto-cleaned when unchanged |
+| close a worker | `herdr pane close <pane_id>`; `herdr worktree remove --workspace <id>` once its PR is open | a finished agent exits by itself; stop a stale one with `TaskStop <task_id>`; a `worktree` isolation is auto-cleaned when unchanged |
 
 `-s <persona-skill>[,l-style,...]` (Hermes) or the load-these-skills
 instruction in the Agent prompt (Claude Code) is what makes a worker behave
@@ -339,6 +363,43 @@ Herdr notes: a bare `--kind hermes` start goes straight to `agent_status:
 idle`, unlike native CLIs that show a one-time trust dialog. If a start
 times out or returns `agent_not_ready`, inspect with `herdr agent read
 <name> --source recent-unwrapped --lines 40` and `herdr agent get <name>`.
+
+## Worker lifecycle
+
+A worker lives for one job: one stage of one ticket, plus the fix-loop
+rounds that follow it in the same pass. No worker outlives the pass that
+spawned it. The next pass resumes from the durable files, never from a
+worker's context, so a kept worker only costs a pane and a model session.
+
+- **Record on spawn.** In the same beat as the spawn, annotate the ticket
+  `task <id> annotate "worker: <name> pane: <pane_id>"` (Herdr) or
+  `"worker: <name> agent: <task_id>"` (Claude Code). The open `worker:`
+  annotations are the list of live workers this skill owns.
+- **Close when finished.** A worker is finished once its durable file is
+  read and its stage tag has moved on. Close it right then with the
+  mechanics table's close row, unless the next stage of the same ticket in
+  this pass prompts it again (fix loop: the implementer gets the review).
+  Then remove the record: `task <id> denotate "worker: <name> ..."`.
+- **Close when stale.** Every wait carries a `--timeout`: 30 minutes for
+  research, design and review, 60 minutes for implement and test. A worker
+  is stale when any of these is true:
+  - it settles (`idle`/`done`, or a completion notification) without
+    writing its durable file, and one follow-up prompt does not fix that;
+  - it is `blocked` on an approval or question dialog (no human answers it
+    in queue mode);
+  - it is still `working` or `unknown` at the timeout, and `herdr agent
+    read` shows no new output since the last check.
+  Read its last output (`herdr agent read <name> --source recent-unwrapped
+  --lines 40`), close it, denotate its record, and annotate the ticket
+  `"worker <name> closed stale: <reason>"`. Leave the stage tag as is, so
+  the next pass spawns a fresh worker for that stage. A worker closed
+  stale twice on the same stage raises the clarification gate instead.
+- **Reap orphans at pass start.** A pass that crashed or was interrupted
+  leaves `worker:` records behind. Every recorded pane still listed by
+  `herdr agent list` at the start of a pass is an orphan: this skill
+  created it, and no worker survives its pass. Close it and denotate its
+  record. Under Claude Code, background agents end with the session that
+  spawned them, so only denotate the records.
 
 ## Pipeline stages -> persona mapping
 
@@ -351,7 +412,9 @@ times out or returns `agent_not_ready`, inspect with `herdr agent read
 | synthesis | none (this instance, or `l-persona-design-architecture`) | synthesis |
 | API design | `l-persona-design-api` | design-api |
 | UI/UX design | `l-persona-design-uiux` | design-uiux |
+| research review | `l-persona-reviewer` | research-reviewer |
 | design review | `l-persona-design-architecture` + optionally `l-persona-auditor-security` | design-reviewer(-sec) |
+| spec review | `l-persona-reviewer` + `l-persona-auditor-security` for security-sensitive specs | spec-reviewer(-sec) |
 | implementer | `l-persona-programmer` | implementer |
 | code reviewer | `l-persona-reviewer` | reviewer |
 | tester | `l-persona-tester` | tester |
@@ -369,37 +432,43 @@ notifications) before moving to synthesis.
 ## Fix loop
 
 Per phase ticket, before IMPLEMENT: fetch, base branch up to date with a
-clean tree (the previous phase merged), then branch
-`<type>/spec-<nnn>-p<k>-<slug>` (`l-spec-driven-development`, Phase
-loop). Two tickets implemented at once each get their own isolated
-worktree (`l-spec-driven-development`, "Parallel implementation"; the
+clean tree (the previous phase merged), then a new branch
+`<type>/spec-<nnn>-p<k>-<slug>` off the base, never off the spec branch
+(`l-spec-driven-development`, Phase loop and Branches).
+
+Two tickets implemented at once each get their own isolated worktree (`l-spec-driven-development`, "Parallel implementation"; the
 mechanics table's isolate row), within its 2-implementer cap, and
 `tasks/context/` stays in the main checkout.
 
 ```
-design ticket:  DESIGN -> DESIGN-REVIEW
-  DESIGN-REVIEW FAIL -> designer gets review/design-review.md -> DESIGN -> DESIGN-REVIEW
-  DESIGN-REVIEW PASS -> done
-phase ticket:   IMPLEMENT -> REVIEW -> TEST -> LAND
-  REVIEW FAIL -> implementer gets review/code-review.md -> IMPLEMENT -> REVIEW
-  TEST FAIL   -> implementer gets tests/report.md -> IMPLEMENT -> REVIEW -> TEST
-  TEST PASS   -> LAND -> phase PR, +human-review-ready
+research ticket: RESEARCH -> RESEARCH-REVIEW
+  FAIL -> researcher gets review/research-review.md -> RESEARCH -> RESEARCH-REVIEW
+design ticket:   DESIGN -> DESIGN-REVIEW
+  FAIL -> designer gets review/design-review.md -> DESIGN -> DESIGN-REVIEW
+spec ticket:     SPEC -> SPEC-REVIEW
+  FAIL -> spec author gets review/spec-review.md -> SPEC -> SPEC-REVIEW
+  PASS -> spec PR, +human-review-ready
+phase ticket:    IMPLEMENT -> draft PR -> REVIEW -> TEST -> LAND
+  REVIEW FAIL -> implementer gets review/code-review.md -> push to PR -> REVIEW
+  TEST FAIL   -> implementer gets tests/report.md -> push to PR -> REVIEW -> TEST
+  TEST PASS + CI green -> LAND -> ready -> merge policy -> merged -> done
 ```
-Stage tags follow the loop (`+stage-implement`, `+stage-code-review`,
-`+stage-test`, `+stage-land`; `+stage-design`, `+stage-design-review`),
-swapped in one `task modify` each time. No human gate inside this loop.
-LAND per `l-spec-driven-development`'s Phase loop: spec updated in the
-same PR, trace block, run and revert lines, then switch back to the base
-with a clean tree. The phase PR is a human gate (`+human-review-ready`,
-above): open it and stop; the human merges or gives feedback. Don't
-merge or self-approve. A repo whose convention forbids auto-committing
+Stage tags follow the loop, swapped in one `task modify` each time. No
+human gate inside a phase. LAND per `l-spec-driven-development`'s Phase
+loop: spec updated in the same PR, trace block, run and revert lines,
+`gh pr ready`, then the merge policy (`agent`: merge; `human`: wait on
+the PR), then branch cleanup and back to the base with a clean tree.
+
+A reviewer never approves its own work: the merge rests on a separate reviewer worker's PASS and the
+tester's report. A repo whose convention forbids auto-committing
 (e.g. `l-dotfiles`) -> stop at a clean, reviewed working tree and leave
 the commit to the human, same deference as the "Don't auto-commit" rule
 above. The ticket is `task <id> done` once its PR is merged (see
 `l-agent-task-db`, "Completion").
 
-Cleanup is the mechanics table's last row. Under Herdr, never close a pane
-or remove a worktree you did not create, and never `herdr server stop`.
+Cleanup follows "Worker lifecycle". Under Herdr, never close a pane or
+remove a worktree without a `worker:` record from this skill, and never
+`herdr server stop`.
 
 ## Pitfalls
 

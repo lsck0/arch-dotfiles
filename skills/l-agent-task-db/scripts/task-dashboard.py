@@ -124,7 +124,8 @@ def main():
 
     root = os.path.dirname(os.path.dirname(taskrc))
     gated = [t for t in agent if {"human-clarification-needed", "human-review-ready"} & set(t.get("tags", []))]
-    answered = [t for t in gated if "human-answered" in t.get("tags", [])]
+    answered = [t for t in gated if "human-answered" in t.get("tags", [])
+                and "human-clarification-needed" in t.get("tags", [])]
     needs_clarification = [t for t in gated if t not in answered
                            and "human-clarification-needed" in t.get("tags", [])]
     needs_review = [t for t in gated if t not in answered

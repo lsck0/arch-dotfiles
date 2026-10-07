@@ -53,7 +53,8 @@ zsh_init_cache fzf --zsh && source $REPLY
 source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-compdef kubecolor=kubectl
+# only once kubectl's own completion is registered, else compinit has not loaded it yet (fresh shell)
+(( $+_comps[kubectl] )) && compdef kubecolor=kubectl
 
 autoload zmv
 autoload -Uz edit-command-line

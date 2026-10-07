@@ -36,7 +36,7 @@ modrinth-app                      # minecraft mod manager
 nethack                           # roguelike dungeon game
 opencomposite-git                 # OpenXR to OpenVR
 path-of-building-community-git    # PoE build planner
-proton-cachyos                    # CachyOS Proton: vkd3d low-latency, reflex, ntsync
+proton-cachyos-slr                # CachyOS Proton: vkd3d low-latency, reflex, ntsync
 protontricks                      # Proton/Wine helper tool
 protonup-git                      # Proton-GE installer
 r2modman-bin                      # game mod manager
@@ -49,5 +49,5 @@ vkbasalt                          # vulkan post-processing layer, opt-in per gam
 vulkan-tools                      # vulkaninfo/vkcube utilities
 vulkan-validation-layers          # Vulkan validation layers
 wayvr-bin                         # wayland VR desktop
-wivrn                             # OpenXR streaming server for a wireless quest
+wivrn-server                      # OpenXR streaming server for a wireless quest
 xivlauncher-bin                   # FFXIV game launcher

@@ -1,0 +1,27 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+pkgname=irust
+pkgver=1.77.0
+pkgrel=1
+pkgdesc="Cross platform Rust REPL"
+arch=(x86_64)
+url="https://crates.io/crates/irust"
+license=(MIT)
+depends=(gcc-libs)
+makedepends=(cargo)
+options=(!lto)
+source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+sha256sums=(ed5a5dae07ea76b2b8fdc36dba500580b0e9485a3b5d14a5897bec5cb749db47)
+
+prepare() {
+    cd $pkgname-$pkgver
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd $pkgname-$pkgver
+    cargo build --frozen --release
+}
+
+package() {
+    install -Dm755 $pkgname-$pkgver/target/release/$pkgname "$pkgdir/usr/bin/$pkgname"
+}

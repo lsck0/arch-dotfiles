@@ -46,8 +46,8 @@ task-dashboard [project-dir]     # scripts/task-dashboard.py; defaults to $PWD
 Read-only, human-facing view (never modifies the db): `+prompt` tasks
 still awaiting decomposition, tickets blocked on `+human-clarification-needed`
 (with their question file path), tickets sitting at `+human-review-ready`
-(spec and phase PRs, with the annotated PR link), tickets the human has
-answered that wait for the agent (`+human-answered`), what's in progress,
+(with the annotated PR link), tickets the human has
+answered a question and wait for the agent (`+human-answered`), what's in progress,
 what's ready/blocked, and recently completed tickets, each with its
 `project:` family and `+stage-*`. Run this any time to see the whole queue
 at a glance instead of hand-parsing `task list`/`task export`.
@@ -115,10 +115,12 @@ A ticket is finished with `task <id> done`; that is what unblocks the
 tickets that `depends:` on it. The agent marks it done itself once the
 ticket's deliverable exists and is verified AND its gate, if any, passed:
 
-- A ticket that opened a PR (spec or phase) is done when the human merged
-  that PR (`gh pr view <n> --json state` says `MERGED`).
+- A ticket that opened a PR is done when that PR merged (`gh pr view <n>
+  --json state` says `MERGED`): the human merges a spec PR; a phase PR
+  merges per the project's merge policy (`l-spec-driven-development`).
 - A research/design ticket with no PR is done once its artifact is written
-  and checked (design: its design review passed).
+  and checked (research: its research review passed; design: its design
+  review passed).
 
 Stop it first and drop its current `+stage-*` tag (e.g. `task <id>
 modify -stage-land`), then `task <id> done`.
@@ -187,13 +189,11 @@ it back up after answering a question:
   matters at initial setup time from a different (e.g. `default`)
   session.
 - **End of every run**:
-  - Progress happened this pass (claimed new work, cleared a
-    `+human-clarification-needed`/`+human-review-ready` +
-    `+human-answered` pair, a stage advanced) -> write `1` to
-    `.poll-backoff` and reschedule to `in 1m`.
-  - No progress was possible (everything workable is
-    `+human-clarification-needed` or `+human-review-ready` and still
-    unanswered) -> read current N from `.poll-backoff` (default 1),
+  - Progress happened this pass (claimed new work, folded in an answered
+    question, a waited-on PR merged or got feedback, a stage advanced) ->
+    write `1` to `.poll-backoff` and reschedule to `in 1m`.
+  - No progress was possible (everything workable waits on an unanswered
+    question or an unchanged PR) -> read current N from `.poll-backoff` (default 1),
     write `N+1`, and reschedule to `in {N+1}m`.
 - Linear backoff, not exponential (1, 2, 3, 4... minutes), so a
   long-blocked project still gets checked at a bounded, predictable rate.
@@ -210,7 +210,7 @@ task, once decomposed, becomes one `project:<slug>.*` family; every ticket
 under it is one step from the task-planner's breakdown. The groupings
 (full rules in `l-multi-agent-task-mode`, "Intake"):
 `project:<slug>.research`, `.design`, `.spec`, then one `.p<k>` per
-`ROADMAP.md` phase once the spec PR merged.
+`SPEC.md` Roadmap phase once the spec PR merged.
 
 ```bash
 task add project:sale-tracker.research +agent-task "technical research"
@@ -245,8 +245,9 @@ task project:sale-tracker.research list
   explicitly bringing an existing task into scope.
 - Stage tags: **`l-multi-agent-task-mode` only**. Every ticket claimed in
   that mode carries exactly ONE while claimed:
-  `+stage-queued +stage-research +stage-design +stage-design-review
-  +stage-spec +stage-implement +stage-code-review +stage-test +stage-land`
+  `+stage-queued +stage-research +stage-research-review +stage-design
+  +stage-design-review +stage-spec +stage-spec-review +stage-implement
+  +stage-code-review +stage-test +stage-land`
   A stage tag also marks the ticket as owned by multi mode:
   `l-single-agent-task-mode` never adds them and skips any ticket that
   carries one. Always remove the old one in the SAME `task modify` call
@@ -257,37 +258,28 @@ task project:sale-tracker.research list
   There is no completion stage: a finished ticket is `task <id> done`
   (see "Completion").
 - `+human-review-ready`: a PR is open and waiting on the human: the spec
-  PR (`l-spec-driven-development`'s spec gate) or a phase PR (its result
-  gate). Annotate the PR link on the task as `pr: <url>`
-  (`task <id> annotate "pr: https://github.com/o/r/pull/41"`). Co-exists
-  with the ticket's current `+stage-*` tag so a resuming agent still
-  knows where it is; cleared together with `+human-answered` once the
-  human has merged the PR or left feedback on it (see `+human-answered`
-  below).
+  PR (`l-spec-driven-development`'s spec gate), or a phase PR the agent
+  may not merge itself (`Merge policy: human`, a single-mode PR, or a
+  merge blocked by branch protection). Annotate the PR link on the task
+  as `pr: <url>` (`task <id> annotate "pr: https://github.com/o/r/pull/41"`).
+  Co-exists with the ticket's current `+stage-*` tag so a resuming agent
+  still knows where it is. The agent checks the PR itself every pass
+  (`gh pr view <n> --json state,updatedAt,reviews,comments`) and clears
+  the tag once it merged; the human never tags anything for a PR.
 - `+human-clarification-needed`: the task is blocked on a decision only
   a human can make (a question written to
   `tasks/context/questions/<uuid8>-<slug>.md`). Co-exists with whatever
   other tags are active so the resuming agent knows where to pick back up.
-- `+human-answered`: the universal "human has acted, resume me" signal,
-  paired with whichever of the two tags above is active:
-  - Clearing `+human-clarification-needed`: the human filled in the
-    answer in the matching `tasks/context/questions/<uuid8>-*.md` file
-    and sets `+human-answered` THEMSELVES as an explicit "this is ready,
-    go check it" signal; an agent does not infer readiness from non-empty
-    file content alone, the tag is the trigger to even look. Once an
-    agent has folded the answer back into the durable docs (e.g.
-    `tasks/context/design/...`) and resumed the task, it clears BOTH
-    `+human-clarification-needed` and `+human-answered` in the same
-    `task modify` call. Tags reflect current state only; the answer's
-    own history lives in the doc (and git, once committed), not in a
-    lingering tag.
-  - Clearing `+human-review-ready`: the human merged the PR or reviewed
-    it with feedback, and sets `+human-answered` themselves. The agent
-    checks `gh pr view <n> --json state`: merged -> `task <id> done`
-    (see "Completion"); open -> run `l-spec-driven-development`'s
-    Feedback on it, then gate again. Either way it clears BOTH
-    `+human-review-ready` and `+human-answered` in the same
-    `task modify` call, same discipline as above.
+- `+human-answered`: the "human has answered, resume me" signal for a
+  question file. The human fills in the answer in the matching
+  `tasks/context/questions/<uuid8>-*.md` file and sets `+human-answered`
+  themselves; an agent does not infer readiness from non-empty file
+  content alone, the tag is the trigger to even look. Once an agent has
+  folded the answer back into the durable docs (e.g.
+  `tasks/context/design/...`) and resumed the task, it clears BOTH
+  `+human-clarification-needed` and `+human-answered` in the same `task
+  modify` call. Tags reflect current state only; the answer's own history
+  lives in the doc (and git, once committed), not in a lingering tag.
 
 ## Priorities
 

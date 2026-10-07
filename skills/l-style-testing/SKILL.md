@@ -29,6 +29,9 @@ Strong methods over weak ones, in descending value:
 
 The tools named are Rust's; other languages use their equivalent (C: CBMC, AFL++ or libFuzzer; Python: hypothesis; TypeScript: fast-check).
 
+- A failure explains itself. Comparisons report what each side held, not just that they differ. A failing test or simulation run prints its seed, the build metadata, the last log lines and the trace of its own run, so the first failure is enough to find the cause without a rerun. A test that can only say "false" is half a test.
+- Tests are granular: one behaviour per test, named for the requirement it proves (`spec003_r004_...` under a spec), so a failure names what broke before anyone reads the body.
+- Tests run with assertions, logging and tracing on. An instrumented build that never runs in CI is instrumentation nobody reads.
 - Determinism wherever a bug must be reproducible: never an unseeded RNG; derive all randomness from the run seed or hash a counter.
 - Benchmark what matters and keep the benchmarks in the repo; a performance claim without one is a guess. Benchmarks answer whether this version is faster than that one, profiling answers where the time goes, and neither answers the other's question.
 - Benchmarks build optimized and without sanitizers; a sanitized build measures the sanitizer. Throughput comparisons report the best of many runs rather than the mean, since slow samples are contamination; latency reports the tail. Print the spread so a wide one is visible.
@@ -36,7 +39,7 @@ The tools named are Rust's; other languages use their equivalent (C: CBMC, AFL++
 
 ## Observability & Introspection
 
-Two questions must be answerable for every subsystem at any moment: how long does it take, and how much memory does it use. If either needs a guess, the instrumentation is missing. It goes in before it's needed, not after a problem appears.
+Two questions must be answerable for every subsystem at any moment: how long does it take, and how much memory does it use. If either needs a guess, the instrumentation is missing. It goes in before it's needed, not after a problem appears, and ships in the same commit as the code it watches. The aim is as much introspection as the system can carry: when a test reveals a problem, the asserts, logs, traces and counters around it already hold the data that explains it.
 
 - Logging: levels `TRACE` to `PANIC`, a bounded set of pluggable sinks, fixed-size buffers, no allocation on the log path. Structured json in services, human output in terminals.
 - One crash funnel. Assertion, panic, an error that propagated to the top unhandled, and hardware fault all end at a single raise point where observers register, which is what makes crash reports, opt-in telemetry and a crash overlay possible instead of three half-implementations. Observers can't cancel a crash; only the test harness may.
@@ -45,7 +48,8 @@ Two questions must be answerable for every subsystem at any moment: how long doe
   - Emit source text (`offsetof(T, f)`, `sizeof(F)`) and let the compiler compute layout. A generator that computes offsets is reimplementing an ABI.
   - State the limits in the header, untagged unions unreadable, bitfields undescribed, instead of failing quietly.
 - Tracing: nested timed spans per subsystem and per request or frame, trace id carried across every boundary. A slow frame must be explainable from its own trace without reproducing it.
-- Scoped profiling: `perf_time_this_scope` / `perf_time_this_function`, compiled into dev builds and out of release builds of desktop and game binaries (services keep tracing and a sampling profiler on in prod), plus a `run profile` mode that records and a command that reads it back.
+- Scoped profiling: every subsystem entry point and every hot path gets a timed scope, `perf_time_this_scope` / `perf_time_this_function`, compiled into dev builds and out of release builds of desktop and game binaries (services keep tracing and a sampling profiler on in prod), plus a `run profile` mode that records and a command that reads it back.
+- Fixed-capacity structures register their fill level, so how close each one is to its bound is visible at runtime, not discovered at the crash.
 - Debug overlay: frame time, worst case in the window, cost breakdown. Opt-in, free when off, showing the number worth optimizing against rather than the flattering one.
 - Services get prometheus metrics, tracing middleware, log aggregation and continuous profiling, wired at startup on fixed paths, blocked from public access by the proxy.
 - Build metadata (commit, build time, mode, flags) compiled in, queryable at runtime, printed in the crash report.

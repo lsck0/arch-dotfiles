@@ -46,7 +46,7 @@ Written the way TigerBeetle writes it. Assertions are good and crashing is good,
 
 - Solve problems with architecture, data flow and data structures. A transform sprinkled across call sites means the data structure is wrong.
 - Single source of truth for every piece of data or state. If two places can disagree, they will.
-- No duplicated or near-duplicated code. On the second occurrence, extract it.
+- Tolerate duplication until the shape is clear. Extract on the third or fourth occurrence, not the second.
 - A new feature is an addition on existing primitives, not a rewrite of what exists. If it can't be, the missing primitive lands first as its own change.
 - Monolith by default, no microservices. A network hop isn't a module boundary, it's a boundary plus latency, partial failure, serialization and a second deploy. Split a process out only for a hard constraint: different runtime, different security boundary, incompatible resource profile. A database, cache or proxy beside the app is a dependency with a socket.
 - Subsystems and pipelines are the default shape. Each owns its data and has an explicit lifetime (`init` / `tick` / `shutdown`, `tick` only where there is a frame or loop), wired in a known order by one place. Data moves forward through stages, no back-edges, no reaching sideways into another's state.

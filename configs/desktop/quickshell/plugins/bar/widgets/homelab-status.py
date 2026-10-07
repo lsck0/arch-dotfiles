@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Streams homelab health as one JSON line per poll for Homelab.qml."""
 
-import calendar
 import json
 import os
 import re
@@ -13,6 +12,9 @@ import urllib.parse
 import urllib.request
 
 HOMELAB_DIR = os.environ.get("HOMELAB_DIR", os.path.expanduser("~/projects/homelab"))
+# the homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix)
+LAB_JSON = os.path.join(HOMELAB_DIR, "src", "generated", "lab.json")
+LAB_SCHEMA = 1
 # --summary: only what the bar icon needs
 SUMMARY = "--summary" in sys.argv[1:]
 _POSITIONAL = [a for a in sys.argv[1:] if not a.startswith("-")]
@@ -24,6 +26,8 @@ CLIENT_WINDOW = "24h"
 CLIENT_ROWS = 8
 # sorts after every real vmid
 UNKNOWN_VM_ID = 100000
+# a route on one of these is a guest's web ui
+WEB_PORTS = (80, 443)
 
 # fold raw user agents into a family before counting
 AGENT_FAMILY = (
@@ -39,177 +43,84 @@ AGENT_FAMILY = (
 )
 
 
-def site_value(match):
-    """${site.lan.proxmox} -> its value in src/site.json, so addresses written that way parse like literals."""
-    value = SITE
-    for key in match.group(1).split("."):
-        value = value.get(key) if isinstance(value, dict) else None
-    return str(value) if value is not None else match.group(0)
-
-
-def read(*parts):
+def lab_load():
+    """The homelab's export for desktop clients, or None while the checkout or the file is missing."""
     try:
-        with open(os.path.join(HOMELAB_DIR, "src", *parts)) as fh:
-            return re.sub(r"\$\{site\.([\w.]+)\}", site_value, fh.read())
-    except OSError:
-        return ""
+        with open(LAB_JSON) as fh:
+            lab = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    return lab if isinstance(lab, dict) and lab.get("schema") == LAB_SCHEMA else None
 
 
-try:
-    with open(os.path.join(HOMELAB_DIR, "src", "site.json")) as fh:
-        SITE = json.load(fh)
-except (OSError, ValueError):
-    SITE = {}
-
-
-def homepage_group(text, group):
-    """Items of one group in the homepage services.yaml: [{name, href, ping}]."""
-    items, indent = [], None
-    for line in text.splitlines():
-        m = re.match(r"^(\s*)- ([^:]+):\s*$", line)
-        if indent is None:
-            if m and m.group(2).strip() == group:
-                indent = len(m.group(1))
-            continue
-        if (m and len(m.group(1)) <= indent) or line.strip().startswith("''"):
-            break
-        if m:
-            items.append({"name": m.group(2).strip(), "href": "", "ping": ""})
-        elif items:
-            key = re.match(r"^\s*(href|ping):\s*(\S+)\s*$", line)
-            if key and not items[-1][key.group(1)]:
-                items[-1][key.group(1)] = key.group(2)
-    return items
-
-
-def dashboard_url_path(board):
-    """/d/<uid>/<slug>?... with the dashboard's default range, variables and refresh."""
-    uid = board.get("uid", "")
-    if not uid:
-        return ""
-    slug = re.sub(r"[^a-z0-9]+", "-", board.get("title", "").lower()).strip("-")
-    time_range = board.get("time") or {}
-    params = [("orgId", "1"), ("from", time_range.get("from", "now-24h")), ("to", time_range.get("to", "now"))]
-    if board.get("timezone"):
-        params.append(("timezone", board["timezone"]))
-    for var in (board.get("templating") or {}).get("list", []):
-        value = (var.get("current") or {}).get("value")
-        if var.get("name") and isinstance(value, str):
-            params.append(("var-" + var["name"], value))
-    if board.get("refresh"):
-        params.append(("refresh", board["refresh"]))
-    return "/d/%s/%s?%s" % (uid, slug, urllib.parse.urlencode(params))
+def subnet_prefix(subnet):
+    """10.100.0.0/24 -> 10.100.0, what an address of the zone starts with."""
+    return subnet.split("/")[0].rsplit(".", 1)[0]
 
 
 def source():
-    # guests never clone the homelab; short-circuit to the "source" degradation without parsing
-    if not os.path.isdir(HOMELAB_DIR):
+    lab = lab_load()
+    if lab is None:
         return {"by_ip": {}, "prometheus": ""}
 
-    try:
-        inventory = json.loads(read("inventory.json") or "{}")
-    except ValueError:
-        inventory = {}
-
-    vms, texts = {}, {}
-    for key, entry in inventory.items():
+    vms = {}
+    for key, guest in lab["guests"].items():
         vmid = int(key)
-        full = entry.get("name", key)
         vms[vmid] = {
             "id": vmid,
-            "name": re.sub(r"^\d+-(?:%s-)?" % re.escape(entry.get("type", "")), "", full),
-            "type": entry.get("type", ""),
-            "ip": entry.get("ip", ""),
-            "enabled": str(entry.get("enabled", "true")),
-            "onDemand": str(entry.get("enabled")) == "onDemand",
+            "name": re.sub(r"^\d+-(?:%s-)?" % re.escape(guest["zone"]), "", guest["name"]),
+            "type": guest["zone"],
+            "ip": guest["ip"],
+            "enabled": guest["enabled"],
+            "onDemand": guest["enabled"] == "onDemand",
             "url": "",
         }
-        texts[vmid] = read("instances", full + ".nix")
 
     by_ip = {vm["ip"]: vm for vm in vms.values() if vm["ip"]}
-    subnets = {}
-    for vm in vms.values():
-        if vm["type"] in ("internal", "external") and vm["ip"]:
-            subnets.setdefault(vm["type"], vm["ip"].rsplit(".", 1)[0])
-    # each subnet's .1 gateway is the router vm
+    subnets = {name: subnet_prefix(zone["subnet"]) for name, zone in lab["zones"].items()}
+    # the router answers on its address in every zone
     router = next((vm for vm in vms.values() if vm["type"] == "router"), None)
     if router:
-        for subnet in subnets.values():
-            by_ip[subnet + ".1"] = router
-
-    everything = "\n".join(texts.values())
-    domain = re.search(r"\$\{r\.host\}\.([a-z0-9.-]+)`", everything)
-    domain = domain.group(1) if domain else ""
+        for zone in lab["zones"].values():
+            by_ip[zone["router"]] = router
 
     # a vm with several routes keeps the one on the web port
     candidates = {}
-    if domain:
-        for host, vmid, port in re.findall(
-                r'host\s*=\s*"([^"]+)";\s*vmid\s*=\s*(\d+);\s*port\s*=\s*(\d+);', read("modules", "routes.nix")):
-            rank = 0 if int(port) in (80, 443) else 1
-            candidates.setdefault(int(vmid), []).append((rank, "%s.%s" % (host, domain)))
-
-    # hand-written traefik routers: the dashboard and non-vm backends
-    external = {}
-    for vmid, text in texts.items():
-        for host, service in re.findall(r'rule\s*=\s*"Host\(`([^`$]+)`\)";\s*service\s*=\s*"([^"]+)"', text):
-            if service == "api@internal":
-                candidates.setdefault(vmid, []).append((0, host))
-                continue
-            backend = re.search(r"\b%s\.loadBalancer\b.{0,200}?url\s*=\s*\"\w+://(%s)" % (re.escape(service), IPV4), text, re.S)
-            if backend and backend.group(1) not in by_ip:
-                external.setdefault(backend.group(1), "https://" + host)
+    for route in lab["routes"].values():
+        if route["vmid"] is not None and route["protocol"] == "http":
+            rank = 0 if route["port"] in WEB_PORTS else 1
+            candidates.setdefault(route["vmid"], []).append((rank, route["host"]))
     for vmid, options in candidates.items():
         if vmid in vms:
             vms[vmid]["url"] = "https://" + sorted(options, key=lambda o: o[0])[0][1]
 
-    monitor = next((vms[i] for i, t in texts.items() if re.search(r"services\.prometheus\s*=\s*\{", t)), None)
-    monitor_text = texts.get(monitor["id"], "") if monitor else ""
-    # an absent alertmanager would cost a timeout per poll
-    has_am = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{", monitor_text) is not None
-    am_port = re.search(r"services\.prometheus\.alertmanager\s*=\s*\{.{0,400}?\bport\s*=\s*(\d+)", monitor_text, re.S)
-    exporters = [ip for ip in re.findall(r'"(%s):9100"' % IPV4, monitor_text) if ip not in by_ip]
-    # path is relative to the instance file
-    dashboard = re.search(r"(\.{1,2}/[\w./-]*\.json)", monitor_text)
-    dashboard_path = ""
-    if dashboard:
-        try:
-            dashboard_path = dashboard_url_path(json.loads(read("instances", dashboard.group(1))))
-        except ValueError:
-            pass
-
     def named(name):
         return next((vm for vm in vms.values() if vm["name"] == name), None)
 
-    host_ip = exporters[0] if exporters else ""
-    grafana = monitor["url"] if monitor else ""
+    monitoring = lab["monitoring"]
+    grafana = monitoring["grafana"]
+    dashboard = grafana + monitoring["dashboard"]
     # the grafana tile opens the dashboard
-    if monitor and grafana and dashboard_path:
-        monitor["url"] = grafana + dashboard_path
+    monitor = by_ip.get(urllib.parse.urlsplit(monitoring["prometheus"]).hostname)
+    if monitor:
+        monitor["url"] = dashboard
     nas = named("nas")
-    infra = next((homepage_group(t, "Infra") for t in texts.values() if "- Infra:" in t), [])
-
-    # loki is wherever promtail pushes
-    push = re.search(r"https?://(%s:\d+)/loki/api/v1/push" % IPV4, read("modules", "base.nix"))
-    ingress = next((vmid for vmid, text in texts.items()
-                    if vms[vmid]["type"] == "external" and "homelab.traefik" in text), None)
 
     return {
-        "infra": infra,
-        "loki": "http://" + push.group(1) if push else "",
-        "ingress": "vm-%d" % ingress if ingress else "",
-        "domain": domain,
+        "infra": [{key: item[key] or "" for key in ("name", "href", "ping")} for item in lab["infra"]],
+        "loki": monitoring["loki"],
+        "ingress": monitoring["accessLog"],
+        "domain": lab["domain"],
         "by_ip": by_ip,
         "subnets": subnets,
-        "host_ip": host_ip,
-        "prometheus": "http://%s:9090" % monitor["ip"] if monitor else "",
-        "alertmanager": "http://%s:%s" % (monitor["ip"], am_port.group(1) if am_port else "9093") if monitor and has_am else "",
+        "host_ip": lab["proxmox"]["ip"],
+        "prometheus": monitoring["prometheus"],
         "nas_ip": nas["ip"] if nas else "",
         "links": {
             "homepage": (named("homepage") or {}).get("url", ""),
-            "dashboard": grafana + dashboard_path if grafana and dashboard_path else grafana,
-            "alerts": grafana + "/alerting/list" if grafana else "",
-            "proxmox": external.get(host_ip, ""),
+            "dashboard": dashboard,
+            "alerts": grafana + "/alerting/list",
+            "proxmox": lab["proxmox"]["url"],
             "nas": nas["url"] if nas else "",
         },
     }
@@ -379,31 +290,16 @@ def sample(src, summary=False):
 
     alerts = []
     try:
-        if src["alertmanager"]:
-            for a in fetch(src["alertmanager"] + "/api/v2/alerts?active=true&silenced=false&inhibited=false"):
-                labels = a.get("labels", {})
-                try:
-                    age = int((now - calendar.timegm(time.strptime(a.get("startsAt", "")[:19], "%Y-%m-%dT%H:%M:%S"))) / 60)
-                except ValueError:
-                    age = 0
-                if "instance" in labels and vm_for(labels["instance"], src).get("enabled") == "false":
-                    continue
-                alerts.append({
-                    "name": labels.get("alertname", "alert"),
-                    "target": vm_for(labels["instance"], src)["name"] if "instance" in labels else "",
-                    "minutes": max(0, age),
-                })
-        else:
-            # grafana alerting: a gauge valued with the start time
-            for labels, started in query("homelab_alert_firing"):
-                target, disabled = target_name(labels.get("target", ""))
-                if disabled:
-                    continue
-                alerts.append({
-                    "name": labels.get("alertname", "alert"),
-                    "target": target,
-                    "minutes": max(0, int((now - started) / 60)),
-                })
+        # grafana alerting: a gauge valued with the start time
+        for labels, started in query("homelab_alert_firing"):
+            target, disabled = target_name(labels.get("target", ""))
+            if disabled:
+                continue
+            alerts.append({
+                "name": labels.get("alertname", "alert"),
+                "target": target,
+                "minutes": max(0, int((now - started) / 60)),
+            })
     except Exception:
         pass
     alerts.sort(key=lambda a: a["minutes"])
@@ -468,18 +364,18 @@ def try_clients(src):
         return {}
 
 
-_SOURCE = None
+_SOURCE = {"mtime": None, "src": None}
 
 
 def cached_source():
-    # parse once, retry only while the checkout is missing
-    global _SOURCE
-    if _SOURCE is not None:
-        return _SOURCE
-    src = source()
-    if src.get("by_ip"):
-        _SOURCE = src
-    return src
+    # parse once per version of lab.json: a sync rewrites it, a missing one is retried
+    try:
+        mtime = os.stat(LAB_JSON).st_mtime_ns
+    except OSError:
+        mtime = None
+    if mtime is None or mtime != _SOURCE["mtime"]:
+        _SOURCE["mtime"], _SOURCE["src"] = mtime, source()
+    return _SOURCE["src"]
 
 
 def main():
