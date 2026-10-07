@@ -1,20 +1,28 @@
+artcraft                          # ArtCraft, AI crafting engine for art and film
 aseprite                          # pixel art editor
 audacity                          # audio editor
 blender                           # 3D modeling suite
+cadcraft                          # AutoCAD-style CAD, pure Rust
 cava                              # audio visualizer
 converseen                        # batch image converter
+deckcraft                         # PowerPoint-style slides, pure Rust
+designcraft                       # ArtCraft design app, pure Rust
 drawy                             # freehand drawing tool
+effectcraft                       # ArtCraft effects app, pure Rust
 famistudio-bin                    # NES chiptune tracker
 feh                               # lightweight image viewer
+filmcraft                         # Premiere-style video editor, pure Rust
 giflib                            # GIF image library
 gifsicle                          # GIF editing tool
 gimp                              # image editing suite
 gpu-screen-recorder               # low-overhead vaapi capture and replay buffer
+gridcraft                         # Excel-style spreadsheet, pure Rust
 handbrake                         # video transcoder
 inkscape                          # vector graphics editor
 kdenlive                          # video editor
 krita                             # digital painting app
 lib32-obs-vkcapture               # obs-vkcapture for 32-bit games
+lightcraft                        # Lightroom-style RAW editor, pure Rust
 lmms                              # music production software
 lorien-bin                        # infinite canvas drawing
 nsxiv                             # lightweight image viewer
@@ -25,11 +33,16 @@ obs-studio                        # screen recording/streaming
 obs-studio-plugin-browser         # OBS browser source
 obs-vkcapture                     # OBS Vulkan/GL game capture, OBS_VKCAPTURE=1 or obs-gamecapture
 openscad                          # 3D CAD modeler
+photocraft                        # Photoshop-style image editor, pure Rust
 pitivi                            # video editor
+printcraft                        # Acrobat-style PDF editor, pure Rust
 python-websocket-client           # obs-websocket client for the bar's OBS widget
 qpwgraph                          # pipewire patchbay GUI
 rawtherapee                       # RAW photo editor
 sfxr-qt-bin                       # sound effect generator
+soundcraft                        # Pro Tools-style DAW, pure Rust
 sox                               # audio processing tool
 tiled                             # tilemap editor
+vectorcraft                       # Illustrator-style vector editor, pure Rust
+wordcraft                         # Word-style word processor, pure Rust
 xournalpp                         # handwritten note-taking
