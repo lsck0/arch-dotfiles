@@ -30,12 +30,14 @@ hollywood                         # fake hacker terminal
 hyprcursor                        # hyprland cursor format
 hypridle                          # hyprland idle daemon
 hyprland                          # wayland compositor
+hyprlock                          # fallback locker when quickshell is unreachable
 hyprpicker                        # wayland color picker
 hyprpm                            # hyprland plugin manager
 jdownloader2                      # download manager
 kdeconnect                        # phone integration, firewall allows 1716
 kdeplasma-addons                  # plasma weather and keyboard indicator applets
 kitty                             # GPU terminal emulator
+kleopatra                         # gpg certificate manager, encrypt/decrypt/sign notepad, dolphin actions
 konsole                           # KDE terminal emulator
 krusader                          # total commander
 kscreen                           # plasma display configuration

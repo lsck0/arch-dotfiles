@@ -3,6 +3,7 @@
 
 set -euo pipefail
 
+BOARD_NAME="X870E AORUS ELITE WIFI7"
 FORCE_ID=0x8622
 # quiet below MINTEMP, ramp to full by MAXTEMP; ryzen Tctl idles ~45C and boosts to ~85C under load
 MINTEMP=60
@@ -22,6 +23,7 @@ hwmon_by_name() {
 # the hwmon's device path relative to /sys, how fancontrol re-resolves it across reboots
 devpath_of() { (cd "/sys/class/hwmon/$1/device" && pwd -P | sed 's#^/sys/##'); }
 
+[[ "$(</sys/class/dmi/id/board_name)" == "$BOARD_NAME" ]] || { echo "fancontrol: not the $BOARD_NAME, leaving fans to the BIOS" >&2; exit 0; }
 modprobe -q it87 "force_id=$FORCE_ID" ignore_resource_conflict=1 2>/dev/null || true
 
 it87=$(hwmon_by_name 'it8*') || { echo "fancontrol: it87 did not load (check dmesg for the force_id), leaving fans to the BIOS" >&2; exit 0; }

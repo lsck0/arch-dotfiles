@@ -34,7 +34,7 @@ BarIndicator {
   // the toggle announces every change, keybinds and the toggles menu included
   Connections {
     target: ToggleEvents
-    function onChanged() { root.refresh() }
+    function onChanged(script) { if (script === "toggle-keep-awake.sh") root.refresh() }
   }
 
   onPressed: function() { Quickshell.execDetached([root.toggleScript, "toggle"]) }

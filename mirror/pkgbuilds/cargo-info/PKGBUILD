@@ -1,0 +1,27 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# the crates.io tool the old cargo list installed; the aur cargo-info is an unrelated project
+pkgname=cargo-info
+pkgver=0.7.7
+pkgrel=1
+pkgdesc="Fetch information about crates from crates.io"
+arch=(x86_64)
+url="https://crates.io/crates/cargo-info"
+license=(MIT Apache-2.0)
+depends=(gcc-libs openssl)
+makedepends=(cargo)
+source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgname-$pkgver.crate")
+sha256sums=(86be8c17e8bf14dc509f918b84dd18fa90cfb86f2822be8713370f68ed8c3ce4)
+
+prepare() {
+    cd $pkgname-$pkgver
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd $pkgname-$pkgver
+    cargo build --frozen --release
+}
+
+package() {
+    install -Dm755 $pkgname-$pkgver/target/release/$pkgname "$pkgdir/usr/bin/$pkgname"
+}

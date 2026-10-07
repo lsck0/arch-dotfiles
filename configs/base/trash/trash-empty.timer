@@ -1,8 +1,8 @@
 [Unit]
-Description=Weekly user trash cleanup
+Description=Daily user trash cleanup
 
 [Timer]
-OnCalendar=weekly
+OnCalendar=daily
 Persistent=true
 RandomizedDelaySec=1h
 

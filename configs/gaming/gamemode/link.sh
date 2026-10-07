@@ -5,11 +5,10 @@ set -e
 
 ln -sfn "${PWD}/gamemode.ini" "${HOME}/.config/gamemode.ini"
 
-sudo mkdir -p /etc/sysctl.d
-sudo install -m644 sysctl-gamemode.conf /etc/sysctl.d/99-gamemode.conf
-sudo sysctl -q -p /etc/sysctl.d/99-gamemode.conf
+sudo install -m755 split-lock-mitigate /usr/local/bin/split-lock-mitigate
 
-# the hook stops vllm/ollama to free vram; polkit lets it manage those system units unprompted
-if [[ -d /etc/polkit-1/rules.d ]]; then
-    sudo install -m644 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules
-fi
+# the hook stops vllm/ollama to free vram and relaxes split lock mitigation; polkit lets it do both unprompted
+sudo install -m644 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules
+
+# polkit lets the gamemode group set cpu governor and gpu performance level without a prompt
+sudo usermod -aG gamemode "$USER"

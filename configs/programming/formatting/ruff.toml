@@ -1,6 +1,6 @@
-# user-level fallback, a project pyproject.toml or ruff.toml overrides it
+# fallback for projects without their own pyproject.toml or ruff.toml, passed by nvim conform
 line-length = 120
 
 [lint]
-# black-compatible import sorting, conform and apheleia run it as ruff_organize_imports / ruff-isort
+# black-compatible import sorting, conform runs it as ruff_organize_imports
 extend-select = ["I"]

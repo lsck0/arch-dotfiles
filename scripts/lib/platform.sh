@@ -58,10 +58,11 @@ platform_load() {
         source "$file"
         echo "platform: $file" >&2
     fi
-    ((${#PKG_GROUPS[@]})) || mapfile -t PKG_GROUPS < <(platform_groups_all "$1")
+    local all known grp
+    mapfile -t all < <(platform_groups_all "$1")
+    ((${#PKG_GROUPS[@]})) || PKG_GROUPS=("${all[@]}")
     # a group that is not a discovered module is a typo or a dropped module, caught here not silently skipped
-    local known grp
-    known=" $(platform_groups_all "$1" | tr '\n' ' ') "
+    known=" ${all[*]} "
     for grp in "${PKG_GROUPS[@]}"; do
         [[ "$known" == *" $grp "* ]] || { echo "platform: PKG_GROUPS has '$grp', not a module in configs/" >&2; return 1; }
     done

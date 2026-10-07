@@ -21,9 +21,9 @@ stage=$(mktemp -d -- "$dest_root/.extract.XXXXXX") || exit 1
 cleanup() { rm -rf -- "$stage"; }
 trap cleanup EXIT
 
-python3 - "$archive" "$stage" <<'PY'
-import os, sys, tarfile, zipfile
-p, stage = sys.argv[1:]
+kind=$(python3 - "$archive" <<'PY'
+import sys, tarfile, zipfile
+p = sys.argv[1]
 MAX_ENTRIES, MAX_TOTAL, MAX_FILE = 200000, 10 * 1024**3, 2 * 1024**3
 
 def safe(n):
@@ -45,20 +45,16 @@ try:
     if zipfile.is_zipfile(p):
         with zipfile.ZipFile(p) as z:
             check([(i.filename, i.file_size, '') for i in z.infolist()])
+        print('zip')
     elif tarfile.is_tarfile(p):
         with tarfile.open(p, 'r:*') as t:
             check([(m.name, m.size if m.isfile() else 0, m.linkname if m.issym() or m.islnk() else '') for m in t.getmembers()])
+        print('tar')
     else:
-        raise ValueError
+        print('other')
 except (ValueError, tarfile.ReadError, zipfile.BadZipFile):
     # 7z/rar are preflighted by the shell's 7z listing below.
-    pass
-PY
-
-kind=$(python3 - "$archive" <<'PY'
-import sys, zipfile, tarfile
-p=sys.argv[1]
-print('zip' if zipfile.is_zipfile(p) else ('tar' if tarfile.is_tarfile(p) else 'other'))
+    print('other')
 PY
 )
 # 7z extracts what python's zipfile/tarfile cannot (deflate64 and other 7-zip zip methods, rar, 7z)

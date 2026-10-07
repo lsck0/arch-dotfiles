@@ -29,7 +29,7 @@ toggle_set_volatile() {
 
 # a toggle changed state: ping quickshell's toggles ipc (status refresh without polling, keybinds and gamemode included), then notify-send; never blocking
 toggle_notify() {
-    timeout 2 quickshell ipc -p "$HOME/.config/quickshell" call toggles changed >/dev/null 2>&1 || true
+    timeout 2 quickshell ipc -p "$HOME/.config/quickshell" call toggles changed "${0##*/}" >/dev/null 2>&1 || true
     timeout 2 notify-send "$@" 2>/dev/null || true
 }
 
@@ -43,10 +43,10 @@ toggle_index_of() {
 
 # toggle_main <name> <label> <check_fn> <on_fn> <off_fn> <action> check_fn must echo "on" or "off" and take no arguments.
 toggle_main() {
-    local name=$1 label=$2 check_fn=$3 on_fn=$4 off_fn=$5 action=${6:-toggle}
+    local label=$2 check_fn=$3 on_fn=$4 off_fn=$5 action=${6:-toggle}
     local current
     current=$("$check_fn")
-    # only on/off/toggle persist state: label/get are reads, no disk churn
+    [[ $action == toggle ]] && { [[ $current == on ]] && action=off || action=on; }
 
     case "$action" in
     get)
@@ -57,24 +57,11 @@ toggle_main() {
         ;;
     on)
         "$on_fn"
-        toggle_set "$name" on
         toggle_notify -a Toggles "$label" "Turned on"
         ;;
     off)
         "$off_fn"
-        toggle_set "$name" off
         toggle_notify -a Toggles "$label" "Turned off"
-        ;;
-    toggle)
-        if [[ "$current" == on ]]; then
-            "$off_fn"
-            toggle_set "$name" off
-            toggle_notify -a Toggles "$label" "Turned off"
-        else
-            "$on_fn"
-            toggle_set "$name" on
-            toggle_notify -a Toggles "$label" "Turned on"
-        fi
         ;;
     *)
         echo "usage: $(basename "$0") {get|label|on|off|toggle}" >&2

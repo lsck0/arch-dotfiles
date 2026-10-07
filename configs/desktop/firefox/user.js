@@ -3,8 +3,7 @@ user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 // reuse qutebrowser's start page, mozilla.cfg points the new tab there too
 user_pref("browser.startup.homepage", "file://@HOME@/.config/qutebrowser/startpage.html");
 user_pref("browser.startup.page", 1);
-// let the start page load ~/.cache/wal assets
-user_pref("security.fileuri.strict_origin_policy", false);
+user_pref("security.fileuri.strict_origin_policy", true);
 
 // 4 blocks tracker cookies; 5 partitions storage and broke teams screen share
 user_pref("browser.contentblocking.category", "custom");

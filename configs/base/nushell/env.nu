@@ -8,7 +8,7 @@ $env.ZSH_DISABLE_COMPFIX = "true"
 $env.PATH = (
     $env.PATH
     | split row (char esep)
-    | prepend [
+    | append [
         $"($env.HOME)/.cargo/bin"
         $"($env.HOME)/.ghcup/bin"
         $"($env.HOME)/.go/bin"

@@ -6,25 +6,6 @@ set -euo pipefail
 
 REPO="$DOTFILES/configs/desktop/plasma"
 
-FILES="
-    baloofilerc
-    kactivitymanagerd-statsrc
-    kactivitymanagerdrc
-    kcminputrc
-    kded5rc
-    kded6rc
-    kdeglobals
-    kglobalshortcutsrc
-    ksplashrc
-    kwinoutputconfig.json
-    kwinrc
-    kwinrulesrc
-    plasma-localerc
-    plasma-org.kde.plasma.desktop-appletsrc
-    plasmarc
-    plasmashellrc
-"
-
 DIRS="
     KDE
     kdedefaults
@@ -36,9 +17,9 @@ in_sync() {
     [ -L "$1" ] && [ "$(readlink -f "$1")" = "$(readlink -f "$2")" ]
 }
 
-for f in ${FILES}; do
-    src="${HOME}/.config/${f}"
-    dst="${REPO}/${f}"
+# the repo's own files, so this cannot drift from plasma/link.sh's list
+for dst in "${REPO}"/*rc "${REPO}"/kdeglobals "${REPO}"/*.json; do
+    src="${HOME}/.config/${dst##*/}"
     [ -e "${src}" ] || continue
     in_sync "${src}" "${dst}" && continue
     cp -fL "${src}" "${dst}"

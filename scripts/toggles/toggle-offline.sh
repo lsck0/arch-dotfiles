@@ -4,6 +4,8 @@ cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
 TUNNELS=(toggle-vpn.sh toggle-protonvpn.sh toggle-tor.sh)
+# the radios that were on before offline mode; tmpfs, since rfkill ids are renumbered on boot
+RFKILL_SAVED="$TOGGLES_RUNTIME_DIR/offline-rfkill"
 
 # offline means both halves are down
 check() {
@@ -18,12 +20,19 @@ turn_on() {
         [[ "$(./"$t" get 2>/dev/null || echo off)" == on ]] || continue
         ./"$t" off || echo "offline: failed to tear down $t, continuing" >&2
     done
+    # already offline: everything reads blocked now, keep the earlier snapshot
+    [[ "$(check)" == on ]] || rfkill -rno ID,SOFT | awk '$2 == "unblocked" {print $1}' >"$RFKILL_SAVED" || true
     nmcli networking off || true
     rfkill block all || true
 }
 
 turn_off() {
-    rfkill unblock all || true
+    if [[ -f "$RFKILL_SAVED" ]]; then
+        xargs -r rfkill unblock <"$RFKILL_SAVED" || true
+        rm -f "$RFKILL_SAVED"
+    else
+        rfkill unblock all || true
+    fi
     nmcli networking on || true
 }
 

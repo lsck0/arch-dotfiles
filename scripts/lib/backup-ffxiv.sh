@@ -13,6 +13,11 @@ source "${REPO}/scripts/lib/secrets.sh"
 
 [ -f "${XLCORE}/ffxivConfig/FFXIV.cfg" ] || { echo "no ${XLCORE}/ffxivConfig/FFXIV.cfg" >&2; exit 1; }
 secret_require_unlocked "${REPO}"
+MARKER="${XLCORE}/ffxivConfig/.from-secrets"
+if [ ! -e "${MARKER}" ]; then
+    [ -e "${DEST}/ffxivConfig" ] && { echo "${XLCORE}/ffxivConfig was not seeded from secrets; run config.sh, or touch ${MARKER} to keep the live state" >&2; exit 1; }
+    touch "${MARKER}"
+fi
 
 mkdir -p "${DEST}"
 # system cfgs plus each character's DATs; chat logs, game backups, screenshots and .old rotations stay out

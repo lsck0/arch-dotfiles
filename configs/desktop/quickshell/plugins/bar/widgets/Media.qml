@@ -118,6 +118,9 @@ BarWidget {
     (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell/mediaart"
   readonly property string artCacheFile:
     root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
+  // a remote fetch tells the art host what is playing, so it runs only at home with no vpn or tor up
+  readonly property string artFetchCheck: "[ -e /run/home-network ] && ! ip link show proton0 >/dev/null 2>&1"
+    + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
 
   property string artSource: ""
   property string artFetchedUrl: ""
@@ -137,7 +140,8 @@ BarWidget {
 
   Process {
     id: artProc
-    command: ["curl", "-sfL", "--max-time", "8", "--create-dirs", "-o", root.artCacheFile, root.artUrl]
+    command: ["sh", "-c", root.artFetchCheck + " && exec curl -sfL --max-time 8 --create-dirs -o \"$1\" \"$2\"",
+      "sh", root.artCacheFile, root.artUrl]
     onExited: function (exitCode) {
       if (exitCode !== 0) return
       if (root.artFetchedUrl !== root.artUrl) return

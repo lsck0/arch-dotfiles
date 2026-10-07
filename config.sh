@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 export DOTFILES="$PWD"
+[[ -z ${DIRENV_DIR-} ]] || { echo "run outside a direnv directory" >&2; exit 1; }
 
 # progress bars need a tty; re-exec under `script` so pacman/yay render live while logging, fall through to plain tee without a tty (piped, cron)
 if [ -z "${_PTY_LOG:-}" ]; then
@@ -23,10 +24,8 @@ fail() { echo "$1" >>"$FAILURES_FILE"; }
 source ./scripts/lib/platform.sh
 platform_load "$PWD"
 
-# guest gating: a non-luca login skips every personal step, link.sh scripts read PERSONAL
+# guest gating: a non-luca login skips every personal step
 source ./scripts/lib/personal.sh
-if is_personal; then PERSONAL=1; else PERSONAL=0; fi
-export PERSONAL
 
 source ./scripts/lib/sudo.sh
 sudo_keepalive_start
@@ -49,13 +48,16 @@ export GOPATH="${HOME}/.go"
 # only the platform's modules link; the module gate replaces the old per-config guards
 module_dirs=()
 for grp in "${PKG_GROUPS[@]}"; do module_dirs+=("$PWD/configs/$grp"); done
+# the weblinks are luca's own bookmarks: homelab, his bank
+root_dirs=("$PWD/scripts" "$PWD/skills")
+if is_personal; then root_dirs+=("$PWD/weblinks"); fi
 
 # sorted path order: configs/programming/projects needs configs/base/gh's login first; pacman is linked by install.sh before the installs
 while IFS= read -r script; do
     runner=bash
     [[ "$script" == *.py ]] && runner=python
     (cd "$(dirname "$script")" && "$runner" "$(basename "$script")" </dev/null 2>&1 | tee "${script}.log") || fail "$script"
-done < <(find "${module_dirs[@]}" -type f \( -name link.sh -o -name link.py \) -not -path "$PWD/configs/base/pacman/*" | sort)
+done < <(find "${module_dirs[@]}" "${root_dirs[@]}" -type f \( -name link.sh -o -name link.py \) -not -path "$PWD/configs/base/pacman/*" | sort)
 
 ## PRUNE
 
@@ -80,8 +82,12 @@ if command -v git-lfs >/dev/null 2>&1; then
     git lfs pull || fail "git lfs pull"
 fi
 
-WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh ./wallpapers/alena-aenami-darkambient-1k.jpg >/dev/null \
-    || fail "scripts/switch-wallpaper.sh"
+wp=$(readlink -f ~/.cache/wal/wallpaper 2>/dev/null) && [[ -f $wp ]] || wp=./wallpapers/alena-aenami-darkambient-1k.jpg
+stamp=$(git ls-files -s configs/base/wallust configs/base/themes scripts/switch-wallpaper.sh | sha1sum)
+if [[ ! -e ~/.cache/wal/wallpaper || "$(cat ~/.cache/wal/.theme-stamp 2>/dev/null)" != "$stamp" ]]; then
+    WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh "$wp" >/dev/null && echo "$stamp" >~/.cache/wal/.theme-stamp \
+        || fail "scripts/switch-wallpaper.sh"
+fi
 
 ## BOOT
 

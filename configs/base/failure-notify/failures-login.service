@@ -1,0 +1,14 @@
+[Unit]
+Description=Desktop notification while a dotfiles run left FAILURES.*
+After=graphical-session.target
+ConditionPathExistsGlob=%h/projects/arch-dotfiles/FAILURES.*
+
+[Service]
+Type=oneshot
+# at login quickshell may not own the notification name yet
+ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
+ExecStart=/usr/bin/sh -c 'cd %h/projects/arch-dotfiles && exec notify-send -u critical -a dotfiles "Dotfiles run failed" "$$(tail -vn +1 FAILURES.*)"'
+TimeoutStartSec=1min
+
+[Install]
+WantedBy=graphical-session.target

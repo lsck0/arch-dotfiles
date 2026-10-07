@@ -8,12 +8,10 @@ JOBS="${GIT_SYNC_JOBS:-8}"
 
 # prune vendor + heavy trees so find never descends them
 mapfile -t dirs < <(
-    find "$BASE_DIR" -maxdepth 4 \
-        -type d \( -name vendor -o -name node_modules -o -name .cache -o -name target -o -name .venv -o -name .direnv \) -prune -o \
-        -type d \
-        \( -name '.git' -o \
-           -exec sh -c 'test -e "$1/HEAD" && test -d "$1/objects" && test -d "$1/refs"' _ {} \; \) \
-        -prune -print 2>/dev/null |
+    find "$BASE_DIR" -maxdepth 5 \
+        -type d \( -name vendor -o -name node_modules -o -name .cache -o -name target -o -name .venv -o -name .direnv -o -path '*/.git/*' \) -prune -o \
+        -type f -name HEAD -printf '%h\n' 2>/dev/null |
+        while read -r d; do [[ -d $d/objects && -d $d/refs ]] && printf '%s\n' "$d"; done |
         sed 's|/\.git$||' | sort -u
 )
 
@@ -39,6 +37,9 @@ sync_one() {
     local dir="$1"
     local rel="${dir#"$BASE_DIR"/}"
     local statuses=()
+    local g=(git)
+    # customer repos fetch and push with their own credentials
+    [[ -e $dir/.identity/envrc ]] && g=(direnv exec "$dir" git)
 
     local bare
     bare=$(git -C "$dir" rev-parse --is-bare-repository 2>/dev/null)
@@ -46,7 +47,7 @@ sync_one() {
     if [[ "$bare" == "true" ]]; then
         local refs_before refs_after
         refs_before=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)
-        git -C "$dir" fetch --all --prune --quiet 2>/dev/null || statuses+=("FETCH FAILED")
+        "${g[@]}" -C "$dir" fetch --all --prune --quiet 2>/dev/null || statuses+=("FETCH FAILED")
         refs_after=$(git -C "$dir" for-each-ref --format='%(refname) %(objectname)' 2>/dev/null)
 
         [[ "$refs_before" != "$refs_after" ]] && statuses+=("FETCHED")
@@ -57,21 +58,21 @@ sync_one() {
         return
     fi
 
-    local porcelain
+    local porcelain dirty=0 unpushed=0
     porcelain=$(git -C "$dir" status --porcelain 2>/dev/null)
-    grep -q "^[MADRC]" <<< "$porcelain" && statuses+=("STAGED CHANGES")
-    grep -q "^.[MADRC]" <<< "$porcelain" && statuses+=("UNSTAGED CHANGES")
+    grep -q "^[MADRC]" <<< "$porcelain" && statuses+=("STAGED CHANGES") && dirty=1
+    grep -q "^.[MADRC]" <<< "$porcelain" && statuses+=("UNSTAGED CHANGES") && dirty=1
     grep -q "^??" <<< "$porcelain" && statuses+=("UNTRACKED FILES")
 
     local upstream
     upstream=$(git -C "$dir" rev-parse --symbolic-full-name '@{u}' 2>/dev/null)
     if [[ -n "$upstream" ]]; then
-        git -C "$dir" log '@{u}..HEAD' --oneline 2>/dev/null | grep -q . && statuses+=("UNPUSHED COMMITS")
+        git -C "$dir" log '@{u}..HEAD' --oneline 2>/dev/null | grep -q . && statuses+=("UNPUSHED COMMITS") && unpushed=1
     fi
 
     local refs_before refs_after
     refs_before=$(git -C "$dir" for-each-ref refs/remotes --format='%(refname) %(objectname)' 2>/dev/null)
-    git -C "$dir" fetch --all --quiet 2>/dev/null || statuses+=("FETCH FAILED")
+    "${g[@]}" -C "$dir" fetch --all --quiet 2>/dev/null || statuses+=("FETCH FAILED")
     refs_after=$(git -C "$dir" for-each-ref refs/remotes --format='%(refname) %(objectname)' 2>/dev/null)
 
     if [[ "$refs_before" != "$refs_after" ]]; then
@@ -85,12 +86,9 @@ sync_one() {
         fi
     fi
 
-    if [[ -n "$upstream" ]] \
-        && ! grep -q "STAGED CHANGES"   <<< "${statuses[*]}" \
-        && ! grep -q "UNSTAGED CHANGES" <<< "${statuses[*]}" \
-        && ! grep -q "UNPUSHED COMMITS" <<< "${statuses[*]}"; then
+    if [[ -n "$upstream" ]] && (( !dirty && !unpushed )); then
         local pull_output pull_exit
-        pull_output=$(git -C "$dir" pull 2>&1)
+        pull_output=$("${g[@]}" -C "$dir" pull 2>&1)
         pull_exit=$?
         if [[ $pull_exit -ne 0 ]]; then
             statuses+=("PULL FAILED")
@@ -101,7 +99,7 @@ sync_one() {
 
     # push commits the remote is missing; non-force, so a diverged branch just reports PUSH FAILED
     if [[ -n "$upstream" ]] && git -C "$dir" log '@{u}..HEAD' --oneline 2>/dev/null | grep -q .; then
-        if git -C "$dir" push --quiet 2>/dev/null; then
+        if "${g[@]}" -C "$dir" push --quiet 2>/dev/null; then
             statuses=("${statuses[@]/UNPUSHED COMMITS/PUSHED}")
         else
             statuses+=("PUSH FAILED")

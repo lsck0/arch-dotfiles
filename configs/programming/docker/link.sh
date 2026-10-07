@@ -10,5 +10,3 @@ sudo systemctl enable docker.socket
 # copied, not linked: pid1 loads units before /home mounts
 sudo install -Dm644 docker-prune.service /etc/systemd/system/docker-prune.service
 sudo systemctl enable docker-prune.service
-
-sudo gpasswd -a "$USER" docker

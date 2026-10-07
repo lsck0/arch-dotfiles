@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GPG Clear-Sign Clipboard
+Exec=sh -c 'exec "$HOME/.local/bin/gpg-clip" sign'
+Icon=document-sign
+Terminal=false
+NoDisplay=true

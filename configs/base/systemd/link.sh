@@ -35,21 +35,13 @@ mask_user_if_present() {
     fi
 }
 
-sudo systemctl disable getty@tty2.service
-
 disable_if_present proton.VPN.service
 # on demand, not at boot: the socket serves nss-mdns, the alias `enable` would add serves dbus activation
 enable_if_present avahi-daemon.socket
 unit_file_present avahi-daemon.service \
     && sudo ln -sfn /usr/lib/systemd/system/avahi-daemon.service /etc/systemd/system/dbus-org.freedesktop.Avahi.service
 enable_if_present bluetooth.service
-enable_if_present cronie.service
 enable_if_present cups.socket
-# socket-activated: libvirtd starts on first client, idle otherwise
-enable_if_present libvirtd.socket
-enable_if_present ly@tty2.service
-enable_if_present nix-daemon.socket
-enable_if_present ossec-server.target
 enable_if_present paccache.timer --now
 # thermald is intel-only, on amd it starts and exits
 grep -q GenuineIntel /proc/cpuinfo && enable_if_present thermald.service

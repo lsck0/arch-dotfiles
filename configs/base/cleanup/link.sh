@@ -12,12 +12,16 @@ if ! cmp -s "${PWD}/journald-size.conf" "${journald_conf}" || [ -L "${journald_c
     sudo systemctl restart systemd-journald.service
 fi
 
-# nix store gc; daemon install means root collects system-wide
+# runs as the profile owner: expires its generations, the daemon collects the store
 if command -v nix >/dev/null 2>&1; then
-    sudo rm -f /etc/systemd/system/nix-gc.service /etc/systemd/system/nix-gc.timer
-    sudo install -Dm644 "${PWD}/nix-gc.service" /etc/systemd/system/nix-gc.service
-    sudo install -Dm644 "${PWD}/nix-gc.timer" /etc/systemd/system/nix-gc.timer
-    sudo systemctl daemon-reload
-    sudo systemctl enable --now nix-gc.timer
+    if [ -e /etc/systemd/system/nix-gc.timer ]; then
+        sudo systemctl disable --now nix-gc.timer
+        sudo rm -f /etc/systemd/system/nix-gc.{service,timer}
+        sudo systemctl daemon-reload
+    fi
+    install -Dm644 "${PWD}/nix-gc.service" "${HOME}/.config/systemd/user/nix-gc.service"
+    install -Dm644 "${PWD}/nix-gc.timer" "${HOME}/.config/systemd/user/nix-gc.timer"
+    systemctl --user daemon-reload
+    systemctl --user enable --now nix-gc.timer
 fi
 

@@ -258,7 +258,6 @@ set)
         exit 1
     fi
     apply_family "$fam"
-    toggle_set font "$fam"
     toggle_notify -a Toggles "Font" "$fam"
     reload_hint
     ;;
@@ -278,14 +277,11 @@ set-ui-size)
 toggle)
     # Cycle to the next installed shortlist entry after the current one.
     cur=$(current_family)
-    avail=()
-    for f in "${SHORTLIST[@]}"; do is_installed "$f" && avail+=("$f"); done
+    mapfile -t avail < <(shortlist)
     [[ ${#avail[@]} -gt 0 ]] || { echo "no shortlist font installed" >&2; exit 0; }
-    idx=-1
-    for i in "${!avail[@]}"; do [[ "${avail[$i]}" == "$cur" ]] && idx=$i; done
+    idx=$(toggle_index_of "$cur" -1 "${avail[@]}")
     next=${avail[$(((idx + 1) % ${#avail[@]}))]}
     apply_family "$next"
-    toggle_set font "$next"
     toggle_notify -a Toggles "Font" "$next"
     reload_hint
     ;;

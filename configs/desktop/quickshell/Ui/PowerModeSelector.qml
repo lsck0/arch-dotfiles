@@ -53,7 +53,7 @@ Item {
 
   Connections {
     target: ToggleEvents
-    function onChanged() { if (root.active) root.refresh() }
+    function onChanged(script) { if (root.active && script === "toggle-powermode.sh") root.refresh() }
   }
 
   ButtonGroup {

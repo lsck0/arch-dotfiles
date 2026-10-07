@@ -51,6 +51,7 @@ cgdb                              # curses gdb frontend
 chiko                             # gRPC TUI client
 clang                             # C/C++ compiler
 claude-code                       # Claude Code CLI
+claude-desktop-extra              # Claude desktop app, computer use + themes + profiles
 cloc                              # count lines of code
 cmake                             # build system generator
 codelldb-bin                      # LLDB debugger extension
@@ -94,7 +95,6 @@ gh-enhance-bin                    # gh-dash actions extension
 ghcup-hs-bin                      # Haskell toolchain installer
 git-absorb                        # absorbing submodules
 git-age                           # git age encryption
-git-delta                         # syntax-highlighting diff pager
 git-filter-repo                   # git history rewriter
 git-lfs                           # git large file storage
 github-cli                        # GitHub CLI (gh)
@@ -145,7 +145,6 @@ lazysql                           # SQL database TUI
 lcov                              # code coverage reports
 lean-tui                          # Lean theorem prover TUI
 leptosfmt                         # leptos code formatter
-libvirt                           # libvirt
 libxslt                           # XSLT transform lib
 liquid-fixpoint                   # horn clause solver, mirror/pkgbuilds
 llvm                              # compiler infrastructure

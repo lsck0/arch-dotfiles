@@ -7,25 +7,7 @@ set -euo pipefail
 # Concurrency guard.
 LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"
 exec 9>"$LOCK_FILE"
-if ! flock -n 9; then
-    # stale-lock breaker: background jobs inherit fd 9 so the lock outlives them; a real switch never nears 90s, so an older lock is stale
-    if [[ -e "$LOCK_FILE" ]]; then
-        age=$(( $(date +%s) - $(stat -c %Y "$LOCK_FILE" 2>/dev/null || echo 0) ))
-        if (( age > 90 )); then
-            echo "Stale wallpaper-switch lock (${age}s old); breaking it." >&2
-            exec 9>"$LOCK_FILE.new"
-            mv -f "$LOCK_FILE.new" "$LOCK_FILE"
-            exec 9>"$LOCK_FILE"
-            flock -n 9 || { echo "Still could not acquire lock, skipping." >&2; exit 0; }
-        else
-            echo "Another wallpaper switch is already in progress, skipping." >&2
-            exit 0
-        fi
-    else
-        echo "Another wallpaper switch is already in progress, skipping." >&2
-        exit 0
-    fi
-fi
+flock -n 9 || { echo "Another wallpaper switch is already in progress, skipping." >&2; exit 0; }
 
 set_wallpaper() {
     local file="$1"
@@ -45,7 +27,7 @@ set_wallpaper() {
 
     # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image
     THEME_DIR="$DOTFILES/configs/base/themes"
-    FILE_REAL=$(readlink -f "$file" 2>/dev/null || echo "$file")
+    FILE_REAL=$file
     THEME_JSON=""
     THEME_NAME=""
     for jf in "$THEME_DIR"/*.json; do
@@ -93,26 +75,13 @@ set_wallpaper() {
     pywalfox update 9>&- &
     # spotify + discord colours; synchronous, the discord block below reads its output
     $DOTFILES/configs/base/wallust/scripts/generate-spicetify-colors.py
-    (
-      was_running=0
-      pgrep -x spotify >/dev/null && was_running=1
-      spicetify -n apply
-      # spicetify apply renames css classes away from the dom; undo it or the client comes up stripped
-      $DOTFILES/configs/socials/spotify/spicetify-unmap-classes.py || true
-      pkill -x spotify
-      if [ "$was_running" = 1 ]; then
-        # spotify is single-instance: wait for the old process to exit before relaunching
-        for _ in $(seq 20); do
-          pgrep -x spotify >/dev/null || break
-          sleep 0.5
-        done
-        setsid spotify >/dev/null 2>&1 &
-      fi
-    ) 9>&- &
+    # a running spotify keeps playing and picks the theme up on its next start
+    spicetify -n refresh 9>&- &
 
-    # hyprland does not watch ~/.cache/wal/colors, so reload it
-    hyprctl reload config-only 9>&- &
-
+    # hyprland does not watch ~/.cache/wal/colors, so reload it; the reload drops the runtime-only shader and monitor layout, the toggles put them back
+    ( hyprctl reload config-only
+      $DOTFILES/scripts/toggles/toggle-shader.sh reapply
+      $DOTFILES/scripts/toggles/toggle-monitor-scale.sh reapply ) 9>&- &
 
     # zed and vscodium themes
     $DOTFILES/configs/base/wallust/scripts/generate-editor-themes.sh 9>&- &
@@ -205,8 +174,7 @@ set_wallpaper() {
     # push the theme to every running nvim through the lua/theme.lua entry point startup uses
     for addr in "${XDG_RUNTIME_DIR:-}"/nvim.*; do
         [ -e "$addr" ] || continue
-        nvim --server "$addr" --remote-send \
-            "<Esc>:lua require('theme').apply('${NVIM_THEME}')<CR>" 9>&- &
+        nvim --server "$addr" --remote-expr "luaeval(\"require('theme').apply('${NVIM_THEME}')\")" >/dev/null 9>&- &
     done
 
     # same for emacs, through the entry point its own startup uses (configs/programming/emacs/ui.el)
@@ -275,24 +243,24 @@ main() {
         ;;
     esac
 
-    WALLPAPERS="$(find "$WALLPAPER_DIR" \
-        -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
-        -exec basename {} \; \
-        | sort)"
-
     # use cli provided wallpaper filepath
-    if [[ -n "${1:-}" ]]; then
-        if [[ ! -f "$1" && "$1" != "random" ]]; then
+    if [[ -n "${1:-}" && "$1" != "random" ]]; then
+        if [[ ! -f "$1" ]]; then
             echo "File does not exist: $1"
             exit 1
         fi
 
-        if [[ "$1" == "random" ]]; then
-            set_wallpaper "$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
-            exit 0
-        fi
-
         set_wallpaper "$1"
+        exit 0
+    fi
+
+    WALLPAPERS="$(find "$WALLPAPER_DIR" \
+        -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
+        -printf '%f\n' \
+        | sort)"
+
+    if [[ "${1:-}" == "random" ]]; then
+        set_wallpaper "$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
         exit 0
     fi
 

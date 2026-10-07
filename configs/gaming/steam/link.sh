@@ -3,7 +3,6 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-chmod 755 ./steam-launch.sh
 # route the launcher entry through the wrapper so every game gets gamemode, mangohud and obs capture
 desktop_src=/usr/share/applications/steam.desktop
 desktop_dst="${HOME}/.local/share/applications/steam.desktop"
@@ -19,38 +18,14 @@ theme="${skins}/cyberpunk"
 
 mkdir -p "${theme}"
 
-ln -sfn "${PWD}/themes/cyberpunk/skin.json" "${theme}/skin.json"
-ln -sfn "${PWD}/themes/cyberpunk/shared.css" "${theme}/shared.css"
-ln -sfn "${PWD}/themes/cyberpunk/libraryroot.custom.css" "${theme}/libraryroot.custom.css"
-ln -sfn "${PWD}/themes/cyberpunk/friends.custom.css" "${theme}/friends.custom.css"
-ln -sfn "${PWD}/themes/cyberpunk/bigpicture.custom.css" "${theme}/bigpicture.custom.css"
-ln -sfn "${PWD}/themes/cyberpunk/all.custom.css" "${theme}/all.custom.css"
-ln -sfn "${PWD}/themes/cyberpunk/webkit.custom.css" "${theme}/webkit.custom.css"
+for f in "$PWD"/themes/cyberpunk/*; do ln -sfn "$f" "$theme/${f##*/}"; done
 
 # millennium ignores links out of the theme dir, wallust writes a real file
 [ -L "${theme}/colors.css" ] && rm "${theme}/colors.css"
 
-# seed the palette before the first switch
-tpl="${PWD}/$DOTFILES/configs/base/wallust/templates/wal/colors-steam.css"
-out="${theme}/colors.css"
 # a palette rendered before the theme dir existed only needs copying
-if [ ! -e "$out" ] && [ -f "${HOME}/.cache/wal/colors-steam.css" ]; then
-    cp "${HOME}/.cache/wal/colors-steam.css" "$out"
-fi
-if [ ! -e "$out" ] && [ -f "$tpl" ] && [ -f "${HOME}/.cache/wal/colors" ] && [ "$(wc -l < "${HOME}/.cache/wal/colors")" -ge 16 ]; then
-    mkdir -p "${HOME}/.cache/wal"
-    python3 - "$tpl" "${HOME}/.cache/wal/colors" "$out" <<'PY'
-import sys
-tpl, colors, out = sys.argv[1], sys.argv[2], sys.argv[3]
-hexes = [l.strip() for l in open(colors) if l.strip()]
-s = open(tpl).read()
-for i, h in enumerate(hexes[:16]):
-    s = s.replace("{color%d}" % i, h)
-s = s.replace("{background}", hexes[0])
-s = s.replace("{foreground}", hexes[15] if len(hexes) > 15 else hexes[-1])
-s = s.replace("{{", "{").replace("}}", "}")
-open(out, "w").write(s)
-PY
+if [ ! -e "${theme}/colors.css" ] && [ -f "${HOME}/.cache/wal/colors-steam.css" ]; then
+    cp "${HOME}/.cache/wal/colors-steam.css" "${theme}/colors.css"
 fi
 
 # steam overwrites this on exit, close it first

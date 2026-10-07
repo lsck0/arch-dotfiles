@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GPG Encrypt Clipboard
+Exec=sh -c 'exec "$HOME/.local/bin/gpg-clip" encrypt'
+Icon=document-encrypt
+Terminal=false
+NoDisplay=true

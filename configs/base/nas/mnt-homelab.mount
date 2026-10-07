@@ -5,13 +5,15 @@ Conflicts=umount.target
 Before=umount.target
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Mount]
 # by IP: *.lsck0.dev resolves to Cloudflare, which cannot carry SMB
 What=//10.100.0.109/homelab
 Where=/mnt/homelab
 Type=cifs
-Options=guest,uid=@UID@,gid=@GID@,vers=3.0,_netdev,nofail,file_mode=0664,dir_mode=0775
+Options=credentials=/etc/samba/homelab.cred,seal,uid=@UID@,gid=@GID@,vers=3.1.1,_netdev,nofail,file_mode=0664,dir_mode=0775
+TimeoutSec=10s
 
 [Install]
 WantedBy=multi-user.target

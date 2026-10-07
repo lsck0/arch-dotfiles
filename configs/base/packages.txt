@@ -18,7 +18,6 @@ coreutils                         # GNU core utilities
 cowsay                            # ascii cow sayings
 cpufetch                          # CPU info fetcher
 croc                              # secure file transfer
-cronie                            # cron daemon
 curl                              # HTTP client tool
 diskwatch                         # disk debugging
 dog                               # DNS lookup tool
@@ -38,6 +37,7 @@ fzf-tab-git                       # fzf for zsh tab completion
 ghostmirror                       # mirrorlist ranking tool
 git                               # version control
 git-crypt                         # transparent encryption of the secrets repo
+git-delta                         # syntax-highlighting diff pager
 gnutls                            # TLS library
 gpg-tui                           # gpg tui
 gping                             # ping with graph
@@ -80,6 +80,7 @@ oh-my-zsh-git                     # zsh libs and plugins, sourced without the fr
 openal                            # 3D audio library
 openbsd-netcat                    # netcat networking tool
 opencl-icd-loader                 # OpenCL loader
+openresolv                        # resolvconf for wg-quick, applies wg0's DNS=
 openssh                           # SSH client/server
 openssl                           # TLS/crypto toolkit
 openvpn                           # VPN client/server

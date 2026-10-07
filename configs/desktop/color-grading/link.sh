@@ -5,7 +5,6 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-chmod 755 "${PWD}/color-grading.py"
 mkdir -p "${HOME}/.config/systemd/user"
 ln -sfn "${PWD}/color-grading.service" "${HOME}/.config/systemd/user/color-grading.service"
 systemctl --user daemon-reload

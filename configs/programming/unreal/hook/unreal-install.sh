@@ -3,7 +3,7 @@
 # unreal-engine-bin from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded); runs on every ~/sync change
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/user-hook.sh"
+source "$DOTFILES/scripts/lib/user-hook.sh"
 
 AUR_URL="https://aur.archlinux.org/unreal-engine-bin.git"
 SYNC_DIR="${HOME}/sync"

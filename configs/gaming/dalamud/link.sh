@@ -19,6 +19,7 @@ if [ ! -f "${XLCORE}/dalamudConfig.json" ]; then
     mkdir -p "${XLCORE}"
     cp "${BACKUP}/dalamudConfig.json" "${BACKUP}/dalamudUI.ini" "${XLCORE}/"
     cp -rT "${BACKUP}/pluginConfigs" "${XLCORE}/pluginConfigs"
+    touch "${XLCORE}/.dalamud-from-secrets"
 fi
 
 # dalamud never installs a plugin its collection names, so a fresh install fetches each one the way the installer would: newest build from the repo it came from, manifest carrying the old collection id

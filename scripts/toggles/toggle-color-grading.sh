@@ -6,10 +6,11 @@ source ./lib.sh
 # n-state preset cycler; the preset table and its state live in color-grading.py, never here
 GRADING=../../configs/desktop/color-grading/color-grading.py
 
-mapfile -t PRESETS < <("$GRADING" list)
-current=$("$GRADING" get preset)
+status=$("$GRADING" status)
+mapfile -t PRESETS < <(jq -r '.presets[].name' <<<"$status")
+current=$(jq -r .preset <<<"$status")
 
-label_of() { "$GRADING" status | jq -r --arg n "$1" '.presets[] | select(.name == $n) | .label'; }
+label_of() { jq -r --arg n "$1" '.presets[] | select(.name == $n) | .label' <<<"$status"; }
 
 apply() {
     "$GRADING" set preset "$1"
@@ -33,10 +34,8 @@ off)
     apply off
     ;;
 toggle)
-    for i in "${!PRESETS[@]}"; do
-        [[ "${PRESETS[$i]}" == "$current" ]] && { apply "${PRESETS[$(((i + 1) % ${#PRESETS[@]}))]}"; exit 0; }
-    done
-    apply default
+    i=$(toggle_index_of "$current" 0 "${PRESETS[@]}")
+    apply "${PRESETS[$(((i + 1) % ${#PRESETS[@]}))]}"
     ;;
 set)
     # color-grading.py parses the name and rejects unknown presets

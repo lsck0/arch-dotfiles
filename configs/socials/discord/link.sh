@@ -19,7 +19,9 @@ for url in \
     "https://raw.githubusercontent.com/Farcrada/DiscordPlugins/7f1c3f98461bcf1b336c2df6e28ca025d09d03cb/Double-click-to-edit/DoubleClickToEdit.plugin.js" \
     "https://raw.githubusercontent.com/TheLazySquid/BetterDiscordPlugins/3ce443c86a14185b2b2d088e9be49b8245d17c6c/plugins/ZipPreview/ZipPreview.plugin.js" \
     "https://raw.githubusercontent.com/zerebos/BetterDiscordAddons/6d839d0ab65371819b081218bc43b09d7d6e762d/Plugins/DoNotTrack/DoNotTrack.plugin.js"; do
-    wget "$url" -O "${bd}/plugins/${url##*/}"
+    f="${bd}/plugins/${url##*/}"
+    [[ "$(cat "${f}.url" 2>/dev/null)" == "$url" ]] && continue
+    wget -q "$url" -O "${f}.tmp" && mv "${f}.tmp" "$f" && echo "$url" > "${f}.url"
 done
 
 source $DOTFILES/scripts/lib/user-hook.sh

@@ -4,7 +4,7 @@
 # no betterdiscordctl: it hardcodes discord_desktop_core-1, and discord ships -2 and up
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/fetch.sh"
+source "$DOTFILES/scripts/lib/fetch.sh"
 
 ASAR="${HOME}/.config/BetterDiscord/data/betterdiscord.asar"
 # runs inside discord with the account token, so a pinned release; bump both together

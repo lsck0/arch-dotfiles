@@ -5,6 +5,6 @@ Type = Package
 Target = rustnet
 
 [Action]
-Description = Granting rustnet packet-capture capabilities (so it runs without sudo)
+Description = Granting rustnet packet-capture capabilities to the wireshark group (so it runs without sudo)
 When = PostTransaction
-Exec = /usr/bin/setcap cap_net_raw,cap_bpf,cap_perfmon+ep /usr/bin/rustnet
+Exec = /usr/bin/sh -c 'if getent group wireshark >/dev/null; then chgrp wireshark /usr/bin/rustnet && chmod 750 /usr/bin/rustnet && setcap cap_net_raw,cap_bpf,cap_perfmon+ep /usr/bin/rustnet; fi'

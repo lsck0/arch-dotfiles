@@ -88,9 +88,10 @@ export GOPATH="$HOME/.go"
 export DOTFILES="$HOME/projects/arch-dotfiles"
 export EDITOR=nvim
 export SHELL=zsh
+# pinentry asks on this terminal rather than the desktop, which over ssh or on wsl is out of reach
+export GPG_TTY=$TTY
+[[ -n $SSH_CONNECTION ]] && gpg-connect-agent updatestartuptty /bye >/dev/null
 
-# needs `anonymous-socks.sh up` first
-alias anonymous-socks-proxychains='proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks-proxychains.conf}"'
 alias cat="bat"
 # not in konsole: dolphin's panel follows the view with a cd, and zoxide would treat the path as keywords
 [[ -n $KONSOLE_VERSION ]] || alias cd="z"
@@ -100,7 +101,7 @@ alias downgrade="sudo downgrade"
 alias kubectl="kubecolor"
 alias l="eza -lh"
 alias la="eza -lah"
-alias ldocker="lazydocker"
+alias ldocker="sudo lazydocker"
 alias ll="eza -lh"
 alias lgit="lazygit"
 alias lgithub="gh-dash"
@@ -118,6 +119,13 @@ alias sshpc="sshk luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
+# in anonsocks.slice, whose egress guard from `anonymous-socks.sh up` rejects what proxychains misses (static binaries, raw sockets, udp)
+anonymous-socks-proxychains() {
+  local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}
+  [[ -e $rt/anonymous-socks.verified ]] || { echo "anonymous-socks-proxychains: run anonymous-socks.sh up first" >&2; return 1; }
+  systemd-run --user --scope --quiet --slice=anonsocks.slice -- proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-$rt/anonymous-socks-proxychains.conf}" "$@"
+}
+
 # no git config covers submodules on the initial clone
 git() {
   if [[ "$1" == clone ]]; then
@@ -132,12 +140,14 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-# computed once: the non v-cache cores (empty on single-ccd) and whether a user scope is usable
-typeset -g _FENCE_CPUS _FENCE_SCOPE
-() {
+# run a heavy build off the v-cache ccd, low priority, and oom-first; the scope lets
+# systemd-oomd evict the build before desktop apps under memory pressure
+# builtin bg resumes jobs, so this is fence: fence ./gradlew ... / fence make -j / fence cargo build
+fence() {
   emulate -L zsh
   local c sz max=0 id
-  typeset -A size_of
+  local -A size_of
+  local -a build pre=(choom -n 1000 --)
   for c in /sys/devices/system/cpu/cpu<->/cache/index3/size(N); do
     sz=$(<$c); sz=${sz%%[^0-9]*}
     [[ -n $sz ]] || continue
@@ -145,23 +155,13 @@ typeset -g _FENCE_CPUS _FENCE_SCOPE
     size_of[$id]=$sz
     (( sz > max )) && max=$sz
   done
-  local -a build
   for id in ${(k)size_of}; do
     (( size_of[$id] < max )) && build+=$id
   done
-  (( ${#build} )) && _FENCE_CPUS=${(j.,.)build}
-  # the cgroup scope needs a reachable user manager, which a bare wsl root shell lacks
-  systemctl --user show-environment >/dev/null 2>&1 && _FENCE_SCOPE=1
-}
-
-# run a heavy build off the v-cache ccd, low priority, and oom-first; the scope lets
-# systemd-oomd evict the build before desktop apps under memory pressure
-# builtin bg resumes jobs, so this is fence: fence ./gradlew ... / fence make -j / fence cargo build
-fence() {
-  local -a pre=(choom -n 1000 --)
-  [[ -n $_FENCE_CPUS ]] && pre+=(taskset -c "$_FENCE_CPUS")
+  (( ${#build} )) && pre+=(taskset -c ${(j.,.)build})
   pre+=(nice -n19)
-  if [[ -n $_FENCE_SCOPE ]]; then
+  # the cgroup scope needs a reachable user manager, which a bare wsl root shell lacks
+  if systemctl --user show-environment >/dev/null 2>&1; then
     systemd-run --user --scope --quiet -p CPUWeight=10 "${pre[@]}" "$@"
   else
     "${pre[@]}" "$@"

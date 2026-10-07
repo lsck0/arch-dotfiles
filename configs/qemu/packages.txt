@@ -1,4 +1,6 @@
 distrobox                         # containerized distro tool
+dnsmasq                           # dhcp and dns for the libvirt default nat network (virbr0)
 gnome-boxes                       # VM manager GUI
+libvirt                           # libvirt
 qemu-full                         # machine emulator/virtualizer
 waydroid                          # Android container runtime

@@ -127,7 +127,7 @@ if [[ -d "$(dirname "$VSCODE_SETTINGS")" ]] || mkdir -p "$(dirname "$VSCODE_SETT
   [[ -f "$VSCODE_SETTINGS" ]] || echo '{}' > "$VSCODE_SETTINGS"
   tmp=$(mktemp)
   jq --arg bg "$bg" --arg fg "$fg" --arg c0 "$c0" --arg c4 "$c4" --arg c8 "$c8" \
-    '."workbench.colorCustomizations" = {
+    '."workbench.colorCustomizations" += {
       "editor.background": $bg,
       "editor.foreground": $fg,
       "sideBar.background": $c0,

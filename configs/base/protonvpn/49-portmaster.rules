@@ -1,9 +1,9 @@
-// the protonvpn toggle and auto-vpn stop portmaster while the tunnel is up (it clobbers the wg fwmark); no password
+// the protonvpn toggle and auto-vpn stop portmaster while the tunnel is up (it clobbers the wg fwmark); no password, start/stop only
 polkit.addRule(function (action, subject) {
+    var verb = action.lookup("verb");
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") === "portmaster.service" && (verb === "start" || verb === "stop") &&
         subject.local && subject.active && subject.isInGroup("wheel")) {
-        if (action.lookup("unit") === "portmaster.service") {
-            return polkit.Result.YES;
-        }
+        return polkit.Result.YES;
     }
 });

@@ -7,11 +7,11 @@ source ./lib.sh
 
 PARTS=(dnd keep-awake nightlight)
 SCRIPTS=(toggle-dnd.sh toggle-keep-awake.sh toggle-nightlight.sh)
-SAVE="$TOGGLES_RUNTIME_DIR/focus-previous"
+SAVE="$TOGGLES_STATE_DIR/focus-previous"
 # the grading preset is n-state: recorded by name next to the on/off parts, put back with `set`
 FOCUS_PRESET=grayscale
 
-check() { toggle_get_volatile focus; }
+check() { toggle_get focus; }
 
 turn_on() {
     # a second `on` would record the focus scene itself as the state to restore
@@ -26,7 +26,7 @@ turn_on() {
     done
     printf 'color-grading %s\n' "$(./toggle-color-grading.sh get 2>/dev/null || echo default)" >>"$SAVE"
     ./toggle-color-grading.sh set "$FOCUS_PRESET" >/dev/null 2>&1 || true
-    toggle_set_volatile focus on
+    toggle_set focus on
 }
 
 turn_off() {
@@ -46,7 +46,7 @@ turn_off() {
         ./toggle-color-grading.sh on >/dev/null 2>&1 || true
     fi
     rm -f "$SAVE"
-    toggle_set_volatile focus off
+    toggle_set focus off
 }
 
 toggle_main focus "Focus Mode" check turn_on turn_off "${1:-toggle}"

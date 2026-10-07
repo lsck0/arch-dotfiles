@@ -5,7 +5,7 @@ source ./lib.sh
 
 # Resolves the coordinates the weather widget queries with, and owns the manual-override state.
 
-# not "weather-location": toggle_set owns that path for its on/off state and would overwrite the coords
+# the pinned coordinates; present means the manual override is on
 MANUAL_FILE="$TOGGLES_STATE_DIR/weather-location.coords"
 
 # every weather script resolves and each geoclue lookup wakes the daemon for a wifi scan, so share one answer
@@ -66,8 +66,7 @@ ipgeo_coords() {
     local j lat lon
     j=$(timeout 8 curl -s --max-time 6 'https://ipapi.co/json/' 2>/dev/null || true)
     [[ -n "$j" ]] || return 0
-    lat=$(python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('latitude',''))" <<<"$j" 2>/dev/null || true)
-    lon=$(python3 -c "import json,sys;d=json.load(sys.stdin);print(d.get('longitude',''))" <<<"$j" 2>/dev/null || true)
+    read -r lat lon < <(jq -r '"\(.latitude // "") \(.longitude // "")"' <<<"$j" 2>/dev/null) || true
     [[ -n "$lat" && -n "$lon" ]] && round2 "$lat" "$lon" || true
 }
 
@@ -113,13 +112,11 @@ set)
     if [[ $# -ge 3 ]]; then lat=$2; lon=$3; else IFS=, read -r lat lon <<<"$2"; fi
     [[ -n "${lat:-}" && -n "${lon:-}" ]] || { echo "need both lat and lon" >&2; exit 1; }
     round2 "$lat" "$lon" >"$MANUAL_FILE"
-    toggle_set weather-location on
     toggle_notify -a Toggles "Weather Location" "Set manually"
     cat "$MANUAL_FILE"; echo
     ;;
 clear)
     turn_off
-    toggle_set weather-location off
     toggle_notify -a Toggles "Weather Location" "Back to automatic"
     ;;
 # "<source> <lat>,<lon>": the widget reads both halves to show how the location was determined

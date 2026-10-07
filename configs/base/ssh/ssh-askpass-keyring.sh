@@ -4,8 +4,7 @@
 set -euo pipefail
 secret-tool lookup ssh-key ssh_privatekey 2>/dev/null && exit 0
 
-here="$(dirname "$(readlink -f "$0")")"
-source "$here/$DOTFILES/scripts/lib/secrets.sh"
-passphrase="$here/$DOTFILES/secrets/ssh_passphrase"
+source "$DOTFILES/scripts/lib/secrets.sh"
+passphrase="$DOTFILES/secrets/ssh_passphrase"
 secret_is_plaintext "$passphrase" && exec head -n1 "$passphrase"
 exit 1

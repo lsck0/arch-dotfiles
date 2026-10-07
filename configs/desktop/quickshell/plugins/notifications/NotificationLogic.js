@@ -31,7 +31,7 @@ function summaryStartsWithGlyph(summary) {
   return /^\s*(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|\S) {2}/.test(String(summary || ""))
 }
 
-// app name scripts/notification-send.sh uses for reminders, pomodoro and alerts: shown through dnd, never kept in history
+// app name scripts/lib/notification-send.sh uses for reminders, pomodoro and alerts: shown through dnd, never kept in history
 var ACTION_APP = "quickshell-action"
 
 function shouldBypassDnd(notification) {

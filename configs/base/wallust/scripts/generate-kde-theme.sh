@@ -33,48 +33,52 @@ negative="218,68,83"
 neutral="246,116,0"
 positive="39,174,96"
 
-# write_set <file> <bg normal> <bg alternate> <fg normal> <fg inactive> <group>...
-write_set() {
-    local file="$1" key group_args=()
-    local keys=(BackgroundNormal:"$2" BackgroundAlternate:"$3" ForegroundNormal:"$4" ForegroundInactive:"$5"
-        ForegroundActive:"$accent" DecorationFocus:"$accent" DecorationHover:"$accent" ForegroundLink:"$c6"
-        ForegroundVisited:"$c5" ForegroundNegative:"$negative" ForegroundNeutral:"$neutral"
-        ForegroundPositive:"$positive")
-    shift 5
-    for group in "$@"; do group_args+=(--group "$group"); done
-    for key in "${keys[@]}"; do
-        kwriteconfig6 --file "$file" "${group_args[@]}" --key "${key%%:*}" "${key#*:}"
-    done
+# render_set <header> <bg normal> <bg alternate> <fg normal> <fg inactive>
+render_set() {
+    printf '%s\n' "$1" BackgroundNormal="$2" BackgroundAlternate="$3" ForegroundNormal="$4" ForegroundInactive="$5" \
+        ForegroundActive="$accent" DecorationFocus="$accent" DecorationHover="$accent" ForegroundLink="$c6" \
+        ForegroundVisited="$c5" ForegroundNegative="$negative" ForegroundNeutral="$neutral" \
+        ForegroundPositive="$positive" ""
 }
 
 inactive="$c8"
 
-# kwin titlebar
-write_wm() {
-    local file="$1"
-    kwriteconfig6 --file "$file" --group WM --key activeBackground "$bg"
-    kwriteconfig6 --file "$file" --group WM --key activeBlend "$bg"
-    kwriteconfig6 --file "$file" --group WM --key activeForeground "$fg"
-    kwriteconfig6 --file "$file" --group WM --key inactiveBackground "$c0"
-    kwriteconfig6 --file "$file" --group WM --key inactiveBlend "$c0"
-    kwriteconfig6 --file "$file" --group WM --key inactiveForeground "$inactive"
-}
+colors=$(
+    render_set "[Colors:Window]"           "$bg"     "$c0"     "$fg"       "$inactive"
+    render_set "[Colors:View]"             "$bg"     "$c0"     "$fg"       "$inactive"
+    render_set "[Colors:Button]"           "$c0"     "$c8"     "$fg"       "$inactive"
+    render_set "[Colors:Tooltip]"          "$bg"     "$c0"     "$fg"       "$inactive"
+    render_set "[Colors:Header]"           "$c0"     "$bg"     "$fg"       "$inactive"
+    render_set "[Colors:Header][Inactive]" "$c0"     "$bg"     "$inactive" "$inactive"
+    render_set "[Colors:Complementary]"    "$bg"     "$c0"     "$fg"       "$inactive"
+    render_set "[Colors:Selection]"        "$accent" "$accent" "$bg"       "$fg"
+)
+
+# kwin titlebar; [WM] also holds activeFont, so only these keys are replaced
+wm=$(printf '%s\n' activeBackground="$bg" activeBlend="$bg" activeForeground="$fg" \
+    inactiveBackground="$c0" inactiveBlend="$c0" inactiveForeground="$inactive")
 
 SCHEME="$HOME/.local/share/color-schemes/pywal.colors"
 mkdir -p "$(dirname "$SCHEME")"
 
+# both are symlinks into the repo, so the target is swapped, not the link
 for f in "$KDEGLOBALS" "$SCHEME"; do
-    write_set "$f" "$bg"     "$c0"     "$fg"       "$inactive" "Colors:Window"
-    write_set "$f" "$bg"     "$c0"     "$fg"       "$inactive" "Colors:View"
-    write_set "$f" "$c0"     "$c8"     "$fg"       "$inactive" "Colors:Button"
-    write_set "$f" "$bg"     "$c0"     "$fg"       "$inactive" "Colors:Tooltip"
-    write_set "$f" "$c0"     "$bg"     "$fg"       "$inactive" "Colors:Header"
-    write_set "$f" "$c0"     "$bg"     "$inactive" "$inactive" "Colors:Header" Inactive
-    write_set "$f" "$bg"     "$c0"     "$fg"       "$inactive" "Colors:Complementary"
-    write_set "$f" "$accent" "$accent" "$bg"       "$fg"       "Colors:Selection"
-    write_wm "$f"
-    kwriteconfig6 --file "$f" --group "General" --key ColorScheme "pywal"
-    kwriteconfig6 --file "$f" --group "General" --key AccentColor "$accent"
+    real=$(readlink -f "$f")
+    touch "$real"
+    tmp=$(mktemp)
+    COLORS="$colors" WM="$wm" awk '
+        /^\[/ { skip = /^\[Colors:/; group = $0 }
+        group == "[WM]" && /^(active|inactive)(Background|Blend|Foreground)=/ { next }
+        # dropped so the kwriteconfig6 below always rewrites the file sorted by kconfig
+        group == "[General]" && /^AccentColor=/ { next }
+        !skip { print }
+        $0 == "[WM]" { print ENVIRON["WM"]; seen = 1 }
+        END { if (!seen) print "[WM]\n" ENVIRON["WM"] "\n"; print ENVIRON["COLORS"] }
+    ' "$real" > "$tmp"
+    chmod --reference="$real" "$tmp"
+    mv "$tmp" "$real"
+    kwriteconfig6 --file "$f" --group General --key ColorScheme pywal
+    kwriteconfig6 --file "$f" --group General --key AccentColor "$accent"
 done
 
 kwriteconfig6 --file "$SCHEME" --group "General" --key Name "pywal"

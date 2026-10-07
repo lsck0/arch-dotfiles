@@ -1,0 +1,10 @@
+[Unit]
+Description=Transparent tor routing
+Wants=tor.service
+After=network-online.target tor.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/tor-router start
+ExecStop=/usr/local/bin/tor-router stop

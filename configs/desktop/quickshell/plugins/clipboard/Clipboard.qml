@@ -114,6 +114,15 @@ Item {
     root.rebuildDisplay()
   }
 
+  // gpg-clip passes the md5 of the plaintext it encrypted, so the text itself never crosses argv
+  function forgetTextHash(hash) {
+    var next = root.history.filter(function(entry) { return entry.type !== "text" || Qt.md5(entry.text) !== hash })
+    if (next.length === root.history.length) return
+    root.history = next
+    root.saveHistory()
+    if (root.opened) root.rebuildDisplay()
+  }
+
   function rebuildDisplay() {
     var rows = ClipboardHistory.displayRows(root.history, root.filterText, 50)
 
@@ -276,6 +285,7 @@ Item {
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
+    function forget(hash: string): string { root.forgetTextHash(hash); return "ok" }
   }
 
   PanelWindow {

@@ -1,13 +1,16 @@
 [Unit]
 Description=Host firewall, owns table inet fw (coexists with Portmaster)
-After=portmaster.service docker.service network-pre.target
+Before=network-pre.target
 Wants=network-pre.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
+# a load empties home_ifaces; refill it from the dispatcher's home links (a failed fill only keeps the lan closed)
+ExecStartPost=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw home_ifaces "{ $$(paste -sd, /run/home-network) }"'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-inbound.nft
+ExecReload=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw home_ifaces "{ $$(paste -sd, /run/home-network) }"'
 ExecStop=/usr/sbin/nft destroy table inet fw
 
 [Install]

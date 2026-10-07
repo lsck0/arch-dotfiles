@@ -142,28 +142,40 @@
       let columns = 0;
       let rows = 0;
       let drops = [];
+      let pixel_ratio = 1;
 
-      function seed_drops() {
-        drops = [];
-        for (let c = 0; c < columns; c++) {
-          drops.push({
-            y: -Math.floor(Math.random() * rows),
-            speed: 0.4 + Math.random() * 0.9,
-          });
-        }
+      function drop_create() {
+        return {
+          y: -Math.floor(Math.random() * rows),
+          speed: 0.4 + Math.random() * 0.9,
+        };
       }
 
+      // tiling resizes the window all the time: running drops and their trails survive it, only new columns are added
       function resize() {
         const ratio = window.devicePixelRatio || 1;
+        const snapshot = document.createElement("canvas");
+        snapshot.width = canvas.width;
+        snapshot.height = canvas.height;
+        if (snapshot.width > 0 && snapshot.height > 0) {
+          snapshot.getContext("2d").drawImage(canvas, 0, 0);
+        }
 
         canvas.width = window.innerWidth * ratio;
         canvas.height = window.innerHeight * ratio;
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        if (snapshot.width > 0 && snapshot.height > 0) {
+          context.drawImage(snapshot, 0, 0, snapshot.width / pixel_ratio, snapshot.height / pixel_ratio);
+        }
+        pixel_ratio = ratio;
 
         columns = Math.ceil(window.innerWidth / cell_size);
         rows = Math.ceil(window.innerHeight / cell_size);
 
-        seed_drops();
+        drops.length = Math.min(drops.length, columns);
+        while (drops.length < columns) {
+          drops.push(drop_create());
+        }
       }
 
       function draw() {

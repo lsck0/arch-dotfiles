@@ -1,10 +1,8 @@
 [Unit]
-Description=Periodically re-check the system timezone
+Description=Check the system timezone after boot
 
 [Timer]
 OnStartupSec=2min
-OnUnitActiveSec=1h
-Persistent=true
 AccuracySec=5min
 
 [Install]

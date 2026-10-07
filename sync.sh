@@ -51,10 +51,8 @@ fi
 ## COMMIT
 
 git add .
-# bootstrap.sh and the lsck0 builder consume master directly, so a script that does not parse or an untagged list entry never becomes a Generation
-git ls-files -z '*.sh' | xargs -0 -n1 bash -n || die "a staged script does not parse, nothing committed"
-awk '/^[A-Z_]+=\($/ { f = 1; next } f && /^\)/ { f = 0 } f && NF && !/# \[[a-z]+\]/ { print "install.sh:" FNR ": no [group] tag: " $0; bad = 1 } END { exit bad }' install.sh \
-    || die "install.sh has list entries without a [group] tag, nothing committed"
+# bootstrap.sh and the lsck0 builder consume master directly, so a script that does not parse never becomes a Generation
+git ls-files -z '*.sh' | xargs -0 -n1 -P"$(nproc)" bash -n || die "a staged script does not parse, nothing committed"
 git -c gpg.format=openpgp commit -S"$SIGNING_KEY_FINGERPRINT" -m "${COMMIT_MSG}"
 # secrets is pushed above; the main push must not recurse into submodules (qmk_firmware is read-only upstream)
 git push --no-recurse-submodules

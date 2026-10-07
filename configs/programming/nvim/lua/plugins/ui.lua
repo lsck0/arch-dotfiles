@@ -86,8 +86,6 @@ return {
                     harpoon = true,
                     lsp_trouble = true,
                     mason = true,
-                    noice = true,
-                    notify = true,
                     snacks = { enabled = true },
                 },
             })
@@ -110,6 +108,7 @@ return {
                 options = {
                     theme = "auto",
                     globalstatus = true,
+                    refresh = { refresh_time = 250 },
 
                     section_separators = { left = "", right = "" },
                     component_separators = { left = "", right = "" },
@@ -207,8 +206,7 @@ return {
                 },
                 math = { enabled = false },
             },
-            -- noice + nvim-notify handle notifications
-            notifier = { enabled = false },
+            notifier = { enabled = true },
             indent = { enabled = true }, -- indent guides + scope
             scroll = { enabled = false }, -- no smooth scrolling
             words = { enabled = true },  -- highlight lsp references under cursor
@@ -272,6 +270,8 @@ return {
             },
         },
         config = function(_, opts)
+            -- msg target: with cmdheight=0 the cmd target expands the cmdline for every message
+            require("vim._core.ui2").enable({ msg = { targets = "msg" } })
             require("snacks").setup(opts)
             -- hide inline images in insert mode
             local inline = require("snacks.image.inline")
@@ -285,44 +285,6 @@ return {
                 end
             end
         end,
-    },
-
-    {
-        "folke/noice.nvim",         -- UI for messages/cmdline
-        event = "VeryLazy",
-        dependencies = {
-            "MunifTanjim/nui.nvim",
-            {
-                "rcarriga/nvim-notify", -- notification popups
-                -- transparent.nvim strips NotifyBackground
-                opts = { background_colour = "#000000", render = "compact" },
-            },
-        },
-        config = function()
-            require("noice").setup({
-                presets = {
-                    command_palette = true,
-                    long_message_to_split = true,
-                },
-                messages = { enabled = true },
-                cmdline = { enabled = true },
-                -- no popups for trivial edit messages
-                routes = {
-                    { filter = { event = "msg_show", kind = "search_count" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ lines yanked" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ fewer lines" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ more lines" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ lines changed" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ lines >ed %d+ time" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+ lines <ed %d+ time" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "%d+L, %d+B" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "written" }, opts = { skip = true } },
-                    { filter = { event = "msg_show", find = "-- INSERT --" }, opts = { skip = true } },
-                    { filter = { event = "notify", find = "deprecated" }, opts = { skip = true } },
-                    { filter = { find = "buf_get_clients" }, opts = { skip = true } },
-                },
-            })
-        end
     },
 
     {

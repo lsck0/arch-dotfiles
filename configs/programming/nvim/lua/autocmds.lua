@@ -163,15 +163,15 @@ autocmd("FileType", {
     end,
 })
 
--- undofile and shada would persist secret plaintext
+-- undofile and shada registers would persist secret plaintext; shada is global, so only registers go
 autocmd({ "BufReadPre", "BufNewFile" }, {
-    desc = "No undo/shada history for secret files",
+    desc = "No undo/shada registers for secret files",
     group = group("no-secret-history", { clear = true }),
     pattern = { "*/secrets/*", "*.sops.*", "*.env", "*.env.*", ".envrc", "*.gpg", "*.age", "*.asc" },
     callback = function()
         vim.opt_local.undofile = false
         vim.opt_local.swapfile = false
-        vim.opt.shada = ""
+        vim.opt.shada:prepend("<0")
     end,
 })
 

@@ -11,6 +11,7 @@ cryptsetup                        # LUKS tooling, pacstrap installs it
 cups                              # printing system
 cups-pdf                          # print-to-PDF virtual printer
 efibootmgr                        # EFI boot manager
+ethtool                           # permanent mac (ethtool -P) for home detection in the NM dispatchers
 fail2ban                          # intrusion prevention tool
 fwupd                             # lvfs firmware updates (nvme, gpu, usb4, uefi dbx)
 grub                              # bootloader, pacstrap installs it
@@ -48,7 +49,7 @@ thermald                          # thermal management daemon
 timeshift                         # system backup/restore
 timeshift-autosnap                # pacman hook for pre-upgrade snapshots
 tlp                               # laptop power management
-tor-router                        # transparent tor routing, toggles/toggle-tor.sh
+tor                               # tor daemon for the vendored tor-router (configs/hardware/tor), toggles/toggle-tor.sh
 v4l-utils                         # video4linux utilities
 v4l2loopback-dkms                 # virtual video device
 v4l2loopback-utils                # v4l2loopback helper tools

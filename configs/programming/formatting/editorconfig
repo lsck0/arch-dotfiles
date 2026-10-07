@@ -16,3 +16,6 @@ trim_trailing_whitespace = false
 # match nvim shfmt -ci -bn
 switch_case_indent = true
 binary_next_line = true
+
+[{Makefile,GNUmakefile,*.mk,*.go}]
+indent_style = tab

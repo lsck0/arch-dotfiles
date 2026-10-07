@@ -27,6 +27,7 @@ run)
     ;;
 refresh)
     flag=$(desired_flag)
+    [[ "$flag" == --balanced ]] && systemctl start scx-mode.timer || systemctl stop scx-mode.timer
     [[ -f "$CUR" && "$(<"$CUR")" == "$flag" ]] && exit 0
     systemctl restart scx-lavd.service
     ;;

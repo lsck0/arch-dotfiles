@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=GPG Decrypt or Verify Clipboard
+Exec=sh -c 'exec "$HOME/.local/bin/gpg-clip" decrypt'
+Icon=document-decrypt
+Terminal=false
+NoDisplay=true

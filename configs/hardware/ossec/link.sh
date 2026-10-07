@@ -11,5 +11,7 @@ set -e
 getent group ossec-alerts >/dev/null || sudo groupadd -r ossec-alerts
 id -nG "$USER" | tr ' ' '\n' | grep -qx ossec-alerts || sudo gpasswd -a "$USER" ossec-alerts
 
+sudo systemctl enable ossec-server.target
+
 sudo install -Dm644 alerts-acl.conf /etc/tmpfiles.d/ossec-alerts.conf
 sudo systemd-tmpfiles --create /etc/tmpfiles.d/ossec-alerts.conf

@@ -8,8 +8,8 @@ hermes_orchestrator="${HOME}/.hermes/profiles/orchestrator"
 
 if [ ! -d "${hermes_orchestrator}" ]; then
     hermes profile create orchestrator --clone --description "Orchestrator. Not for interactive chat."
+    hermes profile alias orchestrator --name hermes-orchestrator
 fi
-hermes profile alias orchestrator --name hermes-orchestrator
 
 # skills into the orchestrator profile too
 mkdir -p "${hermes_orchestrator}/skills"
@@ -33,36 +33,63 @@ ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wal
 for hermes_home in "${hermes_default}" "${hermes_orchestrator}"; do
     export HERMES_HOME="${hermes_home}"
 
-    if [ "${have_ollama}" -eq 1 ]; then
-        hermes config set providers.ollama-local.api "http://localhost:11434/v1"
-        hermes config set providers.ollama-local.default_model "llama3.1-64k"
-        hermes config set providers.ollama-local.context_length 65536
-        hermes config set providers.ollama-local.transport chat_completions
-
-        # slow cpu-only backends need a long read timeout
-        if ! grep -qs '^HERMES_API_TIMEOUT=' "${hermes_home}/.env"; then
-            echo 'HERMES_API_TIMEOUT=1800' >> "${hermes_home}/.env"
-            chmod 600 "${hermes_home}/.env"
-        fi
+    # slow cpu-only backends need a long read timeout
+    if [ "${have_ollama}" -eq 1 ] && ! grep -qs '^HERMES_API_TIMEOUT=' "${hermes_home}/.env"; then
+        echo 'HERMES_API_TIMEOUT=1800' >> "${hermes_home}/.env"
+        chmod 600 "${hermes_home}/.env"
     fi
 
-    hermes config set display.interface tui
-    hermes skin use wallust
-
+    # one interpreter instead of a hermes launch per key; set_config_value coerces like `hermes config set`
+    HAVE_OLLAMA="${have_ollama}" ORCHESTRATOR="${hermes_orchestrator}" /opt/hermes-agent/venv/bin/python - <<'PY'
+import os
+from hermes_cli.config import set_config_value
+from hermes_cli.skin_cmd import _use
+settings = []
+if os.environ["HAVE_OLLAMA"] == "1":
+    settings += [
+        ("providers.ollama-local.api", "http://localhost:11434/v1"),
+        ("providers.ollama-local.default_model", "llama3.1-64k"),
+        ("providers.ollama-local.context_length", "65536"),
+        ("providers.ollama-local.transport", "chat_completions"),
+    ]
+settings += [
+    ("display.interface", "tui"),
     # routing: anthropic, then free nous, then vllm gpu, then ollama cpu
-    hermes config set model.default claude-sonnet-5
-    hermes config set model.provider anthropic
-
-    hermes config set delegation.provider nous
-    hermes config set delegation.model "meituan/longcat-2.0:free"
-
+    ("model.default", "claude-sonnet-5"),
+    ("model.provider", "anthropic"),
+    ("delegation.provider", "nous"),
+    ("delegation.model", "meituan/longcat-2.0:free"),
     # cold-started by configs/llm/vllm
-    hermes config set providers.vllm-rocm.api "http://localhost:8000/v1"
-    hermes config set providers.vllm-rocm.default_model "mattbucci/gemma-4-12B-AWQ"
-    hermes config set providers.vllm-rocm.transport chat_completions
+    ("providers.vllm-rocm.api", "http://localhost:8000/v1"),
+    ("providers.vllm-rocm.default_model", "mattbucci/gemma-4-12B-AWQ"),
+    ("providers.vllm-rocm.transport", "chat_completions"),
+    ("fallback_providers", '[{"provider":"nous","model":"meituan/longcat-2.0:free"},{"provider":"nous","model":"poolside/laguna-s-2.1:free"},{"provider":"vllm-rocm","model":"mattbucci/gemma-4-12B-AWQ"},{"provider":"ollama-local","model":"llama3.1-64k"}]'),
+]
+if os.environ["HERMES_HOME"] == os.environ["ORCHESTRATOR"]:
+    settings += [("compression.threshold_tokens", "500000")]
+for key, value in settings:
+    set_config_value(key, value)
+_use("wallust")
+PY
 
-    hermes config set fallback_providers '[{"provider":"nous","model":"meituan/longcat-2.0:free"},{"provider":"nous","model":"poolside/laguna-s-2.1:free"},{"provider":"vllm-rocm","model":"mattbucci/gemma-4-12B-AWQ"},{"provider":"ollama-local","model":"llama3.1-64k"}]'
+    # awake only while an agent works, same guard as claude code; pre-approved so no first-use prompt
+    guard="${HOME}/.config/idle-guards/agent-guard.sh"
+    if [ -x "${guard}" ]; then
+        GUARD="${guard}" /opt/hermes-agent/venv/bin/python - <<'PY'
+import os
+from hermes_cli.config import load_config, save_config
+from agent.shell_hooks import _record_approval
+guard = os.environ["GUARD"]
+events = {"pre_llm_call": "turn-start", "on_session_end": "turn-end",
+          "subagent_start": "subagent-start", "subagent_stop": "subagent-stop"}
+config = load_config()
+hooks = config.setdefault("hooks", {})
+for event, action in events.items():
+    command = f"{guard} {action}"
+    hooks[event] = [h for h in hooks.get(event) or [] if "agent-guard" not in str(h.get("command", ""))] + [{"command": command}]
+    _record_approval(event, command)
+save_config(config, merge_existing=True)
+PY
+    fi
 done
 unset HERMES_HOME
-
-HERMES_HOME="${hermes_orchestrator}" hermes config set compression.threshold_tokens 500000

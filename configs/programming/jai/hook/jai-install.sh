@@ -3,8 +3,8 @@
 # jai + jails from the newest ~/sync beta zip; no-op unless the zip is new, link.sh reruns it for later betas
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/user-hook.sh"
-source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/fetch.sh"
+source "$DOTFILES/scripts/lib/user-hook.sh"
+source "$DOTFILES/scripts/lib/fetch.sh"
 
 SYNC_DIR="${HOME}/sync"
 JAI_DIR="${HOME}/.jai"

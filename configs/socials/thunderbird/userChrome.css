@@ -1,0 +1,49 @@
+/* wal palette, rendered by wallust to ~/.cache/wal and linked next to this file */
+@import url("colors.css");
+
+:root {
+  --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
+  --layout-background-0: var(--wal-bg) !important;
+  --layout-background-1: var(--wal-bg) !important;
+  --layout-background-2: var(--wal-bg-alt) !important;
+  --layout-background-3: var(--wal-bg-alt) !important;
+  --layout-color-1: var(--wal-fg) !important;
+  --layout-color-2: var(--wal-fg-dim) !important;
+  --sidebar-background-color: var(--wal-bg) !important;
+  --foldertree-background: var(--wal-bg) !important;
+  --tree-view-bg: var(--wal-bg) !important;
+  --tree-card-background: var(--wal-bg-alt) !important;
+  --toolbar-bgcolor: var(--wal-bg) !important;
+  --toolbar-color: var(--wal-fg) !important;
+  --tabs-toolbar-background-color: var(--wal-bg) !important;
+  --lwt-accent-color: var(--wal-bg) !important;
+  --selected-item-color: var(--wal-accent) !important;
+  --selected-item-text-color: var(--wal-bg) !important;
+  --focus-outline-color: var(--wal-accent) !important;
+  --primary: var(--wal-accent) !important;
+}
+
+#tabmail-tabs,
+#toolbar-menubar,
+#unifiedToolbar,
+menupopup,
+panel,
+.tab-label {
+  font-family: var(--rtk-chrome-font) !important;
+}
+
+.tabmail-tab[selected] .tab-background {
+  border-bottom: 1px solid var(--wal-accent) !important;
+  box-shadow: 0 0 6px -1px var(--wal-accent) !important;
+}
+
+.tabmail-tab[selected] .tab-label {
+  text-shadow: 0 0 4px var(--wal-accent) !important;
+}
+
+tree,
+menupopup,
+scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--wal-accent) transparent !important;
+}

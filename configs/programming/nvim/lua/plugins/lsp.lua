@@ -353,9 +353,43 @@ return {
             -- vendored kulala-fmt, not from mason
             require("conform").formatters["kulala-fmt"] = { command = vim.fn.stdpath("config") .. "/vendor/kulala-fmt/kulala-fmt" }
 
+            -- personal style only where the project has no config of its own
+            local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"
+            local function personal(names, flag, file)
+                return function(_, ctx)
+                    if vim.fs.find(names, { path = ctx.dirname, upward = true })[1] then return {} end
+                    return { flag .. formatting .. file }
+                end
+            end
+            require("conform").formatters["clang-format"] = {
+                prepend_args = personal({ ".clang-format", "_clang-format" }, "--style=file:", "clang-format"),
+            }
+            require("conform").formatters.stylua = {
+                prepend_args = personal({ "stylua.toml", ".stylua.toml" }, "--config-path=", "stylua.toml"),
+            }
+            require("conform").formatters.prettier = {
+                prepend_args = personal({
+                    ".prettierrc", ".prettierrc.json", ".prettierrc.json5", ".prettierrc.yaml", ".prettierrc.yml",
+                    ".prettierrc.toml", ".prettierrc.js", ".prettierrc.cjs", ".prettierrc.mjs", ".prettierrc.ts",
+                    "prettier.config.js", "prettier.config.cjs", "prettier.config.mjs", "prettier.config.ts",
+                }, "--config=", "prettierrc.json"),
+            }
+            require("conform").formatters.rustfmt = {
+                prepend_args = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml"),
+            }
+            local ruff = personal(function(name, path)
+                if name == "ruff.toml" or name == ".ruff.toml" then return true end
+                -- ruff itself skips a pyproject.toml without [tool.ruff]
+                return name == "pyproject.toml" and vim.fn.readblob(path .. "/" .. name):find("[tool.ruff", 1, true) ~= nil
+            end, "--config=", "ruff.toml")
+            require("conform").formatters.ruff_format = { prepend_args = ruff }
+            require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
+
             require("conform").setup({
                 formatters_by_ft = {
                     bib = { "bibtex-tidy" },
+                    c = { "clang-format" },
+                    cpp = { "clang-format" },
                     css = { "prettier" },
                     haskell = { "ormolu" },
                     html = { "prettier" },

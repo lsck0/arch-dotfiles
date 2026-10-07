@@ -5,7 +5,7 @@
 set -euo pipefail
 
 REPO="$DOTFILES"
-TOGGLES="$REPO/toggles"
+TOGGLES="$REPO/scripts/toggles"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/toggles"
 DISABLED_FLAG="$STATE_DIR/timezone-auto-disabled"
 
@@ -16,7 +16,8 @@ current_tz() {
 tunnel_up() {
     local t state
     for t in vpn protonvpn tor; do
-        [[ -x "$TOGGLES/toggle-$t.sh" ]] || continue
+        # fail closed: an unknown tunnel state never geolocates through a possible exit
+        [[ -x "$TOGGLES/toggle-$t.sh" ]] || { echo "$t?"; return 0; }
         state=$("$TOGGLES/toggle-$t.sh" get 2>/dev/null || echo off)
         [[ "$state" == "on" ]] && { echo "$t"; return 0; }
     done

@@ -1,11 +1,12 @@
-export GTK_IM_MODULE=simple
 export LC_TIME=de_DE.UTF-8
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM="wayland;xcb"
 export QT_QPA_PLATFORMTHEME=kde
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-export SDL_VIDEO_DRIVER=wayland
+export SDL_VIDEO_DRIVER=wayland,x11
 # user scripts (scripts/link.sh) for hyprland binds, units and editors, not only interactive zsh
 export PATH="$PATH:$HOME/.local/bin"
 export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
+# pinentry hides "save in password manager" under kde unless set; the secret service is gnome-keyring either way
+export PINENTRY_KDE_USE_WALLET=1
 export DOTFILES="$HOME/projects/arch-dotfiles"

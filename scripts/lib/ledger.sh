@@ -77,9 +77,10 @@ ledger_packages() {
 ledger_units() {
     local repo="$1" scope i entry also units
     local -a declared names states owned=() dropped=()
+    # only this platform's groups declare, so a dropped group's units get disabled; a unit named in any comment here would declare
     # git's view of the worktree, so an ignored link.sh.log or the secrets submodule declares nothing; fails, never empty
     units=$(git -C "$repo" -c submodule.recurse=false grep --untracked -hoIE "$LEDGER_UNIT_NAME" \
-        -- configs scripts toggles install.sh config.sh) || { echo "ledger: git grep for unit names failed in $repo" >&2; return 1; }
+        -- "${PKG_GROUPS[@]/#/configs/}" scripts install.sh config.sh) || { echo "ledger: git grep for unit names failed in $repo" >&2; return 1; }
     mapfile -t declared < <(sort -u <<<"$units")
     for scope in system user; do
         mapfile -t names < <({ printf '%s\n' "${declared[@]}"; ledger_get unit | sed -n "s/^$scope //p"; } \

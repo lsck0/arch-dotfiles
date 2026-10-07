@@ -26,7 +26,6 @@ if [[ ! -d "${HOMELAB}/.git" ]]; then
         || { echo "ntfy: cloning homelab failed, skipping" >&2; exit 0; }
 fi
 
-chmod 755 "${PWD}/ntfy-notify.py"
 install -Dm644 "${PWD}/ntfy-notify.service" "${HOME}/.config/systemd/user/ntfy-notify.service"
 systemctl --user daemon-reload
 systemctl --user enable --now ntfy-notify.service

@@ -1,0 +1,19 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# from the wheel: the sdist's [tool.flit.metadata] table no longer builds with current flit_core
+pkgname=python-aiomultiprocess
+_name=aiomultiprocess
+pkgver=0.9.1
+pkgrel=1
+pkgdesc="Asyncio version of the standard multiprocessing module"
+arch=(any)
+url="https://github.com/omnilib/aiomultiprocess"
+license=(MIT)
+depends=(python)
+makedepends=(python-installer)
+source=("https://files.pythonhosted.org/packages/py3/${_name::1}/$_name/$_name-$pkgver-py3-none-any.whl")
+sha256sums=(3a7b3bb3c38dbfb4d9d1194ece5934b6d32cf0280e8edbe64a7d215bba1322c6)
+noextract=("$_name-$pkgver-py3-none-any.whl")
+
+package() {
+    python -m installer --destdir="$pkgdir" "$_name-$pkgver-py3-none-any.whl"
+}

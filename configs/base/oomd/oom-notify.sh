@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ids from systemd.catalog: oomd kill, kernel oom kill
-journalctl --no-pager -f -o json \
+journalctl --no-pager -f -n 0 -o json \
     MESSAGE_ID=d989611b15e44c9dbf31e3c81256e4ed \
     MESSAGE_ID=fe6faa94e7774663a0da52717891d8ef |
 while IFS= read -r line; do

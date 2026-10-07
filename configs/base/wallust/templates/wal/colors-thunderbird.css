@@ -1,0 +1,9 @@
+/* literal braces are doubled for wallust */
+:root {{
+  --wal-bg: {background};
+  --wal-bg-alt: {color0};
+  --wal-fg: {foreground};
+  --wal-fg-dim: {color7};
+  --wal-accent: {color4};
+  --wal-accent-2: {color5};
+}}

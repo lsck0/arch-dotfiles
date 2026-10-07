@@ -9,6 +9,7 @@ TRMNL_TIMER=trmnl-claude.timer
 # the socket reactivates vllm on the next client, so only ollama is restored
 VLLM_PROXY=vllm-proxy.service
 OLLAMA=ollama.service
+SPLIT_LOCK_MITIGATE=/usr/local/bin/split-lock-mitigate
 
 case "${1:-}" in
 start)
@@ -18,8 +19,10 @@ start)
         toggle_set_volatile gamemode-ollama on
         systemctl stop "$OLLAMA"
     fi
+    pkexec "$SPLIT_LOCK_MITIGATE" off
     ;;
 end)
+    pkexec "$SPLIT_LOCK_MITIGATE" on
     if systemctl --user is-enabled -q "$TRMNL_TIMER"; then
         systemctl --user start "$TRMNL_TIMER"
     fi

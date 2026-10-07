@@ -3,7 +3,8 @@ Description=Empty user trash
 
 [Service]
 Type=oneshot
-# home trash keeps a 7-day recovery window; the tmpfs trash is volatile, wiped whole
-ExecStart=/usr/bin/trash-empty -f 7
+# home trash keeps a one-day recovery window so a secret removed through the rm=trash alias does not linger; the tmpfs trash is volatile, wiped whole
+Environment=RETENTION_DAYS=1
+ExecStart=/usr/bin/trash-empty -f --trash-dir %h/.local/share/Trash ${RETENTION_DAYS}
 ExecStart=/usr/bin/find /tmp/.Trash-%U -mindepth 1 -delete
 SuccessExitStatus=0 1

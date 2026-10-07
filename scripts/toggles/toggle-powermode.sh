@@ -40,6 +40,9 @@ refresh_desktop() {
     timeout 3 gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty \
         --method org.gtk.Actions.Activate reload-config '[]' '{}' >/dev/null 2>&1 || true
     hyprctl reload config-only >/dev/null 2>&1 || true
+    # the reload drops the runtime-only shader and monitor layout
+    ./toggle-shader.sh reapply >/dev/null 2>&1 || true
+    ./toggle-monitor-scale.sh reapply >/dev/null 2>&1 || true
     timeout 3 qs ipc -p "$HOME/.config/quickshell" call shell reloadPowerMode >/dev/null 2>&1 || true
 }
 
@@ -56,7 +59,6 @@ apply() {
     local state=$1
     sudo tlp "$state"
     toggle_set_volatile powermode "$state"
-    toggle_set powermode "$state"
     sync_saver
     toggle_notify -a Toggles "Power Mode" "${LABELS[$(toggle_index_of "$state" -1 "${STATES[@]}")]}"
 }
@@ -65,7 +67,6 @@ apply() {
 reset_auto() {
     sudo tlp start >/dev/null
     rm -f "$TOGGLES_RUNTIME_DIR/powermode" 2>/dev/null || true
-    toggle_set powermode ""
     sync_saver
     toggle_notify -a Toggles "Power Mode" "Auto (default)"
 }

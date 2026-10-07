@@ -33,8 +33,11 @@ fi
 sed "s|PLACEHOLDER_ROOT_UUID|$ROOT_UUID|" "$(dirname "$0")/timeshift.json" \
     | sudo install -Dm644 /dev/stdin /etc/timeshift/timeshift.json
 
-# timeshift schedules itself: --check writes its hourly /etc/cron.d entry and takes the weekly snapshot when one is due
-sudo systemctl enable --now cronie.service
+# --check takes the weekly snapshot when one is due, the timer runs it daily instead of an hourly cron daemon
+sudo install -Dm644 "$(dirname "$0")/timeshift-check.service" /etc/systemd/system/timeshift-check.service
+sudo install -Dm644 "$(dirname "$0")/timeshift-check.timer" /etc/systemd/system/timeshift-check.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now timeshift-check.timer
 sudo timeshift --check --scripted
 
 echo "timeshift: btrfs-mode config written (root UUID $ROOT_UUID)" >&2

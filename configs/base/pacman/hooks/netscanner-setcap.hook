@@ -5,6 +5,6 @@ Type = Package
 Target = netscanner
 
 [Action]
-Description = Granting netscanner cap_net_raw instead of setuid root
+Description = Granting the wireshark group netscanner cap_net_raw instead of setuid root
 When = PostTransaction
-Exec = /usr/bin/sh -c 'chmod u-s /usr/bin/netscanner && setcap cap_net_raw+ep /usr/bin/netscanner'
+Exec = /usr/bin/sh -c 'chmod u-s /usr/bin/netscanner && if getent group wireshark >/dev/null; then chgrp wireshark /usr/bin/netscanner && chmod 750 /usr/bin/netscanner && setcap cap_net_raw+ep /usr/bin/netscanner; fi'

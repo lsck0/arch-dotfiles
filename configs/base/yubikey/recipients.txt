@@ -1,0 +1,2 @@
+# extra age recipients the git-crypt key is sealed to besides the YubiKeys, one per line: an offline paper age key or a second key, then run yubikey seal
+age1zwndnkrv3xup340eydptsd56phkhnl9643zrjk0r03wm6sjduqhqlwxl8h

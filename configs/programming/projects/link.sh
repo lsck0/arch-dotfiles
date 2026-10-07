@@ -27,3 +27,11 @@ for repo in "${REPOS[@]}"; do
     git clone --recurse-submodules "https://github.com/lsck0/${repo}.git" "${PROJECTS}/${repo}" \
         || echo "projects: cloning ${repo} failed" >&2
 done
+
+# a push to github alone must not reach root here through git-sync and config.sh
+dotfiles="${PROJECTS}/arch-dotfiles"
+if [[ -d "${dotfiles}/.git" ]]; then
+    git -C "$dotfiles" config pull.rebase false
+    git -C "$dotfiles" config pull.ff only
+    git -C "$dotfiles" config merge.verifySignatures true
+fi

@@ -5,7 +5,6 @@ set -e
 
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 mkdir -p "${HOME}/.local/bin"
-chmod 755 "${PWD}/veracrypt-vault.sh"
 ln -sfn "${PWD}/veracrypt-vault.sh" "${HOME}/.local/bin/veracrypt-vault"
 
 # the password prompt needs a tty

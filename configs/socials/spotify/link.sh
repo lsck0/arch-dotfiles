@@ -26,18 +26,18 @@ if ! pgrep -x spotify >/dev/null; then
     done
 fi
 
-# spicetify writes here, own it instead of 777
-sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
-
 spicetify config current_theme wal color_scheme pywal
 spicetify config experimental_features 0
 # on, it also strips the [dir=ltr] rules spotify spacing lives in
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
-spicetify apply || spicetify backup apply
-
-python3 "${PWD}/spicetify-unmap-classes.py"
+if [[ -e /opt/spotify/Apps/xpui.spa || ! -d /opt/spotify/Apps/xpui ]]; then
+    # spicetify writes here, own it instead of 777
+    sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
+    spicetify apply || spicetify backup apply
+    python3 "${PWD}/spicetify-unmap-classes.py"
+fi
 
 # first apply waits for the first spotify login; later spotify updates come through the pacman hook
 spotify_patched() { [[ -d /opt/spotify/Apps/xpui ]]; }

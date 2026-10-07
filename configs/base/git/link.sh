@@ -19,7 +19,6 @@ fi
 git config --global init.defaultBranch master
 git config --global pull.rebase true
 git config --global --type bool push.autoSetupRemote true
-git config --global submodule.recurse true
 
 # diff
 git config --global core.pager delta

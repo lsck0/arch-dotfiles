@@ -2,6 +2,9 @@
 # runs as root from ghostmirror*.service; ranks into a temp dir so a short list never replaces the current one
 
 set -euo pipefail
+# the weekly sort and the monthly rebuild must not overwrite each other's list
+exec 9</etc/pacman.d
+flock 9
 
 TARGET=/etc/pacman.d/mirrorlist
 COUNTRIES=Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands
@@ -32,11 +35,14 @@ if [[ "$count" -lt "$MIRRORS_MIN" ]]; then
     exit 1
 fi
 
-# homelab first (internal, authoritative), the ranked public mirrors are the away fallback
+# homelab first (internal, authoritative), the ranked public mirrors are the away fallback; kept only where link.sh put it
+homelab=$(grep -m1 '^Server *= *http://10.100.0.109' "$TARGET" || true)
 {
-    echo "# homelab full mirror (10.100.0.109), internal only, authoritative"
-    echo "Server=http://10.100.0.109:8090/archlinux/\$repo/os/\$arch"
-    echo
+    if [[ -n "$homelab" ]]; then
+        echo "# homelab full mirror (10.100.0.109), internal only, authoritative"
+        echo "$homelab"
+        echo
+    fi
     cat "$out"
 } >"$TARGET.new"
 # rename, so pacman never reads a half-written list

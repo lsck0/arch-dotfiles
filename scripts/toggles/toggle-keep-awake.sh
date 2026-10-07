@@ -4,15 +4,17 @@ cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
 # "Don't turn off PC" mode: holds a systemd-inhibit lock against both sleep and idle, tracked via a PID file.
-PIDFILE="$TOGGLES_STATE_DIR/keep-awake.pid"
+PIDFILE="$TOGGLES_RUNTIME_DIR/keep-awake.pid"
 
-check() {
-    if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-        echo on
-    else
-        echo off
-    fi
+# the recorded pid, only while it is still our inhibitor and not a reused pid
+inhibitor_pid() {
+    local pid
+    [[ -f "$PIDFILE" ]] || return 1
+    pid=$(<"$PIDFILE")
+    [[ "$(cat "/proc/$pid/comm" 2>/dev/null)" == systemd-inhibit ]] && echo "$pid"
 }
+
+check() { inhibitor_pid >/dev/null && echo on || echo off; }
 
 turn_on() {
     systemd-inhibit --what=sleep:idle --who=toggles --why="keep-awake toggle enabled" --mode=block sleep infinity &
@@ -21,7 +23,8 @@ turn_on() {
 }
 
 turn_off() {
-    [[ -f "$PIDFILE" ]] && kill "$(cat "$PIDFILE")" 2>/dev/null
+    local pid
+    pid=$(inhibitor_pid) && kill "$pid" 2>/dev/null || true
     rm -f "$PIDFILE"
 }
 

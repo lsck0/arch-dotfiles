@@ -3,6 +3,7 @@
 
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")/.."
+[[ -z ${DIRENV_DIR-} ]] || { echo "run outside a direnv directory" >&2; exit 1; }
 
 echo "ARE U SURE?"
 read -rp "Type 'y' to continue: " confirm

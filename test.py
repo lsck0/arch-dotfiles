@@ -52,7 +52,8 @@ LOGIN_ATTEMPTS = 3
 LOGIN_TTY = 3                   # tty1 carries the chain's console, ly sits on tty2
 SNAPSHOT_REF = "refs/vm-test/snapshot"
 KEY_HOLD_MS = 10
-KEY_GAP_S = 0.03            # a virsh call takes ~6ms, the guest console drops keys at that rate
+KEY_GAP_S = 0.03            # each key is a sudo virsh call; the guest console drops keys sent faster
+SUDO_KEEPALIVE_INTERVAL_S = 50  # well under sudo's default 5 min timestamp_timeout
 MODIFIERS = ("shift", "shift_r", "ctrl", "ctrl_r", "alt", "alt_r")
 
 # qemu key names per character: the iso console is us, the installed system de-latin1
@@ -70,8 +71,29 @@ KEYS_DE = {' ': 'spc', '-': 'slash', '.': 'dot', '/': 'shift-7', ':': 'shift-dot
            '[': 'alt_r-8', ']': 'alt_r-9', '{': 'alt_r-7', '}': 'alt_r-0'}
 
 
+def sudo_keepalive_start() -> None:
+    """One prompt up front; polkit's auth_admin_keep lapses after 5 min and would stall the unattended chain."""
+    subprocess.run(["sudo", "-v"], check=True)
+
+    def keep() -> None:
+        while True:
+            # off the tty, so it never races a foreground sudo's raw-mode switch of the terminal
+            subprocess.run(["sudo", "-n", "true"], stdin=subprocess.DEVNULL, capture_output=True)
+            time.sleep(SUDO_KEEPALIVE_INTERVAL_S)
+
+    threading.Thread(target=keep, daemon=True).start()
+
+
 def virsh(*args: str, check: bool = True) -> str:
-    return subprocess.run(["virsh", "-c", CONNECT, *args], check=check, capture_output=True, text=True).stdout
+    return subprocess.run(["sudo", "virsh", "-c", CONNECT, *args], check=check, capture_output=True, text=True).stdout
+
+
+def screenshot(name: str, ppm: Path) -> bool:
+    """Streamed through stdout, so root's virsh never leaves a root-owned file in the user's cache."""
+    shot = subprocess.run(["sudo", "virsh", "-q", "-c", CONNECT, "screenshot", name, "/dev/stdout"], capture_output=True)
+    if shot.returncode == 0:
+        ppm.write_bytes(shot.stdout)
+    return shot.returncode == 0
 
 
 def cache_dir(name: str) -> Path:
@@ -113,7 +135,7 @@ def clear_line(name: str) -> None:
 
 def screen_text(name: str) -> str:
     ppm = cache_dir(name) / "screen.ppm"
-    if subprocess.run(["virsh", "-c", CONNECT, "screenshot", name, str(ppm)], capture_output=True).returncode != 0:
+    if not screenshot(name, ppm):
         return ""
     return subprocess.run(["tesseract", str(ppm), "-"], capture_output=True, text=True).stdout
 
@@ -132,8 +154,8 @@ def wait_screen(name: str, needles: list[str], timeout_s: int) -> str:
 # --- host server: beacons, config, log upload ---
 
 class Host:
-    """GET /beacon/<tag> records tag, GET /step/<name> serves a step script, GET /<file> serves from the repo root,
-    PUT /logs.tgz stores the upload."""
+    """GET /beacon/<tag> records tag, GET /step/<name> serves a step script, GET /file/<name> serves a registered file,
+    PUT /bootstrap.log or /logs.tgz stores the upload."""
 
     def __init__(self, upload_to: Path):
         self.beacons: queue.Queue[str] = queue.Queue()
@@ -143,10 +165,7 @@ class Host:
         self.uploaded = threading.Event()
         host = self
 
-        class Handler(http.server.SimpleHTTPRequestHandler):
-            def __init__(self, *a, **kw):
-                super().__init__(*a, directory=str(HERE), **kw)
-
+        class Handler(http.server.BaseHTTPRequestHandler):
             def do_GET(self):
                 if self.path.startswith("/beacon/"):
                     host.beacons.put(self.path.removeprefix("/beacon/"))
@@ -173,9 +192,12 @@ class Host:
                     self.end_headers()
                     self.wfile.write(body.encode())
                     return
-                super().do_GET()
+                self.send_error(404)
 
             def do_PUT(self):
+                if self.path not in ("/bootstrap.log", "/logs.tgz"):
+                    self.send_error(404)
+                    return
                 host.upload_to.write_bytes(self.rfile.read(int(self.headers.get("Content-Length", 0))))
                 host.uploaded.set()
                 self.send_response(204)
@@ -184,7 +206,7 @@ class Host:
             def log_message(self, *a):
                 pass
 
-        self.server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
     def beacon(self, prefix: str, timeout_s: float) -> str | None:
@@ -256,7 +278,7 @@ def bootstrap(name: str, iso: Path, host: Host, bundle: Path | None, platform: s
     """Fresh VM, Secure Boot firmware without enrolled keys (Setup Mode), bootstrap.sh from the iso."""
     destroy(name)
     subprocess.run([
-        "virt-install", "--connect", CONNECT, "--name", name, "--memory", "12288", "--vcpus", "8",
+        "sudo", "virt-install", "--connect", CONNECT, "--name", name, "--memory", "12288", "--vcpus", "8",
         "--cpu", "host-passthrough", "--disk", f"pool={POOL},size={DISK_GIB},format=qcow2,bus=virtio,discard=unmap",
         "--cdrom", pool_iso(iso), "--osinfo", "archlinux", "--network", "user,model=virtio",
         "--graphics", "spice", "--video", "virtio", "--noautoconsole", "--features", "smm.state=on",
@@ -372,7 +394,7 @@ def verify(logs: Path) -> list[str]:
 
 
 def lint_modules() -> list[str]:
-    """static module checks, all fatal. a PKG_GROUPS entry, a dependencies.txt line or a ../../<x>/ ref
+    """static module checks, all fatal. a PKG_GROUPS entry, a dependencies.txt line or a $DOTFILES/<x>/ ref
     must name a real module or (for refs) a repo-root dir, so a typo or dropped module is caught. a
     module's config reaching into another module (not base, not itself) must declare it in that module's
     dependencies.txt, so unexpected coupling (programming needing gaming) cannot slip in undeclared."""
@@ -381,7 +403,7 @@ def lint_modules() -> list[str]:
     modules = {p.parent.name for p in configs.glob("*/packages.txt")}
     names = lambda f: [ln.split("#", 1)[0].split()[0] for ln in f.read_text().splitlines() if ln.split("#", 1)[0].strip()]
     deps = {m: set(names(configs / m / "dependencies.txt")) for m in modules if (configs / m / "dependencies.txt").is_file()}
-    ref = re.compile(r"\.\./\.\./([a-z0-9_-]+)/")
+    ref = re.compile(r"\$\{?DOTFILES\}?/(?:configs/)?([a-z0-9_-]+)/")
     problems = []
     for m, ds in deps.items():
         for d in ds - modules:
@@ -394,7 +416,7 @@ def lint_modules() -> list[str]:
                     if tgt not in (src, "base") and tgt not in deps.get(src, set()):
                         problems.append(f"{script.relative_to(HERE)}: undeclared dep on '{tgt}', add it to configs/{src}/dependencies.txt")
                 elif tgt not in root:
-                    problems.append(f"{script.relative_to(HERE)}: ../../{tgt}/ is no module or root dir")
+                    problems.append(f"{script.relative_to(HERE)}: $DOTFILES/{tgt}/ is no module or root dir")
     for pf in (HERE / "platforms").glob("*.sh"):
         for grp in re.findall(r"PKG_GROUPS=\(([^)]*)\)", pf.read_text()):
             for g in grp.split():
@@ -447,7 +469,8 @@ def cmd_logs(args: argparse.Namespace) -> None:
 
 def cmd_shot(args: argparse.Namespace) -> Path:
     out = cache_dir(args.name)
-    virsh("screenshot", args.name, str(out / "screen.ppm"))
+    if not screenshot(args.name, out / "screen.ppm"):
+        sys.exit("vm-test: screenshot failed, is the vm running?")
     subprocess.run(["magick", str(out / "screen.ppm"), str(out / "screen.png")], check=True)
     return out / "screen.png"
 
@@ -485,6 +508,8 @@ def main() -> None:
     if not argv or (argv[0] not in SUBCOMMANDS and argv[0] not in ("-h", "--help")):
         argv = ["run", *argv]
     args = parser.parse_args(argv)
+    if args.cmd != "lint":
+        sudo_keepalive_start()
     if args.cmd == "shot":
         print(cmd_shot(args))
         return

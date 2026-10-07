@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source $DOTFILES/scripts/lib/personal.sh
+
 set -e
 
 if [[ ! -d /sys/firmware/efi ]]; then
@@ -17,13 +19,13 @@ sign_unsigned_boot_files() {
     local out paths=() p signed=0
 
     out="$(sudo sbctl verify)"
+    # the plain kernels stay unsigned: grub.cfg could chainload a signed one with any cmdline and initrd
     mapfile -t paths < <(printf '%s\n' "$out" \
-        | sed -n 's|^[^/]*\(/.*\) is not signed$|\1|p')
+        | sed -n 's|^[^/]*\(/.*\) is not signed$|\1|p' | grep -v '^/boot/vmlinuz-')
 
     # sbctl verify only walks the esp
     local cand
     for cand in \
-        /boot/vmlinuz-linux /boot/vmlinuz-linux-lts /boot/vmlinuz-linux-zen \
         /boot/EFI/BOOT/BOOTX64.EFI \
         /boot/EFI/GRUB/grubx64.efi \
         /boot/EFI/Linux/*.efi \
@@ -70,10 +72,21 @@ if [[ "$need_sign" == "true" ]]; then
     sign_unsigned_boot_files
 
     if ! sudo sbctl list-enrolled-keys | grep -qvE '^\S+:\s*$'; then
-        # own keys only, no -m: one esp, no dual boot, and fwupd signs its capsule efi with these keys;
+        # the plain kernels are never signed, so enforcing secure boot under a grub.cfg that still boots one leaves nothing bootable
+        if sudo grep -qE '^\s*linux\s+/vmlinuz-' /boot/grub/grub.cfg 2>/dev/null; then
+            echo "sbctl: grub.cfg still boots a plain kernel, not enrolling keys until configs/hardware/boot/grub succeeds" >&2
+            exit 1
+        fi
+        # own keys only on luca's machines: one esp, no dual boot, and fwupd signs its capsule efi with these keys;
         # takes effect only on a fresh enroll, so a machine already carrying ms keys must clear sb in firmware and rerun
-        echo "sbctl: enrolling own keys only (clear Secure Boot keys in firmware to re-enroll without Microsoft's)" >&2
-        sudo sbctl enroll-keys
+        if is_personal; then
+            echo "sbctl: enrolling own keys only (clear Secure Boot keys in firmware to re-enroll without Microsoft's)" >&2
+            sudo sbctl enroll-keys
+        else
+            # anyone else's machine may still boot windows, other loaders or option roms signed by microsoft
+            echo "sbctl: enrolling own keys plus Microsoft's" >&2
+            sudo sbctl enroll-keys -m
+        fi
     fi
     echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun config.sh." >&2
     echo "sbctl: verify with 'sbctl verify' BEFORE rebooting with Secure Boot on." >&2

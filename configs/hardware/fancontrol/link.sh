@@ -5,12 +5,9 @@ source $DOTFILES/scripts/lib/platform.sh
 form_factor=$(platform_form_factor "$DOTFILES") || exit 1
 [[ "$form_factor" == desktop ]] || exit 0
 
-# the ITE SuperIO + force_id are board-specific: match either the board model or the Gigabyte vendor
-board_name=$(</sys/class/dmi/id/board_name)
-board_vendor=$(</sys/class/dmi/id/board_vendor)
-if [[ "$board_name" != *X870E* && "$board_vendor" != *Gigabyte* ]]; then
-    exit 0
-fi
+# force_id and the fan curve fit exactly this board and its 9950X3D
+BOARD_NAME="X870E AORUS ELITE WIFI7"
+[[ "$(</sys/class/dmi/id/board_name)" == "$BOARD_NAME" ]] || exit 0
 
 set -e
 

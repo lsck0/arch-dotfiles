@@ -20,16 +20,18 @@ sudo install -Dm644 sessions/hyprland.desktop /etc/ly/sessions/hyprland.desktop
 sudo install -Dm644 sessions/plasma.desktop /etc/ly/sessions/plasma.desktop
 
 # ly 1.4.1 lists the built-in shell at index 0, then crawls waylandsessions in readdir order (no sort)
-# resolve Hyprland's index the same way ly will, so save.txt defaults luca and root to it reproducibly
+# resolve Hyprland's index the same way ly will, so a fresh save.txt defaults root and this user to it
 hyprland_index=1
 index=1
 for session in $(ls -U /etc/ly/sessions); do
     [[ "$(sed -n 's/^Name=//p' "/etc/ly/sessions/$session" | head -1)" == Hyprland ]] && hyprland_index=$index
     index=$((index + 1))
 done
-# save.txt: first line is the last-used user's row, then <user>:<session index>; a later manual pick overwrites it (save=true)
-printf '1\nroot:%s\nluca:%s\n' "$hyprland_index" "$hyprland_index" | sudo tee /etc/ly/save.txt >/dev/null
-sudo chmod 644 /etc/ly/save.txt
+# save.txt: first line is the last-used user's row, then <user>:<session index>; seeded once, ly keeps it current (save=true)
+if [[ ! -e /etc/ly/save.txt ]]; then
+    printf '1\nroot:%s\n%s:%s\n' "$hyprland_index" "$(id -un)" "$hyprland_index" | sudo tee /etc/ly/save.txt >/dev/null
+    sudo chmod 644 /etc/ly/save.txt
+fi
 
 # console maps ly's 24-bit colors to 16 slots; load config.ini's exact hex
 palette=(
@@ -44,4 +46,8 @@ for offset in 0 2 4; do
 done
 printf '%s' "$vtrgb" | sudo tee /etc/ly/vtrgb >/dev/null
 sudo install -Dm644 ly-palette.conf /etc/systemd/system/ly@.service.d/palette.conf
+sudo install -Dm644 ly-cursor.conf /etc/systemd/system/ly@.service.d/cursor.conf
 sudo systemctl daemon-reload
+
+sudo systemctl enable ly@tty2.service
+sudo systemctl disable getty@tty2.service

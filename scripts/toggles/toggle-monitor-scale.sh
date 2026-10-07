@@ -5,7 +5,7 @@ cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
 # Monitor scale and layout. `set` applies a scale live, then persists it to hyprland_monitors.lua;
-# `live` and `layout` are runtime only, a reload restores the file. jq, not python: the display panel's chips run `live`.
+# `live` and `layout` are runtime only, a reload restores the file and `reapply` puts them back. jq, not python: the display panel's chips run `live`.
 
 MONITORS_LUA="$DOTFILES/configs/desktop/hyprland/hyprland_monitors.lua"
 
@@ -43,13 +43,28 @@ monitor_lua_set_scale() {
     printf '%s\n' "$updated" >"$MONITORS_LUA"
 }
 
+# monitor_record <output> scale|layout <expr>: replayed by `reapply`; keyed to the compositor instance so a new session never inherits it
+monitor_record() { toggle_set_volatile "monitor-$1-$2" "${HYPRLAND_INSTANCE_SIGNATURE:-} $3"; }
+
+# a reload resets every output to the file; layouts first, a later live scale merges onto them
+monitor_reapply() {
+    local file instance expr
+    for file in "$TOGGLES_RUNTIME_DIR"/monitor-*-layout "$TOGGLES_RUNTIME_DIR"/monitor-*-scale; do
+        [[ -f "$file" ]] || continue
+        read -r instance expr <<<"$(<"$file")"
+        if [[ "$instance" == "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then hyprctl eval "$expr" >/dev/null; fi
+    done
+}
+
 # monitor_scale_apply <output> <scale>: live, keeping mode and position
 monitor_scale_apply() {
-    local monitor out
+    local monitor expr out
     monitor=$(monitor_find "$(monitors_json)" "$1")
     [[ -n "$monitor" ]] || { echo "unknown monitor: $1" >&2; return 1; }
-    out=$(hyprctl eval "$(jq -r --arg s "$2" '"hl.monitor({ output = \"\(.name)\", mode = \"\(.width)x\(.height)@\(.refreshRate)\", position = \"\(.x)x\(.y)\", scale = \($s) })"' <<<"$monitor")" 2>&1 || true)
+    expr=$(jq -r --arg s "$2" '"hl.monitor({ output = \"\(.name)\", mode = \"\(.width)x\(.height)@\(.refreshRate)\", position = \"\(.x)x\(.y)\", scale = \($s) })"' <<<"$monitor")
+    out=$(hyprctl eval "$expr" 2>&1 || true)
     [[ "$out" == *ok* ]] || { echo "hyprctl rejected the scale: $out" >&2; return 1; }
+    monitor_record "$1" scale "$expr"
 }
 
 monitor_scale_set() {
@@ -64,13 +79,16 @@ monitor_scale_set() {
         scale=$applied
     fi
     monitor_lua_set_scale "$name" "$scale"
-    toggle_set monitor-scale "$name=$scale"
+    # the write triggers an autoreload that drops the runtime-only shader and layout; reload here so the reapply lands after it
+    hyprctl reload config-only >/dev/null 2>&1 || true
+    ./toggle-shader.sh reapply >/dev/null 2>&1 || true
+    monitor_reapply
     toggle_notify -a Toggles "Monitor scale" "$name at ${scale}x"
 }
 
 # monitor_layout_set <output> extend|off|mirror [source]
 monitor_layout_set() {
-    local name=$1 action=$2 mirror_source=$3 monitors monitor scale others
+    local name=$1 action=$2 mirror_source=$3 monitors monitor scale others expr
     monitors=$(monitors_json)
     monitor=$(monitor_find "$monitors" "$name")
     [[ -n "$monitor" ]] || { echo "no such monitor: $name" >&2; return 1; }
@@ -79,25 +97,27 @@ monitor_layout_set() {
     case "$action" in
     extend)
         # hl.monitor merges, so clear disabled and mirror explicitly
-        hyprctl eval "hl.monitor({ output = \"$name\", mode = \"$(monitor_lua_get "$name" mode highrr)\", position = \"$(monitor_lua_get "$name" position auto)\", scale = \"$scale\", disabled = false, mirror = \"\" })"
+        expr="hl.monitor({ output = \"$name\", mode = \"$(monitor_lua_get "$name" mode highrr)\", position = \"$(monitor_lua_get "$name" position auto)\", scale = \"$scale\", disabled = false, mirror = \"\" })"
         ;;
     off)
         others=$(jq --arg n "$name" '[.[] | select(.name != $n and (.disabled | not) and .mirrorOf == "none")] | length' <<<"$monitors")
         ((others > 0)) || { echo "refusing to disable the last active monitor" >&2; return 1; }
-        hyprctl eval "hl.monitor({ output = \"$name\", disabled = true })"
+        expr="hl.monitor({ output = \"$name\", disabled = true })"
         ;;
     mirror)
         [[ -n "$mirror_source" && "$mirror_source" != "$name" ]] || { echo "mirror needs a source other than $name" >&2; return 1; }
         jq -e --arg s "$mirror_source" 'any(.[]; .name == $s and (.disabled | not) and .mirrorOf == "none")' <<<"$monitors" >/dev/null \
             || { echo "mirror source $mirror_source is not an active, unmirrored monitor" >&2; return 1; }
-        hyprctl eval "hl.monitor({ output = \"$name\", mode = \"$(monitor_lua_get "$name" mode highrr)\", position = \"auto\", scale = \"$scale\", disabled = false, mirror = \"$mirror_source\" })"
+        expr="hl.monitor({ output = \"$name\", mode = \"$(monitor_lua_get "$name" mode highrr)\", position = \"auto\", scale = \"$scale\", disabled = false, mirror = \"$mirror_source\" })"
         ;;
     *) usage; return 1 ;;
     esac
+    hyprctl eval "$expr"
+    monitor_record "$name" layout "$expr"
 }
 
 usage() {
-    echo "usage: $(basename "$0") {get [monitor]|label|list|set <scale> [monitor]|live <scale> [monitor]|layout <monitor> extend|off|mirror <source>}" >&2
+    echo "usage: $(basename "$0") {get [monitor]|label|list|set <scale> [monitor]|live <scale> [monitor]|layout <monitor> extend|off|mirror <source>|reapply}" >&2
 }
 
 case "${1:-label}" in
@@ -116,5 +136,6 @@ layout)
     [[ $# -ge 3 ]] || { usage; exit 1; }
     monitor_layout_set "$2" "$3" "${4:-}"
     ;;
+reapply) monitor_reapply ;;
 *) usage; exit 1 ;;
 esac

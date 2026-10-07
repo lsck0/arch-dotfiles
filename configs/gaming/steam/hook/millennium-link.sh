@@ -3,7 +3,7 @@
 # millennium loads by replacing libXtst in steam's runtime dirs, which exist only after steam's first run; steam updates leave the links be
 
 set -euo pipefail
-source "$(dirname "$(readlink -f "$0")")/$DOTFILES/scripts/lib/user-hook.sh"
+source "$DOTFILES/scripts/lib/user-hook.sh"
 
 STEAM="${HOME}/.local/share/Steam"
 LIB=/usr/lib/millennium

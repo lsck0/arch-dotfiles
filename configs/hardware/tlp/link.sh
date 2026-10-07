@@ -3,8 +3,6 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 set -e
 
-sudo systemctl enable tlp.service
-
 source $DOTFILES/scripts/lib/platform.sh
 form_factor=$(platform_form_factor "$DOTFILES")
 if [[ "$form_factor" == laptop ]]; then
@@ -13,6 +11,11 @@ else
     conf=ac-only.tlp.conf
 fi
 
-# copy, tlp.service has ProtectHome and cannot follow a link into /home
-sudo install -m 644 "${PWD}/${conf}" /etc/tlp.conf
-sudo systemctl restart tlp
+if cmp -s "${PWD}/${conf}" /etc/tlp.conf; then
+    sudo systemctl enable --now tlp.service
+else
+    # copy, tlp.service has ProtectHome and cannot follow a link into /home
+    sudo install -m 644 "${PWD}/${conf}" /etc/tlp.conf
+    sudo systemctl enable tlp.service
+    sudo systemctl restart tlp.service
+fi

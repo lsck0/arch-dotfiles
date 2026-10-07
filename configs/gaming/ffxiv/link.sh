@@ -17,6 +17,7 @@ set -e
 if [ ! -f "${XLCORE}/ffxivConfig/FFXIV.cfg" ]; then
     mkdir -p "${XLCORE}/ffxivConfig"
     cp -rT "${BACKUP}/ffxivConfig" "${XLCORE}/ffxivConfig"
+    touch "${XLCORE}/ffxivConfig/.from-secrets"
 fi
 if [ ! -f "${XLCORE}/launcher.ini" ]; then
     cp "${BACKUP}/launcher.ini" "${XLCORE}/launcher.ini"

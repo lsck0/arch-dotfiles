@@ -9,14 +9,16 @@ check() { ip link show proton0 &>/dev/null && echo on || echo off; }
 portmaster_restore() { [[ "$(./toggle-firewall.sh get)" == off ]] || systemctl start portmaster.service; }
 
 turn_on() {
-  # protonvpn's own networkmanager kill switch: routes only, owns no nft table
-  protonvpn config set kill-switch standard >/dev/null 2>&1
+  # protonvpn's own networkmanager kill switch: routes only, owns no nft table. set only when unset, a user's choice stays
+  # config list shows unset as off, so the settings file is the only place unset is visible
+  jq -e 'has("killswitch")' "${XDG_CONFIG_HOME:-$HOME/.config}/Proton/VPN/settings.json" &>/dev/null ||
+    protonvpn config set kill-switch standard >/dev/null 2>&1 || true
   # portmaster's connmark restore overwrites the wireguard fwmark, so tunnel packets would loop back into proton0
   systemctl stop portmaster.service
   local out
   out=$(protonvpn connect --country CH 2>&1) || true
   if grep -qi "Authentication required" <<<"$out"; then
-    notify-send -a Toggles -u critical "ProtonVPN" "Not signed in, run 'protonvpn signin' in a terminal first"
+    toggle_notify -a Toggles -u critical "ProtonVPN" "Not signed in, run 'protonvpn signin' in a terminal first"
   fi
   [[ "$(check)" == on ]] || portmaster_restore
 }

@@ -5,10 +5,11 @@ set -e
 
 # real files in /etc, tor runs as its own user and must not depend on /home
 sudo install -m 644 torrc /etc/tor/torrc
-# /usr/local and a drop-in, the packaged /usr/bin script and unit stay untouched
+# vendored from edu4rdshl/tor-router, the package is not installed so no upgrade can restore its fail-open unit
 sudo install -m 755 tor-router /usr/local/bin/tor-router
-# started by the toron/toroff aliases
-sudo install -Dm 644 tor-router-override.conf /etc/systemd/system/tor-router.service.d/override.conf
+# no Requires=tor.service, so a tor restart cannot tear the table down and let traffic out in the clear
+sudo install -m 644 tor-router.service /etc/systemd/system/tor-router.service
+sudo rm -rf /etc/systemd/system/tor-router.service.d
 
 # tor stays on-demand: toron/toroff start tor-router.service, no boot-time tor.service
 sudo systemctl daemon-reload

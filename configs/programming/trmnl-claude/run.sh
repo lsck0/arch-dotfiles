@@ -3,7 +3,7 @@
 # post this machine's claude code usage to the trmnl plugin
 set -euo pipefail
 DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-ENV_FILE="$DIR/$DOTFILES/secrets/trmnl-claude.env"
+ENV_FILE="$DOTFILES/secrets/trmnl-claude.env"
 
 [ -r "$ENV_FILE" ] || { echo "missing $ENV_FILE (TRMNL_PLUGIN_UUID=...)" >&2; exit 1; }
 # a timer gets a bare PATH

@@ -42,9 +42,10 @@ PY
 
 sudo plymouth-set-default-theme "$theme"
 
-# quiet splash drive plymouth; vt.global_cursor_default=0 stops the text cursor flashing on the vt during the plymouth-to-ly handoff
+# quiet splash drive plymouth; the cursor is hidden on ly's tty only, a global one would hide it on recovery ttys too
 if esp_supported; then
-    kernel_cmdline_set quiet splash vt.global_cursor_default=0
+    kernel_cmdline_set quiet splash
+    kernel_cmdline_unset vt.global_cursor_default
 fi
 
-# hooks, theme and cmdline reach the initramfs and grub.cfg at config.sh's boot barrier
+# hooks, theme and cmdline reach the uki at config.sh's boot barrier

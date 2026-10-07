@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source $DOTFILES/scripts/lib/personal.sh
+
 # no profile until first run; a headless run creates default-release
 if [[ ! -f "${HOME}/.config/mozilla/firefox/profiles.ini" ]]; then
     # timeout ends the run on purpose, the profile check below is the real result
@@ -12,12 +14,22 @@ fi
 
 set -e
 
-# new tab url is only settable from autoconfig in the install dir; files there survive firefox updates
-sudo install -m644 autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
-sudo install -m644 mozilla.cfg /usr/lib/firefox/mozilla.cfg
+# system-wide for every user, so only luca's run installs his start page and search engine
+if is_personal; then
+    # new tab url is only settable from autoconfig in the install dir; files there survive firefox updates
+    sudo install -m644 autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
+    sudo install -m644 mozilla.cfg /usr/lib/firefox/mozilla.cfg
 
-# default search engine: the enterprise policy is the only reliable path, /etc survives updates
-sudo install -Dm644 policies.json /etc/firefox/policies/policies.json
+    # default search engine: the enterprise policy is the only reliable path, /etc survives updates
+    sudo install -Dm644 policies.json /etc/firefox/policies/policies.json
+else
+    # an older run installed them before the guest gate; only exact copies of ours, never a foreign file
+    for pair in autoconfig.js:/usr/lib/firefox/defaults/pref/autoconfig.js mozilla.cfg:/usr/lib/firefox/mozilla.cfg policies.json:/etc/firefox/policies/policies.json; do
+        if cmp -s "${pair%%:*}" "${pair#*:}"; then
+            sudo rm -f "${pair#*:}"
+        fi
+    done
+fi
 
 # pywalfox looks in ~/.config/firefox
 ln -sfn "${HOME}/.config/mozilla/firefox" "${HOME}/.config/firefox"

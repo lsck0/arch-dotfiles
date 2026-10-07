@@ -13,20 +13,21 @@ mkdir -p "${HOME}/.claude"
 ln -sfn "${PWD}/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
 ln -sfn "${PWD}/RTK.md" "${HOME}/.claude/RTK.md"
 
-# caido's vibe-hacking mcp server, so claude can drive the proxy; only connects once enabled in caido
-if command -v caido >/dev/null 2>&1; then
-    claude mcp remove caido -s user >/dev/null 2>&1 || true
-    claude mcp add --transport http --scope user caido http://127.0.0.1:3333/mcp >/dev/null 2>&1 || true
+# awake only while an agent works: a turn in flight or a subagent running; waiting on the user releases it
+guard="$HOME/.config/idle-guards/agent-guard.sh"
+hook() { jq -n --arg c "$guard $1" '[{hooks: [{type: "command", command: $c}]}]'; }
+hooks='{}'
+if [ -x "$guard" ]; then
+    hooks=$(jq -n --argjson start "$(hook turn-start)" --argjson end "$(hook turn-end)" \
+        --argjson sub_start "$(hook subagent-start)" --argjson sub_stop "$(hook subagent-stop)" \
+        '{UserPromptSubmit: $start, Stop: $end, StopFailure: $end, SessionEnd: $end,
+          Notification: [{matcher: "idle_prompt|permission_prompt|agent_needs_input|elicitation_dialog", hooks: $end[0].hooks}],
+          SubagentStart: $sub_start, SubagentStop: $sub_stop}')
 fi
-
 tmp=$(mktemp)
-jq '. + {remoteControlAtStartup: true, model: "claude-opus-5-5", voice: {enabled: true, mode: "hold"}}
-   | .modelSettings["claude-opus-5-5"].effortLevel = "high"
-   | .hooks = ((.hooks // {}) + {
-       "UserPromptSubmit": [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh acquire"}]}],
-       "Stop":            [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh release"}]}],
-       "SessionEnd":      [{"hooks":[{"type":"command","command":"~/.config/hypr/claude-sleep-guard.sh release"}]}]
-     })' "$SETTINGS" > "$tmp"
+jq --argjson guard_hooks "$hooks" '. + {remoteControlAtStartup: true, model: "claude-opus-5-5", voice: {enabled: true, mode: "hold"}}
+   | .modelSettings["claude-opus-5-5"].effortLevel = "medium"
+   | .hooks = ((.hooks // {}) + $guard_hooks)' "$SETTINGS" > "$tmp"
 cat "$tmp" > "$SETTINGS"
 rm -f "$tmp"
 

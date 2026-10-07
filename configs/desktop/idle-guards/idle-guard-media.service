@@ -1,0 +1,11 @@
+[Unit]
+Description=Sleep inhibitor while media plays
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.config/idle-guards/media-guard.sh
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

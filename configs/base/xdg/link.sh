@@ -37,15 +37,21 @@ if command -v Hyprland >/dev/null 2>&1; then
     ln -sfn "${PWD}/hyprland-portals.conf" "${HOME}/.config/xdg-desktop-portal/hyprland-portals.conf"
 fi
 
-# gtk sidebar bookmarks, owned whole so stale entries do not linger
+# gtk sidebar bookmarks: add the managed ones, keep whatever the user added
+BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
 mkdir -p "${HOME}/.config/gtk-3.0"
-{
-    echo "file://${HOME}/projects Projects"
-    echo "file://${HOME}/sync Syncthing"
-    # homelab nas topology is luca-only, kept out of a guest's sidebar
-    is_personal && echo "file://${HOME}/nas NAS"
-    echo "file://${HOME}/vault Vault"
-} > "${HOME}/.config/gtk-3.0/bookmarks"
+touch "$BOOKMARKS"
+bookmarks=("file://${HOME}/projects Projects" "file://${HOME}/sync Syncthing")
+# homelab nas topology is luca-only, kept out of a guest's sidebar (and removed if a prior run added it)
+if is_personal; then
+    bookmarks+=("file://${HOME}/nas NAS")
+else
+    sed -i "\#^file://${HOME}/nas\( \|\$\)#d" "$BOOKMARKS"
+fi
+bookmarks+=("file://${HOME}/vault Vault")
+for bookmark in "${bookmarks[@]}"; do
+    cut -d' ' -f1 "$BOOKMARKS" | grep -qxF "${bookmark%% *}" || echo "$bookmark" >> "$BOOKMARKS"
+done
 
 PLACES="${HOME}/.local/share/user-places.xbel"
 mkdir -p "${HOME}/.local/share"
@@ -82,11 +88,11 @@ places += [
     ("remote:/", "Network", "folder-network", True),
     ("trash:/", "Trash", "user-trash", True),
 ]
-# the list above owns every file:// bookmark
-managed = {href for href, _, _, _ in places}
-for child in list(root):
-    if child.get("href", "").startswith("file://") and child.get("href") not in managed:
-        root.remove(child)
+# only a no longer wanted nas goes; other places are the user's
+if not personal:
+    for child in list(root):
+        if child.get("href") == home + "/nas":
+            root.remove(child)
 position = 0
 for href, title, icon, system in places:
     children = list(root)

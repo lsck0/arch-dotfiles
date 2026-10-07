@@ -22,8 +22,15 @@ systemctl --user daemon-reload
 [ -e "${conf}/eq.conf" ] || systemctl --user enable pipewire-chain@eq.service
 systemctl --user enable pipewire-chain@lanes.service
 for chain in lanes eq; do
-    ./chains.sh "${chain}" >"${conf}/${chain}.conf"
+    ./chains.sh "${chain}" >"${conf}/${chain}.conf.new"
+    if cmp -s "${conf}/${chain}.conf.new" "${conf}/${chain}.conf"; then
+        rm "${conf}/${chain}.conf.new"
+        action=start
+    else
+        mv "${conf}/${chain}.conf.new" "${conf}/${chain}.conf"
+        action=restart
+    fi
     if systemctl --user is-enabled -q "pipewire-chain@${chain}.service"; then
-        systemctl --user restart "pipewire-chain@${chain}.service"
+        systemctl --user "${action}" "pipewire-chain@${chain}.service"
     fi
 done

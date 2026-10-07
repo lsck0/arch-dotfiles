@@ -27,6 +27,9 @@ end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
 hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
+hl.bind(mod .. " + SHIFT + d", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " decrypt"))
+hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " encrypt"))
+hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " sign"))
 hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
     "grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"))
 hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
@@ -83,6 +86,11 @@ hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true })
 hl.bind("XF86KbdBrightnessDown", media_key("kbd-backlight-down"), { locked = true })
 hl.bind("XF86KbdLightOnOff", media_key("kbd-backlight-toggle"), { locked = true })
 hl.bind(mod .. " + SHIFT + b", media_key("kbd-backlight-toggle"), { locked = true })
+
+-- agent-guard can inhibit the lid switch, then closing the lid undocked would neither suspend nor lock
+hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(
+    "loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
+    .. " && loginctl show-session -p Docked --value | grep -qx no && loginctl lock-session"), { locked = true })
 
 local DIRECTIONS = {
     { keys = { "h", "Left" }, focus = "left", move = "l" },

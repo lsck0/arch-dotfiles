@@ -2,6 +2,7 @@
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
+    sudo rm -f /etc/sysctl.d/99-zram.conf
     exit 0
 fi
 

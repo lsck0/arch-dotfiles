@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# yubikey init [steps] (once per key, from unlocked secrets) | unlock (secrets by touch, config.sh runs it); always optional
+# yubikey init [steps] (once per key, from unlocked secrets) | seal (reseal after editing recipients.txt) | unlock (secrets by touch, config.sh runs it); always optional
 
 set -euo pipefail
 
@@ -7,8 +7,9 @@ set -euo pipefail
 REPO="$DOTFILES"
 KEY_DIR="$REPO/configs/base/yubikey"
 SECRETS="$REPO/secrets"
+source "$REPO/scripts/lib/secrets.sh"
+source "$REPO/scripts/lib/personal.sh"
 SEALED_KEY="$KEY_DIR/secrets.key.age"
-GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 PAM_ORIGIN=pam://lsck0
 SSH_APPLICATION=ssh:lsck0
 AGE_SLOT=1
@@ -20,10 +21,9 @@ step() { printf '\n== %s\n' "$*"; }
 
 present() { command -v ykman >/dev/null && ykman info >/dev/null 2>&1; }
 serial() { ykman info | awk -F': ' '/^Serial number/ {print $2}'; }
-secrets_plain() { grep -qs 'BEGIN PGP PRIVATE KEY' "$SECRETS/pgp_privatekey.asc"; }
 # git-crypt checks every secret out 0644; lock them all, leave only the public keys world-readable
 secrets_lock_0600() {
-    find "$SECRETS" -maxdepth 1 -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' \
+    find "$SECRETS" -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' \
         -exec chmod 600 {} + 2>/dev/null || true
 }
 recipient() { sed -n 's/^#[[:space:]]*Recipient: //p' "$1"; }
@@ -37,7 +37,7 @@ with_touch() {
     done
 }
 
-# every enrolled key's age recipient, so any of them opens the sealed git-crypt key
+# every enrolled key's age recipient plus recipients.txt, so any of them opens the sealed git-crypt key
 seal_secrets_key() {
     local key recipients=()
     key=$(mktemp)
@@ -46,6 +46,7 @@ seal_secrets_key() {
     for identity in "$KEY_DIR"/age-*.identity; do
         recipients+=(-r "$(recipient "$identity")")
     done
+    grep -qsv '^[[:space:]]*\(#\|$\)' "$KEY_DIR/recipients.txt" && recipients+=(-R "$KEY_DIR/recipients.txt")
     age -e "${recipients[@]}" -o "$SEALED_KEY" "$key"
 }
 
@@ -58,12 +59,12 @@ pgp_to_card() {
     printf 'disable-ccid\npcsc-shared\n' >"$home/scdaemon.conf"
     gpg --homedir "$home" --import "$SECRETS/pgp_privatekey.asc"
     echo "gpg prompt: keytocard -> 1 (signature), key 1, keytocard -> 2 (encryption), save"
-    gpg --homedir "$home" --edit-key "$GPG_FINGERPRINT"
+    gpg --homedir "$home" --edit-key "$PERSONAL_GPG_FINGERPRINT"
 }
 
 cmd_init() {
     present || die "no YubiKey detected"
-    secrets_plain || die "secrets are locked, unlock them first"
+    secret_is_plaintext "$SECRETS/pgp_privatekey.asc" || die "secrets are locked, unlock them first"
     local sn
     sn=$(serial)
     local steps=("$@")
@@ -84,13 +85,13 @@ init_pins() {
     ykman openpgp access change-admin-pin
 }
 
-card_has_pgp() { ykman openpgp info | tr -d ' ' | grep -q "Fingerprint:$GPG_FINGERPRINT"; }
+card_has_pgp() { ykman openpgp info | tr -d ' ' | grep -q "Fingerprint:$PERSONAL_GPG_FINGERPRINT"; }
 
 init_pgp() {
     step "the Luca Sandrock key onto the card"
     # gpg exits non-zero after a quit without save although keytocard already wrote the card
     card_has_pgp || pgp_to_card || true
-    card_has_pgp || die "the card does not hold $GPG_FINGERPRINT"
+    card_has_pgp || die "the card does not hold $PERSONAL_GPG_FINGERPRINT"
     ykman openpgp keys set-touch sig on
     ykman openpgp keys set-touch dec on
 }
@@ -144,7 +145,7 @@ cmd_unlock() {
     fi
     if ! present; then
         # no yubikey: the pgp key (git-crypt's gpg user) can still unlock an already-pulled secrets worktree
-        if [[ -e "$SECRETS/.git" ]] && ! secrets_plain; then
+        if [[ -e "$SECRETS/.git" ]] && ! secret_is_plaintext "$SECRETS/pgp_privatekey.asc"; then
             git -C "$SECRETS" crypt unlock && secrets_lock_0600 \
                 || echo "yubikey: no key present and pgp git-crypt unlock failed"
         else
@@ -175,7 +176,7 @@ cmd_unlock() {
         [[ -e "$SECRETS/.git" ]] || return 0
     fi
 
-    if ! secrets_plain; then
+    if ! secret_is_plaintext "$SECRETS/pgp_privatekey.asc"; then
         echo ">>> touch the YubiKey to unlock the secrets"
         local key
         key=$(mktemp)
@@ -191,6 +192,7 @@ cmd_unlock() {
 
 case "${1:-}" in
     init) shift; cmd_init "$@" ;;
+    seal) seal_secrets_key ;;
     unlock) cmd_unlock ;;
-    *) die "usage: yubikey init [pins|pgp|ssh|u2f|age ...] | unlock" ;;
+    *) die "usage: yubikey init [pins|pgp|ssh|u2f|age ...] | seal | unlock" ;;
 esac

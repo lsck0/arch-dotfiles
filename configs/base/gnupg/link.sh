@@ -17,15 +17,20 @@ for conf in gpg-agent.conf scdaemon.conf; do
     ln -sfn "${PWD}/${conf}" "${target}"
 done
 
+# rendered, not linked: luca's key is the default for every sign and encrypt-to-self, a guest has none
+gpg_conf="${gnupgdir}/gpg.conf"
+rm -f "$gpg_conf"
+cp gpg.conf "$gpg_conf"
+is_personal && echo "default-key ${PERSONAL_GPG_FINGERPRINT}" >>"$gpg_conf"
+
 # reload keeps cached keys; scdaemon reads its config only at start
 gpgconf --reload gpg-agent
 gpgconf --kill scdaemon
 
 # Luca Sandrock key: public half always, the private file from unlocked secrets, card stubs if a YubiKey holds it
 if is_personal; then
-    GPG_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
     gpg --batch --import luca-sandrock.pub.asc
-    echo "${GPG_FINGERPRINT}:6:" | gpg --import-ownertrust
+    echo "${PERSONAL_GPG_FINGERPRINT}:6:" | gpg --import-ownertrust
     if grep -qs 'BEGIN PGP PRIVATE KEY' $DOTFILES/secrets/pgp_privatekey.asc; then
         gpg --batch --import $DOTFILES/secrets/pgp_privatekey.asc
     fi

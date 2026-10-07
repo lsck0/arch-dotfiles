@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # 3-state firewall: default (fw-inbound + portmaster), restrictive (fw-lockdown + portmaster), off (neither).
-# State is read back from the units, so a reboot, config.sh or a failed unit is reported as it is.
+# Boot and every network down rest in restrictive, a home up lifts that to default; a state picked here survives home.
+# State is read back from the units, so the dispatcher, config.sh or a failed unit is reported as it is.
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 source ./lib.sh
 
 STATES=(default restrictive off)
 LABELS=("Default" "Restrictive" "Off")
+# set by every fw-lockdown start; the persona dispatcher lifts only a lockdown that still has it
+PERSONA_LOCKDOWN=/run/persona-lockdown
 
 current() {
     if systemctl is-active --quiet fw-lockdown.service; then
@@ -39,6 +42,7 @@ apply() {
             sudo systemctl stop fw-inbound.service fw-lockdown.service portmaster.service
             ;;
     esac
+    sudo rm -f "$PERSONA_LOCKDOWN"
     toggle_notify -a Toggles "Firewall" "${LABELS[$(toggle_index_of "$(current)" 0 "${STATES[@]}")]}"
 }
 

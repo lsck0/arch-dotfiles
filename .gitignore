@@ -3,6 +3,5 @@
 *.hc
 FAILURES*
 __pycache__
-configs/obs/Untitled.json
-configs/plasma/*.lock
+configs/desktop/plasma/*.lock
 platforms/local.sh

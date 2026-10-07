@@ -160,9 +160,9 @@ export DIRENV_HISTFILE=$identity_dir/zsh_history
 [[ -e $DIRENV_HISTFILE ]] || install -m 600 /dev/null "$DIRENV_HISTFILE"
 
 # nvim shada, undo and swap files
-export XDG_STATE_HOME=$identity_dir/state
-home_links_set "$personal_state_dir" "$XDG_STATE_HOME" "${STATE_SHARED_ITEMS[@]}"
-export PYTHON_HISTORY=$XDG_STATE_HOME/python_history
+bin_wrapper_create nvim "XDG_STATE_HOME=$(printf %q "$identity_dir/state") exec \"\$real\" \"\$@\""
+home_links_set "$personal_state_dir" "$identity_dir/state" "${STATE_SHARED_ITEMS[@]}"
+export PYTHON_HISTORY=$identity_dir/state/python_history
 
 # the rtk recall store keeps full command output and ignores RTK_DB_PATH
 export RTK_DB_PATH=$identity_dir/rtk/history.db RTK_RECALL=0 RTK_TEE=0

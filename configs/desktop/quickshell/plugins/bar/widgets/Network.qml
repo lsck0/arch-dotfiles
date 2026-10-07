@@ -236,9 +236,11 @@ BarWidget {
   }
 
   // vpn, tor, bluetooth and firewall live outside networkmanager
+  readonly property var networkToggles: ["toggle-vpn.sh", "toggle-protonvpn.sh", "toggle-tor.sh", "toggle-anonymous-socks.sh", "toggle-bluetooth.sh",
+    "toggle-wifi.sh", "toggle-ethernet.sh", "toggle-mobile.sh", "toggle-offline.sh", "toggle-firewall.sh"]
   Connections {
     target: ToggleEvents
-    function onChanged() { nmDebounce.restart() }
+    function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
   }
 
   // live throughput for the open panel's sparklines

@@ -58,7 +58,8 @@ fprint_ok() { has_fprint && [ -e "$FPRINT_MODULE" ]; }
 if u2f_ok; then pam_auth_install /etc/pam.d/sudo "$U2F_LINE" pam_u2f.so; fi
 if fprint_ok; then
     pam_auth_install /etc/pam.d/sudo "$FPRINT_LINE" pam_fprintd.so
-elif grep -qE 'pam_fprintd\.so' /etc/pam.d/sudo; then
+# shared file: a guest without enrolled fingerprints must not strip luca's
+elif is_personal && grep -qE 'pam_fprintd\.so' /etc/pam.d/sudo; then
     sudo sed -i -E '/^auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so/d' /etc/pam.d/sudo
 fi
 

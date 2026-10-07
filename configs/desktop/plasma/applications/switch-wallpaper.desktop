@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Switch Wallpaper
+Comment=Pick a wallpaper and re-theme with wal
+Exec=sh -c 'exec ghostty -e "$HOME/.local/bin/switch-wallpaper"'
+Icon=preferences-desktop-wallpaper
+Terminal=false
+NoDisplay=true

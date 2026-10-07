@@ -11,11 +11,10 @@ PORT="${ANONYMOUS_SOCKS_PORT:-9061}"
 RATE="${ANONYMOUS_SOCKS_RATE:-0}"                 # max new SOCKS connections/sec, 0 = uncapped
 TOR_BIN="${ANONYMOUS_SOCKS_TOR_BIN:-tor}"
 DATADIR="${ANONYMOUS_SOCKS_TOR_DATADIR:-${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks-tor}"
-PIDFILE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks.pid"
+# tor runs as its own user unit, so its cgroup scopes the persona to exactly the proxied traffic
+TOR_UNIT="anonymous-socks-tor.service"
 # exists only after up verified every port exits through Tor
 VERIFIED="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/anonymous-socks.verified"
-# who applied the idspoof persona: socks or persona; the networkmanager dispatcher stands down when socks owns it
-IDSPOOF_OWNER="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/idspoof-owner"
 
 # circuit pool: one Tor daemon, POOL_SIZE SocksPorts each in its own SessionGroup so circuits never overlap
 POOL_SIZE="${ANONYMOUS_SOCKS_POOL_SIZE:-10}"
@@ -35,11 +34,9 @@ PC_CONNECT_TIMEOUT_MS=8000
 # pool ports, low to high; PORT is the base and index 0
 pool_ports() { local i; for ((i = 0; i < POOL_SIZE; i++)); do echo $((PORT + i)); done; }
 
-# adaptive idspoof persona scoped by destination: external gets TTL/MSS/sysctl only (its NFQUEUE reorder mangles Tor guard SYNs), internal nets get the full persona incl the reorder (LAN fingerprints at the wire)
-PERSONA="${ANONYMOUS_SOCKS_PERSONA:-1}"              # adaptive persona with the tunnel; 0 = disable
-PERSONA_OS="${ANONYMOUS_SOCKS_PERSONA_OS:-windows}"  # idspoof persona: windows, macos, ios, linux, android
-PERSONA_NFQUEUE_NUM=42                               # idspoof's option-reorder queue (its IDSPOOF_NETEMU rule)
-PERSONA_INTERNAL_NETS="10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16"
+# os persona on tor's own packets only: the wire to the guards looks like PERSONA_OS, nothing else on the machine changes
+PERSONA="${ANONYMOUS_SOCKS_PERSONA:-1}"              # 0 = disable
+PERSONA_OS="${ANONYMOUS_SOCKS_PERSONA_OS:-windows}"  # windows, macos, ios, linux, android
 
 # Tor Project's exit check; verifying against it proves traffic left via a Tor exit (exit IP rotates per circuit)
 TOR_CHECK_URL="${ANONYMOUS_SOCKS_TOR_CHECK_URL:-https://check.torproject.org/api/ip}"
@@ -52,10 +49,9 @@ err() { echo "anonymous-socks: $*" >&2; }
 
 # Up only when every pool port is listening, so a half-started daemon reads down.
 is_up() {
-    local p
-    for p in $(pool_ports); do
-        ss -tlnH "sport = :$p" 2>/dev/null | grep -q . || return 1
-    done
+    local p l
+    l=$(ss -tlnH 2>/dev/null) || return 1
+    for p in $(pool_ports); do [[ $l == *":$p "* ]] || return 1; done
 }
 
 # refuse to start if tor is missing, naming the install command, rather than half-starting
@@ -84,46 +80,72 @@ NFT
 }
 rate_off() { sudo nft delete table inet anonymous_socks 2>/dev/null || true; }
 
-# persona with the NFQUEUE reorder scoped to internal nets, so Tor guard SYNs survive
-persona_on() {
-    [ "$PERSONA" = 1 ] || return 0
-    command -v idspoof >/dev/null || {
-        err "idspoof not found, persona off (mirror/pkgbuilds/idspoof)"
-        return 0
-    }
-    sudo idspoof apply --netident --persona "$PERSONA_OS" -q || {
-        err "idspoof apply failed, persona not active"
-        return 0
-    }
-    echo socks >"$IDSPOOF_OWNER"
-    persona_scope_nfqueue || {
-        err "could not scope NFQUEUE to internal, dropping the reorder to keep the pool alive"
-        persona_drop_nfqueue
+# proxychains' LD_PRELOAD misses static binaries, raw sockets and udp, so anything in the slice may only talk to lo
+egress_on() {
+    local slice="user.slice/user-$UID.slice/user@$UID.service/anonsocks.slice"
+    systemctl --user start anonsocks.slice || return 1
+    sudo nft -f - <<NFT
+table inet anonymous_socks {
+    chain egress {
+        type filter hook output priority 0; policy accept;
+        socket cgroupv2 level 4 "$slice" oif != "lo" reject
+        # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
+        socket cgroupv2 level 4 "$slice" ct status dnat reject
     }
 }
+NFT
+}
 
-# replace idspoof's blanket mangle/IDSPOOF_NETEMU reorder with one copy per internal net; nonzero if its rule is gone
-persona_scope_nfqueue() {
-    local q=(-p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j NFQUEUE --queue-num "$PERSONA_NFQUEUE_NUM")
-    sudo iptables -t mangle -C IDSPOOF_NETEMU "${q[@]}" 2>/dev/null || return 1
-    sudo iptables -t mangle -D IDSPOOF_NETEMU "${q[@]}"
-    local net
-    for net in $PERSONA_INTERNAL_NETS; do
-        sudo iptables -t mangle -A IDSPOOF_NETEMU -d "$net" "${q[@]}"
+persona_ttl() {
+    case "$PERSONA_OS" in
+        windows) echo 128 ;;
+        macos | ios | linux | android) echo 64 ;;
+        *) return 1 ;;
+    esac
+}
+
+PERSONA_CHAIN=ANONSOCKS_PERSONA
+
+# the jump from POSTROUTING into the persona chain, for one iptables binary; $1 iptables|ip6tables, $2 -A|-D
+persona_jump() { sudo "$1" -t mangle "$2" POSTROUTING -m cgroup --path "$PERSONA_CGROUP" -j "$PERSONA_CHAIN"; }
+
+# ttl/hop limit set only on packets whose socket lives in tor's cgroup; the xt targets idspoof used, own chain
+persona_on() {
+    [ "$PERSONA" = 1 ] || return 0
+    local ttl ipt
+    ttl=$(persona_ttl) || {
+        err "unknown persona '$PERSONA_OS', persona off"
+        return 0
+    }
+    PERSONA_CGROUP=$(systemctl --user show --property=ControlGroup --value "$TOR_UNIT")
+    PERSONA_CGROUP="${PERSONA_CGROUP#/}"
+    [ -n "$PERSONA_CGROUP" ] || {
+        err "no cgroup for $TOR_UNIT, persona off"
+        return 0
+    }
+    persona_off
+    for ipt in iptables ip6tables; do
+        sudo "$ipt" -t mangle -N "$PERSONA_CHAIN" 2>/dev/null || sudo "$ipt" -t mangle -F "$PERSONA_CHAIN"
+        if [ "$ipt" = iptables ]; then
+            sudo iptables -t mangle -A "$PERSONA_CHAIN" -j TTL --ttl-set "$ttl"
+        else
+            sudo ip6tables -t mangle -A "$PERSONA_CHAIN" -j HL --hl-set "$ttl"
+        fi
+        persona_jump "$ipt" -A || err "$ipt persona jump failed, tor runs without it"
     done
 }
 
-# Fallback: strip the blanket reorder entirely so it cannot break the pool.
-persona_drop_nfqueue() {
-    sudo iptables -t mangle -D IDSPOOF_NETEMU \
-        -p tcp -m tcp --tcp-flags SYN,RST,ACK SYN -j NFQUEUE --queue-num "$PERSONA_NFQUEUE_NUM" 2>/dev/null || true
-}
-
-# only undo a persona this script applied
+# the cgroup is gone once tor stops, so the jump is found by chain name rather than by its match
 persona_off() {
-    [ "$(cat "$IDSPOOF_OWNER" 2>/dev/null)" = socks ] || return 0
-    command -v idspoof >/dev/null && { sudo idspoof restore --netident -q 2>/dev/null || true; }
-    rm -f "$IDSPOOF_OWNER"
+    local ipt rule
+    for ipt in iptables ip6tables; do
+        sudo "$ipt" -t mangle -S POSTROUTING 2>/dev/null | { grep -F -- "-j $PERSONA_CHAIN" || true; } | while read -r rule; do
+            # shellcheck disable=SC2086
+            sudo "$ipt" -t mangle ${rule/-A/-D}
+        done
+        sudo "$ipt" -t mangle -F "$PERSONA_CHAIN" 2>/dev/null || true
+        sudo "$ipt" -t mangle -X "$PERSONA_CHAIN" 2>/dev/null || true
+    done
 }
 
 # verify one pool port reachable AND leaving via a Tor exit; nonzero on any doubt so a gating caller fails closed
@@ -206,13 +228,12 @@ up() {
         err "already up"
         return 0
     fi
-    local owner
-    owner=$(cat "$IDSPOOF_OWNER" 2>/dev/null || true)
-    if [ "$owner" = persona ]; then
-        err "global network persona is on and breaks Tor circuits; turn it off first"
-        exit 1
-    fi
     rm -f "$VERIFIED"
+    egress_on || {
+        err "egress guard failed, not starting"
+        down
+        exit 1
+    }
     mkdir -p "$DATADIR"
     chmod 700 "$DATADIR"
     # one SocksPort per slot, each its own SessionGroup plus Isolate* flags: independent per-destination circuits
@@ -222,17 +243,17 @@ up() {
         i=$((i + 1))
     done
     # never read /etc/tor/torrc: its User directive would force a root start and break this unprivileged instance
-    "$TOR_BIN" \
+    systemd-run --user --quiet --collect --unit="$TOR_UNIT" \
+        "$(command -v "$TOR_BIN")" \
         -f "$DATADIR/torrc" --ignore-missing-torrc \
         --defaults-torrc "$DATADIR/torrc-defaults" --ignore-missing-torrc \
-        --RunAsDaemon 1 \
+        --RunAsDaemon 0 \
         "${socks_args[@]}" \
         --ControlPort "127.0.0.1:$CTRL_PORT" \
         --CookieAuthentication 1 \
         --MaxCircuitDirtiness "$MAX_DIRTINESS_S" \
         --DataDirectory "$DATADIR" \
-        --PidFile "$PIDFILE" \
-        --Log "notice stderr" >/dev/null
+        --Log "notice stderr"
     rate_on
     persona_on
     # wall-clock deadline: one check pass can take up to curl's 15s
@@ -251,18 +272,16 @@ up() {
 }
 
 down() {
+    # kills what still runs in the slice before the guard goes, so nothing continues unguarded
+    systemctl --user stop anonsocks.slice 2>/dev/null || true
     rate_off
     persona_off
     rm -f "$PC_CONF" "$VERIFIED"
-    if [ -r "$PIDFILE" ]; then
-        kill "$(cat "$PIDFILE")" 2>/dev/null || true
-        rm -f "$PIDFILE"
-    fi
-    pkill -f "$TOR_BIN .* --SocksPort 127.0.0.1:$PORT" 2>/dev/null || true
+    systemctl --user stop "$TOR_UNIT" 2>/dev/null || true
 }
 
 # no Tor round trip: that took 24s and blocked the toggle menu
-status() { if is_up && [ -e "$VERIFIED" ]; then echo on; else echo off; fi; }
+status() { if [ -e "$VERIFIED" ] && is_up; then echo on; else echo off; fi; }
 
 case "${1:-status}" in
     up) up ;;

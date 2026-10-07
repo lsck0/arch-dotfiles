@@ -44,11 +44,15 @@ for entry in "${LUKS_PARTS[@]}"; do
     if [[ -n "$ROOT_BACKING" && "$part" == "$ROOT_BACKING" ]]; then
         continue
     fi
+    # usb sticks and external drives come and go, they get no permanent entry
+    disk=$(lsblk -dno PKNAME "/dev/$part")
+    [[ "$(lsblk -dno RM,HOTPLUG "/dev/$disk" | tr -d ' ')" == 00 ]] || continue
     name="luks-${uuid}"
     if sudo grep -qE "^${name}\s" "$CRYPTTAB"; then
         continue
     fi
-    printf '%s\tUUID=%s\tnone\tluks,discard,perf-no-read-workqueue,perf-no-write-workqueue\n' \
+    # nofail: a missing or locked data volume must not hold up the boot
+    printf '%s\tUUID=%s\tnone\tluks,nofail,discard,perf-no-read-workqueue,perf-no-write-workqueue\n' \
         "$name" "$uuid" | sudo tee -a "$CRYPTTAB" >/dev/null
     added=$(( added + 1 ))
 done

@@ -11,9 +11,13 @@ sudo systemctl enable sshd.service
 mkdir -p "${HOME}/.config/systemd/user"
 
 ln -sfn "${PWD}/ssh-agent.service" "${HOME}/.config/systemd/user/ssh-agent.service"
-ln -sfn "${PWD}/ssh-add.service" "${HOME}/.config/systemd/user/ssh-add.service"
+is_personal && ln -sfn "${PWD}/ssh-add.service" "${HOME}/.config/systemd/user/ssh-add.service"
 systemctl --user daemon-reload
-systemctl --user enable ssh-add.service
+if is_personal; then
+    systemctl --user enable ssh-add.service
+else
+    systemctl --user disable ssh-add.service 2>/dev/null || true
+fi
 
 mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
 ln -sfn "${PWD}/config" "${HOME}/.ssh/config"

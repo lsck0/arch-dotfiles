@@ -1,6 +1,4 @@
 add_newline = true
-command_timeout = 3000
-scan_timeout = 500
 
 format = """
 $directory${custom.worktree}$git_branch$git_status$rust$python$nodejs$golang$lua$nix_shell$cmd_duration$jobs$status

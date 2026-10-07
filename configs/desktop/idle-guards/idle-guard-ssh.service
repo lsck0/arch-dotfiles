@@ -1,0 +1,11 @@
+[Unit]
+Description=Sleep inhibitor while an ssh session is in
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=%h/.config/idle-guards/ssh-guard.sh
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

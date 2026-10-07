@@ -255,36 +255,34 @@ def handle_command(session, line):
 def run_session(conf):
     ws = connect(conf)
     session = Session(ws)
-    # short timeout so events and polling share one thread
-    ws.settimeout(0.25)
+    ws.settimeout(6)
 
     last_poll = 0.0
     active = False
     try:
         while True:
             interval = POLL_ACTIVE if active else POLL_IDLE
-            now = time.monotonic()
-            if now - last_poll >= interval:
-                ws.settimeout(6)
+            if time.monotonic() - last_poll >= interval:
                 state = snapshot(session)
-                ws.settimeout(0.25)
                 active = state["streaming"] or state["recording"]
                 emit(state)
                 last_poll = time.monotonic()
 
-            # commands first so a click does not wait out the socket timeout
-            while select.select([sys.stdin], [], [], 0)[0]:
+            wait = max(0.0, interval - (time.monotonic() - last_poll))
+            readable = select.select([sys.stdin, ws.sock], [], [], wait)[0]
+
+            if sys.stdin in readable:
                 line = sys.stdin.readline()
                 if not line:
                     # stdin closed, the widget is gone
                     sys.exit(0)
-                ws.settimeout(6)
-                try:
-                    if handle_command(session, line):
-                        last_poll = 0.0
-                finally:
-                    ws.settimeout(0.25)
+                if handle_command(session, line):
+                    last_poll = 0.0
+                # the request may have drained the socket, select again
+                continue
 
+            if ws.sock not in readable:
+                continue
             try:
                 msg = json.loads(ws.recv())
             except websocket.WebSocketTimeoutException:

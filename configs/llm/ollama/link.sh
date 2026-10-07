@@ -10,5 +10,4 @@ sudo systemctl daemon-reload
 if systemctl is-active --quiet ollama; then sudo systemctl restart ollama; fi
 
 # models are pulled lazily on first use, never here: keeps config.sh off the GB download path
-chmod 755 "${PWD}/ollama-ensure-models.sh"
 ln -sfn "${PWD}/ollama-ensure-models.sh" "${HOME}/.local/bin/ollama-ensure-models"

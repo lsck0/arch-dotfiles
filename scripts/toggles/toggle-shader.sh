@@ -117,18 +117,23 @@ load() {
     hyprctl eval "hl.config({ decoration = { screen_shader = [[${shader}]] } })" >/dev/null
 }
 
+load_entry() {
+    local entry=$1 damage=$DAMAGE_FULL
+    shader_flag "${entry%%:*}" animated && damage=$DAMAGE_NONE
+    load "$damage" "$(render "$entry")"
+}
+
+# a config reload drops the shader, so `reapply` restores this; keyed to the compositor instance so a new session never inherits it
 apply() {
     local entry=$1
     if [[ "$entry" == off ]]; then
         load "$DAMAGE_FULL" ""
-        toggle_set shader off
+        toggle_set_volatile shader off
         toggle_notify -a Toggles "Shader" "Off"
         return
     fi
-    local damage=$DAMAGE_FULL
-    shader_flag "${entry%%:*}" animated && damage=$DAMAGE_NONE
-    load "$damage" "$(render "$entry")"
-    toggle_set shader "$entry"
+    load_entry "$entry"
+    toggle_set_volatile shader "${HYPRLAND_INSTANCE_SIGNATURE:-} $entry"
     toggle_set shader-last "$entry"
     toggle_notify -a Toggles "Shader" "$(label_of "$entry")"
 }
@@ -164,6 +169,14 @@ label)
 off)
     apply off
     ;;
+reapply)
+    read -r instance entry <<<"$(toggle_get_volatile shader)"
+    # power saver clears the shader on purpose
+    if [[ "$instance" == "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -n "${entry:-}" && "$(toggle_get_volatile powersaver)" != on ]] \
+        && entry=$(entry_parse "$entry"); then
+        load_entry "$entry"
+    fi
+    ;;
 toggle)
     # on goes off, off brings back the last shader used
     if [[ "$(current)" != off ]]; then
@@ -182,7 +195,7 @@ set)
     if entry=$(entry_parse "$action" 2>/dev/null); then
         apply "$entry"
     else
-        echo "usage: $(basename "$0") {get|list|status|label|toggle|off|set <shader>|<shader>}" >&2
+        echo "usage: $(basename "$0") {get|list|status|label|toggle|off|reapply|set <shader>|<shader>}" >&2
         exit 1
     fi
     ;;

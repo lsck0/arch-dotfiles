@@ -10,3 +10,9 @@
 ```bash
 curl -fsSL https://install-{pc, notebook, wsl}.lsck0.dev | sh
 ```
+
+Anyone else, from the Arch ISO (or a fresh WSL Arch root shell):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash
+```

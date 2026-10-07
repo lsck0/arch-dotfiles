@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
+source $DOTFILES/scripts/lib/secrets.sh
+
 set -e
 
 mkdir -p "${HOME}/.config/obs-studio/basic/scenes/"
 mkdir -p "${HOME}/.config/obs-studio/basic/profiles/Untitled/"
 
-# scenes carry stream tokens, so they live in secrets
-ln -sfn "$(readlink -f $DOTFILES/secrets/obs-Untitled.json)" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
+# scenes and the stream service carry stream tokens, so they live in secrets
+SCENE_SECRET="$(readlink -f $DOTFILES/secrets/obs-Untitled.json)"
+if secret_is_plaintext "${SCENE_SECRET}"; then
+	ln -sfn "${SCENE_SECRET}" "${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
+	touch "${HOME}/.config/obs-studio/basic/scenes/.from-secrets"
+fi
+secret_is_plaintext "$DOTFILES/secrets/obs-service.json" && ln -sfn "$(readlink -f $DOTFILES/secrets/obs-service.json)" "${HOME}/.config/obs-studio/basic/profiles/Untitled/service.json"
 ln -sfn "${PWD}/basic.ini" "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini"
 ln -sfn "${PWD}/streamEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json"
 ln -sfn "${PWD}/recordEncoder.json" "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json"
@@ -48,5 +55,4 @@ if [ -f "${OBS_DESKTOP_SRC}" ]; then
 	mkdir -p "$(dirname "${OBS_DESKTOP_DEST}")"
 	cp "${OBS_DESKTOP_SRC}" "${OBS_DESKTOP_DEST}"
 	sed -i "s|^Exec=obs.*|Exec=obs ${OBS_FLAGS}|" "${OBS_DESKTOP_DEST}"
-	update-desktop-database "${HOME}/.local/share/applications"
 fi

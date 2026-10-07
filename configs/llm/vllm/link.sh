@@ -21,25 +21,27 @@ VLLM_OMNI_VERSION=0.30.0
 # rocm wheels are cp312 only
 VLLM_PYTHON_VERSION=3.12
 
-sudo env UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
+sudo install -d -o "$USER" -g "$USER" "$VLLM_PREFIX"
+# venvs built as root before
+[[ ! -e "${VLLM_PREFIX}/venv" || -O "${VLLM_PREFIX}/venv" ]] || sudo chown -R "$USER:$USER" "$VLLM_PREFIX"
+UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
     uv venv --allow-existing --python "$VLLM_PYTHON_VERSION" "${VLLM_PREFIX}/venv"
 # mooncake's bundled glog clashes with system glog and aborts the import
-sudo env UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
+UV_PYTHON_INSTALL_DIR="${VLLM_PREFIX}/python" \
     uv pip install --python "${VLLM_PREFIX}/venv" --extra-index-url "$VLLM_WHEELS_URL" \
     --excludes "${PWD}/uv-excludes.txt" "vllm==${VLLM_VERSION}" "vllm-omni==${VLLM_OMNI_VERSION}"
-sudo uv pip uninstall --python "${VLLM_PREFIX}/venv" -r "${PWD}/uv-excludes.txt"
+uv pip uninstall --python "${VLLM_PREFIX}/venv" -r "${PWD}/uv-excludes.txt"
 
 # torch RUNPATH is $ORIGIN, so the stub is found beside libtorch
 torch_lib_dir="$("${VLLM_PREFIX}/venv/bin/python" -c 'import sysconfig; print(sysconfig.get_path("platlib"))')/torch/lib"
 stub_build_dir="$(mktemp -d)"
 cc -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libmpi_cxx.so.40 \
     -o "${stub_build_dir}/libmpi_cxx.so.40" "${PWD}/mpi-cxx-stub.c"
-sudo install -m 755 "${stub_build_dir}/libmpi_cxx.so.40" "${torch_lib_dir}/libmpi_cxx.so.40"
+install -m 755 "${stub_build_dir}/libmpi_cxx.so.40" "${torch_lib_dir}/libmpi_cxx.so.40"
 rm -rf "$stub_build_dir"
 
-chmod 755 "${PWD}/vllm-wait-ready.sh"
-
-sed "s|@HOME@|$HOME|" "${PWD}/vllm-proxy.service" | sudo tee /etc/systemd/system/vllm-proxy.service >/dev/null
+sudo install -Dm755 "${PWD}/vllm-wait-ready.sh" /usr/local/bin/vllm-wait-ready
+sudo install -Dm644 "${PWD}/vllm-proxy.service" /etc/systemd/system/vllm-proxy.service
 sudo cp "${PWD}/vllm.service" /etc/systemd/system/vllm.service
 sudo cp "${PWD}/vllm.socket" /etc/systemd/system/vllm.socket
 

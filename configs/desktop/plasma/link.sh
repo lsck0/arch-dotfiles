@@ -4,6 +4,7 @@ cd "$(dirname "$(readlink -f "$0")")" || exit 1
 set -e
 
 source $DOTFILES/scripts/lib/fetch.sh
+source $DOTFILES/scripts/lib/personal.sh
 
 FILES="
     baloofilerc
@@ -15,6 +16,7 @@ FILES="
     kded6rc
     kdeglobals
     kglobalshortcutsrc
+    kscreenlockerrc
     ksplashrc
     kwalletrc
     kwinoutputconfig.json
@@ -24,6 +26,7 @@ FILES="
     plasma-org.kde.plasma.desktop-appletsrc
     plasmarc
     plasmashellrc
+    powerdevilrc
 "
 
 DIRS="
@@ -36,12 +39,19 @@ mkdir -p "${HOME}/.config" "${HOME}/.local/share/color-schemes" "${HOME}/.local/
 
 ln -sfn "${PWD}/color-schemes/pywal.colors" "${HOME}/.local/share/color-schemes/pywal.colors"
 
+mkdir -p "${HOME}/.local/share/applications"
+for app in "${PWD}"/applications/*.desktop; do
+    ln -sfn "${app}" "${HOME}/.local/share/applications/${app##*/}"
+done
+
 # dolphin global view properties
 ln -sfn "${PWD}/dolphin/view_properties/global/.directory" "${HOME}/.local/share/dolphin/view_properties/global/.directory"
 # dolphin panels: places and information, no folders tree or terminal (kiosk-disabled in dolphinrc); only the dock layout key, since dolphin rewrites the rest of this file (per-screen window geometry) on every close
 kwriteconfig6 --file "${HOME}/.local/state/dolphinstaterc" --group State --key State "$(cat "${PWD}/dolphin/dock-state")"
 
 for f in ${FILES}; do
+    # a guest's formats follow the locale bootstrap.sh set, not luca's en_US
+    [[ "${f}" == plasma-localerc ]] && ! is_personal && continue
     ln -sfn "${PWD}/${f}" "${HOME}/.config/${f}"
 done
 
