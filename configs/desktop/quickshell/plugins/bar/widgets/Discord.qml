@@ -97,16 +97,16 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
     id: trigger
     anchors.centerIn: parent
     // rings sit outside each chip
-    spacing: Style.spacing.lg
+    spacing: Style.spacing.sm
 
     Repeater {
       // not sliced: a new array rebuilds every avatar
@@ -125,7 +125,7 @@ BarWidget {
           modelData.selfDeaf || modelData.deaf || modelData.selfMute || modelData.mute
 
         scale: modelData.speaking ? 1.14 : 1.0
-        Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutQuad } }
+        Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
         Rectangle {
           anchors.centerIn: parent
@@ -138,7 +138,7 @@ BarWidget {
           border.color: modelData.speaking && !parent.silenced
             ? Color.semantic.speaking
             : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
-          Behavior on border.color { ColorAnimation { duration: 140 } }
+          Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
           layer.effect: Glow { shadowColor: Color.semantic.speaking }
         }
@@ -162,7 +162,7 @@ BarWidget {
             mipmap: true
             visible: status === Image.Ready
             opacity: chip.silenced ? Style.emphasis.faint : 1
-            Behavior on opacity { NumberAnimation { duration: 140 } }
+            Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           }
 
           Text {
@@ -189,7 +189,7 @@ BarWidget {
           height: width
           radius: width / 2
           antialiasing: true
-          color: root.bar ? root.bar.background : Color.menu.background
+          color: Color.background
           border.width: root.ringWidth
           border.color: Util.alpha(Color.urgent, 0.55)
 
@@ -236,40 +236,18 @@ BarWidget {
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.md
+      spacing: Style.spacing.sm
 
       Item {
         width: parent.width
         implicitHeight: Math.max(voiceHero.implicitHeight, voiceMeta.implicitHeight)
         height: implicitHeight
-        Row {
+        Hero {
           id: voiceHero
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xs
-          Text {
-            id: heroNum
-            anchors.bottom: parent.bottom
-            text: root.participants.length
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Math.round(Style.font.display * 1.7)
-            font.bold: true
-            font.letterSpacing: Style.displayTracking
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow {}
-          }
-          Text {
-            anchors.bottom: heroNum.bottom
-            anchors.bottomMargin: Math.round(Style.font.body * 0.3)
-            text: "IN CALL"
-            color: Color.accent
-            opacity: Style.emphasis.dim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking
-          }
+          value: String(root.participants.length)
+          unit: "in call"
         }
         Column {
           id: voiceMeta
@@ -307,72 +285,32 @@ BarWidget {
 
       Row {
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.xs
 
-        component Action: Rectangle {
-          id: action
-          property string glyph: ""
-          property string label: ""
-          property bool on: false
-          signal activated()
-          height: Style.row.control
-          radius: Style.cornerRadius
-          color: on
-            ? Util.alpha(Color.urgent, actionMouse.containsMouse ? 0.30 : 0.20)
-            : (actionMouse.containsMouse ? Style.hoverFill : Style.normalFill)
-          Behavior on color { ColorAnimation { duration: 100 } }
-
-          Row {
-            anchors.centerIn: parent
-            spacing: Style.spacing.xs
-            // OpticalGlyph centres icon and body fonts
-            OpticalGlyph {
-              anchors.verticalCenter: parent.verticalCenter
-              width: Style.font.caption
-              height: Style.font.caption
-              text: action.glyph
-              color: action.on ? Color.urgent : Color.menu.text
-              fontSize: Style.font.caption
-            }
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: action.label
-              color: action.on ? Color.urgent : Color.menu.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-            }
-          }
-
-          MouseArea {
-            id: actionMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: action.activated()
-          }
-        }
-
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           // md-microphone_off / md-microphone
           glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           label: root.selfMute ? "Unmute" : "Mute"
-          on: root.selfMute
+          danger: root.selfMute
+          tint: root.selfMute ? Color.urgent : Color.menu.text
           onActivated: DiscordControl.send("toggleSelfMute")
         }
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           // md-volume_off / md-headphones
           glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           label: root.selfDeaf ? "Undeafen" : "Deafen"
-          on: root.selfDeaf
+          danger: root.selfDeaf
+          tint: root.selfDeaf ? Color.urgent : Color.menu.text
           onActivated: DiscordControl.send("toggleSelfDeaf")
         }
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           glyph: "\u{f03f5}"   // md-phone_hangup
           label: "Leave"
-          on: true
+          danger: true
+          tint: Color.urgent
           onActivated: {
             DiscordControl.send("disconnect")
             if (root.bar) root.bar.closePanel(root.moduleName)
@@ -387,7 +325,7 @@ BarWidget {
         delegate: Row {
           required property var modelData
           width: content.width
-          spacing: Style.spacing.sm
+          spacing: Style.spacing.xs
 
           Item {
             anchors.verticalCenter: parent.verticalCenter
@@ -422,14 +360,14 @@ BarWidget {
               border.width: Math.max(1, Style.space(2))
               border.color: modelData.speaking
                 ? Color.semantic.speaking : Util.alpha(Color.menu.text, 0.18)
-              Behavior on border.color { ColorAnimation { duration: 140 } }
+              Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
             }
           }
 
           Row {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - Style.space(26) - Style.space(74) - parent.spacing * 2
-            spacing: Style.spacing.sm
+            spacing: Style.spacing.xs
             Text {
               id: nameLabel
               width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))

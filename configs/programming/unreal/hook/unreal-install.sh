@@ -68,8 +68,11 @@ ln -s "$zip_path" "Linux_Unreal_Engine_${zip_version}.zip"
 export PKGEXT=.pkg.tar
 # no makedepends, so build without the deps check and its sudo; pacman -U pulls the runtime deps from the repos
 makepkg --nodeps --noconfirm
-# the only sudo, right after the build: YubiKey touch (pam_u2f) or fingerprint; a miss fails and asks again next change
+# sudo right after the build: YubiKey touch (pam_u2f) or fingerprint; a miss fails and asks again next change
 notify-send -a Unreal "Unreal Engine" "Touch the YubiKey or fingerprint reader to install ${zip_version}" 2>/dev/null || true
 mapfile -t packages < <(makepkg --packagelist)
 sudo pacman -U --noconfirm "${packages[@]}"
+# bridge and fab from ~/sync; sudo's ticket is per parent process without a tty, so their unzip asks for a second touch
+"$DOTFILES/configs/programming/unreal/unreal-install-plugins.sh" \
+    || echo "unreal: plugins not installed, rerun unreal-install-plugins" >&2
 user_hook_retire unreal-install

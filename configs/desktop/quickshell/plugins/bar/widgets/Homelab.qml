@@ -101,15 +101,15 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
     id: trigger
     anchors.centerIn: parent
-    spacing: Style.spacing.sm
+    spacing: Style.spacing.xs
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
@@ -147,62 +147,13 @@ BarWidget {
     onClicked: root.open(root.links.homepage)
   }
 
-  // hover fill bleeds past the edge so text stays aligned with headers
-  component StatRow: Item {
-    id: kv
-    property string label: ""
-    property string value: ""
+  // a stat that opens its service page
+  component LinkStat: StatRow {
     property string url: ""
     property bool alert: false
-    property string note: ""
-    width: parent.width
-    implicitHeight: valueText.implicitHeight + Style.spacing.xxs * 2
-
-    Rectangle {
-      anchors.fill: parent
-      anchors.leftMargin: -Style.spacing.sm
-      anchors.rightMargin: -Style.spacing.sm
-      radius: Style.cornerRadius
-      color: kvMouse.containsMouse && kv.url ? Style.hoverFill : "transparent"
-      Behavior on color { ColorAnimation { duration: 100 } }
-    }
-    Text {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      width: parent.width * 0.4
-      text: kv.label
-      color: Color.menu.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      elide: Text.ElideRight
-    }
-    Row {
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.spacing.sm
-      Text {
-        id: valueText
-        text: kv.value
-        color: kv.alert ? Color.urgent : Color.menu.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-      Text {
-        visible: kv.note !== ""
-        text: kv.note
-        color: Color.menu.text
-        opacity: Style.emphasis.faint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-    }
-    MouseArea {
-      id: kvMouse
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: kv.url ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: root.open(kv.url)
-    }
+    valueColor: alert ? Color.urgent : Color.menu.text
+    clickable: url !== ""
+    onActivated: root.open(url)
   }
 
   component ClientList: Column {
@@ -238,14 +189,14 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           height: parent.height
           width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
-          radius: Style.cornerRadius
+          radius: Style.shape.data
           color: Util.alpha(Color.accent, 0.15)
         }
         Text {
           id: entryName
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
-          width: parent.width - entryCount.implicitWidth - Style.spacing.sm
+          width: parent.width - entryCount.implicitWidth - Style.spacing.xs
           textFormat: Text.PlainText
           text: entry.modelData.name
           elide: Text.ElideRight
@@ -287,7 +238,7 @@ BarWidget {
       id: serviceGrid
       width: parent.width
       columns: 3
-      columnSpacing: Style.spacing.lg
+      columnSpacing: Style.spacing.sm
 
       Repeater {
         model: groupBox.members
@@ -301,15 +252,15 @@ BarWidget {
 
           Rectangle {
             anchors.fill: parent
-            anchors.leftMargin: -Style.spacing.sm
-            radius: Style.cornerRadius
+            anchors.leftMargin: -Style.spacing.xs
+            radius: Style.shape.data
             color: tileMouse.containsMouse && tile.modelData.url ? Style.hoverFill : "transparent"
-            Behavior on color { ColorAnimation { duration: 100 } }
+            Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
           }
           Row {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.sm
+            spacing: Style.spacing.xs
 
             // * up or link-only, o asleep
             Text {
@@ -323,7 +274,7 @@ BarWidget {
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter
-              width: tile.width - Style.spacing.sm - Style.font.body
+              width: tile.width - Style.spacing.xs - Style.font.body
               textFormat: Text.PlainText
               text: tile.modelData.name
               elide: Text.ElideRight
@@ -342,33 +293,6 @@ BarWidget {
           }
         }
       }
-    }
-  }
-
-  component Hero: Row {
-    property int pct: 0
-    property color tint: Color.accent
-    spacing: Style.spacing.xxs
-    Text {
-      id: heroNum
-      anchors.bottom: parent.bottom
-      text: parent.pct
-      color: parent.tint
-      font.family: Style.font.family
-      font.pixelSize: Math.round(Style.font.display * 1.7)
-      font.bold: true
-      font.letterSpacing: Style.displayTracking
-      layer.enabled: Style.fx.glow > 0
-      layer.effect: Glow { shadowColor: parent.tint }
-    }
-    Text {
-      anchors.bottom: heroNum.bottom
-      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
-      text: "%"
-      color: parent.tint
-      opacity: Style.emphasis.dim
-      font.family: Style.font.family
-      font.pixelSize: Style.font.title
     }
   }
 
@@ -410,7 +334,7 @@ BarWidget {
     spacing: Style.spacing.xs
     MetricHeader { width: mg.width; visible: mg.label !== ""; label: mg.label; readout: mg.readout; tint: mg.tint }
     Sparkline { width: mg.width; height: Style.space(34); values: mg.history; minValue: 0; maxValue: mg.maxValue; color: mg.tint }
-    BarGauge { width: mg.width; height: Style.spacing.md; segments: 24; value: mg.fraction; color: mg.tint }
+    BarGauge { width: mg.width; height: Style.spacing.sm; segments: 24; value: mg.fraction; color: mg.tint }
   }
 
   component GaugeRow: Column {
@@ -422,7 +346,7 @@ BarWidget {
     width: parent ? parent.width : 0
     spacing: Style.spacing.xxs
     MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
-    BarGauge { width: gr.width; height: Style.spacing.md; segments: 24; value: gr.fraction; color: gr.tint }
+    BarGauge { width: gr.width; height: Style.spacing.sm; segments: 24; value: gr.fraction; color: gr.tint }
   }
 
   HoverPanel {
@@ -446,9 +370,9 @@ BarWidget {
       Column {
         id: content
         width: parent.width
-        spacing: Style.spacing.md
+        spacing: Style.spacing.sm
 
-        StatRow {
+        LinkStat {
           visible: !root.ok
           label: "Status"
           value: !root.received ? "Connecting..." : root.error === "source" ? "No homelab checkout" : "Unreachable"
@@ -471,17 +395,17 @@ BarWidget {
         Column {
           width: parent.width
           visible: root.ok
-          spacing: Style.spacing.md
+          spacing: Style.spacing.sm
 
           Column {
             width: parent.width
             visible: root.alerts.length > 0
-            spacing: Style.spacing.md
+            spacing: Style.spacing.sm
 
             PanelSectionHeader { text: "Alerts"; foreground: Color.urgent }
             Repeater {
               model: root.alerts
-              delegate: StatRow {
+              delegate: LinkStat {
                 required property var modelData
                 label: modelData.target || modelData.name
                 value: modelData.target ? modelData.name : ""
@@ -498,20 +422,20 @@ BarWidget {
             width: parent.width
             implicitHeight: Math.max(hostHero.implicitHeight, hostReads.implicitHeight)
             height: implicitHeight
-            Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Number(root.host.cpuPct) || 0 }
+            Hero { id: hostHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: String(Math.round(Number(root.host.cpuPct) || 0)); unit: "%" }
             Column {
               id: hostReads
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               width: parent.width * 0.6
               spacing: Style.spacing.xxs
-              StatRow {
+              LinkStat {
                 label: "Memory"
                 value: root.num(root.host.memUsedGb) + " / " + root.num(root.host.memTotalGb, " GB")
                 url: root.links.proxmox
               }
-              StatRow { label: "Temperature"; value: root.num(root.host.tempC, "°C"); url: root.links.proxmox }
-              StatRow { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
+              LinkStat { label: "Temperature"; value: root.num(root.host.tempC, "\u00b0C"); url: root.links.proxmox }
+              LinkStat { label: "Uptime"; value: root.num(root.host.uptimeH, " h"); url: root.links.proxmox }
             }
           }
           MetricGraph { label: "Usage"; readout: root.num(root.host.cpuPct, "%"); history: root.cpuHist; fraction: (Number(root.host.cpuPct) || 0) / 100 }
@@ -524,19 +448,19 @@ BarWidget {
 
           PanelSeparator {}
           PanelSectionHeader { text: "Storage" }
-          StatRow {
+          LinkStat {
             label: "NAS free"
             value: root.num(root.storage.nasFreeGb) + " / " + root.num(root.storage.nasTotalGb, " GB")
             url: root.links.nas
           }
-          StatRow {
+          LinkStat {
             label: "Disks"
             value: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal, " healthy")
             alert: root.storage.disksHealthy < root.storage.disksTotal
             url: root.links.dashboard
           }
-          StatRow { label: "NVMe wear"; value: root.num(root.storage.nvmeWearPct, "%"); url: root.links.dashboard }
-          StatRow {
+          LinkStat { label: "NVMe wear"; value: root.num(root.storage.nvmeWearPct, "%"); url: root.links.dashboard }
+          LinkStat {
             label: "Last backup"
             value: root.storage.backupAgeMin === null || root.storage.backupAgeMin === undefined
               ? "never" : Util.ago(root.storage.backupAgeMin)
@@ -563,9 +487,9 @@ BarWidget {
 
           PanelSeparator {}
           PanelSectionHeader { text: "Traffic" }
-          StatRow { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
-          StatRow { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
-          StatRow {
+          LinkStat { label: "Internal"; value: root.num(root.traffic.internalRps, " req/s"); url: root.links.dashboard }
+          LinkStat { label: "Public"; value: root.num(root.traffic.externalRps, " req/s"); url: root.links.dashboard }
+          LinkStat {
             label: "Server errors"
             value: root.num(root.traffic.errorRps, " req/s")
             alert: root.traffic.errorRps > 0
@@ -576,12 +500,12 @@ BarWidget {
           Column {
             width: parent.width
             visible: (root.clients.countries || []).length > 0
-            spacing: Style.spacing.md
+            spacing: Style.spacing.sm
 
             PanelSeparator {}
             Row {
               width: parent.width
-              spacing: Style.spacing.sm
+              spacing: Style.spacing.xs
               PanelSectionHeader { text: "Incoming" }
               Text {
                 anchors.verticalCenter: parent.verticalCenter
@@ -598,7 +522,7 @@ BarWidget {
               id: clientGrid
               width: parent.width
               columns: 4
-              columnSpacing: Style.spacing.lg
+              columnSpacing: Style.spacing.sm
               readonly property real cellWidth:
                 (width - columnSpacing * (columns - 1)) / columns
 
@@ -611,18 +535,18 @@ BarWidget {
 
           PanelSeparator {}
           PanelSectionHeader { text: "Services" }
-          StatRow {
+          LinkStat {
             label: "Up"
             value: root.upCount + " / " + root.monitored.length
             url: root.links.homepage
           }
-          StatRow {
+          LinkStat {
             visible: root.asleepCount > 0
             label: "Asleep"
             value: root.asleepCount
             url: root.links.homepage
           }
-          StatRow {
+          LinkStat {
             visible: root.downServices.length > 0
             label: "Down"
             value: root.downServices.map(function(s) { return s.name }).join(", ")

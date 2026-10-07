@@ -12,8 +12,9 @@ Item {
   property bool shown: true
   property int spacing: Style.fx.scanlineSpacing
   property real strength: Style.fx.scanlineOpacity
-  // fullscreen surfaces opt out of the flash
-  property bool flicker: true
+  // opt-in: two flicker cycles when the surface appears, never a loop
+  property bool flicker: false
+  readonly property int flickerCycles: 2
 
   // items keep visible: true inside a hidden window, endless animations would tick unseen
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
@@ -51,11 +52,10 @@ Item {
     opacity: 0
     visible: root.flicker && Style.fx.flicker > 0
     SequentialAnimation on opacity {
-      running: root.flicker && Style.fx.flicker > 0 && root.onScreen
-      loops: Animation.Infinite
-      NumberAnimation { to: Style.fx.flicker; duration: 90 }
-      NumberAnimation { to: 0; duration: 130 }
-      PauseAnimation { duration: 380 }
+      running: root.flicker && Style.fx.flicker > 0 && root.onScreen && Style.motion.enabled
+      loops: root.flickerCycles
+      NumberAnimation { to: Style.fx.flicker; duration: Style.motion.fast }
+      NumberAnimation { to: 0; duration: Style.motion.base }
     }
   }
 }

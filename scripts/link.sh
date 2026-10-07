@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# Symlink every scripts/*.sh and *.py into ~/.local/bin; user scripts stay out of root's secure_path.
-
-set -e
+# Every scripts/*.sh and *.py as a command in ~/.local/bin; user scripts stay out of root's secure_path.
 
 shopt -s nullglob
-
-mkdir -p "$HOME/.local/bin"
+commands=()
 for script in *.sh *.py; do
-    [[ "$script" == "link.sh" ]] && continue
-    ln -sfn "$PWD/$script" "$HOME/.local/bin/${script%.*}"
+    [[ "$script" == link.sh ]] || commands+=("$script")
 done
+link_commands "${commands[@]}"

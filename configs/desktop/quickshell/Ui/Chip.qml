@@ -16,9 +16,9 @@ Rectangle {
 
   readonly property bool hot: mouse.containsMouse || hasCursor
 
-  implicitWidth: Math.max(minimumWidth, label.implicitWidth + Style.spacing.lg * 2)
+  implicitWidth: Math.max(minimumWidth, label.implicitWidth + Style.spacing.sm * 2)
   implicitHeight: Style.row.control
-  radius: Style.cornerRadius
+  radius: Style.shape.data
   color: selected ? Color.menu.selectedBackground
     : mouse.pressed ? Style.pressedFill
     : hot ? Style.hoverFill
@@ -27,11 +27,11 @@ Rectangle {
   border.color: Style.hoverBorderColor
   border.width: hot && !selected ? Style.hoverBorderWidth : 0
 
-  Behavior on color { ColorAnimation { duration: 100 } }
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   transformOrigin: Item.Center
   scale: mouse.pressed ? 0.98 : 1.0
-  Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+  Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   layer.enabled: Style.fx.glow > 0 && selected
   layer.effect: Glow {}
@@ -40,7 +40,7 @@ Rectangle {
     id: label
     textFormat: Text.PlainText
     anchors.centerIn: parent
-    width: Math.min(implicitWidth, root.width - Style.spacing.sm * 2)
+    width: Math.min(implicitWidth, root.width - Style.spacing.xs * 2)
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
     text: root.text

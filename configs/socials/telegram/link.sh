@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 # telegram lives in /usr/sbin, not always on PATH
 if ! command -v Telegram >/dev/null 2>&1 && [ ! -x /usr/sbin/Telegram ]; then
     exit 0
 fi
-
-set -e
 
 mkdir -p "${HOME}/.cache/wal" "${HOME}/.local/share/TelegramDesktop"
 

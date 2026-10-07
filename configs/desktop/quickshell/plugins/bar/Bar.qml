@@ -1,5 +1,7 @@
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
+import Quickshell.Wayland
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons
@@ -31,6 +33,8 @@ PanelWindow {
     right: true
   }
   exclusiveZone: Style.bar.sizeHorizontal
+  // hyprland_windowrules.lua blurs it by this name
+  WlrLayershell.namespace: "quickshell-bar"
   implicitHeight: Style.bar.sizeHorizontal
   color: "transparent"
 
@@ -50,9 +54,11 @@ PanelWindow {
   readonly property color background: Color.bar.background
   readonly property color urgent: Color.bar.active
 
-  function run(cmd) {
-    Util.execDetached(cmd)
-  }
+  // quiet: no spectrum, glow or flicker while a fullscreen window hides the bar or power saver is on
+  readonly property var hyprMonitor: modelData ? Hyprland.monitorFor(modelData) : null
+  readonly property bool fullscreenBelow: !!hyprMonitor && !!hyprMonitor.activeWorkspace
+    && hyprMonitor.activeWorkspace.hasFullscreen === true
+  readonly property bool quiet: Power.saver || fullscreenBelow
 
   // only one panel open at a time
   property string activePanel: ""
@@ -70,15 +76,24 @@ PanelWindow {
 
   Timer {
     id: hoverCloseTimer
-    // covers the 4px trigger-to-panel gap
+    // grace for the pointer to travel from the trigger into the drawer
     interval: 350
     onTriggered: {
       if (!root.triggerHovered && !root.panelHovered) root.activePanel = ""
     }
   }
 
-  function hoverOpen(id) {
-    hoverCloseTimer.stop()
+  // hover intent: a pointer crossing the bar opens nothing, an open panel switches at once
+  property string pendingPanel: ""
+
+  Timer {
+    id: hoverIntentTimer
+    interval: 130
+    onTriggered: root.openHovered(root.pendingPanel)
+  }
+
+  function openHovered(id) {
+    root.pendingPanel = ""
     if (root.activePanel !== id) {
       root.activePanel = id
       root.panelHovered = false
@@ -86,7 +101,22 @@ PanelWindow {
     root.triggerHovered = true
   }
 
+  function hoverOpen(id) {
+    hoverCloseTimer.stop()
+    if (root.activePanel !== "") {
+      hoverIntentTimer.stop()
+      openHovered(id)
+      return
+    }
+    root.pendingPanel = id
+    hoverIntentTimer.restart()
+  }
+
   function hoverTriggerExit(id) {
+    if (root.pendingPanel === id) {
+      hoverIntentTimer.stop()
+      root.pendingPanel = ""
+    }
     if (root.activePanel !== id) return
     root.triggerHovered = false
     hoverCloseTimer.restart()
@@ -128,15 +158,26 @@ PanelWindow {
 
   property var tooltipItem: null
   property string tooltipText: ""
+  // shown only after the pointer rests, like PanelToolTip
+  property bool tooltipShown: false
+
+  Timer {
+    id: tooltipDelay
+    interval: 400
+    onTriggered: root.tooltipShown = root.tooltipItem !== null
+  }
 
   function showTooltip(item, text) {
     if (!text) return
     tooltipItem = item
     tooltipText = text
+    if (!tooltipShown) tooltipDelay.restart()
   }
 
   function hideTooltip(item) {
     if (tooltipItem === item) {
+      tooltipDelay.stop()
+      tooltipShown = false
       tooltipItem = null
       tooltipText = ""
     }
@@ -153,12 +194,13 @@ PanelWindow {
     anchors.bottom: parent.bottom
     height: Math.max(1, Style.fx.bracketWidth)
     color: Color.accent
-    opacity: 0.85
-    layer.enabled: Style.fx.glow > 0
+    // drawers continue this rule at the same alpha (Ui/DockShape.qml)
+    opacity: Style.surface.ruleAlpha
+    layer.enabled: Style.fx.glow > 0 && !root.quiet
     layer.effect: Glow { shadowColor: Color.accent }
   }
 
-  Scanlines { flicker: false }
+  Scanlines { shown: !root.quiet }
 
   // centre anchored to the screen, not split between sides
   Item {
@@ -169,7 +211,7 @@ PanelWindow {
     Item {
       id: leftHolder
       anchors.left: parent.left
-      anchors.leftMargin: Style.spacing.lg
+      anchors.leftMargin: Style.spacing.sm
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
@@ -223,48 +265,56 @@ PanelWindow {
     }
   }
 
-  // same surface as Ui/PanelToolTip.qml
-  BorderSurface {
-    id: tooltipSurface
-    visible: root.tooltipItem !== null
-    color: Color.tooltip.background
-    borderSpec: Border.flat(Color.tooltip.border, Style.normalBorderWidth)
-    radius: Style.cornerRadius
-    leftPadding: Style.spacing.controlPaddingX
-    rightPadding: Style.spacing.controlPaddingX
-    topPadding: Style.spacing.controlPaddingY
-    bottomPadding: Style.spacing.controlPaddingY
-    height: tooltipRow.implicitHeight + contentTopInset + contentBottomInset
-    width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
-    x: {
+  // a popup, the bar window is exactly barSize tall and would clip it; same surface as Ui/PanelToolTip.qml
+  PopupWindow {
+    id: tooltipWindow
+    visible: root.tooltipShown && root.tooltipItem !== null && root.visible
+    color: "transparent"
+    implicitWidth: tooltipSurface.width
+    implicitHeight: tooltipSurface.height
+    anchor.window: root
+    anchor.rect.x: {
       if (!root.tooltipItem) return 0
-      var pos = root.tooltipItem.mapToItem(root.contentItem, 0, root.tooltipItem.height)
-      return Math.max(0, Math.min(root.width - width, pos.x))
+      var pos = root.tooltipItem.mapToItem(root.contentItem, 0, 0)
+      return Math.max(0, Math.min(root.width - tooltipSurface.width, pos.x))
     }
-    y: root.barSize + 2
+    anchor.rect.y: root.barSize + Style.spacing.xxs
 
-    Row {
-      id: tooltipRow
-      x: tooltipSurface.contentLeftInset
-      y: tooltipSurface.contentTopInset
-      spacing: Style.spacing.xs
+    BorderSurface {
+      id: tooltipSurface
+      color: Color.tooltip.background
+      borderSpec: Border.flat(Color.tooltip.border, Style.normalBorderWidth)
+      radius: Style.shape.surface
+      leftPadding: Style.spacing.controlPaddingX
+      rightPadding: Style.spacing.controlPaddingX
+      topPadding: Style.spacing.controlPaddingY
+      bottomPadding: Style.spacing.controlPaddingY
+      height: tooltipRow.implicitHeight + contentTopInset + contentBottomInset
+      width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
 
-      Text {
-        anchors.baseline: tooltipLabel.baseline
-        textFormat: Text.PlainText
-        text: ">"
-        color: Color.accent
-        opacity: Style.emphasis.faint
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-      }
-      Text {
-        id: tooltipLabel
-        textFormat: Text.PlainText
-        text: root.tooltipText
-        color: Color.tooltip.text
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
+      Row {
+        id: tooltipRow
+        x: tooltipSurface.contentLeftInset
+        y: tooltipSurface.contentTopInset
+        spacing: Style.spacing.xs
+
+        Text {
+          anchors.baseline: tooltipLabel.baseline
+          textFormat: Text.PlainText
+          text: ">"
+          color: Color.accent
+          opacity: Style.emphasis.faint
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+        Text {
+          id: tooltipLabel
+          textFormat: Text.PlainText
+          text: root.tooltipText
+          color: Color.tooltip.text
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
       }
     }
   }

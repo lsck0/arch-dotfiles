@@ -13,11 +13,16 @@ Item {
   property color color: Color.accent
   property real lineWidth: 1.6
   property real fillAlpha: 0.22
+  // opt-in: only for series that change rarely, a live one would re-render the effect per sample
+  property bool glow: false
 
   implicitWidth: 64
   implicitHeight: 18
 
-  onValuesChanged: cv.requestPaint()
+  onValuesChanged: {
+    cv.requestPaint()
+    if (pulsing && onScreen && Style.motion.enabled) ping.restart()
+  }
   onWidthChanged: cv.requestPaint()
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
@@ -25,15 +30,14 @@ Item {
   // items keep visible: true inside a hidden window, endless animations would tick unseen
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
 
-  // always-visible hosts (the bar) turn this off, an endless pulse redraws its window every frame
+  // always-visible hosts (the bar) turn this off; one ping per new sample, never a loop
   property bool pulsing: true
-  // drives the overlay dots so the pulse never repaints the canvas
+  // drives the overlay dots so the ping never repaints the canvas
   property real pulse: 0
-  SequentialAnimation on pulse {
-    running: root.pulsing && root.onScreen && !Power.saver
-    loops: Animation.Infinite
-    NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-    NumberAnimation { to: 0; duration: 900; easing.type: Easing.InOutSine }
+  SequentialAnimation {
+    id: ping
+    NumberAnimation { target: root; property: "pulse"; to: 1; duration: Style.motion.ambient / 2; easing.type: Style.motion.ambientEasing }
+    NumberAnimation { target: root; property: "pulse"; to: 0; duration: Style.motion.ambient / 2; easing.type: Style.motion.ambientEasing }
   }
 
   // mirrors the canvas mapping for the newest sample
@@ -112,7 +116,7 @@ Item {
 
   Rectangle {
     visible: (root.values || []).length > 0
-    width: 5; height: 5; radius: 2.5
+    width: 5; height: 5; radius: Style.shape.data
     color: root.color
     x: root.lastPoint.x - width / 2
     y: root.lastPoint.y - height / 2
@@ -121,13 +125,13 @@ Item {
   }
   Rectangle {
     visible: (root.values || []).length > 0
-    width: 4; height: 4; radius: 2
+    width: 4; height: 4; radius: Style.shape.data
     color: Qt.lighter(root.color, 1.4)
     x: root.lastPoint.x - width / 2
     y: root.lastPoint.y - height / 2
   }
 
-  layer.enabled: Style.fx.glow > 0
+  layer.enabled: root.glow && Style.fx.glow > 0
   layer.effect: Glow {
     shadowColor: root.color
     shadowBlur: 0.7

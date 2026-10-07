@@ -12,7 +12,7 @@ StartLimitIntervalSec=0
 What=//10.100.0.109/homelab
 Where=/mnt/homelab
 Type=cifs
-Options=credentials=/etc/samba/homelab.cred,seal,uid=@UID@,gid=@GID@,vers=3.1.1,_netdev,nofail,file_mode=0664,dir_mode=0775
+Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770
 TimeoutSec=10s
 
 [Install]

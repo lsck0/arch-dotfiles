@@ -17,6 +17,8 @@ NVIM="$REPO/configs/programming/nvim/lua/options.lua"
 KITTY="$REPO/configs/desktop/kitty/kitty.conf"
 QUTEBROWSER="$REPO/configs/desktop/qutebrowser/config.py"
 QUTEBROWSER_STARTPAGE="$REPO/configs/desktop/qutebrowser/startpage.html"
+# link.sh renders a per-user copy; edit it too so the font shows before the next config run
+QUTEBROWSER_STARTPAGE_RENDERED="${XDG_CONFIG_HOME:-$HOME/.config}/qutebrowser/startpage.html"
 QUICKSHELL_THEME="$REPO/configs/desktop/quickshell/theme.json"
 VSCODE="$REPO/configs/programming/vscode/settings.json"
 ZATHURA="$REPO/configs/desktop/zathura/zathurarc"
@@ -160,7 +162,11 @@ apply_family() {
 
     sed -i "s|^font_family .*|font_family $m|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
-    sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$QUTEBROWSER_STARTPAGE"
+    for page in "$QUTEBROWSER_STARTPAGE" "$QUTEBROWSER_STARTPAGE_RENDERED"; do
+        if [[ -f "$page" && ! -L "$page" ]]; then
+            sed -i "s|font-family: \"[^\"]*\", monospace;|font-family: \"$e\", monospace;|" "$page"
+        fi
+    done
     sed -i "s|\"editor.fontFamily\": \"'[^']*'|\"editor.fontFamily\": \"'$m'|" "$VSCODE"
     sed -i "s|^set font \"[^\"]*\\( [0-9]*\\)\"|set font \"$e\\1\"|" "$ZATHURA"
     sed -i "s|--rtk-chrome-font: \"[^\"]*\",|--rtk-chrome-font: \"$e\",|" "$FIREFOX_CHROME"

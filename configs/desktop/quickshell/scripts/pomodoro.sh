@@ -9,7 +9,7 @@ DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-pomodoro"
 STATE="$STATE_DIR/state.json"
 UNIT_PREFIX=quickshell-pomodoro
-GLYPH="󰔟"
+GLYPH=$'\xf3\xb0\x94\x9f'  # nerd font glyph as utf-8 bytes, the source stays ascii
 
 DEF_WORK=25
 DEF_BREAK=5
@@ -158,7 +158,7 @@ status_json() {
         --arg phase "$phase" --arg label "$(phase_label "$phase")" \
         --argjson remainingSeconds "$remaining" --arg remaining "$(fmt "$remaining")" \
         --argjson cycle "$cycle" --argjson totalSeconds "$total" --argjson longEvery "$LONG_EVERY" \
-        --arg tooltip "$(phase_label "$phase") · $(fmt "$remaining") left · pomodoro $cycle$([[ "$paused" == "true" ]] && echo ' (paused)')" \
+        --arg tooltip "$(phase_label "$phase") :: $(fmt "$remaining") left :: pomodoro $cycle$([[ "$paused" == "true" ]] && echo ' (paused)')" \
         '{running:$running,paused:$paused,phase:$phase,label:$label,
           remainingSeconds:$remainingSeconds,remaining:$remaining,cycle:$cycle,
           totalSeconds:$totalSeconds,longEvery:$longEvery,tooltip:$tooltip}'

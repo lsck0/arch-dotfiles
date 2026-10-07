@@ -16,6 +16,8 @@ Item {
 
   function open(payload) {
     if (!payload.title && !payload.body) return
+    closeTimer.stop()
+    root.closing = false
 
     var next = root.alerts.slice()
     next.push({
@@ -58,16 +60,30 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
+  // the stack fades out before the list empties
+  property bool closing: false
+
   function close() {
-    root.alerts = []
+    root.closing = true
+    closeTimer.restart()
   }
+
+  Timer {
+    id: closeTimer
+    interval: Style.motion.exit
+    onTriggered: {
+      root.alerts = []
+      root.closing = false
+    }
+  }
+
 
   PanelWindow {
     id: win
     visible: root.alerts.length > 0
     screen: root.mainScreen
     anchors { top: true; right: true }
-    margins { top: Style.bar.sizeHorizontal + Style.spacing.lg; right: Style.spacing.lg }
+    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm }
     implicitWidth: Style.space(440)
     implicitHeight: stack.implicitHeight
     color: "transparent"
@@ -85,7 +101,9 @@ Item {
       Column {
         id: stack
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.xs
+        opacity: root.closing ? 0 : 1
+        Behavior on opacity { NumberAnimation { duration: root.closing ? Style.motion.exit : Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: root.closing ? Style.motion.leave : Style.motion.enter } }
 
         Repeater {
           model: root.alerts
@@ -98,17 +116,17 @@ Item {
             width: stack.width
             implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
             color: Color.menu.background
-            borderSpec: Border.flat(Color.accent, Style.selectedBorderWidth > 0 ? Style.selectedBorderWidth : 2)
-            radius: Style.cornerRadius
-            padding: Style.spacing.panelPadding
+            borderSpec: Border.flat(Color.accent, Style.selectedBorderWidth)
+            radius: Style.shape.surface
+            padding: Style.surface.padding
 
             opacity: 0
             transform: Translate { id: slide; x: Style.space(24) }
             Component.onCompleted: appear.start()
             ParallelAnimation {
               id: appear
-              NumberAnimation { target: card; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutCubic }
-              NumberAnimation { target: slide; property: "x"; to: 0; duration: 220; easing.type: Easing.OutCubic }
+              NumberAnimation { target: card; property: "opacity"; to: 1; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+              NumberAnimation { target: slide; property: "x"; to: 0; duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
             }
 
             Column {
@@ -119,83 +137,14 @@ Item {
               anchors.topMargin: card.contentTopInset
               anchors.leftMargin: card.contentLeftInset
               anchors.rightMargin: card.contentRightInset
-              spacing: Style.spacing.lg
+              spacing: Style.spacing.sm
 
-              Item {
+              HudTitle {
                 width: parent.width
-                implicitHeight: alTitleRow.implicitHeight + Style.spacing.xs + alRule.height
-                height: implicitHeight
-
-                Row {
-                  id: alTitleRow
-                  anchors.left: parent.left
-                  anchors.top: parent.top
-                  spacing: Style.spacing.xs
-
-                  Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    textFormat: Text.PlainText
-                    text: ">"
-                    color: Color.accent
-                    opacity: Style.emphasis.dim
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                  }
-
-                  Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    textFormat: Text.PlainText
-                    text: card.modelData.kind ? String(card.modelData.kind).toUpperCase() : "ALERT"
-                    color: Color.accent
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                    font.letterSpacing: Style.headerTracking
-                    layer.enabled: Style.fx.glow > 0
-                    layer.effect: Glow {}
-                  }
-
-                  Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    textFormat: Text.PlainText
-                    text: "_"
-                    color: Color.accent
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    SequentialAnimation on opacity {
-                      running: true
-                      loops: Animation.Infinite
-                      PropertyAnimation { to: 1; duration: 0 }
-                      PauseAnimation { duration: 530 }
-                      PropertyAnimation { to: 0; duration: 0 }
-                      PauseAnimation { duration: 530 }
-                    }
-                  }
-                }
-
-                // decorative, non-interactive
-                Text {
-                  anchors.right: parent.right
-                  anchors.verticalCenter: alTitleRow.verticalCenter
-                  textFormat: Text.PlainText
-                  text: "[- o x]"
-                  color: Color.accent
-                  opacity: Style.emphasis.faint
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  font.letterSpacing: Style.headerTracking
-                }
-
-                Rectangle {
-                  id: alRule
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.top: alTitleRow.bottom
-                  anchors.topMargin: Style.spacing.xs
-                  height: Math.max(1, Style.space(1))
-                  color: Util.alpha(Color.accent, 0.8)
-                }
+                text: card.modelData.kind || "alert"
+                decor: true
+                rule: true
+                blinking: win.visible
               }
 
               Item {
@@ -206,14 +155,14 @@ Item {
                   id: badge
                   width: Style.space(48)
                   height: width
-                  radius: width / 2
+                  radius: Style.shape.data
                   color: Style.selectedFillFor(Color.menu.text, Color.accent)
                   Text {
                     anchors.centerIn: parent
                     text: card.modelData.glyph
                     color: Color.accent
                     font.family: Style.font.iconFamily
-                    font.pixelSize: Style.font.heading + Style.space(4)
+                    font.pixelSize: Style.font.display
                     layer.enabled: Style.fx.glow > 0
                     layer.effect: Glow {}
                   }
@@ -222,9 +171,9 @@ Item {
                 Column {
                   id: texts
                   anchors.left: badge.right
-                  anchors.leftMargin: Style.spacing.lg
+                  anchors.leftMargin: Style.spacing.sm
                   anchors.right: closeButton.left
-                  anchors.rightMargin: Style.spacing.md
+                  anchors.rightMargin: Style.spacing.sm
                   anchors.verticalCenter: badge.verticalCenter
                   spacing: Style.spacing.xxs
 
@@ -271,7 +220,7 @@ Item {
 
               Row {
                 anchors.right: parent.right
-                spacing: Style.spacing.sm
+                spacing: Style.spacing.xs
 
                 Chip {
                   visible: card.modelData.kind === "reminder"

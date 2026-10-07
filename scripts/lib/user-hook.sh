@@ -1,14 +1,13 @@
 # shellcheck shell=bash
-# user path units that wait for an app to appear, then retire: link.sh owns when one exists, the hook script retires it
+# user path units that wait for an app to appear: link.sh owns when one exists, a one-shot hook script retires itself
 
-USER_HOOK_UNIT_DIR="${HOME}/.config/systemd/user"
+USER_HOOK_UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 
 # user_hook_install <hook dir> <name>: install <name>.path + <name>.service as user units, arm the path, run once now
+# (unit_install is module.sh's; a hook script sourcing this file alone only retires)
 user_hook_install() {
     local dir="$1" name="$2"
-    install -Dm644 "${dir}/${name}.path" "${USER_HOOK_UNIT_DIR}/${name}.path"
-    install -Dm644 "${dir}/${name}.service" "${USER_HOOK_UNIT_DIR}/${name}.service"
-    systemctl --user daemon-reload
+    unit_install "${dir}/${name}.path" "${dir}/${name}.service"
     systemctl --user enable --now "${name}.path"
     systemctl --user start --no-block "${name}.service"
 }
@@ -17,7 +16,7 @@ user_hook_install() {
 user_hook_retire() {
     local name="$1"
     [[ -e "${USER_HOOK_UNIT_DIR}/${name}.path" || -e "${USER_HOOK_UNIT_DIR}/${name}.service" ]] || return 0
-    # no user bus under the pacman hook's runuser: the files still go, the manager drops the units on its next reload
+    # no user bus outside a session: the files still go, the manager drops the units on its next reload
     systemctl --user disable --now "${name}.path" 2>/dev/null || true
     rm -f "${USER_HOOK_UNIT_DIR}/${name}.path" "${USER_HOOK_UNIT_DIR}/${name}.service" \
         "${USER_HOOK_UNIT_DIR}/default.target.wants/${name}.path"

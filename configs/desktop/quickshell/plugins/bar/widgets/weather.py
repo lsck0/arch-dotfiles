@@ -138,7 +138,7 @@ FEED_SLUGS = {
 # generic admin words stripped so area names match by token
 AREA_WORDS_GENERIC = {
     "kreis", "landkreis", "stadt", "stadtkreis", "county", "city", "region", "province", "provincia", "departement",
-    "département", "district", "council", "borough", "comune", "gemeente", "kommune", "and", "of", "the", "und", "de",
+    "d\u00e9partement", "district", "council", "borough", "comune", "gemeente", "kommune", "and", "of", "the", "und", "de",
     "la", "le", "les", "der", "die", "das", "en", "y",
 }
 ADDRESS_KEYS = ("county", "state", "state_district", "region", "city", "municipality", "town", "province")
@@ -307,7 +307,7 @@ def forecast_get():
         "stale": False,
         "current": current,
         "units": {
-            "temp":   units.get("temperature_2m", "°C"),
+            "temp":   units.get("temperature_2m", "\u00b0C"),
             "wind":   units.get("wind_speed_10m", "km/h"),
             "precip": units.get("precipitation", "mm"),
         },

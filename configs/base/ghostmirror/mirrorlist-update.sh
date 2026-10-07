@@ -35,7 +35,7 @@ if [[ "$count" -lt "$MIRRORS_MIN" ]]; then
     exit 1
 fi
 
-# homelab first (internal, authoritative), the ranked public mirrors are the away fallback; kept only where link.sh put it
+# homelab first (internal, authoritative), the ranked public mirrors are the away fallback; kept only where system.sh put it
 homelab=$(grep -m1 '^Server *= *http://10.100.0.109' "$TARGET" || true)
 {
     if [[ -n "$homelab" ]]; then

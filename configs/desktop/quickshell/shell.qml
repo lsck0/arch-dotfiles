@@ -180,12 +180,19 @@ ShellRoot {
   IpcHandler {
     target: "shell"
 
-    // palette + fx for toggle-shader.sh
+    // the conditioned palette + fx, for toggle-shader.sh and anything themed after the shell
     function palette(): string {
       function rgb(c) { return [c.r, c.g, c.b] }
       return JSON.stringify({
         background: rgb(Color.background),
+        surface: rgb(Color.surface),
+        foreground: rgb(Color.foreground),
+        muted: rgb(Color.muted),
         accent: rgb(Color.accent),
+        accent2: rgb(Color.accent2),
+        urgent: rgb(Color.urgent),
+        warn: rgb(Color.warn),
+        ok: rgb(Color.ok),
         glowStrength: Style.fx.glow,
         scanlineOpacity: Style.fx.scanlineOpacity,
         scanlineSpacing: Style.fx.scanlineSpacing

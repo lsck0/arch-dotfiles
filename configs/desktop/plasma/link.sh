@@ -1,61 +1,19 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -e
-
-source $DOTFILES/scripts/lib/fetch.sh
-source $DOTFILES/scripts/lib/personal.sh
-
-FILES="
-    baloofilerc
-    kactivitymanagerd-statsrc
-    kactivitymanagerdrc
-    dolphinrc
-    kcminputrc
-    kded5rc
-    kded6rc
-    kdeglobals
-    kglobalshortcutsrc
-    kscreenlockerrc
-    ksplashrc
-    kwalletrc
-    kwinoutputconfig.json
-    kwinrc
-    kwinrulesrc
-    plasma-localerc
-    plasma-org.kde.plasma.desktop-appletsrc
-    plasmarc
-    plasmashellrc
-    powerdevilrc
-"
-
-DIRS="
-    KDE
-    kdedefaults
-    plasma-workspace
-"
-
-mkdir -p "${HOME}/.config" "${HOME}/.local/share/color-schemes" "${HOME}/.local/share/dolphin/view_properties/global"
-
-ln -sfn "${PWD}/color-schemes/pywal.colors" "${HOME}/.local/share/color-schemes/pywal.colors"
-
-mkdir -p "${HOME}/.local/share/applications"
-for app in "${PWD}"/applications/*.desktop; do
-    ln -sfn "${app}" "${HOME}/.local/share/applications/${app##*/}"
-done
-
+link_into "${HOME}/.local/share/color-schemes" color-schemes/pywal.colors
+link_into "${HOME}/.local/share/applications" applications/*.desktop
 # dolphin global view properties
-ln -sfn "${PWD}/dolphin/view_properties/global/.directory" "${HOME}/.local/share/dolphin/view_properties/global/.directory"
+link_into "${HOME}/.local/share/dolphin/view_properties/global" dolphin/view_properties/global/.directory
 # dolphin panels: places and information, no folders tree or terminal (kiosk-disabled in dolphinrc); only the dock layout key, since dolphin rewrites the rest of this file (per-screen window geometry) on every close
 kwriteconfig6 --file "${HOME}/.local/state/dolphinstaterc" --group State --key State "$(cat "${PWD}/dolphin/dock-state")"
 
-for f in ${FILES}; do
-    # a guest's formats follow the locale bootstrap.sh set, not luca's en_US
-    [[ "${f}" == plasma-localerc ]] && ! is_personal && continue
-    ln -sfn "${PWD}/${f}" "${HOME}/.config/${f}"
+for f in *rc kdeglobals *.json; do
+    # someone else's formats follow the locale bootstrap.sh set, not luca's en_US
+    [[ "${f}" == plasma-localerc ]] && ! profile_has identity && continue
+    link_into "${HOME}/.config" "${f}"
 done
 
-for d in ${DIRS}; do
+for d in KDE kdedefaults plasma-workspace; do
     # git drops empty dirs, a link to one would dangle
     [[ -d "${PWD}/${d}" ]] || continue
     # rm right before relink so a failed ln cannot leave the dir gone
@@ -63,7 +21,7 @@ for d in ${DIRS}; do
         || { echo "plasma/link.sh: failed to relink ${d}" >&2; exit 1; }
 done
 
-# third-party plasmoids
+# third-party plasmoids (owner decision: plasma keeps modernclock)
 WIDGET_ID="com.github.prayag2.modernclock"
 if ! kpackagetool6 -t Plasma/Applet -l | grep -qx "${WIDGET_ID}"; then
     TMP=$(mktemp -d)

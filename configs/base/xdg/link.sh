@@ -1,18 +1,11 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-source $DOTFILES/scripts/lib/personal.sh
-
-set -e
 
 mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/music" "${HOME}/pictures" "${HOME}/videos"
 mkdir -p "${HOME}/sync" "${HOME}/vault"
-ln -sfn "${PWD}/mimeapps.list" "${HOME}/.config/mimeapps.list"
+link_into "${HOME}/.config" mimeapps.list user-dirs.conf user-dirs.dirs
 # nemo also claims FileManager1 and sorts first; the user dir wins
 mkdir -p "${HOME}/.local/share/dbus-1/services"
 ln -sfn "${PWD}/dolphin.FileManager1.service" "${HOME}/.local/share/dbus-1/services/org.freedesktop.FileManager1.service"
-ln -sfn "${PWD}/user-dirs.conf" "${HOME}/.config/user-dirs.conf"
-ln -sfn "${PWD}/user-dirs.dirs" "${HOME}/.config/user-dirs.dirs"
 # capitalized defaults xdg-user-dirs-update made before the conf above existed; rmdir keeps any with content
 for dir in Desktop Documents Downloads Music Pictures Projects Public Templates Videos; do
     rmdir "${HOME}/${dir}" 2>/dev/null || true
@@ -33,8 +26,7 @@ command -v update-desktop-database >/dev/null 2>&1 \
 
 # portal backend preference for the Hyprland session
 if command -v Hyprland >/dev/null 2>&1; then
-    mkdir -p "${HOME}/.config/xdg-desktop-portal"
-    ln -sfn "${PWD}/hyprland-portals.conf" "${HOME}/.config/xdg-desktop-portal/hyprland-portals.conf"
+    link_into "${HOME}/.config/xdg-desktop-portal" hyprland-portals.conf
 fi
 
 # gtk sidebar bookmarks: add the managed ones, keep whatever the user added
@@ -42,8 +34,8 @@ BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
 mkdir -p "${HOME}/.config/gtk-3.0"
 touch "$BOOKMARKS"
 bookmarks=("file://${HOME}/projects Projects" "file://${HOME}/sync Syncthing")
-# homelab nas topology is luca-only, kept out of a guest's sidebar (and removed if a prior run added it)
-if is_personal; then
+# the nas shortcut only for a homelab user (nas/link.sh), kept out of anyone else's sidebar (and removed if a prior run added it)
+if profile_has homelab; then
     bookmarks+=("file://${HOME}/nas NAS")
 else
     sed -i "\#^file://${HOME}/nas\( \|\$\)#d" "$BOOKMARKS"
@@ -57,12 +49,12 @@ PLACES="${HOME}/.local/share/user-places.xbel"
 mkdir -p "${HOME}/.local/share"
 [ -f "$PLACES" ] || printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
     '<xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks"></xbel>' > "$PLACES"
-python3 - "$PLACES" "file://${HOME}" "$(is_personal && echo 1 || echo 0)" <<'EOF'
+python3 - "$PLACES" "file://${HOME}" "$(profile_has homelab && echo 1 || echo 0)" <<'EOF'
 import sys
 import xml.etree.ElementTree as ET
 
 path, home = sys.argv[1], sys.argv[2]
-personal = len(sys.argv) > 3 and sys.argv[3] == "1"
+homelab = len(sys.argv) > 3 and sys.argv[3] == "1"
 ns = "http://www.freedesktop.org/standards/desktop-bookmarks"
 ET.register_namespace("bookmark", ns)
 tree = ET.parse(path)
@@ -74,8 +66,8 @@ places = [
     (home + "/projects", "Projects", "folder-development", False),
     (home + "/sync", "Syncthing", "folder-sync", False),
 ]
-# homelab nas topology is luca-only, kept out of a guest's places (and removed if a prior run added it)
-if personal:
+# the nas only for a homelab user, kept out of anyone else's places (and removed if a prior run added it)
+if homelab:
     places.append((home + "/nas", "NAS", "folder-network", False))
 places += [
     (home + "/vault", "Vault", "folder-locked", False),
@@ -89,7 +81,7 @@ places += [
     ("trash:/", "Trash", "user-trash", True),
 ]
 # only a no longer wanted nas goes; other places are the user's
-if not personal:
+if not homelab:
     for child in list(root):
         if child.get("href") == home + "/nas":
             root.remove(child)
@@ -108,9 +100,5 @@ for href, title, icon, system in places:
         ET.SubElement(ET.SubElement(info, "metadata", owner="http://www.kde.org"), "isSystemItem").text = "true"
     root.insert(position, bookmark)
     position += 1
-# the nas is mounted locally now, a leftover smb bookmark would duplicate it
-for child in list(root):
-    if child.get("href", "").startswith("smb://10.100.0.10"):
-        root.remove(child)
 tree.write(path, encoding="UTF-8", xml_declaration=True)
 EOF

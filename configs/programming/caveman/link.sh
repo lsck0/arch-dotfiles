@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-set -e
-
-source $DOTFILES/scripts/lib/fetch.sh
 
 # every agent installs from one pinned checkout, never upstream's head; bump both together
 CAVEMAN_URL=https://github.com/JuliusBrussee/caveman.git

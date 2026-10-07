@@ -17,6 +17,13 @@ Item {
   property int maxValue: 100
   property bool hasProgress: true
   property int duration: 1200
+  // log mode: typed lines instead of icon and gauge
+  property var lines: []
+  property int typedChars: 0
+  readonly property bool logMode: lines.length > 0
+  readonly property int logChars: lines.join("").length
+  readonly property int typeStepMs: 12
+  readonly property int logDurationMs: 2400
 
   readonly property int pad: Style.space(16)
   readonly property int gap: Style.space(16)
@@ -31,7 +38,8 @@ Item {
     : root.iconInkWidth
   readonly property int valueWidth: Math.ceil(Math.max(valueMetrics.advanceWidth, messageMetrics.advanceWidth))
   readonly property int messageWidth: Math.min(Math.ceil(messageMetrics.advanceWidth), root.maxMessageWidth)
-  readonly property int contentWidth: root.hasProgress
+  readonly property int logWidth: Math.ceil(logMetrics.advanceWidth)
+  readonly property int contentWidth: root.logMode ? root.logWidth : root.hasProgress
     ? root.iconWidth + root.gap + root.barWidth + root.gap + root.valueWidth
     : (root.message === "" ? root.iconWidth : root.iconWidth + root.messageGap + root.messageWidth)
 
@@ -43,14 +51,59 @@ Item {
     message = next.message
     icon = next.icon
     duration = next.duration
+    lines = []
     opened = true
     if (duration > 0) hideTimer.restart()
     else hideTimer.stop()
   }
 
+  // a short typed log, one char per typeStepMs across the lines
+  function log(logLines, rawDuration) {
+    lines = (logLines || []).map(function(l) { return String(l) })
+    typedChars = Style.motion.enabled ? 0 : logChars
+    duration = rawDuration === undefined ? logDurationMs : Math.max(0, Number(rawDuration) || 0)
+    opened = true
+    if (typedChars < logChars) typer.restart()
+    if (duration > 0) hideTimer.restart()
+    else hideTimer.stop()
+  }
+
+  // the visible part of line i while typing
+  function typedLine(i) {
+    var before = 0
+    for (var k = 0; k < i; k++) before += lines[k].length
+    return lines[i].substring(0, Math.max(0, typedChars - before))
+  }
+
+  function hex(c) { return String(c).substring(0, 7) }
+
+  // palette sync (signature D): Color applies a new wallpaper palette
+  Connections {
+    target: Color
+    function onPaletteSynced(p) {
+      root.log(["> SYNC PALETTE", "  bg " + root.hex(p.background) + " :: acc " + root.hex(p.accent), "  " + p.verdict])
+    }
+  }
+
+  Timer {
+    id: typer
+    interval: root.typeStepMs
+    repeat: true
+    onTriggered: {
+      root.typedChars++
+      if (root.typedChars >= root.logChars) stop()
+    }
+  }
+
+  BootIn { id: boot; active: root.opened }
+
   function open(payloadJson) {
     try {
       var p = JSON.parse(payloadJson || "{}")
+      if (Array.isArray(p.lines)) {
+        root.log(p.lines, p.duration)
+        return
+      }
       show(p.icon || "", p.message || "", p.value === undefined ? "" : String(p.value), p.max === undefined ? "100" : String(p.max), p.progressText || "", p.duration === undefined ? "1200" : String(p.duration))
     } catch (e) {}
   }
@@ -69,6 +122,13 @@ Item {
     font.bold: true
     font.pixelSize: Style.font.title
     text: root.message
+  }
+
+  TextMetrics {
+    id: logMetrics
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
+    text: root.lines.reduce(function(a, b) { return b.length > a.length ? b : a }, "")
   }
 
   TextMetrics {
@@ -119,7 +179,8 @@ Item {
         return mine.name === focused.name
       }
 
-      visible: root.opened && onFocusedMonitor
+      // mapped until the fade-out ends
+      visible: (root.opened || boot.progress > 0) && onFocusedMonitor
       anchors { top: true; bottom: true; left: true; right: true }
       color: "transparent"
       WlrLayershell.namespace: "quickshell-osd"
@@ -130,18 +191,38 @@ Item {
 
       Rectangle {
         id: card
+        readonly property int logHeight: root.lines.length * Math.ceil(logMetrics.height)
         width: root.borderWidth * 2 + root.pad * 2 + root.contentWidth
-        height: root.borderWidth * 2 + root.pad * 2 + Style.font.displayLarge
+        height: root.borderWidth * 2 + root.pad * 2 + (root.logMode ? logHeight : Style.font.displayLarge)
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.space(67)
-        color: Util.alpha(Color.background, 0.97)
+        color: Color.menu.background
         border.width: root.borderWidth
         border.color: Color.popups.border
-        radius: Style.cornerRadius
-        opacity: root.opened ? 1 : 0
+        radius: Style.shape.surface
+        opacity: boot.progress
+        transform: Translate { y: (1 - boot.progress) * Style.spacing.sm }
+
+        Column {
+          visible: root.logMode
+          anchors.fill: parent
+          anchors.margins: card.border.width + root.pad
+
+          Repeater {
+            model: root.lines.length
+            Text {
+              required property int index
+              textFormat: Text.PlainText
+              text: root.typedLine(index)
+              color: index === 0 ? Color.accent : Color.popups.text
+              font: logMetrics.font
+            }
+          }
+        }
 
         Row {
+          visible: !root.logMode
           anchors.fill: parent
           anchors.margins: card.border.width + root.pad
           spacing: root.hasProgress ? root.gap : root.messageGap
@@ -162,7 +243,7 @@ Item {
             visible: root.hasProgress
             anchors.verticalCenter: parent.verticalCenter
             width: root.barWidth
-            height: Math.max(Style.space(6), Style.spacing.sm)
+            height: Math.max(Style.space(6), Style.spacing.xs)
             segments: 20
             value: root.maxValue > 0 ? root.value / root.maxValue : 0
             color: Color.accent
@@ -178,8 +259,9 @@ Item {
             color: Color.popups.text
             elide: Text.ElideRight
             maximumLineCount: 1
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow {}
+            // changes on every key repeat: outline, never a MultiEffect
+            style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
+            styleColor: Util.alpha(Color.accent, 0.35)
           }
         }
 

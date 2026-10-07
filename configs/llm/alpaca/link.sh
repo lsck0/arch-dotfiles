@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 # alpaca is a flatpak; skip until it is installed, and skip without sqlite3 to seed its db
 flatpak info com.jeffser.Alpaca >/dev/null 2>&1 || exit 0
 command -v sqlite3 >/dev/null 2>&1 || exit 0
 
-set -e
-
 # alpaca keeps its instances in this sqlite db (constants.data_dir + alpaca.db), the flatpak data dir
-db="${HOME}/.var/app/com.jeffser.Alpaca/data/alpaca.db"
+db="$HOME/.var/app/com.jeffser.Alpaca/data/alpaca.db"
 mkdir -p "$(dirname "$db")"
 
 # alpaca creates this table on launch with the same schema; make it first so the backends are seeded

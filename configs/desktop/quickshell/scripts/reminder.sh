@@ -5,7 +5,8 @@ set -euo pipefail
 SELF="$(readlink -f "$0")"
 SELF_DIR="$(dirname "$SELF")"
 ALERT_BIN="$SELF_DIR/alert.sh"
-BELL="󰂞"
+BELL=$'\xf3\xb0\x82\x9e'  # nerd font glyphs as utf-8 bytes, the source stays ascii
+LIST_GLYPH=$'\xf3\xb0\xa2\x8c'
 DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 NOTIFY_BIN="$DOTFILES/scripts/lib/notification-send.sh"
 REMINDER_DIR="${XDG_RUNTIME_DIR:-/tmp}/quickshell-reminders"
@@ -72,9 +73,9 @@ show_reminders() {
   done < <(active_reminder_timers "$now")
 
   if [[ -z $body ]]; then
-    "$NOTIFY_BIN" -g 󰢌 "Upcoming reminders" "No outstanding reminders"
+    "$NOTIFY_BIN" -g "$LIST_GLYPH" "Upcoming reminders" "No outstanding reminders"
   else
-    "$NOTIFY_BIN" -g 󰢌 "Upcoming reminders" "${body%$'\n'}"
+    "$NOTIFY_BIN" -g "$LIST_GLYPH" "Upcoming reminders" "${body%$'\n'}"
   fi
 }
 
@@ -157,7 +158,7 @@ clear_reminders() {
 
   rm -f "$reminder_dir"/quickshell-reminder-*.message 2>/dev/null || true
   write_index
-  "$NOTIFY_BIN" -g 󰢌 "All reminders have been cleared"
+  "$NOTIFY_BIN" -g "$LIST_GLYPH" "All reminders have been cleared"
 }
 
 usage() {

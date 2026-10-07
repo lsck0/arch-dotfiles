@@ -55,14 +55,83 @@ BarWidget {
   }
 
   function focusWorkspace(id) {
-    if (!root.bar) return
-    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
+    // over the socket, no hyprctl process per click
+    Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + id + "\" })")
   }
 
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
+  // window dots under each number, one per window up to this
+  readonly property int dotMax: 4
 
   implicitWidth: grid.implicitWidth + trailingGap
   implicitHeight: grid.implicitHeight
+
+  // one pill and underline slide to the focused cell; the leading edge moves first (worm stretch)
+  property real pillTargetX: 0
+  property real pillTargetW: 0
+  property real pillX: 0
+  property real pillRight: 0
+  property bool pillShown: false
+  property bool movingRight: true
+
+  function placePill(x, w) {
+    root.movingRight = x >= root.pillTargetX
+    root.pillTargetX = x
+    root.pillTargetW = w
+    if (!root.pillShown) {
+      // first placement jumps, no stretch from 0
+      pillXBehavior.enabled = false
+      pillRightBehavior.enabled = false
+      root.pillX = x
+      root.pillRight = x + w
+      pillXBehavior.enabled = true
+      pillRightBehavior.enabled = true
+      root.pillShown = true
+      return
+    }
+    root.pillX = x
+    root.pillRight = x + w
+  }
+
+  Behavior on pillX {
+    id: pillXBehavior
+    NumberAnimation {
+      duration: root.movingRight ? Style.motion.slow : Style.motion.fast
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.enter
+    }
+  }
+  Behavior on pillRight {
+    id: pillRightBehavior
+    NumberAnimation {
+      duration: root.movingRight ? Style.motion.fast : Style.motion.slow
+      easing.type: Easing.BezierSpline
+      easing.bezierCurve: Style.motion.enter
+    }
+  }
+
+  Rectangle {
+    visible: root.pillShown
+    x: root.pillX
+    y: Style.bar.pillInset
+    width: Math.max(0, root.pillRight - root.pillX)
+    height: parent.height - Style.bar.pillInset * 2
+    radius: Style.shape.data
+    color: Style.selectedFill
+  }
+
+  Rectangle {
+    visible: root.pillShown
+    x: root.pillX + Style.bar.pillInset
+    anchors.bottom: parent.bottom
+    anchors.bottomMargin: Style.bar.pillInset
+    width: Math.max(0, root.pillRight - root.pillX - Style.bar.pillInset * 2)
+    height: Math.max(1, Style.space(2))
+    color: Color.accent
+    // static rule, its size animates only on a workspace switch
+    layer.enabled: Style.fx.glow > 0 && !(root.bar && root.bar.quiet)
+    layer.effect: Glow {}
+  }
 
   GridLayout {
     id: grid
@@ -80,43 +149,52 @@ BarWidget {
         required property int modelData
 
         readonly property var workspace: root.workspaceById(modelData)
-        readonly property bool occupied: workspace !== null && workspace.toplevels.values.length > 0
+        readonly property int windows: workspace !== null ? workspace.toplevels.values.length : 0
+        readonly property bool occupied: windows > 0
         readonly property bool focused: root.activeWorkspaceId === modelData
+        readonly property bool urgent: workspace !== null && workspace.urgent === true && !focused
+
+        function report() { if (cell.focused) root.placePill(cell.x, cell.width) }
+        onFocusedChanged: report()
+        onXChanged: report()
+        onWidthChanged: report()
+        Component.onCompleted: report()
 
         implicitWidth: btn.implicitWidth
         implicitHeight: btn.implicitHeight
-
-        Rectangle {
-          anchors.fill: parent
-          anchors.topMargin: Style.bar.pillInset
-          anchors.bottomMargin: Style.bar.pillInset
-          radius: Style.cornerRadius
-          color: cell.focused ? Style.selectedFill : "transparent"
-        }
-
-        Rectangle {
-          visible: cell.focused
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.bottom: parent.bottom
-          anchors.bottomMargin: Style.bar.pillInset
-          width: parent.width - Style.bar.pillInset * 2
-          height: Math.max(1, Style.space(2))
-          color: Color.accent
-          layer.enabled: cell.focused && Style.fx.glow > 0
-          layer.effect: Glow {}
-        }
 
         WidgetButton {
           id: btn
           bar: root.bar
           text: cell.modelData === 10 ? "0" : String(cell.modelData)
           active: cell.focused
-          opacity: cell.occupied || cell.focused ? 1 : 0.5
-          horizontalMargin: 6
-          verticalPadding: 6
+          activeColor: Color.accent
+          foreground: cell.urgent ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
+          opacity: cell.occupied || cell.focused || cell.urgent ? 1 : Style.emphasis.faint
+          horizontalMargin: Style.spacing.xs
+          verticalPadding: Style.spacing.xs
           fixedWidth: root.vertical ? root.barSize : Style.space(20)
           fixedHeight: root.barSize
           onPressed: function() { root.focusWorkspace(cell.modelData) }
+        }
+
+        // one square per window, capped
+        Row {
+          anchors.horizontalCenter: parent.horizontalCenter
+          anchors.bottom: parent.bottom
+          anchors.bottomMargin: Style.bar.pillInset + Style.spacing.xxs * 2
+          spacing: Style.spacing.xxs
+
+          Repeater {
+            model: Math.min(root.dotMax, cell.windows)
+            Rectangle {
+              width: Style.spacing.xxs
+              height: Style.spacing.xxs
+              radius: Style.shape.data
+              color: cell.urgent ? Color.urgent : cell.focused ? Color.accent : Color.foreground
+              opacity: cell.focused || cell.urgent ? 1 : Style.emphasis.dim
+            }
+          }
         }
       }
     }

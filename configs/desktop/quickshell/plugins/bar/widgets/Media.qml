@@ -114,12 +114,16 @@ BarWidget {
 
   // qt in-process tls crashes, so remote art is fetched by curl
   readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
-  readonly property string artCacheDir:
-    (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell/mediaart"
+  // tmpfs, so remote covers never outlive the session; no runtime dir means no remote art
+  readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
+  readonly property string artCacheDir: runtimeDir ? runtimeDir + "/quickshell-mediaart" : ""
   readonly property string artCacheFile:
-    root.artRemote ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
-  // a remote fetch tells the art host what is playing, so it runs only at home with no vpn or tor up
-  readonly property string artFetchCheck: "[ -e /run/home-network ] && ! ip link show proton0 >/dev/null 2>&1"
+    root.artRemote && root.artCacheDir ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
+  readonly property int artCacheKeep: 50
+  // a remote fetch tells the art host what is playing: only at home with no vpn, tor or anonymous socks up;
+  // anywhere else the cache is dropped and only file:// art shows
+  readonly property string artFetchCheck: "[ -e /run/home-network ]"
+    + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
     + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
 
   property string artSource: ""
@@ -127,21 +131,39 @@ BarWidget {
   // retry budget per url
   property int artTries: 0
 
-  function refreshArt() {
+  function fetchArt() {
     artProc.running = false
+    if (!root.artCacheFile) return
+    root.artFetchedUrl = root.artUrl
+    artProc.running = true
+  }
+
+  function refreshArt() {
     root.artTries = 0
+    root.artSource = ""
     var u = root.artUrl
-    if (!u) { root.artSource = ""; return }
-    if (!root.artRemote) { root.artSource = u; return }
-    root.artSource = "file://" + root.artCacheFile
+    if (!u) { artProc.running = false; return }
+    if (!root.artRemote) { artProc.running = false; root.artSource = u; return }
+    fetchArt()
   }
 
   onArtUrlChanged: refreshArt()
 
   Process {
+    id: artDropProc
+    command: ["rm", "-f", "--", root.artCacheFile]
+    onExited: root.fetchArt()
+  }
+
+  // the cached file is reused only while the check still passes
+  Process {
     id: artProc
-    command: ["sh", "-c", root.artFetchCheck + " && exec curl -sfL --max-time 8 --create-dirs -o \"$1\" \"$2\"",
-      "sh", root.artCacheFile, root.artUrl]
+    command: ["sh", "-c",
+      "d=$1 f=$2; if ! { " + root.artFetchCheck + "; }; then rm -rf -- \"$d\"; exit 1; fi; " +
+      "[ -s \"$f\" ] && exit 0; mkdir -p -m 700 -- \"$d\" || exit 1; " +
+      "curl -sfL --max-time 8 -o \"$f.part\" \"$3\" && mv -f -- \"$f.part\" \"$f\" || { rm -f -- \"$f.part\"; exit 1; }; " +
+      "ls -1t -- \"$d\" | tail -n +" + (root.artCacheKeep + 1) + " | while IFS= read -r o; do rm -f -- \"$d/$o\"; done",
+      "sh", root.artCacheDir, root.artCacheFile, root.artUrl]
     onExited: function (exitCode) {
       if (exitCode !== 0) return
       if (root.artFetchedUrl !== root.artUrl) return
@@ -218,20 +240,12 @@ BarWidget {
     updatePlayer()
     Cava.source = spectrumSource
     refreshArt()
-    artPruneProc.running = true
   }
 
-  // keep the newest 200 cached art files
-  Process {
-    id: artPruneProc
-    command: ["sh", "-c",
-      "d=\"${1:?}\"; [ -d \"$d\" ] || exit 0; " +
-      "ls -1t \"$d\" 2>/dev/null | tail -n +201 | " +
-      "while IFS= read -r f; do [ -n \"$f\" ] && rm -f -- \"${d:?}/${f:?}\"; done",
-      "sh", root.artCacheDir]
-  }
-
-  readonly property bool spectrumLive: visible && Cava.available && playing
+  // the bar spectrum is opt-in (widget setting barSpectrum): it repaints the bar at cava's framerate
+  readonly property bool barSpectrum: setting("barSpectrum", false) === true
+  readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
+    && !(root.bar && root.bar.quiet)
 
   // this player's stream, not the whole sink
   readonly property string spectrumSource: volumeStream ? String(volumeStream.name || "") : ""
@@ -259,15 +273,15 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
     id: row
     anchors.centerIn: parent
-    spacing: Style.spacing.sm
+    spacing: Style.spacing.xs
 
     Row {
       id: spectrum
@@ -276,8 +290,6 @@ BarWidget {
       visible: root.spectrumLive
       width: Style.space(96)
       height: Math.round(root.barSize * 0.5)
-      layer.enabled: Style.fx.glow > 0
-      layer.effect: Glow {}
 
       Repeater {
         model: Cava.barCount
@@ -303,7 +315,6 @@ BarWidget {
               GradientStop { position: 1.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
             }
             height: Math.max(2, spectrum.height * root.specHeightFrac(sbar.level))
-            Behavior on height { NumberAnimation { duration: 80; easing.type: Easing.OutQuad } }
           }
 
           // peak caps ride the held maximum, mirrored like the center-out bar
@@ -311,13 +322,11 @@ BarWidget {
             width: parent.width; height: 1
             color: root.specColor(sbar.frac, 1.6, 0.9)
             y: parent.height / 2 - parent.height / 2 * root.specHeightFrac(sbar.peak) - height
-            Behavior on y { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
           }
           Rectangle {
             width: parent.width; height: 1
             color: root.specColor(sbar.frac, 1.6, 0.9)
             y: parent.height / 2 + parent.height / 2 * root.specHeightFrac(sbar.peak)
-            Behavior on y { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
           }
         }
       }
@@ -345,7 +354,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(200)
       elide: Text.ElideRight
-      text: root.title + (root.artist ? " — " + root.artist : "")
+      text: root.title + (root.artist ? " :: " + root.artist : "")
       color: root.bar ? root.bar.barForeground : Color.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
@@ -398,17 +407,17 @@ BarWidget {
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.md
+      spacing: Style.spacing.sm
 
       Row {
         width: parent.width
-        spacing: Style.spacing.md
+        spacing: Style.spacing.sm
 
         Rectangle {
           id: artFrame
           width: Style.space(72)
           height: width
-          radius: Style.cornerRadius
+          radius: Style.shape.surface
           color: Style.selectedFillFor(Color.menu.text, Color.accent)
           clip: true
 
@@ -422,10 +431,11 @@ BarWidget {
             cache: true
             visible: status === Image.Ready
             onStatusChanged: {
+              // a truncated cache file: drop it and fetch once more
               if (status === Image.Error && root.artRemote && root.artTries < 2) {
                 root.artTries += 1
-                root.artFetchedUrl = root.artUrl
-                artProc.running = true
+                root.artSource = ""
+                artDropProc.running = true
               }
             }
           }
@@ -444,7 +454,7 @@ BarWidget {
         }
 
         Column {
-          width: parent.width - artFrame.width - Style.spacing.md
+          width: parent.width - artFrame.width - Style.spacing.sm
           spacing: Style.spacing.xxs
           anchors.verticalCenter: parent.verticalCenter
 
@@ -488,10 +498,8 @@ BarWidget {
         id: panelSpectrum
         width: parent.width
         height: Style.space(72)
+        // redrawn at cava's frame rate, so no glow
         visible: panel.visible && Cava.available
-
-        layer.enabled: Style.fx.glow > 0
-        layer.effect: Glow {}
 
         Row {
           id: panelBars
@@ -521,7 +529,7 @@ BarWidget {
                   GradientStop { position: 0.5; color: root.specColor(pbar.frac, 1.1 + pbar.level, 1.0) }
                   GradientStop { position: 1.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
                 }
-                Behavior on height { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
+                Behavior on height { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
               }
 
               Rectangle {
@@ -529,14 +537,14 @@ BarWidget {
                 height: Math.max(1, Style.spacing.xxs - 1)
                 color: root.specColor(pbar.frac, 1.6, 0.9)
                 y: pbar.height / 2 - pbar.height / 2 * Math.pow(pbar.peak, 0.6) - height
-                Behavior on y { NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+                Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
               }
               Rectangle {
                 width: parent.width
                 height: Math.max(1, Style.spacing.xxs - 1)
                 color: root.specColor(pbar.frac, 1.6, 0.9)
                 y: pbar.height / 2 + pbar.height / 2 * Math.pow(pbar.peak, 0.6)
-                Behavior on y { NumberAnimation { duration: 110; easing.type: Easing.OutQuad } }
+                Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
               }
             }
           }
@@ -551,7 +559,7 @@ BarWidget {
           root.player !== null && root.player.lengthSupported && root.player.length > 0
         opacity: supported ? 1 : 0
 
-        PanelSlider {
+        Slider {
           id: seek
           width: parent.width
           bar: root.bar
@@ -592,7 +600,7 @@ BarWidget {
         Row {
           id: transport
           anchors.horizontalCenter: parent.horizontalCenter
-          spacing: Style.spacing.md
+          spacing: Style.spacing.sm
 
           PanelActionButton {
             iconText: "\u{f074}"   // fa-shuffle
@@ -667,7 +675,7 @@ BarWidget {
 
       Row {
         width: parent.width
-        spacing: Style.spacing.md
+        spacing: Style.spacing.sm
         visible: root.player !== null
         opacity: root.volumeAvailable ? 1 : 0.4
 
@@ -689,7 +697,7 @@ BarWidget {
           }
         }
 
-        PanelSlider {
+        Slider {
           id: playerVolumeSlider
           width: content.width - Style.space(24) - Style.space(40) - parent.spacing * 2
           bar: root.bar
@@ -704,7 +712,7 @@ BarWidget {
           height: playerVolumeSlider.height
           horizontalAlignment: Text.AlignRight
           verticalAlignment: Text.AlignVCenter
-          text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "–"
+          text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "--"
           color: Color.menu.text
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
@@ -713,7 +721,7 @@ BarWidget {
 
       BarGauge {
         width: content.width
-        height: Style.spacing.md
+        height: Style.spacing.sm
         segments: 24
         visible: root.player !== null
         opacity: root.volumeAvailable ? 1 : 0.4

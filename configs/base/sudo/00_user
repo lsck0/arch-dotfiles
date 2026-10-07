@@ -1,2 +1,0 @@
-# no NOPASSWD, it would hand root to any user process
-@USER@ ALL=(ALL) ALL

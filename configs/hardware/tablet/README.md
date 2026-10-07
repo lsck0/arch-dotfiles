@@ -2,7 +2,7 @@
 
 A "driver inside" pad that no kernel driver handles correctly, so
 `tablet-driver.py` drives it from userspace and republishes the pen as a
-virtual tablet. `link.sh` installs it; `config.sh` picks that up automatically.
+virtual tablet. `system.sh` installs it; `config.sh` picks that up automatically.
 
 ```
 tablet-driver.py     the driver; also sends the unlock handshake

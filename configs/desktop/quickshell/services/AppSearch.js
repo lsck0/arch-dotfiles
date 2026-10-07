@@ -96,7 +96,8 @@ function fuzzyScore(entry, query) {
   return 4000 - name.length
 }
 
-function sortedEntries(values, query, hiddenCallback) {
+// rankCallback(entry) >= 0 (frecency) breaks score ties, and orders the empty query
+function sortedEntries(values, query, hiddenCallback, rankCallback) {
   var q = String(query || "").trim()
   var rows = []
 
@@ -108,11 +109,13 @@ function sortedEntries(values, query, hiddenCallback) {
     if (!name) continue
     var score = fuzzyScore(entry, q)
     if (score < 0) continue
-    rows.push({ entry: entry, score: score, key: entrySortKey(entry), name: name.toLowerCase() })
+    rows.push({ entry: entry, score: score, rank: rankCallback ? rankCallback(entry) : 0,
+                key: entrySortKey(entry), name: name.toLowerCase() })
   }
 
   rows.sort(function(a, b) {
     if (q && a.score !== b.score) return b.score - a.score
+    if (a.rank !== b.rank) return b.rank - a.rank
     if (a.key < b.key) return -1
     if (a.key > b.key) return 1
     if (a.name < b.name) return -1
@@ -123,5 +126,69 @@ function sortedEntries(values, query, hiddenCallback) {
   // unwrap: callers expect DesktopEntry objects, not sort rows
   var out = []
   for (var r = 0; r < rows.length; r++) out.push(rows[r].entry)
+  return out
+}
+
+// frecency: launch count weighted by recency; buckets in ms
+var FRECENCY_BUCKETS = [[86400000, 4], [604800000, 2], [2592000000, 1]]
+var FRECENCY_STALE_WEIGHT = 0.5
+var FRECENCY_MAX_ENTRIES = 200
+
+function frecencyRank(record, now) {
+  if (!record || !(record.n > 0)) return 0
+  var age = Math.max(0, now - (Number(record.t) || 0))
+  for (var i = 0; i < FRECENCY_BUCKETS.length; i++)
+    if (age < FRECENCY_BUCKETS[i][0]) return record.n * FRECENCY_BUCKETS[i][1]
+  return record.n * FRECENCY_STALE_WEIGHT
+}
+
+// copy with id bumped, trimmed to the most recent FRECENCY_MAX_ENTRIES
+function frecencyBump(map, id, now) {
+  var next = {}
+  for (var k in map) next[k] = map[k]
+  var prev = next[id]
+  next[id] = { n: (prev && prev.n > 0 ? prev.n : 0) + 1, t: now }
+  var keys = Object.keys(next)
+  if (keys.length > FRECENCY_MAX_ENTRIES) {
+    keys.sort(function(a, b) { return (next[b].t || 0) - (next[a].t || 0) })
+    for (var i = FRECENCY_MAX_ENTRIES; i < keys.length; i++) delete next[keys[i]]
+  }
+  return next
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+}
+
+// indices of query chars in text: the substring when present, else a greedy subsequence, else []
+function matchIndices(text, query) {
+  var t = String(text || "").toLowerCase()
+  var q = String(query || "").toLowerCase().replace(/\s+/g, "")
+  var out = []
+  if (!q) return out
+  var at = t.indexOf(q)
+  if (at >= 0) {
+    for (var i = 0; i < q.length; i++) out.push(at + i)
+    return out
+  }
+  var j = 0
+  for (var k = 0; k < t.length && j < q.length; k++) {
+    if (t.charAt(k) === q.charAt(j)) { out.push(k); j++ }
+  }
+  return j === q.length ? out : []
+}
+
+// StyledText with matched chars in color and bold
+function highlight(text, query, color) {
+  var s = String(text || "")
+  var hits = matchIndices(s, query)
+  if (hits.length === 0) return escapeHtml(s)
+  var set = {}
+  for (var i = 0; i < hits.length; i++) set[hits[i]] = true
+  var out = ""
+  for (var k = 0; k < s.length; k++) {
+    var ch = escapeHtml(s.charAt(k))
+    out += set[k] ? "<b><font color=\"" + color + "\">" + ch + "</font></b>" : ch
+  }
   return out
 }

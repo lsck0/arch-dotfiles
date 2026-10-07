@@ -10,18 +10,18 @@ for preset in /etc/mkinitcpio.d/*.preset; do
     [[ -f "$preset" ]] || continue
     pkgbase=$(basename "$preset" .preset)
     vmlinuz=/boot/vmlinuz-$pkgbase
-    sudo sbctl list-files --json 2>/dev/null | grep -qF "\"$vmlinuz\"" || continue
+    sbctl list-files --json 2>/dev/null | grep -qF "\"$vmlinuz\"" || continue
     # pending until this kernel boots from its uki and grub.cfg no longer boots the plain kernel
     grep -q '^default_uki=' "$preset" || exit 1
-    if sudo grep -qE "/vmlinuz-$pkgbase( |\$)" /boot/grub/grub.cfg 2>/dev/null; then
+    if grep -qE "/vmlinuz-$pkgbase( |\$)" /boot/grub/grub.cfg 2>/dev/null; then
         exit 1
     fi
     # the package's copy is the unsigned original
     for pkgbase_file in /usr/lib/modules/*/pkgbase; do
         if [[ "$(<"$pkgbase_file")" == "$pkgbase" ]]; then
-            sudo install -m644 "${pkgbase_file%/*}/vmlinuz" "$vmlinuz"
+            install -m644 "${pkgbase_file%/*}/vmlinuz" "$vmlinuz"
         fi
     done
     # after the restore, so a failed one stays pending instead of leaving a signed kernel sbctl no longer lists
-    sudo sbctl remove-file "$vmlinuz"
+    sbctl remove-file "$vmlinuz"
 done

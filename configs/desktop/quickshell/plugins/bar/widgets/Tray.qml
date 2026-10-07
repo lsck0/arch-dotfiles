@@ -319,7 +319,7 @@ BarWidget {
     Column {
       id: manageColumn
       anchors.fill: parent
-      spacing: Style.space(8)
+      spacing: Style.spacing.sm
 
       Text {
         text: "Tray icons"
@@ -385,9 +385,9 @@ BarWidget {
             textFormat: Text.PlainText
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: rowIcon.right
-            anchors.leftMargin: Style.space(10)
+            anchors.leftMargin: Style.spacing.md
             anchors.right: rowHideBtn.left
-            anchors.rightMargin: Style.space(8)
+            anchors.rightMargin: Style.spacing.sm
             text: rowRoot.displayName
             color: root.foreground
             font.family: root.fontFamily
@@ -413,7 +413,7 @@ BarWidget {
             id: rowHideBtn
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: rowPinBtn.left
-            anchors.rightMargin: Style.space(6)
+            anchors.rightMargin: Style.spacing.sm
             iconText: "\uf06e"
             text: rowRoot.isHidden ? "Show" : "Hide"
             foreground: root.foreground
@@ -439,7 +439,7 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.trayMenuOpen
-    padding: Style.spacing.sm
+    padding: Style.spacing.xs
     // on visible, not open: resetting mid-fade flashes the root menu
     onVisibleChanged: if (!visible) root.resetTrayMenu()
     contentWidth: trayMenuPopup.fittedContentWidth(Style.space(232))
@@ -470,7 +470,7 @@ BarWidget {
 
           Rectangle {
             anchors.fill: parent
-            radius: Math.max(2, Style.cornerRadius)
+            radius: Style.shape.data
             color: backMouse.containsMouse ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
           }
 
@@ -491,7 +491,7 @@ BarWidget {
             anchors.left: parent.left
             anchors.leftMargin: Style.space(28)
             anchors.right: parent.right
-            anchors.rightMargin: Style.space(10)
+            anchors.rightMargin: Style.spacing.md
             text: root.currentTitle
             color: root.foreground
             font.family: root.fontFamily
@@ -518,9 +518,9 @@ BarWidget {
 
           Rectangle {
             anchors.left: parent.left
-            anchors.leftMargin: Style.space(10)
+            anchors.leftMargin: Style.spacing.md
             anchors.right: parent.right
-            anchors.rightMargin: Style.space(10)
+            anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
             height: 1
             color: Color.popups.border
@@ -571,9 +571,9 @@ BarWidget {
               Rectangle {
                 visible: menuRow.modelData.isSeparator
                 anchors.left: parent.left
-                anchors.leftMargin: Style.space(10)
+                anchors.leftMargin: Style.spacing.md
                 anchors.right: parent.right
-                anchors.rightMargin: Style.space(10)
+                anchors.rightMargin: Style.spacing.md
                 anchors.verticalCenter: parent.verticalCenter
                 height: 1
                 color: Color.popups.border
@@ -583,7 +583,7 @@ BarWidget {
               Rectangle {
                 visible: !menuRow.modelData.isSeparator
                 anchors.fill: parent
-                radius: Math.max(2, Style.cornerRadius)
+                radius: Style.shape.data
                 color: rowMouse.containsMouse && menuRow.modelData.enabled ? Style.hoverFillFor(root.foreground, root.foreground) : "transparent"
               }
 
@@ -621,7 +621,7 @@ BarWidget {
                 anchors.left: parent.left
                 anchors.leftMargin: trayMenuPopup.textInset
                 anchors.right: submenuGlyph.left
-                anchors.rightMargin: Style.space(8)
+                anchors.rightMargin: Style.spacing.sm
                 text: menuRow.rowText
                 color: root.foreground
                 font.family: root.fontFamily
@@ -634,7 +634,7 @@ BarWidget {
                 visible: !menuRow.modelData.isSeparator && menuRow.modelData.hasChildren
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.right: parent.right
-                anchors.rightMargin: Style.space(10)
+                anchors.rightMargin: Style.spacing.md
                 text: "\u203a"
                 color: root.foreground
                 font.family: root.fontFamily

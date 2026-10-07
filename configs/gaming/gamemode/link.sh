@@ -1,14 +1,3 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -e
-
-ln -sfn "${PWD}/gamemode.ini" "${HOME}/.config/gamemode.ini"
-
-sudo install -m755 split-lock-mitigate /usr/local/bin/split-lock-mitigate
-
-# the hook stops vllm/ollama to free vram and relaxes split lock mitigation; polkit lets it do both unprompted
-sudo install -m644 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules
-
-# polkit lets the gamemode group set cpu governor and gpu performance level without a prompt
-sudo usermod -aG gamemode "$USER"
+link_into "${HOME}/.config" gamemode.ini

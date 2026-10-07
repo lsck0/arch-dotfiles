@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-set -e
 
 # prop set silently no-ops before init
 if waydroid status 2>/dev/null | grep -q 'not initialized'; then
-    echo "waydroid: not initialized, run 'sudo waydroid init' then rerun this script" >&2
+    echo "waydroid: not initialized, run 'waydroid init' as root, then rerun config.sh" >&2
     exit 0
 fi
 

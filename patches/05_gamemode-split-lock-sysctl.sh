@@ -7,7 +7,7 @@ SPLIT_LOCK_MITIGATE=/proc/sys/kernel/split_lock_mitigate
 MITIGATE_ON=1
 
 [[ -e "$SYSCTL_CONF" ]] || exit 0
-sudo rm -f "$SYSCTL_CONF"
+rm -f "$SYSCTL_CONF"
 if [[ -e "$SPLIT_LOCK_MITIGATE" ]]; then
-    sudo sysctl -q kernel.split_lock_mitigate="$MITIGATE_ON"
+    sysctl -q kernel.split_lock_mitigate="$MITIGATE_ON"
 fi

@@ -12,6 +12,7 @@ import Quickshell.Io
  * Properties:
  *   command     argv list
  *   intervalMs  poll period, 0 means no timer
+ *   minAgeMs    refresh() is a no-op while the last run is younger than this; polls ignore it
  *   streaming   one JSON value per line instead of one per run
  *   running     the process is alive; set false to stop a stream
  *
@@ -31,6 +32,8 @@ QtObject {
 
   property var command: []
   property int intervalMs: 0
+  property int minAgeMs: 0
+  property real lastRunMs: 0
   property bool streaming: false
   property alias running: process.running
 
@@ -38,8 +41,16 @@ QtObject {
   signal failed(string error)
 
   // a refresh during a run is dropped, the run in flight answers it
+  function run() {
+    if (process.running) return
+    lastRunMs = Date.now()
+    process.running = true
+  }
+
+  // hover and open refreshes, rate-limited by minAgeMs
   function refresh() {
-    if (!process.running) process.running = true
+    if (minAgeMs > 0 && Date.now() - lastRunMs < minAgeMs) return
+    run()
   }
 
   // parse outside the handler call so a throwing onParsed is not reported as bad json
@@ -71,6 +82,6 @@ QtObject {
     running: root.intervalMs > 0
     repeat: true
     triggeredOnStart: true
-    onTriggered: root.refresh()
+    onTriggered: root.run()
   }
 }

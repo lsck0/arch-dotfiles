@@ -8,10 +8,17 @@
   },
   "filter": {
     "blockInbound": false,
+    "endpoints": [
+      "+ LAN UDP/5353",
+      "+ LAN TCP/631"
+    ],
     "lists": [
       "TRAC",
       "MAL",
       "ADS"
+    ],
+    "serviceEndpoints": [
+      "+ LAN UDP/5353"
     ]
   }
 }

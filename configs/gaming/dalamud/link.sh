@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source $DOTFILES/scripts/lib/secrets.sh
-
-BACKUP="$(readlink -f $DOTFILES/secrets/dalamud)"
+BACKUP="${DOTFILES}/secrets/dalamud"
 XLCORE="${HOME}/.xlcore"
 # InstalledFromUrl is "OFFICIAL" for dalamud's own repo; url below is where the script fetches instead
 MAIN_REPO_URL=https://kamori.goats.dev/Plugin/PluginMaster
@@ -11,8 +8,6 @@ MAIN_REPO_URL=https://kamori.goats.dev/Plugin/PluginMaster
 # skip while XIVLauncher is not installed, or the secrets backup is locked
 command -v xivlauncher-core >/dev/null 2>&1 || exit 0
 secret_is_plaintext "${BACKUP}/dalamudConfig.json" || exit 0
-
-set -e
 
 # copies, not links: dalamud rewrites these files in place of a symlink. only a fresh ~/.xlcore is seeded
 if [ ! -f "${XLCORE}/dalamudConfig.json" ]; then

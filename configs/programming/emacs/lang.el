@@ -106,10 +106,46 @@
 
 ;;;; formatting --------------------------------------------------------------
 
+;; personal style only where the project has no config of its own, like conform's personal() in nvim lsp.lua
+(defun my/formatting-args (names flag file)
+  "FLAG joined to the personal FILE in configs/programming/formatting, nil when a project config is found.
+NAMES is a list of file names, or a predicate on a directory, searched upward from `default-directory'."
+  (unless (if (functionp names)
+              (locate-dominating-file default-directory names)
+            (seq-some (lambda (name) (locate-dominating-file default-directory name)) names))
+    (concat flag (expand-file-name "../formatting/" (file-truename user-emacs-directory)) file)))
+
+(defun my/ruff-config-p (dir)
+  "Non-nil when DIR holds a ruff config; ruff itself skips a pyproject.toml without [tool.ruff]."
+  (or (file-exists-p (expand-file-name "ruff.toml" dir))
+      (file-exists-p (expand-file-name ".ruff.toml" dir))
+      (let ((pyproject (expand-file-name "pyproject.toml" dir)))
+        (and (file-readable-p pyproject)
+             (with-temp-buffer
+               (insert-file-contents pyproject)
+               (search-forward "[tool.ruff" nil t))))))
+
 ;; async format-on-save
 (use-package apheleia
   :init (apheleia-global-mode 1)
   :config
+  ;; the args go right after the program name; apheleia evaluates the form per buffer and drops a nil
+  (pcase-dolist (`(,formatter . ,form)
+                 '((clang-format . (my/formatting-args '(".clang-format" "_clang-format") "--style=file:" "clang-format"))
+                   (stylua . (my/formatting-args '("stylua.toml" ".stylua.toml") "--config-path=" "stylua.toml"))
+                   (prettier . (my/formatting-args
+                                '(".prettierrc" ".prettierrc.json" ".prettierrc.json5" ".prettierrc.yaml" ".prettierrc.yml"
+                                  ".prettierrc.toml" ".prettierrc.js" ".prettierrc.cjs" ".prettierrc.mjs" ".prettierrc.ts"
+                                  "prettier.config.js" "prettier.config.cjs" "prettier.config.mjs" "prettier.config.ts")
+                                "--config=" "prettierrc.json"))
+                   (rustfmt . (my/formatting-args '("rustfmt.toml" ".rustfmt.toml") "--config-path=" "rustfmt.toml"))
+                   (ruff . (my/formatting-args #'my/ruff-config-p "--config=" "ruff.toml"))
+                   (ruff-isort . (my/formatting-args #'my/ruff-config-p "--config=" "ruff.toml"))))
+    (let* ((command (alist-get formatter apheleia-formatters))
+           (program (and (listp command) (seq-position command nil (lambda (elt _) (stringp elt))))))
+      (when program
+        (setf (alist-get formatter apheleia-formatters)
+              (append (seq-take command (1+ program)) (list form) (seq-drop command (1+ program)))))))
   (setf (alist-get 'python-mode    apheleia-mode-alist) '(ruff-isort ruff)
         (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff))
   (dolist (m '(c-mode c-ts-mode c++-mode c++-ts-mode))

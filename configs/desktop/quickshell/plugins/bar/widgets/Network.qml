@@ -37,6 +37,7 @@ BarWidget {
   property var wifiNetworks: []
   property string connectingSsid: ""
   property string connectError: ""
+  property bool passwordFocused: false
 
   function fmtSpeed(kbps) {
     if (kbps >= 1024)
@@ -47,7 +48,13 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
+  // nmcli monitor and ToggleEvents keep state live, so an open re-reads only past this age
+  readonly property int refreshMinAgeMs: 60 * 1000
+  property real lastRefreshMs: 0
+  property real lastScanMs: 0
+
   function refreshAll() {
+    lastRefreshMs = Date.now()
     homeVpnProc.running = true
     protonVpnProc.running = true
     torProc.running = true
@@ -62,10 +69,20 @@ BarWidget {
   }
 
   function refreshWifiList(rescan) {
+    if (wifiScanProc.running) return
+    if (rescan) lastScanMs = Date.now()
     wifiScanProc.command = rescan
       ? [Paths.barWidget("network-wifi-scan.sh"), "rescan"]
       : [Paths.barWidget("network-wifi-scan.sh")]
-    if (!wifiScanProc.running) wifiScanProc.running = true
+    wifiScanProc.running = true
+  }
+
+  function panelOpened() {
+    var now = Date.now()
+    if (now - lastRefreshMs >= refreshMinAgeMs) refreshAll()
+    else if (!detailsProc.running) detailsProc.running = true
+    // the cached list shows at once, a stale one is rescanned
+    refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
   }
 
   function connectTo(ssid, password) {
@@ -271,9 +288,9 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
@@ -308,7 +325,9 @@ BarWidget {
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
-    onOpened: { root.refreshAll(); root.refreshWifiList(false) }
+    onOpened: root.panelOpened()
+    // the password field holds the panel open while it has focus
+    pinned: root.passwordFocused
     // wifi password input needs keyboard
     acceptsKeyboard: true
     title: "NETWORK"
@@ -318,36 +337,11 @@ BarWidget {
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.xs
 
       component ToggleRow: PanelRow {
         width: content.width
         stateMarker: glyph === ""
-      }
-
-      component DetailRow: Row {
-        id: detailRow
-        property string label: ""
-        property string value: ""
-        property color valueColor: Color.menu.text
-        property int valueElide: Text.ElideNone
-        width: content.width
-        Text {
-          width: detailRow.width * 0.35
-          text: detailRow.label
-          color: Color.menu.text
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
-        }
-        Text {
-          width: detailRow.width * 0.65
-          horizontalAlignment: Text.AlignRight
-          text: detailRow.value
-          color: detailRow.valueColor
-          elide: detailRow.valueElide
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
-        }
       }
 
       PanelSectionHeader {
@@ -358,19 +352,19 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
         visible: root.detailsConnected
-        DetailRow {
+        StatRow {
           label: "Status"
-          value: root.connectivityLabel + (root.onEthernet ? "  ·  LAN" : "  ·  Wi-Fi")
+          value: root.connectivityLabel + (root.onEthernet ? " :: LAN" : " :: Wi-Fi")
           valueColor: root.reallyOnline ? Color.menu.text : Color.menu.selectedText
         }
-        DetailRow {
+        StatRow {
           label: "Device"
           value: root.detailsDevice + (root.detailsSsid ? " (" + root.detailsSsid + ")" : "")
           valueElide: Text.ElideLeft
         }
-        DetailRow { label: "IP"; value: root.detailsIp4 || "--" }
-        DetailRow { label: "MAC"; value: root.detailsMac || "--" }
-        DetailRow { label: "Speed"; value: "↓" + root.fmtSpeed(root.detailsRxKbps) + "  ↑" + root.fmtSpeed(root.detailsTxKbps) }
+        StatRow { label: "IP"; value: root.detailsIp4 || "--" }
+        StatRow { label: "MAC"; value: root.detailsMac || "--" }
+        StatRow { label: "Speed"; value: "rx " + root.fmtSpeed(root.detailsRxKbps) + "  tx " + root.fmtSpeed(root.detailsTxKbps) }
       }
       PanelSeparator {
         visible: root.detailsConnected
@@ -382,67 +376,16 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        Row {
-          spacing: Style.spacing.xxs
-          Text {
-            anchors.bottom: parent.bottom
-            text: root.fmtSpeed(root.detailsRxKbps)
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Math.round(Style.font.display * 1.1)
-            font.bold: true
-            font.letterSpacing: Style.displayTracking
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow {}
-          }
+        // live rate: outline, never a glow layer
+        Hero {
+          value: root.fmtSpeed(root.detailsRxKbps)
+          live: true
         }
 
-        Row {
-          width: parent.width
-          Text {
-            width: parent.width * 0.5
-            text: "# DOWN"
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking
-          }
-          Text {
-            width: parent.width * 0.5
-            horizontalAlignment: Text.AlignRight
-            text: root.fmtSpeed(root.detailsRxKbps)
-            color: Color.menu.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.displayTracking
-          }
-        }
+        StatRow { label: "rx"; value: root.fmtSpeed(root.detailsRxKbps) }
         Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Color.accent }
 
-        Row {
-          width: parent.width
-          Text {
-            width: parent.width * 0.5
-            text: "# UP"
-            color: Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking
-          }
-          Text {
-            width: parent.width * 0.5
-            horizontalAlignment: Text.AlignRight
-            text: root.fmtSpeed(root.detailsTxKbps)
-            color: Color.menu.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.displayTracking
-          }
-        }
+        StatRow { label: "tx"; value: root.fmtSpeed(root.detailsTxKbps) }
         Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; minValue: 0; maxValue: 0; color: Color.menu.text }
       }
 
@@ -466,13 +409,13 @@ BarWidget {
               property bool pendingConnect: false
               width: parent.width
               height: Style.row.list
-              radius: Style.cornerRadius
+              radius: Style.shape.data
               color: modelData.active ? Color.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
 
               Text {
                 id: netIcon
                 anchors.left: parent.left
-                anchors.leftMargin: Style.spacing.md
+                anchors.leftMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.active ? "*" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
                 color: modelData.active ? Color.menu.selectedText : Color.menu.text
@@ -483,9 +426,9 @@ BarWidget {
               }
               Text {
                 anchors.left: netIcon.right
-                anchors.leftMargin: Style.spacing.sm
+                anchors.leftMargin: Style.spacing.xs
                 anchors.right: netSignal.left
-                anchors.rightMargin: Style.spacing.sm
+                anchors.rightMargin: Style.spacing.xs
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.ssid
                 color: modelData.active ? Color.menu.selectedText : Color.menu.text
@@ -496,7 +439,7 @@ BarWidget {
               Text {
                 id: netSignal
                 anchors.right: parent.right
-                anchors.rightMargin: Style.spacing.md
+                anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.signal + "%"
                 color: Color.menu.text
@@ -525,21 +468,23 @@ BarWidget {
               visible: netRow.pendingConnect && !modelData.active
               width: parent.width
               spacing: Style.spacing.xs
-              leftPadding: Style.spacing.lg
+              leftPadding: Style.spacing.sm
 
               Rectangle {
                 width: parent.width - parent.leftPadding - connectButton.width - parent.spacing
                 height: Style.row.control
-                radius: Style.cornerRadius
+                radius: Style.shape.data
                 color: Style.normalFill
                 border.width: pwInput.activeFocus ? 1 : 0
                 border.color: Color.accent
 
                 TextInput {
                   id: pwInput
+                  onActiveFocusChanged: root.passwordFocused = activeFocus
+                  Component.onDestruction: if (activeFocus) root.passwordFocused = false
                   anchors.fill: parent
-                  anchors.leftMargin: Style.spacing.sm
-                  anchors.rightMargin: Style.spacing.sm
+                  anchors.leftMargin: Style.spacing.xs
+                  anchors.rightMargin: Style.spacing.xs
                   verticalAlignment: TextInput.AlignVCenter
                   echoMode: TextInput.Password
                   color: Color.menu.text
@@ -552,7 +497,7 @@ BarWidget {
                 id: connectButton
                 width: Style.space(70)
                 height: Style.row.control
-                radius: Style.cornerRadius
+                radius: Style.shape.data
                 color: Style.selectedFillFor(Color.menu.text, Color.accent)
                 Text {
                   anchors.centerIn: parent
@@ -572,8 +517,8 @@ BarWidget {
         }
 
         Text {
-          visible: root.wifiNetworks.length === 0
-          text: "No networks found, scanning..."
+          visible: root.wifiNetworks.length === 0 || wifiScanProc.running
+          text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
           color: Color.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.caption

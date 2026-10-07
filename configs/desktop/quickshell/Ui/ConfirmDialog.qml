@@ -15,7 +15,7 @@ Item {
   property color selectedBackground: Util.alpha(Color.foreground, 0.08)
   property color selectedText: Color.accent
   property string fontFamily: Style.font.family
-  property int cornerRadius: Style.cornerRadius
+  property int cornerRadius: Style.shape.surface
 
   signal canceled()
   signal confirmed()
@@ -54,7 +54,7 @@ Item {
       anchors.centerIn: parent
       color: root.background
       borderSpec: Border.flat(root.selectedText, Style.normalBorderWidth)
-      padding: Style.space(18)
+      padding: Style.spacing.lg
       radius: root.cornerRadius
 
       MouseArea { anchors.fill: parent; onClicked: {} }
@@ -82,7 +82,7 @@ Item {
           id: messageText
           textFormat: Text.PlainText
           anchors.left: prompt.right
-          anchors.leftMargin: Style.spacing.sm
+          anchors.leftMargin: Style.spacing.xs
           anchors.right: parent.right
           anchors.top: parent.top
           text: root.message
@@ -95,7 +95,7 @@ Item {
         Row {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
-          spacing: Style.space(10)
+          spacing: Style.spacing.md
 
           Repeater {
             model: [root.cancelText, root.confirmText]

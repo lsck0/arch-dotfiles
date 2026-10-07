@@ -16,19 +16,25 @@ Item {
     // terminate the session directly instead of asking hyprland to exit
     { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""] },
     { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
-    { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"] },
-    { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"] },
-    { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"] }
+    // these end the session for good, so they ask first
+    { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
+    { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },
+    { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"], confirm: true }
   ]
+  // index awaiting [Y/n], -1 when none
+  property int pendingIndex: -1
+  readonly property var pendingAction: pendingIndex >= 0 ? actions[pendingIndex] : null
 
   function open() {
     root.selectedIndex = 0
+    root.pendingIndex = -1
     root.opened = true
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
 
   function close() {
     root.opened = false
+    root.pendingIndex = -1
   }
 
   function toggle() {
@@ -39,6 +45,11 @@ Item {
   function activate(index) {
     var action = root.actions[index]
     if (!action) return
+    if (action.confirm && root.pendingIndex !== index) {
+      root.selectedIndex = index
+      root.pendingIndex = index
+      return
+    }
     Quickshell.execDetached(action.cmd)
     root.close()
   }
@@ -57,30 +68,18 @@ Item {
     function close(): string { root.close(); return "ok" }
   }
 
-  PanelWindow {
-    visible: root.opened
-    color: "transparent"
-    WlrLayershell.namespace: "quickshell-powermenu"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    exclusionMode: ExclusionMode.Ignore
-
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
-
-    Rectangle {
-      anchors.fill: parent
-      color: Color.menu.scrim
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.close()
-    }
+  OverlayCard {
+    id: panel
+    open: root.opened
+    name: "powermenu"
+    title: "session"
+    suffix: root.userName.length > 0 ? "@" + root.userName : ""
+    hints: root.pendingAction
+      ? [["Y ENTER", "confirm"], ["N ESC", "cancel"]]
+      : [["< >", "select"], ["ENTER", "run"], ["L E H S R F", "direct"], ["ESC", "close"]]
+    cardWidth: actionRow.implicitWidth + chromeWidth
+    cardHeight: actionRow.implicitHeight + confirmLine.height + Style.spacing.sm + chromeHeight
+    onDismissed: root.close()
 
     Item {
       id: keyCatcher
@@ -88,6 +87,15 @@ Item {
       focus: true
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
+        // confirm line: Y or Enter runs, anything else cancels; the key is swallowed either way
+        if (root.pendingAction) {
+          if (event.key === Qt.Key_Y || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+            root.activate(root.pendingIndex)
+          else
+            root.pendingIndex = -1
+          event.accepted = true
+          return
+        }
         if (event.key === Qt.Key_Escape) {
           root.close()
           event.accepted = true
@@ -108,178 +116,100 @@ Item {
           }
         }
       }
+    }
 
-      Column {
-        anchors.centerIn: parent
-        spacing: Style.spacing.huge
+    Row {
+      id: actionRow
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.top: parent.top
+      spacing: Style.spacing.sm
 
-        Item {
-          width: actionRow.width
-          implicitHeight: titleRow.implicitHeight + Style.spacing.sm + titleRule.height
-          height: implicitHeight
+      Repeater {
+        model: root.actions
 
-          Row {
-            id: titleRow
-            anchors.left: parent.left
-            anchors.top: parent.top
-            spacing: Style.spacing.sm
+        BorderSurface {
+          id: tile
+          required property var modelData
+          required property int index
+          opacity: panel.boot.rowOpacity(index)
+          readonly property bool selected: index === root.selectedIndex
+          readonly property color tint: root.pendingIndex === index ? Color.urgent : Color.accent
+
+          width: Style.space(132)
+          height: Style.space(132)
+          radius: Style.shape.data
+          color: selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint)
+          borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
+
+          Column {
+            anchors.centerIn: parent
+            spacing: Style.spacing.xs
 
             Text {
-              anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
-              text: ">"
-              color: Color.accent
-              opacity: Style.emphasis.dim
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: tile.modelData.icon
+              color: tile.selected ? tile.tint : Color.menu.text
+              font.family: Style.font.iconFamily
+              font.pixelSize: Style.font.displayLarge
+              layer.enabled: tile.selected && Style.fx.glow > 0
+              layer.effect: Glow {}
             }
 
             Text {
-              anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
-              text: "SESSION"
-              color: Color.accent
+              anchors.horizontalCenter: parent.horizontalCenter
+              text: tile.modelData.label
+              color: tile.selected ? tile.tint : Color.menu.text
               font.family: Style.font.family
-              font.pixelSize: Style.font.title
-              font.bold: true
+              font.pixelSize: Style.font.body
+              font.capitalization: Font.AllUppercase
               font.letterSpacing: Style.headerTracking
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "_"
-              color: Color.accent
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                PropertyAnimation { to: 1; duration: 0 }
-                PauseAnimation { duration: 530 }
-                PropertyAnimation { to: 0; duration: 0 }
-                PauseAnimation { duration: 530 }
-              }
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              visible: root.userName.length > 0
-              text: "@" + root.userName
-              color: Color.menu.text
-              opacity: Style.emphasis.faint
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
             }
           }
 
-          // decorative, non-interactive
           Text {
-            anchors.right: parent.right
-            anchors.verticalCenter: titleRow.verticalCenter
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.topMargin: Style.spacing.xs
+            anchors.leftMargin: Style.spacing.xs
             textFormat: Text.PlainText
-            text: "[- o x]"
-            color: Color.accent
-            opacity: Style.emphasis.faint
+            text: "[" + tile.modelData.hotkey + "]"
+            color: tile.selected ? tile.tint : Color.menu.text
+            opacity: tile.selected ? Style.emphasis.strong : Style.emphasis.faint
             font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            font.pixelSize: Style.font.caption
             font.letterSpacing: Style.headerTracking
           }
 
-          Rectangle {
-            id: titleRule
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: titleRow.bottom
-            anchors.topMargin: Style.spacing.sm
-            height: Math.max(1, Style.space(1))
-            color: Util.alpha(Color.accent, 0.8)
-          }
-        }
+          HudFrame { shown: tile.selected }
 
-        Row {
-          id: actionRow
-          anchors.horizontalCenter: parent.horizontalCenter
-          spacing: Style.spacing.lg
-
-          Repeater {
-            model: root.actions
-
-            BorderSurface {
-              id: tile
-              required property var modelData
-              required property int index
-              readonly property bool selected: index === root.selectedIndex
-              readonly property color tint: Color.accent
-
-              width: Style.space(132)
-              height: Style.space(132)
-              radius: Style.cornerRadius
-              // tint onto the opaque surface so the scrim does not read through
-              color: Qt.tint(Color.menu.background, selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint))
-              borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
-
-              Column {
-                anchors.centerIn: parent
-                spacing: Style.spacing.sm
-
-                Text {
-                  textFormat: Text.PlainText
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  text: tile.modelData.icon
-                  color: tile.selected ? tile.tint : Color.menu.text
-                  font.family: Style.font.iconFamily
-                  font.pixelSize: Style.font.displayLarge
-                  layer.enabled: tile.selected && Style.fx.glow > 0
-                  layer.effect: Glow {}
-                }
-
-                Text {
-                  textFormat: Text.PlainText
-                  anchors.horizontalCenter: parent.horizontalCenter
-                  text: tile.modelData.label
-                  color: tile.selected ? tile.tint : Color.menu.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.body
-                  font.capitalization: Font.AllUppercase
-                  font.letterSpacing: Style.headerTracking
-                }
-              }
-
-              Text {
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.topMargin: Style.spacing.sm
-                anchors.leftMargin: Style.spacing.sm
-                textFormat: Text.PlainText
-                text: "[" + tile.modelData.hotkey + "]"
-                color: tile.selected ? tile.tint : Color.menu.text
-                opacity: tile.selected ? Style.emphasis.strong : Style.emphasis.faint
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-                font.letterSpacing: Style.headerTracking
-              }
-
-              HudFrame { shown: tile.selected }
-
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: root.selectedIndex = tile.index
-                onClicked: root.activate(tile.index)
-              }
-            }
+          MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onEntered: if (!root.pendingAction) root.selectedIndex = tile.index
+            onClicked: root.activate(tile.index)
           }
         }
       }
+    }
 
-      Scanlines { flicker: false }
+    // `> SHUTDOWN? [Y/n]` under the tiles, blank when nothing waits
+    Text {
+      id: confirmLine
+      anchors.top: actionRow.bottom
+      anchors.topMargin: Style.spacing.sm
+      anchors.left: actionRow.left
+      height: Style.font.body + Style.spacing.xs * 2
+      verticalAlignment: Text.AlignVCenter
+      textFormat: Text.PlainText
+      text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
+      color: Color.urgent
+      font.family: Style.font.family
+      font.pixelSize: Style.font.body
+      font.bold: true
+      font.letterSpacing: Style.headerTracking
     }
   }
 }

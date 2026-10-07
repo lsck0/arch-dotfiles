@@ -19,21 +19,12 @@ Item {
   onWidthChanged: cv.requestPaint()
   onHeightChanged: cv.requestPaint()
 
-  function _mix(a, b, t) {
-    return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t,
-                   a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t)
-  }
+  // low values fade in as accent, high ones walk the severity ramp
+  readonly property real fadeEnd: 0.5
+  readonly property real alphaFloor: 0.05
   function colorFor(t) {
-    var s0 = Util.alpha(Color.accent, 0.05)
-    var s1 = Util.alpha(Color.accent, 0.45)
-    var s2 = Util.alpha(Color.accent, 0.95)
-    var s3 = Util.alpha(Color.semantic.recording, 0.95)
-    var s4 = Util.alpha(Color.semantic.live, 1.0)
-    if (t <= 0) return s0
-    if (t < 0.35) return _mix(s0, s1, t / 0.35)
-    if (t < 0.6) return _mix(s1, s2, (t - 0.35) / 0.25)
-    if (t < 0.82) return _mix(s2, s3, (t - 0.6) / 0.22)
-    return _mix(s3, s4, Math.min(1, (t - 0.82) / 0.18))
+    var a = alphaFloor + (1 - alphaFloor) * Math.min(1, t / fadeEnd)
+    return Util.alpha(Color.ramp(t), a)
   }
 
   Canvas {

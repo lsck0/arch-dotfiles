@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 
+// the switch as text: `[on ]` / `[ off]`, fixed width so rows do not shift
 Item {
   id: root
 
@@ -12,8 +13,7 @@ Item {
   property bool hasCursor: false
 
   property bool cursorRing: interactive
-  property int cursorPad: Style.space(6)
-  property bool rounded: Style.cornerRadius > 0
+  property int cursorPad: Style.spacing.xs
   property color foreground: Color.foreground
   property color accent: Color.accent
 
@@ -22,51 +22,37 @@ Item {
   readonly property alias containsMouse: mouse.containsMouse
   readonly property bool hot: hasCursor || mouse.containsMouse
 
-  property int trackHeight: Math.max(22, Math.round(Style.spacing.controlHeight * 0.55))
-  property int trackWidth: Math.round(trackHeight * 1.9)
-  property int knobSize: Math.max(6, Math.round(trackHeight * 0.72))
-  property int knobInset: Math.max(1, Math.round((trackHeight - knobSize) / 2))
-
   readonly property int _pad: cursorRing ? cursorPad : 0
 
-  implicitWidth: trackWidth + _pad * 2
-  implicitHeight: trackHeight + _pad * 2
+  implicitWidth: widest.advanceWidth + _pad * 2
+  implicitHeight: label.implicitHeight + _pad * 2
+
+  TextMetrics {
+    id: widest
+    font: label.font
+    text: "[ off]"
+  }
 
   BorderSurface {
     anchors.fill: parent
     visible: root.cursorRing && root.hot
     color: "transparent"
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     borderSpec: Border.controlSpec("hover-cursor", root.foreground, root.accent)
   }
 
-  BorderSurface {
-    id: track
-    width: root.trackWidth
-    height: root.trackHeight
+  Text {
+    id: label
     anchors.centerIn: parent
-    radius: root.rounded ? height / 2 : 0
-    color: root.checked
-      ? Style.selectedFillFor(root.foreground, root.accent)
-      : Style.normalFillFor(root.foreground, root.accent)
-    borderSpec: Border.controlSpec(root.checked ? "selected" : "normal", root.foreground, root.accent)
-
+    textFormat: Text.PlainText
+    text: root.checked ? "[on ]" : "[ off]"
+    color: root.checked ? Style.selectedStateColor(root.foreground, root.accent) : root.foreground
+    opacity: root.checked ? 1 : Style.emphasis.faint
+    font.family: Style.font.family
+    font.pixelSize: Style.font.body
+    font.bold: root.checked
     layer.enabled: Style.fx.glow > 0 && root.checked
     layer.effect: Glow {}
-
-    Behavior on color { ColorAnimation { duration: 120 } }
-
-    Rectangle {
-      width: root.knobSize
-      height: root.knobSize
-      radius: root.rounded ? height / 2 : 0
-      x: root.checked ? track.width - width - root.knobInset : root.knobInset
-      anchors.verticalCenter: parent.verticalCenter
-      color: root.checked ? Style.selectedStateColor(root.foreground, root.accent) : Qt.darker(root.foreground, 1.25)
-
-      Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-      Behavior on color { ColorAnimation { duration: 120 } }
-    }
   }
 
   MouseArea {

@@ -1,8 +1,10 @@
 [Unit]
-Description=Apply spicetify after the first spotify login
+Description=Apply spicetify after the first spotify login and every spotify upgrade
 
 [Path]
 PathChanged=%h/.config/spotify/prefs
+# an upgrade drops in a fresh xpui.spa; PathExists would retrigger in a loop while nobody is logged in yet
+PathChanged=/opt/spotify/Apps/xpui.spa
 
 [Install]
 WantedBy=default.target

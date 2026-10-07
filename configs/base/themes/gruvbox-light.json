@@ -1,5 +1,5 @@
 {
-  "wallpaper": "/home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-serenity2-1k.jpg",
+  "wallpaper": "alena-aenami-serenity2-1k.jpg",
   "font": "Kode Mono",
   "special": { "background": "#fbf1c7", "foreground": "#3c3836", "cursor": "#3c3836" },
   "colors": {

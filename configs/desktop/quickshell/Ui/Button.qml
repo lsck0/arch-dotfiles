@@ -40,7 +40,7 @@ BorderSurface {
   // reserve the widest border any state can paint
   implicitWidth: row.implicitWidth + (horizontalPadding + _reservedBorder) * 2
   implicitHeight: row.implicitHeight + (verticalPadding + _reservedBorder) * 2
-  radius: Style.cornerRadius
+  radius: Style.shape.data
 
   readonly property bool hot: mouseArea.containsMouse || hasCursor
   readonly property bool _showFocusRing: focusable && activeFocus
@@ -69,11 +69,11 @@ BorderSurface {
 
   borderSpec: _borderSpec
 
-  Behavior on color { ColorAnimation { duration: 120 } }
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   transformOrigin: Item.Center
   scale: mouseArea.pressed ? 0.98 : 1.0
-  Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+  Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   readonly property bool _glowing: Style.fx.glow > 0 && (_showFocusRing || selected || active || mouseArea.pressed)
   layer.enabled: _glowing

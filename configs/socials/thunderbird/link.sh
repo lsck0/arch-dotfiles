@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 command -v thunderbird >/dev/null 2>&1 || exit 0
 
@@ -16,10 +15,9 @@ if [[ -z "$(profiles_root)" ]]; then
     # timeout ends the run on purpose, the profile check below is the real result
     timeout 20 thunderbird --headless >/dev/null 2>&1 || true
 fi
-root=$(profiles_root)
+# none yet is the empty string, not a failure
+root=$(profiles_root) || true
 [[ -n "$root" ]] || exit 0
-
-set -e
 
 colors="${HOME}/.cache/wal/colors-thunderbird.css"
 while read -r profile; do

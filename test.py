@@ -23,6 +23,7 @@ import http.server
 import json
 import os
 import queue
+import re
 import shutil
 import subprocess
 import sys
@@ -52,7 +53,7 @@ LOGIN_ATTEMPTS = 3
 LOGIN_TTY = 3                   # tty1 carries the chain's console, ly sits on tty2
 SNAPSHOT_REF = "refs/vm-test/snapshot"
 KEY_HOLD_MS = 10
-KEY_GAP_S = 0.03            # each key is a sudo virsh call; the guest console drops keys sent faster
+KEY_GAP_S = 0.03                # each key is a sudo virsh call; the guest console drops keys sent faster
 SUDO_KEEPALIVE_INTERVAL_S = 50  # well under sudo's default 5 min timestamp_timeout
 MODIFIERS = ("shift", "shift_r", "ctrl", "ctrl_r", "alt", "alt_r")
 
@@ -358,6 +359,7 @@ sudo -k
     echo "keyfile_present=$(test -e /etc/cryptsetup-keys.d/root.key && echo yes || echo no)"
     echo "luks_keyslots=$(echo {PASSWORD} | sudo -S cryptsetup luksDump {DISK}2 2>/dev/null | grep -cE '^  [0-9]+: luks2')"
     echo "secure_boot=$(od -An -t u1 /sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c | awk '{{print $NF}}')"
+    echo "pdf_queue=$(lpstat -p PDF >/dev/null 2>&1 && echo yes || echo no)"
 }} > verify.log
 cp /var/lib/dotfiles-stage/log stage.log
 echo {PASSWORD} | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log
@@ -374,7 +376,7 @@ curl -sT /tmp/vm-test-logs.tgz {HOST}/logs.tgz
 
 # the chain's end state, anything else means stage.sh left the machine armed or half set up
 EXPECTED = {"stage_armed": "no", "sudo_passwordless": "no", "keyfile_present": "no", "luks_keyslots": "1",
-            "secure_boot": "1"}
+            "secure_boot": "1", "pdf_queue": "yes"}
 
 
 def verify(logs: Path) -> list[str]:
@@ -398,8 +400,7 @@ def lint_modules() -> list[str]:
     must name a real module or (for refs) a repo-root dir, so a typo or dropped module is caught. a
     module's config reaching into another module (not base, not itself) must declare it in that module's
     dependencies.txt, so unexpected coupling (programming needing gaming) cannot slip in undeclared."""
-    import re
-    configs, root = HERE / "configs", {"scripts", "skills", "platforms", "wallpapers", "patches", "secrets"}
+    configs, root = HERE / "configs", {"scripts", "skills", "platforms", "profiles", "wallpapers", "patches", "secrets"}
     modules = {p.parent.name for p in configs.glob("*/packages.txt")}
     names = lambda f: [ln.split("#", 1)[0].split()[0] for ln in f.read_text().splitlines() if ln.split("#", 1)[0].strip()]
     deps = {m: set(names(configs / m / "dependencies.txt")) for m in modules if (configs / m / "dependencies.txt").is_file()}
@@ -408,7 +409,7 @@ def lint_modules() -> list[str]:
     for m, ds in deps.items():
         for d in ds - modules:
             problems.append(f"configs/{m}/dependencies.txt: '{d}' is not a module")
-    for name in ("link.sh", "link.py", "common.sh"):
+    for name in ("link.sh", "link.py", "system.sh", "common.sh"):
         for script in configs.rglob(name):
             src = script.relative_to(configs).parts[0]
             for tgt in ref.findall(script.read_text(errors="ignore")):
@@ -425,18 +426,63 @@ def lint_modules() -> list[str]:
     return problems
 
 
+# the layer rules: the user layer never gains root, the system layer never reads a user, no username gate is left
+SUDO = re.compile(r"\bsudo\b")
+USER_FACT = re.compile(r"profile_has|PROFILE_|\$\{?HOME\b|\$\{?USER\b|\bid -un\b|@USER@")
+USER_LAYER_ROOTS = ("scripts/link.sh", "skills/link.sh", "weblinks/link.py")
+
+
+def code_lines(path: Path) -> list[tuple[int, str]]:
+    """(number, line) of every line that is not a whole-line comment."""
+    return [(n, line) for n, line in enumerate(path.read_text(errors="ignore").splitlines(), 1)
+            if not line.lstrip().startswith("#")]
+
+
+def lint_layers() -> list[str]:
+    """static layer checks, all fatal: no sudo in a link.sh/link.py, no user fact (profile, $HOME, $USER, id -un,
+    @USER@) in a system.sh, no is_personal in any tracked or new file."""
+    configs, problems = HERE / "configs", []
+    user_layer = [*configs.rglob("link.sh"), *configs.rglob("link.py"), *(HERE / p for p in USER_LAYER_ROOTS)]
+    for script in filter(Path.is_file, user_layer):
+        for n, line in code_lines(script):
+            if SUDO.search(line):
+                problems.append(f"{script.relative_to(HERE)}:{n}: sudo in the user layer, move it to a system.sh")
+    for script in configs.rglob("system.sh"):
+        for n, line in code_lines(script):
+            if (m := USER_FACT.search(line)):
+                problems.append(f"{script.relative_to(HERE)}:{n}: '{m.group()}' in the system layer, a user fact belongs in link.sh")
+    files = subprocess.run(["git", "-C", str(HERE), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+                           check=True, capture_output=True, text=True).stdout.split("\0")
+    for name in files:
+        path = HERE / name
+        if name and path != Path(__file__).resolve() and path.is_file() and not path.is_symlink():
+            if b"is_personal" in path.read_bytes():
+                problems.append(f"{name}: is_personal, use profile_has or a machine fact")
+    return problems
+
+
 # --- commands ---
 
+def unit_tests() -> list[str]:
+    """every configs/**/*.test.sh, runnable without root against stubs; a failing one reports its output."""
+    problems = []
+    for test in sorted((HERE / "configs").rglob("*.test.sh")):
+        run = subprocess.run(["bash", str(test)], capture_output=True, text=True)
+        if run.returncode:
+            problems.append(f"{test.relative_to(HERE)}: failed\n{(run.stdout + run.stderr).rstrip()}")
+    return problems
+
+
 def cmd_lint(args: argparse.Namespace) -> None:
-    problems = lint_modules()
+    problems = lint_modules() + lint_layers() + unit_tests()
     if problems:
         print("\n".join(problems))
         sys.exit(1)
-    print("vm-test: modules lint clean")
+    print("vm-test: lint clean")
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    if (problems := lint_modules()):
+    if (problems := lint_modules() + lint_layers()):
         sys.exit("\n".join(problems))
     for tool in ("virt-install", "virsh", "tesseract", "magick"):
         if not shutil.which(tool):

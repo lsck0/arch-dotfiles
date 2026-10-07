@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
 
+// bar popup (tray menus): docked to the bar rule like HoverPanel when the bar is top or bottom
 PopupWindow {
   id: root
 
@@ -10,12 +11,14 @@ PopupWindow {
   required property QtObject bar
   property var owner: null
   property int margin: Style.gapsOut
-  property int padding: Style.spacing.popupPadding
+  property int padding: Style.surface.padding
   property int contentWidth: Style.space(280)
   property int contentHeight: Style.space(200)
-  property color borderColor: Color.menu.border
-  property var borderSpec: Border.flat(borderColor, Math.max(1, Style.space(2)))
   property bool open: false
+
+  readonly property bool docked: bar !== null && (bar.position === "top" || bar.position === "bottom")
+  // the neck flare widens the window, contentWidth stays the card's own width
+  readonly property real neckWidth: docked ? Style.shape.neck * 2 : 0
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property var popupScreen: anchorWindow ? anchorWindow.screen : null
@@ -24,12 +27,12 @@ PopupWindow {
   readonly property real barW: anchorWindow ? anchorWindow.width : 0
   readonly property real barH: anchorWindow ? anchorWindow.height : 0
   readonly property real availableCardWidth: screenW > 0
-    ? Math.max(120, screenW - ((bar && (bar.position === "left" || bar.position === "right")) ? barW : 0) - root.margin * 2)
+    ? Math.max(120, screenW - ((bar && (bar.position === "left" || bar.position === "right")) ? barW : 0) - root.margin * 2 - root.neckWidth)
     : 0
   readonly property real availableCardHeight: screenH > 0
     ? Math.max(120, screenH - ((bar && (bar.position === "top" || bar.position === "bottom")) ? barH : 0) - root.margin * 2)
     : 0
-  readonly property real verticalContentInset: (padding + Border.width(borderSpec)) * 2
+  readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
   function fittedContentWidth(width, cap) {
     var desired = Math.max(1, Number(width) || 1)
@@ -52,9 +55,10 @@ PopupWindow {
 
   default property alias contentItem: contentHolder.children
 
-  visible: open || card.opacity > 0
+  // mapped until the fold-back ends
+  visible: open || boot.progress > 0
   color: "transparent"
-  implicitWidth: contentWidth
+  implicitWidth: contentWidth + neckWidth
   implicitHeight: contentHeight
 
   // click outside dismisses
@@ -77,6 +81,8 @@ PopupWindow {
       if (!root.anchorItem || !root.bar) return
 
       var target = root.anchorItem
+      var window = target.QsWindow.window
+      if (!window) return
       var popupWidth = root.implicitWidth
       var popupHeight = root.implicitHeight
       var localX = target.width / 2 - popupWidth / 2
@@ -92,10 +98,10 @@ PopupWindow {
         localY = target.height / 2 - popupHeight / 2
       }
 
-      var window = target.QsWindow.window
-      if (!window) return
-
       var point = window.contentItem.mapFromItem(target, localX, localY)
+      // docked: flush with the bar window's edge, so the neck meets the accent rule
+      if (root.bar.position === "top") point.y = window.height
+      else if (root.bar.position === "bottom") point.y = -popupHeight
 
       if (root.bar.position === "top" || root.bar.position === "bottom") {
         point.x = Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin))
@@ -108,33 +114,45 @@ PopupWindow {
     }
   }
 
-  BorderSurface {
-    id: card
-    anchors.fill: parent
-    color: Color.menu.background
-    borderSpec: root.borderSpec
-    padding: root.padding
-    radius: Style.cornerRadius
-    opacity: root.open ? 1.0 : 0
+  BootIn {
+    id: boot
+    active: root.open
+    span: Math.min(card.width, card.height) / 2
+  }
 
-    Behavior on opacity {
-      NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-    }
+  Item {
+    id: reveal
+    width: parent.width
+    height: Math.round(parent.height * boot.progress)
+    // a bottom bar grows the drawer upward
+    y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
+    clip: true
 
-    transform: Translate {
-      y: root.open ? 0 : ((root.bar && root.bar.position === "bottom") ? Style.space(6) : -Style.space(6))
-      Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    DockShape {
+      id: card
+      y: -reveal.y
+      width: root.width
+      height: root.height
+      docked: root.docked
+      flipped: root.bar !== null && root.bar.position === "bottom"
+      fillColor: Color.menu.background
     }
 
     Item {
       id: contentHolder
-      anchors.fill: parent
-      anchors.topMargin: card.contentTopInset
-      anchors.rightMargin: card.contentRightInset
-      anchors.bottomMargin: card.contentBottomInset
-      anchors.leftMargin: card.contentLeftInset
+      x: card.sideInset + card.strokeWidth + root.padding
+      y: card.y + card.strokeWidth + root.padding
+      width: card.width - x * 2
+      height: card.height - (card.strokeWidth + root.padding) * 2
+      opacity: boot.rowOpacity(1)
     }
 
-    HudFrame { margin: -Style.space(3) }
+    Item {
+      x: card.sideInset
+      y: card.y
+      width: card.width - card.sideInset * 2
+      height: card.height
+      HudFrame { inset: boot.bracketInset }
+    }
   }
 }

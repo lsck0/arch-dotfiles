@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -e
+THEMES="${HOME}/.config/spicetify/Themes"
 
-source $DOTFILES/scripts/lib/fetch.sh
-fetch_git_pinned https://github.com/spicetify/spicetify-themes.git 33a08ea009687f5a42ff678015c28797fe142a7c "${HOME}/.config/spicetify/Themes"
+fetch_git_pinned https://github.com/spicetify/spicetify-themes.git 33a08ea009687f5a42ff678015c28797fe142a7c "$THEMES"
+link_into "${THEMES}/wal" color.ini user.css
 
-mkdir -p "${HOME}/.config/spicetify/Themes/wal"
-
-ln -sfn "${PWD}/color.ini" "${HOME}/.config/spicetify/Themes/wal/color.ini"
-ln -sfn "${PWD}/user.css" "${HOME}/.config/spicetify/Themes/wal/user.css"
-
-# /opt/spotify only exists once spotify is installed, so gate everything below on it
+# spicetify config needs the client
 if ! pacman -Q spotify >/dev/null 2>&1; then
-    echo "spotify: not installed, skipping spicetify apply" >&2
+    echo "spotify: not installed, skipping spicetify" >&2
     exit 0
 fi
 
@@ -32,14 +26,16 @@ spicetify config experimental_features 0
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
-if [[ -e /opt/spotify/Apps/xpui.spa || ! -d /opt/spotify/Apps/xpui ]]; then
-    # spicetify writes here, own it instead of 777
-    sudo chown -R "$USER" /opt/spotify /opt/spotify/Apps
-    spicetify apply || spicetify backup apply
-    python3 "${PWD}/spicetify-unmap-classes.py"
+# patching needs the wheel write access spotify/system.sh grants; without it the stock client stays
+if [[ ! -w /opt/spotify || ! -w /opt/spotify/Apps ]]; then
+    user_hook_retire spicetify-apply
+    rm -f "${USER_HOOK_UNIT_DIR}/default.target.wants/spicetify-apply.service"
+    exit 0
 fi
-
-# first apply waits for the first spotify login; later spotify updates come through the pacman hook
-spotify_patched() { [[ -d /opt/spotify/Apps/xpui ]]; }
-source $DOTFILES/scripts/lib/user-hook.sh
-user_hook_oneshot ./hook spicetify-apply spotify_patched
+# permanent: the first login, every spotify upgrade (a fresh xpui.spa) and every login (an upgrade while logged out) reapply.
+# now too, so this log shows it; a failed apply still arms the units
+status=0
+./hook/spicetify-apply.sh || status=$?
+user_hook_install ./hook spicetify-apply
+systemctl --user enable spicetify-apply.service
+exit "$status"

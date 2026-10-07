@@ -23,6 +23,14 @@ BarWidget {
     if (root.historyDir && !historyProc.running) historyProc.running = true
   }
 
+  // the bell reads the live history, not only while the panel is open
+  onServiceChanged: refreshHistory()
+  Connections {
+    target: root.service
+    enabled: root.service !== null
+    function onHistoryRevisionChanged() { root.refreshHistory() }
+  }
+
   function findEntry(name) {
     var want = String(name || "").trim().toLowerCase()
     if (!want) return null
@@ -226,7 +234,7 @@ BarWidget {
       height: Style.space(24)
       visible: historyFlick.contentHeight > historyFlick.height + 1
       opacity: historyFlick.atYEnd ? 0 : 1
-      Behavior on opacity { NumberAnimation { duration: 140 } }
+      Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
       gradient: Gradient {
         GradientStop { position: 0.0; color: Util.alpha(Color.menu.background, 0.0) }
         GradientStop { position: 1.0; color: Util.alpha(Color.menu.background, 0.95) }

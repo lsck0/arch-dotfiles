@@ -43,6 +43,7 @@ krusader                          # total commander
 kscreen                           # plasma display configuration
 lib32-gtk3                        # 32-bit GTK3
 libnotify                         # desktop notification lib
+libqalculate                      # qalc for the quickshell launcher = calculator
 libreoffice-fresh                 # office suite
 libx11                            # X11 client library
 linecast                          # tui weather
@@ -78,6 +79,7 @@ proton-pass-bin                   # Proton Pass password manager
 proton-vpn-qt-app                 # ProtonVPN GUI client
 qbittorrent                       # torrent client
 qt5-wayland                       # Qt5 wayland platform
+qt6-shadertools                   # qsb, compiles the quickshell glitch shader
 qt6-wayland                       # Qt6 wayland platform
 quickshell                        # wayland status bar shell
 qutebrowser                       # keyboard-driven web browser

@@ -5,4 +5,4 @@ set -euo pipefail
 RULE=/etc/polkit-1/rules.d/50-gparted-nopasswd.rules
 
 [[ -e "$RULE" ]] || exit 0
-sudo rm -f "$RULE"
+rm -f "$RULE"

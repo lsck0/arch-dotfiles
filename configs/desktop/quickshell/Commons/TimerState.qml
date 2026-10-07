@@ -77,7 +77,7 @@ Singleton {
     : pomoState.phase === "long" ? "Long break" : "Break"
 
   readonly property string pomoTooltip: pomoRunning
-    ? pomoPhaseLabel + " · " + Util.clock(pomoRemainingSeconds) + " left · pomodoro " + Number(pomoState.cycle || 0)
+    ? pomoPhaseLabel + " :: " + Util.clock(pomoRemainingSeconds) + " left :: pomodoro " + Number(pomoState.cycle || 0)
       + (pomoPaused ? " (paused)" : "")
     : "Pomodoro: off"
 

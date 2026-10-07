@@ -26,7 +26,8 @@ QtObject {
   }
 
   readonly property string toggles: dotfiles + "/scripts/toggles"
-  readonly property string wallpapers: dotfiles + "/wallpapers"
+  // the one source of wallpaper eligibility and name resolution
+  readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.py"
   readonly property string themes: dotfiles + "/configs/base/themes"
 
   function toggle(name) { return toggles + "/" + name }

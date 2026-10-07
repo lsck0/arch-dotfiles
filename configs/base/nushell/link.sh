@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-set -e
-
-mkdir -p "$HOME/.config/nushell" "$HOME/.cache/nushell"
-ln -sfn "${PWD}/env.nu" "$HOME/.config/nushell/env.nu"
-ln -sfn "${PWD}/config.nu" "$HOME/.config/nushell/config.nu"
 
 vendor="$HOME/.cache/nushell"
+link_into "$HOME/.config/nushell" env.nu config.nu
+mkdir -p "$vendor" "$HOME/.cache/wal"
+
+# vendor init scripts; empty when the tool is missing, config.nu sources them unconditionally
 gen() {
     local out="$vendor/$1"; shift
     if command -v "$1" >/dev/null 2>&1 && "$@" > "$out.tmp" 2>/dev/null; then
@@ -17,10 +14,8 @@ gen() {
         : > "$out"
     fi
 }
-
 gen starship.nu starship init nu
 gen zoxide.nu zoxide init nushell
 
-mkdir -p "$HOME/.cache/wal"
 [[ -e "$HOME/.cache/wal/colors-nushell.nu" ]] || : > "$HOME/.cache/wal/colors-nushell.nu"
 ln -sfn "$HOME/.cache/wal/colors-nushell.nu" "$vendor/wal.nu"

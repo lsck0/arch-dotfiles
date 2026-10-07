@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# run patches/NN_<slug>.sh fixups that undo what an older config did and config.sh relinking cannot: dangling links, stale pam lines, enabled units
-# a patch runs once per machine (recorded in $STATE_FILE, idempotent) and only when it is younger than this machine's install, so a fresh install replays nothing
-# usage: apply-patches [--list] [--force <name>...] [--dry-run]
+# run patches/NN_<slug>.sh fixups that undo what an older config did and relinking cannot: dangling links, stale pam lines, enabled units
+# two scopes by name: NN_slug.sh is the machine's (root, from system-apply, after the system modules), NN_slug.user.sh the
+# running user's (config.sh, before the user modules); a patch runs once per record, a fresh machine or user is pre-marked
+# usage: apply-patches [--list] [--force <name>...] [--dry-run] [--mark-applied]
 
 set -uo pipefail
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# patches read it
+export DOTFILES
 cd "$DOTFILES" || exit 1
+source ./scripts/lib/system.sh
 
 PATCH_DIR="$PWD/patches"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
-STATE_FILE="$STATE_DIR/patches-applied"
-INSTALL_FILE="$STATE_DIR/install-date"
+if ((EUID == 0)); then
+    STATE_FILE="$SYSTEM_STATE/patches-applied"
+else
+    STATE_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/patches-applied"
+fi
 
 mode=run
 dry_run=0
@@ -20,6 +26,8 @@ while (($#)); do
     case "$1" in
         --list) mode=list ;;
         --dry-run) dry_run=1 ;;
+        # bootstrap.sh and adduser-dotfiles: everything in the repo already describes this fresh machine or user
+        --mark-applied) mode=mark ;;
         --force)
             shift
             [[ $# -gt 0 ]] || { echo "apply-patches: --force needs a patch name" >&2; exit 1; }
@@ -39,32 +47,25 @@ done
 
 [[ -d "$PATCH_DIR" ]] || exit 0
 
-mkdir -p "$STATE_DIR"
-touch "$STATE_FILE"
-# the install moment, stamped on the first run; patches committed before it belong to an earlier machine and never apply here
-[[ -f "$INSTALL_FILE" ]] || date +%s >"$INSTALL_FILE"
-install_date=$(cat "$INSTALL_FILE")
-
-applied() { grep -qxF "$1" "$STATE_FILE"; }
-# a patch's age is its last commit; an uncommitted one falls back to its mtime
-patch_date() {
-    local d
-    d=$(git -C "$DOTFILES" log -1 --format=%ct -- "$1" 2>/dev/null)
-    [[ -n "$d" ]] && { echo "$d"; return; }
-    stat -c %Y "$1"
-}
-younger() { (($(patch_date "$1") > install_date)); }
-
 shopt -s nullglob
-patches=("$PATCH_DIR"/[0-9][0-9]_*.sh)
+user_scope=1
+((EUID != 0)) || user_scope=0
+patches=()
+for patch in "$PATCH_DIR"/[0-9][0-9]_*.sh; do
+    user_patch=0
+    [[ "$patch" != *.user.sh ]] || user_patch=1
+    ((user_patch != user_scope)) || patches+=("$patch")
+done
 ((${#patches[@]})) || exit 0
+
+mkdir -p "${STATE_FILE%/*}"
+touch "$STATE_FILE"
+applied() { grep -qxF "$1" "$STATE_FILE"; }
 
 if [[ "$mode" == list ]]; then
     for patch in "${patches[@]}"; do
         name=$(basename "$patch")
-        if applied "$name"; then printf 'applied   %s\n' "$name"
-        elif ! younger "$patch"; then printf 'preinstall %s\n' "$name"
-        else printf 'pending   %s\n' "$name"; fi
+        if applied "$name"; then printf 'applied %s\n' "$name"; else printf 'pending %s\n' "$name"; fi
     done
     exit 0
 fi
@@ -73,9 +74,12 @@ status=0
 for patch in "${patches[@]}"; do
     name=$(basename "$patch")
     wanted=0
-    if ((${#forced[@]})); then
+    if [[ "$mode" == mark ]]; then
+        applied "$name" || echo "$name" >>"$STATE_FILE"
+        continue
+    elif ((${#forced[@]})); then
         for f in "${forced[@]}"; do [[ "$f" == "$name" || "$f" == "${name%.sh}" ]] && wanted=1; done
-    elif ! applied "$name" && younger "$patch"; then
+    elif ! applied "$name"; then
         wanted=1
     fi
     ((wanted)) || continue

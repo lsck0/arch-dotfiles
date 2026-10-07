@@ -82,10 +82,11 @@ QtObject {
     readonly property int control: root.space(28)
   }
 
+  // drawer widths include the neck flare on both sides, so content keeps its old width
   readonly property QtObject panelWidth: QtObject {
-    readonly property int narrow: root.space(320)
-    readonly property int normal: root.space(360)
-    readonly property int wide: root.space(460)
+    readonly property int narrow: root.space(320) + root.shape.neck * 2
+    readonly property int normal: root.space(360) + root.shape.neck * 2
+    readonly property int wide: root.space(460) + root.shape.neck * 2
   }
 
   readonly property QtObject emphasis: QtObject {
@@ -96,25 +97,75 @@ QtObject {
     readonly property real disabled: 0.3
   }
 
+  // 4px grid; 3, 6, 10, 14, 18 and 22 are gone on purpose
   readonly property QtObject spacing: QtObject {
     // one physical pixel at any scale
-    readonly property int hairline: 1
+    readonly property int hair: 1
     readonly property int xxs: root.space(2)
-    readonly property int xs: root.space(3)
-    readonly property int sm: root.space(4)
-    readonly property int md: root.space(6)
-    readonly property int lg: root.space(8)
-    readonly property int xl: root.space(10)
-    readonly property int huge: root.space(18)
+    readonly property int xs: root.space(4)
+    readonly property int sm: root.space(8)
+    readonly property int md: root.space(12)
+    // the one panel/card padding
+    readonly property int lg: root.space(16)
+    readonly property int xl: root.space(24)
+    readonly property int xxl: root.space(32)
 
-    readonly property int controlGap: root.space(8)
-    readonly property int controlPaddingX: root.space(12)
-    readonly property int controlPaddingY: root.space(8)
-    readonly property int inputPaddingY: root.space(8)
-    readonly property int controlHeight: root.space(32)
-    readonly property int rowPaddingX: root.space(14)
-    readonly property int panelPadding: root.space(22)
-    readonly property int popupPadding: root.space(16)
+    readonly property int controlGap: sm
+    readonly property int controlPaddingX: md
+    readonly property int controlPaddingY: sm
+    readonly property int inputPaddingY: sm
+    readonly property int controlHeight: xxl
+    readonly property int rowPaddingX: md
+    readonly property int panelPadding: lg
+    readonly property int popupPadding: lg
+  }
+
+  // radius 0 for data (rows, chips, gauges, inputs, selection), surface radius matches hyprland rounding
+  readonly property QtObject shape: QtObject {
+    readonly property int data: 0
+    readonly property int surface: root.cornerRadius
+    // one 45deg cut on the top-right outer corner of floating surfaces
+    readonly property int chamfer: root.space(8)
+    // inverted corner where a drawer leaves the bar's accent rule
+    readonly property int neck: root.space(8)
+  }
+
+  // one chrome for hover panels, popup cards and overlay cards
+  readonly property QtObject surface: QtObject {
+    readonly property int padding: root.spacing.lg
+    readonly property int borderWidth: root.spacing.hair
+    // the bar's accent rule and the drawer outline that continues it
+    readonly property real ruleAlpha: 0.85
+  }
+
+  // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
+  readonly property QtObject translucency: QtObject {
+    readonly property real saver: 0.96
+    readonly property real bar: Power.saver ? saver : 0.72
+    readonly property real panel: Power.saver ? saver : 0.82
+    readonly property real overlay: Power.saver ? saver : 0.88
+    readonly property real scrim: 0.55
+  }
+
+  // the only durations and curves; power saver zeroes all but snap
+  readonly property QtObject motion: QtObject {
+    readonly property bool enabled: !Power.saver
+    readonly property int snap: 0
+    readonly property int fast: enabled ? 90 : 0
+    readonly property int base: enabled ? 160 : 0
+    // exits run at three quarters of base
+    readonly property int exit: Math.round(base * 0.75)
+    readonly property int slow: enabled ? 240 : 0
+    readonly property int ambient: enabled ? 600 : 0
+    // cold boot of a surface: brackets, typed title, row stagger
+    readonly property int boot: enabled ? 220 : 0
+    // closing replays the boot backwards this much faster
+    readonly property real closeRate: 0.6
+    readonly property int fastEasing: Easing.OutCubic
+    readonly property int ambientEasing: Easing.InOutQuad
+    // md3 decelerate and menu accelerate, for Easing.BezierSpline
+    readonly property var enter: [0.05, 0.7, 0.1, 1, 1, 1]
+    readonly property var leave: [0.38, 0.04, 1, 0.07, 1, 1]
   }
 
   // ui and icon families resolve separately
@@ -128,7 +179,11 @@ QtObject {
     // glyphs must use this, never family
     readonly property string iconFamily: root.resolvedIconFontFamily
 
-    readonly property int caption: Math.max(1, root.baseSize - 2)
+    // decoration only, never content
+    readonly property int micro: Math.max(1, root.baseSize - 2)
+    // the smallest content text, floored for legibility
+    readonly property int captionFloor: 11
+    readonly property int caption: Math.max(captionFloor, root.baseSize - 1)
     readonly property int bodySmall: caption
     readonly property int body: root.baseSize
     readonly property int subtitle: title
@@ -136,6 +191,8 @@ QtObject {
     readonly property int heading: root.baseSize + 4
     readonly property int display: root.baseSize * 2
     readonly property int displayLarge: display
+    // one per surface
+    readonly property int hero: Math.round(root.baseSize * 10 / 3)
     readonly property int icon: root.baseSize + 2
     readonly property int iconSmall: Math.max(1, root.baseSize - 1)
   }
@@ -148,15 +205,16 @@ QtObject {
   // fixed slots so bar items align on a grid
   readonly property QtObject bar: QtObject {
     readonly property int sizeHorizontal: root.space(30)
-    readonly property int iconSlot: root.space(30)
+    readonly property int iconSlot: root.space(28)
     readonly property int iconCanvas: root.space(16)
     readonly property int iconFont: root.baseSize + 2
     readonly property int statusSlot: root.space(22)
 
     readonly property int itemPaddingX: Math.round((iconSlot - iconCanvas) / 2)
-    readonly property int itemGap: root.space(2)
-    readonly property int groupGap: root.space(10)
-    readonly property int pillInset: root.space(4)
+    readonly property int itemGap: root.spacing.xxs
+    readonly property int sectionGap: root.spacing.sm
+    readonly property int groupGap: root.spacing.md
+    readonly property int pillInset: root.spacing.xs
   }
 
   // half of hyprland general:gaps_out

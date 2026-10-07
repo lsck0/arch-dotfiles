@@ -19,7 +19,7 @@ PanelKeyCatcher 1.0 PanelKeyCatcher.qml
 PanelRow 1.0 PanelRow.qml
 PanelSectionHeader 1.0 PanelSectionHeader.qml
 PanelSeparator 1.0 PanelSeparator.qml
-PanelSlider 1.0 PanelSlider.qml
+Slider 1.0 Slider.qml
 PanelToolTip 1.0 PanelToolTip.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
 PopupCard 1.0 PopupCard.qml
@@ -34,3 +34,12 @@ ToggleSwitch 1.0 ToggleSwitch.qml
 WidgetButton 1.0 WidgetButton.qml
 BlinkCaret 1.0 BlinkCaret.qml
 HudTitle 1.0 HudTitle.qml
+ActionButton 1.0 ActionButton.qml
+BootIn 1.0 BootIn.qml
+DockShape 1.0 DockShape.qml
+Glitch 1.0 Glitch.qml
+Hero 1.0 Hero.qml
+KeyHints 1.0 KeyHints.qml
+OverlayCard 1.0 OverlayCard.qml
+StatRow 1.0 StatRow.qml
+DataState 1.0 DataState.qml

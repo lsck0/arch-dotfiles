@@ -1,0 +1,2 @@
+# every admin, one static drop-in; no NOPASSWD, it would hand root to any user process
+%wheel ALL=(ALL:ALL) ALL

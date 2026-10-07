@@ -8,7 +8,9 @@ REPO="$DOTFILES"
 KEY_DIR="$REPO/configs/base/yubikey"
 SECRETS="$REPO/secrets"
 source "$REPO/scripts/lib/secrets.sh"
-source "$REPO/scripts/lib/personal.sh"
+# PROFILE_FILE may name a template (bootstrap.sh, before the user exists)
+source "$REPO/scripts/lib/profile.sh"
+profile_load
 SEALED_KEY="$KEY_DIR/secrets.key.age"
 PAM_ORIGIN=pam://lsck0
 SSH_APPLICATION=ssh:lsck0
@@ -50,6 +52,12 @@ seal_secrets_key() {
     age -e "${recipients[@]}" -o "$SEALED_KEY" "$key"
 }
 
+# the profile's key is the one that goes onto the card
+profile_fingerprint() {
+    [[ -n "$PROFILE_GPG_FINGERPRINT" ]] || die "no PROFILE_GPG_FINGERPRINT in $PROFILE_FILE"
+    echo "$PROFILE_GPG_FINGERPRINT"
+}
+
 # a copy onto the card from a throwaway keyring, the file in secrets stays the backup
 pgp_to_card() {
     local home
@@ -59,7 +67,7 @@ pgp_to_card() {
     printf 'disable-ccid\npcsc-shared\n' >"$home/scdaemon.conf"
     gpg --homedir "$home" --import "$SECRETS/pgp_privatekey.asc"
     echo "gpg prompt: keytocard -> 1 (signature), key 1, keytocard -> 2 (encryption), save"
-    gpg --homedir "$home" --edit-key "$PERSONAL_GPG_FINGERPRINT"
+    gpg --homedir "$home" --edit-key "$(profile_fingerprint)"
 }
 
 cmd_init() {
@@ -85,13 +93,14 @@ init_pins() {
     ykman openpgp access change-admin-pin
 }
 
-card_has_pgp() { ykman openpgp info | tr -d ' ' | grep -q "Fingerprint:$PERSONAL_GPG_FINGERPRINT"; }
+card_has_pgp() { ykman openpgp info | tr -d ' ' | grep -q "Fingerprint:$(profile_fingerprint)"; }
 
 init_pgp() {
-    step "the Luca Sandrock key onto the card"
+    profile_fingerprint >/dev/null
+    step "the profile's pgp key onto the card"
     # gpg exits non-zero after a quit without save although keytocard already wrote the card
     card_has_pgp || pgp_to_card || true
-    card_has_pgp || die "the card does not hold $PERSONAL_GPG_FINGERPRINT"
+    card_has_pgp || die "the card does not hold $(profile_fingerprint)"
     ykman openpgp keys set-touch sig on
     ykman openpgp keys set-touch dec on
 }

@@ -19,26 +19,33 @@ Rectangle {
 
   signal activated()
 
+  // reachable from the drawer's Tab / arrow walk (HoverPanel)
+  activeFocusOnTab: enabled
+  Keys.onReturnPressed: root.activated()
+  Keys.onEnterPressed: root.activated()
+  Keys.onSpacePressed: root.activated()
+
   height: Style.row.list
-  radius: Style.cornerRadius
+  radius: Style.shape.data
   opacity: enabled ? 1 : Style.emphasis.disabled
 
   readonly property color _text: on ? Color.menu.selectedText : Color.menu.text
 
   color: on ? Color.menu.selectedBackground
+    : activeFocus ? Style.focusFillFor(Color.foreground, Color.accent)
     : mouse.containsMouse && enabled ? Style.hoverFill
     : filled ? Style.normalFill
     : "transparent"
 
-  Behavior on color { ColorAnimation { duration: 100 } }
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   Row {
     id: content
     anchors.left: root.centered ? undefined : parent.left
-    anchors.leftMargin: root.centered ? 0 : Style.spacing.md
+    anchors.leftMargin: root.centered ? 0 : Style.spacing.sm
     anchors.horizontalCenter: root.centered ? parent.horizontalCenter : undefined
     anchors.verticalCenter: parent.verticalCenter
-    spacing: Style.spacing.sm
+    spacing: Style.spacing.xs
 
     Text {
       id: glyphText
@@ -70,10 +77,10 @@ Rectangle {
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
-      width: Math.max(0, Math.min(implicitWidth, root.width - Style.spacing.md * 2
+      width: Math.max(0, Math.min(implicitWidth, root.width - Style.spacing.sm * 2
         - (glyphText.visible ? glyphText.implicitWidth + content.spacing : 0)
         - (markerText.visible ? markerText.implicitWidth + content.spacing : 0)
-        - (trailingText.visible ? trailingText.implicitWidth + Style.spacing.sm : 0)))
+        - (trailingText.visible ? trailingText.implicitWidth + Style.spacing.xs : 0)))
       textFormat: Text.PlainText
       text: root.label
       color: root._text
@@ -87,7 +94,7 @@ Rectangle {
     id: trailingText
     visible: root.trailing !== ""
     anchors.right: parent.right
-    anchors.rightMargin: Style.spacing.md
+    anchors.rightMargin: Style.spacing.sm
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
     text: root.trailing
@@ -104,5 +111,17 @@ Rectangle {
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
     onClicked: root.activated()
+  }
+
+  // keyboard cursor, the same `>` the overlays use
+  Text {
+    visible: root.activeFocus
+    anchors.right: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    textFormat: Text.PlainText
+    text: ">"
+    color: Color.accent
+    font.family: Style.font.family
+    font.pixelSize: Style.font.caption
   }
 }

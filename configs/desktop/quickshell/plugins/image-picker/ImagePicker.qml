@@ -13,7 +13,17 @@ Item {
 
   readonly property string pluginDir: Paths.plugin("image-picker")
 
-  property string imageDirs: Paths.wallpapers
+  // wallpaper-list.py filters for the largest connected screen in physical pixels
+  readonly property string screenSize: {
+    var best = null
+    for (var i = 0; i < Quickshell.screens.length; i++) {
+      var screen = Quickshell.screens[i]
+      var dpr = screen.devicePixelRatio || 1
+      var size = [Math.round(screen.width * dpr), Math.round(screen.height * dpr)]
+      if (!best || size[0] * size[1] > best[0] * best[1]) best = size
+    }
+    return best ? best[0] + "x" + best[1] : ""
+  }
   // themes mode reads each theme json's "wallpaper" field
   property string themeDirs: Paths.themes
   // 0 = wallpapers (wallust palette), 1 = premade themes
@@ -45,15 +55,60 @@ Item {
   property color scrim: Color.imagePicker.scrim
   property color selectedBorder: Color.imagePicker.selectedBorder
   property color unselectedBorder: Color.imagePicker.unselectedBorder
-  property int expandedWidth: 768
-  property int expandedHeight: 475
-  property int sliceWidth: 108
-  property int sliceHeight: 432
-  property int sliceSpacing: -30
-  property int skewOffset: 28
-  property int bottomChromeHeight: showLabels ? (filterable ? 104 : 74) : (filterable ? 60 : 30)
+  property int expandedWidth: Style.space(768)
+  property int expandedHeight: Style.space(475)
+  property int sliceWidth: Style.space(108)
+  property int sliceHeight: Style.space(432)
+  // slices overlap by their skew
+  property int sliceSpacing: -Style.space(30)
+  property int skewOffset: Style.space(28)
+  // slices either side of the preview the carousel lays out
+  readonly property int sliceCount: 13
+  readonly property int nearbyRange: 16
+  // palette strip under the preview, wallpaper mode only
+  readonly property bool showPalette: mode === 0
+  readonly property int paletteHeight: showPalette ? Style.space(40) : 0
+  property int bottomChromeHeight: paletteHeight
+    + (showLabels ? (filterable ? Style.space(104) : Style.space(74)) : (filterable ? Style.space(60) : Style.space(30)))
 
-  onOpenedChanged: if (!opened) layoutSettled = false
+  // palette preview (signature D): the selected wallpaper quantized, conditioned like Color.qml would
+  property var preview: null
+  readonly property int quantizeDepth: 3
+  readonly property int quantizeSize: 64
+
+  ColorQuantizer {
+    id: quantizer
+    depth: root.quantizeDepth
+    rescaleSize: root.quantizeSize
+    onColorsChanged: {
+      try {
+        var raw = ImagePickerModel.rawFromSwatches(quantizer.colors)
+        root.preview = raw.special ? Color.conditionPalette(raw) : null
+      } catch (e) {
+        root.preview = null
+      }
+    }
+  }
+
+  // only the selected item is quantized, once the selection rests
+  Timer {
+    id: quantizeDelay
+    interval: Style.motion.slow
+    onTriggered: {
+      var image = root.imageArray[root.selectedIndex]
+      quantizer.source = root.opened && root.showPalette && image
+        ? Util.fileUrl(image.thumbnailPath || image.filePath) : ""
+    }
+  }
+  onSelectedIndexChanged: { root.preview = null; quantizeDelay.restart() }
+  onImageArrayChanged: quantizeDelay.restart()
+
+  onOpenedChanged: {
+    if (opened) return
+    layoutSettled = false
+    quantizeDelay.stop()
+    quantizer.source = ""
+  }
 
   function rebuildFilterCache() {
     var matches = []
@@ -227,13 +282,12 @@ Item {
     }
   }
 
-  function openSelector(nextImageDirs, nextImageRows, nextSelectedImage, nextSelectionFile, nextDoneFile, nextShowLabels, nextFilterable) {
+  function openSelector(nextImageRows, nextSelectedImage, nextSelectionFile, nextDoneFile, nextShowLabels, nextFilterable) {
     if (requestActive && doneFile && doneFile !== nextDoneFile)
       finishDoneFile(doneFile)
 
     requestSerial += 1
 
-    imageDirs = nextImageDirs
     imageRows = nextImageRows
     selectedImage = nextSelectedImage
     selectionFile = nextSelectionFile
@@ -271,26 +325,21 @@ Item {
     selectedIndex = 0
     imagesLoaded = false
     opened = false
-    startImageScan(requestSerial, root.activeDirs())
+    startImageScan(requestSerial)
   }
 
-  function startImageScan(serial, dirs) {
+  function startImageScan(serial) {
     if (loadImagesProc.running) {
       loadImagesProc.queuedSerial = serial
-      loadImagesProc.queuedDirs = dirs
       return
     }
 
     loadImagesProc.activeSerial = serial
     loadImagesProc.queuedSerial = 0
-    loadImagesProc.queuedDirs = ""
-    var script = root.mode === 1 ? "theme-list.sh" : "list.sh"
-    loadImagesProc.command = [root.scriptPath(script), dirs]
+    loadImagesProc.command = root.mode === 1
+      ? [root.scriptPath("theme-list.sh"), root.themeDirs, Paths.wallpaperList]
+      : [root.scriptPath("list.sh"), Paths.wallpaperList, root.screenSize]
     loadImagesProc.running = true
-  }
-
-  function activeDirs() {
-    return root.mode === 1 ? root.themeDirs : root.imageDirs
   }
 
   function switchMode() {
@@ -303,7 +352,7 @@ Item {
     root.imagesLoaded = false
     root.layoutSettled = false
     root.requestSerial += 1
-    root.startImageScan(root.requestSerial, root.activeDirs())
+    root.startImageScan(root.requestSerial)
   }
 
   // batches streamed rows instead of one rebuild per line
@@ -328,7 +377,6 @@ Item {
     id: loadImagesProc
     property int activeSerial: 0
     property int queuedSerial: 0
-    property string queuedDirs: ""
     property string streamBuffer: ""
     stdout: SplitParser {
       splitMarker: "\n"
@@ -344,18 +392,15 @@ Item {
         root.loadRows(streamBuffer, true)
       streamBuffer = ""
       var serial = queuedSerial
-      var dirs = queuedDirs
       activeSerial = 0
       queuedSerial = 0
-      queuedDirs = ""
       if (serial > 0 && serial === root.requestSerial)
-        root.startImageScan(serial, dirs)
+        root.startImageScan(serial)
     }
   }
 
   // called by shell.summon with the parsed payload
   function open(args) {
-    var dirs = String(args.imageDirs || imageDirs)
     var tDirs = String(args.themeDirs || themeDirs)
     var rows = String(args.imageRows || "")
     var sel = String(args.selectedImage || selectedImage)
@@ -363,10 +408,9 @@ Item {
     var doneF = String(args.doneFile || "")
     var labels = args.showLabels === true || args.showLabels === "true"
     var filter = args.filterable === true || args.filterable === "true"
-    imageDirs = dirs
     themeDirs = tDirs
     mode = args.mode === 1 ? 1 : 0
-    openSelector(dirs, rows, sel, selFile, doneF, labels, filter)
+    openSelector(rows, sel, selFile, doneF, labels, filter)
   }
 
   function close() {
@@ -386,8 +430,16 @@ Item {
     onExited: root.releaseNextDoneFile()
   }
 
+  BootIn {
+    id: boot
+    active: root.opened
+    title: root.modeNames[root.mode] || ""
+    span: Math.min(root.expandedWidth, root.expandedHeight) / 2
+  }
+
   PanelWindow {
-    visible: root.opened
+    // mapped until the close has played out
+    visible: root.opened || boot.progress > 0
     anchors { top: true; bottom: true; left: true; right: true }
     color: "transparent"
     WlrLayershell.namespace: "quickshell-image-selector"
@@ -397,8 +449,8 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      visible: root.opened
       color: root.scrim
+      opacity: boot.progress
     }
 
     MouseArea {
@@ -408,8 +460,10 @@ Item {
     }
 
     Item {
-      visible: root.opened && root.imagesLoaded && root.layoutSettled && root.imageArray.length > 0
-      width: Math.min(parent.width - 80, root.expandedWidth + 13 * (root.sliceWidth + root.sliceSpacing) + 40)
+      // the layout resets on close, so the exit fades what was last shown
+      visible: root.imagesLoaded && root.imageArray.length > 0 && (root.opened ? root.layoutSettled : boot.progress > 0)
+      opacity: boot.progress
+      width: Math.min(parent.width - Style.space(80), root.expandedWidth + root.sliceCount * (root.sliceWidth + root.sliceSpacing) + Style.space(40))
       height: root.expandedHeight + Style.space(30) + root.bottomChromeHeight
       anchors.centerIn: parent
 
@@ -422,7 +476,7 @@ Item {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: root.bottomChromeHeight
         anchors.horizontalCenter: parent.horizontalCenter
-        width: root.expandedWidth + 13 * (root.sliceWidth + root.sliceSpacing)
+        width: root.expandedWidth + root.sliceCount * (root.sliceWidth + root.sliceSpacing)
         clip: false
         focus: true
 
@@ -475,7 +529,7 @@ Item {
             readonly property bool matched: root.itemMatches(index)
             readonly property int relativeIndex: root.filteredPosition(index) - root.selectedFilteredPosition()
             readonly property bool selected: matched && index === root.selectedIndex
-            readonly property bool nearby: matched && Math.abs(relativeIndex) <= 16
+            readonly property bool nearby: matched && Math.abs(relativeIndex) <= root.nearbyRange
             property bool sourceActivated: nearby
             onNearbyChanged: if (nearby) sourceActivated = true
 
@@ -485,6 +539,12 @@ Item {
             height: selected ? root.expandedHeight : root.sliceHeight
             y: selected ? 0 : (root.expandedHeight - root.sliceHeight) / 2
             z: selected ? 100 : 50 - Math.min(Math.abs(relativeIndex), 40)
+
+            // slides and grows on selection; off until the first layout so opening does not fly in
+            Behavior on x { enabled: root.layoutSettled; NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+            Behavior on y { enabled: root.layoutSettled; NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+            Behavior on width { enabled: root.layoutSettled; NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+            Behavior on height { enabled: root.layoutSettled; NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
 
             readonly property real skAbs: Math.abs(root.skewOffset)
             readonly property real topLeft: root.skewOffset >= 0 ? skAbs : 0
@@ -547,7 +607,7 @@ Item {
                 cache: false
                 smooth: true
                 opacity: status === Image.Ready ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
               }
 
               Rectangle {
@@ -565,7 +625,7 @@ Item {
               ShapePath {
                 fillColor: "transparent"
                 strokeColor: item.selected ? root.selectedBorder : root.unselectedBorder
-                strokeWidth: item.selected ? 3 : 1
+                strokeWidth: item.selected ? Style.focusBorderWidth : Style.normalBorderWidth
                 startX: item.topLeft; startY: 0
                 PathLine { x: item.topRight; y: 0 }
                 PathLine { x: item.bottomRight; y: item.height }
@@ -583,6 +643,51 @@ Item {
         }
       }
 
+      // bg fg acc acc2 urg of the selected wallpaper, then the contrast verdict
+      Row {
+        id: paletteStrip
+        visible: root.showPalette
+        anchors.top: carousel.bottom
+        anchors.topMargin: Style.spacing.sm
+        anchors.horizontalCenter: carousel.horizontalCenter
+        height: root.paletteHeight - Style.spacing.sm
+        spacing: Style.spacing.sm
+
+        Repeater {
+          model: [["bg", "background"], ["fg", "foreground"], ["acc", "accent"], ["acc2", "accent2"], ["urg", "urgent"]]
+          Column {
+            required property var modelData
+            spacing: Style.spacing.xxs
+            Rectangle {
+              width: Style.space(40)
+              height: Style.space(12)
+              radius: Style.shape.data
+              color: root.preview ? root.preview[parent.modelData[1]] : "transparent"
+              border.width: Style.normalBorderWidth
+              border.color: root.unselectedBorder
+            }
+            Text {
+              anchors.horizontalCenter: parent.horizontalCenter
+              textFormat: Text.PlainText
+              text: parent.modelData[0]
+              color: root.foreground
+              opacity: Style.emphasis.faint
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+        }
+
+        Text {
+          textFormat: Text.PlainText
+          text: root.preview ? ":: " + root.preview.verdict : ":: --"
+          color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Color.ok : Color.warn
+          font.family: Style.font.family
+          font.pixelSize: Style.font.body
+          font.bold: true
+        }
+      }
+
       BorderSurface {
         id: searchChip
         readonly property bool focused: searchInput.activeFocus
@@ -592,12 +697,12 @@ Item {
         // every way out of the search field must hand focus back
         onVisibleChanged: if (!visible && root.opened) carousel.forceActiveFocus()
 
-        anchors.top: carousel.bottom
-        anchors.topMargin: Style.space(10)
+        anchors.top: root.showPalette ? paletteStrip.bottom : carousel.bottom
+        anchors.topMargin: Style.spacing.md
         anchors.horizontalCenter: carousel.horizontalCenter
         width: Math.min(root.expandedWidth, Style.space(360))
         height: Style.space(38)
-        radius: Style.cornerRadius
+        radius: Style.shape.data
         color: Style.controlFill(focused, hot, root.foreground, root.selectedBorder)
         borderSpec: Border.controlSpec(focused ? "focus" : (hot ? "hover-cursor" : "normal"), root.foreground, root.selectedBorder)
 
@@ -607,19 +712,19 @@ Item {
           id: searchIcon
           anchors.verticalCenter: parent.verticalCenter
           anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.md
+          anchors.leftMargin: Style.spacing.sm
           text: "\u{ea6d}" // cod-search, cmap-verified
           fontSize: Style.font.body
-          color: Util.alpha(root.foreground, 0.65)
+          color: Util.alpha(root.foreground, Style.emphasis.dim)
         }
 
         TextInput {
           id: searchInput
           anchors.verticalCenter: parent.verticalCenter
           anchors.left: searchIcon.right
-          anchors.leftMargin: Style.spacing.sm
+          anchors.leftMargin: Style.spacing.xs
           anchors.right: clearButton.left
-          anchors.rightMargin: Style.spacing.sm
+          anchors.rightMargin: Style.spacing.xs
           verticalAlignment: TextInput.AlignVCenter
           text: root.filterText
           color: root.foreground
@@ -650,7 +755,7 @@ Item {
           id: clearButton
           anchors.verticalCenter: parent.verticalCenter
           anchors.right: parent.right
-          anchors.rightMargin: Style.spacing.sm
+          anchors.rightMargin: Style.spacing.xs
           width: Style.space(22)
           height: Style.space(22)
 
@@ -658,7 +763,7 @@ Item {
             anchors.centerIn: parent
             text: "\u{f0156}" // md-close, cmap-verified
             fontSize: Style.font.caption
-            color: Util.alpha(root.foreground, clearHover.hovered ? 1.0 : 0.6)
+            color: Util.alpha(root.foreground, clearHover.hovered ? Style.emphasis.strong : Style.emphasis.dim)
           }
 
           HoverHandler { id: clearHover }
@@ -677,14 +782,15 @@ Item {
       Text {
         textFormat: Text.PlainText
         visible: root.showLabels
-        anchors.top: root.filterable ? searchChip.bottom : carousel.bottom
-        anchors.topMargin: Style.space(8)
+        anchors.top: root.filterable ? searchChip.bottom : root.showPalette ? paletteStrip.bottom : carousel.bottom
+        anchors.topMargin: Style.spacing.sm
         anchors.horizontalCenter: carousel.horizontalCenter
         width: root.expandedWidth
         text: root.currentLabel()
         color: root.foreground
         style: Text.Outline
         styleColor: Util.alpha(root.dimColor, 0.7)
+        font.family: Style.font.family
         font.pixelSize: Style.font.display
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
@@ -698,83 +804,22 @@ Item {
         width: root.expandedWidth
         height: Style.space(24)
 
-        Row {
-          id: pickerTitleRow
+        HudTitle {
           anchors.left: parent.left
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.sm
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: ">"
-            color: root.selectedBorder
-            opacity: Style.emphasis.dim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-          }
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: (root.modeNames[root.mode] || "").toUpperCase()
-            color: root.selectedBorder
-            style: Text.Outline
-            styleColor: Util.alpha(root.dimColor, 0.7)
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            font.letterSpacing: Style.headerTracking
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow {}
-          }
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: "_"
-            color: root.selectedBorder
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            SequentialAnimation on opacity {
-              running: root.opened
-              loops: Animation.Infinite
-              PropertyAnimation { to: 1; duration: 0 }
-              PauseAnimation { duration: 530 }
-              PropertyAnimation { to: 0; duration: 0 }
-              PauseAnimation { duration: 530 }
-            }
-          }
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: "[" + String(root.filteredCount) + "]"
-            color: root.foreground
-            opacity: Style.emphasis.faint
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-          }
-        }
-
-        Text {
           anchors.right: parent.right
-          anchors.verticalCenter: pickerTitleRow.verticalCenter
-          textFormat: Text.PlainText
-          text: "[- o x]"
+          anchors.verticalCenter: parent.verticalCenter
+          text: root.modeNames[root.mode] || ""
+          typed: boot.typed
+          suffix: "[" + String(root.filteredCount) + "]"
           color: root.selectedBorder
-          opacity: Style.emphasis.faint
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          font.letterSpacing: Style.headerTracking
+          decor: true
+          blinking: root.opened
         }
       }
 
-      HudFrame {}
+      HudFrame { inset: boot.bracketInset }
     }
 
-    Scanlines { flicker: false }
+    Scanlines { flicker: true }
   }
 }

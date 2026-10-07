@@ -22,18 +22,12 @@ Item {
 
   property color background: Color.menu.background
   property color foreground: Color.menu.text
-  property color border: Color.menu.border
-  property var borderSpec: Border.flat(border, Style.normalBorderWidth)
   property color scrim: Color.menu.scrim
   property color selectedBackground: Color.menu.selectedBackground
   property color selectedText: Color.menu.selectedText
-  readonly property int cornerRadius: Style.cornerRadius
+  readonly property int cornerRadius: Style.shape.surface
   property string fontFamily: Style.font.family
   property int contentMargin: Style.spacing.panelPadding
-  property int headerHeight: Math.max(Style.space(34), Style.font.title + Style.spacing.controlPaddingY * 2)
-  property int contentSpacing: Style.spacing.md
-  property int cardWidth: Math.min(Style.space(700), panel.width - Style.gapsOut * 2)
-  property int cardHeight: Math.min(Style.space(480), panel.height - Style.gapsOut * 2)
   property int rowHeight: Style.space(44)
 
   function open() {
@@ -219,7 +213,7 @@ Item {
 
   PointerMoveGate {
     id: pointerGate
-    referenceItem: card
+    referenceItem: panel.card
   }
 
   FileView {
@@ -288,414 +282,282 @@ Item {
     function forget(hash: string): string { root.forgetTextHash(hash); return "ok" }
   }
 
-  PanelWindow {
+  OverlayCard {
     id: panel
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    WlrLayershell.namespace: "quickshell-clipboard"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-    exclusionMode: ExclusionMode.Ignore
+    open: root.opened
+    name: "clipboard"
+    title: "clipboard"
+    suffix: "[" + String(displayModel.count) + "]"
+    prompt: true
+    query: root.filterText
+    placeholder: "search clipboard"
+    hints: [["ESC", "close"], ["ENTER", "copy"], ["ALT+ENTER", "open"], ["DEL", "forget"]]
+    cardWidth: Style.space(700)
+    cardHeight: Style.space(480)
+    onDismissed: root.close()
 
-    Rectangle {
+    Item {
+      id: keyCatcher
       anchors.fill: parent
-      color: root.scrim
-    }
+      z: root.clearConfirmOpen ? 20 : 0
+      focus: true
 
-    MouseArea {
-      anchors.fill: parent
-      onClicked: root.close()
-    }
-
-    BorderSurface {
-      id: card
-      width: root.cardWidth
-      height: root.cardHeight
-      radius: root.cornerRadius
-      anchors.centerIn: parent
-      color: root.background
-      borderSpec: root.borderSpec
-      padding: root.contentMargin
-
-      MouseArea { anchors.fill: parent; onClicked: {} }
-
-      Item {
-        id: keyCatcher
-        anchors.fill: parent
-        z: root.clearConfirmOpen ? 20 : 0
-        focus: true
-
-        Keys.priority: Keys.BeforeItem
-        Keys.onPressed: function(event) {
-          if (root.clearConfirmOpen) {
-            if (clearConfirm.handleKey(event)) event.accepted = true
-            return
-          }
-
-          if (event.key === Qt.Key_Escape) {
-            if (root.filterText) root.setFilter("")
-            else root.close()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Delete) {
-            if (event.modifiers & Qt.ShiftModifier) root.requestClearHistory()
-            else root.removeDisplayIndex(root.selectedIndex)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Up) {
-            root.select(-1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Down) {
-            root.select(1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_PageUp) {
-            root.select(-6)
-            event.accepted = true
-          } else if (event.key === Qt.Key_PageDown) {
-            root.select(6)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Home) {
-            root.selectAbsolute(0)
-            event.accepted = true
-          } else if (event.key === Qt.Key_End) {
-            root.selectAbsolute(displayModel.count - 1)
-            event.accepted = true
-          } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            if (root.cursorActive && (event.modifiers & Qt.AltModifier)) root.openIndex(root.selectedIndex)
-            else if (root.cursorActive) root.activateIndex(root.selectedIndex)
-            else if (displayModel.count > 0) root.cursorActive = true
-            event.accepted = true
-          } else if (event.key === Qt.Key_Backspace) {
-            root.setFilter(root.filterText.slice(0, -1))
-            event.accepted = true
-          } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
-            root.setFilter(root.filterText + event.text)
-            event.accepted = true
-          }
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) {
+        if (root.clearConfirmOpen) {
+          if (clearConfirm.handleKey(event)) event.accepted = true
+          return
         }
 
-        ConfirmDialog {
-          id: clearConfirm
-
-          anchors.fill: parent
-          opened: root.clearConfirmOpen
-          z: 10
-          message: "Delete entire clipboard history?"
-          confirmText: "Delete"
-          background: root.background
-          foreground: root.foreground
-          scrim: root.scrim
-          selectedBackground: root.selectedBackground
-          selectedText: root.selectedText
-          fontFamily: root.fontFamily
-          cornerRadius: root.cornerRadius
-          onCanceled: root.cancelClearHistory()
-          onConfirmed: root.confirmClearHistory()
+        if (event.key === Qt.Key_Escape) {
+          if (root.filterText) root.setFilter("")
+          else root.close()
+          event.accepted = true
+        } else if (event.key === Qt.Key_Delete) {
+          if (event.modifiers & Qt.ShiftModifier) root.requestClearHistory()
+          else root.removeDisplayIndex(root.selectedIndex)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Up) {
+          root.select(-1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Down) {
+          root.select(1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_PageUp) {
+          root.select(-6)
+          event.accepted = true
+        } else if (event.key === Qt.Key_PageDown) {
+          root.select(6)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Home) {
+          root.selectAbsolute(0)
+          event.accepted = true
+        } else if (event.key === Qt.Key_End) {
+          root.selectAbsolute(displayModel.count - 1)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+          if (root.cursorActive && (event.modifiers & Qt.AltModifier)) root.openIndex(root.selectedIndex)
+          else if (root.cursorActive) root.activateIndex(root.selectedIndex)
+          else if (displayModel.count > 0) root.cursorActive = true
+          event.accepted = true
+        } else if (event.key === Qt.Key_Backspace) {
+          root.setFilter(root.filterText.slice(0, -1))
+          event.accepted = true
+        } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
+          root.setFilter(root.filterText + event.text)
+          event.accepted = true
         }
       }
 
-      Column {
+      ConfirmDialog {
+        id: clearConfirm
+
         anchors.fill: parent
-        anchors.topMargin: card.contentTopInset
-        anchors.rightMargin: card.contentRightInset
-        anchors.bottomMargin: card.contentBottomInset
-        anchors.leftMargin: card.contentLeftInset
-        spacing: root.contentSpacing
+        opened: root.clearConfirmOpen
+        z: 10
+        message: "Delete entire clipboard history?"
+        confirmText: "Delete"
+        background: root.background
+        foreground: root.foreground
+        scrim: root.scrim
+        selectedBackground: root.selectedBackground
+        selectedText: root.selectedText
+        fontFamily: root.fontFamily
+        cornerRadius: root.cornerRadius
+        onCanceled: root.cancelClearHistory()
+        onConfirmed: root.confirmClearHistory()
+      }
+    }
 
-        Row {
-          id: titleRow
-          width: parent.width
-          spacing: Style.spacing.md
+    Item {
+      anchors.fill: parent
 
-          Text {
-            textFormat: Text.PlainText
-            text: "CLIPBOARD"
-            color: Color.accent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.title
-            font.bold: true
-            font.letterSpacing: Style.headerTracking
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow {}
-          }
+      Row {
+        anchors.fill: parent
+        spacing: 0
 
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            textFormat: Text.PlainText
-            text: "[" + String(displayModel.count) + "]"
-            color: root.foreground
-            opacity: Style.emphasis.faint
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.title
-          }
-        }
+        Item {
+          width: parent.width / 2
+          height: parent.height
+          clip: true
 
-        Rectangle {
-          width: parent.width
-          height: root.headerHeight
-          radius: root.cornerRadius
-          color: "transparent"
+          ListView {
+            id: resultList
+            anchors.fill: parent
+            anchors.rightMargin: root.contentMargin
+            model: displayModel
+            clip: true
+            spacing: Style.spacing.xs
+            boundsBehavior: Flickable.StopAtBounds
 
-          Row {
-            id: promptRow
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.md
+            delegate: Rectangle {
+              id: rowDelegate
+              required property int index
+              required property string entryType
+              required property string previewText
+              required property string fullText
+              required property string previewImage
 
-            Text {
-              id: promptGlyph
-              textFormat: Text.PlainText
-              text: ">"
-              color: Color.accent
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
-              font.bold: true
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-            }
+              readonly property bool hasCursor: root.cursorActive && index === root.selectedIndex
 
-            Text {
-              textFormat: Text.PlainText
-              // hug the text so the caret follows it
-              width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
-              text: root.filterText || "Search clipboard..."
-              color: root.foreground
-              opacity: root.filterText ? 1 : 0.58
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
-              elide: Text.ElideRight
-            }
+              width: ListView.view.width
+              height: root.rowHeight
+              radius: Style.shape.data
+              opacity: panel.boot.rowOpacity(index)
+              // selected row keeps a faint fill before the cursor engages
+              color: hasCursor ? root.selectedBackground
+                : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
-            Text {
-              id: caret
-              textFormat: Text.PlainText
-              text: "_"
-              color: Color.accent
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.heading
-              layer.enabled: Style.fx.glow > 0
-              layer.effect: Glow {}
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                PropertyAnimation { to: 1; duration: 0 }
-                PauseAnimation { duration: 530 }
-                PropertyAnimation { to: 0; duration: 0 }
-                PauseAnimation { duration: 530 }
+              Row {
+                anchors.fill: parent
+                anchors.leftMargin: Style.spacing.md
+                anchors.rightMargin: Style.spacing.md
+                anchors.topMargin: Style.spacing.sm
+                anchors.bottomMargin: Style.spacing.sm
+                spacing: Style.spacing.md
+
+                Text {
+                  id: reticle
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: Style.space(12)
+                  textFormat: Text.PlainText
+                  text: rowDelegate.hasCursor ? ">" : ""
+                  color: root.selectedText
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  horizontalAlignment: Text.AlignHCenter
+                  layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
+                  layer.effect: Glow {}
+                }
+
+                Image {
+                  visible: rowDelegate.previewImage.length > 0
+                  width: visible ? parent.height : 0
+                  height: parent.height
+                  source: rowDelegate.previewImage
+                  // decode at row height, not full size
+                  sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
+                  fillMode: Image.PreserveAspectFit
+                  asynchronous: true
+                  smooth: true
+                }
+
+                Text {
+                  textFormat: Text.PlainText
+                  width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
+                  height: parent.height
+                  text: rowDelegate.previewText
+                  color: rowDelegate.hasCursor ? root.selectedText : root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                  opacity: rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? 0.72 : 1.0
+                  elide: Text.ElideRight
+                  wrapMode: Text.NoWrap
+                  verticalAlignment: Text.AlignVCenter
+                  layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
+                  layer.effect: Glow {}
+                }
+              }
+
+              HudFrame { shown: rowDelegate.hasCursor }
+
+              MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onPositionChanged: function(mouse) {
+                  root.selectFromPointer(rowDelegate.index, rowDelegate, mouse)
+                }
+                onClicked: {
+                  root.cursorActive = true
+                  root.selectedIndex = rowDelegate.index
+                  root.activateIndex(rowDelegate.index)
+                }
               }
             }
-          }
 
-          Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            height: Math.max(1, Style.space(2))
-            color: Util.alpha(Color.accent, Style.fx.glow > 0 ? 0.9 : 0.55)
+            Column {
+              anchors.centerIn: parent
+              spacing: Style.spacing.sm
+              visible: displayModel.count === 0
+              width: parent.width * 0.8
+
+              Text {
+                text: "\u{f014c}"
+                color: root.selectedText
+                opacity: 0.8
+                font.family: Style.font.iconFamily
+                font.pixelSize: Style.font.displayLarge
+                horizontalAlignment: Text.AlignHCenter
+                width: parent.width
+              }
+
+              Text {
+                textFormat: Text.PlainText
+                text: "> NOTHING HERE"
+                color: root.foreground
+                opacity: 0.7
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                horizontalAlignment: Text.AlignHCenter
+                width: parent.width
+              }
+            }
           }
         }
 
         Item {
-          width: parent.width
-          height: parent.height - titleRow.height - root.headerHeight - root.contentSpacing * 2
+          width: parent.width / 2
+          height: parent.height
+          clip: true
 
-          Row {
+          property var activeRow: displayModel.count > 0 && root.selectedIndex >= 0 && root.selectedIndex < displayModel.count ? displayModel.get(root.selectedIndex) : null
+
+          Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: Style.normalBorderWidth
+            color: Util.alpha(Color.menu.border, 0.28)
+          }
+
+          PanelSectionHeader {
+            id: previewLabel
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.leftMargin: root.contentMargin
+            text: "preview"
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            visible: parent.activeRow && !parent.activeRow.previewImage
             anchors.fill: parent
-            spacing: 0
+            anchors.leftMargin: root.contentMargin
+            anchors.topMargin: previewLabel.height + Style.spacing.xs
+            text: parent.activeRow ? parent.activeRow.fullText : ""
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            wrapMode: Text.WrapAnywhere
+            elide: Text.ElideRight
+            verticalAlignment: Text.AlignTop
+          }
 
-            Item {
-              width: parent.width / 2
-              height: parent.height
-              clip: true
-
-              ListView {
-                id: resultList
-                anchors.fill: parent
-                anchors.rightMargin: root.contentMargin
-                model: displayModel
-                clip: true
-                spacing: Style.space(4)
-                boundsBehavior: Flickable.StopAtBounds
-
-                delegate: Rectangle {
-                  id: rowDelegate
-                  required property int index
-                  required property string entryType
-                  required property string previewText
-                  required property string fullText
-                  required property string previewImage
-
-                  readonly property bool hasCursor: root.cursorActive && index === root.selectedIndex
-
-                  width: ListView.view.width
-                  height: root.rowHeight
-                  radius: root.cornerRadius
-                  // selected row keeps a faint fill before the cursor engages
-                  color: hasCursor ? root.selectedBackground
-                    : index === root.selectedIndex ? Style.hoverFill : "transparent"
-
-                  Row {
-                    anchors.fill: parent
-                    anchors.leftMargin: Style.space(12)
-                    anchors.rightMargin: Style.space(12)
-                    anchors.topMargin: Style.space(6)
-                    anchors.bottomMargin: Style.space(6)
-                    spacing: Style.space(10)
-
-                    Text {
-                      id: reticle
-                      anchors.verticalCenter: parent.verticalCenter
-                      width: Style.space(12)
-                      textFormat: Text.PlainText
-                      text: rowDelegate.hasCursor ? ">" : ""
-                      color: root.selectedText
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.body
-                      horizontalAlignment: Text.AlignHCenter
-                      layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
-                      layer.effect: Glow {}
-                    }
-
-                    Image {
-                      visible: rowDelegate.previewImage.length > 0
-                      width: visible ? parent.height : 0
-                      height: parent.height
-                      source: rowDelegate.previewImage
-                      // decode at row height, not full size
-                      sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
-                      fillMode: Image.PreserveAspectFit
-                      asynchronous: true
-                      smooth: true
-                    }
-
-                    Text {
-                      textFormat: Text.PlainText
-                      width: parent.width - reticle.width - parent.spacing - (rowDelegate.previewImage.length > 0 ? parent.height + parent.spacing : 0)
-                      height: parent.height
-                      text: rowDelegate.previewText
-                      color: rowDelegate.hasCursor ? root.selectedText : root.foreground
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.body
-                      opacity: rowDelegate.entryType === "image" || rowDelegate.entryType === "file" ? 0.72 : 1.0
-                      elide: Text.ElideRight
-                      wrapMode: Text.NoWrap
-                      verticalAlignment: Text.AlignVCenter
-                      layer.enabled: rowDelegate.hasCursor && Style.fx.glow > 0
-                      layer.effect: Glow {}
-                    }
-                  }
-
-                  HudFrame { shown: rowDelegate.hasCursor }
-
-                  MouseArea {
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onPositionChanged: function(mouse) {
-                      root.selectFromPointer(rowDelegate.index, rowDelegate, mouse)
-                    }
-                    onClicked: {
-                      root.cursorActive = true
-                      root.selectedIndex = rowDelegate.index
-                      root.activateIndex(rowDelegate.index)
-                    }
-                  }
-                }
-
-                Column {
-                  anchors.centerIn: parent
-                  spacing: Style.space(8)
-                  visible: displayModel.count === 0
-                  width: parent.width * 0.8
-
-                  Text {
-                    text: "\u{f014c}"
-                    color: root.selectedText
-                    opacity: 0.8
-                    font.family: Style.font.iconFamily
-                    font.pixelSize: Style.font.displayLarge
-                    horizontalAlignment: Text.AlignHCenter
-                    width: parent.width
-                  }
-
-                  Text {
-                    textFormat: Text.PlainText
-                    text: root.history.length === 0 ? "Clipboard is empty" : "No matches"
-                    color: root.foreground
-                    opacity: 0.7
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.body
-                    horizontalAlignment: Text.AlignHCenter
-                    width: parent.width
-                  }
-                }
-              }
-            }
-
-            Item {
-              width: parent.width / 2
-              height: parent.height
-              clip: true
-
-              property var activeRow: displayModel.count > 0 && root.selectedIndex >= 0 && root.selectedIndex < displayModel.count ? displayModel.get(root.selectedIndex) : null
-
-              Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: Style.normalBorderWidth
-                color: Util.alpha(root.border, 0.28)
-              }
-
-              Text {
-                id: previewLabel
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.leftMargin: root.contentMargin
-                textFormat: Text.PlainText
-                text: ":: PREVIEW"
-                color: Color.accent
-                opacity: Style.emphasis.dim
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                font.bold: true
-                font.letterSpacing: Style.headerTracking
-              }
-
-              Text {
-                textFormat: Text.PlainText
-                visible: parent.activeRow && !parent.activeRow.previewImage
-                anchors.fill: parent
-                anchors.leftMargin: root.contentMargin
-                anchors.topMargin: previewLabel.height + Style.spacing.sm
-                text: parent.activeRow ? parent.activeRow.fullText : ""
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                wrapMode: Text.WrapAnywhere
-                elide: Text.ElideRight
-                verticalAlignment: Text.AlignTop
-              }
-
-              Image {
-                visible: parent.activeRow && parent.activeRow.previewImage
-                anchors.fill: parent
-                anchors.leftMargin: root.contentMargin
-                anchors.topMargin: previewLabel.height + Style.spacing.sm
-                source: parent.activeRow ? parent.activeRow.previewImage : ""
-                sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
-                fillMode: Image.PreserveAspectFit
-                verticalAlignment: Image.AlignTop
-                asynchronous: true
-                smooth: true
-              }
-            }
+          Image {
+            visible: parent.activeRow && parent.activeRow.previewImage
+            anchors.fill: parent
+            anchors.leftMargin: root.contentMargin
+            anchors.topMargin: previewLabel.height + Style.spacing.xs
+            source: parent.activeRow ? parent.activeRow.previewImage : ""
+            sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
+            fillMode: Image.PreserveAspectFit
+            verticalAlignment: Image.AlignTop
+            asynchronous: true
+            smooth: true
           }
         }
       }
-
-      HudFrame {}
-      Scanlines {}
     }
   }
 }

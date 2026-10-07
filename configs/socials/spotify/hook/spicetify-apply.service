@@ -7,3 +7,7 @@ StartLimitBurst=20
 [Service]
 Type=oneshot
 ExecStart=%h/projects/arch-dotfiles/configs/socials/spotify/hook/spicetify-apply.sh
+
+[Install]
+# an upgrade while this user was logged out fires no path unit
+WantedBy=default.target

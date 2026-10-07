@@ -4,4 +4,3 @@
 FAILURES*
 __pycache__
 configs/desktop/plasma/*.lock
-platforms/local.sh

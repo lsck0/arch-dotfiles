@@ -205,9 +205,9 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: hoverArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
@@ -219,24 +219,18 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(8)
       height: width
-      radius: width / 2
+      radius: Style.shape.data
       color: root.stateColor
       layer.enabled: Style.fx.glow > 0 && root.active
+      // static: a pulse would repaint the bar for the whole recording
       layer.effect: Glow { shadowColor: root.stateColor }
-
-      SequentialAnimation on opacity {
-        running: root.active
-        loops: Animation.Infinite
-        NumberAnimation { to: 0.35; duration: 800; easing.type: Easing.InOutQuad }
-        NumberAnimation { to: 1.0;  duration: 800; easing.type: Easing.InOutQuad }
-      }
     }
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: {
-        if (root.faulted) return "OBS ⚠"
+        if (root.faulted) return "OBS !"
         if (root.streamReconnecting) return "RECONNECTING"
         if (root.streaming && root.recording) return "LIVE+REC"
         if (root.streaming) return "LIVE"
@@ -283,116 +277,26 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    component StatRow: Row {
-      id: statRow
-      property string label: ""
-      property string value: ""
-      property color valueColor: Color.menu.text
-      property bool dim: false
-      width: parent.width
-      Text {
-        width: statRow.width * 0.45
-        text: statRow.label
-        color: Color.menu.text
-        elide: Text.ElideRight
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.capitalization: Font.AllUppercase
-        font.letterSpacing: Style.headerTracking * 0.4
-      }
-      Text {
-        width: statRow.width * 0.55
-        horizontalAlignment: Text.AlignRight
-        text: statRow.value
-        color: statRow.valueColor
-        opacity: statRow.dim ? Style.emphasis.faint : 1
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.displayTracking
-      }
-    }
-
-    component Action: Rectangle {
-      id: action
-      property string glyph: ""
-      property string label: ""
-      property color tint: Color.menu.text
-      property bool danger: false
-      signal activated()
-      height: Style.row.control
-      radius: Style.cornerRadius
-      color: actionMouse.containsMouse
-        ? Util.alpha(tint, danger ? 0.28 : 0.20)
-        : Util.alpha(tint, danger ? 0.16 : 0.10)
-      Behavior on color { ColorAnimation { duration: 100 } }
-
-      Row {
-        anchors.centerIn: parent
-        spacing: Style.spacing.xs
-        Text {
-          anchors.verticalCenter: parent.verticalCenter
-          text: action.glyph
-          color: action.tint
-          font.family: Style.font.iconFamily
-          font.pixelSize: Style.font.caption
-        }
-        Text {
-          anchors.verticalCenter: parent.verticalCenter
-          text: action.label
-          color: action.tint
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-        }
-      }
-
-      MouseArea {
-        id: actionMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: action.activated()
-      }
-    }
-
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.md
+      spacing: Style.spacing.sm
 
       Item {
         width: parent.width
         visible: root.connected
         implicitHeight: Math.max(obsHero.implicitHeight, obsMeta.implicitHeight)
         height: implicitHeight
-        Row {
+        // live rate: outline, never a glow layer
+        Hero {
           id: obsHero
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.spacing.xs
-          Text {
-            id: heroNum
-            anchors.bottom: parent.bottom
-            text: root.streaming ? Math.round(root.bitrateKbps)
-                : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0))
-            color: root.active ? root.stateColor : Color.accent
-            font.family: Style.font.family
-            font.pixelSize: Math.round(Style.font.display * 1.7)
-            font.bold: true
-            font.letterSpacing: Style.displayTracking
-            layer.enabled: Style.fx.glow > 0
-            layer.effect: Glow { shadowColor: root.active ? root.stateColor : Style.fx.glowColor }
-          }
-          Text {
-            anchors.bottom: heroNum.bottom
-            anchors.bottomMargin: Math.round(Style.font.body * 0.3)
-            text: root.active ? "KBPS" : "FPS"
-            color: root.active ? root.stateColor : Color.accent
-            opacity: Style.emphasis.dim
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking
-          }
+          value: String(root.streaming ? Math.round(root.bitrateKbps)
+            : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0)))
+          unit: root.active ? "kbps" : "fps"
+          color: root.active ? root.stateColor : Color.accent
+          live: true
         }
         Column {
           id: obsMeta
@@ -441,8 +345,8 @@ BarWidget {
 
       Rectangle {
         width: parent.width
-        height: faultText.implicitHeight + Style.spacing.sm * 2
-        radius: Style.cornerRadius
+        height: faultText.implicitHeight + Style.spacing.xs * 2
+        radius: Style.shape.data
         visible: root.errorText !== ""
         color: Util.alpha(Color.semantic.warn, 0.16)
 
@@ -450,8 +354,8 @@ BarWidget {
           id: faultText
           anchors.left: parent.left
           anchors.right: parent.right
-          anchors.leftMargin: Style.spacing.md
-          anchors.rightMargin: Style.spacing.md
+          anchors.leftMargin: Style.spacing.sm
+          anchors.rightMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
           wrapMode: Text.Wrap
           textFormat: Text.PlainText
@@ -464,11 +368,11 @@ BarWidget {
 
       Row {
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.xs
         visible: root.connected
 
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           glyph: root.streaming ? "\u{f1721}" : "\u{f1720}"   // md-broadcast_off / md-broadcast
           label: root.streaming ? "Stop" : "Go live"
           tint: root.streaming ? Color.semantic.live : Color.menu.text
@@ -476,8 +380,8 @@ BarWidget {
           onActivated: root.send({ cmd: "toggleStream" })
         }
 
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           glyph: root.recording ? "\u{f04db}" : "\u{f044a}"   // md-stop / md-record
           label: root.recording ? "Stop rec" : "Record"
           tint: root.recording ? Color.semantic.live : Color.menu.text
@@ -485,10 +389,9 @@ BarWidget {
           onActivated: root.send({ cmd: "toggleRecord" })
         }
 
-        Action {
-          width: (parent.width - Style.spacing.sm * 2) / 3
+        ActionButton {
+          width: (parent.width - Style.spacing.xs * 2) / 3
           // obs rejects pause unless recording
-          opacity: root.recording ? 1 : 0.35
           enabled: root.recording
           glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}"   // md-play / md-pause
           label: root.recordPaused ? "Resume" : "Pause"
@@ -503,7 +406,7 @@ BarWidget {
       // flow so long scene lists wrap
       Flow {
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.xs
         visible: root.connected
 
         Repeater {
@@ -533,7 +436,7 @@ BarWidget {
 
       Flow {
         width: parent.width
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.xs
         visible: root.connected
 
         Repeater {
@@ -586,7 +489,7 @@ BarWidget {
       }
       BarGauge {
         width: parent.width
-        height: Style.spacing.md
+        height: Style.spacing.sm
         visible: root.streaming
         segments: 24
         value: Math.max(0, Math.min(1, root.congestion))

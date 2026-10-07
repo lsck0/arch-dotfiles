@@ -9,8 +9,10 @@ BarWidget {
   moduleName: "display"
 
   property real brightnessPct: 50
-  // seed once so later reads don't fight a drag
-  property bool brightnessSeeded: false
+  // false until a read answers, shown as "--" instead of a made-up 50
+  property bool brightnessKnown: false
+  // reads never fight a drag
+  property bool brightnessDragging: false
   property var monitors: []
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
 
@@ -35,6 +37,7 @@ BarWidget {
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
+    root.brightnessKnown = true
     for (var i = 0; i < root.activeMonitors.length; i++)
       root.setBrightnessFor(root.activeMonitors[i].name, pct)
   }
@@ -48,7 +51,12 @@ BarWidget {
   property var grading: ({ preset: "", nightlight: false, presets: [] })
   property var shaders: ({ current: "off", shaders: [] })
 
+  // panel opens re-read grading and shaders at most this often; actions re-read at once
+  readonly property int colorMinAgeMs: 60 * 1000
+  property real colorReadMs: 0
+
   function refreshColor() {
+    root.colorReadMs = Date.now()
     if (!gradingProc.running) gradingProc.running = true
     if (!shaderProc.running) shaderProc.running = true
   }
@@ -117,9 +125,9 @@ BarWidget {
         waitForEnd: true
         onStreamFinished: {
           var pct = parseInt(String(text || "").trim(), 10)
-          if (!isNaN(pct) && !root.brightnessSeeded) {
+          if (!isNaN(pct) && !root.brightnessDragging) {
             root.brightnessPct = pct
-            root.brightnessSeeded = true
+            root.brightnessKnown = true
           }
           proc.destroy()
         }
@@ -138,7 +146,7 @@ BarWidget {
         } catch (e) {
           return
         }
-        if (!root.brightnessSeeded) root.refreshAllBrightness()
+        if (!root.brightnessKnown) root.refreshAllBrightness()
       }
     }
   }
@@ -171,44 +179,19 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
+    // keys and the osd change brightness behind the panel's back
     onOpened: {
       root.refreshMonitors()
-      root.refreshColor()
+      if (Date.now() - root.colorReadMs >= root.colorMinAgeMs) root.refreshColor()
+      root.refreshAllBrightness()
     }
 
     title: "DISPLAY"
 
-    component Hero: Row {
-      property int pct: 0
-      property color tint: Color.accent
-      spacing: Style.spacing.xxs
-      Text {
-        id: heroNum
-        anchors.bottom: parent.bottom
-        text: parent.pct
-        color: parent.tint
-        font.family: Style.font.family
-        font.pixelSize: Math.round(Style.font.display * 1.7)
-        font.bold: true
-        font.letterSpacing: Style.displayTracking
-        layer.enabled: Style.fx.glow > 0
-        layer.effect: Glow {}
-      }
-      Text {
-        anchors.bottom: heroNum.bottom
-        anchors.bottomMargin: Math.round(Style.font.display * 0.35)
-        text: "%"
-        color: parent.tint
-        opacity: Style.emphasis.dim
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
-      }
-    }
-
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.lg
+      spacing: Style.spacing.sm
 
       PanelSectionHeader { text: "BRIGHTNESS" }
 
@@ -220,13 +203,13 @@ BarWidget {
           width: parent.width
           implicitHeight: Math.max(briHero.implicitHeight, briReads.implicitHeight)
           height: implicitHeight
-          Hero { id: briHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; pct: Math.round(root.brightnessPct) }
+          Hero { id: briHero; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; value: root.brightnessKnown ? String(Math.round(root.brightnessPct)) : "--"; unit: "%" }
           Column {
             id: briReads
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width * 0.56
-            spacing: Style.spacing.sm
+            spacing: Style.spacing.xs
             Text {
               width: parent.width
               horizontalAlignment: Text.AlignRight
@@ -237,19 +220,19 @@ BarWidget {
               font.family: Style.font.family
               font.letterSpacing: Style.headerTracking * 0.4
             }
-            BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.brightnessPct / 100 }
+            BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.brightnessPct / 100 }
           }
         }
 
-        PanelSlider {
+        Slider {
           width: parent.width
           bar: root.bar
           minimum: 1
           maximum: 100
           integer: true
           value: root.brightnessPct
-          onMoved: function(v) { root.brightnessPct = v }
-          onReleased: function(v) { root.applyBrightnessAll(v) }
+          onMoved: function(v) { root.brightnessDragging = true; root.brightnessPct = v }
+          onReleased: function(v) { root.brightnessDragging = false; root.applyBrightnessAll(v) }
         }
       }
 
@@ -333,14 +316,14 @@ BarWidget {
           id: monitorRow
           required property var modelData
           width: content.width
-          spacing: Style.spacing.sm
+          spacing: Style.spacing.xs
 
           readonly property bool disabled: !!modelData.disabled
           readonly property string mirrorOf: modelData.mirrorOf && modelData.mirrorOf !== "none" ? modelData.mirrorOf : ""
           readonly property string layoutValue: disabled ? "off" : (mirrorOf ? "mirror:" + mirrorOf : "extend")
 
           Row {
-            spacing: Style.spacing.md
+            spacing: Style.spacing.sm
             Text {
               text: monitorRow.modelData.name
               color: Color.menu.text
@@ -362,7 +345,7 @@ BarWidget {
           Flow {
             visible: root.monitors.length > 1
             width: parent.width
-            spacing: Style.spacing.sm
+            spacing: Style.spacing.xs
             Repeater {
               model: {
                 var opts = [{ value: "extend", label: "Extend" }]
@@ -389,7 +372,7 @@ BarWidget {
           Flow {
             visible: !monitorRow.disabled
             width: parent.width
-            spacing: Style.spacing.sm
+            spacing: Style.spacing.xs
             Repeater {
               model: [1, 1.25, 1.5, 1.666667, 2]
               Chip {

@@ -9,7 +9,7 @@ REPO_SCRIPTS="$DOTFILES/scripts"
 
 TITLE=${1:-Reminder}
 BODY=${2:-}
-GLYPH=${3:-󰀠}
+GLYPH=${3:-$'\xf3\xb0\x80\xa0'}  # nerd font glyph as utf-8 bytes, the source stays ascii
 # reminder can snooze, pomodoro can stop
 KIND=${4:-}
 SNOOZE_MESSAGE=${5:-}

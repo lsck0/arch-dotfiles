@@ -11,12 +11,13 @@ cryptsetup                        # LUKS tooling, pacstrap installs it
 cups                              # printing system
 cups-pdf                          # print-to-PDF virtual printer
 efibootmgr                        # EFI boot manager
-ethtool                           # permanent mac (ethtool -P) for home detection in the NM dispatchers
+ethtool                           # permanent mac (ethtool -P) for the home rule in the NM dispatcher home-network.sh
 fail2ban                          # intrusion prevention tool
 fwupd                             # lvfs firmware updates (nvme, gpu, usb4, uefi dbx)
 grub                              # bootloader, pacstrap installs it
 intel-media-driver                # Intel VAAPI driver
 intel-ucode                       # Intel CPU microcode, pacstrap installs it on Intel
+ipp-usb                           # IPP over USB: usb driverless printers and scanners appear like network ones
 jolt                              # battery debugging
 lact                              # AMD GPU control: power limit, fan curve, undervolt
 lib32-vulkan-radeon               # 32-bit AMD Vulkan
@@ -41,6 +42,7 @@ plymouth                          # boot splash screen
 portmaster-bin                    # application firewall
 python-evdev                      # input events for the configs/hardware/tablet userspace driver
 sane                              # scanner access library
+sane-airscan                      # driverless eSCL/WSD scanning on network and ipp-usb scanners
 sbctl                             # Secure Boot key management
 scx-scheds                        # sched_ext perf schedulers
 smartmontools                     # disk health monitoring

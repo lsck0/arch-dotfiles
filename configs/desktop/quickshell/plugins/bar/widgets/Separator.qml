@@ -63,7 +63,7 @@ BarWidget {
   Text {
     anchors.centerIn: parent
     textFormat: Text.PlainText
-    text: root.vertical ? "⋮" : "::"
+    text: root.vertical ? ":" : "::"
     color: Color.accent
     opacity: 0.5
     font.family: root.bar ? root.bar.fontFamily : Style.font.family

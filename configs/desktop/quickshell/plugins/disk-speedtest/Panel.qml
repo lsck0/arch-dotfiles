@@ -19,8 +19,8 @@ Item {
 
   SpeedTestOverlay {
     fontFamily: Style.font.family
-    layerNamespace: "quickshell-disk-speedtest"
-    title: test.values.disk || ""
+    name: "disk-speedtest"
+    title: test.values.disk || "disk speed"
     leftLabel: "READ"
     rightLabel: "WRITE"
     unit: "MB/s"

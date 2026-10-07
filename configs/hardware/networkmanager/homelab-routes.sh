@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # NM dispatcher: on a home link (/run/home-network) the homelab subnets route straight out the lan from their own
 # table, looked up ahead of a full-tunnel vpn's rules (wg-quick, NM wireguard); wg0's main-table routes stay untouched,
-# so they hold again once home is left; virbr0 nat follows. on luca's machines an unreachable fallback catches the rest
+# so they hold again once home is left; virbr0 nat follows. on a HOMELAB machine an unreachable fallback catches the rest
 iface="${1:-}"
 action="${2:-}"
 case "$action" in up | dhcp4-change | down) ;; *) exit 0 ;; esac
@@ -13,7 +13,7 @@ PRIORITY=30000
 # behind wg0's main-table routes; off home and wg0 the homelab fails fast instead of leaking out the default route
 UNREACHABLE_METRIC=4000
 HOME_NETWORK=/run/home-network
-PERSONAL=/etc/NetworkManager/personal
+HOMELAB_MARKER=/etc/NetworkManager/homelab
 
 # physical wifi/ethernet only
 [ -e "/sys/class/net/${iface}/device" ] || exit 0
@@ -27,7 +27,7 @@ if [ "$action" = down ]; then
     exit 0
 fi
 
-if [ -e "$PERSONAL" ]; then
+if [ -e "$HOMELAB_MARKER" ]; then
     for net in $HOMELAB_NETS; do
         ip route replace unreachable "$net" metric "$UNREACHABLE_METRIC"
     done

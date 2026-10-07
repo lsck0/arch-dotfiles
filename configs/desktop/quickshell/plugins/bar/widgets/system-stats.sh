@@ -69,17 +69,16 @@ for h in /sys/class/hwmon/hwmon*; do
     [[ -n "$cpu_temp_path" ]] && break
 done
 
-# dmidecode needs passwordless sudo
+# memory from udev's dmi_memory_id import (70-memory.rules): readable without root, unlike dmidecode
+DMI_DEVICE=/devices/virtual/dmi/id
 mem_type=""
 mem_speed_mts=0
 mem_channels=0
-if command -v dmidecode >/dev/null 2>&1; then
-    dmi=$(sudo -n dmidecode -t memory 2>/dev/null || true)
-    if [[ -n "$dmi" ]]; then
-        mem_type=$(awk -F': ' '/^\s*Type:/ && $2 !~ /Unknown/ {print $2; exit}' <<<"$dmi")
-        mem_speed_mts=$(awk -F': ' '/^\s*Configured Memory Speed:/ && $2 !~ /Unknown/ {print $2; exit}' <<<"$dmi" | grep -oE '^[0-9]+')
-        mem_channels=$(awk '/^\s*Size:/ && $0 !~ /No Module Installed/ {n++} END {print n+0}' <<<"$dmi")
-    fi
+dmi=$(udevadm info --query=property --path="$DMI_DEVICE" 2>/dev/null || true)
+if [[ -n "$dmi" ]]; then
+    mem_type=$(awk -F= '/^MEMORY_DEVICE_[0-9]+_TYPE=/ && $2 != "Unknown" {print $2; exit}' <<<"$dmi")
+    mem_speed_mts=$(awk -F= '/^MEMORY_DEVICE_[0-9]+_CONFIGURED_SPEED_MTS=/ && $2 > 0 {print $2; exit}' <<<"$dmi")
+    mem_channels=$(awk -F= '/^MEMORY_DEVICE_[0-9]+_PRESENT=1$/ {n++} END {print n+0}' <<<"$dmi")
 fi
 : "${mem_type:=}" "${mem_speed_mts:=0}" "${mem_channels:=0}"
 

@@ -9,6 +9,11 @@ BarWidget {
 
   property bool received: false
   property var usage: ({})
+  // agent-usage.py's {"error": why}; the last good usage stays up
+  property string errorText: ""
+  property real updatedMs: 0
+  // two missed background polls
+  readonly property int staleAfterMs: 2 * 45 * 60 * 1000
 
   readonly property int sessionPct: Number(usage.u_session) || 0
   readonly property int weekPct: Number(usage.u_week) || 0
@@ -26,33 +31,41 @@ BarWidget {
 
   property var pctHist: []
 
-  visible: hasUsage
+  // {} means the widget does not apply here (guest); a failure still shows, as x ERR
+  visible: hasUsage || errorText !== ""
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // each poll costs an api request: fresh while shown, slow discovery while hidden
+  // each poll costs an api request: slow in the background, fresh when the panel opens
   JsonProcess {
+    id: usageProc
     command: [Paths.barWidget("agent-usage.py")]
-    intervalMs: root.visible ? 10 * 60 * 1000 : 30 * 60 * 1000
+    intervalMs: 45 * 60 * 1000
+    minAgeMs: 60 * 1000
     onParsed: function (data) {
-      root.usage = data
       root.received = true
-      if (root.hasUsage) root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
+      root.errorText = data && data.error ? String(data.error) : ""
+      if (root.errorText) return
+      root.usage = data
+      if (!root.hasUsage) return
+      root.updatedMs = Date.now()
+      root.pctHist = Util.historyPush(root.pctHist, root.worstPct)
     }
+    onFailed: function (error) { root.received = true; root.errorText = "bad json" }
   }
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   Row {
     id: trigger
     anchors.centerIn: parent
-    spacing: Style.spacing.sm
+    spacing: Style.spacing.xs
 
     Text {
       anchors.verticalCenter: parent.verticalCenter
@@ -64,6 +77,7 @@ BarWidget {
     }
     Text {
       anchors.verticalCenter: parent.verticalCenter
+      visible: root.hasUsage
       textFormat: Text.PlainText
       text: root.worstWhich + " " + root.worstPctShown + "%"
       color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
@@ -72,6 +86,13 @@ BarWidget {
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
       layer.effect: Glow { shadowColor: root.tight ? Color.urgent : Style.fx.glowColor }
+    }
+    DataState {
+      anchors.verticalCenter: parent.verticalCenter
+      loading: usageProc.running
+      error: root.errorText
+      updatedMs: root.updatedMs
+      staleAfterMs: root.staleAfterMs
     }
   }
 
@@ -100,7 +121,7 @@ BarWidget {
       visible: barRow.pct >= 0
       height: parent.height
       width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
-      radius: Style.cornerRadius
+      radius: Style.shape.data
       color: barRow.alert ? Util.alpha(Color.urgent, 0.18) : Util.alpha(Color.accent, 0.15)
     }
     Text {
@@ -116,7 +137,7 @@ BarWidget {
     Row {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.xs
       Text {
         id: rowValue
         text: barRow.value
@@ -135,52 +156,25 @@ BarWidget {
     }
   }
 
-  component Hero: Row {
-    id: hero
-    property int pct: 0
-    property color tint: Color.accent
-    spacing: Style.spacing.xxs
-    Text {
-      id: heroNum
-      anchors.bottom: parent.bottom
-      text: hero.pct
-      color: hero.tint
-      font.family: Style.font.family
-      font.pixelSize: Math.round(Style.font.display * 1.7)
-      font.bold: true
-      font.letterSpacing: Style.displayTracking
-      layer.enabled: Style.fx.glow > 0
-      layer.effect: Glow { shadowColor: hero.tint }
-    }
-    Text {
-      anchors.bottom: heroNum.bottom
-      anchors.bottomMargin: Math.round(Style.font.display * 0.35)
-      text: "%"
-      color: hero.tint
-      opacity: Style.emphasis.dim
-      font.family: Style.font.family
-      font.pixelSize: Style.font.title
-    }
-  }
-
   HoverPanel {
     id: panel
     bar: root.bar
     moduleName: root.moduleName
     anchorWidget: root
     title: "Claude Code"
+    onOpened: usageProc.refresh()
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.md
+      spacing: Style.spacing.sm
 
       BarRow {
-        visible: !root.received
+        visible: !root.received || (root.errorText !== "" && !root.hasUsage)
         label: "Status"
-        value: "Reading usage..."
+        value: root.errorText ? "x ERR " + root.errorText : "--"
       }
 
       Column {
@@ -196,8 +190,9 @@ BarWidget {
             id: usageHero
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            pct: root.worstPctShown
-            tint: root.tight ? Color.urgent : Color.accent
+            value: String(root.worstPctShown)
+            unit: "%"
+            color: root.tight ? Color.urgent : Color.accent
           }
           Column {
             id: usageSide
@@ -230,14 +225,14 @@ BarWidget {
             }
           }
         }
-        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Color.urgent : Color.accent }
-        BarGauge { width: parent.width; height: Style.spacing.md; segments: 24; value: root.worstPct / 100; color: root.tight ? Color.urgent : Color.accent }
+        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Color.urgent : Color.accent; glow: true }
+        BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.worstPct / 100; color: root.tight ? Color.urgent : Color.accent }
       }
 
       Column {
         width: parent.width
         visible: root.hasUsage
-        spacing: Style.spacing.md
+        spacing: Style.spacing.sm
 
         PanelSectionHeader { text: "Limits" }
         BarRow {
@@ -255,7 +250,7 @@ BarWidget {
         }
         BarRow {
           // only present when the tui was scraped
-          visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "—"
+          visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "\u2014"
           label: root.usage.u_model || "Model"
           value: root.usage.u_sonnet + "%"
           pct: Number(root.usage.u_sonnet) || 0
@@ -263,12 +258,12 @@ BarWidget {
 
         PanelSeparator {}
         PanelSectionHeader { text: "Today" }
-        BarRow { label: "Tokens"; value: root.usage.t_total || "–"; note: root.usage.t_cost || "" }
-        BarRow { label: "In / out"; value: (root.usage.t_input || "–") + " / " + (root.usage.t_output || "–") }
-        BarRow { label: "Cache r/w"; value: (root.usage.t_cache_r || "–") + " / " + (root.usage.t_cache_w || "–") }
+        BarRow { label: "Tokens"; value: root.usage.t_total || "--"; note: root.usage.t_cost || "" }
+        BarRow { label: "In / out"; value: (root.usage.t_input || "--") + " / " + (root.usage.t_output || "--") }
+        BarRow { label: "Cache r/w"; value: (root.usage.t_cache_r || "--") + " / " + (root.usage.t_cache_w || "--") }
         BarRow {
           label: "Messages"
-          value: String(root.usage.t_messages === undefined ? "–" : root.usage.t_messages)
+          value: String(root.usage.t_messages === undefined ? "--" : root.usage.t_messages)
           note: (root.usage.t_sessions || 0) + " sessions"
         }
         BarRow {
@@ -280,10 +275,10 @@ BarWidget {
 
         PanelSeparator {}
         PanelSectionHeader { text: "Week" }
-        BarRow { label: "Tokens"; value: root.usage.w_tokens || "–"; note: root.usage.w_cost || "" }
+        BarRow { label: "Tokens"; value: root.usage.w_tokens || "--"; note: root.usage.w_cost || "" }
         BarRow {
           label: "Messages"
-          value: String(root.usage.w_messages === undefined ? "–" : root.usage.w_messages)
+          value: String(root.usage.w_messages === undefined ? "--" : root.usage.w_messages)
           note: (root.usage.w_sessions || 0) + " sessions"
         }
         BarRow {
@@ -300,7 +295,7 @@ BarWidget {
         Column {
           width: parent.width
           visible: root.models.length > 0
-          spacing: Style.spacing.md
+          spacing: Style.spacing.sm
 
           PanelSeparator {}
           PanelSectionHeader { text: "Models" }

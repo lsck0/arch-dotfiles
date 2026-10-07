@@ -270,8 +270,6 @@ return {
             },
         },
         config = function(_, opts)
-            -- msg target: with cmdheight=0 the cmd target expands the cmdline for every message
-            require("vim._core.ui2").enable({ msg = { targets = "msg" } })
             require("snacks").setup(opts)
             -- hide inline images in insert mode
             local inline = require("snacks.image.inline")

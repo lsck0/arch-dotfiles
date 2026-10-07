@@ -4,7 +4,7 @@ import qs.Commons
 Item {
   id: root
   anchors.fill: parent
-  anchors.margins: margin
+  anchors.margins: margin + inset
   visible: shown && Style.fx.brackets
   z: 5
 
@@ -16,6 +16,8 @@ Item {
   property real strength: 0.9
   // negative pushes the brackets outward, off the content
   property real margin: 0
+  // extra pull toward the centre, animated by BootIn so the brackets fly out to the corners
+  property real inset: 0
 
   // keep opposite arms from meeting on small surfaces
   readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))

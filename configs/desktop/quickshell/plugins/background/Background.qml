@@ -22,6 +22,16 @@ Item {
   property int revealStartedVersion: -1
   property real revealProgress: 1
 
+  // the wedge's own length, between slow and ambient; instant in power saver
+  readonly property int wedgeMs: Style.motion.enabled ? 420 : 0
+  // palette sync (signature D): the new palette's crossfade starts as the wedge passes the centre
+  readonly property real paletteCue: 0.5
+  readonly property int edgeWidth: Style.space(2)
+  onRevealProgressChanged: if (revealProgress >= paletteCue) Color.syncHold = false
+
+  // every output glitches once as the new wallpaper settles
+  signal settled()
+
   function refreshBackground() {
     if (!readlinkProc.running) readlinkProc.running = true
   }
@@ -47,6 +57,8 @@ Item {
     oldBackground = displayedBackground
     incomingBackground = path
     revealProgress = 0
+    // wallust usually lands later; this only catches a palette that beats the wedge
+    Color.syncHold = Style.motion.enabled
   }
 
   function startReveal(panel) {
@@ -87,14 +99,16 @@ Item {
     property: "revealProgress"
     from: 0
     to: 1
-    duration: 420
-    easing.type: Easing.InOutCubic
+    duration: root.wedgeMs
+    easing.type: Style.motion.ambientEasing
     onFinished: {
       if (root.incomingBackground) {
         root.displayedBackground = root.currentBackground || root.incomingBackground
         root.finishingTransition = true
       }
       root.revealProgress = 1
+      Color.syncHold = false
+      root.settled()
     }
   }
 
@@ -139,60 +153,66 @@ Item {
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
 
-      Image {
-        id: base
-        anchors.fill: parent
-        source: Util.fileUrl(root.displayedBackground)
-        sourceSize: panel.decodeSize
-        fillMode: Image.PreserveAspectCrop
-        asynchronous: true
-        cache: true
-        onStatusChanged: {
-          if (status === Image.Ready && root.finishingTransition) {
-            root.incomingBackground = ""
-            root.oldBackground = ""
-            root.finishingTransition = false
-          }
-        }
-      }
-
-      Image {
-        id: oldFrame
-        anchors.fill: parent
-        source: Util.fileUrl(root.oldBackground)
-        sourceSize: panel.decodeSize
-        fillMode: Image.PreserveAspectCrop
-        asynchronous: true
-        cache: false
-        smooth: true
-        // no mipmaps: sourceSize already matches the drawn size
-        visible: root.oldBackground !== "" && root.revealProgress < 1
-        onStatusChanged: panel.maybeStartReveal()
-      }
-
+      // everything the glitch captures; the mask stays outside it
       Item {
-        id: incomingLayer
+        id: content
         anchors.fill: parent
-        visible: root.incomingBackground !== "" && incomingFrame.status === Image.Ready && (root.revealProgress >= 1 || panel.maskReady)
-        layer.enabled: root.incomingBackground !== "" && root.revealProgress < 1
-        layer.smooth: true
-        layer.effect: MultiEffect {
-          maskEnabled: true
-          maskSource: revealMask
-          maskThresholdMin: 0.5
-          maskSpreadAtMin: 0.02
+
+        Image {
+          id: base
+          anchors.fill: parent
+          source: Util.fileUrl(root.displayedBackground)
+          sourceSize: panel.decodeSize
+          fillMode: Image.PreserveAspectCrop
+          asynchronous: true
+          cache: true
+          onStatusChanged: {
+            if (status === Image.Ready && root.finishingTransition) {
+              root.incomingBackground = ""
+              root.oldBackground = ""
+              root.finishingTransition = false
+            }
+          }
         }
 
         Image {
-          id: incomingFrame
+          id: oldFrame
           anchors.fill: parent
-          source: Util.fileUrl(root.incomingBackground)
+          source: Util.fileUrl(root.oldBackground)
           sourceSize: panel.decodeSize
           fillMode: Image.PreserveAspectCrop
           asynchronous: true
           cache: false
           smooth: true
+          // no mipmaps: sourceSize already matches the drawn size
+          visible: root.oldBackground !== "" && root.revealProgress < 1
           onStatusChanged: panel.maybeStartReveal()
+        }
+
+        Item {
+          id: incomingLayer
+          anchors.fill: parent
+          visible: root.incomingBackground !== "" && incomingFrame.status === Image.Ready && (root.revealProgress >= 1 || panel.maskReady)
+          layer.enabled: root.incomingBackground !== "" && root.revealProgress < 1
+          layer.smooth: true
+          layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: revealMask
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 0.02
+          }
+
+          Image {
+            id: incomingFrame
+            anchors.fill: parent
+            source: Util.fileUrl(root.incomingBackground)
+            sourceSize: panel.decodeSize
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: false
+            smooth: true
+            onStatusChanged: panel.maybeStartReveal()
+          }
         }
       }
 
@@ -222,6 +242,41 @@ Item {
             PathLine { x: revealMask.centerTop - revealMask.spread; y: 0 }
           }
         }
+      }
+
+      // the wedge's leading edges: 2px accent2 riding the mask, only while it moves
+      Shape {
+        anchors.fill: parent
+        visible: root.incomingBackground !== "" && root.revealProgress < 1 && panel.maskReady
+        preferredRendererType: Shape.CurveRenderer
+        layer.enabled: visible && Style.fx.glow > 0
+        layer.effect: Glow { shadowColor: Color.accent2 }
+
+        ShapePath {
+          strokeColor: Color.accent2
+          strokeWidth: root.edgeWidth
+          fillColor: "transparent"
+          startX: revealMask.centerTop - revealMask.spread; startY: 0
+          PathLine { x: revealMask.centerBottom - revealMask.spread; y: revealMask.height }
+        }
+        ShapePath {
+          strokeColor: Color.accent2
+          strokeWidth: root.edgeWidth
+          fillColor: "transparent"
+          startX: revealMask.centerTop + revealMask.spread; startY: 0
+          PathLine { x: revealMask.centerBottom + revealMask.spread; y: revealMask.height }
+        }
+      }
+
+      Glitch {
+        id: glitch
+        anchors.fill: parent
+        source: content
+      }
+
+      Connections {
+        target: root
+        function onSettled() { glitch.play() }
       }
 
       Connections {

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -22,6 +21,8 @@ Item {
   readonly property string historyDir: popupStateDir + "history/"
   readonly property string imagesDir: popupStateDir + "images/"
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
+  // NotificationCard's toast width
+  readonly property int toastWidth: Style.space(420)
 
   // kept out of the model: stale qobject roles segfault
   property var liveRefs: ({})
@@ -274,6 +275,8 @@ Item {
   property var fileJobs: []
   // the job in flight; running lags a start requested before the process is complete
   property var fileJob: null
+  // bumped after every job that touched the history dir, so the bar bell stays live without polling
+  property int historyRevision: 0
 
   function enqueueFileJob(command, done) {
     fileJobs = fileJobs.concat([{ command: command, done: done || null }])
@@ -295,7 +298,9 @@ Item {
     // the collector finishes before exited fires, so its text is the job's whole stdout
     onExited: {
       var done = service.fileJob.done
+      var touchedHistory = service.fileJob.command.indexOf(service.historyDir) >= 0
       service.fileJob = null
+      if (touchedHistory) service.historyRevision++
       try {
         if (done) done(fileJobOut.text)
       } catch (e) {
@@ -629,15 +634,79 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // pinned while toasts are up so they do not jump outputs
+  // pinned while toasts are up so they do not jump outputs; released only after the last exit played
   property var popupScreen: null
+  // bumped on every insert/remove so group bindings re-read the model
+  property int popupRevision: 0
 
   Connections {
     target: popupModel
     function onCountChanged() {
-      if (popupModel.count === 0) service.popupScreen = null
-      else if (!service.popupScreen) service.popupScreen = service.focusedScreen
+      service.popupRevision++
+      if (popupModel.count > 0) {
+        releaseTimer.stop()
+        if (!service.popupScreen) service.popupScreen = service.focusedScreen
+      } else {
+        releaseTimer.restart()
+      }
     }
+  }
+
+  Timer {
+    id: releaseTimer
+    // the last toast's exit transition, plus a frame
+    interval: Style.motion.exit + 16
+    onTriggered: if (popupModel.count === 0) service.popupScreen = null
+  }
+
+  function rowApp(i) {
+    var row = i >= 0 && i < popupModel.count ? popupModel.get(i) : null
+    return row ? String(row.app || "") : ""
+  }
+
+  // consecutive toasts of one app fold under the newest: 0 for a folded row, else the group size
+  function groupSizeAt(i) {
+    var app = rowApp(i)
+    if (!app) return 1
+    if (i > 0 && rowApp(i - 1) === app) return 0
+    var n = 1
+    while (rowApp(i + n) === app) n++
+    return n
+  }
+
+  // the live notification's non-default actions, [] for restored or closed ones
+  function actionsFor(originalId, timestamp) {
+    var index = rowIndexOf(originalId, timestamp)
+    if (index < 0 || isRestoredRow(popupModel.get(index))) return []
+    var ref = liveRefs[originalId]
+    var out = []
+    try {
+      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+        var a = ref.actions[i]
+        if (a && a.identifier !== "default" && String(a.text || "").length > 0)
+          out.push({ id: String(a.identifier), text: String(a.text) })
+      }
+    } catch (e) {
+      // torn down meanwhile
+    }
+    return out
+  }
+
+  function invokeAction(index, identifier) {
+    if (index < 0 || index >= popupModel.count) return
+    var entry = popupModel.get(index)
+    var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
+    try {
+      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+        if (ref.actions[i] && String(ref.actions[i].identifier) === identifier) {
+          ref.actions[i].invoke()
+          break
+        }
+      }
+    } catch (e) {
+      console.warn("invoke action failed:", e)
+    }
+    removePopup(index)
   }
 
   Variants {
@@ -646,8 +715,8 @@ Item {
     PanelWindow {
       required property var modelData
       screen: modelData
-      visible: popupModel.count > 0
 
+      // hyprland keeps no_anim on this namespace: the ListView transitions below animate each toast
       WlrLayershell.namespace: "quickshell-notifications"
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -656,80 +725,136 @@ Item {
 
       anchors { top: true; bottom: true; left: true; right: true }
 
-      mask: Region { item: popupColumn }
+      mask: Region { item: popupList }
 
-      ColumnLayout {
-        id: popupColumn
+      ListView {
+        id: popupList
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.topMargin: service.barClearance
         anchors.rightMargin: Style.gapsOut
-        spacing: Style.space(8)
+        width: service.toastWidth
+        // capped to the output; older toasts past the edge wait their turn
+        height: Math.min(contentHeight, parent.height - service.barClearance - Style.gapsOut)
+        interactive: false
+        // the gap lives in each delegate, so folded rows take no space
+        spacing: 0
+        model: popupModel
 
-        Repeater {
-          model: popupModel
+        add: Transition {
+          ParallelAnimation {
+            NumberAnimation { property: "x"; from: service.toastWidth; to: 0; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Style.motion.base }
+          }
+        }
+        remove: Transition {
+          ParallelAnimation {
+            NumberAnimation { property: "x"; to: service.toastWidth; duration: Style.motion.exit; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.leave }
+            NumberAnimation { property: "opacity"; to: 0; duration: Style.motion.exit }
+          }
+        }
+        // the rest close the gap: the exiting toast reads as collapsing
+        displaced: Transition {
+          NumberAnimation { properties: "x,y"; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
+          NumberAnimation { property: "opacity"; to: 1; duration: Style.motion.fast }
+        }
 
-          delegate: Item {
-            id: cardSlot
-            required property int index
-            required property string app
-            required property string appIcon
-            required property string summary
-            required property string body
-            required property string image
-            required property string glyph
-            required property int urgency
-            required property double expireTimeout
-            required property double timestamp
+        delegate: Item {
+          id: cardSlot
+          required property int index
+          required property int originalId
+          required property string app
+          required property string appIcon
+          required property string summary
+          required property string body
+          required property string image
+          required property string glyph
+          required property int urgency
+          required property double expireTimeout
+          required property double timestamp
 
-            Layout.preferredWidth: card.implicitWidth
-            Layout.alignment: Qt.AlignRight
-            implicitHeight: card.implicitHeight
+          readonly property int groupSize: { service.popupRevision; return index >= 0 ? service.groupSizeAt(index) : 1 }
+          readonly property bool folded: groupSize === 0
 
-            readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout)
-            // hover pauses the countdown, leaving resumes the remainder
-            property real remainingMs: cardSlot.lifetime
-            property double resumedAtMs: Date.now()
-            readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered
+          width: popupList.width
+          height: folded ? 0 : card.implicitHeight + Style.spacing.sm
+          visible: !folded
 
-            function restartLifetime() {
-              cardSlot.remainingMs = cardSlot.lifetime
+          readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout)
+          readonly property real quarterMs: cardSlot.lifetime / card.gaugeSegments
+          // hover pauses the countdown, leaving resumes the remainder
+          property real remainingMs: cardSlot.lifetime
+          property double resumedAtMs: Date.now()
+          readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && cardSlot.index >= 0
+          // the gauge steps only when the expiry timer fires, one segment per quarter
+          readonly property int segmentsLeft: cardSlot.lifetime > 0
+            ? Math.max(0, Math.ceil(cardSlot.remainingMs / cardSlot.quarterMs - 0.001)) : 0
+
+          function restartLifetime() {
+            cardSlot.remainingMs = cardSlot.lifetime
+            cardSlot.resumedAtMs = Date.now()
+            expiryTimer.interval = Math.max(1, cardSlot.quarterMs)
+            if (cardSlot.ticking) expiryTimer.restart()
+          }
+
+          // time left until the next segment boundary
+          function nextStepMs() {
+            var below = (cardSlot.segmentsLeft - 1) * cardSlot.quarterMs
+            return Math.max(1, cardSlot.remainingMs - below)
+          }
+
+          onTickingChanged: {
+            if (cardSlot.ticking) {
               cardSlot.resumedAtMs = Date.now()
-              if (cardSlot.ticking) expiryTimer.restart()
+              expiryTimer.interval = cardSlot.nextStepMs()
+              expiryTimer.restart()
+            } else {
+              expiryTimer.stop()
+              cardSlot.remainingMs = Math.max(1, cardSlot.remainingMs - (Date.now() - cardSlot.resumedAtMs))
             }
+          }
+          onLifetimeChanged: cardSlot.restartLifetime()
+          onSummaryChanged: cardSlot.restartLifetime()
+          onBodyChanged: cardSlot.restartLifetime()
+          onImageChanged: cardSlot.restartLifetime()
 
-            onTickingChanged: {
-              if (cardSlot.ticking) cardSlot.resumedAtMs = Date.now()
-              else cardSlot.remainingMs = Math.max(0, cardSlot.remainingMs - (Date.now() - cardSlot.resumedAtMs))
+          Timer {
+            id: expiryTimer
+            interval: cardSlot.quarterMs
+            onTriggered: {
+              cardSlot.remainingMs = Math.max(0, (cardSlot.segmentsLeft - 1) * cardSlot.quarterMs)
+              cardSlot.resumedAtMs = Date.now()
+              if (cardSlot.remainingMs <= 0) {
+                if (cardSlot.index >= 0) service.removePopup(cardSlot.index, "expire")
+                return
+              }
+              interval = cardSlot.nextStepMs()
+              restart()
             }
-            onLifetimeChanged: cardSlot.restartLifetime()
-            onSummaryChanged: cardSlot.restartLifetime()
-            onBodyChanged: cardSlot.restartLifetime()
-            onImageChanged: cardSlot.restartLifetime()
+          }
 
-            Timer {
-              id: expiryTimer
-              interval: Math.max(1, cardSlot.remainingMs)
-              running: cardSlot.ticking
-              onTriggered: service.removePopup(cardSlot.index, "expire")
-            }
+          Component.onCompleted: if (cardSlot.ticking) { expiryTimer.interval = cardSlot.nextStepMs(); expiryTimer.start() }
 
-            NotificationCard {
-              id: card
-              anchors.right: parent.right
-              app: cardSlot.app
-              appIcon: cardSlot.appIcon
-              summary: cardSlot.summary
-              body: cardSlot.body
-              image: cardSlot.image
-              urgency: cardSlot.urgency
-              timestamp: cardSlot.timestamp
-              now: service.popupNowMs
-              glyph: cardSlot.glyph
+          NotificationCard {
+            id: card
+            anchors.right: parent.right
+            visible: !cardSlot.folded
+            app: cardSlot.app
+            appIcon: cardSlot.appIcon
+            summary: cardSlot.summary
+            body: cardSlot.body
+            image: cardSlot.image
+            urgency: cardSlot.urgency
+            timestamp: cardSlot.timestamp
+            now: service.popupNowMs
+            glyph: cardSlot.glyph
+            groupCount: Math.max(1, cardSlot.groupSize)
+            segmentsLeft: cardSlot.segmentsLeft
+            actions: service.actionsFor(cardSlot.originalId, cardSlot.timestamp)
 
-              onCloseRequested: service.removePopup(cardSlot.index)
-              onCardClicked: service.invokePopupDefault(cardSlot.index)
-            }
+            onCloseRequested: if (cardSlot.index >= 0) service.removePopup(cardSlot.index)
+            onCardClicked: if (cardSlot.index >= 0) service.invokePopupDefault(cardSlot.index)
+            onActionInvoked: function(identifier) { if (cardSlot.index >= 0) service.invokeAction(cardSlot.index, identifier) }
           }
         }
       }

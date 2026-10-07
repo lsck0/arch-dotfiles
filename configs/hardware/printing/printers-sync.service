@@ -1,0 +1,8 @@
+[Unit]
+Description=Permanent cups queues for the driverless printers on the home network
+Documentation=file:/var/lib/dotfiles/repo/configs/hardware/printing/printers-sync.sh
+After=avahi-daemon.service cups.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/printers-sync

@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-set -e
 
 ln -sfn "${PWD}" "$HOME/.config/ghostty"
 # volatile like tlp's forced mode, so a reboot never leaves power-saver tweaks behind
 mkdir -p "$HOME/.cache"
 ln -sfn "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/toggles/ghostty-powersave.conf" "$HOME/.cache/ghostty-powersave.conf"
 
-dropin="${HOME}/.config/systemd/user/app-com.mitchellh.ghostty.service.d"
-mkdir -p "$dropin"
-ln -sfn "${PWD}/systemd/override.conf" "${dropin}/override.conf"
+link_into "${UNIT_DIR}/app-com.mitchellh.ghostty.service.d" systemd/override.conf
 systemctl --user daemon-reload
 # not loaded yet on a first run, then there is nothing to reset
 systemctl --user reset-failed app-com.mitchellh.ghostty.service 2>/dev/null || true

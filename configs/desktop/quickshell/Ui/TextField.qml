@@ -34,7 +34,7 @@ TextField {
   background: BorderSurface {
     color: Style.controlFill(root._focused, root._hot, root.foreground, root.accent)
     borderSpec: root._borderSpec
-    radius: Style.cornerRadius
+    radius: Style.shape.data
 
     layer.enabled: Style.fx.glow > 0 && root._focused
     layer.effect: Glow {}

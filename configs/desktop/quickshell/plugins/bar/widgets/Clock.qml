@@ -24,9 +24,9 @@ BarWidget {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   }
 
   readonly property date travelledNow: new Date(now.getTime() + travelHours * 3600000)
@@ -82,7 +82,7 @@ BarWidget {
   // half-hour steps need one decimal
   function dayLabel() {
     if (root.travelHours === 0) return ""
-    var sign = root.travelHours > 0 ? "+" : "−"
+    var sign = root.travelHours > 0 ? "+" : "-"
     var hours = Math.abs(root.travelHours)
     var text = hours === Math.floor(hours) ? String(hours) : hours.toFixed(1)
     return " (" + sign + text + "h)"
@@ -150,7 +150,7 @@ BarWidget {
     Column {
       id: content
       width: parent.width
-      spacing: Style.spacing.lg
+      spacing: Style.spacing.sm
 
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
@@ -161,15 +161,16 @@ BarWidget {
         font.bold: true
         font.pixelSize: Style.font.display
         font.letterSpacing: Style.displayTracking
-        layer.enabled: Style.fx.glow > 0
-        layer.effect: Glow {}
+        // an outline, not a glow layer: this text repaints every tick
+        style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
+        styleColor: Util.alpha(Color.accent, 0.35)
       }
 
       PanelSectionHeader { text: "CALENDAR" + root.dayLabel() }
 
       Item {
         width: parent.width
-        implicitHeight: calGrid.implicitHeight + Style.spacing.sm * 2
+        implicitHeight: calGrid.implicitHeight + Style.spacing.xs * 2
         height: implicitHeight
 
         Column {
@@ -218,7 +219,7 @@ BarWidget {
                   required property var modelData
                   width: content.width / 7
                   height: Style.space(24)
-                  radius: Style.cornerRadius
+                  radius: Style.shape.data
                   color: modelData && modelData.isToday ? Style.selectedFillFor(Color.menu.text, Color.accent) : "transparent"
                   Text {
                     anchors.centerIn: parent
@@ -258,9 +259,9 @@ BarWidget {
           }
           Text {
             anchors.left: zoneMark.right
-            anchors.leftMargin: Style.spacing.sm
+            anchors.leftMargin: Style.spacing.xs
             anchors.right: zoneTime.left
-            anchors.rightMargin: Style.spacing.sm
+            anchors.rightMargin: Style.spacing.xs
             anchors.verticalCenter: parent.verticalCenter
             text: modelData.zone
             color: Color.menu.text
@@ -290,7 +291,7 @@ BarWidget {
       PanelSeparator {}
       PanelSectionHeader { text: "TIMETRAVEL" }
 
-      PanelSlider {
+      Slider {
         width: parent.width
         value: root.travelHours
         minimum: -24
@@ -304,7 +305,7 @@ BarWidget {
         visible: root.travelHours !== 0
         width: parent.width
         height: Style.space(24)
-        radius: Style.cornerRadius
+        radius: Style.shape.data
         color: Style.selectedFillFor(Color.menu.text, Color.accent)
         Text {
           anchors.centerIn: parent
@@ -331,7 +332,7 @@ BarWidget {
           var parts = []
           if (root.pomo.running) parts.push((root.pomo.paused ? "Paused " : "") + root.pomo.remaining)
           if (root.reminders.length) parts.push(root.reminders.length + (root.reminders.length === 1 ? " reminder" : " reminders"))
-          return parts.join(" · ")
+          return parts.join(" :: ")
         }
         onActivated: {
           if (root.bar) root.bar.closePanel(root.moduleName)

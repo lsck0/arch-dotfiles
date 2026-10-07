@@ -1,21 +1,24 @@
 # shellcheck shell=bash
-# the platform file is the one source for HOSTNAME, FORM_FACTOR, PKG_GROUPS, EXTRA_PACKAGES, WIREGUARD and the optional
-# LSCK0_SNAPSHOT=<YYYY-MM-DD> pin, else from the env: platforms/<hostname>.sh for luca's machines, platforms/local.sh
-# (gitignored, written by bootstrap.sh) for a guest
+# the platform file is the one source of machine facts: HOSTNAME, FORM_FACTOR, PKG_GROUPS, EXTRA_PACKAGES, WIREGUARD,
+# HOMELAB, SECURE_BOOT_OWN_KEYS and the optional LSCK0_SNAPSHOT=<YYYY-MM-DD> pin. platforms/<hostname>.sh for the owner's
+# machines, PLATFORM_LOCAL (root-owned, written by bootstrap.sh) for any other; never a user fact
 
+PLATFORM_LOCAL=/etc/dotfiles/platform.sh
 # runtime copy for hyprland's platform.lua, which runs outside config.sh
 PLATFORM_FORM_FACTOR_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/form-factor"
+# exported to every module; each 1 or empty, WIREGUARD a secrets file name, FORM_FACTOR desktop, laptop, vm or wsl
+PLATFORM_FACTS=(FORM_FACTOR HOMELAB WIREGUARD SECURE_BOOT_OWN_KEYS LSCK0_SNAPSHOT)
 
 # platform_file <repo>: this machine's platform file, nothing for a machine without one
 platform_file() {
     local file
-    for file in "$1/platforms/$(</etc/hostname).sh" "$1/platforms/local.sh"; do
+    for file in "$1/platforms/$(</etc/hostname).sh" "$PLATFORM_LOCAL"; do
         [[ -f "$file" ]] && echo "$file" && return
     done
     return 0
 }
 
-# platform_groups_all <repo>: every module, a configs/<module>/ with a packages.txt
+# platform_groups_all <repo>: every group, a configs/<group>/ with a packages.txt
 platform_groups_all() {
     find "$1/configs" -mindepth 2 -maxdepth 2 -name packages.txt -printf '%h\n' | sed 's#.*/##' | sort
 }
@@ -48,11 +51,12 @@ platform_form_factor() {
     esac
 }
 
-# platform_load <repo>: source the platform file, every group without one; exports FORM_FACTOR and LSCK0_SNAPSHOT
+# platform_load <repo>: source the platform file, every group without one; exports the facts, empty when unset
 platform_load() {
-    local file
+    local file fact
     file=$(platform_file "$1")
     PKG_GROUPS=()
+    EXTRA_PACKAGES=()
     if [[ -n "$file" ]]; then
         # shellcheck source=/dev/null
         source "$file"
@@ -67,9 +71,22 @@ platform_load() {
         [[ "$known" == *" $grp "* ]] || { echo "platform: PKG_GROUPS has '$grp', not a module in configs/" >&2; return 1; }
     done
     FORM_FACTOR=$(platform_form_factor "$1") || return 1
-    # configs/base/pacman/link.sh runs as a child of install.sh
-    export FORM_FACTOR LSCK0_SNAPSHOT
-    mkdir -p "$(dirname "$PLATFORM_FORM_FACTOR_FILE")"
-    echo "$FORM_FACTOR" >"$PLATFORM_FORM_FACTOR_FILE"
+    for fact in "${PLATFORM_FACTS[@]}"; do
+        export "$fact=${!fact:-}"
+    done
+    # root writes no file into a home
+    if ((EUID != 0)); then
+        mkdir -p "$(dirname "$PLATFORM_FORM_FACTOR_FILE")"
+        echo "$FORM_FACTOR" >"$PLATFORM_FORM_FACTOR_FILE"
+    fi
     echo "platform: form factor $FORM_FACTOR, groups ${PKG_GROUPS[*]}" >&2
+}
+
+# platform_packages <manifest>: the names in configs/<group>/<manifest>.txt over PKG_GROUPS, comments and blanks dropped
+platform_packages() {
+    local grp
+    for grp in "${PKG_GROUPS[@]}"; do
+        [[ -f "$DOTFILES/configs/$grp/$1.txt" ]] || continue
+        sed -E 's/#.*//; s/[[:space:]]+$//' "$DOTFILES/configs/$grp/$1.txt" | awk 'NF'
+    done
 }

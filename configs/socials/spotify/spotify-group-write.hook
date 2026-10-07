@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = spotify
+
+[Action]
+Description = Letting wheel write /opt/spotify so spicetify can repatch it (each user's spicetify-apply.path reapplies)
+When = PostTransaction
+Exec = /usr/bin/sh -c 'chgrp -R wheel /opt/spotify && chmod -R g+w /opt/spotify'

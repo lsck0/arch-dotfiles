@@ -1,5 +1,11 @@
 import QtQuick
 
+/**
+ * PanelKeyCatcher: Esc, Tab, arrows and hjkl, Enter/Space and x as signals.
+ *
+ * Focused itself it takes every key first. As an ancestor of focusable controls it only sees what
+ * they leave unaccepted, so text inputs keep letters and arrows and the rest bubbles up here.
+ */
 Item {
   id: root
 

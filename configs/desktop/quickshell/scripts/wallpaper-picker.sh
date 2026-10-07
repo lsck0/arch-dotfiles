@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# usage: [image-dir]
+# opens the quickshell picker on the eligible wallpapers (wallpaper-list.py), else the fzf picker
 
 set -uo pipefail
 
 DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 SWITCH_WALLPAPER="$DOTFILES/scripts/switch-wallpaper.sh"
 
-REPO_WALLPAPERS="$DOTFILES/wallpapers"
 THEMES_DIR="$DOTFILES/configs/base/themes"
-DIR=${1:-$REPO_WALLPAPERS}
 QS_CONFIG="$HOME/.config/quickshell"
 RUN="${XDG_RUNTIME_DIR:-/tmp}"
 SEL="$RUN/wallpaper-picker.selection.$$"
@@ -24,8 +22,8 @@ command -v quickshell >/dev/null 2>&1 || { echo "quickshell not installed" >&2; 
 CURRENT=$(readlink -f "$HOME/.cache/wal/wallpaper" 2>/dev/null || true)
 
 if ! timeout 3 quickshell ipc -p "$QS_CONFIG" call shell summon panel.image-picker \
-        "$(jq -cn --arg d "$DIR" --arg t "$THEMES_DIR" --arg s "$SEL" --arg f "$DONE" --arg c "$CURRENT" \
-            '{imageDirs:$d, themeDirs:$t, mode:0, selectionFile:$s, doneFile:$f, selectedImage:$c, filterable:true, showLabels:true}')" \
+        "$(jq -cn --arg t "$THEMES_DIR" --arg s "$SEL" --arg f "$DONE" --arg c "$CURRENT" \
+            '{themeDirs:$t, mode:0, selectionFile:$s, doneFile:$f, selectedImage:$c, filterable:true, showLabels:true}')" \
         >/dev/null 2>&1; then
     echo "quickshell picker unavailable; falling back to the fzf picker" >&2
     exec "$SWITCH_WALLPAPER"

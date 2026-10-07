@@ -23,7 +23,7 @@ Row {
       color: index >= root.litCount
              ? Qt.rgba(root.color.r, root.color.g, root.color.b, 0.13)
              : (index === root.litCount - 1 ? Qt.lighter(root.color, 1.5) : root.color)
-      Behavior on color { ColorAnimation { duration: 120 } }
+      Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
     }
   }
 }

@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
-
-set -e
 
 bd="${HOME}/.config/BetterDiscord"
 mkdir -p "${HOME}/.config/discord" "${bd}/plugins" "${bd}/themes"
@@ -24,5 +21,4 @@ for url in \
     wget -q "$url" -O "${f}.tmp" && mv "${f}.tmp" "$f" && echo "$url" > "${f}.url"
 done
 
-source $DOTFILES/scripts/lib/user-hook.sh
 user_hook_install ./hook betterdiscord-inject

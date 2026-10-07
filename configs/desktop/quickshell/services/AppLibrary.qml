@@ -38,7 +38,35 @@ Item {
 
   function sortedEntries(query) {
     var values = DesktopEntries.applications.values || []
-    return AppSearch.sortedEntries(values, query, function(entry) { return root.isHiddenEntry(entry) })
+    var now = Date.now()
+    return AppSearch.sortedEntries(values, query,
+      function(entry) { return root.isHiddenEntry(entry) },
+      function(entry) { return AppSearch.frecencyRank(root.frecency[String(entry.id || "")], now) })
+  }
+
+  // launcher frecency, { desktopId: { n: launches, t: last ms } }
+  property var frecency: ({})
+
+  function recordLaunch(id) {
+    root.frecency = AppSearch.frecencyBump(root.frecency, String(id), Date.now())
+    frecencyFile.setText(JSON.stringify(root.frecency) + "\n")
+  }
+
+  FileView {
+    id: frecencyFile
+    path: Paths.state + "/launcher-frecency.json"
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      try {
+        var parsed = JSON.parse(text() || "{}")
+        root.frecency = Util.isPlainObject(parsed) ? parsed : ({})
+      } catch (e) {
+        // corrupt state only costs the ranking
+        root.frecency = ({})
+      }
+    }
+    onLoadFailed: root.frecency = ({})
   }
 
   function iconSource(icon) {
@@ -53,9 +81,10 @@ Item {
   function launch(desktopId, name) {
     var id = String(desktopId || "")
     if (!id) return
+    root.recordLaunch(id)
     root.beginLaunchFeedback(name)
     // uwsm-app so apps do not inherit wayland-wm@.service
-    Util.execDetached("uwsm-app -- gtk-launch " + Util.shellQuote(id + ".desktop"))
+    Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", id + ".desktop"])
   }
 
   function normalizeDesktopId(id) {

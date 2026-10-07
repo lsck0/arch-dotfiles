@@ -32,10 +32,6 @@ QtObject {
     return "'" + String(value || "").replace(/'/g, "'\\''") + "'"
   }
 
-  function execDetached(command) {
-    Quickshell.execDetached(["bash", "-lc", command])
-  }
-
   function isPlainObject(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value)
   }
@@ -85,12 +81,13 @@ QtObject {
     return Number(v.toPrecision(3)) + " " + byteUnits[i]
   }
 
-  // severity color for a higher-is-worse value against ascending [warn, high, critical]
+  // severity color for a higher-is-worse value against ascending [warn, high, critical], on Color.ramp
   function level(value, thresholds) {
-    if (value >= thresholds[2]) return Color.semantic.live
-    if (value >= thresholds[1]) return Color.semantic.recording
-    if (value >= thresholds[0]) return Color.semantic.warn
-    return Color.accent
+    var stops = Color.rampStops
+    if (value >= thresholds[2]) return Color.ramp(stops[3])
+    if (value >= thresholds[1]) return Color.ramp(stops[2])
+    if (value >= thresholds[0]) return Color.ramp(stops[1])
+    return Color.ramp(stops[0])
   }
 
   // image source for a freedesktop icon name, path or url; "" when there is none

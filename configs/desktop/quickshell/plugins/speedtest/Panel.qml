@@ -19,11 +19,10 @@ Item {
 
   SpeedTestOverlay {
     fontFamily: Style.font.family
-    layerNamespace: "quickshell-network-speedtest"
-    title: test.values.name || ""
+    name: "network-speedtest"
+    title: test.values.name || "speed test"
     leftLabel: "DOWNLOAD"
     rightLabel: "UPLOAD"
-    runAgainTooltip: "Measure again via fast.com"
     running: test.running
     leftValue: Number(test.values.down) || 0
     rightValue: Number(test.values.up) || 0

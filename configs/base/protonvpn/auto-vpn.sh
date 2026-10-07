@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # connect protonvpn once per untrusted network, when it first has full connectivity (so a captive portal logs in first),
-# disconnect once on arriving home. home is /run/home-network (networkmanager home-network.sh). watches NM for changes.
+# disconnect once on arriving home. home is /run/home-network, written by the 70-home-network dispatcher
+# (configs/hardware/networkmanager/home-network.sh). watches NM for changes.
 set -uo pipefail
 TOGGLE="$DOTFILES/scripts/toggles/toggle-protonvpn.sh"
 HOME_FLAG=/run/home-network

@@ -42,7 +42,7 @@ else
     systemctl mask --runtime --now avahi-daemon.socket avahi-daemon.service 2>/dev/null || true
     if [ "$action" = up ]; then
         sysctl -wq "net.ipv6.conf.${iface}.disable_ipv6=1" 2>/dev/null || true
-        # the next connect to this foreign profile starts without ipv6; link.sh sets home profiles back to auto
+        # the next connect to this foreign profile starts without ipv6; system.sh sets home profiles back to auto
         grep -qx "$iface" "$HOME_NETWORK" 2>/dev/null ||
             nmcli connection modify "$CONNECTION_UUID" ipv6.method disabled 2>/dev/null || true
     fi

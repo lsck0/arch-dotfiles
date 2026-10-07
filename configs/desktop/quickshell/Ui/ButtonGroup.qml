@@ -22,7 +22,7 @@ Row {
 
   signal changed(string value)
 
-  spacing: Style.spacing.md
+  spacing: Style.spacing.sm
 
   readonly property int _slack: {
     if (!fill || chips.count === 0) return 0

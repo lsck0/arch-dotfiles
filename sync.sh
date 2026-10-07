@@ -22,7 +22,7 @@ SIGNING_KEY_FINGERPRINT=$(sed -n 's/^SIGNING_KEY_FINGERPRINT=\([0-9A-F]\{40\}\)$
 [[ "$SIGNING_KEY_FINGERPRINT" =~ ^[0-9A-F]{40}$ ]] || die "bootstrap.sh has no single SIGNING_KEY_FINGERPRINT=<40 hex>"
 # an unsigned push would make the next bootstrap refuse master, so stop here instead
 gpg --batch --list-secret-keys "$SIGNING_KEY_FINGERPRINT" >/dev/null 2>&1 \
-    || die "no secret key $SIGNING_KEY_FINGERPRINT to sign with, import it: ./scripts/lib/yubikey.sh unlock && ./configs/base/gnupg/link.sh"
+    || die "no secret key $SIGNING_KEY_FINGERPRINT to sign with, import it: ./scripts/lib/yubikey.sh unlock && ./config.sh --user"
 
 ## BACKUP
 

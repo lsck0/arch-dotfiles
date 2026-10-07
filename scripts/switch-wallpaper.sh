@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# Switch to the next or chosen wallpaper and re-theme with wal. Single-flighted via flock.
+# Switch to a chosen or random eligible wallpaper and re-theme with wal. Single-flighted via flock.
+# usage: [get | list | random | set <name|path> | <name|path>]; no argument opens the fzf picker
 
 set -euo pipefail
 
-# Concurrency guard.
-LOCK_FILE="${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"
-exec 9>"$LOCK_FILE"
-flock -n 9 || { echo "Another wallpaper switch is already in progress, skipping." >&2; exit 0; }
-
 set_wallpaper() {
     local file="$1"
+
+    # single-flight the switch only, so get and list still answer while one runs
+    exec 9>"${XDG_RUNTIME_DIR:-/tmp}/switch-wallpaper.lock"
+    flock -n 9 || { echo "Another wallpaper switch is already in progress, skipping." >&2; exit 0; }
 
     # guard: a missing path would symlink wal/wallpaper to nothing and break every downstream generator
     [[ -f "$file" ]] || { echo "wallpaper not found: $file" >&2; return 1; }
@@ -25,17 +25,11 @@ set_wallpaper() {
     timeout 3 quickshell ipc -p "$HOME/.config/quickshell" \
         call background set "$file" >/dev/null 2>&1 || true
 
-    # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image
-    THEME_DIR="$DOTFILES/configs/base/themes"
-    FILE_REAL=$file
+    # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image; themes name their wallpaper by file name, so a secrets copy matches too
     THEME_JSON=""
     THEME_NAME=""
-    for jf in "$THEME_DIR"/*.json; do
-        [[ -e "$jf" ]] || continue
-        wp=$(jq -r '.wallpaper // empty' "$jf" 2>/dev/null)
-        [[ -n "$wp" ]] || continue
-        wp_real=$(readlink -f "$wp" 2>/dev/null || echo "$wp")
-        if [[ "$wp_real" == "$FILE_REAL" ]]; then
+    for jf in "$DOTFILES/configs/base/themes"/*.json; do
+        if [[ -e "$jf" ]] && jq -e --arg n "$(basename "$file")" '.wallpaper == $n' "$jf" >/dev/null 2>&1; then
             THEME_JSON="$jf"
             THEME_NAME=$(basename "${jf%.json}")
             break
@@ -220,75 +214,83 @@ wallpaper_thumb() {
 }
 export -f wallpaper_thumb
 
-main() {
-    WALLPAPER_DIR="$DOTFILES/wallpapers"
-    export WALLPAPER_DIR
+# eligible wallpapers for the largest monitor in physical pixels (rotation swaps the axes), else wallpaper-list's default
+wallpaper_list() {
+    local screen=""
+    if command -v hyprctl >/dev/null 2>&1; then
+        screen=$(hyprctl monitors -j 2>/dev/null | jq -r '
+            map(if .transform % 2 == 1 then [.height, .width] else [.width, .height] end)
+            | max_by(.[0] * .[1]) // empty | "\(.[0])x\(.[1])"' 2>/dev/null) || screen=""
+    fi
+    "$DOTFILES/scripts/wallpaper-list.py" ${screen:+--screen "$screen"}
+}
 
-    # non-interactive surface for quickshell's image-picker plugin, ahead of the fzf path
+# a path is used as is, a bare name goes through the resolver (secrets copy first)
+wallpaper_resolve() {
+    if [[ "$1" == */* ]]; then
+        printf '%s\n' "$1"
+    else
+        "$DOTFILES/scripts/wallpaper-list.py" --resolve "$1"
+    fi
+}
+
+main() {
+    local file
     case "${1:-}" in
     get)
         readlink -f "$HOME/.cache/wal/wallpaper" 2>/dev/null || true
         exit 0
         ;;
+    # full paths, one per line; the quickshell picker reads this
     list)
-        find "$WALLPAPER_DIR" -type f \
-            \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
-            | sort
+        wallpaper_list
         exit 0
         ;;
     set)
-        [[ -n "${2:-}" && -f "$2" ]] || { echo "usage: $(basename "$0") set <file>" >&2; exit 1; }
-        set_wallpaper "$2"
+        [[ -n "${2:-}" ]] || { echo "usage: $(basename "$0") set <name|path>" >&2; exit 1; }
+        file=$(wallpaper_resolve "$2")
+        set_wallpaper "$file"
+        exit 0
+        ;;
+    random)
+        # a separate assignment so an empty list fails here instead of setting nothing
+        file=$(wallpaper_list | shuf -n 1)
+        [[ -n "$file" ]] || { echo "no eligible wallpaper" >&2; exit 1; }
+        set_wallpaper "$file"
+        exit 0
+        ;;
+    # direct path or name, as config.sh, nsxiv and quickshell pass it
+    ?*)
+        file=$(wallpaper_resolve "$1")
+        set_wallpaper "$file"
         exit 0
         ;;
     esac
 
-    # use cli provided wallpaper filepath
-    if [[ -n "${1:-}" && "$1" != "random" ]]; then
-        if [[ ! -f "$1" ]]; then
-            echo "File does not exist: $1"
-            exit 1
-        fi
+    local wallpapers selected
+    wallpapers=$(wallpaper_list)
+    [[ -n "$wallpapers" ]] || { echo "no eligible wallpaper" >&2; exit 1; }
 
-        set_wallpaper "$1"
-        exit 0
-    fi
-
-    WALLPAPERS="$(find "$WALLPAPER_DIR" \
-        -type f \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.gif" \) \
-        -printf '%f\n' \
-        | sort)"
-
-    if [[ "${1:-}" == "random" ]]; then
-        set_wallpaper "$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
-        exit 0
-    fi
-
-    # Interactive selection: the fzf preview pane renders a real thumbnail.
-    SELECTED=$(printf "%s\nrandom\n" "$WALLPAPERS" | fzf \
+    # interactive: fzf shows file names, the preview pane renders a real thumbnail of the full path
+    selected=$(printf '%s\nrandom\n' "$wallpapers" | fzf \
         --prompt="wallpaper> " \
+        --delimiter=/ --with-nth=-1 \
         --preview-window="right:60%" \
         --preview '
-            if [[ "{}" == "random" ]]; then
+            if [[ {} == random ]]; then
                 echo "(random)"
             else
-                chafa --size="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}" \
-                    "$(wallpaper_thumb "$WALLPAPER_DIR/{}")" 2>/dev/null
+                chafa --size="${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}" "$(wallpaper_thumb {})" 2>/dev/null
             fi
-        ')
+        ') || true
 
-    if [[ "$SELECTED" == "CNCLD" || -z "$SELECTED" ]]; then
+    if [[ -z "$selected" ]]; then
         echo "No wallpaper selected."
         exit 0
     fi
+    [[ "$selected" == random ]] && selected=$(shuf -n 1 <<<"$wallpapers")
 
-    if [[ "$SELECTED" == "random" ]]; then
-        SELECTED_FILE="$WALLPAPER_DIR/$(shuf -n 1 <<< "$WALLPAPERS")"
-    else
-        SELECTED_FILE="$WALLPAPER_DIR/$SELECTED"
-    fi
-
-    set_wallpaper "$SELECTED_FILE"
+    set_wallpaper "$selected"
     exit 0
 }
 

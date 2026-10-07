@@ -115,12 +115,12 @@ BarWidget {
     id: tag
     property string text: ""
     property color tint: Color.accent
-    implicitWidth: tagLabel.implicitWidth + Style.spacing.md * 2
+    implicitWidth: tagLabel.implicitWidth + Style.spacing.sm * 2
     implicitHeight: tagLabel.implicitHeight + Style.spacing.xxs * 2
-    radius: Style.cornerRadius
+    radius: Style.shape.data
     color: Util.alpha(tint, 0.16)
     border.color: Util.alpha(tint, 0.6)
-    border.width: Style.spacing.hairline
+    border.width: Style.spacing.hair
     Text {
       id: tagLabel
       anchors.centerIn: parent
@@ -151,7 +151,7 @@ BarWidget {
       id: extrasRow
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.xs
     }
   }
 
@@ -160,7 +160,7 @@ BarWidget {
     id: meter
     property var node: null
     property bool active: false
-    implicitHeight: Style.spacing.sm
+    implicitHeight: Style.spacing.xs
     PwNodePeakMonitor {
       id: monitor
       node: meter.node
@@ -171,7 +171,8 @@ BarWidget {
       anchors.fill: parent
       segments: 32
       value: meter.active ? Audio.meterPosition(monitor.peak) : 0
-      color: meter.levelDb > -1 ? Color.semantic.live : (meter.levelDb > -9 ? Color.semantic.warn : Color.accent)
+      // dBFS: -9 hot, -3 close, -1 clipping
+      color: Util.level(meter.levelDb, [-9, -3, -1])
     }
   }
 
@@ -208,12 +209,12 @@ BarWidget {
       }
     }
 
-    PanelSlider {
+    Slider {
       id: slider
       anchors.left: muteGlyph.right
       anchors.right: readout.left
-      anchors.leftMargin: Style.spacing.md
-      anchors.rightMargin: Style.spacing.md
+      anchors.leftMargin: Style.spacing.sm
+      anchors.rightMargin: Style.spacing.sm
       anchors.verticalCenter: parent.verticalCenter
       bar: fader.host ? fader.host.bar : null
       value: fader.volume
@@ -254,15 +255,15 @@ BarWidget {
         id: appIcon
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        implicitSize: Style.font.icon + Style.spacing.md
+        implicitSize: Style.font.icon + Style.spacing.sm
         source: Audio.appIcon(stream.node)
       }
 
       Text {
         anchors.left: appIcon.right
-        anchors.leftMargin: Style.spacing.md
+        anchors.leftMargin: Style.spacing.sm
         anchors.right: tags.left
-        anchors.rightMargin: Style.spacing.sm
+        anchors.rightMargin: Style.spacing.xs
         anchors.verticalCenter: parent.verticalCenter
         textFormat: Text.PlainText
         elide: Text.ElideRight
@@ -275,7 +276,7 @@ BarWidget {
       Row {
         id: tags
         anchors.right: routeChip.left
-        anchors.rightMargin: Style.spacing.sm
+        anchors.rightMargin: Style.spacing.xs
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.xs
         Tag { visible: stream.onStream; text: "OBS"; tint: Color.semantic.live }
@@ -307,7 +308,7 @@ BarWidget {
     Flow {
       width: parent.width
       visible: stream.routing
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.xs
 
       Chip {
         text: "AUTO"
@@ -393,7 +394,7 @@ BarWidget {
     Component.onCompleted: if (host && host.live) refresh()
 
     width: parent ? parent.width : 0
-    spacing: Style.spacing.sm
+    spacing: Style.spacing.xs
 
     SectionHead {
       text: lane.node.description
@@ -412,7 +413,7 @@ BarWidget {
 
     Row {
       width: parent.width
-      spacing: Style.spacing.sm
+      spacing: Style.spacing.xs
       readonly property real meterWidth: (width - inLabel.width - outLabel.width - spacing * 3) / 2
       Caption { id: inLabel; text: "IN"; opacity: Style.emphasis.dim; anchors.verticalCenter: parent.verticalCenter }
       Meter { width: parent.meterWidth; anchors.verticalCenter: parent.verticalCenter; node: lane.node; active: lane.host.live }
@@ -439,204 +440,196 @@ BarWidget {
     anchorWidget: root
     title: "AUDIO"
     implicitWidth: Style.panelWidth.wide
-    implicitHeight: content.implicitHeight + padding * 2 + titleInset
+    implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
     onShownChanged: if (!shown) root.routingStreamId = -1
 
-    Column {
-      id: content
+    // capped to the screen, the rest scrolls
+    Flickable {
       width: parent.width
-      spacing: Style.spacing.md
+      height: Math.min(content.implicitHeight, panel.maxBodyHeight)
+      contentWidth: width
+      contentHeight: content.implicitHeight
+      interactive: contentHeight > height
+      boundsBehavior: Flickable.StopAtBounds
+      clip: true
 
-      SectionHead {
-        text: "OUTPUT"
-        Tag {
-          visible: Audio.isTappedByObs(root.sink)
-          text: "OBS"
-          tint: Color.semantic.live
-        }
-        Chip {
-          text: "EQ"
-          selected: Audio.eq !== null
-          onClicked: Audio.eqSet(Audio.eq === null)
-        }
-      }
+      Column {
+        id: content
+        width: parent.width
+        spacing: Style.spacing.sm
 
-      Row {
-        spacing: Style.spacing.xxs
-        Text {
-          id: outHero
-          anchors.bottom: parent.bottom
-          text: Math.round(root.volume * 100)
+        SectionHead {
+          text: "OUTPUT"
+          Tag {
+            visible: Audio.isTappedByObs(root.sink)
+            text: "OBS"
+            tint: Color.semantic.live
+          }
+          Chip {
+            text: "EQ"
+            selected: Audio.eq !== null
+            onClicked: Audio.eqSet(Audio.eq === null)
+          }
+        }
+
+        Hero {
+          value: String(Math.round(root.volume * 100))
+          unit: "%"
           color: root.muted ? Color.urgent : Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Math.round(Style.font.display * 1.4)
-          font.bold: true
-          font.letterSpacing: Style.displayTracking
-          layer.enabled: Style.fx.glow > 0
-          layer.effect: Glow { shadowColor: root.muted ? Color.urgent : Style.fx.glowColor }
         }
-        Text {
-          anchors.bottom: outHero.bottom
-          anchors.bottomMargin: Math.round(Style.font.display * 0.35)
-          text: "%"
-          color: root.muted ? Color.urgent : Color.accent
-          opacity: Style.emphasis.dim
-          font.family: Style.font.family
-          font.pixelSize: Style.font.title
+
+        Fader {
+          width: content.width
+          node: root.sink
+          host: root
+          glyph: Audio.volumeIcon(root.volume, false)
         }
-      }
 
-      Fader {
-        width: content.width
-        node: root.sink
-        host: root
-        glyph: Audio.volumeIcon(root.volume, false)
-      }
+        Meter {
+          width: content.width
+          node: root.sink
+          active: root.live
+        }
 
-      Meter {
-        width: content.width
-        node: root.sink
-        active: root.live
-      }
+        Flow {
+          width: content.width
+          spacing: Style.spacing.xs
+          Repeater {
+            model: ScriptModel { values: Audio.sinks }
+            delegate: Chip {
+              required property var modelData
+              text: Audio.deviceName(modelData)
+              selected: modelData === root.sink
+              onClicked: Pipewire.preferredDefaultAudioSink = modelData
+            }
+          }
+        }
 
-      Flow {
-        width: content.width
-        spacing: Style.spacing.sm
+        PanelSeparator { visible: Audio.lanes.length > 0 }
+
+        SectionHead {
+          text: "LANES"
+          visible: Audio.lanes.length > 0
+          ButtonGroup {
+            focusable: false
+            fontSize: Style.font.caption
+            options: root.presets.map(p => p.label)
+            value: root.activePreset
+            onChanged: function(v) { root.presetApply(v) }
+          }
+        }
+
         Repeater {
-          model: ScriptModel { values: Audio.sinks }
-          delegate: Chip {
-            required property var modelData
-            text: Audio.deviceName(modelData)
-            selected: modelData === root.sink
-            onClicked: Pipewire.preferredDefaultAudioSink = modelData
-          }
+          model: ScriptModel { values: Audio.lanes }
+          delegate: LaneBlock { host: root }
         }
-      }
 
-      PanelSeparator { visible: Audio.lanes.length > 0 }
+        PanelSeparator {}
 
-      SectionHead {
-        text: "LANES"
-        visible: Audio.lanes.length > 0
-        ButtonGroup {
-          focusable: false
-          fontSize: Style.font.caption
-          options: root.presets.map(p => p.label)
-          value: root.activePreset
-          onChanged: function(v) { root.presetApply(v) }
-        }
-      }
+        PanelSectionHeader { text: "DIRECT" }
 
-      Repeater {
-        model: ScriptModel { values: Audio.lanes }
-        delegate: LaneBlock { host: root }
-      }
-
-      PanelSeparator {}
-
-      PanelSectionHeader { text: "DIRECT" }
-
-      Repeater {
-        model: ScriptModel { values: Audio.appStreams.filter(s => !Audio.isLane(Audio.sinkOf(s))) }
-        delegate: StreamRow { host: root }
-      }
-
-      PanelSeparator {}
-
-      SectionHead {
-        text: "MICROPHONE"
-        Tag {
-          visible: Audio.isTappedByObs(root.source)
-          text: "OBS"
-          tint: Color.semantic.live
-        }
-      }
-
-      Fader {
-        width: content.width
-        node: root.source
-        host: root
-        glyph: "\u{f036c}"
-        mutedGlyph: "\u{f036d}"
-      }
-
-      Meter {
-        width: content.width
-        node: root.source
-        active: root.live
-      }
-
-      Flow {
-        width: content.width
-        spacing: Style.spacing.sm
         Repeater {
-          model: ScriptModel { values: Audio.sources }
-          delegate: Chip {
-            required property var modelData
-            text: Audio.deviceName(modelData)
-            selected: modelData === root.source
-            onClicked: Pipewire.preferredDefaultAudioSource = modelData
-          }
+          model: ScriptModel { values: Audio.appStreams.filter(s => !Audio.isLane(Audio.sinkOf(s))) }
+          delegate: StreamRow { host: root }
         }
-      }
 
-      Flow {
-        width: content.width
-        visible: Audio.micListeners.length > 0
-        spacing: Style.spacing.sm
-        Caption {
-          text: "HEARD BY"
-          opacity: Style.emphasis.dim
-          height: Style.row.control
-          verticalAlignment: Text.AlignVCenter
-        }
-        Repeater {
-          model: ScriptModel { values: Audio.micListeners }
-          delegate: Tag {
-            required property var modelData
-            text: Audio.appName(modelData)
-            tint: Audio.isObs(modelData) ? Color.semantic.live : Color.semantic.speaking
-          }
-        }
-      }
+        PanelSeparator {}
 
-      PanelSeparator {}
-
-      Rectangle {
-        width: content.width
-        height: Style.row.list
-        radius: Style.cornerRadius
-        color: root.deafened
-          ? Util.alpha(Color.urgent, 0.18)
-          : (deafenHover.containsMouse ? Style.selectedFill : "transparent")
-
-        Row {
-          anchors.centerIn: parent
-          spacing: Style.spacing.sm
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-            color: root.deafened ? Color.urgent : Color.menu.text
-            font.pixelSize: Style.font.icon
-            font.family: Style.font.iconFamily
-            layer.enabled: Style.fx.glow > 0 && root.deafened
-            layer.effect: Glow { shadowColor: Color.urgent }
-          }
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.deafened ? "Deafened, click to restore" : "Deafen (mute in + out)"
-            color: root.deafened ? Color.urgent : Color.menu.text
-            font.pixelSize: Style.font.body
-            font.family: Style.font.family
+        SectionHead {
+          text: "MICROPHONE"
+          Tag {
+            visible: Audio.isTappedByObs(root.source)
+            text: "OBS"
+            tint: Color.semantic.live
           }
         }
 
-        MouseArea {
-          id: deafenHover
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.toggleDeafen()
+        Fader {
+          width: content.width
+          node: root.source
+          host: root
+          glyph: "\u{f036c}"
+          mutedGlyph: "\u{f036d}"
+        }
+
+        Meter {
+          width: content.width
+          node: root.source
+          active: root.live
+        }
+
+        Flow {
+          width: content.width
+          spacing: Style.spacing.xs
+          Repeater {
+            model: ScriptModel { values: Audio.sources }
+            delegate: Chip {
+              required property var modelData
+              text: Audio.deviceName(modelData)
+              selected: modelData === root.source
+              onClicked: Pipewire.preferredDefaultAudioSource = modelData
+            }
+          }
+        }
+
+        Flow {
+          width: content.width
+          visible: Audio.micListeners.length > 0
+          spacing: Style.spacing.xs
+          Caption {
+            text: "HEARD BY"
+            opacity: Style.emphasis.dim
+            height: Style.row.control
+            verticalAlignment: Text.AlignVCenter
+          }
+          Repeater {
+            model: ScriptModel { values: Audio.micListeners }
+            delegate: Tag {
+              required property var modelData
+              text: Audio.appName(modelData)
+              tint: Audio.isObs(modelData) ? Color.semantic.live : Color.semantic.speaking
+            }
+          }
+        }
+
+        PanelSeparator {}
+
+        Rectangle {
+          width: content.width
+          height: Style.row.list
+          radius: Style.shape.data
+          color: root.deafened
+            ? Util.alpha(Color.urgent, 0.18)
+            : (deafenHover.containsMouse ? Style.selectedFill : "transparent")
+
+          Row {
+            anchors.centerIn: parent
+            spacing: Style.spacing.xs
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
+              color: root.deafened ? Color.urgent : Color.menu.text
+              font.pixelSize: Style.font.icon
+              font.family: Style.font.iconFamily
+              layer.enabled: Style.fx.glow > 0 && root.deafened
+              layer.effect: Glow { shadowColor: Color.urgent }
+            }
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.deafened ? "Deafened, click to restore" : "Deafen (mute in + out)"
+              color: root.deafened ? Color.urgent : Color.menu.text
+              font.pixelSize: Style.font.body
+              font.family: Style.font.family
+            }
+          }
+
+          MouseArea {
+            id: deafenHover
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.toggleDeafen()
+          }
         }
       }
     }

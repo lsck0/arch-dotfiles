@@ -29,10 +29,10 @@ Item {
 
   readonly property bool showingQr: qrSize > 0 && !loading && error === ""
 
-  // the scrim is fixed near-black, so text uses a fixed light palette
-  readonly property color onScrim: "white"
-  readonly property color onScrimDim: Qt.rgba(1, 1, 1, 0.55)
-  readonly property color onScrimUrgent: Color.semantic.live
+  // text on the overlay card; the code itself keeps its own white quiet zone
+  readonly property color onScrim: Color.menu.text
+  readonly property color onScrimDim: Util.alpha(Color.menu.text, Style.emphasis.dim)
+  readonly property color onScrimUrgent: Color.urgent
   readonly property string fontFamily: Style.font.family
 
   function open(payload) {
@@ -166,188 +166,115 @@ Item {
     }
   }
 
-  PanelWindow {
-    visible: root.opened
-    anchors { top: true; bottom: true; left: true; right: true }
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "quickshell-network-qr"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-
-    Rectangle {
-      anchors.fill: parent
-      color: Qt.rgba(0, 0, 0, 0.78)
-
-      MouseArea {
-        anchors.fill: parent
-        onClicked: root.close()
-      }
-
-      // scanlines behind the code so the qr stays clean
-      Scanlines {}
-    }
+  OverlayCard {
+    id: panel
+    open: root.opened
+    name: "network-qr"
+    title: root.ssid || "wi-fi"
+    hints: [["ESC", "close"]]
+    // scanlines would cross the code and hurt the scan
+    scanlines: false
+    cardWidth: Math.max(content.implicitWidth, Style.space(280)) + chromeWidth
+    cardHeight: content.implicitHeight + chromeHeight
+    onDismissed: root.close()
 
     Item {
       id: keyCatcher
       anchors.fill: parent
       focus: true
-
       Keys.onEscapePressed: root.close()
+    }
 
-      Item {
-        anchors.centerIn: parent
-        width: content.implicitWidth
-        height: content.implicitHeight
-        // shrink rather than clip on small outputs
-        scale: Math.min(1,
-          (keyCatcher.width - Style.space(32)) / Math.max(1, width),
-          (keyCatcher.height - Style.space(32)) / Math.max(1, height))
+    ColumnLayout {
+      id: content
+      anchors.centerIn: parent
+      spacing: Style.spacing.lg
 
-        // only the scrim outside the content dismisses
-        MouseArea { anchors.fill: parent; onClicked: {} }
+      Rectangle {
+        id: qrCanvas
+        readonly property int moduleSize: root.qrSize > 0
+          ? Math.max(4, Math.floor(Style.space(240) / root.qrSize))
+          : 0
 
-        HudFrame { color: root.onScrim }
+        visible: root.showingQr
+        width: root.qrSize * moduleSize
+        height: width
+        color: "white"
+        radius: Style.shape.data
+        Layout.alignment: Qt.AlignHCenter
 
-        ColumnLayout {
-          id: content
+        Grid {
           anchors.fill: parent
-          spacing: Style.space(16)
+          columns: root.qrSize
 
-          Row {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Style.spacing.sm
+          Repeater {
+            model: root.qrSize * root.qrSize
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: ">"
-              color: root.onScrimDim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-            }
+            Rectangle {
+              required property int index
+              readonly property int matrixRow: Math.floor(index / root.qrSize)
+              readonly property int matrixColumn: index % root.qrSize
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              width: Math.min(implicitWidth, Style.space(280))
-              text: (root.ssid || "Wi-Fi").toUpperCase()
-              color: root.onScrim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              font.letterSpacing: Style.headerTracking
-              elide: Text.ElideRight
-              horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              textFormat: Text.PlainText
-              text: "_"
-              color: root.onScrim
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-              SequentialAnimation on opacity {
-                running: root.opened
-                loops: Animation.Infinite
-                PropertyAnimation { to: 1; duration: 0 }
-                PauseAnimation { duration: 530 }
-                PropertyAnimation { to: 0; duration: 0 }
-                PauseAnimation { duration: 530 }
-              }
+              width: qrCanvas.moduleSize
+              height: qrCanvas.moduleSize
+              color: root.qrRows[matrixRow].charAt(matrixColumn) === "1" ? "#111111" : "transparent"
             }
           }
+        }
+      }
 
-          Rectangle {
-            id: qrCanvas
-            readonly property int moduleSize: root.qrSize > 0
-              ? Math.max(4, Math.floor(Style.space(240) / root.qrSize))
-              : 0
+      Text {
+        visible: root.loading
+        text: ":: GENERATING QR CODE"
+        color: root.onScrimDim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        Layout.fillWidth: true
+        horizontalAlignment: Text.AlignHCenter
+      }
 
-            visible: root.showingQr
-            width: root.qrSize * moduleSize
-            height: width
-            color: "white"
-            radius: Style.cornerRadius
-            Layout.alignment: Qt.AlignHCenter
+      Text {
+        textFormat: Text.PlainText
+        visible: root.error !== ""
+        text: root.error
+        color: root.onScrimUrgent
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        wrapMode: Text.Wrap
+        Layout.fillWidth: true
+        Layout.maximumWidth: Style.space(320)
+        horizontalAlignment: Text.AlignHCenter
+      }
 
-            Grid {
-              anchors.fill: parent
-              columns: root.qrSize
+      Text {
+        visible: root.showingQr
+        text: ":: SCAN TO JOIN THIS NETWORK"
+        color: root.onScrimDim
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        Layout.fillWidth: true
+        horizontalAlignment: Text.AlignHCenter
+      }
 
-              Repeater {
-                model: root.qrSize * root.qrSize
+      Text {
+        textFormat: Text.PlainText
+        visible: root.showingQr && root.secured
+        text: root.passwordError !== "" ? root.passwordError
+          : root.passwordVisible ? root.password
+          : ":: SHOW PASSWORD"
+        color: root.passwordError !== "" ? root.onScrimUrgent : root.onScrim
+        opacity: root.passwordVisible || root.passwordError !== "" ? 1 : 0.6
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        wrapMode: Text.WrapAnywhere
+        Layout.fillWidth: true
+        Layout.maximumWidth: Style.space(320)
+        horizontalAlignment: Text.AlignHCenter
 
-                Rectangle {
-                  required property int index
-                  readonly property int matrixRow: Math.floor(index / root.qrSize)
-                  readonly property int matrixColumn: index % root.qrSize
-
-                  width: qrCanvas.moduleSize
-                  height: qrCanvas.moduleSize
-                  color: root.qrRows[matrixRow].charAt(matrixColumn) === "1" ? "#111111" : "transparent"
-                }
-              }
-            }
-          }
-
-          Text {
-            visible: root.loading
-            text: ":: GENERATING QR CODE"
-            color: root.onScrimDim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Text {
-            textFormat: Text.PlainText
-            visible: root.error !== ""
-            text: root.error
-            color: root.onScrimUrgent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            wrapMode: Text.Wrap
-            Layout.fillWidth: true
-            Layout.maximumWidth: Style.space(320)
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Text {
-            visible: root.showingQr
-            text: ":: SCAN TO JOIN THIS NETWORK"
-            color: root.onScrimDim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Text {
-            textFormat: Text.PlainText
-            visible: root.showingQr && root.secured
-            text: root.passwordError !== "" ? root.passwordError
-              : root.passwordVisible ? root.password
-              : ":: SHOW PASSWORD"
-            color: root.passwordError !== "" ? root.onScrimUrgent : root.onScrim
-            opacity: root.passwordVisible || root.passwordError !== "" ? 1 : 0.6
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            wrapMode: Text.WrapAnywhere
-            Layout.fillWidth: true
-            Layout.maximumWidth: Style.space(320)
-            horizontalAlignment: Text.AlignHCenter
-
-            MouseArea {
-              anchors.fill: parent
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.togglePassword()
-            }
-          }
+        MouseArea {
+          anchors.fill: parent
+          cursorShape: Qt.PointingHandCursor
+          onClicked: root.togglePassword()
         }
       }
     }

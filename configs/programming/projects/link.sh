@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-source $DOTFILES/scripts/lib/personal.sh
-is_personal || exit 0
-
-set -e
+# the owner's own repos
+profile_has identity || exit 0
 
 PROJECTS="${HOME}/projects"
 # github.com/lsck0/<name>; private ones need configs/base/gh's login, which links first (config.sh runs them sorted)

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Claude Code usage for the bar via claude_trmnl.py --dry-run."""
+"""Claude Code usage for the bar via claude_trmnl.py --dry-run.
+
+Prints the payload, {} when the widget does not apply (guest, no script), or {"error": why}
+so the bar can say it failed instead of hiding.
+"""
 
 import getpass
 import json
@@ -9,6 +13,11 @@ import sys
 
 SCRIPT = pathlib.Path(__file__).resolve().parents[4] / "trmnl-claude" / "claude_trmnl.py"
 TIMEOUT = 60
+
+
+def fail(why):
+    print(json.dumps({"error": why}))
+    return 0
 
 
 def main():
@@ -21,17 +30,16 @@ def main():
             # headers is one request, auto drives a slow pty
             [sys.executable, str(SCRIPT), "--dry-run", "--usage-method", "headers"],
             capture_output=True, text=True, timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return fail("timeout")
     except (OSError, subprocess.SubprocessError):
-        print("{}")
-        return 0
+        return fail("spawn")
     if done.returncode != 0:
-        print("{}")
-        return 0
+        return fail("exit %d" % done.returncode)
     try:
         payload = json.loads(done.stdout)
     except ValueError:
-        print("{}")
-        return 0
+        return fail("bad json")
     print(json.dumps(payload))
     return 0
 

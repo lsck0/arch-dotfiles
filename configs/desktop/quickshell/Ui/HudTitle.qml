@@ -14,6 +14,7 @@ import qs.Commons
  *   blinking  caret blinks while true (bind to the owner's open state)
  *   color     prompt, title and caret
  *   size      font pixel size of the row
+ *   typed     characters of text shown, -1 for all (BootIn.typed types it in)
  *
  * Usage:
  *   HudTitle { width: parent.width; text: "session"; suffix: "@" + root.userName; decor: true; rule: true; blinking: root.opened }
@@ -28,6 +29,7 @@ Item {
   property bool blinking: true
   property color color: Color.accent
   property int size: Style.font.caption
+  property int typed: -1
 
   implicitWidth: row.implicitWidth
   implicitHeight: row.implicitHeight + (rule ? Style.spacing.xxs + ruleLine.height : 0)
@@ -45,7 +47,7 @@ Item {
     spacing: Style.spacing.xs
 
     Part {
-      text: "> " + root.text
+      text: "> " + (root.typed < 0 ? root.text : root.text.substring(0, root.typed))
       font.bold: true
       font.capitalization: Font.AllUppercase
       font.letterSpacing: Style.headerTracking

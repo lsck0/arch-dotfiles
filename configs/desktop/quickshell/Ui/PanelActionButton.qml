@@ -11,7 +11,7 @@ BorderSurface {
   property color hoverColor: foreground
   property string fontFamily: Style.font.iconFamily
   property real fontSize: Style.font.icon
-  property real size: Math.max(Style.space(22), fontSize + Style.spacing.sm * 2)
+  property real size: Math.max(Style.space(22), fontSize + Style.spacing.xs * 2)
 
   property bool focusable: false
   property bool hasCursor: false
@@ -27,7 +27,7 @@ BorderSurface {
 
   implicitWidth: size
   implicitHeight: size
-  radius: Style.cornerRadius
+  radius: Style.shape.data
 
   readonly property bool _showFocusRing: focusable && activeFocus
   readonly property bool _hot: (mouse.containsMouse || root.hasCursor) && root.enabled
@@ -44,7 +44,7 @@ BorderSurface {
       : "transparent")
   borderSpec: _borderSpec
 
-  Behavior on color { ColorAnimation { duration: 60 } }
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   Text {
     textFormat: Text.PlainText

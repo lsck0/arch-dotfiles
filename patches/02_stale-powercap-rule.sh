@@ -6,6 +6,6 @@ set -euo pipefail
 RULE=/etc/udev/rules.d/99-powercap.rules
 
 [[ -e "$RULE" ]] || exit 0
-sudo rm -f "$RULE"
-sudo udevadm control --reload-rules
-sudo udevadm trigger --action=add --subsystem-match=powercap
+rm -f "$RULE"
+udevadm control --reload-rules
+udevadm trigger --action=add --subsystem-match=powercap

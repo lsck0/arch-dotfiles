@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 # from omarchy-shell, cache dir moved to ~/.cache/quickshell
+# usage: list.sh <wallpaper-list.py> [WxH]; prints "<image>\t<thumbnail or image>" per wallpaper eligible for that screen
 
-image_dirs=${1:-}
+wallpaper_list=${1:?usage: list.sh <wallpaper-list.py> [WxH]}
+screen=${2:-}
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/image-selector
 index_file="$cache_dir/index.tsv"
 
 mkdir -p "$cache_dir"
 
-python3 - "$cache_dir" "$index_file" "$image_dirs" <<'PY' || true
+# eligibility and the secrets shadowing live in wallpaper-list.py alone; nothing listed when it fails
+images=$("$wallpaper_list" ${screen:+--screen "$screen"}) || exit 1
+
+python3 - "$cache_dir" "$index_file" "$images" <<'PY' || true
 import hashlib, os, sys, signal
 # the consumer may close the pipe early
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-cache_dir, index_file, image_dirs = sys.argv[1], sys.argv[2], sys.argv[3]
-EXT = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+cache_dir, index_file, images = sys.argv[1], sys.argv[2], sys.argv[3]
 
 # index keeps thumbnails stable across runs
 index = {}
@@ -25,18 +29,7 @@ try:
 except OSError:
     pass
 
-files = []
-for d in image_dirs.splitlines():
-    d = d.strip()
-    if not d or not os.path.isdir(d):
-        continue
-    for name in os.listdir(d):
-        if os.path.splitext(name)[1].lower() in EXT:
-            full = os.path.join(d, name)
-            if os.path.isfile(full):
-                files.append(full)
-
-for image in sorted(files):
+for image in images.splitlines():
     try:
         st = os.stat(image)
     except OSError:
@@ -51,19 +44,15 @@ PY
 # thumbnails generated after listing, detached, so opening never waits
 if command -v vipsthumbnail >/dev/null 2>&1; then
   (
-    while IFS= read -r dir; do
-      [[ -n $dir && -d $dir ]] || continue
-      find -L "$dir" -maxdepth 1 -type f \
-        \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp' \) \
-        -print0 2>/dev/null
-    done <<<"$image_dirs" | while IFS= read -r -d '' image; do
+    while IFS= read -r image; do
+      [[ -n $image ]] || continue
       signature=$(stat -Lc '%s:%Y' "$image") || continue
       hash=$(printf '%s\t%s' "$image" "$signature" | md5sum | cut -d ' ' -f 1)
       thumb="$cache_dir/$hash.jpg"
       [[ -f $thumb ]] && continue
       vipsthumbnail "$image" --size 800x800 -o "$thumb[Q=88]" >/dev/null 2>&1 \
         && printf '%s\t%s\t%s\n' "$image" "$signature" "$hash" >>"$index_file"
-    done
+    done <<<"$images"
   ) >/dev/null 2>&1 &
   disown 2>/dev/null || true
 fi

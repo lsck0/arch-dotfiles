@@ -5,8 +5,11 @@
 # BOOTSTRAP_INSECURE=1 skips the signature check, e.g. before master's HEAD is signed
 # wsl (FORM_FACTOR=wsl): run the README line in the fresh distro's root shell, no disk/bootloader/stage;
 # keyring, upgrade, user with wheel sudo, wsl.conf, verified repo; then terminate, reopen, install.sh + config.sh
+# machine and user are asked apart: the machine is a platforms/<name>.sh (first argument) or a new one, whose answers go to
+# /etc/dotfiles/platform.sh; the user is any name, with the profile template profiles/<name>.sh when there is one
 # a person at the console gets dialog screens; without a tty or with BOOTSTRAP_ASSUME_YES=1 the plain prompts and env:
-# BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD}, for a guest also BOOTSTRAP_{HOSTNAME,GROUPS,KEYMAP,TIMEZONE,LOCALE}
+# BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD}, for a new machine also
+# BOOTSTRAP_{HOSTNAME,GROUPS,KEYMAP,TIMEZONE,LOCALE} and BOOTSTRAP_HOME_NETWORK=0|1 (unasked and 0 under ASSUME_YES)
 
 set -euo pipefail
 
@@ -48,7 +51,7 @@ clone_verify() {
 pacman_init() {
     pacman-key --init
     pacman-key --populate archlinux
-    pacman -Syu --noconfirm --needed git gnupg sudo
+    pacman -Syu --noconfirm --needed git gnupg sudo zsh
 }
 
 # fetched alone (README line or curl | bash) there is no checkout yet
@@ -68,6 +71,9 @@ fi
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 PLATFORM="${1:-}"
+# SYSTEM_REPO, SYSTEM_STATE, system_copy; PLATFORM_LOCAL, platform_groups_all
+source "$REPO/scripts/lib/system.sh"
+source "$REPO/scripts/lib/platform.sh"
 
 # defaults, overridden per platform
 KEYMAP=de-latin1
@@ -92,8 +98,14 @@ REBOOT_DELAY_S=10
 SYNC_WAIT_S=120
 NETWORK_TIMEOUT_S=10
 
-# the one personal login, any other username installs as a guest
-PERSONAL_USER=luca
+# the platform menu's entry for a machine without a platform file
+PLATFORM_NEW=new
+LOGIN_SHELL=/usr/bin/zsh
+SUDOERS_WHEEL="$REPO/configs/base/sudo/10-wheel"
+# the networkmanager module's home rule: a link is home while its default gateway's mac is listed here
+HOME_GATEWAYS=/etc/NetworkManager/home-gateways
+MAC_PATTERN='^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
+PING_TIMEOUT_S=2
 USERNAME_PATTERN='^[a-z_][a-z0-9_-]{0,31}$'
 HOSTNAME_PATTERN='^[A-Za-z0-9][A-Za-z0-9-]{0,62}$'
 KEYMAP_PATTERN='^[A-Za-z0-9_-]+$'
@@ -250,28 +262,91 @@ in_target() {
     if [[ -n "$TARGET_ROOT" ]]; then arch-chroot "$TARGET_ROOT" "$@"; else "$@"; fi
 }
 
-# user_setup: the login user with its password and wheel sudo, root locked unless given one, the verified repo at home
+# patches_mark <record> <system|user>: every patch of that scope as applied, the fresh machine or user needs none; a rerun keeps the record
+patches_mark() {
+    local record="$1" scope="$2" patch patch_scope
+    [[ ! -e "$record" ]] || return 0
+    mkdir -p "${record%/*}"
+    for patch in "$REPO"/patches/[0-9][0-9]_*.sh; do
+        patch_scope=system
+        [[ "$patch" != *.user.sh ]] || patch_scope=user
+        if [[ -f "$patch" && "$patch_scope" == "$scope" ]]; then basename "$patch"; fi
+    done >"$record"
+}
+
+# user_setup: the login user with its password, wheel and zsh, root locked unless given one, the verified repo at home and
+# as the root copy, the machine's and the user's facts, both patch records
 user_setup() {
-    local repo_copy="$TARGET_ROOT/home/$USERNAME/projects/arch-dotfiles"
-    in_target id -u "$USERNAME" >/dev/null 2>&1 || in_target useradd -m -G wheel -s /bin/bash "$USERNAME"
+    local home="$TARGET_ROOT/home/$USERNAME"
+    local repo_copy="$home/projects/arch-dotfiles" profile="$home/.config/dotfiles/profile.sh"
+    in_target id -u "$USERNAME" >/dev/null 2>&1 || in_target useradd -m -G wheel -s "$LOGIN_SHELL" "$USERNAME"
     printf '%s:%s\n' "$USERNAME" "$USER_PASSWORD" | in_target chpasswd
     in_target passwd -l root >/dev/null
     # root keeps that lock unless it was given its own password
     [[ -z "$ROOT_PASSWORD" ]] || printf 'root:%s\n' "$ROOT_PASSWORD" | in_target chpasswd
     # sudo skips a drop-in named with a dot, so this one is checked before it can lock anyone out
-    install -Dm440 /dev/stdin "$TARGET_ROOT/etc/sudoers.d/10-wheel.new" <<<'%wheel ALL=(ALL:ALL) ALL'
+    install -Dm440 "$SUDOERS_WHEEL" "$TARGET_ROOT/etc/sudoers.d/10-wheel.new"
     in_target visudo -cqf /etc/sudoers.d/10-wheel.new || die "the wheel sudoers drop-in does not parse"
     mv -f "$TARGET_ROOT/etc/sudoers.d/10-wheel.new" "$TARGET_ROOT/etc/sudoers.d/10-wheel"
     # a rerun under wsl keeps the checkout and whatever work is in it
     if [[ ! -e "$repo_copy" ]]; then
         mkdir -p "${repo_copy%/*}"
         cp -a "$REPO" "$repo_copy"
-        # a guest has no platform file, so the choice becomes one; FORM_FACTOR stays a probe
-        if (( ! PERSONAL )); then
-            printf 'HOSTNAME=%s\nPKG_GROUPS=(%s)\n' "$HOSTNAME" "${PKG_GROUPS[*]}" >"$repo_copy/platforms/local.sh"
-        fi
     fi
+    # a new machine's answers become its platform file, root-owned; FORM_FACTOR stays a probe
+    if [[ "$PLATFORM" == "$PLATFORM_NEW" ]]; then
+        printf 'HOSTNAME=%s\nPKG_GROUPS=(%s)\n' "$HOSTNAME" "${PKG_GROUPS[*]}" | install -Dm644 /dev/stdin "$TARGET_ROOT$PLATFORM_LOCAL"
+    fi
+    # the user's facts: the template of the same name, nothing for a guest
+    if [[ -f "$PROFILE_FILE" && ! -e "$profile" ]]; then install -Dm644 "$PROFILE_FILE" "$profile"; fi
+    # the system layer only ever runs from this root-owned copy of the verified clone
+    system_copy "$REPO" "$TARGET_ROOT$SYSTEM_REPO" || die "cannot seed the root copy $TARGET_ROOT$SYSTEM_REPO"
+    patches_mark "$TARGET_ROOT$SYSTEM_STATE/patches-applied" system
+    patches_mark "$home/.local/state/dotfiles/patches-applied" user
     in_target chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
+}
+
+# home_gateway_mac: the mac of the router this live system routes through, lowercase; fails without one
+home_gateway_mac() {
+    local route gw dev mac
+    route=$(ip -4 route show default | head -n1)
+    gw=$(awk '{ for (i = 1; i < NF; i++) if ($i == "via") print $(i + 1) }' <<<"$route")
+    dev=$(awk '{ for (i = 1; i < NF; i++) if ($i == "dev") print $(i + 1) }' <<<"$route")
+    [[ -n "$gw" && -n "$dev" ]] || return 1
+    # the neighbour cache may not hold the router yet
+    ping -c 1 -W "$PING_TIMEOUT_S" -I "$dev" "$gw" >/dev/null 2>&1 || true
+    mac=$(ip neigh show "$gw" dev "$dev" | awk '{ for (i = 1; i < NF; i++) if ($i == "lladdr") print tolower($(i + 1)) }')
+    [[ "$mac" =~ $MAC_PATTERN ]] || return 1
+    echo "$mac"
+}
+
+# home_ssid: the wifi this live system is on, nothing when wired
+home_ssid() {
+    local dev
+    dev=$(ip -4 route show default | awk '{ for (i = 1; i < NF; i++) if ($i == "dev") { print $(i + 1); exit } }')
+    [[ -n "$dev" ]] && command -v iw >/dev/null || return 0
+    iw dev "$dev" link 2>/dev/null | sed -n 's/^[[:space:]]*SSID: //p'
+}
+
+# ask_home_network: 1 when the person says the current network is their home, else 0; never asked unattended
+ask_home_network() {
+    local text status=0 answer
+    [[ "${BOOTSTRAP_ASSUME_YES:-0}" != 1 ]] || { printf 0; return; }
+    text="Is the network you are on now your home network?
+
+Yes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.
+
+No locks down every network, this one included."
+    if ((TUI)); then
+        dialog --backtitle "$TUI_BACKTITLE" --cr-wrap --title "home network" --defaultno --yesno "$text" \
+            "$(tui_height "$text" "$TUI_BOX_ROWS")" "$TUI_WIDTH" </dev/tty >/dev/tty || status=$?
+        # yes 0, no 1, esc quits like every other screen
+        ((status <= 1)) || die "aborted"
+        printf '%s' $((status == 0))
+    else
+        read -rp "is the network you are on now your home network? [y/N] " answer </dev/tty || exit 1
+        if [[ "$answer" == y ]]; then printf 1; else printf 0; fi
+    fi
 }
 
 # --- preflight ----------------------------------------------------------------
@@ -297,35 +372,47 @@ Esc or Cancel quits at any screen."
 fi
 if ((TUI)); then dlg --title welcome --msgbox "$welcome" "$(tui_height "$welcome" "$TUI_BOX_ROWS")" "$TUI_WIDTH"; fi
 
-# the username decides personal (luca) vs guest; a guest gets no secrets, identity, or homelab
+# the user: any name; a profile template of the same name brings its owner's secrets, identity and homelab, else a guest
+mapfile -t profiles < <(cd "$REPO/profiles" && for f in *.sh; do [[ -f "$f" ]] && echo "${f%.sh}"; done)
 username_text="Your login name.
 
-'$PERSONAL_USER' is the owner's personal setup: secrets, identity and homelab, unlocked with his YubiKey.
+A name with a profile (${profiles[*]:-none}) gets that profile's setup: secrets, identity and homelab as it lists them.
 Any other name is a guest: the same desktop and tools without the personal parts."
-# wsl types on the windows layout, the console is german until a guest picks one
+# wsl types on the windows layout, the console is german until a new machine's layout screen
 ((IN_WSL)) || username_text+=$'\n\nThe keyboard is German until the layout screen: y and z are swapped.'
-USERNAME="${BOOTSTRAP_USERNAME:-$(ask username_valid username "$username_text" "$PERSONAL_USER")}"
+USERNAME="${BOOTSTRAP_USERNAME:-$(ask username_valid username "$username_text" "${profiles[0]:-}")}"
 username_valid "$USERNAME" || die "invalid username '$USERNAME', expected $USERNAME_PATTERN"
-PERSONAL=0; [[ "$USERNAME" == "$PERSONAL_USER" ]] && PERSONAL=1
+# the template stands in for the profile until user_setup copies it home; yubikey.sh honours it too
+export PROFILE_FILE="$REPO/profiles/$USERNAME.sh"
+source "$REPO/scripts/lib/profile.sh"
+profile_load
 
-if (( PERSONAL )); then
-    # a platform file sets HOSTNAME, PKG_GROUPS and WIREGUARD
-    mapfile -t platforms < <(cd "$REPO/platforms" && for f in *.sh; do echo "${f%.sh}"; done)
-    if [[ -z "$PLATFORM" ]] && ((TUI)); then
-        platform_items=()
-        for p in "${platforms[@]}"; do platform_items+=("$p" "$(sed -n 's/^FORM_FACTOR=//p' "$REPO/platforms/$p.sh")"); done
-        PLATFORM=$(dlg --title platform --menu "Which machine is this?" 0 "$TUI_WIDTH" 0 "${platform_items[@]}")
-    elif [[ -z "$PLATFORM" ]]; then
-        echo "platforms: ${platforms[*]}"
-        read -rp "platform: " PLATFORM </dev/tty
-    fi
+# the machine: a platform file sets HOSTNAME, PKG_GROUPS and the machine facts; a new one is asked for its own
+mapfile -t platforms < <(cd "$REPO/platforms" && for f in *.sh; do [[ -f "$f" ]] && echo "${f%.sh}"; done)
+if [[ -z "$PLATFORM" ]] && [[ "${BOOTSTRAP_ASSUME_YES:-0}" == 1 ]]; then
+    PLATFORM=$PLATFORM_NEW
+elif [[ -z "$PLATFORM" ]] && ((TUI)); then
+    platform_items=()
+    for p in "${platforms[@]}"; do platform_items+=("$p" "$(sed -n 's/^FORM_FACTOR=//p' "$REPO/platforms/$p.sh")"); done
+    platform_items+=("$PLATFORM_NEW" "any other machine: a few questions")
+    PLATFORM=$(dlg --title machine --default-item "$PLATFORM_NEW" --menu "Which machine is this?" 0 "$TUI_WIDTH" 0 "${platform_items[@]}")
+elif [[ -z "$PLATFORM" ]]; then
+    echo "platforms: ${platforms[*]} $PLATFORM_NEW"
+    read -rp "platform [$PLATFORM_NEW]: " PLATFORM </dev/tty
+    PLATFORM="${PLATFORM:-$PLATFORM_NEW}"
+fi
+
+HOME_NETWORK=0
+HOME_GATEWAY=""
+HOME_SSID=""
+if [[ "$PLATFORM" != "$PLATFORM_NEW" ]]; then
     PLATFORM_FILE="$REPO/platforms/$PLATFORM.sh"
-    [[ -f "$PLATFORM_FILE" ]] || die "unknown platform '$PLATFORM', one of: ${platforms[*]}"
+    [[ -f "$PLATFORM_FILE" ]] || die "unknown platform '$PLATFORM', one of: ${platforms[*]} $PLATFORM_NEW"
     # shellcheck source=/dev/null
     source "$PLATFORM_FILE"
     [[ -n "$HOSTNAME" ]] || die "$PLATFORM_FILE sets no HOSTNAME"
 else
-    # guest: no platform file, so everything comes from env/prompt (env for an unattended run)
+    # no platform file, so everything comes from env/prompt (env for an unattended run)
     # nor one to say wsl, so the distro itself does
     (( ! IN_WSL )) || FORM_FACTOR=wsl
     # wsl has no console, initramfs or locale of its own to set
@@ -340,9 +427,15 @@ else
         timezone_valid "$TIMEZONE" || die "unknown timezone '$TIMEZONE'"
         LOCALE="${BOOTSTRAP_LOCALE:-$(ask locale_valid locale "Language and formats for dates and numbers, e.g. en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8, fr_FR.UTF-8." "$LOCALE")}"
         locale_valid "$LOCALE" || die "unknown locale '$LOCALE'"
+        # asked once, while still on that network: its router's mac is what the installed machine recognises home by
+        HOME_NETWORK="${BOOTSTRAP_HOME_NETWORK:-$(ask_home_network)}" || exit 1
+        [[ "$HOME_NETWORK" =~ ^[01]$ ]] || die "BOOTSTRAP_HOME_NETWORK is '$HOME_NETWORK', expected 0 or 1"
+        if ((HOME_NETWORK)); then
+            HOME_GATEWAY=$(home_gateway_mac) || echo "bootstrap: no router mac found, every network stays foreign" >&2
+            HOME_SSID=$(home_ssid)
+        fi
     fi
-    # every group install.sh tags; a guest picks from these, platform files pick for luca
-    source "$REPO/scripts/lib/platform.sh"
+    # every group install.sh tags; a new machine picks from these, platform files pick for the known ones
     mapfile -t GROUP_UNIVERSE < <(platform_groups_all "$REPO")
     if [[ -n "${BOOTSTRAP_GROUPS:-}" ]]; then
         read -ra PKG_GROUPS <<<"$BOOTSTRAP_GROUPS"
@@ -452,15 +545,19 @@ fi
 USER_PASSWORD="${USER_PASSWORD:-$LUKS_PASSWORD}"
 
 # the last stop before the disk is touched
-if (( PERSONAL )); then summary_user="$USERNAME (personal, platform $PLATFORM)"; else summary_user="$USERNAME (guest)"; fi
+summary_user="$USERNAME (guest)"; [[ ! -f "$PROFILE_FILE" ]] || summary_user="$USERNAME (profile: ${PROFILE_CAPABILITIES[*]:-none})"
+summary_home="no, every network locked down"
+((!HOME_NETWORK)) || summary_home="router ${HOME_GATEWAY:-not found}${HOME_SSID:+, wifi $HOME_SSID}"
 summary_secure_boot="skipped, not in Setup Mode"; [[ "$setup_mode" != 1 ]] || summary_secure_boot="keys get enrolled"
 summary_root=locked; [[ -z "$ROOT_PASSWORD" ]] || summary_root="own password"
 summary="user         $summary_user
+machine      $PLATFORM
 hostname     $HOSTNAME
 keyboard     $KEYMAP
 timezone     $TIMEZONE
 locale       $LOCALE
 groups       ${PKG_GROUPS[*]}
+home network $summary_home
 disk         $DISK $(disk_label "$DISK"), erased
 secure boot  $summary_secure_boot
 root         $summary_root"
@@ -526,10 +623,10 @@ ucode=amd-ucode
 grep -q GenuineIntel /proc/cpuinfo && ucode=intel-ucode
 
 # homelab mirror first so pacstrap pulls base at lan speed; pacman falls through to the iso's public mirrors when away
-(( ! PERSONAL )) || sed -i '1i Server = http://10.100.0.109:8090/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
+[[ "${HOMELAB:-}" != 1 ]] || sed -i '1i Server = http://10.100.0.109:8090/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
 
 pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs cryptsetup grub efibootmgr \
-    networkmanager sudo git zram-generator libfido2
+    networkmanager sudo git zsh zram-generator libfido2
 genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
 # the ukis (configs/hardware/boot) embed this file as their only cmdline
@@ -586,13 +683,16 @@ for psk in /var/lib/iwd/*.psk; do
     fi
     passphrase=$(sed -n 's/^Passphrase=//p' "$psk")
     [[ -n "$passphrase" ]] || continue
+    # the home rule needs the hardware mac there, every other wifi gets NetworkManager.conf's random one
+    cloned_mac=""
+    [[ -z "$HOME_GATEWAY" || "$ssid" != "$HOME_SSID" ]] || cloned_mac=$'\ncloned-mac-address=permanent'
     install -Dm600 /dev/stdin "$MOUNT/etc/NetworkManager/system-connections/$ssid.nmconnection" <<NM
 [connection]
 id=$ssid
 type=wifi
 
 [wifi]
-ssid=$ssid
+ssid=$ssid$cloned_mac
 
 [wifi-security]
 key-mgmt=wpa-psk
@@ -606,10 +706,13 @@ method=auto
 NM
 done
 
+# the new machine's home, machine-local: no secret ever removes it (option C)
+[[ -z "$HOME_GATEWAY" ]] || install -Dm644 /dev/stdin "$MOUNT$HOME_GATEWAYS" <<<"$HOME_GATEWAY"
+
 # --- dotfiles and the stage chain ---------------------------------------------
 
-# luca: pull and unlock the secrets here (the one tap window), so the chained config boot needs no touch
-if (( PERSONAL )); then
+# a profile with secrets: pull and unlock them here (the one tap window), so the chained config boot needs no touch
+if profile_has secrets; then
     pacman -Sy --noconfirm --needed age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager \
         || echo "bootstrap: secrets toolchain install failed, config will unlock instead" >&2
     systemctl start pcscd.socket 2>/dev/null || true

@@ -6,7 +6,8 @@ set -euo pipefail
 NM_CONF=/etc/NetworkManager/conf.d/90-idspoof-persona.conf
 DHCLIENT_HOOK=/etc/dhcp/dhclient-enter-hooks.d/idspoof-vendor
 
-# its sysctls and the reader-less IDSPOOF_NETEMU nfqueue rule
-command -v idspoof >/dev/null && { sudo idspoof restore --netident -q || true; }
+# its files mark a machine it ran on; without them a restore would undo nothing of ours
 [[ -e "$NM_CONF" || -e "$DHCLIENT_HOOK" ]] || exit 0
-sudo rm -f "$NM_CONF" "$DHCLIENT_HOOK"
+# its sysctls and the reader-less IDSPOOF_NETEMU nfqueue rule
+if command -v idspoof >/dev/null; then idspoof restore --netident -q || true; fi
+rm -f "$NM_CONF" "$DHCLIENT_HOOK"

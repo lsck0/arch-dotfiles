@@ -16,10 +16,10 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
-        /* absolute url, firefox resolves relative to the symlink target */
+        /* absolute url, firefox resolves relative to the symlink target; link.sh renders the home in */
         background:
           linear-gradient(rgba(7, 9, 13, 0.78), rgba(7, 9, 13, 0.78)),
-          url("file:///home/luca/.cache/wal/wallpaper") center / cover no-repeat fixed;
+          url("file://@HOME@/.cache/wal/wallpaper") center / cover no-repeat fixed;
         background-color: var(--background);
       }
       canvas {
@@ -106,7 +106,7 @@
         text-decoration: underline;
       }
     </style>
-    <link rel="stylesheet" href="file:///home/luca/.cache/wal/colors-qutebrowser.css" />
+    <link rel="stylesheet" href="file://@HOME@/.cache/wal/colors-qutebrowser.css" />
   </head>
   <body>
     <canvas id="canvas"></canvas>
@@ -120,7 +120,7 @@
     </form>
     <nav id="links"></nav>
     <!-- generated from weblinks/links.txt by weblinks/link.py -->
-    <script src="file:///home/luca/projects/arch-dotfiles/weblinks/collection/links.js"></script>
+    <script src="file://@DOTFILES@/weblinks/collection/links.js"></script>
     <script>
       "use strict";
 

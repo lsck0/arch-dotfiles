@@ -3,17 +3,19 @@
 # and narrow rustnet's capture caps to the wireshark group now, as its hook only does on the next upgrade
 set -euo pipefail
 
+# every member, the machine's patch no longer knows which login an older config added
 for group in docker libvirt i2c; do
-    id -nG "$USER" | tr ' ' '\n' | grep -qx "$group" || continue
-    sudo gpasswd -d "$USER" "$group"
+    members=$(getent group "$group" | cut -d: -f4)
+    IFS=, read -ra users <<<"$members"
+    for user in "${users[@]}"; do gpasswd -d "$user" "$group" >/dev/null; done
 done
 
 if [[ -n "$(getcap /usr/bin/rustnet 2>/dev/null)" && "$(stat -c %G /usr/bin/rustnet)" != wireshark ]]; then
     if getent group wireshark >/dev/null; then
-        sudo chgrp wireshark /usr/bin/rustnet
-        sudo chmod 750 /usr/bin/rustnet
-        sudo setcap cap_net_raw,cap_bpf,cap_perfmon+ep /usr/bin/rustnet
+        chgrp wireshark /usr/bin/rustnet
+        chmod 750 /usr/bin/rustnet
+        setcap cap_net_raw,cap_bpf,cap_perfmon+ep /usr/bin/rustnet
     else
-        sudo setcap -r /usr/bin/rustnet
+        setcap -r /usr/bin/rustnet
     fi
 fi

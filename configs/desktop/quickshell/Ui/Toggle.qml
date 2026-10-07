@@ -10,8 +10,6 @@ BorderSurface {
 
   property bool hasCursor: false
 
-  property bool rounded: Style.cornerRadius > 0
-
   property color foreground: Color.foreground
   property color accent: Color.accent
   property string fontFamily: Style.font.family
@@ -26,9 +24,9 @@ BorderSurface {
   Keys.onEnterPressed: root.clicked()
   Keys.onSpacePressed: root.clicked()
 
-  implicitHeight: Math.max(54, content.implicitHeight + Style.spacing.huge)
+  implicitHeight: Math.max(54, content.implicitHeight + Style.spacing.lg)
   implicitWidth: Style.space(240)
-  radius: Style.cornerRadius
+  radius: Style.shape.data
 
   readonly property bool _hot: hasCursor || mouse.containsMouse
   readonly property var _borderSpec: Border.controlSpec(activeFocus ? "focus" : (_hot ? "hover-cursor" : "normal"), foreground, accent)
@@ -36,7 +34,7 @@ BorderSurface {
   color: Style.controlFill(activeFocus, _hot, foreground, accent)
   borderSpec: _borderSpec
 
-  Behavior on color { ColorAnimation { duration: 100 } }
+  Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
   layer.enabled: Style.fx.glow > 0 && activeFocus
   layer.effect: Glow {}
@@ -82,7 +80,6 @@ BorderSurface {
     ToggleSwitch {
       id: track
       checked: root.checked
-      rounded: root.rounded
       foreground: root.foreground
       accent: root.accent
       interactive: false

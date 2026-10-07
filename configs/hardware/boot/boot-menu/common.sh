@@ -1,14 +1,15 @@
 # shellcheck shell=bash
+# root only: sourced by the boot-touching system.sh modules and by system-apply.sh for boot_commit
 
 BOOT_MENU_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# archinstall mounts the ESP fmask/dmask=0077, so file tests under it need sudo
+# archinstall mounts the ESP fmask/dmask=0077, only root reads it
 ESP=/boot
 UKI_DIR="$ESP/EFI/Linux"
 CMDLINE=/etc/kernel/cmdline
-# everything mkinitcpio and grub-mkconfig read; config.sh's boot barrier rebuilds once when their content or mode changed
+# everything mkinitcpio and grub-mkconfig read; system-apply's boot barrier rebuilds once when their content or mode changed
 BOOT_INPUTS=(/etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d "$CMDLINE" /etc/crypttab.initramfs
     /etc/default/grub /etc/grub.d /usr/local/bin/boot-menu /etc/plymouth /usr/share/plymouth/themes)
-BOOT_INPUTS_STAMP="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/boot-inputs"
+BOOT_INPUTS_STAMP="$SYSTEM_STATE/boot-inputs"
 
 esp_supported() {
     if [[ ! -d /sys/firmware/efi ]]; then
@@ -19,7 +20,7 @@ esp_supported() {
         echo "boot: $ESP is not the FAT ESP, only archinstall's ESP-at-/boot layout is supported" >&2
         return 1
     fi
-    if ! sudo test -f "$ESP/vmlinuz-linux-lts"; then
+    if [[ ! -f "$ESP/vmlinuz-linux-lts" ]]; then
         echo "boot: linux-lts not installed, no fallback kernel when linux breaks" >&2
     fi
 }
@@ -38,8 +39,8 @@ enable_ukis() {
         want=$(sed -e "s/^PRESETS=.*/PRESETS=('default')/" -e '/^#\?default_\(image\|uki\|cmdline\)=/d' "$preset"
             printf 'default_uki="%s"\ndefault_cmdline="%s"\n' "$UKI_DIR/arch-$(basename "$preset" .preset).efi" "$CMDLINE")
         [[ "$want" == "$(<"$preset")" ]] && continue
-        [[ -e "$preset.arch-dotfiles-backup" ]] || sudo install -m644 "$preset" "$preset.arch-dotfiles-backup"
-        echo "$want" | sudo tee "$preset" >/dev/null
+        [[ -e "$preset.arch-dotfiles-backup" ]] || install -m644 "$preset" "$preset.arch-dotfiles-backup"
+        echo "$want" | install -m644 /dev/stdin "$preset"
     done
 }
 
@@ -47,9 +48,9 @@ enable_ukis() {
 kernel_cmdline_set() {
     local file=$CMDLINE token word words=() kept=()
     if [[ ! -f "$file" ]]; then
-        tr ' ' '\n' </proc/cmdline | grep -vE '^(BOOT_IMAGE|initrd)=' | paste -sd' ' | sudo install -Dm644 /dev/stdin "$file"
+        tr ' ' '\n' </proc/cmdline | grep -vE '^(BOOT_IMAGE|initrd)=' | paste -sd' ' | install -Dm644 /dev/stdin "$file"
     fi
-    [[ -e "$file.arch-dotfiles-backup" ]] || sudo install -m644 "$file" "$file.arch-dotfiles-backup"
+    [[ -e "$file.arch-dotfiles-backup" ]] || install -m644 "$file" "$file.arch-dotfiles-backup"
     read -ra words <"$file"
     for token in "$@"; do
         kept=()
@@ -59,43 +60,43 @@ kernel_cmdline_set() {
         words=("${kept[@]}")
         [[ " ${words[*]} " == *" $token "* ]] || words+=("$token")
     done
-    # the ukis pick it up at config.sh's boot barrier
-    [[ "${words[*]}" == "$(<"$file")" ]] || echo "${words[*]}" | sudo tee "$file" >/dev/null
+    # the ukis pick it up at system-apply's boot barrier
+    [[ "${words[*]}" == "$(<"$file")" ]] || echo "${words[*]}" | install -m644 /dev/stdin "$file"
 }
 
 # kernel_cmdline_unset <key>: drops every token of that key from $CMDLINE
 kernel_cmdline_unset() {
     local file=$CMDLINE word words=() kept=()
     [[ -f "$file" ]] || return 0
-    [[ -e "$file.arch-dotfiles-backup" ]] || sudo install -m644 "$file" "$file.arch-dotfiles-backup"
+    [[ -e "$file.arch-dotfiles-backup" ]] || install -m644 "$file" "$file.arch-dotfiles-backup"
     read -ra words <"$file"
     for word in "${words[@]}"; do
         [[ "${word%%=*}" == "$1" ]] || kept+=("$word")
     done
-    [[ "${kept[*]}" == "$(<"$file")" ]] || echo "${kept[*]}" | sudo tee "$file" >/dev/null
+    [[ "${kept[*]}" == "$(<"$file")" ]] || echo "${kept[*]}" | install -m644 /dev/stdin "$file"
 }
 
 install_boot_menu() {
-    sudo install -Dm755 "$BOOT_MENU_DIR/boot-menu" /usr/local/bin/boot-menu
+    install -Dm755 "$BOOT_MENU_DIR/boot-menu" /usr/local/bin/boot-menu
     # the snapshot menu it refreshed is gone
     if [[ -e /etc/systemd/system/boot-menu.timer ]]; then
-        sudo systemctl disable --now boot-menu.timer
-        sudo rm -f /etc/systemd/system/boot-menu.{service,timer}
-        sudo systemctl daemon-reload
+        systemctl disable --now boot-menu.timer
+        rm -f /etc/systemd/system/boot-menu.{service,timer}
+        systemctl daemon-reload
     fi
 }
 
 # sbctl_ready: keys exist, so boot files get signed; before configs/hardware/boot/sbctl ran there is nothing to sign with
 sbctl_ready() {
-    command -v sbctl >/dev/null 2>&1 && sudo sbctl status | grep -qE 'Owner GUID'
+    command -v sbctl >/dev/null 2>&1 && sbctl status | grep -qE 'Owner GUID'
 }
 
 sbctl_sign() {
     sbctl_ready || return 0
     local f
     for f in "$@"; do
-        if sudo test -f "$f"; then
-            sudo sbctl sign -s "$f"
+        if [[ -f "$f" ]]; then
+            sbctl sign -s "$f"
         fi
     done
 }
@@ -106,11 +107,11 @@ boot_commit() {
     # wsl: windows boots its own kernel, there is no initramfs or bootloader here
     command -v mkinitcpio >/dev/null 2>&1 || return 0
     # inputs this machine lacks (no plymouth, no crypttab.initramfs) hash as absent
-    inputs=$(sudo find "${BOOT_INPUTS[@]}" -type f -printf '%m %p\n' -exec sha256sum {} + 2>/dev/null | sha256sum)
+    inputs=$(find "${BOOT_INPUTS[@]}" -type f -printf '%m %p\n' -exec sha256sum {} + 2>/dev/null | sha256sum)
     if [[ "$inputs" != "$(cat "$BOOT_INPUTS_STAMP" 2>/dev/null)" ]]; then
-        sudo mkinitcpio -P || return 1
-        if sudo test -f "$ESP/grub/grub.cfg"; then
-            sudo grub-mkconfig -o "$ESP/grub/grub.cfg" || return 1
+        mkinitcpio -P || return 1
+        if [[ -f "$ESP/grub/grub.cfg" ]]; then
+            grub-mkconfig -o "$ESP/grub/grub.cfg" || return 1
         fi
         mkdir -p "${BOOT_INPUTS_STAMP%/*}"
         echo "$inputs" >"$BOOT_INPUTS_STAMP"
@@ -120,10 +121,10 @@ boot_commit() {
     for preset in /etc/mkinitcpio.d/*.preset; do
         sbctl_sign "$UKI_DIR/arch-$(basename "$preset" .preset).efi"
     done
-    sudo sbctl sign-all || return 1
-    unsigned=$(sudo sbctl verify | grep 'is not signed')
+    sbctl sign-all || return 1
+    unsigned=$(sbctl verify | grep 'is not signed')
     # the plain kernels stay unsigned once grub.cfg stops booting them: grub.cfg could chainload a signed one with any cmdline and initrd
-    sudo grep -qE '^\s*linux\s+/vmlinuz-' "$ESP/grub/grub.cfg" 2>/dev/null || unsigned=$(grep -v "$ESP/vmlinuz-" <<<"$unsigned")
+    grep -qE '^\s*linux\s+/vmlinuz-' "$ESP/grub/grub.cfg" 2>/dev/null || unsigned=$(grep -v "$ESP/vmlinuz-" <<<"$unsigned")
     if [[ -n "$unsigned" ]]; then
         echo "boot: unsigned with secure boot keys enrolled, the next boot may fail: $unsigned" >&2
         return 1

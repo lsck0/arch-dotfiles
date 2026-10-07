@@ -104,3 +104,14 @@ hl.layer_rule({
     },
     no_anim = true,
 })
+
+-- quickshell surfaces are translucent (Commons/Style.qml translucency) and blur what lies under them;
+-- ignore_alpha keeps soft edges and glow halos below 0.3 unblurred; quickshell-background stays sharp
+hl.layer_rule({
+    name = "quickshell-blur",
+    match = {
+        namespace = "^quickshell-(bar|panel-.+|osd|notifications|alert|appsearch|clipboard|powermenu|overview|image-selector|reminders|network-qr|network-speedtest|disk-speedtest)$",
+    },
+    blur = true,
+    ignore_alpha = 0.3,
+})

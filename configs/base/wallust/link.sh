@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
-set -e
-
-mkdir -p "${HOME}/.config/wallust/colorschemes"
-
-ln -sfn "${PWD}/templates" "${HOME}/.config/wallust/templates"
-ln -sfn "${PWD}/wallust.toml" "${HOME}/.config/wallust/wallust.toml"
-
-for theme in "${PWD}"/../themes/*.json; do
-    [ -e "$theme" ] || continue
-    ln -sfn "$theme" "${HOME}/.config/wallust/colorschemes/$(basename "$theme")"
-done
+link_into "${HOME}/.config/wallust" templates wallust.toml
+shopt -s nullglob
+link_into "${HOME}/.config/wallust/colorschemes" ../themes/*.json

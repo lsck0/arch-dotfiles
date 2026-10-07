@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 
-source $DOTFILES/scripts/lib/personal.sh
-
-set -e
-
 mkdir -p "${HOME}/.config/git"
 
 if command -v git-lfs >/dev/null 2>&1; then
     git lfs install
 fi
 
-# guests keep the generic config, only luca gets his identity
-if is_personal; then
-    git config --global user.name "Luca Sandrock"
-    git config --global user.email "luca.sandrock@proton.me"
+# a user without an identity keeps the generic config
+if profile_has identity; then
+    git config --global user.name "$PROFILE_NAME"
+    git config --global user.email "$PROFILE_EMAIL"
 fi
 # no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also persist that gh token into ~/.git-credentials
 git config --global init.defaultBranch master
@@ -38,13 +34,12 @@ fi
 
 # jj
 if command -v jj >/dev/null 2>&1; then
-    if is_personal; then
-        jj config set --user user.name "Luca Sandrock"
-        jj config set --user user.email "luca.sandrock@proton.me"
+    if profile_has identity; then
+        jj config set --user user.name "$PROFILE_NAME"
+        jj config set --user user.email "$PROFILE_EMAIL"
     fi
     jj config set --user ui.default-command log
 fi
 
 # command on PATH, invoked bare by tmux/herdr/nvim/viewers
-mkdir -p "$HOME/.local/bin"
-ln -sfn "$DOTFILES/configs/base/git/wtree.sh" "$HOME/.local/bin/wtree"
+link_commands wtree.sh
