@@ -9,13 +9,10 @@ fi
 waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.cursor_on_subsurface true
 
-# android-side settings need a running session
-if waydroid status 2>/dev/null | grep -q "Session:[[:space:]]*RUNNING"; then
-    waydroid shell -- settings put global development_settings_enabled 1
-    waydroid shell -- settings put global enable_freeform_support 1
-    waydroid shell -- settings put global force_resizable_activities 1
-    waydroid shell -- settings put global enable_sizecompat_freeform 1
-else
-    echo "waydroid: session not running, Android-side settings skipped." >&2
-    echo "waydroid: run 'waydroid session start', then re-run this script." >&2
-fi
+# android-side settings live in the user's waydroid data, but `waydroid shell` needs root and link.sh never asks for it:
+# printed for the user to run in a terminal
+settings=(development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform)
+echo "waydroid: for freeform windows, with a session running ('waydroid session start'), run once as root:" >&2
+for setting in "${settings[@]}"; do
+    echo "    waydroid shell -- settings put global $setting 1" >&2
+done

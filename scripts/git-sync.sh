@@ -112,4 +112,5 @@ sync_one() {
 export -f sync_one
 export BASE_DIR pad
 
-printf '%s\n' "${dirs[@]}" | xargs -r -P "$JOBS" -I{} bash -c 'sync_one "$@"' _ {}
+# NUL-delimited: -I{} would choke on quotes in a repo path
+printf '%s\0' "${dirs[@]}" | xargs -0 -r -P "$JOBS" -n1 bash -c 'sync_one "$@"' _

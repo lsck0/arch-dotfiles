@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-ln -sfn "${PWD}" "$HOME/.config/gh-dash"
+link_dir "${PWD}" "$HOME/.config/gh-dash"

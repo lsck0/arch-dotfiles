@@ -1,5 +1,5 @@
 [Unit]
-Description=Install unreal-engine-bin from the newest ~/sync/Linux_Unreal_Engine_*.zip
+Description=Install Unreal Engine into the home from the newest ~/sync/Linux_Unreal_Engine_*.zip
 # syncthing writes into ~/sync in bursts of up to 8 a minute; this only brakes a runaway trigger
 StartLimitIntervalSec=1min
 StartLimitBurst=20

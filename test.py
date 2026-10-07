@@ -20,7 +20,6 @@ reads (tesseract) are the iso prompt, the passphrase prompt that marks the end o
 
 import argparse
 import http.server
-import json
 import os
 import queue
 import re
@@ -430,6 +429,10 @@ def lint_modules() -> list[str]:
 SUDO = re.compile(r"\bsudo\b")
 USER_FACT = re.compile(r"profile_has|PROFILE_|\$\{?HOME\b|\$\{?USER\b|\bid -un\b|@USER@")
 USER_LAYER_ROOTS = ("scripts/link.sh", "skills/link.sh", "weblinks/link.py")
+# the scripts/lib entries that run as root; every other one runs in the user layer (yubikey.sh under config.sh)
+ROOT_LIBS = {"system-apply.sh", "adduser-dotfiles.sh"}
+# a quoted string is a hint or a pattern (`sudo pacman -S tor`, a package list), not a command
+QUOTED = re.compile(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"")
 
 
 def code_lines(path: Path) -> list[tuple[int, str]]:
@@ -439,7 +442,7 @@ def code_lines(path: Path) -> list[tuple[int, str]]:
 
 
 def lint_layers() -> list[str]:
-    """static layer checks, all fatal: no sudo in a link.sh/link.py, no user fact (profile, $HOME, $USER, id -un,
+    """static layer checks, all fatal: no sudo in a link.sh/link.py or a user-layer scripts/lib file, no user fact (profile, $HOME, $USER, id -un,
     @USER@) in a system.sh, no is_personal in any tracked or new file."""
     configs, problems = HERE / "configs", []
     user_layer = [*configs.rglob("link.sh"), *configs.rglob("link.py"), *(HERE / p for p in USER_LAYER_ROOTS)]
@@ -447,6 +450,11 @@ def lint_layers() -> list[str]:
         for n, line in code_lines(script):
             if SUDO.search(line):
                 problems.append(f"{script.relative_to(HERE)}:{n}: sudo in the user layer, move it to a system.sh")
+    for script in sorted((HERE / "scripts/lib").glob("*.sh")):
+        if script.name not in ROOT_LIBS:
+            for n, line in code_lines(script):
+                if SUDO.search(QUOTED.sub("''", line)):
+                    problems.append(f"{script.relative_to(HERE)}:{n}: sudo in a user-layer library, move it to a system.sh")
     for script in configs.rglob("system.sh"):
         for n, line in code_lines(script):
             if (m := USER_FACT.search(line)):

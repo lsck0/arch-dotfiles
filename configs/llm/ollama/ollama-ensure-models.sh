@@ -18,10 +18,11 @@ else
     MODELS+=(nimble)
 fi
 
-# start the on-demand service only if idle, and leave it as we found it
+# start the on-demand service only if idle, and leave it as we found it, also when a pull fails under set -e
 was_active=0
 systemctl is-active --quiet ollama && was_active=1
-((was_active)) || sudo systemctl start ollama
+trap '((was_active)) || systemctl stop ollama' EXIT
+((was_active)) || systemctl start ollama
 for ((i = 0; i < 30; i++)); do ollama list >/dev/null 2>&1 && break; sleep 1; done
 
 # pulls only what is missing; show fails exactly for an absent model
@@ -38,5 +39,3 @@ if ! ollama list | grep -q '^llama3.1-64k'; then
     rm -f "${tmp_modelfile}"
     ollama rm llama3.1:8b
 fi
-
-((was_active)) || sudo systemctl stop ollama

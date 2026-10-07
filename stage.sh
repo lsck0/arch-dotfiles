@@ -19,11 +19,17 @@ log() { echo "$(date -Is) $*" | sudo tee -a "$STATE_DIR/log"; }
 
 # idempotent; config.sh's boot barrier rebuilds the initramfs without the keyfile, a stale one opens nothing once the slot is gone
 disarm() {
-    local device
+    local device status=0
     device=$(<"$STATE_DIR/luks-device")
     # keyslot first: once it is gone the keyfile on the ESP opens nothing; sudo test because /etc/cryptsetup-keys.d is root-only, a plain [[ -f ]] as the user is always false
     if sudo test -f "$KEY_FILE"; then
-        sudo cryptsetup luksRemoveKey "$device" "$KEY_FILE" || return 1
+        # 2 is cryptsetup's "no key available": a crash between the kill and the rm already removed the slot, so only the rm is left
+        sudo cryptsetup open --test-passphrase --key-file "$KEY_FILE" "$device" || status=$?
+        if ((status == 0)); then
+            sudo cryptsetup luksRemoveKey "$device" "$KEY_FILE" || return 1
+        elif ((status != 2)); then
+            return 1
+        fi
         sudo rm -f "$KEY_FILE"
     fi
     sudo rm -f "$MKINITCPIO_DROPIN"

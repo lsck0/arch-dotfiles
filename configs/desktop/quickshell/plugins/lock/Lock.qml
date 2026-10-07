@@ -24,8 +24,14 @@ Item {
   property real lockedAtMs: 0
 
   function lock() {
-    if (root.locked) return
-    unlockDelay.stop()
+    // a lock during the unlock glitch cancels the unlock
+    if (unlockDelay.running) { unlockDelay.stop(); return }
+    if (root.locked) {
+      // held or still pending: an unlock before the compositor confirms is a protocol error that kills quickshell
+      if (sessionLock.locked) return
+      // the compositor refused or dropped the lock: re-arm it rather than stay unlocked behind locked == true
+      root.locked = false
+    }
     root.lockedAtMs = Date.now()
     root.notes = []
     root.authError = false
@@ -70,7 +76,9 @@ Item {
   IpcHandler {
     target: "lock"
     function lock(): string { root.lock(); return "ok" }
-    function isLocked(): string { return root.locked ? "true" : "false" }
+    // the compositor-granted state, not the request: the launcher falls back to hyprlock on it; a pending unlock
+    // counts as unlocked so the launcher still sends its lock, which cancels it
+    function isLocked(): string { return sessionLock.secure && !unlockDelay.running ? "true" : "false" }
   }
 
   PamContext {
@@ -158,6 +166,7 @@ Item {
   }
 
   WlSessionLock {
+    id: sessionLock
     locked: root.locked
 
     // projection and the auth hud on every screen: hyprland gives the keyboard to the surface under the cursor

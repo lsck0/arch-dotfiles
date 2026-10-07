@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-ln -sfn "${PWD}" "$HOME/.config/zed"
+link_dir "${PWD}" "$HOME/.config/zed"

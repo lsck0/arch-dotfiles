@@ -20,7 +20,7 @@ if command -v quickshell >/dev/null 2>&1 \
       [[ "$(timeout 1s quickshell ipc -p "$qs_path" call lock isLocked 2>/dev/null || true)" == "true" ]] && exit 0
       sleep "$LOCK_POLL_INTERVAL"
     done
-    exit 0
+    # never granted: refused or stuck handshake, fall through to hyprlock
   fi
 fi
 

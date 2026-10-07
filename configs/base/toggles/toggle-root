@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# the root half of scripts/toggles, run through pkexec: a fixed set of verbs, every argument checked here,
+# so the polkit rule that lets the bar call it unprompted hands out exactly these and nothing else
+set -euo pipefail
+
+PERSONA_LOCKDOWN=/run/persona-lockdown
+WG_INTERFACE=wg0
+NFT_TABLE=anonymous_socks
+PERSONA_CHAIN=ANONSOCKS_PERSONA
+
+usage() {
+    echo "usage: $(basename "$0") {tlp MODE|wg up|down|vllm on|off|firewall-chosen|anonsocks VERB...}" >&2
+    exit 1
+}
+
+# the caller's uid from pkexec; run directly as root there is no caller to scope to
+caller_uid() {
+    [[ "${PKEXEC_UID:-}" =~ ^[0-9]+$ ]] || { echo "toggle-root: no PKEXEC_UID, run it through pkexec" >&2; exit 1; }
+    echo "$PKEXEC_UID"
+}
+
+is_port() { [[ "$1" =~ ^[0-9]{1,5}$ ]] && (($1 >= 1 && $1 <= 65535)); }
+
+anonsocks() {
+    local uid
+    case "$#:${1:-}" in
+    4:rate-on)
+        # <base port> <pool size> <new connections/sec>
+        local port=$2 pool=$3 rate=$4
+        is_port "$port" && [[ "$pool" =~ ^[0-9]{1,3}$ ]] && ((pool >= 1)) && is_port $((port + pool - 1)) \
+            && [[ "$rate" =~ ^[0-9]{1,6}$ ]] && ((rate >= 1)) || usage
+        nft -f - <<NFT
+table inet $NFT_TABLE {
+    chain out {
+        type filter hook output priority 0; policy accept;
+        oif "lo" tcp dport $port-$((port + pool - 1)) ct state new limit rate over ${rate}/second drop
+    }
+}
+NFT
+        ;;
+    1:egress-on)
+        # the caller's own anonsocks.slice, never a path it names
+        uid=$(caller_uid)
+        local slice="user.slice/user-$uid.slice/user@$uid.service/anonsocks.slice"
+        nft -f - <<NFT
+table inet $NFT_TABLE {
+    chain egress {
+        type filter hook output priority 0; policy accept;
+        socket cgroupv2 level 4 "$slice" oif != "lo" reject
+        # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
+        socket cgroupv2 level 4 "$slice" ct status dnat reject
+    }
+}
+NFT
+        ;;
+    1:nft-off)
+        nft delete table inet "$NFT_TABLE" 2>/dev/null || true
+        ;;
+    3:persona-on)
+        # <ttl> <tor unit cgroup>; the cgroup has to sit inside the caller's own user manager
+        local ttl=$2 cgroup=$3 ipt
+        uid=$(caller_uid)
+        [[ "$ttl" == 64 || "$ttl" == 128 ]] || usage
+        [[ "$cgroup" =~ ^user\.slice/user-$uid\.slice/user@$uid\.service/[A-Za-z0-9@._/-]+$ && "$cgroup" != *..* ]] || usage
+        anonsocks persona-off
+        for ipt in iptables ip6tables; do
+            "$ipt" -t mangle -N "$PERSONA_CHAIN" 2>/dev/null || "$ipt" -t mangle -F "$PERSONA_CHAIN"
+            if [[ "$ipt" == iptables ]]; then
+                iptables -t mangle -A "$PERSONA_CHAIN" -j TTL --ttl-set "$ttl"
+            else
+                ip6tables -t mangle -A "$PERSONA_CHAIN" -j HL --hl-set "$ttl"
+            fi
+            "$ipt" -t mangle -A POSTROUTING -m cgroup --path "$cgroup" -j "$PERSONA_CHAIN" \
+                || echo "toggle-root: $ipt persona jump failed, tor runs without it" >&2
+        done
+        ;;
+    1:persona-off)
+        # the cgroup is gone once tor stops, so the jump is found by chain name rather than by its match
+        local ipt rule
+        for ipt in iptables ip6tables; do
+            "$ipt" -t mangle -S POSTROUTING 2>/dev/null | { grep -F -- "-j $PERSONA_CHAIN" || true; } | while read -r rule; do
+                # shellcheck disable=SC2086
+                "$ipt" -t mangle ${rule/-A/-D}
+            done
+            "$ipt" -t mangle -F "$PERSONA_CHAIN" 2>/dev/null || true
+            "$ipt" -t mangle -X "$PERSONA_CHAIN" 2>/dev/null || true
+        done
+        ;;
+    *) usage ;;
+    esac
+}
+
+case "$#:${1:-}" in
+2:tlp)
+    case "$2" in
+    balanced | performance | power-saver) tlp "$2" ;;
+    # un-force: back to tlp's own ac/bat auto-detect
+    start) tlp start >/dev/null ;;
+    *) usage ;;
+    esac
+    ;;
+2:wg)
+    [[ -f /etc/wireguard/$WG_INTERFACE.conf ]] || { echo "toggle-root: no $WG_INTERFACE configured" >&2; exit 1; }
+    case "$2" in
+    up | down) wg-quick "$2" "$WG_INTERFACE" ;;
+    *) usage ;;
+    esac
+    ;;
+2:vllm)
+    # enable, not just start: on means the socket listens across reboots too
+    case "$2" in
+    on) systemctl enable --now vllm.socket ;;
+    off)
+        systemctl disable --now vllm.socket
+        systemctl stop vllm-proxy.service vllm.service
+        ;;
+    *) usage ;;
+    esac
+    ;;
+1:firewall-chosen)
+    # a state picked in the toggle is the user's, the persona dispatcher lifts only a lockdown that still has the marker
+    rm -f "$PERSONA_LOCKDOWN"
+    ;;
+*:anonsocks)
+    shift
+    anonsocks "$@"
+    ;;
+*) usage ;;
+esac

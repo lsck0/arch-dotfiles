@@ -45,8 +45,10 @@ fi
 
 # Open the new repo in the multiplexer that launched this popup.
 if [[ -n "${TMUX:-}" ]]; then
-  tmux has-session -t "=$name" 2>/dev/null || tmux new-session -d -s "$name" -c "$dest"
-  tmux switch-client -t "=$name"
+  # tmux stores '.' and ':' in a session name as '_', so next.js has to be looked up as next_js
+  session=${name//[.:]/_}
+  tmux has-session -t "=$session" 2>/dev/null || tmux new-session -d -s "$session" -c "$dest"
+  tmux switch-client -t "=$session"
 elif [[ -n "${HERDR_SESSION:-}${HERDR_ENV:-}" ]]; then
   herdr-open "$dest" "$name"
 else

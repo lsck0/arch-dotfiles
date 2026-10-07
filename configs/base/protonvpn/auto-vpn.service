@@ -1,10 +1,11 @@
 [Unit]
 Description=Auto ProtonVPN on untrusted networks
-After=NetworkManager.service
 
 [Service]
 ExecStart=%h/projects/arch-dotfiles/configs/base/protonvpn/auto-vpn.sh
-Restart=on-failure
+# no NetworkManager ordering: a user unit cannot wait on a system one; nmcli monitor waits for NM, and should it end
+# anyway, it comes back
+Restart=always
 RestartSec=5
 
 [Install]

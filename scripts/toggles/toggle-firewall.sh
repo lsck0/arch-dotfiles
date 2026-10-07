@@ -8,8 +8,6 @@ source ./lib.sh
 
 STATES=(default restrictive off)
 LABELS=("Default" "Restrictive" "Off")
-# set by every fw-lockdown start; the persona dispatcher lifts only a lockdown that still has it
-PERSONA_LOCKDOWN=/run/persona-lockdown
 
 current() {
     if systemctl is-active --quiet fw-lockdown.service; then
@@ -23,7 +21,7 @@ current() {
 
 # portmaster's connmark restore clobbers protonvpn's wireguard fwmark, so toggle-protonvpn.sh owns it while proton0 is up
 portmaster_start() {
-    ip link show proton0 &>/dev/null || sudo systemctl start portmaster.service
+    ip link show proton0 &>/dev/null || systemctl --no-ask-password start portmaster.service
 }
 
 apply() {
@@ -31,18 +29,18 @@ apply() {
     case "$state" in
         default)
             # conflicts with fw-lockdown, which systemd stops first
-            sudo systemctl start fw-inbound.service
+            systemctl --no-ask-password start fw-inbound.service
             portmaster_start
             ;;
         restrictive)
-            sudo systemctl start fw-lockdown.service
+            systemctl --no-ask-password start fw-lockdown.service
             portmaster_start
             ;;
         off)
-            sudo systemctl stop fw-inbound.service fw-lockdown.service portmaster.service
+            systemctl --no-ask-password stop fw-inbound.service fw-lockdown.service portmaster.service
             ;;
     esac
-    sudo rm -f "$PERSONA_LOCKDOWN"
+    toggle_root firewall-chosen
     toggle_notify -a Toggles "Firewall" "${LABELS[$(toggle_index_of "$(current)" 0 "${STATES[@]}")]}"
 }
 

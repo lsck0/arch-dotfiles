@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # extract the newest Bridge and Fab plugin zips from ~/sync into the engine; idempotent, rerun after an engine update.
-# a command, not config: the unzip into /opt needs sudo; the install hook runs it once after the engine install
+# the install hook runs it after every engine install; the engine is the user's own, so no root
 set -euo pipefail
 
-ENGINE=/opt/unreal-engine
+ENGINE="${XDG_DATA_HOME:-${HOME}/.local/share}/unreal-engine"
 SYNC_DIR="${HOME}/sync"
 STAMP_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/unreal-plugins"
 
@@ -21,6 +21,6 @@ for plugin in Bridge Fab; do
         continue
     fi
     echo "unreal: installing ${plugin} from $(basename "$zip")" >&2
-    sudo unzip -oq "$zip" -d "$ENGINE"
+    unzip -oq "$zip" -d "$ENGINE"
     echo "$zip" >"$stamp"
 done

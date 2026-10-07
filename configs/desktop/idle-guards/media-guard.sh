@@ -19,3 +19,6 @@ while read -r _; do
         release
     fi
 done < <(playerctl --all-players --follow status 2>/dev/null)
+# the monitor ending is a failure, so Restart=on-failure brings the guard back
+echo "playerctl --follow ended" >&2
+exit 1

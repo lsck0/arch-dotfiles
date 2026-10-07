@@ -9,7 +9,7 @@ PROFILES_INI="${FIREFOX_HOME}/profiles.ini"
 [[ -f "$PROFILES_INI" ]] || exit 0
 
 # pywalfox looks in ~/.config/firefox
-ln -sfn "$FIREFOX_HOME" "${HOME}/.config/firefox"
+link_dir "$FIREFOX_HOME" "${HOME}/.config/firefox"
 
 while read -r profile; do
     dir="${FIREFOX_HOME}/${profile}"

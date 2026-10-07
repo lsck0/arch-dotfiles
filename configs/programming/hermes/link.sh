@@ -77,7 +77,8 @@ import os
 from hermes_cli.config import load_config, save_config
 from agent.shell_hooks import _record_approval
 guard = os.environ["GUARD"]
-events = {"pre_llm_call": "turn-start", "on_session_end": "turn-end",
+# pre/post_llm_call bracket each turn (post after its tool loop); on_session_end covers an aborted one
+events = {"pre_llm_call": "turn-start", "post_llm_call": "turn-end", "on_session_end": "turn-end",
           "subagent_start": "subagent-start", "subagent_stop": "subagent-stop"}
 config = load_config()
 hooks = config.setdefault("hooks", {})

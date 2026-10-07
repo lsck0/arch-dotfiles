@@ -164,14 +164,29 @@ autocmd("FileType", {
 })
 
 -- undofile and shada registers would persist secret plaintext; shada is global, so only registers go
+local function no_secret_history()
+    vim.opt_local.undofile = false
+    vim.opt_local.swapfile = false
+    vim.opt.shada:prepend("<0")
+end
+local secret_history = group("no-secret-history", { clear = true })
 autocmd({ "BufReadPre", "BufNewFile" }, {
     desc = "No undo/shada registers for secret files",
-    group = group("no-secret-history", { clear = true }),
+    group = secret_history,
     pattern = { "*/secrets/*", "*.sops.*", "*.env", "*.env.*", ".envrc", "*.gpg", "*.age", "*.asc" },
-    callback = function()
-        vim.opt_local.undofile = false
-        vim.opt_local.swapfile = false
-        vim.opt.shada:prepend("<0")
+    callback = no_secret_history,
+})
+-- privymd decrypts ```gpg fences in place on read (scheduled, so this sees them first); it has no event of its own
+autocmd("BufReadPost", {
+    desc = "No undo/shada registers for markdown with privymd blocks",
+    group = secret_history,
+    pattern = "*.md",
+    callback = function(args)
+        for _, line in ipairs(vim.api.nvim_buf_get_lines(args.buf, 0, -1, false)) do
+            if line:match("^```+gpg%s*$") then
+                return no_secret_history()
+            end
+        end
     end,
 })
 

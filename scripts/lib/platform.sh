@@ -9,10 +9,12 @@ PLATFORM_FORM_FACTOR_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/form-facto
 # exported to every module; each 1 or empty, WIREGUARD a secrets file name, FORM_FACTOR desktop, laptop, vm or wsl
 PLATFORM_FACTS=(FORM_FACTOR HOMELAB WIREGUARD SECURE_BOOT_OWN_KEYS LSCK0_SNAPSHOT)
 
-# platform_file <repo>: this machine's platform file, nothing for a machine without one
+# platform_file <repo>: this machine's platform file, nothing for a machine without one. the machine's own answers win,
+# so a new machine never picks up a platforms/ file that shares its hostname; a checkout's platforms/local.sh from
+# before the system layer counts as them until system_copy moves it to PLATFORM_LOCAL, so both layers read the same
 platform_file() {
     local file
-    for file in "$1/platforms/$(</etc/hostname).sh" "$PLATFORM_LOCAL"; do
+    for file in "$PLATFORM_LOCAL" "$1/platforms/local.sh" "$1/platforms/$(</etc/hostname).sh"; do
         [[ -f "$file" ]] && echo "$file" && return
     done
     return 0

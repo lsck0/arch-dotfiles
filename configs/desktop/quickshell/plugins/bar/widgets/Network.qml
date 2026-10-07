@@ -86,12 +86,16 @@ BarWidget {
   }
 
   function connectTo(ssid, password) {
+    // a running attempt would take this password on its already closed stdin
+    if (connectProc.running) return
     root.connectingSsid = ssid
     root.connectError = ""
-    connectProc.command = password
-      ? [Paths.barWidget("network-wifi-connect.sh"), ssid, password]
-      : [Paths.barWidget("network-wifi-connect.sh"), ssid]
+    connectProc.command = [Paths.barWidget("network-wifi-connect.sh"), ssid]
+    // the password goes over stdin, an argv is readable by anyone in /proc; closing stdin ends it
+    connectProc.stdinEnabled = true
     connectProc.running = true
+    connectProc.write((password || "") + "\n")
+    connectProc.stdinEnabled = false
   }
 
   // each toggle announces its change over ToggleEvents once it settled, which re-reads

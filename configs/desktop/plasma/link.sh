@@ -16,9 +16,8 @@ done
 for d in KDE kdedefaults plasma-workspace; do
     # git drops empty dirs, a link to one would dangle
     [[ -d "${PWD}/${d}" ]] || continue
-    # rm right before relink so a failed ln cannot leave the dir gone
-    rm -rf "${HOME}/.config/${d}" && ln -sfn "${PWD}/${d}" "${HOME}/.config/${d}" \
-        || { echo "plasma/link.sh: failed to relink ${d}" >&2; exit 1; }
+    # a real dir plasma made is moved aside, not deleted
+    link_dir "${PWD}/${d}" "${HOME}/.config/${d}"
 done
 
 # third-party plasmoids (owner decision: plasma keeps modernclock)

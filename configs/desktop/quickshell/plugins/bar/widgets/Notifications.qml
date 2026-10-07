@@ -4,6 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "../../notifications/components"
+import "../../notifications/NotificationLogic.js" as NotificationLogic
 
 BarWidget {
   id: root
@@ -49,11 +50,8 @@ BarWidget {
 
   function openEntry(entry) {
     if (!entry) return
-    var argv = null
-    try {
-      var parsed = JSON.parse(String(entry.execArgv || ""))
-      if (Array.isArray(parsed) && parsed.length > 0) argv = parsed
-    } catch (e) {}
+    // history replays the sender's hint, so the same allowlist as the popup
+    var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) {
       Quickshell.execDetached(argv)
       if (root.bar) root.bar.closePanel(root.moduleName)

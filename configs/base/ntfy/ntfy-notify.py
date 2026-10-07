@@ -53,7 +53,14 @@ def read_token():
 
 
 def https(url):
-    return url if isinstance(url, str) and url.startswith("https://") else ""
+    """url when it is a plain https link with a host, else "": it reaches xdg-open, so no file:, custom scheme or option."""
+    if not isinstance(url, str) or not url.startswith("https://") or any(c.isspace() or ord(c) < 32 for c in url):
+        return ""
+    try:
+        parsed = urllib.parse.urlsplit(url)
+    except ValueError:
+        return ""
+    return url if parsed.scheme == "https" and parsed.hostname else ""
 
 
 def webhook_summary(payload):

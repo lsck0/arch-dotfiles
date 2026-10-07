@@ -14,21 +14,21 @@ SPLIT_LOCK_MITIGATE=/usr/local/bin/split-lock-mitigate
 case "${1:-}" in
 start)
     systemctl --user stop "$TRMNL_TIMER"
-    systemctl is-active -q "$VLLM_PROXY" && systemctl stop "$VLLM_PROXY"
+    systemctl is-active -q "$VLLM_PROXY" && systemctl --no-ask-password stop "$VLLM_PROXY"
     if systemctl is-active -q "$OLLAMA"; then
         toggle_set_volatile gamemode-ollama on
-        systemctl stop "$OLLAMA"
+        systemctl --no-ask-password stop "$OLLAMA"
     fi
-    pkexec "$SPLIT_LOCK_MITIGATE" off
+    ! toggle_is_admin || pkexec "$SPLIT_LOCK_MITIGATE" off
     ;;
 end)
-    pkexec "$SPLIT_LOCK_MITIGATE" on
+    ! toggle_is_admin || pkexec "$SPLIT_LOCK_MITIGATE" on
     if systemctl --user is-enabled -q "$TRMNL_TIMER"; then
         systemctl --user start "$TRMNL_TIMER"
     fi
     if [[ "$(toggle_get_volatile gamemode-ollama)" == on ]]; then
         rm -f "$TOGGLES_RUNTIME_DIR/gamemode-ollama"
-        systemctl start "$OLLAMA"
+        systemctl --no-ask-password start "$OLLAMA"
     fi
     ;;
 *)

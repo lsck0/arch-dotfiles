@@ -16,25 +16,54 @@ clip_get() {
     printf '%s' "$text"
 }
 
+# the status lines, not the GOODSIG alone: good means a valid signature by a fully or ultimately trusted key
+sig_report() {
+    local status=$1 signer fpr
+    signer=$(sed -n 's/^\[GNUPG:\] \(GOOD\|EXP\|EXPKEY\|REVKEY\|BAD\)SIG [0-9A-F]* //p' <<<"$status" | head -n1)
+    # the primary key's fingerprint when gpg gives it, else the signing subkey's; ERRSIG has only the key id
+    fpr=$(awk '$2 == "VALIDSIG" { print ($12 != "" ? $12 : $3); exit } $2 == "ERRSIG" { print $3; exit }' <<<"$status")
+    if grep -q '^\[GNUPG:\] BADSIG' <<<"$status"; then
+        notify --urgency=critical "BAD signature" "The message was altered or the signature is forged
+$signer"
+    elif grep -q '^\[GNUPG:\] ERRSIG' <<<"$status"; then
+        notify --urgency=critical "Unverified signature" "Missing key or unsupported algorithm
+key $fpr"
+    elif grep -q '^\[GNUPG:\] REVKEYSIG' <<<"$status"; then
+        notify --urgency=critical "Signature by a revoked key" "$signer
+$fpr"
+    elif grep -qE '^\[GNUPG:\] (EXPKEYSIG|EXPSIG)' <<<"$status"; then
+        notify --urgency=critical "Expired signature or key" "$signer
+$fpr"
+    elif grep -q '^\[GNUPG:\] GOODSIG' <<<"$status"; then
+        if grep -q '^\[GNUPG:\] VALIDSIG' <<<"$status" && grep -qE '^\[GNUPG:\] TRUST_(FULLY|ULTIMATE)' <<<"$status"; then
+            notify "Good signature" "$signer
+$fpr"
+        else
+            notify --urgency=critical "Signature by an untrusted key" "Not certified, the name may be anyone's
+$signer
+$fpr"
+        fi
+    else
+        return 1
+    fi
+}
+
 clip_decrypt() {
     local text out status
     text=$(clip_get) || exit 1
-    # tmpfs and 0600, unlinked as soon as the viewer holds it open
-    out=$(umask 077 && mktemp "${XDG_RUNTIME_DIR:-/tmp}/gpg-clip.XXXXXX")
+    # tmpfs and 0600, unlinked as soon as the viewer holds it open; the trap covers every exit before it launches
+    out=$(umask 077 && mktemp "${XDG_RUNTIME_DIR:-/tmp}/gpg-clip.XXXXXX") || exit 1
+    # shellcheck disable=SC2064
+    trap "rm -f -- '$out'" EXIT
     status=$(printf '%s\n' "$text" | gpg --batch --yes --status-fd 1 --decrypt --output "$out" 2>/dev/null)
-    local signer
-    signer=$(sed -n 's/^\[GNUPG:\] GOODSIG [0-9A-F]* //p' <<<"$status")
-    if grep -q '^\[GNUPG:\] BADSIG' <<<"$status"; then
-        notify --urgency=critical "BAD signature" "The message was altered or the signature is forged"
-    elif [[ -n "$signer" ]]; then
-        notify "Good signature" "$signer"
-    elif ! grep -qE '^\[GNUPG:\] (DECRYPTION_OKAY|PLAINTEXT)' <<<"$status"; then
+    if ! sig_report "$status" && ! grep -qE '^\[GNUPG:\] (DECRYPTION_OKAY|PLAINTEXT)' <<<"$status"; then
         notify --urgency=critical "Nothing to decrypt or verify" "No OpenPGP message on the clipboard"
-        rm -f "$out"
         exit 1
     fi
-    [[ -s "$out" ]] || { rm -f "$out"; exit 0; }
-    ghostty --title="$VIEWER_TITLE" -e sh -c 'exec 3<"$1"; rm -f -- "$1"; less /dev/fd/3' _ "$out"
+    [[ -s "$out" ]] || exit 0
+    # the viewer unlinks it once open; until then it is the viewer's, unless ghostty never started
+    trap - EXIT
+    ghostty --title="$VIEWER_TITLE" -e sh -c 'exec 3<"$1"; rm -f -- "$1"; less /dev/fd/3' _ "$out" || rm -f -- "$out"
 }
 
 # "name <mail>  FINGERPRINT", one line per usable key; $1 is the capability letter, $2 lists secret keys only

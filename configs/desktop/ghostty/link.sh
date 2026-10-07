@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-ln -sfn "${PWD}" "$HOME/.config/ghostty"
+link_dir "${PWD}" "$HOME/.config/ghostty"
 # volatile like tlp's forced mode, so a reboot never leaves power-saver tweaks behind
 mkdir -p "$HOME/.cache"
 ln -sfn "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/toggles/ghostty-powersave.conf" "$HOME/.cache/ghostty-powersave.conf"

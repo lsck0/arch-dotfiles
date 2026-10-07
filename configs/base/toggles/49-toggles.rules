@@ -1,0 +1,34 @@
+// the bar and the toggle menu switch these without a password or fingerprint, only for an admin at the machine:
+// a remote (ssh) or inactive session still has to authenticate
+function atTheMachine(subject) {
+    return subject.local && subject.active && subject.isInGroup("wheel");
+}
+
+// start/stop only, of the units scripts/toggles drives
+var TOGGLE_UNITS = [
+    "docker.service",
+    "fw-inbound.service",
+    "fw-lockdown.service",
+    "ollama.service",
+    "portmaster.service",
+    "systemd-oomd.service",
+    "tor-router.service"
+];
+
+polkit.addRule(function (action, subject) {
+    var verb = action.lookup("verb");
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        TOGGLE_UNITS.indexOf(action.lookup("unit")) >= 0 && (verb === "start" || verb === "stop") &&
+        atTheMachine(subject)) {
+        return polkit.Result.YES;
+    }
+});
+
+// everything else goes through the one root helper, which checks its own arguments
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.policykit.exec" &&
+        action.lookup("program") === "/usr/local/bin/toggle-root" &&
+        atTheMachine(subject)) {
+        return polkit.Result.YES;
+    }
+});

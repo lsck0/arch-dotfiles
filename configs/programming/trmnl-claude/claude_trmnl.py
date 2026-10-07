@@ -1093,11 +1093,14 @@ def post_to_trmnl(merge_variables):
     url = f"https://usetrmnl.com/api/custom_plugins/{uuid}"
     payload = json.dumps({"merge_variables": merge_variables})
 
+    # the uuid is the plugin's write credential: the url goes in on stdin as curl config, not argv (ps, /proc)
+    quoted = url.replace("\\", "\\\\").replace('"', '\\"')
+    config = f'url = "{quoted}"\n'
     r = subprocess.run(
         ["curl", "-s", "-w", "\n%{http_code}", "-X", "POST",
          "-H", "Content-Type: application/json",
-         "-d", payload, url],
-        capture_output=True, timeout=30,
+         "-d", payload, "-K", "-"],
+        input=config.encode(), capture_output=True, timeout=30,
     )
     stdout = r.stdout.decode("utf-8", errors="replace").strip()
     lines = stdout.rsplit("\n", 1)

@@ -4,6 +4,20 @@
 # no ipv6. dhcp never sends the hostname.
 iface="${1:-}"
 action="${2:-}"
+
+# protonvpn's tunnel came or went outside its toggle (the app, a reconnect, a crash): portmaster follows it as the
+# toggle would, off while proton0 is up (it clobbers the wg fwmark), back once it is gone unless the firewall is off
+if [ "$iface" = proton0 ] || [ "${VPN_IP_IFACE:-}" = proton0 ]; then
+    case "$action" in
+    up | vpn-up) systemctl stop portmaster.service 2>/dev/null || true ;;
+    down | vpn-down)
+        if systemctl is-active -q fw-inbound.service fw-lockdown.service; then
+            systemctl start portmaster.service 2>/dev/null || true
+        fi
+        ;;
+    esac
+    exit 0
+fi
 case "$action" in up | down) ;; *) exit 0 ;; esac
 
 HOME_NETWORK=/run/home-network
@@ -47,6 +61,8 @@ else
             nmcli connection modify "$CONNECTION_UUID" ipv6.method disabled 2>/dev/null || true
     fi
 fi
+# tor-router's lan bypass follows the home links home-network.sh just decided; a no-op while tor-router is off
+[ -x /usr/local/bin/tor-router ] && /usr/local/bin/tor-router home 2>/dev/null || true
 # the app firewall rides with the firewall toggle, but never over a live protonvpn tunnel (it clobbers the wg fwmark)
 if systemctl is-active -q fw-inbound.service fw-lockdown.service && ! ip link show proton0 >/dev/null 2>&1; then
     systemctl start portmaster.service 2>/dev/null || true

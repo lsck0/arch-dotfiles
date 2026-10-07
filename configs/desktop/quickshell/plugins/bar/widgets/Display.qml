@@ -46,7 +46,7 @@ BarWidget {
     if (!monitorsProc.running) monitorsProc.running = true
   }
 
-  readonly property string gradingCli: Paths.dotfiles + "/configs/color-grading/color-grading.py"
+  readonly property string gradingCli: Paths.dotfiles + "/configs/desktop/color-grading/color-grading.py"
   readonly property string shaderScript: Paths.toggle("toggle-shader.sh")
   property var grading: ({ preset: "", nightlight: false, presets: [] })
   property var shaders: ({ current: "off", shaders: [] })

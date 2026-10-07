@@ -66,7 +66,9 @@ if [[ -z "${BASH_SOURCE[0]:-}" || ! -f "$(dirname "$(readlink -f "${BASH_SOURCE[
     else
         clone_verify "$CLONE_DIR"
     fi
-    exec bash "$CLONE_DIR/bootstrap.sh" "$@" </dev/tty
+    # the prompts read the console; piped over ssh without -t there is none, and BOOTSTRAP_ASSUME_YES needs none
+    if { : </dev/tty; } 2>/dev/null; then exec bash "$CLONE_DIR/bootstrap.sh" "$@" </dev/tty; fi
+    exec bash "$CLONE_DIR/bootstrap.sh" "$@" </dev/null
 fi
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
@@ -196,6 +198,8 @@ disk_label() { lsblk -dno SIZE,MODEL "$1" | tr -s ' ' | sed 's/^ //; s/ $//'; }
 
 username_valid() { [[ "$1" =~ $USERNAME_PATTERN ]]; }
 hostname_valid() { [[ "$1" =~ $HOSTNAME_PATTERN ]]; }
+# a new machine's name is none of the platforms/ files, those are other machines
+hostname_new_valid() { hostname_valid "$1" && [[ ! -e "$REPO/platforms/$1.sh" ]]; }
 timezone_valid() { [[ "$1" =~ $TIMEZONE_PATTERN && -f "/usr/share/zoneinfo/$1" ]]; }
 # the iso's locale.gen lists every locale the installed glibc can generate
 locale_valid() { awk -v locale="$1" '{ sub(/^#/, "") } $1 == locale { found = 1 } END { exit !found }' /etc/locale.gen; }
@@ -295,7 +299,11 @@ user_setup() {
     fi
     # a new machine's answers become its platform file, root-owned; FORM_FACTOR stays a probe
     if [[ "$PLATFORM" == "$PLATFORM_NEW" ]]; then
-        printf 'HOSTNAME=%s\nPKG_GROUPS=(%s)\n' "$HOSTNAME" "${PKG_GROUPS[*]}" | install -Dm644 /dev/stdin "$TARGET_ROOT$PLATFORM_LOCAL"
+        printf 'HOSTNAME=%q\nPKG_GROUPS=(%s)\n' "$HOSTNAME" "$(printf '%q ' "${PKG_GROUPS[@]}")" \
+            | install -Dm644 /dev/stdin "$TARGET_ROOT$PLATFORM_LOCAL"
+    else
+        # platform_file prefers it, so a rerun's earlier answers must not outlive the platforms/ file chosen now
+        rm -f "$TARGET_ROOT$PLATFORM_LOCAL"
     fi
     # the user's facts: the template of the same name, nothing for a guest
     if [[ -f "$PROFILE_FILE" && ! -e "$profile" ]]; then install -Dm644 "$PROFILE_FILE" "$profile"; fi
@@ -304,6 +312,17 @@ user_setup() {
     patches_mark "$TARGET_ROOT$SYSTEM_STATE/patches-applied" system
     patches_mark "$home/.local/state/dotfiles/patches-applied" user
     in_target chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
+}
+
+# keyfile_escape <value>: a GKeyFile string, as NetworkManager's keyfiles read it: backslash, control characters and a
+# leading space escaped
+keyfile_escape() {
+    local value="${1//\\/\\\\}"
+    value="${value//$'\n'/\\n}"
+    value="${value//$'\t'/\\t}"
+    value="${value//$'\r'/\\r}"
+    [[ "$value" != " "* ]] || value="\\s${value:1}"
+    printf '%s' "$value"
 }
 
 # home_gateway_mac: the mac of the router this live system routes through, lowercase; fails without one
@@ -420,8 +439,8 @@ else
         KEYMAP="${BOOTSTRAP_KEYMAP:-$(ask_keymap)}"
         keymap_load "$KEYMAP" || die "unknown keymap '$KEYMAP'"
     fi
-    HOSTNAME="${BOOTSTRAP_HOSTNAME:-$(ask hostname_valid hostname "The machine's name on the network: letters, digits and dashes." "$USERNAME-pc")}"
-    hostname_valid "$HOSTNAME" || die "invalid hostname '$HOSTNAME', expected $HOSTNAME_PATTERN"
+    HOSTNAME="${BOOTSTRAP_HOSTNAME:-$(ask hostname_new_valid hostname "The machine's name on the network: letters, digits and dashes, none of ${platforms[*]}." "$USERNAME-pc")}"
+    hostname_new_valid "$HOSTNAME" || die "invalid hostname '$HOSTNAME', expected $HOSTNAME_PATTERN and none of: ${platforms[*]}"
     if (( ! IN_WSL )); then
         TIMEZONE="${BOOTSTRAP_TIMEZONE:-$(ask timezone_valid timezone "Region/City, e.g. Europe/London, America/New_York, Asia/Tokyo. Once installed it also follows your location on its own." "$TIMEZONE")}"
         timezone_valid "$TIMEZONE" || die "unknown timezone '$TIMEZONE'"
@@ -451,7 +470,7 @@ else
         mapfile -t PKG_GROUPS < <(printf '%s' "$groups_chosen")
         PKG_GROUPS=("$REQUIRED_GROUP" "${PKG_GROUPS[@]}")
     else
-        echo "package groups:" >&2
+        echo "package groups ($REQUIRED_GROUP always):" >&2
         for i in "${!GROUP_UNIVERSE[@]}"; do printf '  %d  %s\n' "$((i + 1))" "${GROUP_UNIVERSE[i]}" >&2; done
         read -rp "numbers to EXCLUDE (space-separated), enter for all: " -a excludes </dev/tty
         PKG_GROUPS=()
@@ -461,6 +480,11 @@ else
             (( skip )) || PKG_GROUPS+=("${GROUP_UNIVERSE[i]}")
         done
     fi
+    # before anything is erased: only discovered groups (they end up in a file root sources), base always
+    [[ " ${PKG_GROUPS[*]} " == *" $REQUIRED_GROUP "* ]] || PKG_GROUPS=("$REQUIRED_GROUP" "${PKG_GROUPS[@]}")
+    for grp in "${PKG_GROUPS[@]}"; do
+        [[ " ${GROUP_UNIVERSE[*]} " == *" $grp "* ]] || die "unknown package group '$grp', one of: ${GROUP_UNIVERSE[*]}"
+    done
 fi
 
 # --- wsl ----------------------------------------------------------------------
@@ -676,8 +700,9 @@ install -Dm644 "$REPO/configs/hardware/zram/zram-generator.conf" "$MOUNT/etc/sys
 # the wifi the ISO connected with (iwctl), so the chained boots come up online
 for psk in /var/lib/iwd/*.psk; do
     [[ -f "$psk" ]] || continue
-    ssid=$(basename "$psk" .psk)
-    # iwd hex-encodes ssids that are not plain ascii as =<hex>
+    # iwd's own name is path-safe: letters, digits, '-', '_' and spaces, else =<hex>
+    name=$(basename "$psk" .psk)
+    ssid=$name
     if [[ "$ssid" == =* ]]; then
         ssid=$(printf '%b' "$(sed 's/../\\x&/g' <<<"${ssid#=}")")
     fi
@@ -686,17 +711,18 @@ for psk in /var/lib/iwd/*.psk; do
     # the home rule needs the hardware mac there, every other wifi gets NetworkManager.conf's random one
     cloned_mac=""
     [[ -z "$HOME_GATEWAY" || "$ssid" != "$HOME_SSID" ]] || cloned_mac=$'\ncloned-mac-address=permanent'
-    install -Dm600 /dev/stdin "$MOUNT/etc/NetworkManager/system-connections/$ssid.nmconnection" <<NM
+    # the ssid as its bytes (a ;-separated list), which needs no escaping at all
+    install -Dm600 /dev/stdin "$MOUNT/etc/NetworkManager/system-connections/$name.nmconnection" <<NM
 [connection]
-id=$ssid
+id=$(keyfile_escape "$ssid")
 type=wifi
 
 [wifi]
-ssid=$ssid$cloned_mac
+ssid=$(printf '%s' "$ssid" | od -An -tu1 -v | xargs printf '%s;')$cloned_mac
 
 [wifi-security]
 key-mgmt=wpa-psk
-psk=$passphrase
+psk=$(keyfile_escape "$passphrase")
 
 [ipv4]
 method=auto

@@ -3,11 +3,7 @@
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 link_commands veracrypt-vault.sh
 
-# the password prompt needs a tty
+# the password prompt needs a terminal, and link.sh never has one (stdin /dev/null): only the hint
 if [[ ! -e "${HOME}/sync/vault.hc" ]]; then
-    if [[ -t 0 && -t 1 ]]; then
-        ./veracrypt-vault.sh create
-    else
-        echo "veracrypt-vault: no TTY; create the 1G container later with: veracrypt-vault create" >&2
-    fi
+    echo "veracrypt-vault: no container yet; create the 1G one in a terminal with: veracrypt-vault create" >&2
 fi

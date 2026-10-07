@@ -24,7 +24,21 @@ local function is_pointer_type(hover)
         end
     end
 
-    return text:match("%*") ~= nil
+    -- only the hovered symbol's own type counts: clangd puts it on a "Type:" line before any docs, and a
+    -- `*` inside template args (std::vector<int *>) or a doc comment says nothing about it
+    local line = ("\n" .. text):match("\nType: ([^\n]*)")
+    if not line then
+        return false
+    end
+    -- a typedef'd pointer shows its canonical type as aka
+    local ty = line:match("%(aka `([^`]+)`%)") or line:match("^`([^`]+)`") or line
+    ty = ty:gsub("%b<>", "")
+    local prev
+    repeat
+        prev = ty
+        ty = ty:gsub("%s*&+$", ""):gsub("%s*const$", ""):gsub("%s*volatile$", ""):gsub("%s*restrict$", "")
+    until ty == prev
+    return ty:match("%*$") ~= nil
 end
 
 function M.dot()

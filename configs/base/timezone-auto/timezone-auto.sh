@@ -75,7 +75,12 @@ apply() {
         return 0
     fi
 
-    if timedatectl set-timezone "$want"; then
+    # the machine's clock is an admin's to set (49-timezone-auto.rules); a background unit never asks anyone else
+    if [[ " $(id -nG) " != *" wheel "* ]]; then
+        return 0
+    fi
+
+    if timedatectl --no-ask-password set-timezone "$want"; then
         command -v notify-send >/dev/null &&
             notify-send -a Timezone "Timezone updated" "$cur -> $want" || true
         command -v systemctl >/dev/null &&

@@ -41,8 +41,12 @@ stuff" in one project.
 ## Dashboard: exactly what's queued, what stage, what needs you
 
 ```bash
-task-dashboard [project-dir]     # scripts/task-dashboard.py; defaults to $PWD
+python3 <this-skill-dir>/scripts/task-dashboard.py [project-dir]   # defaults to $PWD
 ```
+Run this skill's own `scripts/task-dashboard.py`, not the `task-dashboard`
+command on PATH (that one is the human's curses TUI over `~/.taskrc` and
+ignores the project-dir). Taskrc resolution: `<project-dir>/tasks/.taskrc`
+if given, else `$TASKRC`, else `./tasks/.taskrc`. Prints and exits.
 Read-only, human-facing view (never modifies the db): `+prompt` tasks
 still awaiting decomposition, tickets blocked on `+human-clarification-needed`
 (with their question file path), tickets sitting at `+human-review-ready`

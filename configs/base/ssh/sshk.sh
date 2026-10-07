@@ -9,4 +9,10 @@ for _ in 1 2 3 4 5; do
     knock "$host" 9003 7001 8002
     HOST="$host" timeout 2 bash -c '>/dev/tcp/"$HOST"/2222' 2>/dev/null && break
 done
-exec ssh -p 2222 -i $DOTFILES/secrets/ssh_privatekey.asc -o IdentitiesOnly=yes "$target" "$@"
+# the secrets key once unlocked (a locked one is a git-crypt blob), then the yubikey stub; neither leaves ssh's defaults
+ids=()
+key="$DOTFILES/secrets/ssh_privatekey.asc"
+[[ -r "$key" && "$(head -c 9 "$key" | tr -d '\0')" != GITCRYPT ]] && ids+=(-i "$key")
+[[ -f "$HOME/.ssh/id_ed25519_sk" ]] && ids+=(-i "$HOME/.ssh/id_ed25519_sk")
+((${#ids[@]})) && ids+=(-o IdentitiesOnly=yes)
+exec ssh -p 2222 "${ids[@]}" "$target" "$@"

@@ -8,6 +8,8 @@ source ./lib.sh
 # `live` and `layout` are runtime only, a reload restores the file and `reapply` puts them back. jq, not python: the display panel's chips run `live`.
 
 MONITORS_LUA="$DOTFILES/configs/desktop/hyprland/hyprland_monitors.lua"
+# `toggle` (the menu's enter) cycles the label's monitor through these, as the font toggle cycles its shortlist
+SCALES="1 1.25 1.5 2"
 
 # every output as json, disabled ones included
 monitors_json() { hyprctl -j monitors all; }
@@ -117,7 +119,7 @@ monitor_layout_set() {
 }
 
 usage() {
-    echo "usage: $(basename "$0") {get [monitor]|label|list|set <scale> [monitor]|live <scale> [monitor]|layout <monitor> extend|off|mirror <source>|reapply}" >&2
+    echo "usage: $(basename "$0") {get [monitor]|label|list|toggle|set <scale> [monitor]|live <scale> [monitor]|layout <monitor> extend|off|mirror <source>|reapply}" >&2
 }
 
 case "${1:-label}" in
@@ -135,6 +137,12 @@ set | live)
 layout)
     [[ $# -ge 3 ]] || { usage; exit 1; }
     monitor_layout_set "$2" "$3" "${4:-}"
+    ;;
+toggle)
+    m=$(default_monitor)
+    next=$(awk -v cur="$(monitor_scale_get "$m")" -v list="$SCALES" \
+        'BEGIN { n = split(list, s, " "); for (i = 1; i <= n; i++) if (s[i] > cur + 0.01) { print s[i]; exit } print s[1] }')
+    monitor_scale_set "$m" "$next"
     ;;
 reapply) monitor_reapply ;;
 *) usage; exit 1 ;;

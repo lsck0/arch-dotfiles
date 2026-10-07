@@ -7,6 +7,17 @@ set -euo pipefail
 TRANS_PORT="9040"
 DNS_PORT="6669"
 TABLE="tor_router"
+HOME_NETWORK=/run/home-network
+
+# home_ifaces <- /run/home-network: the lan and homelab bypass tor only out a home link, so a foreign network on the
+# same subnet goes through tor; the persona dispatcher calls it on every link change. flushed first, a failed fill
+# only keeps the lan on tor
+home_ifaces() {
+	local ifaces
+	ifaces=$(paste -sd, "$HOME_NETWORK" 2>/dev/null) || ifaces=""
+	nft flush set inet "$TABLE" home_ifaces
+	[ -z "$ifaces" ] || nft add element inet "$TABLE" home_ifaces "{ $ifaces }"
+}
 
 case "${1:-}" in
 start)
@@ -20,8 +31,12 @@ start)
 add table inet $TABLE
 delete table inet $TABLE
 table inet $TABLE {
-	# lan and homelab stay direct; 127.192.0.0/10 is torrc's VirtualAddrNetworkIPv4 and must reach the TransPort
-	set direct4 { type ipv4_addr; flags interval; elements = { 192.168.178.0/24, 10.100.0.0/16, 10.200.0.0/16, 127.0.0.0/9, 127.128.0.0/10 } }
+	# lan and homelab stay direct, but only out a home link, the homelab also through wg0; anywhere else they go via tor
+	set home_ifaces { type ifname; }
+	set lan4 { type ipv4_addr; flags interval; elements = { 192.168.178.0/24, 10.100.0.0/16, 10.200.0.0/16 } }
+	set homelab4 { type ipv4_addr; flags interval; elements = { 10.100.0.0/16, 10.200.0.0/16 } }
+	# 127.192.0.0/10 is torrc's VirtualAddrNetworkIPv4 and must reach the TransPort
+	set direct4 { type ipv4_addr; flags interval; elements = { 127.0.0.0/9, 127.128.0.0/10 } }
 	# link-local and loopback only
 	set direct6 { type ipv6_addr; flags interval; elements = { fe80::/10, ::1/128 } }
 
@@ -33,6 +48,8 @@ table inet $TABLE {
 		tcp dport 53 redirect to :$TRANS_PORT
 		# no lo: the automapped 127.192.0.0/10 must still reach the TransPort
 		oifname { "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } return
+		oifname @home_ifaces ip daddr @lan4 return
+		oifname "wg0" ip daddr @homelab4 return
 		ip daddr @direct4 return
 		ip6 daddr @direct6 return
 		meta l4proto { tcp, udp } redirect to :$TRANS_PORT
@@ -42,7 +59,9 @@ table inet $TABLE {
 		type filter hook output priority filter; policy accept;
 		ct direction reply accept
 		oifname { "lo", "virbr*", "docker*", "br-*", "veth*", "waydroid*", "lxc*" } accept
-		ip daddr { 192.168.178.0/24, 10.100.0.0/16, 10.200.0.0/16, 127.0.0.0/8 } accept
+		oifname @home_ifaces ip daddr @lan4 accept
+		oifname "wg0" ip daddr @homelab4 accept
+		ip daddr 127.0.0.0/8 accept
 		ip6 daddr @direct6 accept
 		meta skuid $TOR_UID accept
 		icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } accept
@@ -61,6 +80,12 @@ table inet $TABLE {
 	}
 }
 NFT
+	home_ifaces || echo "tor-router: home links not filled in, the lan goes through tor" >&2
+	;;
+
+home)
+	nft list table inet "$TABLE" >/dev/null 2>&1 || exit 0
+	home_ifaces
 	;;
 
 stop)
@@ -72,6 +97,6 @@ restart)
 	"$0" start
 	;;
 *)
-	echo "Usage: $0 {start|stop|restart}"
+	echo "Usage: $0 {start|stop|restart|home}"
 	;;
 esac

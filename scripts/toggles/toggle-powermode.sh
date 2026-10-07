@@ -57,7 +57,7 @@ sync_saver() {
 
 apply() {
     local state=$1
-    sudo tlp "$state"
+    toggle_root tlp "$state"
     toggle_set_volatile powermode "$state"
     sync_saver
     toggle_notify -a Toggles "Power Mode" "${LABELS[$(toggle_index_of "$state" -1 "${STATES[@]}")]}"
@@ -65,7 +65,7 @@ apply() {
 
 # un-force: return tlp to its own ac/bat auto-detect, not a static profile
 reset_auto() {
-    sudo tlp start >/dev/null
+    toggle_root tlp start
     rm -f "$TOGGLES_RUNTIME_DIR/powermode" 2>/dev/null || true
     sync_saver
     toggle_notify -a Toggles "Power Mode" "Auto (default)"

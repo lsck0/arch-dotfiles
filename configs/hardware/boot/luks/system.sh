@@ -56,38 +56,43 @@ done
 # encrypt hook must precede filesystems
 CONF="/etc/mkinitcpio.conf"
 if [[ -f "$CONF" ]]; then
-    if grep -qE 'HOOKS=\(.*\bencrypt\b' "$CONF"; then
-        echo "luks: encrypt hook already in mkinitcpio.conf" >&2
-    elif grep -qE 'HOOKS=\(.*\bsd-encrypt\b' "$CONF"; then
-        echo "luks: sd-encrypt hook already in mkinitcpio.conf" >&2
-    elif grep -qE 'HOOKS=\(.*\bsystemd\b' "$CONF"; then
-        echo "luks: systemd hook present, encrypt handled by systemd-cryptsetup in initrd" >&2
-    else
-        echo "luks: adding encrypt hook before filesystems in mkinitcpio.conf" >&2
-        if [[ ! -e "${CONF}.arch-dotfiles-backup" ]]; then
-            install -Dm644 "$CONF" "${CONF}.arch-dotfiles-backup"
-        fi
-        python - <<'PY'
+    python - <<'PY'
+import re
 import sys
 from pathlib import Path
 p = Path("/etc/mkinitcpio.conf")
 s = p.read_text()
-if "HOOKS=(" not in s:
+# the live line only: the stock file's commented HOOKS=( examples name encrypt too
+m = re.search(r'^HOOKS=\((.*)\)', s, re.MULTILINE)
+if not m:
     sys.exit("luks: no HOOKS=( line in mkinitcpio.conf, refusing to guess")
-i = s.index("HOOKS=(")
-j = s.index(")", i) + 1
-block = s[i:j]
-if "encrypt" in block or "systemd" in block:
+hooks = m.group(1).split()
+# rd.luks.options=fido2-device=auto is read by systemd-cryptsetup alone: sd-encrypt in a systemd initramfs, the busybox
+# encrypt only where there is none
+hook = "sd-encrypt" if "systemd" in hooks else "encrypt"
+present = [h for h in ("sd-encrypt", "encrypt") if h in hooks]
+if present:
+    print(f"luks: {present[0]} hook already in mkinitcpio.conf", file=sys.stderr)
+    if "sd-encrypt" not in present:
+        print("luks: busybox encrypt ignores rd.luks.options, the yubikey unlock needs the systemd and sd-encrypt hooks",
+              file=sys.stderr)
     sys.exit(0)
-if "filesystems" not in block:
-    sys.exit("luks: HOOKS has no `filesystems` hook, refusing to place `encrypt`")
-if "block" not in block:
-    sys.exit("luks: HOOKS has no `block` hook, `encrypt` would have no device")
-if "keyboard" not in block:
+if "filesystems" not in hooks:
+    sys.exit(f"luks: HOOKS has no `filesystems` hook, refusing to place `{hook}`")
+if "block" not in hooks:
+    sys.exit(f"luks: HOOKS has no `block` hook, `{hook}` would have no device")
+if "keyboard" not in hooks:
     sys.exit("luks: HOOKS has no `keyboard` hook, passphrase entry would be impossible")
-p.write_text(s[:i] + block.replace("filesystems", "encrypt filesystems", 1) + s[j:])
+print(f"luks: adding {hook} hook before filesystems in mkinitcpio.conf", file=sys.stderr)
+if hook == "encrypt":
+    print("luks: busybox encrypt ignores rd.luks.options, the yubikey unlock needs the systemd and sd-encrypt hooks",
+          file=sys.stderr)
+backup = Path("/etc/mkinitcpio.conf.arch-dotfiles-backup")
+if not backup.exists():
+    backup.write_text(s)
+hooks.insert(hooks.index("filesystems"), hook)
+p.write_text(s[:m.start(1)] + " ".join(hooks) + s[m.end(1):])
 PY
-    fi
 fi
 
 # sd-encrypt ships the fido2 token plugin; with no token enrolled systemd-cryptsetup falls through to the passphrase or stage.sh's keyfile

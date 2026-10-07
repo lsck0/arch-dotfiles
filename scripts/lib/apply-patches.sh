@@ -5,11 +5,21 @@
 # usage: apply-patches [--list] [--force <name>...] [--dry-run] [--mark-applied]
 
 set -uo pipefail
-: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+if ((EUID == 0)); then
+    # root runs only its own tree's patches, never a checkout named by an inherited DOTFILES (sudo -E); HOME is root's
+    DOTFILES="$(cd "$(dirname "$(readlink -f "$0")")/../.." && pwd)"
+else
+    : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+fi
 # patches read it
 export DOTFILES
 cd "$DOTFILES" || exit 1
 source ./scripts/lib/system.sh
+# system-apply.sh's guard: root never executes a file a user can write
+if ((EUID == 0)) && [[ "$PWD" != "$SYSTEM_REPO" || "$(stat -c '%u %a' .)" != "0 755" ]]; then
+    echo "apply-patches: as root runs only from the root-owned $SYSTEM_REPO, not $PWD" >&2
+    exit 1
+fi
 
 PATCH_DIR="$PWD/patches"
 if ((EUID == 0)); then

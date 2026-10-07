@@ -41,15 +41,19 @@ with_touch() {
 
 # every enrolled key's age recipient plus recipients.txt, so any of them opens the sealed git-crypt key
 seal_secrets_key() {
-    local key recipients=()
-    key=$(mktemp)
-    trap 'shred -u "$key" 2>/dev/null || true; trap - RETURN' RETURN
-    git -C "$SECRETS" crypt export-key "$key"
+    local key identity recipients=()
     for identity in "$KEY_DIR"/age-*.identity; do
-        recipients+=(-r "$(recipient "$identity")")
+        [[ -f "$identity" ]] && recipients+=(-r "$(recipient "$identity")")
     done
     grep -qsv '^[[:space:]]*\(#\|$\)' "$KEY_DIR/recipients.txt" && recipients+=(-R "$KEY_DIR/recipients.txt")
+    ((${#recipients[@]})) || die "no age identity or recipients.txt entry in $KEY_DIR to seal for"
+    key=$(mktemp)
+    # EXIT, not RETURN: a set -e exit skips RETURN and would leave the plaintext key behind
+    trap 'shred -u "$key" 2>/dev/null || true' EXIT
+    git -C "$SECRETS" crypt export-key "$key"
     age -e "${recipients[@]}" -o "$SEALED_KEY" "$key"
+    shred -u "$key"
+    trap - EXIT
 }
 
 # the profile's key is the one that goes onto the card
@@ -140,15 +144,8 @@ init_age() {
 
 # each step is one touch; no key, no enrollment or no touch just skips
 cmd_unlock() {
-    # ykman and the age plugin talk to the card through pcscd; configs/base/yubikey enables it later
-    sudo install -Dm644 "$KEY_DIR/pcsc.rules" /etc/polkit-1/rules.d/50-pcsc-wheel.rules 2>/dev/null || true
-    sudo install -Dm644 "$KEY_DIR/70-yubikey-hidraw.rules" /etc/udev/rules.d/70-yubikey-hidraw.rules 2>/dev/null \
-        && sudo udevadm control --reload && sudo udevadm trigger --action=change --subsystem-match=hidraw \
-        && sudo udevadm settle || true
-    sudo systemctl start pcscd.socket 2>/dev/null || true
-    # polkitd loads the new rule asynchronously
-    local tries=0
-    until present || ((++tries >= 5)); do sleep 1; done
+    # ykman and the age plugin talk to the card through pcscd; its socket, polkit and udev rules are configs/base/yubikey's
+    # system.sh, the user layer gains no root for them
     if ! present && lsusb -d 1050: >/dev/null 2>&1; then
         echo "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
     fi

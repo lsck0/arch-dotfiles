@@ -9,9 +9,11 @@ archive=$(readlink -f -- "$1")
 [[ -f "$archive" ]] || { printf 'not a regular file: %s\n' "$1" >&2; exit 1; }
 
 base=$(basename -- "$archive")
-base=${base%.tar.gz}; base=${base%.tar.bz2}; base=${base%.tar.xz}; base=${base%.tar.zst}
-base=${base%.[Tt][Gg][Zz]}; base=${base%.[Bb][Zz]2}; base=${base%.[Xx][Zz]}; base=${base%.[Zz][Ss][Tt]}
-base=${base%.*}
+# one suffix, a compressed tar's two counting as one: linux-6.1.tar.xz is linux-6.1, not linux-6
+case "$base" in
+  *.tar.gz | *.tar.bz2 | *.tar.xz | *.tar.zst) base=${base%.tar.*} ;;
+  *) base=${base%.*} ;;
+esac
 dest_root=$(readlink -f -- "${2:-$PWD}")
 dest="$dest_root/$base"
 [[ ! -e "$dest" ]] || { printf 'destination already exists: %s\n' "$dest" >&2; exit 1; }
@@ -74,8 +76,17 @@ for path in re.findall(r'^Path = (.*)$', s, re.M):
     path=path.replace('\\','/')
     if path.startswith('/') or '..' in path.split('/'):
         raise SystemExit('unsafe archive path: '+path)
+# as the tar and zip paths: no links at all. tar/wim name them, 7z/zip/rar carry a unix mode starting with l
+if re.search(r'^(Symbolic Link|Hard Link|Link) = .+$', s, re.M) or \
+        any(re.search(r'(^|[\s_-])l[r-][w-][xsS-]', a) for a in re.findall(r'^Attributes = (.*)$', s, re.M)):
+    raise SystemExit('links are not allowed in archives')
 PY
     7z x -y -o"$stage" -- "$archive" >/dev/null
+    # whatever the listing missed: a link in the stage fails the whole extract, the trap removes it
+    if [[ -n $(find "$stage" \( -type l -o -type f -links +1 \) -print -quit) ]]; then
+        printf 'links are not allowed in archives: %s\n' "$archive" >&2
+        exit 1
+    fi
 }
 
 case "$kind" in

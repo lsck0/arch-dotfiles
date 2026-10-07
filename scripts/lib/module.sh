@@ -45,6 +45,17 @@ link_into() {
     for file; do ln -sfn "$PWD/$file" "$dir/${file##*/}"; done
 }
 
+# link_dir <target> <link>: <link> becomes a link to <target>. ln -sfn onto a real directory (one an app made on its
+# first start) would nest the link inside it, so that directory is moved aside first, never deleted
+link_dir() {
+    if [[ -d "$2" && ! -L "$2" ]]; then
+        mv "$2" "$2.pre-dotfiles-$(date +%Y%m%d%H%M%S)"
+        echo "link_dir: moved the existing $2 aside" >&2
+    fi
+    mkdir -p "$(dirname "$2")"
+    ln -sfn "$1" "$2"
+}
+
 # link_commands <file...>: each file as a command in ~/.local/bin, named without its extension
 link_commands() {
     local file base

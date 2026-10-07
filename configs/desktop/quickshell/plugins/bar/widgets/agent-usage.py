@@ -7,11 +7,14 @@ so the bar can say it failed instead of hiding.
 
 import getpass
 import json
+import os
 import pathlib
 import subprocess
 import sys
 
-SCRIPT = pathlib.Path(__file__).resolve().parents[4] / "trmnl-claude" / "claude_trmnl.py"
+# $DOTFILES first, else the checkout this file resolves into (configs/desktop/quickshell/plugins/bar/widgets)
+REPO = pathlib.Path(os.environ.get("DOTFILES") or pathlib.Path(__file__).resolve().parents[6])
+SCRIPT = REPO / "configs" / "programming" / "trmnl-claude" / "claude_trmnl.py"
 TIMEOUT = 60
 
 

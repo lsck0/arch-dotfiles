@@ -122,7 +122,8 @@ alias toron="sudo systemctl start tor-router.service"
 # in anonsocks.slice, whose egress guard from `anonymous-socks.sh up` rejects what proxychains misses (static binaries, raw sockets, udp)
 anonymous-socks-proxychains() {
   local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}
-  [[ -e $rt/anonymous-socks.verified ]] || { echo "anonymous-socks-proxychains: run anonymous-socks.sh up first" >&2; return 1; }
+  # status, not the marker alone: it also checks every pool port is still our tor's, not a listener another user put there
+  [[ "$("$DOTFILES/scripts/lib/anonymous-socks.sh" status 2>/dev/null)" == on ]] || { echo "anonymous-socks-proxychains: run anonymous-socks.sh up first" >&2; return 1; }
   systemd-run --user --scope --quiet --slice=anonsocks.slice -- proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-$rt/anonymous-socks-proxychains.conf}" "$@"
 }
 

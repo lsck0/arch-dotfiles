@@ -9,27 +9,35 @@ DDC_BUS_MAP="$HOME/.cache/ddcutil-bus-map.tsv"
 
 has_backlight() { compgen -G '/sys/class/backlight/*' >/dev/null; }
 
+# one run at a time: a resume during the slow ddc dim waits for it, so restore never reads a half-written state or
+# races jobs that would dim again after it
+exec 9>"$state.lock"
+flock 9
+
 case "${1:-}" in
 dim)
     # already dimmed: do not overwrite the saved baseline with the dimmed level
     [[ -f "$state" ]] && exit 0
     if has_backlight; then
-        brightnessctl -s set 10
+        # a percentage: a raw 10 is near black on a panel with a high max
+        brightnessctl -s set 10%
         : >"$state"
         exit 0
     fi
-    : >"$state"
+    # built aside and renamed in, so the state only exists once every baseline is in it
+    : >"$state.new"
     # the bus map from monitor-brightness.sh skips a slow detect; ddc is slow, so one job per monitor
     buses=$(cut -f2 "$DDC_BUS_MAP" 2>/dev/null)
     [[ -n "$buses" ]] || buses=$(ddcutil detect --terse 2>/dev/null | sed -n 's|.*/dev/i2c-\([0-9]*\).*|\1|p')
     for bus in $buses; do
         {
             cur=$(ddcutil --bus "$bus" getvcp 10 --terse 2>/dev/null | awk '{print $4}')
-            [[ "$cur" =~ ^[0-9]+$ ]] && echo "$bus $cur" >>"$state" \
+            [[ "$cur" =~ ^[0-9]+$ ]] && echo "$bus $cur" >>"$state.new" \
                 && ddcutil --bus "$bus" setvcp 10 "$DDC_LOW" --noverify 2>/dev/null
         } &
     done
     wait
+    mv -f "$state.new" "$state"
     ;;
 restore)
     [[ -f "$state" ]] || exit 0

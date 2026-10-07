@@ -196,9 +196,18 @@ Item {
     root.opened = false
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
-    } else if (row.fullText) {
-      Quickshell.execDetached(["bash", "-c", "printf '%s' " + Util.shellQuote(row.fullText) + " | wl-copy"])
+    } else if (row.fullText && !copyTextProc.running) {
+      // over stdin: an argv caps at 128 KiB per arg and is readable in /proc; closing stdin lets wl-copy fork off
+      copyTextProc.stdinEnabled = true
+      copyTextProc.running = true
+      copyTextProc.write(row.fullText)
+      copyTextProc.stdinEnabled = false
     }
+  }
+
+  Process {
+    id: copyTextProc
+    command: ["wl-copy"]
   }
 
   function openRow(row) {

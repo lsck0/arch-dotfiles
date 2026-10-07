@@ -47,11 +47,20 @@ BOOTSTRAP_POLL_S=2
 
 err() { echo "anonymous-socks: $*" >&2; }
 
-# Up only when every pool port is listening, so a half-started daemon reads down.
+# Up only when every pool port is listening, so a half-started daemon reads down; and only by our tor unit's own pid:
+# a listener another local user planted on a pool port would otherwise be handed every proxied connection
 is_up() {
-    local p l
-    l=$(ss -tlnH 2>/dev/null) || return 1
-    for p in $(pool_ports); do [[ $l == *":$p "* ]] || return 1; done
+    local pid addr proc p
+    local -A ours=()
+    pid=$(systemctl --user show -p MainPID --value "$TOR_UNIT" 2>/dev/null) || return 1
+    [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
+    # -p names only our own processes; any other listener on a port marks it foreign for good
+    while read -r _ _ _ addr _ proc; do
+        p=${addr##*:}
+        [[ ${ours[$p]:-} == 0 ]] && continue
+        if [[ $proc == *"pid=$pid,"* ]]; then ours[$p]=1; else ours[$p]=0; fi
+    done < <(ss -tlnpH 2>/dev/null)
+    for p in $(pool_ports); do [[ ${ours[$p]:-} == 1 ]] || return 1; done
 }
 
 # refuse to start if tor is missing, naming the install command, rather than half-starting
@@ -62,6 +71,14 @@ require_tor() {
     }
 }
 
+# the netfilter half runs as root through configs/base/toggles/toggle-root, which polkit lets the bar call unprompted
+TOGGLE_ROOT=/usr/local/bin/toggle-root
+# never a password prompt, the toggle runs it from the bar: a non-admin is refused before pkexec reaches the polkit agent
+root_netfilter() {
+    [[ " $(id -nG) " == *" wheel "* ]] || { err "the netfilter guard needs an admin"; return 1; }
+    pkexec "$TOGGLE_ROOT" anonsocks "$@"
+}
+
 # cap how fast tools may open new SOCKS sessions; own nft table, never touches the firewall's inet fw table
 rate_on() {
     [ "$RATE" -gt 0 ] 2>/dev/null || return 0
@@ -69,31 +86,15 @@ rate_on() {
         err "nft missing, running without rate cap"
         return 0
     }
-    sudo nft -f - <<NFT
-table inet anonymous_socks {
-    chain out {
-        type filter hook output priority 0; policy accept;
-        oif "lo" tcp dport $PORT-$((PORT + POOL_SIZE - 1)) ct state new limit rate over ${RATE}/second drop
-    }
+    root_netfilter rate-on "$PORT" "$POOL_SIZE" "$RATE"
 }
-NFT
-}
-rate_off() { sudo nft delete table inet anonymous_socks 2>/dev/null || true; }
+rate_off() { root_netfilter nft-off 2>/dev/null || true; }
 
-# proxychains' LD_PRELOAD misses static binaries, raw sockets and udp, so anything in the slice may only talk to lo
+# proxychains' LD_PRELOAD misses static binaries, raw sockets and udp, so anything in the slice may only talk to lo;
+# toggle-root builds the slice path from the caller's own uid
 egress_on() {
-    local slice="user.slice/user-$UID.slice/user@$UID.service/anonsocks.slice"
     systemctl --user start anonsocks.slice || return 1
-    sudo nft -f - <<NFT
-table inet anonymous_socks {
-    chain egress {
-        type filter hook output priority 0; policy accept;
-        socket cgroupv2 level 4 "$slice" oif != "lo" reject
-        # redirected to lo, e.g. portmaster's dns, the lookup still leaves in the clear
-        socket cgroupv2 level 4 "$slice" ct status dnat reject
-    }
-}
-NFT
+    root_netfilter egress-on
 }
 
 persona_ttl() {
@@ -104,49 +105,24 @@ persona_ttl() {
     esac
 }
 
-PERSONA_CHAIN=ANONSOCKS_PERSONA
-
-# the jump from POSTROUTING into the persona chain, for one iptables binary; $1 iptables|ip6tables, $2 -A|-D
-persona_jump() { sudo "$1" -t mangle "$2" POSTROUTING -m cgroup --path "$PERSONA_CGROUP" -j "$PERSONA_CHAIN"; }
-
 # ttl/hop limit set only on packets whose socket lives in tor's cgroup; the xt targets idspoof used, own chain
 persona_on() {
     [ "$PERSONA" = 1 ] || return 0
-    local ttl ipt
+    local ttl cgroup
     ttl=$(persona_ttl) || {
         err "unknown persona '$PERSONA_OS', persona off"
         return 0
     }
-    PERSONA_CGROUP=$(systemctl --user show --property=ControlGroup --value "$TOR_UNIT")
-    PERSONA_CGROUP="${PERSONA_CGROUP#/}"
-    [ -n "$PERSONA_CGROUP" ] || {
+    cgroup=$(systemctl --user show --property=ControlGroup --value "$TOR_UNIT")
+    cgroup="${cgroup#/}"
+    [ -n "$cgroup" ] || {
         err "no cgroup for $TOR_UNIT, persona off"
         return 0
     }
-    persona_off
-    for ipt in iptables ip6tables; do
-        sudo "$ipt" -t mangle -N "$PERSONA_CHAIN" 2>/dev/null || sudo "$ipt" -t mangle -F "$PERSONA_CHAIN"
-        if [ "$ipt" = iptables ]; then
-            sudo iptables -t mangle -A "$PERSONA_CHAIN" -j TTL --ttl-set "$ttl"
-        else
-            sudo ip6tables -t mangle -A "$PERSONA_CHAIN" -j HL --hl-set "$ttl"
-        fi
-        persona_jump "$ipt" -A || err "$ipt persona jump failed, tor runs without it"
-    done
+    root_netfilter persona-on "$ttl" "$cgroup"
 }
 
-# the cgroup is gone once tor stops, so the jump is found by chain name rather than by its match
-persona_off() {
-    local ipt rule
-    for ipt in iptables ip6tables; do
-        sudo "$ipt" -t mangle -S POSTROUTING 2>/dev/null | { grep -F -- "-j $PERSONA_CHAIN" || true; } | while read -r rule; do
-            # shellcheck disable=SC2086
-            sudo "$ipt" -t mangle ${rule/-A/-D}
-        done
-        sudo "$ipt" -t mangle -F "$PERSONA_CHAIN" 2>/dev/null || true
-        sudo "$ipt" -t mangle -X "$PERSONA_CHAIN" 2>/dev/null || true
-    done
-}
+persona_off() { root_netfilter persona-off || true; }
 
 # verify one pool port reachable AND leaving via a Tor exit; nonzero on any doubt so a gating caller fails closed
 check_port() {
@@ -224,14 +200,22 @@ PC
 
 up() {
     require_tor
-    if is_up; then
+    if [ -e "$VERIFIED" ] && is_up; then
         err "already up"
         return 0
     fi
+    # a tor left from an interrupted or failed up was never verified, and its guards may be missing: start over
+    if systemctl --user -q is-active "$TOR_UNIT" 2>/dev/null; then
+        err "unverified instance running, restarting it"
+        down
+    fi
     rm -f "$VERIFIED"
+    # ctrl-c or any set -e failure before the verify tears it all down, so nothing stays up unverified
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    trap '(($? == 0)) || down' EXIT
     egress_on || {
         err "egress guard failed, not starting"
-        down
         exit 1
     }
     mkdir -p "$DATADIR"
@@ -261,13 +245,13 @@ up() {
     until check; do
         if [ "$SECONDS" -ge "$deadline" ]; then
             err "verification failed after ${BOOTSTRAP_TIMEOUT_S}s, tearing down"
-            down
             exit 1
         fi
         sleep "$BOOTSTRAP_POLL_S"
     done
-    touch "$VERIFIED"
     proxyconf >"$PC_CONF"
+    touch "$VERIFIED"
+    trap - INT TERM EXIT
     echo "anonymous-socks up: $POOL_SIZE ports, round-robin config at $PC_CONF"
 }
 

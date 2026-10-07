@@ -1,7 +1,8 @@
 hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm finalize")
 
-    hl.exec_cmd("uwsm app -- " .. os.getenv("DOTFILES") .. "/configs/desktop/quickshell/restart.sh")
+    -- the shell expands $DOTFILES: concatenating an unset getenv would abort this hook before hypridle
+    hl.exec_cmd("uwsm app -- $DOTFILES/configs/desktop/quickshell/restart.sh")
     hl.exec_cmd("uwsm app -- /usr/lib/polkit-kde-authentication-agent-1")
     hl.exec_cmd("uwsm app -- hypridle")
 

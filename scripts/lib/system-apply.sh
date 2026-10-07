@@ -14,6 +14,7 @@ OFFLINE_WAIT_S=120
 LSCK0_DB=/var/lib/pacman/sync/lsck0.db
 PACMAN_LOCK=/var/lib/pacman/db.lck
 PACMAN_MODULE=configs/base/pacman/system.sh
+YUBIKEY_MODULE=configs/base/yubikey/system.sh
 ADDUSER_LINK=/usr/local/bin/adduser-dotfiles
 
 die() { echo "system-apply: $*" >&2; exit "$EXIT_ABORTED"; }
@@ -94,6 +95,9 @@ system_install() {
     if ((${#nix_pkgs[@]})) && command -v nix >/dev/null 2>&1; then
         systemctl enable --now nix-daemon.socket || fail "nix-daemon.socket"
     fi
+
+    # card access before the first config: its secrets unlock runs as the user ahead of the system layer
+    module_run "$PWD/$YUBIKEY_MODULE" || fail "$YUBIKEY_MODULE"
 }
 
 system_config() {

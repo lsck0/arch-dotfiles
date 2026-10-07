@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# jai + jails from the newest ~/sync beta zip; no-op unless the zip is new, link.sh reruns it for later betas
+# jai + jails from the newest ~/sync beta zip, part of the dotfiles so never asked; no-op unless the zip is new,
+# link.sh reruns it for later betas
 
 set -euo pipefail
 source "$DOTFILES/scripts/lib/user-hook.sh"
@@ -14,7 +15,8 @@ zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'jai-*.zip' 2>/dev/null | sort -V 
 if [[ -z "$zip_path" ]]; then
     exit 0
 fi
-if [[ -f "$STAMP" && "$(cat "$STAMP")" == "$(basename "$zip_path")" ]]; then
+zip_name=$(basename "$zip_path")
+if [[ -f "$STAMP" && "$(cat "$STAMP")" == "$zip_name" ]]; then
     exit 0
 fi
 
@@ -32,5 +34,5 @@ pushd "$JAI_DIR"/jails
 popd
 
 ln -sfn "$JAI_DIR"/jails/bin/jails "$JAI_DIR"/bin/jails
-basename "$zip_path" >"$STAMP"
+echo "$zip_name" >"$STAMP"
 user_hook_retire jai-install

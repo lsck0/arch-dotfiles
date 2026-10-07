@@ -4,6 +4,8 @@
 # usage: install.sh [--user]
 
 set -e
+self=$(readlink -f "$0")
+cd "${self%/*}"
 
 # progress bars need a tty: re-exec under `script` so pacman/yay render live while logging, plain tee without one
 if [ -z "${_PTY_LOG:-}" ]; then
@@ -11,7 +13,8 @@ if [ -z "${_PTY_LOG:-}" ]; then
     # before the re-exec, whose pty stdin would look like a person even under stage.sh's </dev/null
     [ -t 0 ] || export DOTFILES_UNATTENDED=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then
-        exec script -qe -c "$0 $*" install.log
+        # script runs the command through a shell: an absolute path, every word quoted
+        exec script -qe -c "$(printf '%q ' "$self" "$@")" install.log
     fi
     exec > >(tee install.log) 2>&1
 fi

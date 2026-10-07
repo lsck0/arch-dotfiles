@@ -1,0 +1,9 @@
+// gparted opens from the launcher without a password or fingerprint, only for an admin at the machine:
+// a remote (ssh) or inactive session still has to authenticate
+polkit.addRule(function (action, subject) {
+    var isGparted = action.id === "org.gnome.gparted" ||
+        (action.id === "org.freedesktop.policykit.exec" && action.lookup("program") === "/usr/bin/gparted");
+    if (isGparted && subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});

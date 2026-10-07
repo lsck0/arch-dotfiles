@@ -4,7 +4,8 @@
 # usage: config.sh [--user]
 
 set -euo pipefail
-cd "$(dirname "$(readlink -f "$0")")"
+self=$(readlink -f "$0")
+cd "${self%/*}"
 export DOTFILES="$PWD"
 [[ -z ${DIRENV_DIR-} ]] || { echo "run outside a direnv directory" >&2; exit 1; }
 
@@ -14,7 +15,8 @@ if [ -z "${_PTY_LOG:-}" ]; then
     # before the re-exec, whose pty stdin would look like a person even under stage.sh's </dev/null
     [ -t 0 ] || export DOTFILES_UNATTENDED=1
     if [ -t 1 ] && command -v script >/dev/null 2>&1; then
-        exec script -qe -c "$0 $*" config.log
+        # script runs the command through a shell: an absolute path, every word quoted
+        exec script -qe -c "$(printf '%q ' "$self" "$@")" config.log
     fi
     exec > >(tee config.log) 2>&1
 fi

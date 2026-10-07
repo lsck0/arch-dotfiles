@@ -21,8 +21,11 @@ while IFS= read -r entry; do
     [ -n "$entry" ] || continue
     printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$entry" >"${HOME}/.config/autostart/${entry}.desktop"
 done < "${PWD}/hidden-autostart.list"
-command -v update-desktop-database >/dev/null 2>&1 \
-    && update-desktop-database "${HOME}/.local/share/applications"
+# a fresh user has no applications dir yet, and update-desktop-database fails on a missing one
+mkdir -p "${HOME}/.local/share/applications"
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "${HOME}/.local/share/applications"
+fi
 
 # portal backend preference for the Hyprland session
 if command -v Hyprland >/dev/null 2>&1; then

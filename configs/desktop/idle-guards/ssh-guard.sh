@@ -22,3 +22,6 @@ while read -r _; do
         release
     fi
 done < <(gdbus monitor --system --dest org.freedesktop.login1)
+# the monitor ending is a failure, so Restart=on-failure brings the guard back
+echo "gdbus monitor ended" >&2
+exit 1

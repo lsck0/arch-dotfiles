@@ -1,78 +1,68 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# unreal-engine-bin from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded); runs on every ~/sync change
+# the engine from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded), into the home like jai:
+# part of the dotfiles, so never asked and never root. no-op unless the zip is new; link.sh reruns it for later versions
 
 set -euo pipefail
 source "$DOTFILES/scripts/lib/user-hook.sh"
 
-AUR_URL="https://aur.archlinux.org/unreal-engine-bin.git"
 SYNC_DIR="${HOME}/sync"
-# on disk, not /tmp: unpacked engine is ~60 GB and /tmp is tmpfs
-BUILD_DIR="${HOME}/.cache/unreal-engine-bin"
-# zip version the user chose to skip, so later ~/sync changes stop asking
-SKIP_STAMP="${XDG_STATE_HOME:-${HOME}/.local/state}/unreal-install.skipped"
+DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}"
+ENGINE="${DATA_DIR}/unreal-engine"
+STAMP="${ENGINE}/.installed-from"
+EDITOR_LINK="${HOME}/.local/bin/unreal-editor"
+DESKTOP_FILE="${DATA_DIR}/applications/unreal-engine.desktop"
 
-if pacman -Q unreal-engine-bin >/dev/null 2>&1; then
-    echo "unreal-engine-bin already installed"
+zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' 2>/dev/null | sort -V | tail -n 1)
+if [[ -z "$zip_path" ]]; then
+    exit 0
+fi
+zip_name=$(basename "$zip_path")
+zip_version=${zip_name%.zip}
+zip_version=${zip_version#Linux_Unreal_Engine_}
+# config.sh and the path unit both run this: the second waits, then finds the stamp the first wrote
+mkdir -p "$DATA_DIR"
+exec 9>"${ENGINE}.lock"
+flock 9
+if [[ -f "$STAMP" && "$(cat "$STAMP")" == "$zip_name" ]]; then
     user_hook_retire unreal-install
     exit 0
 fi
 
-zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' | sort -V | tail -n 1)
-if [[ -z "$zip_path" ]]; then
-    exit 0
-fi
-zip_version=$(basename "$zip_path" .zip)
-zip_version=${zip_version#Linux_Unreal_Engine_}
+# unpacked next to the engine, not in /tmp: ~60 GB, and /tmp is tmpfs; the old engine only goes once the new one is whole
+staging="${ENGINE}.new"
+rm -rf "$staging"
+mkdir -p "$staging"
+trap 'rm -rf "$staging"' EXIT
+unzip -q "$zip_path" -d "$staging"
+# the zip holds Engine/ either at its top or under one folder
+root=$(find "$staging" -maxdepth 2 -type d -name Engine -printf '%h\n' -quit)
+[[ -n "$root" && -x "${root}/Engine/Binaries/Linux/UnrealEditor" ]] || {
+    echo "unreal: no Engine/Binaries/Linux/UnrealEditor in ${zip_name}" >&2
+    exit 1
+}
+echo "$zip_name" >"${root}/.installed-from"
+rm -rf "$ENGINE"
+mv "$root" "$ENGINE"
 
-# no terminal means the path unit: ask first, else the install's sudo lights the fingerprint reader at every login
-if [[ ! -t 0 ]]; then
-    if [[ -f "$SKIP_STAMP" && "$(cat "$SKIP_STAMP")" == "$zip_version" ]]; then
-        exit 0
-    fi
-    # -t 0: the default expiry closes it in seconds, which reads as dismissed
-    answer=$(notify-send -a Unreal -t 0 --wait -A install=Install -A skip="Skip ${zip_version}" \
-        "Unreal Engine" "Install ${zip_version} from ~/sync? The install asks for the YubiKey or fingerprint." \
-        2>/dev/null || true)
-    echo "notification answer: ${answer:-dismissed}"
-    case "$answer" in
-    install) ;;
-    skip)
-        mkdir -p "$(dirname "$SKIP_STAMP")"
-        echo "$zip_version" >"$SKIP_STAMP"
-        exit 0
-        ;;
-    # dismissed or expired: ask again on the next ~/sync change
-    *) exit 0 ;;
-    esac
-fi
+mkdir -p "$(dirname "$EDITOR_LINK")" "$(dirname "$DESKTOP_FILE")"
+ln -sfn "${ENGINE}/Engine/Binaries/Linux/UnrealEditor" "$EDITOR_LINK"
+icon=$(find "${ENGINE}/Engine/Source/Programs/UnrealVersionSelector" -name 'Icon.png' 2>/dev/null | head -n 1 || true)
+cat >"$DESKTOP_FILE" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Unreal Engine
+Comment=Unreal Editor ${zip_version}
+Exec=${ENGINE}/Engine/Binaries/Linux/UnrealEditor %U
+${icon:+Icon=${icon}}
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=UnrealEditor
+DESKTOP
+command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP_FILE")" || true
 
-rm -rf "$BUILD_DIR"
-git clone --depth 1 "$AUR_URL" "$BUILD_DIR"
-trap 'rm -rf "$BUILD_DIR"' EXIT
-cd "$BUILD_DIR"
-
-aur_version=$(sed -n 's/^pkgver=//p' PKGBUILD)
-if [[ "$zip_version" != "$aur_version" ]]; then
-    # the zip is the first source, so its checksum is the first sha256sums entry
-    echo "AUR pkgver ${aur_version} != zip ${zip_version}: bumping pkgver and pinning the zip's own sha256" >&2
-    zip_sha=$(sha256sum "$zip_path" | cut -d ' ' -f 1)
-    sed -i -e "s/^pkgver=.*/pkgver=${zip_version}/" -e "s/^sha256sums=('[0-9a-f]*'/sha256sums=('${zip_sha}'/" PKGBUILD
-fi
-
-# makepkg.conf's debug option copies the sources of every engine binary into a -debug package, minutes of work for nothing
-sed -i 's/^options=(/options=(!debug /' PKGBUILD
-
-ln -s "$zip_path" "Linux_Unreal_Engine_${zip_version}.zip"
-# uncompressed package: zstd over ~60 GB of engine takes longer than the install is worth
-export PKGEXT=.pkg.tar
-# no makedepends, so build without the deps check and its sudo; pacman -U pulls the runtime deps from the repos
-makepkg --nodeps --noconfirm
-# sudo right after the build: YubiKey touch (pam_u2f) or fingerprint; a miss fails and asks again next change
-notify-send -a Unreal "Unreal Engine" "Touch the YubiKey or fingerprint reader to install ${zip_version}" 2>/dev/null || true
-mapfile -t packages < <(makepkg --packagelist)
-sudo pacman -U --noconfirm "${packages[@]}"
-# bridge and fab from ~/sync; sudo's ticket is per parent process without a tty, so their unzip asks for a second touch
+# bridge and fab from ~/sync go into the engine, which is the user's own now
 "$DOTFILES/configs/programming/unreal/unreal-install-plugins.sh" \
     || echo "unreal: plugins not installed, rerun unreal-install-plugins" >&2
+notify-send -a Unreal "Unreal Engine" "Installed ${zip_version}" 2>/dev/null || true
 user_hook_retire unreal-install

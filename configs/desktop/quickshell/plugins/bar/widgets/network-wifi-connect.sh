@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# usage: <ssid> [password]; password falls back to secrets/wifi
+# usage: <ssid>, the password as one stdin line (empty for none); falls back to secrets/wifi
 set -euo pipefail
 
 ssid="${1:?ssid required}"
-password="${2:-}"
+# stdin, never argv: argv is readable by anyone in /proc
+password=""
+[[ -t 0 ]] || IFS= read -r password || true
 
 secrets_wifi="${QS_DOTFILES_DIR:-$DOTFILES}/secrets/wifi"
 
@@ -25,7 +27,8 @@ if [[ -z "$password" && -r "$secrets_wifi" ]] && ! has_profile; then
 fi
 
 if [[ -n "$password" ]]; then
-  nmcli dev wifi connect "$ssid" password "$password"
+  # --ask reads the secret from stdin instead of an argv
+  nmcli --ask dev wifi connect "$ssid" <<<"$password"
 else
   nmcli dev wifi connect "$ssid"
 fi
