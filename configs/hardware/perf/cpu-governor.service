@@ -1,0 +1,12 @@
+[Unit]
+Description=Set CPU frequency governor to @GOVERNOR@
+ConditionPathExists=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+
+[Service]
+Type=oneshot
+# writes are best-effort: if @GOVERNOR@ isn't offered by the active cpufreq driver (e.g. amd-pstate active mode
+# exposes only performance/powersave), the write fails and the driver's default stands.
+ExecStart=/bin/sh -c 'for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do echo @GOVERNOR@ > "$g" 2>/dev/null || true; done'
+
+[Install]
+WantedBy=multi-user.target

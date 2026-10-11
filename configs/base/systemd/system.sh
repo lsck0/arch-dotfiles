@@ -16,6 +16,8 @@ fi
 enable_if_present bluetooth.service
 enable_if_present cups.socket
 enable_if_present paccache.timer --now
+# periodic SSD TRIM (btrfs on LUKS); weekly, shipped by util-linux
+enable_if_present fstrim.timer
 # thermald is intel-only, on amd it starts and exits
 if grep -q GenuineIntel /proc/cpuinfo; then enable_if_present thermald.service; fi
 mask_if_present NetworkManager-wait-online.service

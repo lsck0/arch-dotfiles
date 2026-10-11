@@ -213,7 +213,7 @@ ask_keymap() {
         ask keymap_load keymap "" "$KEYMAP"
         return
     fi
-    keymap=$(dlg --title keyboard --default-item "$KEYMAP" --menu "Keyboard layout for the console, the disk password prompt at boot and the desktop. It applies right away." 0 "$TUI_WIDTH" 0 \
+    keymap=$(dlg --title keyboard --default-item "$KEYMAP" --menu "Keyboard layout (console, boot password prompt, desktop). Applies now." 0 "$TUI_WIDTH" 0 \
         "${COMMON_KEYMAPS[@]}" other "type another console keymap") || exit 1
     if [[ "$keymap" == other ]]; then
         keymap=$(ask keymap_load keymap "Console keymap name, as in /usr/share/kbd/keymaps, e.g. cz, hu, ru, trq:" "") || exit 1
@@ -375,28 +375,19 @@ IN_WSL=0; [[ "$(systemd-detect-virt 2>/dev/null)" == wsl ]] && IN_WSL=1
 tui_init
 
 if ((IN_WSL)); then
-    welcome="This sets up this WSL distro with the arch-dotfiles: a user with sudo, the checkout in its home, wsl.conf.
+    welcome="WSL setup: a user with sudo, the checkout, wsl.conf. Then restart the distro and run install.sh + config.sh.
 
-Afterwards you restart the distro from Windows and run install.sh and config.sh as that user.
-
-Esc or Cancel quits at any screen."
+Esc or Cancel quits."
 else
-    welcome="This installs Arch Linux with the arch-dotfiles.
+    welcome="Installs Arch Linux with the arch-dotfiles. Questions first (nothing written until you confirm), then the chosen disk is ERASED and encrypted, then unattended reboots while it installs (can take hours; stay plugged in and online).
 
-1. A few questions first; nothing is written before the summary at the end.
-2. Then the chosen disk is ERASED completely and encrypted; its password unlocks it at every boot.
-3. The machine then reboots on its own a few times while it installs packages and links configs. That can take hours: keep it plugged in and online.
-
-Esc or Cancel quits at any screen."
+Esc or Cancel quits."
 fi
 if ((TUI)); then dlg --title welcome --msgbox "$welcome" "$(tui_height "$welcome" "$TUI_BOX_ROWS")" "$TUI_WIDTH"; fi
 
 # the user: any name; a profile template of the same name brings its owner's secrets, identity and homelab, else a guest
 mapfile -t profiles < <(cd "$REPO/profiles" && for f in *.sh; do [[ -f "$f" ]] && echo "${f%.sh}"; done)
-username_text="Your login name.
-
-A name with a profile (${profiles[*]:-none}) gets that profile's setup: secrets, identity and homelab as it lists them.
-Any other name is a guest: the same desktop and tools without the personal parts."
+username_text="Your login name. A name with a profile (${profiles[*]:-none}) gets that profile's secrets/identity/homelab; any other name is a guest (same desktop and tools, no personal parts)."
 # wsl types on the windows layout, the console is german until a new machine's layout screen
 ((IN_WSL)) || username_text+=$'\n\nThe keyboard is German until the layout screen: y and z are swapped.'
 USERNAME="${BOOTSTRAP_USERNAME:-$(ask username_valid username "$username_text" "${profiles[0]:-}")}"
@@ -442,9 +433,9 @@ else
     HOSTNAME="${BOOTSTRAP_HOSTNAME:-$(ask hostname_new_valid hostname "The machine's name on the network: letters, digits and dashes, none of ${platforms[*]}." "$USERNAME-pc")}"
     hostname_new_valid "$HOSTNAME" || die "invalid hostname '$HOSTNAME', expected $HOSTNAME_PATTERN and none of: ${platforms[*]}"
     if (( ! IN_WSL )); then
-        TIMEZONE="${BOOTSTRAP_TIMEZONE:-$(ask timezone_valid timezone "Region/City, e.g. Europe/London, America/New_York, Asia/Tokyo. Once installed it also follows your location on its own." "$TIMEZONE")}"
+        TIMEZONE="${BOOTSTRAP_TIMEZONE:-$(ask timezone_valid timezone "Region/City, e.g. Europe/London. Later follows your location on its own." "$TIMEZONE")}"
         timezone_valid "$TIMEZONE" || die "unknown timezone '$TIMEZONE'"
-        LOCALE="${BOOTSTRAP_LOCALE:-$(ask locale_valid locale "Language and formats for dates and numbers, e.g. en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8, fr_FR.UTF-8." "$LOCALE")}"
+        LOCALE="${BOOTSTRAP_LOCALE:-$(ask locale_valid locale "Language and formats, e.g. en_US.UTF-8, de_DE.UTF-8." "$LOCALE")}"
         locale_valid "$LOCALE" || die "unknown locale '$LOCALE'"
         # asked once, while still on that network: its router's mac is what the installed machine recognises home by
         HOME_NETWORK="${BOOTSTRAP_HOME_NETWORK:-$(ask_home_network)}" || exit 1
@@ -465,8 +456,7 @@ else
         for grp in "${GROUP_UNIVERSE[@]}"; do
             [[ "$grp" == "$REQUIRED_GROUP" ]] || group_items+=("$grp" "${GROUP_DESCRIPTIONS[$grp]:-}" on)
         done
-        groups_chosen=$(dlg --title "package groups" --separate-output --checklist "What to install. Space toggles a group, Enter accepts.
-'$REQUIRED_GROUP' (${GROUP_DESCRIPTIONS[$REQUIRED_GROUP]}) is always installed." 0 "$TUI_WIDTH" 0 "${group_items[@]}")
+        groups_chosen=$(dlg --title "package groups" --separate-output --checklist "Space toggles, Enter accepts. '$REQUIRED_GROUP' (${GROUP_DESCRIPTIONS[$REQUIRED_GROUP]}) is always installed." 0 "$TUI_WIDTH" 0 "${group_items[@]}")
         mapfile -t PKG_GROUPS < <(printf '%s' "$groups_chosen")
         PKG_GROUPS=("$REQUIRED_GROUP" "${PKG_GROUPS[@]}")
     else
@@ -513,9 +503,7 @@ curl -fsI -m "$NETWORK_TIMEOUT_S" https://archlinux.org >/dev/null || die "no ne
 
 setup_mode="$(od -An -t u1 "/sys/firmware/efi/efivars/SetupMode-$EFI_GLOBAL_GUID" 2>/dev/null | awk '{print $NF}')"
 if [[ "$setup_mode" != 1 ]] && ((TUI)); then
-    secure_boot_text="The firmware is not in Secure Boot Setup Mode, so install.sh cannot enroll keys.
-
-Continue without Secure Boot? To use it instead: quit, clear the keys (Setup Mode) in the firmware settings, rerun."
+    secure_boot_text="Firmware not in Secure Boot Setup Mode, so install.sh cannot enroll keys. Continue without Secure Boot? (To use it: quit, clear the keys / enable Setup Mode in firmware, rerun.)"
     dlg --title "secure boot" --defaultno --yesno "$secure_boot_text" "$(tui_height "$secure_boot_text" "$TUI_BOX_ROWS")" "$TUI_WIDTH"
 elif [[ "$setup_mode" != 1 ]]; then
     echo "bootstrap: firmware is not in Secure Boot Setup Mode, so install.sh cannot enroll keys" >&2
@@ -564,7 +552,7 @@ if [[ -z "$LUKS_PASSWORD" ]]; then
     LUKS_PASSWORD=$(ask_password "LUKS password" "Disk encryption password, asked at every boot on the $KEYMAP layout." 0)
     [[ -n "$LUKS_PASSWORD" ]] || die "empty LUKS password"
     [[ -n "$USER_PASSWORD" ]] || USER_PASSWORD=$(ask_password "$USERNAME password [LUKS password]" "For login and sudo; empty uses the LUKS password." 1)
-    [[ -n "$ROOT_PASSWORD" ]] || ROOT_PASSWORD=$(ask_password "root password [locked]" "Empty keeps root locked: sudo works with your password; the emergency shell will not open." 1)
+    [[ -n "$ROOT_PASSWORD" ]] || ROOT_PASSWORD=$(ask_password "root password [locked]" "Empty keeps root locked (sudo still works; no emergency shell)." 1)
 fi
 USER_PASSWORD="${USER_PASSWORD:-$LUKS_PASSWORD}"
 
@@ -655,7 +643,7 @@ genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
 # the ukis (configs/hardware/boot) embed this file as their only cmdline
 mkdir -p "$MOUNT/etc/kernel"
-echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0" >"$MOUNT/etc/kernel/cmdline"
+echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1" >"$MOUNT/etc/kernel/cmdline"
 
 # stage.sh's temporary unlock: a random key in its own slot, found by systemd-cryptsetup in the initramfs as /etc/cryptsetup-keys.d/<volume>.key; stage.sh kills the slot when the chain ends
 install -dm700 "$MOUNT/etc/cryptsetup-keys.d"

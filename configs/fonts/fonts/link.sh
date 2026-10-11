@@ -7,4 +7,8 @@ for f in *.ttf *.otf; do
     [ -e "$f" ] || continue
     install -m644 "$f" "$dest/$f"
 done
+
+# default family preferences + rendering
+link_into "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig" fonts.conf
+
 fc-cache -f "$dest" >/dev/null

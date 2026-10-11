@@ -20,14 +20,16 @@ return {
     },
 
     {
-        -- vendored: upstream went private, MIT
-        dir = vim.fn.stdpath("config") .. "/vendor/kulala.nvim", -- REST client
-        name = "kulala.nvim",
+        -- upstream is public again at dont-be-evil-company; no longer vendored
+        "dont-be-evil-company/kulala.nvim", -- REST client
         ft = { "http", "rest" },
         opts = {
             global_keymaps = true,
             global_keymaps_prefix = "<leader>r",
             kulala_keymaps_prefix = "",
+            -- let kulala download, build and install its own kulala_http parser + queries (needs tree-sitter-cli,
+            -- which is in programming/packages.txt). Replaces the parser/ and queries/ copies we used to vendor.
+            treesitter = { enable = true },
         },
     },
 

@@ -19,6 +19,8 @@ bear                              # compile db generator
 bind                              # DNS utilities
 bloaty                            # binary size profiler
 bpftrace                          # eBPF tracing tool
+bruno-bin                         # Bruno, git-friendly API client (request/response GUI)
+bruno-cli                         # Bruno CLI (bru), runs .bru collections headless, mirror/pkgbuilds
 bugwarrior                        # bugtracker to taskwarrior
 bun-bin                           # fast javascript runtime
 cargo-afl                         # AFL fuzzing rust
@@ -136,6 +138,7 @@ kcachegrind                       # valgrind callgrind/cachegrind GUI
 kubecolor                         # kubectl colorized output
 kubectl                           # kubernetes CLI
 kubectx                           # kubernetes context switcher
+kulala-fmt                        # formatter for kulala .http/.rest files (conform), mirror/pkgbuilds
 lazydocker                        # docker TUI
 lazygit                           # git TUI
 lazyjira-bin                      # jira tui

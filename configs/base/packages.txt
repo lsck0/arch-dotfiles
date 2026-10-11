@@ -80,7 +80,6 @@ oh-my-zsh-git                     # zsh libs and plugins, sourced without the fr
 openal                            # 3D audio library
 openbsd-netcat                    # netcat networking tool
 opencl-icd-loader                 # OpenCL loader
-openresolv                        # resolvconf for wg-quick, applies wg0's DNS=
 openssh                           # SSH client/server
 openssl                           # TLS/crypto toolkit
 openvpn                           # VPN client/server
@@ -111,6 +110,7 @@ starship                          # cross-shell prompt
 sudo                              # privilege escalation tool
 superseedr                        # terminal torrent
 syncthing                         # file sync daemon
+systemd-resolvconf                 # resolvconf shim -> systemd-resolved; wg-quick's DNS= becomes wg0's per-link resolver
 tailspin                          # logging tool
 tar                               # archiving utility
 tar-scripts                       # tar helper scripts

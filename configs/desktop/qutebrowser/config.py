@@ -105,7 +105,10 @@ config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
 # search engines
 c.url.searchengines = {
-    "DEFAULT": "https://www.google.com/search?q={}",
+    # default to the homelab SearXNG like firefox (off the homelab swap to ddg); g/ddg bangs stay reachable
+    "DEFAULT": "https://search.lsck0.dev/search?q={}",
+    "ddg": "https://duckduckgo.com/?q={}",
+    "g": "https://www.google.com/search?q={}",
     "ap": "https://archlinux.org/packages/?q={}",
     "aur": "https://aur.archlinux.org/packages?K={}",
     "aw": "https://wiki.archlinux.org/?search={}",

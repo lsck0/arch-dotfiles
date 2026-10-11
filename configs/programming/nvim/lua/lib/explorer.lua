@@ -1,16 +1,26 @@
 -- tcd, then open without cwd: differing cwd forms stacked duplicate roots
 local M = {}
 
-function M.open()
-    local root = require("lib.root").git()
-    if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
-    require("snacks").explorer()
-end
-
 ---@return snacks.Picker|nil
 local function explorer()
     local picker = require("snacks.picker").get({ source = "explorer" })[1]
     if picker and not picker.closed then return picker end
+end
+
+--- Open (or re-root) the explorer at DIR, defaulting to the current working directory. Unlike before it never
+--- climbs to the enclosing git repo: the tree roots exactly where you are, so entering a subdir or a nested crate
+--- keeps the root there instead of jumping up to the parent repo.
+---@param dir? string
+function M.open(dir)
+    dir = dir and vim.fs.normalize(dir) or vim.uv.cwd()
+    pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
+    local picker = explorer()
+    if picker then
+        picker:set_cwd(dir)
+        picker:find()
+    else
+        require("snacks").explorer()
+    end
 end
 
 --- Expand the tree down to FILE and put the cursor on it, without moving focus.

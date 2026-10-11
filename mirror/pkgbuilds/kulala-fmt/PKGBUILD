@@ -1,0 +1,23 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Formatter/converter for Kulala .http/.rest files; conform in configs/programming/nvim/lua/plugins/lsp.lua
+# calls `kulala-fmt` from PATH. Replaces the binary that used to live in the nvim config's vendor/ dir.
+pkgname=kulala-fmt
+pkgver=4.6.1
+pkgrel=1
+pkgdesc="Formatter and converter for Kulala HTTP (.http/.rest) files"
+arch=(any)
+url="https://github.com/dont-be-evil-company/kulala-fmt"
+license=(MIT)
+depends=(nodejs)
+makedepends=(npm)
+source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@dont-be-evil-company/kulala-fmt/-/kulala-fmt-$pkgver.tgz")
+sha256sums=(c121a28e252c8f984a625cf047c3ac0e93217f5a7e2e906dd8cabcfb9b87ada9)
+
+package() {
+    npm install -g --prefix "$pkgdir/usr" "$srcdir/$pkgname-$pkgver.tgz"
+
+    # standard npm-package cleanup: drop $srcdir references and normalise perms
+    find "$pkgdir/usr" -type d -exec chmod 755 {} +
+    local mod="$pkgdir/usr/lib/node_modules/@dont-be-evil-company/kulala-fmt"
+    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}

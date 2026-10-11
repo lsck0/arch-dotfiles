@@ -1,0 +1,1619 @@
+diff --git a/README.md b/README.md
+index 04e15e1..029152c 100644
+--- a/README.md
++++ b/README.md
+@@ -27,3 +27,26 @@ Another login on an installed machine, with its own checkout and user layer:
+ ```bash
+ adduser-dotfiles <name>
+ ```
++
++## Package groups
++
++A machine installs a layered subset of `configs/<group>/`, chosen by `PKG_GROUPS` in its `platforms/<name>.sh`
++(or at install). The layers build on each other: each assumes the ones before it, so a box can stop at any level
++and still be coherent — a locked-down headless core, or that core plus a desktop, up to the full workstation.
++
++- **base** — always installed. The secure, stable, performant core: kernel and boot, encryption, the firewall
++  and network auto-protection (ProtonVPN on untrusted networks, Tor, anonymous SOCKS), hardening and the
++  everyday shell. Everything else is optional on top of this.
++- **hardware** — machine-specific improvements and features (sensors, GPU, power/thermal, peripherals).
++- **desktop** — the UI (compositor, bar, launcher) plus basic everyday programs: text editing and light
++  media manipulation (viewers, players, simple downloaders/torrents).
++- **socials** — desktop social-media clients.
++- **latex**, **qemu** — typesetting; virtual machines.
++- **creating** — heavier creative software: advanced image, video, audio and 3D/CAD editing.
++- **gaming** — games and launchers.
++- **programming** — development across languages, plus defensive/hardening work that runs locally: fuzzing
++  (e.g. `cargo-afl`, `honggfuzz`), static analysis, debuggers, and ordinary dev utilities (a DNS lookup is a
++  normal programmer's tool, so it lives here, not in pentesting).
++- **llm**, **rocm** — local models and the AMD compute stack they use.
++- **pentesting** — tools that *actively act on a target*: scanning, enumeration, exploitation, offensive web
++  fuzzing (`ffuf`), C2. Routed through the VPN/Tor layer from **base**.
+diff --git a/bootstrap.sh b/bootstrap.sh
+index e8ea436..72615f3 100755
+--- a/bootstrap.sh
++++ b/bootstrap.sh
+@@ -213,7 +213,7 @@ ask_keymap() {
+         ask keymap_load keymap "" "$KEYMAP"
+         return
+     fi
+-    keymap=$(dlg --title keyboard --default-item "$KEYMAP" --menu "Keyboard layout for the console, the disk password prompt at boot and the desktop. It applies right away." 0 "$TUI_WIDTH" 0 \
++    keymap=$(dlg --title keyboard --default-item "$KEYMAP" --menu "Keyboard layout (console, boot password prompt, desktop). Applies now." 0 "$TUI_WIDTH" 0 \
+         "${COMMON_KEYMAPS[@]}" other "type another console keymap") || exit 1
+     if [[ "$keymap" == other ]]; then
+         keymap=$(ask keymap_load keymap "Console keymap name, as in /usr/share/kbd/keymaps, e.g. cz, hu, ru, trq:" "") || exit 1
+@@ -375,28 +375,19 @@ IN_WSL=0; [[ "$(systemd-detect-virt 2>/dev/null)" == wsl ]] && IN_WSL=1
+ tui_init
+ 
+ if ((IN_WSL)); then
+-    welcome="This sets up this WSL distro with the arch-dotfiles: a user with sudo, the checkout in its home, wsl.conf.
++    welcome="WSL setup: a user with sudo, the checkout, wsl.conf. Then restart the distro and run install.sh + config.sh.
+ 
+-Afterwards you restart the distro from Windows and run install.sh and config.sh as that user.
+-
+-Esc or Cancel quits at any screen."
++Esc or Cancel quits."
+ else
+-    welcome="This installs Arch Linux with the arch-dotfiles.
+-
+-1. A few questions first; nothing is written before the summary at the end.
+-2. Then the chosen disk is ERASED completely and encrypted; its password unlocks it at every boot.
+-3. The machine then reboots on its own a few times while it installs packages and links configs. That can take hours: keep it plugged in and online.
++    welcome="Installs Arch Linux with the arch-dotfiles. Questions first (nothing written until you confirm), then the chosen disk is ERASED and encrypted, then unattended reboots while it installs (can take hours; stay plugged in and online).
+ 
+-Esc or Cancel quits at any screen."
++Esc or Cancel quits."
+ fi
+ if ((TUI)); then dlg --title welcome --msgbox "$welcome" "$(tui_height "$welcome" "$TUI_BOX_ROWS")" "$TUI_WIDTH"; fi
+ 
+ # the user: any name; a profile template of the same name brings its owner's secrets, identity and homelab, else a guest
+ mapfile -t profiles < <(cd "$REPO/profiles" && for f in *.sh; do [[ -f "$f" ]] && echo "${f%.sh}"; done)
+-username_text="Your login name.
+-
+-A name with a profile (${profiles[*]:-none}) gets that profile's setup: secrets, identity and homelab as it lists them.
+-Any other name is a guest: the same desktop and tools without the personal parts."
++username_text="Your login name. A name with a profile (${profiles[*]:-none}) gets that profile's secrets/identity/homelab; any other name is a guest (same desktop and tools, no personal parts)."
+ # wsl types on the windows layout, the console is german until a new machine's layout screen
+ ((IN_WSL)) || username_text+=$'\n\nThe keyboard is German until the layout screen: y and z are swapped.'
+ USERNAME="${BOOTSTRAP_USERNAME:-$(ask username_valid username "$username_text" "${profiles[0]:-}")}"
+@@ -442,9 +433,9 @@ else
+     HOSTNAME="${BOOTSTRAP_HOSTNAME:-$(ask hostname_new_valid hostname "The machine's name on the network: letters, digits and dashes, none of ${platforms[*]}." "$USERNAME-pc")}"
+     hostname_new_valid "$HOSTNAME" || die "invalid hostname '$HOSTNAME', expected $HOSTNAME_PATTERN and none of: ${platforms[*]}"
+     if (( ! IN_WSL )); then
+-        TIMEZONE="${BOOTSTRAP_TIMEZONE:-$(ask timezone_valid timezone "Region/City, e.g. Europe/London, America/New_York, Asia/Tokyo. Once installed it also follows your location on its own." "$TIMEZONE")}"
++        TIMEZONE="${BOOTSTRAP_TIMEZONE:-$(ask timezone_valid timezone "Region/City, e.g. Europe/London. Later follows your location on its own." "$TIMEZONE")}"
+         timezone_valid "$TIMEZONE" || die "unknown timezone '$TIMEZONE'"
+-        LOCALE="${BOOTSTRAP_LOCALE:-$(ask locale_valid locale "Language and formats for dates and numbers, e.g. en_US.UTF-8, en_GB.UTF-8, de_DE.UTF-8, fr_FR.UTF-8." "$LOCALE")}"
++        LOCALE="${BOOTSTRAP_LOCALE:-$(ask locale_valid locale "Language and formats, e.g. en_US.UTF-8, de_DE.UTF-8." "$LOCALE")}"
+         locale_valid "$LOCALE" || die "unknown locale '$LOCALE'"
+         # asked once, while still on that network: its router's mac is what the installed machine recognises home by
+         HOME_NETWORK="${BOOTSTRAP_HOME_NETWORK:-$(ask_home_network)}" || exit 1
+@@ -465,8 +456,7 @@ else
+         for grp in "${GROUP_UNIVERSE[@]}"; do
+             [[ "$grp" == "$REQUIRED_GROUP" ]] || group_items+=("$grp" "${GROUP_DESCRIPTIONS[$grp]:-}" on)
+         done
+-        groups_chosen=$(dlg --title "package groups" --separate-output --checklist "What to install. Space toggles a group, Enter accepts.
+-'$REQUIRED_GROUP' (${GROUP_DESCRIPTIONS[$REQUIRED_GROUP]}) is always installed." 0 "$TUI_WIDTH" 0 "${group_items[@]}")
++        groups_chosen=$(dlg --title "package groups" --separate-output --checklist "Space toggles, Enter accepts. '$REQUIRED_GROUP' (${GROUP_DESCRIPTIONS[$REQUIRED_GROUP]}) is always installed." 0 "$TUI_WIDTH" 0 "${group_items[@]}")
+         mapfile -t PKG_GROUPS < <(printf '%s' "$groups_chosen")
+         PKG_GROUPS=("$REQUIRED_GROUP" "${PKG_GROUPS[@]}")
+     else
+@@ -513,9 +503,7 @@ curl -fsI -m "$NETWORK_TIMEOUT_S" https://archlinux.org >/dev/null || die "no ne
+ 
+ setup_mode="$(od -An -t u1 "/sys/firmware/efi/efivars/SetupMode-$EFI_GLOBAL_GUID" 2>/dev/null | awk '{print $NF}')"
+ if [[ "$setup_mode" != 1 ]] && ((TUI)); then
+-    secure_boot_text="The firmware is not in Secure Boot Setup Mode, so install.sh cannot enroll keys.
+-
+-Continue without Secure Boot? To use it instead: quit, clear the keys (Setup Mode) in the firmware settings, rerun."
++    secure_boot_text="Firmware not in Secure Boot Setup Mode, so install.sh cannot enroll keys. Continue without Secure Boot? (To use it: quit, clear the keys / enable Setup Mode in firmware, rerun.)"
+     dlg --title "secure boot" --defaultno --yesno "$secure_boot_text" "$(tui_height "$secure_boot_text" "$TUI_BOX_ROWS")" "$TUI_WIDTH"
+ elif [[ "$setup_mode" != 1 ]]; then
+     echo "bootstrap: firmware is not in Secure Boot Setup Mode, so install.sh cannot enroll keys" >&2
+@@ -564,7 +552,7 @@ if [[ -z "$LUKS_PASSWORD" ]]; then
+     LUKS_PASSWORD=$(ask_password "LUKS password" "Disk encryption password, asked at every boot on the $KEYMAP layout." 0)
+     [[ -n "$LUKS_PASSWORD" ]] || die "empty LUKS password"
+     [[ -n "$USER_PASSWORD" ]] || USER_PASSWORD=$(ask_password "$USERNAME password [LUKS password]" "For login and sudo; empty uses the LUKS password." 1)
+-    [[ -n "$ROOT_PASSWORD" ]] || ROOT_PASSWORD=$(ask_password "root password [locked]" "Empty keeps root locked: sudo works with your password; the emergency shell will not open." 1)
++    [[ -n "$ROOT_PASSWORD" ]] || ROOT_PASSWORD=$(ask_password "root password [locked]" "Empty keeps root locked (sudo still works; no emergency shell)." 1)
+ fi
+ USER_PASSWORD="${USER_PASSWORD:-$LUKS_PASSWORD}"
+ 
+@@ -655,7 +643,7 @@ genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
+ 
+ # the ukis (configs/hardware/boot) embed this file as their only cmdline
+ mkdir -p "$MOUNT/etc/kernel"
+-echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0" >"$MOUNT/etc/kernel/cmdline"
++echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1" >"$MOUNT/etc/kernel/cmdline"
+ 
+ # stage.sh's temporary unlock: a random key in its own slot, found by systemd-cryptsetup in the initramfs as /etc/cryptsetup-keys.d/<volume>.key; stage.sh kills the slot when the chain ends
+ install -dm700 "$MOUNT/etc/cryptsetup-keys.d"
+diff --git a/configs/base/borg/borg-backup.service b/configs/base/borg/borg-backup.service
+new file mode 100644
+index 0000000..61f323e
+--- /dev/null
++++ b/configs/base/borg/borg-backup.service
+@@ -0,0 +1,19 @@
++[Unit]
++Description=Borg backup of home to the homelab NAS
++After=mnt-homelab.automount network-online.target
++
++[Service]
++Type=oneshot
++ExecStart=%h/.local/bin/borg-backup
++Nice=10
++IOSchedulingClass=idle
++# sandboxing: reads all of $HOME and writes the NAS mount, so no ProtectHome/strict ProtectSystem here
++ProtectSystem=full
++PrivateTmp=yes
++NoNewPrivileges=yes
++ProtectKernelTunables=yes
++ProtectKernelModules=yes
++ProtectControlGroups=yes
++RestrictSUIDSGID=yes
++RestrictRealtime=yes
++LockPersonality=yes
+diff --git a/configs/base/borg/borg-backup.sh b/configs/base/borg/borg-backup.sh
+new file mode 100755
+index 0000000..d890f23
+--- /dev/null
++++ b/configs/base/borg/borg-backup.sh
+@@ -0,0 +1,37 @@
++#!/usr/bin/env bash
++# Daily borg backup of $HOME to the homelab NAS. Repo key is encrypted by a passphrase kept in the git-crypt
++# secrets worktree (secrets/borg-passphrase). Skips cleanly when the NAS isn't mounted or secrets are locked,
++# so a laptop off the homelab or a locked vault never errors the timer.
++set -euo pipefail
++: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
++
++NAS=/mnt/homelab
++export BORG_REPO="$NAS/backups/borg/$(hostname)"
++PASSFILE="${DOTFILES_SECRETS:-$DOTFILES/secrets}/borg-passphrase"
++
++mountpoint -q "$NAS" || { echo "borg: $NAS not mounted, skipping" >&2; exit 0; }
++[[ -r "$PASSFILE" ]] || { echo "borg: no passphrase at $PASSFILE (add secrets/borg-passphrase), skipping" >&2; exit 0; }
++# a locked git-crypt blob starts with the bytes "\0GITCRYPT"; don't feed that as a passphrase
++[[ "$(head -c 8 "$PASSFILE" | tr -d '\0')" != GITCRYPT ]] || { echo "borg: secrets locked, skipping" >&2; exit 0; }
++
++export BORG_PASSCOMMAND="cat $PASSFILE"
++export BORG_RELOCATED_REPO_ACCESS_IS_OK=no BORG_UNKNOWN_UNENCRYPTED_REPO_ACCESS_IS_OK=no
++
++# init once: repokey-blake2 stores the (passphrase-encrypted) key inside the repo, so no separate keyfile to lose
++borg list >/dev/null 2>&1 || borg init --encryption=repokey-blake2
++
++borg create --stats --compression zstd,3 --exclude-caches --one-file-system \
++    --exclude-if-present .nobackup \
++    --exclude "$HOME/.cache" \
++    --exclude "$HOME/.local/share/Trash" \
++    --exclude "$HOME/.local/share/Steam" \
++    --exclude "$HOME/.local/share/containers" \
++    --exclude "$HOME/.var/app/*/cache" \
++    --exclude "$HOME/Downloads" \
++    --exclude "$HOME/**/node_modules" \
++    --exclude "$HOME/**/target" \
++    --exclude "$HOME/**/.venv" \
++    "::{hostname}-{now:%Y%m%d-%H%M%S}" "$HOME"
++
++borg prune --glob-archives '{hostname}-*' --keep-daily 7 --keep-weekly 4 --keep-monthly 6
++borg compact
+diff --git a/configs/base/borg/borg-backup.timer b/configs/base/borg/borg-backup.timer
+new file mode 100644
+index 0000000..86f01d3
+--- /dev/null
++++ b/configs/base/borg/borg-backup.timer
+@@ -0,0 +1,10 @@
++[Unit]
++Description=Daily borg backup of home
++
++[Timer]
++OnCalendar=daily
++Persistent=true
++RandomizedDelaySec=30m
++
++[Install]
++WantedBy=timers.target
+diff --git a/configs/base/borg/link.sh b/configs/base/borg/link.sh
+new file mode 100755
+index 0000000..794cd15
+--- /dev/null
++++ b/configs/base/borg/link.sh
+@@ -0,0 +1,12 @@
++#!/usr/bin/env bash
++# Scheduled $HOME backup. Only a homelab user has the NAS to back up to; a guest or an off-homelab box gets nothing.
++
++command -v borg >/dev/null 2>&1 || exit 0
++
++if profile_has homelab; then
++    link_commands borg-backup.sh
++    unit_install borg-backup.service borg-backup.timer
++    systemctl --user enable borg-backup.timer
++else
++    systemctl --user disable --now borg-backup.timer 2>/dev/null || true
++fi
+diff --git a/configs/base/git/link.sh b/configs/base/git/link.sh
+index c5cf28f..b5eaa0d 100755
+--- a/configs/base/git/link.sh
++++ b/configs/base/git/link.sh
+@@ -13,6 +13,9 @@ if profile_has identity; then
+ fi
+ # no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also persist that gh token into ~/.git-credentials
+ git config --global init.defaultBranch master
++# secrets gate: new repos (init/clone) get the gitleaks pre-commit hook; run `git init` in an existing repo to add it
++link_dir "${PWD}/template" "${HOME}/.config/git/template"
++git config --global init.templateDir "${HOME}/.config/git/template"
+ git config --global pull.rebase true
+ git config --global --type bool push.autoSetupRemote true
+ 
+diff --git a/configs/base/git/template/hooks/pre-commit b/configs/base/git/template/hooks/pre-commit
+new file mode 100755
+index 0000000..1912100
+--- /dev/null
++++ b/configs/base/git/template/hooks/pre-commit
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++# Block commits that introduce secrets. Installed into new repos via git's init.templateDir (configs/base/git).
++# For an existing repo, run `git init` in it once to copy this hook in.
++command -v gitleaks >/dev/null 2>&1 || exit 0
++exec gitleaks protect --staged --redact --no-banner
+diff --git a/configs/base/hardening/modprobe-hardening.conf b/configs/base/hardening/modprobe-hardening.conf
+new file mode 100644
+index 0000000..fdac3b5
+--- /dev/null
++++ b/configs/base/hardening/modprobe-hardening.conf
+@@ -0,0 +1,20 @@
++# Disable rarely-used, attack-surface-heavy kernel modules. `install <mod> /bin/true` runs a no-op instead of
++# loading, blocking both autoload and manual modprobe; nothing here is used by this machine's normal operation.
++# (DMA-capable buses and uncommon protocols/filesystems are the classic local/USB attack surface.)
++
++# uncommon network protocols with a long CVE history, never used on a desktop/laptop
++install dccp /bin/true
++install sctp /bin/true
++install rds /bin/true
++install tipc /bin/true
++
++# legacy / rare filesystems (auto-mount attack surface from a malicious USB stick)
++install cramfs /bin/true
++install freevxfs /bin/true
++install jffs2 /bin/true
++install hfs /bin/true
++install hfsplus /bin/true
++
++# FireWire exposes DMA to the physical port; no FireWire devices here
++install firewire-core /bin/true
++install firewire-ohci /bin/true
+diff --git a/configs/hardware/hardening/sysctl-hardening.conf b/configs/base/hardening/sysctl-hardening.conf
+similarity index 67%
+rename from configs/hardware/hardening/sysctl-hardening.conf
+rename to configs/base/hardening/sysctl-hardening.conf
+index 2934b15..338dac1 100644
+--- a/configs/hardware/hardening/sysctl-hardening.conf
++++ b/configs/base/hardening/sysctl-hardening.conf
+@@ -15,3 +15,11 @@ net.ipv4.conf.*.secure_redirects = 0
+ net.ipv4.conf.*.send_redirects = 0
+ net.ipv6.conf.*.accept_redirects = 0
+ net.ipv4.tcp_rfc1337 = 1
++# --- added by hardening pass: safe additions on top of the above ---
++# no suid core dumps (they can leak secrets from privileged processes)
++fs.suid_dumpable = 0
++# refuse to follow links into dirs you don't own, in world-writable sticky dirs (symlink/hardlink TOCTOU)
++fs.protected_symlinks = 1
++fs.protected_hardlinks = 1
++# don't answer broadcast pings (smurf amplification)
++net.ipv4.icmp_echo_ignore_broadcasts = 1
+diff --git a/configs/hardware/hardening/system.sh b/configs/base/hardening/system.sh
+similarity index 65%
+rename from configs/hardware/hardening/system.sh
+rename to configs/base/hardening/system.sh
+index ae6654a..89174f1 100755
+--- a/configs/hardware/hardening/system.sh
++++ b/configs/base/hardening/system.sh
+@@ -6,3 +6,6 @@
+ install -Dm644 sysctl-hardening.conf /etc/sysctl.d/99-hardening.conf
+ # systemd-sysctl, not sysctl -p: only it expands the conf.* globs
+ /usr/lib/systemd/systemd-sysctl /etc/sysctl.d/99-hardening.conf
++
++# blacklist attack-surface kernel modules (applies at the next modprobe; already-loaded ones are left alone)
++install -Dm644 modprobe-hardening.conf /etc/modprobe.d/hardening.conf
+diff --git a/configs/base/packages.txt b/configs/base/packages.txt
+index 4d680ac..b87d695 100644
+--- a/configs/base/packages.txt
++++ b/configs/base/packages.txt
+@@ -80,7 +80,6 @@ oh-my-zsh-git                     # zsh libs and plugins, sourced without the fr
+ openal                            # 3D audio library
+ openbsd-netcat                    # netcat networking tool
+ opencl-icd-loader                 # OpenCL loader
+-openresolv                        # resolvconf for wg-quick, applies wg0's DNS=
+ openssh                           # SSH client/server
+ openssl                           # TLS/crypto toolkit
+ openvpn                           # VPN client/server
+@@ -111,6 +110,7 @@ starship                          # cross-shell prompt
+ sudo                              # privilege escalation tool
+ superseedr                        # terminal torrent
+ syncthing                         # file sync daemon
++systemd-resolvconf                 # resolvconf shim -> systemd-resolved; wg-quick's DNS= becomes wg0's per-link resolver
+ tailspin                          # logging tool
+ tar                               # archiving utility
+ tar-scripts                       # tar helper scripts
+diff --git a/configs/base/resolved/resolved.conf b/configs/base/resolved/resolved.conf
+new file mode 100644
+index 0000000..1a2921a
+--- /dev/null
++++ b/configs/base/resolved/resolved.conf
+@@ -0,0 +1,10 @@
++[Resolve]
++# Quad9 over TLS for everything not handled by a per-link resolver. NetworkManager and wg-quick hand their
++# pushed DNS (incl. homelab domains like search.lsck0.dev) to resolved as per-link servers with routing domains,
++# so those names resolve against the homelab/VPN resolver and everything else goes to Quad9 encrypted.
++DNS=9.9.9.9#dns.quad9.net 2620:fe::fe#dns.quad9.net
++FallbackDNS=149.112.112.112#dns.quad9.net 2620:fe::9#dns.quad9.net
++DNSOverTLS=yes
++DNSSEC=allow-downgrade
++# global default route for names no per-link domain claims
++Domains=~.
+diff --git a/configs/base/resolved/system.sh b/configs/base/resolved/system.sh
+new file mode 100755
+index 0000000..c142210
+--- /dev/null
++++ b/configs/base/resolved/system.sh
+@@ -0,0 +1,12 @@
++#!/usr/bin/env bash
++# DoT (Quad9) for off-VPN DNS via systemd-resolved, with homelab/VPN split-DNS preserved. Replaces the openresolv
++# path: NetworkManager now feeds per-link DNS straight to resolved (dns=systemd-resolved, see NetworkManager.conf),
++# and wg-quick's DNS= goes through systemd-resolvconf (packages.txt) to resolved as wg0's per-link resolver.
++# wsl uses the host resolver.
++[[ "$FORM_FACTOR" != wsl ]] || exit 0
++command -v resolvectl >/dev/null 2>&1 || { echo "resolved: systemd-resolved missing, skipping" >&2; exit 0; }
++
++install -Dm644 resolved.conf /etc/systemd/resolved.conf.d/dotfiles.conf
++ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
++systemctl enable systemd-resolved.service
++systemctl restart systemd-resolved.service 2>/dev/null || true
+diff --git a/configs/base/sandbox/confine.sh b/configs/base/sandbox/confine.sh
+new file mode 100755
+index 0000000..b3e6fc1
+--- /dev/null
++++ b/configs/base/sandbox/confine.sh
+@@ -0,0 +1,25 @@
++#!/usr/bin/env bash
++# Run a GUI app in a systemd --user scope with conservative hardening, as defense-in-depth alongside AppArmor (aa).
++# Deliberately does NOT set RestrictNamespaces/PrivateTmp/ProtectHome: Chromium/Electron need user namespaces for
++# their own sandbox and a shared /tmp and $HOME/.config to work. Groups confined apps under confined.slice.
++#
++#   confine -- discord
++#   confine -- signal-desktop
++set -euo pipefail
++
++[[ "${1:-}" == -- ]] && shift
++[[ $# -gt 0 ]] || { echo "usage: confine [--] <command...>" >&2; exit 2; }
++
++exec systemd-run --user --scope --quiet --collect \
++    --unit="confine-$(basename "$1")-$$" \
++    --slice=confined.slice \
++    -p NoNewPrivileges=yes \
++    -p ProtectKernelTunables=yes \
++    -p ProtectKernelLogs=yes \
++    -p ProtectKernelModules=yes \
++    -p ProtectControlGroups=yes \
++    -p RestrictSUIDSGID=yes \
++    -p RestrictRealtime=yes \
++    -p LockPersonality=yes \
++    -p ProtectClock=yes \
++    -- "$@"
+diff --git a/configs/base/sandbox/link.sh b/configs/base/sandbox/link.sh
+new file mode 100755
+index 0000000..ee5e7e8
+--- /dev/null
++++ b/configs/base/sandbox/link.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++# systemd-native sandboxes: sandbox-build (offline, strict, for untrusted builds) and confine (GUI-safe scope).
++link_commands sandbox-build.sh confine.sh
+diff --git a/configs/base/sandbox/sandbox-build.sh b/configs/base/sandbox/sandbox-build.sh
+new file mode 100755
+index 0000000..a062422
+--- /dev/null
++++ b/configs/base/sandbox/sandbox-build.sh
+@@ -0,0 +1,29 @@
++#!/usr/bin/env bash
++# Run an untrusted build/test command confined by systemd (transient --user unit): NO network, no new privileges,
++# kernel knobs protected, and the filesystem read-only except the working dir and a private /tmp. Pre-fetch deps
++# first (network is off by design — that's the anti-exfil point). The fuzzing/analysis layer runs adversarial code.
++#
++#   sandbox-build -- cargo test          # confine to $PWD
++#   sandbox-build -w ./crate -- make      # confine to ./crate
++set -euo pipefail
++
++work="$PWD"
++while [[ "${1:-}" == -w ]]; do work="$(realpath "$2")"; shift 2; done
++[[ "${1:-}" == -- ]] && shift
++[[ $# -gt 0 ]] || { echo "usage: sandbox-build [-w writable-dir] [--] <command...>" >&2; exit 2; }
++
++exec systemd-run --user --pty --wait --collect --quiet \
++    --unit="sandbox-build-$$" \
++    --working-directory="$work" \
++    -p PrivateNetwork=yes \
++    -p NoNewPrivileges=yes \
++    -p ProtectSystem=strict \
++    -p ProtectHome=read-only \
++    -p ReadWritePaths="$work" \
++    -p PrivateTmp=yes \
++    -p ProtectKernelTunables=yes \
++    -p ProtectKernelModules=yes \
++    -p ProtectControlGroups=yes \
++    -p RestrictSUIDSGID=yes \
++    -p LockPersonality=yes \
++    -- "$@"
+diff --git a/configs/base/systemd/system.sh b/configs/base/systemd/system.sh
+index ccf8fb7..7d12195 100755
+--- a/configs/base/systemd/system.sh
++++ b/configs/base/systemd/system.sh
+@@ -16,6 +16,8 @@ fi
+ enable_if_present bluetooth.service
+ enable_if_present cups.socket
+ enable_if_present paccache.timer --now
++# periodic SSD TRIM (btrfs on LUKS); weekly, shipped by util-linux
++enable_if_present fstrim.timer
+ # thermald is intel-only, on amd it starts and exits
+ if grep -q GenuineIntel /proc/cpuinfo; then enable_if_present thermald.service; fi
+ mask_if_present NetworkManager-wait-online.service
+diff --git a/configs/base/yt-dlp/config b/configs/base/yt-dlp/config
+new file mode 100644
+index 0000000..d411dc2
+--- /dev/null
++++ b/configs/base/yt-dlp/config
+@@ -0,0 +1,30 @@
++# arch-dotfiles yt-dlp defaults. Downloads follow the default route, which is ProtonVPN (proton0) whenever the
++# auto-vpn service has brought it up on an untrusted network (configs/base/protonvpn). To force a tunnel even
++# when the default route is clear, uncomment one of the proxy lines below.
++# --proxy socks5://127.0.0.1:9050          # over Tor (scripts/toggles/toggle-tor.sh)
++# --proxy socks5://127.0.0.1:1080          # over the anonymous socks chain (toggle-anonymous-socks.sh)
++
++-o ~/Downloads/yt-dlp/%(uploader)s/%(title)s [%(id)s].%(ext)s
++--restrict-filenames
++--continue
++--no-mtime
++--no-overwrites
++--concurrent-fragments 4
++--retries 10
++--fragment-retries 10
++
++# best video+audio, remuxed to a widely-playable container
++-f bv*+ba/b
++--merge-output-format mp4
++
++--embed-metadata
++--embed-thumbnail
++--embed-chapters
++--embed-subs
++--sub-langs en.*,de.*
++
++# skip sponsor/intro segments on youtube
++--sponsorblock-mark all
++
++# keep a per-user archive so re-runs don't re-download
++--download-archive ~/Downloads/yt-dlp/.archive
+diff --git a/configs/base/yt-dlp/link.sh b/configs/base/yt-dlp/link.sh
+new file mode 100755
+index 0000000..9b0129c
+--- /dev/null
++++ b/configs/base/yt-dlp/link.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++
++link_into "${XDG_CONFIG_HOME:-$HOME/.config}/yt-dlp" config
++# auto-route wrapper: ~/.local/bin/yt-dlp -> yt-dlp.sh, ahead of /usr/bin on PATH
++link_commands yt-dlp.sh
+diff --git a/configs/base/yt-dlp/yt-dlp.sh b/configs/base/yt-dlp/yt-dlp.sh
+new file mode 100755
+index 0000000..5fc8401
+--- /dev/null
++++ b/configs/base/yt-dlp/yt-dlp.sh
+@@ -0,0 +1,11 @@
++#!/usr/bin/env bash
++# Auto-route yt-dlp through the ProtonVPN tunnel: when proton0 is up (auto-vpn raises it on untrusted networks)
++# bind downloads to its address so they can't leak onto the bare interface; at home, where proton0 is down, fall
++# back to the normal route. Shadows /usr/bin/yt-dlp via ~/.local/bin (linked by link.sh / link_commands).
++
++args=()
++if ip -o link show proton0 >/dev/null 2>&1; then
++    ip4=$(ip -4 -o addr show dev proton0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
++    [ -n "$ip4" ] && args+=(--source-address "$ip4")
++fi
++exec /usr/bin/yt-dlp "${args[@]}" "$@"
+diff --git a/configs/creating/packages.txt b/configs/creating/packages.txt
+index b8acc99..4f74319 100644
+--- a/configs/creating/packages.txt
++++ b/configs/creating/packages.txt
+@@ -40,6 +40,7 @@ python-websocket-client           # obs-websocket client for the bar's OBS widge
+ qpwgraph                          # pipewire patchbay GUI
+ rawtherapee                       # RAW photo editor
+ sfxr-qt-bin                       # sound effect generator
++solvecraft                        # Fusion 360-style parametric 3D CAD, pure Rust, mirror/pkgbuilds
+ soundcraft                        # Pro Tools-style DAW, pure Rust
+ sox                               # audio processing tool
+ tiled                             # tilemap editor
+diff --git a/configs/desktop/chromium/policy.json b/configs/desktop/chromium/policy.json
+new file mode 100644
+index 0000000..40ea0a3
+--- /dev/null
++++ b/configs/desktop/chromium/policy.json
+@@ -0,0 +1,14 @@
++{
++    "MetricsReportingEnabled": false,
++    "UrlKeyedAnonymizedDataCollectionEnabled": false,
++    "SearchSuggestEnabled": false,
++    "SpellCheckServiceEnabled": false,
++    "SafeBrowsingProtectionLevel": 1,
++    "DefaultBrowserSettingEnabled": false,
++    "BackgroundModeEnabled": false,
++    "PromotionalTabsEnabled": false,
++    "MediaRouterCastAllowAllIPs": false,
++    "DefaultSearchProviderEnabled": true,
++    "DefaultSearchProviderName": "SearXNG",
++    "DefaultSearchProviderSearchURL": "https://search.lsck0.dev/search?q={searchTerms}"
++}
+diff --git a/configs/desktop/chromium/system.sh b/configs/desktop/chromium/system.sh
+new file mode 100755
+index 0000000..37842dc
+--- /dev/null
++++ b/configs/desktop/chromium/system.sh
+@@ -0,0 +1,14 @@
++#!/usr/bin/env bash
++# Chromium ships with Google metrics, Safe-Browsing phone-home and Google search on by default. Managed policy
++# in /etc survives updates and applies to every user. Search = the homelab SearXNG like firefox; off the homelab,
++# where that host isn't reachable, fall back to DuckDuckGo rather than Google.
++
++DEST=/etc/chromium/policies/managed/policy.json
++
++if [[ -n "$HOMELAB" ]]; then
++    install -Dm644 policy.json "$DEST"
++else
++    jq '.DefaultSearchProviderName="DuckDuckGo"
++        | .DefaultSearchProviderSearchURL="https://duckduckgo.com/?q={searchTerms}"' policy.json \
++        | install -Dm644 /dev/stdin "$DEST"
++fi
+diff --git a/configs/desktop/firefox/mozilla.cfg b/configs/desktop/firefox/mozilla.cfg
+index 3c88a0f..d23f418 100644
+--- a/configs/desktop/firefox/mozilla.cfg
++++ b/configs/desktop/firefox/mozilla.cfg
+@@ -2,3 +2,30 @@
+ // new tab shows the start page (bookmarks from weblinks) instead of activity stream
+ const { AboutNewTab } = ChromeUtils.importESModule("resource:///modules/AboutNewTab.sys.mjs");
+ AboutNewTab.newTabURL = "file://" + getenv("HOME") + "/.config/qutebrowser/startpage.html";
++
++// Ctrl+V with nothing editable focused focuses the address bar and pastes, so you don't have to click/type first.
++// If a text field (incl. the urlbar or a page input) already has focus, the normal paste is left untouched.
++(function () {
++  function hook(win) {
++    if (win.document.documentElement.getAttribute("windowtype") !== "navigator:browser") return;
++    win.addEventListener("keydown", function (e) {
++      if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return;
++      if (e.key !== "v" && e.key !== "V") return;
++      const el = win.document.activeElement;
++      if (el && (el.isContentEditable || /^(input|textarea)$/i.test(el.tagName))) return;
++      if (!win.gURLBar) return;
++      e.preventDefault();
++      win.gURLBar.focus();
++      win.gURLBar.select();
++      win.goDoCommand("cmd_paste");
++    }, true);
++  }
++  Services.wm.addListener({
++    onOpenWindow(xulWin) {
++      const win = xulWin.docShell.domWindow;
++      win.addEventListener("load", () => hook(win), { once: true });
++    },
++    onCloseWindow() {},
++    onWindowTitleChange() {},
++  });
++})();
+diff --git a/configs/desktop/firefox/system.sh b/configs/desktop/firefox/system.sh
+index 8eeec0a..000c7e7 100755
+--- a/configs/desktop/firefox/system.sh
++++ b/configs/desktop/firefox/system.sh
+@@ -14,6 +14,10 @@ fi
+ # homelab's searxng, so only a homelab machine gets it, elsewhere only an exact copy of ours goes, never a foreign file
+ if [[ -n "$HOMELAB" ]]; then
+     install -Dm644 policies.json "$POLICIES"
+-elif cmp -s policies.json "$POLICIES"; then
+-    rm -f "$POLICIES"
++else
++    # off the homelab the searxng host isn't reachable; set DuckDuckGo as default rather than leaving firefox on Google
++    jq '.policies.SearchEngines = {
++            "Add": [{"Name": "DuckDuckGo", "URLTemplate": "https://duckduckgo.com/?q={searchTerms}", "Method": "GET", "Alias": "ddg"}],
++            "Default": "DuckDuckGo"
++        }' policies.json | install -Dm644 /dev/stdin "$POLICIES"
+ fi
+diff --git a/configs/desktop/firefox/user.js b/configs/desktop/firefox/user.js
+index eec3883..ceb714f 100644
+--- a/configs/desktop/firefox/user.js
++++ b/configs/desktop/firefox/user.js
+@@ -16,3 +16,14 @@ user_pref("app.shield.optoutstudies.enabled", false);
+ user_pref("browser.newtabpage.activity-stream.showSponsored", false);
+ user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
+ user_pref("browser.urlbar.suggest.quicksuggest.sponsored", false);
++
++// full telemetry off (healthreport/usage above don't cover these), no normandy experiments, no pocket.
++// DoH/TRR deliberately left off: homelab hosts (search.lsck0.dev etc.) resolve internally and DoH would bypass that.
++user_pref("toolkit.telemetry.enabled", false);
++user_pref("toolkit.telemetry.unified", false);
++user_pref("toolkit.telemetry.archive.enabled", false);
++user_pref("app.normandy.enabled", false);
++user_pref("app.normandy.api_url", "");
++user_pref("extensions.pocket.enabled", false);
++user_pref("browser.newtabpage.activity-stream.feeds.telemetry", false);
++user_pref("browser.ping-centre.telemetry", false);
+diff --git a/configs/desktop/qbittorrent/link.sh b/configs/desktop/qbittorrent/link.sh
+new file mode 100755
+index 0000000..628b88e
+--- /dev/null
++++ b/configs/desktop/qbittorrent/link.sh
+@@ -0,0 +1,41 @@
++#!/usr/bin/env bash
++# Bind qBittorrent to the ProtonVPN tunnel (proton0): torrent traffic only flows while the VPN is up, and when
++# proton0 is down qBittorrent binds to a missing interface and stalls instead of leaking over the real one. This
++# is the reliable per-app killswitch, independent of the system routing/firewall toggles. qBittorrent rewrites
++# its own config on exit, so the binding keys are re-asserted here on every config run.
++
++conf="${XDG_CONFIG_HOME:-$HOME/.config}/qBittorrent/qBittorrent.conf"
++mkdir -p "$(dirname "$conf")"
++
++VPN_INTERFACE=proton0 python3 - "$conf" <<'PY'
++import configparser, os, sys
++
++path = sys.argv[1]
++iface = os.environ["VPN_INTERFACE"]
++
++cp = configparser.RawConfigParser()      # Raw: qBittorrent values contain % and \, no interpolation
++cp.optionxform = str                     # keys are case-sensitive
++if os.path.exists(path):
++    cp.read(path)
++
++def setkey(section, key, val):
++    if not cp.has_section(section):
++        cp.add_section(section)
++    cp.set(section, key, val)
++
++def seed(section, key, val):             # only if absent, so a later manual change in qBittorrent sticks
++    if not (cp.has_section(section) and cp.has_option(section, key)):
++        setkey(section, key, val)
++
++# always enforced: bind to the tunnel; empty address = any address on that interface
++setkey("BitTorrent", r"Session\InterfaceName", iface)
++setkey("BitTorrent", r"Session\InterfaceAddress", "")
++
++# seeded once
++seed("LegalNotice", "Accepted", "true")                      # skip the first-run EULA dialog
++seed("BitTorrent", r"Session\Encryption", "0")               # prefer encrypted peer connections
++seed("Preferences", r"Advanced\AnnounceToAllTrackers", "true")
++
++with open(path, "w") as f:
++    cp.write(f, space_around_delimiters=False)               # qBittorrent wants key=value
++PY
+diff --git a/configs/desktop/qutebrowser/config.py b/configs/desktop/qutebrowser/config.py
+index ada1d1b..af257c0 100644
+--- a/configs/desktop/qutebrowser/config.py
++++ b/configs/desktop/qutebrowser/config.py
+@@ -105,7 +105,10 @@ config.set("content.local_content_can_access_remote_urls", True, _startpage)
+ 
+ # search engines
+ c.url.searchengines = {
+-    "DEFAULT": "https://www.google.com/search?q={}",
++    # default to the homelab SearXNG like firefox (off the homelab swap to ddg); g/ddg bangs stay reachable
++    "DEFAULT": "https://search.lsck0.dev/search?q={}",
++    "ddg": "https://duckduckgo.com/?q={}",
++    "g": "https://www.google.com/search?q={}",
+     "ap": "https://archlinux.org/packages/?q={}",
+     "aur": "https://aur.archlinux.org/packages?K={}",
+     "aw": "https://wiki.archlinux.org/?search={}",
+diff --git a/configs/fonts/fonts/fonts.conf b/configs/fonts/fonts/fonts.conf
+new file mode 100644
+index 0000000..e3bbd41
+--- /dev/null
++++ b/configs/fonts/fonts/fonts.conf
+@@ -0,0 +1,48 @@
++<?xml version="1.0"?>
++<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
++<!-- Default family preferences + rendering. ~150 families are installed; without this, generic sans/serif/mono
++     and CJK/emoji fallback are left to fontconfig's guesses. Missing families are skipped, so this stays valid
++     even on a box with a smaller font set. -->
++<fontconfig>
++  <alias>
++    <family>sans-serif</family>
++    <prefer>
++      <family>Roboto</family>
++      <family>Open Sans</family>
++      <family>Noto Sans</family>
++      <family>Sarasa Gothic</family>
++      <family>Noto Color Emoji</family>
++    </prefer>
++  </alias>
++  <alias>
++    <family>serif</family>
++    <prefer>
++      <family>Noto Serif</family>
++      <family>Sarasa Gothic</family>
++      <family>Noto Color Emoji</family>
++    </prefer>
++  </alias>
++  <alias>
++    <family>monospace</family>
++    <prefer>
++      <family>Kode Mono</family>
++      <family>CaskaydiaCove Nerd Font</family>
++      <family>Sarasa Mono</family>
++      <family>Noto Color Emoji</family>
++    </prefer>
++  </alias>
++
++  <!-- map the generic "emoji" family to the colour emoji font -->
++  <match target="pattern">
++    <test name="family"><string>emoji</string></test>
++    <edit name="family" mode="prepend" binding="strong"><string>Noto Color Emoji</string></edit>
++  </match>
++
++  <!-- rendering: slight hinting + subpixel, no bitmap glyphs -->
++  <match target="font"><edit name="antialias" mode="assign"><bool>true</bool></edit></match>
++  <match target="font"><edit name="hinting" mode="assign"><bool>true</bool></edit></match>
++  <match target="font"><edit name="hintstyle" mode="assign"><const>hintslight</const></edit></match>
++  <match target="font"><edit name="rgba" mode="assign"><const>rgb</const></edit></match>
++  <match target="font"><edit name="lcdfilter" mode="assign"><const>lcddefault</const></edit></match>
++  <match target="font"><edit name="embeddedbitmap" mode="assign"><bool>false</bool></edit></match>
++</fontconfig>
+diff --git a/configs/fonts/fonts/link.sh b/configs/fonts/fonts/link.sh
+index df5d649..cfebe09 100755
+--- a/configs/fonts/fonts/link.sh
++++ b/configs/fonts/fonts/link.sh
+@@ -7,4 +7,8 @@ for f in *.ttf *.otf; do
+     [ -e "$f" ] || continue
+     install -m644 "$f" "$dest/$f"
+ done
++
++# default family preferences + rendering
++link_into "${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig" fonts.conf
++
+ fc-cache -f "$dest" >/dev/null
+diff --git a/configs/gaming/gamemode/gamemode.ini b/configs/gaming/gamemode/gamemode.ini
+index 714bd79..a648fa6 100644
+--- a/configs/gaming/gamemode/gamemode.ini
++++ b/configs/gaming/gamemode/gamemode.ini
+@@ -22,5 +22,5 @@ pin_cores=yes
+ park_cores=no
+ 
+ [custom]
+-start=$HOME/projects/arch-dotfiles/configs/gaming/gamemode/hook.sh start
+-end=$HOME/projects/arch-dotfiles/configs/gaming/gamemode/hook.sh end
++start=$HOME/.local/bin/gamemode-hook start
++end=$HOME/.local/bin/gamemode-hook end
+diff --git a/configs/gaming/gamemode/link.sh b/configs/gaming/gamemode/link.sh
+index a879c73..30d9123 100755
+--- a/configs/gaming/gamemode/link.sh
++++ b/configs/gaming/gamemode/link.sh
+@@ -1,3 +1,6 @@
+ #!/usr/bin/env bash
+ 
+ link_into "${HOME}/.config" gamemode.ini
++# stable path for the [custom] hook so a checkout anywhere works (readlink -f in hook.sh resolves the real dir)
++mkdir -p "${HOME}/.local/bin"
++ln -sfn "${PWD}/hook.sh" "${HOME}/.local/bin/gamemode-hook"
+diff --git a/configs/hardware/apparmor/aa.sh b/configs/hardware/apparmor/aa.sh
+new file mode 100755
+index 0000000..cbba128
+--- /dev/null
++++ b/configs/hardware/apparmor/aa.sh
+@@ -0,0 +1,67 @@
++#!/usr/bin/env bash
++# Manually decide which apps AppArmor confines, and how. The dotfiles ship a baseline (profiles.conf ->
++# /etc/apparmor/{include.d,flags.d}/dotfiles.conf); this tool layers YOUR choices into a separate
++# `manual.conf` in the same drop-in dirs, which config runs never touch, then rebuilds with apparmor.d's
++# aa-install (the same path the module and the pacman hook use), so choices persist across both.
++#
++#   aa                      show loaded profiles and their modes, plus your manual choices
++#   aa list [filter]        list available apparmor.d profile names (optionally grep-filtered)
++#   aa enforce <profile>    confine <profile> and block violations
++#   aa complain <profile>   confine <profile> but only log violations (safe to try)
++#   aa off <profile>        stop confining <profile>
++#
++# <profile> is an apparmor.d profile name, e.g. firefox, discord, signal-desktop, thunderbird (see `aa list`).
++set -euo pipefail
++
++INC=/etc/apparmor/include.d/manual.conf
++FLAGS=/etc/apparmor/flags.d/manual.conf
++ETC_PROFILES=/etc/apparmor.d
++SRC_PROFILES=/usr/share/apparmor.d
++
++die() { echo "aa: $*" >&2; exit 1; }
++command -v aa-install >/dev/null 2>&1 || die "apparmor.d (aa-install) is not installed"
++
++# every profile apparmor.d can build, by basename
++available() {
++    { [ -d "$SRC_PROFILES" ] && find "$SRC_PROFILES" -type f -not -path '*/abstractions/*' \
++          -not -path '*/tunables/*' -printf '%f\n'
++      [ -d "$ETC_PROFILES" ] && find "$ETC_PROFILES" -maxdepth 1 -type f -printf '%f\n'
++    } 2>/dev/null | sort -u
++}
++
++known() { available | grep -qxF "$1"; }
++
++apply() { sudo aa-install --install; }
++
++set_mode() {
++    local p="$1" mode="$2"
++    known "$p" || die "no apparmor.d profile named '$p' (try: aa list ${p})"
++    sudo touch "$INC" "$FLAGS"
++    grep -qxF "$p" "$INC" 2>/dev/null || echo "$p" | sudo tee -a "$INC" >/dev/null
++    sudo sed -i "\|^${p}[[:space:]]|d" "$FLAGS"
++    echo "$p $mode" | sudo tee -a "$FLAGS" >/dev/null
++    apply
++    echo "aa: $p -> $mode (reboot-safe)"
++}
++
++off() {
++    local p="$1"
++    sudo touch "$INC" "$FLAGS"
++    sudo sed -i "\|^${p}\$|d" "$INC"
++    sudo sed -i "\|^${p}[[:space:]]|d" "$FLAGS"
++    sudo aa-disable "$ETC_PROFILES/$p" 2>/dev/null || true
++    apply
++    echo "aa: $p is no longer confined"
++}
++
++case "${1:-status}" in
++    status|"")
++        echo "# loaded profiles and modes"; sudo aa-status --profiles 2>/dev/null || sudo aa-status
++        echo; echo "# your manual choices ($FLAGS)"; sudo cat "$FLAGS" 2>/dev/null || echo "  (none yet)"
++        ;;
++    list)     available | { [ $# -ge 2 ] && grep -i "$2" || cat; } ;;
++    enforce)  [ $# -ge 2 ] || die "usage: aa enforce <profile>"; set_mode "$2" enforce ;;
++    complain) [ $# -ge 2 ] || die "usage: aa complain <profile>"; set_mode "$2" complain ;;
++    off|disable) [ $# -ge 2 ] || die "usage: aa off <profile>"; off "$2" ;;
++    *) die "usage: aa [status|list [filter]|enforce <profile>|complain <profile>|off <profile>]" ;;
++esac
+diff --git a/configs/hardware/apparmor/link.sh b/configs/hardware/apparmor/link.sh
+new file mode 100755
+index 0000000..67867b0
+--- /dev/null
++++ b/configs/hardware/apparmor/link.sh
+@@ -0,0 +1,4 @@
++#!/usr/bin/env bash
++
++# `aa` on PATH: manually enforce/complain/disable AppArmor per app (see aa.sh header)
++link_commands aa.sh
+diff --git a/configs/hardware/apparmor/system.sh b/configs/hardware/apparmor/system.sh
+index 539b351..f2476c7 100755
+--- a/configs/hardware/apparmor/system.sh
++++ b/configs/hardware/apparmor/system.sh
+@@ -9,6 +9,8 @@ fi
+ systemctl enable apparmor.service
+ 
+ install -Dm644 modes /etc/apparmor/modes
++# baseline, owned by the dotfiles. The `aa` command (link.sh) layers per-app choices into a sibling manual.conf
++# in these same drop-in dirs, which this run leaves untouched, so manual decisions survive config runs.
+ install -Dm644 profiles.conf /etc/apparmor/flags.d/dotfiles.conf
+ grep -v '^#' profiles.conf | cut -d' ' -f1 | install -Dm644 /dev/stdin /etc/apparmor/include.d/dotfiles.conf
+ # apparmor.d assumes capitalized xdg dirs, configs/base/xdg's are lowercase
+diff --git a/configs/hardware/boot/hardening/system.sh b/configs/hardware/boot/hardening/system.sh
+new file mode 100755
+index 0000000..834bc87
+--- /dev/null
++++ b/configs/hardware/boot/hardening/system.sh
+@@ -0,0 +1,20 @@
++#!/usr/bin/env bash
++# KSPP-style boot-time hardening, written into the UKI cmdline via the boot barrier (system-apply runs
++# boot_commit, which rebuilds and signs the ukis). kernel_cmdline_set replaces tokens per key, so this is
++# idempotent and co-exists with the tokens bootstrap.sh seeds at install.
++# wsl has no uki or host kernel of its own.
++[[ "$FORM_FACTOR" != wsl ]] || exit 0
++
++source "$DOTFILES/configs/hardware/boot/boot-menu/common.sh"
++
++# Deliberately NOT set, because they break tools this system relies on:
++#   lockdown=confidentiality  -> blocks the unsigned it87-dkms module and restricts the bpf/kprobes pwndbg & bpftrace use
++#   debugfs=off               -> breaks bpftrace / bpftop
++#   module.sig_enforce        -> breaks DKMS modules
++kernel_cmdline_set \
++    slab_nomerge \
++    init_on_alloc=1 \
++    init_on_free=1 \
++    randomize_kstack_offset=on \
++    vsyscall=none \
++    page_alloc.shuffle=1
+diff --git a/configs/hardware/boot/luks/system.sh b/configs/hardware/boot/luks/system.sh
+index 700d55a..cef2e4f 100755
+--- a/configs/hardware/boot/luks/system.sh
++++ b/configs/hardware/boot/luks/system.sh
+@@ -98,11 +98,17 @@ fi
+ # sd-encrypt ships the fido2 token plugin; with no token enrolled systemd-cryptsetup falls through to the passphrase or stage.sh's keyfile
+ if [[ -n "$ROOT_BACKING" ]]; then
+     source "$DOTFILES/configs/hardware/boot/boot-menu/common.sh"
+-    kernel_cmdline_set rd.luks.options=fido2-device=auto
++    # try a TPM2 (PCR 7 = Secure Boot state) seal first, then the yubikey, then the passphrase. An untampered boot
++    # unlocks unattended; a changed Secure Boot state (PCR 7) makes the TPM refuse and falls through to the yubikey/passphrase.
++    kernel_cmdline_set rd.luks.options=tpm2-device=auto,fido2-device=auto
+     # enrolling during the stage chain would make its unattended boots wait for a touch
+     if ! cryptsetup luksDump "/dev/$ROOT_BACKING" | grep -q systemd-fido2; then
+         echo "luks: no yubikey enrolled, once the stage chain is done: sudo systemd-cryptenroll --fido2-device=auto /dev/$ROOT_BACKING" >&2
+     fi
++    # additive: keeps the passphrase and yubikey. PCR 7 tracks Secure Boot; re-seal after enrolling/rotating SB keys.
++    if ! cryptsetup luksDump "/dev/$ROOT_BACKING" | grep -q systemd-tpm2; then
++        echo "luks: no TPM2 seal enrolled, for measured-boot unlock: sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 /dev/$ROOT_BACKING" >&2
++    fi
+ fi
+ 
+ # the encrypt hook lands in the initramfs at system-apply's boot barrier
+diff --git a/configs/hardware/networkmanager/NetworkManager.conf b/configs/hardware/networkmanager/NetworkManager.conf
+index 8440af2..1b706d1 100644
+--- a/configs/hardware/networkmanager/NetworkManager.conf
++++ b/configs/hardware/networkmanager/NetworkManager.conf
+@@ -1,5 +1,8 @@
+ [main]
+-rc-manager=resolvconf
++# DNS goes through systemd-resolved (configs/base/resolved): per-link servers feed resolved, which does DoT to
++# Quad9 for the global route and split-DNS for homelab/VPN domains. resolved owns /etc/resolv.conf (stub symlink).
++dns=systemd-resolved
++rc-manager=symlink
+ 
+ [device]
+ wifi.scan-rand-mac-address=yes
+diff --git a/configs/hardware/perf/60-ioschedulers.rules b/configs/hardware/perf/60-ioschedulers.rules
+new file mode 100644
+index 0000000..ff52ae5
+--- /dev/null
++++ b/configs/hardware/perf/60-ioschedulers.rules
+@@ -0,0 +1,6 @@
++# I/O scheduler by device class. NVMe has deep hardware queues, so no scheduler ("none") is lowest-overhead and
++# fastest; SATA/eMMC SSDs do best on mq-deadline; spinning disks on bfq for interactivity.
++ACTION=="add|change", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
++ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
++ACTION=="add|change", KERNEL=="mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
++ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+diff --git a/configs/hardware/perf/cpu-governor.service b/configs/hardware/perf/cpu-governor.service
+new file mode 100644
+index 0000000..d09490f
+--- /dev/null
++++ b/configs/hardware/perf/cpu-governor.service
+@@ -0,0 +1,12 @@
++[Unit]
++Description=Set CPU frequency governor to @GOVERNOR@
++ConditionPathExists=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
++
++[Service]
++Type=oneshot
++# writes are best-effort: if @GOVERNOR@ isn't offered by the active cpufreq driver (e.g. amd-pstate active mode
++# exposes only performance/powersave), the write fails and the driver's default stands.
++ExecStart=/bin/sh -c 'for g in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do echo @GOVERNOR@ > "$g" 2>/dev/null || true; done'
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/configs/hardware/perf/system.sh b/configs/hardware/perf/system.sh
+new file mode 100755
+index 0000000..c6aba3d
+--- /dev/null
++++ b/configs/hardware/perf/system.sh
+@@ -0,0 +1,21 @@
++#!/usr/bin/env bash
++# I/O scheduler tuning (all machines) + a CPU governor policy per form-factor.
++[[ "$FORM_FACTOR" != wsl ]] || exit 0
++
++install -Dm644 60-ioschedulers.rules /etc/udev/rules.d/60-ioschedulers.rules
++udevadm control --reload 2>/dev/null || true
++udevadm trigger --subsystem-match=block 2>/dev/null || true
++
++# desktops: schedutil (balanced, scales with load); laptops are left to tlp's dynamic policy; vm/other: leave default
++case "$FORM_FACTOR" in
++    desktop)
++        file_render cpu-governor.service /etc/systemd/system/cpu-governor.service GOVERNOR=schedutil
++        systemctl daemon-reload
++        systemctl enable --now cpu-governor.service
++        ;;
++    *)
++        systemctl disable --now cpu-governor.service 2>/dev/null || true
++        rm -f /etc/systemd/system/cpu-governor.service
++        systemctl daemon-reload 2>/dev/null || true
++        ;;
++esac
+diff --git a/configs/latex/latex/latexmkrc b/configs/latex/latex/latexmkrc
+index dbd89d0..a1b37f9 100644
+--- a/configs/latex/latex/latexmkrc
++++ b/configs/latex/latex/latexmkrc
+@@ -9,6 +9,7 @@ $xelatex  = "xelatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S"
+ $biber    = "biber --input-encoding=utf8 --output-encoding=utf8 %O %S";
+ $bibtex_use = 2;
+ 
+-$pdf_previewer = "zathura %O %S";
++# sioyek is the latex layer's viewer, with two-way SyncTeX (configs/latex/sioyek); zathura lives in other layers
++$pdf_previewer = "start sioyek %O %S";
+ 
+ $clean_ext = "synctex.gz synctex.gz(busy) run.xml bbl bcf fdb_latexmk fls nav snm tdo";
+diff --git a/configs/llm/ollama/hardening.conf b/configs/llm/ollama/hardening.conf
+new file mode 100644
+index 0000000..6cfda77
+--- /dev/null
++++ b/configs/llm/ollama/hardening.conf
+@@ -0,0 +1,15 @@
++[Service]
++# privacy: no usage phone-home from ollama or the HF downloader
++Environment=OLLAMA_NOHISTORY=1
++Environment=DO_NOT_TRACK=1
++Environment=HF_HUB_DISABLE_TELEMETRY=1
++# sandboxing on top of the packaged unit (ollama already runs as its own user). No PrivateDevices/SystemCallFilter:
++# the GPU (/dev/kfd, /dev/dri) and ROCm ioctls must keep working.
++NoNewPrivileges=yes
++ProtectHome=read-only
++ProtectKernelTunables=yes
++ProtectKernelLogs=yes
++ProtectControlGroups=yes
++RestrictSUIDSGID=yes
++RestrictRealtime=yes
++LockPersonality=yes
+diff --git a/configs/llm/ollama/system.sh b/configs/llm/ollama/system.sh
+index 57217f9..cd15223 100755
+--- a/configs/llm/ollama/system.sh
++++ b/configs/llm/ollama/system.sh
+@@ -1,7 +1,10 @@
+ #!/usr/bin/env bash
+ 
+ # copied, not linked: pid1 loads drop-ins before /home mounts
+-if file_update keep-alive.conf /etc/systemd/system/ollama.service.d/keep-alive.conf; then
++changed=0
++file_update keep-alive.conf /etc/systemd/system/ollama.service.d/keep-alive.conf && changed=1
++file_update hardening.conf /etc/systemd/system/ollama.service.d/hardening.conf && changed=1
++if ((changed)); then
+     systemctl daemon-reload
+     systemctl try-restart ollama.service
+ fi
+diff --git a/configs/llm/vllm/vllm.service b/configs/llm/vllm/vllm.service
+index 7b89728..53962c5 100644
+--- a/configs/llm/vllm/vllm.service
++++ b/configs/llm/vllm/vllm.service
+@@ -15,6 +15,17 @@ ProtectSystem=strict
+ ProtectHome=yes
+ PrivateTmp=yes
+ NoNewPrivileges=yes
++# extra sandboxing (safe for ROCm compute: no syscall/addr-family filter, no MemoryDenyWriteExecute — JIT needs W^X)
++ProtectKernelTunables=yes
++ProtectKernelLogs=yes
++ProtectKernelModules=yes
++ProtectControlGroups=yes
++RestrictSUIDSGID=yes
++RestrictRealtime=yes
++LockPersonality=yes
++# privacy: no model-hub / usage phone-home
++Environment=HF_HUB_DISABLE_TELEMETRY=1
++Environment=DO_NOT_TRACK=1
+ Environment=FLASH_ATTENTION_TRITON_AMD_ENABLE=TRUE
+ Environment=TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+ Environment=VLLM_TARGET_DEVICE=rocm
+diff --git a/configs/pentesting/metasploit/autoscan.rc b/configs/pentesting/metasploit/autoscan.rc
+new file mode 100644
+index 0000000..2e3f635
+--- /dev/null
++++ b/configs/pentesting/metasploit/autoscan.rc
+@@ -0,0 +1,30 @@
++# Discovery + service scan into the metasploit db, then a quick vuln pass. Usage:
++#
++#   RHOSTS=10.0.0.0/24 msfconsole -r ~/.msf4/autoscan.rc
++#   RHOSTS="scanme.nmap.org 10.0.0.5" PORTS=1-1000 msfconsole -r ~/.msf4/autoscan.rc
++#
++# Results land in a per-run workspace (autoscan-<timestamp>); `hosts`, `services` and `vulns` show them.
++# nmap runs as your user here (-Pn -sT -sV), so no root is needed; for SYN/OS scans run msfconsole with sudo
++# and change the db_nmap flags below. Keep scanning authorised targets only.
++
++<ruby>
++targets = (ENV["RHOSTS"] || ENV["TARGETS"] || "").strip
++ports   = (ENV["PORTS"] || "").strip
++
++if targets.empty?
++  print_error("autoscan: set RHOSTS, e.g. RHOSTS=10.0.0.0/24 msfconsole -r ~/.msf4/autoscan.rc")
++else
++  ws = "autoscan-#{Time.now.strftime('%Y%m%d-%H%M%S')}"
++  run_single("workspace -a #{ws}")
++
++  nmap = "db_nmap -Pn -sT -sV --version-light -T4"
++  nmap += ports.empty? ? " --top-ports 1000" : " -p #{ports}"
++  run_single("#{nmap} #{targets}")
++
++  run_single("hosts")
++  run_single("services -u")          # only up services
++  run_single("analyze")              # tag hosts with applicable modules
++  run_single("vulns")
++  print_status("autoscan: done in workspace #{ws}. Next: `services -s http -o http.txt`, `analyze`, or hand a service to a module.")
++end
++</ruby>
+diff --git a/configs/pentesting/metasploit/link.sh b/configs/pentesting/metasploit/link.sh
+new file mode 100755
+index 0000000..54c5e19
+--- /dev/null
++++ b/configs/pentesting/metasploit/link.sh
+@@ -0,0 +1,5 @@
++#!/usr/bin/env bash
++
++mkdir -p "$HOME/.msf4/logs"
++# msfconsole.rc auto-runs on every start; autoscan.rc is run on demand with `msfconsole -r ~/.msf4/autoscan.rc`
++link_into "$HOME/.msf4" msfconsole.rc autoscan.rc
+diff --git a/configs/pentesting/metasploit/msfconsole.rc b/configs/pentesting/metasploit/msfconsole.rc
+new file mode 100644
+index 0000000..7867778
+--- /dev/null
++++ b/configs/pentesting/metasploit/msfconsole.rc
+@@ -0,0 +1,21 @@
++# ~/.msf4/msfconsole.rc -- runs on every msfconsole start (linked by configs/pentesting/metasploit/link.sh).
++# The database is initialised by configs/pentesting/armitage/link.sh (msfdb). Keep this idempotent and quiet.
++
++setg TimestampOutput true
++setg PromptTimeFormat %H:%M:%S
++setg ConsoleLogging true
++setg SessionLogging true
++setg LogLevel 1
++
++<ruby>
++require "fileutils"
++
++# a persistent default workspace keeps hosts/services/loot tidy; -a is harmless if it already exists
++run_single("workspace -a default") unless framework.db.workspaces.map(&:name).include?("default")
++run_single("workspace default")
++
++# spool a timestamped console log per session for later review
++dir = File.join(Msf::Config.config_directory, "logs")
++FileUtils.mkdir_p(dir)
++run_single("spool #{File.join(dir, "console-#{Time.now.strftime('%Y%m%d-%H%M%S')}.log")}")
++</ruby>
+diff --git a/configs/pentesting/nuclei/config.yaml b/configs/pentesting/nuclei/config.yaml
+new file mode 100644
+index 0000000..a128b0c
+--- /dev/null
++++ b/configs/pentesting/nuclei/config.yaml
+@@ -0,0 +1,4 @@
++# nuclei's default OOB (interactsh) server is ProjectDiscovery's public oast.pro: callbacks reveal the target
++# and your activity to a third party. Disable it here; when you genuinely need OAST, pass a self-hosted
++# -interactsh-server on that run instead of leaking to the public one.
++no-interactsh: true
+diff --git a/configs/pentesting/nuclei/link.sh b/configs/pentesting/nuclei/link.sh
+new file mode 100755
+index 0000000..85563bb
+--- /dev/null
++++ b/configs/pentesting/nuclei/link.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++
++link_into "${XDG_CONFIG_HOME:-$HOME/.config}/nuclei" config.yaml
+diff --git a/configs/pentesting/rustscan/config.toml b/configs/pentesting/rustscan/config.toml
+new file mode 100644
+index 0000000..656237a
+--- /dev/null
++++ b/configs/pentesting/rustscan/config.toml
+@@ -0,0 +1,5 @@
++# rustscan's default is a fast SYN sweep that then hands nmap host-discovery/SYN flags — none of which traverse
++# proxychains, so they leak your real IP. Force a TCP connect scan with no host discovery (the same discipline as
++# configs/pentesting/metasploit/autoscan.rc), which proxychains can tunnel. Run rustscan under `proxychains4` to route it.
++scan_order = "Serial"
++command = ["-Pn", "-sT", "-sV", "--version-light"]
+diff --git a/configs/pentesting/rustscan/link.sh b/configs/pentesting/rustscan/link.sh
+new file mode 100755
+index 0000000..53bc3ad
+--- /dev/null
++++ b/configs/pentesting/rustscan/link.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++
++link_into "${XDG_CONFIG_HOME:-$HOME/.config}/rustscan" config.toml
+diff --git a/configs/programming/bruno/link.sh b/configs/programming/bruno/link.sh
+new file mode 100755
+index 0000000..46a2dc5
+--- /dev/null
++++ b/configs/programming/bruno/link.sh
+@@ -0,0 +1,11 @@
++#!/usr/bin/env bash
++# Bruno GUI preferences: match the editor font, follow the system theme, and turn anonymous telemetry off.
++# json_update merges, so anything you change later in the app survives; only codeFont and telemetry are forced.
++
++conf="${XDG_CONFIG_HOME:-$HOME/.config}/bruno/preferences.json"
++json_update "$conf" '
++    .version = (.version // "1")
++    | .preferences.theme = (.preferences.theme // "system")
++    | .preferences.font.codeFont = "Kode Mono"
++    | .preferences.telemetry = false
++'
+diff --git a/configs/programming/cargo/config.toml b/configs/programming/cargo/config.toml
+new file mode 100644
+index 0000000..0e988a6
+--- /dev/null
++++ b/configs/programming/cargo/config.toml
+@@ -0,0 +1,5 @@
++# Faster links: mold as the default linker via gcc's -fuse-ld (pure win, no downside on Arch's gcc).
++# sccache is installed but intentionally NOT set as rustc-wrapper here — it disables incremental compilation,
++# which usually hurts the iterative dev loop. Opt in per shell for clean/CI builds: `export RUSTC_WRAPPER=sccache`.
++[target.x86_64-unknown-linux-gnu]
++rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+diff --git a/configs/programming/cargo/link.sh b/configs/programming/cargo/link.sh
+new file mode 100755
+index 0000000..e3a11c4
+--- /dev/null
++++ b/configs/programming/cargo/link.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++
++link_into "${HOME}/.cargo" config.toml
+diff --git a/configs/programming/docker/daemon.json b/configs/programming/docker/daemon.json
+index 7b558a9..0fab35d 100644
+--- a/configs/programming/docker/daemon.json
++++ b/configs/programming/docker/daemon.json
+@@ -1,3 +1,4 @@
+ {
+-  "ip-forward-no-drop": true
++  "ip-forward-no-drop": true,
++  "no-new-privileges": true
+ }
+diff --git a/configs/programming/emacs/core.el b/configs/programming/emacs/core.el
+index 14a93d5..d52781c 100644
+--- a/configs/programming/emacs/core.el
++++ b/configs/programming/emacs/core.el
+@@ -189,10 +189,15 @@ That is how bare-repo layouts show up, while submodules and the bare layout's ow
+     (sort out (lambda (a b) (string< (car a) (car b))))))
+ 
+ (defun my/project-open (dir)
+-  "nvim tcd: move to project DIR, re-rooting the sidebar there, then find a file in it."
++  "nvim tcd: move to project DIR, re-rooting the sidebar there, and land on an empty buffer.
++Mirrors lib/projects.lua: no file picker, just the scratch buffer with the explorer open on DIR."
++  (setq default-directory dir)
++  (delete-other-windows)
++  (switch-to-buffer (get-scratch-buffer-create))
++  (setq default-directory dir)
+   (my/tree-reroot dir)
+-  (let ((default-directory dir))
+-    (my/find-files)))
++  (when (and (display-graphic-p) (fboundp 'dirvish-side))
++    (save-selected-window (dirvish-side))))
+ 
+ (defun my/project-pick ()
+   "nvim SPC f p: the repo list hms and tms show, not only projects visited before."
+diff --git a/configs/programming/gemini-cli/link.sh b/configs/programming/gemini-cli/link.sh
+new file mode 100755
+index 0000000..d2c9806
+--- /dev/null
++++ b/configs/programming/gemini-cli/link.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++# Gemini CLI phones home usage stats by default; turn it off (matches the opt-outs for bruno/zed/vscode/copilot).
++json_update "${HOME}/.gemini/settings.json" '.usageStatisticsEnabled = false | .telemetry.enabled = false'
+diff --git a/configs/programming/nvim/lua/autocmds.lua b/configs/programming/nvim/lua/autocmds.lua
+index edb636b..7aff3b2 100644
+--- a/configs/programming/nvim/lua/autocmds.lua
++++ b/configs/programming/nvim/lua/autocmds.lua
+@@ -106,6 +106,12 @@ autocmd("VimEnter", {
+                 vim.api.nvim_buf_delete(buf, { force = true })
+             end
+         end
++        -- open the explorer on the empty buffer, rooted at the directory (cwd), keeping focus on the buffer
++        local main = vim.api.nvim_get_current_win()
++        require("lib.explorer").open()
++        vim.defer_fn(function()
++            if vim.api.nvim_win_is_valid(main) then vim.api.nvim_set_current_win(main) end
++        end, 100)
+     end,
+ })
+ 
+diff --git a/configs/programming/nvim/lua/lib/explorer.lua b/configs/programming/nvim/lua/lib/explorer.lua
+index ad8265e..e650cdc 100644
+--- a/configs/programming/nvim/lua/lib/explorer.lua
++++ b/configs/programming/nvim/lua/lib/explorer.lua
+@@ -1,18 +1,28 @@
+ -- tcd, then open without cwd: differing cwd forms stacked duplicate roots
+ local M = {}
+ 
+-function M.open()
+-    local root = require("lib.root").git()
+-    if root and root ~= "" then pcall(vim.cmd.tcd, vim.fn.fnameescape(root)) end
+-    require("snacks").explorer()
+-end
+-
+ ---@return snacks.Picker|nil
+ local function explorer()
+     local picker = require("snacks.picker").get({ source = "explorer" })[1]
+     if picker and not picker.closed then return picker end
+ end
+ 
++--- Open (or re-root) the explorer at DIR, defaulting to the current working directory. Unlike before it never
++--- climbs to the enclosing git repo: the tree roots exactly where you are, so entering a subdir or a nested crate
++--- keeps the root there instead of jumping up to the parent repo.
++---@param dir? string
++function M.open(dir)
++    dir = dir and vim.fs.normalize(dir) or vim.uv.cwd()
++    pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
++    local picker = explorer()
++    if picker then
++        picker:set_cwd(dir)
++        picker:find()
++    else
++        require("snacks").explorer()
++    end
++end
++
+ --- Expand the tree down to FILE and put the cursor on it, without moving focus.
+ ---
+ --- snacks' own `follow_file` is off: its reveal re-roots the tree at the file's own directory when the file
+diff --git a/configs/programming/nvim/lua/lib/projects.lua b/configs/programming/nvim/lua/lib/projects.lua
+index a4fea6d..68e6ddc 100644
+--- a/configs/programming/nvim/lua/lib/projects.lua
++++ b/configs/programming/nvim/lua/lib/projects.lua
+@@ -84,16 +84,13 @@ function M.list()
+     return out
+ end
+ 
+---- tcd into DIR and re-root the explorer there, so the whole tab moves to the project.
++--- tcd into DIR and re-root the explorer there, so the whole tab moves to the project. Lands on a fresh empty
++--- buffer with the explorer open rather than popping a file picker.
+ ---@param dir string
+ function M.open(dir)
+     pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
+-    local explorer = require("snacks.picker").get({ source = "explorer" })[1]
+-    if explorer and not explorer.closed then
+-        explorer:set_cwd(dir)
+-        explorer:find()
+-    end
+-    require("telescope.builtin").find_files({ cwd = dir })
++    vim.cmd.enew()
++    require("lib.explorer").open(dir)
+ end
+ 
+ --- Telescope picker over `M.list()`; confirming switches the tab to that project.
+diff --git a/configs/programming/nvim/lua/plugins/feat.lua b/configs/programming/nvim/lua/plugins/feat.lua
+index 7c862db..f2e799c 100644
+--- a/configs/programming/nvim/lua/plugins/feat.lua
++++ b/configs/programming/nvim/lua/plugins/feat.lua
+@@ -20,14 +20,16 @@ return {
+     },
+ 
+     {
+-        -- vendored: upstream went private, MIT
+-        dir = vim.fn.stdpath("config") .. "/vendor/kulala.nvim", -- REST client
+-        name = "kulala.nvim",
++        -- upstream is public again at dont-be-evil-company; no longer vendored
++        "dont-be-evil-company/kulala.nvim", -- REST client
+         ft = { "http", "rest" },
+         opts = {
+             global_keymaps = true,
+             global_keymaps_prefix = "<leader>r",
+             kulala_keymaps_prefix = "",
++            -- let kulala download, build and install its own kulala_http parser + queries (needs tree-sitter-cli,
++            -- which is in programming/packages.txt). Replaces the parser/ and queries/ copies we used to vendor.
++            treesitter = { enable = true },
+         },
+     },
+ 
+diff --git a/configs/programming/nvim/lua/plugins/lsp.lua b/configs/programming/nvim/lua/plugins/lsp.lua
+index c1f6ecd..2b88202 100644
+--- a/configs/programming/nvim/lua/plugins/lsp.lua
++++ b/configs/programming/nvim/lua/plugins/lsp.lua
+@@ -24,7 +24,7 @@ local installed = {
+     "jinja-lsp",
+     "js-debug-adapter",
+     "json-lsp",
+-    -- kulala-fmt is vendored, see conform below
++    -- kulala-fmt comes from the system package, see conform below
+     "latexindent",
+     "lean-language-server",
+     "lemminx",
+@@ -350,8 +350,8 @@ return {
+             require("conform").formatters.shfmt = {
+                 prepend_args = { "-i", "4", "-ci", "-bn" },
+             }
+-            -- vendored kulala-fmt, not from mason
+-            require("conform").formatters["kulala-fmt"] = { command = vim.fn.stdpath("config") .. "/vendor/kulala-fmt/kulala-fmt" }
++            -- kulala-fmt from the system package (mirror/pkgbuilds/kulala-fmt), on PATH; not vendored, not from mason
++            require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
+ 
+             -- personal style only where the project has no config of its own
+             local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"
+diff --git a/configs/programming/packages.txt b/configs/programming/packages.txt
+index 8abaf45..99d2abf 100644
+--- a/configs/programming/packages.txt
++++ b/configs/programming/packages.txt
+@@ -19,6 +19,8 @@ bear                              # compile db generator
+ bind                              # DNS utilities
+ bloaty                            # binary size profiler
+ bpftrace                          # eBPF tracing tool
++bruno-bin                         # Bruno, git-friendly API client (request/response GUI)
++bruno-cli                         # Bruno CLI (bru), runs .bru collections headless, mirror/pkgbuilds
+ bugwarrior                        # bugtracker to taskwarrior
+ bun-bin                           # fast javascript runtime
+ cargo-afl                         # AFL fuzzing rust
+@@ -136,6 +138,7 @@ kcachegrind                       # valgrind callgrind/cachegrind GUI
+ kubecolor                         # kubectl colorized output
+ kubectl                           # kubernetes CLI
+ kubectx                           # kubernetes context switcher
++kulala-fmt                        # formatter for kulala .http/.rest files (conform), mirror/pkgbuilds
+ lazydocker                        # docker TUI
+ lazygit                           # git TUI
+ lazyjira-bin                      # jira tui
+diff --git a/configs/programming/zed/settings.json b/configs/programming/zed/settings.json
+index 4aac216..9f06ed0 100644
+--- a/configs/programming/zed/settings.json
++++ b/configs/programming/zed/settings.json
+@@ -5,6 +5,10 @@
+     "buffer_font_family": "Kode Mono",
+     "buffer_font_size": 16,
+     "relative_line_numbers": true,
++    "current_line_highlight": "gutter",
++    "project_panel": {
++        "dock": "left"
++    },
+     "remove_trailing_whitespace_on_save": true,
+     "ensure_final_newline_on_save": true,
+     "telemetry": {
+diff --git a/configs/qemu/libvirt/system.sh b/configs/qemu/libvirt/system.sh
+index 503a295..2eadb1f 100755
+--- a/configs/qemu/libvirt/system.sh
++++ b/configs/qemu/libvirt/system.sh
+@@ -11,3 +11,14 @@ virsh_system net-autostart default >/dev/null
+ virsh_system net-info default | grep -q '^Active:.*yes' || virsh_system net-start default
+ # autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after 120 s, the bridge stays
+ systemctl enable libvirtd.service
++
++# admins manage VMs without a polkit prompt (qemu:///system); kvm for qemu:///session + /dev/kvm
++group_add_admins libvirt
++group_add_admins kvm
++
++# nested virtualization, so a guest can itself run VMs
++if grep -q AuthenticAMD /proc/cpuinfo; then
++    echo "options kvm_amd nested=1" >/etc/modprobe.d/kvm-nested.conf
++elif grep -q GenuineIntel /proc/cpuinfo; then
++    echo "options kvm_intel nested=1" >/etc/modprobe.d/kvm-nested.conf
++fi
+diff --git a/configs/rocm/compute/system.sh b/configs/rocm/compute/system.sh
+new file mode 100755
+index 0000000..47d9859
+--- /dev/null
++++ b/configs/rocm/compute/system.sh
+@@ -0,0 +1,8 @@
++#!/usr/bin/env bash
++# Interactive ROCm/HIP (python-pytorch-opt-rocm, Blender HIP, llama.cpp-hip) needs the user in the render+video
++# groups to reach /dev/kfd and /dev/dri. Previously only vllm.service got them via SupplementaryGroups, so an
++# interactive session had no GPU access.
++[[ "$FORM_FACTOR" != wsl ]] || exit 0
++
++group_add_admins render
++group_add_admins video
+diff --git a/configs/socials/discord/link.sh b/configs/socials/discord/link.sh
+index 5ac3550..d88372d 100755
+--- a/configs/socials/discord/link.sh
++++ b/configs/socials/discord/link.sh
+@@ -13,9 +13,19 @@ cp "${PWD}/plugins/QuickshellVoiceStatus.plugin.js" "${bd}/plugins/QuickshellVoi
+ for url in \
+     "https://raw.githubusercontent.com/mwittrien/BetterDiscordAddons/21c049bb77fbe3ffc5cda8961830c098fc6bccad/Library/0BDFDB.plugin.js" \
+     "https://raw.githubusercontent.com/mwittrien/BetterDiscordAddons/21c049bb77fbe3ffc5cda8961830c098fc6bccad/Plugins/LastMessageDate/LastMessageDate.plugin.js" \
+-    "https://raw.githubusercontent.com/Farcrada/DiscordPlugins/7f1c3f98461bcf1b336c2df6e28ca025d09d03cb/Double-click-to-edit/DoubleClickToEdit.plugin.js" \
+     "https://raw.githubusercontent.com/TheLazySquid/BetterDiscordPlugins/3ce443c86a14185b2b2d088e9be49b8245d17c6c/plugins/ZipPreview/ZipPreview.plugin.js" \
+-    "https://raw.githubusercontent.com/zerebos/BetterDiscordAddons/6d839d0ab65371819b081218bc43b09d7d6e762d/Plugins/DoNotTrack/DoNotTrack.plugin.js"; do
++    "https://raw.githubusercontent.com/zerebos/BetterDiscordAddons/6d839d0ab65371819b081218bc43b09d7d6e762d/Plugins/DoNotTrack/DoNotTrack.plugin.js" \
++    "https://raw.githubusercontent.com/Atamol/BetterDiscordPlugins/a0800b14b2462c4af1361dd9c79490b88ff649b6/BetterDoubleClickToEdit/BetterDoubleClickToEdit.plugin.js" \
++    "https://raw.githubusercontent.com/Atamol/BetterDiscordPlugins/4474ed05346b0b413ee69feaf941a834b84209ea/DoubleClickToReply/DoubleClickToReply.plugin.js" \
++    "https://raw.githubusercontent.com/Avasay-Sayava/BetterDiscordPlugins/f815fab3901db71fbe208bc3187d1ab146b0a24d/LaTeXGenerator/LaTeXGenerator.plugin.js" \
++    "https://raw.githubusercontent.com/BinaryQuantumSoul/discord-latex/a2051554763d1bbfde1d540def8a9efb965dadcf/dist/LaTeX.plugin.js" \
++    "https://raw.githubusercontent.com/Snusene/BetterDiscordPlugins/a60205b18f394a2a2bf664194ab251532369dfc3/PriorityDM/PriorityDM.plugin.js" \
++    "https://raw.githubusercontent.com/Snusene/BetterDiscordPlugins/c53818992addc44fa3c3dcea4567a2ff3c9bdb2a/Incognito/Incognito.plugin.js" \
++    "https://raw.githubusercontent.com/Kawtious/HighResProfileImages/402830211b48dfd57ff4f4641722c29de2a9f279/HighResProfileImages.plugin.js" \
++    "https://raw.githubusercontent.com/fluzzeon/betterdiscord-OpenInApp/2b1f7c2c05af8abb16529dc9c248a224a15492c3/OpenInApp.plugin.js" \
++    "https://raw.githubusercontent.com/Skamt/BDAddons/20be7c0e79ddd8b7e6d290c14ebe49aef5f7f650/SpotifyEnhance/SpotifyEnhance.plugin.js" \
++    "https://raw.githubusercontent.com/Farcrada/DiscordPlugins/c1250d3990ed3b9f1bf3518aa68050402929c52b/Hide-Chat-Icons/HideChatIcons.plugin.js" \
++    "https://raw.githubusercontent.com/zerebos/BetterDiscordAddons/49cdbe56ffc5d9d815663d83454cbe361af2b2cf/Plugins/PermissionsViewer/PermissionsViewer.plugin.js"; do
+     f="${bd}/plugins/${url##*/}"
+     [[ "$(cat "${f}.url" 2>/dev/null)" == "$url" ]] && continue
+     wget -q "$url" -O "${f}.tmp" && mv "${f}.tmp" "$f" && echo "$url" > "${f}.url"
+diff --git a/mirror/pkgbuilds/bruno-cli/PKGBUILD b/mirror/pkgbuilds/bruno-cli/PKGBUILD
+new file mode 100644
+index 0000000..398056d
+--- /dev/null
++++ b/mirror/pkgbuilds/bruno-cli/PKGBUILD
+@@ -0,0 +1,23 @@
++# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
++# Bruno's CLI (`bru`): runs .bru request collections headless, pairs with the bruno-bin GUI.
++pkgname=bruno-cli
++pkgver=4.2.1
++pkgrel=1
++pkgdesc="Bruno CLI (bru): run .bru API collections from the terminal"
++arch=(any)
++url="https://www.usebruno.com"
++license=(MIT)
++depends=(nodejs)
++makedepends=(npm)
++provides=(bru)
++source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@usebruno/cli/-/cli-$pkgver.tgz")
++sha256sums=(3bc39460b5ab85a30e5761c7e07c4dc5db6ac9384b66d171669f9f0eab4fe8ec)
++
++package() {
++    npm install -g --prefix "$pkgdir/usr" "$srcdir/$pkgname-$pkgver.tgz"
++
++    # standard npm-package cleanup: normalise perms, drop $srcdir references
++    find "$pkgdir/usr" -type d -exec chmod 755 {} +
++    local mod="$pkgdir/usr/lib/node_modules/@usebruno/cli"
++    install -Dm644 "$mod/license.md" "$pkgdir/usr/share/licenses/$pkgname/license.md" 2>/dev/null || true
++}
+diff --git a/mirror/pkgbuilds/kulala-fmt/PKGBUILD b/mirror/pkgbuilds/kulala-fmt/PKGBUILD
+new file mode 100644
+index 0000000..7b02249
+--- /dev/null
++++ b/mirror/pkgbuilds/kulala-fmt/PKGBUILD
+@@ -0,0 +1,23 @@
++# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
++# Formatter/converter for Kulala .http/.rest files; conform in configs/programming/nvim/lua/plugins/lsp.lua
++# calls `kulala-fmt` from PATH. Replaces the binary that used to live in the nvim config's vendor/ dir.
++pkgname=kulala-fmt
++pkgver=4.6.1
++pkgrel=1
++pkgdesc="Formatter and converter for Kulala HTTP (.http/.rest) files"
++arch=(any)
++url="https://github.com/dont-be-evil-company/kulala-fmt"
++license=(MIT)
++depends=(nodejs)
++makedepends=(npm)
++source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@dont-be-evil-company/kulala-fmt/-/kulala-fmt-$pkgver.tgz")
++sha256sums=(c121a28e252c8f984a625cf047c3ac0e93217f5a7e2e906dd8cabcfb9b87ada9)
++
++package() {
++    npm install -g --prefix "$pkgdir/usr" "$srcdir/$pkgname-$pkgver.tgz"
++
++    # standard npm-package cleanup: drop $srcdir references and normalise perms
++    find "$pkgdir/usr" -type d -exec chmod 755 {} +
++    local mod="$pkgdir/usr/lib/node_modules/@dont-be-evil-company/kulala-fmt"
++    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
++}
+diff --git a/mirror/pkgbuilds/solvecraft/PKGBUILD b/mirror/pkgbuilds/solvecraft/PKGBUILD
+new file mode 100644
+index 0000000..550ee5b
+--- /dev/null
++++ b/mirror/pkgbuilds/solvecraft/PKGBUILD
+@@ -0,0 +1,54 @@
++# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
++# Parametric 3D CAD in Rust (clean-room Fusion 360). Desktop app + solvecraft-cli (headless/MCP).
++# configs/creating/packages.txt installs it; the binaries dlopen wayland/vulkan at runtime, so those are deps.
++pkgname=solvecraft
++pkgver=0.1.5
++pkgrel=1
++pkgdesc="Parametric 3D CAD; open-source clean-room reimplementation of Fusion 360, in Rust"
++arch=(x86_64)
++url="https://github.com/bherbruck/solvecraft"
++license=('MIT OR Apache-2.0')
++depends=(gcc-libs glibc libxkbcommon libxkbcommon-x11 wayland libx11 libxcb libxcursor libxi vulkan-icd-loader)
++optdepends=('vulkan-swrast: software Vulkan fallback without a GPU driver'
++            'xdg-desktop-portal: native file dialogs')
++makedepends=(git cargo)
++options=(!lto)
++source=("git+$url.git#tag=v$pkgver")
++sha256sums=(SKIP)
++
++prepare() {
++    cd "$pkgname"
++    export CARGO_HOME="$srcdir/cargo"
++    cargo fetch --locked --target "$(rustc --print host-tuple)"
++}
++
++build() {
++    cd "$pkgname"
++    export CARGO_HOME="$srcdir/cargo" RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
++    cargo build --frozen --release -p solvecraft -p solvecraft-cli
++}
++
++package() {
++    cd "$pkgname"
++    local id=ai.storyteller.solvecraft
++
++    install -Dm755 target/release/solvecraft "$pkgdir/usr/bin/solvecraft"
++    install -Dm755 target/release/solvecraft-cli "$pkgdir/usr/bin/solvecraft-cli"
++
++    install -Dm644 packaging/linux/$id.desktop  "$pkgdir/usr/share/applications/$id.desktop"
++    install -Dm644 packaging/linux/$id.mime.xml  "$pkgdir/usr/share/mime/packages/$id.xml"
++    install -dm755 "$pkgdir/usr/share/metainfo"
++    sed -e "s/@VERSION@/$pkgver/g" -e "s/@DATE@/$(date -u +%Y-%m-%d)/g" \
++        packaging/linux/$id.metainfo.xml.in >"$pkgdir/usr/share/metainfo/$id.metainfo.xml"
++
++    # the app ships no icon files; the CLI draws them (env.sh make_icons)
++    local s
++    for s in 16 24 32 48 64 128 256 512; do
++        install -dm755 "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps"
++        target/release/solvecraft-cli icon --size "$s" \
++            --out "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/$id.png" >/dev/null
++    done
++
++    install -Dm644 LICENSE-MIT    "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"
++    install -Dm644 LICENSE-APACHE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-APACHE"
++}

@@ -1,0 +1,5 @@
+# Faster links: mold as the default linker via gcc's -fuse-ld (pure win, no downside on Arch's gcc).
+# sccache is installed but intentionally NOT set as rustc-wrapper here — it disables incremental compilation,
+# which usually hurts the iterative dev loop. Opt in per shell for clean/CI builds: `export RUSTC_WRAPPER=sccache`.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]

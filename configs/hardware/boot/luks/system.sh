@@ -98,10 +98,16 @@ fi
 # sd-encrypt ships the fido2 token plugin; with no token enrolled systemd-cryptsetup falls through to the passphrase or stage.sh's keyfile
 if [[ -n "$ROOT_BACKING" ]]; then
     source "$DOTFILES/configs/hardware/boot/boot-menu/common.sh"
-    kernel_cmdline_set rd.luks.options=fido2-device=auto
+    # try a TPM2 (PCR 7 = Secure Boot state) seal first, then the yubikey, then the passphrase. An untampered boot
+    # unlocks unattended; a changed Secure Boot state (PCR 7) makes the TPM refuse and falls through to the yubikey/passphrase.
+    kernel_cmdline_set rd.luks.options=tpm2-device=auto,fido2-device=auto
     # enrolling during the stage chain would make its unattended boots wait for a touch
     if ! cryptsetup luksDump "/dev/$ROOT_BACKING" | grep -q systemd-fido2; then
         echo "luks: no yubikey enrolled, once the stage chain is done: sudo systemd-cryptenroll --fido2-device=auto /dev/$ROOT_BACKING" >&2
+    fi
+    # additive: keeps the passphrase and yubikey. PCR 7 tracks Secure Boot; re-seal after enrolling/rotating SB keys.
+    if ! cryptsetup luksDump "/dev/$ROOT_BACKING" | grep -q systemd-tpm2; then
+        echo "luks: no TPM2 seal enrolled, for measured-boot unlock: sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 /dev/$ROOT_BACKING" >&2
     fi
 fi
 

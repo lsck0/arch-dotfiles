@@ -11,3 +11,14 @@ virsh_system net-autostart default >/dev/null
 virsh_system net-info default | grep -q '^Active:.*yes' || virsh_system net-start default
 # autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after 120 s, the bridge stays
 systemctl enable libvirtd.service
+
+# admins manage VMs without a polkit prompt (qemu:///system); kvm for qemu:///session + /dev/kvm
+group_add_admins libvirt
+group_add_admins kvm
+
+# nested virtualization, so a guest can itself run VMs
+if grep -q AuthenticAMD /proc/cpuinfo; then
+    echo "options kvm_amd nested=1" >/etc/modprobe.d/kvm-nested.conf
+elif grep -q GenuineIntel /proc/cpuinfo; then
+    echo "options kvm_intel nested=1" >/etc/modprobe.d/kvm-nested.conf
+fi

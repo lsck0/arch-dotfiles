@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Block commits that introduce secrets. Installed into new repos via git's init.templateDir (configs/base/git).
+# For an existing repo, run `git init` in it once to copy this hook in.
+command -v gitleaks >/dev/null 2>&1 || exit 0
+exec gitleaks protect --staged --redact --no-banner

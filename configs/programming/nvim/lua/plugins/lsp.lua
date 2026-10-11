@@ -24,7 +24,7 @@ local installed = {
     "jinja-lsp",
     "js-debug-adapter",
     "json-lsp",
-    -- kulala-fmt is vendored, see conform below
+    -- kulala-fmt comes from the system package, see conform below
     "latexindent",
     "lean-language-server",
     "lemminx",
@@ -350,8 +350,8 @@ return {
             require("conform").formatters.shfmt = {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
-            -- vendored kulala-fmt, not from mason
-            require("conform").formatters["kulala-fmt"] = { command = vim.fn.stdpath("config") .. "/vendor/kulala-fmt/kulala-fmt" }
+            -- kulala-fmt from the system package (mirror/pkgbuilds/kulala-fmt), on PATH; not vendored, not from mason
+            require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
 
             -- personal style only where the project has no config of its own
             local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"

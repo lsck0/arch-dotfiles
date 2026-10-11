@@ -27,3 +27,26 @@ Another login on an installed machine, with its own checkout and user layer:
 ```bash
 adduser-dotfiles <name>
 ```
+
+## Package groups
+
+A machine installs a layered subset of `configs/<group>/`, chosen by `PKG_GROUPS` in its `platforms/<name>.sh`
+(or at install). The layers build on each other: each assumes the ones before it, so a box can stop at any level
+and still be coherent — a locked-down headless core, or that core plus a desktop, up to the full workstation.
+
+- **base** — always installed. The secure, stable, performant core: kernel and boot, encryption, the firewall
+  and network auto-protection (ProtonVPN on untrusted networks, Tor, anonymous SOCKS), hardening and the
+  everyday shell. Everything else is optional on top of this.
+- **hardware** — machine-specific improvements and features (sensors, GPU, power/thermal, peripherals).
+- **desktop** — the UI (compositor, bar, launcher) plus basic everyday programs: text editing and light
+  media manipulation (viewers, players, simple downloaders/torrents).
+- **socials** — desktop social-media clients.
+- **latex**, **qemu** — typesetting; virtual machines.
+- **creating** — heavier creative software: advanced image, video, audio and 3D/CAD editing.
+- **gaming** — games and launchers.
+- **programming** — development across languages, plus defensive/hardening work that runs locally: fuzzing
+  (e.g. `cargo-afl`, `honggfuzz`), static analysis, debuggers, and ordinary dev utilities (a DNS lookup is a
+  normal programmer's tool, so it lives here, not in pentesting).
+- **llm**, **rocm** — local models and the AMD compute stack they use.
+- **pentesting** — tools that *actively act on a target*: scanning, enumeration, exploitation, offensive web
+  fuzzing (`ffuf`), C2. Routed through the VPN/Tor layer from **base**.

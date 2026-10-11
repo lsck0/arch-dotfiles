@@ -1,0 +1,23 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Bruno's CLI (`bru`): runs .bru request collections headless, pairs with the bruno-bin GUI.
+pkgname=bruno-cli
+pkgver=4.2.1
+pkgrel=1
+pkgdesc="Bruno CLI (bru): run .bru API collections from the terminal"
+arch=(any)
+url="https://www.usebruno.com"
+license=(MIT)
+depends=(nodejs)
+makedepends=(npm)
+provides=(bru)
+source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@usebruno/cli/-/cli-$pkgver.tgz")
+sha256sums=(3bc39460b5ab85a30e5761c7e07c4dc5db6ac9384b66d171669f9f0eab4fe8ec)
+
+package() {
+    npm install -g --prefix "$pkgdir/usr" "$srcdir/$pkgname-$pkgver.tgz"
+
+    # standard npm-package cleanup: normalise perms, drop $srcdir references
+    find "$pkgdir/usr" -type d -exec chmod 755 {} +
+    local mod="$pkgdir/usr/lib/node_modules/@usebruno/cli"
+    install -Dm644 "$mod/license.md" "$pkgdir/usr/share/licenses/$pkgname/license.md" 2>/dev/null || true
+}

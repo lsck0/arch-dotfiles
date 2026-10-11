@@ -1,3 +1,4 @@
 {
-  "ip-forward-no-drop": true
+  "ip-forward-no-drop": true,
+  "no-new-privileges": true
 }

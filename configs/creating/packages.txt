@@ -40,6 +40,7 @@ python-websocket-client           # obs-websocket client for the bar's OBS widge
 qpwgraph                          # pipewire patchbay GUI
 rawtherapee                       # RAW photo editor
 sfxr-qt-bin                       # sound effect generator
+solvecraft                        # Fusion 360-style parametric 3D CAD, pure Rust, mirror/pkgbuilds
 soundcraft                        # Pro Tools-style DAW, pure Rust
 sox                               # audio processing tool
 tiled                             # tilemap editor

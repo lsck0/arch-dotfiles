@@ -14,6 +14,10 @@ fi
 # homelab's searxng, so only a homelab machine gets it, elsewhere only an exact copy of ours goes, never a foreign file
 if [[ -n "$HOMELAB" ]]; then
     install -Dm644 policies.json "$POLICIES"
-elif cmp -s policies.json "$POLICIES"; then
-    rm -f "$POLICIES"
+else
+    # off the homelab the searxng host isn't reachable; set DuckDuckGo as default rather than leaving firefox on Google
+    jq '.policies.SearchEngines = {
+            "Add": [{"Name": "DuckDuckGo", "URLTemplate": "https://duckduckgo.com/?q={searchTerms}", "Method": "GET", "Alias": "ddg"}],
+            "Default": "DuckDuckGo"
+        }' policies.json | install -Dm644 /dev/stdin "$POLICIES"
 fi

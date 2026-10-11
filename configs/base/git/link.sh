@@ -13,6 +13,9 @@ if profile_has identity; then
 fi
 # no global 'store' helper: gh auth setup-git handles github, and a plaintext store would also persist that gh token into ~/.git-credentials
 git config --global init.defaultBranch master
+# secrets gate: new repos (init/clone) get the gitleaks pre-commit hook; run `git init` in an existing repo to add it
+link_dir "${PWD}/template" "${HOME}/.config/git/template"
+git config --global init.templateDir "${HOME}/.config/git/template"
 git config --global pull.rebase true
 git config --global --type bool push.autoSetupRemote true
 

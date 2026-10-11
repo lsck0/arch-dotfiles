@@ -5,6 +5,10 @@
     "buffer_font_family": "Kode Mono",
     "buffer_font_size": 16,
     "relative_line_numbers": true,
+    "current_line_highlight": "gutter",
+    "project_panel": {
+        "dock": "left"
+    },
     "remove_trailing_whitespace_on_save": true,
     "ensure_final_newline_on_save": true,
     "telemetry": {

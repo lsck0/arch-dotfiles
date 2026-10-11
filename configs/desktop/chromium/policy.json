@@ -1,0 +1,14 @@
+{
+    "MetricsReportingEnabled": false,
+    "UrlKeyedAnonymizedDataCollectionEnabled": false,
+    "SearchSuggestEnabled": false,
+    "SpellCheckServiceEnabled": false,
+    "SafeBrowsingProtectionLevel": 1,
+    "DefaultBrowserSettingEnabled": false,
+    "BackgroundModeEnabled": false,
+    "PromotionalTabsEnabled": false,
+    "MediaRouterCastAllowAllIPs": false,
+    "DefaultSearchProviderEnabled": true,
+    "DefaultSearchProviderName": "SearXNG",
+    "DefaultSearchProviderSearchURL": "https://search.lsck0.dev/search?q={searchTerms}"
+}

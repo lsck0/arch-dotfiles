@@ -189,10 +189,15 @@ That is how bare-repo layouts show up, while submodules and the bare layout's ow
     (sort out (lambda (a b) (string< (car a) (car b))))))
 
 (defun my/project-open (dir)
-  "nvim tcd: move to project DIR, re-rooting the sidebar there, then find a file in it."
+  "nvim tcd: move to project DIR, re-rooting the sidebar there, and land on an empty buffer.
+Mirrors lib/projects.lua: no file picker, just the scratch buffer with the explorer open on DIR."
+  (setq default-directory dir)
+  (delete-other-windows)
+  (switch-to-buffer (get-scratch-buffer-create))
+  (setq default-directory dir)
   (my/tree-reroot dir)
-  (let ((default-directory dir))
-    (my/find-files)))
+  (when (and (display-graphic-p) (fboundp 'dirvish-side))
+    (save-selected-window (dirvish-side))))
 
 (defun my/project-pick ()
   "nvim SPC f p: the repo list hms and tms show, not only projects visited before."

@@ -1,0 +1,30 @@
+# arch-dotfiles yt-dlp defaults. Downloads follow the default route, which is ProtonVPN (proton0) whenever the
+# auto-vpn service has brought it up on an untrusted network (configs/base/protonvpn). To force a tunnel even
+# when the default route is clear, uncomment one of the proxy lines below.
+# --proxy socks5://127.0.0.1:9050          # over Tor (scripts/toggles/toggle-tor.sh)
+# --proxy socks5://127.0.0.1:1080          # over the anonymous socks chain (toggle-anonymous-socks.sh)
+
+-o ~/Downloads/yt-dlp/%(uploader)s/%(title)s [%(id)s].%(ext)s
+--restrict-filenames
+--continue
+--no-mtime
+--no-overwrites
+--concurrent-fragments 4
+--retries 10
+--fragment-retries 10
+
+# best video+audio, remuxed to a widely-playable container
+-f bv*+ba/b
+--merge-output-format mp4
+
+--embed-metadata
+--embed-thumbnail
+--embed-chapters
+--embed-subs
+--sub-langs en.*,de.*
+
+# skip sponsor/intro segments on youtube
+--sponsorblock-mark all
+
+# keep a per-user archive so re-runs don't re-download
+--download-archive ~/Downloads/yt-dlp/.archive

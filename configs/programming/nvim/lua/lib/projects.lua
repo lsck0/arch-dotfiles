@@ -84,16 +84,13 @@ function M.list()
     return out
 end
 
---- tcd into DIR and re-root the explorer there, so the whole tab moves to the project.
+--- tcd into DIR and re-root the explorer there, so the whole tab moves to the project. Lands on a fresh empty
+--- buffer with the explorer open rather than popping a file picker.
 ---@param dir string
 function M.open(dir)
     pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
-    local explorer = require("snacks.picker").get({ source = "explorer" })[1]
-    if explorer and not explorer.closed then
-        explorer:set_cwd(dir)
-        explorer:find()
-    end
-    require("telescope.builtin").find_files({ cwd = dir })
+    vim.cmd.enew()
+    require("lib.explorer").open(dir)
 end
 
 --- Telescope picker over `M.list()`; confirming switches the tab to that project.

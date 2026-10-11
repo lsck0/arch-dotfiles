@@ -16,3 +16,14 @@ user_pref("app.shield.optoutstudies.enabled", false);
 user_pref("browser.newtabpage.activity-stream.showSponsored", false);
 user_pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
 user_pref("browser.urlbar.suggest.quicksuggest.sponsored", false);
+
+// full telemetry off (healthreport/usage above don't cover these), no normandy experiments, no pocket.
+// DoH/TRR deliberately left off: homelab hosts (search.lsck0.dev etc.) resolve internally and DoH would bypass that.
+user_pref("toolkit.telemetry.enabled", false);
+user_pref("toolkit.telemetry.unified", false);
+user_pref("toolkit.telemetry.archive.enabled", false);
+user_pref("app.normandy.enabled", false);
+user_pref("app.normandy.api_url", "");
+user_pref("extensions.pocket.enabled", false);
+user_pref("browser.newtabpage.activity-stream.feeds.telemetry", false);
+user_pref("browser.ping-centre.telemetry", false);

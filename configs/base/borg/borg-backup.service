@@ -1,0 +1,19 @@
+[Unit]
+Description=Borg backup of home to the homelab NAS
+After=mnt-homelab.automount network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/borg-backup
+Nice=10
+IOSchedulingClass=idle
+# sandboxing: reads all of $HOME and writes the NAS mount, so no ProtectHome/strict ProtectSystem here
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes

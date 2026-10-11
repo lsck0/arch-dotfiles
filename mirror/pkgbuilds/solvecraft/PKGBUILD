@@ -1,0 +1,54 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Parametric 3D CAD in Rust (clean-room Fusion 360). Desktop app + solvecraft-cli (headless/MCP).
+# configs/creating/packages.txt installs it; the binaries dlopen wayland/vulkan at runtime, so those are deps.
+pkgname=solvecraft
+pkgver=0.1.5
+pkgrel=1
+pkgdesc="Parametric 3D CAD; open-source clean-room reimplementation of Fusion 360, in Rust"
+arch=(x86_64)
+url="https://github.com/bherbruck/solvecraft"
+license=('MIT OR Apache-2.0')
+depends=(gcc-libs glibc libxkbcommon libxkbcommon-x11 wayland libx11 libxcb libxcursor libxi vulkan-icd-loader)
+optdepends=('vulkan-swrast: software Vulkan fallback without a GPU driver'
+            'xdg-desktop-portal: native file dialogs')
+makedepends=(git cargo)
+options=(!lto)
+source=("git+$url.git#tag=v$pkgver")
+sha256sums=(SKIP)
+
+prepare() {
+    cd "$pkgname"
+    export CARGO_HOME="$srcdir/cargo"
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+    cd "$pkgname"
+    export CARGO_HOME="$srcdir/cargo" RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+    cargo build --frozen --release -p solvecraft -p solvecraft-cli
+}
+
+package() {
+    cd "$pkgname"
+    local id=ai.storyteller.solvecraft
+
+    install -Dm755 target/release/solvecraft "$pkgdir/usr/bin/solvecraft"
+    install -Dm755 target/release/solvecraft-cli "$pkgdir/usr/bin/solvecraft-cli"
+
+    install -Dm644 packaging/linux/$id.desktop  "$pkgdir/usr/share/applications/$id.desktop"
+    install -Dm644 packaging/linux/$id.mime.xml  "$pkgdir/usr/share/mime/packages/$id.xml"
+    install -dm755 "$pkgdir/usr/share/metainfo"
+    sed -e "s/@VERSION@/$pkgver/g" -e "s/@DATE@/$(date -u +%Y-%m-%d)/g" \
+        packaging/linux/$id.metainfo.xml.in >"$pkgdir/usr/share/metainfo/$id.metainfo.xml"
+
+    # the app ships no icon files; the CLI draws them (env.sh make_icons)
+    local s
+    for s in 16 24 32 48 64 128 256 512; do
+        install -dm755 "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps"
+        target/release/solvecraft-cli icon --size "$s" \
+            --out "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/$id.png" >/dev/null
+    done
+
+    install -Dm644 LICENSE-MIT    "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"
+    install -Dm644 LICENSE-APACHE "$pkgdir/usr/share/licenses/$pkgname/LICENSE-APACHE"
+}

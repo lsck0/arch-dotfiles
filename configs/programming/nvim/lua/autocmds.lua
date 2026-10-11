@@ -106,6 +106,12 @@ autocmd("VimEnter", {
                 vim.api.nvim_buf_delete(buf, { force = true })
             end
         end
+        -- open the explorer on the empty buffer, rooted at the directory (cwd), keeping focus on the buffer
+        local main = vim.api.nvim_get_current_win()
+        require("lib.explorer").open()
+        vim.defer_fn(function()
+            if vim.api.nvim_win_is_valid(main) then vim.api.nvim_set_current_win(main) end
+        end, 100)
     end,
 })
 
