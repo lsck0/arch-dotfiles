@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # fingerprint and YubiKey auth on sudo, additive to the password; login and the lock screen take the password only.
-# older lines (u2f authfile=, fprint lock service, u2f/fprintd on login, kwallet on ly) are patch 18's
+# older lines (u2f authfile= into a home, fprint lock service, u2f/fprintd on login, kwallet on ly) are patch 18's
 
 # windows owns sign-in hardware under wsl: no fingerprint reader, a yubikey only through usbipd
 [[ "$FORM_FACTOR" != wsl ]] || exit 0
 
 U2F_MODULE=/usr/lib/security/pam_u2f.so
+# root's copy of every enrolled key (configs/base/yubikey/u2f_keys, one user:key... line per user)
+U2F_KEYS="$DOTFILES/configs/base/yubikey/u2f_keys"
+U2F_MAPPINGS=/etc/u2f_mappings
 FPRINT_MODULE=/usr/lib/security/pam_fprintd.so
 # login.defs' range for people: the users whose enrolled fingers count
 HUMAN_UID_MIN=1000
 HUMAN_UID_MAX=59999
 
-# every user's own ~/.config/Yubico/u2f_keys (pam_u2f's default); no nouserok: a user without one falls through to
-# the password include, never passes unauthenticated
-U2F_LINE='auth       sufficient pam_u2f.so cue origin=pam://lsck0 appid=pam://lsck0'
+# one root-owned mapping, not the user's ~/.config/Yubico/u2f_keys: a process of the user could add its own key there and
+# sudo through it. the fido2 pin plus touch: a bare touch is no second factor against a process of the session, it only
+# waits for the touch given for a signature. no nouserok: a user without a key falls through to the password include
+U2F_LINE='auth       sufficient pam_u2f.so cue pinverification=1 authfile=/etc/u2f_mappings origin=pam://lsck0 appid=pam://lsck0'
 FPRINT_LINE='auth       sufficient pam_fprintd.so'
 
 # a validity/synaptics sensor uses python-validity + open-fprintd; other readers use fprintd, once anyone enrolled a finger
@@ -52,8 +56,14 @@ pam_auth_install() {
     rm -f "$tmp"
 }
 
-# first-inserted sits highest: the yubikey touch stays first (the habit), so a new u2f line (the authfile= one going)
-# also drops the fprintd line for the step below to reinsert under it
+if [[ -f "$U2F_KEYS" ]]; then
+    install -m644 -o root -g root "$U2F_KEYS" "$U2F_MAPPINGS"
+else
+    rm -f "$U2F_MAPPINGS"
+fi
+
+# first-inserted sits highest: the yubikey stays first (the habit), so a changed u2f line also drops the fprintd line
+# for the step below to reinsert under it
 if [ -e "$U2F_MODULE" ]; then pam_auth_install /etc/pam.d/sudo "$U2F_LINE" 'pam_(u2f|fprintd)[.]so'; fi
 if has_fprint && [ -e "$FPRINT_MODULE" ]; then
     pam_auth_install /etc/pam.d/sudo "$FPRINT_LINE" 'pam_fprintd[.]so'

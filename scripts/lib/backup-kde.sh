@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# Pull live KDE/Plasma config from ~/.config back into configs/desktop/plasma/.
+# Pull live KDE/Plasma config from ~/.config back into the plasma module (configs/<group>/plasma/).
 
 set -euo pipefail
 
-REPO="$DOTFILES/configs/desktop/plasma"
+# by name, whichever group holds the module
+modules=("$DOTFILES"/configs/*/plasma)
+REPO=${modules[0]}
+[ -d "${REPO}" ] || exit 0
 
 DIRS="
     KDE

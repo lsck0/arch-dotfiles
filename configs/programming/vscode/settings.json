@@ -6,6 +6,10 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "telemetry.telemetryLevel": "off",
+  "telemetry.feedback.enabled": false,
+  "workbench.enableExperiments": false,
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  "redhat.telemetry.enabled": false,
   "workbench.colorTheme": "Dark Modern",
   "vim.useSystemClipboard": true,
   "workbench.colorCustomizations": {

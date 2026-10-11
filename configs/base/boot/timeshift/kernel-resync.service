@@ -1,0 +1,12 @@
+[Unit]
+Description=Put the esp's kernels back in step with a restored /usr/lib/modules
+Documentation=file:///var/lib/dotfiles/repo/configs/base/boot/timeshift/ROLLBACK.md
+RequiresMountsFor=/boot /usr/lib/modules
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kernel-resync
+
+[Install]
+WantedBy=multi-user.target

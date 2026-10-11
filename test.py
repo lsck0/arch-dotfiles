@@ -313,7 +313,8 @@ cd /tmp && git clone {REPO_URL} && cd arch-dotfiles{checkout} \\
 def await_chain(name: str) -> None:
     """The chain boots without a passphrase; the first prompt is the boot after stage.sh disarmed."""
     start = time.time()
-    wait_screen(name, ["assphrase", "root volume"], CHAIN_TIMEOUT_S)
+    # "nter passphrase", not "passphrase": the config stage prints secret names like borg-passphrase on the console
+    wait_screen(name, ["nter passphrase", "root volume"], CHAIN_TIMEOUT_S)
     print(f"vm-test: chain done after {(time.time() - start) / 3600:.1f}h", flush=True)
     type_text(name, PASSWORD + "\n", "de")
 
@@ -362,6 +363,9 @@ sudo -k
 }} > verify.log
 cp /var/lib/dotfiles-stage/log stage.log
 echo {PASSWORD} | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log
+# the config stage's boot is the one before this: what failed beside the modules, and the dns it ended with
+echo {PASSWORD} | sudo -S journalctl -b -1 -p warning --no-pager -o short-iso > config-boot-warnings.log
+{{ resolvectl status; cat /etc/resolv.conf; }} > network.log 2>&1
 tar czf /tmp/vm-test-logs.tgz $(ls FAILURES.* 2>/dev/null) $(find . -name '*.log')
 curl -sT /tmp/vm-test-logs.tgz {HOST}/logs.tgz
 """, "de")

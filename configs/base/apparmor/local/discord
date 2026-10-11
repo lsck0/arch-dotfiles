@@ -1,0 +1,8 @@
+# managed by arch-dotfiles/apparmor
+# betterdiscord (socials/discord): the injected core requires its asar, plugins and themes keep their data beside it
+owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
+# settings.json links into the dotfiles checkout
+owner @{HOME}/projects/arch-dotfiles/configs/socials/discord/discord_settings.json rw,
+# the voice status plugin's files the quickshell bar reads and writes
+owner @{run}/user/@{uid}/quickshell-discord-voice.json{,.tmp} rw,
+owner @{run}/user/@{uid}/quickshell-discord-cmd rw,

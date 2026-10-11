@@ -14,7 +14,6 @@ otf-hermit-nerd                   # Hermit Nerd Font
 otf-monaspace-nerd                # MonoSpace Nerd Font
 otf-opendyslexic-nerd             # OpenDyslexic Nerd Font
 otf-overpass-nerd                 # Overpass Nerd Font
-powerline-fonts                   # powerline symbol fonts
 terminus-font-ttf                 # bitmap terminal font
 ttf-0xproto-nerd                  # 0xProto Nerd Font
 ttf-3270-nerd                     # 3270 Nerd Font

@@ -342,7 +342,7 @@ BarWidget {
     readonly property var outNode: Audio.nodes.find(n => n.name === lane.node.name + ".out") || null
     readonly property var streams: Audio.appStreams.filter(s => Audio.sinkOf(s) === lane.node)
 
-    // read back from the filter graph, controls named in configs/pipewire/chains.sh
+    // read back from the filter graph, controls named in configs/desktop/pipewire/chains.sh
     property bool levelerOn: true
     property real targetLufs: NaN
 

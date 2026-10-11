@@ -10,8 +10,14 @@ if [[ -d "$FIREFOX_DIR" ]]; then
     install -Dm644 mozilla.cfg "$FIREFOX_DIR/mozilla.cfg"
 fi
 
-# default search engine: the enterprise policy is the only reliable path, /etc survives updates; the engine is the
-# homelab's searxng, so only a homelab machine gets it, elsewhere only an exact copy of ours goes, never a foreign file
+# hardening and the default search engine: the enterprise policy is the only reliable path, /etc survives updates and
+# reaches every profile of every user. strict etp minus total cookie protection: cookie behavior 5 partitions storage
+# and broke teams screen share, so normal windows reject tracker cookies only (4), private ones partition too.
+# doh is off and locked: resolved's dot is the resolver, and doh would bypass portmaster's filter lists and the
+# homelab's internal names. uBlock Origin is forced for everyone; privacy badger is installed but can be switched off,
+# with the microsoft/ping sign-in and capgemini sites exempt; noscript has no managed settings, so it stays a per-user
+# choice. the engine is the homelab's searxng, so only a homelab machine gets it, elsewhere only an exact copy of ours
+# goes, never a foreign file
 if [[ -n "$HOMELAB" ]]; then
     install -Dm644 policies.json "$POLICIES"
 else

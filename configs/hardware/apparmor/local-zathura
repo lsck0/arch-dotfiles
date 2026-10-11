@@ -1,6 +1,0 @@
-# synctex inverse search (configs/zathura/zathurarc) runs the editor bridge unconfined
-@{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.sh Ux,
-# links in a pdf open through the strict opener child
-@{open_path} rPx -> child-open-strict,
-# pywal palette that zathurarc includes
-owner @{user_cache_dirs}/wal/colors-zathura r,

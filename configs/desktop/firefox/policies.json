@@ -10,6 +10,95 @@
                 }
             ],
             "Default": "SearXNG"
+        },
+        "DisableTelemetry": true,
+        "DisableFirefoxStudies": true,
+        "DisablePocket": true,
+        "FirefoxHome": {
+            "SponsoredTopSites": false,
+            "SponsoredPocket": false,
+            "SponsoredStories": false,
+            "Pocket": false,
+            "Stories": false
+        },
+        "FirefoxSuggest": {
+            "SponsoredSuggestions": false,
+            "ImproveSuggest": false,
+            "OnlineEnabled": false
+        },
+        "UserMessaging": {
+            "ExtensionRecommendations": false,
+            "FeatureRecommendations": false,
+            "MoreFromMozilla": false,
+            "FirefoxLabs": false,
+            "SkipOnboarding": true
+        },
+        "HttpsOnlyMode": "enabled",
+        "DNSOverHTTPS": {
+            "Enabled": false,
+            "Locked": true
+        },
+        "EnableTrackingProtection": {
+            "Value": true,
+            "Cryptomining": true,
+            "Fingerprinting": true,
+            "EmailTracking": true,
+            "SuspectedFingerprinting": true
+        },
+        "Cookies": {
+            "Behavior": "reject-tracker",
+            "BehaviorPrivateBrowsing": "reject-tracker-and-partition-foreign"
+        },
+        "ExtensionSettings": {
+            "uBlock0@raymondhill.net": {
+                "installation_mode": "force_installed",
+                "install_url": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+            },
+            "jid1-MnnxcxisBPnSXQ@jetpack": {
+                "installation_mode": "normal_installed",
+                "install_url": "https://addons.mozilla.org/firefox/downloads/latest/privacy-badger17/latest.xpi"
+            }
+        },
+        "3rdparty": {
+            "Extensions": {
+                "jid1-MnnxcxisBPnSXQ@jetpack": {
+                    "showIntroPage": false,
+                    "learnLocally": false,
+                    "disabledSites": [
+                        "login.microsoftonline.com",
+                        "teams.cloud.microsoft",
+                        "teams.microsoft.com",
+                        "outlook.cloud.microsoft",
+                        "outlook.office.com",
+                        "signin.capgemini.com",
+                        "marcoms.capgemini.com",
+                        "capgemini.sharepoint.com"
+                    ]
+                }
+            }
+        },
+        "Preferences": {
+            "media.peerconnection.ice.default_address_only": true,
+            "media.peerconnection.ice.proxy_only_if_behind_proxy": true,
+            "network.prefetch-next": false,
+            "network.dns.disablePrefetch": true,
+            "network.dns.disablePrefetchFromHTTPS": true,
+            "network.http.speculative-parallel-limit": 0,
+            "browser.urlbar.speculativeConnect.enabled": false,
+            "browser.places.speculativeConnect.enabled": false,
+            "network.IDN_show_punycode": true,
+            "network.http.referer.XOriginTrimmingPolicy": 2,
+            "dom.security.https_only_mode_send_http_background_request": false,
+            "privacy.globalprivacycontrol.enabled": true,
+            "browser.safebrowsing.downloads.remote.enabled": false,
+            "browser.newtabpage.activity-stream.feeds.telemetry": false,
+            "browser.newtabpage.activity-stream.telemetry": false,
+            "browser.newtabpage.activity-stream.telemetry.privatePing.enabled": false,
+            "browser.discovery.enabled": false,
+            "browser.tabs.crashReporting.sendReport": false,
+            "browser.crashReports.unsubmittedCheck.autoSubmit2": false,
+            "extensions.getAddons.showPane": false,
+            "extensions.htmlaboutaddons.recommendations.enabled": false
         }
     }
 }

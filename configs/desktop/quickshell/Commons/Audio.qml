@@ -7,7 +7,7 @@ import Quickshell.Services.Pipewire
 Singleton {
   id: root
 
-  // configs/pipewire/chains.sh: sink lane.<name> with playback lane.<name>.out, headset eq sink eq with playback eq.out
+  // configs/desktop/pipewire/chains.sh: sink lane.<name> with playback lane.<name>.out, headset eq sink eq with playback eq.out
   readonly property string lanePrefix: "lane."
   readonly property string eqName: "eq"
   // the eq switch is this unit's enablement, so it persists

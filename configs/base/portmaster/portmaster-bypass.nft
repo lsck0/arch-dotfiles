@@ -1,0 +1,45 @@
+#!/usr/sbin/nft -f
+# owns only table inet portmaster_bypass. portmaster queues every new connection to userspace (~7 ms cpu each, a
+# connect scan is one per port) and answers dns meant for a target's server; a connection whose connmark is 1710
+# (its accept-always verdict) is restored and never queued nor dns-redirected, so this sets that mark first for:
+# loopback (dns and dot left to its interception), pentest vpns to lab ranges (a full-tunnel vpn's internet traffic
+# stays filtered), and sockets of the pentest group (configs/pentesting/pentest, filled in by the service)
+
+define lab_ifaces = { "tun*" }
+define lab_v4 = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 }
+define lab_v6 = { fc00::/7 }
+
+add table inet portmaster_bypass
+delete table inet portmaster_bypass
+table inet portmaster_bypass {
+    set gids {
+        type gid
+    }
+
+    # before portmaster's iptables mangle chains (priority mangle)
+    chain output {
+        type filter hook output priority mangle - 10; policy accept;
+
+        ct state != new return
+        # never clobber a mark set before this hook
+        ct mark != 0 return
+
+        oifname "lo" meta l4proto { tcp, udp } th dport != { 53, 853 } ct mark set 1710
+        oifname $lab_ifaces ip daddr $lab_v4 ct mark set 1710
+        oifname $lab_ifaces ip6 daddr $lab_v6 ct mark set 1710
+        meta skgid @gids ct mark set 1710
+    }
+
+    # listeners for reverse shells on the vpn; fw-inbound still limits which ports
+    chain input {
+        type filter hook input priority mangle - 10; policy accept;
+
+        ct state != new return
+        ct mark != 0 return
+
+        iifname $lab_ifaces ip saddr $lab_v4 ct mark set 1710
+        iifname $lab_ifaces ip6 saddr $lab_v6 ct mark set 1710
+        # portmaster drops its marked conntrack entries on every settings change; a reply may then come in first
+        meta skgid @gids ct mark set 1710
+    }
+}

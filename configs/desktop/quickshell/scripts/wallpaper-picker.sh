@@ -7,7 +7,7 @@ set -uo pipefail
 DOTFILES="${QS_DOTFILES_DIR:-$DOTFILES}"
 SWITCH_WALLPAPER="$DOTFILES/scripts/switch-wallpaper.sh"
 
-THEMES_DIR="$DOTFILES/configs/base/themes"
+THEMES_DIR="$DOTFILES/configs/core/themes"
 QS_CONFIG="$HOME/.config/quickshell"
 RUN="${XDG_RUNTIME_DIR:-/tmp}"
 SEL="$RUN/wallpaper-picker.selection.$$"

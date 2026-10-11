@@ -12,8 +12,7 @@ Decide what work is needed before any of it starts.
 
 - Check what models are actually reachable right now; never assume a fixed
   set. On Hermes the check is `hermes auth list` (a model and a provider per
-  worker); exclude local models (ollama, etc.) by default, only use one if
-  the human asks. Under Claude Code there is no provider: pick the Agent
+  worker); local models (ollama, vllm) are never a worker. Under Claude Code there is no provider: pick the Agent
   tool's model by strength (opus for design/spec/implementation/review,
   a smaller model for research) and state it as the model, provider n/a.
 - What research is needed, by whom, and what model strength it warrants.

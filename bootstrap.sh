@@ -18,9 +18,9 @@ loadkeys de-latin1 2>/dev/null || true
 
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
 CLONE_DIR=/tmp/arch-dotfiles
-# Luca Sandrock <luca.sandrock@proton.me>: `gpg --show-keys configs/base/gnupg/luca-sandrock.pub.asc`, also https://github.com/lsck0.gpg
+# Luca Sandrock <luca.sandrock@proton.me>: `gpg --show-keys configs/core/gnupg/luca-sandrock.pub.asc`, also https://github.com/lsck0.gpg
 SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
-SIGNING_KEY_FILE=configs/base/gnupg/luca-sandrock.pub.asc
+SIGNING_KEY_FILE=configs/core/gnupg/luca-sandrock.pub.asc
 
 die() {
     # a leftover dialog screen would hide the reason
@@ -89,7 +89,9 @@ MOUNT=/mnt
 # the installed system's root: the mounted disk from the ISO, the running distro under wsl
 TARGET_ROOT=$MOUNT
 BTRFS_OPTS="noatime,compress=zstd"
-SUBVOLS=("@:/" "@home:/home" "@log:/var/log" "@pkg:/var/cache/pacman/pkg")
+# vm disks, models and docker's data top level, out of @: a timeshift snapshot would pin them and a rollback revert them
+SUBVOLS=("@:/" "@home:/home" "@log:/var/log" "@pkg:/var/cache/pacman/pkg"
+    "@libvirt:/var/lib/libvirt/images" "@ollama:/var/lib/ollama" "@docker:/var/lib/docker")
 # the README's former manual reencrypt, done at format time instead
 LUKS_FORMAT=(--type luks2 --cipher aes-xts-plain64 --key-size 512 --sector-size 4096 --pbkdf argon2id)
 LUKS_OPEN=(--allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent)
@@ -128,19 +130,19 @@ COMMON_KEYMAPS=(
 # a guest's group menu; base is the one every other group builds on
 REQUIRED_GROUP=base
 declare -A GROUP_DESCRIPTIONS=(
-    [base]="shell, cli tools, pacman, security and system services"
+    [base]="kernel, boot, drivers, firewall, security and system services"
+    [core]="shell, cli tools, diagnostics, git, gpg, theming"
     [creating]="image, audio, video and 3d editors, obs"
-    [desktop]="hyprland and plasma, browsers, terminals, apps"
+    [desktop]="hyprland and plasma, browsers, terminals, audio, printing, apps"
     [fonts]="noto, nerd and cjk fonts"
     [gaming]="steam, lutris, heroic, proton and game tooling"
-    [hardware]="firmware, drivers, audio, power, firewall, boot"
     [latex]="tex engine, pdf viewer, zotero"
     [llm]="local language models with ollama"
     [pentesting]="security auditing and pentest tools"
     [programming]="compilers, editors, language servers, docker"
     [qemu]="virtual machines, waydroid, distrobox"
     [rocm]="amd gpu compute (ollama, pytorch), amd only"
-    [socials]="discord, signal, telegram, spotify, thunderbird"
+    [socials]="discord, signal, telegram, spotify"
 )
 
 # tui_init: dialog for a person at the console, installed into the live system on demand; plain prompts otherwise
@@ -637,15 +639,18 @@ grep -q GenuineIntel /proc/cpuinfo && ucode=intel-ucode
 # homelab mirror first so pacstrap pulls base at lan speed; pacman falls through to the iso's public mirrors when away
 [[ "${HOMELAB:-}" != 1 ]] || sed -i '1i Server = http://10.100.0.109:8090/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
 
-pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs cryptsetup grub efibootmgr \
+# binutils: mkinitcpio builds the ukis with its objcopy
+pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs cryptsetup binutils \
     networkmanager sudo git zsh zram-generator libfido2
 genfstab -U "$MOUNT" >>"$MOUNT/etc/fstab"
 
-# the ukis (configs/hardware/boot) embed this file as their only cmdline
+# the ukis (configs/base/boot) embed this file as their only cmdline
 mkdir -p "$MOUNT/etc/kernel"
 echo "rd.luks.name=$LUKS_UUID=$LUKS_NAME root=$ROOT_DEV rootflags=subvol=@ rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1" >"$MOUNT/etc/kernel/cmdline"
 
 # stage.sh's temporary unlock: a random key in its own slot, found by systemd-cryptsetup in the initramfs as /etc/cryptsetup-keys.d/<volume>.key; stage.sh kills the slot when the chain ends
+# residual risk: for the chain's hours the key sits in plaintext initramfs images on the unencrypted ESP. a copy of those
+# plus the header yields the volume key, which killing the slot does not change; stage.sh trims the ESP and logs the reencrypt
 install -dm700 "$MOUNT/etc/cryptsetup-keys.d"
 head -c 64 /dev/urandom >"$MOUNT$STAGE_KEY_FILE"
 chmod 600 "$MOUNT$STAGE_KEY_FILE"
@@ -668,20 +673,29 @@ printf '127.0.0.1 localhost\n::1 localhost\n127.0.1.1 %s\n' "$hostname" >/etc/ho
 
 # systemd initramfs: sd-vconsole so the LUKS prompt uses the right keymap
 sed -i 's/^HOOKS=.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+# one uki per kernel from /etc/kernel/cmdline, the preset configs/base/boot/common.sh's enable_ukis keeps; systemd-boot
+# finds it in /EFI/Linux without an entry. a kernel installed later (linux-lts) gets its uki from the config stage
+for preset in /etc/mkinitcpio.d/*.preset; do
+    pkgbase=$(basename "$preset" .preset)
+    want=$(sed -e "s/^PRESETS=.*/PRESETS=('default')/" -e '/^#\?default_\(image\|uki\|cmdline\)=/d' "$preset"
+        printf 'default_uki="%s"\ndefault_cmdline="%s"\n' "/boot/EFI/Linux/arch-$pkgbase.efi" /etc/kernel/cmdline)
+    echo "$want" >"$preset"
+    # pacstrap's plain image, built before the uki preset
+    rm -f "/boot/initramfs-$pkgbase.img" "/boot/initramfs-$pkgbase-fallback.img"
+done
+mkdir -p /boot/EFI/Linux
 mkinitcpio -P
 
 systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
 
-# plain GRUB for the Setup Mode stage boots; configs/hardware/boot/grub reinstalls it to chainload only signed ukis
-sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"$(cat /etc/kernel/cmdline)\"|" /etc/default/grub
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-# EFI/BOOT/BOOTX64.EFI as well, for firmware that forgets its boot entries
-grub-install --target=x86_64-efi --efi-directory=/boot --removable
-grub-mkconfig -o /boot/grub/grub.cfg
+# unsigned for the Setup Mode stage boots, which need no menu: bootctl's own loader.conf has no timeout, so the one uki
+# boots at once. also EFI/BOOT/BOOTX64.EFI, for firmware that forgets its boot entries; the config stage replaces the
+# loader.conf and signs both (configs/base/boot). --variables=yes: bootctl may skip the firmware's boot order in a chroot
+bootctl install --esp-path=/boot --variables=yes
 CHROOT
 
 # zram swap from the first boot, install.sh compiles for hours before config.sh would link it
-install -Dm644 "$REPO/configs/hardware/zram/zram-generator.conf" "$MOUNT/etc/systemd/zram-generator.conf"
+install -Dm644 "$REPO/configs/base/zram/zram-generator.conf" "$MOUNT/etc/systemd/zram-generator.conf"
 
 # --- network --------------------------------------------------------------------
 

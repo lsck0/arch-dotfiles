@@ -39,7 +39,7 @@ BarWidget {
 
   function open(url) {
     if (!url) return
-    Quickshell.execDetached(["xdg-open", url])
+    Quickshell.execDetached(["uwsm-app", "--", "xdg-open", url])
     if (root.bar) root.bar.closePanel(root.moduleName)
   }
 

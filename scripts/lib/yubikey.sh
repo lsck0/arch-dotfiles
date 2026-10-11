@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# yubikey init [steps] (once per key, from unlocked secrets) | seal (reseal after editing recipients.txt) | unlock (secrets by touch, config.sh runs it); always optional
+# yubikey init [steps] (once per key, from unlocked secrets) | seal (reseal after editing recipients.txt) | unlock (secrets by touch, config.sh runs it)
+# | unlock --identity <file> (no yubikey: the offline age key recipients.txt seals to, configs/base/yubikey/RECOVERY.md)
+# | lock (secrets back to git-crypt blobs once nothing needs them); always optional
 
 set -euo pipefail
 
@@ -118,7 +120,7 @@ init_ssh() {
 }
 
 init_u2f() {
-    step "pam_u2f for sudo, login and the lock screen"
+    step "pam_u2f for sudo (fido2 pin + touch), reaches /etc/u2f_mappings on the next config.sh"
     local line
     line=$(pamu2fcfg -o "$PAM_ORIGIN" -i "$PAM_ORIGIN" -u "$USER")
     if [[ -f "$KEY_DIR/u2f_keys" ]]; then
@@ -196,9 +198,35 @@ cmd_unlock() {
     fi
 }
 
+# the recovery path when every yubikey is lost: any age identity the git-crypt key is sealed to, the paper key in
+# recipients.txt above all. the submodule comes over https then, a personal access token as the password
+cmd_unlock_identity() {
+    local identity="$1" key
+    [[ -f "$identity" ]] || die "no identity file '$identity'"
+    [[ -f "$SEALED_KEY" ]] || die "no sealed key $SEALED_KEY"
+    if [[ ! -e "$SECRETS/.git" ]]; then
+        git -C "$REPO" submodule update --init secrets || die "pulling secrets failed"
+    fi
+    if secret_is_plaintext "$SECRETS/pgp_privatekey.asc"; then
+        echo "yubikey: secrets already unlocked"
+        return 0
+    fi
+    key=$(mktemp)
+    trap 'shred -u "$key" 2>/dev/null || true; trap - RETURN' RETURN
+    age -d -i "$identity" -o "$key" "$SEALED_KEY" || die "$identity does not open $SEALED_KEY"
+    git -C "$SECRETS" crypt unlock "$key" && secrets_lock_0600
+}
+
 case "${1:-}" in
     init) shift; cmd_init "$@" ;;
     seal) seal_secrets_key ;;
-    unlock) cmd_unlock ;;
-    *) die "usage: yubikey init [pins|pgp|ssh|u2f|age ...] | seal | unlock" ;;
+    unlock)
+        if [[ "${2:-}" == --identity ]]; then
+            cmd_unlock_identity "${3:?usage: yubikey unlock --identity <age identity file>}"
+        else
+            cmd_unlock
+        fi
+        ;;
+    lock) git -C "$SECRETS" crypt lock ;;
+    *) die "usage: yubikey init [pins|pgp|ssh|u2f|age ...] | seal | unlock [--identity <file>] | lock" ;;
 esac

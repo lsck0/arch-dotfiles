@@ -1,6 +1,0 @@
-[Unit]
-Description=Take the timeshift snapshot when one is due
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/timeshift --check --scripted

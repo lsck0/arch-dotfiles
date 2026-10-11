@@ -1,0 +1,8 @@
+[Unit]
+Description=Monthly lynis security audit
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/lynis-audit
+Nice=19
+IOSchedulingClass=idle

@@ -40,7 +40,7 @@ platform_load "$PWD"
 
 ## PATCHES
 
-# one-shot fixups of this user's state, before anything personal: patch 22 creates the profile; see patches/README.md
+# one-shot fixups of this user's state, before anything personal; see patches/README.md
 ./scripts/lib/apply-patches.sh || fail "scripts/lib/apply-patches.sh"
 profile_load
 
@@ -84,7 +84,7 @@ root_dirs=("$PWD/scripts" "$PWD/skills")
 # the weblinks are luca's own bookmarks: homelab, his bank
 if profile_has homelab; then root_dirs+=("$PWD/weblinks"); fi
 
-# sorted path order: configs/programming/projects needs configs/base/gh's login first
+# sorted path order: configs/programming/projects needs configs/core/gh's login first
 while IFS= read -r script; do
     module_run "$script" || fail "$script"
 done < <(find "${module_dirs[@]}" "${root_dirs[@]}" -type f \( -name link.sh -o -name link.py \) | sort)
@@ -107,7 +107,7 @@ fi
 
 # a bare name resolves to the secrets copy when unlocked
 wp=$(readlink -f ~/.cache/wal/wallpaper 2>/dev/null) && [[ -f $wp ]] || wp=alena-aenami-darkambient-1k.jpg
-stamp=$(git ls-files -s configs/base/wallust configs/base/themes scripts/switch-wallpaper.sh | sha1sum)
+stamp=$(git ls-files -s configs/core/wallust configs/core/themes scripts/switch-wallpaper.sh | sha1sum)
 if [[ ! -e ~/.cache/wal/wallpaper || "$(cat ~/.cache/wal/.theme-stamp 2>/dev/null)" != "$stamp" ]]; then
     WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh set "$wp" >/dev/null && echo "$stamp" >~/.cache/wal/.theme-stamp \
         || fail "scripts/switch-wallpaper.sh"

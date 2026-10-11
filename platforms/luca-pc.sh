@@ -4,7 +4,7 @@ HOSTNAME=luca-pc
 FORM_FACTOR=desktop
 # board-specific: it87 for the gigabyte x870e fan headers, amdgpu_top and the rocm group for the rx 7800 xt
 EXTRA_PACKAGES=(it87-dkms-git amdgpu_top)
-PKG_GROUPS=(base hardware fonts desktop socials gaming creating latex programming qemu llm rocm pentesting)
+PKG_GROUPS=(base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting)
 # secrets tunnel config for wg0
 WIREGUARD=wg0.pc.conf
 # the homelab: pacman mirror line, nas mount, home gateways and routes, searxng in the firefox policy

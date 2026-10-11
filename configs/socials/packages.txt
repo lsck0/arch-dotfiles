@@ -11,5 +11,4 @@ spotify                           # music streaming client
 spotify-player                    # terminal spotify client
 teamspeak3                        # voice chat client
 telegram-desktop                  # messaging app
-thunderbird                       # email client
 zapzap                            # WhatsApp desktop client

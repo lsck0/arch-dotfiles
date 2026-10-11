@@ -12,8 +12,9 @@ virsh_system net-info default | grep -q '^Active:.*yes' || virsh_system net-star
 # autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after 120 s, the bridge stays
 systemctl enable libvirtd.service
 
-# admins manage VMs without a polkit prompt (qemu:///system); kvm for qemu:///session + /dev/kvm
-group_add_admins libvirt
+# no libvirt group: its polkit rule is a silent root for every process of a member; qemu:///system asks an admin
+# (49-libvirt.rules), kvm is enough for qemu:///session + /dev/kvm
+install -Dm644 49-libvirt.rules /etc/polkit-1/rules.d/49-libvirt.rules
 group_add_admins kvm
 
 # nested virtualization, so a guest can itself run VMs

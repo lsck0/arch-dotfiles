@@ -1,6 +1,5 @@
 act                               # run CI locally
 afl++                             # fuzzing tool
-ali                               # tui webapp load testing
 android-ndk                       # Android native dev kit
 android-sdk                       # Android development kit
 apalache-bin                      # TLA+ symbolic model checker
@@ -16,13 +15,12 @@ bacon                             # rust background checker
 bat                               # cat with highlighting
 bc                                # calculator language
 bear                              # compile db generator
-bind                              # DNS utilities
 bloaty                            # binary size profiler
 bpftrace                          # eBPF tracing tool
 bruno-bin                         # Bruno, git-friendly API client (request/response GUI)
 bruno-cli                         # Bruno CLI (bru), runs .bru collections headless, mirror/pkgbuilds
 bugwarrior                        # bugtracker to taskwarrior
-bun-bin                           # fast javascript runtime
+bun                               # fast javascript runtime
 cargo-afl                         # AFL fuzzing rust
 cargo-audit                       # rust vuln scanner
 cargo-bloat                       # rust binary size
@@ -43,7 +41,6 @@ cargo-shear                       # unused deps detector
 cargo-show-asm                    # rust asm viewer
 cargo-shuttle                     # shuttle.rs deploy CLI
 cargo-sort-derives                # derive attribute sorter
-cargo-tarpaulin                   # rust code coverage
 cargo-update                      # update installed crates
 cargo-wizard                      # cargo profile helper
 cargo-zigbuild                    # cross-compile via zig
@@ -54,7 +51,6 @@ chiko                             # gRPC TUI client
 clang                             # C/C++ compiler
 claude-code                       # Claude Code CLI
 claude-desktop-extra              # Claude desktop app, computer use + themes + profiles
-cloc                              # count lines of code
 cmake                             # build system generator
 codelldb-bin                      # LLDB debugger extension
 contrast                          # WCAG contrast checker
@@ -73,6 +69,7 @@ docker                            # container runtime
 docker-buildx                     # docker build extension
 docker-compose                    # multi-container orchestration
 dotnet-sdk                        # .NET SDK, mason builds csharpier with it
+drgn                              # programmable debugger for the live kernel and core dumps
 ecgen                             # elliptic curve generator, mirror/pkgbuilds
 elan-lean                         # Lean toolchain manager
 emacs                             # text editor
@@ -91,7 +88,6 @@ gcc-fortran                       # Fortran compiler
 gdb                               # GNU debugger
 gemini-cli                        # Google Gemini CLI
 genius                            # math calculator app
-gf2-git                           # debugger
 gh-dash                           # GitHub dashboard TUI
 gh-enhance-bin                    # gh-dash actions extension
 ghcup-hs-bin                      # Haskell toolchain installer
@@ -128,7 +124,6 @@ irust                             # rust REPL shell
 jdk-openjdk                       # Java JDK (jdtls needs 21+)
 jetbrains-toolbox                 # JetBrains IDE manager
 jless                             # JSON viewer TUI
-jnv                               # interactive JSON navigator
 jrnl                              # command-line journal
 jujutsu                           # git-compatible VCS
 jupyterlab                        # notebook IDE
@@ -150,6 +145,7 @@ lean-tui                          # Lean theorem prover TUI
 leptosfmt                         # leptos code formatter
 libxslt                           # XSLT transform lib
 liquid-fixpoint                   # horn clause solver, mirror/pkgbuilds
+lldb                              # LLVM debugger, rust and clang binaries
 llvm                              # compiler infrastructure
 loki                              # log aggregation backend
 ls-horizons                       # deep space network tracker
@@ -162,13 +158,11 @@ mdbook                            # markdown book generator
 mergiraf                          # merge conflict resolver
 mermaid-cli                       # diagram generator CLI
 meson                             # build system tool
-micro                             # terminal text editor
 miller                            # CSV/JSON data tool
 mingw-w64-gcc                     # Windows cross-compiler
 minikube                          # local kubernetes cluster
 mkcert                            # local TLS certificates
 mold                              # fast linker
-nano                              # terminal text editor
 nasm                              # x86 assembler
 neovide                           # neovim GUI frontend
 neovim                            # modal text editor
@@ -214,7 +208,6 @@ python-pygments                   # syntax highlighting library
 python-pynvim                     # nvim python provider
 python-scikit-learn               # machine learning library
 python-scipy                      # scientific computing library
-python-snakeviz                   # profiler visualization tool
 python-sympy                      # symbolic math library
 python-tree-sitter-html           # HTML parser bindings
 python-tree-sitter-javascript     # JS parser bindings
@@ -223,7 +216,6 @@ qbe                               # compiler backend
 qmk                               # keyboard firmware framework
 quickjs                           # embeddable JS engine
 r                                 # R statistical language
-raddebugger-git                   # reverse debugger
 raylib                            # game programming library
 renderdoc                         # graphics frame debugger
 reptyr                            # reattach process to terminal
@@ -240,6 +232,7 @@ samply                            # sampling profiler
 sccache                           # compiler cache tool
 sdl3                              # multimedia/game library
 serpl                             # search-replace TUI tool
+shellcheck                        # shell script linter
 skaffold                          # kubernetes dev workflow
 slides-git                        # terminal presentation tool
 sops                              # secrets encryption tool
@@ -258,10 +251,9 @@ tesseract-data-deu                # German OCR data
 tesseract-data-eng                # English OCR data
 tig                               # git repository browser
 timew                             # time tracking CLI
-tinymist-bin                      # typst language server
+tinymist                          # typst language server
 tla-toolbox                       # TLA+ spec + TLC model checker
 tokei                             # code line counter
-tokui                             # code stats TUI
 topology-toolkit                  # scalar field analysis
 tracy                             # realtime frame profiler
 tree-sitter-cli                   # incremental parser generator
@@ -276,10 +268,8 @@ uv                                # fast Python package manager
 vale                              # prose linter
 valgrind                          # memory debugging/profiling tool
 vscodium-bin                      # VS Code de-branded
-wrk                               # HTTP benchmarking tool
-wscat                             # websocket CLI client
+websocat                          # websocket client/server/proxy, netcat for ws://
 xh                                # friendly HTTP client
-xplr                              # terminal file picker
 yozefu                            # kafka browser TUI
 z3                                # SMT theorem prover
 zed                               # collaborative code editor

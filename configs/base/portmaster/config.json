@@ -1,0 +1,26 @@
+{
+  "dns": {
+    "nameservers": [
+      "dot://cloudflare-dns.com?ip=1.1.1.2&name=Cloudflare&blockedif=zeroip",
+      "dot://cloudflare-dns.com?ip=1.0.0.2&name=Cloudflare&blockedif=zeroip"
+    ],
+    "useStaleCache": true
+  },
+  "filter": {
+    "blockInbound": false,
+    "endpoints": [
+      "+ LAN UDP/5353",
+      "+ LAN TCP/631"
+    ],
+    "lists": [
+      "TRAC",
+      "MAL",
+      "BAD",
+      "ADS",
+      "UNBREAK"
+    ],
+    "serviceEndpoints": [
+      "+ LAN UDP/5353"
+    ]
+  }
+}

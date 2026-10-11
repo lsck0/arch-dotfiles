@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# pywal palette socials/telegram links into the data dir
+owner @{user_cache_dirs}/wal/colors-telegram.tdesktop-palette r,

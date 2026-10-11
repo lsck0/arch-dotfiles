@@ -1,6 +1,8 @@
 config-file=~/.cache/wal/ghostty.conf
 # toggle-powermode.sh fills it while saver is on, a dangling link otherwise
 config-file=?~/.cache/ghostty-powersave.conf
+# link.sh writes it: GDK_SCALE for what runs in a tab, so java apps started from a shell scale like launched ones
+config-file=?~/.config/dotfiles/ghostty-env.conf
 
 app-notifications = false
 confirm-close-surface = false

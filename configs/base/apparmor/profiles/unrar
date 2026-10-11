@@ -1,0 +1,17 @@
+# managed by arch-dotfiles/apparmor
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/unrar
+profile unrar @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/dotfiles/file-tool>
+
+  @{exec_path} mr,
+
+  include if exists <local/unrar>
+}

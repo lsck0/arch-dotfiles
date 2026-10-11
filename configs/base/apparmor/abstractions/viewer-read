@@ -1,0 +1,12 @@
+# managed by arch-dotfiles/apparmor
+# what a viewer reads beyond apparmor.d's owner-only xdg dirs (user-read-strict)
+
+  abi <abi/4.0>,
+
+  # the homelab share (core/nas) is root-owned with group access, so owner rules never match it
+  /mnt/homelab/ r,
+  /mnt/homelab/** r,
+  # attachments mail and browsers hand over through temp dirs
+  owner /tmp/** r,
+
+  include if exists <abstractions/dotfiles/viewer-read.d>

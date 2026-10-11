@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Shared helpers for toggle-*.sh: an on/off value store and a uniform get/label/on/off/toggle CLI
 
-# a toggle never asks for a password: it runs from the bar and keybinds, not a terminal the user typed into.
-# polkit lets an admin at the machine through unprompted (configs/base/toggles); anyone else is refused, never asked
+# a toggle runs from the bar and keybinds, not a terminal the user typed into. polkit lets an admin at the machine
+# through unprompted (configs/core/toggles) except for what lowers a guard (the firewall, portmaster, tor-router), which
+# asks that admin through the session's polkit agent; anyone else is refused, never asked
 toggle_is_admin() { [[ " $(id -nG) " == *" wheel "* ]]; }
 
-# the root half of a toggle: configs/base/toggles/toggle-root through pkexec. pkexec has no switch to skip the
+# toggle_systemctl_guarded <systemctl args...>: one that may lower a guard, the only kind an admin is asked for
+toggle_systemctl_guarded() {
+    if toggle_is_admin; then systemctl "$@"; else systemctl --no-ask-password "$@"; fi
+}
+
+# the root half of a toggle: configs/core/toggles/toggle-root through pkexec. pkexec has no switch to skip the
 # session's polkit agent, so a non-admin is turned away here instead of meeting its password dialog
 TOGGLE_ROOT=/usr/local/bin/toggle-root
 toggle_root() {
@@ -86,10 +92,11 @@ toggle_main() {
     esac
 }
 
-# a systemd unit: is-active is the state, start/stop the switch (polkit, never a prompt); unit is toggle_service's local
+# a systemd unit: is-active is the state, start/stop the switch (polkit; only a stop that lowers a guard asks); unit is
+# toggle_service's local
 toggle_service_check() { systemctl is-active --quiet "$unit" && echo on || echo off; }
 toggle_service_start() { systemctl --no-ask-password start "$unit"; }
-toggle_service_stop() { systemctl --no-ask-password stop "$unit"; }
+toggle_service_stop() { toggle_systemctl_guarded stop "$unit"; }
 
 # toggle_service <name> <label> <unit> <action>
 toggle_service() {

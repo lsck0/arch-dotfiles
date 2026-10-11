@@ -28,8 +28,8 @@ apply() {
     local state=$1
     case "$state" in
         default)
-            # conflicts with fw-lockdown, which systemd stops first
-            systemctl --no-ask-password start fw-inbound.service
+            # conflicts with fw-lockdown, which systemd stops first; from restrictive that lowers it, so polkit asks
+            toggle_systemctl_guarded start fw-inbound.service
             portmaster_start
             ;;
         restrictive)
@@ -37,7 +37,7 @@ apply() {
             portmaster_start
             ;;
         off)
-            systemctl --no-ask-password stop fw-inbound.service fw-lockdown.service portmaster.service
+            toggle_systemctl_guarded stop fw-inbound.service fw-lockdown.service portmaster.service
             ;;
     esac
     toggle_root firewall-chosen

@@ -28,7 +28,7 @@ set_wallpaper() {
     # a theme wallpaper applies that theme's hand-authored palette instead of re-deriving one from the image; themes name their wallpaper by file name, so a secrets copy matches too
     THEME_JSON=""
     THEME_NAME=""
-    for jf in "$DOTFILES/configs/base/themes"/*.json; do
+    for jf in "$DOTFILES/configs/core/themes"/*.json; do
         if [[ -e "$jf" ]] && jq -e --arg n "$(basename "$file")" '.wallpaper == $n' "$jf" >/dev/null 2>&1; then
             THEME_JSON="$jf"
             THEME_NAME=$(basename "${jf%.json}")
@@ -61,14 +61,14 @@ set_wallpaper() {
         themix=(xvfb-run -a themix-multi-export)
     fi
     # gtk/qt themes chained in one backgrounded subshell off the return-path critical section; timeout -k 5 because themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap, and 9>&- drops the lock fd so a hung child never no-ops later switches
-    ( $DOTFILES/configs/base/wallust/scripts/generate-oomox-colors.py && \
+    ( $DOTFILES/configs/core/wallust/scripts/generate-oomox-colors.py && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oomox_classic.json ~/.cache/wal/colors-oomox 9>&- && \
       timeout -k 5 20 "${themix[@]}" ~/.config/oomox/export_config/multi_export_oodwaita.json ~/.cache/wal/colors-oomox 9>&- ) 9>&- &
 
     # apply the new colors to other programs
     pywalfox update 9>&- &
     # spotify + discord colours; synchronous, the discord block below reads its output
-    $DOTFILES/configs/base/wallust/scripts/generate-spicetify-colors.py
+    $DOTFILES/configs/core/wallust/scripts/generate-spicetify-colors.py
     # a running spotify keeps playing and picks the theme up on its next start
     spicetify -n refresh 9>&- &
 
@@ -78,23 +78,26 @@ set_wallpaper() {
       $DOTFILES/scripts/toggles/toggle-monitor-scale.sh reapply ) 9>&- &
 
     # zed and vscodium themes
-    $DOTFILES/configs/base/wallust/scripts/generate-editor-themes.sh 9>&- &
+    $DOTFILES/configs/core/wallust/scripts/generate-editor-themes.sh 9>&- &
 
-    $DOTFILES/configs/base/wallust/scripts/generate-btop-theme.sh 9>&- &
+    $DOTFILES/configs/core/wallust/scripts/generate-btop-theme.sh 9>&- &
 
     # gh-dash reads this on its next launch
-    $DOTFILES/configs/base/wallust/scripts/generate-ghdash-theme.sh 9>&- &
+    $DOTFILES/configs/core/wallust/scripts/generate-ghdash-theme.sh 9>&- &
 
     # caido webview, applied on its next reload via evenbetter's injected stylesheet
-    $DOTFILES/configs/base/wallust/scripts/generate-caido-theme.py 9>&- >/dev/null 2>&1 &
+    $DOTFILES/configs/core/wallust/scripts/generate-caido-theme.py 9>&- >/dev/null 2>&1 &
+
+    # ghidra reads its theme file on its next start only
+    $DOTFILES/configs/core/wallust/scripts/generate-ghidra-theme.py 9>&- >/dev/null 2>&1 &
 
     # telegram palette regenerates via the wal/ template; import is a manual gui step (tdesktop#31183)
 
     # hermes: one yaml skin themes its cli, tui and desktop app at once
-    $DOTFILES/configs/base/wallust/scripts/generate-hermes-skin.py 9>&- >/dev/null 2>&1 &
+    $DOTFILES/configs/core/wallust/scripts/generate-hermes-skin.py 9>&- >/dev/null 2>&1 &
 
     # kde/qt colours + plasma wallpaper
-    $DOTFILES/configs/base/wallust/scripts/generate-kde-theme.sh "$file" 9>&- &
+    $DOTFILES/configs/core/wallust/scripts/generate-kde-theme.sh "$file" 9>&- &
 
     # discord theme
     ui_family=$($DOTFILES/scripts/toggles/toggle-font.sh get 2>/dev/null || true)

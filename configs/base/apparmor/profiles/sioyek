@@ -1,0 +1,42 @@
+# managed by arch-dotfiles/apparmor
+# sioyek, the latex pdf viewer: no network (paper downloads stay off), writes only its own databases
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/sioyek
+profile sioyek @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/desktop>
+  include <abstractions/dotfiles/synctex-edit>
+  include <abstractions/dotfiles/viewer-read>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/graphics>
+  include <abstractions/nameservice-strict>
+  include <abstractions/qt-shader-cache>
+  include <abstractions/user-read-strict>
+
+  # the single-instance socket
+  unix (bind, listen) type=stream,
+
+  @{exec_path} mr,
+
+  @{open_path} rPx -> child-open-strict,
+
+  /{usr/,}etc/sioyek/{,**} r,
+  /usr/share/sioyek/{,**} r,
+  /usr/share/tessdata/{,**} r,
+
+  owner @{user_config_dirs}/sioyek/{,**} r,
+  owner @{user_share_dirs}/sioyek/{,**} rwk,
+  owner @{user_cache_dirs}/sioyek/{,**} rwk,
+  owner @{user_cache_dirs}/wal/colors-sioyek r,
+
+  owner /tmp/sioyek* rw,
+
+  include if exists <local/sioyek>
+}

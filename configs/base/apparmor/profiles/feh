@@ -1,0 +1,31 @@
+# managed by arch-dotfiles/apparmor
+# feh, the default image viewer (base/xdg/mimeapps.list): no network (it would fetch urls), no exec, nothing written
+# but its own thumbnails
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/feh
+profile feh @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/desktop>
+  include <abstractions/dotfiles/viewer-read>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/graphics>
+  include <abstractions/nameservice-strict>
+  include <abstractions/user-read-strict>
+
+  @{exec_path} mr,
+  @{lib}/imlib2/{,**} mr,
+
+  /usr/share/feh/{,**} r,
+
+  owner @{user_config_dirs}/feh/{,**} r,
+  owner @{user_cache_dirs}/thumbnails/{,**} rw,
+
+  include if exists <local/feh>
+}

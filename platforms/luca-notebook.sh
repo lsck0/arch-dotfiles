@@ -4,7 +4,7 @@ HOSTNAME=luca-notebook
 FORM_FACTOR=laptop
 # board-specific: the synaptics 06cb:009a fingerprint reader
 EXTRA_PACKAGES=(python-validity-git)
-PKG_GROUPS=(base hardware fonts desktop socials creating latex programming pentesting)
+PKG_GROUPS=(base core fonts desktop socials creating latex programming pentesting)
 # secrets tunnel config for wg0
 WIREGUARD=wg0.laptop.conf
 # the homelab: pacman mirror line, nas mount, home gateways and routes, searxng in the firefox policy

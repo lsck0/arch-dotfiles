@@ -1,0 +1,1 @@
+core                              # wallust theming scripts (generate-hermes-skin.py, hermes/link.sh)

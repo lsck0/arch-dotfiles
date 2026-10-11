@@ -4,5 +4,8 @@
 [[ -e /usr/lib/systemd/system/systemd-oomd.service ]] || exit 0
 mkdir -p "${UNIT_DIR}/app.slice.d"
 ln -sfn "${PWD}/oomd-app.slice.conf" "${UNIT_DIR}/app.slice.d/10-oomd.conf"
+# the desktop itself, never an oomd candidate; system.sh protects its ancestors
+mkdir -p "${UNIT_DIR}/session.slice.d"
+ln -sfn "${PWD}/session-protect.slice.conf" "${UNIT_DIR}/session.slice.d/10-protect.conf"
 unit_install oom-notify.service
 systemctl --user enable --now oom-notify.service

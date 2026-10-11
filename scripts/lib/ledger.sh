@@ -16,9 +16,10 @@ else
     LEDGER_SCOPE=user
     LEDGER_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/ledger"
 fi
-# never removed, whatever the lists say: base, kernels, firmware, microcode, the boot chain and what repairs the rest,
-# plus the yubikey/fido2 unlock chain and sshd, so a dropped-package confirmation can never lock the machine out
-LEDGER_PACKAGES_DENY='base|base-devel|linux.*|.*-firmware|.*-ucode|grub|efibootmgr|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite'
+# never removed, whatever the lists say: base, kernels, firmware, microcode, the boot chain (binutils builds the ukis)
+# and what repairs the rest, plus the yubikey/fido2 unlock chain and sshd, so a dropped-package confirmation can never
+# lock the machine out
+LEDGER_PACKAGES_DENY='base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite'
 # dropped from install.sh before the ledger existed (generation 487, formerly patches 02 and 04): a machine's first run
 # owns the ones still installed, so they are proposed like any dropped package; delete once every machine has a ledger
 LEDGER_PACKAGES_SEED=(

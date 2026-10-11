@@ -1,5 +1,0 @@
-#!/bin/sh
-# one entry per kernel package, replaces 10_linux
-set -e
-
-exec /usr/local/bin/boot-menu grub-kernels

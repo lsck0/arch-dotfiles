@@ -1,0 +1,9 @@
+# managed by arch-dotfiles/apparmor
+# synctex inverse search (desktop/zathura/zathurarc) through the editor bridge child
+include <abstractions/dotfiles/synctex-edit>
+# links in a pdf open through the strict opener child
+@{open_path} rPx -> child-open-strict,
+# pywal palette that zathurarc includes
+owner @{user_cache_dirs}/wal/colors-zathura r,
+# the homelab share and attachments in temp dirs, as for every viewer
+include <abstractions/dotfiles/viewer-read>

@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
-# kill whole process groups, quickshell does not reap its helper children
+# quickshell runs as quickshell.service, restarted on a crash; this restarts it, `prepare` is the unit's ExecStartPre
 set -e
 
 config="${HOME}/.config/quickshell"
+
+if [[ "${1:-}" != prepare ]]; then
+    # a crash loop leaves it start-limited, the key still brings it back
+    systemctl --user reset-failed quickshell.service 2>/dev/null || true
+    exec systemctl --user restart quickshell.service
+fi
+
+# an instance outside the unit (a manual run, one from before the unit) would draw a second bar: kill whole process
+# groups, quickshell does not reap its helper children
 self_pgid=$(ps -o pgid= -p $$ | tr -d ' ')
 hyprland_pid=$(pgrep -xo Hyprland || true)
 hyprland_pgid=""
@@ -31,5 +40,3 @@ if [[ -n "$qsb_bin" ]]; then
 fi
 
 sleep 0.3
-# own process group so the next restart can kill it
-exec setsid quickshell -p "$config"

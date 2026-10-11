@@ -17,7 +17,8 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  readonly property string historyPath: Paths.state + "/clipboard-history.json"
+  // capture.sh keeps its images beside it
+  readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
   property color background: Color.menu.background
@@ -213,7 +214,7 @@ Item {
   function openRow(row) {
     if (!row) return
     root.opened = false
-    Quickshell.execDetached(["xdg-open", row.path || row.fullText])
+    Quickshell.execDetached(["uwsm-app", "--", "xdg-open", row.path || row.fullText])
   }
 
   Component.onCompleted: initProc.running = true

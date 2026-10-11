@@ -1,0 +1,46 @@
+// the bar and the toggle menu switch these for an admin at the machine; a remote (ssh) or inactive session still has to
+// authenticate. any process of the session passes this check, not only the bar, so only what tightens is unprompted:
+// lowering the firewall or leaving tor asks for the admin password (kept a few minutes), never silently
+function atTheMachine(subject) {
+    return subject.local && subject.active && subject.isInGroup("wheel");
+}
+
+// start/stop, unprompted: nothing here guards the network
+var TOGGLE_UNITS = [
+    "docker.service",
+    "ollama.service",
+    "systemd-oomd.service"
+];
+
+// starting these tightens; stopping one drops the firewall or sends traffic around tor
+var GUARD_UNITS = [
+    "fw-lockdown.service",
+    "portmaster.service",
+    "tor-router.service"
+];
+
+polkit.addRule(function (action, subject) {
+    var unit = action.lookup("unit");
+    var verb = action.lookup("verb");
+    if (action.id !== "org.freedesktop.systemd1.manage-units" || (verb !== "start" && verb !== "stop") ||
+        !atTheMachine(subject)) {
+        return;
+    }
+    if (TOGGLE_UNITS.indexOf(unit) >= 0 || (GUARD_UNITS.indexOf(unit) >= 0 && verb === "start")) {
+        return polkit.Result.YES;
+    }
+    // fw-lockdown's Conflicts= makes fw-inbound's start stop it, so from restrictive it lowers like every stop here
+    if (GUARD_UNITS.indexOf(unit) >= 0 || unit === "fw-inbound.service") {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+});
+
+// everything else goes through the one root helper, which checks its own arguments; none of its verbs opens the
+// firewall or tor (anonsocks nft-off only lifts the guard on the caller's own slice, which that caller can leave anyway)
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.policykit.exec" &&
+        action.lookup("program") === "/usr/local/bin/toggle-root" &&
+        atTheMachine(subject)) {
+        return polkit.Result.YES;
+    }
+});

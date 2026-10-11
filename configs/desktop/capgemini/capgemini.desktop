@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=Capgemini
+Comment=MarComs, Teams and Outlook in the isolated work browser profile
+Exec=@HOME@/.local/bin/capgemini
+Icon=chromium
+Terminal=false
+Categories=Network;WebBrowser;
+Actions=teams;outlook;marcoms;
+
+[Desktop Action teams]
+Name=Teams
+Exec=@HOME@/.local/bin/capgemini https://teams.cloud.microsoft/
+
+[Desktop Action outlook]
+Name=Outlook
+Exec=@HOME@/.local/bin/capgemini https://outlook.cloud.microsoft/mail/
+
+[Desktop Action marcoms]
+Name=MarComs
+Exec=@HOME@/.local/bin/capgemini https://marcoms.capgemini.com/

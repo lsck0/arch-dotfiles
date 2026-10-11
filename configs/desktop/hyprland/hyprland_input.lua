@@ -1,4 +1,4 @@
--- luca's german layout; a guest's own from the x11 keymap configs/base/locale/link.sh sets with localectl
+-- luca's german layout; a guest's own from the x11 keymap configs/core/locale/link.sh sets with localectl
 local DEFAULT_LAYOUT = "de"
 local X11_KEYBOARD_CONF = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 
@@ -29,7 +29,7 @@ hl.config({
             scroll_factor = 0.5,
         },
         tablet = {
-            -- confine the virtual pen (configs/hardware/tablet/tablet-driver.py) to DP-2; set globally not per-device because the compositor's "-1" suffix on the two pen interfaces is unstable, see configs/hardware/tablet/
+            -- confine the virtual pen (configs/base/tablet/tablet-driver.py) to DP-2; set globally not per-device because the compositor's "-1" suffix on the two pen interfaces is unstable, see configs/base/tablet/
             output = "DP-2",
         },
     },

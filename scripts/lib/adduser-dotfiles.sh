@@ -8,7 +8,7 @@ set -euo pipefail
 USERNAME_PATTERN='^[a-z_][a-z0-9_-]{0,31}$'
 LOGIN_SHELL=/usr/bin/zsh
 SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
-SIGNING_KEY_FILE=configs/base/gnupg/luca-sandrock.pub.asc
+SIGNING_KEY_FILE=configs/core/gnupg/luca-sandrock.pub.asc
 # system.sh's SYSTEM_REPO, checked before any file of it is sourced
 SELF=/var/lib/dotfiles/repo/scripts/lib/adduser-dotfiles.sh
 

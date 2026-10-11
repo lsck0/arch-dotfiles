@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# pywal palette desktop/thunderbird links into the profile's chrome dir
+owner @{user_cache_dirs}/wal/colors-thunderbird.css r,

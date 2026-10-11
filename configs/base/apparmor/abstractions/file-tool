@@ -1,0 +1,31 @@
+# managed by arch-dotfiles/apparmor
+# a command line tool that parses untrusted files (extractors, converters, yazi's previewers): it reads what the
+# user can, writes in the home and temp dirs, and has no network and no exec. root keeps reading, but writes
+# only to temp dirs, so a root extraction into /usr fails under it
+
+  abi <abi/4.0>,
+
+  include <abstractions/base-strict>
+  include <abstractions/consoles>
+  include <abstractions/deny-sensitive-home>
+  include <abstractions/nameservice-strict>
+
+  / r,
+  /** r,
+
+  owner @{HOME}/** rwk,
+  owner @{HOME}/** l -> @{HOME}/**,
+  owner /tmp/** rwk,
+  owner /tmp/** l -> /tmp/**,
+  owner /var/tmp/** rwk,
+
+  # what runs code on the next login, shell or config run: never a file an archive or a conversion should create
+  deny @{HOME}/.{profile,bash_profile,bash_login,bashrc,bash_logout,zshenv,zprofile,zshrc,zlogin,zlogout} w,
+  deny @{HOME}/.{xprofile,xinitrc,xsession,pam_environment} w,
+  deny @{user_config_dirs}/{autostart,systemd,environment.d,zsh,fish,nushell,hypr,uwsm,git}/{,**} w,
+  deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} w,
+  deny @{user_bin_dirs}/{,**} w,
+  deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} w,
+  deny @{HOME}/projects/arch-dotfiles/{,**} w,
+
+  include if exists <abstractions/dotfiles/file-tool.d>

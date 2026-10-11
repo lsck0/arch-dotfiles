@@ -1,0 +1,13 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = btop
+Target = cdrtools
+Target = diskwatch
+
+[Action]
+Description = Limiting capability and setuid binaries to wheel: btop without caps, diskwatch and cdrtools root:wheel 0750
+When = PostTransaction
+# chgrp drops file caps and setuid, so each binary's caps are read first and set again; setuid stays off, the caps suffice
+Exec = /usr/bin/sh -c 'if getcap /usr/bin/btop 2>/dev/null | grep -q .; then setcap -r /usr/bin/btop; fi; for f in /usr/bin/diskwatch /usr/bin/cdrecord /usr/bin/readcd /usr/bin/cdda2wav /usr/bin/rscsi; do [ -f "$f" ] || continue; caps=$(getcap "$f" | cut -d" " -f2); chgrp wheel "$f" && chmod 750 "$f" && { [ -z "$caps" ] || setcap "$caps" "$f"; }; done'

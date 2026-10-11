@@ -26,12 +26,8 @@ spicetify config experimental_features 0
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
-# patching needs the wheel write access spotify/system.sh grants; without it the stock client stays
-if [[ ! -w /opt/spotify || ! -w /opt/spotify/Apps ]]; then
-    user_hook_retire spicetify-apply
-    rm -f "${USER_HOOK_UNIT_DIR}/default.target.wants/spicetify-apply.service"
-    exit 0
-fi
+# spicetify patches a copy of the client in this home (hook/spicetify-apply.sh), the launcher starts that copy
+desktop_override spotify.desktop "s|^Exec=spotify |Exec=$PWD/spotify-launch.sh |"
 # permanent: the first login, every spotify upgrade (a fresh xpui.spa) and every login (an upgrade while logged out) reapply.
 # now too, so this log shows it; a failed apply still arms the units
 status=0

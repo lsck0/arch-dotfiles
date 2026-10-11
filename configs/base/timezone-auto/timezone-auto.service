@@ -1,8 +1,0 @@
-[Unit]
-Description=Match the system timezone to the machine's actual location
-Documentation=file:%h/projects/arch-dotfiles/configs/base/timezone-auto/timezone-auto.sh
-# no network ordering: a user unit cannot wait on system targets; offline is a no-op, the nm dispatcher retries
-
-[Service]
-Type=oneshot
-ExecStart=%h/projects/arch-dotfiles/configs/base/timezone-auto/timezone-auto.sh apply

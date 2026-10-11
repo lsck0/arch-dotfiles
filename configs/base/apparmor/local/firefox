@@ -1,0 +1,4 @@
+# managed by arch-dotfiles/apparmor
+# native messaging hosts (pywalfox, proton pass): root-owned programs the browser cannot rewrite
+@{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rPUx,
+/opt/proton-pass/resources/assets/proton_pass_nm_host rPUx,

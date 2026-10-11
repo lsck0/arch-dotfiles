@@ -16,7 +16,11 @@ if [ -e "${SCENE}" ] && [ ! -e "${MARKER}" ]; then
     touch "${MARKER}"
 fi
 
-# configs/creating/obs/link.sh links these files into the repo; obs replaces a link with a plain file on save
+# the obs module's link.sh links these files into the repo; obs replaces a link with a plain file on save
+modules=("${REPO}"/configs/*/obs)
+MODULE=${modules[0]}
+[ -d "${MODULE}" ] || { echo "no configs/<group>/obs module" >&2; exit 1; }
+
 backup() {
     [ -e "$1" ] || return 0
     [ "$(readlink -f "$1")" = "$(readlink -f "$2")" ] && return 0
@@ -25,6 +29,6 @@ backup() {
 
 backup "${SCENE}" "${REPO}/secrets/obs-Untitled.json"
 backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/service.json" "${REPO}/secrets/obs-service.json"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini" "${REPO}/configs/creating/obs/basic.ini"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json" "${REPO}/configs/creating/obs/streamEncoder.json"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json" "${REPO}/configs/creating/obs/recordEncoder.json"
+backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini" "${MODULE}/basic.ini"
+backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json" "${MODULE}/streamEncoder.json"
+backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json" "${MODULE}/recordEncoder.json"

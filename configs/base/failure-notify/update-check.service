@@ -1,0 +1,10 @@
+[Unit]
+Description=Note new package updates and security advisories
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/update-check
+Slice=background.slice
+Nice=19
+IOSchedulingClass=idle

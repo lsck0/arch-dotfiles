@@ -1,0 +1,31 @@
+# managed by arch-dotfiles/apparmor
+# nsxiv: no network, no exec, nothing written but its thumbnails
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/nsxiv
+profile nsxiv @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/desktop>
+  include <abstractions/dotfiles/viewer-read>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/graphics>
+  include <abstractions/nameservice-strict>
+  include <abstractions/user-read-strict>
+
+  @{exec_path} mr,
+  @{lib}/imlib2/{,**} mr,
+
+  # desktop/nsxiv's key-handler (trash, set wallpaper) is a shell script: a compromised viewer that may run it can
+  # run anything, so its keys stay off while nsxiv is confined
+  deny @{HOME}/projects/arch-dotfiles/configs/desktop/nsxiv/exec/* x,
+
+  owner @{user_cache_dirs}/nsxiv/{,**} rw,
+
+  include if exists <local/nsxiv>
+}

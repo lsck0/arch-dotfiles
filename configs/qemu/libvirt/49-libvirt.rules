@@ -1,0 +1,7 @@
+// qemu:///system hands its client root (a domain on /dev/nvme0n1, a pool over /etc), so an admin at the machine
+// authenticates once per few minutes instead of the libvirt group's silent yes; boxes' qemu:///session needs only kvm
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.libvirt.unix.manage" && subject.local && subject.active && subject.isInGroup("wheel")) {
+        return polkit.Result.AUTH_ADMIN_KEEP;
+    }
+});

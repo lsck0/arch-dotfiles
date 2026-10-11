@@ -8,5 +8,6 @@ Type=simple
 Sockets=vllm.socket
 TimeoutStartSec=600
 ExecStartPre=/usr/local/bin/vllm-wait-ready
-ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=15min 127.0.0.1:8001
+# idle vllm holds 11 gb of vram and spins a core, so it goes after 5 minutes without a connection
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=5min 127.0.0.1:8001
 ExecStopPost=/usr/bin/systemctl stop vllm.service

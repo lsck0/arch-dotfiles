@@ -13,8 +13,8 @@ Item {
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
   readonly property var actions: [
     { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
-    // terminate the session directly instead of asking hyprland to exit
-    { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["sh", "-c", "loginctl terminate-session \"$XDG_SESSION_ID\""] },
+    // the whole uwsm session, not hyprland alone; quickshell.service has no XDG_SESSION_ID for terminate-session
+    { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"] },
     { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
     // these end the session for good, so they ask first
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },

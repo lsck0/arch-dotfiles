@@ -11,6 +11,10 @@ umask 022
 EXIT_FAILURES=1
 EXIT_ABORTED=2
 OFFLINE_WAIT_S=120
+# the mirror's proxy answers 429 past its per-ip budget (50 req/s, burst 100), about 100 of a fresh install's ~5000
+# files per pass; what a pass fetched stays in the cache, so each pass after the budget refills gets the next ones
+DOWNLOAD_TRIES=80
+DOWNLOAD_BACKOFF_S=5
 LSCK0_DB=/var/lib/pacman/sync/lsck0.db
 PACMAN_LOCK=/var/lib/pacman/db.lck
 PACMAN_MODULE=configs/base/pacman/system.sh
@@ -58,7 +62,7 @@ source ./scripts/lib/ledger.sh
 platform_load "$PWD"
 
 system_install() {
-    local pkg lsck0_snapshot
+    local pkg lsck0_snapshot try
     local -a targets missing available=() nix_pkgs
     # keyring first: the pacman module's lsign needs it, a fresh bootstrap has it empty
     pacman-key --init
@@ -83,7 +87,12 @@ system_install() {
     done
     echo "sources: ${#available[@]} packages in one pass, ${#missing[@]} not on the mirror" >&2
     # the one download pass: -uu moves pacstrap's packages onto the snapshot, --ask 4 replaces the old lsck0-* names
-    pacman -Suu --needed --noconfirm --ask 4 "${available[@]}"
+    for ((try = 1; ; try++)); do
+        pacman -Suu --needed --noconfirm --ask 4 "${available[@]}" && break
+        ((try < DOWNLOAD_TRIES)) || return 1
+        echo "system-apply: transaction failed, try $try/$DOWNLOAD_TRIES, again in ${DOWNLOAD_BACKOFF_S}s" >&2
+        sleep "$DOWNLOAD_BACKOFF_S"
+    done
 
     # which lsck0 snapshot this machine runs: the pin, the db's publish time and its hash
     lsck0_snapshot="${LSCK0_SNAPSHOT:-latest} $(date -ur "$LSCK0_DB" +%FT%TZ) $(sha256sum <"$LSCK0_DB" | cut -d' ' -f1)"
@@ -94,6 +103,9 @@ system_install() {
     mapfile -t nix_pkgs < <(platform_packages nixpkgs)
     if ((${#nix_pkgs[@]})) && command -v nix >/dev/null 2>&1; then
         systemctl enable --now nix-daemon.socket || fail "nix-daemon.socket"
+        # the package ships no /nix/store and a user's first nix call fails on it before the daemon would make it;
+        # the owner and mode nix itself gives it under build-users-group
+        [[ -d /nix/store ]] || install -d -o root -g nixbld -m 1775 /nix/store || fail "/nix/store"
     fi
 
     # card access before the first config: its secrets unlock runs as the user ahead of the system layer
@@ -126,9 +138,9 @@ system_config() {
     ./scripts/lib/apply-patches.sh || fail "scripts/lib/apply-patches.sh"
     # after every system.sh and patch, so a unit is owned or dropped by what this run left enabled
     ledger_units "$PWD" || fail "ledger: disabling dropped units"
-    # last, so every initramfs, cmdline and grub change of this run is rebuilt once in one order, then signed and verified
-    source ./configs/hardware/boot/boot-menu/common.sh
-    boot_commit || fail "boot barrier (configs/hardware/boot/boot-menu/common.sh)"
+    # last, so every initramfs and cmdline change of this run is rebuilt once in one order, then signed and verified
+    source ./configs/base/boot/common.sh
+    boot_commit || fail "boot barrier (configs/base/boot/common.sh)"
 }
 
 "system_$mode"

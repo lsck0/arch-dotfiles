@@ -18,9 +18,13 @@ if [ -x "$guard" ]; then
           Notification: [{matcher: "idle_prompt|permission_prompt|agent_needs_input|elicitation_dialog", hooks: $end[0].hooks}],
           SubagentStart: $sub_start, SubagentStop: $sub_stop}')
 fi
-# only the guard's own hook entries are replaced, other hooks stay; a removed guard takes its stale ones along
+# only the guard's own hook entries are replaced, other hooks stay; a removed guard takes its stale ones along.
+# remote control needs feature flags, which the session-wide DO_NOT_TRACK (and DISABLE_TELEMETRY or
+# CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC) switch off, so claude gets DO_NOT_TRACK=0 however it is started; error
+# reports and feedback surveys are separate switches and stay off
 json_update "$SETTINGS" --argjson guard_hooks "$hooks" \
     '. + {remoteControlAtStartup: true, model: "claude-opus-5-5", voice: {enabled: true, mode: "hold"}}
+     | .env += {DO_NOT_TRACK: "0", DISABLE_ERROR_REPORTING: "1", CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY: "1"}
      | .modelSettings["claude-opus-5-5"].effortLevel = "medium"
      | .hooks = reduce ($guard_hooks | to_entries[]) as $e (
          .hooks // {} | map_values(map(select(any(.hooks[]?; .command // "" | contains("agent-guard")) | not)))

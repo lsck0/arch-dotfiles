@@ -13,8 +13,10 @@ turn_on() {
   # config list shows unset as off, so the settings file is the only place unset is visible
   jq -e 'has("killswitch")' "${XDG_CONFIG_HOME:-$HOME/.config}/Proton/VPN/settings.json" &>/dev/null ||
     protonvpn config set kill-switch standard >/dev/null 2>&1 || true
-  # portmaster's connmark restore overwrites the wireguard fwmark, so tunnel packets would loop back into proton0
-  systemctl --no-ask-password stop portmaster.service
+  # portmaster's connmark restore overwrites the wireguard fwmark, so tunnel packets would loop back into proton0. a stop
+  # asks an admin now (49-toggles.rules) and auto-vpn has no one to ask: refused, the persona dispatcher stops it as
+  # proton0 comes up
+  systemctl --no-ask-password stop portmaster.service 2>/dev/null || true
   local out
   out=$(protonvpn connect --country CH 2>&1) || true
   if grep -qi "Authentication required" <<<"$out"; then

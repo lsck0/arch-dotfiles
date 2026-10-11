@@ -12,6 +12,16 @@ local function quickshell_toggle(target)
     return quickshell_call(target, "toggle")
 end
 
+-- an app gets its own scope in app.slice: out of the compositor's protected cgroup, an oomd candidate on its own
+local function app(cmd)
+    return hl.dsp.exec_cmd("uwsm-app -- " .. cmd)
+end
+
+-- a helper that may outlive the keypress (pickers, toggles) in background-graphical.slice
+local function helper(cmd)
+    return hl.dsp.exec_cmd("uwsm-app -s b -- " .. cmd)
+end
+
 local function media_key(action)
     return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
 end
@@ -38,21 +48,29 @@ hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
 hl.bind(mod .. " + F9", obs_command("saveReplay"))
 hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"))
 hl.bind(mod .. " + Tab", quickshell_toggle("overview"))
--- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}'"))
-hl.bind(mod .. " + a", hl.dsp.exec_cmd("firefox"))
-hl.bind(mod .. " + SHIFT + a", hl.dsp.exec_cmd("qutebrowser"))
+-- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window; kitty, themed to
+-- parity, when that service is broken or hangs, and on its own key
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --timeout 5 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}' || uwsm-app -- kitty"))
+hl.bind(mod .. " + SHIFT + Return", app("kitty"))
+hl.bind(mod .. " + a", app("firefox"))
+hl.bind(mod .. " + SHIFT + a", app("qutebrowser"))
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"))
+-- quickshell down: a bemenu over $PATH launches, super+shift+r brings the shell back
+hl.bind(mod .. " + ALT + d", hl.dsp.exec_cmd(
+    "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/picker.sh -p run) && uwsm-app -- sh -c \"$cmd\""))
+hl.bind(mod .. " + SHIFT + r", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/quickshell/restart.sh"))
+-- loginctl, so hypridle's lock_cmd picks quickshell or hyprlock
+hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"))
 hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"))
-hl.bind(mod .. " + e", hl.dsp.exec_cmd("dolphin"))
-hl.bind(mod .. " + n", hl.dsp.exec_cmd("neovide"))
+hl.bind(mod .. " + e", app("dolphin"))
+hl.bind(mod .. " + n", app("neovide"))
 hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
-hl.bind(mod .. " + t", hl.dsp.exec_cmd("$DOTFILES/scripts/toggles/menu.sh"))
-hl.bind(mod .. " + SHIFT + t", hl.dsp.exec_cmd("missioncenter"))
-hl.bind(mod .. " + w", hl.dsp.exec_cmd(shell_bin("wallpaper-picker")))
-hl.bind(mod .. " + y", hl.dsp.exec_cmd("spawn-shimeji"))
+hl.bind(mod .. " + t", helper("$DOTFILES/scripts/toggles/menu.sh"))
+hl.bind(mod .. " + SHIFT + t", app("missioncenter"))
+hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")))
+hl.bind(mod .. " + y", helper("spawn-shimeji"))
 -- boomer.sh stops hyprland warping the cursor to monitor 0
-hl.bind(mod .. " + x", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/boomer.sh"))
+hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.sh"))
 -- focused-monitor-only backup; the monitor-0 window rule misplaces it
 -- hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(
 --     "grim -t ppm -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""))

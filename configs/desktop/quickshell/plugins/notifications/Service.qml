@@ -253,7 +253,8 @@ Item {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
-    if (argv) Quickshell.execDetached(argv)
+    // uwsm-app, a browser started here must not join quickshell.service in session.slice
+    if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
     else if (!invokeDefaultAction(entry)) focusApp(entry)
     removePopup(index)
   }

@@ -71,7 +71,7 @@ require_tor() {
     }
 }
 
-# the netfilter half runs as root through configs/base/toggles/toggle-root, which polkit lets the bar call unprompted
+# the netfilter half runs as root through configs/core/toggles/toggle-root, which polkit lets the bar call unprompted
 TOGGLE_ROOT=/usr/local/bin/toggle-root
 # never a password prompt, the toggle runs it from the bar: a non-admin is refused before pkexec reaches the polkit agent
 root_netfilter() {

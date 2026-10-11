@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """OSSEC alert summary for System.qml: one JSON line per change, inotify driven, silent exit when ossec is off.
 
-The log is root-only by package default; configs/hardware/ossec grants the ossec-alerts group read access via ACL.
+The log is root-only by package default; configs/base/ossec grants the ossec-alerts group read access via ACL.
 """
 
 import ctypes

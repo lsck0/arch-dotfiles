@@ -1,0 +1,37 @@
+# managed by arch-dotfiles/apparmor
+# synctex inverse search for a pdf viewer: configs/latex/sioyek/synctex-edit.sh in its own child, which may only ask
+# a running nvim or emacs to jump to a line and post a notification, never take the viewer's rights or run unconfined
+
+  abi <abi/4.0>,
+
+  @{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.sh rCx -> synctex-edit,
+
+  profile synctex-edit flags=(attach_disconnected) {
+    include <abstractions/base-strict>
+    include <abstractions/bus-session>
+    include <abstractions/nameservice-strict>
+    include <abstractions/notifications>
+
+    unix (create, connect, send, receive, getattr, getopt, setopt, shutdown) type=stream,
+
+    @{bin}/env rix,
+    @{sh_path} rix,
+    @{bin}/{basename,id,readlink,timeout} rix,
+    @{bin}/{emacsclient,notify-send,nvim} rix,
+
+    @{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.sh r,
+    @{HOME}/projects/arch-dotfiles/scripts/lib/notification-send.sh rix,
+
+    /usr/share/nvim/{,**} r,
+    /usr/lib/nvim/{,**} mr,
+
+    owner @{user_cache_dirs}/vimtex/nvim_servernames.log r,
+    owner @{run}/user/@{uid}/ r,
+    owner @{run}/user/@{uid}/nvim.@{int}.@{int} rw,
+    owner @{run}/user/@{uid}/emacs/server rw,
+    owner /tmp/emacs@{uid}/server rw,
+
+    owner @{PROC}/@{pid}/fd/ r,
+  }
+
+  include if exists <abstractions/dotfiles/synctex-edit.d>

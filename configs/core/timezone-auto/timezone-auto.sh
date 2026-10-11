@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
+# keep the system timezone matching the machine's location
+
+set -euo pipefail
+
+REPO="$DOTFILES"
+TOGGLES="$REPO/scripts/toggles"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/toggles"
+DISABLED_FLAG="$STATE_DIR/timezone-auto-disabled"
+
+current_tz() {
+    timedatectl show -p Timezone --value 2>/dev/null || true
+}
+
+tunnel_up() {
+    local t state
+    for t in vpn protonvpn tor; do
+        # fail closed: an unknown tunnel state never geolocates through a possible exit
+        [[ -x "$TOGGLES/toggle-$t.sh" ]] || { echo "$t?"; return 0; }
+        state=$("$TOGGLES/toggle-$t.sh" get 2>/dev/null || echo off)
+        [[ "$state" == "on" ]] && { echo "$t"; return 0; }
+    done
+    return 1
+}
+
+# off home the lookup would name our real ip on an untrusted link or geolocate the tunnel's exit, so it only runs at
+# home; a machine without the home rule (wsl, no networkmanager) has no untrusted links
+off_home() {
+    [[ -e /etc/NetworkManager/dispatcher.d/70-home-network && ! -s /run/home-network ]]
+}
+
+valid_tz() {
+    local tz=$1
+    [[ "$tz" =~ ^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){1,2}$ ]] || return 1
+    [[ -f "/usr/share/zoneinfo/$tz" ]]
+}
+
+detect_tz() {
+    local json tz
+    # one https provider only: ip-geolocation leaks our ip and location, so no plaintext http and no second phone-home
+    json=$(timeout 10 curl -s --max-time 8 'https://ipapi.co/json/' 2>/dev/null || true)
+    [[ -n "$json" ]] || return 1
+    tz=$(python3 -c "
+import json,sys
+try:
+    print(json.load(sys.stdin).get('timezone') or '')
+except Exception:
+    print('')
+" <<<"$json" 2>/dev/null || true)
+    [[ -n "$tz" ]] && { echo "$tz"; return 0; }
+    return 1
+}
+
+apply() {
+    local dry=${1:-}
+    local cur want
+
+    if [[ -e "$DISABLED_FLAG" ]]; then
+        return 0
+    fi
+
+    if off_home || tunnel_up >/dev/null; then
+        return 0
+    fi
+
+    cur=$(current_tz)
+    if ! want=$(detect_tz); then
+        return 0
+    fi
+
+    if ! valid_tz "$want"; then
+        return 0
+    fi
+
+    if [[ "$want" == "$cur" ]]; then
+        return 0
+    fi
+
+    if [[ "$dry" == "--dry-run" ]]; then
+        return 0
+    fi
+
+    # the machine's clock is an admin's to set (49-timezone-auto.rules); a background unit never asks anyone else
+    if [[ " $(id -nG) " != *" wheel "* ]]; then
+        return 0
+    fi
+
+    if timedatectl --no-ask-password set-timezone "$want"; then
+        command -v notify-send >/dev/null &&
+            notify-send -a Timezone "Timezone updated" "$cur -> $want" || true
+        command -v systemctl >/dev/null &&
+            systemctl --user try-restart quickshell.service >/dev/null 2>&1 || true
+    else
+        return 1
+    fi
+}
+
+usage() {
+    echo "usage: $(basename "$0") {apply|check|status|enable|disable}" >&2
+}
+
+case "${1:-apply}" in
+apply) apply ;;
+check) apply --dry-run ;;
+status)
+    echo "current:  $(current_tz)"
+    if t=$(tunnel_up); then echo "tunnel:   $t (detection suppressed)"; else echo "tunnel:   none"; fi
+    if [[ -e "$DISABLED_FLAG" ]]; then echo "auto:     disabled"; else echo "auto:     enabled"; fi
+    if off_home; then
+        echo "detected: (off home, no lookup)"
+    else
+        echo "detected: $(detect_tz || echo '(unavailable)')"
+    fi
+    ;;
+enable)  mkdir -p "$STATE_DIR"; rm -f "$DISABLED_FLAG"; echo "timezone auto-detection enabled" ;;
+disable) mkdir -p "$STATE_DIR"; : >"$DISABLED_FLAG"; echo "timezone auto-detection disabled" ;;
+*) usage; exit 1 ;;
+esac

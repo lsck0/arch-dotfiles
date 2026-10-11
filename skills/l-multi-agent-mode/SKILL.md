@@ -63,8 +63,8 @@ research, strong models for design, spec, implementation and review. This
 skill reads `PLAN.md` and never re-derives it. Under Hermes the planner
 runs `hermes auth list`; under Claude Code the model is the Agent tool's
 `model` override (there is no provider concept) and local inference does not
-apply. Local inference (`ollama-local`, any local model) is excluded by
-default on Hermes; use it only if the human asks for it in this run.
+apply. Hermes has no local provider configured: local models (ollama, vllm)
+are for chat only, never for a worker.
 
 ## Workflow
 

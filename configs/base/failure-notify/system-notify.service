@@ -1,0 +1,13 @@
+[Unit]
+Description=Desktop notifications for failed system units, disk health and system reports
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/system-notify
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target

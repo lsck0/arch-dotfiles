@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# lazy model provisioning, run on first ollama/hermes use, not during config.sh
-# one source for every ollama model: System One and hermes' cpu fallback
+# lazy model provisioning, run on first ollama use, not during config.sh
+# one source for every ollama model: System One and alpaca's default
 cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 if ! command -v ollama >/dev/null 2>&1; then
@@ -30,7 +30,7 @@ for model in "${MODELS[@]}"; do
     ollama show "$model" >/dev/null 2>&1 || ollama pull "$model"
 done
 
-# hermes' cpu fallback: ollama's default num_ctx is small regardless of the model
+# alpaca's default: ollama's default num_ctx is small regardless of the model
 if ! ollama list | grep -q '^llama3.1-64k'; then
     ollama pull llama3.1:8b
     tmp_modelfile="$(mktemp)"

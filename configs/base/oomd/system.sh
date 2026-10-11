@@ -8,3 +8,10 @@ if systemctl is-enabled -q systemd-oomd.service; then started=0; else systemctl 
 if file_update oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf && ((!started)); then
     systemctl try-restart systemd-oomd.service
 fi
+
+# protection only reaches session.slice (link.sh) through every ancestor: user.slice, user-UID.slice, user@UID.service
+changed=0
+file_update user-protect.slice.conf /etc/systemd/system/user.slice.d/10-protect.conf && changed=1
+file_update user-protect.slice.conf /etc/systemd/system/user-.slice.d/10-protect.conf && changed=1
+file_update user-protect.service.conf /etc/systemd/system/user@.service.d/10-protect.conf && changed=1
+if ((changed)); then systemctl daemon-reload; fi

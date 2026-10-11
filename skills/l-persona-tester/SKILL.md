@@ -36,7 +36,7 @@ stop. No file given -> summarize in chat.
 
 ## Tools
 
-`cargo-nextest` (faster Rust test runner), `cargo-tarpaulin`/`cargo-llvm-cov`/`lcov`
+`cargo-nextest` (faster Rust test runner), `cargo-llvm-cov`/`lcov`
 (code coverage, by ecosystem), `cargo-fuzz`/`afl`/`afl++` (fuzzing, the
 `afl` tier named above), `kani-verifier` (Rust formal verification) and
 `flux` (refinement types, the `flux` tier named above), `python-hypothesis`

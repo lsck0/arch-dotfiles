@@ -7,7 +7,8 @@ import sys
 import zipfile
 from pathlib import Path
 
-XPUI = Path("/opt/spotify/Apps/xpui")
+# the patched copy's Apps/xpui (hook/spicetify-apply.sh passes it)
+XPUI = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.home() / ".local/share/spotify-patched/Apps/xpui"
 CSS_MAP = Path("/opt/spicetify-cli/css-map.json")
 BACKUP = Path.home() / ".local/state/spicetify/Backup/xpui.spa"
 SKIP = {"user.css", "colors.css"}

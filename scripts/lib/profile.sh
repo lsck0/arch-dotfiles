@@ -15,7 +15,8 @@ profile_load() {
     source "$PROFILE_FILE"
 }
 
-# profile_has <capability>: secrets (unlock with the yubikey), identity (name, keys, accounts) or homelab (nas, ntfy, sync)
+# profile_has <capability>: secrets (unlock with the yubikey), identity (name, keys, accounts), homelab (nas, ntfy, sync)
+# or work (the capgemini browser profile)
 profile_has() {
     [[ " ${PROFILE_CAPABILITIES[*]-} " == *" $1 "* ]]
 }

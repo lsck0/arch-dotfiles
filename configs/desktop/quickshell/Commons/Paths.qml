@@ -25,10 +25,15 @@ QtObject {
     return base.replace(/\/+$/, "") + "/quickshell"
   }
 
+  // tmpfs, gone at logout and reboot: what must never reach the disk or a backup (clipboard history)
+  readonly property string runtime: {
+    return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
+  }
+
   readonly property string toggles: dotfiles + "/scripts/toggles"
   // the one source of wallpaper eligibility and name resolution
   readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.py"
-  readonly property string themes: dotfiles + "/configs/base/themes"
+  readonly property string themes: dotfiles + "/configs/core/themes"
 
   function toggle(name) { return toggles + "/" + name }
 

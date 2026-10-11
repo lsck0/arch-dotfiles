@@ -112,6 +112,19 @@ desktop_override() {
     sed "$2" "$DESKTOP_SYSTEM_DIR/$1" >"$dest"
 }
 
+# java_ui_scale: the integer scale java/swing apps get, xwayland's rule from desktop/hyprland/hyprland_monitors.lua
+# (1 on a laptop, else 2); keep the two in step. java would follow hyprland's GDK_SCALE, but not every launch
+# path carries it and a launcher pinning sun.java2d.uiScale (ghidra) overrides it. per app, never global
+java_ui_scale() {
+    if [[ "${FORM_FACTOR:-}" == laptop ]]; then echo 1; else echo 2; fi
+}
+
+# desktop_java_scale <id.desktop>: that entry's Exec= under JDK_JAVA_OPTIONS carrying java_ui_scale; the java
+# launcher puts it before the command line, so an app whose launcher passes its own uiScale needs that launcher's hook
+desktop_java_scale() {
+    desktop_override "$1" "s|^Exec=|Exec=env JDK_JAVA_OPTIONS=-Dsun.java2d.uiScale=$(java_ui_scale) |"
+}
+
 # json_update <file> <jq args...>: jq in place, {} for a missing or empty file; written back into the same inode,
 # so an app holding it open or a link to it keeps working
 json_update() {

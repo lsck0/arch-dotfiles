@@ -2,7 +2,7 @@
 # konsole only runs as dolphin's terminal panel; give it the wallpaper palette and the system font
 
 link_into "${HOME}/.local/share/konsole" pywal.profile
-# wallust renders this on every wallpaper switch (configs/base/wallust/templates/wal)
+# wallust renders this on every wallpaper switch (configs/core/wallust/templates/wal)
 ln -sfn "${HOME}/.cache/wal/colors-konsole.colorscheme" "${HOME}/.local/share/konsole/pywal.colorscheme"
 # konsole rewrites konsolerc with window state, so set only the key
 kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile pywal.profile

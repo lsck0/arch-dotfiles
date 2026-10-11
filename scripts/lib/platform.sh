@@ -84,11 +84,16 @@ platform_load() {
     echo "platform: form factor $FORM_FACTOR, groups ${PKG_GROUPS[*]}" >&2
 }
 
-# platform_packages <manifest>: the names in configs/<group>/<manifest>.txt over PKG_GROUPS, comments and blanks dropped
+# platform_packages <manifest>: the names in configs/<group>/<manifest>.txt over PKG_GROUPS, comments and blanks
+# dropped. <manifest>.native.txt is the hardware-only half, read on every form factor but wsl (windows owns kernel,
+# boot, drivers, power, audio, network); only configs/base has one
 platform_packages() {
-    local grp
+    local grp file
     for grp in "${PKG_GROUPS[@]}"; do
-        [[ -f "$DOTFILES/configs/$grp/$1.txt" ]] || continue
-        sed -E 's/#.*//; s/[[:space:]]+$//' "$DOTFILES/configs/$grp/$1.txt" | awk 'NF'
+        for file in "$1" "$1.native"; do
+            [[ "$file" == *.native && "$FORM_FACTOR" == wsl ]] && continue
+            [[ -f "$DOTFILES/configs/$grp/$file.txt" ]] || continue
+            sed -E 's/#.*//; s/[[:space:]]+$//' "$DOTFILES/configs/$grp/$file.txt" | awk 'NF'
+        done
     done
 }

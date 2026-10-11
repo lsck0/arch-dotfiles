@@ -1,0 +1,36 @@
+# managed by arch-dotfiles/apparmor
+# bookokrat, the terminal epub and pdf reader: no network, and no synctex editor (desktop/bookokrat's runs a terminal)
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/bookokrat
+profile bookokrat @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/consoles>
+  include <abstractions/dotfiles/viewer-read>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/nameservice-strict>
+  include <abstractions/user-read-strict>
+  include <abstractions/wayland-strict>
+
+  @{exec_path} mr,
+
+  @{open_path} rPx -> child-open-strict,
+  @{bin}/wl-copy rix,
+
+  owner @{user_config_dirs}/bookokrat/{,**} rw,
+  owner @{user_share_dirs}/bookokrat/{,**} rwk,
+  owner @{user_cache_dirs}/bookokrat/{,**} rwk,
+  owner @{user_state_dirs}/bookokrat/{,**} rwk,
+  owner @{HOME}/.bookokrat_settings.yaml{,.bak} rw,
+
+  # kitty graphics over shared memory
+  owner /dev/shm/bookokrat_* rw,
+
+  include if exists <local/bookokrat>
+}

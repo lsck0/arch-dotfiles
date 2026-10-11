@@ -1,0 +1,25 @@
+[Unit]
+Description=NAS homelab share (vm-109)
+DefaultDependencies=no
+Conflicts=umount.target
+Before=umount.target
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+# home (70-home-network) or the homelab tunnel only: anywhere else the address may be anyone's, and the credentials
+# would go to it. an access then fails at once; the persona dispatcher unmounts on leaving home
+ConditionPathExists=|/run/home-network
+ConditionPathExists=|/sys/class/net/wg0
+# under wsl there is no home rule, windows owns the network
+ConditionVirtualization=|wsl
+
+[Mount]
+# by IP: *.lsck0.dev resolves to Cloudflare, which cannot carry SMB
+What=//10.100.0.109/homelab
+Where=/mnt/homelab
+Type=cifs
+Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770
+TimeoutSec=10s
+
+[Install]
+WantedBy=multi-user.target

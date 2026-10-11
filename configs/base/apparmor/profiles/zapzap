@@ -1,0 +1,48 @@
+# managed by arch-dotfiles/apparmor
+# zapzap, the whatsapp client: python and qtwebengine, after apparmor.d's qutebrowser
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{domain} = org.chromium.Chromium
+
+@{exec_path} = @{bin}/zapzap
+profile zapzap @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/audio-client>
+  include <abstractions/common/chromium>
+  include <abstractions/desktop>
+  include <abstractions/graphics>
+  include <abstractions/nameservice-strict>
+  include <abstractions/python>
+  include <abstractions/ssl_certs>
+  include <abstractions/user-download-strict>
+  include <abstractions/user-read-strict>
+
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+  network netlink raw,
+
+  # the single-instance socket
+  unix (bind, listen) type=stream,
+
+  @{exec_path} mr,
+  @{python_path} rix,
+  @{lib}/qt6/{,libexec/}QtWebEngineProcess rix,
+
+  @{open_path} rPx -> child-open-strict,
+
+  owner @{user_config_dirs}/ZapZap/{,**} rwk,
+  owner @{user_share_dirs}/ZapZap/{,**} rwk,
+  owner @{user_cache_dirs}/ZapZap/{,**} rwk,
+
+  owner /tmp/zapzap* rw,
+
+  include if exists <local/zapzap>
+}

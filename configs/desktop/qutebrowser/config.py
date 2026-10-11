@@ -119,10 +119,15 @@ c.url.searchengines = {
     "yt": "https://youtube.com/results?search_query={}",
 }
 
-# chrome ua, the qtwebengine default trips bot checks
-_ua = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-       "Chrome/140.0.0.0 Safari/537.36")
-c.content.headers.user_agent = _ua
+# no ua override: the default is already a plain chrome one with the engine's real version, a pinned one ages into
+# a fingerprint
+
+# privacy, like the managed chromium policy: webrtc only on the default route, no third-party cookies.
+# blocking uses brave's engine (python-adblock) and the hosts lists; both arrive with :adblock-update, which
+# qutebrowser asks for on the first start
+c.content.webrtc_ip_handling_policy = "default-public-interface-only"
+c.content.cookies.accept = "no-3rdparty"
+c.content.blocking.method = "both"
 
 # keybindings
 config.bind("J", "tab-prev")

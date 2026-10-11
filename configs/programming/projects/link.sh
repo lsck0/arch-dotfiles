@@ -4,7 +4,7 @@
 profile_has identity || exit 0
 
 PROJECTS="${HOME}/projects"
-# github.com/lsck0/<name>; private ones need configs/base/gh's login, which links first (config.sh runs them sorted)
+# github.com/lsck0/<name>; private ones need configs/core/gh's login, which links first (config.sh runs them sorted)
 REPOS=(arch-dotfiles homelab)
 DIRS=(probe)
 

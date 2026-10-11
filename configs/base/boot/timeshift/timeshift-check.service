@@ -1,0 +1,10 @@
+[Unit]
+Description=Take the timeshift snapshot when one is due
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/timeshift --check --scripted
+# the timer is the schedule, not cronie: drop the jobs timeshift writes along with its config
+ExecStartPost=/usr/bin/rm -f /etc/cron.d/timeshift-hourly /etc/cron.d/timeshift-boot
+Nice=19
+IOSchedulingClass=idle

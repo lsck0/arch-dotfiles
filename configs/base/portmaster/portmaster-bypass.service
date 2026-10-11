@@ -1,0 +1,16 @@
+[Unit]
+Description=Portmaster bypass for loopback, pentest vpns and the pentest group, owns table inet portmaster_bypass
+Before=portmaster.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
+# a load empties gids; the pentest group exists only with configs/pentesting/pentest, which reloads this once it made it
+ExecStartPost=-/bin/sh -c 'gid=$$(getent group pentest | cut -d: -f3); [ -n "$$gid" ] || exit 0; exec /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"'
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
+ExecReload=-/bin/sh -c 'gid=$$(getent group pentest | cut -d: -f3); [ -n "$$gid" ] || exit 0; exec /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"'
+ExecStop=/usr/sbin/nft destroy table inet portmaster_bypass
+
+[Install]
+WantedBy=multi-user.target

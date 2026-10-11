@@ -3,7 +3,8 @@
 
 set -o pipefail
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/quickshell"
+# tmpfs like Clipboard.qml's history: a copied secret never reaches the disk or a backup
+STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/quickshell"
 IMAGE_DIR="$STATE_DIR/clipboard-images"
 mkdir -p "$IMAGE_DIR"
 
@@ -12,6 +13,14 @@ types=$(wl-paste --list-types 2>/dev/null || true)
 if [[ ${CLIPBOARD_STATE:-} == "sensitive" ]] || grep -qx 'x-kde-passwordManagerHint' <<<"$types"; then
   exit 0
 fi
+
+# pass -c and pass otp -c copy with a plain wl-copy (no --sensitive hint), then start the sleeper that clears it; one
+# born just now marks this offer as the secret, an older one only a password still waiting to be cleared
+sleep 0.2
+for pid in $(pgrep -u "$UID" -f '^password store sleep on display' || true); do
+  age=$(ps -o etimes= -p "$pid" 2>/dev/null) || continue
+  ((age <= 1)) && exit 0
+done
 
 emit_image() {
   local mime="$1"

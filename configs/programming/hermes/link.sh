@@ -16,13 +16,8 @@ for dir in $DOTFILES/skills/l-*/; do
 done
 find "${hermes_orchestrator}/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 
-# local ollama as a model source; llama3.1-64k is built lazily by ollama-ensure-models,
-# a fallback-only route here, so it need not exist yet at config time
-have_ollama=0
-command -v ollama >/dev/null 2>&1 && have_ollama=1
-
 # skin lives in the default profile, wallpaper switches rewrite only that
-HERMES_HOME="${hermes_default}" $DOTFILES/configs/base/wallust/scripts/generate-hermes-skin.py
+HERMES_HOME="${hermes_default}" $DOTFILES/configs/core/wallust/scripts/generate-hermes-skin.py
 mkdir -p "${hermes_orchestrator}/skins"
 ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 
@@ -30,37 +25,19 @@ ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wal
 for hermes_home in "${hermes_default}" "${hermes_orchestrator}"; do
     export HERMES_HOME="${hermes_home}"
 
-    # slow cpu-only backends need a long read timeout
-    if [ "${have_ollama}" -eq 1 ] && ! grep -qs '^HERMES_API_TIMEOUT=' "${hermes_home}/.env"; then
-        echo 'HERMES_API_TIMEOUT=1800' >> "${hermes_home}/.env"
-        chmod 600 "${hermes_home}/.env"
-    fi
-
     # one interpreter instead of a hermes launch per key; set_config_value coerces like `hermes config set`
-    HAVE_OLLAMA="${have_ollama}" ORCHESTRATOR="${hermes_orchestrator}" /opt/hermes-agent/venv/bin/python - <<'PY'
+    ORCHESTRATOR="${hermes_orchestrator}" /opt/hermes-agent/venv/bin/python - <<'PY'
 import os
 from hermes_cli.config import set_config_value
 from hermes_cli.skin_cmd import _use
-settings = []
-if os.environ["HAVE_OLLAMA"] == "1":
-    settings += [
-        ("providers.ollama-local.api", "http://localhost:11434/v1"),
-        ("providers.ollama-local.default_model", "llama3.1-64k"),
-        ("providers.ollama-local.context_length", "65536"),
-        ("providers.ollama-local.transport", "chat_completions"),
-    ]
-settings += [
+settings = [
     ("display.interface", "tui"),
-    # routing: anthropic, then free nous, then vllm gpu, then ollama cpu
+    # routing: anthropic, then free nous; never the local llm group, it is for chat only
     ("model.default", "claude-sonnet-5"),
     ("model.provider", "anthropic"),
     ("delegation.provider", "nous"),
     ("delegation.model", "meituan/longcat-2.0:free"),
-    # cold-started by configs/llm/vllm
-    ("providers.vllm-rocm.api", "http://localhost:8000/v1"),
-    ("providers.vllm-rocm.default_model", "mattbucci/gemma-4-12B-AWQ"),
-    ("providers.vllm-rocm.transport", "chat_completions"),
-    ("fallback_providers", '[{"provider":"nous","model":"meituan/longcat-2.0:free"},{"provider":"nous","model":"poolside/laguna-s-2.1:free"},{"provider":"vllm-rocm","model":"mattbucci/gemma-4-12B-AWQ"},{"provider":"ollama-local","model":"llama3.1-64k"}]'),
+    ("fallback_providers", '[{"provider":"nous","model":"meituan/longcat-2.0:free"},{"provider":"nous","model":"poolside/laguna-s-2.1:free"}]'),
 ]
 if os.environ["HERMES_HOME"] == os.environ["ORCHESTRATOR"]:
     settings += [("compression.threshold_tokens", "500000")]

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Back up live app state into the repo, then commit secrets and the whole tree as the next signed "Generation: N" and push.
+# The same backups also run daily before borg-backup (configs/core/borg), so the archive has them; only this commits them.
 
 set -e
 cd "$(dirname "$(readlink -f "$0")")"

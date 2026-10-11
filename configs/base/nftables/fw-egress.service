@@ -1,0 +1,17 @@
+[Unit]
+Description=Untrusted-network kill switch, owns table inet fw_egress (always on, independent of the firewall toggle)
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-egress.nft
+# a load empties home_ifaces; refill it from the dispatcher's home links (a failed fill only keeps home closed)
+ExecStartPost=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw_egress home_ifaces "{ $$(paste -sd, /run/home-network) }"'
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-egress.nft
+ExecReload=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw_egress home_ifaces "{ $$(paste -sd, /run/home-network) }"'
+ExecStop=/usr/sbin/nft destroy table inet fw_egress
+
+[Install]
+WantedBy=multi-user.target

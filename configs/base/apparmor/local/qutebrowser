@@ -1,0 +1,6 @@
+# managed by arch-dotfiles/apparmor
+# config.py links into the dotfiles checkout and reads the pywal palette, the start page its stylesheet
+owner @{HOME}/projects/arch-dotfiles/configs/desktop/qutebrowser/config.py r,
+owner @{user_cache_dirs}/wal/{colors.json,colors-qutebrowser.css} r,
+# opening downloads and external links
+@{open_path} rPx -> child-open-strict,

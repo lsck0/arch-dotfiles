@@ -90,7 +90,7 @@ at a glance instead of hand-parsing `task list`/`task export`.
     committed). Never `git add -A`, so unrelated pre-existing files are
     left for the human.
   Auto-export-on-cd requires `eval "$(direnv hook zsh)"` in the shell rc
-  (already wired in this repo's `configs/base/zsh/zshrc`); without it,
+  (already wired in this repo's `configs/core/zsh/zshrc`); without it,
   `devenv shell` still works, just not automatically on `cd`.
 - One db per root: `taskwarrior-init` on a root that already has one
   reuses it rather than creating a second.

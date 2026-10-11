@@ -1,0 +1,47 @@
+# managed by arch-dotfiles/apparmor
+# onlyoffice desktop editors (qt and cef in /opt): no network, so a document cannot fetch remote content; the cloud,
+# plugin store and macros that need it stay off
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{domain} = org.chromium.Chromium
+@{lib_dirs} = /opt/onlyoffice/desktopeditors
+
+@{exec_path} = @{bin}/{onlyoffice-desktopeditors,desktopeditors} @{lib_dirs}/DesktopEditors
+profile onlyoffice @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/audio-client>
+  include <abstractions/common/chromium>
+  include <abstractions/cups-client>
+  include <abstractions/desktop>
+  include <abstractions/dotfiles/viewer-read>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/graphics>
+  include <abstractions/nameservice-strict>
+  include <abstractions/user-download-strict>
+  include <abstractions/user-read-strict>
+  include <abstractions/user-write-strict>
+
+  network netlink raw,
+
+  @{exec_path} mrix,
+  # the launcher is a shell script
+  @{sh_path} rix,
+  @{lib_dirs}/{,**} mr,
+  @{lib_dirs}/{editors_helper,converter/x2t} rix,
+
+  @{open_path} rPx -> child-open-strict,
+
+  owner @{user_config_dirs}/onlyoffice/{,**} rwk,
+  owner @{user_share_dirs}/onlyoffice/{,**} rwk,
+  owner @{user_cache_dirs}/onlyoffice/{,**} rwk,
+
+  owner /tmp/** rwk,
+
+  include if exists <local/onlyoffice>
+}

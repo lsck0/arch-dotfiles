@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# the homelab share and attachments in temp dirs, as for every viewer
+include <abstractions/dotfiles/viewer-read>

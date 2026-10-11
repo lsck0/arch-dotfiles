@@ -53,7 +53,8 @@ BarWidget {
     // history replays the sender's hint, so the same allowlist as the popup
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) {
-      Quickshell.execDetached(argv)
+      // uwsm-app, a browser started here must not join quickshell.service in session.slice
+      Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
     }

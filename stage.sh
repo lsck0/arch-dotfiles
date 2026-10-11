@@ -72,6 +72,11 @@ if [[ -n "$next" ]]; then
     echo "$next" | sudo tee "$STATE_DIR/next" >/dev/null
     sudo systemctl reboot
 else
+    # the keyfile sat in initramfs images on the unencrypted ESP: the rebuilt ones lack it, a trim lets the ssd drop the old
+    # blocks. whoever copied the ESP and the header meanwhile still derives the volume key, only a reencrypt rotates it,
+    # done before a yubikey or TPM is enrolled (reencrypt needs every slot's passphrase)
+    sudo fstrim /boot 2>/dev/null || true
+    log "volume key unchanged since bootstrap; to rotate it (online, slow): sudo cryptsetup reencrypt $(<"$STATE_DIR/luks-device")"
     # a crash before this line reruns the config stage next boot; one sudo call, after the rm there is no passwordless sudo left to reboot with
     sudo systemctl disable dotfiles-stage.service
     sudo sh -c "rm -f $UNIT $STATE_DIR/next $SUDOERS_DROPIN && systemctl reboot"

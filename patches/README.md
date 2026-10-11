@@ -52,4 +52,4 @@ scripts/lib/apply-patches.sh --force NN_slug # run one regardless of its record
 scripts/lib/apply-patches.sh --mark-applied  # record every patch of this scope as applied, running none
 ```
 
-Patches are never deleted once pushed: a machine set up before a patch was added still needs it.
+Once every machine has been set up after a patch, by a clean install or by a run that applied it, the patch can go.

@@ -9,7 +9,7 @@ This repository contains my system setup and configuration files, which are syml
 
 ## Layout
 
-- `configs/<name>`: config/setup for tools/tasks, including `configs/hardware/keyboard` (keyboard firmware) and `configs/base/themes` (color themes propagated through the system).
+- `configs/<name>`: config/setup for tools/tasks, including `configs/base/keyboard` (keyboard firmware) and `configs/core/themes` (color themes propagated through the system).
 - `mirror/`: pkgbuilds and the local package mirror.
 - `patches/`: patch scripts for upstream packages.
 - `platforms/`: per-machine scripts (luca-pc, luca-notebook, test-vm).

@@ -1,6 +1,6 @@
 local platform = require("platform")
 
--- xwayland only
+-- xwayland only; java apps mirror this in java_ui_scale, scripts/lib/module.sh
 local xwayland_scale = platform.laptop and "1" or "2"
 hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", xwayland_scale)
 hl.env("GDK_SCALE", xwayland_scale)

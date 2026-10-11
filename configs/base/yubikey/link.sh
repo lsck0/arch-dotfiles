@@ -3,9 +3,6 @@
 SOPS_KEYS="${HOME}/.config/sops/age/keys.txt"
 
 if profile_has identity; then
-    # pam_u2f registrations of every enrolled key (scripts/lib/yubikey.sh init), read from pam_u2f's per-user default
-    if [[ -f u2f_keys ]]; then link_into "${HOME}/.config/Yubico" u2f_keys; fi
-
     # ssh tries id_ed25519_sk by default, after the agent's keys; skipped while no key is plugged in
     mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
     for stub in ssh-*; do

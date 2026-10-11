@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# knock the hidden-ssh sequence (configs/hardware/nftables/fw-inbound.nft) then ssh to the real sshd on 2222: the port is filtered to scans, the knock opens it for your IP for 1h, 22 is a tarpit
+# knock the hidden-ssh sequence (configs/base/nftables/fw-inbound.nft) then ssh to the real sshd on 2222: the port is filtered to scans, the knock opens it for your IP for 1h, 22 is a tarpit
 set -euo pipefail
 target="${1:?usage: sshk.sh [user@]<host> [ssh args...]}"; shift
 host="${target#*@}"
