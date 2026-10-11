@@ -2,7 +2,7 @@
 # fork of the official extra/quickshell recipe; exists only to carry the pipewire UNK-channel peak patch.
 # on every quickshell update: refresh pkgver/sha256 and the cmake flags from the official PKGBUILD, rebase the patch, keep pkgrel one above official so [lsck0] supersedes extra.
 pkgname=quickshell
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=2
 pkgdesc='Flexible toolkit for making desktop shells with QtQuick'
 arch=(x86_64 aarch64)
@@ -36,7 +36,7 @@ makedepends=(cli11
 _archive="$pkgname-$pkgver"
 source=("$_archive.tar.gz::$url/archive/v$pkgver.tar.gz"
         0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch)
-sha256sums=('d60592622f1aa1cbb853d4814f605dfde827bc692befbfecffaccf4c90e352d8'
+sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
             'd429f1c37bea32efc2f7484dbdb990f6065c4e4456d8e273e5c04000f569ab94')
 
 prepare() {

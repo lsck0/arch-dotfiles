@@ -1,0 +1,56 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# fork of the aur theharvester-git recipe; exists only to build against arch's flit-core 4: upstream's pyproject still
+# pins flit_core <4 though nothing it uses changed. drop this recipe once upstream lifts the bound
+# Contributor: envolution
+# Contributor: éclairevoyant
+
+pkgname=theharvester-git
+pkgver=4.8.2.r66.g5116b856
+pkgrel=1
+pkgdesc="Gather emails, names, subdomains, IPs and URLs related to targets using public sources"
+arch=(any)
+url="https://github.com/laramies/theHarvester"
+license=(GPL-2.0-only)
+depends=(
+    python-aiodns
+    python-aiohttp
+    python-aiomultiprocess
+    python-aiosqlite
+    python-beautifulsoup4
+    python-certifi
+    python-fastapi
+    python-netaddr
+    python-ujson
+    python-yaml
+    python-shodan
+    python-playwright
+    python-slowapi
+    uvicorn
+    python-uvloop
+)
+makedepends=(git python-build python-installer python-wheel python-flit-core)
+optdepends=('python-httpx: alternative to aiohttp')
+install=theHarvester.install
+source=("$pkgname::git+$url.git")
+b2sums=('SKIP')
+
+pkgver() {
+    cd "$pkgname"
+    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
+}
+
+prepare() {
+    cd "$pkgname"
+    sed -i 's/"flit_core >=3.11,<4"/"flit_core >=3.11"/' pyproject.toml
+    grep -q '"flit_core >=3.11"' pyproject.toml
+}
+
+build() {
+    cd "$pkgname"
+    python -m build -wn
+}
+
+package() {
+    cd "$pkgname"
+    python -m installer -d "$pkgdir" dist/*.whl
+}
