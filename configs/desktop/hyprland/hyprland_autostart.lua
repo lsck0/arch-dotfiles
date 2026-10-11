@@ -1,6 +1,6 @@
 hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see
-    hl.exec_cmd("uwsm finalize GDK_SCALE QT_AUTO_SCREEN_SCALE_FACTOR _JAVA_AWT_WM_NONREPARENTING")
+    hl.exec_cmd("uwsm finalize GDK_SCALE QT_AUTO_SCREEN_SCALE_FACTOR")
 
     -- the session's own pieces in session.slice (protected, never an oomd pick), not app.slice; quickshell restarts
     -- itself on a crash, its unit waits for the finalize above

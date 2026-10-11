@@ -11,10 +11,11 @@
 curl -fsSL https://install-{pc, notebook, wsl}.lsck0.dev | sh
 ```
 
-Anyone else, from the Arch ISO (or a fresh WSL Arch root shell):
+Anyone else, from the Arch ISO (or a fresh WSL Arch root shell); it asks for the machine instead of reading a
+`platforms/` file:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lsck0/arch-dotfiles/master/bootstrap.sh | bash
+curl -fsSL https://install-generic.lsck0.dev | sh
 ```
 
 A machine is a `platforms/<name>.sh` or the answers given at install (`/etc/dotfiles/platform.sh`); a user is any

@@ -1,3 +1,36 @@
 # managed by arch-dotfiles/apparmor
 # pywal palette desktop/thunderbird links into the profile's chrome dir
 owner @{user_cache_dirs}/wal/colors-thunderbird.css r,
+# the profile root thunderbird creates on a fresh home, beside apparmor.d's ~/.thunderbird
+owner @{user_config_dirs}/{,.}thunderbird/ rw,
+owner @{user_config_dirs}/{,.}thunderbird/** rwk,
+
+# external gnupg (desktop/thunderbird/user.js, the yubikey): gpgme's gpg and gpgconf in a child instead of apparmor.d's
+# gpg profiles, which would confine gpg everywhere. priority beats the upstream px
+priority=1 @{bin}/gpg{,2} rCx -> gpg,
+priority=1 @{bin}/gpgconf rCx -> gpg,
+priority=1 @{bin}/gpgsm   rCx -> gpg,
+
+profile gpg flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/nameservice-strict>
+
+  # gpg-agent, keyboxd and dirmngr come from systemd's user sockets, never from here: one spawned by this child would
+  # read a gpg-agent.conf (pinentry-program) from any --homedir thunderbird names
+  unix (create, connect, send, receive, getattr, getopt, setopt, shutdown) type=stream,
+  owner @{run}/user/@{uid}/gnupg/ r,
+  owner @{run}/user/@{uid}/gnupg/{,d.*/}S.{gpg-agent,keyboxd,dirmngr} rw,
+
+  @{bin}/gpg{,2} mrix,
+  @{bin}/gpgconf mrix,
+  @{bin}/gpgsm   mrix,
+
+  /etc/gnupg/{,**} r,
+  /usr/share/gnupg/{,**} r,
+
+  # the keyring and trustdb, but no config: every *.conf there can name a program to run
+  owner @{HOME}/.gnupg/ r,
+  # gnupg's dotlock takes its locks with link()
+  owner @{HOME}/.gnupg/** rwkl -> @{HOME}/.gnupg/**,
+  deny @{HOME}/.gnupg/{*.conf,sshcontrol} wl,
+}

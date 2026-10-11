@@ -9,7 +9,7 @@ set -euo pipefail
 export DOTFILES
 source "$DOTFILES/scripts/lib/secrets.sh"
 
-HOST=$(hostname)
+HOST=$(uname -n)
 # the syncthing folder (configs/core/syncthing/link.sh has the same path and id)
 FOLDER="${XDG_DATA_HOME:-$HOME/.local/share}/borg-repo"
 FOLDER_ID="borg-$HOST"
@@ -81,7 +81,8 @@ if ((${#repos[@]} > 1)); then
 elif ((${#repos[@]} == 1)); then
     export BORG_REPO="${repos[0]%/config}"
 else
-    export BORG_REPO="$FOLDER/$HOST-$(date +%Y%m%d%H%M%S)"
+    BORG_REPO="$FOLDER/$HOST-$(date +%Y%m%d%H%M%S)"
+    export BORG_REPO
     borg init --encryption=repokey-blake2
 fi
 # the key lives in the repo's config, a damaged config loses every archive: a copy (still passphrase-encrypted) in secrets

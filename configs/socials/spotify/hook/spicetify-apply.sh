@@ -41,7 +41,8 @@ fi
 spicetify config spotify_path "$SPOTIFY_DIR" >/dev/null
 [[ -e "${APPS}/xpui.spa" || ! -d "${APPS}/xpui" ]] || exit 0
 
-# a fresh copy no longer matches the backup, so apply fails and a fresh backup is taken
-spicetify apply || spicetify backup apply
-spicetify enable-devtools
+# a fresh copy no longer matches the backup, so apply fails and a fresh backup is taken. -n: spicetify's restart
+# would start the copy itself, outside spotify-launch.sh's apparmor profile; the next launch picks the patch up
+spicetify -n apply || spicetify -n backup apply
+spicetify -n enable-devtools
 python3 "$(dirname "$(readlink -f "$0")")/../spicetify-unmap-classes.py" "${APPS}/xpui"

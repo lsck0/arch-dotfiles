@@ -5,6 +5,7 @@ set -euo pipefail
 
 PERSONA_LOCKDOWN=/run/persona-lockdown
 WG_INTERFACE=wg0
+PERSONA_DISPATCHER=/etc/NetworkManager/dispatcher.d/90-anonymous-persona
 NFT_TABLE=anonymous_socks
 PERSONA_CHAIN=ANONSOCKS_PERSONA
 
@@ -102,7 +103,11 @@ case "$#:${1:-}" in
 2:wg)
     [[ -f /etc/wireguard/$WG_INTERFACE.conf ]] || { echo "toggle-root: no $WG_INTERFACE configured" >&2; exit 1; }
     case "$2" in
-    up | down) wg-quick "$2" "$WG_INTERFACE" ;;
+    up | down)
+        wg-quick "$2" "$WG_INTERFACE"
+        # the persona's tor hands over to the full tunnel and back; NM may not dispatch a link wg-quick made
+        [[ ! -x $PERSONA_DISPATCHER ]] || "$PERSONA_DISPATCHER" "$WG_INTERFACE" "$2" || true
+        ;;
     *) usage ;;
     esac
     ;;

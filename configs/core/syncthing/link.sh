@@ -6,13 +6,13 @@ mkdir -p "${HOME}/sync"
 
 STATE="${HOME}/.local/state/syncthing"
 # per-host device identity
-SECRET_DIR="$DOTFILES/secrets/syncthing/$(hostname)"
+SECRET_DIR="$DOTFILES/secrets/syncthing/$(uname -n)"
 GUI_SECRET="$DOTFILES/secrets/syncthing-gui-password"
 GUI_GENERATED="${STATE}/gui-password"
 NAS_NAME=vm-109-nas
 # borg's repo folder (configs/core/borg/borg-backup.sh has the same path and id)
 BORG_FOLDER="${XDG_DATA_HOME:-$HOME/.local/share}/borg-repo"
-BORG_ID="borg-$(hostname)"
+BORG_ID="borg-$(uname -n)"
 API_WAIT_SECONDS=30
 
 paired=false

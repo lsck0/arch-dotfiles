@@ -1,3 +1,5 @@
+# hyprland never reparents; without it awt/swing apps on xwayland can map blank or misplace their windows
+export _JAVA_AWT_WM_NONREPARENTING=1
 export GTK_IM_MODULE=simple
 # desktop: aquamarine opens only the firmware's display gpu, not the output-less igpu; cardN since it splits on ':' (by-path has them); delete to revert
 if [ "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/form-factor" 2>/dev/null)" = desktop ]; then

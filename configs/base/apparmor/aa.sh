@@ -30,7 +30,8 @@ available() {
     } 2>/dev/null | sort -u
 }
 
-known() { available | grep -qxF "$1"; }
+# grep -q stops at the first match and sort dies of sigpipe: under pipefail a pipe would fail on a known name
+known() { grep -qxF "$1" < <(available); }
 
 apply() { sudo aa-install --install; }
 

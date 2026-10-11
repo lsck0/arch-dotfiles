@@ -6,11 +6,10 @@ Wants=network-pre.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-egress.nft
-# a load empties home_ifaces; refill it from the dispatcher's home links (a failed fill only keeps home closed)
-ExecStartPost=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw_egress home_ifaces "{ $$(paste -sd, /run/home-network) }"'
-ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-egress.nft
-ExecReload=-/bin/sh -c '[ -s /run/home-network ] || exit 0; exec /usr/sbin/nft add element inet fw_egress home_ifaces "{ $$(paste -sd, /run/home-network) }"'
+# a load empties home_ifaces: refilled from the dispatcher's home links in the same transaction, so a reload never
+# resets a live home connection; a failed fill loads the table alone and only keeps home closed
+ExecStart=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/home-network ] || echo "add element inet fw_egress home_ifaces { $$(paste -sd, /run/home-network) }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
+ExecReload=/bin/sh -c '{ cat /etc/nftables.d/fw-egress.nft; [ ! -s /run/home-network ] || echo "add element inet fw_egress home_ifaces { $$(paste -sd, /run/home-network) }"; } | /usr/sbin/nft -f - || exec /usr/sbin/nft -f /etc/nftables.d/fw-egress.nft'
 ExecStop=/usr/sbin/nft destroy table inet fw_egress
 
 [Install]

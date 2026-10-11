@@ -48,6 +48,8 @@ table inet $TABLE {
 		meta skuid $TOR_UID return
 		# a vpn's handshake goes out as itself, so the persona dispatcher's tor can hand over to protonvpn
 		meta l4proto udp meta mark { $TUNNEL_MARKS } return
+		# the dhcp client's unicast renew and broadcast rebind; redirected, the lease runs out
+		udp sport 68 udp dport 67 return
 		udp dport 53 redirect to :$DNS_PORT
 		tcp dport 53 redirect to :$TRANS_PORT
 		# no lo: the automapped 127.192.0.0/10 must still reach the TransPort
@@ -69,6 +71,7 @@ table inet $TABLE {
 		ip6 daddr @direct6 accept
 		meta skuid $TOR_UID accept
 		meta l4proto udp meta mark { $TUNNEL_MARKS } accept
+		udp sport 68 udp dport 67 accept
 		icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } accept
 		# connections opened before start fail fast instead of continuing in the clear
 		meta l4proto tcp reject with tcp reset

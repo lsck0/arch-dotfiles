@@ -1,4 +1,37 @@
 # managed by arch-dotfiles/apparmor
-# native messaging hosts (pywalfox, proton pass): root-owned programs the browser cannot rewrite
-@{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rPUx,
+# native messaging hosts: proton pass, a root-owned binary the browser cannot rewrite
 /opt/proton-pass/resources/assets/proton_pass_nm_host rPUx,
+# pywalfox is a bash and python script, so the browser's environment (BASH_ENV, PYTHONPATH, PATH) steers it: a child
+# that reads the palette and serves its socket, never unconfined
+@{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
+
+# the new tab and home page (desktop/firefox), qutebrowser's; links.js and the wallpaper are in ~/projects
+owner @{user_config_dirs}/qutebrowser/startpage.html r,
+owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
+
+# a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
+deny @{user_config_dirs}/mimeapps.list* w,
+deny @{user_share_dirs}/applications/{,**} w,
+
+profile pywalfox flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/python>
+
+  unix (create, bind, connect, send, receive, getattr, getopt, setopt, shutdown) type=dgram,
+
+  @{bin}/env rix,
+  @{sh_path} rix,
+  @{python_path} rix,
+  @{bin}/pywalfox rix,
+
+  @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh r,
+
+  owner @{user_cache_dirs}/wal/colors.json r,
+  owner @{user_cache_dirs}/pywalfox.log{,.1} rw,
+  owner @{user_config_dirs}/pywalfox/{,config.json} rw,
+  owner @{tmp}/pywalfox_socket_@{uid} rw,
+
+  # its css toggles: profiles.ini through the ~/.config/firefox link, and the profile's chrome dir
+  owner @{user_config_dirs}/mozilla/firefox/profiles.ini r,
+  owner @{user_config_dirs}/mozilla/firefox/*/chrome/{,*.css} rw,
+}

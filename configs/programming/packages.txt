@@ -128,7 +128,7 @@ jrnl                              # command-line journal
 jujutsu                           # git-compatible VCS
 jupyterlab                        # notebook IDE
 k9s                               # kubernetes TUI
-kani-verifier                     # rust formal verifier
+kani                              # rust formal verifier
 kcachegrind                       # valgrind callgrind/cachegrind GUI
 kubecolor                         # kubectl colorized output
 kubectl                           # kubernetes CLI

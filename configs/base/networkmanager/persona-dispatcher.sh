@@ -10,6 +10,8 @@
 #                              any login; auto-vpn (configs/base/protonvpn, after login) connects protonvpn through it
 #   proton0 up       VPN       the tor-router started here stops; fw-egress leaves proton0 the only way out
 #   proton0 down     FOREIGN   again while any link is foreign: tor until protonvpn reconnects, never the bare link
+#   wg0 up           VPN       the same for the homelab full tunnel; toggle-root wg calls this, NM may not dispatch it
+#   wg0 down         FOREIGN   again while any link is foreign
 #   portal <iface>   PORTAL    by hand only, never on an event (as root: <this script> <iface> portal): dns, http and
 #                              https straight out that foreign link for PORTAL_S, tor paused, then FOREIGN again
 #
@@ -26,6 +28,7 @@ TOR_ROUTER=/usr/local/bin/tor-router
 # networkmanager/system.sh on a vm: the host's fw_egress already holds the guest, so no egress kill switch and no tor
 VM_GUEST=/etc/NetworkManager/vm-guest
 VPN_IFACE=proton0
+WG_IFACE=wg0
 PORTAL_S=120
 PORTAL_UNIT=persona-portal
 
@@ -44,10 +47,14 @@ foreign() {
     return 1
 }
 
-# tor_on [gone]: gone when proton0 is going down, its link may still linger until NM deletes it
+# tor_on [gone]: never while a tunnel carries everything; gone names the one going down, its link may linger until NM
+# deletes it
 tor_on() {
+    local t
     [ -x "$TOR_ROUTER" ] && [ ! -e "$VM_GUEST" ] || return 0
-    [ -n "${1:-}" ] || ! ip link show "$VPN_IFACE" >/dev/null 2>&1 || return 0
+    for t in "$VPN_IFACE" "$WG_IFACE"; do
+        [ "$t" = "${1:-}" ] || ! ip link show "$t" >/dev/null 2>&1 || return 0
+    done
     systemctl is-active -q tor-router.service && return 0
     touch "$TOR_MARKER"
     # tor takes seconds to start, the dispatcher must not wait on it; fw-egress drops what it cannot carry yet
@@ -57,6 +64,13 @@ tor_on() {
 tor_off() {
     rm "$TOR_MARKER" 2>/dev/null || return 0
     systemctl stop --no-block tor-router.service
+}
+
+# the app firewall rides with the firewall toggle, but never over a live protonvpn tunnel (it clobbers the wg fwmark)
+portmaster_on() {
+    if systemctl is-active -q fw-inbound.service fw-lockdown.service && ! ip link show "$VPN_IFACE" >/dev/null 2>&1; then
+        systemctl start portmaster.service 2>/dev/null || true
+    fi
 }
 
 # protonvpn's tunnel came or went, from auto-vpn, the toggle, the app, a reconnect or a crash. portmaster follows it
@@ -72,7 +86,7 @@ if [ "$iface" = "$VPN_IFACE" ] || [ "${VPN_IP_IFACE:-}" = "$VPN_IFACE" ]; then
         resolvectl default-route "$VPN_IFACE" no 2>/dev/null || true
         ;;
     down | vpn-down)
-        foreign && tor_on gone
+        foreign && tor_on "$VPN_IFACE"
         if systemctl is-active -q fw-inbound.service fw-lockdown.service; then
             systemctl start portmaster.service 2>/dev/null || true
         fi
@@ -81,10 +95,25 @@ if [ "$iface" = "$VPN_IFACE" ] || [ "${VPN_IP_IFACE:-}" = "$VPN_IFACE" ]; then
     exit 0
 fi
 
-# after the window the portal set has already closed the link (nft timeout); this only brings tor and dns back
+# the homelab tunnel is full (AllowedIPs 0.0.0.0/0): tor hands over to it as to protonvpn, else its dns and traffic
+# would go through tor. portmaster and resolved stay as they are
+if [ "$iface" = "$WG_IFACE" ]; then
+    case "$action" in
+    up) tor_off ;;
+    down) foreign && tor_on "$WG_IFACE" ;;
+    esac
+    exit 0
+fi
+
+# after the window the portal set has already closed the link (nft timeout); this only brings tor, dns and portmaster
+# back. the rest of the arguments are the link's own domains from before the window; none clears with "", a bare
+# resolvectl domain <iface> only prints
 if [ "$action" = portal-end ]; then
+    [ $# -gt 2 ] || set -- "$@" ""
+    resolvectl domain "$iface" "${@:3}" 2>/dev/null || true
     resolvectl dnsovertls "$iface" opportunistic 2>/dev/null || true
     foreign && tor_on
+    portmaster_on
     exit 0
 fi
 
@@ -99,14 +128,21 @@ if [ "$action" = portal ]; then
     grep -qx "$iface" "$HOME_NETWORK" 2>/dev/null && exit 0
     nft get element inet fw_egress portal "{ $iface }" >/dev/null 2>&1 && exit 0
     nft add element inet fw_egress portal "{ $iface timeout ${PORTAL_S}s }" || exit 1
+    # "Link 3 (wlan0): a.example ~b.example", ifnames carry no colon
+    domains=$(resolvectl domain "$iface" 2>/dev/null) || domains=:
+    read -ra domains <<<"${domains#*:}"
     if ! systemd-run --quiet --collect --unit="$PORTAL_UNIT" --on-active="${PORTAL_S}s" \
-        "$(readlink -f "$0")" "$iface" portal-end; then
+        "$(readlink -f "$0")" "$iface" portal-end "${domains[@]}"; then
         # without the way back the window stays shut
         nft delete element inet fw_egress portal "{ $iface }" 2>/dev/null
         exit 1
     fi
     tor_off
+    # portmaster's dns intercept resolves over dot to 853, which the portal set does not pass
+    systemctl stop portmaster.service 2>/dev/null || true
     resolvectl dnsovertls "$iface" no 2>/dev/null || true
+    # the global ~. claims every name, so the link's dhcp resolver is asked only with a ~. of its own
+    resolvectl domain "$iface" "~." 2>/dev/null || true
     exit 0
 fi
 
@@ -141,7 +177,4 @@ else
     fi
 fi
 if foreign; then tor_on; else tor_off; fi
-# the app firewall rides with the firewall toggle, but never over a live protonvpn tunnel (it clobbers the wg fwmark)
-if systemctl is-active -q fw-inbound.service fw-lockdown.service && ! ip link show "$VPN_IFACE" >/dev/null 2>&1; then
-    systemctl start portmaster.service 2>/dev/null || true
-fi
+portmaster_on

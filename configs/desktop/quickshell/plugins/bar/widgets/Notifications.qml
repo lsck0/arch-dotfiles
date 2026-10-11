@@ -65,7 +65,8 @@ BarWidget {
       if (!id) continue
       var de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
       if (de) {
-        de.execute()
+        // not de.execute(): it would start the app in quickshell.service's cgroup, killed with every shell restart
+        Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", de.id + ".desktop"])
         if (root.bar) root.bar.closePanel(root.moduleName)
         return
       }

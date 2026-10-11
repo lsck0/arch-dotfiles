@@ -1,3 +1,37 @@
 # managed by arch-dotfiles/apparmor
 # the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
+
+# streaming (desktop/mpv/mpv.conf): ytdl_hook's yt-dlp in a child with the network but none of mpv's files, instead of
+# apparmor.d's yt-dlp profile, which would confine every download. priority beats the upstream px
+priority=1 @{bin}/yt-dlp rCx -> yt-dlp,
+signal (send) set=(term, kill) peer=mpv//yt-dlp,
+
+profile yt-dlp flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/nameservice-strict>
+  include <abstractions/python>
+  include <abstractions/ssl_certs>
+
+  network inet dgram,
+  network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
+  network netlink raw,
+
+  signal (receive) set=(term, kill) peer=mpv,
+
+  @{bin}/yt-dlp r,
+  @{bin}/uname rix,
+  # the format probes and youtube's challenge solver (yt-dlp-ejs), confined with it
+  @{bin}/{ffmpeg,ffprobe} rix,
+  @{bin}/deno rix,
+
+  owner @{user_cache_dirs}/yt-dlp/{,**} rwk,
+  # read only: deno runs fine without its cache, and one written here would reach the user's own deno code
+  owner @{user_cache_dirs}/deno/{,**} r,
+  owner @{tmp}/yt_dlp*/ rw,
+  owner @{tmp}/yt_dlp*/** rwk,
+
+  owner @{PROC}/@{pid}/fd/ r,
+}

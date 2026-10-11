@@ -46,6 +46,8 @@ rm -f /etc/cron.d/timeshift-hourly /etc/cron.d/timeshift-boot
 
 # a restored @ boots the esp's newer kernels against its older /usr/lib/modules (ROLLBACK.md); put them back in step
 if [[ "$(stat -f -c %T /boot)" == msdos ]]; then
+    # vfat from the initrd, or /boot never mounts and the resync never runs; boot_commit rebuilds the ukis
+    file_update esp-vfat.conf /etc/mkinitcpio.conf.d/10-esp-vfat.conf || true
     install -Dm755 kernel-resync.sh /usr/local/bin/kernel-resync
     unit_install kernel-resync.service
     systemctl enable kernel-resync.service

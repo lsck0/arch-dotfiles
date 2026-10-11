@@ -2,10 +2,11 @@
 
 command -v thunderbird >/dev/null 2>&1 || exit 0
 
-# newer builds follow xdg like firefox, older ones keep ~/.thunderbird
+# a fresh home gets ~/.config/thunderbird (156 on), older homes keep ~/.thunderbird
 profiles_root() {
     local root
-    for root in "${HOME}/.config/mozilla/thunderbird" "${HOME}/.thunderbird"; do
+    for root in "${XDG_CONFIG_HOME:-$HOME/.config}/thunderbird" "${HOME}/.config/mozilla/thunderbird" \
+        "${HOME}/.thunderbird"; do
         [[ -f "${root}/profiles.ini" ]] && echo "$root" && return
     done
 }

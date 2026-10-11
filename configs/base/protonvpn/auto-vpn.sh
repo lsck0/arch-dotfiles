@@ -7,6 +7,8 @@
 set -uo pipefail
 TOGGLE="$DOTFILES/scripts/toggles/toggle-protonvpn.sh"
 HOME_FLAG=/run/home-network
+# 70-home-network decides a new link in parallel with nmcli monitor's line (up to 1 s of arping); wait it out
+HOME_WAIT_S=3
 RETRY_FIRST_S=15
 RETRY_MAX_S=300
 # then it waits for the next network change: tor keeps carrying, and each failure was already notified by the toggle
@@ -39,7 +41,7 @@ decide() {
     if [ "$last" != "$net" ]; then
         last=$net
         attempts=0
-        retry_at=0
+        retry_at=$((SECONDS + HOME_WAIT_S))
     fi
     ((attempts < RETRY_ATTEMPTS && SECONDS >= retry_at)) || return 0
     if [ "$("$TOGGLE" get 2>/dev/null)" = on ] || "$TOGGLE" on; then

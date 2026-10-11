@@ -9,5 +9,5 @@ PKG_GROUPS=(base core fonts desktop socials gaming creating latex programming qe
 WIREGUARD=wg0.pc.conf
 # the homelab: pacman mirror line, nas mount, home gateways and routes, searxng in the firefox policy
 HOMELAB=1
-# sbctl enrolls this machine's own secure boot keys
+# sbctl enrolls own secure boot keys and the event log's option rom hashes, no microsoft ca
 SECURE_BOOT_OWN_KEYS=1

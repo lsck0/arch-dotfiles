@@ -8,3 +8,6 @@ owner @{user_share_dirs}/capgemini/ rw,
 owner @{user_share_dirs}/capgemini/chromium/ rw,
 owner @{user_share_dirs}/capgemini/chromium/** rwk,
 owner @{user_share_dirs}/capgemini/chromium/WidevineCdm/*/_platform_specific/linux_*/libwidevinecdm.so mrw,
+# a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
+deny @{user_config_dirs}/mimeapps.list* w,
+deny @{user_share_dirs}/applications/{,**} w,

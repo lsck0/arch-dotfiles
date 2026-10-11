@@ -1,0 +1,7 @@
+# managed by arch-dotfiles/apparmor
+# the spicetify copy (socials/spotify), which apparmor.d attaches nothing to: spotify-launch.sh starts it in this
+# profile through aa-exec. read and run, never written from in here
+owner @{user_share_dirs}/spotify-patched/{,**} r,
+owner @{user_share_dirs}/spotify-patched/*.so* mr,
+owner @{user_share_dirs}/spotify-patched/spotify mrix,
+deny @{user_share_dirs}/spotify-patched/** w,

@@ -1,0 +1,12 @@
+# managed by arch-dotfiles/apparmor
+# the browsers' opener runs any installed program unconfined, and a browser picks its argv (gio-launch-desktop) and its
+# environment (xdg-open's $BROWSER): never a shell, interpreter or loader that runs a file the browser wrote, nor a
+# launcher that hands a command to something unconfined. scripts in @{bin} still run, only through their own path
+deny @{shells_path} x,
+deny @{python_path} x,
+deny @{bin}/{perl,perl5*,ruby,irb,node,nodejs,deno,bun,lua*,luajit,php*,tclsh*,wish*,guile*,expect} x,
+deny @{bin}/{awk,gawk,mawk,nawk,busybox,toybox} x,
+deny @{ldd_path} x,
+deny @{bin}/{systemd-run,run0,sudo,sudoedit,doas,pkexec,su,runuser,setpriv,setsid,nohup,nice,ionice,chrt} x,
+deny @{bin}/{taskset,timeout,stdbuf,flock,script,xargs,find,watch,unshare,nsenter,bwrap,flatpak-spawn} x,
+deny @{bin}/{systemctl,busctl,gdbus,hyprctl,uwsm,app2unit,gdb,strace,ltrace,ssh} x,
