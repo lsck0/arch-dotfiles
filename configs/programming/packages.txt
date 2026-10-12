@@ -231,6 +231,7 @@ sccache                           # compiler cache tool
 sdl3                              # multimedia/game library
 serpl                             # search-replace TUI tool
 shellcheck                        # shell script linter
+shfmt                             # shell script formatter (conform sh/bash; pacman not mason, so a fresh install has it at once)
 skaffold                          # kubernetes dev workflow
 slides-git                        # terminal presentation tool
 sops                              # secrets encryption tool

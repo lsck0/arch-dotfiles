@@ -11,7 +11,7 @@ local installed = {
     "ruff", -- python lint/format LSP, pyright keeps types
     "rust-analyzer", "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
-    "stylua", "shfmt", "gofumpt", "goimports", "tailwindcss-language-server",
+    "stylua", "gofumpt", "goimports", "tailwindcss-language-server", -- shfmt is a pacman package (programming/packages.txt)
     "taplo", "terraform-ls", "texlab",
     "tinymist", -- typst LSP
     "typescript-language-server", "typos-lsp", "vim-language-server",
