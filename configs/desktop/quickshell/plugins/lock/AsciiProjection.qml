@@ -54,6 +54,8 @@ Item {
     root.glyphs = null
     root.colors = null
     root.heads = []
+    // drop any cached pixels so a changed wallpaper re-decodes
+    if (root.image && root.image.source) canvas.unloadImage(root.image.source)
     canvas.requestPaint()
   }
 
@@ -90,9 +92,12 @@ Item {
     id: canvas
     anchors.fill: parent
 
+    onImageLoaded: requestPaint()
+
     function sample(ctx) {
       ctx.clearRect(0, 0, width, height)
-      ctx.drawImage(root.image, 0, 0, root.cols, root.rows)
+      // qt6.12 draws nothing from an Image item; draw its source url instead (loaded below)
+      ctx.drawImage(root.image.source, 0, 0, root.cols, root.rows)
       var data = ctx.getImageData(0, 0, root.cols, root.rows).data
       ctx.clearRect(0, 0, root.cols, root.rows)
       var acc = Colors.accent
@@ -139,6 +144,8 @@ Item {
           ctx.clearRect(0, 0, width, height)
           return
         }
+        // the canvas needs the source url loaded before drawImage can read its pixels
+        if (!isImageLoaded(root.image.source)) { loadImage(root.image.source); return }
         sample(ctx)
         root.frames = 0
         if (root.animate) timer.start()
