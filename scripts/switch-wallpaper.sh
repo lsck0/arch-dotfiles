@@ -72,10 +72,11 @@ set_wallpaper() {
     # a running spotify keeps playing and picks the theme up on its next start
     spicetify -n refresh 9>&- &
 
-    # hyprland does not watch ~/.cache/wal/colors, so reload it; the reload drops the runtime-only shader and monitor layout, the toggles put them back
+    # hyprland does not watch ~/.cache/wal/colors, so reload it; the reload drops the runtime-only shader and monitor layout, the toggles put them back.
+    # shader last: a monitor-scale keyword re-render that landed after it would drop the screen_shader again
     ( hyprctl reload config-only
-      $DOTFILES/scripts/toggles/toggle-shader.sh reapply
-      $DOTFILES/scripts/toggles/toggle-monitor-scale.sh reapply ) 9>&- &
+      $DOTFILES/scripts/toggles/toggle-monitor-scale.sh reapply
+      $DOTFILES/scripts/toggles/toggle-shader.sh reapply ) 9>&- &
 
     # zed and vscodium themes
     $DOTFILES/configs/core/wallust/scripts/generate-editor-themes.sh 9>&- &

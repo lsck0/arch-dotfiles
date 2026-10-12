@@ -92,9 +92,28 @@ PanelWindow {
     onTriggered: root.panelSwitching = false
   }
 
-  // hover opens the drawer at once; the close grace covers the trigger-to-drawer gap
+  // a switch to another widget waits this out, so brushing across a widget edge cannot thrash open<->open
+  property string pendingPanel: ""
+  Timer {
+    id: switchIntent
+    interval: 70
+    onTriggered: root.applyHoverOpen(root.pendingPanel)
+  }
+
+  // opening from closed is immediate; switching between open drawers needs the brief intent above
   function hoverOpen(id) {
     hoverCloseTimer.stop()
+    root.pendingPanel = id
+    if (root.activePanel === "" || root.activePanel === id) {
+      switchIntent.stop()
+      root.applyHoverOpen(id)
+    } else {
+      switchIntent.restart()
+    }
+  }
+
+  function applyHoverOpen(id) {
+    if (root.pendingPanel !== id) return
     if (root.activePanel !== id) {
       // leaving one open drawer straight for another: snap the handoff
       root.panelSwitching = root.activePanel !== ""
@@ -106,6 +125,8 @@ PanelWindow {
   }
 
   function hoverTriggerExit(id) {
+    // cancel a pending switch to a widget the pointer only brushed past
+    if (root.pendingPanel === id) { switchIntent.stop(); root.pendingPanel = "" }
     if (root.activePanel !== id) return
     root.triggerHovered = false
     hoverCloseTimer.restart()
