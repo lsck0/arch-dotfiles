@@ -1,0 +1,39 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Fully automatic censorship removal (abliteration) for open-weight models. Its ~= pins sit below what arch ships
+# (datasets 5, huggingface-hub 2, rich 15, peft older than asked), so it runs from its own venv in /opt with pypi's
+# matching versions. torch is excluded from that venv and comes from the system through --system-site-packages,
+# so the rocm build (python-pytorch-opt-rocm, which provides python-pytorch) drives the gpu where it is installed.
+# a new python minor needs a pkgrel bump, like any python package
+pkgname=heretic-llm
+pkgver=1.4.0
+pkgrel=1
+pkgdesc="Fully automatic censorship removal for language models"
+arch=(x86_64)
+url="https://github.com/p-e-w/heretic"
+license=(AGPL-3.0-or-later)
+depends=(python python-pytorch)
+makedepends=(uv)
+# prebuilt wheels: nothing to strip, no debug info to split
+options=(!strip !debug)
+_wheel="heretic_llm-$pkgver-py3-none-any.whl"
+source=("https://files.pythonhosted.org/packages/py3/h/heretic-llm/$_wheel")
+noextract=("$_wheel")
+sha256sums=('81d54d12f63620099a2f18063185967c5365a9af85c0e49e169d060a9ceb8fd7')
+
+build() {
+    export UV_CACHE_DIR="$srcdir/uv-cache" UV_PYTHON_DOWNLOADS=never
+    printf '%s\n' torch >torch-excludes.txt
+    # relocatable: built in $srcdir, installed under /opt
+    uv venv --relocatable --system-site-packages --python /usr/bin/python venv
+    uv pip install --python venv/bin/python --excludes torch-excludes.txt "$srcdir/$_wheel"
+}
+
+package() {
+    install -d "$pkgdir/opt/$pkgname"
+    cp -a venv "$pkgdir/opt/$pkgname/venv"
+    # records the build dir the wheel was installed from
+    rm -f "$pkgdir/opt/$pkgname/venv/lib/python"3.*/site-packages/heretic_llm-*.dist-info/direct_url.json
+    install -d "$pkgdir/usr/bin"
+    printf '#!/bin/sh\nexec /opt/%s/venv/bin/heretic "$@"\n' "$pkgname" >"$pkgdir/usr/bin/heretic"
+    chmod 755 "$pkgdir/usr/bin/heretic"
+}

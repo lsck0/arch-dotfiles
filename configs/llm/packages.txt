@@ -1,2 +1,3 @@
+heretic-llm                       # abliteration: strips refusals from open-weight models (mirror/pkgbuilds)
 llmfit                            # which LLMs fit this hardware (tui/cli)
 ollama                            # local LLM runner (daemon + CPU backend)
