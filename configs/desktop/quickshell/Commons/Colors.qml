@@ -191,9 +191,9 @@ QtObject {
 
   // shared scrim for full-screen overlays
   readonly property color scrim: Util.alpha(root.background, Style.translucency.scrim)
-  // floating surfaces over layer blur
-  readonly property color panelFill: Util.alpha(root.surface, Style.translucency.panel)
-  readonly property color overlayFill: Util.alpha(root.surface, Style.translucency.overlay)
+  // floating surfaces over layer blur: same base as the bar, denser alpha, so they read as the bar not a lighter tone
+  readonly property color panelFill: Util.alpha(root.background, Style.translucency.panel)
+  readonly property color overlayFill: Util.alpha(root.background, Style.translucency.overlay)
 
   readonly property QtObject bar: QtObject {
     property color background: Util.alpha(root.background, Style.translucency.bar)

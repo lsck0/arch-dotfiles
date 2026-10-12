@@ -63,10 +63,15 @@ return {
             vim.api.nvim_create_autocmd("User", {
                 pattern = { "VimtexEventCompileSuccess", "VimtexEventCompileFailed" },
                 callback = function(args)
+                    local buf = args.buf
                     vim.schedule(function()
                         if vim.fn.getcmdwintype() == "" then vim.cmd.checktime() end
-                        -- forward search after every build, so the pdf follows the line just edited
-                        if args.match == "VimtexEventCompileSuccess" and vim.b.vimtex then vim.cmd.VimtexView() end
+                        -- forward search after every build, so the pdf follows the line just edited; run it in the
+                        -- tex buffer (not whatever is focused now), else a moved cursor leaves vim.b.vimtex nil
+                        if args.match == "VimtexEventCompileSuccess"
+                            and vim.api.nvim_buf_is_valid(buf) and vim.b[buf].vimtex then
+                            vim.api.nvim_buf_call(buf, function() vim.cmd.VimtexView() end)
+                        end
                     end)
                 end,
             })

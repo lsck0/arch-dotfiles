@@ -103,6 +103,16 @@
   (interactive)
   (dired-copy-filename-as-kill 0))
 
+(defun my/explorer-toggle ()
+  "SPC e: toggle the dirvish side explorer from any window.
+Dirvish's own `dirvish-side' only hides when the side window is selected; from the
+editing window it merely focuses the tree, so wrap it to always hide when visible."
+  (interactive)
+  (let ((win (dirvish-side--session-visible-p)))
+    (cond ((null win) (dirvish-side))
+          ((eq win (selected-window)) (dirvish-quit))
+          (t (with-selected-window win (dirvish-quit))))))
+
 (define-minor-mode my/tree-mode
   "Snacks explorer keys for the dirvish sidebar; bound in keys.el."
   :keymap (make-sparse-keymap)

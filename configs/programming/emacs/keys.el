@@ -377,7 +377,7 @@
   "i" '(my/import-pick :which-key "Import")
   "v" '(artist-mode :which-key "Toggle venn (draw boxes)")
   "E" '(emmet-wrap-with-markup :which-key "Emmet wrap with abbreviation")
-  "e" '(dirvish-side :which-key "File explorer (snacks)")
+  "e" '(my/explorer-toggle :which-key "File explorer (snacks)")
   "O" '(dirvish :which-key "Oil file manager (float)")
   "b" '(dap-breakpoint-toggle :which-key "Toggle breakpoint")
   "B" '(dap-breakpoint-condition :which-key "Conditional breakpoint")

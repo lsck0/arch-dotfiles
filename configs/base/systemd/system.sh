@@ -4,7 +4,8 @@ enable_if_present() {
     if unit_present "$1"; then systemctl enable "${@:2}" "$1"; fi
 }
 mask_if_present() {
-    if unit_present "$1"; then systemctl mask "$1"; fi
+    # reset-failed too: a unit that failed before being masked lingers in `systemctl --failed`
+    if unit_present "$1"; then systemctl mask "$1"; systemctl reset-failed "$1" 2>/dev/null || true; fi
 }
 
 if unit_present proton.VPN.service; then systemctl disable proton.VPN.service; fi

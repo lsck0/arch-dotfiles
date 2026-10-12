@@ -116,17 +116,14 @@ PanelWindow {
     onTabRequested: function(direction) { root.walkFocus(direction > 0) }
     onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
 
-    // the drawer extrudes out of the bar: this clip parent's height grows 0 -> full on boot.progress
-    // (so it inherits the motion curves and the power-saver jump), while the DockShape inside stays
-    // full-size with its neck welded to the bar rule and is never resized. a top bar opens the clip
-    // from the top edge so the shape grows downward out of the bar; a bottom bar mirrors it upward.
+    // seamless flush: open-top drawer sits right under the bar rule (no neck, no gap), flowing straight
+    // down in the bar's own colour. the clip's height grows 0 -> full on boot.progress; card never resizes.
     Item {
       id: reveal
       width: parent.width
       height: Math.round(parent.height * boot.progress)
       y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
       clip: true
-      // a faint fade rides the extrude; the clip-grow carries the motion
       opacity: boot.progress
 
       DockShape {
@@ -135,8 +132,9 @@ PanelWindow {
         width: root.width
         height: root.height
         docked: true
+        neck: 0
         flipped: root.bar !== null && root.bar.position === "bottom"
-        fillColor: Colors.menu.background
+        fillColor: Colors.bar.background
 
         readonly property real contentLeftInset: sideInset + strokeWidth + root.padding
         readonly property real contentRightInset: contentLeftInset

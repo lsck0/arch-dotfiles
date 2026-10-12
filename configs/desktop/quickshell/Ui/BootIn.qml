@@ -58,7 +58,8 @@ Item {
   function run() {
     anim.stop()
     var opening = root.active
-    var rate = (opening ? 1 : Style.motion.closeRate) * (root.instant ? 0 : 1)
+    // open->open fans fast instead of snapping
+    var rate = (opening ? 1 : Style.motion.closeRate) * (root.instant ? Style.motion.switchRate : 1)
     progressAnim.to = opening ? 1 : 0
     progressAnim.duration = Math.round(Style.motion.base * rate)
     progressAnim.easing.bezierCurve = opening ? Style.motion.enter : Style.motion.leave

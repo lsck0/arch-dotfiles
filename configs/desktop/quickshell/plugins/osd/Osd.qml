@@ -25,6 +25,10 @@ Item {
   readonly property int typeStepMs: 12
   readonly property int logDurationMs: 2400
 
+  // the sticky "Launching X..." osd enters with the wallpaper-switch glitch
+  signal launchGlitch()
+  readonly property bool launching: !hasProgress && duration === 0 && message !== "" && !logMode
+
   readonly property int pad: Style.space(16)
   readonly property int gap: Style.space(16)
   readonly property int messageGap: Math.round(root.gap * 2 / 3)
@@ -55,6 +59,7 @@ Item {
     opened = true
     if (duration > 0) hideTimer.restart()
     else hideTimer.stop()
+    if (root.launching) Qt.callLater(root.launchGlitch)
   }
 
   // a short typed log, one char per typeStepMs across the lines
@@ -275,6 +280,16 @@ Item {
 
         HudFrame {}
         Scanlines {}
+      }
+
+      Glitch {
+        id: launchGlitch
+        anchors.fill: card
+        source: card
+      }
+      Connections {
+        target: root
+        function onLaunchGlitch() { launchGlitch.play() }
       }
     }
   }

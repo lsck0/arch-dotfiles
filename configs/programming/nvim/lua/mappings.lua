@@ -141,9 +141,10 @@ vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into"
 vim.keymap.set("n", "<F12>", "<cmd>DapStepOut<CR>", { desc = "Debug: step out" })
 
 vim.keymap.set("n", "<leader>e", function()
-    local open = require("snacks.picker").get({ source = "explorer" })
-    if open and #open > 0 then
-        open[1]:close()
+    -- get() also returns already-closed pickers, so a stale one must not block reopening
+    local picker = require("snacks.picker").get({ source = "explorer" })[1]
+    if picker and not picker.closed then
+        picker:close()
     else
         require("lib.explorer").open()
     end

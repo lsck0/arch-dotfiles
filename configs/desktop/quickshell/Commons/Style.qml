@@ -161,6 +161,8 @@ QtObject {
     readonly property int boot: enabled ? 220 : 0
     // closing replays the boot backwards this much faster
     readonly property real closeRate: 0.6
+    // open->open handoff: a quick fan, not a teleport
+    readonly property real switchRate: 0.3
     readonly property int fastEasing: Easing.OutCubic
     readonly property int ambientEasing: Easing.InOutQuad
     // md3 decelerate and menu accelerate, for Easing.BezierSpline

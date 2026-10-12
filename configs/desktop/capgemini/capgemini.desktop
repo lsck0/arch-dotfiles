@@ -1,12 +1,16 @@
 [Desktop Entry]
 Type=Application
 Name=Capgemini
-Comment=MarComs, Teams and Outlook in the isolated work browser profile
+Comment=ARC portal, Teams and Outlook in the isolated work browser profile
 Exec=@HOME@/.local/bin/capgemini
 Icon=chromium
 Terminal=false
 Categories=Network;WebBrowser;
-Actions=teams;outlook;marcoms;
+Actions=arc;teams;outlook;marcoms;
+
+[Desktop Action arc]
+Name=ARC
+Exec=@HOME@/.local/bin/capgemini https://arc.capgemini.com/
 
 [Desktop Action teams]
 Name=Teams

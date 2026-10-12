@@ -5,5 +5,7 @@ tectonic                          # LaTeX engine
 texlab                            # LaTeX language server
 texlive                           # LaTeX distribution
 texlive-lang                      # LaTeX language packs
+perl-yaml-tiny                    # latexindent dep (texlive optdepend, not auto-pulled)
+perl-file-homedir                 # latexindent dep
 texmaker                          # LaTeX editor
 zotero-bin                        # reference manager

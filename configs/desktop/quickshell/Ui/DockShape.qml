@@ -37,7 +37,7 @@ Item {
   property bool glow: false
   Component { id: glowEffect; Glow {} }
 
-  readonly property real neck: docked ? Style.shape.neck : 0
+  property real neck: docked ? Style.shape.neck : 0
   readonly property real sideInset: neck
 
   // half-pixel inset keeps the stroke inside the item
