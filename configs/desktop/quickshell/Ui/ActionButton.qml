@@ -46,6 +46,10 @@ Rectangle {
   border.color: Util.alpha(tint, Style.focusBorderAlpha)
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
+  transformOrigin: Item.Center
+  scale: mouse.pressed ? 0.98 : 1.0
+  Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+
   Row {
     id: row
     anchors.centerIn: parent
@@ -68,6 +72,7 @@ Rectangle {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.labelTracking
       layer.enabled: root.hot && Style.fx.glow > 0
       layer.effect: Glow { shadowColor: root.tint }
     }

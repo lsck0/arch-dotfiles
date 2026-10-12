@@ -65,7 +65,7 @@ BorderSurface {
   readonly property color bodyColor: Qt.darker(Colors.notifications.text, 1.15)
   // toasts draw their chamfered outline with DockShape, rows a left accent bar
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
-  readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.normalBorderAlpha)
+  readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   // border insets keep content off the bottom edge

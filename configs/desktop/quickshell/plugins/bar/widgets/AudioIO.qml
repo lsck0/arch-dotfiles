@@ -131,6 +131,7 @@ BarWidget {
       font.pixelSize: Style.font.caption
       font.bold: true
       font.capitalization: Font.AllUppercase
+      font.letterSpacing: Style.labelTracking
     }
   }
 

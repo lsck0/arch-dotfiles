@@ -140,6 +140,7 @@ Item {
           radius: Style.shape.data
           color: selected ? Style.selectedFillFor(Colors.menu.text, tint) : Style.normalFillFor(Colors.menu.text, tint)
           borderSpec: Border.controlSpec(selected ? "selected" : "normal", Colors.menu.text, tint)
+          Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 
           Column {
             anchors.centerIn: parent

@@ -115,7 +115,7 @@ Item {
 
             width: stack.width
             implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
-            color: Colors.menu.background
+            color: Colors.overlayFill
             borderSpec: Border.flat(Colors.accent, Style.selectedBorderWidth)
             radius: Style.shape.surface
             padding: Style.surface.padding

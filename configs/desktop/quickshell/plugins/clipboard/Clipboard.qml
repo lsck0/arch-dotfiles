@@ -489,7 +489,9 @@ Item {
             Column {
               anchors.centerIn: parent
               spacing: Style.spacing.sm
-              visible: displayModel.count === 0
+              opacity: displayModel.count === 0 ? 1 : 0
+              visible: opacity > 0
+              Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Style.motion.fastEasing } }
               width: parent.width * 0.8
 
               Text {

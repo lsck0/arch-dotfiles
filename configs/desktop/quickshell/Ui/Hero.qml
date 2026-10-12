@@ -35,6 +35,7 @@ Row {
     font.pixelSize: root.size
     font.bold: true
     font.letterSpacing: Style.displayTracking
+    font.features: { "tnum": 1 }
     style: root.live && Style.fx.glow > 0 ? Text.Outline : Text.Normal
     styleColor: Util.alpha(root.color, 0.35)
     layer.enabled: !root.live && Style.fx.glow > 0
@@ -51,5 +52,6 @@ Row {
     font.family: Style.font.family
     font.pixelSize: Style.font.title
     font.capitalization: Font.AllUppercase
+    font.letterSpacing: Style.labelTracking
   }
 }

@@ -197,7 +197,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.space(67)
-        color: Colors.menu.background
+        color: Colors.overlayFill
         border.width: root.borderWidth
         border.color: Colors.popups.border
         radius: Style.shape.surface
@@ -262,6 +262,14 @@ Item {
             // changes on every key repeat: outline, never a MultiEffect
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
+          }
+          // sticky "Launching X..." osd (duration 0): a live cursor until the toplevel appears
+          BlinkCaret {
+            visible: !root.hasProgress && root.duration === 0 && root.message !== ""
+            anchors.verticalCenter: parent.verticalCenter
+            prompt: true
+            size: Style.font.title
+            running: root.opened
           }
         }
 
