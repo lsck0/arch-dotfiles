@@ -31,6 +31,8 @@ Item {
   property bool active: false
   property string title: ""
   property real span: 0
+  // snap to the target with no motion: a drawer switching straight from one open panel to the next
+  property bool instant: false
 
   property real progress: 0
   // linear 0..1 over motion.boot, the row stagger timeline
@@ -56,14 +58,14 @@ Item {
   function run() {
     anim.stop()
     var opening = root.active
-    var rate = opening ? 1 : Style.motion.closeRate
+    var rate = (opening ? 1 : Style.motion.closeRate) * (root.instant ? 0 : 1)
     progressAnim.to = opening ? 1 : 0
     progressAnim.duration = Math.round(Style.motion.base * rate)
     progressAnim.easing.bezierCurve = opening ? Style.motion.enter : Style.motion.leave
     phaseAnim.to = opening ? 1 : 0
     phaseAnim.duration = Math.round(Style.motion.boot * rate)
     if (opening) {
-      root.typed = Style.motion.enabled ? 0 : root.title.length
+      root.typed = (Style.motion.enabled && !root.instant) ? 0 : root.title.length
       if (root.typed < root.title.length) typer.restart()
     } else {
       typer.stop()

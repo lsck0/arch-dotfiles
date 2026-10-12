@@ -7,13 +7,14 @@ import qs.Commons
  * On each lock the wallpaper is sampled once into a grid of at most maxCols x maxRows cells (one
  * drawImage + getImageData), luminance picks a glyph from ramp and the pixel, nudged toward the
  * accent, colours it. A rain then develops the picture: each column's drop leaves the projected
- * glyphs behind it, and everything has landed after developMs. At rest it is static, no timer
- * runs. ripple() sends one short drop through a few columns (keypresses).
+ * glyphs behind it, and everything has landed after developMs. Once landed, a few drops keep
+ * falling forever down random columns, each a bright accent head with a short fading trail over
+ * the static projection (scaled by Style.fx.matrixRain; 0 / Power.saver leaves it static instead).
  *
  * Properties:
  *   image    a decoded Image item of the wallpaper (Lock.qml's blurred one)
  *   active   the lock surface is up; going false drops the sample
- *   animate  rain and ripples; false draws the end state at once
+ *   animate  rain; false draws the end state at once
  *
  * Usage:
  *   AsciiProjection { anchors.fill: parent; image: wallpaper; active: root.locked; animate: Style.motion.enabled }
@@ -34,8 +35,9 @@ Item {
   readonly property int frameMs: 40
   // how far each cell's colour moves toward the accent
   readonly property real paletteNudge: 0.3
-  readonly property int rippleColumns: 5
-  readonly property int rippleMs: 600
+  // continuous rain after the reveal: a drop traverses the grid in rainFallMs, trail up to rainTrail cells
+  readonly property int rainFallMs: 2600
+  readonly property int rainTrail: 10
 
   readonly property real cellH: Math.max(height / maxRows, Style.font.caption)
   readonly property real cellW: Math.max(width / maxCols, cellH * glyphAspect)
@@ -47,6 +49,8 @@ Item {
   property var colors: null
   // per column: { y: head row, speed: rows per frame, drawn: last row drawn as head }
   property var heads: []
+  // continuous-rain drops: { c: column, y: head row, speed: rows per frame, len: trail length }
+  property var rain: []
   property int frames: 0
 
   function project() {
@@ -54,23 +58,12 @@ Item {
     root.glyphs = null
     root.colors = null
     root.heads = []
+    root.rain = []
     // drop any cached pixels so a changed wallpaper re-decodes
     if (root.image && root.image.source) canvas.unloadImage(root.image.source)
     canvas.requestPaint()
   }
 
-  function ripple() {
-    if (!root.animate || !root.glyphs) return
-    var centre = Math.floor(Math.random() * root.cols)
-    var half = Math.floor(root.rippleColumns / 2)
-    var speed = root.rows * root.frameMs / root.rippleMs
-    var next = root.heads.slice()
-    for (var c = Math.max(0, centre - half); c <= Math.min(root.cols - 1, centre + half); c++)
-      next[c] = { y: 0, speed: speed, drawn: 0 }
-    root.heads = next
-    root.frames = 0
-    timer.start()
-  }
 
   onActiveChanged: {
     if (active) project()
@@ -78,10 +71,13 @@ Item {
       timer.stop()
       root.glyphs = null
       root.colors = null
+      root.rain = []
     }
   }
   onColsChanged: if (active) project()
   onRowsChanged: if (active) project()
+  // power saver flipping matrixRain/motion while locked switches between rain and static end-state
+  onAnimateChanged: if (active) project()
 
   Connections {
     target: root.image
@@ -136,6 +132,37 @@ Item {
       ctx.fillText(glyph, x, y)
     }
 
+    // one continuous-rain cell: a projection glyph lit to style; forceDot shows a drop over empty space
+    function raincell(ctx, c, r, style, forceDot) {
+      var x = c * root.cellW, y = r * root.cellH
+      ctx.clearRect(x, y, root.cellW, root.cellH)
+      var glyph = root.glyphs[r * root.cols + c]
+      if (glyph === " ") { if (!forceDot) return; glyph = "." }
+      ctx.fillStyle = style
+      ctx.fillText(glyph, x, y)
+    }
+
+    // redraw each drop's trail window over the static projection; cells it has left restore to base
+    function rainPaint(ctx) {
+      var acc = Colors.accent
+      for (var i = 0; i < root.rain.length; i++) {
+        var d = root.rain[i]
+        var hr = Math.floor(d.y)
+        for (var r = hr - d.len - 2; r <= hr; r++) {
+          if (r < 0 || r >= root.rows) continue
+          var dist = hr - r
+          if (dist <= 0) { raincell(ctx, d.c, r, acc, true); continue }
+          if (dist <= d.len) {
+            var t = dist / d.len
+            var bc = root.colors[r * root.cols + d.c]
+            raincell(ctx, d.c, r, Qt.rgba(acc.r + (bc.r - acc.r) * t, acc.g + (bc.g - acc.g) * t, acc.b + (bc.b - acc.b) * t, 1), false)
+          } else {
+            cell(ctx, d.c, r, false)
+          }
+        }
+      }
+    }
+
     onPaint: {
       var ctx = getContext("2d")
       if (!root.glyphs) {
@@ -163,6 +190,7 @@ Item {
         head.drawn = Math.max(head.drawn, to)
         if (to >= root.rows) root.heads[c] = null
       }
+      rainPaint(ctx)
     }
   }
 
@@ -179,6 +207,24 @@ Item {
         var head = root.heads[c]
         if (!head) continue
         head.y = overdue ? root.rows : head.y + head.speed
+        moving = true
+      }
+      // once the develop has landed, keep a handful of drops raining down random columns forever
+      if (root.animate && overdue) {
+        var intensity = Style.fx.matrixRain
+        var maxDrops = Math.max(1, Math.round(intensity * 24))
+        var fall = root.rows * root.frameMs / root.rainFallMs
+        var next = []
+        for (var d = 0; d < root.rain.length; d++) {
+          var drop = root.rain[d]
+          drop.y += drop.speed
+          if (drop.y - drop.len <= root.rows) next.push(drop)
+        }
+        if (next.length < maxDrops && Math.random() < intensity * 0.3)
+          next.push({ c: Math.floor(Math.random() * root.cols), y: 0,
+                      speed: fall * (0.7 + Math.random() * 0.6),
+                      len: 6 + Math.floor(Math.random() * (root.rainTrail - 6)) })
+        root.rain = next
         moving = true
       }
       if (!moving) stop()

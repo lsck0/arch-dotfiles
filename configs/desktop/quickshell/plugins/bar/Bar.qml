@@ -83,40 +83,29 @@ PanelWindow {
     }
   }
 
-  // hover intent: a pointer crossing the bar opens nothing, an open panel switches at once
-  property string pendingPanel: ""
-
+  // true only for the instant a drawer hands off to the next: the drawers snap instead of
+  // folding-then-growing, so switching along the bar reads as one surface, not a close-reopen
+  property bool panelSwitching: false
   Timer {
-    id: hoverIntentTimer
-    interval: 130
-    onTriggered: root.openHovered(root.pendingPanel)
+    id: switchSettle
+    interval: 0
+    onTriggered: root.panelSwitching = false
   }
 
-  function openHovered(id) {
-    root.pendingPanel = ""
+  // hover opens the drawer at once; the close grace covers the trigger-to-drawer gap
+  function hoverOpen(id) {
+    hoverCloseTimer.stop()
     if (root.activePanel !== id) {
+      // leaving one open drawer straight for another: snap the handoff
+      root.panelSwitching = root.activePanel !== ""
       root.activePanel = id
       root.panelHovered = false
+      if (root.panelSwitching) switchSettle.restart()
     }
     root.triggerHovered = true
   }
 
-  function hoverOpen(id) {
-    hoverCloseTimer.stop()
-    if (root.activePanel !== "") {
-      hoverIntentTimer.stop()
-      openHovered(id)
-      return
-    }
-    root.pendingPanel = id
-    hoverIntentTimer.restart()
-  }
-
   function hoverTriggerExit(id) {
-    if (root.pendingPanel === id) {
-      hoverIntentTimer.stop()
-      root.pendingPanel = ""
-    }
     if (root.activePanel !== id) return
     root.triggerHovered = false
     hoverCloseTimer.restart()
@@ -194,6 +183,9 @@ PanelWindow {
     anchors.bottom: parent.bottom
     height: Math.max(1, Style.fx.bracketWidth)
     color: Colors.accent
+    // above the widgets: a widget's full-height hover fill must not paint over the rule, or the
+    // open drawer's neck would meet the hover block instead of this continuous accent edge
+    z: 1
     // drawers continue this rule at the same alpha (Ui/DockShape.qml)
     opacity: Style.surface.ruleAlpha
     layer.enabled: Style.fx.glow > 0 && !root.quiet

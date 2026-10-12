@@ -23,12 +23,6 @@ PanelWindow {
 
   readonly property real edgeMargin: Style.spacing.sm
 
-  // the surface slides out of the bar edge as it opens and folds back on close. boot.progress eases
-  // 0..1 (and jumps under power saver), so the slide inherits the motion curves and the saver gate.
-  // top bar: start tucked up under the bar (negative y) and drop into place; bottom bar mirrors it.
-  readonly property real slideDistance: Style.space(14)
-  readonly property real revealSlide: (root.bar && root.bar.position === "bottom" ? 1 : -1)
-    * (1 - boot.progress) * slideDistance
   // tallest body that fits under the bar; taller content scrolls (Flickable in the panel)
   readonly property real maxBodyHeight: Math.max(Style.space(120),
     (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset)
@@ -107,6 +101,8 @@ PanelWindow {
   BootIn {
     id: boot
     active: root.shown
+    // a switch between two open drawers snaps, so it reads as one drawer moving, not a close-reopen
+    instant: root.bar !== null && root.bar.panelSwitching
     title: root.title
     span: Math.min(card.width, card.height) / 2
   }
@@ -120,18 +116,22 @@ PanelWindow {
     onTabRequested: function(direction) { root.walkFocus(direction > 0) }
     onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
 
-    // grows from the bar downward; the drawer itself never resizes
+    // the drawer extrudes out of the bar: this clip parent's height grows 0 -> full on boot.progress
+    // (so it inherits the motion curves and the power-saver jump), while the DockShape inside stays
+    // full-size with its neck welded to the bar rule and is never resized. a top bar opens the clip
+    // from the top edge so the shape grows downward out of the bar; a bottom bar mirrors it upward.
     Item {
       id: reveal
       width: parent.width
       height: Math.round(parent.height * boot.progress)
+      y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
       clip: true
-      // slides out of the bar edge and fades in; folds back on close
+      // a faint fade rides the extrude; the clip-grow carries the motion
       opacity: boot.progress
-      transform: Translate { y: root.revealSlide }
 
       DockShape {
         id: card
+        y: -reveal.y
         width: root.width
         height: root.height
         docked: true
@@ -147,6 +147,7 @@ PanelWindow {
       // brackets frame the body, not the neck flare
       Item {
         x: card.sideInset
+        y: card.y
         width: card.width - card.sideInset * 2
         height: card.height
         HudFrame { inset: boot.bracketInset }
@@ -155,7 +156,7 @@ PanelWindow {
       Item {
         id: inner
         x: card.contentLeftInset
-        y: card.contentTopInset + root.titleInset
+        y: card.y + card.contentTopInset + root.titleInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
         opacity: boot.rowOpacity(1)
@@ -166,7 +167,7 @@ PanelWindow {
         visible: root.title.length > 0
         z: 4
         x: card.contentLeftInset
-        y: card.contentTopInset
+        y: card.y + card.contentTopInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: visible ? implicitHeight : 0
         text: root.title

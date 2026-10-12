@@ -286,7 +286,7 @@ Item {
               placeholderText: root.authError ? "  ACCESS DENIED" : "> AUTH REQUIRED"
               placeholderTextColor: root.authError ? Colors.urgent : Qt.darker(Colors.foreground, 1.6)
               background: null
-              onTextEdited: { root.authError = false; projection.ripple() }
+              onTextEdited: root.authError = false
               onAccepted: { root.activeField = pwField; root.submit() }
               Keys.onEscapePressed: text = ""
               Connections {

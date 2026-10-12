@@ -60,8 +60,6 @@ BarWidget {
   }
 
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
-  // window dots under each number, one per window up to this
-  readonly property int dotMax: 4
 
   implicitWidth: grid.implicitWidth + trailingGap
   implicitHeight: grid.implicitHeight
@@ -178,24 +176,6 @@ BarWidget {
           onPressed: function() { root.focusWorkspace(cell.modelData) }
         }
 
-        // one square per window, capped
-        Row {
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.bottom: parent.bottom
-          anchors.bottomMargin: Style.bar.pillInset + Style.spacing.xxs * 2
-          spacing: Style.spacing.xxs
-
-          Repeater {
-            model: Math.min(root.dotMax, cell.windows)
-            Rectangle {
-              width: Style.spacing.xxs
-              height: Style.spacing.xxs
-              radius: Style.shape.data
-              color: cell.urgent ? Colors.urgent : cell.focused ? Colors.accent : Colors.foreground
-              opacity: cell.focused || cell.urgent ? 1 : Style.emphasis.dim
-            }
-          }
-        }
       }
     }
   }
