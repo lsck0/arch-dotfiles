@@ -6,7 +6,7 @@ SYSTEM_REPO=/var/lib/dotfiles/repo
 # ledger, boot stamps, FAILURES and the lock: machine state, outside the copy that every refresh replaces
 SYSTEM_STATE=/var/lib/dotfiles
 # what the system layer may read; skills, weblinks, wallpapers and secrets stay out
-SYSTEM_PATHS=(configs patches platforms profiles scripts stage.sh)
+SYSTEM_PATHS=(configs platforms profiles scripts stage.sh)
 # secret data the system modules consume, streamed by the admin's run on the root step's stdin, never sourced; plus $WIREGUARD
 SYSTEM_SECRETS=(samba-homelab home-gateways wifi)
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git

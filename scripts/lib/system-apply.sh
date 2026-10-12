@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # the system layer's one root entry, run by install.sh and config.sh through sudo and only from the root-owned copy:
-# install = keyring, pacman config and every package of the platform; config = every system.sh, patches, units, boot.
+# install = keyring, pacman config and every package of the platform; config = every system.sh, units, boot.
 # config reads the admin's plaintext secrets as a tar on stdin, as data only. failures in $SYSTEM_STATE/FAILURES
 # usage: system-apply.sh <install|config> [--unattended]
 
