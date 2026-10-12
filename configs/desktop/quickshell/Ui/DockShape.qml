@@ -33,6 +33,10 @@ Item {
   property real strokeWidth: docked ? Math.max(1, Style.fx.bracketWidth) : Style.surface.borderWidth
   property real chamfer: Style.shape.chamfer
 
+  // opt-in accent bloom on the cached layer; off by default, under the fx.glow gate (0 in saver)
+  property bool glow: false
+  Component { id: glowEffect; Glow {} }
+
   readonly property real neck: docked ? Style.shape.neck : 0
   readonly property real sideInset: neck
 
@@ -48,6 +52,7 @@ Item {
 
   layer.enabled: width > 0 && height > 0
   layer.smooth: true
+  layer.effect: root.glow && Style.fx.glow > 0 ? glowEffect : null
 
   transform: Scale { origin.y: root.height / 2; yScale: root.flipped ? -1 : 1 }
 

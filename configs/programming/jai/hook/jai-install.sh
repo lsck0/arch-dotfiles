@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# jai + jails from the newest ~/sync beta zip, part of the dotfiles so never asked; no-op unless the zip is new,
+# jai + jails from the newest ~/sync/vendor beta zip, part of the dotfiles so never asked; no-op unless the zip is new,
 # link.sh reruns it for later betas
 
 set -euo pipefail
 source "$DOTFILES/scripts/lib/user-hook.sh"
 source "$DOTFILES/scripts/lib/fetch.sh"
 
-SYNC_DIR="${HOME}/sync"
+SYNC_DIR="${HOME}/sync/vendor"
 JAI_DIR="${HOME}/.jai"
 STAMP="${JAI_DIR}/.installed-from"
 

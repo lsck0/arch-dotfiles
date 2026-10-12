@@ -205,7 +205,8 @@ QtObject {
     property color border: Util.alpha(root.accent, 1.0)
   }
   readonly property QtObject tooltip: QtObject {
-    property color background: root.panelFill
+    // topmost transient surface, densest tier so it does not dissolve into the drawers it floats over
+    property color background: root.overlayFill
     property color text: root.foreground
     property color border: Util.alpha(root.foreground, 1.0)
   }

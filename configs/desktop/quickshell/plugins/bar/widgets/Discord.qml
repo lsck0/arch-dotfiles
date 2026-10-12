@@ -276,7 +276,7 @@ BarWidget {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking * 0.4
+            font.letterSpacing: Style.labelTracking
           }
         }
       }

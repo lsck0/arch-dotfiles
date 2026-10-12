@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 : "${DOTFILES:=$HOME/projects/arch-dotfiles}"
-# the engine from the newest ~/sync zip (Epic-login-gated, synced from where it was downloaded), into the home like jai:
+# the engine from the newest ~/sync/vendor zip (Epic-login-gated, synced from where it was downloaded), into the home like jai:
 # part of the dotfiles, so never asked and never root. no-op unless the zip is new; link.sh reruns it for later versions
 
 set -euo pipefail
 source "$DOTFILES/scripts/lib/user-hook.sh"
 
-SYNC_DIR="${HOME}/sync"
+SYNC_DIR="${HOME}/sync/vendor"
 DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}"
 ENGINE="${DATA_DIR}/unreal-engine"
 STAMP="${ENGINE}/.installed-from"
@@ -61,7 +61,7 @@ StartupWMClass=UnrealEditor
 DESKTOP
 command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP_FILE")" || true
 
-# bridge and fab from ~/sync go into the engine, which is the user's own now
+# bridge and fab from ~/sync/vendor go into the engine, which is the user's own now
 "$DOTFILES/configs/programming/unreal/unreal-install-plugins.sh" \
     || echo "unreal: plugins not installed, rerun unreal-install-plugins" >&2
 notify-send -a Unreal "Unreal Engine" "Installed ${zip_version}" 2>/dev/null || true

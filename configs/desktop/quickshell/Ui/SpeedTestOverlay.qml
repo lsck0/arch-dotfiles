@@ -111,7 +111,7 @@ OverlayCard {
       color: root.onCard
       font.family: root.fontFamily
       font.pixelSize: Style.font.body
-      font.letterSpacing: Style.headerTracking * 0.4
+      font.letterSpacing: Style.labelTracking
       wrapMode: Text.Wrap
       horizontalAlignment: Text.AlignHCenter
     }

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# extract the newest Bridge and Fab plugin zips from ~/sync into the engine; idempotent, rerun after an engine update.
+# extract the newest Bridge and Fab plugin zips from ~/sync/vendor into the engine; idempotent, rerun after an engine update.
 # the install hook runs it after every engine install; the engine is the user's own, so no root
 set -euo pipefail
 
 ENGINE="${XDG_DATA_HOME:-${HOME}/.local/share}/unreal-engine"
-SYNC_DIR="${HOME}/sync"
+SYNC_DIR="${HOME}/sync/vendor"
 STAMP_DIR="${XDG_STATE_HOME:-${HOME}/.local/state}/unreal-plugins"
 
 [[ -d "$ENGINE" ]] || exit 0

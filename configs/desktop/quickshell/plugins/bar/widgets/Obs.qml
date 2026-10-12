@@ -317,7 +317,7 @@ BarWidget {
             font.pixelSize: Style.font.caption
             font.bold: true
             font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking * 0.5
+            font.letterSpacing: Style.labelTracking
           }
           Text {
             width: parent.width

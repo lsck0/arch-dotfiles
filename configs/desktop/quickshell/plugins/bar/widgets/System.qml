@@ -277,7 +277,7 @@ BarWidget {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking * 0.4
+      font.letterSpacing: Style.labelTracking
     }
     Text {
       text: parent.value
@@ -310,7 +310,7 @@ BarWidget {
       font.pixelSize: Style.font.caption
       font.bold: true
       font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking * 0.4
+      font.letterSpacing: Style.labelTracking
     }
   }
 
@@ -336,7 +336,7 @@ BarWidget {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.headerTracking * 0.4
+      font.letterSpacing: Style.labelTracking
     }
 
     // fixed width so numerals align across rows
@@ -488,7 +488,7 @@ BarWidget {
             opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.headerTracking * 0.4
+            font.letterSpacing: Style.labelTracking
           }
           Text {
             width: parent.width / 2
@@ -498,7 +498,7 @@ BarWidget {
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.headerTracking * 0.4
+            font.letterSpacing: Style.labelTracking
           }
         }
 

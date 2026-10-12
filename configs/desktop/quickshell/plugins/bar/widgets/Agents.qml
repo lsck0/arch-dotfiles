@@ -221,7 +221,7 @@ BarWidget {
               textFormat: Text.PlainText
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
-              font.letterSpacing: Style.headerTracking * 0.4
+              font.letterSpacing: Style.labelTracking
             }
           }
         }

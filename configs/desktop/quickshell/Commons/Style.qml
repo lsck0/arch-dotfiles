@@ -141,9 +141,9 @@ QtObject {
   // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
   readonly property QtObject translucency: QtObject {
     readonly property real saver: 0.96
-    readonly property real bar: Power.saver ? saver : 0.80
+    readonly property real bar: Power.saver ? saver : 0.78
     readonly property real panel: Power.saver ? saver : 0.85
-    readonly property real overlay: Power.saver ? saver : 0.90
+    readonly property real overlay: Power.saver ? saver : 0.92
     readonly property real scrim: 0.55
   }
 
@@ -198,6 +198,8 @@ QtObject {
   }
 
   readonly property real headerTracking: 2.4 * scale
+  // the AllUppercase caption tier, one tracking for every small label
+  readonly property real labelTracking: 0.96 * scale
   readonly property real displayTracking: -0.5 * scale
   // window-control glyphs drawn right of every hud title, decorative only
   readonly property string decor: "[- o x]"

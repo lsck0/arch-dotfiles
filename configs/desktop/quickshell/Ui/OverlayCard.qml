@@ -104,6 +104,7 @@ PanelWindow {
     DockShape {
       anchors.fill: parent
       fillColor: Colors.overlayFill
+      glow: true
     }
 
     Column {

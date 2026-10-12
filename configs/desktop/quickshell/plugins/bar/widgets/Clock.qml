@@ -268,7 +268,7 @@ BarWidget {
             font.pixelSize: Style.font.body
             font.family: Style.font.family
             font.capitalization: Font.AllUppercase
-            font.letterSpacing: Style.headerTracking * 0.4
+            font.letterSpacing: Style.labelTracking
             elide: Text.ElideRight
           }
           Text {

@@ -18,8 +18,10 @@ ConditionVirtualization=|wsl
 What=//10.100.0.104/homelab
 Where=/mnt/homelab
 Type=cifs
-Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770
-TimeoutSec=10s
+# soft + echo_interval: fail the i/o fast instead of hanging forever when the nas is slow/unreachable (a roaming laptop),
+# so nothing that stats /mnt/homelab (the shell prompt, a dir scan) blocks; the automount idles it out when unused
+Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10
+TimeoutSec=15s
 
 [Install]
 WantedBy=multi-user.target

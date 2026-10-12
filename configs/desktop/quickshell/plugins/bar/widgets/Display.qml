@@ -218,7 +218,7 @@ BarWidget {
               opacity: Style.emphasis.dim
               font.pixelSize: Style.font.caption
               font.family: Style.font.family
-              font.letterSpacing: Style.headerTracking * 0.4
+              font.letterSpacing: Style.labelTracking
             }
             BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.brightnessPct / 100 }
           }

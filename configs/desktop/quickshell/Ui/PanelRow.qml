@@ -31,7 +31,8 @@ Rectangle {
 
   readonly property color _text: on ? Colors.menu.selectedText : Colors.menu.text
 
-  color: on ? Colors.menu.selectedBackground
+  color: mouse.pressed && enabled ? Style.pressedFillFor(Colors.foreground, Colors.accent)
+    : on ? Colors.menu.selectedBackground
     : activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
     : mouse.containsMouse && enabled ? Style.hoverFill
     : filled ? Style.normalFill
@@ -113,9 +114,10 @@ Rectangle {
     onClicked: root.activated()
   }
 
-  // keyboard cursor, the same `>` the overlays use
+  // cursor, the same `>` the overlays use: solid on keyboard focus, faint on pointer hover
   Text {
-    visible: root.activeFocus
+    visible: root.activeFocus || (mouse.containsMouse && root.enabled)
+    opacity: root.activeFocus ? 1 : Style.emphasis.faint
     anchors.right: parent.left
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText

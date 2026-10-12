@@ -292,6 +292,14 @@ PanelWindow {
       height: tooltipRow.implicitHeight + contentTopInset + contentBottomInset
       width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
 
+      // ease down out of the bar edge on the drawers' enter curve instead of blinking in
+      opacity: root.tooltipShown ? 1 : 0
+      Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+      transform: Translate {
+        y: root.tooltipShown ? 0 : -Style.space(6)
+        Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
+      }
+
       Row {
         id: tooltipRow
         x: tooltipSurface.contentLeftInset

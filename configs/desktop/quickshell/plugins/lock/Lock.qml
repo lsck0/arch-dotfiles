@@ -280,7 +280,7 @@ Item {
               cursorDelegate: Item {}
               font.family: Style.font.family
               font.pixelSize: Style.font.body
-              font.letterSpacing: Style.headerTracking * 0.5
+              font.letterSpacing: Style.labelTracking
               horizontalAlignment: TextInput.AlignHCenter
               verticalAlignment: TextInput.AlignVCenter
               placeholderText: root.authError ? "  ACCESS DENIED" : "> AUTH REQUIRED"
@@ -310,7 +310,7 @@ Item {
                 color: Colors.foreground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
-                font.letterSpacing: Style.headerTracking * 0.5
+                font.letterSpacing: Style.labelTracking
               }
               BlinkCaret {
                 anchors.verticalCenter: parent.verticalCenter
