@@ -1,102 +1,34 @@
 ; extends
 
-; regcomp(&regex, "pattern", flags) - POSIX regex
+; POSIX regcomp(&re, "pattern", …) — pattern is the 2nd arg
 (call_expression
   function: (identifier) @_func (#eq? @_func "regcomp")
   arguments: (argument_list
-    (_)  ; regex_t pointer
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "regex")))
+    (_)
+    (string_literal (string_content) @injection.content))
+  (#set! injection.language "regex"))
 
-; pcre_compile("pattern", ...) - PCRE library
+; PCRE pcre_compile("pattern", …) / pcre2_compile("pattern", …) — pattern is the 1st arg
 (call_expression
-  function: (identifier) @_func (#eq? @_func "pcre_compile")
+  function: (identifier) @_func (#any-of? @_func "pcre_compile" "pcre2_compile")
   arguments: (argument_list
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "regex")))
+    (string_literal (string_content) @injection.content))
+  (#set! injection.language "regex"))
 
-; pcre2_compile for PCRE2
+; sqlite3 + nyangine calls with SQL as the 2nd arg (after a db handle)
 (call_expression
-  function: (identifier) @_func (#eq? @_func "pcre2_compile")
+  function: (identifier) @_func
+  (#match? @_func "^(sqlite3_exec|sqlite3_get_table|sqlite3_prepare(16|_v2|_v3|16_v2|16_v3)?|nya_sql_exec|nya_sql_exec_bound)$")
   arguments: (argument_list
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "regex")))
+    (_)
+    (string_literal (string_content) @injection.content))
+  (#set! injection.language "sql"))
 
-; regexec(regex, "string", ...) - string parameter
+; nyangine calls with SQL as the 3rd arg (db, arena, "SQL")
 (call_expression
-  function: (identifier) @_func (#eq? @_func "regexec")
+  function: (identifier) @_func (#any-of? @_func "nya_sql_query" "nya_orm_select")
   arguments: (argument_list
-    (_)  ; regex_t
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "regex")))
-
-; sqlite3_exec(db, "SQL", callback, arg, errmsg) - SQL is 2nd arg
-(call_expression
-  function: (identifier) @_func (#eq? @_func "sqlite3_exec")
-  arguments: (argument_list
-    (_)  ; db handle
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; sqlite3_prepare / _v2 / _v3 / _16 (db, "SQL", ...) - SQL is 2nd arg
-(call_expression
-  function: (identifier) @_func (#match? @_func "^sqlite3_prepare(16|_v2|_v3|16_v2|16_v3)?$")
-  arguments: (argument_list
-    (_)  ; db handle
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; sqlite3_get_table(db, "SQL", ...) - SQL is 2nd arg
-(call_expression
-  function: (identifier) @_func (#eq? @_func "sqlite3_get_table")
-  arguments: (argument_list
-    (_)  ; db handle
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; nyangine src/nyangine/db
-
-; nya_sql_exec(db, "SQL") - SQL is 2nd arg
-(call_expression
-  function: (identifier) @_func (#eq? @_func "nya_sql_exec")
-  arguments: (argument_list
-    (_)  ; NYA_Database*
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; nya_sql_exec_bound(db, "SQL", values, count) - SQL is 2nd arg
-(call_expression
-  function: (identifier) @_func (#eq? @_func "nya_sql_exec_bound")
-  arguments: (argument_list
-    (_)  ; NYA_Database*
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; nya_sql_query(db, arena, "SQL", values, count, out) - SQL is 3rd arg
-(call_expression
-  function: (identifier) @_func (#eq? @_func "nya_sql_query")
-  arguments: (argument_list
-    (_)  ; NYA_Database*
-    (_)  ; NYA_Arena*
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
-
-; nya_orm_select(table, arena, "WHERE ...", ...) - a bare clause, only its keywords get coloured
-(call_expression
-  function: (identifier) @_func (#eq? @_func "nya_orm_select")
-  arguments: (argument_list
-    (_)  ; NYA_OrmTable*
-    (_)  ; NYA_Arena*
-    (string_literal
-      (string_content) @injection.content)
-    (#set! injection.language "sql")))
+    (_)
+    (_)
+    (string_literal (string_content) @injection.content))
+  (#set! injection.language "sql"))

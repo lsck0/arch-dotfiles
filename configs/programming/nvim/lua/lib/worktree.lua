@@ -10,12 +10,19 @@ local M = {}
 
 local WORKTREE_HOME = vim.fs.normalize("~/.worktrees")
 
+-- git root, so a nested crate never re-roots the search; an unnamed buffer roots at cwd
+local function git_root()
+    local name = vim.api.nvim_buf_get_name(0)
+    local start = name ~= "" and name or vim.uv.cwd()
+    return vim.fs.root(start, ".git") or vim.uv.cwd()
+end
+
 ---@param args string[]
 ---@return string? stdout nil when git failed
 ---@return string stderr
 local function git(args)
     local cmd = vim.list_extend({ "git" }, args)
-    local res = vim.system(cmd, { text = true, cwd = require("lib.root").git() }):wait()
+    local res = vim.system(cmd, { text = true, cwd = git_root() }):wait()
     return res.code == 0 and res.stdout or nil, res.stderr or ""
 end
 

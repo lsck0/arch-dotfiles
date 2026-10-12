@@ -13,10 +13,6 @@ systemctl enable --now libvirtd.service
 virsh_system() { virsh -q -c qemu:///system "$@"; }
 virsh_system net-autostart default >/dev/null
 virsh_system net-info default | grep -q '^Active:.*yes' || virsh_system net-start default
-# libvirt-qemu exists now: its sockets (slirp guests, test.py) skip the host's portmaster, see portmaster-bypass.nft
-if unit_present portmaster-bypass.service; then
-    systemctl try-reload-or-restart portmaster-bypass.service
-fi
 
 # no libvirt group: its polkit rule is a silent root for every process of a member; qemu:///system asks an admin
 # (49-libvirt.rules), kvm is enough for qemu:///session + /dev/kvm

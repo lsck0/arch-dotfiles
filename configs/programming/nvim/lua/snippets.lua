@@ -35,14 +35,9 @@ local hash_style = make_banner_snippets("#", "#", "# ", "#")
 local tex_style = make_banner_snippets("%", "%", "% ", "%")
 local lua_style = make_banner_snippets("--", "--", "-- ", "--")
 
-ls.add_snippets("c", vim.deepcopy(c_style))
-ls.add_snippets("cpp", vim.deepcopy(c_style))
-ls.add_snippets("h", vim.deepcopy(c_style))
-ls.add_snippets("hpp", vim.deepcopy(c_style))
-ls.add_snippets("javascript", vim.deepcopy(c_style))
-ls.add_snippets("typescript", vim.deepcopy(c_style))
-ls.add_snippets("javascriptreact", vim.deepcopy(c_style))
-ls.add_snippets("typescriptreact", vim.deepcopy(c_style))
+for _, ft in ipairs({ "c", "cpp", "javascript", "typescript", "javascriptreact", "typescriptreact" }) do
+    ls.add_snippets(ft, vim.deepcopy(c_style))
+end
 ls.add_snippets("python", vim.deepcopy(hash_style))
 ls.add_snippets("tex", vim.deepcopy(tex_style))
 ls.add_snippets("plaintex", vim.deepcopy(tex_style))

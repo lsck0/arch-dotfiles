@@ -12,12 +12,8 @@ return {
         -- open .ipynb as text
         "GCBallesteros/jupytext.nvim",
         event = { "BufReadCmd *.ipynb" }, -- load before its BufReadCmd runs
-        opts = {
-            -- .py with `# %%` cell markers
-            style = "percent",
-            output_extension = "auto",
-            force_ft = nil,
-        },
+        -- .py with `# %%` cell markers
+        opts = { style = "percent" },
     },
     {
         -- run cells in a jupyter kernel

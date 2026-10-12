@@ -37,27 +37,22 @@ return {
             local pick_process = require("dap.utils").pick_process
 
             dapui.setup({
-                layouts = { {
-                    elements = { {
-                        id = "breakpoints",
-                        size = 0.25
-                    }, {
-                        id = "scopes",
-                        size = 0.50
-                    }, {
-                        id = "watches",
-                        size = 0.25
-                    } },
-                    position = "left",
-                    size = 40
-                }, {
-                    elements = { {
-                        id = "repl",
-                        size = 1.0
-                    } },
-                    position = "bottom",
-                    size = 10
-                } },
+                layouts = {
+                    {
+                        position = "left",
+                        size = 40,
+                        elements = {
+                            { id = "breakpoints", size = 0.25 },
+                            { id = "scopes", size = 0.50 },
+                            { id = "watches", size = 0.25 },
+                        },
+                    },
+                    {
+                        position = "bottom",
+                        size = 10,
+                        elements = { { id = "repl", size = 1.0 } },
+                    },
+                },
             })
 
             dap.listeners.after.event_initialized["dapui_config"] = function()
@@ -150,7 +145,6 @@ return {
                         return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/target/debug/", "file")
                     end,
                     cwd = "${workspaceFolder}",
-                    stopOnEntry = false,
                 },
                 {
                     name = "Attach to process (codelldb)",
@@ -324,8 +318,7 @@ return {
         "leoluz/nvim-dap-go", -- go debugging via system-wide dlv
         ft = "go",
         dependencies = { "mfussenegger/nvim-dap" },
-        config = function()
-            require("dap-go").setup()
-        end,
+        main = "dap-go",
+        opts = {},
     },
 }

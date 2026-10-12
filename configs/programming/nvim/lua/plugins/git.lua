@@ -27,17 +27,13 @@ return {
     {
         "lewis6991/gitsigns.nvim", -- git status gutter
         event = { "BufReadPre", "BufNewFile" },
-        config = function()
-            require("gitsigns").setup()
-        end
+        opts = {},
     },
 
     {
         "nicolasgb/jj.nvim", -- Jujutsu VCS integration
         version = "*",
-        config = function()
-            require("jj").setup({})
-        end,
+        opts = {},
     },
 
     {

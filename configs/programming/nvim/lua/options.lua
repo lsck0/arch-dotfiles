@@ -42,6 +42,8 @@ do
 end
 set.ignorecase = true
 set.inccommand = "split"
+set.list = true
+set.listchars = { tab = "> ", trail = "-", eol = "↲" }
 set.laststatus = 3
 set.mousemoveevent = true
 set.number = true
@@ -54,14 +56,13 @@ set.showtabline = 2
 set.signcolumn = "yes"
 set.smartcase = true
 set.smartindent = true
-set.softtabstop = 4
+set.softtabstop = -1 -- follow shiftwidth, so <BS> respects a filetype's indent width
 set.splitbelow = true
 set.splitkeep = "screen"
 set.splitright = true
 set.swapfile = false
 set.tabstop = 4
 set.termguicolors = true
-set.timeout = true
 set.timeoutlen = 200
 set.undofile = true
 set.undolevels = 10000

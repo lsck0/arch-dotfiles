@@ -3,12 +3,7 @@
 link_into "${HOME}/.config/tmux" tmux.conf popup.sh
 
 # tmux.conf runs the plugin's .tmux file directly; pinned here, no plugin manager
-if command -v git >/dev/null 2>&1; then
-    fetch_git_pinned https://github.com/b0o/tmux-autoreload e98aa3b74cfd5f2df2be2b5d4aa4ddcc843b2eba \
-        "${HOME}/.config/tmux/plugins/tmux-autoreload"
-fi
+fetch_git_pinned https://github.com/b0o/tmux-autoreload e98aa3b74cfd5f2df2be2b5d4aa4ddcc843b2eba \
+    "${HOME}/.config/tmux/plugins/tmux-autoreload"
 
-# tms comes from cargo or pacman; skip its config when neither installed it
-if command -v tms >/dev/null 2>&1; then
-    tms config -p "${HOME}/projects"
-fi
+tms config -p "${HOME}/projects"

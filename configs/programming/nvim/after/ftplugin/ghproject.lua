@@ -8,8 +8,6 @@ vim.wo[0][0].colorcolumn = ""
 vim.wo[0][0].cursorline = false
 vim.wo[0][0].wrap = false
 vim.wo[0][0].list = false
-vim.wo[0][0].winfixwidth = false
-vim.wo[0][0].winfixheight = false
 
 -- board highlight groups, linked to builtins so any theme (ayu/pywal/...) fits
 local function ghproject_hl_apply()

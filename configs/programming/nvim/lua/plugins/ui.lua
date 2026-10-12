@@ -4,9 +4,7 @@ return {
     {
         url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
         name = "pywal",
-        config = function()
-            require("pywal").setup()
-        end,
+        lazy = true, -- loaded on :colorscheme pywal; colors/pywal.vim calls setup()
     },
 
     {
@@ -20,37 +18,17 @@ return {
             require("transparent").setup({
                 extra_groups = {
                     "NormalFloat",
-                    "NeoTreeNormal",
-                    "NeoTreeNormalNC",
-                    "NvimTreeNormal",
-                    "NvimTreeNormalNC",
                     "TelescopeNormal",
-                    "WhichKeyFloat",
-                    "BufferTabpageFill",
-                    "BufferOffset",
                     "TabLine",
                     "TabLineFill",
                     "StatusLine",
                     "StatusLineNC",
-                    "VertSplit",
                     "WinSeparator",
                     "SignColumn",
                     "EndOfBuffer",
-                    "BufferCurrent",
-                    "BufferCurrentIndex",
-                    "BufferCurrentMod",
-                    "BufferCurrentSign",
-                    "BufferVisible",
-                    "BufferVisibleIndex",
-                    "BufferVisibleMod",
-                    "BufferVisibleSign",
-                    "BufferInactive",
-                    "BufferInactiveIndex",
-                    "BufferInactiveMod",
-                    "BufferInactiveSign",
                 },
-                exclude_groups = {},
             })
+            require("transparent").clear_prefix("Buffer") -- every barbar Buffer* group
 
             if not vim.g.neovide then
                 vim.api.nvim_create_autocmd("ColorScheme", {
@@ -72,24 +50,8 @@ return {
         "catppuccin/nvim",
         name = "catppuccin",
         lazy = true,
-        config = function()
-            require("catppuccin").setup({
-                flavour = "mocha",
-                transparent_background = false,
-                term_colors = true,
-                integrations = {
-                    barbar = true,
-                    dadbod_ui = true,
-                    diffview = true,
-                    fidget = true,
-                    flash = true,
-                    harpoon = true,
-                    lsp_trouble = true,
-                    mason = true,
-                    snacks = { enabled = true },
-                },
-            })
-        end
+        -- flavour comes from the colorscheme name; auto_integrations detects installed plugins
+        opts = { term_colors = true },
     },
     { "shaunsingh/nord.nvim",     lazy = true },
     { "ellisonleao/gruvbox.nvim", lazy = true },
@@ -288,14 +250,13 @@ return {
     {
         "folke/trouble.nvim", -- diagnostics/quickfix list
         cmd = "Trouble",
-        config = function()
-            require("trouble").setup()
-        end
+        opts = {},
     },
 
     {
         "yorickpeterse/nvim-pqf", -- pretty quickfix list
         event = "VeryLazy",
-        config = function() require("pqf").setup() end
+        main = "pqf",
+        opts = {},
     },
 }

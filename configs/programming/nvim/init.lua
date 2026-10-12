@@ -27,10 +27,6 @@ require("lazy").setup({
         { import = "plugins" },
         { import = "languages" },
     },
-
-    defaults = { lazy = false },
-    -- off: background git fetches slow startup
-    checker = { enabled = false, notify = false },
 })
 
 require("theme").apply_from_marker()

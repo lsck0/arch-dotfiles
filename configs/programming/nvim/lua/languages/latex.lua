@@ -50,13 +50,7 @@ return {
                 "Token not allowed in a PDF string",
             }
 
-            vim.api.nvim_create_autocmd("FileType", {
-                pattern = { "tex", "plaintex" },
-                callback = function()
-                    vim.opt_local.conceallevel = 2
-                    vim.opt_local.wrap = true
-                end,
-            })
+            -- conceallevel/wrap for tex and plaintex live in after/ftplugin
 
             -- pywal maps Todo near the background, so vimtex's texCmdTodo (\todo and friends) renders invisible; force a loud marker that survives theme reloads
             local function draft_markers()

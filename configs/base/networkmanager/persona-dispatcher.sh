@@ -113,7 +113,7 @@ if [ "$action" = portal-end ]; then
     resolvectl domain "$iface" "${@:3}" 2>/dev/null || true
     foreign && tor_on
     portmaster_on
-    # the link follows the global setting: plain while portmaster runs (portmaster/dns.conf), else opportunistic
+    # the link follows the global setting: plain while portmaster runs (portmaster/dotfiles.conf), else opportunistic
     if systemctl is-active -q portmaster.service; then
         resolvectl dnsovertls "$iface" no 2>/dev/null || true
     else

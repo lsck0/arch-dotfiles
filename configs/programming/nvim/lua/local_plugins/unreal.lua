@@ -6,26 +6,28 @@ local M = {}
 
 local done = {}
 
+local function is_uproject(name)
+    return name:match("%.uproject$") ~= nil
+end
+
+-- the *.uproject at or above path (it lives at the project root by Unreal convention)
+local function uproject(path)
+    return vim.fs.find(is_uproject, { path = path, upward = true, limit = 1 })[1]
+end
+
 local function project_root(path)
-    return vim.fs.root(path, function(name) return name:match("%.uproject$") ~= nil end)
+    local file = uproject(path)
+    return file and vim.fs.dirname(file)
 end
 
 -- $UE_ROOT, else the home install (configs/programming/unreal), else the old pacman one
 local function engine_root()
     local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
-    local dirs = { data .. "/unreal-engine", "/opt/unreal-engine" }
-    if vim.env.UE_ROOT then
-        table.insert(dirs, 1, vim.env.UE_ROOT)
-    end
-    for _, dir in ipairs(dirs) do
-        if vim.uv.fs_stat(dir .. "/Engine/Build/BatchFiles/Linux/Build.sh") then
+    for _, dir in ipairs({ vim.env.UE_ROOT, data .. "/unreal-engine", "/opt/unreal-engine" }) do
+        if dir and vim.uv.fs_stat(dir .. "/Engine/Build/BatchFiles/Linux/Build.sh") then
             return dir
         end
     end
-end
-
-local function uproject(root)
-    return vim.fs.find(function(name) return name:match("%.uproject$") ~= nil end, { path = root, limit = 1 })[1]
 end
 
 -- the editor target: Source/<Name>Editor.Target.cs, else the project's name + Editor

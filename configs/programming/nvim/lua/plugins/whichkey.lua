@@ -28,9 +28,7 @@ return {
                 { "<leader>o", group = "github" },
                 { "<leader>m", group = "orgmode" },
                 { "<leader>r", group = "rest" },
-                { "<leader>i", desc = "Import" },
-                { "<leader>u", desc = "Undotree" },
-                { "<leader>x", desc = "Comment line" },
+                { "<leader>u", desc = "Undotree" }, -- its keymap sets no desc of its own
             })
         end,
     },

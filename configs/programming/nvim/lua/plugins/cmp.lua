@@ -104,10 +104,7 @@ return {
                     },
                 },
             },
-
-            fuzzy = { implementation = "prefer_rust_with_warning" },
         },
-        opts_extend = { "sources.default" },
         config = function(_, opts)
             vim.api.nvim_set_hl(0, "MyCursorLine", { link = "PmenuSel" })
             require("blink.cmp").setup(opts)

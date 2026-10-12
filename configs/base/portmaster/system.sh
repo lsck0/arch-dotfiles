@@ -8,8 +8,7 @@ if [[ ! -d /var/lib/portmaster ]]; then
     exit 0
 fi
 
-file_update cleanup.conf /etc/systemd/system/portmaster.service.d/cleanup.conf && systemctl daemon-reload
-file_update dns.conf /etc/systemd/system/portmaster.service.d/dns.conf && systemctl daemon-reload
+file_update dotfiles.conf /etc/systemd/system/portmaster.service.d/dotfiles.conf && systemctl daemon-reload
 
 # copy, ProtectHome=read-only blocks portmaster saving through a link into /home
 if file_update config.json /var/lib/portmaster/config.json; then

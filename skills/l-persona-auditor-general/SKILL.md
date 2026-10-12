@@ -9,6 +9,7 @@ Catch what a security/performance/spec pass won't: is this code good to
 live with.
 
 - Idiomatic use of the language/framework vs. the project's own conventions.
+- Each dependency used for what it is built for: no datastore, queue or protocol bent into a role it wasn't designed for.
 - Naming, structure, dead code, duplication, error handling sloppiness.
 - Maintainability: would a stranger understand this without the author.
 - Every finding concrete and located, never "polish this."

@@ -53,3 +53,7 @@ oom-first, pinned off the v-cache ccd, so a heavy build never starves the
 desktop or a running game nor gets them, or the agent session that started
 it, oom-killed. It no-ops the pin on a
 single-ccd machine and the scope where no user manager is reachable.
+
+When a program exposes an MCP server and it is connected, use it over scripting
+the app blind: an open Unreal editor serves `unreal-mcp` (viewport, actors,
+assets, play-in-editor), so inspect and drive it through those tools.

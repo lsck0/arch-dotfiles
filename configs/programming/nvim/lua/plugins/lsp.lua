@@ -1,70 +1,26 @@
 local installed = {
-    "asm-lsp",
-    "bash-language-server",
-    "bibtex-tidy",
-    "clangd",
-    "cobol-language-support",
-    "codelldb",
-    "css-lsp",
-    "cssmodules-language-server",
-    "debugpy",
-    "docker-compose-language-service",
-    "dockerfile-language-server",
-    "emmet-language-server",
-    "eslint-lsp",
-    "glsl_analyzer",
-    "gopls",
-    "haskell-language-server",
-    "hlint",
-    "html-lsp",
-    "hyprls",
-    "java-debug-adapter",
-    "java-test",
-    "jdtls",
-    "jinja-lsp",
-    "js-debug-adapter",
-    "json-lsp",
+    "asm-lsp", "bash-language-server", "bibtex-tidy", "clangd",
+    "cobol-language-support", "codelldb", "css-lsp", "cssmodules-language-server",
+    "debugpy", "docker-compose-language-service", "dockerfile-language-server",
+    "emmet-language-server", "eslint-lsp", "glsl_analyzer", "gopls",
+    "haskell-language-server", "hlint", "html-lsp", "hyprls", "java-debug-adapter",
+    "java-test", "jdtls", "jinja-lsp", "js-debug-adapter", "json-lsp",
     -- kulala-fmt comes from the system package, see conform below
-    "latexindent",
-    "lean-language-server",
-    "lemminx",
-    "lua-language-server",
-    "nil",
-    "ormolu",
-    "pyright",
+    "latexindent", "lean-language-server", "lemminx", "lua-language-server", "nil",
+    "ormolu", "pyright",
     "ruff", -- python lint/format LSP, pyright keeps types
-    "rust-analyzer",
-    "slang-server",
+    "rust-analyzer", "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
-    "stylua",
-    "shfmt",
-    "gofumpt",
-    "goimports",
-    "tailwindcss-language-server",
-    "taplo",
-    "terraform-ls",
-    "texlab",
+    "stylua", "shfmt", "gofumpt", "goimports", "tailwindcss-language-server",
+    "taplo", "terraform-ls", "texlab",
     "tinymist", -- typst LSP
-    "typescript-language-server",
-    "typos-lsp",
-    "vim-language-server",
+    "typescript-language-server", "typos-lsp", "vim-language-server",
     "wgsl-analyzer", -- mason package hyphenated, lspconfig server is wgsl_analyzer
-    "yaml-language-server",
-    "zls",
-    "clojure-lsp",
-    "graphql-language-service-cli",
-    "intelephense",
-    "marksman",
-    "omnisharp",
-    "svelte-language-server",
+    "yaml-language-server", "zls", "clojure-lsp", "graphql-language-service-cli",
+    "intelephense", "marksman", "omnisharp", "svelte-language-server",
     "vue-language-server",
     -- formatters
-    "cljfmt",
-    "csharpier",
-    "ktlint",
-    "php-cs-fixer",
-    "rubocop",
-    "sql-formatter",
+    "cljfmt", "csharpier", "ktlint", "php-cs-fixer", "rubocop", "sql-formatter",
 }
 
 return {
@@ -94,37 +50,20 @@ return {
             { "mason-org/mason-lspconfig.nvim" },            -- mason lspconfig bridge
             { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
             { "marilari88/twoslash-queries.nvim" },          -- inline TS type hints
-            {
-                "ivanjermakov/troublesum.nvim",              -- diagnostic count summary
-                config = function()
-                    require("troublesum").setup()
-                end
-            },
-            {
-                "Sebastian-Nielsen/better-type-hover", -- improved hover popup
-                config = function()
-                    require("better-type-hover").setup()
-                end,
-            },
-            {
-                "dmmulroy/ts-error-translator.nvim", -- readable TS errors
-                config = function()
-                    require("ts-error-translator").setup()
-                end
-            },
+            { "ivanjermakov/troublesum.nvim",       opts = {} }, -- diagnostic count summary
+            { "Sebastian-Nielsen/better-type-hover", opts = {} }, -- improved hover popup
+            { "dmmulroy/ts-error-translator.nvim",   opts = {} }, -- readable TS errors
         },
         config = function()
             vim.diagnostic.config({
                 severity_sort = true,
-                update_in_insert = false,
-                underline = true,
                 virtual_text = {
                     prefix = "●",
                     spacing = 2,
                     source = "if_many",
                 },
+                -- border comes from 'winborder'
                 float = {
-                    border = "rounded",
                     source = "if_many",
                     header = "",
                 },
@@ -310,25 +249,14 @@ return {
                 },
             })
 
-            vim.lsp.enable("clangd")
-            -- godot ships a GDScript server over TCP :6005, no mason package
+            -- godot ships a GDScript server over TCP :6005, no mason package to auto-enable
             vim.lsp.enable("gdscript")
-            vim.lsp.enable("pyright")
-            vim.lsp.enable("rust_analyzer")
-            vim.lsp.enable("tailwindcss")
-            vim.lsp.enable("ts_ls")
 
+            -- every other installed server is auto-enabled by mason-lspconfig, keeping the custom
+            -- vim.lsp.config above; only cobol_ls is excluded, since mason ships a config that would
+            -- clobber the custom jar cmd (it is enabled by hand above when the jar is present)
             require("mason-lspconfig").setup({
-                automatic_enable = {
-                    exclude = {
-                        "clangd",
-                        "cobol_ls",
-                        "pyright",
-                        "rust_analyzer",
-                        "tailwindcss",
-                        "ts_ls",
-                    }
-                }
+                automatic_enable = { exclude = { "cobol_ls" } },
             })
         end,
     },
@@ -380,56 +308,50 @@ return {
             require("conform").formatters.ruff_format = { prepend_args = ruff }
             require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
 
+            local formatters_by_ft = {
+                bib = { "bibtex-tidy" },
+                c = { "clang-format" },
+                cpp = { "clang-format" },
+                haskell = { "ormolu" },
+                http = { "kulala-fmt" },
+                plaintex = { "latexindent" },
+                python = { "ruff_organize_imports", "ruff_format" }, -- width from configs/programming/formatting/ruff.toml
+                rest = { "kulala-fmt" },
+                -- leptosfmt only in leptos projects, else it errors on plain Rust
+                rust = function(bufnr)
+                    local fmts = { "rustfmt", "sortderives" }
+                    local root = vim.fs.root(bufnr, { "Cargo.toml" })
+                    local f = root and io.open(root .. "/Cargo.toml")
+                    if f then
+                        if f:read("*a"):find("leptos") then table.insert(fmts, "leptosfmt") end
+                        f:close()
+                    end
+                    return fmts
+                end,
+                tex = { "latexindent" },
+                typst = { "typstyle" },
+                lua = { "stylua" },
+                sh = { "shfmt" },
+                bash = { "shfmt" },
+                go = { "goimports", "gofumpt" },
+                nix = { "nixfmt" },
+                ruby = { "rubocop" },
+                php = { "php_cs_fixer" },
+                cs = { "csharpier" },
+                kotlin = { "ktlint" },
+                clojure = { "cljfmt" },
+                elixir = { "mix" },
+                sql = { "sql_formatter" },
+            }
+            for _, ft in ipairs({
+                "css", "html", "javascript", "javascriptreact", "json", "jsonc", "markdown",
+                "scss", "svelte", "typescript", "typescriptreact", "vue", "yaml", "graphql",
+            }) do
+                formatters_by_ft[ft] = { "prettier" }
+            end
+
             require("conform").setup({
-                formatters_by_ft = {
-                    bib = { "bibtex-tidy" },
-                    c = { "clang-format" },
-                    cpp = { "clang-format" },
-                    css = { "prettier" },
-                    haskell = { "ormolu" },
-                    html = { "prettier" },
-                    http = { "kulala-fmt" },
-                    javascript = { "prettier" },
-                    plaintex = { "latexindent" },
-                    python = { "ruff_organize_imports", "ruff_format" }, -- width from configs/programming/formatting/ruff.toml
-                    rest = { "kulala-fmt" },
-                    -- leptosfmt only in leptos projects, else it errors on plain Rust
-                    rust = function(bufnr)
-                        local fmts = { "rustfmt", "sortderives" }
-                        local root = vim.fs.root(bufnr, { "Cargo.toml" })
-                        local f = root and io.open(root .. "/Cargo.toml")
-                        if f then
-                            if f:read("*a"):find("leptos") then table.insert(fmts, "leptosfmt") end
-                            f:close()
-                        end
-                        return fmts
-                    end,
-                    scss = { "prettier" },
-                    tex = { "latexindent" },
-                    typst = { "typstyle" },
-                    typescript = { "prettier" },
-                    typescriptreact = { "prettier" },
-                    javascriptreact = { "prettier" },
-                    lua = { "stylua" },
-                    json = { "prettier" },
-                    jsonc = { "prettier" },
-                    yaml = { "prettier" },
-                    markdown = { "prettier" },
-                    sh = { "shfmt" },
-                    bash = { "shfmt" },
-                    go = { "goimports", "gofumpt" },
-                    nix = { "nixfmt" },
-                    ruby = { "rubocop" },
-                    php = { "php_cs_fixer" },
-                    cs = { "csharpier" },
-                    kotlin = { "ktlint" },
-                    vue = { "prettier" },
-                    svelte = { "prettier" },
-                    graphql = { "prettier" },
-                    clojure = { "cljfmt" },
-                    elixir = { "mix" },
-                    sql = { "sql_formatter" },
-                },
+                formatters_by_ft = formatters_by_ft,
                 -- toggle with :FormatToggle (g:) or per-buffer (b:disable_autoformat)
                 format_on_save = function(bufnr)
                     if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then

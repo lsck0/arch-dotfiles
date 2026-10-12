@@ -4,17 +4,12 @@ local M = {}
 local HERMES_AGENT_NAME = "lprompt-hermes"
 
 local function find_taskrc(start_dir)
-    local dir = start_dir
-    while dir and dir ~= "" do
+    -- parents of start_dir/. yields start_dir first, then every ancestor
+    for dir in vim.fs.parents(start_dir .. "/.") do
         local candidate = dir .. "/tasks/.taskrc"
         if vim.fn.filereadable(candidate) == 1 then
             return candidate
         end
-        local parent = vim.fn.fnamemodify(dir, ":h")
-        if parent == dir then
-            return nil
-        end
-        dir = parent
     end
     return nil
 end
@@ -142,46 +137,20 @@ local function send_to_hermes(text)
     end
 end
 
-local function buffer_text()
-    return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-end
-
-local function selection_text(start_line, end_line)
-    return table.concat(vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false), "\n")
-end
-
-function M.prompt_buffer()
-    send_to_hermes(buffer_text())
-end
-
-function M.prompt_selection(start_line, end_line)
-    send_to_hermes(selection_text(start_line, end_line))
-end
-
-function M.prompt_buffer_to_taskwarrior()
-    add_prompt(buffer_text())
-end
-
-function M.prompt_selection_to_taskwarrior(start_line, end_line)
-    add_prompt(selection_text(start_line, end_line))
+-- range="%" defaults to the whole buffer, so one handler serves both the buffer and a visual range
+local function ranged_text(opts)
+    return table.concat(vim.api.nvim_buf_get_lines(0, opts.line1 - 1, opts.line2, false), "\n")
 end
 
 function M.setup()
-    vim.api.nvim_create_user_command("LPromptBuffer", function()
-        M.prompt_buffer()
-    end, { desc = "Send current buffer to the lprompt hermes agent" })
-
-    vim.api.nvim_create_user_command("LPromptSelection", function(opts)
-        M.prompt_selection(opts.line1, opts.line2)
-    end, { range = true, desc = "Send visual selection to the lprompt hermes agent" })
-
-    vim.api.nvim_create_user_command("LPromptBufferToTaskwarrior", function()
-        M.prompt_buffer_to_taskwarrior()
-    end, { desc = "Add current buffer as a +prompt taskwarrior task" })
-
-    vim.api.nvim_create_user_command("LPromptSelectionToTaskwarrior", function(opts)
-        M.prompt_selection_to_taskwarrior(opts.line1, opts.line2)
-    end, { range = true, desc = "Add visual selection as a +prompt taskwarrior task" })
+    local function command(name, action, desc)
+        vim.api.nvim_create_user_command(name, function(opts) action(ranged_text(opts)) end,
+            { range = "%", desc = desc })
+    end
+    command("LPromptBuffer", send_to_hermes, "Send current buffer (or range) to the lprompt hermes agent")
+    command("LPromptSelection", send_to_hermes, "Send visual selection to the lprompt hermes agent")
+    command("LPromptBufferToTaskwarrior", add_prompt, "Add current buffer (or range) as a +prompt taskwarrior task")
+    command("LPromptSelectionToTaskwarrior", add_prompt, "Add visual selection as a +prompt taskwarrior task")
 end
 
 return M

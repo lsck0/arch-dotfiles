@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# popup.sh [-e] [sudo] <tool> [args...]: the tmux popup runner. -e loads the pane dir's direnv env first; a blocked or
-# failing .envrc falls back to the plain env instead of the popup closing at once. A tool from a group this machine
-# lacks says so instead of a silently closing popup
+# popup.sh [-e] [sudo] <tool> [args...]: tmux popup runner; -e loads the pane dir's direnv env (a failing .envrc is ignored), a tool a machine lacks reports instead of closing silently
 
 if [[ $1 == -e ]]; then
     shift
-    command -v direnv >/dev/null 2>&1 && eval "$(direnv export bash 2>/dev/null)"
+    eval "$(direnv export bash 2>/dev/null)"
 fi
 
 tool=$1

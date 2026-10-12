@@ -10,12 +10,18 @@ autocmd("TextYankPost", {
 })
 
 autocmd("FileType", {
-    desc = "Hard-wrap prose at textwidth",
-    group = group("prose-hardwrap", { clear = true }),
+    desc = "Prose: hard-wrap at textwidth, spell-check the natural-language filetypes",
+    group = group("prose", { clear = true }),
     pattern = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" },
-    callback = function()
+    callback = function(args)
         vim.opt_local.textwidth = 100
         vim.opt_local.formatoptions:append("t")
+        -- rst/typst hard-wrap but are not spell-checked
+        local spell = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
+        if spell[vim.bo[args.buf].filetype] then
+            vim.opt_local.spell = true
+            vim.opt_local.spelllang = "en"
+        end
     end,
 })
 
@@ -40,7 +46,6 @@ autocmd("BufWritePre", {
     end,
 })
 
-vim.o.autoread = true
 autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     desc = "Reload files changed outside nvim",
     group = group("auto-read", { clear = true }),
@@ -49,18 +54,17 @@ autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     end,
 })
 
-autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter" }, {
-    desc = "Relative line numbers when active",
+local numbertoggle_active = { BufEnter = true, FocusGained = true, InsertLeave = true, WinEnter = true }
+autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter", "BufLeave", "FocusLost", "InsertEnter", "WinLeave" }, {
+    desc = "Relative line numbers when active, absolute when inactive",
     group = group("numbertoggle", { clear = true }),
-    callback = function()
-        if vim.wo.number and vim.fn.mode() ~= "i" then vim.wo.relativenumber = true end
-    end,
-})
-autocmd({ "BufLeave", "FocusLost", "InsertEnter", "WinLeave" }, {
-    desc = "Absolute line numbers when inactive",
-    group = group("numbertoggle-off", { clear = true }),
-    callback = function()
-        if vim.wo.number then vim.wo.relativenumber = false end
+    callback = function(args)
+        if not vim.wo.number then return end
+        if numbertoggle_active[args.event] then
+            if vim.fn.mode() ~= "i" then vim.wo.relativenumber = true end
+        else
+            vim.wo.relativenumber = false
+        end
     end,
 })
 
@@ -81,66 +85,49 @@ autocmd("FileType", {
     end,
 })
 
-autocmd("FileType", {
-    desc = "Enable spell check for prose",
-    group = group("prose-spell", { clear = true }),
-    pattern = { "markdown", "gitcommit", "text", "tex", "plaintex", "org" },
-    callback = function()
-        vim.opt_local.spell = true
-        vim.opt_local.spelllang = "en"
-    end,
-})
-
--- before auto-explorer: it skips the netrw listing because that is not a normal buffer
-autocmd("VimEnter", {
-    desc = "Directory argument: cd into it and start on an empty buffer, not netrw",
-    group = group("dir-arg", { clear = true }),
-    callback = function()
-        if vim.fn.argc() ~= 1 or vim.fn.isdirectory(vim.fn.argv(0)) == 0 then return end
-        vim.cmd.cd(vim.fn.fnameescape(vim.fn.fnamemodify(vim.fn.argv(0), ":p")))
-        vim.cmd("%argdelete")
-        vim.cmd.enew()
-        local empty = vim.api.nvim_get_current_buf()
-        -- both the directory buffer and the netrw listing netrw swapped in for it
-        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-            local listing = vim.bo[buf].filetype == "netrw" or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
-            if buf ~= empty and listing then
-                vim.api.nvim_buf_delete(buf, { force = true })
-            end
-        end
-        -- open the explorer on the empty buffer, rooted at the directory (cwd), keeping focus on the buffer
-        local main = vim.api.nvim_get_current_win()
-        require("lib.explorer").open()
-        vim.defer_fn(function()
-            if vim.api.nvim_win_is_valid(main) then vim.api.nvim_set_current_win(main) end
-        end, 100)
-    end,
-})
+-- open the explorer sidebar, keeping focus on the main window (the picker grabs it async)
+local function open_explorer_keep_focus()
+    local main = vim.api.nvim_get_current_win()
+    require("lib.explorer").open()
+    vim.defer_fn(function()
+        if vim.api.nvim_win_is_valid(main) then vim.api.nvim_set_current_win(main) end
+    end, 100)
+end
 
 autocmd("VimEnter", {
-    desc = "Auto-open file explorer sidebar",
+    desc = "Open explorer on a directory argument or a herdr launch",
     group = group("auto-explorer", { clear = true }),
     callback = function()
+        -- directory argument: cd into it and start on an empty buffer, not netrw
+        if vim.fn.argc() == 1 and vim.fn.isdirectory(vim.fn.argv(0)) == 1 then
+            vim.cmd.cd(vim.fn.fnameescape(vim.fn.fnamemodify(vim.fn.argv(0), ":p")))
+            vim.cmd("%argdelete")
+            vim.cmd.enew()
+            local empty = vim.api.nvim_get_current_buf()
+            -- both the directory buffer and the netrw listing netrw swapped in for it
+            for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+                local listing = vim.bo[buf].filetype == "netrw" or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
+                if buf ~= empty and listing then
+                    vim.api.nvim_buf_delete(buf, { force = true })
+                end
+            end
+            open_explorer_keep_focus()
+            return
+        end
+        -- herdr-open.sh launches (NVIM_TMS=1)
         if vim.g.started_by_firenvim then return end
-        -- only for herdr-open.sh launches
         if vim.env.NVIM_TMS ~= "1" then return end
-        if vim.fn.argc() > 1 then return end            -- diff/multi-file: leave alone
+        if vim.fn.argc() > 1 then return end -- diff/multi-file: leave alone
         local ft = vim.bo.filetype
         if ft == "gitcommit" or ft == "gitrebase" then return end
-        if vim.bo.buftype ~= "" then return end          -- stdin, help, etc.
+        if vim.bo.buftype ~= "" then return end -- stdin, help, etc.
         -- never stack a second tree
         for _, w in ipairs(vim.api.nvim_list_wins()) do
-            local win_ft = vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) })
-            if win_ft == "snacks_picker_list" then return end
-        end
-        local main = vim.api.nvim_get_current_win()
-        require("lib.explorer").open()
-        -- the picker grabs focus async, take it back
-        vim.defer_fn(function()
-            if vim.api.nvim_win_is_valid(main) then
-                vim.api.nvim_set_current_win(main)
+            if vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "snacks_picker_list" then
+                return
             end
-        end, 100)
+        end
+        open_explorer_keep_focus()
     end,
 })
 
@@ -195,15 +182,6 @@ autocmd("BufReadPost", {
                 return no_secret_history()
             end
         end
-    end,
-})
-
--- no capitalization spell errors, reapplied after every theme switch
-autocmd({ "ColorScheme", "VimEnter" }, {
-    desc = "Clear SpellCap highlight",
-    group = group("no-spellcap", { clear = true }),
-    callback = function()
-        vim.api.nvim_set_hl(0, "SpellCap", {})
     end,
 })
 

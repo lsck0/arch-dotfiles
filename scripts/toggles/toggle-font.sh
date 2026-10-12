@@ -6,28 +6,25 @@ source ./lib.sh
 
 # the one place the ui font is set for every app: terminal, editors, quickshell bar, gtk and qt/kde
 
-REPO="$DOTFILES"
-
-GHOSTTY="$REPO/configs/desktop/ghostty/config"
-ZED="$REPO/configs/programming/zed/settings.json"
-EMACS="$REPO/configs/programming/emacs/early-init.el"
-DISCORD="$REPO/configs/socials/discord/wal.theme.css"
-SPOTIFY="$REPO/configs/socials/spotify/user.css"
-KITTY="$REPO/configs/desktop/kitty/kitty.conf"
-QUTEBROWSER="$REPO/configs/desktop/qutebrowser/config.py"
-QUTEBROWSER_STARTPAGE="$REPO/configs/desktop/qutebrowser/startpage.html"
+GHOSTTY="$DOTFILES/configs/desktop/ghostty/config"
+ZED="$DOTFILES/configs/programming/zed/settings.json"
+EMACS="$DOTFILES/configs/programming/emacs/early-init.el"
+DISCORD="$DOTFILES/configs/socials/discord/wal.theme.css"
+SPOTIFY="$DOTFILES/configs/socials/spotify/user.css"
+KITTY="$DOTFILES/configs/desktop/kitty/kitty.conf"
+QUTEBROWSER="$DOTFILES/configs/desktop/qutebrowser/config.py"
+QUTEBROWSER_STARTPAGE="$DOTFILES/configs/desktop/qutebrowser/startpage.html"
 # link.sh renders a per-user copy; edit it too so the font shows before the next config run
 QUTEBROWSER_STARTPAGE_RENDERED="${XDG_CONFIG_HOME:-$HOME/.config}/qutebrowser/startpage.html"
-QUICKSHELL_THEME="$REPO/configs/desktop/quickshell/theme.json"
-VSCODE="$REPO/configs/programming/vscode/settings.json"
-ZATHURA="$REPO/configs/desktop/zathura/zathurarc"
-FIREFOX_CHROME="$REPO/configs/desktop/firefox/userChrome.css"
-GTK_CSS="$REPO/configs/desktop/gtk/gtk.css"
+QUICKSHELL_THEME="$DOTFILES/configs/desktop/quickshell/theme.json"
+VSCODE="$DOTFILES/configs/programming/vscode/settings.json"
+ZATHURA="$DOTFILES/configs/desktop/zathura/zathurarc"
+FIREFOX_CHROME="$DOTFILES/configs/desktop/firefox/userChrome.css"
+GTK_CSS="$DOTFILES/configs/desktop/gtk/gtk.css"
 
 # gtk settings.ini is generated into ~/.config by switch-wallpaper.sh, not tracked here, so use real paths
 GTK_DIRS=("$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0")
 
-# Every kdeglobals key that carries a font.
 KDE_FONT_KEYS=(
     "General:font"
     "General:fixed"
@@ -57,7 +54,6 @@ current_size() {
     sed -n 's/^font-size = //p' "$GHOSTTY" | head -1
 }
 
-# The desktop UI size, kept separately from the terminal size.
 current_ui_size() {
     local v
     v=$(gsettings get org.gnome.desktop.interface font-name 2>/dev/null | tr -d "'")
@@ -79,7 +75,6 @@ is_installed() {
 # sed replacement text must not contain an unescaped delimiter or a `&`.
 esc() { printf '%s' "$1" | sed -e 's/[&|\\]/\\&/g'; }
 
-# quickshell's theme.json, edited as JSON rather than by sed.
 quickshell_theme_set() {
     local filter=$1 value=$2 tmp
     [[ -f "$QUICKSHELL_THEME" ]] || { echo "missing $QUICKSHELL_THEME" >&2; return 1; }
@@ -93,38 +88,46 @@ quickshell_theme_set() {
     fi
 }
 
-# GTK 3/4.
-apply_family_gtk() {
-    local fam=$1 e ini cur size
-    e=$(esc "$fam")
-    size=$(current_ui_size)
+# GTK 3/4: write gtk-font-name=<fam> <size> in each settings.ini, setting family and/or size, keeping the other
+gtk_font_rewrite() {
+    local newfam=$1 newsize=$2 gtkdir ini cur size e
     for gtkdir in "${GTK_DIRS[@]}"; do
         ini="$gtkdir/settings.ini"
         [[ -f "$ini" ]] || continue
         cur=$(sed -n 's/^gtk-font-name=//p' "$ini" | head -1)
-        # Trailing number is the size; keep whatever this file already had.
-        local isize=${cur##* }
-        [[ $isize =~ ^[0-9]+$ ]] || isize=$size
+        # trailing number is the size; keep this file's own unless a new one is given
+        size=${cur##* }
+        [[ $size =~ ^[0-9]+$ ]] || size=$(current_ui_size)
+        [[ -n "$newsize" ]] && size=$newsize
+        e=$(esc "${newfam:-$(current_family)}")
         if grep -q "^gtk-font-name=" "$ini"; then
-            sed -i "s|^gtk-font-name=.*|gtk-font-name=$e $isize|" "$ini"
+            sed -i "s|^gtk-font-name=.*|gtk-font-name=$e $size|" "$ini"
         else
-            sed -i "/^\[Settings\]/a gtk-font-name=$e $isize" "$ini"
+            sed -i "/^\[Settings\]/a gtk-font-name=$e $size" "$ini"
         fi
     done
-    gsettings set org.gnome.desktop.interface font-name "$fam $size" 2>/dev/null || true
+    gsettings set org.gnome.desktop.interface font-name "${newfam:-$(current_family)} ${newsize:-$(current_ui_size)}" 2>/dev/null || true
 }
 
-# qt/kde: a kdeglobals font is a comma-separated qt string; rewrite field 1 (family) only, keep the rest
-apply_family_kde() {
-    local fam=$1 entry group key cur rest
+# qt/kde: each kdeglobals font is a comma-separated qt string (family,size,...); set field 1 and/or field 2, keep the
+# rest. smallestReadableFont sits 2pt below the body font, so it tracks a size change at that offset
+kde_font_rewrite() {
+    local newfam=$1 newsize=$2 entry group key cur fam size rest
     command -v kwriteconfig6 >/dev/null || return 0
     for entry in "${KDE_FONT_KEYS[@]}"; do
         group=${entry%%:*}
         key=${entry##*:}
         cur=$(kreadconfig6 --file kdeglobals --group "$group" --key "$key" 2>/dev/null) || continue
         [[ -n "$cur" ]] || continue
-        rest=$(cut -d, -f2- <<<"$cur")
-        kwriteconfig6 --file kdeglobals --group "$group" --key "$key" "$fam,$rest"
+        fam=$(cut -d, -f1 <<<"$cur")
+        size=$(cut -d, -f2 <<<"$cur")
+        rest=$(cut -d, -f3- <<<"$cur")
+        [[ -n "$newfam" ]] && fam=$newfam
+        if [[ -n "$newsize" ]]; then
+            size=$newsize
+            [[ $key == smallestReadableFont ]] && size=$((newsize - 2))
+        fi
+        kwriteconfig6 --file kdeglobals --group "$group" --key "$key" "$fam,$size,$rest"
     done
 }
 
@@ -162,11 +165,7 @@ apply_family() {
     sed -i "s|^(defvar my/font-family \".*\")|(defvar my/font-family \"$m\")|" "$EMACS"
     nvim_guifont "$(mono_family "$fam")" ""
     sed -i "s|^  --font: \".*\";|  --font: \"$e\";|" "$DISCORD"
-
-    # Spotify (via Spicetify's injected user.css).
     sed -i "s|font-family: \"[^\"]*\", \"Symbols Nerd Font\"|font-family: \"$e\", \"Symbols Nerd Font\"|" "$SPOTIFY"
-
-
     sed -i "s|^font_family .*|font_family $m|" "$KITTY"
     sed -i "s|^c.fonts.default_family = \".*\"|c.fonts.default_family = \"$e\"|" "$QUTEBROWSER"
     for page in "$QUTEBROWSER_STARTPAGE" "$QUTEBROWSER_STARTPAGE_RENDERED"; do
@@ -182,35 +181,13 @@ apply_family() {
     # quickshell live-watches theme.json: no restart, no sed into a .qml source
     quickshell_theme_set '.font.family = $v' "$fam"
 
-    # The two that actually make this "all apps" rather than "all terminals".
-    apply_family_gtk "$fam"
-    apply_family_kde "$fam"
+    gtk_font_rewrite "$fam" ""
+    kde_font_rewrite "$fam" ""
 }
 
-# The desktop UI size, applied to GTK and Qt/KDE only.
 apply_ui_size() {
-    local size=$1 e entry group key cur fam rest ini this
-    for gtkdir in "${GTK_DIRS[@]}"; do
-        ini="$gtkdir/settings.ini"
-        [[ -f "$ini" ]] || continue
-        e=$(esc "$(current_family)")
-        sed -i "s|^gtk-font-name=.*|gtk-font-name=$e $size|" "$ini"
-    done
-    gsettings set org.gnome.desktop.interface font-name "$(current_family) $size" 2>/dev/null || true
-
-    command -v kwriteconfig6 >/dev/null || return 0
-    for entry in "${KDE_FONT_KEYS[@]}"; do
-        group=${entry%%:*}
-        key=${entry##*:}
-        cur=$(kreadconfig6 --file kdeglobals --group "$group" --key "$key" 2>/dev/null) || continue
-        [[ -n "$cur" ]] || continue
-        fam=$(cut -d, -f1 <<<"$cur")
-        rest=$(cut -d, -f3- <<<"$cur")
-        # smallestReadableFont sits 2pt below the body font; keep that offset rather than flattening every key to one number.
-        this=$size
-        [[ $key == smallestReadableFont ]] && this=$((size - 2))
-        kwriteconfig6 --file kdeglobals --group "$group" --key "$key" "$fam,$this,$rest"
-    done
+    gtk_font_rewrite "" "$1"
+    kde_font_rewrite "" "$1"
 }
 
 apply_size() {
@@ -222,12 +199,9 @@ apply_size() {
            -e "s|\"font_size\": [0-9.]*|\"font_size\": $size|" "$ZED"
     sed -i "s|^(defvar my/font-size .*)|(defvar my/font-size $size)|" "$EMACS"
     nvim_guifont "" "$size"
-
-    # quickshell too, now that its whole scale derives from one base size.
     quickshell_theme_set '.font.size = ($v | tonumber)' "$size"
 }
 
-# Most of these only read their config at startup.
 reload_hint() {
     touch "$GHOSTTY" 2>/dev/null || true
     local theme
@@ -246,7 +220,6 @@ usage() {
     echo "usage: $(basename "$0") {get|size|ui-size|label|list|shortlist|toggle|set <family>|set-size <n>|set-ui-size <n>}" >&2
 }
 
-# The families `toggle` cycles, filtered to what is installed.
 shortlist() {
     local installed family
     installed=$(installed_families)
@@ -288,7 +261,6 @@ set-ui-size)
     reload_hint
     ;;
 toggle)
-    # Cycle to the next installed shortlist entry after the current one.
     cur=$(current_family)
     mapfile -t avail < <(shortlist)
     [[ ${#avail[@]} -gt 0 ]] || { echo "no shortlist font installed" >&2; exit 0; }

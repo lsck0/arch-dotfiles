@@ -41,15 +41,13 @@ return {
     { "mrjones2014/smart-splits.nvim", lazy = true }, -- resize/navigate splits
     {
         "nacro90/numb.nvim",             -- peek line on jump
-        config = function() require("numb").setup() end
+        opts = {},
     },
     {
         "nosduco/remote-sshfs.nvim", -- browse remote files via SSH
         cmd = { "RemoteSSHFSConnect", "RemoteSSHFSEdit", "RemoteSSHFSDisconnect", "RemoteSSHFSFindFiles", "RemoteSSHFSLiveGrep" },
         dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
-        config = function()
-            require("remote-sshfs").setup()
-        end
+        opts = {},
     },
     { "sindrets/winshift.nvim", cmd = "WinShift" },      -- move/swap windows
     { "tpope/vim-repeat" },            -- repeat plugin actions
@@ -57,18 +55,14 @@ return {
     {
         "ziontee113/icon-picker.nvim", -- emoji/icon picker
         cmd = { "IconPickerNormal", "IconPickerInsert", "IconPickerYank" },
-        config = function() require("icon-picker").setup({ disable_legacy_commands = true }) end
+        opts = { disable_legacy_commands = true },
     },
     {
         "laytan/cloak.nvim", -- mask sensitive .env values
-        config = function()
-            require("cloak").setup({
-                enabled = true,
-                cloak_character = "#",
-                highlight_group = "Comment",
-                patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" }, },
-            })
-        end
+        opts = {
+            cloak_character = "#", -- default is "*"
+            patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" } },
+        },
     },
     {
         "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
@@ -114,31 +108,28 @@ return {
     {
         "icarios-dev/privymd.nvim", -- GPG-encrypted fenced blocks inside Markdown
         ft = "markdown",
-        config = function()
-            require("privymd").setup({
-                auto_decrypt = true,
-                auto_encrypt = true,
-            })
-        end,
+        opts = {
+            auto_decrypt = true,
+            auto_encrypt = true,
+        },
     },
     {
         "matthandzel/taskwarrior.nvim", -- edit the task db as a buffer
-        config = function()
-            -- <leader>T: its default <leader>t* collides with trouble
-            require("taskwarrior").setup({
-                capture_key = "<leader>Ta",
-                open_key = "<leader>Tt",
-                filter_key = "<leader>Tf",
-                sort_key = "<leader>Ts",
-                group_key = "<leader>Tg",
-                project_add_key = "<leader>Tpa",
-                context_key = "<leader>Tc",
-                view_key = "<leader>Tv",
-                report_key = "<leader>Tr",
-                -- the error hint hardcodes <leader>tF
-                feedback = { feedback_key = "<leader>TF", hint_on_error = false },
-            })
-        end,
+        main = "taskwarrior",
+        -- <leader>T: its default <leader>t* collides with trouble
+        opts = {
+            capture_key = "<leader>Ta",
+            open_key = "<leader>Tt",
+            filter_key = "<leader>Tf",
+            sort_key = "<leader>Ts",
+            group_key = "<leader>Tg",
+            project_add_key = "<leader>Tpa",
+            context_key = "<leader>Tc",
+            view_key = "<leader>Tv",
+            report_key = "<leader>Tr",
+            -- the error hint hardcodes <leader>tF
+            feedback = { feedback_key = "<leader>TF", hint_on_error = false },
+        },
     },
 
     {

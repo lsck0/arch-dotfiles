@@ -2,7 +2,7 @@ return {
     {
         "folke/todo-comments.nvim", -- highlight TODO comments
         event = "VeryLazy",
-        config = function() require("todo-comments").setup() end
+        opts = {},
     },
 
     {
@@ -31,7 +31,6 @@ return {
         ft = "markdown",
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
         config = function()
-            require("render-markdown").enable()
             require("render-markdown").setup({
                 completions = { lsp = { enabled = true } },
                 -- not "hide": mermaid images anchor to the fence and would vanish
@@ -50,13 +49,11 @@ return {
     {
         "nvim-orgmode/orgmode", -- org-mode note taking
         ft = "org",
-        config = function()
-            require("orgmode").setup({
-                org_agenda_files = "~/orgfiles/**/*",
-                org_default_notes_file = "~/orgfiles/refile.org",
-                -- <leader>o is the octo/github group
-                mappings = { prefix = "<leader>m" },
-            })
-        end,
+        opts = {
+            org_agenda_files = "~/orgfiles/**/*",
+            org_default_notes_file = "~/orgfiles/refile.org",
+            -- <leader>o is the octo/github group
+            mappings = { prefix = "<leader>m" },
+        },
     },
 }

@@ -28,17 +28,15 @@ vim.keymap.set("n", "<M-t>", function() Snacks.terminal.toggle() end, { desc = "
 vim.keymap.set("n", "<M-w>", function() Snacks.bufdelete() end, { desc = "Close buffer (keep layout)" })
 vim.keymap.set("n", "<M-q>", "<cmd>tabclose <CR>", { desc = "Close tab" })
 vim.keymap.set("n", "<M-c>", "<cmd>tabnew <CR>", { desc = "New tab" })
-vim.keymap.set("n", "<M-1>", "<cmd>tabn 1<CR>", { desc = "Go to tab 1" })
-vim.keymap.set("n", "<M-2>", "<cmd>tabn 2<CR>", { desc = "Go to tab 2" })
-vim.keymap.set("n", "<M-3>", "<cmd>tabn 3<CR>", { desc = "Go to tab 3" })
-vim.keymap.set("n", "<M-4>", "<cmd>tabn 4<CR>", { desc = "Go to tab 4" })
-vim.keymap.set("n", "<M-5>", "<cmd>tabn 5<CR>", { desc = "Go to tab 5" })
+for i = 1, 5 do
+    vim.keymap.set("n", "<M-" .. i .. ">", "<cmd>tabn " .. i .. "<CR>", { desc = "Go to tab " .. i })
+end
 
 -- deferred require: smart-splits lazy-loads on first use
-vim.keymap.set("n", "<C-h>", function() require("smart-splits").resize_left() end, { desc = "Resize split left" })
-vim.keymap.set("n", "<C-j>", function() require("smart-splits").resize_down() end, { desc = "Resize split down" })
-vim.keymap.set("n", "<C-k>", function() require("smart-splits").resize_up() end, { desc = "Resize split up" })
-vim.keymap.set("n", "<C-l>", function() require("smart-splits").resize_right() end, { desc = "Resize split right" })
+for key, dir in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
+    vim.keymap.set("n", "<C-" .. key .. ">", function() require("smart-splits")["resize_" .. dir]() end,
+        { desc = "Resize split " .. dir })
+end
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>", { desc = "Move window (WinShift)" })
 
 -- quickfix and trouble wrap around at either end instead of stopping there
@@ -111,21 +109,20 @@ vim.api.nvim_create_autocmd("LspAttach", {
 vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>",
     { noremap = true, desc = "Toggle venn (draw boxes)" })
 function _G.Toggle_venn()
+    local boxes = { Down = "j", Up = "k", Right = "l", Left = "h" }
     if not vim.b.venn_enabled then
         vim.b.venn_enabled = true
-        vim.cmd [[setlocal ve=all]]
-        vim.api.nvim_buf_set_keymap(0, "n", "<S-Down>", "<C-v>j:VBox<CR>", { noremap = true })
-        vim.api.nvim_buf_set_keymap(0, "n", "<S-Up>", "<C-v>k:VBox<CR>", { noremap = true })
-        vim.api.nvim_buf_set_keymap(0, "n", "<S-Right>", "<C-v>l:VBox<CR>", { noremap = true })
-        vim.api.nvim_buf_set_keymap(0, "n", "<S-Left>", "<C-v>h:VBox<CR>", { noremap = true })
-        vim.api.nvim_buf_set_keymap(0, "v", "f", ":VBox<CR>", { noremap = true })
+        vim.cmd("setlocal ve=all")
+        for arrow, motion in pairs(boxes) do
+            vim.keymap.set("n", "<S-" .. arrow .. ">", "<C-v>" .. motion .. ":VBox<CR>", { buffer = 0 })
+        end
+        vim.keymap.set("v", "f", ":VBox<CR>", { buffer = 0 })
     else
-        vim.cmd [[setlocal ve=none]]
-        vim.api.nvim_buf_del_keymap(0, "n", "<S-Down>")
-        vim.api.nvim_buf_del_keymap(0, "n", "<S-Up>")
-        vim.api.nvim_buf_del_keymap(0, "n", "<S-Right>")
-        vim.api.nvim_buf_del_keymap(0, "n", "<S-Left>")
-        vim.api.nvim_buf_del_keymap(0, "v", "f")
+        vim.cmd("setlocal ve=none")
+        for arrow in pairs(boxes) do
+            vim.keymap.del("n", "<S-" .. arrow .. ">", { buffer = 0 })
+        end
+        vim.keymap.del("v", "f", { buffer = 0 })
         vim.b.venn_enabled = nil
     end
 end
@@ -170,6 +167,12 @@ vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "T
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })
 vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>", { desc = "Compile (compile-mode)" })
 
+-- run a shell command in a terminal split, ready for input
+local function term(cmd)
+    vim.cmd("botright 20split | terminal " .. cmd)
+    vim.cmd("startinsert")
+end
+
 vim.api.nvim_create_user_command("Perf", function(o)
     local file = (o.args ~= "" and o.args) or "perf.data"
     local esc = vim.fn.shellescape(file)
@@ -177,14 +180,12 @@ vim.api.nvim_create_user_command("Perf", function(o)
         or (vim.fn.executable("inferno-collapse-perf") == 1 and "inferno-collapse-perf" or nil)
     if file:match("%.data$") or file == "perf.data" then
         if collapser then
-            vim.cmd("botright 20split | terminal perf script -i " .. esc .. " | " .. collapser .. " | flamelens")
-            vim.cmd("startinsert")
+            term("perf script -i " .. esc .. " | " .. collapser .. " | flamelens")
         else
             vim.fn.jobstart({ "hotspot", file }, { detach = true }) -- gui, reads perf.data natively
         end
     else
-        vim.cmd("botright 20split | terminal flamelens " .. esc) -- already-collapsed/folded stacks
-        vim.cmd("startinsert")
+        term("flamelens " .. esc) -- already-collapsed/folded stacks
     end
 end, { nargs = "?", complete = "file", desc = "Explore perf dump (flamelens/hotspot)" })
 
@@ -196,14 +197,11 @@ vim.keymap.set("n", "<leader>pf", "<cmd>Perf<CR>", { desc = "Perf flamegraph (fl
 vim.keymap.set("n", "<leader>pg", "<cmd>PerfGui<CR>", { desc = "Perf in hotspot (GUI)" })
 
 vim.api.nvim_create_user_command("CargoFlamegraph", function(o)
-    local args = o.args ~= "" and (" " .. o.args) or ""
-    vim.cmd("botright 20split | terminal cargo flamegraph" .. args)
-    vim.cmd("startinsert")
+    term("cargo flamegraph" .. (o.args ~= "" and (" " .. o.args) or ""))
 end, { nargs = "*", desc = "cargo flamegraph (writes flamegraph.svg)" })
 
 vim.api.nvim_create_user_command("PerfRecord", function(o)
-    vim.cmd("botright 20split | terminal perf record -g -- " .. o.args)
-    vim.cmd("startinsert")
+    term("perf record -g -- " .. o.args)
 end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> perf.data" })
 
 vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
