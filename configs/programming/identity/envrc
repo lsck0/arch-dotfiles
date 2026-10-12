@@ -174,7 +174,13 @@ bin_wrapper_create chromium "exec \"\$real\" --user-data-dir=$(printf %q "$ident
 
 export CLAUDE_CONFIG_DIR=$identity_dir/claude
 home_links_set "$HOME/.claude" "$CLAUDE_CONFIG_DIR" "${CLAUDE_SHARED_ITEMS[@]}"
-[[ -s $identity_dir/claude-token ]] && export CLAUDE_CODE_OAUTH_TOKEN="$(<"$identity_dir/claude-token")"
+# the identity claude is manual: with a placed claude-token it uses that, otherwise unset so the identity never inherits
+# the global token (claude/link.sh's environment.d) — an identity without its own token is logged out, not the main one
+if [[ -s $identity_dir/claude-token ]]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(<"$identity_dir/claude-token")"
+else
+  unset CLAUDE_CODE_OAUTH_TOKEN
+fi
 
 export COPILOT_HOME=$identity_dir/copilot
 home_links_set "$HOME/.copilot" "$COPILOT_HOME" "${COPILOT_SHARED_ITEMS[@]}"

@@ -37,3 +37,18 @@ if secret_is_plaintext "${BACKUP}/credentials.json" && [ ! -f "${HOME}/.claude/.
     cp "${BACKUP}/credentials.json" "${HOME}/.claude/.credentials.json"
     json_update "${HOME}/.claude.json" --slurpfile account "${BACKUP}/account.json" '. + $account[0]'
 fi
+
+# global claude code auto-login: the long-lived oauth token (secrets/claude-oauth-token, a year valid) as
+# CLAUDE_CODE_OAUTH_TOKEN, session-wide through environment.d so terminal and gui/desktop launches all get it; it wins
+# over credentials.json. a ~/.local/bin wrapper cannot shadow /usr/bin/claude (later in PATH), so environment.d is the
+# only mechanism that reaches every launch. the token then sits in the session env, readable by this user's processes
+# like credentials.json in ~/.claude. the identity claude stays manual: its envrc unsets this unless an identity token
+# is placed, so an identity never inherits the main account's token
+TOKEN_SECRET="${DOTFILES}/secrets/claude-oauth-token"
+TOKEN_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/50-claude-oauth-token.conf"
+if secret_is_plaintext "$TOKEN_SECRET"; then
+    mkdir -p "$(dirname "$TOKEN_CONF")"
+    (umask 077; printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\n' "$(<"$TOKEN_SECRET")" >"$TOKEN_CONF")
+else
+    rm -f "$TOKEN_CONF"
+fi
