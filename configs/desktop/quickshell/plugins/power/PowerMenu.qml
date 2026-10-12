@@ -133,13 +133,13 @@ Item {
           required property int index
           opacity: panel.boot.rowOpacity(index)
           readonly property bool selected: index === root.selectedIndex
-          readonly property color tint: root.pendingIndex === index ? Color.urgent : Color.accent
+          readonly property color tint: root.pendingIndex === index ? Colors.urgent : Colors.accent
 
           width: Style.space(132)
           height: Style.space(132)
           radius: Style.shape.data
-          color: selected ? Style.selectedFillFor(Color.menu.text, tint) : Style.normalFillFor(Color.menu.text, tint)
-          borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, tint)
+          color: selected ? Style.selectedFillFor(Colors.menu.text, tint) : Style.normalFillFor(Colors.menu.text, tint)
+          borderSpec: Border.controlSpec(selected ? "selected" : "normal", Colors.menu.text, tint)
 
           Column {
             anchors.centerIn: parent
@@ -149,7 +149,7 @@ Item {
               textFormat: Text.PlainText
               anchors.horizontalCenter: parent.horizontalCenter
               text: tile.modelData.icon
-              color: tile.selected ? tile.tint : Color.menu.text
+              color: tile.selected ? tile.tint : Colors.menu.text
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.displayLarge
               layer.enabled: tile.selected && Style.fx.glow > 0
@@ -160,7 +160,7 @@ Item {
               textFormat: Text.PlainText
               anchors.horizontalCenter: parent.horizontalCenter
               text: tile.modelData.label
-              color: tile.selected ? tile.tint : Color.menu.text
+              color: tile.selected ? tile.tint : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               font.capitalization: Font.AllUppercase
@@ -175,7 +175,7 @@ Item {
             anchors.leftMargin: Style.spacing.xs
             textFormat: Text.PlainText
             text: "[" + tile.modelData.hotkey + "]"
-            color: tile.selected ? tile.tint : Color.menu.text
+            color: tile.selected ? tile.tint : Colors.menu.text
             opacity: tile.selected ? Style.emphasis.strong : Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -205,7 +205,7 @@ Item {
       verticalAlignment: Text.AlignVCenter
       textFormat: Text.PlainText
       text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
-      color: Color.urgent
+      color: Colors.urgent
       font.family: Style.font.family
       font.pixelSize: Style.font.body
       font.bold: true

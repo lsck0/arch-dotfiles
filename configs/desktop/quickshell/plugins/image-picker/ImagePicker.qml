@@ -50,11 +50,11 @@ Item {
   property var doneFilesToRelease: []
   property var imageArray: []
 
-  property color dimColor: Color.background
-  property color foreground: Color.imagePicker.text
-  property color scrim: Color.imagePicker.scrim
-  property color selectedBorder: Color.imagePicker.selectedBorder
-  property color unselectedBorder: Color.imagePicker.unselectedBorder
+  property color dimColor: Colors.background
+  property color foreground: Colors.imagePicker.text
+  property color scrim: Colors.imagePicker.scrim
+  property color selectedBorder: Colors.imagePicker.selectedBorder
+  property color unselectedBorder: Colors.imagePicker.unselectedBorder
   property int expandedWidth: Style.space(768)
   property int expandedHeight: Style.space(475)
   property int sliceWidth: Style.space(108)
@@ -71,7 +71,7 @@ Item {
   property int bottomChromeHeight: paletteHeight
     + (showLabels ? (filterable ? Style.space(104) : Style.space(74)) : (filterable ? Style.space(60) : Style.space(30)))
 
-  // palette preview (signature D): the selected wallpaper quantized, conditioned like Color.qml would
+  // palette preview (signature D): the selected wallpaper quantized, conditioned like Colors.qml would
   property var preview: null
   readonly property int quantizeDepth: 3
   readonly property int quantizeSize: 64
@@ -83,7 +83,7 @@ Item {
     onColorsChanged: {
       try {
         var raw = ImagePickerModel.rawFromSwatches(quantizer.colors)
-        root.preview = raw.special ? Color.conditionPalette(raw) : null
+        root.preview = raw.special ? Colors.conditionPalette(raw) : null
       } catch (e) {
         root.preview = null
       }
@@ -681,7 +681,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           text: root.preview ? ":: " + root.preview.verdict : ":: --"
-          color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Color.ok : Color.warn
+          color: !root.preview ? root.foreground : root.preview.verdict === "OK" ? Colors.ok : Colors.warn
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.bold: true

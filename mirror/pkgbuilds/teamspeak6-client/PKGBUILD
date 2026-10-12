@@ -1,0 +1,70 @@
+# Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# The TeamSpeak 6 client: a CEF (Chromium) app shipped only as a direct tar.gz from teamspeak-services.com, with no
+# client package in the repos or the AUR under this name (the AUR's `teamspeak` is the same upstream download). It is
+# a prebuilt bundle (its own libcef, ffmpeg and sound backends), so nothing is compiled: unpack it under /opt and wire
+# up a launcher and a desktop entry. A new beta bumps pkgver + sha256; the URL embeds the version. depends mirror the
+# shared libraries the bundle dlopens, kept in step with the upstream download.
+pkgname=teamspeak6-client
+pkgver=6.0.0beta4.1
+pkgrel=1
+pkgdesc="TeamSpeak 6 voice communication client (beta)"
+arch=(x86_64)
+url="https://www.teamspeak.com"
+license=(custom)
+provides=(teamspeak6)
+conflicts=(teamspeak6)
+depends=(
+    alsa-lib aom at-spi2-core avahi brotli bzip2 cairo dav1d
+    dbus expat ffmpeg fontconfig freetype2 fribidi gdk-pixbuf2 glib2
+    glibc glycin gmp gnutls graphite gsm harfbuzz highway
+    icu lame lcms2 leancrypto libatomic libcups libdatrie libdrm
+    libffi libgcc libglvnd libgomp libidn2 libjxl libnotify libogg
+    libp11-kit libpng librsvg libseccomp libsoxr libstdc++ libtasn1 libthai
+    libtheora libunistring libva libvdpau libvorbis libvpl libvpx libwebp
+    libx11 libxau libxcb libxcomposite libxdamage libxdmcp libxext libxfixes
+    libxi libxkbcommon libxml2 libxrandr libxrender libxss libxtst mesa
+    mpg123 nettle nspr nss ocl-icd opencore-amr openjpeg2 opus
+    pango pcre2 pixman rav1e snappy speex svt-av1 systemd-libs
+    util-linux-libs wayland x264 x265 xvidcore xz zlib
+)
+optdepends=('libpulse: PulseAudio/PipeWire sound backend')
+# a prebuilt bundle: nothing to strip, no debug info to split
+options=(!strip !debug)
+source=("teamspeak-client-$pkgver.tar.gz::https://files.teamspeak-services.com/pre_releases/client/${pkgver/beta/-beta}/teamspeak-client.tar.gz")
+sha256sums=('edfd154102dae0683baa05cc55fa0f60f6b33d103db98797db9d63de61da48ba')
+
+package() {
+    install -d "$pkgdir/opt/$pkgname"
+    # the archive unpacks flat into srcdir; copy every unpacked top-level entry, nothing makepkg added
+    find "$srcdir" -mindepth 1 -maxdepth 1 \( -name '*.tar.gz' -o -name '.*' \) -prune -o \
+        -exec cp -a {} "$pkgdir/opt/$pkgname/" \;
+
+    # the main binary and the hotkey grabber must stay executable
+    chmod 0755 "$pkgdir/opt/$pkgname/TeamSpeak" "$pkgdir/opt/$pkgname/hotkey_helper"
+
+    # CEF resolves its bundle from the real binary's own path, so a symlink launcher is enough
+    install -d "$pkgdir/usr/bin"
+    ln -s "/opt/$pkgname/TeamSpeak" "$pkgdir/usr/bin/teamspeak6"
+
+    install -d "$pkgdir/usr/share/pixmaps" "$pkgdir/usr/share/licenses"
+    ln -s "/opt/$pkgname/logo-256.png" "$pkgdir/usr/share/pixmaps/$pkgname.png"
+    ln -s "/opt/$pkgname/licenses" "$pkgdir/usr/share/licenses/$pkgname"
+
+    # generated inline so the recipe stays one file; StartupWMClass matches the window so the taskbar pairs it,
+    # and it owns the ts3server:// and teamspeak:// links. link.sh shadows Exec with the HiDPI flags
+    install -d "$pkgdir/usr/share/applications"
+    cat >"$pkgdir/usr/share/applications/$pkgname.desktop" <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+StartupNotify=false
+Name=TeamSpeak
+GenericName=Voice Chat
+Comment=TeamSpeak 6 voice communication client
+Icon=teamspeak6-client
+Categories=Audio;Chat;Network;
+StartupWMClass=TeamSpeak
+MimeType=x-scheme-handler/ts3server;x-scheme-handler/teamspeak;
+Exec=teamspeak6 %u
+EOF
+}

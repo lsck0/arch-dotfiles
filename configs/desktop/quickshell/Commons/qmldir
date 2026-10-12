@@ -3,7 +3,7 @@ singleton Audio 1.0 Audio.qml
 singleton Border 1.0 Border.qml
 singleton Cava 1.0 Cava.qml
 CavaRef 1.0 CavaRef.qml
-singleton Color 1.0 Color.qml
+singleton Colors 1.0 Colors.qml
 singleton DiscordControl 1.0 DiscordControl.qml
 singleton ObsProcess 1.0 ObsProcess.qml
 singleton Paths 1.0 Paths.qml

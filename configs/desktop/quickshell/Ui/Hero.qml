@@ -19,7 +19,7 @@ Row {
 
   property string value: "--"
   property string unit: ""
-  property color color: Color.accent
+  property color color: Colors.accent
   property bool live: false
   property int size: Style.font.hero
 

@@ -127,7 +127,7 @@ BarWidget {
     anchors.bottomMargin: Style.bar.pillInset
     width: Math.max(0, root.pillRight - root.pillX - Style.bar.pillInset * 2)
     height: Math.max(1, Style.space(2))
-    color: Color.accent
+    color: Colors.accent
     // static rule, its size animates only on a workspace switch
     layer.enabled: Style.fx.glow > 0 && !(root.bar && root.bar.quiet)
     layer.effect: Glow {}
@@ -168,8 +168,8 @@ BarWidget {
           bar: root.bar
           text: cell.modelData === 10 ? "0" : String(cell.modelData)
           active: cell.focused
-          activeColor: Color.accent
-          foreground: cell.urgent ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
+          activeColor: Colors.accent
+          foreground: cell.urgent ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
           opacity: cell.occupied || cell.focused || cell.urgent ? 1 : Style.emphasis.faint
           horizontalMargin: Style.spacing.xs
           verticalPadding: Style.spacing.xs
@@ -191,7 +191,7 @@ BarWidget {
               width: Style.spacing.xxs
               height: Style.spacing.xxs
               radius: Style.shape.data
-              color: cell.urgent ? Color.urgent : cell.focused ? Color.accent : Color.foreground
+              color: cell.urgent ? Colors.urgent : cell.focused ? Colors.accent : Colors.foreground
               opacity: cell.focused || cell.urgent ? 1 : Style.emphasis.dim
             }
           }

@@ -17,7 +17,7 @@ QtObject {
 
   readonly property QtObject fx: QtObject {
     readonly property real glow: Power.saver ? 0 : Theme.glowStrength
-    readonly property color glowColor: Color.accent
+    readonly property color glowColor: Colors.accent
     readonly property int glowRadius: Math.max(2, Math.round(4 * root.scale))
     readonly property real scanlineOpacity: Power.saver ? 0 : Theme.scanlineOpacity
     readonly property int scanlineSpacing: Math.max(2, Theme.scanlineSpacing)
@@ -46,12 +46,12 @@ QtObject {
   readonly property int focusBorderWidth: 2
   readonly property int selectedBorderWidth: 2
 
-  function normalStateColor(foreground, accent) { return foreground || Color.foreground }
-  function hoverStateColor(foreground, accent) { return foreground || Color.foreground }
-  function selectedStateColor(foreground, accent) { return accent || Color.accent }
-  function pressedStateColor(foreground, accent) { return accent || Color.accent }
-  function focusStateColor(foreground, accent) { return accent || Color.accent }
-  function selectionStateColor(foreground, accent) { return accent || Color.accent }
+  function normalStateColor(foreground, accent) { return foreground || Colors.foreground }
+  function hoverStateColor(foreground, accent) { return foreground || Colors.foreground }
+  function selectedStateColor(foreground, accent) { return accent || Colors.accent }
+  function pressedStateColor(foreground, accent) { return accent || Colors.accent }
+  function focusStateColor(foreground, accent) { return accent || Colors.accent }
+  function selectionStateColor(foreground, accent) { return accent || Colors.accent }
 
   function normalFillFor(foreground, accent) { return Util.alpha(normalStateColor(foreground, accent), normalFillAlpha) }
   function hoverFillFor(foreground, accent) { return Util.alpha(hoverStateColor(foreground, accent), hoverFillAlpha) }
@@ -63,18 +63,18 @@ QtObject {
   function normalBorderFor(foreground, accent) { return Util.alpha(normalStateColor(foreground, accent), normalBorderAlpha) }
   function hoverBorderFor(foreground, accent) { return Util.alpha(hoverStateColor(foreground, accent), hoverBorderAlpha) }
 
-  readonly property color normalFill: normalFillFor(Color.foreground, Color.accent)
-  readonly property color hoverFill: hoverFillFor(Color.foreground, Color.accent)
-  readonly property color selectedFill: selectedFillFor(Color.foreground, Color.accent)
-  readonly property color pressedFill: pressedFillFor(Color.foreground, Color.accent)
-  readonly property color normalBorderColor: normalBorderFor(Color.foreground, Color.accent)
-  readonly property color hoverBorderColor: hoverBorderFor(Color.foreground, Color.accent)
+  readonly property color normalFill: normalFillFor(Colors.foreground, Colors.accent)
+  readonly property color hoverFill: hoverFillFor(Colors.foreground, Colors.accent)
+  readonly property color selectedFill: selectedFillFor(Colors.foreground, Colors.accent)
+  readonly property color pressedFill: pressedFillFor(Colors.foreground, Colors.accent)
+  readonly property color normalBorderColor: normalBorderFor(Colors.foreground, Colors.accent)
+  readonly property color hoverBorderColor: hoverBorderFor(Colors.foreground, Colors.accent)
 
   // focus > hover > normal
   function controlFill(focused, hot, foreground, accent) {
-    if (focused) return focusFillFor(foreground || Color.foreground, accent || Color.accent)
-    if (hot) return hoverFillFor(foreground || Color.foreground, accent || Color.accent)
-    return normalFillFor(foreground || Color.foreground, accent || Color.accent)
+    if (focused) return focusFillFor(foreground || Colors.foreground, accent || Colors.accent)
+    if (hot) return hoverFillFor(foreground || Colors.foreground, accent || Colors.accent)
+    return normalFillFor(foreground || Colors.foreground, accent || Colors.accent)
   }
 
   readonly property QtObject row: QtObject {
@@ -141,9 +141,9 @@ QtObject {
   // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
   readonly property QtObject translucency: QtObject {
     readonly property real saver: 0.96
-    readonly property real bar: Power.saver ? saver : 0.72
-    readonly property real panel: Power.saver ? saver : 0.82
-    readonly property real overlay: Power.saver ? saver : 0.88
+    readonly property real bar: Power.saver ? saver : 0.80
+    readonly property real panel: Power.saver ? saver : 0.85
+    readonly property real overlay: Power.saver ? saver : 0.90
     readonly property real scrim: 0.55
   }
 

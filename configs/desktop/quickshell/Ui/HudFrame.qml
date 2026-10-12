@@ -10,7 +10,7 @@ Item {
 
   // caller gate, combined with the fx setting
   property bool shown: true
-  property color color: Color.accent
+  property color color: Colors.accent
   property int len: Style.fx.bracketLen
   property int thick: Style.fx.bracketWidth
   property real strength: 0.9

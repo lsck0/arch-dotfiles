@@ -116,24 +116,24 @@ BarWidget {
       textFormat: Text.PlainText
       // md-server_network / md-server_network_off
       text: root.ok || !root.received ? "\u{f048d}" : "\u{f048e}"
-      color: root.ok && root.problemCount > 0 ? Color.urgent
-        : root.bar ? root.bar.barForeground : Color.foreground
+      color: root.ok && root.problemCount > 0 ? Colors.urgent
+        : root.bar ? root.bar.barForeground : Colors.foreground
       opacity: root.ok && root.problemCount > 0 ? 1 : Style.emphasis.dim
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.ok && root.problemCount > 0
-      layer.effect: Glow { shadowColor: Color.urgent }
+      layer.effect: Glow { shadowColor: Colors.urgent }
     }
     Text {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.ok && root.problemCount > 0
       textFormat: Text.PlainText
       text: root.problemCount
-      color: Color.urgent
+      color: Colors.urgent
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       layer.enabled: Style.fx.glow > 0
-      layer.effect: Glow { shadowColor: Color.urgent }
+      layer.effect: Glow { shadowColor: Colors.urgent }
     }
   }
 
@@ -151,7 +151,7 @@ BarWidget {
   component LinkStat: StatRow {
     property string url: ""
     property bool alert: false
-    valueColor: alert ? Color.urgent : Color.menu.text
+    valueColor: alert ? Colors.urgent : Colors.menu.text
     clickable: url !== ""
     onActivated: root.open(url)
   }
@@ -164,7 +164,7 @@ BarWidget {
 
     Text {
       text: list.title
-      color: Color.accent
+      color: Colors.accent
       textFormat: Text.PlainText
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
@@ -190,7 +190,7 @@ BarWidget {
           height: parent.height
           width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
           radius: Style.shape.data
-          color: Util.alpha(Color.accent, 0.15)
+          color: Util.alpha(Colors.accent, 0.15)
         }
         Text {
           id: entryName
@@ -200,7 +200,7 @@ BarWidget {
           textFormat: Text.PlainText
           text: entry.modelData.name
           elide: Text.ElideRight
-          color: Color.menu.text
+          color: Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -210,7 +210,7 @@ BarWidget {
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
           text: entry.modelData.count
-          color: Color.menu.text
+          color: Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -229,7 +229,7 @@ BarWidget {
 
     Text {
       text: groupBox.title
-      color: Color.accent
+      color: Colors.accent
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }
@@ -267,7 +267,7 @@ BarWidget {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: tile.asleep ? "o" : "*"
-              color: tile.down ? Color.urgent : Color.menu.text
+              color: tile.down ? Colors.urgent : Colors.menu.text
               opacity: tile.asleep ? Style.emphasis.faint : 1
               font.family: Style.font.family
               font.pixelSize: Style.font.body
@@ -278,7 +278,7 @@ BarWidget {
               textFormat: Text.PlainText
               text: tile.modelData.name
               elide: Text.ElideRight
-              color: tile.down ? Color.urgent : Color.menu.text
+              color: tile.down ? Colors.urgent : Colors.menu.text
               opacity: tile.asleep ? Style.emphasis.faint : 1
               font.family: Style.font.family
               font.pixelSize: Style.font.body
@@ -300,7 +300,7 @@ BarWidget {
     id: mh
     property string label: ""
     property string readout: ""
-    property color tint: Color.accent
+    property color tint: Colors.accent
     Text {
       width: mh.width * 0.5
       text: mh.label
@@ -326,7 +326,7 @@ BarWidget {
     id: mg
     property var history: []
     property real fraction: 0
-    property color tint: Color.accent
+    property color tint: Colors.accent
     property string label: ""
     property string readout: ""
     property int maxValue: 100
@@ -342,7 +342,7 @@ BarWidget {
     property string label: ""
     property string readout: ""
     property real fraction: 0
-    property color tint: Color.accent
+    property color tint: Colors.accent
     width: parent ? parent.width : 0
     spacing: Style.spacing.xxs
     MetricHeader { width: gr.width; label: gr.label; readout: gr.readout; tint: gr.tint }
@@ -402,7 +402,7 @@ BarWidget {
             visible: root.alerts.length > 0
             spacing: Style.spacing.sm
 
-            PanelSectionHeader { text: "Alerts"; foreground: Color.urgent }
+            PanelSectionHeader { text: "Alerts"; foreground: Colors.urgent }
             Repeater {
               model: root.alerts
               delegate: LinkStat {
@@ -476,7 +476,7 @@ BarWidget {
             label: "Disks OK"
             readout: root.num(root.storage.disksHealthy) + " / " + root.num(root.storage.disksTotal)
             fraction: (Number(root.storage.disksTotal) || 0) > 0 ? (Number(root.storage.disksHealthy) || 0) / Number(root.storage.disksTotal) : 0
-            tint: root.storage.disksHealthy < root.storage.disksTotal ? Color.urgent : Color.accent
+            tint: root.storage.disksHealthy < root.storage.disksTotal ? Colors.urgent : Colors.accent
           }
           GaugeRow {
             visible: root.storage.nvmeWearPct !== null && root.storage.nvmeWearPct !== undefined
@@ -510,7 +510,7 @@ BarWidget {
               Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.clients.window || ""
-                color: Color.menu.text
+                color: Colors.menu.text
                 opacity: Style.emphasis.faint
                 textFormat: Text.PlainText
                 font.family: Style.font.family

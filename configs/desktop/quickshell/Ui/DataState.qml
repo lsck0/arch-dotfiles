@@ -57,7 +57,7 @@ Text {
     : state === "error" ? "x ERR" + (detailed ? " " + error : "")
     : state === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
     : ""
-  color: state === "error" ? Color.urgent : Color.foreground
+  color: state === "error" ? Colors.urgent : Colors.foreground
   opacity: state === "error" ? Style.emphasis.strong : Style.emphasis.faint
   font.family: Style.font.family
   font.pixelSize: Style.font.caption

@@ -16,7 +16,7 @@ Item {
 
   property bool active: false
 
-  property color foreground: Color.menu.text
+  property color foreground: Colors.menu.text
   property real fontSize: Style.font.caption
 
   readonly property string script: Paths.toggle("toggle-powermode.sh")

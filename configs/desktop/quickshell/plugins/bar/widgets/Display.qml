@@ -214,7 +214,7 @@ BarWidget {
               width: parent.width
               horizontalAlignment: Text.AlignRight
               text: root.activeMonitors.length > 1 ? root.activeMonitors.length + " MONITORS" : "1 MONITOR"
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.dim
               font.pixelSize: Style.font.caption
               font.family: Style.font.family
@@ -326,7 +326,7 @@ BarWidget {
             spacing: Style.spacing.sm
             Text {
               text: monitorRow.modelData.name
-              color: Color.menu.text
+              color: Colors.menu.text
               font.pixelSize: Style.font.bodySmall
               font.family: Style.font.family
             }
@@ -334,7 +334,7 @@ BarWidget {
               text: monitorRow.disabled ? "off"
                 : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
                   + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.dim
               font.pixelSize: Style.font.bodySmall
               font.family: Style.font.family

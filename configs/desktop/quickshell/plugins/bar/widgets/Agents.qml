@@ -71,7 +71,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: "\u{ee0d}"
-      color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
+      color: root.tight ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
     }
@@ -80,12 +80,12 @@ BarWidget {
       visible: root.hasUsage
       textFormat: Text.PlainText
       text: root.worstWhich + " " + root.worstPctShown + "%"
-      color: root.tight ? Color.urgent : (root.bar ? root.bar.barForeground : Color.foreground)
+      color: root.tight ? Colors.urgent : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       font.letterSpacing: Style.displayTracking
       layer.enabled: Style.fx.glow > 0
-      layer.effect: Glow { shadowColor: root.tight ? Color.urgent : Style.fx.glowColor }
+      layer.effect: Glow { shadowColor: root.tight ? Colors.urgent : Style.fx.glowColor }
     }
     DataState {
       anchors.verticalCenter: parent.verticalCenter
@@ -122,14 +122,14 @@ BarWidget {
       height: parent.height
       width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
       radius: Style.shape.data
-      color: barRow.alert ? Util.alpha(Color.urgent, 0.18) : Util.alpha(Color.accent, 0.15)
+      color: barRow.alert ? Util.alpha(Colors.urgent, 0.18) : Util.alpha(Colors.accent, 0.15)
     }
     Text {
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
       width: parent.width * 0.4
       text: barRow.label
-      color: Color.menu.text
+      color: Colors.menu.text
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       elide: Text.ElideRight
@@ -141,14 +141,14 @@ BarWidget {
       Text {
         id: rowValue
         text: barRow.value
-        color: barRow.alert ? Color.urgent : Color.menu.text
+        color: barRow.alert ? Colors.urgent : Colors.menu.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
       Text {
         visible: barRow.note !== ""
         text: barRow.note
-        color: Color.menu.text
+        color: Colors.menu.text
         opacity: Style.emphasis.faint
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
@@ -192,7 +192,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             value: String(root.worstPctShown)
             unit: "%"
-            color: root.tight ? Color.urgent : Color.accent
+            color: root.tight ? Colors.urgent : Colors.accent
           }
           Column {
             id: usageSide
@@ -205,7 +205,7 @@ BarWidget {
               horizontalAlignment: Text.AlignRight
               visible: !!root.usage.sub
               text: root.usage.sub ? root.usage.sub + " " + (root.usage.tier || "") : ""
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.dim
               textFormat: Text.PlainText
               font.family: Style.font.family
@@ -216,7 +216,7 @@ BarWidget {
               width: parent.width
               horizontalAlignment: Text.AlignRight
               text: "SESSION " + root.sessionPct + "% :: WEEK " + root.weekPct + "%"
-              color: root.tight ? Color.urgent : Color.menu.text
+              color: root.tight ? Colors.urgent : Colors.menu.text
               opacity: Style.emphasis.faint
               textFormat: Text.PlainText
               font.family: Style.font.family
@@ -225,8 +225,8 @@ BarWidget {
             }
           }
         }
-        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Color.urgent : Color.accent; glow: true }
-        BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.worstPct / 100; color: root.tight ? Color.urgent : Color.accent }
+        Sparkline { width: parent.width; height: Style.space(34); values: root.pctHist; minValue: 0; maxValue: 100; color: root.tight ? Colors.urgent : Colors.accent; glow: true }
+        BarGauge { width: parent.width; height: Style.spacing.sm; segments: 24; value: root.worstPct / 100; color: root.tight ? Colors.urgent : Colors.accent }
       }
 
       Column {

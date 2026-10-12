@@ -184,15 +184,15 @@ ShellRoot {
     function palette(): string {
       function rgb(c) { return [c.r, c.g, c.b] }
       return JSON.stringify({
-        background: rgb(Color.background),
-        surface: rgb(Color.surface),
-        foreground: rgb(Color.foreground),
-        muted: rgb(Color.muted),
-        accent: rgb(Color.accent),
-        accent2: rgb(Color.accent2),
-        urgent: rgb(Color.urgent),
-        warn: rgb(Color.warn),
-        ok: rgb(Color.ok),
+        background: rgb(Colors.background),
+        surface: rgb(Colors.surface),
+        foreground: rgb(Colors.foreground),
+        muted: rgb(Colors.muted),
+        accent: rgb(Colors.accent),
+        accent2: rgb(Colors.accent2),
+        urgent: rgb(Colors.urgent),
+        warn: rgb(Colors.warn),
+        ok: rgb(Colors.ok),
         glowStrength: Style.fx.glow,
         scanlineOpacity: Style.fx.scanlineOpacity,
         scanlineSpacing: Style.fx.scanlineSpacing

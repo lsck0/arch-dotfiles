@@ -77,8 +77,10 @@ BarWidget {
 
   // seconds per sample, slower on battery
   readonly property int statsIntervalS: onBattery ? 15 : 10
-  // a bound command does not rerun a live process: stop it, the exit restarts it with the new interval
-  onStatsIntervalSChanged: statsProc.running = false
+  // a bound command does not rerun a live process: stop it and arm the respawn with the new interval.
+  // arming the timer here (not only from onExited) is load-bearing: at startup this handler can fire
+  // from staged binding resolution before the process has spawned, so no exit arrives to restart it.
+  onStatsIntervalSChanged: { statsProc.running = false; statsRestart.restart() }
 
   Timer {
     id: statsRestart
@@ -141,7 +143,7 @@ BarWidget {
     property string glyph: ""
     property string value: ""
     property string widest: ""
-    property color tint: root.bar ? root.bar.barForeground : Color.foreground
+    property color tint: root.bar ? root.bar.barForeground : Colors.foreground
     spacing: Style.spacing.xs
 
     Text {
@@ -166,7 +168,7 @@ BarWidget {
       font.letterSpacing: Style.displayTracking
       // an outline, not a glow layer: this text changes every sample
       style: Style.fx.glow > 0 && !(root.bar && root.bar.quiet) ? Text.Outline : Text.Normal
-      styleColor: Util.alpha(Color.accent, 0.35)
+      styleColor: Util.alpha(Colors.accent, 0.35)
 
       // invisible, only measures the widest value
       Text {
@@ -195,7 +197,7 @@ BarWidget {
       values: root.cpuHist
       minValue: 0
       maxValue: 100
-      color: Color.accent
+      color: Colors.accent
     }
 
     // md-memory, the cpu package glyph
@@ -229,7 +231,7 @@ BarWidget {
       glyph: "\u{f0ce4}"
       widest: "99"
       value: root.ossec ? root.ossec.high : ""
-      tint: Color.semantic.live
+      tint: Colors.semantic.live
     }
   }
 
@@ -258,7 +260,7 @@ BarWidget {
       anchors.right: parent.right
       anchors.verticalCenter: hdr.verticalCenter
       height: 1
-      color: Util.alpha(Color.accent, 0.35)
+      color: Util.alpha(Colors.accent, 0.35)
     }
   }
 
@@ -266,12 +268,12 @@ BarWidget {
     property string label: ""
     property string value: ""
     property string note: ""
-    property color tint: Color.foreground
+    property color tint: Colors.foreground
     width: parent ? (parent.width - parent.spacing) / 2 : 0
     spacing: Style.spacing.hair
     Text {
       text: parent.label
-      color: Color.menu.text
+      color: Colors.menu.text
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
@@ -288,7 +290,7 @@ BarWidget {
     Text {
       visible: parent.note.length > 0
       text: parent.note
-      color: Color.menu.text
+      color: Colors.menu.text
       opacity: Style.emphasis.dim
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
@@ -297,7 +299,7 @@ BarWidget {
 
   component FluxLabel: Item {
     property string text: ""
-    property color tint: Color.accent
+    property color tint: Colors.accent
     width: parent ? parent.width : 0
     Text {
       anchors.left: parent.left
@@ -316,7 +318,7 @@ BarWidget {
     id: meterRoot
     property string label: ""
     property real fraction: 0
-    property color fill: Color.accent
+    property color fill: Colors.accent
     property string value: ""
     property string secondary: ""
     readonly property real frac: Math.max(0, Math.min(1, fraction))
@@ -330,7 +332,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       width: Style.space(34)
       text: meterRoot.label
-      color: Color.menu.text
+      color: Colors.menu.text
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.capitalization: Font.AllUppercase
@@ -349,13 +351,13 @@ BarWidget {
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         text: meterRoot.value
-        color: Color.foreground
+        color: Colors.foreground
         opacity: Style.emphasis.strong
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         font.letterSpacing: Style.displayTracking
         style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-        styleColor: Util.alpha(Color.accent, 0.35)
+        styleColor: Util.alpha(Colors.accent, 0.35)
       }
       Text {
         anchors.left: valPrimary.right
@@ -363,7 +365,7 @@ BarWidget {
         anchors.baseline: valPrimary.baseline
         visible: meterRoot.secondary.length > 0
         text: meterRoot.secondary
-        color: Color.foreground
+        color: Colors.foreground
         opacity: Style.emphasis.faint
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
@@ -379,7 +381,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       height: Style.space(7)
       radius: Style.shape.data
-      color: Util.alpha(Color.foreground, 0.12)
+      color: Util.alpha(Colors.foreground, 0.12)
       Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
@@ -482,7 +484,7 @@ BarWidget {
           Text {
             width: parent.width / 2
             text: Math.round(Util.historyCountMax * root.statsIntervalS / 60) + " MIN"
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -492,7 +494,7 @@ BarWidget {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: "LIVE"
-            color: Color.accent
+            color: Colors.accent
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -506,7 +508,7 @@ BarWidget {
           width: parent.width
           visible: root.cpuName.length > 0
           text: root.cpuName + (root.cpuCores > 0 ? " (" + root.cpuCores + " threads)" : "")
-          color: Color.menu.text
+          color: Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           wrapMode: Text.WordWrap
@@ -515,7 +517,7 @@ BarWidget {
           width: parent.width
           visible: root.gpuName.length > 0
           text: root.gpuName
-          color: Color.menu.text
+          color: Colors.menu.text
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           wrapMode: Text.WordWrap
@@ -545,7 +547,7 @@ BarWidget {
             label: "VRAM"
             value: root.vramTotalMb !== null
               ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB" : "N/A"
-            tint: root.vramTotalMb === null ? Color.menu.text : Color.foreground
+            tint: root.vramTotalMb === null ? Colors.menu.text : Colors.foreground
           }
           HudStat {
             visible: root.batteryPresent
@@ -600,7 +602,7 @@ BarWidget {
                   width: parent.width - alertLevel.width - alertTime.width - parent.spacing * 2
                   text: modelData.desc
                   elide: Text.ElideRight
-                  color: Color.foreground
+                  color: Colors.foreground
                   opacity: Style.emphasis.strong
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -608,7 +610,7 @@ BarWidget {
                 Text {
                   id: alertTime
                   text: modelData.t
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   opacity: Style.emphasis.dim
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption

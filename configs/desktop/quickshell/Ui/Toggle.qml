@@ -10,8 +10,8 @@ BorderSurface {
 
   property bool hasCursor: false
 
-  property color foreground: Color.foreground
-  property color accent: Color.accent
+  property color foreground: Colors.foreground
+  property color accent: Colors.accent
   property string fontFamily: Style.font.family
   property real titleSize: Style.font.subtitle
   property real descriptionSize: Style.font.caption

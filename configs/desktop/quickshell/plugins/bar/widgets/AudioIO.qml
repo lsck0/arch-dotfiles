@@ -104,7 +104,7 @@ BarWidget {
 
   component Caption: Text {
     textFormat: Text.PlainText
-    color: Color.menu.text
+    color: Colors.menu.text
     elide: Text.ElideRight
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
@@ -114,7 +114,7 @@ BarWidget {
   component Tag: Rectangle {
     id: tag
     property string text: ""
-    property color tint: Color.accent
+    property color tint: Colors.accent
     implicitWidth: tagLabel.implicitWidth + Style.spacing.sm * 2
     implicitHeight: tagLabel.implicitHeight + Style.spacing.xxs * 2
     radius: Style.shape.data
@@ -199,7 +199,7 @@ BarWidget {
       horizontalAlignment: Text.AlignHCenter
       textFormat: Text.PlainText
       text: fader.muted ? fader.mutedGlyph : fader.glyph
-      color: fader.muted ? Color.urgent : Color.menu.text
+      color: fader.muted ? Colors.urgent : Colors.menu.text
       font.family: Style.font.iconFamily
       font.pixelSize: Style.font.icon
       MouseArea {
@@ -218,7 +218,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       bar: fader.host ? fader.host.bar : null
       value: fader.volume
-      fillColor: fader.muted ? Color.urgent : (bar ? bar.barForeground : Color.foreground)
+      fillColor: fader.muted ? Colors.urgent : (bar ? bar.barForeground : Colors.foreground)
       onMoved: function(v) { if (fader.node && fader.node.audio) fader.node.audio.volume = v }
       onRightClicked: fader.toggleMute()
     }
@@ -230,7 +230,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       horizontalAlignment: Text.AlignRight
       text: fader.muted ? "MUTE" : Audio.dbText(fader.volume) + " dB"
-      color: fader.muted ? Color.urgent : Color.menu.text
+      color: fader.muted ? Colors.urgent : Colors.menu.text
     }
   }
 
@@ -268,7 +268,7 @@ BarWidget {
         textFormat: Text.PlainText
         elide: Text.ElideRight
         text: Audio.appName(stream.node)
-        color: Color.menu.text
+        color: Colors.menu.text
         font.family: Style.font.family
         font.pixelSize: Style.font.body
       }
@@ -279,7 +279,7 @@ BarWidget {
         anchors.rightMargin: Style.spacing.xs
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.xs
-        Tag { visible: stream.onStream; text: "OBS"; tint: Color.semantic.live }
+        Tag { visible: stream.onStream; text: "OBS"; tint: Colors.semantic.live }
       }
 
       Chip {
@@ -463,7 +463,7 @@ BarWidget {
           Tag {
             visible: Audio.isTappedByObs(root.sink)
             text: "OBS"
-            tint: Color.semantic.live
+            tint: Colors.semantic.live
           }
           Chip {
             text: "EQ"
@@ -475,7 +475,7 @@ BarWidget {
         Hero {
           value: String(Math.round(root.volume * 100))
           unit: "%"
-          color: root.muted ? Color.urgent : Color.accent
+          color: root.muted ? Colors.urgent : Colors.accent
         }
 
         Fader {
@@ -540,7 +540,7 @@ BarWidget {
           Tag {
             visible: Audio.isTappedByObs(root.source)
             text: "OBS"
-            tint: Color.semantic.live
+            tint: Colors.semantic.live
           }
         }
 
@@ -587,7 +587,7 @@ BarWidget {
             delegate: Tag {
               required property var modelData
               text: Audio.appName(modelData)
-              tint: Audio.isObs(modelData) ? Color.semantic.live : Color.semantic.speaking
+              tint: Audio.isObs(modelData) ? Colors.semantic.live : Colors.semantic.speaking
             }
           }
         }
@@ -599,7 +599,7 @@ BarWidget {
           height: Style.row.list
           radius: Style.shape.data
           color: root.deafened
-            ? Util.alpha(Color.urgent, 0.18)
+            ? Util.alpha(Colors.urgent, 0.18)
             : (deafenHover.containsMouse ? Style.selectedFill : "transparent")
 
           Row {
@@ -608,16 +608,16 @@ BarWidget {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-              color: root.deafened ? Color.urgent : Color.menu.text
+              color: root.deafened ? Colors.urgent : Colors.menu.text
               font.pixelSize: Style.font.icon
               font.family: Style.font.iconFamily
               layer.enabled: Style.fx.glow > 0 && root.deafened
-              layer.effect: Glow { shadowColor: Color.urgent }
+              layer.effect: Glow { shadowColor: Colors.urgent }
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: root.deafened ? "Deafened, click to restore" : "Deafen (mute in + out)"
-              color: root.deafened ? Color.urgent : Color.menu.text
+              color: root.deafened ? Colors.urgent : Colors.menu.text
               font.pixelSize: Style.font.body
               font.family: Style.font.family
             }

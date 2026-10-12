@@ -95,7 +95,7 @@ Item {
       ctx.drawImage(root.image, 0, 0, root.cols, root.rows)
       var data = ctx.getImageData(0, 0, root.cols, root.rows).data
       ctx.clearRect(0, 0, root.cols, root.rows)
-      var acc = Color.accent
+      var acc = Colors.accent
       var k = root.paletteNudge
       var last = root.ramp.length - 1
       var g = [], col = []
@@ -122,7 +122,7 @@ Item {
       ctx.clearRect(x, y, root.cellW, root.cellH)
       var glyph = root.glyphs[r * root.cols + c]
       if (lead) {
-        ctx.fillStyle = Color.accent
+        ctx.fillStyle = Colors.accent
         glyph = glyph === " " ? "." : glyph
       } else {
         if (glyph === " ") return

@@ -10,7 +10,7 @@ Item {
   property real minValue: 0
   // <= minValue auto-scales to the data
   property real maxValue: 0
-  property color color: Color.accent
+  property color color: Colors.accent
   property real lineWidth: 1.6
   property real fillAlpha: 0.22
   // opt-in: only for series that change rarely, a live one would re-render the effect per sample

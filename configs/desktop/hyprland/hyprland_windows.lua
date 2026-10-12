@@ -112,8 +112,10 @@ hl.config({
         blur = {
             enabled = true,
             xray = false,
-            size = 3,
-            passes = 1,
+            -- more passes = stronger frosted glass, so the translucent quickshell popups (quickshell-blur layerrule)
+            -- stay see-through but their content reads clearly over a busy wallpaper
+            size = 4,
+            passes = 2,
             new_optimizations = true,
             popups = true,
             vibrancy = 0.1796,

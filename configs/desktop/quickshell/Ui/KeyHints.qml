@@ -27,7 +27,7 @@ Row {
       Text {
         textFormat: Text.PlainText
         text: "[" + parent.modelData[0] + "]"
-        color: Color.accent
+        color: Colors.accent
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -35,7 +35,7 @@ Row {
       Text {
         textFormat: Text.PlainText
         text: parent.modelData[1]
-        color: Color.foreground
+        color: Colors.foreground
         opacity: Style.emphasis.faint
         font.family: Style.font.family
         font.pixelSize: Style.font.caption

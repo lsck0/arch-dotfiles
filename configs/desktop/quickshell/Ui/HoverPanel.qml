@@ -22,6 +22,13 @@ PanelWindow {
   readonly property bool anchored: anchorWidget !== null
 
   readonly property real edgeMargin: Style.spacing.sm
+
+  // the surface slides out of the bar edge as it opens and folds back on close. boot.progress eases
+  // 0..1 (and jumps under power saver), so the slide inherits the motion curves and the saver gate.
+  // top bar: start tucked up under the bar (negative y) and drop into place; bottom bar mirrors it.
+  readonly property real slideDistance: Style.space(14)
+  readonly property real revealSlide: (root.bar && root.bar.position === "bottom" ? 1 : -1)
+    * (1 - boot.progress) * slideDistance
   // tallest body that fits under the bar; taller content scrolls (Flickable in the panel)
   readonly property real maxBodyHeight: Math.max(Style.space(120),
     (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset)
@@ -119,6 +126,9 @@ PanelWindow {
       width: parent.width
       height: Math.round(parent.height * boot.progress)
       clip: true
+      // slides out of the bar edge and fades in; folds back on close
+      opacity: boot.progress
+      transform: Translate { y: root.revealSlide }
 
       DockShape {
         id: card
@@ -126,7 +136,7 @@ PanelWindow {
         height: root.height
         docked: true
         flipped: root.bar !== null && root.bar.position === "bottom"
-        fillColor: Color.menu.background
+        fillColor: Colors.menu.background
 
         readonly property real contentLeftInset: sideInset + strokeWidth + root.padding
         readonly property real contentRightInset: contentLeftInset

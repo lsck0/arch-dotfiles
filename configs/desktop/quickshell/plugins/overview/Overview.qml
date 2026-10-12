@@ -152,8 +152,8 @@ Item {
             height: panel.tileHeight
             radius: Style.shape.data
             opacity: panel.boot.rowOpacity(index)
-            color: Util.alpha(Color.background, Style.translucency.overlay)
-            borderSpec: Border.controlSpec(selected ? "selected" : "normal", Color.menu.text, Color.accent)
+            color: Util.alpha(Colors.background, Style.translucency.overlay)
+            borderSpec: Border.controlSpec(selected ? "selected" : "normal", Colors.menu.text, Colors.accent)
             clip: true
 
             Repeater {
@@ -175,9 +175,9 @@ Item {
 
                 Rectangle {
                   anchors.fill: parent
-                  color: Color.surface
+                  color: Colors.surface
                   border.width: Style.surface.borderWidth
-                  border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
+                  border.color: Util.alpha(Colors.foreground, Style.normalBorderAlpha)
                 }
 
                 // captures only while the overview is open; the selected tile stays live
@@ -197,7 +197,7 @@ Item {
                   elide: Text.ElideRight
                   textFormat: Text.PlainText
                   text: win.modelData.wayland ? String(win.modelData.wayland.appId || "--") : "--"
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   opacity: Style.emphasis.faint
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -210,7 +210,7 @@ Item {
               visible: tile.toplevels.length === 0
               anchors.centerIn: parent
               text: "--"
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.faint
               font.family: Style.font.family
               font.pixelSize: Style.font.body
@@ -220,7 +220,7 @@ Item {
             Rectangle {
               anchors.fill: parent
               z: 3
-              color: Util.alpha(Color.background, tile.selected ? 0 : Style.translucency.scrim * 0.75)
+              color: Util.alpha(Colors.background, tile.selected ? 0 : Style.translucency.scrim * 0.75)
               Behavior on color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
             }
 
@@ -230,7 +230,7 @@ Item {
               anchors.top: parent.top
               width: label.implicitWidth + Style.spacing.sm * 2
               height: label.implicitHeight + Style.spacing.xs * 2
-              color: Color.overlayFill
+              color: Colors.overlayFill
 
               Text {
                 id: label
@@ -238,7 +238,7 @@ Item {
                 textFormat: Text.PlainText
                 text: "[" + (tile.modelData.id === 10 ? "0" : String(tile.modelData.id)) + "]"
                   + (tile.focused ? " *" : "") + (tile.toplevels.length > 0 ? " " + tile.toplevels.length : "")
-                color: tile.selected ? Color.accent : Color.menu.text
+                color: tile.selected ? Colors.accent : Colors.menu.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
                 font.letterSpacing: Style.headerTracking

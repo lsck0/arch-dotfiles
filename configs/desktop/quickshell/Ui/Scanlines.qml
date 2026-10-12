@@ -48,7 +48,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Color.accent
+    color: Colors.accent
     opacity: 0
     visible: root.flicker && Style.fx.flicker > 0
     SequentialAnimation on opacity {

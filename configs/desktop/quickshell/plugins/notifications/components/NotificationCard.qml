@@ -62,10 +62,10 @@ BorderSurface {
   readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  readonly property color bodyColor: Qt.darker(Color.notifications.text, 1.15)
+  readonly property color bodyColor: Qt.darker(Colors.notifications.text, 1.15)
   // toasts draw their chamfered outline with DockShape, rows a left accent bar
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
-  readonly property color strokeColor: urgency === 2 ? Color.urgent : Util.alpha(Color.notifications.border, Style.normalBorderAlpha)
+  readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.normalBorderAlpha)
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
   // border insets keep content off the bottom edge
@@ -80,7 +80,7 @@ BorderSurface {
   DockShape {
     visible: !root.isRow
     anchors.fill: parent
-    fillColor: Color.notifications.background
+    fillColor: Colors.notifications.background
     strokeColor: root.strokeColor
   }
 
@@ -92,7 +92,7 @@ BorderSurface {
     width: Style.space(2)
     height: parent.height - Style.space(8)
     radius: Style.shape.data
-    color: Color.urgent
+    color: Colors.urgent
   }
 
   MouseArea {
@@ -150,7 +150,7 @@ BorderSurface {
           anchors.centerIn: parent
           visible: root.hasGlyph && smallIconImage.status !== Image.Ready
           text: root.glyph
-          color: Color.notifications.text
+          color: Colors.notifications.text
           font.family: Style.font.iconFamily
           font.pixelSize: Style.font.displayLarge
           layer.enabled: !root.isRow && Style.fx.glow > 0
@@ -163,7 +163,7 @@ BorderSurface {
         Layout.alignment: Qt.AlignVCenter
         visible: root.compactGlyph
         text: root.glyph
-        color: Color.notifications.text
+        color: Colors.notifications.text
         font.family: Style.font.iconFamily
         font.pixelSize: Style.font.icon
       }
@@ -205,7 +205,7 @@ BorderSurface {
           visible: root.summary.length > 0
           text: root.summary
           font.family: root.fontFamily
-          color: Color.notifications.text
+          color: Colors.notifications.text
           font.pixelSize: Style.font.body
           font.bold: true
           wrapMode: Text.WordWrap
@@ -238,7 +238,7 @@ BorderSurface {
             ActionButton {
               required property var modelData
               label: modelData.text
-              tint: Color.notifications.text
+              tint: Colors.notifications.text
               onActivated: root.actionInvoked(modelData.id)
             }
           }
@@ -267,7 +267,7 @@ BorderSurface {
           width: gauge.segment
           height: gauge.height
           radius: Style.shape.data
-          color: root.urgency === 2 ? Color.urgent : Color.accent
+          color: root.urgency === 2 ? Colors.urgent : Colors.accent
           opacity: index < root.segmentsLeft ? Style.emphasis.dim : Style.emphasis.disabled * 0.5
         }
       }
@@ -290,7 +290,7 @@ BorderSurface {
       anchors.centerIn: parent
       textFormat: Text.PlainText
       text: "x"
-      color: closeArea.containsMouse ? Color.notifications.text : Qt.darker(Color.notifications.text, 1.4)
+      color: closeArea.containsMouse ? Colors.notifications.text : Qt.darker(Colors.notifications.text, 1.4)
       font.family: root.fontFamily
       font.pixelSize: Style.font.heading
     }
@@ -306,7 +306,7 @@ BorderSurface {
 
   component Caption: Text {
     textFormat: Text.PlainText
-    color: Color.notifications.text
+    color: Colors.notifications.text
     opacity: Style.emphasis.faint
     font.family: root.fontFamily
     font.pixelSize: Style.font.caption

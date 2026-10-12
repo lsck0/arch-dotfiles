@@ -51,9 +51,9 @@ OverlayCard {
     NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
   }
 
-  readonly property color onCard: Color.menu.text
-  readonly property color onCardDim: Util.alpha(Color.menu.text, 0.55)
-  readonly property color onCardUrgent: Color.urgent
+  readonly property color onCard: Colors.menu.text
+  readonly property color onCardDim: Util.alpha(Colors.menu.text, 0.55)
+  readonly property color onCardUrgent: Colors.urgent
 
   title: "speed test"
   hints: root.running ? [["ESC", "close"]] : [["ESC", "close"], ["ENTER", "run again"]]
@@ -214,7 +214,7 @@ OverlayCard {
       height: Style.space(14)
       segments: 32
       value: g.fraction
-      color: Color.accent
+      color: Colors.accent
     }
 
     Sparkline {
@@ -223,7 +223,7 @@ OverlayCard {
       values: g.history
       minValue: 0
       maxValue: g.fullScale
-      color: Color.accent
+      color: Colors.accent
     }
   }
 }

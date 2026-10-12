@@ -27,7 +27,7 @@ Item {
   // palette sync (signature D): the new palette's crossfade starts as the wedge passes the centre
   readonly property real paletteCue: 0.5
   readonly property int edgeWidth: Style.space(2)
-  onRevealProgressChanged: if (revealProgress >= paletteCue) Color.syncHold = false
+  onRevealProgressChanged: if (revealProgress >= paletteCue) Colors.syncHold = false
 
   // every output glitches once as the new wallpaper settles
   signal settled()
@@ -58,7 +58,7 @@ Item {
     incomingBackground = path
     revealProgress = 0
     // wallust usually lands later; this only catches a palette that beats the wedge
-    Color.syncHold = Style.motion.enabled
+    Colors.syncHold = Style.motion.enabled
   }
 
   function startReveal(panel) {
@@ -107,7 +107,7 @@ Item {
         root.finishingTransition = true
       }
       root.revealProgress = 1
-      Color.syncHold = false
+      Colors.syncHold = false
       root.settled()
     }
   }
@@ -250,17 +250,17 @@ Item {
         visible: root.incomingBackground !== "" && root.revealProgress < 1 && panel.maskReady
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: visible && Style.fx.glow > 0
-        layer.effect: Glow { shadowColor: Color.accent2 }
+        layer.effect: Glow { shadowColor: Colors.accent2 }
 
         ShapePath {
-          strokeColor: Color.accent2
+          strokeColor: Colors.accent2
           strokeWidth: root.edgeWidth
           fillColor: "transparent"
           startX: revealMask.centerTop - revealMask.spread; startY: 0
           PathLine { x: revealMask.centerBottom - revealMask.spread; y: revealMask.height }
         }
         ShapePath {
-          strokeColor: Color.accent2
+          strokeColor: Colors.accent2
           strokeWidth: root.edgeWidth
           fillColor: "transparent"
           startX: revealMask.centerTop + revealMask.spread; startY: 0

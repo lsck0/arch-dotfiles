@@ -6,7 +6,7 @@ Row {
 
   property real value: 0
   property int segments: 12
-  property color color: Color.accent
+  property color color: Colors.accent
   property real gap: 1
 
   spacing: gap

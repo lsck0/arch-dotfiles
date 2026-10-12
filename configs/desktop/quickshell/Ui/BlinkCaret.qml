@@ -37,7 +37,7 @@ Text {
   textFormat: Text.PlainText
   // a space keeps the cell one advance wide for the block
   text: block ? " " : "_"
-  color: Color.accent
+  color: Colors.accent
   font.family: Style.font.family
   font.pixelSize: size
   layer.enabled: Style.fx.glow > 0

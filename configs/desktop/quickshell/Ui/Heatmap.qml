@@ -24,7 +24,7 @@ Item {
   readonly property real alphaFloor: 0.05
   function colorFor(t) {
     var a = alphaFloor + (1 - alphaFloor) * Math.min(1, t / fadeEnd)
-    return Util.alpha(Color.ramp(t), a)
+    return Util.alpha(Colors.ramp(t), a)
   }
 
   Canvas {
@@ -59,7 +59,7 @@ Item {
           ctx.fillRect(x, y0 + g, cellW + 0.6, rowH - g * 2)
         }
       }
-      ctx.strokeStyle = Util.alpha(Color.foreground, 0.10)
+      ctx.strokeStyle = Util.alpha(Colors.foreground, 0.10)
       ctx.lineWidth = 1
       for (var s = 1; s < nr; s++) {
         var sy = Math.round(s * rowH) + 0.5

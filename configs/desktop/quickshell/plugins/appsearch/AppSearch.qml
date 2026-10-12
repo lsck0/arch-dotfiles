@@ -19,9 +19,9 @@ Item {
   // uniform rows: { kind, name, sub, icon, glyph, payload }
   property var rows: []
 
-  property color foreground: Color.menu.text
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
+  property color foreground: Colors.menu.text
+  property color selectedBackground: Colors.menu.selectedBackground
+  property color selectedText: Colors.menu.selectedText
   property string fontFamily: Style.font.family
   property int rowHeight: Style.space(44)
   property int iconSize: Style.space(28)
@@ -340,7 +340,7 @@ Item {
               // matched chars light up; markup is escaped by AppSearch.highlight
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
-                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Color.accent2))
+                ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2))
                 : AppSearch.escapeHtml(rowDelegate.modelData.name)
               color: rowDelegate.selected ? root.selectedText : root.foreground
               font.family: root.fontFamily

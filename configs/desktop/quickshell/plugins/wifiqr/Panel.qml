@@ -30,9 +30,9 @@ Item {
   readonly property bool showingQr: qrSize > 0 && !loading && error === ""
 
   // text on the overlay card; the code itself keeps its own white quiet zone
-  readonly property color onScrim: Color.menu.text
-  readonly property color onScrimDim: Util.alpha(Color.menu.text, Style.emphasis.dim)
-  readonly property color onScrimUrgent: Color.urgent
+  readonly property color onScrim: Colors.menu.text
+  readonly property color onScrimDim: Util.alpha(Colors.menu.text, Style.emphasis.dim)
+  readonly property color onScrimUrgent: Colors.urgent
   readonly property string fontFamily: Style.font.family
 
   function open(payload) {

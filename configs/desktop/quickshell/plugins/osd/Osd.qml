@@ -77,9 +77,9 @@ Item {
 
   function hex(c) { return String(c).substring(0, 7) }
 
-  // palette sync (signature D): Color applies a new wallpaper palette
+  // palette sync (signature D): Colors applies a new wallpaper palette
   Connections {
-    target: Color
+    target: Colors
     function onPaletteSynced(p) {
       root.log(["> SYNC PALETTE", "  bg " + root.hex(p.background) + " :: acc " + root.hex(p.accent), "  " + p.verdict])
     }
@@ -197,9 +197,9 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: Style.space(67)
-        color: Color.menu.background
+        color: Colors.menu.background
         border.width: root.borderWidth
-        border.color: Color.popups.border
+        border.color: Colors.popups.border
         radius: Style.shape.surface
         opacity: boot.progress
         transform: Translate { y: (1 - boot.progress) * Style.spacing.sm }
@@ -215,7 +215,7 @@ Item {
               required property int index
               textFormat: Text.PlainText
               text: root.typedLine(index)
-              color: index === 0 ? Color.accent : Color.popups.text
+              color: index === 0 ? Colors.accent : Colors.popups.text
               font: logMetrics.font
             }
           }
@@ -236,7 +236,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               text: root.icon
               font: iconMetrics.font
-              color: Color.popups.text
+              color: Colors.popups.text
             }
           }
           BarGauge {
@@ -246,7 +246,7 @@ Item {
             height: Math.max(Style.space(6), Style.spacing.xs)
             segments: 20
             value: root.maxValue > 0 ? root.value / root.maxValue : 0
-            color: Color.accent
+            color: Colors.accent
           }
           Text {
             textFormat: Text.PlainText
@@ -256,12 +256,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: root.message
             font: messageMetrics.font
-            color: Color.popups.text
+            color: Colors.popups.text
             elide: Text.ElideRight
             maximumLineCount: 1
             // changes on every key repeat: outline, never a MultiEffect
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-            styleColor: Util.alpha(Color.accent, 0.35)
+            styleColor: Util.alpha(Colors.accent, 0.35)
           }
         }
 

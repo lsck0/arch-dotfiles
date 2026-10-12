@@ -19,7 +19,7 @@ Rectangle {
   implicitWidth: Math.max(minimumWidth, label.implicitWidth + Style.spacing.sm * 2)
   implicitHeight: Style.row.control
   radius: Style.shape.data
-  color: selected ? Color.menu.selectedBackground
+  color: selected ? Colors.menu.selectedBackground
     : mouse.pressed ? Style.pressedFill
     : hot ? Style.hoverFill
     : Style.normalFill
@@ -44,7 +44,7 @@ Rectangle {
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
     text: root.text
-    color: root.selected ? Color.menu.selectedText : Color.menu.text
+    color: root.selected ? Colors.menu.selectedText : Colors.menu.text
     font.family: root.fontFamily
     font.pixelSize: root.fontSize
   }

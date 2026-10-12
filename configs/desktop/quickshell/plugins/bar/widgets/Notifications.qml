@@ -168,7 +168,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.history.length > 0
             text: "Clear"
-            color: Color.accent
+            color: Colors.accent
             font.pixelSize: Style.font.caption
             font.family: Style.font.family
             MouseArea {
@@ -193,7 +193,7 @@ BarWidget {
         Text {
           visible: root.history.length === 0
           text: "> NOTHING RECENT"
-          color: Color.menu.text
+          color: Colors.menu.text
           opacity: Style.emphasis.dim
           font.pixelSize: Style.font.body
           font.family: Style.font.family
@@ -236,8 +236,8 @@ BarWidget {
       opacity: historyFlick.atYEnd ? 0 : 1
       Behavior on opacity { NumberAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
       gradient: Gradient {
-        GradientStop { position: 0.0; color: Util.alpha(Color.menu.background, 0.0) }
-        GradientStop { position: 1.0; color: Util.alpha(Color.menu.background, 0.95) }
+        GradientStop { position: 0.0; color: Util.alpha(Colors.menu.background, 0.0) }
+        GradientStop { position: 1.0; color: Util.alpha(Colors.menu.background, 0.95) }
       }
     }
   }

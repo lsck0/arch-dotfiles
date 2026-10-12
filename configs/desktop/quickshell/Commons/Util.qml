@@ -81,13 +81,13 @@ QtObject {
     return Number(v.toPrecision(3)) + " " + byteUnits[i]
   }
 
-  // severity color for a higher-is-worse value against ascending [warn, high, critical], on Color.ramp
+  // severity color for a higher-is-worse value against ascending [warn, high, critical], on Colors.ramp
   function level(value, thresholds) {
-    var stops = Color.rampStops
-    if (value >= thresholds[2]) return Color.ramp(stops[3])
-    if (value >= thresholds[1]) return Color.ramp(stops[2])
-    if (value >= thresholds[0]) return Color.ramp(stops[1])
-    return Color.ramp(stops[0])
+    var stops = Colors.rampStops
+    if (value >= thresholds[2]) return Colors.ramp(stops[3])
+    if (value >= thresholds[1]) return Colors.ramp(stops[2])
+    if (value >= thresholds[0]) return Colors.ramp(stops[1])
+    return Colors.ramp(stops[0])
   }
 
   // image source for a freedesktop icon name, path or url; "" when there is none

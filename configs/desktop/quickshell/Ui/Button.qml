@@ -14,9 +14,9 @@ BorderSurface {
   property bool focusable: false
   property bool bordered: false
 
-  property color foreground: Color.foreground
+  property color foreground: Colors.foreground
   property color background: "transparent"
-  property color accent: Color.accent
+  property color accent: Colors.accent
 
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.body

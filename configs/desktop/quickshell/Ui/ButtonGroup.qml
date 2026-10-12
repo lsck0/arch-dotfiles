@@ -7,8 +7,8 @@ Row {
 
   property var options: []
   property string value: ""
-  property color foreground: Color.foreground
-  property color accent: Color.accent
+  property color foreground: Colors.foreground
+  property color accent: Colors.accent
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.body
   property bool focusable: true

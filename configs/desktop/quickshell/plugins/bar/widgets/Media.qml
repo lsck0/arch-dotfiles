@@ -261,7 +261,7 @@ BarWidget {
   implicitHeight: barSize
 
   function specColor(frac, valMul, a) {
-    var c = Color.accent
+    var c = Colors.accent
     var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
     if (h < 0) h += 1
     else if (h > 1) h -= 1
@@ -336,7 +336,7 @@ BarWidget {
       textFormat: Text.PlainText
       anchors.verticalCenter: parent.verticalCenter
       text: root.playing ? "\u{f04c}" : "\u{f04b}"
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.body
 
@@ -355,7 +355,7 @@ BarWidget {
       width: Style.space(200)
       elide: Text.ElideRight
       text: root.title + (root.artist ? " :: " + root.artist : "")
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       opacity: 0.85
@@ -418,7 +418,7 @@ BarWidget {
           width: Style.space(72)
           height: width
           radius: Style.shape.surface
-          color: Style.selectedFillFor(Color.menu.text, Color.accent)
+          color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
           clip: true
 
           Image {
@@ -444,7 +444,7 @@ BarWidget {
             anchors.centerIn: parent
             visible: !art.visible
             text: "\u{f001}"   // fa-music
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: Style.emphasis.faint
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.title
@@ -462,7 +462,7 @@ BarWidget {
             width: parent.width
             textFormat: Text.PlainText
             text: root.title || "Nothing playing"
-            color: Color.menu.text
+            color: Colors.menu.text
             font.family: Style.font.family
             font.pixelSize: Style.font.title
             font.bold: true
@@ -475,7 +475,7 @@ BarWidget {
             // opacity, not visible, so the popup does not jump
             textFormat: Text.PlainText
             text: root.artist
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: root.artist !== "" ? Style.emphasis.dim : 0
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -485,7 +485,7 @@ BarWidget {
             width: parent.width
             textFormat: Text.PlainText
             text: root.album
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: root.album !== "" ? Style.emphasis.faint : 0
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -580,14 +580,14 @@ BarWidget {
           Text {
             width: parent.width / 2
             text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
-            color: Color.menu.text; opacity: 0.6
+            color: Colors.menu.text; opacity: 0.6
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
           Text {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: root.player ? Util.clock(root.player.length) : "0:00"
-            color: Color.menu.text; opacity: 0.6
+            color: Colors.menu.text; opacity: 0.6
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -605,7 +605,7 @@ BarWidget {
           PanelActionButton {
             iconText: "\u{f074}"   // fa-shuffle
             tooltipText: "Shuffle"
-            foreground: root.player && root.player.shuffle ? Color.accent : Color.menu.text
+            foreground: root.player && root.player.shuffle ? Colors.accent : Colors.menu.text
             opacity: root.player && root.player.shuffleSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.shuffleSupported
             fontFamily: Style.font.family
@@ -615,7 +615,7 @@ BarWidget {
           PanelActionButton {
             iconText: "\u{f048}"   // fa-step_backward
             tooltipText: "Previous"
-            foreground: Color.menu.text
+            foreground: Colors.menu.text
             opacity: root.player && root.player.canGoPrevious ? 1 : 0.3
             enabled: root.player !== null && root.player.canGoPrevious
             fontFamily: Style.font.family
@@ -625,7 +625,7 @@ BarWidget {
           PanelActionButton {
             iconText: root.playing ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.playing ? "Pause" : "Play"
-            foreground: Color.menu.text
+            foreground: Colors.menu.text
             opacity: root.player && root.player.canTogglePlaying ? 1 : 0.3
             enabled: root.player !== null && root.player.canTogglePlaying
             fontFamily: Style.font.family
@@ -637,7 +637,7 @@ BarWidget {
           PanelActionButton {
             iconText: "\u{f051}"   // fa-step_forward
             tooltipText: "Next"
-            foreground: Color.menu.text
+            foreground: Colors.menu.text
             opacity: root.player && root.player.canGoNext ? 1 : 0.3
             enabled: root.player !== null && root.player.canGoNext
             fontFamily: Style.font.family
@@ -657,7 +657,7 @@ BarWidget {
               }
             }
             foreground: root.player && root.player.loopState !== MprisLoopState.None
-              ? Color.accent : Color.menu.text
+              ? Colors.accent : Colors.menu.text
             opacity: root.player && root.player.loopSupported ? 1 : 0.3
             enabled: root.player !== null && root.player.loopSupported
             fontFamily: Style.font.family
@@ -685,7 +685,7 @@ BarWidget {
           Text {
             anchors.centerIn: parent
             text: Audio.volumeIcon(root.playerVolume, root.playerMuted)
-            color: root.playerMuted ? Color.urgent : Color.menu.text
+            color: root.playerMuted ? Colors.urgent : Colors.menu.text
             font.pixelSize: Style.font.icon
             font.family: Style.font.iconFamily
           }
@@ -713,7 +713,7 @@ BarWidget {
           horizontalAlignment: Text.AlignRight
           verticalAlignment: Text.AlignVCenter
           text: root.volumeAvailable ? Math.round(root.playerVolume * 100) + "%" : "--"
-          color: Color.menu.text
+          color: Colors.menu.text
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }
@@ -726,7 +726,7 @@ BarWidget {
         visible: root.player !== null
         opacity: root.volumeAvailable ? 1 : 0.4
         value: root.playerVolume
-        color: root.playerMuted ? Color.urgent : Color.accent
+        color: root.playerMuted ? Colors.urgent : Colors.accent
       }
 
       Column {

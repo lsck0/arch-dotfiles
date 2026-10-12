@@ -5,9 +5,9 @@ import qs.Commons
 ToolTip {
   id: root
 
-  property color panelForeground: Color.tooltip.text
-  property color panelBackground: Color.tooltip.background
-  property color panelBorder: Color.tooltip.border
+  property color panelForeground: Colors.tooltip.text
+  property color panelBackground: Colors.tooltip.background
+  property color panelBorder: Colors.tooltip.border
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.bodySmall
 
@@ -41,7 +41,7 @@ ToolTip {
         anchors.baseline: tipText.baseline
         textFormat: Text.PlainText
         text: ">"
-        color: Color.accent
+        color: Colors.accent
         opacity: Style.emphasis.faint
         font.family: root.fontFamily
         font.pixelSize: root.fontSize

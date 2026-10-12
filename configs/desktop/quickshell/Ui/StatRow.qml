@@ -8,7 +8,7 @@ import qs.Commons
  *   label       left, caption uppercase
  *   value       right; "--" while unknown
  *   note        faint text after the value, "" hides it (stale ages read " ~12m")
- *   valueColor  value tint, e.g. Color.urgent for an alert
+ *   valueColor  value tint, e.g. Colors.urgent for an alert
  *   dim         value at faint emphasis
  *   valueElide  how a too-long value shortens (it may take valueShare of the row)
  *   clickable   hover fill and pointer, emits activated()
@@ -22,7 +22,7 @@ Item {
   property string label: ""
   property string value: "--"
   property string note: ""
-  property color valueColor: Color.menu.text
+  property color valueColor: Colors.menu.text
   property bool dim: false
   property int valueElide: Text.ElideRight
   readonly property real valueShare: 0.65
@@ -51,7 +51,7 @@ Item {
     width: Math.min(implicitWidth, parent.width - valueRow.width - Style.spacing.md)
     textFormat: Text.PlainText
     text: root.label
-    color: Color.menu.text
+    color: Colors.menu.text
     elide: Text.ElideRight
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
@@ -81,7 +81,7 @@ Item {
       visible: root.note !== ""
       textFormat: Text.PlainText
       text: root.note
-      color: Color.menu.text
+      color: Colors.menu.text
       opacity: Style.emphasis.faint
       font.family: Style.font.family
       font.pixelSize: Style.font.caption

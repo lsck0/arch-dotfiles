@@ -19,7 +19,7 @@ Rectangle {
 
   property string label: ""
   property string glyph: ""
-  property color tint: Color.menu.text
+  property color tint: Colors.menu.text
   property bool danger: false
   property bool focusable: false
   property bool hasCursor: false

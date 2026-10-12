@@ -34,6 +34,12 @@ PopupWindow {
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
+  // slides out of the bar edge on open, folds back on close; boot.progress carries the curve and the
+  // power-saver gate. only docked (top/bottom) popups slide; beside-the-bar ones just fade.
+  readonly property real slideDistance: Style.space(14)
+  readonly property real revealSlide: !docked ? 0
+    : (root.bar && root.bar.position === "bottom" ? 1 : -1) * (1 - boot.progress) * slideDistance
+
   function fittedContentWidth(width, cap) {
     var desired = Math.max(1, Number(width) || 1)
     var maxWidth = root.availableCardWidth > 0 ? root.availableCardWidth : desired
@@ -127,6 +133,9 @@ PopupWindow {
     // a bottom bar grows the drawer upward
     y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
     clip: true
+    // slides out of the bar edge and fades in; folds back on close
+    opacity: boot.progress
+    transform: Translate { y: root.revealSlide }
 
     DockShape {
       id: card
@@ -135,7 +144,7 @@ PopupWindow {
       height: root.height
       docked: root.docked
       flipped: root.bar !== null && root.bar.position === "bottom"
-      fillColor: Color.menu.background
+      fillColor: Colors.menu.background
     }
 
     Item {

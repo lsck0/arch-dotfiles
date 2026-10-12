@@ -16,7 +16,7 @@ BarWidget {
 
   readonly property int avatarSize: Style.space(22)
   readonly property int ringWidth: Math.max(1, Style.space(2))
-  readonly property color avatarBacking: Util.alpha(Color.menu.text, 0.12)
+  readonly property color avatarBacking: Util.alpha(Colors.menu.text, 0.12)
 
   property bool inVoice: false
   property string channelName: ""
@@ -136,11 +136,11 @@ BarWidget {
           antialiasing: true
           border.width: root.ringWidth
           border.color: modelData.speaking && !parent.silenced
-            ? Color.semantic.speaking
-            : Util.alpha(Color.menu.text, parent.silenced ? 0.12 : 0.22)
+            ? Colors.semantic.speaking
+            : Util.alpha(Colors.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
           layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
-          layer.effect: Glow { shadowColor: Color.semantic.speaking }
+          layer.effect: Glow { shadowColor: Colors.semantic.speaking }
         }
 
         ClippingRectangle {
@@ -169,7 +169,7 @@ BarWidget {
             anchors.centerIn: parent
             visible: !avatarImage.visible
             text: String(modelData.name || "?").charAt(0).toUpperCase()
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: 0.8
             font.family: Style.font.family
             font.pixelSize: Math.round(root.avatarSize * 0.5)
@@ -189,16 +189,16 @@ BarWidget {
           height: width
           radius: width / 2
           antialiasing: true
-          color: Color.background
+          color: Colors.background
           border.width: root.ringWidth
-          border.color: Util.alpha(Color.urgent, 0.55)
+          border.color: Util.alpha(Colors.urgent, 0.55)
 
           OpticalGlyph {
             anchors.centerIn: parent
             text: (modelData.selfDeaf || modelData.deaf)
               ? "\u{f0581}"    // md-volume_off
               : "\u{f036d}"    // md-microphone_off
-            color: Color.urgent
+            color: Colors.urgent
             fontSize: Math.round(parent.width * 0.72)
           }
         }
@@ -209,7 +209,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       visible: root.participants.length > root.avatarCountMax
       text: "+" + (root.participants.length - root.avatarCountMax)
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
       opacity: Style.emphasis.dim
@@ -262,7 +262,7 @@ BarWidget {
             text: root.guildName
               ? root.guildName + "  ::  " + root.channelName
               : (root.channelName || "Voice call")
-            color: Color.menu.text
+            color: Colors.menu.text
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             elide: Text.ElideRight
@@ -272,7 +272,7 @@ BarWidget {
             horizontalAlignment: Text.AlignRight
             visible: root.speakingCount > 0
             text: root.speakingCount + " SPEAKING"
-            color: Color.semantic.speaking
+            color: Colors.semantic.speaking
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.capitalization: Font.AllUppercase
@@ -293,7 +293,7 @@ BarWidget {
           glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           label: root.selfMute ? "Unmute" : "Mute"
           danger: root.selfMute
-          tint: root.selfMute ? Color.urgent : Color.menu.text
+          tint: root.selfMute ? Colors.urgent : Colors.menu.text
           onActivated: DiscordControl.send("toggleSelfMute")
         }
         ActionButton {
@@ -302,7 +302,7 @@ BarWidget {
           glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           label: root.selfDeaf ? "Undeafen" : "Deafen"
           danger: root.selfDeaf
-          tint: root.selfDeaf ? Color.urgent : Color.menu.text
+          tint: root.selfDeaf ? Colors.urgent : Colors.menu.text
           onActivated: DiscordControl.send("toggleSelfDeaf")
         }
         ActionButton {
@@ -310,7 +310,7 @@ BarWidget {
           glyph: "\u{f03f5}"   // md-phone_hangup
           label: "Leave"
           danger: true
-          tint: Color.urgent
+          tint: Colors.urgent
           onActivated: {
             DiscordControl.send("disconnect")
             if (root.bar) root.bar.closePanel(root.moduleName)
@@ -359,7 +359,7 @@ BarWidget {
               antialiasing: true
               border.width: Math.max(1, Style.space(2))
               border.color: modelData.speaking
-                ? Color.semantic.speaking : Util.alpha(Color.menu.text, 0.18)
+                ? Colors.semantic.speaking : Util.alpha(Colors.menu.text, 0.18)
               Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
             }
           }
@@ -373,7 +373,7 @@ BarWidget {
               width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))
               textFormat: Text.PlainText
               text: modelData.name
-              color: modelData.speaking ? Color.accent : Color.menu.text
+              color: modelData.speaking ? Colors.accent : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
@@ -385,7 +385,7 @@ BarWidget {
               visible: !!modelData.self
               anchors.baseline: nameLabel.baseline
               text: "you"
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.faint
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -401,21 +401,21 @@ BarWidget {
             Text {
               visible: modelData.selfDeaf || modelData.deaf
               text: "\u{f0581}"   // md-volume_off
-              color: modelData.deaf ? Color.urgent : Util.alpha(Color.urgent, 0.75)
+              color: modelData.deaf ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
               visible: modelData.selfMute || modelData.mute
               text: "\u{f036d}"   // md-microphone_off
-              color: modelData.mute ? Color.urgent : Util.alpha(Color.urgent, 0.75)
+              color: modelData.mute ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
               visible: modelData.video
               text: "\u{f0567}"   // md-video
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.dim
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
@@ -423,7 +423,7 @@ BarWidget {
             Text {
               visible: modelData.streaming
               text: "\u{f1483}"   // md-monitor_share
-              color: Color.menu.text
+              color: Colors.menu.text
               opacity: Style.emphasis.dim
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption

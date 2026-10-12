@@ -50,9 +50,9 @@ PanelWindow {
   // glyph widgets must use this, not fontFamily
   readonly property string iconFontFamily: Style.font.iconFamily
   readonly property bool foregroundAnimationEnabled: true
-  readonly property color barForeground: Color.bar.text
-  readonly property color background: Color.bar.background
-  readonly property color urgent: Color.bar.active
+  readonly property color barForeground: Colors.bar.text
+  readonly property color background: Colors.bar.background
+  readonly property color urgent: Colors.bar.active
 
   // quiet: no spectrum, glow or flicker while a fullscreen window hides the bar or power saver is on
   readonly property var hyprMonitor: modelData ? Hyprland.monitorFor(modelData) : null
@@ -193,11 +193,11 @@ PanelWindow {
     anchors.right: parent.right
     anchors.bottom: parent.bottom
     height: Math.max(1, Style.fx.bracketWidth)
-    color: Color.accent
+    color: Colors.accent
     // drawers continue this rule at the same alpha (Ui/DockShape.qml)
     opacity: Style.surface.ruleAlpha
     layer.enabled: Style.fx.glow > 0 && !root.quiet
-    layer.effect: Glow { shadowColor: Color.accent }
+    layer.effect: Glow { shadowColor: Colors.accent }
   }
 
   Scanlines { shown: !root.quiet }
@@ -282,8 +282,8 @@ PanelWindow {
 
     BorderSurface {
       id: tooltipSurface
-      color: Color.tooltip.background
-      borderSpec: Border.flat(Color.tooltip.border, Style.normalBorderWidth)
+      color: Colors.tooltip.background
+      borderSpec: Border.flat(Colors.tooltip.border, Style.normalBorderWidth)
       radius: Style.shape.surface
       leftPadding: Style.spacing.controlPaddingX
       rightPadding: Style.spacing.controlPaddingX
@@ -302,7 +302,7 @@ PanelWindow {
           anchors.baseline: tooltipLabel.baseline
           textFormat: Text.PlainText
           text: ">"
-          color: Color.accent
+          color: Colors.accent
           opacity: Style.emphasis.faint
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -311,7 +311,7 @@ PanelWindow {
           id: tooltipLabel
           textFormat: Text.PlainText
           text: root.tooltipText
-          color: Color.tooltip.text
+          color: Colors.tooltip.text
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
         }

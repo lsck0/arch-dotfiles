@@ -74,7 +74,7 @@ BarWidget {
 
   // meteoalarm's own palette from yellow (level 2) up, not the accent
   function alertColor(level) {
-    return [Color.semantic.warn, Color.semantic.alertOrange, Color.semantic.alertRed][Number(level) - 2] || Color.menu.text
+    return [Colors.semantic.warn, Colors.semantic.alertOrange, Colors.semantic.alertRed][Number(level) - 2] || Colors.menu.text
   }
   function alertLabel(level) { return ["YELLOW", "ORANGE", "RED"][Number(level) - 2] || "MINOR" }
 
@@ -171,11 +171,11 @@ BarWidget {
       visible: root.alertProminent
       textFormat: Text.PlainText
       text: "\u{f0026}"
-      color: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent
+      color: root.topAlert ? root.alertColor(root.topAlert.level) : Colors.urgent
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && root.alertProminent
-      layer.effect: Glow { shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Color.urgent }
+      layer.effect: Glow { shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Colors.urgent }
 
       // static once seen: three blinks when the warning appears, never a loop
       readonly property int flashCount: 3
@@ -196,7 +196,7 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
       text: root.current ? root.iconFor(root.current.code, root.current.isDay) : "\u{f0590}"
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
     }
@@ -205,7 +205,7 @@ BarWidget {
       textFormat: Text.PlainText
       visible: root.current !== null
       text: root.current ? root.t(root.current.temp) : ""
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
       opacity: Style.emphasis.strong
@@ -249,18 +249,18 @@ BarWidget {
         spacing: Style.spacing.xs
         Text {
           text: parent.parent.glyph
-          color: Color.menu.text; opacity: Style.emphasis.faint
+          color: Colors.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
         }
         Text {
           text: parent.parent.caption
-          color: Color.menu.text
+          color: Colors.menu.text
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
       Text {
         text: parent.value
-        color: Color.menu.text
+        color: Colors.menu.text
         font.family: Style.font.family; font.pixelSize: Style.font.body
       }
     }
@@ -338,7 +338,7 @@ BarWidget {
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: modelData.event || modelData.kind || "Weather warning"
-                    color: Color.menu.text
+                    color: Colors.menu.text
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
@@ -357,7 +357,7 @@ BarWidget {
                     if (modelData.certainty) bits.push(String(modelData.certainty).toLowerCase())
                     return bits.join(" :: ")
                   }
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   opacity: Style.emphasis.dim
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
@@ -372,7 +372,7 @@ BarWidget {
             visible: root.countryOthers > 0
             text: root.countryOthers + " more warning" + (root.countryOthers === 1 ? "" : "s")
               + " elsewhere in your country"
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: Style.emphasis.disabled
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -388,7 +388,7 @@ BarWidget {
           Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.current ? root.iconFor(root.current.code, root.current.isDay) : "\u{f0590}"
-            color: Color.accent
+            color: Colors.accent
             font.family: Style.font.iconFamily
             font.pixelSize: Style.font.displayLarge
             layer.enabled: Style.fx.glow > 0
@@ -400,7 +400,7 @@ BarWidget {
             spacing: Style.spacing.xxs
             Text {
               text: root.current ? root.t(root.current.temp) : "--"
-              color: Color.menu.text
+              color: Colors.menu.text
               font.family: Style.font.family; font.pixelSize: Style.font.display
               font.letterSpacing: Style.displayTracking
               layer.enabled: Style.fx.glow > 0
@@ -410,7 +410,7 @@ BarWidget {
               text: root.current
                 ? root.labelFor(root.current.code) + " :: feels " + root.t(root.current.feelsLike)
                 : (root.errorText ? "x ERR " + root.errorText : "--")
-              color: Color.menu.text; opacity: Style.emphasis.dim
+              color: Colors.menu.text; opacity: Style.emphasis.dim
               font.family: Style.font.family; font.pixelSize: Style.font.caption
             }
           }
@@ -449,12 +449,12 @@ BarWidget {
               Text {
                 text: "\u{f0390}"                          // md-navigation
                 rotation: root.current ? Number(root.current.windDir) + 180 : 0
-                color: Color.menu.text; opacity: Style.emphasis.faint
+                color: Colors.menu.text; opacity: Style.emphasis.faint
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
               }
               Text {
                 text: "WIND"
-                color: Color.menu.text
+                color: Colors.menu.text
                 font.family: Style.font.family; font.pixelSize: Style.font.caption
               }
             }
@@ -462,7 +462,7 @@ BarWidget {
               text: root.current
                 ? root.n0(root.current.wind) + " " + root.windUnits + " " + root.compass(root.current.windDir)
                 : "--"
-              color: Color.menu.text
+              color: Colors.menu.text
               font.family: Style.font.family; font.pixelSize: Style.font.body
             }
           }
@@ -488,7 +488,7 @@ BarWidget {
           width: parent.width
           height: Style.space(64)
           visible: root.hourly.length > 0
-          color: Color.menu.text
+          color: Colors.menu.text
           // hourly forecast changes twice an hour at most
           glow: true
           // the 0..1 defaults would push temps off-canvas
@@ -519,7 +519,7 @@ BarWidget {
                     anchors.bottom: parent.bottom
                     width: parent.width
                     height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(modelData.pop) || 0)) / 100)
-                    color: Util.alpha(Color.accent, 0.55)
+                    color: Util.alpha(Colors.accent, 0.55)
                     antialiasing: false
                   }
                 }
@@ -540,12 +540,12 @@ BarWidget {
                 // condition icon over the hour label, at each 6h tick
                 Text {
                   text: (index % 6 === 0) ? (modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)) : ""
-                  color: Color.accent
+                  color: Colors.accent
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
                 }
                 Text {
                   text: index % 6 === 0 ? modelData.h : ""
-                  color: Color.menu.text; opacity: Style.emphasis.faint
+                  color: Colors.menu.text; opacity: Style.emphasis.faint
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                 }
               }
@@ -556,7 +556,7 @@ BarWidget {
         Text {
           visible: root.hourly.length > 0
           text: root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax)
-          color: Color.menu.text; opacity: Style.emphasis.faint
+          color: Colors.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
 
@@ -592,7 +592,7 @@ BarWidget {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   text: modelData.label
-                  color: Color.accent
+                  color: Colors.accent
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                   font.bold: true
                   font.capitalization: Font.AllUppercase
@@ -603,14 +603,14 @@ BarWidget {
                   horizontalAlignment: Text.AlignHCenter
                   // windy is derived, not a wmo code
                   text: modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.heading
                 }
                 Text {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   text: modelData.windy ? "Windy" : root.labelFor(modelData.code)
-                  color: Color.menu.text; opacity: Style.emphasis.dim
+                  color: Colors.menu.text; opacity: Style.emphasis.dim
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                   elide: Text.ElideRight
                 }
@@ -618,7 +618,7 @@ BarWidget {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   text: root.t(modelData.hi) + "  " + root.t(modelData.lo)
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                 }
                 BarGauge {
@@ -631,7 +631,7 @@ BarWidget {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   text: "\u{f0597} " + root.n0(modelData.pop) + "%"
-                  color: Color.menu.text; opacity: Style.emphasis.dim
+                  color: Colors.menu.text; opacity: Style.emphasis.dim
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
                 }
               }
@@ -675,7 +675,7 @@ BarWidget {
             color: "transparent"
             radius: Style.shape.data
             border.width: Style.normalBorderWidth
-            border.color: Util.alpha(Color.accent, Style.hoverBorderAlpha)
+            border.color: Util.alpha(Colors.accent, Style.hoverBorderAlpha)
           }
 
           // one canvas for rings, wind, isobars and compass
@@ -698,7 +698,7 @@ BarWidget {
             HudFrame {}
 
             Connections {
-              target: Color
+              target: Colors
               function onForegroundChanged() { fieldCanvas.requestPaint() }
               function onAccentChanged() { fieldCanvas.requestPaint() }
             }
@@ -746,7 +746,7 @@ BarWidget {
                 var isobarStep = 1.0
                 var firstIsobar = Math.ceil(root.field.pressureMin / isobarStep) * isobarStep
                 ctx.lineWidth = 1
-                ctx.strokeStyle = Color.menu.text
+                ctx.strokeStyle = Colors.menu.text
                 ctx.globalAlpha = 0.42
                 // sub-sampled so isobars curve
                 var sub = 6
@@ -808,8 +808,8 @@ BarWidget {
               var latticeStep = S / density
               var arrowReach = latticeStep * 0.28
 
-              ctx.strokeStyle = Color.accent
-              ctx.fillStyle = Color.accent
+              ctx.strokeStyle = Colors.accent
+              ctx.fillStyle = Colors.accent
               ctx.lineWidth = 1
 
               for (var gy = 0; gy < density; gy++) {
@@ -860,7 +860,7 @@ BarWidget {
                 var rad = S / 2 * (Number(km) / Math.max(1, reachKm))
                 // ctx.arc refuses a non-finite or negative radius
                 if (!isFinite(rad) || rad <= 0) continue
-                ctx.strokeStyle = Color.menu.text
+                ctx.strokeStyle = Colors.menu.text
                 ctx.globalAlpha = r === 0 ? 0.26 : 0.15
                 ctx.lineWidth = 1
                 ctx.beginPath()
@@ -870,11 +870,11 @@ BarWidget {
                 var label = km + " km"
                 var lw = ctx.measureText(label).width
                 ctx.globalAlpha = 1
-                ctx.fillStyle = Color.surface
+                ctx.fillStyle = Colors.surface
                 // tall enough to hide the ring stroke
                 ctx.fillRect(centreX - lw / 2 - 4, centreY - rad - Style.font.caption * 0.80,
                              lw + 8, Style.font.caption * 1.30)
-                ctx.fillStyle = Color.menu.text
+                ctx.fillStyle = Colors.menu.text
                 ctx.globalAlpha = 0.5
                 ctx.fillText(label, centreX, centreY - rad + Style.font.caption * 0.28)
               }
@@ -883,13 +883,13 @@ BarWidget {
               var markerR = Math.max(2, (Number(S) || 0) * 0.006)
               ctx.beginPath()
               ctx.arc(centreX, centreY, markerR + 1.8, 0, Math.PI * 2)
-              ctx.fillStyle = Color.surface
+              ctx.fillStyle = Colors.surface
               ctx.globalAlpha = 0.9
               ctx.fill()
               ctx.globalAlpha = 1
               ctx.beginPath()
               ctx.arc(centreX, centreY, markerR, 0, Math.PI * 2)
-              ctx.fillStyle = Color.accent
+              ctx.fillStyle = Colors.accent
               ctx.fill()
 
               // compass
@@ -899,11 +899,11 @@ BarWidget {
 
               ctx.beginPath()
               ctx.arc(cxc, cyc, rr + Style.space(3), 0, Math.PI * 2)
-              ctx.fillStyle = Color.surface
+              ctx.fillStyle = Colors.surface
               ctx.globalAlpha = 0.85
               ctx.fill()
 
-              ctx.strokeStyle = Color.menu.text
+              ctx.strokeStyle = Colors.menu.text
               ctx.lineWidth = 1
               ctx.globalAlpha = 0.28
               ctx.beginPath()
@@ -921,7 +921,7 @@ BarWidget {
               }
 
               ctx.globalAlpha = 0.9
-              ctx.fillStyle = Color.accent
+              ctx.fillStyle = Colors.accent
               ctx.beginPath()
               ctx.moveTo(cxc, cyc - rr * 0.6)
               ctx.lineTo(cxc - rr * 0.19, cyc + rr * 0.15)
@@ -932,7 +932,7 @@ BarWidget {
               // quoted, canvas drops unquoted families with spaces
               ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
               ctx.textAlign = "center"
-              ctx.fillStyle = Color.menu.text
+              ctx.fillStyle = Colors.menu.text
               ctx.globalAlpha = 0.6
               ctx.fillText("N", cxc, cyc - rr - Style.space(4))
               ctx.globalAlpha = 1
@@ -979,7 +979,7 @@ BarWidget {
               if (root.radarFrame.forecast) return "+" + Math.abs(m) + "m forecast"
               return m === 0 ? "now" : Util.ago(-m)
             }
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: root.radarFrame && root.radarFrame.forecast ? 0.85 : 0.6
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -990,7 +990,7 @@ BarWidget {
           width: parent.width
           visible: root.radarFrames.length === 0
           text: radarProc.running ? "Loading radar..." : "Radar unavailable"
-          color: Color.menu.text
+          color: Colors.menu.text
           opacity: Style.emphasis.disabled
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -1001,7 +1001,7 @@ BarWidget {
           visible: root.field.pressureMax > 0
           horizontalAlignment: Text.AlignRight
           text: Number(root.field.pressureMin).toFixed(0) + ".." + Number(root.field.pressureMax).toFixed(0) + " " + root.field.pressureUnits
-          color: Color.menu.text
+          color: Colors.menu.text
           opacity: Style.emphasis.faint
           font.family: Style.font.family
           font.pixelSize: Style.font.caption

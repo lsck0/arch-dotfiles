@@ -20,15 +20,15 @@ import qs.Commons
  * Content insets: sideInset (neck) + strokeWidth + padding left and right.
  *
  * Usage:
- *   DockShape { anchors.fill: parent; docked: true; fillColor: Color.menu.background }
+ *   DockShape { anchors.fill: parent; docked: true; fillColor: Colors.menu.background }
  */
 Item {
   id: root
 
   property bool docked: false
   property bool flipped: false
-  property color fillColor: Color.menu.background
-  property color strokeColor: Util.alpha(Color.accent, Style.surface.ruleAlpha)
+  property color fillColor: Colors.menu.background
+  property color strokeColor: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
   // docked it matches the bar rule it continues
   property real strokeWidth: docked ? Math.max(1, Style.fx.bracketWidth) : Style.surface.borderWidth
   property real chamfer: Style.shape.chamfer

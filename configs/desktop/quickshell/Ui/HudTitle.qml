@@ -27,7 +27,7 @@ Item {
   property bool decor: false
   property bool rule: false
   property bool blinking: true
-  property color color: Color.accent
+  property color color: Colors.accent
   property int size: Style.font.caption
   property int typed: -1
 
@@ -55,7 +55,7 @@ Item {
       layer.effect: Glow {}
     }
     BlinkCaret { anchors.verticalCenter: parent.verticalCenter; color: root.color; size: root.size; running: root.blinking }
-    Part { visible: root.suffix !== ""; text: root.suffix; color: Color.menu.text; opacity: Style.emphasis.faint }
+    Part { visible: root.suffix !== ""; text: root.suffix; color: Colors.menu.text; opacity: Style.emphasis.faint }
   }
 
   Part {

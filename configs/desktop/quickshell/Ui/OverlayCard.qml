@@ -81,7 +81,7 @@ PanelWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: Color.scrim
+    color: Colors.scrim
     opacity: boot.progress
   }
 
@@ -103,7 +103,7 @@ PanelWindow {
 
     DockShape {
       anchors.fill: parent
-      fillColor: Color.overlayFill
+      fillColor: Colors.overlayFill
     }
 
     Column {
@@ -143,7 +143,7 @@ PanelWindow {
             id: promptGlyph
             textFormat: Text.PlainText
             text: ">"
-            color: Color.accent
+            color: Colors.accent
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
             font.bold: true
@@ -154,7 +154,7 @@ PanelWindow {
             // hug the text so the caret follows it
             width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
             text: root.query || root.placeholder
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: root.query ? 1 : Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.heading
@@ -169,7 +169,7 @@ PanelWindow {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           height: Style.spacing.xxs
-          color: Util.alpha(Color.accent, Style.surface.ruleAlpha)
+          color: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
         }
       }
 

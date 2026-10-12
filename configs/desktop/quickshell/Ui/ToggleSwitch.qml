@@ -14,8 +14,8 @@ Item {
 
   property bool cursorRing: interactive
   property int cursorPad: Style.spacing.xs
-  property color foreground: Color.foreground
-  property color accent: Color.accent
+  property color foreground: Colors.foreground
+  property color accent: Colors.accent
 
   signal hovered(bool isHovered)
 

@@ -12,9 +12,9 @@ Item {
   property real step: 0.05
   property bool integer: false
   // Bar exposes barForeground, not foreground
-  property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Color.accent) : Style.selectedFill
-  property color fillColor: bar ? bar.barForeground : Color.foreground
-  property color knobColor: bar ? bar.barForeground : Color.foreground
+  property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Colors.accent) : Style.selectedFill
+  property color fillColor: bar ? bar.barForeground : Colors.foreground
+  property color knobColor: bar ? bar.barForeground : Colors.foreground
   property bool dragging: false
   property real trackHeight: Style.spacing.xxs
   property real knobSize: Style.spacing.lg

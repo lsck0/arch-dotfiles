@@ -15,7 +15,7 @@ BarWidget {
   property bool trayMenuOpen: false
   property var activeTrayItem: null
   property var activeTrayAnchor: null
-  readonly property color foreground: bar ? bar.barForeground : Color.foreground
+  readonly property color foreground: bar ? bar.barForeground : Colors.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property var pinnedIds: settings.pinned instanceof Array ? settings.pinned : []
   readonly property var hiddenIds: settings.hidden instanceof Array ? settings.hidden : []
@@ -323,7 +323,7 @@ BarWidget {
 
       Text {
         text: "Tray icons"
-        color: Color.accent
+        color: Colors.accent
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: true
@@ -523,7 +523,7 @@ BarWidget {
             anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
             height: 1
-            color: Color.popups.border
+            color: Colors.popups.border
             opacity: Style.emphasis.faint
           }
         }
@@ -576,7 +576,7 @@ BarWidget {
                 anchors.rightMargin: Style.spacing.md
                 anchors.verticalCenter: parent.verticalCenter
                 height: 1
-                color: Color.popups.border
+                color: Colors.popups.border
                 opacity: Style.emphasis.faint
               }
 

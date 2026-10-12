@@ -29,10 +29,10 @@ Rectangle {
   radius: Style.shape.data
   opacity: enabled ? 1 : Style.emphasis.disabled
 
-  readonly property color _text: on ? Color.menu.selectedText : Color.menu.text
+  readonly property color _text: on ? Colors.menu.selectedText : Colors.menu.text
 
-  color: on ? Color.menu.selectedBackground
-    : activeFocus ? Style.focusFillFor(Color.foreground, Color.accent)
+  color: on ? Colors.menu.selectedBackground
+    : activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
     : mouse.containsMouse && enabled ? Style.hoverFill
     : filled ? Style.normalFill
     : "transparent"
@@ -98,7 +98,7 @@ Rectangle {
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
     text: root.trailing
-    color: Color.menu.text
+    color: Colors.menu.text
     opacity: root.on ? 1 : Style.emphasis.faint
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
@@ -120,7 +120,7 @@ Rectangle {
     anchors.verticalCenter: parent.verticalCenter
     textFormat: Text.PlainText
     text: ">"
-    color: Color.accent
+    color: Colors.accent
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
   }

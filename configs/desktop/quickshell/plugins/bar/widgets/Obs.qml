@@ -52,8 +52,8 @@ BarWidget {
   property var dropHist: []
 
   readonly property color stateColor: (degraded || faulted)
-    ? Color.semantic.warn
-    : (streaming ? Color.semantic.live : (recording ? Color.semantic.recording : Color.muted))
+    ? Colors.semantic.warn
+    : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
   readonly property bool degraded: streamReconnecting || dropPct >= 1.0 || congestion >= 0.3
 
   // obs runs but the helper cannot reach it
@@ -239,7 +239,7 @@ BarWidget {
       }
       color: root.active || root.faulted
         ? root.stateColor
-        : (root.bar ? root.bar.barForeground : Color.foreground)
+        : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
       font.bold: root.active
@@ -253,7 +253,7 @@ BarWidget {
       textFormat: Text.PlainText
       visible: root.active
       text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-      color: root.bar ? root.bar.barForeground : Color.foreground
+      color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.bodySmall
       opacity: Style.emphasis.dim
@@ -295,7 +295,7 @@ BarWidget {
           value: String(root.streaming ? Math.round(root.bitrateKbps)
             : (root.recording ? Math.round(root.recordKbps) : root.fps.toFixed(0)))
           unit: root.active ? "kbps" : "fps"
-          color: root.active ? root.stateColor : Color.accent
+          color: root.active ? root.stateColor : Colors.accent
           live: true
         }
         Column {
@@ -311,7 +311,7 @@ BarWidget {
                 : (root.streaming && root.recording ? "LIVE + REC"
                 : (root.streaming ? "LIVE"
                 : (root.recording ? (root.recordPaused ? "REC PAUSED" : "REC") : "IDLE")))
-            color: root.active ? root.stateColor : Color.menu.text
+            color: root.active ? root.stateColor : Colors.menu.text
             opacity: root.active ? 1 : Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -324,7 +324,7 @@ BarWidget {
             horizontalAlignment: Text.AlignRight
             visible: root.active
             text: root.clock(root.streaming ? root.streamSeconds : root.recordSeconds)
-            color: Color.menu.text
+            color: Colors.menu.text
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -340,7 +340,7 @@ BarWidget {
         values: root.bitrateHist
         minValue: 0
         maxValue: 0
-        color: root.active ? root.stateColor : Color.accent
+        color: root.active ? root.stateColor : Colors.accent
       }
 
       Rectangle {
@@ -348,7 +348,7 @@ BarWidget {
         height: faultText.implicitHeight + Style.spacing.xs * 2
         radius: Style.shape.data
         visible: root.errorText !== ""
-        color: Util.alpha(Color.semantic.warn, 0.16)
+        color: Util.alpha(Colors.semantic.warn, 0.16)
 
         Text {
           id: faultText
@@ -360,7 +360,7 @@ BarWidget {
           wrapMode: Text.Wrap
           textFormat: Text.PlainText
           text: root.errorText
-          color: Color.semantic.warn
+          color: Colors.semantic.warn
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -375,7 +375,7 @@ BarWidget {
           width: (parent.width - Style.spacing.xs * 2) / 3
           glyph: root.streaming ? "\u{f1721}" : "\u{f1720}"   // md-broadcast_off / md-broadcast
           label: root.streaming ? "Stop" : "Go live"
-          tint: root.streaming ? Color.semantic.live : Color.menu.text
+          tint: root.streaming ? Colors.semantic.live : Colors.menu.text
           danger: root.streaming
           onActivated: root.send({ cmd: "toggleStream" })
         }
@@ -384,7 +384,7 @@ BarWidget {
           width: (parent.width - Style.spacing.xs * 2) / 3
           glyph: root.recording ? "\u{f04db}" : "\u{f044a}"   // md-stop / md-record
           label: root.recording ? "Stop rec" : "Record"
-          tint: root.recording ? Color.semantic.live : Color.menu.text
+          tint: root.recording ? Colors.semantic.live : Colors.menu.text
           danger: root.recording
           onActivated: root.send({ cmd: "toggleRecord" })
         }
@@ -395,7 +395,7 @@ BarWidget {
           enabled: root.recording
           glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}"   // md-play / md-pause
           label: root.recordPaused ? "Resume" : "Pause"
-          tint: root.recordPaused ? Color.semantic.recording : Color.menu.text
+          tint: root.recordPaused ? Colors.semantic.recording : Colors.menu.text
           onActivated: if (root.recording) root.send({ cmd: "toggleRecordPause" })
         }
       }
@@ -425,7 +425,7 @@ BarWidget {
         width: parent.width
         visible: root.connected && root.scenes.length === 0
         text: "No scenes reported"
-        color: Color.menu.text
+        color: Colors.menu.text
         opacity: Style.emphasis.disabled
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
@@ -468,8 +468,8 @@ BarWidget {
         label: "State"
         value: root.streamReconnecting ? "Reconnecting"
              : (root.streaming ? "Live" : "Stopped")
-        valueColor: root.streamReconnecting ? Color.semantic.warn
-                  : (root.streaming ? Color.semantic.live : Color.menu.text)
+        valueColor: root.streamReconnecting ? Colors.semantic.warn
+                  : (root.streaming ? Colors.semantic.live : Colors.menu.text)
         dim: !root.streaming && !root.streamReconnecting
       }
       StatRow { visible: root.streaming; label: "Elapsed"; value: root.clock(root.streamSeconds) }
@@ -479,13 +479,13 @@ BarWidget {
         visible: root.streaming
         label: "Dropped frames"
         value: root.droppedFrames + "  (" + root.dropPct.toFixed(2) + "%)"
-        valueColor: root.dropPct >= 1.0 ? Color.semantic.warn : Color.menu.text
+        valueColor: root.dropPct >= 1.0 ? Colors.semantic.warn : Colors.menu.text
       }
       StatRow {
         visible: root.streaming
         label: "Congestion"
         value: Math.round(root.congestion * 100) + "%"
-        valueColor: root.congestion >= 0.3 ? Color.semantic.warn : Color.menu.text
+        valueColor: root.congestion >= 0.3 ? Colors.semantic.warn : Colors.menu.text
       }
       BarGauge {
         width: parent.width
@@ -493,7 +493,7 @@ BarWidget {
         visible: root.streaming
         segments: 24
         value: Math.max(0, Math.min(1, root.congestion))
-        color: root.congestion >= 0.3 ? Color.semantic.warn : Color.accent
+        color: root.congestion >= 0.3 ? Colors.semantic.warn : Colors.accent
       }
       Sparkline {
         width: parent.width
@@ -502,7 +502,7 @@ BarWidget {
         values: root.dropHist
         minValue: 0
         maxValue: 0
-        color: Color.semantic.warn
+        color: Colors.semantic.warn
       }
 
       PanelSeparator {}
@@ -511,7 +511,7 @@ BarWidget {
       StatRow {
         label: "State"
         value: root.recordPaused ? "Paused" : (root.recording ? "Recording" : "Stopped")
-        valueColor: root.recording ? Color.semantic.recording : Color.menu.text
+        valueColor: root.recording ? Colors.semantic.recording : Colors.menu.text
         dim: !root.recording
       }
       StatRow { visible: root.recording; label: "Elapsed"; value: root.clock(root.recordSeconds) }
@@ -523,8 +523,8 @@ BarWidget {
         visible: root.recording && root.diskSecondsLeft > 0
         label: "Disk headroom"
         value: root.clock(root.diskSecondsLeft) + " at this rate"
-        valueColor: root.diskSecondsLeft < 600 ? Color.semantic.live
-                  : (root.diskSecondsLeft < 3600 ? Color.semantic.warn : Color.menu.text)
+        valueColor: root.diskSecondsLeft < 600 ? Colors.semantic.live
+                  : (root.diskSecondsLeft < 3600 ? Colors.semantic.warn : Colors.menu.text)
       }
 
       PanelSeparator {}
@@ -534,13 +534,13 @@ BarWidget {
         label: "Rendering"
         value: root.renderSkipped + " / " + root.renderTotal
         valueColor: root.renderTotal > 0 && root.renderSkipped / root.renderTotal >= 0.01
-          ? Color.semantic.warn : Color.menu.text
+          ? Colors.semantic.warn : Colors.menu.text
       }
       StatRow {
         label: "Encoding"
         value: root.encoderSkipped + " / " + root.encoderTotal
         valueColor: root.encoderTotal > 0 && root.encoderSkipped / root.encoderTotal >= 0.01
-          ? Color.semantic.warn : Color.menu.text
+          ? Colors.semantic.warn : Colors.menu.text
       }
 
     }

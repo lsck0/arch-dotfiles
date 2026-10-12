@@ -21,11 +21,11 @@ Item {
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
-  property color background: Color.menu.background
-  property color foreground: Color.menu.text
-  property color scrim: Color.menu.scrim
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
+  property color background: Colors.menu.background
+  property color foreground: Colors.menu.text
+  property color scrim: Colors.menu.scrim
+  property color selectedBackground: Colors.menu.selectedBackground
+  property color selectedText: Colors.menu.selectedText
   readonly property int cornerRadius: Style.shape.surface
   property string fontFamily: Style.font.family
   property int contentMargin: Style.spacing.panelPadding
@@ -528,7 +528,7 @@ Item {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             width: Style.normalBorderWidth
-            color: Util.alpha(Color.menu.border, 0.28)
+            color: Util.alpha(Colors.menu.border, 0.28)
           }
 
           PanelSectionHeader {

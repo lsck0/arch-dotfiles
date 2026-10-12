@@ -8,7 +8,7 @@ Item {
   property string text: ""
   property string fontFamily: Style.font.iconFamily
   property real fontSize: Style.font.body
-  property color color: Color.foreground
+  property color color: Colors.foreground
 
   readonly property int renderedFontSize: Math.max(1, Math.round(fontSize))
   readonly property real tightWidth: Math.max(1, glyphMetrics.tightBoundingRect.width)

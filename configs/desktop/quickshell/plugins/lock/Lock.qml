@@ -172,7 +172,7 @@ Item {
     // projection and the auth hud on every screen: hyprland gives the keyboard to the surface under the cursor
     WlSessionLockSurface {
       id: surface
-      color: Color.background
+      color: Colors.background
 
       readonly property bool isPrimary:
         root.primaryScreenName === "" || (screen && String(screen.name) === root.primaryScreenName)
@@ -204,8 +204,8 @@ Item {
         Rectangle {
           anchors.fill: parent
           gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.7) }
-            GradientStop { position: 1.0; color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22) }
+            GradientStop { position: 0.0; color: Qt.rgba(Colors.background.r, Colors.background.g, Colors.background.b, 0.7) }
+            GradientStop { position: 1.0; color: Qt.rgba(Colors.accent.r, Colors.accent.g, Colors.accent.b, 0.22) }
           }
         }
 
@@ -233,7 +233,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             textFormat: Text.PlainText
             text: root.dateText
-            color: Color.foreground
+            color: Colors.foreground
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.title
@@ -248,7 +248,7 @@ Item {
             elide: Text.ElideRight
             textFormat: Text.PlainText
             text: root.mediaText
-            color: Color.accent
+            color: Colors.accent
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.body
@@ -258,10 +258,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: Style.space(320)
             height: Style.space(46)
-            color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.55)
+            color: Qt.rgba(Colors.background.r, Colors.background.g, Colors.background.b, 0.55)
             border.width: root.authError ? 2 : 1
-            border.color: root.authError ? Color.urgent
-              : (pwField.activeFocus ? Color.accent : Style.normalBorderColor)
+            border.color: root.authError ? Colors.urgent
+              : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
             radius: Style.shape.data
             // hidden until typing starts; keeps focus, so the first key still lands in the field
             opacity: (pwField.text.length > 0 || root.authError || pamPw.active) ? 1 : 0
@@ -284,7 +284,7 @@ Item {
               horizontalAlignment: TextInput.AlignHCenter
               verticalAlignment: TextInput.AlignVCenter
               placeholderText: root.authError ? "  ACCESS DENIED" : "> AUTH REQUIRED"
-              placeholderTextColor: root.authError ? Color.urgent : Qt.darker(Color.foreground, 1.6)
+              placeholderTextColor: root.authError ? Colors.urgent : Qt.darker(Colors.foreground, 1.6)
               background: null
               onTextEdited: { root.authError = false; projection.ripple() }
               onAccepted: { root.activeField = pwField; root.submit() }
@@ -307,7 +307,7 @@ Item {
                 elide: Text.ElideLeft
                 textFormat: Text.PlainText
                 text: "*".repeat(pwField.text.length)
-                color: Color.foreground
+                color: Colors.foreground
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
                 font.letterSpacing: Style.headerTracking * 0.5
@@ -330,7 +330,7 @@ Item {
           visible: surface.isPrimary
           textFormat: Text.PlainText
           text: root.statsText
-          color: Color.foreground
+          color: Colors.foreground
           opacity: Style.emphasis.faint
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -358,7 +358,7 @@ Item {
               anchors.right: parent.right
               textFormat: Text.PlainText
               text: (modelData.app || "--") + " :: " + Qt.formatDateTime(new Date(modelData.timestamp), "HH:mm")
-              color: Color.foreground
+              color: Colors.foreground
               opacity: Style.emphasis.dim
               font.family: Style.font.family
               font.pixelSize: Style.font.caption

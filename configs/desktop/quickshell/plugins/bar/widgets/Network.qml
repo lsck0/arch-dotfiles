@@ -307,8 +307,8 @@ BarWidget {
       textFormat: Text.PlainText
       text: root.statusIcon
       color: (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
-        ? Color.accent
-        : (root.bar ? root.bar.barForeground : Color.foreground)
+        ? Colors.accent
+        : (root.bar ? root.bar.barForeground : Colors.foreground)
       font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
       font.pixelSize: Style.font.icon
       layer.enabled: Style.fx.glow > 0 && (root.homeVpnState === "on" || root.protonVpnState === "on" || root.torState === "on")
@@ -359,7 +359,7 @@ BarWidget {
         StatRow {
           label: "Status"
           value: root.connectivityLabel + (root.onEthernet ? " :: LAN" : " :: Wi-Fi")
-          valueColor: root.reallyOnline ? Color.menu.text : Color.menu.selectedText
+          valueColor: root.reallyOnline ? Colors.menu.text : Colors.menu.selectedText
         }
         StatRow {
           label: "Device"
@@ -387,10 +387,10 @@ BarWidget {
         }
 
         StatRow { label: "rx"; value: root.fmtSpeed(root.detailsRxKbps) }
-        Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Color.accent }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.rxHist; minValue: 0; maxValue: 0; color: Colors.accent }
 
         StatRow { label: "tx"; value: root.fmtSpeed(root.detailsTxKbps) }
-        Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; minValue: 0; maxValue: 0; color: Color.menu.text }
+        Sparkline { width: parent.width; height: Style.space(30); values: root.txHist; minValue: 0; maxValue: 0; color: Colors.menu.text }
       }
 
       PanelSeparator {
@@ -414,7 +414,7 @@ BarWidget {
               width: parent.width
               height: Style.row.list
               radius: Style.shape.data
-              color: modelData.active ? Color.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
+              color: modelData.active ? Colors.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
 
               Text {
                 id: netIcon
@@ -422,7 +422,7 @@ BarWidget {
                 anchors.leftMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.active ? "*" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
-                color: modelData.active ? Color.menu.selectedText : Color.menu.text
+                color: modelData.active ? Colors.menu.selectedText : Colors.menu.text
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.iconFamily
                 layer.enabled: Style.fx.glow > 0 && modelData.active
@@ -435,7 +435,7 @@ BarWidget {
                 anchors.rightMargin: Style.spacing.xs
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.ssid
-                color: modelData.active ? Color.menu.selectedText : Color.menu.text
+                color: modelData.active ? Colors.menu.selectedText : Colors.menu.text
                 font.pixelSize: Style.font.body
                 font.family: Style.font.family
                 elide: Text.ElideRight
@@ -446,7 +446,7 @@ BarWidget {
                 anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
                 text: modelData.signal + "%"
-                color: Color.menu.text
+                color: Colors.menu.text
                 opacity: modelData.active ? 1 : Style.emphasis.faint
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.family
@@ -480,7 +480,7 @@ BarWidget {
                 radius: Style.shape.data
                 color: Style.normalFill
                 border.width: pwInput.activeFocus ? 1 : 0
-                border.color: Color.accent
+                border.color: Colors.accent
 
                 TextInput {
                   id: pwInput
@@ -491,7 +491,7 @@ BarWidget {
                   anchors.rightMargin: Style.spacing.xs
                   verticalAlignment: TextInput.AlignVCenter
                   echoMode: TextInput.Password
-                  color: Color.menu.text
+                  color: Colors.menu.text
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
                   onAccepted: { root.connectTo(modelData.ssid, text); netRow.pendingConnect = false }
@@ -502,11 +502,11 @@ BarWidget {
                 width: Style.space(70)
                 height: Style.row.control
                 radius: Style.shape.data
-                color: Style.selectedFillFor(Color.menu.text, Color.accent)
+                color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
                 Text {
                   anchors.centerIn: parent
                   text: root.connectingSsid === modelData.ssid ? "..." : "Connect"
-                  color: Color.accent
+                  color: Colors.accent
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
                 }
@@ -523,7 +523,7 @@ BarWidget {
         Text {
           visible: root.wifiNetworks.length === 0 || wifiScanProc.running
           text: wifiScanProc.running ? "> SCANNING" : "> NOTHING HERE"
-          color: Color.menu.text
+          color: Colors.menu.text
           opacity: Style.emphasis.faint
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
@@ -534,7 +534,7 @@ BarWidget {
           width: content.width
           wrapMode: Text.Wrap
           text: root.connectError
-          color: Color.urgent
+          color: Colors.urgent
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }

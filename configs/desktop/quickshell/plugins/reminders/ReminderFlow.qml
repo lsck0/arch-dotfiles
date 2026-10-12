@@ -151,7 +151,7 @@ Item {
           visible: root.reminders.length === 0
           textFormat: Text.PlainText
           text: "> NOTHING HERE"
-          color: Color.menu.text
+          color: Colors.menu.text
           opacity: Style.emphasis.faint
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -180,7 +180,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: "\u{f009c}" // md-bell_outline
-              color: Color.accent
+              color: Colors.accent
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.icon
             }
@@ -192,7 +192,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
               text: reminderRow.modelData.label || ""
-              color: Color.menu.text
+              color: Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
@@ -206,14 +206,14 @@ Item {
               Text {
                 textFormat: Text.PlainText
                 text: "in " + (reminderRow.modelData.remaining || "")
-                color: Color.menu.text
+                color: Colors.menu.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
               }
               Text {
                 textFormat: Text.PlainText
                 text: reminderRow.modelData.atTime || ""
-                color: Color.menu.text
+                color: Colors.menu.text
                 opacity: Style.emphasis.faint
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
@@ -225,7 +225,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               iconText: "\u{f0156}" // md-close
               tooltipText: "Cancel reminder"
-              foreground: Color.menu.text
+              foreground: Colors.menu.text
               onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
             }
           }
@@ -257,9 +257,9 @@ Item {
                 width: Style.space(8)
                 height: width
                 radius: Style.shape.data
-                color: index < done ? Color.accent : "transparent"
+                color: index < done ? Colors.accent : "transparent"
                 border.width: Math.max(1, Style.space(1))
-                border.color: index < done || (index === done && root.pomo.phase === "work") ? Color.accent : Color.menu.text
+                border.color: index < done || (index === done && root.pomo.phase === "work") ? Colors.accent : Colors.menu.text
                 opacity: index < done || (index === done && root.pomo.phase === "work") ? 1 : Style.emphasis.faint
               }
             }
@@ -277,13 +277,13 @@ Item {
             anchors.top: parent.top
             textFormat: Text.PlainText
             text: root.pomo.remaining || "0:00"
-            color: Color.menu.text
+            color: Colors.menu.text
             font.family: Style.font.family
             font.pixelSize: Style.font.display
             font.bold: true
             // ticks every second: outline, never a MultiEffect
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-            styleColor: Util.alpha(Color.accent, 0.35)
+            styleColor: Util.alpha(Colors.accent, 0.35)
           }
           Text {
             id: pomoPhase
@@ -291,7 +291,7 @@ Item {
             anchors.top: pomoTime.bottom
             textFormat: Text.PlainText
             text: root.phaseLabel() + (root.pomo.cycle > 0 ? " :: pomodoro " + root.pomo.cycle : "")
-            color: root.pomo.paused ? Color.menu.text : Color.accent
+            color: root.pomo.paused ? Colors.menu.text : Colors.accent
             font.family: Style.font.family
             font.pixelSize: Style.font.body
           }
@@ -304,21 +304,21 @@ Item {
             PanelActionButton {
               iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
               tooltipText: root.pomo.paused ? "Resume" : "Pause"
-              foreground: Color.menu.text
+              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "toggle"])
             }
             PanelActionButton {
               iconText: "\u{f04ad}" // md-skip_next
               tooltipText: "Skip to next phase"
-              foreground: Color.menu.text
+              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "skip"])
             }
             PanelActionButton {
               iconText: "\u{f04db}" // md-stop
               tooltipText: "Stop"
-              foreground: Color.menu.text
+              foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "stop"])
             }
@@ -332,7 +332,7 @@ Item {
           segments: 32
           value: root.pomo.totalSeconds > 0
             ? Math.max(0, Math.min(1, 1 - root.pomo.remainingSeconds / root.pomo.totalSeconds)) : 0
-          color: root.pomo.paused ? Color.menu.text : Color.accent
+          color: root.pomo.paused ? Colors.menu.text : Colors.accent
         }
 
         PanelRow {

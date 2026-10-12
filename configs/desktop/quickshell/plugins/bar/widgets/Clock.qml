@@ -121,7 +121,7 @@ BarWidget {
     anchors.centerIn: parent
     textFormat: Text.PlainText
     text: Qt.formatDateTime(root.now, "ddd dd.MM. HH:mm")
-    color: root.bar ? root.bar.barForeground : Color.foreground
+    color: root.bar ? root.bar.barForeground : Colors.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
     font.letterSpacing: Style.displayTracking
@@ -156,14 +156,14 @@ BarWidget {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
         text: Qt.formatDateTime(root.nowPrecise, "HH:mm:ss.zzz") + " " + Qt.formatDateTime(root.nowPrecise, "t")
-        color: Color.accent
+        color: Colors.accent
         font.family: Style.font.family
         font.bold: true
         font.pixelSize: Style.font.display
         font.letterSpacing: Style.displayTracking
         // an outline, not a glow layer: this text repaints every tick
         style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-        styleColor: Util.alpha(Color.accent, 0.35)
+        styleColor: Util.alpha(Colors.accent, 0.35)
       }
 
       PanelSectionHeader { text: "CALENDAR" + root.dayLabel() }
@@ -184,7 +184,7 @@ BarWidget {
             anchors.horizontalCenter: parent.horizontalCenter
             textFormat: Text.PlainText
             text: root.monthLabel().toUpperCase()
-            color: Color.accent
+            color: Colors.accent
             opacity: 0.8
             font.pixelSize: Style.font.caption
             font.family: Style.font.family
@@ -200,7 +200,7 @@ BarWidget {
                 width: content.width / 7
                 horizontalAlignment: Text.AlignHCenter
                 text: modelData
-                color: Color.menu.text
+                color: Colors.menu.text
                 opacity: Style.emphasis.faint
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.family
@@ -220,11 +220,11 @@ BarWidget {
                   width: content.width / 7
                   height: Style.space(24)
                   radius: Style.shape.data
-                  color: modelData && modelData.isToday ? Style.selectedFillFor(Color.menu.text, Color.accent) : "transparent"
+                  color: modelData && modelData.isToday ? Style.selectedFillFor(Colors.menu.text, Colors.accent) : "transparent"
                   Text {
                     anchors.centerIn: parent
                     text: modelData ? modelData.day : ""
-                    color: modelData && modelData.isToday ? Color.accent : Color.menu.text
+                    color: modelData && modelData.isToday ? Colors.accent : Colors.menu.text
                     font.bold: modelData && modelData.isToday
                     font.pixelSize: Style.font.caption
                     font.family: Style.font.family
@@ -252,7 +252,7 @@ BarWidget {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: ">"
-            color: Color.accent
+            color: Colors.accent
             opacity: Style.emphasis.dim
             font.pixelSize: Style.font.body
             font.family: Style.font.family
@@ -264,7 +264,7 @@ BarWidget {
             anchors.rightMargin: Style.spacing.xs
             anchors.verticalCenter: parent.verticalCenter
             text: modelData.zone
-            color: Color.menu.text
+            color: Colors.menu.text
             font.pixelSize: Style.font.body
             font.family: Style.font.family
             font.capitalization: Font.AllUppercase
@@ -278,7 +278,7 @@ BarWidget {
             width: parent.width * 0.32
             horizontalAlignment: Text.AlignRight
             text: root.timeInZone(modelData.offsetSec)
-            color: Color.accent
+            color: Colors.accent
             font.pixelSize: Style.font.body
             font.family: Style.font.family
             font.letterSpacing: Style.displayTracking
@@ -297,7 +297,7 @@ BarWidget {
         minimum: -24
         maximum: 24
         step: 0.5
-        fillColor: Color.accent
+        fillColor: Colors.accent
         onMoved: function(v) { root.travelHours = v }
       }
 
@@ -306,11 +306,11 @@ BarWidget {
         width: parent.width
         height: Style.space(24)
         radius: Style.shape.data
-        color: Style.selectedFillFor(Color.menu.text, Color.accent)
+        color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
         Text {
           anchors.centerIn: parent
           text: "Reset to now"
-          color: Color.accent
+          color: Colors.accent
           font.pixelSize: Style.font.caption
           font.family: Style.font.family
         }

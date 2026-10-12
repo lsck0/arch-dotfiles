@@ -115,8 +115,8 @@ Item {
 
             width: stack.width
             implicitHeight: inner.implicitHeight + card.contentTopInset + card.contentBottomInset
-            color: Color.menu.background
-            borderSpec: Border.flat(Color.accent, Style.selectedBorderWidth)
+            color: Colors.menu.background
+            borderSpec: Border.flat(Colors.accent, Style.selectedBorderWidth)
             radius: Style.shape.surface
             padding: Style.surface.padding
 
@@ -156,11 +156,11 @@ Item {
                   width: Style.space(48)
                   height: width
                   radius: Style.shape.data
-                  color: Style.selectedFillFor(Color.menu.text, Color.accent)
+                  color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
                   Text {
                     anchors.centerIn: parent
                     text: card.modelData.glyph
-                    color: Color.accent
+                    color: Colors.accent
                     font.family: Style.font.iconFamily
                     font.pixelSize: Style.font.display
                     layer.enabled: Style.fx.glow > 0
@@ -181,7 +181,7 @@ Item {
                     width: parent.width
                     textFormat: Text.PlainText
                     text: card.modelData.title
-                    color: Color.menu.text
+                    color: Colors.menu.text
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.heading
                     font.bold: true
@@ -192,7 +192,7 @@ Item {
                     visible: card.modelData.body !== ""
                     textFormat: Text.PlainText
                     text: card.modelData.body
-                    color: Color.menu.text
+                    color: Colors.menu.text
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
                     wrapMode: Text.WordWrap
@@ -200,7 +200,7 @@ Item {
                   Text {
                     textFormat: Text.PlainText
                     text: card.modelData.at
-                    color: Color.menu.text
+                    color: Colors.menu.text
                     opacity: Style.emphasis.faint
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
@@ -213,7 +213,7 @@ Item {
                   anchors.top: parent.top
                   iconText: "\u{f0156}" // md-close
                   tooltipText: "Dismiss"
-                  foreground: Color.menu.text
+                  foreground: Colors.menu.text
                   onClicked: root.dismissAt(card.index)
                 }
               }
