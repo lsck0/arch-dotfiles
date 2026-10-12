@@ -100,7 +100,8 @@ Item {
     }
   }
 
-  BootIn { id: boot; active: root.opened }
+  // launching: type the message out like a terminal line (the trailing BlinkCaret reads as the cursor)
+  BootIn { id: boot; active: root.opened; title: root.launching ? root.message : "" }
 
   function open(payloadJson) {
     try {
@@ -241,7 +242,7 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               text: root.icon
               font: iconMetrics.font
-              color: Colors.popups.text
+              color: root.launching ? Colors.accent : Colors.popups.text
             }
           }
           BarGauge {
@@ -259,7 +260,7 @@ Item {
             width: root.hasProgress ? root.valueWidth : root.messageWidth
             horizontalAlignment: root.hasProgress ? Text.AlignRight : Text.AlignLeft
             anchors.verticalCenter: parent.verticalCenter
-            text: root.message
+            text: root.launching ? root.message.substring(0, boot.typed) : root.message
             font: messageMetrics.font
             color: Colors.popups.text
             elide: Text.ElideRight
