@@ -23,3 +23,9 @@ if grep -q GenuineIntel /proc/cpuinfo; then enable_if_present thermald.service; 
 mask_if_present NetworkManager-wait-online.service
 # wine.conf is the only binfmt rule and nothing execs .exe directly; its binfmt_misc automount held sysinit.target ~1 s
 mask_if_present systemd-binfmt.service
+# systemd 258's NvPCR measurement (product id, user record) and its early SRK/NvPCR setup. our LUKS binds PCR 7+15 via
+# tpm2-measure-pcr, never NvPCR, and cryptenroll makes the SRK on demand, so these are unused; on a TPM whose firmware
+# cannot allocate the NvPCR NV indices they exit 1 ("Failed to initialize NvPCR index") and leave the system degraded
+mask_if_present systemd-pcrproduct.service
+mask_if_present systemd-pcrlogin@.service
+mask_if_present systemd-tpm2-setup-early.service
