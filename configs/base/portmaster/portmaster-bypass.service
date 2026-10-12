@@ -1,15 +1,16 @@
 [Unit]
-Description=Portmaster bypass for loopback, pentest vpns and the pentest group, owns table inet portmaster_bypass
+Description=Portmaster bypass for loopback, pentest vpns, the pentest group and system vms, owns table inet portmaster_bypass
 Before=portmaster.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-# a load empties gids; the pentest group exists only with configs/pentesting/pentest, which reloads this once it made it
-ExecStartPost=-/bin/sh -c 'gid=$$(getent group pentest | cut -d: -f3); [ -n "$$gid" ] || exit 0; exec /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"'
+# a load empties gids; the pentest group exists only with configs/pentesting/pentest, which reloads this once it made it;
+# libvirt-qemu only with the qemu group
+ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; true'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-ExecReload=-/bin/sh -c 'gid=$$(getent group pentest | cut -d: -f3); [ -n "$$gid" ] || exit 0; exec /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"'
+ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; true'
 ExecStop=/usr/sbin/nft destroy table inet portmaster_bypass
 
 [Install]

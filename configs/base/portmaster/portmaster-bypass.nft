@@ -3,7 +3,9 @@
 # connect scan is one per port) and answers dns meant for a target's server; a connection whose connmark is 1710
 # (its accept-always verdict) is restored and never queued nor dns-redirected, so this sets that mark first for:
 # loopback (dns and dot left to its interception), pentest vpns to lab ranges (a full-tunnel vpn's internet traffic
-# stays filtered), and sockets of the pentest group (configs/pentesting/pentest, filled in by the service)
+# stays filtered), and sockets of the pentest group (configs/pentesting/pentest) and of libvirt-qemu (system vms,
+# filled in by the service): a slirp guest leaves as its qemu process, and its own portmaster's dot to a resolver ip
+# reads here as a dns bypass and is refused, so the guest goes offline; the guest filters itself
 
 define lab_ifaces = { "tun*" }
 define lab_v4 = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 }
