@@ -63,7 +63,6 @@ delve                             # go debugger (dap)
 deno                              # secure typescript runtime
 diesel-cli                        # rust ORM CLI
 difftastic                        # structural diff tool
-direnv                            # per-directory env loader
 dnsglobe                          # dns propagation viewer
 docker                            # container runtime
 docker-buildx                     # docker build extension
@@ -74,7 +73,6 @@ ecgen                             # elliptic curve generator, mirror/pkgbuilds
 elan-lean                         # Lean toolchain manager
 emacs                             # text editor
 emscripten                        # C/C++ to wasm
-entr                              # run on file change
 expect                            # scripted terminal automation
 fasm                              # flat assembler
 figlet                            # ascii text banners

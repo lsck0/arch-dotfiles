@@ -21,6 +21,7 @@ return {
                 { "<leader>g", group = "git" },
                 { "<leader>k", group = "keys/secrets" },
                 { "<leader>t", group = "trouble" },
+                { "<leader>T", group = "taskwarrior" },
                 { "<leader>q", group = "session" },
                 { "<leader>c", group = "claude" },
                 { "<leader>C", group = "comment/doc" },

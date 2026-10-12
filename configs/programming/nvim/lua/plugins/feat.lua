@@ -20,16 +20,27 @@ return {
     },
 
     {
-        -- upstream is public again at dont-be-evil-company; no longer vendored
         "dont-be-evil-company/kulala.nvim", -- REST client
+        -- last pure-lua + curl release: the next commit moved requests to a kulala-core binary whose repo is gone,
+        -- later ones fetch it from core.kulala.app behind a license token prompt
+        tag = "v5.3.4",
+        -- its only submodule is kulala-fmt (system package here, conform runs it), and checking it out from a newer
+        -- clone fails; costs only the import/convert-to-http action, which npm-builds that submodule
+        submodules = false,
         ft = { "http", "rest" },
+        -- the global ones, so they load kulala from any buffer
+        keys = {
+            { "<leader>rb", function() require("kulala").scratchpad() end, desc = "Open scratchpad" },
+            { "<leader>ro", function() require("kulala").open() end, desc = "Open kulala" },
+            { "<leader>rs", function() require("kulala").run() end, mode = { "n", "v" }, desc = "Send request" },
+            { "<leader>ra", function() require("kulala").run_all() end, mode = { "n", "v" }, desc = "Send all requests" },
+            { "<leader>rr", function() require("kulala").replay() end, desc = "Replay the last request" },
+        },
         opts = {
             global_keymaps = true,
             global_keymaps_prefix = "<leader>r",
             kulala_keymaps_prefix = "",
-            -- let kulala download, build and install its own kulala_http parser + queries (needs tree-sitter-cli,
-            -- which is in programming/packages.txt). Replaces the parser/ and queries/ copies we used to vendor.
-            treesitter = { enable = true },
+            -- its bundled kulala_http parser installs through nvim-treesitter (tree-sitter-cli in programming/packages.txt)
         },
     },
 

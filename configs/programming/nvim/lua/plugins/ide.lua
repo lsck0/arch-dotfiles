@@ -35,7 +35,6 @@ return {
         keys = {
             { "zR", function() require("ufo").openAllFolds() end,  desc = "Open all folds" },
             { "zM", function() require("ufo").closeAllFolds() end, desc = "Close all folds" },
-            { "zr", function() require("ufo").openFoldsExceptKinds() end, desc = "Open folds except kinds" },
         },
         init = function()
             -- start unfolded; ufo drives folding from here
@@ -60,20 +59,6 @@ return {
             { "<leader>ql", function() require("persistence").load({ last = true }) end, desc = "Restore last session" },
             { "<leader>qd", function() require("persistence").stop() end,             desc = "Stop saving session" },
         },
-    },
-
-    {
-        "ahmedkhalf/project.nvim", -- project root detection
-        event = "VeryLazy",
-        config = function()
-            require("project_nvim").setup({
-                -- pattern only: the "lsp" method uses a deprecated api
-                detection_methods = { "pattern" },
-                patterns = { ".git", "Cargo.toml", "package.json", "flake.nix", "pyproject.toml", "Makefile" },
-                -- no auto-chdir: it spawned a second explorer tree
-                manual_mode = true,
-            })
-        end,
     },
 
     {

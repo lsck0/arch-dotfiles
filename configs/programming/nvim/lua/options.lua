@@ -1,10 +1,3 @@
--- silence a plugin's deprecated buf_get_clients() warning
-local _deprecate = vim.deprecate
-vim.deprecate = function(name, ...)
-    if type(name) == "string" and name:find("buf_get_clients") then return end
-    return _deprecate(name, ...)
-end
-
 local set = vim.opt
 
 set.clipboard = "unnamedplus"
@@ -41,7 +34,12 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
-set.guifont = "Kode Mono:h16"
+-- scripts/toggles/toggle-font.sh writes the font here, not into this tracked file
+do
+    local f = io.open((vim.env.XDG_STATE_HOME or vim.env.HOME .. "/.local/state") .. "/toggles/nvim-guifont")
+    set.guifont = f and f:read("*l") or "Kode Mono:h16"
+    if f then f:close() end
+end
 set.ignorecase = true
 set.inccommand = "split"
 set.laststatus = 3

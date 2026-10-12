@@ -4,7 +4,6 @@ return {
         dependencies = {
             "nvim-neotest/nvim-nio",
             "nvim-lua/plenary.nvim",
-            "antoinemadec/FixCursorHold.nvim", -- CursorHold event fix
             "nvim-treesitter/nvim-treesitter",
             "nvim-neotest/neotest-python",     -- Python test adapter
             "rouge8/neotest-rust",             -- Rust test adapter

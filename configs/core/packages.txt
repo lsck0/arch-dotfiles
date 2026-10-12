@@ -8,10 +8,12 @@ cifs-utils                        # SMB/CIFS mount tools
 clonezilla                        # disk cloning tool
 cmatrix                           # matrix terminal animation
 croc                              # secure file transfer
+direnv                            # per-directory env loader (zsh/nushell hooks, tmux popup.sh)
 diskwatch                         # disk debugging
 dua-cli                           # disk usage analyzer
 dwarfs                            # compressed read-only fs
 dysk                              # disk usage viewer
+entr                              # run on file change (tmux-autoreload watcher)
 eza                               # modern ls replacement
 fastfetch                         # system info fetcher
 fd                                # find alternative

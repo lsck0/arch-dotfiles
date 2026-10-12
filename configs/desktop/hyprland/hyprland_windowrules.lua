@@ -97,6 +97,16 @@ hl.window_rule({
     float = false,
 })
 
+-- the message log it opens after a load with warnings maps at 60x30 under the float rule above; give it a real size
+hl.window_rule({
+    match = {
+        class = "^UnrealEditor$",
+        title = "^Message Log$",
+    },
+    size = "1200 700",
+    center = true,
+})
+
 hl.layer_rule({
     name = "quickshell-notifications-no-anim",
     match = {

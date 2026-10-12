@@ -72,7 +72,7 @@ return {
     },
     {
         "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
-        -- not lazy: must own BufReadCmd before the first sops file opens
+        -- not lazy: its BufReadPost decrypt must be registered before the first sops file opens
         lazy = false,
         opts = { disabled = false },
         keys = {
@@ -124,7 +124,20 @@ return {
     {
         "matthandzel/taskwarrior.nvim", -- edit the task db as a buffer
         config = function()
-            require("taskwarrior").setup()
+            -- <leader>T: its default <leader>t* collides with trouble
+            require("taskwarrior").setup({
+                capture_key = "<leader>Ta",
+                open_key = "<leader>Tt",
+                filter_key = "<leader>Tf",
+                sort_key = "<leader>Ts",
+                group_key = "<leader>Tg",
+                project_add_key = "<leader>Tpa",
+                context_key = "<leader>Tc",
+                view_key = "<leader>Tv",
+                report_key = "<leader>Tr",
+                -- the error hint hardcodes <leader>tF
+                feedback = { feedback_key = "<leader>TF", hint_on_error = false },
+            })
         end,
     },
 

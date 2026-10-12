@@ -1,6 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
 # Formatter/converter for Kulala .http/.rest files; conform in configs/programming/nvim/lua/plugins/lsp.lua
-# calls `kulala-fmt` from PATH. Replaces the binary that used to live in the nvim config's vendor/ dir.
+# calls `kulala-fmt` from PATH.
 pkgname=kulala-fmt
 pkgver=4.6.1
 pkgrel=1

@@ -1,15 +1,15 @@
--- window-local display for the ghproject kanban board
+-- window-local display for the ghproject kanban board; [0][0] is :setlocal, so other buffers in this window keep theirs
 
-vim.wo.number = false
-vim.wo.relativenumber = false
-vim.wo.signcolumn = "no"
-vim.wo.foldcolumn = "0"
-vim.wo.colorcolumn = ""
-vim.wo.cursorline = false
-vim.wo.wrap = false
-vim.wo.list = false
-vim.wo.winfixwidth = false
-vim.wo.winfixheight = false
+vim.wo[0][0].number = false
+vim.wo[0][0].relativenumber = false
+vim.wo[0][0].signcolumn = "no"
+vim.wo[0][0].foldcolumn = "0"
+vim.wo[0][0].colorcolumn = ""
+vim.wo[0][0].cursorline = false
+vim.wo[0][0].wrap = false
+vim.wo[0][0].list = false
+vim.wo[0][0].winfixwidth = false
+vim.wo[0][0].winfixheight = false
 
 -- board highlight groups, linked to builtins so any theme (ayu/pywal/...) fits
 local function ghproject_hl_apply()

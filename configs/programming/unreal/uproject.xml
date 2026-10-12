@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- the pacman engine shipped this type; the home install does not, so .uproject files would read as json -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+	<mime-type type="application/x-uproject">
+		<comment>Unreal Project</comment>
+		<glob pattern="*.uproject"/>
+	</mime-type>
+</mime-info>

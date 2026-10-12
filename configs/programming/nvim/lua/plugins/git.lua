@@ -1,5 +1,14 @@
 return {
-    { "tpope/vim-fugitive", cmd = { "G", "Git", "Gdiffsplit", "Gread", "Gwrite", "Gblame", "Gclog" } }, -- git commands in vim
+    {
+        "tpope/vim-fugitive", -- git commands in vim
+        -- every command it defines, so none is missing until another one loaded it
+        cmd = {
+            "G", "Git", "GBrowse", "Gcd", "Glcd", "Gclog", "Gllog", "GcLog", "GlLog", "Ggrep", "Glgrep",
+            "Gedit", "Ge", "Gsplit", "Gvsplit", "Gtabedit", "Gpedit", "Gdrop",
+            "Gdiffsplit", "Gvdiffsplit", "Ghdiffsplit", "Gread", "Gr", "Gwrite", "Gw", "Gwq",
+            "GMove", "GRename", "GDelete", "GRemove", "GUnlink",
+        },
+    },
 
     {
         "sindrets/diffview.nvim", -- git diff / merge / file-history views

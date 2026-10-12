@@ -59,8 +59,9 @@ local function trouble_cycle(step, wrap)
 end
 vim.keymap.set("n", "<C-n>", function() quickfix_cycle("cnext", "cfirst") end, { desc = "Next quickfix item" })
 vim.keymap.set("n", "<C-S-n>", function() quickfix_cycle("cprev", "clast") end, { desc = "Prev quickfix item" })
-vim.keymap.set("n", "<C-t>", function() trouble_cycle("next", "first") end, { desc = "Next trouble item" })
-vim.keymap.set("n", "<C-S-t>", function() trouble_cycle("prev", "last") end, { desc = "Prev trouble item" })
+-- shadows nvim's default ]t/[t (:tnext/:tprevious); <C-t> stays the tag pop
+vim.keymap.set("n", "]t", function() trouble_cycle("next", "first") end, { desc = "Next trouble item" })
+vim.keymap.set("n", "[t", function() trouble_cycle("prev", "last") end, { desc = "Prev trouble item" })
 
 -- deferred require: telescope lazy-loads on first use
 local function tb(fn, args)

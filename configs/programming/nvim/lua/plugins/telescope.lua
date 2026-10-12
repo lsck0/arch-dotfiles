@@ -1,5 +1,6 @@
+-- lua patterns on the (relative or absolute) path: only a vendor/ directory, not every name containing "vendor"
 local ignore_filetypes_list = {
-    "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico", "vendor"
+    "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico", "^vendor/", "/vendor/"
 }
 
 return {

@@ -31,7 +31,6 @@ local installed = {
     "lua-language-server",
     "nil",
     "ormolu",
-    "prettierd",
     "pyright",
     "ruff", -- python lint/format LSP, pyright keeps types
     "rust-analyzer",
@@ -46,7 +45,6 @@ local installed = {
     "terraform-ls",
     "texlab",
     "tinymist", -- typst LSP
-    "tree-sitter-cli",
     "typescript-language-server",
     "typos-lsp",
     "vim-language-server",
@@ -54,13 +52,10 @@ local installed = {
     "yaml-language-server",
     "zls",
     "clojure-lsp",
-    "elixir-ls",
     "graphql-language-service-cli",
     "intelephense",
-    "kotlin-language-server",
     "marksman",
     "omnisharp",
-    "ruby-lsp",
     "svelte-language-server",
     "vue-language-server",
     -- formatters
@@ -155,6 +150,10 @@ return {
                     "clangd",
                     "--offset-encoding=utf-16",
                     "--background-index",
+                    -- unreal's compile_commands.json names the engine's bundled clang (local_plugins/unreal.lua)
+                    "--query-driver=/opt/unreal-engine/**/bin/clang++,"
+                        .. vim.env.HOME
+                        .. "/.local/share/unreal-engine/**/bin/clang++",
                 },
             })
 
@@ -328,10 +327,6 @@ return {
                         "rust_analyzer",
                         "tailwindcss",
                         "ts_ls",
-                        -- crash on start: no elixir runtime, JDK crash, bundler perms
-                        "elixirls",
-                        "kotlin_language_server",
-                        "ruby_lsp",
                     }
                 }
             })
@@ -350,7 +345,7 @@ return {
             require("conform").formatters.shfmt = {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
-            -- kulala-fmt from the system package (mirror/pkgbuilds/kulala-fmt), on PATH; not vendored, not from mason
+            -- kulala-fmt from the system package (mirror/pkgbuilds/kulala-fmt), on PATH, not from mason
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
 
             -- personal style only where the project has no config of its own

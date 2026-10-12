@@ -1,3 +1,4 @@
 require("local_plugins.arrowdot").setup()
 require("local_plugins.lprompt").setup()
 require("local_plugins.ghproject").setup()
+require("local_plugins.unreal").setup()

@@ -180,9 +180,12 @@ set_wallpaper() {
             >/dev/null 2>&1 9>&- || true &
     fi
 
-    # re-source the tmux colours on every running server, no restart needed
-    if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
-        tmux source-file ~/.cache/wal/colors-tmux.conf >/dev/null 2>&1 || true
+    # re-source the tmux colours on every running server (each -L socket), no restart needed
+    if command -v tmux >/dev/null 2>&1; then
+        for sock in "${TMUX_TMPDIR:-/tmp}/tmux-${UID}"/*; do
+            [ -S "$sock" ] || continue
+            tmux -S "$sock" source-file ~/.cache/wal/colors-tmux.conf >/dev/null 2>&1 9>&- || true
+        done
     fi
 
     # kitty reloads its config on SIGUSR1

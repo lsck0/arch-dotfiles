@@ -10,7 +10,6 @@ SYNC_DIR="${HOME}/sync"
 DATA_DIR="${XDG_DATA_HOME:-${HOME}/.local/share}"
 ENGINE="${DATA_DIR}/unreal-engine"
 STAMP="${ENGINE}/.installed-from"
-EDITOR_LINK="${HOME}/.local/bin/unreal-editor"
 DESKTOP_FILE="${DATA_DIR}/applications/unreal-engine.desktop"
 
 zip_path=$(find "$SYNC_DIR" -maxdepth 1 -name 'Linux_Unreal_Engine_*.zip' 2>/dev/null | sort -V | tail -n 1)
@@ -45,18 +44,19 @@ echo "$zip_name" >"${root}/.installed-from"
 rm -rf "$ENGINE"
 mv "$root" "$ENGINE"
 
-mkdir -p "$(dirname "$EDITOR_LINK")" "$(dirname "$DESKTOP_FILE")"
-ln -sfn "${ENGINE}/Engine/Binaries/Linux/UnrealEditor" "$EDITOR_LINK"
+mkdir -p "$(dirname "$DESKTOP_FILE")"
 icon=$(find "${ENGINE}/Engine/Source/Programs/UnrealVersionSelector" -name 'Icon.png' 2>/dev/null | head -n 1 || true)
 cat >"$DESKTOP_FILE" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=Unreal Engine
 Comment=Unreal Editor ${zip_version}
-Exec=${ENGINE}/Engine/Binaries/Linux/UnrealEditor %U
+# the launcher (link.sh) adds the mcp server
+Exec=${HOME}/.local/bin/unreal-editor %U
 ${icon:+Icon=${icon}}
 Terminal=false
 Categories=Development;IDE;
+MimeType=application/x-uproject;
 StartupWMClass=UnrealEditor
 DESKTOP
 command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP_FILE")" || true

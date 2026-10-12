@@ -33,6 +33,7 @@ local installed = {
     "bibtex",
     "jsdoc",
     "json",
+    "just",
     "kotlin",
     "lua",
     "luadoc",
@@ -78,28 +79,12 @@ return {
         build = ":TSUpdate",
         dependencies = {
             { "nvim-treesitter/nvim-treesitter-context" }, -- sticky function context
-            { "IndianBoy42/tree-sitter-just" },            -- justfile syntax
         },
         config = function()
             local treesitter = require("nvim-treesitter")
             treesitter.setup({
                 install_dir = vim.fn.stdpath("data") .. "/site",
             })
-
-            local system_parsers = {
-                nya = vim.fn.stdpath("data") .. "/site/parser/nya.so",
-                lua = "/usr/lib/libtree-sitter-lua.so",
-                markdown = "/usr/lib/libtree-sitter-markdown.so",
-                markdown_inline = "/usr/lib/libtree-sitter-markdown-inline.so",
-                query = "/usr/lib/libtree-sitter-query.so",
-                vim = "/usr/lib/libtree-sitter-vim.so",
-                vimdoc = "/usr/lib/libtree-sitter-vimdoc.so",
-            }
-            for lang, path in pairs(system_parsers) do
-                if vim.uv.fs_stat(path) then
-                    vim.treesitter.language.add(lang, { path = path })
-                end
-            end
 
             -- blocking parser install for a headless/manual run; startup installs async below
             vim.api.nvim_create_user_command("TSInstallSync", function()

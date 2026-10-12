@@ -73,7 +73,9 @@ autocmd("FileType", {
         -- tex keeps vim syntax: vimtex mathzone detection needs it
         if ft == "tex" or ft == "plaintex" or ft == "bib" then return end
         local lang = vim.treesitter.language.get_lang(ft) or ft
-        if pcall(vim.treesitter.start, buf, lang) then
+        if not pcall(vim.treesitter.start, buf, lang) then return end
+        -- no indents query: keep the runtime indent script (make's recipe tabs, ...)
+        if vim.treesitter.query.get(lang, "indents") then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
         end
     end,
@@ -202,5 +204,22 @@ autocmd({ "ColorScheme", "VimEnter" }, {
     group = group("no-spellcap", { clear = true }),
     callback = function()
         vim.api.nvim_set_hl(0, "SpellCap", {})
+    end,
+})
+
+-- transparent separator and bars, reapplied after every theme switch
+autocmd({ "ColorScheme", "VimEnter" }, {
+    desc = "Transparent separators and bars",
+    group = group("transparent-bars", { clear = true }),
+    callback = function()
+        -- a faint separator in the theme's own dim shade (NonText: eol/listchars), not a fixed color
+        local dim = vim.api.nvim_get_hl(0, { name = "NonText", link = false }).fg
+        local sep = vim.api.nvim_get_hl(0, { name = "WinSeparator", link = false }).fg
+        vim.api.nvim_set_hl(0, "WinSeparator", { fg = dim or sep, ctermfg = 8 })
+        for _, name in ipairs({ "BufferCurrent", "BufferOffset", "BufferVisible", "StatusLine" }) do
+            local hl = vim.api.nvim_get_hl(0, { name = name, link = false })
+            hl.fg, hl.bg, hl.ctermfg, hl.ctermbg = nil, nil, nil, nil
+            vim.api.nvim_set_hl(0, name, hl)
+        end
     end,
 })

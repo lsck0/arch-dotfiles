@@ -13,7 +13,6 @@ ZED="$REPO/configs/programming/zed/settings.json"
 EMACS="$REPO/configs/programming/emacs/early-init.el"
 DISCORD="$REPO/configs/socials/discord/wal.theme.css"
 SPOTIFY="$REPO/configs/socials/spotify/user.css"
-NVIM="$REPO/configs/programming/nvim/lua/options.lua"
 KITTY="$REPO/configs/desktop/kitty/kitty.conf"
 QUTEBROWSER="$REPO/configs/desktop/qutebrowser/config.py"
 QUTEBROWSER_STARTPAGE="$REPO/configs/desktop/qutebrowser/startpage.html"
@@ -140,6 +139,14 @@ mono_family() {
     fi
 }
 
+# nvim_guifont <family> <size>, either empty to keep the current one: a marker lua/options.lua reads at startup, so
+# no edit lands in the tracked config
+nvim_guifont() {
+    local file="$TOGGLES_STATE_DIR/nvim-guifont" cur="Kode Mono:h16"
+    [[ -f "$file" ]] && cur=$(<"$file")
+    toggle_set nvim-guifont "${1:-${cur%:h*}}:h${2:-${cur##*:h}}"
+}
+
 apply_family() {
     local fam=$1 e m
     e=$(esc "$fam")
@@ -153,7 +160,7 @@ apply_family() {
            -e "s|\"font_family\": \"[^\"]*\"|\"font_family\": \"$m\"|" "$ZED"
 
     sed -i "s|^(defvar my/font-family \".*\")|(defvar my/font-family \"$m\")|" "$EMACS"
-    sed -i "s|^set.guifont = \"[^:]*:|set.guifont = \"$m:|" "$NVIM"
+    nvim_guifont "$(mono_family "$fam")" ""
     sed -i "s|^  --font: \".*\";|  --font: \"$e\";|" "$DISCORD"
 
     # Spotify (via Spicetify's injected user.css).
@@ -214,7 +221,7 @@ apply_size() {
            -e "s|\"ui_font_size\": [0-9.]*|\"ui_font_size\": $size|" \
            -e "s|\"font_size\": [0-9.]*|\"font_size\": $size|" "$ZED"
     sed -i "s|^(defvar my/font-size .*)|(defvar my/font-size $size)|" "$EMACS"
-    sed -i "s|^set.guifont = \"\(.*\):h[0-9]*\"|set.guifont = \"\1:h$size\"|" "$NVIM"
+    nvim_guifont "" "$size"
 
     # quickshell too, now that its whole scale derives from one base size.
     quickshell_theme_set '.font.size = ($v | tonumber)' "$size"

@@ -6,6 +6,16 @@ if [[ "$FORM_FACTOR" != desktop ]]; then
     exit 0
 fi
 
+# the editor launcher and claude's link to the mcp server it starts, for whichever engine is installed
+link_commands unreal-editor.sh
+# .uproject's type, for the desktop entry and mimeapps.list
+mime_dir="${XDG_DATA_HOME:-${HOME}/.local/share}/mime"
+if ! cmp -s uproject.xml "${mime_dir}/packages/uproject.xml"; then
+    install -Dm644 uproject.xml "${mime_dir}/packages/uproject.xml"
+    update-mime-database "$mime_dir"
+fi
+json_update "${HOME}/.claude.json" '.mcpServers["unreal-mcp"] = {type: "http", url: "http://127.0.0.1:8765/mcp"}'
+
 # the old pacman install in /opt stays until removed by hand: dropping it here could leave no engine when the zip is
 # gone from ~/sync, and a second ~60 GB copy is no better
 if pacman -Q unreal-engine-bin >/dev/null 2>&1; then
