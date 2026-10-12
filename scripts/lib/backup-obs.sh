@@ -11,10 +11,8 @@ secret_require_unlocked "${REPO}"
 
 SCENE="${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
 MARKER="${HOME}/.config/obs-studio/basic/scenes/.from-secrets"
-if [ -e "${SCENE}" ] && [ ! -e "${MARKER}" ]; then
-    [ -e "${REPO}/secrets/obs-Untitled.json" ] && { echo "${SCENE} was not seeded from secrets; run config.sh, or touch ${MARKER} to keep the live state" >&2; exit 1; }
-    touch "${MARKER}"
-fi
+# only guard once a live scene exists; no scene yet is nothing to back up
+[ -e "${SCENE}" ] && secret_seed_guard "${MARKER}" "${REPO}/secrets/obs-Untitled.json" "${SCENE}"
 
 # the obs module's link.sh links these files into the repo; obs replaces a link with a plain file on save
 modules=("${REPO}"/configs/*/obs)

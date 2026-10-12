@@ -38,10 +38,6 @@ source ./scripts/lib/ledger.sh
 source ./scripts/lib/system.sh
 platform_load "$PWD"
 
-## PATCHES
-
-# one-shot fixups of this user's state, before anything personal; see patches/README.md
-./scripts/lib/apply-patches.sh || fail "scripts/lib/apply-patches.sh"
 profile_load
 
 ## SECRETS

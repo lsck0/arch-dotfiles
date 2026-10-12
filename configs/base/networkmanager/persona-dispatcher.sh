@@ -35,7 +35,7 @@ PORTAL_UNIT=persona-portal
 # a physical link NM has connected is not on the home list. NM's state, not operstate: a cable without a profile is
 # up but carries nothing, a modem's link reads unknown while it carries everything
 foreign() {
-    local type state dev
+    local type state dev home=
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
     while IFS=: read -r type state dev; do
         [ "$state" = connected ] || continue
@@ -43,8 +43,11 @@ foreign() {
         case "$type" in gsm | bt) return 0 ;; esac
         [ -e "/sys/class/net/$dev/device" ] || continue
         grep -qx "$dev" "$HOME_NETWORK" 2>/dev/null || return 0
+        home=1
     done < <(nmcli -t -f TYPE,STATE,DEVICE device 2>/dev/null)
-    return 1
+    # fail closed: home only when a physical link is confirmed on the home list; empty or unreadable nmcli output
+    # (a race, an error) can't tell, so it counts as foreign
+    [ -n "$home" ] && return 1 || return 0
 }
 
 # tor_on [gone]: never while a tunnel carries everything; gone names the one going down, its link may linger until NM

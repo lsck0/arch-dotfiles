@@ -10,10 +10,9 @@ env_conf="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/ghostty-env.conf"
 mkdir -p "${env_conf%/*}"
 echo "env = GDK_SCALE=$(java_ui_scale)" >"$env_conf"
 
-link_into "${UNIT_DIR}/app-com.mitchellh.ghostty.service.d" systemd/override.conf
+dropin_install app-com.mitchellh.ghostty.service systemd/override.conf || true
 # a prefix drop-in, so every app-ghostty-surface-transient-<pid>.scope ghostty creates picks it up
-link_into "${UNIT_DIR}/app-ghostty-surface-transient-.scope.d" systemd/surface.conf
-systemctl --user daemon-reload
+dropin_install app-ghostty-surface-transient-.scope systemd/surface.conf || true
 # not loaded yet on a first run, then there is nothing to reset
 systemctl --user reset-failed app-com.mitchellh.ghostty.service 2>/dev/null || true
 # prewarm at login, windows open over d-bus via ghostty +new-window

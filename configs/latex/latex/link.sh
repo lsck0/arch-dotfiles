@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-ln -sfn "${PWD}/latexmkrc" "$HOME/.latexmkrc"
+link_as "${PWD}/latexmkrc" "$HOME/.latexmkrc"

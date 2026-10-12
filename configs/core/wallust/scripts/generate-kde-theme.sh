@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 # kde colours from pywal; $1 sets the plasma wallpaper
 set -euo pipefail
 
-COLORS_JSON="$HOME/.cache/wal/colors.json"
 KDEGLOBALS="$HOME/.config/kdeglobals"
 APPLETSRC="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
 
-[[ -f "$COLORS_JSON" ]] || exit 0
+source "$DOTFILES/scripts/lib/palette.sh"
 command -v kwriteconfig6 >/dev/null || exit 0
 
 # #rrggbb -> r,g,b
@@ -15,16 +15,14 @@ rgb() {
     printf '%d,%d,%d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
 }
 
-j() { jq -r "$1" "$COLORS_JSON"; }
-
-bg=$(rgb "$(j '.special.background')")
-fg=$(rgb "$(j '.special.foreground')")
-
-c0=$(rgb "$(j '.colors.color0')")
-c4=$(rgb "$(j '.colors.color4')")
-c5=$(rgb "$(j '.colors.color5')")
-c6=$(rgb "$(j '.colors.color6')")
-c8=$(rgb "$(j '.colors.color8')")
+# the palette as kde's r,g,b
+bg=$(rgb "$bg")
+fg=$(rgb "$fg")
+c0=$(rgb "$c0")
+c4=$(rgb "$c4")
+c5=$(rgb "$c5")
+c6=$(rgb "$c6")
+c8=$(rgb "$c8")
 
 accent="$c4"
 

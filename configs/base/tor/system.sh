@@ -7,8 +7,7 @@
 install -Dm644 torrc /etc/tor/torrc
 # vendored from edu4rdshl/tor-router, the package is not installed so no upgrade can restore its fail-open unit
 changed=0
-cmp -s tor-router /usr/local/bin/tor-router || changed=1
-install -Dm755 tor-router /usr/local/bin/tor-router
+file_update tor-router /usr/local/bin/tor-router 755 && changed=1
 # a running router keeps its old table until reloaded; start swaps the table in one transaction, never a gap in the clear
 if ((changed)) && systemctl is-active -q tor-router.service; then
     /usr/local/bin/tor-router start

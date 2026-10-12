@@ -1,9 +1,0 @@
-[Unit]
-Description=Hook millennium into steam after steam bootstraps or updates
-
-[Path]
-# steam writes this once, after a bootstrap or client update has finished extracting
-PathChanged=%h/.local/share/Steam/package/steam_client_ubuntu12.installed
-
-[Install]
-WantedBy=default.target

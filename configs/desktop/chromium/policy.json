@@ -11,6 +11,8 @@
     "SafeBrowsingSurveysEnabled": false,
     "SafeBrowsingDeepScanningEnabled": false,
     "PrivacySandboxAdTopicsEnabled": false,
+    "PrivacySandboxSiteEnabledAdsEnabled": false,
+    "PrivacySandboxAdMeasurementEnabled": false,
     "SyncDisabled": true,
     "BrowserSignin": 0,
     "PasswordManagerEnabled": false,

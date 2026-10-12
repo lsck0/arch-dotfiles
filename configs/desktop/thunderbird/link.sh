@@ -27,6 +27,6 @@ while read -r profile; do
     [[ -d "$dir" ]] || continue
     mkdir -p "${dir}/chrome"
     ln -sfn "${PWD}/userChrome.css" "${dir}/chrome/userChrome.css"
-    ln -sfn "$colors" "${dir}/chrome/colors.css"
+    link_as "$colors" "${dir}/chrome/colors.css"
     ln -sfn "${PWD}/user.js" "${dir}/user.js"
 done < <(sed -n 's/^Path=//p' "${root}/profiles.ini")

@@ -4,8 +4,7 @@
 # installed from; a user's holds `unit user <name>`. only an owned entry the repo stopped declaring is ever removed, and
 # only after the exact list was shown and confirmed at /dev/tty (stdin may carry the secrets tar); an unattended run
 # reports and keeps everything. what a person installed or enabled by hand is drift: reported, never touched. outside
-# git like patches-applied, so a fresh machine starts empty and owns its declared set on the first run, which therefore
-# removes nothing but LEDGER_PACKAGES_SEED.
+# git, so a fresh machine starts empty and owns its declared set on the first run, which therefore removes nothing.
 
 source "$(dirname "${BASH_SOURCE[0]}")/system.sh"
 
@@ -20,14 +19,6 @@ fi
 # and what repairs the rest, plus the yubikey/fido2 unlock chain and sshd, so a dropped-package confirmation can never
 # lock the machine out
 LEDGER_PACKAGES_DENY='base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite'
-# dropped from install.sh before the ledger existed (generation 487, formerly patches 02 and 04): a machine's first run
-# owns the ones still installed, so they are proposed like any dropped package; delete once every machine has a ledger
-LEDGER_PACKAGES_SEED=(
-    betterdiscord-installer betterdiscordctl-git blueberry bootimage burpsuite cargo-machete cargo-watch
-    cargo-xbuild easyeffects glava gufw hyprsunset iwd libva-intel-driver mise neofetch neovim-remote
-    opentabletdriver-git opentofu python-black python-isort usage virt-manager wireless_tools xf86-input-synaptics
-    xf86-video-amdgpu xf86-video-ati xf86-video-nouveau
-)
 # a unit name systemctl accepts; one invalid name fails the whole batched is-enabled
 LEDGER_UNIT_NAME='[A-Za-z0-9][A-Za-z0-9:_.-]*(@[A-Za-z0-9:_.-]*)?\.(service|socket|timer|path|mount|automount|target)'
 
@@ -66,7 +57,6 @@ ledger_packages() {
     # an empty declared set would turn every owned package into a dropped one
     ((${#declared[@]})) || { echo "ledger: none of the $# listed packages is installed, refusing" >&2; return 1; }
     mapfile -t owned < <(ledger_get pkg)
-    ((${#owned[@]})) || owned=("${LEDGER_PACKAGES_SEED[@]}")
     mapfile -t dropped < <(comm -12 <(pacman -Qq | sort) <(printf '%s\n' "${owned[@]}" | sort -u) \
         | comm -23 - <(printf '%s\n' "${declared[@]}") | grep -vxE "$LEDGER_PACKAGES_DENY")
     if ledger_confirm remove "${dropped[@]}"; then

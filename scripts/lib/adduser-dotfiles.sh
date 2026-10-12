@@ -52,11 +52,6 @@ fi
 if [[ -f "$checkout/profiles/$name.sh" && ! -e "$profile" ]]; then
     as_user install -Dm644 "$checkout/profiles/$name.sh" "$profile"
 fi
-# the fresh checkout already describes this user, so none of its user patches apply
-if [[ ! -e "$home/.local/state/dotfiles/patches-applied" ]]; then
-    as_user env DOTFILES="$checkout" "$checkout/scripts/lib/apply-patches.sh" --mark-applied
-fi
-
 # a login session, so user units and the bus work like after a real login
 systemd-run --quiet --wait --pipe --collect --uid="$name" -p PAMName=login -p WorkingDirectory="$checkout" \
     bash -c './install.sh --user && ./config.sh --user'

@@ -25,4 +25,6 @@ if [[ -f "$MILLENNIUM_CONFIG" ]]; then
 fi
 
 millennium_linked() { [[ "$(readlink "${HOME}/.local/share/Steam/ubuntu12_32/libXtst.so.6")" == /usr/lib/millennium/* ]]; }
-user_hook_oneshot ./hook millennium-link millennium_linked
+# steam writes the watched file once, after a bootstrap or client update finishes extracting: no brake needed
+user_hook_oneshot millennium-link millennium_linked --no-brake \
+    --watch "%h/.local/share/Steam/package/steam_client_ubuntu12.installed"

@@ -1,24 +1,9 @@
 #!/usr/bin/env bash
+: "${DOTFILES:=$HOME/projects/arch-dotfiles}"
 set -euo pipefail
 
-COLORS_JSON="$HOME/.cache/wal/colors.json"
 THEME="$HOME/.config/btop/themes/pywal.theme"
-
-[[ -f "$COLORS_JSON" ]] || exit 0
-command -v jq >/dev/null || exit 0
-
-j() { jq -r "$1" "$COLORS_JSON"; }
-
-bg=$(j '.special.background')
-fg=$(j '.special.foreground')
-
-c1=$(j '.colors.color1')
-c2=$(j '.colors.color2')
-c3=$(j '.colors.color3')
-c4=$(j '.colors.color4')
-c5=$(j '.colors.color5')
-c6=$(j '.colors.color6')
-c8=$(j '.colors.color8')
+source "$DOTFILES/scripts/lib/palette.sh"
 
 accent="$c4"
 

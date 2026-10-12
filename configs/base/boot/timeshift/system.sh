@@ -48,7 +48,7 @@ rm -f /etc/cron.d/timeshift-hourly /etc/cron.d/timeshift-boot
 if [[ "$(stat -f -c %T /boot)" == msdos ]]; then
     # vfat from the initrd, or /boot never mounts and the resync never runs; boot_commit rebuilds the ukis
     file_update esp-vfat.conf /etc/mkinitcpio.conf.d/10-esp-vfat.conf || true
-    install -Dm755 kernel-resync.sh /usr/local/bin/kernel-resync
+    file_update kernel-resync.sh /usr/local/bin/kernel-resync 755
     unit_install kernel-resync.service
     systemctl enable kernel-resync.service
 fi

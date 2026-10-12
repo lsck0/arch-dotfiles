@@ -15,10 +15,7 @@ source "${REPO}/scripts/lib/secrets.sh"
 [ -f "${XLCORE}/dalamudConfig.json" ] || { echo "no ${XLCORE}/dalamudConfig.json" >&2; exit 1; }
 secret_require_unlocked "${REPO}"
 MARKER="${XLCORE}/.dalamud-from-secrets"
-if [ ! -e "${MARKER}" ]; then
-    [ -e "${DEST}/dalamudConfig.json" ] && { echo "${XLCORE} was not seeded from secrets; run config.sh, or touch ${MARKER} to keep the live state" >&2; exit 1; }
-    touch "${MARKER}"
-fi
+secret_seed_guard "${MARKER}" "${DEST}/dalamudConfig.json" "${XLCORE}"
 
 mkdir -p "${DEST}"
 cp -f "${XLCORE}/dalamudConfig.json" "${XLCORE}/dalamudUI.ini" "${DEST}/"

@@ -268,20 +268,8 @@ in_target() {
     if [[ -n "$TARGET_ROOT" ]]; then arch-chroot "$TARGET_ROOT" "$@"; else "$@"; fi
 }
 
-# patches_mark <record> <system|user>: every patch of that scope as applied, the fresh machine or user needs none; a rerun keeps the record
-patches_mark() {
-    local record="$1" scope="$2" patch patch_scope
-    [[ ! -e "$record" ]] || return 0
-    mkdir -p "${record%/*}"
-    for patch in "$REPO"/patches/[0-9][0-9]_*.sh; do
-        patch_scope=system
-        [[ "$patch" != *.user.sh ]] || patch_scope=user
-        if [[ -f "$patch" && "$patch_scope" == "$scope" ]]; then basename "$patch"; fi
-    done >"$record"
-}
-
 # user_setup: the login user with its password, wheel and zsh, root locked unless given one, the verified repo at home and
-# as the root copy, the machine's and the user's facts, both patch records
+# as the root copy, the machine's and the user's facts
 user_setup() {
     local home="$TARGET_ROOT/home/$USERNAME"
     local repo_copy="$home/projects/arch-dotfiles" profile="$home/.config/dotfiles/profile.sh"
@@ -311,8 +299,6 @@ user_setup() {
     if [[ -f "$PROFILE_FILE" && ! -e "$profile" ]]; then install -Dm644 "$PROFILE_FILE" "$profile"; fi
     # the system layer only ever runs from this root-owned copy of the verified clone
     system_copy "$REPO" "$TARGET_ROOT$SYSTEM_REPO" || die "cannot seed the root copy $TARGET_ROOT$SYSTEM_REPO"
-    patches_mark "$TARGET_ROOT$SYSTEM_STATE/patches-applied" system
-    patches_mark "$home/.local/state/dotfiles/patches-applied" user
     in_target chown -R "$USERNAME:$USERNAME" "/home/$USERNAME"
 }
 

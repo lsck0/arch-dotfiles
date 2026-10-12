@@ -4,8 +4,7 @@
 [[ "$FORM_FACTOR" != wsl ]] || exit 0
 
 install -Dm644 config /etc/endlessh/config
-install -Dm644 override.conf /etc/systemd/system/endlessh.service.d/override.conf
-systemctl daemon-reload
+dropin_install endlessh.service override.conf || true
 
 # sshd only moves off 22 once authorized_keys exists
 if sshd -T 2>/dev/null | grep -qi '^port 22$'; then

@@ -26,12 +26,19 @@ spicetify config experimental_features 0
 spicetify config remove_rtl_rule 0
 spicetify config overwrite_assets 1
 
+# blockthespot-style ad/telemetry block; `config extensions` toggles the list, so add it only when absent
+link_into "${HOME}/.config/spicetify/Extensions" adblock.js
+spicetify config extensions | tr '|' '\n' | grep -qx adblock.js || spicetify config extensions adblock.js
+
 # spicetify patches a copy of the client in this home (hook/spicetify-apply.sh), the launcher starts that copy
 desktop_override spotify.desktop "s|^Exec=spotify |Exec=$PWD/spotify-launch.sh |"
 # permanent: the first login, every spotify upgrade (a fresh xpui.spa) and every login (an upgrade while logged out) reapply.
 # now too, so this log shows it; a failed apply still arms the units
 status=0
 ./hook/spicetify-apply.sh || status=$?
-user_hook_install ./hook spicetify-apply
-systemctl --user enable spicetify-apply.service
+# prefs changes on first login; a fresh xpui.spa on upgrade (PathExists would loop while nobody is logged in yet).
+# permanent, so the service is enabled at login too: an upgrade while this user was logged out fires no path unit
+user_hook spicetify-apply --permanent \
+    --watch "%h/.config/spotify/prefs" \
+    --watch "/opt/spotify/Apps/xpui.spa"
 exit "$status"

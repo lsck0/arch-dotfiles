@@ -35,6 +35,7 @@ setkey("BitTorrent", r"Session\InterfaceAddress", "")
 seed("LegalNotice", "Accepted", "true")                      # skip the first-run EULA dialog
 seed("BitTorrent", r"Session\Encryption", "0")               # prefer encrypted peer connections
 seed("Preferences", r"Advanced\AnnounceToAllTrackers", "true")
+seed("Preferences", r"Advanced\updateCheck", "false")        # no phone-home update check (also a no-op on linux)
 
 with open(path, "w") as f:
     cp.write(f, space_around_delimiters=False)               # qBittorrent wants key=value

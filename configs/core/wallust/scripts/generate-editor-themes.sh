@@ -11,16 +11,12 @@ install_through_symlink() {
 }
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-COLORS_JSON="$HOME/.cache/wal/colors.json"
 ZED_THEME="$DOTFILES/configs/programming/zed/themes/pywal.json"
 VSCODE_SETTINGS="$HOME/.config/VSCodium/User/settings.json"
 EMACS_THEME_DIR="$DOTFILES/configs/programming/emacs/themes"
 EMACS_THEME="$EMACS_THEME_DIR/doom-pywal-theme.el"
 
-[[ -f "$COLORS_JSON" ]] || exit 0
-
-bg=$(jq -r '.special.background' "$COLORS_JSON")
-fg=$(jq -r '.special.foreground' "$COLORS_JSON")
+source "$DOTFILES/scripts/lib/palette.sh"
 
 # light detection uses the raw bg, before tone_map floors it dark; herdr wants a lighter floor still
 read -r bg_is_light toned_bg herdr_bg < <(python3 - "$bg" "$SCRIPT_DIR/lib" <<'PY'
@@ -46,10 +42,6 @@ else
     EMACS_LIGHTEN=lighten
 fi
 bg=$toned_bg
-
-read -r c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 < <(
-    jq -r '[range(16) as $i | .colors["color\($i)"]] | @tsv' "$COLORS_JSON"
-)
 
 # zed
 mkdir -p "$(dirname "$ZED_THEME")"

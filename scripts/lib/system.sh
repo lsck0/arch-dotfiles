@@ -3,7 +3,7 @@
 # is packed by the user and unpacked by a fixed root command (no repo code) into SYSTEM_REPO
 
 SYSTEM_REPO=/var/lib/dotfiles/repo
-# ledger, patches-applied, boot stamps, FAILURES and the lock: machine state, outside the copy that every refresh replaces
+# ledger, boot stamps, FAILURES and the lock: machine state, outside the copy that every refresh replaces
 SYSTEM_STATE=/var/lib/dotfiles
 # what the system layer may read; skills, weblinks, wallpapers and secrets stay out
 SYSTEM_PATHS=(configs patches platforms profiles scripts stage.sh)

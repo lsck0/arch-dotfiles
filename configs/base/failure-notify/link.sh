@@ -4,8 +4,7 @@ command -v notify-send >/dev/null 2>&1 || exit 0
 
 # OnFailure= for every user service; the handler must not be its own OnFailure=
 install -Dm644 failure-notify.conf "${UNIT_DIR}/service.d/10-failure-notify.conf"
-mkdir -p "${UNIT_DIR}/failure-notify@.service.d"
-ln -sfn /dev/null "${UNIT_DIR}/failure-notify@.service.d/10-failure-notify.conf"
+link_as /dev/null "${UNIT_DIR}/failure-notify@.service.d/10-failure-notify.conf"
 link_commands system-notify.sh update-check.sh
 unit_install failure-notify@.service failures-login.service system-notify.service update-check.service update-check.timer
 # not --now: config.sh's own empty FAILURES.config exists while it runs

@@ -3,7 +3,7 @@
 bd="${HOME}/.config/BetterDiscord"
 mkdir -p "${HOME}/.config/discord" "${bd}/plugins" "${bd}/themes"
 
-ln -sfn "${PWD}/discord_settings.json" "${HOME}/.config/discord/settings.json"
+link_as "${PWD}/discord_settings.json" "${HOME}/.config/discord/settings.json"
 
 # copy, betterdiscord misses changes through a symlink
 cp "${PWD}/wal.theme.css" "${bd}/themes/wal.theme.css"
@@ -31,4 +31,9 @@ for url in \
     wget -q "$url" -O "${f}.tmp" && mv "${f}.tmp" "$f" && echo "$url" > "${f}.url"
 done
 
-user_hook_install ./hook betterdiscord-inject
+# discord self-updates and relaunches past any launcher wrapper and the config dir around these paths churns every
+# minute, so the path stays armed (never retired): .config/discord/Discord is first install and the old host's removal
+# after a host update, .local/state/betterdiscord-modules is core module updates kept on the current host by the hook
+user_hook betterdiscord-inject \
+    --watch "%h/.config/discord/Discord" \
+    --watch "%h/.local/state/betterdiscord-modules"

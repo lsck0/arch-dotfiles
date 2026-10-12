@@ -47,9 +47,7 @@ for offset in 0 2 4; do
     vtrgb+="$(IFS=,; echo "${row[*]}")"$'\n'
 done
 printf '%s' "$vtrgb" >/etc/ly/vtrgb
-install -Dm644 ly-palette.conf "$UNIT_DIR/ly@.service.d/palette.conf"
-install -Dm644 ly-cursor.conf "$UNIT_DIR/ly@.service.d/cursor.conf"
-systemctl daemon-reload
+dropin_install ly@.service palette.conf cursor.conf || true
 
 systemctl enable ly@tty2.service
 systemctl disable getty@tty2.service

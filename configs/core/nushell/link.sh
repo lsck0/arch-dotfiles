@@ -18,4 +18,4 @@ gen starship.nu starship init nu
 gen zoxide.nu zoxide init nushell
 
 [[ -e "$HOME/.cache/wal/colors-nushell.nu" ]] || : > "$HOME/.cache/wal/colors-nushell.nu"
-ln -sfn "$HOME/.cache/wal/colors-nushell.nu" "$vendor/wal.nu"
+link_as "$HOME/.cache/wal/colors-nushell.nu" "$vendor/wal.nu"

@@ -5,8 +5,10 @@ if ! command -v virsh >/dev/null 2>&1 || [[ "$FORM_FACTOR" =~ ^(vm|wsl)$ ]]; the
     exit 0
 fi
 
-# autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after 120 s, the bridge stays.
-# --now before any virsh: root's qemu:///system never autostarts a daemon, so a fresh install would abort here
+# pinned, not left to the distro default: the idle-out can't regress to never (the bridge stays regardless)
+dropin_install libvirtd.service libvirtd-timeout.conf
+# autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after the pinned 120 s, the
+# bridge stays. --now before any virsh: root's qemu:///system never autostarts a daemon, so a fresh install would abort here
 systemctl enable --now libvirtd.service
 
 # boxes bridges new vms to virbr0 when it exists, else uses slirp, where portmaster filters guest flows as qemu's and refuses the guest's dns-over-tls

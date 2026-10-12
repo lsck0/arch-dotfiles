@@ -11,7 +11,7 @@ if unit_present proton.VPN.service; then systemctl disable proton.VPN.service; f
 # on demand, not at boot: the socket serves nss-mdns, the alias `enable` would add serves dbus activation
 enable_if_present avahi-daemon.socket
 if unit_present avahi-daemon.service; then
-    ln -sfn /usr/lib/systemd/system/avahi-daemon.service /etc/systemd/system/dbus-org.freedesktop.Avahi.service
+    link_as /usr/lib/systemd/system/avahi-daemon.service /etc/systemd/system/dbus-org.freedesktop.Avahi.service
 fi
 enable_if_present bluetooth.service
 enable_if_present cups.socket

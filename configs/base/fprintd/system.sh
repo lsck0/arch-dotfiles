@@ -12,7 +12,6 @@ if ! lsusb -d 138a: >/dev/null 2>&1 && ! lsusb -d 06cb:009a >/dev/null 2>&1; the
     exit 0
 fi
 
-install -Dm644 python3-validity-override.conf /etc/systemd/system/python3-validity.service.d/override.conf
-systemctl daemon-reload
+dropin_install python3-validity.service override.conf || true
 systemctl enable python3-validity.service open-fprintd-resume.service open-fprintd-suspend.service
 systemctl mask fprintd.service

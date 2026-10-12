@@ -4,7 +4,7 @@ mkdir -p ~/.task/hooks
 mkdir -p ~/.timewarrior
 mkdir -p ~/.config/bugwarrior ~/.local/state/bugwarrior
 
-ln -sfn "${PWD}/taskrc" "$HOME/.taskrc"
+link_as "${PWD}/taskrc" "$HOME/.taskrc"
 
 HOOK=/usr/share/doc/timew/ext/on-modify.timewarrior
 if [[ -f "$HOOK" ]]; then

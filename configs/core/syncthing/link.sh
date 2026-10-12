@@ -30,10 +30,7 @@ if secret_is_plaintext "${SECRET_DIR}/config.xml" && secret_is_plaintext "${SECR
 fi
 
 # a background job, not an app: lowest cpu weight and priority
-if file_update syncthing-background.conf "${UNIT_DIR}/syncthing.service.d/10-background.conf"; then
-    systemctl --user daemon-reload
-    systemctl --user try-restart syncthing.service
-fi
+dropin_install syncthing.service 10-background.conf && systemctl --user try-restart syncthing.service
 systemctl --user enable --now syncthing.service
 for _ in $(seq 1 "$API_WAIT_SECONDS"); do
     if syncthing cli show system >/dev/null 2>&1; then break; fi

@@ -3,22 +3,9 @@
 # rewrites the theme.colors block of gh-dash/config.yml in place
 set -euo pipefail
 
-COLORS_JSON="$HOME/.cache/wal/colors.json"
 CONFIG="$DOTFILES/configs/programming/gh-dash/config.yml"
-
-[[ -f "$COLORS_JSON" ]] || exit 0
+source "$DOTFILES/scripts/lib/palette.sh"
 [[ -f "$CONFIG" ]] || exit 0
-command -v jq >/dev/null || exit 0
-
-j() { jq -r "$1" "$COLORS_JSON"; }
-
-bg=$(j '.special.background')
-fg=$(j '.special.foreground')
-c0=$(j '.colors.color0')
-c2=$(j '.colors.color2')
-c3=$(j '.colors.color3')
-c4=$(j '.colors.color4')
-c8=$(j '.colors.color8')
 
 accent="$c4"
 

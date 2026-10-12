@@ -4,14 +4,13 @@ mkdir -p "${HOME}/desktop" "${HOME}/documents" "${HOME}/downloads" "${HOME}/musi
 mkdir -p "${HOME}/sync" "${HOME}/vault"
 link_into "${HOME}/.config" mimeapps.list user-dirs.conf user-dirs.dirs
 # nemo also claims FileManager1 and sorts first; the user dir wins
-mkdir -p "${HOME}/.local/share/dbus-1/services"
-ln -sfn "${PWD}/dolphin.FileManager1.service" "${HOME}/.local/share/dbus-1/services/org.freedesktop.FileManager1.service"
+link_as "${PWD}/dolphin.FileManager1.service" "${HOME}/.local/share/dbus-1/services/org.freedesktop.FileManager1.service"
 # capitalized defaults xdg-user-dirs-update made before the conf above existed; rmdir keeps any with content
 for dir in Desktop Documents Downloads Music Pictures Projects Public Templates Videos; do
     rmdir "${HOME}/${dir}" 2>/dev/null || true
 done
 # folders apps force into ~ (unreal: Library, UnrealEngine), hidden in dolphin/nemo
-ln -sfn "${PWD}/home.hidden" "${HOME}/.hidden"
+link_as "${PWD}/home.hidden" "${HOME}/.hidden"
 
 # a user autostart entry with Hidden=true shadows the system one of the same id
 mkdir -p "${HOME}/.config/autostart"

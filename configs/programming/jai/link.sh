@@ -6,5 +6,5 @@ profile_has identity || exit 0
 jai_installed() { [[ -x "${HOME}/.jai/bin/jai-linux" ]]; }
 # the newest zip installs here, first install or a later beta
 ./hook/jai-install.sh
-# still missing (no zip yet): the path unit waits for one
-user_hook_oneshot ./hook jai-install jai_installed
+# still missing (no zip yet): the path unit waits for one. syncthing writes ~/sync in bursts, so keep the brake
+user_hook_oneshot jai-install jai_installed --mkdir --watch "%h/sync"

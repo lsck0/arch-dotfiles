@@ -45,6 +45,13 @@ link_into() {
     for file; do ln -sfn "$PWD/$file" "$dir/${file##*/}"; done
 }
 
+# link_as <target> <link>: <link> becomes a link to <target> under a name of its own; a same-name link goes through
+# link_into, a directory through link_dir. the link's parent is made, the target is used as given ($PWD/x or absolute)
+link_as() {
+    mkdir -p "$(dirname "$2")"
+    ln -sfn "$1" "$2"
+}
+
 # link_dir <target> <link>: <link> becomes a link to <target>. ln -sfn onto a real directory (one an app made on its
 # first start) would nest the link inside it, so that directory is moved aside first, never deleted
 link_dir() {
@@ -77,6 +84,19 @@ unit_install() {
     systemctl "$UNIT_SCOPE" daemon-reload
 }
 
+# dropin_install <unit> <conf...>: real 0644 drop-ins under <unit>.d in this scope (systemd reads them before /home
+# mounts), one reload; true when any conf changed, so `dropin_install u c && try-restart u` ties a restart to a change
+dropin_install() {
+    local unit="$1" dir file changed=1
+    shift
+    dir="$UNIT_DIR/${unit}.d"
+    for file; do
+        file_update "$file" "$dir/${file##*/}" && changed=0
+    done
+    systemctl "$UNIT_SCOPE" daemon-reload
+    return "$changed"
+}
+
 # unit_present <unit>: the unit file is known in this scope; an instance looks up its template
 unit_present() {
     local unit="$1"
@@ -84,11 +104,12 @@ unit_present() {
     systemctl "$UNIT_SCOPE" list-unit-files --no-legend "$unit" 2>/dev/null | grep -q .
 }
 
-# file_update <src> <dest>: a real 0644 copy; true only when it changed (a link counts), so `file_update a b && restart`
+# file_update <src> <dest> [mode]: a real copy at <mode> (0644 default); true only when it changed (a link counts),
+# so `file_update a b && restart`
 file_update() {
     [[ -L "$2" ]] || ! cmp -s "$1" "$2" || return 1
     rm -f "$2"
-    install -Dm644 "$1" "$2"
+    install -Dm"${3:-644}" "$1" "$2"
 }
 
 # file_render <src> <dest> <KEY=value...>: <src> with every @KEY@ replaced, renamed into place 0644

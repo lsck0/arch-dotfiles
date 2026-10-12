@@ -134,9 +134,7 @@ system_config() {
     # root runs nothing from a home: links left from before the root copy go
     find /usr/local/bin -maxdepth 1 -type l -lname '/home/*' -delete || fail "prune /usr/local/bin"
     ln -sfn "$SYSTEM_REPO/scripts/lib/adduser-dotfiles.sh" "$ADDUSER_LINK" || fail "$ADDUSER_LINK"
-    # one-shot fixups for machine state an older config left behind; see patches/README.md
-    ./scripts/lib/apply-patches.sh || fail "scripts/lib/apply-patches.sh"
-    # after every system.sh and patch, so a unit is owned or dropped by what this run left enabled
+    # after every system.sh, so a unit is owned or dropped by what this run left enabled
     ledger_units "$PWD" || fail "ledger: disabling dropped units"
     # last, so every initramfs and cmdline change of this run is rebuilt once in one order, then signed and verified
     source ./configs/base/boot/common.sh

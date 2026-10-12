@@ -6,13 +6,13 @@ mkdir -p "${basic}/scenes"
 # scenes and the stream service carry stream tokens, so they live in secrets; readlink only once one exists
 scene_secret="$DOTFILES/secrets/obs-Untitled.json"
 if secret_is_plaintext "${scene_secret}"; then
-	ln -sfn "$(readlink -f "${scene_secret}")" "${basic}/scenes/Untitled.json"
+	link_as "$(readlink -f "${scene_secret}")" "${basic}/scenes/Untitled.json"
 	touch "${basic}/scenes/.from-secrets"
 fi
 link_into "${basic}/profiles/Untitled" basic.ini streamEncoder.json recordEncoder.json
 service_secret="$DOTFILES/secrets/obs-service.json"
 if secret_is_plaintext "${service_secret}"; then
-	ln -sfn "$(readlink -f "${service_secret}")" "${basic}/profiles/Untitled/service.json"
+	link_as "$(readlink -f "${service_secret}")" "${basic}/profiles/Untitled/service.json"
 fi
 # no safe-mode prompt for a missing capture device (issue 32)
 [[ -f "${HOME}/.config/obs-studio/global.ini" ]] || ln -sfn "${PWD}/global.ini" "${HOME}/.config/obs-studio/global.ini"

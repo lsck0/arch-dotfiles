@@ -9,4 +9,4 @@ mkdir -p "${HOME}/.cache/wal" "${HOME}/.local/share/TelegramDesktop"
 
 # stable import path for the wallust-rendered palette
 cache="${HOME}/.cache/wal/colors-telegram.tdesktop-palette"
-ln -sfn "$cache" "${HOME}/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette"
+link_as "$cache" "${HOME}/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette"
