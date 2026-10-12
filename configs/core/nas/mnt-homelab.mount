@@ -1,5 +1,5 @@
 [Unit]
-Description=NAS homelab share (vm-109)
+Description=NAS homelab share (vm-104)
 DefaultDependencies=no
 Conflicts=umount.target
 Before=umount.target
@@ -15,7 +15,7 @@ ConditionVirtualization=|wsl
 
 [Mount]
 # by IP: *.lsck0.dev resolves to Cloudflare, which cannot carry SMB
-What=//10.100.0.109/homelab
+What=//10.100.0.104/homelab
 Where=/mnt/homelab
 Type=cifs
 Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770

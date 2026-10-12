@@ -1,6 +1,6 @@
 # syncthing
 
-Syncs `~/sync` with the homelab NAS (`vm-109-nas`, `10.100.0.109` over the
+Syncs `~/sync` with the homelab NAS (`vm-104-nas`, `10.100.0.104` over the
 wireguard tunnel), with staggered versioning (30 days) for what another device
 deletes or overwrites, and sends `~/.local/share/borg-repo` as the folder
 `borg-<host>` to the NAS alone (configs/core/borg).

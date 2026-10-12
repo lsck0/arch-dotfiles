@@ -36,10 +36,10 @@ if [[ "$count" -lt "$MIRRORS_MIN" ]]; then
 fi
 
 # homelab first (internal, authoritative), the ranked public mirrors are the away fallback; kept only where system.sh put it
-homelab=$(grep -m1 '^Server *= *http://10.100.0.109' "$TARGET" || true)
+homelab=$(grep -m1 '^Server *= *http://10.100.0.104' "$TARGET" || true)
 {
     if [[ -n "$homelab" ]]; then
-        echo "# homelab full mirror (10.100.0.109), internal only, authoritative"
+        echo "# homelab full mirror (10.100.0.104, nas): lan-direct at home/wireguard, public mirrors below are the away fallback"
         echo "$homelab"
         echo
     fi

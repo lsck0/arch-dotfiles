@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 MIRRORLIST=/etc/pacman.d/mirrorlist
-HOMELAB_MIRROR=10.100.0.109
+HOMELAB_MIRROR=10.100.0.104
 
 # the committed ranking seeds a fresh install or replaces the old link into the checkout; the timers keep it current
 if [[ -L "$MIRRORLIST" ]] || ! grep -q '^# lastsync' "$MIRRORLIST"; then
