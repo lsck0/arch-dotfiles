@@ -1,0 +1,9 @@
+# managed by arch-dotfiles/apparmor
+# ~/.config/gtk-3.0/gtk.css links to the desktop/gtk theme; apparmor resolves the link to this target, so a confined
+# gtk app needs the target readable or it falls back with "Permission denied" reading gtk.css
+
+  abi <abi/4.0>,
+
+  owner @{HOME}/projects/arch-dotfiles/configs/desktop/gtk/** r,
+
+  include if exists <abstractions/dotfiles/gtk-theme.d>

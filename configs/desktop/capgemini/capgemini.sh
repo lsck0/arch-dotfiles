@@ -12,4 +12,5 @@ if systemctl is-active -q tor-router.service; then
 fi
 
 (($#)) || set -- https://arc.capgemini.com/
-exec chromium --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/capgemini/chromium" "$@"
+# --ozone-platform-hint=auto: native wayland, so the pipewire screencast portal works (teams screen share) and 4k scales
+exec chromium --ozone-platform-hint=auto --user-data-dir="${XDG_DATA_HOME:-$HOME/.local/share}/capgemini/chromium" "$@"

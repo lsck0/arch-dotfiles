@@ -5,5 +5,11 @@ owner @{user_cache_dirs}/wal/{colors.json,colors-qutebrowser.css} r,
 # the start page's bookmarks, and the wallpaper ~/.cache/wal/wallpaper links to
 owner @{HOME}/projects/arch-dotfiles/weblinks/collection/links.js r,
 owner @{HOME}/projects/arch-dotfiles/{,secrets/}wallpapers/** r,
+# QtWebEngine's sandbox reads /proc to set itself up; a confined profile missing these crashes in proc_util.cc
+@{PROC}/ r,
+@{PROC}/@{pid}/ r,
+@{PROC}/@{pid}/stat r,
+@{PROC}/@{pid}/task/ r,
+@{PROC}/sys/kernel/yama/ptrace_scope r,
 # opening downloads and external links
 @{open_path} rPx -> child-open-strict,

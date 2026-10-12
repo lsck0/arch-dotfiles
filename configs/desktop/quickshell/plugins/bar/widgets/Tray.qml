@@ -600,6 +600,20 @@ BarWidget {
                 font.pixelSize: Style.font.bodySmall
               }
 
+              Text {
+                visible: !menuRow.modelData.isSeparator && rowMouse.containsMouse && menuRow.modelData.buttonType === QsMenuButtonType.None
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                width: trayMenuPopup.checkGutter
+                horizontalAlignment: Text.AlignHCenter
+                textFormat: Text.PlainText
+                text: ">"
+                color: root.foreground
+                opacity: Style.emphasis.faint
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+
               Image {
                 visible: !menuRow.modelData.isSeparator && String(menuRow.modelData.icon || "") !== ""
                 anchors.verticalCenter: parent.verticalCenter

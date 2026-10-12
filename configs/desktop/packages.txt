@@ -7,6 +7,8 @@ bluetui                           # bluetooth tui
 bookokrat-bin                     # terminal pdf
 brightnessctl                     # backlight control
 chromium                          # web browser
+browserpass                       # native host: autofill pass creds/OTP into chromium
+browserpass-chromium              # browserpass native-host manifest + extension for chromium
 cpio                              # hyprpm extracts Hyprland headers with it
 cups                              # printing system
 cups-pdf                          # print-to-PDF virtual printer

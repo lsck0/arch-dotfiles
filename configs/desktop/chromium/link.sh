@@ -11,3 +11,6 @@ style_profile() {
 
 style_profile "${XDG_CONFIG_HOME:-$HOME/.config}/chromium"
 profile_has work && style_profile "${XDG_DATA_HOME:-$HOME/.local/share}/capgemini/chromium" || true
+
+# native wayland: pipewire screencast portal (screen share) works instead of xwayland, and 4k scales
+desktop_override chromium.desktop 's|^Exec=chromium|Exec=chromium --ozone-platform-hint=auto|'

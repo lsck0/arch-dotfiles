@@ -1,3 +1,5 @@
 # managed by arch-dotfiles/apparmor
 # pywal palette socials/telegram links into the data dir
 owner @{user_cache_dirs}/wal/colors-telegram.tdesktop-palette r,
+# the embedded login/payments webview's wayland lockfile, else it aborts with "check permissions"
+owner @{run}/user/@{uid}/*-TD-webview-*wayland.lock rwk,

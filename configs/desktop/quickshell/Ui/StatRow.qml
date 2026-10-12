@@ -59,6 +59,22 @@ Item {
     font.letterSpacing: Style.labelTracking
   }
 
+  // AlignRight hugs the value; clip hides left overflow and collapses to nothing when the label eats the gap
+  Text {
+    clip: true
+    anchors.left: labelText.right
+    anchors.leftMargin: Style.spacing.xs
+    anchors.right: valueRow.left
+    anchors.rightMargin: Style.spacing.xs
+    anchors.baseline: labelText.baseline
+    horizontalAlignment: Text.AlignRight
+    textFormat: Text.PlainText
+    text: "· ".repeat(120)
+    color: Util.alpha(Colors.menu.text, Style.emphasis.disabled)
+    font.family: Style.font.family
+    font.pixelSize: Style.font.caption
+  }
+
   Row {
     id: valueRow
     anchors.right: parent.right
@@ -85,6 +101,7 @@ Item {
       opacity: Style.emphasis.faint
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
+      font.features: { "tnum": 1 }
     }
   }
 

@@ -1,4 +1,8 @@
 # managed by arch-dotfiles/apparmor
+# its data dir (bookmarks.sqlite) must be creatable; the upstream profile only grants read, so a fresh install
+# where the dir does not exist yet cannot mkdir it
+owner @{user_share_dirs}/zathura/ rw,
+owner @{user_share_dirs}/zathura/** rwk,
 # synctex inverse search (desktop/zathura/zathurarc) through the editor bridge child
 include <abstractions/dotfiles/synctex-edit>
 # links in a pdf open through the strict opener child

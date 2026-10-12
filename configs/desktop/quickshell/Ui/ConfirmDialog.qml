@@ -52,6 +52,11 @@ Item {
       // grows with the wrapped message
       height: card.contentTopInset + card.contentBottomInset + messageText.implicitHeight + Style.space(20) + Style.space(34)
       anchors.centerIn: parent
+      opacity: root.opened ? 1 : 0
+      scale: root.opened ? 1 : 0.96
+      transformOrigin: Item.Center
+      Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
+      Behavior on scale { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
       color: root.background
       borderSpec: Border.flat(root.selectedText, Style.normalBorderWidth)
       padding: Style.spacing.lg

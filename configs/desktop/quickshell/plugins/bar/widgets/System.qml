@@ -286,6 +286,7 @@ BarWidget {
       font.family: Style.font.family
       font.pixelSize: Style.font.title
       font.letterSpacing: Style.displayTracking
+      font.features: { "tnum": 1 }
     }
     Text {
       visible: parent.note.length > 0
@@ -356,6 +357,7 @@ BarWidget {
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         font.letterSpacing: Style.displayTracking
+        font.features: { "tnum": 1 }
         style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
         styleColor: Util.alpha(Colors.accent, 0.35)
       }
@@ -370,6 +372,7 @@ BarWidget {
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         font.letterSpacing: Style.displayTracking
+        font.features: { "tnum": 1 }
       }
     }
 

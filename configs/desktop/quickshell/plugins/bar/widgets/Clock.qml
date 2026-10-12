@@ -301,24 +301,12 @@ BarWidget {
         onMoved: function(v) { root.travelHours = v }
       }
 
-      Rectangle {
+      ActionButton {
         visible: root.travelHours !== 0
         width: parent.width
-        height: Style.space(24)
-        radius: Style.shape.data
-        color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
-        Text {
-          anchors.centerIn: parent
-          text: "Reset to now"
-          color: Colors.accent
-          font.pixelSize: Style.font.caption
-          font.family: Style.font.family
-        }
-        MouseArea {
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.travelHours = 0
-        }
+        label: "reset to now"
+        tint: Colors.accent
+        onActivated: root.travelHours = 0
       }
 
       PanelSeparator {}

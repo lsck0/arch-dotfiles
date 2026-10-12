@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# the desktop/gtk theme ~/.config/gtk-3.0/gtk.css links to
+include <abstractions/dotfiles/gtk-theme>

@@ -197,20 +197,32 @@ Item {
     }
 
     // `> SHUTDOWN? [Y/n]` under the tiles, blank when nothing waits
-    Text {
+    Row {
       id: confirmLine
       anchors.top: actionRow.bottom
       anchors.topMargin: Style.spacing.sm
       anchors.left: actionRow.left
       height: Style.font.body + Style.spacing.xs * 2
-      verticalAlignment: Text.AlignVCenter
-      textFormat: Text.PlainText
-      text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
-      color: Colors.urgent
-      font.family: Style.font.family
-      font.pixelSize: Style.font.body
-      font.bold: true
-      font.letterSpacing: Style.headerTracking
+      spacing: Style.spacing.xs
+
+      Text {
+        anchors.verticalCenter: parent.verticalCenter
+        textFormat: Text.PlainText
+        text: root.pendingAction ? "> " + root.pendingAction.label.toUpperCase() + "? [Y/n]" : ""
+        color: Colors.urgent
+        font.family: Style.font.family
+        font.pixelSize: Style.font.body
+        font.bold: true
+        font.letterSpacing: Style.headerTracking
+      }
+      BlinkCaret {
+        anchors.verticalCenter: parent.verticalCenter
+        visible: root.pendingAction !== null
+        prompt: true
+        running: root.pendingAction !== null
+        size: Style.font.body
+        color: Colors.urgent
+      }
     }
   }
 }

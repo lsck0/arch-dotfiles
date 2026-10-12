@@ -319,6 +319,7 @@ BarWidget {
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.letterSpacing: Style.displayTracking
+      font.features: { "tnum": 1 }
     }
   }
 

@@ -1,4 +1,6 @@
 # managed by arch-dotfiles/apparmor
+# the launcher execs its update bootstrap before the app; without this it aborts with "Permission denied"
+/usr/share/discord/updater_bootstrap rix,
 # betterdiscord (socials/discord): the injected core requires its asar, plugins and themes keep their data beside it
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
 # settings.json links into the dotfiles checkout
