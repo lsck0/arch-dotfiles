@@ -16,8 +16,11 @@ for dir in $DOTFILES/skills/l-*/; do
 done
 find "${hermes_orchestrator}/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 
-# skin lives in the default profile, wallpaper switches rewrite only that
-HERMES_HOME="${hermes_default}" $DOTFILES/configs/core/wallust/scripts/generate-hermes-skin.py
+# skin lives in the default profile, wallpaper switches rewrite only that. a fresh install has no palette yet: config.sh
+# applies the first theme after every link.sh, and that switch writes the skin
+if [[ -e "$HOME/.cache/wal/colors.json" ]]; then
+    HERMES_HOME="${hermes_default}" $DOTFILES/configs/core/wallust/scripts/generate-hermes-skin.py
+fi
 mkdir -p "${hermes_orchestrator}/skins"
 ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 
