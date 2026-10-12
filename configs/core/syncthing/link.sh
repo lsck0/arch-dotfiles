@@ -3,6 +3,9 @@
 profile_has homelab || exit 0
 
 mkdir -p "${HOME}/sync"
+# the identity module drops a per-repo per-machine .identity/ (browser profiles, agent state, aws/gnupg/ssh/kube
+# creds, caches) into repos kept under ~/sync; keep those machine-local, never replicate them to the nas
+printf '%s\n' '**/.identity' >"${HOME}/sync/.stignore"
 
 STATE="${HOME}/.local/state/syncthing"
 # per-host device identity

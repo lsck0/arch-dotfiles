@@ -102,8 +102,16 @@ fi
 # would go through tor. portmaster and resolved stay as they are
 if [ "$iface" = "$WG_IFACE" ]; then
     case "$action" in
-    up) tor_off ;;
-    down) foreign && tor_on "$WG_IFACE" ;;
+    up)
+        tor_off
+        # off home, homelab-routes.sh parks an unreachable /16 in the main table as a fail-fast fallback; it sits above
+        # wg-quick's suppress_prefixlength 0 rule and shadows the full tunnel, so drop it while wg0 carries the homelab
+        for net in 10.100.0.0/16 10.200.0.0/16; do ip route del unreachable "$net" metric 4000 2>/dev/null || true; done
+        ;;
+    down)
+        foreign && tor_on "$WG_IFACE"
+        [ -e /etc/NetworkManager/homelab ] && for net in 10.100.0.0/16 10.200.0.0/16; do ip route replace unreachable "$net" metric 4000; done
+        ;;
     esac
     exit 0
 fi

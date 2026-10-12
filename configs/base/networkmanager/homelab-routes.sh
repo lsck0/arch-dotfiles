@@ -34,7 +34,9 @@ if [ "$action" = down ]; then
     exit 0
 fi
 
-if [ -e "$HOMELAB_MARKER" ]; then
+# not while the full tunnel is up: persona-dispatcher drops these on wg0 up so they cannot shadow it, a stray physical
+# link event must not re-add them under it
+if [ -e "$HOMELAB_MARKER" ] && [ ! -e /sys/class/net/wg0 ]; then
     for net in $HOMELAB_NETS; do
         ip route replace unreachable "$net" metric "$UNREACHABLE_METRIC"
     done
