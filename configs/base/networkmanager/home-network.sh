@@ -41,9 +41,10 @@ else
     rm -f "$HOME_NETWORK"
 fi
 
-# the egress kill switch and fw-inbound's lan services follow the list before any later dispatcher sends a packet: one
-# transaction per table, so a home link never drops out and a link that left home never keeps its place
-for table in fw_egress fw; do
+# the egress kill switch and fw-inbound's lan services follow the list before any later dispatcher sends a packet, and
+# portmaster_bypass so the lab-dns split-horizon bypass only fires out a home link: one transaction per table, so a home
+# link never drops out and a link that left home never keeps its place
+for table in fw_egress fw portmaster_bypass; do
     nft list set inet "$table" home_ifaces >/dev/null 2>&1 || continue
     {
         echo "flush set inet $table home_ifaces"

@@ -10,6 +10,8 @@ TABLE="tor_router"
 # the fwmark a tunnel puts on its own udp: protonvpn's and wg-quick's, as in configs/base/nftables/fw-egress.nft
 TUNNEL_MARKS="0x0ea13b2c, 0x0000ca6c"
 HOME_NETWORK=/run/home-network
+# the home lab router, reached plain for lsck0.dev's split-horizon dns (configs/base/networkmanager/homelab-routes.sh)
+LAB_DNS="192.168.178.29"
 
 # home_ifaces <- /run/home-network: the lan and homelab bypass tor only out a home link, so a foreign network on the
 # same subnet goes through tor; the persona dispatcher calls it on every link change. flushed first, a failed fill
@@ -50,6 +52,8 @@ table inet $TABLE {
 		meta l4proto udp meta mark { $TUNNEL_MARKS } return
 		# the dhcp client's unicast renew and broadcast rebind; redirected, the lease runs out
 		udp sport 68 udp dport 67 return
+		# lsck0.dev's split-horizon dns stays plain to the lab router out a home link, before the redirect below sends 53 to tor
+		oifname @home_ifaces ip daddr $LAB_DNS meta l4proto { tcp, udp } th dport 53 return
 		udp dport 53 redirect to :$DNS_PORT
 		tcp dport 53 redirect to :$TRANS_PORT
 		# no lo: the automapped 127.192.0.0/10 must still reach the TransPort
