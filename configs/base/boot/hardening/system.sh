@@ -18,3 +18,18 @@ kernel_cmdline_set \
     randomize_kstack_offset=on \
     vsyscall=none \
     page_alloc.shuffle=1
+
+# cross-thread data leak (MDS, MMIO stale data): on an smt-capable intel cpu these bugs affect, the per-vuln
+# mitigations clear the cpu buffers but a sibling hyperthread can still read them, so disable smt. scoped by hardware,
+# not the current smt state (nosmt itself turns smt off, which would otherwise flip the check and flap it every run):
+# the smt/control file stays != notsupported while capable, and the vuln files still name the bug (not "Not affected")
+# while mitigated-with-smt-off. amd zen and cpus these bugs do not affect keep smt. skipped in a guest: the host owns it
+vuln_affected() { [[ -r "$1" ]] && ! grep -q 'Not affected' "$1"; }
+smt_ctl=$(cat /sys/devices/system/cpu/smt/control 2>/dev/null || echo notsupported)
+if [[ "$FORM_FACTOR" != vm ]] && grep -q GenuineIntel /proc/cpuinfo && [[ "$smt_ctl" != notsupported ]] &&
+    { vuln_affected /sys/devices/system/cpu/vulnerabilities/mds ||
+        vuln_affected /sys/devices/system/cpu/vulnerabilities/mmio_stale_data; }; then
+    kernel_cmdline_set nosmt
+else
+    kernel_cmdline_unset nosmt
+fi
