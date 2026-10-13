@@ -45,8 +45,9 @@ fi
 # userland; protonup and the tmux plugins come from config.sh, the latter pinned
 
 if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprpm >/dev/null 2>&1; then
-    # not `yes |`: pipefail would fail on yes dying of sigpipe
-    hyprpm update -f < <(yes)
+    # interactive (a tty) so manual_link.sh builds the store + adds/enables the plugins; it sudo's, which only a
+    # terminal can answer on a FIDO2-sudo box. login autostart is sudo-free and only reloads what this built
+    ./configs/desktop/hyprland/manual_link.sh
 fi
 
 run_if_present tldr --update_cache
