@@ -26,7 +26,9 @@ kernel_cmdline_set \
 # while mitigated-with-smt-off. amd zen and cpus these bugs do not affect keep smt. skipped in a guest: the host owns it
 vuln_affected() { [[ -r "$1" ]] && ! grep -q 'Not affected' "$1"; }
 smt_ctl=$(cat /sys/devices/system/cpu/smt/control 2>/dev/null || echo notsupported)
-if [[ "$FORM_FACTOR" != vm ]] && grep -q GenuineIntel /proc/cpuinfo && [[ "$smt_ctl" != notsupported ]] &&
+# ALLOW_SMT=1 (platforms/*.sh) keeps hyperthreading on an affected cpu: the per-vuln buffer flushes stay, only the
+# cross-sibling leak is accepted. the default disables smt on an affected intel part
+if [[ -z "${ALLOW_SMT:-}" ]] && [[ "$FORM_FACTOR" != vm ]] && grep -q GenuineIntel /proc/cpuinfo && [[ "$smt_ctl" != notsupported ]] &&
     { vuln_affected /sys/devices/system/cpu/vulnerabilities/mds ||
         vuln_affected /sys/devices/system/cpu/vulnerabilities/mmio_stale_data; }; then
     kernel_cmdline_set nosmt

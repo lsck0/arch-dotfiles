@@ -8,7 +8,7 @@ PLATFORM_LOCAL=/etc/dotfiles/platform.sh
 PLATFORM_FORM_FACTOR_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/form-factor"
 # exported to every module; each 1 or empty, WIREGUARD a secrets file name, FORM_FACTOR desktop, laptop, vm or wsl,
 # VAAPI_RENDER_NODE a /dev/dri render node for obs
-PLATFORM_FACTS=(FORM_FACTOR HOMELAB WIREGUARD SECURE_BOOT_OWN_KEYS LSCK0_SNAPSHOT VAAPI_RENDER_NODE)
+PLATFORM_FACTS=(FORM_FACTOR HOMELAB WIREGUARD SECURE_BOOT_OWN_KEYS LSCK0_SNAPSHOT VAAPI_RENDER_NODE ALLOW_SMT)
 
 # platform_file <repo>: this machine's platform file, nothing for a machine without one. the machine's own answers win,
 # so a new machine never picks up a platforms/ file that shares its hostname; a checkout's platforms/local.sh from
