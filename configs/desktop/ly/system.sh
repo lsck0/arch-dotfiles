@@ -13,6 +13,12 @@ UID_MAX=59999
 [[ ! -e "$CONFIG" || -e "$BACKUP" ]] || install -Dm644 "$CONFIG" "$BACKUP"
 install -Dm644 config.ini "$CONFIG"
 
+# config.ini sets lang=lsck0: the stock en lang with F4's hibernate hint renamed to reboot-to-firmware (hibernate_cmd
+# runs systemctl reboot --firmware-setup). regenerated from the current en.ini each run so a ly update stays in sync
+if [[ -f /etc/ly/lang/en.ini ]]; then
+    sed 's/^hibernate = .*/hibernate = reboot to firmware/' /etc/ly/lang/en.ini >/etc/ly/lang/lsck0.ini
+fi
+
 # only Hyprland (uwsm) and Plasma show, next to ly's built-in shell
 rm -rf "$SESSIONS"
 install -Dm644 -t "$SESSIONS" sessions/hyprland.desktop sessions/plasma.desktop
