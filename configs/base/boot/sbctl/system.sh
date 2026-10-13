@@ -66,26 +66,28 @@ if [[ "$need_sign" == "true" ]]; then
     echo "sbctl: signing boot files before enrollment" >&2
     sign_unsigned_boot_files
 
-    if ! sbctl list-enrolled-keys | grep -qvE '^\S+:\s*$'; then
-        # own keys only where the platform says so (SECURE_BOOT_OWN_KEYS): one esp, no dual boot, and fwupd signs its capsule
-        # efi with these keys; takes effect only on a fresh enroll, so a machine already carrying ms keys must clear sb in firmware and rerun
-        if [[ -n "$SECURE_BOOT_OWN_KEYS" && -r /sys/kernel/security/tpm0/binary_bios_measurements ]]; then
-            # sbctl refuses a plain enroll when the event log shows an option rom (a dgpu's gop): -t puts the measured
-            # hashes in db beside our keys, so they keep loading without the microsoft ca; a gpu swap or vbios update
-            # changes them and needs a re-enroll
-            echo "sbctl: enrolling own keys plus the TPM event log's option rom hashes, no Microsoft keys" >&2
-            echo "sbctl: (clear Secure Boot keys in firmware to re-enroll a machine that already carries Microsoft's)" >&2
-            sbctl enroll-keys -t
-        elif [[ -n "$SECURE_BOOT_OWN_KEYS" ]]; then
-            # without an event log sbctl cannot tell whether an option rom needs microsoft's ca; forcing could brick
-            echo "sbctl: !!! SECURE_BOOT_OWN_KEYS set but no TPM event log to read option rom hashes from" >&2
-            echo "sbctl: !!! falling back to own keys PLUS Microsoft's, the Microsoft CA stays trusted in db" >&2
-            sbctl enroll-keys -m
-        else
-            # anyone else's machine may still boot windows, other loaders or option roms signed by microsoft
-            echo "sbctl: enrolling own keys plus Microsoft's" >&2
-            sbctl enroll-keys -m
-        fi
+    # setup mode is the authoritative "no PK, must enroll" signal; leftover KEK/db vendor certs can still be present, so
+    # never gate the enroll on list-enrolled-keys being empty — that skips the one write that leaves setup mode
+    if [[ -n "$SECURE_BOOT_OWN_KEYS" && -r /sys/kernel/security/tpm0/binary_bios_measurements ]]; then
+        # sbctl refuses a plain enroll when the event log shows an option rom (a dgpu's gop): -t puts the measured
+        # hashes in db beside our keys, so they keep loading without the microsoft ca; a gpu swap or vbios update
+        # changes them and needs a re-enroll
+        echo "sbctl: enrolling own keys plus the TPM event log's option rom hashes, no Microsoft keys" >&2
+        echo "sbctl: (clear Secure Boot keys in firmware to re-enroll a machine that already carries Microsoft's)" >&2
+        sbctl enroll-keys -t
+    elif [[ -n "$SECURE_BOOT_OWN_KEYS" ]]; then
+        # without an event log sbctl cannot tell whether an option rom needs microsoft's ca; forcing could brick
+        echo "sbctl: !!! SECURE_BOOT_OWN_KEYS set but no TPM event log to read option rom hashes from" >&2
+        echo "sbctl: !!! falling back to own keys PLUS Microsoft's, the Microsoft CA stays trusted in db" >&2
+        sbctl enroll-keys -m
+    else
+        # anyone else's machine may still boot windows, other loaders or option roms signed by microsoft
+        echo "sbctl: enrolling own keys plus Microsoft's" >&2
+        sbctl enroll-keys -m
+    fi
+    if sbctl status | grep -qE 'Setup Mode:\s+(\S+\s+)?Enabled'; then
+        echo "sbctl: !!! enroll-keys ran but firmware still in Setup Mode; PK not written (enroll failed or efivars locked)" >&2
+        exit 1
     fi
     echo "sbctl: keys created/enrolled and boot files signed. Enable Secure Boot in firmware, reboot, then rerun config.sh." >&2
     echo "sbctl: verify with 'sbctl verify' BEFORE rebooting with Secure Boot on." >&2
