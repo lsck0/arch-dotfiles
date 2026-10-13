@@ -33,8 +33,14 @@ if secret_is_plaintext "${service_secret}"; then
 	link_as "$(readlink -f "${service_secret}")" "${basic}/profiles/Streaming/service.json"
 fi
 
-# no safe-mode prompt for a missing capture device (issue 32), and a default profile/collection so OBS opens ready
-[[ -f "${HOME}/.config/obs-studio/global.ini" ]] || ln -sfn "${PWD}/global.ini" "${HOME}/.config/obs-studio/global.ini"
+# no safe-mode prompt for a missing capture device (issue 32), and a default profile/collection so OBS opens ready.
+# when OBS already wrote its own global.ini, seed just the [Basic] defaults once; OBS owns the section afterward
+GLOBAL="${HOME}/.config/obs-studio/global.ini"
+if [[ ! -e "${GLOBAL}" ]]; then
+	ln -sfn "${PWD}/global.ini" "${GLOBAL}"
+elif ! grep -q '^\[Basic\]' "${GLOBAL}"; then
+	printf '\n[Basic]\nProfile=Streaming\nProfileDir=Streaming\nSceneCollection=Streaming\nSceneCollectionFile=Streaming\n' >>"${GLOBAL}"
+fi
 
 # obs-websocket for the bar's obs widget
 OBS_WS_DIR="${HOME}/.config/obs-studio/plugin_config/obs-websocket"
