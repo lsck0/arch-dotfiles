@@ -1,0 +1,10 @@
+# systemd-networkd config used inside the initramfs (mkinitcpio-systemd-tool) to bring the wired nic up for remote unlock.
+# wildcard match so it works regardless of the predictable ifname; the dhcp reservation gives a stable address
+[Match]
+Name=en*
+
+[Network]
+DHCP=ipv4
+
+[DHCP]
+UseHostname=true

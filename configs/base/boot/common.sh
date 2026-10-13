@@ -10,7 +10,10 @@ SDBOOT_EFI=/usr/lib/systemd/boot/efi/systemd-bootx64.efi
 SDBOOT_ESP_FILES=("$ESP/EFI/systemd/systemd-bootx64.efi" "$ESP/EFI/BOOT/BOOTX64.EFI")
 # everything mkinitcpio reads; system-apply's boot barrier rebuilds once when their content or mode changed
 BOOT_INPUTS=(/etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d "$CMDLINE" /etc/crypttab.initramfs
-    /etc/plymouth /usr/share/plymouth/themes)
+    /etc/plymouth /usr/share/plymouth/themes
+    # remote-unlock (configs/base/boot/remote-unlock): initramfs ssh host key, authorized key, network, port drop-in
+    /etc/mkinitcpio-systemd-tool /etc/tinyssh /root/.ssh/authorized_keys /root/.profile
+    /etc/systemd/system/initrd-tinysshd.service.d)
 BOOT_INPUTS_STAMP="$SYSTEM_STATE/boot-inputs"
 
 esp_supported() {
