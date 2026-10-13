@@ -40,7 +40,10 @@ if [[ -e /etc/apparmor.d/abstractions/base-strict ]]; then
     # rules the module's profiles share, and drop-ins that extend apparmor.d's (local/<profile>); @{HOME}: every
     # user's own checkout, the profiles are shared by all of them
     install -Dm644 -t /etc/apparmor.d/abstractions/dotfiles abstractions/*
-    install -Dm644 -t /etc/apparmor.d/local local/*
+    # local/ is apparmor.d's slot for a person's own rules: one written by hand is preserved before ours replaces it
+    for src in local/*; do
+        file_update "$src" "/etc/apparmor.d/local/${src##*/}" || true
+    done
     # every gui profile reads the ~/.config link targets in the checkout through the abstractions it already includes
     for hook in desktop fonts qt5 qt6 kde; do
         printf '  include <abstractions/dotfiles/config-links>\n' |

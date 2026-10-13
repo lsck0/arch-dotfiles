@@ -26,7 +26,8 @@ while read -r profile; do
     dir="${root}/${profile}"
     [[ -d "$dir" ]] || continue
     mkdir -p "${dir}/chrome"
-    ln -sfn "${PWD}/userChrome.css" "${dir}/chrome/userChrome.css"
+    # link_as: a profile's own userChrome.css or user.js is preserved, never replaced
+    link_as "${PWD}/userChrome.css" "${dir}/chrome/userChrome.css"
     link_as "$colors" "${dir}/chrome/colors.css"
-    ln -sfn "${PWD}/user.js" "${dir}/user.js"
+    link_as "${PWD}/user.js" "${dir}/user.js"
 done < <(sed -n 's/^Path=//p' "${root}/profiles.ini")

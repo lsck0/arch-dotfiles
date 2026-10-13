@@ -22,7 +22,15 @@ trap 'rm -rf "$tmp"' EXIT
 
 fetch_pinned "$PHOTOGIMP_URL" "$PHOTOGIMP_SHA256" "$tmp/photogimp.zip"
 unzip -q "$tmp/photogimp.zip" -d "$tmp"
-# only the gimp config: its .desktop runs the flatpak and renames the app
-mkdir -p "$config"
-cp -rf "$tmp/PhotoGIMP-linux/.config/GIMP/3.0/." "$config/"
+# only the gimp config: its .desktop runs the flatpak and renames the app. a file of gimp's own that photogimp replaces
+# (shortcuts, docks, a person's tweaks) is preserved first, never overwritten
+src="$tmp/PhotoGIMP-linux/.config/GIMP/3.0"
+while IFS= read -r -d '' file; do
+    dest="$config/${file#"$src"/}"
+    if [[ -e "$dest" || -L "$dest" ]] && ! cmp -s "$file" "$dest"; then
+        preserve_aside "$dest"
+    fi
+    mkdir -p "$(dirname "$dest")"
+    cp -f "$file" "$dest"
+done < <(find "$src" -type f -print0)
 touch "$stamp"

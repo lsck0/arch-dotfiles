@@ -4,7 +4,8 @@
 [[ "$FORM_FACTOR" != wsl ]] || exit 0
 
 # real files in /etc, tor runs as its own user and must not depend on /home
-install -Dm644 torrc /etc/tor/torrc
+# file_update: a hand-edited torrc is preserved under /var/lib/dotfiles/preserved first
+file_update torrc /etc/tor/torrc || true
 # vendored from edu4rdshl/tor-router, the package is not installed so no upgrade can restore its fail-open unit
 changed=0
 file_update tor-router /usr/local/bin/tor-router 755 && changed=1

@@ -14,6 +14,6 @@ json_update "${HOME}/.claude.json" '.mcpServers["unreal-mcp"] = {type: "http", u
 ./hook/unreal-install.sh
 # still missing (no zip yet): arm the path unit to wait for one; the install hook retires itself once an engine is in
 unreal_installed() { [[ -f "${XDG_DATA_HOME:-$HOME/.local/share}/unreal-engine/.installed-from" ]]; }
-user_hook_oneshot unreal-install unreal_installed --mkdir --watch "%h/sync/vendor"
+user_hook_oneshot unreal-install unreal_installed --watch "%h/sync/vendor"
 # bridge and fab again after a new plugin zip, without a new engine
 link_commands unreal-install-plugins.sh

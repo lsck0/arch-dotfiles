@@ -5,7 +5,8 @@
 
 source "$DOTFILES/configs/base/boot/common.sh"
 
-install -Dm640 fwupd.conf /etc/fwupd/fwupd.conf
+# file_update: a hand-edited fwupd.conf is preserved first
+file_update fwupd.conf /etc/fwupd/fwupd.conf 640 || true
 systemctl try-restart fwupd.service
 # metadata only, updates stay manual: fwupdmgr get-updates, fwupdmgr update
 systemctl enable --now fwupd-refresh.timer

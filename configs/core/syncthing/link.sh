@@ -5,7 +5,21 @@ profile_has homelab || exit 0
 mkdir -p "${HOME}/sync"
 # the identity module drops a per-repo per-machine .identity/ (browser profiles, agent state, aws/gnupg/ssh/kube
 # creds, caches) into repos kept under ~/sync; keep those machine-local, never replicate them to the nas
-printf '%s\n' '**/.identity' >"${HOME}/sync/.stignore"
+# .stignore is the one file in ~/sync the dotfiles own (syncthing never syncs it); written by hand around sync_guard,
+# and a hand-edited one is preserved first, like copy_guard does
+stignore="${HOME}/sync/.stignore"
+tmp=$(mktemp)
+printf '%s\n' '**/.identity' >"$tmp"
+if ! cmp -s "$tmp" "$stignore"; then
+    if [[ -e "$stignore" && "$(sha256sum <"$stignore" | cut -d' ' -f1)" != "$(written_hash "$stignore")" ]]; then
+        preserve_aside "$stignore"
+    fi
+    install -m644 "$tmp" "$stignore"
+    written_record "$stignore"
+elif [[ -z "$(written_hash "$stignore")" ]]; then
+    written_record "$stignore"
+fi
+rm -f "$tmp"
 
 STATE="${HOME}/.local/state/syncthing"
 # per-host device identity

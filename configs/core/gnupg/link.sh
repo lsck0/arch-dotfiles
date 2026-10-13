@@ -7,21 +7,19 @@ gnupgdir="${HOME}/.gnupg"
 mkdir -p "${gnupgdir}"
 chmod 700 "${gnupgdir}"
 
-for conf in gpg-agent.conf scdaemon.conf; do
-    target="${gnupgdir}/${conf}"
-    if [ -e "${target}" ] && [ ! -L "${target}" ]; then
-        cp -a "${target}" "${target}.pre-yubikey.bak"
-    fi
-done
+# a person's own gpg-agent.conf/scdaemon.conf is preserved by link_into's guard, not overwritten
 link_into "$gnupgdir" gpg-agent.conf scdaemon.conf
 
 # rendered, not linked: the identity's key is the default for every sign and encrypt-to-self, a user without one has none
+# through file_update: a hand-edited gpg.conf is preserved before the rendered one replaces it
 gpg_conf="${gnupgdir}/gpg.conf"
-rm -f "$gpg_conf"
-cp gpg.conf "$gpg_conf"
+tmp=$(mktemp)
+cat gpg.conf >"$tmp"
 if profile_has identity && [[ -n "$PROFILE_GPG_FINGERPRINT" ]]; then
-    echo "default-key ${PROFILE_GPG_FINGERPRINT}" >>"$gpg_conf"
+    echo "default-key ${PROFILE_GPG_FINGERPRINT}" >>"$tmp"
 fi
+file_update "$tmp" "$gpg_conf" 600 || true
+rm -f "$tmp"
 
 # reload keeps cached keys; scdaemon reads its config only at start
 gpgconf --reload gpg-agent

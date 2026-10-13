@@ -12,7 +12,7 @@ fi
 mkdir -p "${hermes_orchestrator}/skills"
 for dir in $DOTFILES/skills/l-*/; do
     name=$(basename "${dir}")
-    ln -sfn "$(cd "${dir}" && pwd)" "${hermes_orchestrator}/skills/${name}"
+    link_as "$(cd "${dir}" && pwd)" "${hermes_orchestrator}/skills/${name}"
 done
 find "${hermes_orchestrator}/skills" -maxdepth 1 -xtype l -name 'l-*' -delete
 
@@ -22,7 +22,7 @@ if [[ -e "$HOME/.cache/wal/colors.json" ]]; then
     HERMES_HOME="${hermes_default}" $DOTFILES/configs/core/wallust/scripts/generate-hermes-skin.py
 fi
 mkdir -p "${hermes_orchestrator}/skins"
-ln -sfn "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
+link_as "${hermes_default}/skins/wallust.yaml" "${hermes_orchestrator}/skins/wallust.yaml"
 
 # --clone snapshots the default profile once, so configure both
 for hermes_home in "${hermes_default}" "${hermes_orchestrator}"; do

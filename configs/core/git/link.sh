@@ -30,7 +30,11 @@ git config --global delta.side-by-side true
 # merging
 git config --global merge.conflictStyle zdiff3
 if command -v mergiraf >/dev/null 2>&1; then
-    mergiraf languages --gitattributes > "${HOME}/.config/git/attributes"
+    # through file_update: a person's own attributes file is preserved, not overwritten
+    tmp=$(mktemp)
+    mergiraf languages --gitattributes >"$tmp"
+    file_update "$tmp" "${HOME}/.config/git/attributes" || true
+    rm -f "$tmp"
     git config --global merge.mergiraf.name "mergiraf"
     git config --global merge.mergiraf.driver "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
 fi

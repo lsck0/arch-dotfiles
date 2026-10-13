@@ -12,8 +12,9 @@ secret_is_plaintext "${BACKUP}/dalamudConfig.json" || exit 0
 # copies, not links: dalamud rewrites these files in place of a symlink. only a fresh ~/.xlcore is seeded
 if [ ! -f "${XLCORE}/dalamudConfig.json" ]; then
     mkdir -p "${XLCORE}"
-    cp "${BACKUP}/dalamudConfig.json" "${BACKUP}/dalamudUI.ini" "${XLCORE}/"
-    cp -rT "${BACKUP}/pluginConfigs" "${XLCORE}/pluginConfigs"
+    # no-clobber: whatever is already there stays
+    cp -n "${BACKUP}/dalamudConfig.json" "${BACKUP}/dalamudUI.ini" "${XLCORE}/"
+    cp -rnT "${BACKUP}/pluginConfigs" "${XLCORE}/pluginConfigs"
     touch "${XLCORE}/.dalamud-from-secrets"
 fi
 

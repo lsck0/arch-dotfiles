@@ -12,5 +12,6 @@ if [[ ! -x /usr/lib/systemd/system-generators/zram-generator ]]; then
     exit 0
 fi
 
-install -Dm644 sysctl-zram.conf /etc/sysctl.d/99-zram.conf
-install -Dm644 zram-generator.conf /etc/systemd/zram-generator.conf
+# file_update: a hand-edited zram-generator.conf (a package-level path) is preserved first
+file_update sysctl-zram.conf /etc/sysctl.d/99-zram.conf || true
+file_update zram-generator.conf /etc/systemd/zram-generator.conf || true

@@ -473,6 +473,30 @@ def lint_layers() -> list[str]:
     return problems
 
 
+# a write into a syncthing folder: what lives there is the person's data from other machines, and a path made here before
+# syncthing delivers the real one collides with it (configs/desktop/feather once made the wallet file a dir). reads and
+# the module.sh helpers (which refuse ~/sync) are fine
+# the folder root itself (syncthing needs it to exist) and .stignore (never synced, per device) are the exceptions
+SYNC_PATH = re.compile(r"(?:\$\{?HOME\}?|~|%h)/sync(?!\b[\"']?(?:\s|$)|/\.stignore\b)\b")
+SYNC_WRITE = re.compile(r"(?<![\w-])(?:mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)(?![\w-])|--mkdir|>")
+
+
+def lint_sync() -> list[str]:
+    """static check, fatal: no module or script writes into ~/sync."""
+    scripts = [*(HERE / "configs").rglob("*.sh"), *(HERE / "configs").rglob("link.py"), *(HERE / "scripts").rglob("*.sh"),
+               HERE / "config.sh", HERE / "bootstrap.sh"]
+    problems = []
+    for script in filter(Path.is_file, scripts):
+        # module.sh holds the guard that refuses ~/sync
+        if script == HERE / "scripts/lib/module.sh":
+            continue
+        for n, line in code_lines(script):
+            code = QUOTED.sub(lambda m: m.group() if SYNC_PATH.search(m.group()) else "''", line.split(" #", 1)[0])
+            if SYNC_PATH.search(code) and SYNC_WRITE.search(code):
+                problems.append(f"{script.relative_to(HERE)}:{n}: writes into ~/sync, which only syncthing may fill")
+    return problems
+
+
 # --- commands ---
 
 def unit_tests() -> list[str]:
@@ -486,7 +510,7 @@ def unit_tests() -> list[str]:
 
 
 def cmd_lint(args: argparse.Namespace) -> None:
-    problems = lint_modules() + lint_layers() + unit_tests()
+    problems = lint_modules() + lint_layers() + lint_sync() + unit_tests()
     if problems:
         print("\n".join(problems))
         sys.exit(1)
@@ -494,7 +518,7 @@ def cmd_lint(args: argparse.Namespace) -> None:
 
 
 def cmd_run(args: argparse.Namespace) -> None:
-    if (problems := lint_modules() + lint_layers()):
+    if (problems := lint_modules() + lint_layers() + lint_sync()):
         sys.exit("\n".join(problems))
     for tool in ("virt-install", "virsh", "tesseract", "magick"):
         if not shutil.which(tool):

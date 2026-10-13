@@ -25,5 +25,6 @@ fi
 # restrictive world domain; german like the locale
 REGDOM_CONF=/etc/conf.d/wireless-regdom
 if [[ -f "$REGDOM_CONF" ]]; then
-    sed -i 's/^WIRELESS_REGDOM=.*/#&/; s/^#WIRELESS_REGDOM="DE"/WIRELESS_REGDOM="DE"/' "$REGDOM_CONF"
+    # only when none is chosen: a country set by hand stays
+    grep -q '^WIRELESS_REGDOM=' "$REGDOM_CONF" || sed -i 's/^#WIRELESS_REGDOM="DE"/WIRELESS_REGDOM="DE"/' "$REGDOM_CONF"
 fi

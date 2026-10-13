@@ -19,4 +19,5 @@ mkdir -p "$tmp/data" "$tmp/config"
 XDG_DATA_HOME="$tmp/data" XDG_CONFIG_HOME="$tmp/config" PYTHONPATH="$PWD" timeout 900 kritarunner -s warm >/dev/null
 [[ -s "$tmp/data/kritarunner/resourcecache.sqlite" ]] || { echo "krita: kritarunner built no resource db" >&2; exit 1; }
 mkdir -p "$DATA"
-cp -a "$tmp/data/kritarunner/." "$DATA/"
+# no-clobber: a data dir that only lost its db keeps everything else a person put there
+cp -an "$tmp/data/kritarunner/." "$DATA/"

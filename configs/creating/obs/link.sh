@@ -22,8 +22,13 @@ for p in profiles/*/; do
 	# the encoder json keeps no vaapi_device in the repo (machine-agnostic); copy it and inject this box's render node
 	for f in "$p"*Encoder.json; do
 		[ -e "$f" ] || continue
+		# obs rewrites it when the encoder is changed in its settings: that edit is preserved before the reset
+		copy_guard "${dir}/${f##*/}" || continue
 		cp -f "$f" "${dir}/${f##*/}"
-		[ -n "${VAAPI_RENDER_NODE:-}" ] && json_update "${dir}/${f##*/}" --arg d "$VAAPI_RENDER_NODE" '.vaapi_device=$d'
+		if [ -n "${VAAPI_RENDER_NODE:-}" ]; then
+			json_update "${dir}/${f##*/}" --arg d "$VAAPI_RENDER_NODE" '.vaapi_device=$d'
+		fi
+		written_record "${dir}/${f##*/}"
 	done
 done
 

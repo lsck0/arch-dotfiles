@@ -13,9 +13,9 @@ if [[ ! -x "${HOME}/.config/discord/Discord" && -x "$bootstrap" ]] && ! pgrep -x
         || echo "discord: app download failed, the first launch retries it" >&2
 fi
 
-# copy, betterdiscord misses changes through a symlink
-cp "${PWD}/wal.theme.css" "${bd}/themes/wal.theme.css"
-cp "${PWD}/plugins/QuickshellVoiceStatus.plugin.js" "${bd}/plugins/QuickshellVoiceStatus.plugin.js"
+# copy, betterdiscord misses changes through a symlink; a hand edit since the last run is preserved first
+file_update "${PWD}/wal.theme.css" "${bd}/themes/wal.theme.css" || true
+file_update "${PWD}/plugins/QuickshellVoiceStatus.plugin.js" "${bd}/plugins/QuickshellVoiceStatus.plugin.js" || true
 
 # pinned to commit shas
 for url in \

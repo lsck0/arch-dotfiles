@@ -5,7 +5,8 @@ dest="${HOME}/.local/share/fonts"
 mkdir -p "$dest"
 for f in *.ttf *.otf; do
     [ -e "$f" ] || continue
-    install -m644 "$f" "$dest/$f"
+    # through file_update: a person's own font under the same name is kept aside, never overwritten
+    file_update "$f" "$dest/$f" || true
 done
 
 # default family preferences + rendering

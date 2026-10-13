@@ -11,7 +11,8 @@ secret_is_plaintext "${BACKUP}/launcher.ini" || exit 0
 # copies, not links: the game and launcher rewrite these in place of a symlink. only a fresh ~/.xlcore is seeded
 if [ ! -f "${XLCORE}/ffxivConfig/FFXIV.cfg" ]; then
     mkdir -p "${XLCORE}/ffxivConfig"
-    cp -rT "${BACKUP}/ffxivConfig" "${XLCORE}/ffxivConfig"
+    # no-clobber: keybinds or character data already there stay
+    cp -rnT "${BACKUP}/ffxivConfig" "${XLCORE}/ffxivConfig"
     touch "${XLCORE}/ffxivConfig/.from-secrets"
 fi
 if [ ! -f "${XLCORE}/launcher.ini" ]; then

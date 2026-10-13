@@ -11,7 +11,8 @@ UID_MAX=59999
 
 # ly runs at boot before /home is mounted, so install a real file in /etc
 [[ ! -e "$CONFIG" || -e "$BACKUP" ]] || install -Dm644 "$CONFIG" "$BACKUP"
-install -Dm644 config.ini "$CONFIG"
+# a hand edit since the last run is preserved first (file_update)
+file_update config.ini "$CONFIG" || true
 
 # config.ini sets lang=lsck0: the stock en lang with F4's hibernate hint renamed to reboot-to-firmware (hibernate_cmd
 # runs systemctl reboot --firmware-setup). regenerated from the current en.ini each run so a ly update stays in sync

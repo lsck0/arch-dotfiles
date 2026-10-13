@@ -16,7 +16,15 @@ pacman-key --lsign-key "$fingerprint"
 [[ "$LSCK0_SNAPSHOT" =~ ^([0-9]{4}-[0-9]{2}-[0-9]{2})?$ ]] || { echo "pacman: LSCK0_SNAPSHOT '$LSCK0_SNAPSHOT' is not YYYY-MM-DD" >&2; exit 1; }
 # [lsck0] always, so an unreachable snapshot fails the sync instead of mixing live core with snapshot sonames; rename, never a half-written file
 sed "/^\[lsck0\]/,/^\[/ s|/\$arch\$|${LSCK0_SNAPSHOT:+/$LSCK0_SNAPSHOT}/\$arch|" pacman.conf | install -m644 /dev/stdin "$PACMAN_CONF.new"
-mv -f "$PACMAN_CONF.new" "$PACMAN_CONF"
+if cmp -s "$PACMAN_CONF.new" "$PACMAN_CONF"; then
+    rm -f "$PACMAN_CONF.new"
+    [[ -n "$(written_hash "$PACMAN_CONF")" ]] || written_record "$PACMAN_CONF"
+else
+    # a hand edit (another repo, a changed option) is preserved before the render replaces it
+    copy_guard "$PACMAN_CONF"
+    mv -f "$PACMAN_CONF.new" "$PACMAN_CONF"
+    written_record "$PACMAN_CONF"
+fi
 
 # hooks run as root: root-owned copies, never links into a checkout
 for hook in hooks/*.hook; do

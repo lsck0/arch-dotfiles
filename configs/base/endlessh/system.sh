@@ -3,7 +3,8 @@
 # windows owns kernel, boot, drivers, power, audio and network under wsl; nothing here applies
 [[ "$FORM_FACTOR" != wsl ]] || exit 0
 
-install -Dm644 config /etc/endlessh/config
+# file_update: a hand-edited config is preserved first
+file_update config /etc/endlessh/config || true
 dropin_install endlessh.service override.conf || true
 
 # sshd only moves off 22 once authorized_keys exists

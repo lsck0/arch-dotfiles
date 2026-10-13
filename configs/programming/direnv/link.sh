@@ -6,5 +6,8 @@ if ! command -v direnv >/dev/null 2>&1 || [[ ! -x "$DEVENV" ]]; then
     exit 0
 fi
 
-mkdir -p "${HOME}/.config/direnv"
-"$DEVENV" direnvrc > "${HOME}/.config/direnv/direnvrc"
+# rendered, then copied through file_update: a direnvrc written by hand is kept aside, never overwritten
+tmp=$(mktemp)
+"$DEVENV" direnvrc >"$tmp"
+file_update "$tmp" "${HOME}/.config/direnv/direnvrc" || true
+rm -f "$tmp"

@@ -8,6 +8,5 @@ fi
 
 channel=$(sed -n 's/^channel = "\(.*\)"/\1/p' "$SYSROOT/rust-toolchain.toml")
 rustup toolchain install "$channel" --profile minimal --component rust-src,rustc-dev,llvm-tools
-# a sysroot from the old `cargo xtask install` is a real directory, ln would nest into it
-[[ -d "${HOME}/.flux" && ! -L "${HOME}/.flux" ]] && command rm -rf "${HOME}/.flux"
-ln -sfn "$SYSROOT" "${HOME}/.flux"
+# a sysroot from the old `cargo xtask install` is a real directory: link_dir keeps it aside instead of deleting it
+link_dir "$SYSROOT" "${HOME}/.flux"

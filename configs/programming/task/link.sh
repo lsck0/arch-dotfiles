@@ -8,7 +8,8 @@ link_as "${PWD}/taskrc" "$HOME/.taskrc"
 
 HOOK=/usr/share/doc/timew/ext/on-modify.timewarrior
 if [[ -f "$HOOK" ]]; then
-    install -m755 "$HOOK" ~/.task/hooks/on-modify.timewarrior
+    # through file_update: a hook of a person's own under that name is kept aside, never overwritten
+    file_update "$HOOK" ~/.task/hooks/on-modify.timewarrior 755 || true
 else
     echo "task: $HOOK not found (timew not installed), skipping hook" >&2
 fi

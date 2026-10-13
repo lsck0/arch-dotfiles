@@ -7,8 +7,11 @@ INTERFACE=wg0
 # only the machine fact removes it: a run without secrets never undoes one with them
 if [[ -z "$WIREGUARD" ]]; then
     if [[ -e "$CONF" ]]; then
-        wg-quick down "$INTERFACE" 2>/dev/null || true
-        rm -f "$CONF"
+        # only the config the dotfiles placed; a wg0.conf made by hand stays
+        if [[ "$(sha256sum <"$CONF" | cut -d' ' -f1)" == "$(written_hash "$CONF")" ]]; then
+            wg-quick down "$INTERFACE" 2>/dev/null || true
+            rm -f "$CONF"
+        fi
     fi
     exit 0
 fi
@@ -22,4 +25,5 @@ if ! grep -q '^\[Interface\]' "$secret" \
     echo "wireguard: $WIREGUARD is no [Interface] config or carries hooks/SaveConfig, keeping $CONF" >&2
     exit 1
 fi
-install -Dm600 -o root -g root "$secret" "$CONF"
+# file_update: a wg0.conf made by hand is preserved first
+file_update "$secret" "$CONF" 600 || true

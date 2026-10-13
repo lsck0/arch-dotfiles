@@ -18,7 +18,11 @@ while IFS= read -r entry; do
     entry="${entry%%#*}"
     entry="$(echo "$entry" | tr -d '[:space:]')"
     [ -n "$entry" ] || continue
-    printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$entry" >"${HOME}/.config/autostart/${entry}.desktop"
+    # through file_update: a person's own entry of that id is preserved, not overwritten
+    tmp=$(mktemp)
+    printf '[Desktop Entry]\nType=Application\nName=%s\nHidden=true\n' "$entry" >"$tmp"
+    file_update "$tmp" "${HOME}/.config/autostart/${entry}.desktop" || true
+    rm -f "$tmp"
 done < "${PWD}/hidden-autostart.list"
 # a fresh user has no applications dir yet, and update-desktop-database fails on a missing one
 mkdir -p "${HOME}/.local/share/applications"
@@ -37,11 +41,15 @@ nas=$(profile_has homelab && echo 1 || echo 0)
 
 BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
 mkdir -p "${HOME}/.config/gtk-3.0"
+# bookmarks added by hand in nemo make it differ from the last write: file_update preserves that copy first
+tmp=$(mktemp)
 {
     echo "file://${HOME}/vault Vault"
     echo "file://${HOME}/sync Sync"
     [ "$nas" = 1 ] && echo "file://${HOME}/nas NAS"
-} > "$BOOKMARKS"
+} >"$tmp"
+file_update "$tmp" "$BOOKMARKS" || true
+rm -f "$tmp"
 
 # dolphin places: authoritative, full ordered list (dolphin keeps its own Devices/Network sections separately)
 PLACES="${HOME}/.local/share/user-places.xbel"

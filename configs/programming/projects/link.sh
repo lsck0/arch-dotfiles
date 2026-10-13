@@ -14,7 +14,7 @@ export GIT_TERMINAL_PROMPT=0
 
 mkdir -p "$PROJECTS"
 # folder icon: .directory for dolphin, gio for nemo
-printf '[Desktop Entry]\nIcon=folder-development\n' >"${PROJECTS}/.directory"
+[[ -e "${PROJECTS}/.directory" ]] || printf '[Desktop Entry]\nIcon=folder-development\n' >"${PROJECTS}/.directory"
 if command -v gio >/dev/null 2>&1; then gio set "$PROJECTS" metadata::custom-icon-name folder-development; fi
 
 for bare in "${BARE[@]}"; do

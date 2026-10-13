@@ -20,6 +20,11 @@ if [[ -f "$STAMP" && "$(cat "$STAMP")" == "$zip_name" ]]; then
     exit 0
 fi
 
+# a ~/.jai without the stamp is not one this hook installed: kept aside, never deleted
+if [[ -e "$JAI_DIR" && ! -f "$STAMP" ]]; then
+    mv "$JAI_DIR" "$JAI_DIR.pre-dotfiles-$(date +%Y%m%d%H%M%S)"
+    echo "jai: kept the existing $JAI_DIR aside" >&2
+fi
 rm -rf "$JAI_DIR"
 mkdir -p "$JAI_DIR"
 # the zip holds a single top-level jai/ dir

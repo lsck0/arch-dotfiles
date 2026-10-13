@@ -41,6 +41,11 @@ root=$(find "$staging" -maxdepth 2 -type d -name Engine -printf '%h\n' -quit)
     exit 1
 }
 echo "$zip_name" >"${root}/.installed-from"
+# an engine dir without the stamp is not one this hook installed: kept aside (a rename, same filesystem), never deleted
+if [[ -e "$ENGINE" && ! -f "$STAMP" ]]; then
+    mv "$ENGINE" "$ENGINE.pre-dotfiles-$(date +%Y%m%d%H%M%S)"
+    echo "unreal: kept the existing $ENGINE aside" >&2
+fi
 rm -rf "$ENGINE"
 mv "$root" "$ENGINE"
 
