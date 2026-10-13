@@ -26,3 +26,5 @@ fi
 
 # command on PATH, invoked bare by tmux/herdr/nvim/viewers
 link_commands sshk.sh
+# wake luca-pc via the lab router's wol-pc, then ssh in; only useful to a homelab user
+profile_has homelab && link_commands wake-pc.sh || true
