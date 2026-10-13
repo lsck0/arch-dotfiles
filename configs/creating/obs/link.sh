@@ -3,18 +3,35 @@
 basic="${HOME}/.config/obs-studio/basic"
 mkdir -p "${basic}/scenes"
 
-# scenes and the stream service carry stream tokens, so they live in secrets; readlink only once one exists
+# scenes carry stream tokens, so they live in secrets; readlink only once one exists
 scene_secret="$DOTFILES/secrets/obs-Untitled.json"
 if secret_is_plaintext "${scene_secret}"; then
 	link_as "$(readlink -f "${scene_secret}")" "${basic}/scenes/Untitled.json"
 	touch "${basic}/scenes/.from-secrets"
 fi
-link_into "${basic}/profiles/Untitled" basic.ini streamEncoder.json recordEncoder.json
+
+# one profile per purpose: Streaming (service + stream encoder, record as backup), Recording (local AV1 only),
+# VirtualCam (virtual camera only, no encode). each profile is standalone OBS config
+for p in profiles/*/; do
+	dir="${basic}/profiles/$(basename "$p")"
+	mkdir -p "${dir}"
+	# the ini is static, so symlink it
+	for f in "$p"*.ini; do [ -e "$f" ] && link_into "${dir}" "$f"; done
+	# the encoder json keeps no vaapi_device in the repo (machine-agnostic); copy it and inject this box's render node
+	for f in "$p"*Encoder.json; do
+		[ -e "$f" ] || continue
+		cp -f "$f" "${dir}/${f##*/}"
+		[ -n "${VAAPI_RENDER_NODE:-}" ] && json_update "${dir}/${f##*/}" --arg d "$VAAPI_RENDER_NODE" '.vaapi_device=$d'
+	done
+done
+
+# the stream key belongs to the Streaming profile only
 service_secret="$DOTFILES/secrets/obs-service.json"
 if secret_is_plaintext "${service_secret}"; then
-	link_as "$(readlink -f "${service_secret}")" "${basic}/profiles/Untitled/service.json"
+	link_as "$(readlink -f "${service_secret}")" "${basic}/profiles/Streaming/service.json"
 fi
-# no safe-mode prompt for a missing capture device (issue 32)
+
+# no safe-mode prompt for a missing capture device (issue 32), and a default profile/collection so OBS opens ready
 [[ -f "${HOME}/.config/obs-studio/global.ini" ]] || ln -sfn "${PWD}/global.ini" "${HOME}/.config/obs-studio/global.ini"
 
 # obs-websocket for the bar's obs widget

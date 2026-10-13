@@ -8,6 +8,8 @@ FORM_FACTOR=desktop
 EXTRA_PACKAGES=(it87-dkms-git amdgpu_top vulkan-radeon mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox)
 # wake-on-lan this box, then ssh into the initramfs to unlock LUKS remotely (configs/base/boot/remote-unlock)
 REMOTE_UNLOCK=1
+# the rx 7800 xt render node for obs vaapi encoders (configs/creating/obs); by-path, stable across reboots and the igpu
+VAAPI_RENDER_NODE=/dev/dri/by-path/pci-0000:03:00.0-render
 PKG_GROUPS=(base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting)
 # secrets tunnel config for wg0
 WIREGUARD=wg0.pc.conf

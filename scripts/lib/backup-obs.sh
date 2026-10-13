@@ -26,7 +26,20 @@ backup() {
 }
 
 backup "${SCENE}" "${REPO}/secrets/obs-Untitled.json"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/service.json" "${REPO}/secrets/obs-service.json"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/basic.ini" "${MODULE}/basic.ini"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/streamEncoder.json" "${MODULE}/streamEncoder.json"
-backup "${HOME}/.config/obs-studio/basic/profiles/Untitled/recordEncoder.json" "${MODULE}/recordEncoder.json"
+backup "${HOME}/.config/obs-studio/basic/profiles/Streaming/service.json" "${REPO}/secrets/obs-service.json"
+
+# each repo-owned profile's non-secret files back into the module; service.json stays out, it is the stream key
+for live in "${HOME}"/.config/obs-studio/basic/profiles/*/; do
+    dest="${MODULE}/profiles/$(basename "${live}")"
+    [ -d "${dest}" ] || continue
+    for f in "${live}"basic.ini "${live}"*Encoder.json; do
+        [ -e "$f" ] || continue
+        out="${dest}/$(basename "$f")"
+        # strip the per-platform render node link.sh injected, so the repo copy stays machine-agnostic
+        if [[ "$f" == *Encoder.json ]]; then
+            jq 'del(.vaapi_device)' "$f" >"${out}" 2>/dev/null || backup "$f" "${out}"
+        else
+            backup "$f" "${out}"
+        fi
+    done
+done
