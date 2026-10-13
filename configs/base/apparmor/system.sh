@@ -41,6 +41,14 @@ if [[ -e /etc/apparmor.d/abstractions/base-strict ]]; then
     # user's own checkout, the profiles are shared by all of them
     install -Dm644 -t /etc/apparmor.d/abstractions/dotfiles abstractions/*
     install -Dm644 -t /etc/apparmor.d/local local/*
+    # every gui profile reads the ~/.config link targets in the checkout through the abstractions it already includes
+    for hook in desktop fonts qt5 qt6 kde; do
+        printf '  include <abstractions/dotfiles/config-links>\n' |
+            install -Dm644 /dev/stdin "/etc/apparmor.d/abstractions/${hook}.d/dotfiles-config-links"
+    done
+    # every QtWebEngine profile builds on apparmor.d's chromium abstraction
+    printf '  include <abstractions/dotfiles/qtwebengine>\n' |
+        install -Dm644 /dev/stdin /etc/apparmor.d/abstractions/common/chromium.d/dotfiles-qtwebengine
     # the module's own profiles, where apparmor.d has none, in their mode: enforce is the header as written
     for src in profiles/*; do
         mode=$(modes | awk -v p="${src##*/}" '$1 == p {print $2}')

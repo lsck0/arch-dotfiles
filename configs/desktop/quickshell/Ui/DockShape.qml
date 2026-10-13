@@ -18,6 +18,7 @@ import qs.Commons
  *   strokeWidth  outline width
  *
  * Content insets: sideInset (neck) + strokeWidth + padding left and right.
+ * A HudFrame over it follows the cut: HudFrame { chamfer: card.cut; chamferCorner: card.cutCorner }
  *
  * Usage:
  *   DockShape { anchors.fill: parent; docked: true; fillColor: Colors.menu.background }
@@ -47,6 +48,9 @@ Item {
   readonly property real _t: _h
   readonly property real _b: height - _h
   readonly property real _c: Math.max(0, Math.min(chamfer, (_r - _l) / 2, (_b - _t) / 2))
+  // the chamfer as drawn and the corner it lands on once flipped, for HudFrame
+  readonly property real cut: _c
+  readonly property int cutCorner: docked !== flipped ? Qt.BottomRightCorner : Qt.TopRightCorner
   // the neck curves end this far below the bar rule
   readonly property real _n: neck + _h
 

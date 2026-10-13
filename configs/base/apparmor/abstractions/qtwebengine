@@ -1,0 +1,15 @@
+# managed by arch-dotfiles/apparmor
+# qt6-webengine's v8 snapshot, resource paks and locales; apparmor.d's chromium abstraction lacks this path, so a
+# confined QtWebEngine app (qutebrowser) dies at startup
+
+  abi <abi/4.0>,
+
+  /usr/share/qt6/resources/{,**} r,
+  # chromium's sandbox checks its own open fds before it starts a zygote and aborts (proc_util.cc "Check failed")
+  # when it cannot; its file watcher reads the inotify limit
+  owner @{PROC}/@{pid}/fd/ r,
+  @{PROC}/sys/fs/inotify/max_user_watches r,
+  # it probes for a writable locales dir beside the paks, the read-only one is enough
+  deny /usr/share/qt6/resources/locales/ w,
+
+  include if exists <abstractions/dotfiles/qtwebengine.d>

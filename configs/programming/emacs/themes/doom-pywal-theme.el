@@ -1,6 +1,6 @@
 ;;; doom-pywal-theme.el --- generated from the active wallust palette -*- lexical-binding: t; no-byte-compile: t; -*-
 ;;; Commentary:
-;; rewritten by configs/wallust/scripts/generate-editor-themes.sh on every theme switch, do not edit
+;; rewritten by configs/core/wallust/scripts/generate-editor-themes.sh on every theme switch, do not edit
 ;;; Code:
 
 (require 'doom-themes)
@@ -10,8 +10,8 @@
   :family 'doom-pywal
   :background-mode 'dark
 
-  ((bg         '("#0F0F16"  "black"   "black"        ))
-   (fg         '("#F290CE"  "#bfbfbf"       "brightwhite"  ))
+  ((bg         '("#0B0E14"  "black"   "black"        ))
+   (fg         '("#BFBDB6"  "#bfbfbf"       "brightwhite"  ))
    (bg-alt     (doom-darken bg 0.10))
    (fg-alt     (doom-lighten fg 0.20))
 
@@ -26,17 +26,17 @@
    (base8      (doom-lighten fg 0.20))
 
    (grey       base4)
-   (red        '("#A16C97"  "#A16C97"  "red"           ))
-   (orange     (doom-blend '("#A16C97" "#A16C97" "brightred") '("#6A7ABE" "#6A7ABE" "yellow") 0.5))
-   (green      '("#8678B3"  "#8678B3"  "green"         ))
-   (teal       (doom-blend '("#8678B3" "#8678B3" "brightgreen") '("#A96894" "#A96894" "cyan") 0.5))
-   (yellow     '("#6A7ABE"  "#6A7ABE"  "yellow"        ))
-   (blue       '("#AA6785"  "#AA6785"  "brightblue"    ))
-   (dark-blue  (doom-darken '("#AA6785" "#AA6785" "blue") 0.4))
-   (magenta    '("#9672AA"  "#9672AA"  "brightmagenta" ))
-   (violet     (doom-blend '("#9672AA" "#9672AA" "magenta") '("#AA6785" "#AA6785" "blue") 0.5))
-   (cyan       '("#A96894"  "#A96894"  "brightcyan"    ))
-   (dark-cyan  (doom-darken '("#A96894" "#A96894" "cyan") 0.4))
+   (red        '("#F07178"  "#F07178"  "red"           ))
+   (orange     (doom-blend '("#F07178" "#F07178" "brightred") '("#E6B450" "#E6B450" "yellow") 0.5))
+   (green      '("#AAD94C"  "#AAD94C"  "green"         ))
+   (teal       (doom-blend '("#AAD94C" "#AAD94C" "brightgreen") '("#95E6CB" "#95E6CB" "cyan") 0.5))
+   (yellow     '("#E6B450"  "#E6B450"  "yellow"        ))
+   (blue       '("#39BAE6"  "#39BAE6"  "brightblue"    ))
+   (dark-blue  (doom-darken '("#39BAE6" "#39BAE6" "blue") 0.4))
+   (magenta    '("#D2A6FF"  "#D2A6FF"  "brightmagenta" ))
+   (violet     (doom-blend '("#D2A6FF" "#D2A6FF" "magenta") '("#39BAE6" "#39BAE6" "blue") 0.5))
+   (cyan       '("#95E6CB"  "#95E6CB"  "brightcyan"    ))
+   (dark-cyan  (doom-darken '("#95E6CB" "#95E6CB" "cyan") 0.4))
 
    ;; mandatory "universal syntax classes": doom-themes-base errors without them
    (highlight      blue)

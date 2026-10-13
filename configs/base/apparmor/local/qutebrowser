@@ -13,3 +13,5 @@ owner @{HOME}/projects/arch-dotfiles/{,secrets/}wallpapers/** r,
 @{PROC}/sys/kernel/yama/ptrace_scope r,
 # opening downloads and external links
 @{open_path} rPx -> child-open-strict,
+# qt's shader cache is written to a tmpfile and linked into place; denied, every start recompiles its shaders
+owner @{user_cache_dirs}/qutebrowser/{,**} l,

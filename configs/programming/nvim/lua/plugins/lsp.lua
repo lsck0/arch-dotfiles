@@ -42,7 +42,7 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         cmd = {
             "Mason", "MasonInstall", "MasonUninstall", "MasonUpdate", "MasonLog",
-            "MasonToolsInstall", "MasonToolsUpdate",
+            "MasonToolsInstall", "MasonToolsInstallSync", "MasonToolsUpdate",
             "LspInfo", "LspLog", "LspStart", "LspStop", "LspRestart",
         },
         dependencies = {

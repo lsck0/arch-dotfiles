@@ -102,7 +102,7 @@ if command -v git-lfs >/dev/null 2>&1; then
 fi
 
 # a bare name resolves to the secrets copy when unlocked
-wp=$(readlink -f ~/.cache/wal/wallpaper 2>/dev/null) && [[ -f $wp ]] || wp=alena-aenami-darkambient-1k.jpg
+wp=$(readlink -f ~/.cache/wal/wallpaper 2>/dev/null) && [[ -f $wp ]] || wp=alena-aenami-dreamy-1k.jpg
 stamp=$(git ls-files -s configs/core/wallust configs/core/themes scripts/switch-wallpaper.sh | sha1sum)
 if [[ ! -e ~/.cache/wal/wallpaper || "$(cat ~/.cache/wal/.theme-stamp 2>/dev/null)" != "$stamp" ]]; then
     WALLPAPER_SYNC=1 ./scripts/switch-wallpaper.sh set "$wp" >/dev/null && echo "$stamp" >~/.cache/wal/.theme-stamp \

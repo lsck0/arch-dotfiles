@@ -30,3 +30,19 @@ mask_if_present systemd-binfmt.service
 mask_if_present systemd-pcrproduct.service
 mask_if_present systemd-pcrlogin@.service
 mask_if_present systemd-tpm2-setup-early.service
+# the initrd's systemd copies the unit from /usr/lib without the /etc mask, so it still fails there and prints
+# "[FAILED] Failed to start Early TPM SRK Setup" before plymouth comes up; mask it in the initrd too, reaches the uki at
+# system-apply's boot barrier
+if [[ "$FORM_FACTOR" != wsl ]]; then
+    source "$DOTFILES/configs/base/boot/common.sh"
+    if esp_supported; then
+        kernel_cmdline_set rd.systemd.mask=systemd-tpm2-setup-early.service
+    fi
+fi
+
+KBD_DROPIN=/etc/systemd/system/systemd-backlight@.service.d/kbd-backlight.conf
+if [[ "$FORM_FACTOR" == laptop ]]; then
+    if file_update kbd-backlight.conf "$KBD_DROPIN"; then systemctl daemon-reload; fi
+else
+    rm -f "$KBD_DROPIN"
+fi

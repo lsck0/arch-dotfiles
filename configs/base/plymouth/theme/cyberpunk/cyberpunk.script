@@ -31,13 +31,18 @@ caret.sprite.SetPosition(caret.x, caret.y, 5);
 
 # progress bar
 
-bar_bg.image = Image("bar_bg.png");
+# the pngs are 1 px stripes scaled to the screen: a fixed 360x2 bar vanished on a hidpi panel
+bar.width = Math.Int(screen.width * 0.25);
+bar.height = Math.Int(screen.height / 180);
+if (bar.height < 4) bar.height = 4;
+
+bar_bg.image = Image("bar_bg.png").Scale(bar.width, bar.height);
 bar_bg.sprite = Sprite(bar_bg.image);
 bar_bg.x = screen.x + screen.width / 2 - bar_bg.image.GetWidth() / 2;
 bar_bg.y = screen.y + screen.height * 0.56;
 bar_bg.sprite.SetPosition(bar_bg.x, bar_bg.y, 1);
 
-bar_fg.original = Image("bar_fg.png");
+bar_fg.original = Image("bar_fg.png").Scale(bar.width, bar.height);
 bar_fg.sprite = Sprite();
 bar_fg.sprite.SetPosition(bar_bg.x, bar_bg.y, 2);
 

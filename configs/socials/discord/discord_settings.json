@@ -12,7 +12,7 @@
   "enableHardwareAcceleration": true,
   "MIN_WIDTH": 940,
   "MIN_HEIGHT": 500,
-  "BACKGROUND_COLOR": "#000000",
+  "BACKGROUND_COLOR": "#121214",
   "offloadAdmControls": true,
   "asyncVideoInputDeviceInit": false,
   "enableLibOpenH264Electron": true,

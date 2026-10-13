@@ -29,14 +29,22 @@ Item {
     return out
   }
 
+  // mod+tab/shift+tab and mod+return while open (hyprland_keybindings.lua's overview submap), for the focused output's card
+  signal cycled(int delta)
+  signal committed()
+
   function open() {
     // window geometry lives in lastIpcObject, stale until refreshed
     Hyprland.refreshToplevels()
     root.opened = true
+    // hyprland's binds beat the overlay's keyboard focus: the submap turns held-mod tab/return into cycle and go
+    Hyprland.dispatch("hl.dsp.submap(\"overview\")")
   }
 
   function close() {
+    if (!root.opened) return
     root.opened = false
+    Hyprland.dispatch("hl.dsp.submap(\"reset\")")
   }
 
   function toggle() {
@@ -44,9 +52,24 @@ Item {
     else root.open()
   }
 
+  // release the overlay first: when its exclusive keyboard focus goes, hyprland hands focus back to the window that had
+  // it, and a switch made before that was undone by the refocus dragging the view back to that window's workspace
+  property string pendingWorkspace: ""
+
   function focusAndClose(id) {
-    Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + id + "\" })")
+    root.pendingWorkspace = String(id)
     root.close()
+    switchDelay.restart()
+  }
+
+  Timer {
+    id: switchDelay
+    // past the layer's keyboard release, which lands on its next commit
+    interval: 80
+    onTriggered: {
+      if (root.pendingWorkspace !== "") Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + root.pendingWorkspace + "\" })")
+      root.pendingWorkspace = ""
+    }
   }
 
   IpcHandler {
@@ -54,6 +77,9 @@ Item {
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
+    function next(): string { if (root.opened) root.cycled(1); else root.open(); return "ok" }
+    function prev(): string { if (root.opened) root.cycled(-1); else root.open(); return "ok" }
+    function commit(): string { if (root.opened) root.committed(); return "ok" }
   }
 
   Variants {
@@ -73,6 +99,9 @@ Item {
       property var workspaces: []
       Binding { target: panel; property: "workspaces"; value: root.workspacesOn(panel.monitorName); when: root.opened; restoreMode: Binding.RestoreNone }
       property int selectedIndex: 0
+      // the cursor in screen space at the last hover event; tiles appear and animate under a resting cursor, which
+      // fires hover events without the mouse moving, so only a change here counts as pointing at a tile
+      property point lastPointer: Qt.point(NaN, NaN)
 
       readonly property int columns: Math.min(root.maxColumns, Math.max(1, workspaces.length))
       readonly property int rowCount: Math.ceil(Math.max(1, workspaces.length) / columns)
@@ -88,7 +117,7 @@ Item {
       name: "overview"
       title: "workspaces"
       suffix: monitorName + " [" + String(workspaces.length) + "]"
-      hints: [["< > ^ v", "select"], ["ENTER", "go"], ["1-0", "direct"], ["ESC", "close"]]
+      hints: [["TAB < > ^ v", "select"], ["ENTER", "go"], ["1-0", "direct"], ["ESC", "close"]]
       cardWidth: grid.implicitWidth + Style.spacing.xl * 2 + chromeWidth
       cardHeight: grid.implicitHeight + Style.spacing.xl * 2 + chromeHeight
       onDismissed: root.close()
@@ -98,6 +127,7 @@ Item {
         var active = hyprMonitor && hyprMonitor.activeWorkspace ? hyprMonitor.activeWorkspace.id : -1
         var list = root.workspacesOn(monitorName)
         selectedIndex = 0
+        lastPointer = Qt.point(NaN, NaN)
         for (var i = 0; i < list.length; i++) if (list[i].id === active) selectedIndex = i
         if (focusedOutput) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
       }
@@ -106,21 +136,38 @@ Item {
         panel.selectedIndex = Math.max(0, Math.min(panel.workspaces.length - 1, panel.selectedIndex + delta))
       }
 
+      // tab wraps around, the arrows stop at the edges
+      function cycle(delta) {
+        var n = panel.workspaces.length
+        if (n > 0) panel.selectedIndex = ((panel.selectedIndex + delta) % n + n) % n
+      }
+
+      function commit() {
+        var list = panel.workspaces
+        if (list.length > 0) root.focusAndClose(list[panel.selectedIndex].id)
+      }
+
+      Connections {
+        target: root
+        enabled: panel.focusedOutput
+        function onCycled(delta) { panel.cycle(delta) }
+        function onCommitted() { panel.commit() }
+      }
+
       Item {
         id: keyCatcher
         anchors.fill: parent
         focus: true
         Keys.priority: Keys.BeforeItem
         Keys.onPressed: function(event) {
-          var list = panel.workspaces
           if (event.key === Qt.Key_Escape) root.close()
           else if (event.key === Qt.Key_Left) panel.move(-1)
           else if (event.key === Qt.Key_Right) panel.move(1)
           else if (event.key === Qt.Key_Up) panel.move(-panel.columns)
           else if (event.key === Qt.Key_Down) panel.move(panel.columns)
-          else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            if (list.length > 0) root.focusAndClose(list[panel.selectedIndex].id)
-          }
+          else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) panel.commit()
+          else if (event.key === Qt.Key_Tab) panel.cycle(1)
+          else if (event.key === Qt.Key_Backtab) panel.cycle(-1)
           // unrestricted, matching super+n on empty workspaces
           else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) root.focusAndClose(event.key - Qt.Key_0)
           else if (event.key === Qt.Key_0) root.focusAndClose(10)
@@ -252,7 +299,15 @@ Item {
               z: 6
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onEntered: panel.selectedIndex = tile.index
+              // real pointer motion only, else the tile under a resting cursor stole the keyboard's selection and
+              // return went there
+              onPositionChanged: function(mouse) {
+                var p = mapToGlobal(mouse.x, mouse.y)
+                var moved = !isNaN(panel.lastPointer.x)
+                  && (Math.abs(p.x - panel.lastPointer.x) >= 1 || Math.abs(p.y - panel.lastPointer.y) >= 1)
+                panel.lastPointer = p
+                if (moved) panel.selectedIndex = tile.index
+              }
               onClicked: root.focusAndClose(tile.modelData.id)
             }
           }

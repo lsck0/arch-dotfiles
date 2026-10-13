@@ -38,8 +38,9 @@ profile zapzap @{exec_path} flags=(attach_disconnected) {
 
   @{open_path} rPx -> child-open-strict,
 
-  owner @{user_config_dirs}/ZapZap/{,**} rwk,
-  owner @{user_share_dirs}/ZapZap/{,**} rwk,
+  # l: QSaveFile writes an O_TMPFILE and links it into place (settings, dictionaries)
+  owner @{user_config_dirs}/ZapZap/{,**} rwkl,
+  owner @{user_share_dirs}/ZapZap/{,**} rwkl,
   owner @{user_cache_dirs}/ZapZap/{,**} rwk,
 
   owner /tmp/zapzap* rw,

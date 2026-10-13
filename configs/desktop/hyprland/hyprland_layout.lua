@@ -9,29 +9,33 @@ for workspace = 1, 10 do
     })
 end
 
-hl.window_rule({
-    match = {
-        class = "^steam$",
-    },
-    workspace = "1",
-})
-
-for _, class in ipairs({ "^Spotify$", "^discord$" }) do
+-- app homes are for the desktop, where 5-10 sit on the left monitor; on a single panel they only yank apps off the
+-- workspace they were opened on
+if platform.form_factor == "desktop" then
     hl.window_rule({
         match = {
-            class = class,
+            class = "^steam$",
         },
-        workspace = "5",
-        no_initial_focus = true,
+        workspace = "1",
+    })
+
+    for _, class in ipairs({ "^Spotify$", "^discord$" }) do
+        hl.window_rule({
+            match = {
+                class = class,
+            },
+            workspace = "5",
+            no_initial_focus = true,
+        })
+    end
+
+    hl.window_rule({
+        match = {
+            class = "^com.obsproject.Studio$",
+        },
+        workspace = "7",
     })
 end
-
-hl.window_rule({
-    match = {
-        class = "^com.obsproject.Studio$",
-    },
-    workspace = "7",
-})
 
 -- it flashes a window, move it offscreen
 hl.window_rule({

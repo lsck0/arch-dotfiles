@@ -36,7 +36,7 @@ local function obs_command(cmd)
 end
 
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
-hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("grim -g \"$(slurp)\" - | wl-copy"))
+hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.sh"))
 hl.bind(mod .. " + SHIFT + d", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " decrypt"))
 hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " encrypt"))
 hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " sign"))
@@ -47,7 +47,7 @@ hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
 hl.bind(mod .. " + F9", obs_command("saveReplay"))
 hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"))
-hl.bind(mod .. " + Tab", quickshell_toggle("overview"))
+hl.bind(mod .. " + Tab", quickshell_call("overview", "open"))
 -- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window; kitty, themed to
 -- parity, when that service is broken or hangs, and on its own key
 hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --timeout 5 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}' || uwsm-app -- kitty"))
@@ -153,5 +153,17 @@ hl.define_submap("resize", function()
 
     hl.bind(mod .. " + R", hl.dsp.submap("reset"))
     hl.bind("Escape", hl.dsp.submap("reset"))
+end)
+
+-- the overview enters this while open and resets it on close. hyprland's binds win over the overlay's keyboard focus,
+-- so with mod still held a second mod+tab would toggle it shut and mod+return open a terminal: here they cycle and go
+-- like alt-tab. keys bound nowhere here still reach the overlay (arrows, digits, a bare return)
+hl.define_submap("overview", function()
+    hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true })
+    hl.bind(mod .. " + SHIFT + Tab", quickshell_call("overview", "prev"), { repeating = true })
+    hl.bind(mod .. " + Return", quickshell_call("overview", "commit"))
+    -- also the way out should quickshell be gone, so the submap never traps the session
+    hl.bind("Escape", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call overview close; "
+        .. "hyprctl dispatch 'hl.dsp.submap(\"reset\")'"))
 end)
 

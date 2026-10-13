@@ -20,3 +20,10 @@ if command -v localectl >/dev/null 2>&1; then
         localectl set-keymap "$keymap"
     fi
 fi
+
+# wireless-regdb ships every country commented out, so set-wireless-regdom fails at boot and wifi stays on the
+# restrictive world domain; german like the locale
+REGDOM_CONF=/etc/conf.d/wireless-regdom
+if [[ -f "$REGDOM_CONF" ]]; then
+    sed -i 's/^WIRELESS_REGDOM=.*/#&/; s/^#WIRELESS_REGDOM="DE"/WIRELESS_REGDOM="DE"/' "$REGDOM_CONF"
+fi

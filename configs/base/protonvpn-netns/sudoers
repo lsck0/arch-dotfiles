@@ -1,0 +1,4 @@
+# managed by arch-dotfiles/protonvpn-netns
+# the namespace switch for ani-cli (run.sh), no password; it drops back to the caller before execing ani-cli
+Defaults!/usr/local/lib/protonvpn-netns/run env_keep += "WAYLAND_DISPLAY DISPLAY TERM COLORTERM LANG"
+%wheel ALL=(root) NOPASSWD: /usr/local/lib/protonvpn-netns/run

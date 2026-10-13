@@ -28,6 +28,8 @@ sign_unsigned_boot_files() {
         /boot/efi/EFI/BOOT/BOOTX64.EFI \
         /boot/efi/EFI/systemd/systemd-bootx64.efi; do
         [[ -f "$cand" ]] || continue
+        # verify's esp walk may already have listed it
+        [[ " ${paths[*]} " == *" $cand "* ]] && continue
         sbctl verify "$cand" | grep -q 'is signed' && continue
         paths+=("$cand")
     done
@@ -65,6 +67,12 @@ if [[ "$need_sign" == "true" ]]; then
     # sign before enrolling
     echo "sbctl: signing boot files before enrollment" >&2
     sign_unsigned_boot_files
+
+    # efivarfs marks the existing secure boot variables immutable, so enroll-keys fails with "File is immutable" on
+    # KEK/db and never writes PK; clear the flag on exactly these, the firmware still guards them outside setup mode
+    for var in /sys/firmware/efi/efivars/{PK,KEK,db,dbx}-*; do
+        [[ -e "$var" ]] && chattr -i "$var"
+    done
 
     # setup mode is the authoritative "no PK, must enroll" signal; leftover KEK/db vendor certs can still be present, so
     # never gate the enroll on list-enrolled-keys being empty — that skips the one write that leaves setup mode

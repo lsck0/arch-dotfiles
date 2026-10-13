@@ -102,6 +102,7 @@ PanelWindow {
     MouseArea { anchors.fill: parent }
 
     DockShape {
+      id: shape
       anchors.fill: parent
       fillColor: Colors.overlayFill
       glow: true
@@ -191,7 +192,7 @@ PanelWindow {
       }
     }
 
-    HudFrame { inset: boot.bracketInset }
+    HudFrame { inset: boot.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner }
     Scanlines { shown: root.scanlines; flicker: true }
   }
 }

@@ -5,6 +5,14 @@ mkdir -p "${HOME}/.config/discord" "${bd}/plugins" "${bd}/themes"
 
 link_as "${PWD}/discord_settings.json" "${HOME}/.config/discord/settings.json"
 
+# the launcher's first run downloads the app (~150 MB) before any window shows; do it here so the first launch opens
+# at once. skipped while a launch is already bootstrapping, two runs would share one download dir
+bootstrap=/usr/share/discord/updater_bootstrap
+if [[ ! -x "${HOME}/.config/discord/Discord" && -x "$bootstrap" ]] && ! pgrep -x updater_bootstr >/dev/null; then
+    timeout 900 "$bootstrap" --no-zenity "${HOME}/.config/discord" stable https://updates.discord.com/ >/dev/null \
+        || echo "discord: app download failed, the first launch retries it" >&2
+fi
+
 # copy, betterdiscord misses changes through a symlink
 cp "${PWD}/wal.theme.css" "${bd}/themes/wal.theme.css"
 cp "${PWD}/plugins/QuickshellVoiceStatus.plugin.js" "${bd}/plugins/QuickshellVoiceStatus.plugin.js"

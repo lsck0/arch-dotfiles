@@ -1,0 +1,4 @@
+#!/bin/sh
+# managed by arch-dotfiles/protonvpn-netns: ani-cli only ever runs through the protonvpn namespace (run.sh), ahead of
+# /usr/bin/ani-cli in PATH; when the tunnel is down it refuses instead of streaming over the real link
+exec sudo -n /usr/local/lib/protonvpn-netns/run "$@"

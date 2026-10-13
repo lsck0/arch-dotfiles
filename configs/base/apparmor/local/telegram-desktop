@@ -1,5 +1,12 @@
 # managed by arch-dotfiles/apparmor
 # pywal palette socials/telegram links into the data dir
 owner @{user_cache_dirs}/wal/colors-telegram.tdesktop-palette r,
-# the embedded login/payments webview's wayland lockfile, else it aborts with "check permissions"
+# the embedded login/payments/mini-app webview runs its own wayland compositor: its lockfile and server socket, else
+# bind() is refused and qt aborts with "Failed to open server socket"
 owner @{run}/user/@{uid}/*-TD-webview-*wayland.lock rwk,
+owner @{run}/user/@{uid}/*-TD-webview-*wayland rw,
+# the webview's ipc file and its rm lock in /tmp, the cache dir it creates on first start, qt wayland's shm file
+owner /tmp/*-TD-webview-* rw,
+owner /tmp/*.rmlock rwk,
+owner @{user_cache_dirs}/TelegramDesktop/{,**} rwk,
+owner @{run}/user/@{uid}/qtwayland-* rw,

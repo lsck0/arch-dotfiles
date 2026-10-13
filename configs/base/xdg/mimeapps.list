@@ -1,7 +1,6 @@
 [Added Associations]
 application/pdf=org.kde.okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
-x-scheme-handler/proton-meet=proton-meet.desktop;
 
 [Default Applications]
 application/pdf=org.kde.okular.desktop
@@ -19,7 +18,7 @@ x-scheme-handler/about=firefox.desktop
 x-scheme-handler/betterdiscord=discord.desktop
 x-scheme-handler/http=firefox.desktop
 x-scheme-handler/https=firefox.desktop
-x-scheme-handler/jetbrains=jetbrains-toolbox.desktop
+x-scheme-handler/jetbrains=jetbrainsd.desktop
 x-scheme-handler/pdf=org.kde.okular.desktop
 x-scheme-handler/ror2mm=r2modman.desktop
 x-scheme-handler/unknown=firefox.desktop
@@ -35,6 +34,7 @@ text/x-tex=nvim.desktop
 application/x-shellscript=nvim.desktop
 text/x-csrc=nvim.desktop
 x-scheme-handler/proton-meet=proton-meet.desktop
+x-scheme-handler/bruno=bruno.desktop
 
 [Removed Associations]
 application/pdf=chromium.desktop;

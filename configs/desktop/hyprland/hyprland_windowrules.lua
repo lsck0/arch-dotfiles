@@ -107,6 +107,15 @@ hl.window_rule({
     center = true,
 })
 
+-- slurp's overlay, unanimated: grim captures right after it exits, a fade-out would still show the region border
+hl.layer_rule({
+    name = "slurp-no-anim",
+    match = {
+        namespace = "^selection$",
+    },
+    no_anim = true,
+})
+
 hl.layer_rule({
     name = "quickshell-notifications-no-anim",
     match = {

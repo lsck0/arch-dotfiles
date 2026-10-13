@@ -1,6 +1,19 @@
 # managed by arch-dotfiles/apparmor
 # the launcher execs its update bootstrap before the app; without this it aborts with "Permission denied"
 /usr/share/discord/updater_bootstrap rix,
+# on first launch the bootstrap downloads the app (~150 MB) into ~/.config/discord behind a zenity progress dialog,
+# runs getconf; with both denied it downloads for minutes with no window, so discord looks dead
+@{bin}/zenity rix,
+@{bin}/getconf rix,
+# then unpacks it through a tempfile dir (/tmp/.tmpXXXXXX); denied, it fails after the download and discord never opens
+owner /tmp/.tmp*/{,**} rwkl,
+# the installed app runs from ~/.config/discord/app-<version>, its native modules (updater.node) are mapped from there
+owner @{user_config_dirs}/discord/app-*/{,**} mr,
+# the voice module's hardware encoder for screen share runs as a helper from there
+owner @{user_config_dirs}/discord/app-*/modules/discord_voice-*/discord_voice/gpu_encoder_helper ix,
+# its updater reads both on start
+@{PROC}/uptime r,
+/etc/arch-release r,
 # betterdiscord (socials/discord): the injected core requires its asar, plugins and themes keep their data beside it
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
 # settings.json links into the dotfiles checkout

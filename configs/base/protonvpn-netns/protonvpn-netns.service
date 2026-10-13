@@ -1,0 +1,14 @@
+# managed by arch-dotfiles/protonvpn-netns
+[Unit]
+Description=ProtonVPN-only network namespace for single apps (ani-cli)
+Wants=network-online.target
+After=network-online.target nftables.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/protonvpn-netns/netns.sh up
+ExecStop=/usr/local/lib/protonvpn-netns/netns.sh down
+
+[Install]
+WantedBy=multi-user.target

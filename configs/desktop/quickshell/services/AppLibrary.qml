@@ -18,6 +18,9 @@ Item {
   property int launchSerial: 0
   property int launchToplevelCount: 0
   property var launchActiveToplevel: null
+  // the last window that had focus: a launcher overlay holds the keyboard while it is open, so the active toplevel reads
+  // null at launch and focus going back to that window as the overlay closes must not count as the app appearing
+  property var lastActiveToplevel: null
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
 
@@ -149,7 +152,7 @@ Item {
   function beginLaunchFeedback(name) {
     root.launchSerial++
     root.launchToplevelCount = root.toplevelCount()
-    root.launchActiveToplevel = ToplevelManager.activeToplevel
+    root.launchActiveToplevel = root.lastActiveToplevel
     root.launchOsdMessage = "Launching " + String(name || "application") + "..."
     launchDelay.restart()
     launchTimeout.restart()
@@ -165,10 +168,16 @@ Item {
     }
   }
 
+  // a new window, or focus moving to another existing one (a single-instance app raising itself)
+  function launchSettled() {
+    if (root.toplevelCount() > root.launchToplevelCount) return true
+    var active = ToplevelManager.activeToplevel
+    return active !== null && active !== root.launchActiveToplevel
+  }
+
   function maybeFinishLaunchFeedback() {
     if (!launchDelay.running && !launchTimeout.running && !root.launchOsdOpen) return
-    if (root.toplevelCount() <= root.launchToplevelCount && ToplevelManager.activeToplevel === root.launchActiveToplevel) return
-    root.closeLaunchFeedback(root.launchSerial)
+    if (root.launchSettled()) root.closeLaunchFeedback(root.launchSerial)
   }
 
   Process {
@@ -221,14 +230,17 @@ Item {
 
   Connections {
     target: ToplevelManager
-    function onActiveToplevelChanged() { root.maybeFinishLaunchFeedback() }
+    function onActiveToplevelChanged() {
+      if (ToplevelManager.activeToplevel !== null) root.lastActiveToplevel = ToplevelManager.activeToplevel
+      root.maybeFinishLaunchFeedback()
+    }
   }
 
   Timer {
     id: launchDelay
     interval: 2000
     onTriggered: {
-      if (root.toplevelCount() > root.launchToplevelCount || ToplevelManager.activeToplevel !== root.launchActiveToplevel) return
+      if (root.launchSettled()) return
       root.launchOsdOpen = true
       Quickshell.execDetached(Paths.ipcCall("osd", "present",
         JSON.stringify({ icon: "launch", message: root.launchOsdMessage, duration: 0 })))
@@ -251,6 +263,7 @@ Item {
   }
 
   Component.onCompleted: {
+    root.lastActiveToplevel = ToplevelManager.activeToplevel
     hiddenEntryScan.running = true
     iconIndexScan.running = true
   }

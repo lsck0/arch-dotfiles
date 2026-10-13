@@ -78,6 +78,7 @@ BorderSurface {
   HoverHandler { id: hoverTracker }
 
   DockShape {
+    id: toastShape
     visible: !root.isRow
     anchors.fill: parent
     fillColor: Colors.notifications.background
@@ -312,6 +313,6 @@ BorderSurface {
     font.pixelSize: Style.font.caption
   }
 
-  HudFrame { shown: !root.isRow }
+  HudFrame { shown: !root.isRow; chamfer: toastShape.cut; chamferCorner: toastShape.cutCorner }
   Scanlines { shown: !root.isRow }
 }

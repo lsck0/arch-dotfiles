@@ -161,7 +161,7 @@ PopupWindow {
       y: card.y
       width: card.width - card.sideInset * 2
       height: card.height
-      HudFrame { inset: boot.bracketInset }
+      HudFrame { inset: boot.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
     }
   }
 }

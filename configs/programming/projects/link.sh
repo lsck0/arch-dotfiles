@@ -6,7 +6,8 @@ profile_has identity || exit 0
 PROJECTS="${HOME}/projects"
 # github.com/lsck0/<name>; private ones need configs/core/gh's login, which links first (config.sh runs them sorted)
 REPOS=(arch-dotfiles homelab)
-DIRS=(probe)
+# empty bare repos for throwaway work, worktrees go inside them (configs/core/git/wtree.sh)
+BARE=(probe)
 
 # a private repo without credentials fails instead of waiting for a password
 export GIT_TERMINAL_PROMPT=0
@@ -16,8 +17,8 @@ mkdir -p "$PROJECTS"
 printf '[Desktop Entry]\nIcon=folder-development\n' >"${PROJECTS}/.directory"
 if command -v gio >/dev/null 2>&1; then gio set "$PROJECTS" metadata::custom-icon-name folder-development; fi
 
-for dir in "${DIRS[@]}"; do
-    mkdir -p "${PROJECTS}/${dir}"
+for bare in "${BARE[@]}"; do
+    [[ -f "${PROJECTS}/${bare}/HEAD" ]] || git init --quiet --bare "${PROJECTS}/${bare}"
 done
 for repo in "${REPOS[@]}"; do
     [[ -d "${PROJECTS}/${repo}/.git" ]] && continue

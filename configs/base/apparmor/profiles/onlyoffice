@@ -28,6 +28,10 @@ profile onlyoffice @{exec_path} flags=(attach_disconnected) {
   include <abstractions/user-write-strict>
 
   network netlink raw,
+  # its single-instance check opens a udp socket on startup and quits silently (exit 0) when that is refused; tcp, the
+  # path any remote fetch takes, stays denied
+  network inet dgram,
+  network inet6 dgram,
 
   @{exec_path} mrix,
   # the launcher is a shell script
@@ -42,6 +46,16 @@ profile onlyoffice @{exec_path} flags=(attach_disconnected) {
   owner @{user_cache_dirs}/onlyoffice/{,**} rwk,
 
   owner /tmp/** rwk,
+
+  # cef (chromium 109) checks its zygote's open fds and process stats through /proc and CHECK-traps (SIGTRAP in
+  # libcef) when they are refused, so the editor dies right after the window would map
+  @{PROC}/ r,
+  @{PROC}/@{pid}/{,stat,statm,status,cmdline} r,
+  @{PROC}/@{pid}/fd/ r,
+  @{PROC}/@{pid}/task/ r,
+  @{PROC}/sys/fs/inotify/max_user_watches r,
+  @{PROC}/sys/kernel/yama/ptrace_scope r,
+  ptrace (read) peer=onlyoffice,
 
   include if exists <local/onlyoffice>
 }

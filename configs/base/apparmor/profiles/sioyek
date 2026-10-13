@@ -37,6 +37,10 @@ profile sioyek @{exec_path} flags=(attach_disconnected) {
   owner @{user_cache_dirs}/wal/colors-sioyek r,
 
   owner /tmp/sioyek* rw,
+  # SingleApplication: qt's sysv semaphore and shared memory key files, and the instance socket named after the base64
+  # sha256 of the app (44 chars, one trailing =); denied, sioyek takes itself for a secondary instance and quits
+  owner /tmp/qipc_{systemsem,sharedmemory}_* rwk,
+  owner /tmp/*= rw,
 
   include if exists <local/sioyek>
 }

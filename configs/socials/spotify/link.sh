@@ -20,6 +20,11 @@ if ! pgrep -x spotify >/dev/null; then
     done
 fi
 
+# spicetify's first run looks for prefs to generate its config; before spotify's first start there is none, so an
+# empty one stands in (spotify fills it on first start, hook/spicetify-apply.sh waits for its autologin line)
+mkdir -p "${HOME}/.config/spotify"
+[ -e "${HOME}/.config/spotify/prefs" ] || : >"${HOME}/.config/spotify/prefs"
+
 spicetify config current_theme wal color_scheme pywal
 spicetify config experimental_features 0
 # on, it also strips the [dir=ltr] rules spotify spacing lives in
