@@ -15,9 +15,13 @@ UID_MAX=59999
 file_update config.ini "$CONFIG" || true
 
 # config.ini sets lang=lsck0: the stock en lang with F4's hibernate hint renamed to reboot-to-firmware (hibernate_cmd
-# runs systemctl reboot --firmware-setup). regenerated from the current en.ini each run so a ly update stays in sync
+# runs systemctl reboot --firmware-setup). regenerated from the current en.ini each run so a ly update stays in sync.
+# ly puts one space between key hints; trailing no-break spaces (the ini parser trims plain ones) widen the gap
 if [[ -f /etc/ly/lang/en.ini ]]; then
-    sed 's/^hibernate = .*/hibernate = reboot to firmware/' /etc/ly/lang/en.ini >/etc/ly/lang/lsck0.ini
+    gap=$'   '
+    sed -e 's/^hibernate = .*/hibernate = reboot to firmware/' \
+        -e "/^\(shutdown\|restart\|sleep\|hibernate\|toggle_password\|brightness_down\|brightness_up\) = /s/\$/${gap}/" \
+        /etc/ly/lang/en.ini >/etc/ly/lang/lsck0.ini
 fi
 
 # only Hyprland (uwsm) and Plasma show, next to ly's built-in shell

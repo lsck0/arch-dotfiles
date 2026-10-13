@@ -6,7 +6,7 @@ if ! command -v virsh >/dev/null 2>&1 || [[ "$FORM_FACTOR" =~ ^(vm|wsl)$ ]]; the
 fi
 
 # pinned, not left to the distro default: the idle-out can't regress to never (the bridge stays regardless)
-dropin_install libvirtd.service libvirtd-timeout.conf
+dropin_install libvirtd.service libvirtd-timeout.conf || true
 # autostart only fires when libvirtd runs: start it at boot so virbr0 exists; it idles out after the pinned 120 s, the
 # bridge stays. --now before any virsh: root's qemu:///system never autostarts a daemon, so a fresh install would abort here
 systemctl enable --now libvirtd.service

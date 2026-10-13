@@ -22,6 +22,6 @@ elif [[ -n "$HOMELAB" ]] && ! grep -qF "$HOMELAB_MIRROR" "$MIRRORLIST"; then
 fi
 
 # root writes the mirrorlist, so root runs the ranking from its own copy; weekly sort re-ranks, monthly rebuild finds new mirrors
-file_update mirrorlist-update.sh /usr/local/bin/mirrorlist-update 755
+file_update mirrorlist-update.sh /usr/local/bin/mirrorlist-update 755 || true
 unit_install ghostmirror.service ghostmirror.timer ghostmirror-refresh.service ghostmirror-refresh.timer
 systemctl enable --now ghostmirror.timer ghostmirror-refresh.timer

@@ -82,7 +82,15 @@ if [[ "$need_sign" == "true" ]]; then
         # changes them and needs a re-enroll
         echo "sbctl: enrolling own keys plus the TPM event log's option rom hashes, no Microsoft keys" >&2
         echo "sbctl: (clear Secure Boot keys in firmware to re-enroll a machine that already carries Microsoft's)" >&2
-        sbctl enroll-keys -t
+        # a machine without option roms (integrated gpu) has no hashes to add and -t refuses ("could not find any OpROM
+        # entries"); nothing then needs microsoft's ca, so own keys alone, which is what SECURE_BOOT_OWN_KEYS asks for
+        if ! out=$(sbctl enroll-keys -t 2>&1); then
+            echo "$out" >&2
+            if grep -q 'could not find any OpROM entries' <<<"$out"; then
+                echo "sbctl: no option roms in the TPM event log, enrolling own keys only" >&2
+                sbctl enroll-keys
+            fi
+        fi
     elif [[ -n "$SECURE_BOOT_OWN_KEYS" ]]; then
         # without an event log sbctl cannot tell whether an option rom needs microsoft's ca; forcing could brick
         echo "sbctl: !!! SECURE_BOOT_OWN_KEYS set but no TPM event log to read option rom hashes from" >&2

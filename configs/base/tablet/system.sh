@@ -16,7 +16,7 @@ fi
 
 # root runs all three, so root-owned copies; 71- puts the uaccess tag in place before 73-seat-late.rules runs the builtin
 install -Dm644 71-graphics-tablet.rules /etc/udev/rules.d/71-graphics-tablet.rules
-file_update tablet-driver.py /usr/local/bin/tablet-driver 755
+file_update tablet-driver.py /usr/local/bin/tablet-driver 755 || true
 unit_install tablet-driver.service
 
 udevadm control --reload-rules
