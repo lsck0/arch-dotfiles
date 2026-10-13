@@ -1,0 +1,297 @@
+{
+  "name": "Fullscreen",
+  "version": 2,
+  "resolution": {
+    "x": 3840,
+    "y": 2160
+  },
+  "canvases": [],
+  "current_scene": "Fullscreen",
+  "current_program_scene": "Fullscreen",
+  "current_transition": "Luma Wipe",
+  "transition_duration": 500,
+  "transitions": [
+    {
+      "name": "Luma Wipe",
+      "id": "wipe_transition",
+      "settings": {
+        "luma_image": "sinus9.png"
+      }
+    }
+  ],
+  "preview_locked": false,
+  "scaling_enabled": false,
+  "DesktopAudioDevice1": {
+    "prev_ver": 537001986,
+    "name": "Desktop Audio",
+    "uuid": "f780472f-c3c5-4d09-8f2e-e4ae88089941",
+    "id": "pulse_output_capture",
+    "versioned_id": "pulse_output_capture",
+    "settings": {
+      "device_id": "default"
+    },
+    "mixers": 193,
+    "sync": 0,
+    "flags": 0,
+    "volume": 0.5956621766090393,
+    "balance": 0.5,
+    "enabled": true,
+    "muted": false,
+    "push-to-mute": false,
+    "push-to-mute-delay": 0,
+    "push-to-talk": false,
+    "push-to-talk-delay": 0,
+    "hotkeys": {},
+    "deinterlace_mode": 0,
+    "deinterlace_field_order": 0,
+    "monitoring_type": 0,
+    "private_settings": {
+      "volume_locked": true
+    }
+  },
+  "AuxAudioDevice1": {
+    "prev_ver": 537001986,
+    "name": "Mic/Aux",
+    "uuid": "dc7eed07-d3ea-4991-b350-e1443f65021f",
+    "id": "pulse_input_capture",
+    "versioned_id": "pulse_input_capture",
+    "settings": {
+      "device_id": "alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback"
+    },
+    "mixers": 195,
+    "sync": 0,
+    "flags": 0,
+    "volume": 0.8341541290283203,
+    "balance": 0.5,
+    "enabled": true,
+    "muted": false,
+    "push-to-mute": false,
+    "push-to-mute-delay": 0,
+    "push-to-talk": false,
+    "push-to-talk-delay": 0,
+    "hotkeys": {},
+    "deinterlace_mode": 0,
+    "deinterlace_field_order": 0,
+    "monitoring_type": 0,
+    "private_settings": {
+      "volume_locked": true
+    },
+    "filters": [
+      {
+        "prev_ver": 537001986,
+        "name": "Noise Suppression",
+        "uuid": "81b71fb6-d17b-43c7-9c9f-681ff6e32370",
+        "id": "noise_suppress_filter",
+        "versioned_id": "noise_suppress_filter_v2",
+        "settings": {
+          "method": "rnnoise"
+        },
+        "mixers": 255,
+        "sync": 0,
+        "flags": 0,
+        "volume": 1.0,
+        "balance": 0.5,
+        "enabled": true,
+        "muted": false,
+        "push-to-mute": false,
+        "push-to-mute-delay": 0,
+        "push-to-talk": false,
+        "push-to-talk-delay": 0,
+        "hotkeys": {},
+        "deinterlace_mode": 0,
+        "deinterlace_field_order": 0,
+        "monitoring_type": 0,
+        "private_settings": {}
+      },
+      {
+        "prev_ver": 537001986,
+        "name": "3-Band Equalizer",
+        "uuid": "14690712-9abe-47cf-ae4b-df5609f3a512",
+        "id": "basic_eq_filter",
+        "versioned_id": "basic_eq_filter",
+        "settings": {
+          "low": -2.0,
+          "mid": -2.0,
+          "high": -2.0
+        },
+        "mixers": 255,
+        "sync": 0,
+        "flags": 0,
+        "volume": 1.0,
+        "balance": 0.5,
+        "enabled": true,
+        "muted": false,
+        "push-to-mute": false,
+        "push-to-mute-delay": 0,
+        "push-to-talk": false,
+        "push-to-talk-delay": 0,
+        "hotkeys": {},
+        "deinterlace_mode": 0,
+        "deinterlace_field_order": 0,
+        "monitoring_type": 0,
+        "private_settings": {}
+      },
+      {
+        "prev_ver": 537001986,
+        "name": "Expander",
+        "uuid": "bbddde74-55c6-4b59-8cfe-b8ba5e015976",
+        "id": "expander_filter",
+        "versioned_id": "expander_filter",
+        "settings": {
+          "threshold": -57.4
+        },
+        "mixers": 255,
+        "sync": 0,
+        "flags": 0,
+        "volume": 1.0,
+        "balance": 0.5,
+        "enabled": true,
+        "muted": false,
+        "push-to-mute": false,
+        "push-to-mute-delay": 0,
+        "push-to-talk": false,
+        "push-to-talk-delay": 0,
+        "hotkeys": {},
+        "deinterlace_mode": 0,
+        "deinterlace_field_order": 0,
+        "monitoring_type": 0,
+        "private_settings": {}
+      },
+      {
+        "prev_ver": 537001986,
+        "name": "Compressor",
+        "uuid": "0652b5bc-720d-495b-87c4-ee8a50552cef",
+        "id": "compressor_filter",
+        "versioned_id": "compressor_filter",
+        "settings": {
+          "ratio": 3.0,
+          "threshold": -14.3,
+          "attack_time": 2,
+          "release_time": 103
+        },
+        "mixers": 255,
+        "sync": 0,
+        "flags": 0,
+        "volume": 1.0,
+        "balance": 0.5,
+        "enabled": true,
+        "muted": false,
+        "push-to-mute": false,
+        "push-to-mute-delay": 0,
+        "push-to-talk": false,
+        "push-to-talk-delay": 0,
+        "hotkeys": {},
+        "deinterlace_mode": 0,
+        "deinterlace_field_order": 0,
+        "monitoring_type": 0,
+        "private_settings": {}
+      },
+      {
+        "prev_ver": 537001986,
+        "name": "Limiter",
+        "uuid": "76507b4f-6160-47ad-9a4a-c5722a9e42d7",
+        "id": "limiter_filter",
+        "versioned_id": "limiter_filter",
+        "settings": {
+          "threshold": -0.1
+        },
+        "mixers": 255,
+        "sync": 0,
+        "flags": 0,
+        "volume": 1.0,
+        "balance": 0.5,
+        "enabled": true,
+        "muted": false,
+        "push-to-mute": false,
+        "push-to-mute-delay": 0,
+        "push-to-talk": false,
+        "push-to-talk-delay": 0,
+        "hotkeys": {},
+        "deinterlace_mode": 0,
+        "deinterlace_field_order": 0,
+        "monitoring_type": 0,
+        "private_settings": {}
+      }
+    ]
+  },
+  "virtual-camera": {
+    "type2": 3
+  },
+  "modules": {},
+  "groups": [],
+  "scene_order": [
+    {
+      "name": "Fullscreen"
+    }
+  ],
+  "sources": [
+    {
+      "prev_ver": 537001986,
+      "name": "Screen Capture",
+      "uuid": "34ad521d-ff60-4125-95b1-05d28c35a096",
+      "id": "pipewire-screen-capture-source",
+      "versioned_id": "pipewire-screen-capture-source",
+      "settings": {},
+      "mixers": 0,
+      "sync": 0,
+      "flags": 0,
+      "volume": 1.0,
+      "balance": 0.5,
+      "enabled": true,
+      "muted": false,
+      "push-to-mute": false,
+      "push-to-mute-delay": 0,
+      "push-to-talk": false,
+      "push-to-talk-delay": 0,
+      "hotkeys": {},
+      "deinterlace_mode": 0,
+      "deinterlace_field_order": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "prev_ver": 2,
+      "name": "Fullscreen",
+      "uuid": "00000000-0000-4000-8000-0000000000f5",
+      "id": "scene",
+      "versioned_id": "scene",
+      "settings": {
+        "custom_size": false,
+        "id_counter": 1,
+        "items": [
+          {
+            "name": "Screen Capture",
+            "source_uuid": "34ad521d-ff60-4125-95b1-05d28c35a096",
+            "visible": true,
+            "locked": false,
+            "rot": 0.0,
+            "align": 5,
+            "bounds_type": 2,
+            "bounds_align": 0,
+            "bounds": {
+              "x": 3840.0,
+              "y": 2160.0
+            },
+            "pos": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "id": 1
+          }
+        ]
+      },
+      "mixers": 0,
+      "sync": 0,
+      "flags": 0,
+      "volume": 1.0,
+      "balance": 0.5,
+      "enabled": true,
+      "muted": false,
+      "hotkeys": {}
+    }
+  ]
+}

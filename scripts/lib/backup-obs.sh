@@ -9,10 +9,10 @@ source "${REPO}/scripts/lib/secrets.sh"
 # the scene collection and the stream service hold stream tokens and land in secrets
 secret_require_unlocked "${REPO}"
 
-SCENE="${HOME}/.config/obs-studio/basic/scenes/Untitled.json"
+SCENE="${HOME}/.config/obs-studio/basic/scenes/Streaming.json"
 MARKER="${HOME}/.config/obs-studio/basic/scenes/.from-secrets"
 # only guard once a live scene exists; no scene yet is nothing to back up
-[ -e "${SCENE}" ] && secret_seed_guard "${MARKER}" "${REPO}/secrets/obs-Untitled.json" "${SCENE}"
+[ -e "${SCENE}" ] && secret_seed_guard "${MARKER}" "${REPO}/secrets/obs-Streaming.json" "${SCENE}"
 
 # the obs module's link.sh links these files into the repo; obs replaces a link with a plain file on save
 modules=("${REPO}"/configs/*/obs)
@@ -25,8 +25,16 @@ backup() {
     cp -f "$1" "$2"
 }
 
-backup "${SCENE}" "${REPO}/secrets/obs-Untitled.json"
+backup "${SCENE}" "${REPO}/secrets/obs-Streaming.json"
 backup "${HOME}/.config/obs-studio/basic/profiles/Streaming/service.json" "${REPO}/secrets/obs-service.json"
+
+# the Fullscreen collection is token-free and lives in the repo; strip the pipewire portal RestoreToken obs writes per machine
+fulllive="${HOME}/.config/obs-studio/basic/scenes/Fullscreen.json"
+fullrepo="${MODULE}/scenes/Fullscreen.json"
+if [ -e "${fulllive}" ] && [ "$(readlink -f "${fulllive}")" != "$(readlink -f "${fullrepo}")" ]; then
+    jq '(.sources[]?.settings) |= (if type=="object" then del(.RestoreToken) else . end)' "${fulllive}" >"${fullrepo}" 2>/dev/null \
+        || backup "${fulllive}" "${fullrepo}"
+fi
 
 # each repo-owned profile's non-secret files back into the module; service.json stays out, it is the stream key
 for live in "${HOME}"/.config/obs-studio/basic/profiles/*/; do

@@ -3,12 +3,14 @@
 basic="${HOME}/.config/obs-studio/basic"
 mkdir -p "${basic}/scenes"
 
-# scenes carry stream tokens, so they live in secrets; readlink only once one exists
-scene_secret="$DOTFILES/secrets/obs-Untitled.json"
+# the Streaming collection carries stream tokens (alert browser sources), so it lives in secrets; link once unlocked
+scene_secret="$DOTFILES/secrets/obs-Streaming.json"
 if secret_is_plaintext "${scene_secret}"; then
-	link_as "$(readlink -f "${scene_secret}")" "${basic}/scenes/Untitled.json"
+	link_as "$(readlink -f "${scene_secret}")" "${basic}/scenes/Streaming.json"
 	touch "${basic}/scenes/.from-secrets"
 fi
+# the Fullscreen collection (one screen capture + desktop/mic audio, no overlays) holds no tokens, so it lives in the repo
+link_into "${basic}/scenes" scenes/Fullscreen.json
 
 # one profile per purpose: Streaming (service + stream encoder, record as backup), Recording (local AV1 only),
 # VirtualCam (virtual camera only, no encode). each profile is standalone OBS config
