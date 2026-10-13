@@ -623,7 +623,7 @@ ucode=amd-ucode
 grep -q GenuineIntel /proc/cpuinfo && ucode=intel-ucode
 
 # homelab mirror first so pacstrap pulls base at lan speed; pacman falls through to the iso's public mirrors when away
-[[ "${HOMELAB:-}" != 1 ]] || sed -i '1i Server = http://10.100.0.109:8090/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
+[[ "${HOMELAB:-}" != 1 ]] || sed -i '1i Server = http://10.100.0.104:8090/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
 
 # binutils: mkinitcpio builds the ukis with its objcopy
 pacstrap -K "$MOUNT" base linux linux-firmware mkinitcpio "$ucode" btrfs-progs cryptsetup binutils \
