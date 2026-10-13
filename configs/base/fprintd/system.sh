@@ -13,5 +13,8 @@ if ! lsusb -d 138a: >/dev/null 2>&1 && ! lsusb -d 06cb:009a >/dev/null 2>&1; the
 fi
 
 dropin_install python3-validity.service override.conf || true
+# resume.py races the reader re-enumerating after resume (USBError); retry it instead of failing the unit
+dropin_install open-fprintd-resume.service open-fprintd-resume.conf || true
 systemctl enable python3-validity.service open-fprintd-resume.service open-fprintd-suspend.service
+systemctl reset-failed open-fprintd-resume.service 2>/dev/null || true
 systemctl mask fprintd.service
