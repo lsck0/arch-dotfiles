@@ -6,6 +6,8 @@ export const meta = {packages: {pacman: [discord discordo-git]}}
 const BOOTSTRAP = "/usr/share/discord/updater_bootstrap"
 const BOOTSTRAP_TIMEOUT = "900"
 const UPDATES_URL = "https://updates.discord.com/"
+# /usr/bin/discord's first run: the bootstrap prints the app dir it filled, the launcher links <config>/Discord into it
+const BOOTSTRAP_RUN = 'app=$(timeout "$1" "$2" --no-zenity "$3" stable "$4") && ln -sfn "$3/$app/Discord" "$3/Discord"'
 const THEME = "wal.theme.css"
 const VOICE_PLUGIN = "plugins/QuickshellVoiceStatus.plugin.js"
 # raw files at commit shas, pinned by content too
@@ -62,7 +64,7 @@ export def link [cfg: record] {
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
         # the first run downloads the app (~150 MB) before any window; never beside a running bootstrap, one download dir
         (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
-            let download = [timeout $BOOTSTRAP_TIMEOUT $BOOTSTRAP --no-zenity $config stable $UPDATES_URL]
+            let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
             exec discord-app $download --creates ($config | path join Discord)
         })
         # copies: betterdiscord misses changes through a symlink

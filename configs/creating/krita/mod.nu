@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [krita]}}
+export const meta = {packages: {pacman: [krita kseexpr]}}
 
 const HERE = path self | path dirname
 const BUILD_TIMEOUT = "900"

@@ -22,7 +22,8 @@ const DIRS = [desktop documents downloads music pictures videos sync vault]
 # xdg-user-dirs-update's old defaults; rmdir keeps any with content
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
-# move: the tool reads an app-dirs.conf var; link: it hardcodes ~/<name>. an existing target wins, the source stays
+# move: the tool reads an app-dirs.conf var; link (a dir) and link-file: it hardcodes ~/<name>. an existing target wins,
+# the source stays
 const RECLAIM = [
     [name target mode];
     [.dotnet .local/share/dotnet move] [.omnisharp .config/omnisharp move] [.ipython .config/ipython move]
@@ -46,8 +47,8 @@ const RECLAIM = [
     [.genius .config/genius link] [.idlerc .config/idlerc link] [.kismet .local/state/kismet link]
     [.mcp-inspector .local/state/mcp-inspector link] [.netscanner .local/state/netscanner link]
     [.nnd .local/state/nnd link] [.superseedr .local/state/superseedr link] [.usdview .local/state/usdview link]
-    [.Xcolours .config/Xcolours link] [.viminfo .local/state/vim/viminfo link]
-    [.wget-hsts .local/state/wget-hsts link] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link]
+    [.Xcolours .config/Xcolours link] [.viminfo .local/state/vim/viminfo link-file]
+    [.wget-hsts .local/state/wget-hsts link-file] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file]
 ]
 
 const XBEL_NS = "http://www.freedesktop.org/standards/desktop-bookmarks"
@@ -87,7 +88,8 @@ export def link [cfg: record] {
         (step home-dirs)
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
-        ($RECLAIM | where mode == link | each {|r| file-link (home $r.target) (home $r.name) })
+        # a source still a real dir or file is moved and linked by home-dirs
+        ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r| file-link (home $r.target) (home $r.name) })
         # nemo also claims FileManager1 and sorts first; the user dir wins
         (file-copy dolphin.FileManager1.service
             (home .local share dbus-1 services org.freedesktop.FileManager1.service))
@@ -116,13 +118,17 @@ export def home-dirs []: nothing -> nothing {
     for r in $RECLAIM {
         let src = home $r.name
         let target = home $r.target
-        if ($src | path type) != "dir" and ($src | path type) != "file" { continue }
-        if ($target | path exists) {
-            print $"note: xdg: ($r.name): ($target) exists, left ($src) for a manual merge"
-        } else {
+        if ($src | path type) in [dir file] {
+            if ($target | path exists) {
+                print $"note: xdg: ($r.name): ($target) exists, left ($src) for a manual merge"
+                continue
+            }
             mkdir ($target | path dirname)
             mv $src $target
+            if $r.mode != move { ^ln -s $target $src }
             print $"xdg: moved ($src) -> ($target)"
         }
+        # a link to nothing fails every mkdir through it: a tool's own, and the parent of a file a module writes there
+        match $r.mode { "link" => { mkdir $target }, "link-file" => { mkdir ($target | path dirname) }, _ => {} }
     }
 }

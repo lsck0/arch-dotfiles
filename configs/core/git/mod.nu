@@ -16,7 +16,7 @@ def ini [sections: list<list>]: nothing -> string {
     $sections | each {|s| $s.1 | items {|k, v| $"\t($k) = ($v)" } | prepend $"[($s.0)]" | str join "\n" } | str join "\n" | $"($in)\n"
 }
 
-def jj-config [identity: record]: nothing -> string {
+def jj-config [identity: oneof<record, nothing>]: nothing -> string {
     let user = if $identity == null { "" } else { $"[user]\nname = \"($identity.name)\"\nemail = \"($identity.email)\"\n\n" }
     $"#:schema https://docs.jj-vcs.dev/latest/config-schema.json\n\n($user)[ui]\ndefault-command = \"log\"\n"
 }

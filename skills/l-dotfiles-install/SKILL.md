@@ -9,25 +9,20 @@ Three stages: `bootstrap.sh` (from the ISO: nushell and a verified checkout, the
 first, disk, base system, user, root copy, arms the chain), then `dot stage` runs `dot install` and `dot apply` on
 their own boots, unattended, and retires itself and its sudo drop-in at the end.
 
-## Owner machine (a `platforms/<host>.nuon` exists)
+## Install
 
 ```bash
-curl -fsSL https://install-pc.lsck0.dev | sh        # also install-notebook, install-wsl
+curl -fsSL https://install-linux.lsck0.dev | sh
 ```
 
 - `bootstrap.sh` (under 40 lines of bash, the iso has no nu) installs nushell (growing the iso's overlay when it is
   too small), clones master and refuses to run anything unless HEAD is signed by `SIGNING_KEY_FINGERPRINT`
   (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (dot test run) it skips the clone.
-- The profile template `profiles/<user>.nuon` is copied to `~/.config/dotfiles/profile.nuon`.
-
-## Any other machine
-
-```bash
-curl -fsSL https://install-generic.lsck0.dev | sh
-```
-
-It asks for the machine instead of reading `platforms/`; the answers go to the root-owned
-`/etc/dotfiles/platform.nuon`. A user without a `profiles/<name>.nuon` is a guest (no capabilities).
+- The machine menu lists `platforms/<host>.nuon` (luca-pc, luca-notebook, luca-wsl) and `custom`. `custom` asks for the
+  machine instead; the answers go to the root-owned `/etc/dotfiles/platform.nuon`. `test-vm` is left out
+  (`PLATFORMS_HIDDEN`), the vm test passes it by argument.
+- The profile template `profiles/<user>.nuon` is copied to `~/.config/dotfiles/profile.nuon`; a user without one is a
+  guest (no capabilities).
 
 ## WSL
 

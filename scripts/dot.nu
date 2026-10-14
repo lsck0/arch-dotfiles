@@ -9,7 +9,7 @@ use ($LIB | path join profile.nu) [profile-load profile-has]
 use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-events-file options-to-nuon]
 use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
-use ($LIB | path join converge.nu) [state-read observe plan-module recorded-hashes apply-module state-write]
+use ($LIB | path join converge.nu) [state-read observe decls-check plan-module recorded-hashes apply-module state-write]
 use ($LIB | path join secrets.nu) [secret-is-plaintext]
 use ($LIB | path join written.nu) [written-begin written-prune written-end preserve-prune preserve-report tty-confirm]
 use ($LIB | path join ledger.nu) [ledger-units ledger-get ledger-set packages-convergence]
@@ -39,6 +39,15 @@ const EXIT_ABORTED = 2
 # pinned so a generation installs what it was tested with
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+# core/git's lfs filter, which a first apply pulls before it exists; without it lfs pull skips the checkout
+const LFS_FILTER = [
+    -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
+    -c "filter.lfs.process=git-lfs filter-process" -c filter.lfs.required=true
+]
+# flatpak's profile.d puts its exports on the session's data dirs; without them each install prints a note
+const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
+const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
+const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 # seeds a root copy that predates the nu entry: a fixed script, no repo code as root
 const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
 const THEME_STAMP_PATHS = [configs/core/wallust configs/core/themes 'configs/*/*/mod.nu' scripts/lib/wallpaper.nu]
@@ -152,7 +161,9 @@ def theme-init []: nothing -> nothing {
     if ($cache | path join wallpaper | path exists) and $current == $stamp {
         return
     }
-    let wallpaper = try { ^readlink -f ($cache | path join wallpaper) | str trim } catch { $THEME_DEFAULT_WALLPAPER }
+    # readlink -f prints a missing path too, so a fresh home has to be told apart first
+    let link = $cache | path join wallpaper
+    let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { $THEME_DEFAULT_WALLPAPER }
     wallpaper-set $wallpaper --sync
     $"($stamp)\n" | save --force ($cache | path join .theme-stamp)
 }
@@ -331,7 +342,7 @@ def system-failed [stage: string]: nothing -> nothing {
 def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     failures-open
     if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail $"dot secrets unlock: ($e.msg)" } }
-    if (which git-lfs | is-not-empty) { try { ^git -C $REPO lfs pull } catch { fail "git lfs pull" } }
+    if (which git-lfs | is-not-empty) { try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch { fail "git lfs pull" } }
     if $system {
         if (system-run config --snapshot --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
     }
@@ -370,6 +381,7 @@ def --env unlink-run [mod: string]: nothing -> table {
     }
     failures-open
     let extra = if "unlink" in $m.native { modules-eval [$m] unlink {$mod: $m.cfg} [] | get 0.decls } else { [] }
+    decls-check $mod $extra
     let rows = [link theme] | each {|verb|
         let prev = (state-read $mod $verb).outputs
         let seen = observe ($prev | where kind != unit | get target) ($prev | where kind == unit | get target) user
@@ -411,22 +423,26 @@ def install-user [declared: record]: nothing -> nothing {
     if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
     let apps = $declared.flatpak | transpose app commit
     if ($apps | is-not-empty) and (which flatpak | is-not-empty) {
-        if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
-            fail "flatpak remote-add --user flathub"
-        } else {
-            let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
-            for a in $apps {
-                if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
-                let now = do $deployed $a.app
-                if $now != $a.commit {
-                    # a mask also holds back an explicit update
-                    if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
-                    if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
-                    try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
+        let exports = [($nu.home-dir | path join $FLATPAK_USER_EXPORTS) $FLATPAK_SYSTEM_EXPORTS]
+        let dirs = $exports ++ ($env.XDG_DATA_DIRS? | default $DATA_DIRS_DEFAULT | split row ":") | uniq | str join ":"
+        with-env {XDG_DATA_DIRS: $dirs} {
+            if (^flatpak remote-add --user --if-not-exists flathub $FLATHUB | complete).exit_code != 0 {
+                fail "flatpak remote-add --user flathub"
+            } else {
+                let deployed = {|app| ^flatpak info --user --show-commit $app | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { "" } }
+                for a in $apps {
+                    if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
+                    let now = do $deployed $a.app
+                    if $now != $a.commit {
+                        # a mask also holds back an explicit update
+                        if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
+                        if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
+                        try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
+                    }
+                    try { ^flatpak mask --user $a.app } catch { fail $"flatpak mask --user ($a.app)" }
                 }
-                try { ^flatpak mask --user $a.app } catch { fail $"flatpak mask --user ($a.app)" }
+                ledger-set flatpak ($apps | each {|a| let c = do $deployed $a.app; if $c == "" { "" } else { $"($a.app) ($c)" } })
             }
-            ledger-set flatpak ($apps | each {|a| let c = do $deployed $a.app; if $c == "" { "" } else { $"($a.app) ($c)" } })
         }
     }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
@@ -570,8 +586,7 @@ def option-apply [target: string, set: record]: nothing -> nothing {
             # machine options reach the system verb only through the root-owned copy
             if $set.spec.scope == "machine" and "system" in $set.module.verbs and (admin) { system-part $target }
             if $apply != "relink" {
-                print $"note: ($target) takes effect after a ($apply)"
-                log-warn $"($target) takes effect after a ($apply)" {kind: note}
+                log-note $"($target) takes effect after a ($apply)"
             }
             null
         }
@@ -591,8 +606,7 @@ def --env system-part [target: string]: nothing -> nothing {
     let ok = $runner != null and (with-env {DOTFILES_ROOT_RUNNER: $runner} { system-run config }) == 0
     if $ok { return }
     $"($target)\n" | save --append (pending-file)
-    print $"note: ($target): system part pending, runs on the next dot apply"
-    log-warn $"($target): system part pending, runs on the next dot apply" {kind: note}
+    log-note $"($target): system part pending, runs on the next dot apply"
     $env.DOT_SYSTEM_PENDING = true
 }
 

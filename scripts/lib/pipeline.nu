@@ -4,7 +4,7 @@ use platform.nu [platform-load platform-env]
 use profile.nu [profile-load]
 use options.nu [options-resolve]
 use modules.nu [modules-discover modules-graph modules-eval]
-use converge.nu [state-read observe recorded-hashes plan-module apply-module state-write]
+use converge.nu [state-read observe recorded-hashes decls-check plan-module apply-module state-write]
 use secrets.nu [secret-is-plaintext]
 
 const HASH_STAMP = '%P %s %T@\n'
@@ -77,6 +77,7 @@ def scope-of [layer: string]: nothing -> string {
 
 def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record, force: bool]: nothing -> table {
     let evaluated = span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $mods $verb ($mods | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) $args } }
+        | each {|e| if not $e.ok { $e } else { try { decls-check $e.id $e.decls; $e } catch {|err| $e | merge {ok: false, decls: [], error: $err.msg} } } }
     let decls = $evaluated | reduce --fold [] {|e, acc| $acc ++ $e.decls }
     let olds = $prev | values | reduce --fold [] {|p, acc| $acc ++ $p }
     let paths = $decls | where kind not-in [unit exec step] | get --optional target | default [] | append ($olds | where kind not-in [unit exec] | get --optional target | default [])
@@ -182,7 +183,8 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         }
     }
     let notes = $result.log | lines | where ($it | str trim | str starts-with $NOTE_PREFIX) | each { str trim | str replace $NOTE_PREFIX "" | str trim }
-    $notes | each { log-warn $"($m.id): ($in)" {kind: note} } | ignore
+    # shown in the module's block already, so only the run log gets it
+    $notes | each { log-debug $"note: ($m.id): ($in)" {kind: note} } | ignore
     $result | insert id $m.id | insert notes $notes | insert ms ((date now) - $start | into int | $in // 1_000_000)
 }
 

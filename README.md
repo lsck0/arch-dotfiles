@@ -5,7 +5,7 @@
 From the Arch ISO:
 
 ```bash
-curl -fsSL https://install-generic.lsck0.dev | sh
+curl -fsSL https://install-linux.lsck0.dev | sh
 ```
 
 ![bar with weather and network panels and a fastfetch terminal](showcase/showcase1.png)

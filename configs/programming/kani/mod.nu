@@ -9,7 +9,7 @@ export const meta = {
 
 export def link [cfg: record] {
     if (which cargo-kani | is-empty) { return [] }
-    # "cargo-kani 0.64.0"
-    let version = ^cargo-kani --version | lines | first | split row " " | get 1
+    # "kani 0.64.0-1"; cargo-kani itself would run its whole first-time setup just to print its version
+    let version = ^pacman -Q kani | split row " " | get 1 | split row "-" | first
     exec kani-setup [cargo kani setup] --creates ($nu.home-dir | path join .kani $"kani-($version)")
 }

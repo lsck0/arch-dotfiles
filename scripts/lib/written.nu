@@ -38,7 +38,7 @@ export def preserve-aside [path: path]: nothing -> path {
     mkdir ($dest | path dirname)
     ^mv -n $path $dest
     plan-note preserve $path $"aside to ($dest)"
-    log-warn $"($path) was not the dotfiles' own, kept it as ($dest)"
+    log-info $"($path): the earlier copy kept as ($dest)"
     $dest
 }
 

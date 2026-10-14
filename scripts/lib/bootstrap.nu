@@ -46,7 +46,9 @@ const SYNC_WAIT_S = 120
 const NETWORK_TIMEOUT_S = 10
 const PING_TIMEOUT_S = 2
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
-const PLATFORM_NEW = "new"
+const PLATFORM_NEW = "custom"
+# the vm test passes its platform by argument; nobody installs it by hand
+const PLATFORMS_HIDDEN = [test-vm]
 const LOGIN_SHELL = "/usr/bin/zsh"
 # networkmanager's home rule: a link is home while its gateway's mac is listed here
 const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
@@ -404,6 +406,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     let capabilities = if ($profile_nuon | path exists) { open $profile_nuon | get capabilities } else { [] }
 
     let platforms = glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem }
+        | where $it not-in $PLATFORMS_HIDDEN
     let platform = if ($platform_arg | is-not-empty) { $platform_arg } else if (assume) { $PLATFORM_NEW } else if (tui) {
         let items = $platforms | each {|p| [$p (open ($repo | path join platforms $"($p).nuon") | get form_factor)] } | flatten
         menu machine "Which machine is this?" $PLATFORM_NEW ($items ++ [$PLATFORM_NEW "any other machine: a few questions"])

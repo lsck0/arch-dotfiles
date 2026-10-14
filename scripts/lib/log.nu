@@ -33,13 +33,16 @@ export def log-record [level: string, message: string, fields: record = {}]: not
 export def log-debug [message: string, fields: record = {}]: nothing -> nothing { log-record DEBUG $message $fields }
 export def log-info [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $message $fields }
 export def log-warn [message: string, fields: record = {}]: nothing -> nothing { log-record WARN $message $fields }
+# something the person has to do, not a fault
+export def log-note [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $"note: ($message)" ($fields | merge {kind: note}) }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# each line shows live on stderr as "<tag> | <line>", so parallel runs stay apart; a command that never started rethrows
+# each line shows live on stderr as "<tag> | <line>", so parallel runs stay apart; a command that never started rethrows.
+# setsid, no stdin: under dot's pty a background command that touches the terminal (claude's cli) is stopped for good
 export def command-stream [tag: string, argv: list]: nothing -> record {
     let log = mktemp --tmpdir
     let code = try {
-        ^($argv | first) ...($argv | skip 1) o+e>| tee { save --force $log } | lines | each {|l| print -e $"($tag) | ($l)" } | ignore
+        null | ^setsid --wait ...$argv o+e>| tee { save --force $log } | lines | each {|l| print -e $"($tag) | ($l)" } | ignore
         0
     } catch {|e| if $e.exit_code? == null { rm $log; $e.raw } else { $e.exit_code } }
     let output = open --raw $log

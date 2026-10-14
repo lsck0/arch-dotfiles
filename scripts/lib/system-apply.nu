@@ -56,6 +56,15 @@ def failures-end [what: string]: nothing -> nothing {
     log-info $"($what) done"
 }
 
+# --needed still names every installed target "up to date -- skipping"; a group by its missing members
+def packages-wanted [names: list<string>]: nothing -> list<string> {
+    let groups = ^pacman -Sgg | lines | parse "{group} {name}" | where group in $names
+    let installed = ^pacman -Qq | lines
+    let plain = $names | where $it not-in $groups.group
+    let missing = if ($plain | is-empty) { [] } else { ^pacman -T ...$plain | complete | get stdout | lines }
+    $missing ++ ($groups | where name not-in $installed | get name | uniq)
+}
+
 def module-system [ctx: record, id: string]: nothing -> bool {
     pipeline-apply $ctx (pipeline-plan $ctx system [$id] false) system 1 | all { $in.ok }
 }
@@ -107,10 +116,11 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     let missing = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines | parse "error: target not found: {p}" | get p
     $missing | each { fail $"not on the mirror: ($in)" } | ignore
     let available = $declared.pacman | where $it not-in $missing
-    log-info $"sources: ($available | length) packages in one pass, ($missing | length) not on the mirror"
+    let wanted = packages-wanted $available
+    log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($missing | length) not on the mirror"
     # -uu moves pacstrap's packages onto the snapshot, --ask 4 replaces the old lsck0-* names
     mut try = 1
-    while not (try { ^pacman -Suu --needed --noconfirm --ask 4 ...$available; true } catch { false }) {
+    while not (try { ^pacman -Suu --needed --noconfirm --ask 4 ...$wanted; true } catch { false }) {
         if $try >= $DOWNLOAD_TRIES { fail "pacman: the install pass failed"; exit $EXIT_ABORTED }
         log-warn $"transaction failed, try ($try)/($DOWNLOAD_TRIES), again in ($DOWNLOAD_BACKOFF)"
         sleep $DOWNLOAD_BACKOFF

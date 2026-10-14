@@ -329,6 +329,7 @@ konsole
 kpat
 krita
 kscreen
+kseexpr
 ksshaskpass
 kubecolor
 kubectl

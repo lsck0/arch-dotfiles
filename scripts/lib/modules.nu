@@ -21,9 +21,14 @@ def native-script [mods: list<record>, body: string]: nothing -> string {
     $uses | append $body | str join "\n"
 }
 
-# a child nu's stderr (a deprecation, a module's own print -e) is a warning, never part of its answer
+# a child's own log lines keep their level and are in the run log already; any other stderr (a deprecation, a module's
+# print -e) is a warning, never part of its answer
 def child-warnings [stderr: string]: nothing -> nothing {
-    if ($stderr | str trim | is-not-empty) { log-warn ($stderr | str trim) }
+    let tag = $"($env.LOG_TAG? | default dotfiles): "
+    let lines = $stderr | lines | where ($it | str trim) != ""
+    $lines | where ($it | str starts-with $tag) | each { print -e $in } | ignore
+    let other = $lines | where not ($it | str starts-with $tag)
+    if ($other | is-not-empty) { log-warn ($other | str join "\n") }
 }
 
 def native-read [dirs: list<path>]: nothing -> list<record> {

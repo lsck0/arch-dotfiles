@@ -30,7 +30,7 @@ export def link [cfg: record] {
             glob ($nu.home-dir | path join .config spotify Users * prefs) | each {|p| ini-merge $p $LOUDNESS }
         })
         # spicetify's first run reads spotify's prefs; an empty one stands in before spotify's first start
-        (exec spotify-prefs [touch $prefs] --creates $prefs)
+        (exec spotify-prefs [install -D --mode 644 /dev/null $prefs] --creates $prefs)
         (file-copy adblock.js (spicetify-dir | path join Extensions adblock.js))
         (step configure)
         (desktop-override spotify.desktop {

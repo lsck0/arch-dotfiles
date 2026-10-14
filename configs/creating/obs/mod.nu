@@ -75,15 +75,21 @@ const SELECTION = {
 # cef flags of the launcher: gpu acceleration for browser sources only; cam and mic come through obs's own sources
 const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan"
 
+# before the install pass, or as root with no session, there is no vainfo or pulse server: nothing to report
 def vaapi-encodes [node: string, profile: string]: nothing -> bool {
+    if (which vainfo | is-empty) { return false }
     ^vainfo --display drm --device $node | complete | get stdout | lines
     | any { $in =~ $'VAProfile($profile).*EncSlice' }
+}
+
+def --wrapped pactl-read [...args: string]: nothing -> oneof<string, nothing> {
+    if (which pactl | is-empty) { return null }
+    ^pactl ...$args | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { null }
 }
 
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | get --optional 0
     let monitor = try { ^hyprctl -j monitors | from json | sort-by focused --reverse | first } catch { null }
-    let pactl = {|what| try { ^pactl $"get-default-($what)" | str trim } catch { null } }
     let node = $cfg.vaapi_render_node | default $gpu.by_path?
     let nvidia = $gpu.vendor? == "nvidia"
     let vaapi = {|profile| $node != null and not $nvidia and (vaapi-encodes $node $profile) }
@@ -91,8 +97,8 @@ export def detect [cfg: record]: nothing -> record {
     {
         vaapi_render_node: $gpu.by_path?
         canvas: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })
-        mic: (do $pactl source)
-        monitor_device: (do $pactl sink)
+        mic: (pactl-read get-default-source)
+        monitor_device: (pactl-read get-default-sink)
         record_encoder: (if (do $vaapi AV1) { "av1_ffmpeg_vaapi_tex" } else { $h264 })
         stream_encoder: $h264
     }
@@ -111,7 +117,7 @@ def canvas-size [cfg: record]: nothing -> record {
 }
 
 def sink-name [node: string]: nothing -> string {
-    try { ^pactl -f json list sinks | from json | where name == $node | get 0.description } catch { $node }
+    pactl-read -f json list sinks | if $in == null { $node } else { from json | where name == $node | get --optional 0.description | default $node }
 }
 
 # the profiles' ini keep this user's dirs and the machine's devices and encoders as @KEY@ placeholders

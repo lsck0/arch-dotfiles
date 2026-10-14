@@ -121,6 +121,13 @@ def lint-nu-pitfalls []: nothing -> list<string> {
     } | flatten
 }
 
+# a script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git
+def lint-exec-bits []: nothing -> list<string> {
+    ^git -C $REPO ls-files -s | lines | parse "{mode} {hash} {stage}\t{path}" | where mode == "100644"
+    | where {|f| (open --raw ($REPO | path join $f.path) | into binary | bytes at 0..1) == 0x[2321] }
+    | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
+}
+
 def lint-generated []: nothing -> list<string> {
     let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) gen --check | complete
     if $run.exit_code == 0 { [] } else { [$"dot gen --check: ($run.stdout + $run.stderr | str trim)"] }
@@ -134,7 +141,7 @@ def unit-tests []: nothing -> list<string> {
 }
 
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-palette) (lint-generated) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-palette) (lint-generated) (unit-tests)] | flatten
 }
 
 def shell-script [path: path]: nothing -> bool {

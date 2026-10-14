@@ -36,14 +36,14 @@ export def system [cfg: record] {
     let current = try { open --raw ($IMAGES | path join .pins) | str trim } catch { "" }
     let images = if $current == (pins) { [] } else {
         # extracted beside the dir and swapped in whole, so init never sees a system.img without its vendor.img
-        [
+        (
             (fetch-file $SYSTEM_URL $SYSTEM_SHA256 $"($IMAGES).new/system.img" --extract system.img)
-            (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img)
-            (step images-swap)
-        ]
+            ++ (fetch-file $VENDOR_URL $VENDOR_SHA256 $"($IMAGES).new/vendor.img" --extract vendor.img)
+            ++ [(step images-swap)]
+        )
     }
     let up = session-up
-    if not $up { log-info "waydroid: for freeform windows, apply again while a session runs (waydroid session start)" }
+    if not $up { log-note "waydroid: for freeform windows, apply again while a session runs (waydroid session start)" }
     [
         $images
         (if (status | str contains "not initialized") {

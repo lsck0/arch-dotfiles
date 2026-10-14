@@ -1,6 +1,6 @@
 # a module's verbs return declarations built here; the engine applies the difference, nothing here writes
 
-export use log.nu [log-info log-warn log-err log-debug]
+export use log.nu [log-info log-note log-warn log-err log-debug]
 export use profile.nu [profile-has profile-load]
 export use platform.nu [platform-has display-xwayland-scale gpu-list]
 export use json.nu [json-set json-delete]

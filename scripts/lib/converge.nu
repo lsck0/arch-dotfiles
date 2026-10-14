@@ -23,6 +23,16 @@ export def assert-shape [value: record, keys: list<string>, what: string]: nothi
     }
 }
 
+# before anything observes a target: a nested list or a list target would fail the whole layer, not this module
+export def decls-check [id: string, decls: list]: nothing -> nothing {
+    for decl in $decls {
+        if ($decl | describe) !~ '^record' { error make {msg: $"($id) declares ($decl | to nuon), not one declaration"} }
+        assert-shape $decl $DECL_KEYS $"declaration of ($id)"
+        if $decl.kind not-in $DECL_KINDS { error make {msg: $"($id) declares a ($decl.kind), not one of ($DECL_KINDS | str join ' ')"} }
+        if ($decl.target | describe) != "string" { error make {msg: $"($id) declares a ($decl.kind) with target ($decl.target | to nuon), not a path"} }
+    }
+}
+
 def sha [text: any]: nothing -> string {
     $text | hash sha256
 }
@@ -73,10 +83,6 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
 # a file changed since its last apply is drift, kept unless forced; one the dotfiles never wrote is taken over. both
 # are preserved aside first
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
-    for decl in $decls {
-        assert-shape $decl $DECL_KEYS $"declaration of ($id)"
-        if $decl.kind not-in $DECL_KINDS { error make {msg: $"($id) declares a ($decl.kind), not one of ($DECL_KINDS | str join ' ')"} }
-    }
     let wanted = $decls | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == "unreadable" { return (action $id unreadable $d.target "unreadable as this user, checked at apply" $d null null) }
