@@ -184,7 +184,7 @@ export def gate-tools [apply: bool]: nothing -> record {
     let shfmt_run = if ($shfmt | is-empty) { null } else { tool shfmt -l ...$SHFMT_FLAGS ...$shfmt }
     let shellcheck = do $on shellcheck
     let ruff = do $on ruff
-    let ruff_cfg = [--config ($REPO | path join ruff.toml)]
+    let ruff_cfg = [--config ($REPO | path join .ruff.toml)]
     if $apply and ($ruff | is-not-empty) { tool ruff format ...$ruff_cfg ...$ruff | ignore; tool ruff check ...$ruff_cfg --fix ...$ruff | ignore }
     let ruff_checked = if ($ruff | is-empty) { null } else { tool ruff check ...$ruff_cfg --output-format=concise ...$ruff }
     let stylua = do $on stylua

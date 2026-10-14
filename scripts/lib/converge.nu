@@ -70,7 +70,8 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
     {module: $module, kind: $kind, target: $target, reason: $reason, decl: $decl, before: $before, after: $after}
 }
 
-# a file changed since its last apply is drift: kept unless forced, then preserved aside first
+# a file changed since its last apply is drift, kept unless forced; one the dotfiles never wrote is taken over. both
+# are preserved aside first
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
     for decl in $decls {
         assert-shape $decl $DECL_KEYS $"declaration of ($id)"
@@ -91,10 +92,12 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     if $rec == $want { action $id skip $d.target "" $d $want $want } else { action $id record $d.target "already this content" $d $obs.hash $want }
                 } else if $obs.type == file and ($d.generated or $rec == $obs.hash) {
                     action $id update $d.target "changed in the module" $d $obs.hash $want
+                } else if $rec == null {
+                    action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $want
                 } else if $force {
                     action $id update $d.target "drift, forced: preserved aside" ($d | insert preserve true) $obs.hash $want
                 } else {
-                    action $id drift $d.target (if $rec == null { "not the dotfiles' own" } else { "changed since the last apply" }) $d $obs.hash $want
+                    action $id drift $d.target "changed since the last apply" $d $obs.hash $want
                 }
             }
             "link" => {

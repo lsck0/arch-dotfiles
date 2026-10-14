@@ -401,20 +401,24 @@ def drill-reboot [name: string, host: record, user: string, --again]: nothing ->
 
 # runs as root on the guest; SUDO_USER is the login
 def drill-step [name: string, host: record, step: string, values: record = {}, files: record = {}]: nothing -> record {
-    let script = [prelude $step] | each { open --raw ($VM_DIR | path join $"($in).sh") | lines | skip 1 | str join "\n" } | str join "\n"
-    let body = $values | items {|k, v| {k: $k, v: ($v | into string)} } | reduce --fold ($script | str replace --all "@HOST@" $HOST) {|kv, acc|
-        if not ($kv.v =~ $DRILL_VALUE) { error make {msg: $"drill value ($kv.k)=($kv.v | to nuon) is no plain word, not handing it to the guest"} }
-        $acc | str replace --all $"@($kv.k | str uppercase)@" $kv.v
+    let scripts = [prelude $step] | each {|script|
+        let text = open --raw ($VM_DIR | path join $"($script).nu") | str replace --all "@HOST@" $HOST
+        $values | items {|k, v| {k: $k, v: ($v | into string)} } | reduce --fold $text {|kv, acc|
+            if not ($kv.v =~ $DRILL_VALUE) { error make {msg: $"drill value ($kv.k)=($kv.v | to nuon) is no plain word, not handing it to the guest"} }
+            $acc | str replace --all $"@($kv.k | str uppercase)@" $kv.v
+        }
     }
-    let left = $body | parse --regex '(?<p>@[A-Z_]+@)' | get p | uniq
+    let left = $scripts | str join | parse --regex '(?<p>@[A-Z_]+@)' | get p | uniq
     if ($left | is-not-empty) { error make {msg: $"drill step ($step) left ($left | str join ' ') unfilled"} }
     let log = cache-dir $name | path join $"drill-($step).log"
     rm --force $log
     host-upload-to $host $log
-    $body | save --force ($host.dir | path join step $"($step).root")
+    $scripts.0 | save --force ($host.dir | path join step prelude.nu)
+    $scripts.1 | save --force ($host.dir | path join step $"($step).nu")
     $files | items {|suffix, text| $text | save --force ($host.dir | path join step $"($step).($suffix)") } | ignore
     clear-line $name
-    run-step $name $host $step $"curl -so /tmp/($step).root ($HOST)/step/($step).root && echo ($PASSWORD) | sudo -S -p '' bash /tmp/($step).root > /tmp/($step).root.log 2>&1\n" de
+    let fetch = [prelude.nu $"($step).nu"] | each { $"curl -so /tmp/($in) ($HOST)/step/($in)" } | str join " && "
+    run-step $name $host $step $"($fetch) && echo ($PASSWORD) | sudo -S -p '' nu --no-config-file /tmp/($step).nu > /tmp/($step).nu.log 2>&1\n" de
     if not (host-uploaded $host $DRILL_STEP_TIMEOUT) { error make {msg: $"drill step ($step) sent no report in ($DRILL_STEP_TIMEOUT), see `dot test shot`"} }
     open --raw $log | lines | parse --regex '^drill: (?<k>[a-z0-9_]+)=(?<v>.*)$' | reduce --fold {} {|r, acc| $acc | upsert $r.k $r.v }
 }
@@ -444,8 +448,9 @@ const BYPASS_PROBES = [
 # no proton secret in the vm: a throwaway config whose peer never answers, so anything reaching the host leaked
 def drill-egress [name: string, host: record, user: string]: nothing -> list<string> {
     drain $host | ignore
-    let bypass = (open --raw ($VM_DIR | path join bypass.sh) | str replace "@MEMBER_GID@" ($BYPASS_MEMBER_GID | into string))
-        + ($BYPASS_PROBES | each {|p| $"probe ($p.phase) ($p.name) ($p.proto) ($p.daddr) ($p.dport) ($p.gid)" } | str join "\n") + "\n"
+    let bypass = open --raw ($VM_DIR | path join bypass.nu)
+        | str replace "@MEMBER_GID@" ($BYPASS_MEMBER_GID | into string)
+        | str replace "@PROBES@" ($BYPASS_PROBES | reject marked | to nuon)
     let got = drill-step $name $host egress {} {bypass: $bypass}
     let want = {bypass_deployed: yes, bypass_live_gids: yes}
         | merge ($BYPASS_PROBES | reduce --fold {} {|p, acc| $acc | insert $"bypass_($p.name)" (if $p.marked { "marked" } else { "unmarked" }) })

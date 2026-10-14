@@ -240,8 +240,7 @@ BarWidget {
     refreshArt()
   }
 
-  // opt-in: it repaints the bar at cava's framerate
-  readonly property bool barSpectrum: setting("barSpectrum", false) === true
+  readonly property bool barSpectrum: setting("barSpectrum", true) === true
   readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
 
@@ -338,7 +337,6 @@ BarWidget {
 
       MouseArea {
         anchors.fill: parent
-        // above hoverArea, which only pauses
         z: 1
         cursorShape: Qt.PointingHandCursor
         onClicked: if (root.player) root.player.togglePlaying()
@@ -365,11 +363,7 @@ BarWidget {
     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
     onClicked: function (mouse) {
       if (!root.player) return
-      // left click only pauses, never resumes
-      if (mouse.button === Qt.LeftButton) {
-        if (root.player.canPause) root.player.pause()
-        else root.player.togglePlaying()
-      }
+      if (mouse.button === Qt.LeftButton) root.player.togglePlaying()
       else if (mouse.button === Qt.MiddleButton) root.player.next()
       else if (mouse.button === Qt.RightButton) root.player.previous()
     }

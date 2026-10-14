@@ -78,8 +78,9 @@ personas and workflows.
 - A module declares what it wants (`scripts/lib/module.nu`: `file-copy`, `files-into`, `file-text`, `file-render`,
   `file-link`, `link-commands`, `json-merge`, `unit-file`, `unit-enable`, `dropin`, `desktop-override`, `exec`); the
   engine applies the difference. Managed files are real copies with their hash recorded; a file changed since its
-  last apply is drift, kept until `dot adopt` or `--force` (which preserves it aside). Links only where an app must
-  read the repo live (`file-link`, the `~/.local/bin` commands). Nothing is written into `~/sync`.
+  last apply is drift, kept until `dot adopt` or `--force`; a file the dotfiles never wrote is taken over; both are
+  preserved aside. Links only where an app must read the repo live (`file-link`, the `~/.local/bin` commands).
+  Nothing is written into `~/sync`.
 - `packages.txt` (until ported): one package per line, alphabetical, comment column aligned at column 35.
 - Keep `$HOME` clean: a program that would litter `~/.<name>` is pointed under the XDG base dirs in the same change
   that adds it. If it reads an env var (`FOO_HOME`, `XDG_*`), add that var to `configs/base/xdg/app-dirs.conf`

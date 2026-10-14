@@ -79,6 +79,13 @@ export def link [cfg: record] {
     ]
 }
 
+# the ansi themes draw diffs from the terminal's palette, which the theme switch already sets
+export def theme [cfg: record, wallpaper: string] {
+    let p = palette-load
+    if $p == null { return [] }
+    json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light-ansi" } else { "dark-ansi" }))]
+}
+
 # the login into secrets/claude, which link seeds a fresh home with; only the account half of ~/.claude.json
 export def backup [cfg: record]: nothing -> nothing {
     let creds = home .claude .credentials.json

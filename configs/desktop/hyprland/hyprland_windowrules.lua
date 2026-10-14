@@ -1,6 +1,6 @@
 local platform = require("platform")
 local global_opacity = 0.95
-local social_opacity = 0.85
+local social_opacity = 0.88
 
 -- their app-drawn menus are windows, only the frame is styleable
 for _, class in ipairs({ "^discord$", "^steam$" }) do
@@ -23,7 +23,7 @@ for _, class in ipairs({
     "^kitty$",
     "^neovide$",
     "^nemo$",
-    "^org.kde.dolphin$",
+    "^(org.kde.)?dolphin$",
     "^steam$",
 }) do
     hl.window_rule({ match = { class = class }, opacity = global_opacity })
@@ -59,7 +59,7 @@ hl.window_rule({
 
 for _, class in ipairs({
     "^nemo$",
-    "^org.kde.dolphin$",
+    "^(org.kde.)?dolphin$",
     "^io.missioncenter.MissionCenter$",
     "^org.pulseaudio.pavucontrol$",
 }) do
