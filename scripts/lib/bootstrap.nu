@@ -98,7 +98,7 @@ def online []: nothing -> bool {
 }
 
 def --env tui-init []: nothing -> nothing {
-    if (assume) or ($env.TERM? | default dumb) == "dumb" or not (^test -t 0 | complete).exit_code == 0 { return }
+    if (assume) or ($env.TERM? | default dumb) == "dumb" or (^test -t 0 | complete).exit_code != 0 { return }
     if (which dialog | is-empty) and not ((online) and (^pacman -Sy --noconfirm --needed dialog | complete).exit_code == 0) {
         log-warn "dialog unavailable, using plain prompts"
         return

@@ -2,17 +2,6 @@
 
 | file | author | source URL | license |
 |---|---|---|---|
-| alex-rommel-singularity.jpg | Alex Rommel (aerroscape): "Singularity" (2018) | https://www.deviantart.com/aerroscape/art/Singularity-754190182 (wallhaven.cc/w/285e6x) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
-| anime-spirited-away-sea-railway-island-house.jpg | Studio Ghibli (Spirited Away, 2001; sea railway: house on a small island in the flooded plain) | https://www.ghibli.jp/works/chihiro/ (wallhaven.cc/w/x621xo) | (c) Studio Ghibli, film still; personal desktop use |
-| anime-spirited-away-stone-statues-field.jpg | Studio Ghibli (Spirited Away, 2001; grass hill with moss-covered stone statues on the path to the abandoned theme park) | https://www.ghibli.jp/works/chihiro/ (wallhaven.cc/w/6dzvzw) | (c) Studio Ghibli, film still; personal desktop use |
-| bisbiswas-sky-light.jpg | BisBiswas: "Sky light" (2020) | https://www.deviantart.com/bisbiswas/art/Sky-light-852835379 | (c) artist, all rights reserved; personal desktop use |
-| camille-sule-a-short-walk.jpg | Camille Sule: "A Short Walk" (2020) | https://www.artstation.com/artwork/RY1Bkm (wallhaven.cc/w/72myve) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
-| joeyjazz-distant-garden.jpg | JoeyJazz: "Distant Garden" (2020) | https://www.deviantart.com/joeyjazz/art/Distant-Garden-858277142 (wallhaven.cc/w/6k93rq) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
-| masterteacher-highlands.jpg | MasterTeacher: "Highlands" (2013) | https://www.deviantart.com/masterteacher/art/Highlands-370280800 (wallhaven.cc/w/47oxxv) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
-| mosha-winter-the-frontier.jpeg | Mosha Winter (MoeWanders): "The Frontier" (2022) | https://www.artstation.com/artwork/Ar8wR5 | (c) artist, all rights reserved; personal desktop use |
-| starkiteckt-atlantis-nebula-7.jpg | Starkiteckt: "Atlantis Nebula #7" (2016) | https://wall.alphacoders.com/big.php?i=747001 (wallhaven.cc/w/28dqwx) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
-| starkiteckt-teal-nebula.jpg | Starkiteckt: title unknown | https://www.deviantart.com/starkiteckt-designs (wallhaven.cc/w/lyq5or) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
-| yu-jing-beyond-the-clouds.jpg | 瑜璟 (Yu Jing): "云的彼方 (Beyond the Clouds)" (2022) | https://www.pixiv.net/artworks/99230581 (wallhaven.cc/w/l315vy) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
 | alena-aenami-15-step.jpg | Alena Aenami: "15 Step" (2020) | https://www.artstation.com/artwork/8eoaPR | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in secrets/wallpapers |
 | alena-aenami-7-p-m.jpg | Alena Aenami: "7 p.m." (2016) | https://www.artstation.com/artwork/259YY | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in secrets/wallpapers |
 | alena-aenami-a-quiet-mind.jpg | Alena Aenami: "a Quiet Mind" (2017) | https://www.artstation.com/artwork/Y20RX | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in secrets/wallpapers |
@@ -139,3 +128,27 @@
 | alena-aenami-wings.jpg | Alena Aenami: "Wings" (2021) | https://www.artstation.com/artwork/68A2ZV | (c) artist, all rights reserved; personal desktop use |
 | alena-aenami-wish-you-were-here.jpg | Alena Aenami: "Wish You Were Here" (2021) | https://www.artstation.com/artwork/rAKR86 | (c) artist, all rights reserved; personal desktop use; 4K copy purchased, in secrets/wallpapers |
 | alena-aenami-you.jpg | Alena Aenami: "You" (2017) | https://www.artstation.com/artwork/ZV3WZ | (c) artist, all rights reserved; personal desktop use |
+| alex-rommel-singularity.jpg | Alex Rommel (aerroscape): "Singularity" (2018) | https://www.deviantart.com/aerroscape/art/Singularity-754190182 (wallhaven.cc/w/285e6x) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
+| andreas-rocha-abandoned.jpg | Andreas Rocha: "Abandoned" (2019) | https://www.artstation.com/artwork/A9gk4o | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| andreas-rocha-fishermans-village.jpg | Andreas Rocha: "Fisherman's Village" (2018) | https://www.artstation.com/artwork/Go6lQ | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| andreas-rocha-pine-castle.jpg | Andreas Rocha: "Pine Castle" (2022) | https://www.artstation.com/artwork/yJX5zn | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| andreas-rocha-sweeping-spires.jpg | Andreas Rocha: "Sweeping Spires" (2021) | https://www.artstation.com/artwork/v2akkv | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| andreas-rocha-the-swirling-fields.jpg | Andreas Rocha: "The Swirling Fields" (2020) | https://www.artstation.com/artwork/6aEa4n | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| anime-spirited-away-sea-railway-island-house.jpg | Studio Ghibli (Spirited Away, 2001; sea railway: house on a small island in the flooded plain) | https://www.ghibli.jp/works/chihiro/ (wallhaven.cc/w/x621xo) | (c) Studio Ghibli, film still; personal desktop use |
+| anime-spirited-away-stone-statues-field.jpg | Studio Ghibli (Spirited Away, 2001; grass hill with moss-covered stone statues on the path to the abandoned theme park) | https://www.ghibli.jp/works/chihiro/ (wallhaven.cc/w/6dzvzw) | (c) Studio Ghibli, film still; personal desktop use |
+| bisbiswas-sky-light.jpg | BisBiswas: "Sky light" (2020) | https://www.deviantart.com/bisbiswas/art/Sky-light-852835379 | (c) artist, all rights reserved; personal desktop use |
+| camille-sule-a-short-walk.jpg | Camille Sule: "A Short Walk" (2020) | https://www.artstation.com/artwork/RY1Bkm (wallhaven.cc/w/72myve) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
+| ferdinand-ladera-mountain-landscape.jpg | Ferdinand Ladera: "Mountain Landscape" (2015) | https://www.artstation.com/artwork/oJQrJ | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| ferdinand-ladera-rice-terraces.jpg | Ferdinand Ladera: "Rice Terraces" (2019) | https://www.artstation.com/artwork/4bgndl | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| joeyjazz-distant-garden.jpg | JoeyJazz: "Distant Garden" (2020) | https://www.deviantart.com/joeyjazz/art/Distant-Garden-858277142 (wallhaven.cc/w/6k93rq) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
+| jordan-grimmer-moonlit-burning-citadel.jpg | Jordan Grimmer: "Day & Night (night version)" (2025) | https://www.artstation.com/artwork/K3PbE4 | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| jordan-grimmer-palm-path.jpg | Jordan Grimmer: "Daily Sketches: November '21 (palm path)" (2022) | https://www.artstation.com/artwork/d0Qnde | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| jordan-grimmer-palm-river-sunset.jpg | Jordan Grimmer: "Daily Sketches: November '21 (palm sunset)" (2022) | https://www.artstation.com/artwork/d0Qnde | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| jordan-grimmer-rocky-spires.jpg | Jordan Grimmer: "Rocky Sketches" (2025) | https://www.artstation.com/artwork/lGZykz | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| masterteacher-highlands.jpg | MasterTeacher: "Highlands" (2013) | https://www.deviantart.com/masterteacher/art/Highlands-370280800 (wallhaven.cc/w/47oxxv) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |
+| mosha-winter-the-frontier.jpeg | Mosha Winter (MoeWanders): "The Frontier" (2022) | https://www.artstation.com/artwork/Ar8wR5 | (c) artist, all rights reserved; personal desktop use |
+| sparth-some-tower.jpg | Sparth (Nicolas Bouvier): "some tower" (2019) | https://www.artstation.com/artwork/BmO4nD | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| sparth-vestige.jpg | Sparth (Nicolas Bouvier): "Vestige" (2025) | https://www.artstation.com/artwork/XJ8wWD | (c) artist, all rights reserved; personal desktop use (artist's ArtStation post) |
+| starkiteckt-atlantis-nebula-7.jpg | Starkiteckt: "Atlantis Nebula #7" (2016) | https://wall.alphacoders.com/big.php?i=747001 (wallhaven.cc/w/28dqwx) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
+| starkiteckt-teal-nebula.jpg | Starkiteckt: title unknown | https://www.deviantart.com/starkiteckt-designs (wallhaven.cc/w/lyq5or) | (c) artist; artist terms: free to use for your personal desktop only (via wallhaven.cc) |
+| yu-jing-beyond-the-clouds.jpg | 瑜璟 (Yu Jing): "云的彼方 (Beyond the Clouds)" (2022) | https://www.pixiv.net/artworks/99230581 (wallhaven.cc/w/l315vy) | (c) artist, all rights reserved; personal desktop use (via wallhaven.cc) |

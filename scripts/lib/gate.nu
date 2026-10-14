@@ -112,6 +112,7 @@ const NU_PITFALLS = [
     [pattern why];
     ['\bexec \^' "exec takes the bare name, the caret becomes part of it"]
     ["\\$'[^']*\\\\\\(" "\\( is no escape inside $'...'"]
+    ['\bnot \((\^|do )[^()]*\)\.[a-z_]+ *(==|!=|<|>)' "not binds before the comparison, compare with != instead"]
 ]
 
 def lint-nu-pitfalls []: nothing -> list<string> {
