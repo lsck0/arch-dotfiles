@@ -1,6 +1,3 @@
-# switch to a chosen or random eligible wallpaper and re-theme: the palette is built here (wallust), every program is
-# themed by its own module's theme verb after ~/.cache/wal is written
-
 use state.nu [LIB_DIR]
 
 const REPO = path self ../..
@@ -16,9 +13,7 @@ const IPC_TIMEOUT_S = "3"
 
 def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$parts }
 
-# the background theme verbs detached and outside the lock, so an interactive switch returns at once and a hung one
-# never blocks later switches; the foreground ones (dot's THEME_FOREGROUND) rewrite files a second switch would race.
-# --sync waits for all
+# background verbs run detached outside the lock so a hung one never blocks later switches; foreground ones would race
 def theme-run [file: path, sync: bool]: nothing -> nothing {
     let background = [nu --no-config-file $DOT theme apply $file --only background]
     if $sync {
@@ -29,7 +24,6 @@ def theme-run [file: path, sync: bool]: nothing -> nothing {
     ^nu --no-config-file $DOT theme apply $file --only foreground | ignore
 }
 
-# the switch itself, run under the lock by wallpaper-set
 export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
     # a missing path would link wal/wallpaper to nothing and break every downstream generator
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
@@ -41,8 +35,7 @@ export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
     # a dead shell reads the link on its next start
     let shell = $nu.home-dir | path join .config quickshell
     do { ^timeout $IPC_TIMEOUT_S quickshell ipc -p $shell call background set $file } | complete | ignore
-    # a theme's wallpaper applies its hand-authored palette instead of one derived from the image; themes name their
-    # wallpaper by file name, so a secrets copy matches too
+    # themes name their wallpaper by file name, so a secrets copy matches too
     let theme = glob ($THEMES | path join "*.json") | sort
         | each {|f| {name: ($f | path parse | get stem), spec: (open $f)} }
         | where spec.wallpaper? == ($file | path basename) | get --optional 0
@@ -64,7 +57,7 @@ export def wallpaper-get []: nothing -> string {
     try { ^readlink -f (wal wallpaper) | str trim } catch { "" }
 }
 
-# eligible wallpapers for the largest monitor in physical pixels (rotation swaps the axes), else the list's default
+# physical pixels of the largest monitor; rotation swaps the axes
 export def wallpaper-list []: nothing -> list<string> {
     let monitors = if (which hyprctl | is-empty) { [] } else { try { ^hyprctl monitors -j | from json } catch { [] } }
     let screen = $monitors
@@ -73,8 +66,7 @@ export def wallpaper-list []: nothing -> list<string> {
     ^$LIST ...(if $screen == null { [] } else { [--screen $"($screen.0)x($screen.1)"] }) | lines
 }
 
-# switch to a path, or a bare name through the resolver (secrets copy first); single-flighted, so get and list
-# still answer while one runs
+# single-flighted, so get and list still answer while one runs
 export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
     let file = if ($wallpaper | str contains "/") { $wallpaper } else { ^$LIST --resolve $wallpaper | str trim }
     let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join $LOCK
@@ -96,7 +88,6 @@ export def wallpaper-random [--sync]: nothing -> nothing {
     wallpaper-set ($all | shuffle | first) --sync=$sync
 }
 
-# the fzf picker over the eligible wallpapers
 export def wallpaper-pick []: nothing -> nothing {
     let picked = do { wallpaper-list | str join "\n" | ^$PICK } | complete
     if $picked.exit_code != 0 { error make {msg: "no eligible wallpaper"} }

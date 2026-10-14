@@ -43,7 +43,7 @@ export def link [cfg: record] {
     ] | compact
     [
         (file-text ($dir | path join config) (ini $sections))
-        # secrets gate: new repos (init/clone) get the gitleaks pre-commit hook; `git init` adds it to an existing one
+        # gitleaks gate for new repos; `git init` adds it to an existing one
         (file-copy template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
         (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" } else { [] })
         (if (has jj) { file-text ($nu.home-dir | path join .config jj config.toml) (jj-config $identity) } else { [] })

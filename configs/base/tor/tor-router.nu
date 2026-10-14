@@ -1,28 +1,24 @@
 #!/usr/bin/nu --no-config-file
-# transparent tor routing for IPv4 and IPv6 (based on edu4rdshl/tor-router), in its own table inet tor_router so
-# portmaster's, docker's and fail2ban's rules stay untouched and stop is a single table delete
+# its own table, so portmaster's, docker's and fail2ban's rules stay untouched and stop is one table delete
 
 const TABLE = "tor_router"
 const TRANS_PORT = 9040
 const DNS_PORT = 6669
-# the fwmark a tunnel puts on its own udp: protonvpn's and wg-quick's, as in configs/base/nftables/fw-egress.nft
+# protonvpn's and wg-quick's fwmarks on their own udp, as in base/nftables/fw-egress.nft
 const TUNNEL_MARKS = "0x0ea13b2c, 0x0000ca6c"
 const HOME_NETWORK = "/run/home-network"
-# HOMELAB_DNS (the lab router, reached plain for the split-horizon zone: configs/base/networkmanager) and
-# HOMELAB_NETS, on a homelab machine only
+# on a homelab machine only
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const RULESET = r#'add table inet @TABLE@
 delete table inet @TABLE@
 table inet @TABLE@ {
-	# lan and homelab stay direct, but only out a home link, the homelab also through wg0; anywhere else they go via tor
+	# lan and homelab stay direct only out a home link (homelab also wg0), so a foreign same-subnet lan goes via tor
 	set home_ifaces { type ifname; }
-	# home_ifaces fills lan4: the homelab nets and each home link's subnet
 	set lan4 { type ipv4_addr; flags interval; auto-merge; }
 	set homelab4 { type ipv4_addr; flags interval; @HOMELAB4@ }
 	set lab_dns { type ipv4_addr; @LAB_DNS@ }
 	# 127.192.0.0/10 is torrc's VirtualAddrNetworkIPv4 and must reach the TransPort
 	set direct4 { type ipv4_addr; flags interval; elements = { 127.0.0.0/9, 127.128.0.0/10 } }
-	# link-local and loopback only
 	set direct6 { type ipv6_addr; flags interval; elements = { fe80::/10, ::1/128 } }
 
 	# before portmaster's dns redirect at dstnat, so lookups reach tor's DNSPort
@@ -33,8 +29,7 @@ table inet @TABLE@ {
 		meta l4proto udp meta mark { @TUNNEL_MARKS@ } return
 		# the dhcp client's unicast renew and broadcast rebind; redirected, the lease runs out
 		udp sport 68 udp dport 67 return
-		# the homelab's split-horizon dns stays plain to the lab router out a home link, before the redirect below
-		# sends 53 to tor
+		# the homelab's split-horizon dns stays plain out a home link, before the redirect below
 		oifname @home_ifaces ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 return
 		udp dport 53 redirect to :@DNS_PORT@
 		tcp dport 53 redirect to :@TRANS_PORT@
@@ -61,12 +56,11 @@ table inet @TABLE@ {
 		icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } accept
 		# connections opened before start fail fast instead of continuing in the clear
 		meta l4proto tcp reject with tcp reset
-		# catch-all so icmp and other protocols cannot leak
+		# icmp and other protocols cannot leak
 		reject
 	}
 
-	# vms and containers cannot reach the TransPort, so everything they forward is blocked, lan and homelab included;
-	# no wg* so guests cannot leave through a tunnel
+	# guests cannot reach the TransPort, so their forwarding is blocked; no wg*, so they cannot leave through a tunnel
 	chain filter_forward {
 		type filter hook forward priority filter - 1; policy accept;
 		ct direction reply accept
@@ -88,9 +82,7 @@ def elements [values: list<string>]: nothing -> string {
     if ($values | is-empty) { "" } else { $"elements = { ($values | str join ',') }" }
 }
 
-# home_ifaces <- /run/home-network, lan4 <- the homelab nets plus each home link's own subnet: the lan and homelab
-# bypass tor only out a home link, so a foreign network on the same subnet goes through tor; the persona dispatcher
-# calls it on every link change. flushed first, a failed fill only keeps the lan on tor
+# flushed first, so a failed fill only keeps the lan on tor
 def home-fill []: nothing -> nothing {
     let ifaces = try { open --raw $HOME_NETWORK | lines | where $it != "" } catch { [] }
     let links = $ifaces | each {|i|

@@ -2,22 +2,8 @@ import QtQuick
 import qs.Commons
 
 /**
- * AsciiProjection: the lock's wallpaper re-drawn as text (signature C).
- *
- * On each lock the wallpaper is sampled once into a grid of at most maxCols x maxRows cells (one
- * drawImage + getImageData), luminance picks a glyph from ramp and the pixel, nudged toward the
- * accent, colours it. A rain then develops the picture: each column's drop leaves the projected
- * glyphs behind it, and everything has landed after developMs. Once landed, a few drops keep
- * falling forever down random columns, each a bright accent head with a short fading trail over
- * the static projection (scaled by Style.fx.matrixRain; 0 / Power.saver leaves it static instead).
- *
- * Properties:
- *   image    a decoded Image item of the wallpaper (Lock.qml's blurred one)
- *   active   the lock surface is up; going false drops the sample
- *   animate  rain; false draws the end state at once
- *
- * Usage:
- *   AsciiProjection { anchors.fill: parent; image: wallpaper; active: root.locked; animate: Style.motion.enabled }
+ * The lock's wallpaper redrawn as text: sampled once per lock into a glyph grid, developed by a rain over
+ * developMs, then a few accent drops keep falling (Style.fx.matrixRain; static in power saver).
  */
 Item {
   id: root
@@ -33,9 +19,7 @@ Item {
   readonly property real glyphAspect: 0.6
   readonly property int developMs: 4000
   readonly property int frameMs: 40
-  // how far each cell's colour moves toward the accent
   readonly property real paletteNudge: 0.3
-  // continuous rain after the reveal: a drop traverses the grid in rainFallMs, trail up to rainTrail cells
   readonly property int rainFallMs: 2600
   readonly property int rainTrail: 10
 
@@ -44,7 +28,7 @@ Item {
   readonly property int cols: Math.max(1, Math.floor(width / cellW))
   readonly property int rows: Math.max(1, Math.floor(height / cellH))
 
-  // sampled grid, row-major; null until the next paint samples it
+  // row-major; null until the next paint samples it
   property var glyphs: null
   property var colors: null
   // per column: { y: head row, speed: rows per frame, drawn: last row drawn as head }
@@ -76,7 +60,7 @@ Item {
   }
   onColsChanged: if (active) project()
   onRowsChanged: if (active) project()
-  // power saver flipping matrixRain/motion while locked switches between rain and static end-state
+  // power saver flips matrixRain and motion while locked
   onAnimateChanged: if (active) project()
 
   Connections {
@@ -111,7 +95,7 @@ Item {
       var heads = []
       var developFrames = root.developMs / root.frameMs
       for (let c = 0; c < root.cols; c++) {
-        // staggered starts, all columns land within developMs
+        // staggered, yet every column lands within developMs
         const start = Math.random() * root.rows * 0.5
         heads.push({ y: -start, speed: (root.rows + start) / developFrames * (1 + Math.random() * 0.5), drawn: 0 })
       }
@@ -132,7 +116,7 @@ Item {
       ctx.fillText(glyph, x, y)
     }
 
-    // one continuous-rain cell: a projection glyph lit to style; forceDot shows a drop over empty space
+    // forceDot draws a drop over empty space
     function raincell(ctx, c, r, style, forceDot) {
       var x = c * root.cellW, y = r * root.cellH
       ctx.clearRect(x, y, root.cellW, root.cellH)
@@ -142,7 +126,6 @@ Item {
       ctx.fillText(glyph, x, y)
     }
 
-    // redraw each drop's trail window over the static projection; cells it has left restore to base
     function rainPaint(ctx) {
       var acc = Colors.accent
       for (let i = 0; i < root.rain.length; i++) {
@@ -166,7 +149,6 @@ Item {
     onPaint: {
       var ctx = getContext("2d")
       if (!root.glyphs) {
-        // nothing to show yet, and nothing of the last lock either
         if (!root.active || !root.image || root.image.status !== Image.Ready) {
           ctx.clearRect(0, 0, width, height)
           return
@@ -184,7 +166,6 @@ Item {
         const head = root.heads[c]
         if (!head) continue
         const to = Math.min(Math.floor(head.y), root.rows)
-        // the drop leaves the projection behind it
         for (let r = Math.max(0, head.drawn); r < to; r++) cell(ctx, c, r, false)
         if (to >= 0 && to < root.rows) cell(ctx, c, to, true)
         head.drawn = Math.max(head.drawn, to)
@@ -209,7 +190,6 @@ Item {
         head.y = overdue ? root.rows : head.y + head.speed
         moving = true
       }
-      // once the develop has landed, keep a handful of drops raining down random columns forever
       if (root.animate && overdue) {
         const intensity = Style.fx.matrixRain
         const maxDrops = Math.max(1, Math.round(intensity * 24))

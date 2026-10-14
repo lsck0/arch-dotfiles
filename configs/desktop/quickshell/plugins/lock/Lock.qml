@@ -22,7 +22,7 @@ Item {
     property var activeField: null
     // notifications that arrived since this
     property real lockedAtMs: 0
-    // security key mode: its own pam service and its own field content, so the password and the pin never cross
+    // own pam service and field content, so the password and the pin never cross
     property bool keyMode: false
     property string _pin: ""
     property string keyDevice: ""
@@ -54,9 +54,8 @@ Item {
     readonly property string notesDir: Paths.state + "/notifications"
     readonly property int notesShown: 3
     property var notes: []
-    // the playing player, else the first one with a title
     readonly property var player: {
-        // quickshell ships ObjectModel to the Mpris qmltypes as an opaque stub, so its values are invisible to qmllint
+        // quickshell's qmltypes stub the Mpris ObjectModel
         var list = Mpris.players.values; // qmllint disable missing-property
         var fallback = null;
         for (let i = 0; i < list.length; i++) {
@@ -176,8 +175,7 @@ Item {
 
     }
 
-    // a marker in tmpfs while locked: a quickshell that crashed or restarted under the lock locks again at start,
-    // hyprland's allow_session_lock_restore hands the lock to the new instance
+    // a quickshell restarted under the lock relocks at start; allow_session_lock_restore hands it the lock
     readonly property string lockMarker: Paths.runtime + "/locked"
 
     onLockedChanged: {
@@ -212,7 +210,7 @@ Item {
     Timer {
         id: unlockDelay
 
-        // Glitch.durationMs; instant when motion is off
+        // Glitch.durationMs
         interval: Style.motion.enabled ? 180 : 0
         onTriggered: root.locked = false
     }
@@ -223,8 +221,7 @@ Item {
             return "ok";
         }
 
-        // the compositor-granted state, not the request: the launcher falls back to hyprlock on it; a pending unlock
-        // counts as unlocked so the launcher still sends its lock, which cancels it
+        // granted, not requested: the launcher falls back to hyprlock on false; a pending unlock reads false so its lock cancels it
         function isLocked() : string {
             return sessionLock.secure && !unlockDelay.running ? "true" : "false";
         }
@@ -358,8 +355,8 @@ Item {
         }
 
     }
-    // stats and the notification dock are ambient, not live
 
+    // stats and the notification dock are ambient, not live
     Timer {
         interval: root.ambientMs
         running: root.locked
@@ -415,7 +412,7 @@ Item {
         WlSessionLockSurface {
             id: surface
 
-            // QuickshellScreenInfo is an opaque stub in quickshell's window qmltypes, so its name is invisible to qmllint
+            // quickshell's qmltypes stub QuickshellScreenInfo
             readonly property bool isPrimary: root.primaryScreenName === "" || (screen && String(screen.name) === root.primaryScreenName) // qmllint disable missing-property
 
             color: Colors.background
@@ -438,7 +435,7 @@ Item {
 
                 anchors.fill: parent
 
-                // faint blurred wallpaper; unset while unlocked so each lock decodes the current one
+                // unset while unlocked so each lock decodes the current wallpaper
                 Image {
                     id: wallpaper
 
@@ -448,7 +445,7 @@ Item {
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: {
-                        // QuickshellScreenInfo is an opaque stub in quickshell's window qmltypes
+                        // quickshell's qmltypes stub QuickshellScreenInfo
                         const dpr = surface.screen && surface.screen.devicePixelRatio ? surface.screen.devicePixelRatio : 1; // qmllint disable missing-property
                         return Qt.size(surface.width * dpr, surface.height * dpr);
                     }
@@ -463,7 +460,7 @@ Item {
 
                 }
 
-                // theme wash: the dim wallpaper alone reads as a washed photo, this ties the lock to the pywal palette
+                // the dim wallpaper alone reads as a washed-out photo
                 Rectangle {
                     anchors.fill: parent
 
@@ -495,7 +492,6 @@ Item {
                     anchors.centerIn: parent
                     spacing: Style.spacing.sm
 
-                    // the lock's hero is twice the shell's
                     Hero {
                         anchors.horizontalCenter: parent.horizontalCenter
                         value: root.clockText
@@ -536,10 +532,10 @@ Item {
                         border.width: root.authError ? 2 : 1
                         border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
                         radius: Style.shape.data
-                        // hidden until typing starts; keeps focus, so the first key still lands in the field
+                        // opacity, not visible: it keeps focus, so the first key still lands in the field
                         opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0
 
-                        // the field takes input but draws nothing; the row below shows one * per char and a block cursor
+                        // takes input but draws nothing; the row below draws it
                         TextField {
                             id: pwField
 
@@ -604,7 +600,6 @@ Item {
 
                             Text {
                                 anchors.verticalCenter: parent.verticalCenter
-                                // capped so a long passphrase never outgrows the box
                                 width: Math.min(implicitWidth, Style.space(280))
                                 elide: Text.ElideLeft
                                 textFormat: Text.PlainText
@@ -678,7 +673,6 @@ Item {
                     font.pixelSize: Style.font.caption
                 }
 
-                // dock: how many arrived while locked and the last few apps, never their content
                 Column {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
@@ -720,7 +714,6 @@ Item {
 
             }
 
-            // one glitch as the lock comes up and one on the way out
             Glitch {
                 id: glitch
 

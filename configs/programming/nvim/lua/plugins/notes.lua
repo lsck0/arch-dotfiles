@@ -1,12 +1,12 @@
 return {
     {
-        "folke/todo-comments.nvim", -- highlight TODO comments
+        "folke/todo-comments.nvim",
         event = "VeryLazy",
         opts = {},
     },
 
     {
-        "bngarren/checkmate.nvim", -- markdown checklist toggling
+        "bngarren/checkmate.nvim",
         ft = "markdown",
         opts = {
             files = {
@@ -27,7 +27,7 @@ return {
     },
 
     {
-        "MeanderingProgrammer/render-markdown.nvim", -- inline markdown rendering
+        "MeanderingProgrammer/render-markdown.nvim",
         ft = "markdown",
         dependencies = { "nvim-treesitter/nvim-treesitter", "echasnovski/mini.nvim" },
         config = function()
@@ -47,7 +47,7 @@ return {
     },
 
     {
-        "nvim-orgmode/orgmode", -- org-mode note taking
+        "nvim-orgmode/orgmode",
         ft = "org",
         opts = {
             org_agenda_files = "~/orgfiles/**/*",

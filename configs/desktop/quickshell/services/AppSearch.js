@@ -123,13 +123,12 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
     return 0
   })
 
-  // unwrap: callers expect DesktopEntry objects, not sort rows
   var out = []
   for (var r = 0; r < rows.length; r++) out.push(rows[r].entry)
   return out
 }
 
-// frecency: launch count weighted by recency; buckets in ms
+// weight per age bucket, ms
 var FRECENCY_BUCKETS = [[86400000, 4], [604800000, 2], [2592000000, 1]]
 var FRECENCY_STALE_WEIGHT = 0.5
 var FRECENCY_MAX_ENTRIES = 200
@@ -142,7 +141,6 @@ function frecencyRank(record, now) {
   return record.n * FRECENCY_STALE_WEIGHT
 }
 
-// copy with id bumped, trimmed to the most recent FRECENCY_MAX_ENTRIES
 function frecencyBump(map, id, now) {
   var next = {}
   for (var k in map) next[k] = map[k]
@@ -178,7 +176,6 @@ function matchIndices(text, query) {
   return j === q.length ? out : []
 }
 
-// StyledText with matched chars in color and bold
 function highlight(text, query, color) {
   var s = String(text || "")
   var hits = matchIndices(s, query)

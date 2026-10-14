@@ -1,33 +1,14 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher, the untrusted-network persona. the state is decided over every physical link on each event:
-#
-#   boot, any down   LOCKDOWN  fw-lockdown (nothing new gets in) and fw-egress (configs/base/nftables/fw-egress.nft: a
-#                              link not on the home list carries only dhcp, ndp, wireguard handshakes and tor). the
-#                              resting state, so a link is closed from its first packet until 70-home-network decided
-#   up, all home     HOME      fw-inbound, avahi, ipv6; a tor-router started here stops. home is the hardware mac plus
-#                              a known gateway mac (70-home-network), never the ssid
-#   up, any foreign  FOREIGN   lockdown, no avahi, no ipv6 on the link, tor-router carries everything at once, before
-#                              any login; auto-vpn (configs/base/protonvpn, after login) connects protonvpn through it
-#   proton0 up       VPN       the tor-router started here stops; fw-egress leaves proton0 the only way out
-#   proton0 down     FOREIGN   again while any link is foreign: tor until protonvpn reconnects, never the bare link
-#   wg0 up           VPN       the same for the homelab full tunnel; toggle-root wg calls this, NM may not dispatch it
-#   wg0 down         FOREIGN   again while any link is foreign
-#   portal <iface>   PORTAL    by hand only, never on an event (as root: <this script> <iface> portal): dns, http and
-#                              https straight out that foreign link for PORTAL_S, tor paused, then FOREIGN again
-#
-# dhcp never sends the hostname (NetworkManager.conf), resolved has no llmnr or mdns, avahi runs only at home.
-#
-# untrusted-policy (mod.nu's untrusted_policy) scales it down: firewall-only keeps the lockdown and the avahi mask off
-# home but no egress kill switch, tor or ipv6 off; off treats every network as home. missing or unknown is lockdown-tor
+# decided over every physical link on each event: a link stays locked down until 70-home-network decided it
 
 const SELF = path self
 const HOME_NETWORK = "/run/home-network"
-# fw-lockdown.service sets it on every start: the lockdown is ours, so home lifts it; toggle-firewall.nu clears it
+# set by fw-lockdown.service: a lockdown of ours, which home lifts; toggle-firewall.nu clears it
 const MARKER = "/run/persona-lockdown"
-# set while tor-router runs because of this script, so a tor the user started is never stopped here
+# a tor the user started is never stopped here
 const TOR_MARKER = "/run/persona-tor"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
-# mod.nu on a vm: the host's fw_egress already holds the guest, so no egress kill switch and no tor
+# the host's fw_egress already holds a vm guest
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
 const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
@@ -62,22 +43,21 @@ def lab-nets []: nothing -> list<string> {
     | default "" | str trim --char '"' | split row " " | where $it != ""
 }
 
-# a physical link NM has connected is not on the home list. NM's state, not operstate: a cable without a profile is
-# up but carries nothing, a modem's link reads unknown while it carries everything
+# NM's state, not operstate: a cable without a profile is up, a modem's link reads unknown
 def foreign [policy: string]: nothing -> bool {
     if $policy == off { return false }
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
     let links = out nmcli -t -f TYPE,STATE,DEVICE device | lines
         | parse --regex '^(?<type>[^:]*):(?<state>[^:]*):(?<dev>.*)$' | where state == connected
-    # a modem's or a phone's DEVICE is not its network interface; mobile data is never home anyway
+    # a modem's or a phone's DEVICE is not its interface; mobile data is never home
     if ($links | any { $in.type in [gsm bt] }) { return true }
     let physical = $links | where { $"/sys/class/net/($in.dev)/device" | path exists } | get dev
-    # fail closed: home only when a physical link is confirmed on the home list
+    # fail closed
     let home = home-links
     ($physical | is-empty) or ($physical | any { $in not-in $home })
 }
 
-# never while a tunnel carries everything; gone names the one going down, its link may linger until NM deletes it
+# gone names the tunnel going down, its link may linger until NM deletes it
 def tor-on [policy: string, gone: string = ""]: nothing -> nothing {
     if $policy != lockdown-tor or not ($TOR_ROUTER | path exists) or ($VM_GUEST | path exists) { return }
     if ([$VPN_IFACE $WG_IFACE] | any {|t| $t != $gone and (ok ip link show $t) }) { return }
@@ -93,20 +73,19 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# the app firewall rides with the firewall toggle, but never over a live protonvpn tunnel (it clobbers the wg fwmark)
+# never over a live protonvpn tunnel, it clobbers the wg fwmark
 def portmaster-on []: nothing -> nothing {
     if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) and not (ok ip link show $VPN_IFACE) {
         ok systemctl start portmaster.service | ignore
     }
 }
 
-# protonvpn's tunnel came or went, from auto-vpn, the toggle, the app, a reconnect or a crash
 def vpn-event [policy: string, action: string]: nothing -> nothing {
     match $action {
         "up" | "vpn-up" => {
             ok systemctl stop portmaster.service | ignore
             tor-off
-            # one dns upstream: resolved's quad9 over tls, now through the tunnel; proton's ~. would race it per query
+            # proton's ~. would race resolved's quad9 per query
             ok resolvectl domain $VPN_IFACE "" | ignore
             ok resolvectl default-route $VPN_IFACE no | ignore
         }
@@ -119,13 +98,11 @@ def vpn-event [policy: string, action: string]: nothing -> nothing {
     }
 }
 
-# the homelab tunnel is full (AllowedIPs 0.0.0.0/0): tor hands over to it as to protonvpn
 def wg-event [policy: string, action: string]: nothing -> nothing {
     match $action {
         "up" => {
             tor-off
-            # off home the unreachable fallback sits above wg-quick's suppress_prefixlength 0 rule and would shadow the
-            # full tunnel
+            # the fallback sits above wg-quick's suppress_prefixlength rule and would shadow the tunnel
             for net in (lab-nets) { ok ip route del unreachable $net metric $UNREACHABLE_METRIC | ignore }
         }
         "down" => {
@@ -135,8 +112,7 @@ def wg-event [policy: string, action: string]: nothing -> nothing {
     }
 }
 
-# a captive portal's pages live on the foreign network itself: tor would carry them away, strict dns over tls cannot
-# reach its resolver. one window at a time
+# portal pages live on the foreign network: tor would carry them away, strict dot cannot reach its resolver
 def portal [iface: string]: nothing -> nothing {
     if $iface in (home-links) or (ok nft get element inet fw_egress portal $"{ ($iface) }") { return }
     if not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") { exit 1 }
@@ -157,20 +133,19 @@ def portal [iface: string]: nothing -> nothing {
     ok resolvectl domain $iface "~." | ignore
 }
 
-# after the window the portal set has already closed the link (nft timeout); this brings tor, dns and portmaster back.
 # domains are the link's own from before the window; none clears with ""
 def portal-end [policy: string, iface: string, domains: list<string>]: nothing -> nothing {
     ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     if (foreign $policy) { tor-on $policy }
     portmaster-on
-    # the link follows the global setting: plain while portmaster runs (portmaster/dotfiles.conf), else opportunistic
+    # plain while portmaster runs (portmaster/dotfiles.conf), else opportunistic
     let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
     ok resolvectl dnsovertls $iface $tls | ignore
 }
 
 def link-event [policy: string, iface: string, action: string]: nothing -> nothing {
     let uuid = $env.CONNECTION_UUID? | default ""
-    # the egress rules are the kill switch: always on, a stop by hand lasts until the next network event
+    # the kill switch: a stop by hand lasts until the next network event
     if $policy != lockdown-tor {
         ok systemctl stop fw-egress.service | ignore
     } else if not ($VM_GUEST | path exists) {
@@ -195,10 +170,10 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl mask --runtime --now avahi-daemon.socket avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
-            # the next connect to this foreign profile starts without ipv6; mod.nu sets home profiles back to auto
+            # mod.nu sets home profiles back to auto
             if $iface not-in (home-links) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
         }
-        # the homelab share (configs/core/nas) never stays mounted to whatever answers its address off home
+        # never mounted to whatever answers the homelab address off home
         if (home-links | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
             ok systemctl stop --no-block mnt-homelab.mount | ignore
         }
@@ -213,7 +188,7 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $iface == $WG_IFACE { return (wg-event $policy $action) }
     if $action == portal-end { return (portal-end $policy $iface $domains) }
     if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
-    # physical wifi/ethernet only; 70-home-network already dropped a vanished link from every home list
+    # 70-home-network already dropped a vanished link from every home list
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
     if $action == portal { portal $iface } else { link-event $policy $iface $action }
 }

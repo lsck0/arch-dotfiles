@@ -43,7 +43,7 @@ local installed = {
     "taplo",
     "terraform-ls",
     "texlab",
-    "tinymist", -- typst LSP
+    "tinymist",
     "typescript-language-server",
     "typos-lsp",
     "vim-language-server",
@@ -57,7 +57,6 @@ local installed = {
     "omnisharp",
     "svelte-language-server",
     "vue-language-server",
-    -- formatters
     "cljfmt",
     "csharpier",
     "ktlint",
@@ -68,7 +67,7 @@ local installed = {
 
 return {
     {
-        "folke/lazydev.nvim", -- Lua LSP for nvim config
+        "folke/lazydev.nvim",
         ft = "lua",
         opts = {
             library = {
@@ -76,12 +75,10 @@ return {
             },
         },
     },
-    -- per-language plugins live in lua/languages/ (jai.vim, vimtex, crates, lean)
 
     {
-        "mason-org/mason.nvim", -- LSP/tool installer
-        -- automatic_enable walks every installed server (~200ms), so wait for a real buffer;
-        -- BufReadPre runs before FileType, so the first file still attaches
+        "mason-org/mason.nvim",
+        -- automatic_enable walks every server (~200ms); BufReadPre still precedes FileType
         event = { "BufReadPre", "BufNewFile" },
         cmd = {
             "Mason",
@@ -95,13 +92,13 @@ return {
             -- no Lsp* commands: lspconfig skips them on nvim 0.12, whose native :lsp covers info/log/start/stop/restart
         },
         dependencies = {
-            { "neovim/nvim-lspconfig" }, -- LSP server configs
-            { "mason-org/mason-lspconfig.nvim" }, -- mason lspconfig bridge
-            { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
-            { "marilari88/twoslash-queries.nvim" }, -- inline TS type hints
-            { "ivanjermakov/troublesum.nvim", opts = {} }, -- diagnostic count summary
-            { "Sebastian-Nielsen/better-type-hover", opts = {} }, -- improved hover popup
-            { "dmmulroy/ts-error-translator.nvim", opts = {} }, -- readable TS errors
+            { "neovim/nvim-lspconfig" },
+            { "mason-org/mason-lspconfig.nvim" },
+            { "WhoIsSethDaniel/mason-tool-installer.nvim" },
+            { "marilari88/twoslash-queries.nvim" },
+            { "ivanjermakov/troublesum.nvim", opts = {} },
+            { "Sebastian-Nielsen/better-type-hover", opts = {} },
+            { "dmmulroy/ts-error-translator.nvim", opts = {} },
         },
         config = function()
             vim.diagnostic.config({
@@ -111,7 +108,6 @@ return {
                     spacing = 2,
                     source = "if_many",
                 },
-                -- border comes from 'winborder'
                 float = {
                     source = "if_many",
                     header = "",
@@ -129,8 +125,7 @@ return {
             require("mason").setup()
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
-                -- installs missing tools on first launch; auto_update stays off so upgrades
-                -- remain in scripts/system-update.nu, not on every startup
+                -- auto_update off: upgrades stay in scripts/system-update.nu
                 run_on_start = true,
             })
             vim.lsp.config("clangd", {
@@ -152,7 +147,7 @@ return {
                 vim.lsp.enable("cobol_ls")
             end
 
-            -- nu ships its own language server; -I so `use module.nu` in the dotfiles resolves
+            -- -I so `use module.nu` in the dotfiles resolves
             vim.lsp.config("nushell", {
                 cmd = { "nu", "--no-config-file", "-I", (os.getenv("DOTFILES") or "") .. "/scripts/lib", "--lsp" },
             })
@@ -189,7 +184,6 @@ return {
                 },
             })
 
-            -- tailwindcss only where class attributes exist
             vim.lsp.config("tailwindcss", {
                 filetypes = {
                     "html",
@@ -208,7 +202,6 @@ return {
             -- root at the typos config, else its allowlist is ignored
             vim.lsp.config("typos_lsp", {
                 root_markers = { ".typos.toml", "_typos.toml", "typos.toml", ".git" },
-                -- fallback config, a project .typos.toml overrides it
                 init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
             })
 
@@ -230,7 +223,7 @@ return {
                 },
             })
 
-            -- system JDK (mise may pin an older java on PATH); java-debug bundle enables dap
+            -- system JDK: mise may pin an older java on PATH
             vim.lsp.config("jdtls", {
                 cmd = { "jdtls", "--java-executable", "/usr/lib/jvm/default/bin/java" },
                 init_options = {
@@ -311,7 +304,6 @@ return {
                 },
             })
 
-            -- texlab handles completion + chktex lint; vimtex owns build/preview
             vim.lsp.config("texlab", {
                 settings = {
                     texlab = {
@@ -326,9 +318,7 @@ return {
             -- godot ships a GDScript server over TCP :6005, no mason package to auto-enable
             vim.lsp.enable("gdscript")
 
-            -- every other installed server is auto-enabled by mason-lspconfig, keeping the custom
-            -- vim.lsp.config above; only cobol_ls is excluded, since mason ships a config that would
-            -- clobber the custom jar cmd (it is enabled by hand above when the jar is present)
+            -- cobol_ls excluded: mason's config would clobber the custom jar cmd
             require("mason-lspconfig").setup({
                 automatic_enable = { exclude = { "cobol_ls" } },
             })
@@ -336,18 +326,16 @@ return {
     },
 
     {
-        "stevearc/conform.nvim", -- code formatting
+        "stevearc/conform.nvim",
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,
                 command = vim.fn.expand("~/.local/bin/sort-derives-stdout"),
                 stdin = true,
             }
-            -- l-style shell: 4-space indent, indented cases, binary ops lead the line
             require("conform").formatters.shfmt = {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
-            -- kulala-fmt from the system package (mirror/pkgbuilds/kulala-fmt), on PATH, not from mason
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
 
             -- personal style only where the project has no config of its own
@@ -384,8 +372,7 @@ return {
                     "prettier.config.ts",
                 }, "--config=", "prettierrc.json"),
             }
-            -- the personal rustfmt.toml sets nightly-only options, which stable rustfmt ignores; a project's own
-            -- config runs on the project's toolchain (formatting/link.sh installs nightly)
+            -- personal rustfmt.toml is nightly-only; a project's own config runs on its toolchain
             local rustfmt = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml")
             require("conform").formatters.rustfmt = {
                 prepend_args = function(self, ctx)
@@ -475,7 +462,6 @@ return {
 
             require("conform").setup({
                 formatters_by_ft = formatters_by_ft,
-                -- toggle with :FormatToggle (g:) or per-buffer (b:disable_autoformat)
                 format_on_save = function(bufnr)
                     if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then
                         return

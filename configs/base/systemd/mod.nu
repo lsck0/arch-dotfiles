@@ -5,8 +5,7 @@ export const meta = {packages: {pacman: [nss-mdns], native: [bluez bluez-obex bl
 
 const KBD_DROPIN = "systemd-backlight@.service"
 const AVAHI_ALIAS = "/etc/systemd/system/dbus-org.freedesktop.Avahi.service"
-# systemd 258's NvPCR measurement and early SRK setup: LUKS binds PCR 7+15 through tpm2-measure-pcr, never NvPCR, and
-# cryptenroll makes the SRK on demand; on a TPM that cannot allocate the NvPCR indices they fail and degrade the system
+# unused (luks binds pcr 7+15, cryptenroll makes the srk); systemd 258 fails them on a tpm without nvpcr indices
 const TPM_UNUSED = [systemd-pcrproduct.service systemd-pcrlogin@.service systemd-tpm2-setup-early.service]
 
 def present [unit: string]: nothing -> bool {
@@ -30,7 +29,6 @@ export def system [cfg: record] {
         (if-present bluetooth.service { unit-enable bluetooth.service })
         (if-present cups.socket { unit-enable cups.socket })
         (if-present paccache.timer { unit-enable paccache.timer --now })
-        # periodic ssd trim (btrfs on luks), weekly
         (if-present fstrim.timer { unit-enable fstrim.timer })
         # intel only, on amd it starts and exits
         (if (open --raw /proc/cpuinfo | str contains GenuineIntel) {

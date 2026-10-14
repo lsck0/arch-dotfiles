@@ -1,4 +1,3 @@
-# ini-apply <values> <missing_only>: the text with the named keys forced (or only seeded), everything else as it was;
 # "" is the part before the first section
 export def ini-apply [values: record, missing_only: bool]: string -> string {
     let start = $in

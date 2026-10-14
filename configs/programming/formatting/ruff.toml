@@ -1,5 +1,4 @@
-# not a user-level config: only nvim conform and emacs apheleia pass it, to projects without their own pyproject.toml
-# or ruff.toml
+# not user-level: the editors pass it only to projects without their own
 line-length = 120
 
 [lint]

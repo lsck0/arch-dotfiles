@@ -1,4 +1,3 @@
-# the creative apps that need no config of their own
 export const meta = {
     packages: {
         pacman: [

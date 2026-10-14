@@ -30,9 +30,7 @@ def is-image [file: path]: nothing -> bool {
     ($file | path parse | get extension | str lowercase) in $IMAGE_SUFFIXES
 }
 
-# Import purchased high-res wallpapers (files, dirs or zips) into secrets/wallpapers/: an image matching one in
-# wallpapers/ by its downscaled pixels takes that file's name and so shadows the low-res copy, anything else keeps a
-# slug of its own name. Only an unlocked secrets checkout is written.
+# Import high-res wallpapers (files, dirs, zips) into secrets/wallpapers/, shadowing matching low-res ones.
 def main [...sources: path]: nothing -> nothing {
     if ($sources | is-empty) { die --misuse "the following arguments are required: file|dir|zip" }
     if not (($SECRETS_PROBE | path exists) and (secret-is-plaintext $SECRETS_PROBE)) {

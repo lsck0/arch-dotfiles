@@ -21,119 +21,119 @@ IntensityAmount=0
 IntensityEffect=0
 
 [Colors:Button]
-BackgroundAlternate=86,91,102
-BackgroundNormal=1,6,14
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=98,114,164
+BackgroundNormal=33,34,44
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:Complementary]
-BackgroundAlternate=1,6,14
-BackgroundNormal=11,14,20
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=33,34,44
+BackgroundNormal=40,42,54
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:Header]
-BackgroundAlternate=11,14,20
-BackgroundNormal=1,6,14
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=40,42,54
+BackgroundNormal=33,34,44
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:Header][Inactive]
-BackgroundAlternate=11,14,20
-BackgroundNormal=1,6,14
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=40,42,54
+BackgroundNormal=33,34,44
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=86,91,102
+ForegroundNormal=98,114,164
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:Selection]
-BackgroundAlternate=57,186,230
-BackgroundNormal=57,186,230
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=191,189,182
-ForegroundLink=41,64,57
+BackgroundAlternate=189,147,249
+BackgroundNormal=189,147,249
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=248,248,242
+ForegroundLink=39,65,70
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=11,14,20
+ForegroundNormal=40,42,54
 ForegroundPositive=39,174,96
-ForegroundVisited=66,53,81
+ForegroundVisited=92,44,71
 
 [Colors:Tooltip]
-BackgroundAlternate=1,6,14
-BackgroundNormal=11,14,20
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=33,34,44
+BackgroundNormal=40,42,54
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:View]
-BackgroundAlternate=1,6,14
-BackgroundNormal=11,14,20
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=33,34,44
+BackgroundNormal=40,42,54
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [Colors:Window]
-BackgroundAlternate=1,6,14
-BackgroundNormal=11,14,20
-DecorationFocus=57,186,230
-DecorationHover=57,186,230
-ForegroundActive=57,186,230
-ForegroundInactive=86,91,102
-ForegroundLink=149,230,203
+BackgroundAlternate=33,34,44
+BackgroundNormal=40,42,54
+DecorationFocus=189,147,249
+DecorationHover=189,147,249
+ForegroundActive=189,147,249
+ForegroundInactive=98,114,164
+ForegroundLink=139,233,253
 ForegroundNegative=218,68,83
 ForegroundNeutral=246,116,0
-ForegroundNormal=191,189,182
+ForegroundNormal=248,248,242
 ForegroundPositive=39,174,96
-ForegroundVisited=210,166,255
+ForegroundVisited=255,121,198
 
 [General]
-AccentColor=57,186,230
+AccentColor=189,147,249
 ColorScheme=pywal
 ColorSchemeHash=32d6e937d60c21928ae47bb3b52deeac3b9e768c
 TerminalApplication=ghostty
@@ -142,11 +142,11 @@ XftAntialias=true
 XftHintStyle=hintslight
 XftSubPixel=none
 accentColorFromWallpaper=false
-fixed=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-font=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-menuFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-smallestReadableFont=Kode Mono,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-toolBarFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+fixed=Kode Mono,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+font=Kode Mono,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+menuFont=Kode Mono,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+smallestReadableFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+toolBarFont=Kode Mono,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
 
 [Icons]
 Theme=breeze-dark
@@ -175,10 +175,10 @@ Speedbar Width=172
 View Style=DetailTree
 
 [WM]
-activeBackground=11,14,20
-activeBlend=11,14,20
-activeFont=Kode Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
-activeForeground=191,189,182
-inactiveBackground=1,6,14
-inactiveBlend=1,6,14
-inactiveForeground=86,91,102
+activeBackground=40,42,54
+activeBlend=40,42,54
+activeFont=Kode Mono,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0
+activeForeground=248,248,242
+inactiveBackground=33,34,44
+inactiveBlend=33,34,44
+inactiveForeground=98,114,164

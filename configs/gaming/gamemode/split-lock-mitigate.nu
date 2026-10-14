@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# the gamemode hook runs this through pkexec: split lock mitigation sleeps the offending thread, and games and
-# anticheat under proton trip it constantly
+# split lock mitigation sleeps the offending thread, and games and anticheat under proton trip it constantly
 
 const KNOB = "/proc/sys/kernel/split_lock_mitigate"
 

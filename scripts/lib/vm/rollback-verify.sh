@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# runs on the test vm's guest as root, fetched by dot test (scripts/lib/vm.nu); @KEY@ placeholders are filled in there
 kver=$(uname -r)
 say kver_running "$kver"
 say pkg_version "$(pacman -Q @PKGBASE@ | cut -d' ' -f2)"

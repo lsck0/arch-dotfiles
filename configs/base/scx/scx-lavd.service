@@ -2,15 +2,15 @@
 Description=sched_ext scheduler (scx_lavd)
 Documentation=https://github.com/sched-ext/scx
 ConditionPathIsDirectory=/sys/kernel/sched_ext
-# attached before the greeter, so a session never starts on eevdf and switches mid-login
+# before the greeter, so a session never switches scheduler mid-login
 Before=display-manager.service ly@tty2.service
-# the kernel falls back to eevdf whenever it exits; a scheduler that cannot attach stops retrying
+# eevdf takes over on exit; stop retrying a scheduler that cannot attach
 StartLimitIntervalSec=60
 StartLimitBurst=3
 
 [Service]
 Type=simple
-# the power mode follows the epp tlp sets, no restarts: balanced on ac and battery (power-leaning), powersave in saver
+# follows the epp tlp sets, no restarts needed
 ExecStart=/usr/bin/scx_lavd --autopower
 Restart=on-failure
 RestartSec=2

@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# printers-sync.nu against canned lpinfo output and a stubbed cups, no root: one queue per printer, on its .local
-# service name, the default only where none was set, and a rerun changes nothing. run by dot test lint
+# printers-sync.nu against canned lpinfo output and a stubbed cups, no root
 
 const SYNC = path self | path dirname | path join printers-sync.nu
 const WANT_NAME = "HP_ENVY_5640_series_B8A730"
@@ -67,7 +66,6 @@ def main [] {
     if (sync-run $work) != 0 { fail "rerun failed" }
     if (do $file calls | is-not-empty) { fail $"rerun was not a no-op: (do $file calls)" }
 
-    # a default someone chose stays
     "" | save --force ($work | path join queues)
     "PDF\n" | save --force ($work | path join default)
     if (sync-run $work) != 0 { fail "run with a default failed" }

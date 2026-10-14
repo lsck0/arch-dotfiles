@@ -55,7 +55,6 @@ def sig-report [status: list<string>]: nothing -> bool {
     true
 }
 
-# "name <mail>  FINGERPRINT" per usable key with the capability letter
 def key-list [capability: string, --secret]: nothing -> list<string> {
     let listing = if $secret { "--list-secret-keys" } else { "--list-keys" }
     do { ^gpg $listing --with-colons } | complete | get stdout | lines
@@ -106,8 +105,7 @@ def recipients-pick []: nothing -> list<string> {
     $chosen
 }
 
-# gpg on the clipboard: decrypt or verify it and show the result, encrypt and sign it to picked keys, or clear-sign it.
-# Decrypted text is shown, never copied: the clipboard can outlive the read.
+# Decrypt, verify, encrypt or clear-sign the clipboard; plaintext is shown, never copied.
 def main []: nothing -> nothing {
     print --stderr $"usage: ($APP) decrypt|encrypt|sign"
     exit 2

@@ -1,14 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
-# steam with the mangohud overlay (hidden until toggled) and obs capture ready for every game; gamemode stays per game
-# (launch option `gamemoderun %command%`): preloaded into the client it registers steam and steamwebhelper, keeps
+# steam with the hidden mangohud overlay and obs capture; gamemode stays per game, preloaded into the client it keeps
 # gamemode on while steam idles and breaks the webhelper's websocket
 
 const SELF = path self
 const GROUP = "games"
 
-# steam and every game it starts run as the games group, so their sockets egress on the real link even while proton0
-# is up (configs/gaming/vpn-bypass): the vpn only slows game frontends and risks an anticheat ip flag, and a game
-# reveals the player anyway. fail open: without the group or its sudoers, steam uses the vpn like everything else
+# the games group egresses on the real link past proton0 (gaming/vpn-bypass): the vpn slows frontends and risks an
+# anticheat ip flag; fail open, without the group steam uses the vpn
 def --wrapped main [...args: string]: nothing -> nothing {
     let member = $GROUP in (^id -nG | split row " ")
     if (^id -gn | str trim) != $GROUP and $member and (do { ^sudo -n -g $GROUP true } | complete).exit_code == 0 {

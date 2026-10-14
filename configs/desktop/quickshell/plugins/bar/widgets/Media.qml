@@ -11,7 +11,6 @@ BarWidget {
   id: root
   moduleName: "media"
 
-  // dbusName picked in the panel
   property string pinnedPlayer: ""
 
   function duplicateScore(p) {
@@ -43,7 +42,6 @@ BarWidget {
         byIdentity[idKey] = p
         order.push(idKey)
       } else {
-        // prefer playing, then the copy with art
         if (duplicateScore(p) > duplicateScore(byIdentity[idKey])) byIdentity[idKey] = p
       }
     }
@@ -106,7 +104,6 @@ BarWidget {
   readonly property string album: player ? (player.trackAlbum || "") : ""
   readonly property bool playing: player !== null && player.playbackState === MprisPlaybackState.Playing
 
-  // youtube thumbnail fallback from the video id
   readonly property string artUrl: {
     if (!player) return ""
     if (player.trackArtUrl) return player.trackArtUrl
@@ -117,21 +114,19 @@ BarWidget {
 
   // qt in-process tls crashes, so remote art is fetched by curl
   readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
-  // tmpfs, so remote covers never outlive the session; no runtime dir means no remote art
+  // tmpfs, so remote covers never outlive the session
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string artCacheDir: runtimeDir ? runtimeDir + "/quickshell-mediaart" : ""
   readonly property string artCacheFile:
     root.artRemote && root.artCacheDir ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
-  // a remote fetch tells the art host what is playing: only at home with no vpn, tor or anonymous socks up;
-  // anywhere else the cache is dropped and only file:// art shows
+  // a remote fetch tells the art host what is playing, so only at home with no vpn or tor up
   readonly property string artFetchCheck: "[ -e /run/home-network ]"
     + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
     + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
 
   property string artSource: ""
   property string artFetchedUrl: ""
-  // retry budget per url
   property int artTries: 0
 
   function fetchArt() {
@@ -231,7 +226,6 @@ BarWidget {
 
   PwObjectTracker { objects: root.playerStreams }
 
-  // stays visible for a while after playback stops
   readonly property bool recentlyActive: playing || lingerTimer.running
   onPlayingChanged: if (!playing) lingerTimer.restart()
 
@@ -246,7 +240,7 @@ BarWidget {
     refreshArt()
   }
 
-  // the bar spectrum is opt-in (widget setting barSpectrum): it repaints the bar at cava's framerate
+  // opt-in: it repaints the bar at cava's framerate
   readonly property bool barSpectrum: setting("barSpectrum", false) === true
   readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
@@ -272,7 +266,7 @@ BarWidget {
     return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
   }
 
-  // sqrt lifts quiet passages, gain makes peaks pop; shared by bars and peak caps
+  // sqrt lifts quiet passages, gain makes peaks pop
   function specHeightFrac(level) { return Math.min(1, Math.pow(level, 0.5) * 1.4) }
 
   Rectangle {
@@ -312,7 +306,6 @@ BarWidget {
             radius: 0
             antialiasing: false
             opacity: 0.4 + sbar.level * 0.6
-            // center stop brightens with intensity so loud bars glow hotter
             gradient: Gradient {
               GradientStop { position: 0.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
               GradientStop { position: 0.5; color: root.specColor(sbar.frac, 1.1 + sbar.level, 1.0) }
@@ -321,7 +314,6 @@ BarWidget {
             height: Math.max(2, spectrum.height * root.specHeightFrac(sbar.level))
           }
 
-          // peak caps ride the held maximum, mirrored like the center-out bar
           Rectangle {
             width: parent.width; height: 1
             color: root.specColor(sbar.frac, 1.6, 0.9)
@@ -447,7 +439,7 @@ BarWidget {
           Text {
             anchors.centerIn: parent
             visible: !art.visible
-            text: "\u{f001}"   // fa-music
+            text: "\u{f001}"
             color: Colors.menu.text
             opacity: Style.emphasis.faint
             font.family: Style.font.iconFamily
@@ -607,7 +599,7 @@ BarWidget {
           spacing: Style.spacing.sm
 
           PanelActionButton {
-            iconText: "\u{f074}"   // fa-shuffle
+            iconText: "\u{f074}"
             tooltipText: "Shuffle"
             foreground: root.player && root.player.shuffle ? Colors.accent : Colors.menu.text
             opacity: root.player && root.player.shuffleSupported ? 1 : 0.3
@@ -617,7 +609,7 @@ BarWidget {
           }
 
           PanelActionButton {
-            iconText: "\u{f048}"   // fa-step_backward
+            iconText: "\u{f048}"
             tooltipText: "Previous"
             foreground: Colors.menu.text
             opacity: root.player && root.player.canGoPrevious ? 1 : 0.3
@@ -639,7 +631,7 @@ BarWidget {
           }
 
           PanelActionButton {
-            iconText: "\u{f051}"   // fa-step_forward
+            iconText: "\u{f051}"
             tooltipText: "Next"
             foreground: Colors.menu.text
             opacity: root.player && root.player.canGoNext ? 1 : 0.3
@@ -649,7 +641,6 @@ BarWidget {
           }
 
           PanelActionButton {
-            // md-repeat / md-repeat_once
             iconText: root.player && root.player.loopState === MprisLoopState.Track
               ? "\u{f0458}" : "\u{f0456}"
             tooltipText: {
@@ -749,7 +740,6 @@ BarWidget {
             on: root.player === modelData
             glyph: modelData.playbackState === MprisPlaybackState.Playing ? "\u{f04b}" : ""
             label: modelData.identity || modelData.dbusName
-            // clicking the pinned player unpins it
             onActivated: root.pinnedPlayer =
               (root.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
           }

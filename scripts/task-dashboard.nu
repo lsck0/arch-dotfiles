@@ -30,10 +30,6 @@ const FOOTER_KEYS = " 1-7 Tab h l: tabs  j k: scroll  r: refresh  q: quit"
 const SCREEN_ENTER = "\e[?1049h\e[?25l"
 const SCREEN_LEAVE = "\e[?25h\e[?1049l"
 
-# -----------------------------------------------------------------------------
-# data: read-only queries of the human db, whatever TASKRC an agent shell exported
-# -----------------------------------------------------------------------------
-
 def has [command: string]: nothing -> bool { which $command | is-not-empty }
 
 # stdout without trailing newlines, empty when the command fails, so a broken subsystem never takes the page down
@@ -182,10 +178,6 @@ def refresh-fast [state: record]: nothing -> record {
     }
 }
 
-# -----------------------------------------------------------------------------
-# lines: (text, style) rows shared by the print page and the TUI
-# -----------------------------------------------------------------------------
-
 def line [text: string, style: string = normal]: nothing -> record { {s: $text, style: $style} }
 
 def or-none [rows: list]: nothing -> list { if ($rows | is-empty) { [(line "  (none)" dim)] } else { $rows } }
@@ -218,10 +210,6 @@ def lines-agent-flow [projects: list]: nothing -> list {
     } | flatten
 }
 
-# -----------------------------------------------------------------------------
-# print page
-# -----------------------------------------------------------------------------
-
 def heading [text: string]: nothing -> string { capture gum style --bold --foreground 6 $">> ($text)" }
 
 def section [title: string, body: string]: nothing -> list<string> {
@@ -251,10 +239,6 @@ def page []: nothing -> string {
         (lines-agent-flow (agent-dbs) | get s | str join "\n")
     ] | where { is-not-empty } | str join "\n"
 }
-
-# -----------------------------------------------------------------------------
-# TUI: every frame is a list of {y, x, s, style} drawn in one write
-# -----------------------------------------------------------------------------
 
 def put [y: int, x: int, text: string, style: string = normal]: nothing -> record {
     {y: $y, x: $x, s: $text, style: $style}
@@ -543,12 +527,12 @@ def tui []: nothing -> nothing {
     }
 }
 
-# Read-only dashboard of the human task db, timewarrior, bugwarrior issues and the agent task dbs under ~/projects:
-# a live TUI on a tty (tabs 1-7 / Tab / h l, scroll j k, r refresh, q quit), one printed page otherwise.
+# Read-only dashboard of tasks, time, issues and agent task dbs: a TUI on a tty, else one printed page.
 def main [
     --print # print one page instead of the TUI (default off a tty)
     --page (-p) # print one page through less
 ]: nothing -> nothing {
+    # an agent shell may export its own TASKRC, the dashboard always reads the human db
     $env.TASKRC = $nu.home-dir | path join $HUMAN_TASKRC
     hide-env --ignore-errors TASKDATA TIMEWARRIORDB
     let tty = (is-terminal --stdout)

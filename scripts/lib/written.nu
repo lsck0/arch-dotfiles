@@ -1,5 +1,4 @@
-# the written record (path, tab, sha256 of what the dotfiles last copied there) and the preserved copies, the bash
-# helpers' files and format, so both engines agree on what is the dotfiles' own
+# the bash helpers' files and format, so both engines agree on what is the dotfiles' own
 
 use log.nu *
 use state.nu [state-dir state-locked path-kind]
@@ -52,14 +51,12 @@ export def written-forget [...paths: path]: nothing -> nothing {
     state-locked $"(written-file).lock" written-forget {file: (written-file), paths: $paths}
 }
 
-# a run opens; every path recorded from here on counts as still managed
 export def written-begin []: nothing -> nothing {
     mkdir (state-dir)
     "" | save --force (seen-file)
 }
 
-# a run in which every module finished closes: an entry nothing recorded this run and no native module owns (<keep>),
-# or whose path is gone, is forgotten. after a failure written-end, or what the failed module did not reach would go
+# only after every module finished: otherwise what a failed module did not reach would be forgotten
 export def written-prune [keep: list<string>]: nothing -> nothing {
     if not ((seen-file | path exists) and (written-file | path exists)) { return }
     let seen = open --raw (seen-file) | lines | append $keep
@@ -77,7 +74,7 @@ export def written-end []: nothing -> nothing {
     rm --force (seen-file)
 }
 
-# oldest first by the stamp in the name, mv keeps the original mtime; a preserved dir's own files carry none
+# by the stamp in the name: mv keeps the original mtime
 export def preserve-entries []: nothing -> table<stamp: string, path: string> {
     if not (preserve-dir | path exists) { return [] }
     ^find (preserve-dir) -mindepth 1 -regextype posix-extended -regex '.*\.[0-9]{14}(\.[0-9]+)?' -prune -print

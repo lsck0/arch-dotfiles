@@ -1,11 +1,10 @@
 import QtQuick
 import qs.Commons
 
-// square slider: hairline track, 2px bar knob, wheel and drag
 Item {
   id: root
 
-  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property real value: 0
   property real minimum: 0
@@ -52,7 +51,6 @@ Item {
   readonly property real progress: Math.max(0, Math.min(1, (liveValue - minimum) / range))
   readonly property bool _hot: mouseArea.containsMouse || root.dragging || root.activeFocus
 
-  // data shape: hairline track, filled run, the knob a 2px vertical bar
   Rectangle {
     id: track
     anchors.verticalCenter: parent.verticalCenter

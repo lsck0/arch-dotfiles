@@ -24,7 +24,6 @@ PanelWindow {
     || !modelData
     || String(modelData.name) === mainScreenName
 
-  // {left, center, right} widget names, read by BarSection.qml
   readonly property var layoutConfig: isMainScreen ? Plugins.bar : Plugins.barSecondary
 
   anchors {
@@ -54,13 +53,11 @@ PanelWindow {
   readonly property color background: Colors.bar.background
   readonly property color urgent: Colors.bar.active
 
-  // quiet: no spectrum, glow or flicker while a fullscreen window hides the bar or power saver is on
   readonly property var hyprMonitor: modelData ? Hyprland.monitorFor(modelData) : null
   readonly property bool fullscreenBelow: !!hyprMonitor && !!hyprMonitor.activeWorkspace
     && hyprMonitor.activeWorkspace.hasFullscreen === true
   readonly property bool quiet: Power.saver || fullscreenBelow
 
-  // only one panel open at a time
   property string activePanel: ""
 
   function togglePanel(id) {
@@ -76,15 +73,14 @@ PanelWindow {
 
   Timer {
     id: hoverCloseTimer
-    // grace for the pointer to travel from the trigger into the drawer
+    // grace for the pointer to reach the drawer
     interval: 350
     onTriggered: {
       if (!root.triggerHovered && !root.panelHovered) root.activePanel = ""
     }
   }
 
-  // true only for the instant a drawer hands off to the next: the drawers snap instead of
-  // folding-then-growing, so switching along the bar reads as one surface, not a close-reopen
+  // drawers snap on a handoff, so a switch reads as one surface, not a close-reopen
   property bool panelSwitching: false
   Timer {
     id: switchSettle
@@ -92,7 +88,7 @@ PanelWindow {
     onTriggered: root.panelSwitching = false
   }
 
-  // a switch to another widget waits this out, so brushing across a widget edge cannot thrash open<->open
+  // brushing across a widget edge must not thrash open<->open
   property string pendingPanel: ""
   Timer {
     id: switchIntent
@@ -100,7 +96,6 @@ PanelWindow {
     onTriggered: root.applyHoverOpen(root.pendingPanel)
   }
 
-  // opening from closed is immediate; switching between open drawers needs the brief intent above
   function hoverOpen(id) {
     hoverCloseTimer.stop()
     root.pendingPanel = id
@@ -115,7 +110,6 @@ PanelWindow {
   function applyHoverOpen(id) {
     if (root.pendingPanel !== id) return
     if (root.activePanel !== id) {
-      // leaving one open drawer straight for another: snap the handoff
       root.panelSwitching = root.activePanel !== ""
       root.activePanel = id
       root.panelHovered = false
@@ -125,7 +119,6 @@ PanelWindow {
   }
 
   function hoverTriggerExit(id) {
-    // cancel a pending switch to a widget the pointer only brushed past
     if (root.pendingPanel === id) { switchIntent.stop(); root.pendingPanel = "" }
     if (root.activePanel !== id) return
     root.triggerHovered = false
@@ -144,12 +137,10 @@ PanelWindow {
     hoverCloseTimer.restart()
   }
 
-  // qs ipc call bar open|close|toggle <panel>
   readonly property string ipcScreenName: modelData ? String(modelData.name) : ""
   readonly property bool ownsGlobalIpcTarget: {
     if (ipcScreenName === "") return true
     if (mainScreenName !== "") return ipcScreenName === mainScreenName
-    // no main screen known: first output owns `bar`
     var screens = Quickshell.screens
     return screens.length === 0 || String(screens[0].name) === ipcScreenName
   }
@@ -163,12 +154,10 @@ PanelWindow {
     function state(): string { return root.activePanel }
   }
 
-  // bumped when widgets can move horizontally
   property int layoutRevision: 0
 
   property var tooltipItem: null
   property string tooltipText: ""
-  // shown only after the pointer rests, like PanelToolTip
   property bool tooltipShown: false
 
   Timer {
@@ -204,10 +193,9 @@ PanelWindow {
     anchors.bottom: parent.bottom
     height: Math.max(1, Style.fx.bracketWidth)
     color: Colors.accent
-    // above the widgets: a widget's full-height hover fill must not paint over the rule, or the
-    // open drawer's neck would meet the hover block instead of this continuous accent edge
+    // over the widgets: a hover fill must not cover the rule the drawer neck joins
     z: 1
-    // drawers continue this rule at the same alpha (Ui/DockShape.qml)
+    // Ui/DockShape.qml repeats this alpha
     opacity: Style.surface.ruleAlpha
     layer.enabled: Style.fx.glow > 0 && !root.quiet
     layer.effect: Glow { shadowColor: Colors.accent }
@@ -278,7 +266,7 @@ PanelWindow {
     }
   }
 
-  // a popup, the bar window is exactly barSize tall and would clip it; same surface as Ui/PanelToolTip.qml
+  // a popup: the bar window is barSize tall and would clip it
   PopupWindow {
     id: tooltipWindow
     visible: root.tooltipShown && root.tooltipItem !== null && root.visible
@@ -306,7 +294,6 @@ PanelWindow {
       height: tooltipRow.implicitHeight + contentTopInset + contentBottomInset
       width: tooltipRow.implicitWidth + contentLeftInset + contentRightInset
 
-      // ease down out of the bar edge on the drawers' enter curve instead of blinking in
       opacity: root.tooltipShown ? 1 : 0
       Behavior on opacity { NumberAnimation { duration: Style.motion.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
       transform: Translate {

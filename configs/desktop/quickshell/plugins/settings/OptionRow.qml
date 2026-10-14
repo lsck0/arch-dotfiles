@@ -4,7 +4,7 @@ import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
 
-// one schema option with the control its type asks for; state lives in Settings.qml, changes go back as signals
+// state lives in Settings.qml, changes go back as signals
 Item {
   id: row
 
@@ -15,6 +15,9 @@ Item {
   property bool hasCursor: false
   property bool expanded: false
   property int choiceCursor: -1
+  // the open list's choices after its filter
+  property var listed: []
+  property string choiceFilter: ""
   property bool editing: false
   property string draft: ""
 
@@ -30,6 +33,9 @@ Item {
   readonly property string type: String(option.type || "")
   readonly property bool numeric: type === "int" || type === "float"
   readonly property var choices: (option.choices || []).map(function (c) { return { value: c, label: Schema.choiceLabel(c) } })
+  readonly property int pageStart: Schema.choicePageStart(choiceCursor)
+  readonly property var page: listed.slice(pageStart, pageStart + Schema.choicePageSize)
+    .map(function (c) { return { value: c, label: Schema.choiceLabel(c) } })
   readonly property var tags: {
     var out = [{ text: option.source || "default", color: Colors.menu.text, faint: true }]
     if (option.apply && option.apply !== "live")
@@ -263,20 +269,30 @@ Item {
         wrapMode: Text.Wrap
       }
 
-      // list entries (click removes one), or a long enum's choices while open
+      Text {
+        width: parent.width
+        visible: row.expanded && (row.choiceFilter !== "" || row.listed.length > Schema.choicePageSize)
+        textFormat: Text.PlainText
+        text: (row.choiceFilter ? "filter " + row.choiceFilter + ": " : "") + (row.listed.length === 0 ? "no match"
+          : (row.pageStart + 1) + "-" + (row.pageStart + row.page.length) + " of " + row.listed.length)
+        color: Colors.accent
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+      }
+
       Flow {
         width: parent.width
         visible: row.type === "list" || row.expanded
         spacing: Style.spacing.xs
 
         Repeater {
-          model: row.expanded ? row.choices : row.type === "list" ? (row.value || []) : []
+          model: row.expanded ? row.page : row.type === "list" ? (row.value || []) : []
 
           Chip {
             required property var modelData
             required property int index
             text: row.expanded ? modelData.label : String(modelData) + "  x"
-            selected: row.expanded && index === row.choiceCursor
+            selected: row.expanded && row.pageStart + index === row.choiceCursor
             onClicked: {
               if (row.expanded) {
                 row.changeRequested(modelData.value)

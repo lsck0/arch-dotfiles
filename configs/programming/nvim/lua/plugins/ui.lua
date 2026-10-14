@@ -1,5 +1,5 @@
 return {
-    { "nvim-tree/nvim-web-devicons" }, -- filetype icons
+    { "nvim-tree/nvim-web-devicons" },
 
     {
         url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
@@ -8,7 +8,7 @@ return {
     },
 
     {
-        "xiyaowong/transparent.nvim", -- transparent editor surfaces
+        "xiyaowong/transparent.nvim",
         dependencies = { "pywal" },
         init = function()
             -- opaque in neovide: no wallpaper behind it, a stripped bg renders black
@@ -28,7 +28,7 @@ return {
                     "EndOfBuffer",
                 },
             })
-            require("transparent").clear_prefix("Buffer") -- every barbar Buffer* group
+            require("transparent").clear_prefix("Buffer")
 
             if not vim.g.neovide then
                 vim.api.nvim_create_autocmd("ColorScheme", {
@@ -43,14 +43,12 @@ return {
         end,
     },
 
-    -- colorschemes, applied by lua/theme.lua
     { "folke/tokyonight.nvim", lazy = true },
     { "Shatur/neovim-ayu", lazy = true },
     {
         "catppuccin/nvim",
         name = "catppuccin",
         lazy = true,
-        -- flavour comes from the colorscheme name; auto_integrations detects installed plugins
         opts = { term_colors = true },
     },
     { "shaunsingh/nord.nvim", lazy = true },
@@ -59,10 +57,10 @@ return {
     { "Mofiqul/dracula.nvim", lazy = true },
     { "navarasu/onedark.nvim", lazy = true },
 
-    { "romgrk/barbar.nvim", event = "VeryLazy" }, -- buffer tabline
+    { "romgrk/barbar.nvim", event = "VeryLazy" },
 
     {
-        "nvim-lualine/lualine.nvim", -- statusline
+        "nvim-lualine/lualine.nvim",
         event = "VeryLazy",
         dependencies = { "xiyaowong/transparent.nvim" },
         config = function()
@@ -78,7 +76,6 @@ return {
                 sections = {
                     lualine_a = { "mode" },
                     lualine_b = { "branch", "diff", "diagnostics" },
-                    -- dropbar breadcrumbs
                     lualine_c = {
                         {
                             function()
@@ -98,7 +95,7 @@ return {
     },
 
     {
-        "xiyaowong/virtcolumn.nvim", -- virtual colorcolumn
+        "xiyaowong/virtcolumn.nvim",
         event = "VeryLazy",
         config = function()
             vim.g.virtcolumn_char = "▕"
@@ -107,7 +104,7 @@ return {
     },
 
     {
-        "HiPhish/rainbow-delimiters.nvim", -- rainbow bracket colors
+        "HiPhish/rainbow-delimiters.nvim",
         event = { "BufReadPost", "BufNewFile" },
         config = function()
             local highlight = {
@@ -131,7 +128,7 @@ return {
     },
 
     {
-        "NvChad/nvim-colorizer.lua", -- inline color previews
+        "NvChad/nvim-colorizer.lua",
         event = "VeryLazy",
         config = function()
             -- names/tailwind only in css-like filetypes, else plain words get colored
@@ -159,7 +156,7 @@ return {
     },
 
     {
-        "folke/snacks.nvim", -- QoL utility bundle
+        "folke/snacks.nvim",
         priority = 1000, -- load before other eager UI plugins (snacks health rec)
         opts = {
             bigfile = { enabled = true },
@@ -186,16 +183,15 @@ return {
                 math = { enabled = false },
             },
             notifier = { enabled = true },
-            indent = { enabled = true }, -- indent guides + scope
-            scroll = { enabled = false }, -- no smooth scrolling
-            words = { enabled = true }, -- highlight lsp references under cursor
+            indent = { enabled = true },
+            scroll = { enabled = false },
+            words = { enabled = true },
             -- the VimEnter autocmd is the only opener, else roots stack
             explorer = { replace_netrw = false },
             picker = {
                 sources = {
                     explorer = {
-                        -- off: its reveal reopens with cwd=<file>, stacking a root.
-                        -- lib/explorer.lua reveals instead, inside the current root only.
+                        -- off: its reveal re-roots at the file, stacking roots; lib/explorer.lua reveals instead
                         follow_file = false,
                         hidden = true, -- show dotfiles on start
                         ignored = true, -- and gitignored files; they are still dimmed by the git status
@@ -204,7 +200,6 @@ return {
                         auto_close = false,
                         jump = { close = false },
                         actions = {
-                            -- H hides dotfiles and gitignored files together, or shows both again
                             toggle_hidden_ignored = function(picker)
                                 local show = not picker.opts.hidden
                                 picker.opts.hidden = show
@@ -214,7 +209,6 @@ return {
                             end,
                         },
                         win = { list = { keys = { ["H"] = "toggle_hidden_ignored" } } },
-                        -- right-aligned marks: md-eye_off on dotfiles, git's seti-ignored on gitignored entries
                         icons = { git = { ignored = "\u{e668} " } },
                         format = function(item, picker)
                             local ret = require("snacks.picker.format").file(item, picker)
@@ -233,7 +227,6 @@ return {
                             end
                             return ret
                         end,
-                        -- custom layout: list window only, no input/title box
                         layout = {
                             preview = false,
                             layout = {
@@ -252,7 +245,6 @@ return {
         },
         config = function(_, opts)
             require("snacks").setup(opts)
-            -- hide inline images in insert mode
             local inline = require("snacks.image.inline")
             local conceal = inline.conceal
             function inline:conceal()
@@ -267,13 +259,13 @@ return {
     },
 
     {
-        "folke/trouble.nvim", -- diagnostics/quickfix list
+        "folke/trouble.nvim",
         cmd = "Trouble",
         opts = {},
     },
 
     {
-        "yorickpeterse/nvim-pqf", -- pretty quickfix list
+        "yorickpeterse/nvim-pqf",
         event = "VeryLazy",
         main = "pqf",
         opts = {},

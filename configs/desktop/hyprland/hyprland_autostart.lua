@@ -2,8 +2,7 @@ hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see
     hl.exec_cmd("uwsm finalize GDK_SCALE QT_AUTO_SCREEN_SCALE_FACTOR")
 
-    -- the session's own pieces in session.slice (protected, never an oomd pick), not app.slice; quickshell restarts
-    -- itself on a crash, its unit waits for the finalize above
+    -- session.slice is protected, never an oomd pick; quickshell's unit waits for the finalize above
     hl.exec_cmd("systemctl --user start quickshell.service")
     hl.exec_cmd("uwsm app -s s -- /usr/lib/polkit-kde-authentication-agent-1")
     hl.exec_cmd("uwsm app -s s -- hypridle")

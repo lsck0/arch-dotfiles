@@ -15,7 +15,7 @@ hl.config({
             scroll_factor = 0.5,
         },
         tablet = {
-            -- confine the virtual pen (configs/base/tablet/tablet-driver.py) to the main monitor; set globally not per-device because the compositor's "-1" suffix on the two pen interfaces is unstable, see configs/base/tablet/
+            -- set globally: the compositor's "-1" suffix on the two pen interfaces is unstable (configs/base/tablet/)
             output = platform.main_monitor,
         },
     },

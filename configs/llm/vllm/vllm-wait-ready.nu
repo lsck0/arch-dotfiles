@@ -6,7 +6,7 @@ const READY_TIMEOUT = 10min
 const POLL_INTERVAL = 2sec
 
 def main []: nothing -> nothing {
-    # the client on :8000 that triggered this start, for journalctl -u vllm-proxy -g vllm-trigger
+    # log the triggering client, for journalctl -u vllm-proxy -g vllm-trigger
     let sockets = do { ^ss -Htnp "( sport = :8000 or dport = :8000 )" } | complete | get stdout | lines
     $sockets | where $it !~ systemd-socket-proxyd | each { print --stderr $"vllm-trigger: ($in)" } | ignore
     ^systemctl start vllm.service

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the sofle choc firmware: qmk_firmware (a shallow submodule) builds the keymap in sofle_choc/ into sofle_choc.uf2
 
 const HERE = path self | path expand | path dirname
 const QMK = "qmk_firmware"

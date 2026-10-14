@@ -1,4 +1,3 @@
-# launchers, mod managers and small games that need no config of their own
 export const meta = {
     packages: {
         pacman: [

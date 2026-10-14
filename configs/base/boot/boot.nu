@@ -1,5 +1,4 @@
-# root steps the boot-touching modules share; boot-commit, the system layer's boot barrier, rebuilds and signs once
-# whatever these changed. only archinstall's layout: uefi, the fat esp at /boot (fmask/dmask 0077, root reads it)
+# only archinstall's layout: uefi, the fat esp at /boot (fmask/dmask 0077, root reads it)
 
 use state.nu [SYSTEM_STATE]
 
@@ -45,7 +44,7 @@ def key-of [token: string]: nothing -> string {
     $token | split row "=" | first
 }
 
-# each token replaces the tokens of its key (text before the first =); a machine off the esp layout is left alone
+# each token replaces the tokens of its key; a machine off the esp layout is left alone
 export def cmdline-set [...tokens: string]: nothing -> nothing {
     if not (esp-supported) { return }
     cmdline-save ($tokens | reduce --fold (cmdline-words) {|t, words|
@@ -83,7 +82,7 @@ def boot-inputs-hash []: nothing -> string {
     | each {|f| $"(ls --long $f | get 0.mode) ($f) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
 }
 
-# keys exist, so boot files get signed; before configs/base/boot/sbctl ran there is nothing to sign with
+# before configs/base/boot/sbctl ran there is nothing to sign with
 def sbctl-ready []: nothing -> bool {
     (which sbctl | is-not-empty) and (^sbctl status | str contains "Owner GUID")
 }
@@ -92,7 +91,7 @@ def sbctl-sign [...files: path]: nothing -> nothing {
     for f in ($files | where ($it | path type) == file) { ^sbctl sign -s $f }
 }
 
-# the boot barrier, last in a system run: one uki rebuild for every change of the run, then every boot file signed
+# the boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed
 export def boot-commit []: nothing -> nothing {
     # wsl: windows boots its own kernel
     if (which mkinitcpio | is-empty) { return }
@@ -110,7 +109,7 @@ export def boot-commit []: nothing -> nothing {
     ^sbctl sign -s -o $"($SDBOOT_EFI).signed" $SDBOOT_EFI
     sbctl-sign ...$SDBOOT_ESP_FILES
     ^sbctl sign-all
-    # the plain kernels stay unsigned: a type #1 entry on the unverified esp could boot one with any cmdline and initrd
+    # plain kernels stay unsigned: a type #1 entry on the unverified esp could boot one with any cmdline
     let unsigned = ^sbctl verify | lines
         | where ($it =~ 'is not signed') and not ($it | str contains $"($ESP)/vmlinuz-") | str join " "
     if $unsigned != "" {

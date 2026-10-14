@@ -3,8 +3,8 @@
 This is an unreviewed AI generated summary of dotfile features.
 
 Everything below is set up by `dot update` (or `dot install` plus `dot apply`) on a fresh machine; nothing is set by
-hand. SUPER is the mod key. The generated reference ([docs/generated.md](docs/generated.md)) lists every module, unit,
-toggle and keybind from the tree itself; this file says what they do.
+hand. SUPER is the mod key. `dot list`, `dot options` and `hyprctl binds` list the modules, options and keybinds from
+the tree itself; this file says what they do.
 
 - [Install and the dot CLI](#install-and-the-dot-cli)
 - [Machines, profiles and options](#machines-profiles-and-options)
@@ -70,7 +70,7 @@ toggle and keybind from the tree itself; this file says what they do.
   order, who wrote a path or declared a package, a run's records and span tree.
 - `dot fetch file|git`: pinned downloads (sha256, resumable) and pinned git checkouts used by modules.
 - `dot prune <days>`: preserved copies of a person's own files that modules moved aside.
-- `dot gen`: regenerates `mirror/packages.txt` and `docs/generated.md`.
+- `dot gen`: regenerates `mirror/packages.txt`.
 - `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, platform facts, generated files, every
   `*.test.sh`/`*.test.nu`); `dot test check`: every formatter and linter (the sync gate); `dot test fmt` applies them.
 - `dot test run`: the end-to-end VM test: a libvirt VM with secure boot in setup mode boots the ISO, `bootstrap.sh` is
@@ -129,7 +129,7 @@ toggle and keybind from the tree itself; this file says what they do.
 - Unified kernel images for `linux` and `linux-lts` (fallback) with the cmdline embedded; loader editor off.
 - YubiKey: pcscd, udev and polkit rules for wheel, `totp [account]` copies an OATH code, the ssh-sk stub, sops age
   keys merged from secrets.
-- PAM: sudo and polkit accept the YubiKey (FIDO2 PIN plus touch) or a fingerprint when enrolled; the quickshell lock
+- PAM: sudo and polkit accept a YubiKey touch (no PIN) or a fingerprint when enrolled; the quickshell lock
   has a password stack and a YubiKey-only stack.
 - sudo for wheel with a password, never NOPASSWD except two validated drop-ins (the VPN namespace runner and the games
   group).
@@ -492,9 +492,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 
 ## Keybinds
 
-The Hyprland binds are generated from `hyprland_keybindings.lua` into
-[docs/generated.md#keybinds](docs/generated.md#keybinds); every bind carries a `description`, so `hyprctl binds` shows
-the same text. Most used:
+The Hyprland binds live in `hyprland_keybindings.lua`; every bind carries a `description`, so `hyprctl binds` lists
+them all. Most used:
 
 | keys | action |
 |---|---|

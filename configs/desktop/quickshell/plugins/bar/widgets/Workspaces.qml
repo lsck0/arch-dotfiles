@@ -37,7 +37,6 @@ BarWidget {
     return Hyprland.focusedWorkspace !== null ? Hyprland.focusedWorkspace.id : -1
   }
 
-  // occupied workspaces plus the active one
   readonly property var workspaceIds: {
     var ids = []
     var values = Hyprland.workspaces.values
@@ -65,7 +64,7 @@ BarWidget {
   implicitWidth: grid.implicitWidth + trailingGap
   implicitHeight: grid.implicitHeight
 
-  // one pill and underline slide to the focused cell; the leading edge moves first (worm stretch)
+  // the leading edge moves first (worm stretch)
   property real pillTargetX: 0
   property real pillTargetW: 0
   property real pillX: 0

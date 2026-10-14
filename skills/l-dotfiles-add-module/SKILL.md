@@ -87,5 +87,5 @@ dot test lint && dot test check  # layer rules per verb, nu parse gate
 
 Agents and tests run with `DOT_SYSTEM=skip` (or `--no-system` on `dot set`, `dot unset`, `dot apply`): nothing reaches
 sudo or pkexec, a machine option's system part is only recorded as pending (exit 3). A root prompt on Luca's screen
-asks for his YubiKey: polkit's PAM stack (and sudo's) tries pam_u2f first, so the "Password" box wants the YubiKey
-PIN and a touch.
+asks for his YubiKey: polkit's PAM stack (and sudo's) tries pam_u2f first, a touch without a PIN, then an enrolled
+finger, then the password.

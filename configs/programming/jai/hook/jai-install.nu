@@ -29,7 +29,6 @@ def main []: nothing -> nothing {
         bins-link $dir
         return
     }
-    # a ~/.jai this hook did not install is kept aside, never deleted
     if ($dir | path exists) and not ($stamp | path exists) {
         mv $dir $"($dir).pre-dotfiles-(date now | format date '%Y%m%d%H%M%S')"
         print -e $"jai: kept the existing ($dir) aside"

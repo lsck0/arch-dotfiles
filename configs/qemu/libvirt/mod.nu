@@ -10,21 +10,17 @@ export def system [cfg: record] {
     let vendor = open /proc/cpuinfo | lines | parse --regex '^vendor_id\s*:\s*(?<v>\S+)' | get --optional 0.v
     let module = $NESTED | get --optional ($vendor | default "")
     [
-        # autostart only fires while libvirtd runs: started at boot so virbr0 exists; an active network inhibits its
-        # idle exit. before any virsh, root's qemu:///system never autostarts a daemon
+        # autostart only fires while libvirtd runs, and root's qemu:///system never autostarts a daemon
         (unit-enable libvirtd.service --now)
         (step network)
-        # no libvirt group: its polkit rule is a silent root for every member's process; qemu:///system asks an admin
-        # (49-libvirt.rules), kvm is enough for qemu:///session and /dev/kvm
+        # no libvirt group: its polkit rule is a silent root for every member's process
         (file-copy 49-libvirt.rules /etc/polkit-1/rules.d/49-libvirt.rules)
         (group-admins kvm)
-        # nested virtualization, so a guest can run vms itself
         (if $module == null { [] } else { file-text /etc/modprobe.d/kvm-nested.conf $"options ($module) nested=1\n" })
     ]
 }
 
-# boxes bridges new vms to virbr0 when it exists, else slirp, where portmaster filters guest flows as qemu's and refuses
-# the guest's dns-over-tls
+# slirp would leave guest flows to portmaster as qemu's, which refuses the guest's dns-over-tls
 export def network []: nothing -> nothing {
     ^virsh -q -c qemu:///system net-autostart default | ignore
     if not (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) {

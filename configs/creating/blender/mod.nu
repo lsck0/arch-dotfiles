@@ -2,13 +2,8 @@ use module.nu *
 
 export const meta = {packages: {pacman: [blender]}}
 
-# Blender Lab's own MCP (projects.blender.org/lab/blender_mcp): claude runs blender-mcp over stdio, which relays each
-# tool call over a loopback socket to the mcp add-on inside a running blender; both halves from one pinned commit, the
-# add-on built from its tree, not lab.blender.org's moving feed. bump the commit and constraints.txt (uv pip freeze of
-# the tool env) together.
-# SECURITY: the add-on runs whatever python the server sends, in blender's process, unsandboxed. so the bridge never
-# auto-starts: only in a blender from blender-mcp-bridge (also the launcher entry's action) or after Start MCP Bridge
-# Server in the add-on's preferences
+# bump the commit and constraints.txt (uv pip freeze of the tool env) together
+# SECURITY: the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
 const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
 # v1.0.3
 const MCP_COMMIT = "2cea8d566dde07fbac28a61d698909d69724e853"
@@ -58,8 +53,7 @@ export def server-install []: nothing -> nothing {
     pin | save --force (pin-file)
 }
 
-# built and installed into blender's user_default repo when the installed copy differs from the pinned tree, then its
-# preferences set (mcp-prefs.py saves only on a change)
+# reinstalled when the installed copy differs from the pinned tree; mcp-prefs.py saves only on a change
 export def addon-install []: nothing -> nothing {
     let addon = src | path join addon blender_mcp_addon
     let query = 'import bpy; print("EXT=" + bpy.utils.user_resource("EXTENSIONS"))'

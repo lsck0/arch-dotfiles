@@ -10,6 +10,9 @@ Every `scripts/toggles/toggle-*.nu` answers `get` and `label`; an on/off one als
 states as a const record and `set <value>` plus `toggle` (cycles with `cycle-next`). `status.nu` runs every `label`
 (JSON `{name, on, setting, label}`), `menu.nu` is the picker on `SUPER+t`. A new script appears in both without
 registration. `get` stays cheap and side-effect free: `dot set` and the settings window read it.
+A script that also answers `options` (JSON rows shaped like `dot options --json`, each with the `set` verb that
+writes it, see `toggle-font.nu`) shows those rows in the settings window instead of its step row, through
+`status.nu --options`; a long `choices` list there is a filterable pick list.
 
 ## Add one
 

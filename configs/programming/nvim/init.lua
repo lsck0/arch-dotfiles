@@ -1,8 +1,8 @@
 vim.g.mapleader = " "
 require("options")
 
--- built-in message ui, before plugins so their startup messages land in it; pcall: absent before nvim 0.12
--- msg target: with cmdheight=0 the cmd target expands the cmdline for every message
+-- before plugins so their startup messages land in it; pcall: absent before nvim 0.12
+-- with cmdheight=0 the cmd target expands the cmdline for every message
 pcall(function()
     require("vim._core.ui2").enable({ msg = { targets = "msg" } })
 end)

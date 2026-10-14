@@ -1,6 +1,6 @@
 return {
     {
-        "chrisgrieser/nvim-early-retirement", -- auto-close idle buffers
+        "chrisgrieser/nvim-early-retirement",
         config = function()
             require("early-retirement").setup({
                 retirementAgeMins = 3,
@@ -8,7 +8,7 @@ return {
         end,
     },
     {
-        "folke/flash.nvim", -- jump/select via labels, treesitter, search
+        "folke/flash.nvim",
         event = "VeryLazy",
         opts = {},
         keys = {
@@ -47,15 +47,15 @@ return {
         },
     },
     {
-        "hat0uma/csvview.nvim", -- CSV column alignment
+        "hat0uma/csvview.nvim",
         ft = "csv",
         opts = {
             parser = { comments = { "#", "//" } },
         },
     },
-    { "jbyuki/venn.nvim", cmd = { "VBox", "VBoxD", "VBoxH", "VBoxO" } }, -- ASCII diagram drawing
+    { "jbyuki/venn.nvim", cmd = { "VBox", "VBoxD", "VBoxH", "VBoxO" } },
     {
-        "mg979/vim-visual-multi", -- multiple cursors
+        "mg979/vim-visual-multi",
         init = function()
             -- M-d, not M-n: herdr binds alt+n to next_agent and would swallow it
             vim.g.VM_maps = {
@@ -66,13 +66,13 @@ return {
             vim.g.VM_show_warnings = 0
         end,
     },
-    { "mrjones2014/smart-splits.nvim", lazy = true }, -- resize/navigate splits
+    { "mrjones2014/smart-splits.nvim", lazy = true },
     {
-        "nacro90/numb.nvim", -- peek line on jump
+        "nacro90/numb.nvim",
         opts = {},
     },
     {
-        "nosduco/remote-sshfs.nvim", -- browse remote files via SSH
+        "nosduco/remote-sshfs.nvim",
         cmd = {
             "RemoteSSHFSConnect",
             "RemoteSSHFSEdit",
@@ -83,23 +83,23 @@ return {
         dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
         opts = {},
     },
-    { "sindrets/winshift.nvim", cmd = "WinShift" }, -- move/swap windows
-    { "tpope/vim-repeat" }, -- repeat plugin actions
-    { "zeioth/garbage-day.nvim" }, -- restart idle LSP clients
+    { "sindrets/winshift.nvim", cmd = "WinShift" },
+    { "tpope/vim-repeat" },
+    { "zeioth/garbage-day.nvim" },
     {
-        "ziontee113/icon-picker.nvim", -- emoji/icon picker
+        "ziontee113/icon-picker.nvim",
         cmd = { "IconPickerNormal", "IconPickerInsert", "IconPickerYank" },
         opts = { disable_legacy_commands = true },
     },
     {
-        "laytan/cloak.nvim", -- mask sensitive .env values
+        "laytan/cloak.nvim",
         opts = {
-            cloak_character = "#", -- default is "*"
+            cloak_character = "#",
             patterns = { { file_pattern = { "*.env*" }, cloak_pattern = "=.+" } },
         },
     },
     {
-        "trixnz/sops.nvim", -- edit sops-encrypted yaml/json/toml/env in the clear
+        "trixnz/sops.nvim",
         -- not lazy: its BufReadPost decrypt must be registered before the first sops file opens
         lazy = false,
         opts = { disabled = false },
@@ -108,7 +108,7 @@ return {
         },
     },
     {
-        "folke/twilight.nvim", -- dim inactive code
+        "folke/twilight.nvim",
         cmd = "Twilight",
         opts = {
             treesitter = true,
@@ -126,13 +126,13 @@ return {
         },
     },
     {
-        "folke/zen-mode.nvim", -- distraction-free writing
+        "folke/zen-mode.nvim",
         cmd = "ZenMode",
         opts = {},
     },
 
     {
-        "dijeferson/gpg.nvim", -- transparent gpg for *.gpg/*.asc
+        "dijeferson/gpg.nvim",
         opts = {
             use_armor = true, -- .asc output, pasteable
             allow_clipboard = true,
@@ -140,7 +140,7 @@ return {
         },
     },
     {
-        "icarios-dev/privymd.nvim", -- GPG-encrypted fenced blocks inside Markdown
+        "icarios-dev/privymd.nvim",
         ft = "markdown",
         opts = {
             auto_decrypt = true,
@@ -148,7 +148,7 @@ return {
         },
     },
     {
-        "matthandzel/taskwarrior.nvim", -- edit the task db as a buffer
+        "matthandzel/taskwarrior.nvim",
         main = "taskwarrior",
         -- <leader>T: its default <leader>t* collides with trouble
         opts = {
@@ -167,7 +167,7 @@ return {
     },
 
     {
-        "nvzone/showkeys", -- on-screen keypress display
+        "nvzone/showkeys",
         event = "VeryLazy",
         opts = {
             timeout = 1,

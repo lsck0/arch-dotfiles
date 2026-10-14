@@ -12,8 +12,7 @@ export def system [cfg: record] {
     if not ("/var/lib/ossec-hids" | path exists) { return [] }
     [
         (group-admins ossec-alerts)
-        # arch logs only to journald, every localfile the package ships is a syslog file that never exists: this unit
-        # writes the auth journal as one
+        # arch logs only to journald; this unit writes the auth journal as a syslog file
         (unit-file ossec-journal.service)
         (unit-enable ossec-server.target)
         (unit-enable ossec-journal.service)
@@ -22,8 +21,7 @@ export def system [cfg: record] {
     ]
 }
 
-# ossec merges a second <ossec_config> root naming the journal file; from the marker on is ours, the shipped
-# localfiles above it go (each one a 'Could not open file' at every logcollector start)
+# the shipped localfiles name syslog files arch never writes, each a 'Could not open file' at every start
 export def localfiles []: nothing -> nothing {
     # UMask covers only a file systemd creates: one left from before it keeps its old mode until the next boot
     if ($JOURNAL_LOG | path exists) { ^chmod 600 $JOURNAL_LOG }

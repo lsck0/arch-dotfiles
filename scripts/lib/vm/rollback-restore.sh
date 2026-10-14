@@ -1,5 +1,4 @@
 # shellcheck shell=bash
-# runs on the test vm's guest as root, fetched by dot test (scripts/lib/vm.nu); @KEY@ placeholders are filled in there
 kver=$(uname -r)
 say kver_bumped "$kver"
 say esp_kver "$(file -bL /boot/vmlinuz-@PKGBASE@ | grep -oP 'version \K\S+')"

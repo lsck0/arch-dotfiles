@@ -3,8 +3,7 @@ Description=Auto ProtonVPN on untrusted networks
 
 [Service]
 ExecStart=%h/.local/bin/auto-vpn
-# no NetworkManager ordering: a user unit cannot wait on a system one; nmcli monitor waits for NM, and should it end
-# anyway, it comes back
+# no NetworkManager ordering: a user unit cannot wait on a system one
 Restart=always
 RestartSec=5
 

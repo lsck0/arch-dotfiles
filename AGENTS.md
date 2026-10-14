@@ -28,10 +28,9 @@ personas and workflows.
 
 - `dot test lint`: static checks (module refs, layer rules, `~/sync` writes) plus every `configs/**/*.test.sh`;
   about 12 s, no root. `dot test run` is the multi-hour VM test.
-- `configs/base/apparmor/apparmor.test.sh`: profiles.conf policy and a compile of every own profile and `local/`
+- `configs/base/apparmor/apparmor.test.nu`: profiles.conf policy and a compile of every own profile and `local/`
   drop-in; the "Failed to create cache" warnings are expected without root.
-- `dot gen`: regenerates `docs/generated.md` (platforms, modules, dependency graph, units, toggles) and
-  `mirror/packages.txt`; `dot test lint` fails when either drifts.
+- `dot gen`: regenerates `mirror/packages.txt`; `dot test lint` fails when it drifts.
 - `dot update`: pull, snapshot, migrate, install, apply; the one command a person runs. `dot --help` lists the rest.
 - `dot plan [mod...] [--system] [--sandbox]`: what an apply would do (actions per module, drift, pending migrations,
   undeclared packages); `--sandbox` adds the write set of a real run under bubblewrap. Touches nothing.
@@ -40,8 +39,8 @@ personas and workflows.
 - `dot unlink <mod>` / `dot remove <mod>`, `dot options [mod] [--json]`, `dot set|unset <mod>.<key>`, `dot watch`,
   `dot diff`, `dot adopt <file>`, `dot explain <path|package>`, `dot status`, `dot log [--trace]`, `dot gen`.
 - Agents never reach root: run `dot` with `DOT_SYSTEM=skip` (or `--no-system`); a system part is then recorded as
-  pending (exit 3). A sudo or pkexec prompt goes through pam_u2f first, so its "Password" box wants the YubiKey PIN
-  and a touch on Luca's screen.
+  pending (exit 3). A sudo or pkexec prompt goes through pam_u2f first: a YubiKey touch (or an enrolled finger) on
+  Luca's side, the password as the fallback.
 - `dot sync`: backs up live app state, makes the signed `Generation: <n>` commit and pushes. The user's
   only commit path; agents never commit, push or run it.
 

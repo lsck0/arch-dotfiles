@@ -26,7 +26,7 @@ Text {
   property int size: Style.font.caption
   property bool block: false
 
-  // half period of a terminal cursor, the hard step reads as a cursor where a fade reads as a pulse
+  // a terminal cursor's half period; a hard step reads as a cursor, a fade as a pulse
   readonly property int blinkMs: 530
   // a title caret only marks the surface as fresh
   readonly property int titleBlinkMs: 10000

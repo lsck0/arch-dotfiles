@@ -1,8 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# obsidian with restricted mode off, so the vault's community plugins load, the local rest api among them (claude's
-# obsidian-mcp, mod.nu). obsidian keeps that switch in its own localstorage, not in the vault, so no file can seed it:
-# the running app's cli lifts it. a cli call with no app running starts one in the foreground instead, so it waits for
-# the app first; already off, it only asks
+# restricted mode lives in obsidian's localstorage, not the vault, so the running app's cli lifts it; a cli call with
+# no app running starts one in the foreground instead, so it waits for the app first
 
 const OBSIDIAN = "/usr/bin/obsidian"
 const WAIT_TRIES = 60

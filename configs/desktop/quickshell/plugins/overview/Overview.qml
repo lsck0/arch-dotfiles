@@ -13,10 +13,9 @@ Item {
 
   property bool opened: false
 
-  // tiles per row and the widest tile, the card shrinks below that to fit the output
+  // the card shrinks below these to fit the output
   readonly property int maxColumns: 4
   readonly property int maxTileWidth: Style.space(360)
-  // share of the output the card may take
   readonly property real screenShare: 0.9
 
   function workspacesOn(monitorName) {
@@ -30,7 +29,7 @@ Item {
     return out
   }
 
-  // mod+tab/shift+tab and mod+return while open (hyprland_keybindings.lua's overview submap), for the focused output's card
+  // from the overview submap in hyprland_keybindings.lua
   signal cycled(int delta)
   signal committed()
 
@@ -53,8 +52,7 @@ Item {
     else root.open()
   }
 
-  // release the overlay first: when its exclusive keyboard focus goes, hyprland hands focus back to the window that had
-  // it, and a switch made before that was undone by the refocus dragging the view back to that window's workspace
+  // release the overlay first: its focus release refocuses the old window, which dragged an earlier switch back
   property string pendingWorkspace: ""
 
   function focusAndClose(id) {
@@ -93,20 +91,18 @@ Item {
 
       readonly property string monitorName: String(modelData.name)
       readonly property var hyprMonitor: Hyprland.monitorFor(modelData)
-      // only the focused output's card takes keys; the others are pointer-only
       readonly property bool focusedOutput: Hyprland.focusedMonitor !== null && String(Hyprland.focusedMonitor.name) === monitorName
 
       // live while open, frozen while the card closes so the grid does not collapse mid-exit
       property var workspaces: []
       Binding { target: panel; property: "workspaces"; value: root.workspacesOn(panel.monitorName); when: root.opened; restoreMode: Binding.RestoreNone }
       property int selectedIndex: 0
-      // the cursor in screen space at the last hover event; tiles appear and animate under a resting cursor, which
-      // fires hover events without the mouse moving, so only a change here counts as pointing at a tile
+      // tiles animating under a resting cursor fire hover events, so only a change here counts as pointing
       property point lastPointer: Qt.point(NaN, NaN)
 
       readonly property int columns: Math.min(root.maxColumns, Math.max(1, workspaces.length))
       readonly property int rowCount: Math.ceil(Math.max(1, workspaces.length) / columns)
-      // logical output size, the space hyprland window geometry lives in
+      // the logical space hyprland window geometry lives in
       readonly property real outW: Math.max(1, modelData.width)
       readonly property real outH: Math.max(1, modelData.height)
       readonly property real tileWidth: Math.max(Style.space(120), Math.min(root.maxTileWidth,
@@ -218,7 +214,6 @@ Item {
                 y: (at[1] - panel.modelData.y) * tile.k
                 width: Math.max(1, size[0] * tile.k)
                 height: Math.max(1, size[1] * tile.k)
-                // floating and fullscreen windows sit above the tiled layer, as on screen
                 z: ipc.fullscreen ? 2 : ipc.floating ? 1 : 0
 
                 Rectangle {
@@ -264,7 +259,6 @@ Item {
               font.pixelSize: Style.font.body
             }
 
-            // dims the rest so the selected tile reads first
             Rectangle {
               anchors.fill: parent
               z: 3
@@ -300,8 +294,7 @@ Item {
               z: 6
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              // real pointer motion only, else the tile under a resting cursor stole the keyboard's selection and
-              // return went there
+              // real motion only, else a tile under a resting cursor stole the keyboard's selection
               onPositionChanged: function(mouse) {
                 var p = mapToGlobal(mouse.x, mouse.y)
                 var moved = !isNaN(panel.lastPointer.x)

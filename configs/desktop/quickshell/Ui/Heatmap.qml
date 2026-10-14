@@ -19,7 +19,6 @@ Item {
   onWidthChanged: cv.requestPaint()
   onHeightChanged: cv.requestPaint()
 
-  // low values fade in as accent, high ones walk the severity ramp
   readonly property real fadeEnd: 0.5
   readonly property real alphaFloor: 0.05
   function colorFor(t) {

@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 
-// tlp power-mode chips, toggle-powermode.nu owns the state
 Item {
   id: root
 

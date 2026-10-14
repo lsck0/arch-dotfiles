@@ -99,7 +99,7 @@ export def display-xwayland-scale [form_factor: string]: nothing -> int {
 
 const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
 
-# the gpus best first (most vram, then the one the firmware booted on), from sysfs alone
+# best first: most vram, then the one the firmware booted on
 export def gpu-list []: nothing -> table {
     glob /sys/class/drm/card[0-9]* | where ($it | path basename) =~ '^card\d+$' | each {|card|
         let dev = $card | path join device

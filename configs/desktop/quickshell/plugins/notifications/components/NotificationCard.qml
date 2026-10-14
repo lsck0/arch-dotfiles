@@ -13,13 +13,12 @@ BorderSurface {
   property string summary: ""
   property string body: ""
   property string image: ""
-  // nerd font glyph shown when no icon is set
   property string glyph: ""
-  // low=0, normal=1, critical=2
+  // 0 low, 1 normal, 2 critical
   property int urgency: 1
   property double timestamp: 0
 
-  // "toast" or "row" (panel list entry)
+  // "toast" or "row"
   property string variant: "toast"
   readonly property bool isRow: variant === "row"
 
@@ -27,15 +26,15 @@ BorderSurface {
 
   property double now: 0
 
-  // [{ id, text }] from the live notification, drawn as [ ACTION ] chips (toasts only)
+  // [{ id, text }], toasts only
   property var actions: []
-  // consecutive toasts of this app folded under this one, shown as "app x3"
+  // consecutive toasts of this app folded under this one
   property int groupCount: 1
-  // expiry gauge: segments left of gaugeSegments, 0 hides it (sticky toasts)
+  // 0 hides the gauge (sticky toasts)
   property int segmentsLeft: 0
   readonly property int gaugeSegments: 4
 
-  // "now" under a minute, the time today, else the date too; seconds timestamps are scaled up
+  // seconds timestamps are scaled up to ms
   function formatTime(ts, ref) {
     if (!ts) return ""
     var when = new Date(ts * (ts < 1e12 ? 1000 : 1))
@@ -52,7 +51,6 @@ BorderSurface {
   signal closeRequested()
   signal cardClicked()
   signal actionInvoked(string identifier)
-  // prefer notification image over app icon
   readonly property string smallIconSource: image.length > 0 ? image : Util.iconSource(appIcon)
   readonly property bool hasGlyph: glyph.length > 0
   readonly property bool compactGlyph: hasGlyph && smallIconSource.length === 0 && singleLineToast
@@ -64,12 +62,10 @@ BorderSurface {
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
   readonly property color bodyColor: Qt.darker(Colors.notifications.text, 1.15)
-  // toasts draw their chamfered outline with DockShape, rows a left accent bar
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
 
   implicitWidth: root.isRow ? Style.panelWidth.normal : Style.space(420)
-  // border insets keep content off the bottom edge
   implicitHeight: mainColumn.implicitHeight + edge * 2
   radius: Style.shape.data
   color: isRow && hovered ? Style.hoverFill : "transparent"
@@ -86,7 +82,6 @@ BorderSurface {
     strokeColor: root.strokeColor
   }
 
-  // critical row accent
   Rectangle {
     visible: root.isRow && root.urgency === 2
     anchors.left: parent.left
@@ -248,7 +243,7 @@ BorderSurface {
       }
     }
 
-    // expiry gauge, stepped by the toast's expiry timer, never animated per frame
+    // stepped by the expiry timer, never animated per frame
     Item {
       id: gauge
       Layout.fillWidth: true

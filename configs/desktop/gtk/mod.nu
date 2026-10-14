@@ -8,10 +8,9 @@ const INTERFACE = "org.gnome.desktop.interface"
 export def link [cfg: record] {
     let config = $nu.home-dir | path join .config
     [
-        # a link: toggle-font rewrites the repo file; an overlay on the oomox theme that palette regen never writes
+        # a link: toggle-font rewrites the repo file
         (file-link gtk.css ($config | path join gtk-3.0 gtk.css))
-        # libadwaita ignores gtk-theme-name, so its gtk.css is the oodwaita export themix rewrites on every switch;
-        # dangling before the first switch, libadwaita falls back until it exists
+        # libadwaita ignores gtk-theme-name, so its gtk.css is the oodwaita export; dangling until the first switch
         (file-link ($nu.home-dir | path join .themes $GTK_THEME gtk-4.0 gtk.css) ($config | path join gtk-4.0 gtk.css))
     ]
 }
@@ -23,7 +22,6 @@ def font-get []: nothing -> any {
     if ($family | is-empty) or $size !~ '^[0-9]+$' { null } else { $"($family) ($size)" }
 }
 
-# gtk follows the oomox export and the palette's light or dark scheme, through gsettings and settings.ini
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     if $p == null { return [] }

@@ -4,30 +4,25 @@ import Quickshell.Io
 import Quickshell.Wayland
 pragma Singleton
 
-// whether obs runs, shared by the bar's obs widget and the notification service's auto dnd.
-// the obs widget also owns the obs-websocket helper and publishes the slice the audio mixer
-// needs here: connection state, per-input volume and mute, and a channel back for its commands.
+// the obs widget owns the websocket helper and mirrors its state here for the audio mixer
 Singleton {
     id: root
 
     property bool running: false
-    // set by the obs widget from the helper stream
     property bool connected: false
-    // panel label (Mic/Media/Voice/Game) -> obs input volume multiplier, 0..1
+    // panel label (Mic/Media/Voice/Game) -> 0..1 multiplier
     property var inputVolumes: ({
     })
-    // panel label -> obs input muted
     property var inputMutes: ({
     })
 
-    // the audio mixer sends obs commands through here; the obs widget writes them to the helper
+    // the obs widget forwards these to the helper
     signal commandRequested(var command)
 
     function send(command) {
         root.commandRequested(command);
     }
 
-    // toplevel changes catch launch and window close; the slow poll catches a quit from the tray
     function probe() {
         if (!proc.running)
             proc.running = true;
@@ -55,7 +50,7 @@ Singleton {
         target: ToplevelManager.toplevels
     }
 
-    // only while obs runs, to catch a tray quit that closes no window; a launch is caught by the toplevel event
+    // a tray quit closes no window, so poll while obs runs
     Timer {
         interval: 60000
         running: root.running

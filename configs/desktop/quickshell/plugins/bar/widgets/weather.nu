@@ -297,7 +297,6 @@ def radar-get []: nothing -> record {
     let lat = $location.lat | into float
     let lon = $location.lon | into float
 
-    # dwd inside germany, rainviewer elsewhere
     let in_dwd = ($lat >= $DWD_LAT_RANGE.0 and $lat <= $DWD_LAT_RANGE.1
         and $lon >= $DWD_LON_RANGE.0 and $lon <= $DWD_LON_RANGE.1)
     let plan = if $in_dwd { radar-plan-dwd $lat $lon } else { radar-plan-rainviewer $lat $lon }

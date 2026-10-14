@@ -43,7 +43,7 @@ Item {
   property string calcResult: ""
   // "", "loading", "error", "missing"
   property string calcState: ""
-  // qalc exits 127 through the wrapper when it is not installed
+  // the wrapper's exit when qalc is missing
   readonly property int exitNotFound: 127
   // a stuck qalc (currency update, huge factorial) must not hold the row on `--`
   readonly property int calcTimeoutS: 5
@@ -139,7 +139,6 @@ Item {
     root.rebuild()
   }
 
-  // clamps, so an empty list keeps index 0 instead of -1
   function selectAt(index) {
     root.selectedIndex = Math.max(0, Math.min(index, root.rows.length - 1))
     resultList.positionViewAtIndex(root.selectedIndex, ListView.Contain)
@@ -339,7 +338,7 @@ Item {
 
             Text {
               width: parent.width
-              // matched chars light up; markup is escaped by AppSearch.highlight
+              // AppSearch.highlight escapes the markup
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
                 ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2))

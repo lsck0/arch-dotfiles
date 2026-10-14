@@ -26,7 +26,6 @@ local function media_key(action)
     return hl.dsp.exec_cmd(shell_bin("media-key") .. " " .. action)
 end
 
--- display CTM brightness, the software dimmer below the monitor's own backlight
 local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
 
 -- obs hotkeys only fire while obs is focused on wayland; obs-status.nu exits after stdin eof, timeout covers obs closed
@@ -39,7 +38,6 @@ local function obs_command(cmd)
     )
 end
 
--- every bind carries a description: hyprctl binds lists it and dot gen builds docs/generated.md#keybinds from it
 hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "power menu" })
 hl.bind(
     mod .. " + SHIFT + s",
@@ -77,8 +75,7 @@ hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"), { description
 hl.bind(mod .. " + F9", obs_command("saveReplay"), { description = "obs: save the replay buffer" })
 hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"), { description = "obs: start or stop the replay buffer" })
 hl.bind(mod .. " + Tab", quickshell_call("overview", "open"), { description = "overview of workspaces and windows" })
--- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window; kitty, themed to
--- parity, when that service is broken or hangs, and on its own key
+-- d-bus into the resident ghostty skips the ~180ms cli start of +new-window; kitty when that service hangs
 hl.bind(
     mod .. " + Return",
     hl.dsp.exec_cmd(
@@ -108,7 +105,6 @@ hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"), { descript
 hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"), { description = "mute or unmute discord" })
 hl.bind(mod .. " + e", app("dolphin"), { description = "file manager (dolphin)" })
 hl.bind(mod .. " + n", app("neovide"), { description = "editor (neovide)" })
--- the desktop notes card's file in a floating terminal editor: a longer edit, or when a window covers the card
 hl.bind(
     mod .. " + SHIFT + n",
     app(
@@ -117,7 +113,6 @@ hl.bind(
     ),
     { description = "notes pad in a floating editor" }
 )
--- taskwarrior and the same notes pad in one keyboard overlay
 hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
 hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
 hl.bind(
@@ -131,9 +126,6 @@ hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "w
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 -- boomer.nu stops hyprland warping the cursor to monitor 0
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
--- focused-monitor-only backup; the monitor-0 window rule misplaces it
--- hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(
---     "grim -t ppm -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""))
 
 hl.bind(mod .. " + Q", hl.dsp.window.close(), { description = "close the window" })
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }), { description = "float or tile the window" })
@@ -286,9 +278,7 @@ hl.define_submap("resize", function()
     hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 
--- the overview enters this while open and resets it on close. hyprland's binds win over the overlay's keyboard focus,
--- so with mod still held a second mod+tab would toggle it shut and mod+return open a terminal: here they cycle and go
--- like alt-tab. keys bound nowhere here still reach the overlay (arrows, digits, a bare return)
+-- hyprland binds beat the overlay's focus: with mod held, mod+tab and mod+return cycle and go instead of closing it
 hl.define_submap("overview", function()
     hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next window" })
     hl.bind(
@@ -297,7 +287,7 @@ hl.define_submap("overview", function()
         { repeating = true, description = "previous window" }
     )
     hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected window" })
-    -- also the way out should quickshell be gone, so the submap never traps the session
+    -- the way out even with quickshell gone, so the submap never traps the session
     hl.bind(
         "Escape",
         hl.dsp.exec_cmd(

@@ -23,7 +23,6 @@ def extract [archive: path, into: path]: nothing -> nothing {
     if (^file -b --mime-type $archive | str trim) == "application/zip" { ^unzip -q $archive -d $into } else { ^tar -xf $archive -C $into }
 }
 
-# a large download resumes where it stopped (curl -C -); the cache keeps it by its hash for the next machine state
 export def fetch-file-run [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
@@ -55,7 +54,6 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     $sha256 | save --force (stamp $dest)
 }
 
-# <dir> checked out at exactly <commit>, submodules at its gitlinks
 export def fetch-git-run [url: string, commit: string, dir: path]: nothing -> nothing {
     if (fetch-git-done $commit $dir) { return }
     ^git init -q $dir

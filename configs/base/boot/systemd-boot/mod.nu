@@ -9,18 +9,16 @@ export const meta = {
 const UKI_DIR = "/boot/EFI/Linux"
 const PRESETS = "/etc/mkinitcpio.d"
 
-# the ukis this sets up are rebuilt and signed at the system layer's boot barrier (boot.nu boot-commit)
+# the ukis are rebuilt and signed at the boot barrier (boot.nu boot-commit)
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" or not (esp-supported) { return [] }
     [
         (step install)
-        # a systemd upgrade replaces only the package's loader; this copies sbctl's re-signed .signed onto the esp at
-        # the next boot, where a pacman hook running bootctl update would race sbctl's for the last place in hook order
+        # not a pacman hook: bootctl update would race sbctl's re-sign hook for the last place in hook order
         (unit-enable systemd-boot-update.service)
     ]
 }
 
-# each kernel preset builds one uki with its cmdline embedded from CMDLINE alone; bootstrap.sh writes the same preset
 export def install []: nothing -> nothing {
     cmdline-set
     let words = open --raw $CMDLINE | str trim | split row " "
@@ -39,7 +37,7 @@ export def install []: nothing -> nothing {
         let backup = $"($preset).arch-dotfiles-backup"
         if not ($backup | path exists) { ^install -m644 $preset $backup }
         $want | save --force $preset
-        # a kernel installed during the stage chain built a plain image with the stage keyfile in it; nothing boots it
+        # a kernel installed during the stage chain built a plain image with the stage keyfile in it
         rm --force $"($ESP)/initramfs-($pkgbase).img" $"($ESP)/initramfs-($pkgbase)-fallback.img"
     }
     if (^bootctl $"--esp-path=($ESP)" is-installed | complete).exit_code != 0 { ^bootctl $"--esp-path=($ESP)" install }

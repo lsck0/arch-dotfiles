@@ -2,9 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [audacity]}}
 
-# audacity-mcp-server (github.com/xDarkzx/Audacity-MCP): stdio over audacity's own mod-script-pipe fifos, no listener,
-# no telemetry. young, so pinned, and its floating deps frozen at a date; bump both together. the transcription tools
-# fetch a whisper model from hugging face only when called
+# young, so pinned, and its floating deps frozen at a date; bump both together
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
 const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
@@ -14,8 +12,7 @@ export def link [cfg: record] {
     let pkg = $"audacity-mcp-server==($MCP_VERSION)"
     let built = ls $SCRIPT_PIPE | get 0.modified | format date "%Y-%m-%dT%H:%M:%S"
     [
-        # what the modules preferences write to enable it: the path and the .so's mtime, so an upgrade re-enables it
-        # here. audacity rewrites the file on exit, a running one drops this until the next apply
+        # the path and the .so's mtime, so an upgrade re-enables it; audacity rewrites the file on exit
         (ini-merge ($nu.home-dir | path join .config audacity audacity.cfg) {
             Module: {mod-script-pipe: 1}
             ModulePath: {mod-script-pipe: $SCRIPT_PIPE}
@@ -27,8 +24,7 @@ export def link [cfg: record] {
                 env: {HF_HUB_DISABLE_TELEMETRY: "1"}
             })
         ])
-        # into uv's cache now (faster-whisper makes it large), so claude's first start is not a download racing its
-        # startup timeout
+        # cached now, so claude's first start is not a large download racing its startup timeout
         (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
     ]
 }

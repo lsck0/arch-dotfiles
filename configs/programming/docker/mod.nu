@@ -13,8 +13,7 @@ export def system [cfg: record] {
     ]
 }
 
-# claude's docker mcp talks to /var/run/docker.sock, so only for a docker group member; membership is root without a
-# password, never granted here (`sudo gpasswd -a $USER docker` opts in). id reads the group database, not this session
+# docker group membership is root without a password, never granted here; id reads the group db, not this session
 export def link [cfg: record] {
     let member = "docker" in (^id -nG $env.USER | str trim | split row " ")
     json-merge ($nu.home-dir | path join .claude.json) [

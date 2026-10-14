@@ -1,9 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# gamemode and MangoHud engage per game through its launch option in steam's localconfig.vdf, so installed games
-# without one get `gamemoderun mangohud %command%`: steam-launch.nu cannot preload them into the client (it breaks the
-# webhelper websocket) and the global MANGOHUD=1 is vulkan-only. a game whose option the user set is never touched.
-# steam rewrites localconfig.vdf from memory when it exits, so this refuses while steam is open; the file is backed up
-# before the first write
+# fills an absent launch option with gamemoderun mangohud: preloading into the client breaks the webhelper websocket,
+# MANGOHUD=1 is vulkan-only
 
 const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
 const APPS_PATH = [UserLocalConfigStore Software Valve Steam apps]
@@ -41,7 +38,6 @@ def vdf-parse []: string -> list {
     (vdf-object ($text | parse --regex $TOKEN) 0).pairs
 }
 
-# vdf's pretty dump: tab indented, braces on their own lines
 def vdf-dump [pairs: list, level: int = 0]: nothing -> string {
     let indent = "" | fill --character "\t" --width $level
     $pairs | each {|p|
@@ -67,7 +63,6 @@ def vdf-update [pairs: list, path: list<string>, change: closure]: nothing -> li
     }
 }
 
-# appids with a manifest on disk, across every library folder
 def appids-installed []: nothing -> list<string> {
     let folders = steam-root | path join steamapps libraryfolders.vdf
     let libraries = try {

@@ -7,7 +7,7 @@
         TeX-parse-self t
         TeX-source-correlate-start-server t
         TeX-view-program-selection '((output-pdf "Sioyek"))
-        ;; the builtin entry adds --inverse-search emacsclient, which overrides prefs_user.config's synctex-edit
+        ;; the builtin entry's --inverse-search overrides prefs_user.config's synctex-edit
         TeX-view-program-list '(("Sioyek" ("sioyek --nofocus %o" (mode-io-correlate " --forward-search-file \"%b\" --forward-search-line %n"))
                                  "sioyek"))
         TeX-clean-confirm nil))
@@ -26,8 +26,6 @@
   :config (setq reftex-plug-into-AUCTeX t))
 
 (add-hook 'LaTeX-mode-hook (lambda () (setq indent-tabs-mode t)))
-
-;;;; math autosnippets (latex_snippets.lua, snippetType = "autosnippet") ---------
 
 (defconst my/latex-auto-snippets
   '(("//"  "\\frac{" p "}{" p "}")
@@ -59,8 +57,6 @@
   (add-hook 'post-self-insert-hook #'my/latex-auto-expand nil t))
 (add-hook 'LaTeX-mode-hook #'my/latex-auto-snippets-enable)
 
-;;;; math preview (nabla.nvim) --------------------------------------------------
-
 (defun my/math-preview ()
   "nvim SPC l p: render the formula at point."
   (interactive)
@@ -68,9 +64,6 @@
       (preview-at-point)
     (user-error "Math preview needs a LaTeX buffer")))
 
-;;;; keys -----------------------------------------------------------------------
-
-;; vimtex localleader maps
 (defun my/latex-keys ()
   (evil-define-key 'normal 'local
     "\\ll" #'TeX-command-master

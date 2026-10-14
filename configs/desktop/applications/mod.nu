@@ -1,7 +1,6 @@
 use module.nu *
 
-# launcher entries for what ships none: every gui app and every TUI (Terminal=true, opened by xdg-terminal-exec in a
-# ghostty window, see desktop/ghostty); TryExec drops an entry whose app this machine lacks
+# TryExec drops an entry whose app this machine lacks
 export const meta = {
     packages: {
         pacman: [
@@ -18,8 +17,7 @@ export const meta = {
 # packaged entries hidden from a real app: NoDisplay, or OnlyShowIn=KDE on hyprland (quickshell's hidden-entries.nu)
 const SHOWN = [org.kde.knetattach org.kde.bluedevilwizard org.kde.plasma.printqueue]
 const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
-# entries that open nothing: appimagetool is a CLI that wants an AppDir, byobu.desktop runs the missing gnome-terminal
-# (byobu_old.desktop is the working byobu)
+# appimagetool is a CLI that wants an AppDir, byobu.desktop runs the missing gnome-terminal
 const HIDDEN = [appimagetool byobu]
 
 def line-drop [pattern: string]: string -> string {

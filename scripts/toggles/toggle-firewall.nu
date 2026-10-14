@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# default (fw-inbound + portmaster), restrictive (fw-lockdown + portmaster), off (neither). boot and every network down
-# rest in restrictive, a home up lifts that to default; a state picked here survives home. read back from the units, so
-# the dispatcher, config.sh or a failed unit shows as it is
+# boot and network-down rest in restrictive, home lifts it to default; read back from the units, never stored
 use lib.nu [notify root-run systemctl-guarded unit-active cycle-next]
 
 const STATES = {default: Default, restrictive: Restrictive, off: Off}

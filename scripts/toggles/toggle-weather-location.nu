@@ -20,8 +20,7 @@ def coords-format [lat: float, lon: float]: nothing -> string {
     $"($lat | into string --decimals $COORD_DECIMALS),($lon | into string --decimals $COORD_DECIMALS)"
 }
 
-# the agent lives only for this lookup instead of autostarting for the session (configs/base/xdg/hidden-autostart.list);
-# without one the demo blocks and returns nothing, hence the hard timeout
+# started per lookup, not autostarted (configs/base/xdg/hidden-autostart.list); without an agent the demo blocks
 def geoclue-coords []: nothing -> any {
     if not ($GEOCLUE_DEMO | path exists) or not ($GEOCLUE_AGENT | path exists) { return null }
     let agent = job spawn { ^$GEOCLUE_AGENT o+e> /dev/null }

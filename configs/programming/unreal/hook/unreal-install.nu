@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the engine from the newest ~/sync/vendor zip (Epic-login-gated, synced from where it was downloaded), into the home
-# like jai: part of the dotfiles, so never asked and never root. no-op unless the zip is new; mod.nu reruns it for later
-# versions
+# the engine from the newest ~/sync/vendor zip into the home, never root; a no-op unless the zip is new
 
 const PLUGINS_INSTALL = path self | path expand | path dirname --num-levels 2 | path join unreal-install-plugins.nu
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
@@ -59,14 +57,11 @@ def "main locked" []: nothing -> nothing {
         desktop-write $version
         return
     }
-    # unpacked next to the engine, not in /tmp: ~60 GB, and /tmp is tmpfs; the old engine only goes once the new one
-    # is whole
+    # next to the engine, not in /tmp: ~60 GB and /tmp is tmpfs; the old engine goes only once the new one is whole
     let staging = $"($engine).new"
     rm --recursive --force $staging
     mkdir $staging
-    # one file under a Private dir first: unzip only fails at the end, after minutes and tens of GB, and the path unit
-    # retriggers it, so a confinement that refuses the tree (deny-sensitive-home denies every Private dir) fails here in
-    # seconds instead
+    # unzip fails only after tens of GB, and apparmor's deny-sensitive-home refuses every Private dir: probe one first
     let canary = ^zipinfo -1 $zip | lines | where $it =~ $CANARY | get --optional 0
     if $canary != null {
         if (^unzip -q $zip $canary -d $staging | complete).exit_code != 0 {
@@ -88,8 +83,6 @@ def "main locked" []: nothing -> nothing {
         fail $"no ($EDITOR) in ($name)"
     }
     $"($name)\n" | save --force ($root | path join .installed-from)
-    # an engine dir without the stamp is not one this hook installed: kept aside (a rename, same filesystem), never
-    # deleted
     if ($engine | path exists) and not $installed {
         mv $engine $"($engine).pre-dotfiles-(date now | format date '%Y%m%d%H%M%S')"
         print -e $"unreal: kept the existing ($engine) aside"
@@ -98,7 +91,6 @@ def "main locked" []: nothing -> nothing {
     mv $root $engine
     rm --recursive --force $staging
     desktop-write $version
-    # bridge and fab from ~/sync/vendor go into the engine, which is the user's own now
     try { ^$PLUGINS_INSTALL } catch { print -e "unreal: plugins not installed, rerun unreal-install-plugins" }
     ^notify-send -a Unreal "Unreal Engine" $"Installed ($version)" | complete | ignore
 }

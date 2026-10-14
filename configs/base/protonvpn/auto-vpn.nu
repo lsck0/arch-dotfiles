@@ -1,19 +1,16 @@
 #!/usr/bin/env -S nu --no-config-file
-# connect protonvpn on an untrusted network, disconnect once on arriving home; watches NM for changes. home is every
-# connected wifi/ethernet device listed in /run/home-network (70-home-network). only the vpn half: before login and until
-# proton0 is up the system layer keeps the link closed and on tor (fw-egress, the persona dispatcher), so a connect is
-# tried at once, through tor, with no connectivity check, and retried with backoff
+# no connectivity check before a connect: until proton0 is up the system layer keeps the link on tor
 
 const TOGGLE = path self | path expand | path dirname | path join .. .. .. scripts toggles toggle-protonvpn.nu
     | path expand
 const HOME_NETWORK = "/run/home-network"
 const LINK_TYPES = [ethernet wifi gsm bt]
 const MOBILE_TYPES = [gsm bt]
-# 70-home-network decides a new link in parallel with nmcli monitor's line (up to 1 s of arping); wait it out
+# 70-home-network decides a new link in parallel with nmcli monitor (up to 1 s of arping)
 const HOME_WAIT = 3sec
 const RETRY_FIRST = 15sec
 const RETRY_MAX = 5min
-# then it waits for the next network change: tor keeps carrying, and each failure was already notified by the toggle
+# then it waits for the next network change; tor keeps carrying
 const RETRY_ATTEMPTS = 6
 const MONITOR_END = "eof"
 
@@ -21,8 +18,7 @@ def vpn-on []: nothing -> bool {
     (do { ^$TOGGLE get } | complete | get stdout | str trim) == "on"
 }
 
-# last: the active connection paths (new on every activation, so another interface, network or reconnect is a change)
-# or home; retry_at: when the next connect is due, null while none is pending
+# last: the active connection paths (new on every activation) or home
 def decide [state: record]: nothing -> record {
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
     let links = do { ^nmcli -t -f TYPE,STATE,CON-PATH,DEVICE device } | complete | get stdout | lines
@@ -49,7 +45,7 @@ def decide [state: record]: nothing -> record {
     $state | merge {attempts: $attempts, retry_at: (if $attempts < $RETRY_ATTEMPTS { (date now) + $delay })}
 }
 
-# a message is an NM event, a timeout the pending retry; nmcli's end ends this, and the unit restarts it
+# nmcli's end ends this, the unit restarts it
 def main []: nothing -> nothing {
     job spawn {
         for line in (^nmcli monitor err> /dev/null | lines) { $line | job send 0 }
@@ -59,7 +55,6 @@ def main []: nothing -> nothing {
     loop {
         let message = if $state.retry_at == null { job recv } else {
             let wait = [($state.retry_at - (date now)) 1sec] | math max
-            # the timeout is the retry coming due
             try { job recv --timeout $wait } catch { null }
         }
         if $message == $MONITOR_END { return }

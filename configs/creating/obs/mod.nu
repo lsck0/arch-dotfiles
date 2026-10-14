@@ -159,8 +159,7 @@ def scene-render [cfg: record, src: path, --machine]: nothing -> string {
     $"($miked | to json --indent 2)\n"
 }
 
-# obs saves its collection by renaming it to .bak and writing a new one, so a copy, never a link. a live copy that is
-# the repo's but for this box's portal token is kept as it is, the token spares the screen-share dialog
+# obs saves by renaming to .bak and writing anew, so a copy; one differing only in its portal token is kept
 def scene-file [dest: path, text: string, mode: string]: nothing -> record {
     let live = if ($dest | path exists) { open --raw $dest } else { "" }
     let same = $live != "" and (($live | from json | strip-token) == ($text | from json | strip-token))
@@ -204,7 +203,7 @@ export def link [cfg: record] {
         (do $scene ($basic | path join scenes Streaming.json) (scene-render $cfg $streaming) "600")
         | append (file-text ($basic | path join scenes .from-secrets) "")
     } else { [] }
-    # one screen capture, lane, game and mic audio, no overlays: no tokens, so in the repo
+    # no tokens, so in the repo
     let fullscreen = scene-render $cfg ($HERE | path join scenes Fullscreen.json) --machine
     let scenes = $secret_scene ++ (do $scene ($basic | path join scenes Fullscreen.json) $fullscreen "644")
     let profiles = glob ($HERE | path join profiles * *) | each {|src|
@@ -230,7 +229,6 @@ export def link [cfg: record] {
         } else { [] })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) $SELECTION --missing-only)
-        # the bar's obs widget and obs-mcp talk to obs over it
         (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
         # obs-mcp pinned by the committed lockfile and installed from it offline (npm ci), never npx at start
         (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
@@ -258,8 +256,7 @@ export def websocket-init [file: path]: nothing -> nothing {
     chmod 600 $file
 }
 
-# a collection back into the repo, unless the repo's copy changed since link installed it: obs has not loaded that
-# edit and would save its old state over it on exit. the Streaming one keeps its token, it goes to secrets
+# unless the repo's copy changed since link: obs has not loaded that edit and would save its old state over it
 def scene-back [cfg: record, live: path, repo: path, --machine]: nothing -> nothing {
     if not ($live | path exists) { return }
     let applied = applied-file $live
@@ -274,8 +271,7 @@ def scene-back [cfg: record, live: path, repo: path, --machine]: nothing -> noth
     }
 }
 
-# the live ini back into the repo: each placeholder line of the repo's copy stays the placeholder, a path under this
-# user's dirs becomes one again (the videos dir first, it lies under home)
+# placeholder lines stay placeholders, a path under this user's dirs becomes one again (videos first, it is under home)
 def profile-back [live: path, repo: path]: nothing -> nothing {
     let placeholders = ini-lines (open --raw $repo) | where value =~ '^@[A-Z_]+@$'
     let videos = videos-dir

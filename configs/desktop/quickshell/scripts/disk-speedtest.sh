@@ -8,7 +8,6 @@ worker_pids=()
 # the exit trap runs on a stop from the overlay too
 trap 'exit 143' TERM INT
 
-# "0.0", one decimal under 10, whole numbers above
 rate_format() {
     awk -v value="$1" 'BEGIN {
     if (value <= 0) print "0.0"
@@ -92,7 +91,6 @@ if ((available_mb < parallel * file_mb * 2)); then
     exit 1
 fi
 
-# walk dm-crypt/lvm and partitions up to the physical disk
 disk=$dev
 while
     # shellcheck disable=SC2012  # sysfs slave names are plain, the first entry walks one level down
@@ -176,7 +174,6 @@ run_phase() {
         exit 1
     fi
 
-    # final figure is the steady-state mean
     if ((samples > 1)); then
         rate=$(awk -v before="$baseline_sectors" -v after="$after" -v start="$baseline_time" -v end="$end_time" 'BEGIN {
       secs = end - start

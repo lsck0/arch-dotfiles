@@ -17,14 +17,12 @@ export def system [cfg: record] {
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft")
         (file-render fw-egress.nft $"($DIR)/fw-egress.nft" {TOR_UID: $tor_uid})
         ($UNITS | each { unit-file $in } | decls-flatten)
-        # lockdown is the resting state: boot and every network down return to it, a home up (persona dispatcher) or
-        # toggle-firewall.nu lifts it
+        # lockdown is the resting state until a home up or toggle-firewall.nu lifts it
         (unit-disable fw-inbound.service)
         (unit-enable fw-lockdown.service)
         # a vm guest leaves through its host, whose fw_egress forward chain already holds it
         (if $env.FORM_FACTOR? == "vm" { unit-disable fw-egress.service --now } else { unit-enable fw-egress.service })
-        # swaps the running one's table atomically, never starts one: that would drop a chosen state, and fw-egress off
-        # home would close this very run's network until the dispatcher brings tor up
+        # never a start: it would drop a chosen state, and fw-egress off home would cut this run's network
         (exec "reload firewall" [systemctl try-reload-or-restart ...$UNITS])
     ]
 }

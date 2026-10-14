@@ -1,7 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# every driverless printer (IPP Everywhere, AirPrint) cups finds over mdns gets a permanent queue, bound to its .local
-# service name so a new dhcp lease never breaks it; a printer that has a queue is left alone. root, from
-# configs/desktop/printing/mod.nu (its queues step) and printers-sync.service (a home connect, NM dispatcher 95-printers-sync)
+# a permanent queue per driverless printer cups finds over mdns, bound to its .local name so a new lease never breaks it
 
 # the dnssd backend browses this long; mdns answers come within a second or two
 const DISCOVERY_TIMEOUT_S = 10
@@ -32,12 +30,10 @@ def main []: nothing -> nothing {
             let key = if ($found.uuid | is-empty) { $found.instance } else { $found.uuid }
             if $key in $seen { continue }
             $seen = $seen | append $key
-            # a queue for this printer already exists, under whatever name and service
             if ($existing | str contains $key) { continue }
             let name = queue-name $found.instance
             if ($name | is-empty) { continue }
-            # permanent queues only: lpstat -p also answers for the temporary destination cups keeps for every printer
-            # it discovers, under this same name, so it would take the printer for another device and never queue it
+            # lpstat -p also answers for cups' temporary destination of the same name, so only a permanent queue counts
             if ($existing | str contains $"device for ($name): ") {
                 warn $"a queue named ($name) exists for another device, not adding ($uri)"
                 continue

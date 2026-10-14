@@ -5,15 +5,14 @@ Documentation=file:/var/lib/dotfiles/repo/configs/base/tablet/tablet-driver.py
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/tablet-driver
-# driver exits 0 when unplugged and udev restarts it on the next add; only genuine faults are worth retrying
+# exits 0 when unplugged; udev starts it again on the next add
 Restart=on-failure
 RestartSec=2
 TimeoutStartSec=30
 
-# holds calibration.json that --calibrate writes; must stay in step with CALIB_PATH in tablet-driver.py
+# must match CALIB_PATH in tablet-driver.py
 StateDirectory=tablet-driver
 
-# needs only hidraw (read the pad) and /dev/uinput (publish the pen)
 DeviceAllow=/dev/uinput rw
 DeviceAllow=char-hidraw rw
 ProtectSystem=strict

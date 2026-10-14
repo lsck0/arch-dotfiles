@@ -2,7 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// command channel into the QuickshellVoiceStatus betterdiscord plugin, shared by the bar widget and the ipc keybinds
+// channel into the QuickshellVoiceStatus betterdiscord plugin
 Singleton {
   id: root
 

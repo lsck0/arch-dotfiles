@@ -6,12 +6,8 @@ def data-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join capgemini chromium
 }
 
-# exceptions in this profile only, the managed policy (desktop/chromium) is every profile's. arc is zscaler private
-# access: its sign-in bounces through zpa-auth.net, zscaler and pingfederate with SameSite=None cookies, third-party
-# once the portal embeds an app or the isolation session; an exception also spares those bounce-only sites chromium's
-# bounce tracking cleanup. popups for the portal's app tabs, clipboard only for the isolation stream, durable storage
-# keeps microsoft 365's indexeddb out of eviction. restore_on_startup 1 carries session-only cookies (pingfederate's PF)
-# across restarts; the password manager saves into the login keyring (capgemini.nu), the managed policy still wins
+# arc's sign-in bounces through zpa-auth.net, zscaler and pingfederate with SameSite=None cookies, third-party once
+# embedded; restore_on_startup 1 carries pingfederate's session-only PF cookie across restarts
 def preferences-edits []: nothing -> list<record> {
     open site-settings.json | items {|kind, sites|
         $sites | each {|site| json-set [profile content_settings exceptions $kind $"($site),*"] {setting: 1} }

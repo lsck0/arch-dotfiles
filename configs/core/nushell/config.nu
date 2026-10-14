@@ -1,4 +1,3 @@
-# --------------------------------------------------------------------- config
 
 $env.config = {
     show_banner: false
@@ -73,7 +72,6 @@ $env.config = {
             }
         }
         {
-            # fzf file widget, mirrors zsh ctrl-t
             name: fzf_file
             modifier: control
             keycode: char_t
@@ -81,7 +79,6 @@ $env.config = {
             event: { send: executehostcommand cmd: "commandline edit --insert (fzf | str trim)" }
         }
         {
-            # fzf dir widget, mirrors zsh alt-c
             name: fzf_cd
             modifier: alt
             keycode: char_c
@@ -93,7 +90,6 @@ $env.config = {
 
 $env.config.buffer_editor = "nvim"
 
-# -------------------------------------------------------------------- aliases
 
 alias b = bat
 alias cat = bat
@@ -120,7 +116,6 @@ alias sshpc = sshk luca@192.168.178.138
 alias toroff = sudo systemctl stop tor-router.service
 alias toron = sudo systemctl start tor-router.service
 
-# ------------------------------------------------------------------ functions
 
 # no git config covers submodules on the initial clone
 def --wrapped git [...rest] {
@@ -131,8 +126,7 @@ def --wrapped git [...rest] {
     }
 }
 
-# sudo only for what changes the system: queries, searches, file lookups and -Sp stay unprivileged (no fido touch);
-# the same op letters as zsh's pacman function
+# sudo only for what changes the system, so queries need no fido touch; same op letters as zsh's pacman function
 def --wrapped pacman [...rest] {
     let long = {
         --query: Q --deptest: T --version: V --help: h --sync: S --files: F --search: s --info: i --groups: g
@@ -150,7 +144,6 @@ def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-# --------------------------------------------------------------- integrations
 
 # configs/core/nushell writes the init scripts, wallust the colours; a missing one is skipped (source null)
 const STARSHIP_INIT = $nu.home-dir | path join .cache nushell starship.nu

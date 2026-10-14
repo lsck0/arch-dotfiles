@@ -16,17 +16,17 @@
 (when (file-exists-p custom-file)
   (load custom-file nil t))
 
-;; keys.el last: it binds what the others define
-(dolist (m '("core"          ; editor defaults          (nvim options.lua)
-             "ui"            ; theme, top/bottom bar
-             "evil-setup"    ; vim emulation
-             "completion"    ; fuzzy finding + completion
-             "files-setup"   ; file browser
-             "git-setup"     ; magit, diff markers
-             "lang"          ; treesitter, LSP, formatting
-             "latex"         ; AUCTeX + reftex + sioyek
-             "tools"         ; terminal, compile, windows
-             "keys"))        ; all keybindings          (nvim mappings.lua)
+;; keys last: it binds what the others define
+(dolist (m '("core"
+             "ui"
+             "evil-setup"
+             "completion"
+             "files-setup"
+             "git-setup"
+             "lang"
+             "latex"
+             "tools"
+             "keys"))
   (load (expand-file-name m user-emacs-directory) nil t))
 
 (add-hook 'emacs-startup-hook

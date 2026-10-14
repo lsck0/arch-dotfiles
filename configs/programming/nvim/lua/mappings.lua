@@ -52,7 +52,6 @@ for key, dir in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
 end
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>", { desc = "Move window (WinShift)" })
 
--- quickfix and trouble wrap around at either end instead of stopping there
 local function quickfix_cycle(step, wrap)
     if vim.fn.getqflist({ size = 0 }).size == 0 then
         return vim.notify("quickfix list is empty")
@@ -106,7 +105,6 @@ vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
--- every checkout and worktree under the tms search dirs, not only the dirs this nvim has visited
 vim.keymap.set("n", "<leader>fp", function()
     require("lib.projects").pick()
 end, { desc = "Projects" })
@@ -227,7 +225,6 @@ vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "T
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })
 vim.keymap.set("n", "m", "<cmd>belowright Compile<CR>", { desc = "Compile (compile-mode)" })
 
--- run a shell command in a terminal split, ready for input
 local function term(cmd)
     vim.cmd("botright 20split | terminal " .. cmd)
     vim.cmd("startinsert")
@@ -242,10 +239,10 @@ vim.api.nvim_create_user_command("Perf", function(o)
         if collapser then
             term("perf script -i " .. esc .. " | " .. collapser .. " | flamelens")
         else
-            vim.fn.jobstart({ "hotspot", file }, { detach = true }) -- gui, reads perf.data natively
+            vim.fn.jobstart({ "hotspot", file }, { detach = true })
         end
     else
-        term("flamelens " .. esc) -- already-collapsed/folded stacks
+        term("flamelens " .. esc)
     end
 end, { nargs = "?", complete = "file", desc = "Explore perf dump (flamelens/hotspot)" })
 
@@ -267,6 +264,6 @@ end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> p
 vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
 vim.keymap.set("n", "<leader>pr", ":PerfRecord ", { desc = "perf record a command" })
 
--- cycle buffer tabs (barbar); note: shadows <C-i> jump on <Tab>
+-- shadows <C-i> jump on <Tab>
 vim.keymap.set("n", "<Tab>", "<cmd>BufferNext<CR>", { desc = "Next buffer" })
 vim.keymap.set("n", "<S-Tab>", "<cmd>BufferPrevious<CR>", { desc = "Prev buffer" })

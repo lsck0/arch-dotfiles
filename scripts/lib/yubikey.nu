@@ -1,5 +1,4 @@
-# the yubikey around secrets/: init (once per key, from unlocked secrets), seal (after editing recipients.txt), unlock
-# (by touch, or --identity with the offline age key recipients.txt seals to, RECOVERY.md), lock; always optional
+# the yubikey around secrets/, always optional; --identity unlock is the paper key path (RECOVERY.md)
 
 use profile.nu [profile-load]
 use secrets.nu [secret-is-plaintext]
@@ -128,7 +127,7 @@ def init-step [step: string, sn: string]: nothing -> nothing {
             ^gh ssh-key add $"($stub).pub" --title $"yubikey-($sn)"
         }
         u2f => {
-            heading "pam_u2f for sudo (fido2 pin + touch), reaches /etc/u2f_mappings on the next dot apply"
+            heading "pam_u2f for sudo (a touch), reaches /etc/u2f_mappings on the next dot apply"
             let user = $env.USER
             let line = ^pamu2fcfg -o $PAM_ORIGIN -i $PAM_ORIGIN -u $user | str trim
             let file = $KEY_DIR | path join u2f_keys
@@ -166,8 +165,7 @@ export def yubikey-init [...steps: string]: nothing -> nothing {
     heading $"done: commit configs/base/yubikey; homelab .sops.yaml needs ($r)"
 }
 
-# the recovery path when every yubikey is lost: any age identity the git-crypt key is sealed to, the paper key above
-# all. the submodule comes over https then, a personal access token as the password
+# every yubikey lost: the submodule comes over https then, a personal access token as the password
 def unlock-identity [identity: path]: nothing -> nothing {
     if not ($identity | path exists) { error make {msg: $"yubikey: no identity file '($identity)'"} }
     if not ($SEALED_KEY | path exists) { error make {msg: $"yubikey: no sealed key ($SEALED_KEY)"} }

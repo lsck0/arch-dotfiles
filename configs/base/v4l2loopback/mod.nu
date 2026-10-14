@@ -35,9 +35,9 @@ export def system [cfg: record] {
     ]
 }
 
-# read at pipewire and wireplumber start only; restarting either here would drop live audio and video
+# read at pipewire and wireplumber start only; restarting either would drop live audio and video
 export def link [cfg: record] {
-    # windows owns the cameras under wsl, pipewire arrives there only as a portal dependency
+    # wsl has pipewire as a portal dependency, but windows owns the cameras
     if (which pipewire | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
     [

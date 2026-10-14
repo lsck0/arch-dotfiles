@@ -1,7 +1,4 @@
-# I/O scheduler by device class. NVMe has deep hardware queues, so no scheduler ("none") is lowest-overhead and
-# fastest; SATA/eMMC SSDs do best on mq-deadline; spinning disks on bfq for interactivity.
-# DEVTYPE=="disk" so a rule never fires on a partition (nvme0n1p1, mmcblk0p1): those have no queue/scheduler and udev
-# logs "could not chase sysfs attribute" for each one.
+# a partition has no queue/scheduler, udev logs "could not chase sysfs attribute" for each one
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="nvme[0-9]*n[0-9]*", ATTR{queue/scheduler}="none"
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="sd[a-z]", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", ENV{DEVTYPE}=="disk", KERNEL=="mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"

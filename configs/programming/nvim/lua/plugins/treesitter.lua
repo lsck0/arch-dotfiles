@@ -75,18 +75,17 @@ local installed = {
 
 return {
     {
-        "nvim-treesitter/nvim-treesitter", -- syntax highlighting/parsing
+        "nvim-treesitter/nvim-treesitter",
         branch = "main",
         event = { "BufReadPost", "BufNewFile" }, -- before FileType highlight
         cmd = { "TSUpdate", "TSInstall", "TSInstallSync" },
         build = ":TSUpdate",
         dependencies = {
-            { "nvim-treesitter/nvim-treesitter-context" }, -- sticky function context
+            { "nvim-treesitter/nvim-treesitter-context" },
         },
         config = function()
             local treesitter = require("nvim-treesitter")
-            -- parsers nvim-treesitter does not ship, queries in after/queries/<lang>: nyangine's .nya object format, its
-            -- grammar lives in the engine repo, and jai. setup() fires TSUpdate, so the autocmd goes first
+            -- setup() fires TSUpdate, so the parser autocmd goes first
             vim.api.nvim_create_autocmd("User", {
                 group = vim.api.nvim_create_augroup("TreesitterCustomParsers", { clear = true }),
                 pattern = "TSUpdate",

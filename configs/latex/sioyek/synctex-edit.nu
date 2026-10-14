@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# backward search (pdf spot -> latex source) for sioyek's inverse_search_command and zathura's synctex-editor-command,
-# into whichever editor already has the file open; set in the viewers' own config so it works whoever launched them
+# backward search into whichever editor already has the file open, set in the viewers' config to work however launched
 
 const ASK_TIMEOUT_S = "2"
 const OPEN_TIMEOUT_S = "5"
@@ -35,7 +34,6 @@ def emacs-try [file: string, line: int, column: int]: nothing -> bool {
     if $open.exit_code != 0 or ($open.stdout | str trim) != "t" { return false }
     let opened = ask timeout $OPEN_TIMEOUT_S emacsclient -a "false" -n $"+($line):($column)" $file
     if $opened.exit_code != 0 { return false }
-    # raise the frame; harmless when the compositor refuses the activation
     ask timeout $ASK_TIMEOUT_S emacsclient -a "false" -e "(select-frame-set-input-focus (selected-frame))" | ignore
     true
 }

@@ -1,8 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the pinned godot mcp editor addon (the module's checkout) into a project's addons/ and enabled there, the editor
-# plugin and the MCPRuntime autoload its enable toggle would add. addons are per project, so nothing lands in one until
-# this runs; again after a bump to update it. the editor rewrites project.godot on save, so close it on that project
-# first
+# close the editor on the project first: it rewrites project.godot on save
 
 const PLUGIN = "res://addons/godot_mcp/plugin.cfg"
 const RUNTIME = 'MCPRuntime="*res://addons/godot_mcp/runtime/mcp_runtime.gd"'

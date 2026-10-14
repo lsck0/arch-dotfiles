@@ -17,7 +17,6 @@ export def link [cfg: record] {
     [
         # file storage: plasma swaps the secret service to ksecretd, which hides a gnome-keyring token
         (if ($nu.home-dir | path join $HOSTS | path exists) { [] } else { step gh-login })
-        # git over https to github authenticates through gh from here on
         (if ($helpers | str contains "gh auth git-credential") { [] } else { exec gh-setup-git [gh auth setup-git] })
     ]
 }

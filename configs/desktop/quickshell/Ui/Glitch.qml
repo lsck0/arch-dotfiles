@@ -28,7 +28,6 @@ Item {
   property real u_progress: 0
 
   readonly property int durationMs: 180
-  // rows the offset band is cut into
   readonly property int rows: 48
   readonly property string shaderPath: Paths.shellDir + "/shaders/glitch.frag.qsb"
 

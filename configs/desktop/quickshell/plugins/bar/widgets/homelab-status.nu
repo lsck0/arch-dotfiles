@@ -147,7 +147,6 @@ def clients [src: record]: nothing -> record {
     let traffic = [[name count]; [requests $total] [visitors $visitors]]
     | append ($STATUS_CLASSES | each {|c| {name: $c, count: ($by_status | get -o $c | default 0.0)} })
     | bars $total
-    # requests and visitors get no bar
     let traffic = $traffic | first 2 | update pct 0 | append ($traffic | skip 2)
     {window: $CLIENT_WINDOW, countries: $countries, agents: $agents, hosts: $hosts, traffic: $traffic}
 }

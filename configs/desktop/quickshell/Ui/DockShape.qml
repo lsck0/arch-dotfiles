@@ -30,11 +30,9 @@ Item {
   property bool flipped: false
   property color fillColor: Colors.menu.background
   property color strokeColor: Util.alpha(Colors.accent, Style.surface.ruleAlpha)
-  // docked it matches the bar rule it continues
   property real strokeWidth: docked ? Math.max(1, Style.fx.bracketWidth) : Style.surface.borderWidth
   property real chamfer: Style.shape.chamfer
 
-  // opt-in accent bloom on the cached layer; off by default, under the fx.glow gate (0 in saver)
   property bool glow: false
   Component { id: glowEffect; Glow {} }
 
@@ -48,10 +46,8 @@ Item {
   readonly property real _t: _h
   readonly property real _b: height - _h
   readonly property real _c: Math.max(0, Math.min(chamfer, (_r - _l) / 2, (_b - _t) / 2))
-  // the chamfer as drawn and the corner it lands on once flipped, for HudFrame
   readonly property real cut: _c
   readonly property int cutCorner: docked !== flipped ? Qt.BottomRightCorner : Qt.TopRightCorner
-  // the neck curves end this far below the bar rule
   readonly property real _n: neck + _h
 
   layer.enabled: width > 0 && height > 0
@@ -65,7 +61,6 @@ Item {
     visible: root.width > 0 && root.height > 0
     preferredRendererType: Shape.CurveRenderer
 
-    // free card: closed outline, chamfer top-right
     ShapePath {
       fillColor: root.docked ? "transparent" : root.fillColor
       strokeColor: root.docked ? "transparent" : root.strokeColor
@@ -79,7 +74,6 @@ Item {
       PathLine { x: root._l; y: root._t }
     }
 
-    // drawer fill: flares to the full width at the bar, chamfer on the far corner
     ShapePath {
       fillColor: root.docked ? root.fillColor : "transparent"
       strokeColor: "transparent"
@@ -94,7 +88,6 @@ Item {
       PathQuad { x: 0; y: 0; controlX: root._l; controlY: 0 }
     }
 
-    // drawer outline: open toward the bar, so the bar rule continues into it
     ShapePath {
       fillColor: "transparent"
       strokeColor: root.docked ? root.strokeColor : "transparent"

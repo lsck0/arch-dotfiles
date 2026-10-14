@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-// speed test overlay shared by network and disk tests
 OverlayCard {
   id: root
 
@@ -17,7 +16,7 @@ OverlayCard {
   property bool rightLive: false
   property string error: ""
   property string statusText: ""
-  // gauge full-scale steps, smallest first
+  // smallest first
   property var scaleStops: [100, 250, 500, 1000, 2500, 5000, 10000]
   property real fullScale: scaleStops[0]
 

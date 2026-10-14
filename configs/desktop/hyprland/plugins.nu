@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# the hyprpm plugins. hyprpm guards its store as root, so add/update/enable sudo every call until it exists; at login
-# (uwsm, no tty) the FIDO2 sudo prompt cannot be answered and only lights the fingerprint reader, so the store is
-# changed only from a terminal (system-update, or this script by hand); loading an already built store is safe at login
+# hyprpm sudoes every call until its store exists, and the login FIDO2 prompt cannot be answered, so the store is
+# changed only from a terminal; loading an already built store is safe at login
 
 const STORE = "/var/cache/hyprpm"
 const PLUGIN = "dynamic-cursors"
@@ -12,7 +11,6 @@ def loaded []: nothing -> bool {
     ^hyprctl plugin list | complete | get stdout | str lowercase | str contains $PLUGIN
 }
 
-# answers every prompt of hyprpm with yes
 def --wrapped hyprpm-yes [...args: string]: nothing -> bool {
     (^yes | ^hyprpm ...$args | complete).exit_code == 0
 }
@@ -20,8 +18,7 @@ def --wrapped hyprpm-yes [...args: string]: nothing -> bool {
 def main [] {
     if (which hyprpm | is-empty) { return }
     if not (is-terminal --stdout) {
-        # a built .so, not the store dir: any hyprpm call (even `list`) creates an empty headersRoot, and reloading
-        # that fails with only a stderr hint
+        # a built .so, not the store dir: any hyprpm call creates an empty headersRoot, and reloading that fails
         if (glob $"($STORE)/($env.USER)/*/*.so" | is-empty) {
             ^notify-send -a hyprpm "Hyprland plugins not built" "run system-update (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
             return

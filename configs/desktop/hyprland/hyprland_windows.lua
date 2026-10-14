@@ -2,7 +2,6 @@ local wal = require("wal_colors")
 
 local walGradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
 
--- translucent pywal accent as shadow glow
 local function glow(c, a)
     return (c:gsub("rgb%((%x+)%)", "rgba(%1" .. a .. ")"))
 end
@@ -112,8 +111,7 @@ hl.config({
         blur = {
             enabled = true,
             xray = false,
-            -- more passes = stronger frosted glass, so the translucent quickshell popups (quickshell-blur layerrule)
-            -- stay see-through but their content reads clearly over a busy wallpaper
+            -- more passes, so quickshell popups stay see-through yet readable over a busy wallpaper
             size = 4,
             passes = 2,
             new_optimizations = true,

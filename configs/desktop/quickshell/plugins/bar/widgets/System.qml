@@ -62,7 +62,6 @@ BarWidget {
 
         return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull);
     }
-    // seconds per sample, slower on battery
     readonly property int statsIntervalS: onBattery ? 15 : 10
 
     function critLoad(pct) {
@@ -80,9 +79,7 @@ BarWidget {
     moduleName: "system"
     implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
     implicitHeight: barSize
-    // a bound command does not rerun a live process: stop it and arm the respawn with the new interval.
-    // arming the timer here (not only from onExited) is load-bearing: at startup this handler can fire
-    // from staged binding resolution before the process has spawned, so no exit arrives to restart it.
+    // a bound command does not rerun a live process; arm the timer here too, at startup this fires before the spawn
     onStatsIntervalSChanged: {
         statsProc.running = false;
         statsRestart.restart();
@@ -198,14 +195,12 @@ BarWidget {
             value: root.cpuPct + "%"
         }
 
-        // fa-memory
         Stat {
             glyph: "\u{efc5}"
             widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
             value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
         }
 
-        // md-expansion_card
         Stat {
             glyph: "\u{f08ae}"
             widest: "100%"
@@ -220,7 +215,7 @@ BarWidget {
             value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
         }
 
-        // md-thermometer, unit spelled out so it does not read as a percentage
+        // unit spelled out so it does not read as a percentage
         Stat {
             glyph: "\u{f050f}"
             widest: "100\u00b0C"
@@ -233,7 +228,6 @@ BarWidget {
             widest: "100%"
             value: Math.round(root.batteryFraction * 100) + "%"
         }
-        // md-shield_alert, only for alerts worth a look
 
         Stat {
             visible: root.ossec !== null && root.ossec.high > 0
@@ -273,7 +267,6 @@ BarWidget {
         implicitWidth: Style.panelWidth.normal
         implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
 
-        // capped to the screen, the rest scrolls
         Flickable {
             width: parent.width
             height: Math.min(content.implicitHeight, panel.maxBodyHeight)
@@ -390,7 +383,6 @@ BarWidget {
                     }
 
                 }
-                // the heatmap spans one history window
 
                 Row {
                     width: parent.width
@@ -731,7 +723,6 @@ BarWidget {
 
                 PanelRow {
                     width: parent.width
-                    // md-harddisk
                     glyph: "\u{f02ca}"
                     label: "Disk speed test"
                     onActivated: {
@@ -784,7 +775,6 @@ BarWidget {
             style: Style.fx.glow > 0 && !(root.bar && root.bar.quiet) ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
 
-            // invisible, only measures the widest value
             Text {
                 id: sizer
 

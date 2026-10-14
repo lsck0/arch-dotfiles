@@ -29,13 +29,11 @@ export def link [cfg: record] {
             ]
         } else { [] })
         (if (profile-has secrets) { step sops-keys } else { [] })
-        # oath codes onto the clipboard, for every user with a key
         (link-commands totp.nu)
     ] | decls-flatten
 }
 
-# sops' default identities: the file key once secrets are unlocked, then every enrolled yubikey (touch). merged, so
-# age keys a person added by hand stay; a step, so the secret key never travels in a declaration
+# sops identities, merged so hand-added age keys stay; a step, so the secret key never travels in a declaration
 export def sops-keys []: nothing -> nothing {
     let file = $nu.home-dir | path join .config sops age keys.txt
     let age = $env.DOTFILES | path join secrets age.txt

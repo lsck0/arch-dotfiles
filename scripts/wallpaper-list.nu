@@ -50,7 +50,7 @@ def sizes-of [files: table]: nothing -> table {
     $sizes
 }
 
-# wallpaper-resolve <name>: the path a bare file name resolves to, secrets first, or null
+# the path a bare file name resolves to, secrets first, or null
 export def wallpaper-resolve [name: string]: nothing -> any {
     if $name == "" or "/" in $name or $name in [. ..] { return null }
     [$SECRET_DIR $PUBLIC_DIR] | each { path join $name }
@@ -66,9 +66,7 @@ def fits-screen [width: int, height: int, screen: record]: nothing -> bool {
     not $upscaled and (100 - $CROP_PERCENT_MAX) * ($sides | math max) <= 100 * ($sides | math min)
 }
 
-# List the wallpapers worth showing on a screen of WxH physical pixels, one path per line: left out is what would
-# visibly upscale or crop away more than a tenth of its area. --resolve prints the path a bare file name resolves to,
-# secrets first, unfiltered by screen.
+# List wallpapers a WxH screen shows without visible upscaling or cropping over a tenth, one path per line.
 def main [--screen: string, --resolve: string]: nothing -> nothing {
     if $screen != null and $resolve != null { die --misuse "argument --resolve: not allowed with argument --screen" }
     if $resolve != null {

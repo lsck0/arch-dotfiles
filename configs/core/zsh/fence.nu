@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# run a heavy build off the v-cache ccd, low priority and oom-first, in its own scope: under memory pressure
-# systemd-oomd evicts the build, not the terminal, herdr session or agent that started it. a script, not a shell
-# function, so agents' non-interactive shells reach it too. e.g. fence make -j / fence cargo build
+# run a heavy build off the v-cache ccd, niced and oom-first in its own scope so oomd evicts it, not its terminal
 
 const OOM_SCORE_ADJ = 1000
 const NICENESS = 19

@@ -1,7 +1,4 @@
-# is this machine in its declared state: one read-only pass over FAILURES.*, a pending apply or reboot, the end-state
-# facts the VM test asserts too (invariants.txt), apparmor profiles backed off from profiles.conf, the lsck0 snapshot
-# age, package and unit drift, the firewall, failed units, borg and timeshift freshness, the secrets audit and what
-# was preserved aside. no sudo: what only root can see is read from what root leaves readable
+# read-only, no sudo: what only root can see is read from what root leaves readable
 
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
@@ -16,6 +13,7 @@ const REPO = path self ../..
 const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const BORG_SCRIPT = path self ../../configs/core/borg/borg-backup.nu
+const SYNCTHING_CONFIG = ".local/state/syncthing/config.xml"
 const WITNESS = path self ../../secrets/pgp_privatekey.asc
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const TIMESHIFT_LOGS = "/var/log/timeshift"
@@ -25,7 +23,6 @@ const SYSTEM_PATHS = [configs platforms profiles scripts]
 const SNAPSHOT_MAX_DAYS = 30
 # timeshift-check takes one weekly; two missed weeks is no longer a hiccup
 const TIMESHIFT_MAX_DAYS = 14
-# names shown in one line before the rest is only counted
 const SHOWN_MAX = 8
 
 def report [level: string, check: string, text: string]: nothing -> record {
@@ -58,7 +55,7 @@ def hashes [dir: path, files: list<string>]: nothing -> list<string> {
     $files | str join "\u{0}" | ^xargs -0 sha256sum | lines
 }
 
-# the root copy against what an apply would pack now: tracked and untracked files of SYSTEM_PATHS
+# tracked and untracked files, as an apply would pack them
 def config-pending []: nothing -> list<record> {
     if not ($SYSTEM_REPO | path exists) { return [] }
     let head = ^git -C $REPO rev-parse HEAD | str trim
@@ -77,7 +74,7 @@ def config-pending []: nothing -> list<record> {
     }
 }
 
-# a run that rebuilt the ukis after this boot started: the running kernel's initramfs and cmdline are old
+# ukis rebuilt after this boot started: the running initramfs and cmdline are old
 def reboot []: nothing -> list<record> {
     let stamp = $SYSTEM_STATE | path join boot-inputs
     if not ($stamp | path exists) { return [] }
@@ -90,7 +87,7 @@ def reboot []: nothing -> list<record> {
     }
 }
 
-# the probes are shell, one definition shared with the VM test
+# shell probes, shared with the vm test
 def invariants []: nothing -> list<record> {
     open --raw $INVARIANTS | lines | where $it != "" and not ($it | str starts-with "#")
     | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$' | where where == live
@@ -165,7 +162,7 @@ def drift []: nothing -> list<record> {
 
 def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
 
-# the inbound table (lockdown is the resting state, inbound at home) and egress wherever it is enabled
+# lockdown is the resting state, inbound at home
 def firewall []: nothing -> list<record> {
     if (which nft | is-empty) or (platform-load $REPO).form_factor == "wsl" { return [] }
     let egress_enabled = succeeds [systemctl -q is-enabled fw-egress.service]
@@ -192,6 +189,35 @@ def units []: nothing -> list<record> {
     }
 }
 
+# the repo only counts once every other device of borg-<host> holds it, a day's grace for the upload
+def borg-replicated [age: int]: nothing -> list<record> {
+    let config = $nu.home-dir | path join $SYNCTHING_CONFIG
+    if not ($config | path exists) { return [(report FAIL borg "no syncthing config, the borg repo never leaves")] }
+    let text = open --raw $config
+    let api = $text | parse --regex '<gui[^>]*>\s*<address>(?<address>[^<]+)</address>' | get 0.address
+    let headers = [X-API-Key ($text | parse --regex '<apikey>(?<key>[^<]+)</apikey>' | get 0.key)]
+    let folder = $"borg-(sys host | get hostname)"
+    let self = try { http get --headers $headers $"http://($api)/rest/system/status" | get myID } catch {
+        return [(report FAIL borg $"syncthing does not answer on ($api), the borg repo is not leaving")]
+    }
+    let names = http get --headers $headers $"http://($api)/rest/config/devices" | select deviceID name
+    let devices = try {
+        http get --headers $headers $"http://($api)/rest/config/folders/($folder)" | get devices.deviceID
+    } catch { [] } | where $it != $self
+    if ($devices | is-empty) { return [(report FAIL borg $"no device receives the syncthing folder ($folder)")] }
+    $devices | each {|device|
+        let name = $names | where deviceID == $device | get --optional 0.name | default ($device | str substring 0..6)
+        let done = http get --headers $headers $"http://($api)/rest/db/completion?folder=($folder)&device=($device)"
+        if $done.remoteState == "notSharing" {
+            report FAIL borg $"($name) does not accept the syncthing folder ($folder), declare it there"
+        } else if $done.completion < 100 {
+            report (if $age > 0 { "FAIL" } else { "note" }) borg $"($name) holds ($done.completion | math floor)% of ($folder)"
+        } else {
+            report ok borg $"($name) holds all of ($folder)"
+        }
+    }
+}
+
 def borg []: nothing -> list<record> {
     if not (succeeds [systemctl --user -q is-enabled borg-backup.timer]) { return [] }
     let stale_days = open --raw $BORG_SCRIPT | parse --regex 'const STALE_DAYS = (?<d>\d+)' | get 0.d | into int
@@ -205,7 +231,7 @@ def borg []: nothing -> list<record> {
         [(report FAIL borg $"last borg backup ($when): journalctl --user -u borg-backup")]
     } else {
         [(report ok borg $"last borg backup (mtime $stamp | format date '%F %H:%M')")]
-    }
+    } | append (borg-replicated $age)
 }
 
 # root keeps the snapshots out of reach, its logs are readable: the newest that counted them
@@ -239,7 +265,6 @@ def secrets []: nothing -> list<record> {
     $found | each { report (if $in.level == fail { "FAIL" } else { "note" }) secrets $in.text }
 }
 
-# what was kept aside, this login's and root's
 def preserved []: nothing -> list<record> {
     [user system] | each {|layer|
         let line = with-env {DOT_LAYER: $layer} { preserve-report } | str replace "preserved: " ""
@@ -247,8 +272,7 @@ def preserved []: nothing -> list<record> {
     }
 }
 
-# every check: FAIL for what needs a hand, note for what is only worth knowing, ok; --brief only the FAIL lines as
-# "<check>: <text>" (doctor-check reads these). exit 1 when anything is FAIL
+# --brief: only FAIL lines as "<check>: <text>", doctor-check reads these
 export def doctor-run [--brief]: nothing -> nothing {
     let checks = [
         failures config-pending reboot invariants apparmor snapshot drift firewall units borg timeshift secrets

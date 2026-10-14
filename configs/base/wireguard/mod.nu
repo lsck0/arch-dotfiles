@@ -8,7 +8,7 @@ const CONF = "/etc/wireguard/wg0.conf"
 const IFACE = "wg0"
 const SECRET_NAME = '^[A-Za-z0-9._-]+$'
 
-# the platform's wireguard fact names its tunnel config in the admin's secrets; toggle-vpn.nu brings wg0 up
+# the platform's wireguard fact names its tunnel config in the admin's secrets
 export def system [cfg: record] {
     let name = $env.WIREGUARD? | default ""
     if $name != "" and not ($name =~ $SECRET_NAME) {
@@ -17,8 +17,7 @@ export def system [cfg: record] {
     step tunnel $name
 }
 
-# only the fact removes it, and only the config the dotfiles placed: a run without secrets never undoes one that had
-# them, a wg0.conf made by hand stays
+# removes only a config dot placed: a run without secrets never undoes one, a hand-made wg0.conf stays
 export def tunnel [name: string]: nothing -> nothing {
     let ours = ($CONF | path exists) and (open --raw $CONF | hash sha256) == (recorded-hashes | get --optional $CONF)
     if $name == "" {

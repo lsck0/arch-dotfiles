@@ -34,7 +34,6 @@ def queue-pdf []: nothing -> bool {
 export def queues []: nothing -> nothing {
     # cups.socket is enabled in base/systemd, nothing starts it at boot; lpstat and lpadmin below need it
     ^systemctl start cups.socket
-    # network printers advertise over mdns
     let nss = open --raw $NSSWITCH
     if not ($nss | str contains mdns_minimal) {
         cp $NSSWITCH $"($NSSWITCH).bak-(date now | format date '%Y%m%d')"

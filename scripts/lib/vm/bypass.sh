@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# bash bypass.sh <nft file> <phase>, inside an empty namespace on the test vm's guest (scripts/lib/vm.nu)
+# bypass.sh <nft file> <phase>, in an empty namespace on the guest
 set -uo pipefail
 nft_file=$1 phase=$2
 ip link set lo up
@@ -36,11 +36,11 @@ table inet drill_probe {
     }
 }
 EOF
-# what the service's start-post fills in from getent and /run/home-network
+# stands in for what the start-post fills in from getent and /run/home-network
 nft add element inet portmaster_bypass gids '{ @MEMBER_GID@ }'
 [[ "$phase" != home ]] || nft add element inet portmaster_bypass home_ifaces '{ "home0" }'
 
-# probe <phase> <name> <tcp|udp> <daddr> <dport> <gid>: one new connection, reported marked, unmarked or unseen
+# probe <phase> <name> <tcp|udp> <daddr> <dport> <gid>: reports marked, unmarked or unseen
 probe() {
     local fam=4 got=unseen
     [[ "$1" == "$phase" ]] || return 0

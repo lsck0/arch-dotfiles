@@ -1,4 +1,3 @@
-# the command-line tools every machine has, no config of their own
 export const meta = {
     packages: {pacman: [
         bind bpftop caligula chafa clonezilla cmatrix croc direnv diskwatch dua-cli dwarfs dysk eza fd ffmpeg fzf gping

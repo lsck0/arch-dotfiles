@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# quickshell runs as quickshell.service, restarted on a crash; this restarts it, `prepare` is the unit's ExecStartPre
+# restarts quickshell.service; `prepare` is the unit's ExecStartPre
 
 const UNIT = "quickshell.service"
 const QSB_FALLBACK = "/usr/lib/qt6/bin/qsb"
@@ -18,8 +18,7 @@ def main [] {
 
 def "main prepare" [] {
     let config = $env.HOME | path join .config/quickshell
-    # an instance outside the unit (a manual run, one from before the unit) would draw a second bar: kill whole process
-    # groups, quickshell does not reap its helper children; one launched by hyprland may share its process group
+    # a stray instance draws a second bar; kill its group since quickshell does not reap helpers, sparing hyprland's
     let spared = [(pgid-of $nu.pid) (^pgrep -xo Hyprland | complete | get stdout | str trim | if $in != "" { pgid-of ($in | into int) })]
     # only this user's instance of this config, not ipc clients or other instances
     let pids = ^pgrep -u $env.USER -f $"^\([^ ]*/\)?\(quickshell|qs\)\( -[^ ]+\)* -p ($config)\( |$\)" | complete | get stdout | lines

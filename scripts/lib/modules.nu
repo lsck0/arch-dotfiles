@@ -7,7 +7,7 @@ export const VERBS = [link unlink system theme apply backup restore check]
 # exports the engine calls that are not run as a layer's verb
 const HOOKS = [detect packages]
 const MARKER = "mod.nu"
-# repo-root dirs that link like modules, after every module of the configs tree
+# repo-root dirs that link like modules, after every configs module
 const ROOT_MODULES = [scripts skills weblinks]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
@@ -123,7 +123,7 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
     $order
 }
 
-# --private: under umask 077, for a backup writing into secrets/
+# --private: umask 077, for a backup writing into secrets/
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private]: nothing -> table {
     if ($modules | is-empty) { return [] }
     let calls = $modules | enumerate | each {|m|
@@ -148,7 +148,6 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
 }
 
 
-# a module's `packages [cfg]` export adds what depends on its resolved options (a driver from the detected gpu)
 export def modules-packages [repo: path, modules: table, platform: record]: nothing -> record {
     let wsl = $platform.form_factor == "wsl"
     let selected = $modules | where {|m| $m.selected and $m.cfg.enable }

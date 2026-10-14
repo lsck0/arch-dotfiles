@@ -60,8 +60,7 @@ export def link [cfg: record] {
     let bootstrapping = ps | where name == updater_bootstr | is-not-empty
     [
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
-        # the launcher's first run downloads the app (~150 MB) before any window shows; here, so the first launch opens
-        # at once. never beside a launch already bootstrapping, the two would share one download dir
+        # the first run downloads the app (~150 MB) before any window; never beside a running bootstrap, one download dir
         (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
             let download = [timeout $BOOTSTRAP_TIMEOUT $BOOTSTRAP --no-zenity $config stable $UPDATES_URL]
             exec discord-app $download --creates ($config | path join Discord)
@@ -72,8 +71,7 @@ export def link [cfg: record] {
         (json-merge ($data | path join plugins.json) ($managed | each {|f| json-set [(addon-name $f)] true }))
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])
-        # discord self-updates and relaunches past any wrapper, so the hook stays armed: Discord is the first install
-        # and a host update, betterdiscord-modules a core module update on the current host
+        # discord self-updates and relaunches past any wrapper, so the hook stays armed
         (user-hook betterdiscord-inject hook/betterdiscord-inject.nu --watch [
             "%h/.config/discord/Discord" "%h/.local/state/betterdiscord-modules"
         ])
@@ -84,8 +82,7 @@ def rgb [hex: string]: nothing -> string {
     $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ", "
 }
 
-# spotify's colour keys, so the two clients match; the theme is generated, so betterdiscord's live copy is rewritten
-# on every switch and never drift
+# generated, so betterdiscord's live copy is rewritten on every switch and never drifts
 export def theme [cfg: record, wallpaper: string] {
     let palette = spicetify-colors | default [] | reduce --fold {} {|c, acc| $acc | insert $c.key $c.hex }
     let font = try { ^($env.DOTFILES | path join scripts toggles toggle-font.nu) get | str trim } catch { "" }

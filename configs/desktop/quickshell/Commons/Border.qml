@@ -1,7 +1,6 @@
 pragma Singleton
 import QtQuick
 
-// uniform border specs { color, width } for BorderSurface
 QtObject {
   id: root
 

@@ -1,6 +1,6 @@
 return {
     {
-        "saecki/crates.nvim", -- Cargo.toml crate info + versions
+        "saecki/crates.nvim",
         ft = "toml",
         opts = {},
     },

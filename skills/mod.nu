@@ -1,6 +1,6 @@
 use module.nu *
 
-# every skills/l-*/ made available to each installed agent; gemini keeps its own registry, the others read a symlink
+# every skills/l-*/ for each installed agent; gemini has its own registry, the others read a symlink
 const TOOLS = {claude: ".claude", copilot: ".copilot", hermes: ".hermes"}
 
 def skill-dirs []: nothing -> list<path> {
@@ -17,8 +17,7 @@ export def link [cfg: record] {
     $links ++ [(step "gemini-register")]
 }
 
-# gemini links each skill into its own registry (one list call for all of them, a link per missing). it also drops
-# recursive l-*/l-* symlinks into the tree, so clear those and never leave them tracked in git
+# gemini drops recursive l-*/l-* symlinks into the tree; clear them so git never tracks them
 export def gemini-register [] {
     recursive-links-clear
     if (which gemini | is-not-empty) {

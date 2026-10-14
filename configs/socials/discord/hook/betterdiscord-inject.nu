@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# inject betterdiscord into the running discord host's newest core; runs on every module change, so the injected check
-# comes first. no betterdiscordctl: it hardcodes discord_desktop_core-1, discord ships -2 and up
+# runs on every module change, so the injected check comes first; no betterdiscordctl: it hardcodes
+# discord_desktop_core-1, discord ships -2 and up
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
 # runs inside discord with the account token, so a pinned release; bump both together

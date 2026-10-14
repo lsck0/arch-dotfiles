@@ -1,13 +1,12 @@
 import QtQuick
 import qs.Commons
 
-// the switch as text: `[on ]` / `[ off]`, fixed width so rows do not shift
+// fixed width so rows do not shift
 Item {
   id: root
 
   property bool checked: false
 
-  // off when the surrounding row owns the click
   property bool interactive: true
 
   property bool hasCursor: false

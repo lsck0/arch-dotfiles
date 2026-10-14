@@ -16,7 +16,7 @@ const EMACS_UPGRADE = "(progn (require 'package)
 
 def has [command: string]: nothing -> bool { which $command | is-not-empty }
 
-# Update everything after a confirmation: packages onto the latest lsck0 snapshot, config, toolchains, editor plugins.
+# Update packages, config, toolchains and editor plugins after a confirmation.
 def main []: nothing -> nothing {
     cd ($SCRIPTS | path dirname)
     if ($env.DIRENV_DIR? | is-not-empty) { die "run outside a direnv directory" }

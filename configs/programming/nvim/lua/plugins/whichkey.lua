@@ -1,6 +1,6 @@
 return {
     {
-        "folke/which-key.nvim", -- keybinding hint popup
+        "folke/which-key.nvim",
         event = "VeryLazy",
         opts = {
             preset = "modern",

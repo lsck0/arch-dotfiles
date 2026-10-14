@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# popup.nu [-e] [sudo] <tool> [args...]: tmux popup runner; -e loads the pane dir's direnv env (a failing .envrc is
-# ignored), a tool a machine lacks reports instead of closing silently
+# popup.nu [-e] [sudo] <tool> [args...]: tmux popup runner, -e loads the pane dir's direnv env
 
 const NOT_FOUND = 127
 

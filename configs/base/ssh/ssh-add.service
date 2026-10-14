@@ -1,6 +1,6 @@
 [Unit]
 Description=Load the secrets ssh key into ssh-agent
-# keyring is unlocked once the graphical session is up
+# after the session: the keyring unlocks with it
 Requires=ssh-agent.service
 After=ssh-agent.service graphical-session.target
 

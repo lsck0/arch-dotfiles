@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// holds a Cava refcount while alive
 QtObject {
   id: root
 

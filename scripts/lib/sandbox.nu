@@ -1,10 +1,9 @@
-# the legacy modules' plan: a run under bubblewrap with the tree read-only and each writable root an overlay, so
-# whatever a shell module writes is caught, not only what its helpers note. notes and snapshots are module.sh's format
+# overlays catch whatever a shell module writes, not only what its helpers note
 
 use log.nu *
 use state.nu [LIB_DIR path-kind]
 
-# an area (an overlay root and three more path components) with more paths is one line with its counts
+# an area (overlay root plus PLAN_AREA_DEPTH components) past this many paths collapses to its counts
 const PLAN_AREA_MAX = 10
 const PLAN_AREA_DEPTH = 3
 # disk filesystems an overlay may cover below a writable root; anything else (network, fuse, autofs) stays hidden

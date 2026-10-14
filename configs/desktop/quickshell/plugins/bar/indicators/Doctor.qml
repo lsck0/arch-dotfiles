@@ -4,7 +4,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// `dot doctor`'s FAIL lines as doctor-check.service last wrote them, gone while there are none; a click checks again
+// the FAIL lines doctor-check.service last wrote
 BarIndicator {
   id: root
 
@@ -34,7 +34,7 @@ BarIndicator {
     onFileChanged: reload()
   }
 
-  // the file appears only after the first check, and a watch set before that sees nothing
+  // the file appears only after the first check, a watch set earlier sees nothing
   Timer {
     interval: 10 * 60 * 1000
     running: true

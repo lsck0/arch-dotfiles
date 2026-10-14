@@ -3,8 +3,7 @@
 const NETNS = "protonvpn"
 const NETNS_RUN = "/usr/local/lib/protonvpn-netns/run"
 
-# Run a command inside the protonvpn fail-closed network namespace (configs/base/protonvpn-netns): only its traffic
-# goes through the tunnel, and with the namespace or tunnel down it refuses instead of using the real link.
+# Run a command in the fail-closed protonvpn netns: with the tunnel down it refuses, never the real link.
 def --wrapped main [...command: string]: nothing -> nothing {
     if ($command | is-empty) {
         print --stderr "usage: vpn <command> [args...]"

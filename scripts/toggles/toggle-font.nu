@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the one place the ui font is set for every app: terminal, editors, quickshell bar, gtk and qt/kde
 use lib.nu [notify cycle-next state-file state-set]
 
 const GHOSTTY = path self ../../configs/desktop/ghostty/config
@@ -26,6 +25,9 @@ const KDE_SMALLEST_OFFSET = 2
 # a desktop asking qt for a 2pt smallestReadableFont makes the settings ui unusable
 const UI_SIZE_MIN = 6
 const UI_SIZE_DEFAULT = 10
+const SIZE_MIN = 1
+# the settings window's slider end and clamp; set-size and set-ui-size take any size
+const SIZE_MAX = 48
 const NVIM_GUIFONT_DEFAULT = "Kode Mono:h16"
 # cycled by toggle and served to quickshell's display panel through shortlist, so both share one list
 const SHORTLIST = [
@@ -41,6 +43,8 @@ def ghostty-get [key: string]: nothing -> string {
 
 # quickshell's theme, since ghostty may hold the mono cut
 def family-get []: nothing -> string { try { open $QUICKSHELL_THEME | get font.family } catch { ghostty-get font-family } }
+
+def size-get []: nothing -> int { ghostty-get font-size | into int }
 
 def ui-size-get []: nothing -> int {
     let size = ^gsettings get org.gnome.desktop.interface font-name | complete | get stdout | str trim | str trim --char "'" | split row " " | last
@@ -75,7 +79,6 @@ def nvim-guifont-set [family: any, size: any]: nothing -> nothing {
     state-set nvim-guifont $"($family | default $current.family):h($size | default $current.size)"
 }
 
-# gtk-font-name=<family> <size> in each settings.ini, keeping its own size unless a new one is given
 def gtk-font-set [family: any, size: any]: nothing -> nothing {
     let family = $family | default (family-get)
     for dir in $GTK_DIRS {
@@ -177,11 +180,29 @@ def size-parse [size: string, min: int]: nothing -> int {
 }
 
 def "main get" [] { family-get }
-def "main size" [] { ghostty-get font-size }
+def "main size" [] { size-get }
 def "main ui-size" [] { ui-size-get }
 def "main label" [] { $"󰛖 Font: (family-get) (ghostty-get font-size)" }
 def "main list" [] { print (families-installed | str join "\n") }
 def "main shortlist" [] { print (shortlist | str join "\n") }
+
+# rows shaped like `dot options --json`, each with the verb that sets it, for the settings window
+def "main options" [] {
+    [
+        {
+            key: family, label: Family, type: string, choices: (families-installed), value: (family-get), set: set
+            doc: "terminals and editors take its monospace partner"
+        }
+        {
+            key: size, label: Size, type: int, min: $SIZE_MIN, max: $SIZE_MAX, value: (size-get), set: set-size
+            doc: "terminals, editors and the shell"
+        }
+        {
+            key: ui-size, label: "UI size", type: int, min: $UI_SIZE_MIN, max: $SIZE_MAX, value: (ui-size-get)
+            set: set-ui-size, doc: "gtk and qt apps"
+        }
+    ] | to json --raw
+}
 
 def "main set" [...family: string] {
     let family = $family | str join " "
@@ -191,7 +212,7 @@ def "main set" [...family: string] {
 }
 
 def "main set-size" [size: string] {
-    let size = size-parse $size 1
+    let size = size-parse $size $SIZE_MIN
     size-apply $size
     notify "Font size" ($size | into string)
     reload-hint

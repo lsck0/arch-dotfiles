@@ -16,5 +16,6 @@ GUI login to your user name with the password from
 `secrets/syncthing-gui-password` (base64 characters only), or one it generates
 into `~/.local/state/syncthing/gui-password` (0600) while that secret is missing.
 
-On the NAS, accept `borg-<host>` as receive-only with versioning off: the repo
-is already encrypted and versioned by borg itself.
+The NAS declares `borg-<host>` receive-only with versioning off (homelab
+`src/core/104-internal-nas/main.nix`): the repo is already encrypted and
+versioned by borg itself. A new host needs its folder added there.

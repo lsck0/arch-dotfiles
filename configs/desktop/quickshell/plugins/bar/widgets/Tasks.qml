@@ -2,8 +2,6 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// pending taskwarrior count from TaskState, urgent while any is overdue, gone at zero; a click toggles the tasks
-// panel (SUPER+o)
 BarWidget {
   id: root
   moduleName: "tasks"

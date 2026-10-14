@@ -3,7 +3,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 
-// design tokens: geometry, states, type, spacing, bar grid
 QtObject {
   id: root
 
@@ -110,7 +109,6 @@ QtObject {
     readonly property int xs: root.space(4)
     readonly property int sm: root.space(8)
     readonly property int md: root.space(12)
-    // the one panel/card padding
     readonly property int lg: root.space(16)
     readonly property int xl: root.space(24)
     readonly property int xxl: root.space(32)
@@ -126,22 +124,18 @@ QtObject {
   }
   readonly property SpacingTokens spacing: SpacingTokens {}
 
-  // radius 0 for data (rows, chips, gauges, inputs, selection), surface radius matches hyprland rounding
+  // radius 0 for data, surface radius matches hyprland rounding
   component ShapeTokens: QtObject {
     readonly property int data: 0
     readonly property int surface: root.cornerRadius
-    // one 45deg cut on the top-right outer corner of floating surfaces
     readonly property int chamfer: root.space(8)
-    // inverted corner where a drawer leaves the bar's accent rule
     readonly property int neck: root.space(8)
   }
   readonly property ShapeTokens shape: ShapeTokens {}
 
-  // one chrome for hover panels, popup cards and overlay cards
   component SurfaceTokens: QtObject {
     readonly property int padding: root.spacing.lg
     readonly property int borderWidth: root.spacing.hair
-    // the bar's accent rule and the drawer outline that continues it
     readonly property real ruleAlpha: 0.85
   }
   readonly property SurfaceTokens surface: SurfaceTokens {}
@@ -156,21 +150,17 @@ QtObject {
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
 
-  // the only durations and curves; power saver zeroes all but snap
+  // power saver zeroes all but snap
   component MotionTokens: QtObject {
     readonly property bool enabled: !Power.saver
     readonly property int snap: 0
     readonly property int fast: enabled ? 90 : 0
     readonly property int base: enabled ? 160 : 0
-    // exits run at three quarters of base
     readonly property int exit: Math.round(base * 0.75)
     readonly property int slow: enabled ? 240 : 0
     readonly property int ambient: enabled ? 600 : 0
-    // cold boot of a surface: brackets, typed title, row stagger
     readonly property int boot: enabled ? 220 : 0
-    // closing replays the boot backwards this much faster
     readonly property real closeRate: 0.6
-    // open->open handoff: a quick fan, not a teleport
     readonly property real switchRate: 0.3
     readonly property int fastEasing: Easing.OutCubic
     readonly property int ambientEasing: Easing.InOutQuad
@@ -180,7 +170,6 @@ QtObject {
   }
   readonly property MotionTokens motion: MotionTokens {}
 
-  // ui and icon families resolve separately
   readonly property string fontFamily: Theme.fontFamily
   property string resolvedFontFamily: Theme.fontFamily
   readonly property string iconFontFamily: "0xProto Nerd Font"
@@ -211,13 +200,10 @@ QtObject {
   readonly property FontTokens font: FontTokens {}
 
   readonly property real headerTracking: 2.4 * scale
-  // the AllUppercase caption tier, one tracking for every small label
   readonly property real labelTracking: 0.96 * scale
   readonly property real displayTracking: -0.5 * scale
-  // window-control glyphs drawn right of every hud title, decorative only
   readonly property string decor: "[- o x]"
 
-  // fixed slots so bar items align on a grid
   component BarTokens: QtObject {
     readonly property int sizeHorizontal: root.space(30)
     readonly property int iconSlot: root.space(28)

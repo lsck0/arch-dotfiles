@@ -5,7 +5,6 @@ const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
 
 const LAB_SCHEMA = 1
-# max age of replayed messages
 const MAX_REPLAY = 1hr
 # keepalive is 45s: under a byte a second over 90s is a dead connection
 const IDLE_S = 90

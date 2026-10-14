@@ -12,7 +12,7 @@ hl.config({
         vrr = 2,
     },
     render = {
-        -- 2 not 1: only scan out windows that request it, so a maximized app (unreal editor) does not flicker flipping scanout against its child windows; grading stays in the gamma lut
+        -- 2 not 1: a maximized app (unreal editor) flickers flipping scanout against its child windows
         direct_scanout = 2,
     },
 })

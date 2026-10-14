@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# holds a sleep inhibitor while an ssh login session is open, so no session idles the machine away under it; locking
-# still happens
+# a sleep inhibitor while an ssh login session is open; locking still happens
 
 # a recheck this often catches a session that went to closing without a signal of its own
 const RECHECK = 60sec
@@ -16,8 +15,7 @@ def ssh-session-open []: nothing -> bool {
 }
 
 def main [] {
-    # any logind signal (session new, removed or changed) or the recheck timeout triggers a check; gdbus's startup
-    # lines give the initial one
+    # any logind signal or the recheck timeout triggers a check; gdbus's startup lines give the initial one
     job spawn {
         ^gdbus monitor --system --dest org.freedesktop.login1 | lines | each { job send 0 } | ignore
         $ENDED | job send 0

@@ -1,5 +1,4 @@
-# the root-owned copy the system layer runs from: root never executes a file a user can write, so the admin's checkout
-# is packed by the user and unpacked by the root entry (system-apply.nu apply) of the copy already there
+# root never executes a file a user can write: the user packs, the root entry of the existing copy unpacks
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
@@ -7,8 +6,7 @@ use secrets.nu [secret-is-plaintext]
 
 # what the system layer may read; skills, weblinks, wallpapers and secrets stay out
 const SYSTEM_PATHS = [configs platforms profiles scripts]
-# secret files the system modules read, streamed on the root step's stdin as data; plus the platform's wireguard config.
-# the last one: configs/base/boot/remote-unlock's initramfs host key
+# streamed on the root step's stdin as data; ssh_publickey.asc is remote-unlock's initramfs host key
 const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 
@@ -16,8 +14,7 @@ export def system-secrets [wireguard: any]: nothing -> list<string> {
     $SYSTEM_SECRETS | append $"initramfs-ssh/(sys host | get hostname)/sshkeydir/.ed25519.sk" | append ([$wireguard] | flatten | compact | where $it != "")
 }
 
-# system-pack <checkout> [--rollback]: the tracked and untracked (not ignored) files the copy takes, as a tar on stdout;
-# forward only: refused unless the copy's commit is an ancestor of HEAD, or with --rollback a descendant of it
+# forward only: refused unless the copy's commit is an ancestor of HEAD (with --rollback a descendant)
 export def system-pack [checkout: path, --rollback]: nothing -> binary {
     let head = ^git -C $checkout rev-parse HEAD | str trim
     let source = $SYSTEM_REPO | path join .source
@@ -36,8 +33,7 @@ export def system-pack [checkout: path, --rollback]: nothing -> binary {
     $files | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf -
 }
 
-# system-unpack <copy> <sha>: root side; the tar on stdin becomes <copy>, extracted beside it and swapped in only when
-# complete, so a run never sees a half-written copy
+# extracted beside <copy> and swapped in only when complete, so a run never sees a half-written copy
 export def system-unpack [copy: path, sha: string]: binary -> nothing {
     if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"($sha) is not a commit sha"} }
     let next = $"($copy).new"
@@ -52,8 +48,6 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
     mv $next $copy
 }
 
-# system-archive <checkout> <wireguard> [--rollback]: one tar of repo.tar (the copy) and secrets.tar (the plaintext
-# secrets the system modules read)
 export def system-archive [checkout: path, wireguard: any, --rollback]: nothing -> binary {
     let work = mktemp --directory
     system-pack $checkout --rollback=$rollback | save --raw ($work | path join repo.tar)

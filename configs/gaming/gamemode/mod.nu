@@ -38,7 +38,6 @@ export def link [cfg: record] {
     }
     [
         (file-text ($nu.home-dir | path join .config gamemode.ini) $"(open --raw gamemode.ini)($gpu)")
-        # the ini's [custom] hook path, the same for a checkout anywhere
         (link-commands gamemode-hook.nu)
     ]
 }
@@ -48,7 +47,6 @@ export def system [cfg: record] {
         (file-copy split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
         # the hook stops vllm/ollama to free vram and relaxes split lock mitigation; polkit lets it do both unprompted
         (file-copy 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules)
-        # polkit lets the gamemode group set the cpu governor and gpu performance level without a prompt
         (group-admins gamemode)
     ]
 }

@@ -26,7 +26,7 @@ BarWidget {
         id: slot
         required property string modelData
         source: "../indicators/" + modelData
-        // the indicator's own conceal, not item.visible: that is false while this loader is hidden, so it never comes back
+        // not item.visible: false while this loader is hidden, so it would never come back
         visible: item ? !(item as BarIndicator).concealed : true
 
         // bound, not assigned: these load before BarSection hands this widget its bar

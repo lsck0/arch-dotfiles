@@ -13,10 +13,9 @@ Item {
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME") || ""
   readonly property var actions: [
     { label: "Lock", hotkey: "L", icon: "\u{f023}", cmd: ["loginctl", "lock-session"] },
-    // the whole uwsm session, not hyprland alone; quickshell.service has no XDG_SESSION_ID for terminate-session
+    // the whole uwsm session; quickshell.service has no XDG_SESSION_ID for terminate-session
     { label: "Exit", hotkey: "E", icon: "\u{f08b}", cmd: ["uwsm", "stop"] },
     { label: "Suspend", hotkey: "H", icon: "\u{f04b2}", cmd: ["systemctl", "suspend"] },
-    // these end the session for good, so they ask first
     { label: "Shutdown", hotkey: "S", icon: "\u{f011}", cmd: ["systemctl", "poweroff"], confirm: true },
     { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },
     { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"], confirm: true }
@@ -87,7 +86,7 @@ Item {
       focus: true
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
-        // confirm line: Y or Enter runs, anything else cancels; the key is swallowed either way
+        // any other key cancels; the key is swallowed either way
         if (root.pendingAction) {
           if (event.key === Qt.Key_Y || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
             root.activate(root.pendingIndex)
@@ -196,7 +195,6 @@ Item {
       }
     }
 
-    // `> SHUTDOWN? [Y/n]` under the tiles, blank when nothing waits
     Row {
       id: confirmLine
       anchors.top: actionRow.bottom

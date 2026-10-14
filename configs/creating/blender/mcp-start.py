@@ -1,5 +1,4 @@
-# blender-mcp-bridge runs this at startup: the add-on's own start operator, from a timer since add-on operators and the
-# window are only there once startup is done
+# from a timer: add-on operators and the window exist only once startup is done
 import bpy
 
 

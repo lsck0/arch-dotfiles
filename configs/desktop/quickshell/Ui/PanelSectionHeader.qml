@@ -21,7 +21,6 @@ Text {
   topPadding: Math.ceil(fontSize * 0.15)
   leftPadding: prefix.implicitWidth
 
-  // every section header carries the prompt marker
   Text {
     id: prefix
     y: root.topPadding

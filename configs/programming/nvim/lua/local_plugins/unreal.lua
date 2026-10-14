@@ -1,7 +1,4 @@
--- unreal projects work by opening nvim inside one: the first buffer (or the start dir) under a *.uproject root gets
--- a compile_commands.json from the engine's own UnrealBuildTool (the engine's clang toolchain and headers, ~5 s),
--- regenerated when a *.Build.cs/*.Target.cs/.uproject is newer, and clangd restarts onto it. <leader>U builds the
--- editor target into the quickfix list, opens the editor, or regenerates
+-- compile_commands.json from the engine's UnrealBuildTool, regenerated when a *.Build.cs/*.Target.cs/.uproject is newer
 local M = {}
 
 local done = {}
@@ -10,7 +7,6 @@ local function is_uproject(name)
     return name:match("%.uproject$") ~= nil
 end
 
--- the *.uproject at or above path (it lives at the project root by Unreal convention)
 local function uproject(path)
     return vim.fs.find(is_uproject, { path = path, upward = true, limit = 1 })[1]
 end
@@ -20,7 +16,6 @@ local function project_root(path)
     return file and vim.fs.dirname(file)
 end
 
--- $UE_ROOT, else the home install (configs/programming/unreal), else the old pacman one
 local function engine_root()
     local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
     -- no nil slot: an unset $UE_ROOT first would end ipairs before it looks at any dir
@@ -35,7 +30,6 @@ local function engine_root()
     end
 end
 
--- the editor target: Source/<Name>Editor.Target.cs, else the project's name + Editor
 local function editor_target(root)
     local target = vim.fs.find(function(name)
         return name:match("Editor%.Target%.cs$") ~= nil

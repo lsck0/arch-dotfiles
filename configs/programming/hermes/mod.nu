@@ -8,7 +8,7 @@ const ORCHESTRATOR = "profiles/orchestrator"
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const GUARD = ".config/idle-guards/agent-guard.nu"
 const SKIN = "wallust"
-# routing: anthropic, then free nous; never the local llm group, it is for chat only
+# never the local llm group, it is for chat only
 const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
@@ -38,7 +38,6 @@ def homes []: nothing -> record {
 # skipped while config.yaml already holds every value, so an apply converges
 def configure [home: path, settings: record]: nothing -> list<record> {
     let guard = $nu.home-dir | path join $GUARD
-    # awake only while an agent works, the same guard as claude code
     let hooks = if ($guard | path exists) { $GUARD_EVENTS | items {|event, action| {$event: $"($guard) ($action)"} } | into record } else { {} }
     let want = {settings: $settings, skin: $SKIN, hooks: $hooks}
     let have = try { open ($home | path join config.yaml) } catch { {} }

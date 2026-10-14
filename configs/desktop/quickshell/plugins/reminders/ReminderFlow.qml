@@ -107,7 +107,6 @@ Item {
           root.submit()
           event.accepted = true
         } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
-          // minutes step takes digits only
           if (root.step === "message" || /[0-9]/.test(event.text)) root.filterText += event.text
           event.accepted = true
         }
@@ -222,7 +221,7 @@ Item {
               id: cancel
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              iconText: "\u{f0156}" // md-close
+              iconText: "\u{f0156}"
               tooltipText: "Cancel reminder"
               foreground: Colors.menu.text
               onClicked: root.run([root.reminderScript, "cancel", reminderRow.modelData.unit])
@@ -301,21 +300,21 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.xs
             PanelActionButton {
-              iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
+              iconText: root.pomo.paused ? "\u{f040a}" : "\u{f03e4}"
               tooltipText: root.pomo.paused ? "Resume" : "Pause"
               foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "toggle"])
             }
             PanelActionButton {
-              iconText: "\u{f04ad}" // md-skip_next
+              iconText: "\u{f04ad}"
               tooltipText: "Skip to next phase"
               foreground: Colors.menu.text
               fontSize: Style.font.heading
               onClicked: root.run([root.pomodoroScript, "skip"])
             }
             PanelActionButton {
-              iconText: "\u{f04db}" // md-stop
+              iconText: "\u{f04db}"
               tooltipText: "Stop"
               foreground: Colors.menu.text
               fontSize: Style.font.heading
@@ -337,7 +336,7 @@ Item {
         PanelRow {
           width: parent.width
           visible: !root.pomo.running
-          glyph: "\u{f040a}" // md-play
+          glyph: "\u{f040a}"
           label: "Start a " + (root.pomo.defaultWork || 25) + " min focus block"
           filled: true
           onActivated: root.run([root.pomodoroScript, "start"])

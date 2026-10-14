@@ -34,7 +34,7 @@ const WHEELS_URL = "https://wheels.vllm.ai/rocm/0.30.0/rocm723/"
 # rocm wheels are cp312 only
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
-# what the desktop on the same card keeps, else ttm evicts its buffers
+# left for the desktop on the same card, else ttm evicts its buffers
 const DESKTOP_VRAM = 4.5GiB
 const SHARE_STEP = 0.05
 
@@ -50,7 +50,7 @@ def rocm-gpu []: nothing -> bool {
     $info.exit_code == 0 and ($info.stdout =~ '(?m)^Agent \d+') and ($info.stdout =~ 'gfx[0-9a-f]{3,}')
 }
 
-# a ROCm workload: nothing without a usable amd gpu (rocminfo errors then)
+# nothing without a usable amd gpu
 export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
@@ -66,7 +66,7 @@ export def system [cfg: record] {
     ]
 }
 
-# root-owned and root-built: the service runs this venv, so no user may write into it
+# root-owned: the service runs this venv, so no user may write into it
 export def venv []: nothing -> nothing {
     mkdir $PREFIX
     if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }

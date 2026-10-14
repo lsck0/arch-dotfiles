@@ -20,7 +20,7 @@ Rectangle {
   border.color: Border.color(borderSpec)
   border.width: borderWidth
 
-  // outline settles with the fill; width is pre-reserved so growing it never reflows
+  // width is pre-reserved so growing it never reflows
   Behavior on border.color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
   Behavior on border.width { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 }

@@ -4,13 +4,12 @@ export const meta = {packages: {native: [portmaster-bin]}}
 
 const BYPASS_RELOAD = [systemctl reload-or-restart portmaster-bypass.service]
 
-# global rules only, its config file has no per-app ones: mdns (avahi) both ways and ipp/ipps (cupsd) out, lan only;
-# lists: its defaults plus ADS, UNBREAK carries its exceptions for what the other lists break
+# global rules only, its config file has no per-app ones
 export def system [cfg: record] {
     if not ("/var/lib/portmaster" | path exists) { return [] }
     [
         (dropin portmaster.service dotfiles.conf)
-        # a copy: ProtectHome=read-only; read at start only, and stays stopped while a toggle holds it off
+        # a copy: ProtectHome=read-only
         (file-copy config.json /var/lib/portmaster/config.json --then [systemctl try-restart portmaster.service])
         # loopback, pentest vpns, the pentest group and system vms skip its per-connection queue
         (file-copy portmaster-bypass.nft /etc/nftables.d/portmaster-bypass.nft --then $BYPASS_RELOAD)

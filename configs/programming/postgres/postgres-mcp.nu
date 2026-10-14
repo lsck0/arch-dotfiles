@@ -1,9 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# pgedge's postgres mcp server (mod.nu installs it) on this user's own role and database in the local cluster, for
-# claude's postgres-mcp entry. the server takes no unix socket path for a host, so it logs in over 127.0.0.1 with scram,
-# reading the password from ~/.pgpass. that password is made here, per machine, and set on the role over the socket,
-# where peer auth already lets this user in: nothing to keep in secrets, nothing in ~/.claude.json. stdio, no port;
-# every query runs in a read-only transaction (no database here sets allow_writes)
+# the server takes no socket path for a host: scram over 127.0.0.1 with a per-machine password in ~/.pgpass
 
 const HOST = "127.0.0.1"
 const PORT = 5432
@@ -27,9 +23,7 @@ def main []: nothing -> nothing {
         $"($prefix)(^openssl rand -hex $PASSWORD_BYTES)\n" | save --append $pgpass
     }
     ^chmod 600 $pgpass
-    # a fresh role, or a fresh ~/.pgpass, is out of step: the socket login sets the role's password from the file,
-    # through stdin so it never shows in a process list. a stopped cluster fails both logins and the server reports it
-    # per query
+    # a fresh role or ~/.pgpass is out of step: set it over the socket, through stdin so it stays out of ps
     if not (login-works $HOST) and (login-works $SOCKET) {
         let password = open --raw $pgpass | lines | where { str starts-with $prefix } | first
             | str substring ($prefix | str length)..

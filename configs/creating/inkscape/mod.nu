@@ -2,9 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [inkscape]}}
 
-# inkscape_mcp (github.com/aravindev/inkscape_mcp): headless through the cli, live over d-bus when a window runs, stdio.
-# its deps resolve as of its release date; bump both together. on first start it copies its inkex extensions into
-# ~/.config/inkscape/extensions, a running inkscape picks them up after a restart
+# its deps resolve as of its release date; bump both together
 const MCP_VERSION = "1.3.1"
 const MCP_RELEASED = "2026-09-01"
 

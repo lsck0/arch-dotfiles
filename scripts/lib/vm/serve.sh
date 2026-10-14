@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# one http request of the test vm, from socat: GET /beacon/<tag>, /step/<name>, /file/<name>, PUT <upload>. bash because
-# the request must be read byte-exact from the socket, which a nu read cannot do; state in the dir $1
+# bash: the request must be read byte-exact from the socket, which a nu read cannot do
 set -euo pipefail
 dir=$1
 read -r method path _

@@ -1,6 +1,4 @@
 #!/usr/bin/nu --no-config-file
-# monthly lynis audit: the hardening index and the first warnings go to the journal as dotfiles-health, which each
-# admin's system-notify shows; the full report stays in /var/log/lynis-report.dat
 
 const REPORT = "/var/log/lynis-report.dat"
 const WARNINGS_SHOWN = 5

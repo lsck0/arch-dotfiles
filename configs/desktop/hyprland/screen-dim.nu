@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# idle dim and restore: laptop backlight via brightnessctl, external ddc/ci monitors via ddcutil; the pre-dim level per
-# device is saved so resume brings it back
+# idle dim and restore of the backlight and ddc/ci monitors, the pre-dim level per device saved for resume
 
 const DDC_LOW = 10
 # a percentage: a raw 10 is near black on a panel with a high max
@@ -52,8 +51,7 @@ def restore []: nothing -> nothing {
     rm --force (state-file)
 }
 
-# one run at a time: a resume during the slow ddc dim waits for it, so restore never reads a half-written state or
-# races jobs that would dim again after it
+# one run at a time: a resume during the slow ddc dim waits, so restore never reads a half-written state
 def main [action: string] {
     if $action not-in [dim restore] {
         print -e "usage: screen-dim.nu {dim|restore}"

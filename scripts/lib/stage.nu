@@ -1,6 +1,3 @@
-# dot stage: one unattended stage per boot of the install chain, install then config; the config stage disarms the
-# temporary keyfile first, and the chain retires itself and its sudo drop-in at the end
-
 use log.nu *
 
 const STATE_DIR = "/var/lib/dotfiles-stage"
@@ -20,8 +17,7 @@ def note [message: string]: nothing -> nothing {
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
 }
 
-# idempotent; config's boot barrier rebuilds the initramfs without the keyfile, a stale one opens nothing once the slot
-# is gone. sudo test because cryptsetup-keys.d is root-only
+# idempotent; sudo test because cryptsetup-keys.d is root-only
 def disarm []: nothing -> bool {
     let device = open --raw ($STATE_DIR | path join luks-device) | str trim
     if (^sudo test -f $KEY_FILE | complete).exit_code == 0 {
@@ -75,8 +71,7 @@ export def stage-run [repo: path]: nothing -> nothing {
         ^sudo systemctl reboot
         return
     }
-    # the keyfile sat in initramfs images on the unencrypted ESP: a trim lets the ssd drop the old blocks; whoever copied
-    # the ESP and the header meanwhile still derives the volume key, only a reencrypt rotates it
+    # a trim lets the ssd drop the keyfile's old ESP blocks; only a reencrypt rotates the volume key
     ^sudo fstrim /boot | complete | ignore
     note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (open --raw ($STATE_DIR | path join luks-device) | str trim)"
     # one sudo call: after the rm there is no passwordless sudo left to reboot with

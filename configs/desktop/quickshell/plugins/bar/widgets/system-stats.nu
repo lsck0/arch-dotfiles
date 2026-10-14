@@ -63,10 +63,10 @@ def hardware-detect []: nothing -> record {
         glob $"($h)/temp*_label" | sort | where { line-read $in | $in =~ $CPU_TEMP_LABEL } | each { str replace -r '_label$' '_input' } | append $"($h)/temp1_input"
     } | flatten | where { path exists } | get 0?
 
-    # memory from udev's dmi_memory_id import (70-memory.rules): readable without root, unlike dmidecode
+    # udev's dmi_memory_id import (70-memory.rules) is readable without root, unlike dmidecode
     let dmi = ^udevadm info --query=property $"--path=($DMI_DEVICE)" | complete | get stdout | lines | parse 'MEMORY_DEVICE_{slot}_{key}={value}'
     let field = {|key| $dmi | where key == $key }
-    # dmi_memory_id writes SIZE only for a populated slot; channels are the distinct bank locators of populated slots
+    # SIZE is set only for a populated slot
     let populated = do $field SIZE | where ($it.value | into int) > 0 | get slot
     let banks = do $field BANK_LOCATOR | where slot in $populated
     {

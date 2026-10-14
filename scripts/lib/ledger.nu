@@ -1,5 +1,4 @@
-# ledger.sh's file: `<kind> <name...>` lines of what the dotfiles own. only an owned entry the repo stopped declaring
-# is removed, after a yes; what a person enabled or installed by hand is reported, never touched
+# only an owned entry the repo stopped declaring is removed; anything done by hand is reported, never touched
 
 use log.nu *
 use state.nu [state-dir]
@@ -61,8 +60,7 @@ export def packages-convergence [declared: list<string>, keep: list<string>]: no
     {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra}
 }
 
-# ledger-packages <declared>: own what the modules declare, remove what was owned and is no longer declared (after a yes;
-# what another package still needs stays as a dependency), report what was installed by hand
+# what another package still needs stays as a dependency
 export def ledger-packages [declared: list<string>]: nothing -> nothing {
     let resolved = ^pacman -Qq ...$declared | complete | get stdout | lines
         | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last }) | uniq | sort
@@ -81,8 +79,7 @@ export def ledger-packages [declared: list<string>]: nothing -> nothing {
     if ($by_hand | is-not-empty) { log-info $"installed by hand, not managed: ($by_hand | str join ' ')" }
 }
 
-# the generations this machine installed, one line each: <copy sha> <pin|latest> <db time> <db sha256>; a sha installed
-# again replaces its line
+# one line per sha: <copy sha> <pin|latest> <db time> <db sha256>
 export def ledger-generation [file: path, sha: string, snapshot: string]: nothing -> nothing {
     if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"ledger-generation: ($sha) is not a commit sha"} }
     let kept = if ($file | path exists) { open --raw $file | lines | where {|l| ($l | split row " " | first) != $sha } } else { [] }

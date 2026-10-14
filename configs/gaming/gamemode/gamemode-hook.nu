@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# gamemode's [custom] hook: free resources for the game, the ini does the core pinning, visuals stay on
 
 const TRMNL_TIMER = "trmnl-claude.timer"
 # local inference holds the whole gpu vram; the socket reactivates vllm on the next client, so only ollama is restored

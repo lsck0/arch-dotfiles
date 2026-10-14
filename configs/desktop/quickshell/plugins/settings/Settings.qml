@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
@@ -7,8 +8,7 @@ import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
 
-// every dotfiles option from `dot options --json`, one row per option by type, plus the toggles until they
-// are options (SUPER+comma). live options apply at once, the rest wait in the pending bar for apply
+// `dot options --json` plus the toggles until they are options; non-live ones wait in the pending bar
 Item {
   id: root
 
@@ -21,6 +21,8 @@ Item {
   property int rowIndex: -1
   property string expandedId: ""
   property int choiceCursor: -1
+  // typed while a list is open, narrows its choices
+  property string choiceQuery: ""
   property string editingId: ""
   property string draft: ""
 
@@ -49,16 +51,21 @@ Item {
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
   readonly property var rows: Schema.rows(modules, toggles, section ? section.id : "", query)
   readonly property var cursorRow: rowIndex >= 0 && rowIndex < rows.length ? rows[rowIndex] : null
+  readonly property var choiceList: expandedId && cursorRow && cursorRow.id === expandedId
+    ? Schema.choicesMatching(cursorRow.option, choiceQuery) : []
   readonly property var queued: Object.keys(pending).filter(function (id) { return pending[id].option.apply !== "live" })
   readonly property string queuedNeeds: Schema.strongestApply(queued.map(function (id) { return root.pending[id].option }))
 
   readonly property var hints: {
-    var out = [["TYPE", "search"], ["TAB", "pane"], ["ENTER", "edit"], ["LEFT/RIGHT", "change"], ["CTRL+R", "reset"]]
+    var out = [["TYPE", root.expandedId ? "filter" : "search"], ["TAB", "pane"], ["ENTER", "edit"], ["LEFT/RIGHT", "change"],
+      ["CTRL+R", "reset"]]
     if (cursorRow && cursorRow.kind === "option" && cursorRow.option.type === "path") out.push(["CTRL+O", "browse"])
     if (queued.length > 0) out.push(["CTRL+S", "apply"], ["CTRL+Z", "revert"])
     out.push(["ESC", root.editingId || root.expandedId ? "back" : root.query ? "clear" : "close"])
     return out
   }
+
+  onExpandedIdChanged: root.choiceQuery = ""
 
   function open() {
     var focused = Hyprland.focusedMonitor
@@ -124,17 +131,25 @@ Item {
   }
 
   function moveChoice(delta) {
-    var count = (root.cursorRow.option.choices || []).length
-    root.choiceCursor = (root.choiceCursor + delta + count) % count
+    var count = root.choiceList.length
+    if (count > 0) root.choiceCursor = (root.choiceCursor + delta + count) % count
   }
 
-  // true when the key was used; the focused text field sees every key first and leaves the rest to this
+  function filterChoices(text) {
+    root.choiceQuery = text
+    root.choiceCursor = Math.max(0, root.choiceList.indexOf(root.valueOf(root.cursorRow)))
+  }
+
+  function printable(text) { return text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
+
+  // true when used; the focused text field sees every key first
   function handleKey(key, text, modifiers) {
     var ctrl = (modifiers & Qt.ControlModifier) !== 0
     var row = root.pane === "rows" ? root.cursorRow : null
 
     if (key === Qt.Key_Escape) {
       if (root.editingId) root.endEdit(false)
+      else if (root.choiceQuery) root.filterChoices("")
       else if (root.expandedId) root.expandedId = ""
       else if (root.query) root.setQuery("")
       else root.close()
@@ -172,8 +187,10 @@ Item {
 
     if (root.expandedId && row && row.id === root.expandedId) {
       if (vertical !== 0 || horizontal !== 0) root.moveChoice(vertical !== 0 ? vertical : horizontal)
-      else if (key === Qt.Key_Return || key === Qt.Key_Enter) root.change(row, row.option.choices[root.choiceCursor])
-      else return root.typeKey(key, text)
+      else if ((key === Qt.Key_Return || key === Qt.Key_Enter) && root.choiceList.length > 0) root.change(row, root.choiceList[root.choiceCursor])
+      else if (key === Qt.Key_Backspace) root.filterChoices(root.choiceQuery.slice(0, -1))
+      else if (root.printable(text)) root.filterChoices(root.choiceQuery + text)
+      else return false
       return true
     }
     if (vertical !== 0) {
@@ -200,7 +217,7 @@ Item {
       if (root.query) root.setQuery(root.query.slice(0, -1))
       return true
     }
-    if (text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127) {
+    if (root.printable(text)) {
       root.setQuery(root.query + text)
       return true
     }
@@ -328,8 +345,10 @@ Item {
     if (!entry) { root.runNext(); return }
     setProc.id = id
     setProc.value = entry.value
-    setProc.command = (entry.reset ? [root.dot, "unset", id] : [root.dot, "set", id, Schema.encode(entry.option, entry.value)])
-      .concat(entry.option.scope === "machine" ? ["--machine"] : [])
+    var option = entry.option
+    setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.encode(option, entry.value)]
+      : (entry.reset ? [root.dot, "unset", id] : [root.dot, "set", id, Schema.encode(option, entry.value)])
+        .concat(option.scope === "machine" ? ["--machine"] : [])
     setProc.running = true
   }
 
@@ -431,7 +450,7 @@ Item {
 
   JsonProcess {
     id: statusProc
-    command: [Paths.toggle("status.nu")]
+    command: [Paths.toggle("status.nu"), "--options"]
     onParsed: function (data) {
       root.toggles = Array.from(data || [])
       root.busyToggles = ({})
@@ -483,6 +502,7 @@ Item {
         clip: true
         spacing: Style.spacing.xxs
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
         delegate: Rectangle {
           id: sectionRow
@@ -609,7 +629,7 @@ Item {
               }
             }
 
-            // menu.nu semantics: enter runs the script's toggle; a setting (font, scale) steps to its next value
+            // menu.nu semantics: enter toggles, a setting (scale, shader) steps to its next value
             Component {
               id: toggleRow
               Rectangle {
@@ -682,6 +702,8 @@ Item {
                 hasCursor: slot.hasCursor
                 expanded: root.expandedId === slot.modelData.id
                 choiceCursor: root.choiceCursor
+                listed: root.expandedId === slot.modelData.id ? root.choiceList : []
+                choiceFilter: root.expandedId === slot.modelData.id ? root.choiceQuery : ""
                 editing: root.editingId === slot.modelData.id
                 draft: root.draft
 
@@ -714,7 +736,6 @@ Item {
           }
         }
 
-        // what waits for apply, and how the last apply went
         Column {
           id: pendingBar
           anchors.left: parent.left

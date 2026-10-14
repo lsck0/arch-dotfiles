@@ -13,8 +13,7 @@ const DEBOUNCE = 500ms
 const ALERT_MARK = "** Alert "
 const MAIN_JOB = 0
 
-# whole alerts only, ossec ends each with a blank line; block: "** Alert <ts>.<id>: ..." then
-# "Rule: <id> (level <n>) -> '<desc>'"
+# whole alerts only, each blank-line terminated: "** Alert <ts>.<id>: ..." then "Rule: <id> (level <n>) -> '<desc>'"
 def alerts-parse [text: string]: nothing -> table {
     $text | split row $ALERT_MARK | skip 1 | each {|block|
         let rule = $block | parse -r '(?m)^Rule: (?<rule>.*?) \(level (?<level>\d+)\) -> (?<desc>.*)$' | get 0?

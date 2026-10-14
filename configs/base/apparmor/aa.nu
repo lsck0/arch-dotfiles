@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# per-app apparmor modes over the dotfiles baseline (profiles.conf): your choices go to manual.conf drop-ins that config
-# runs never touch, rebuilt through apparmor.d's aa-install as the module and the pacman hook do. a profile is an
-# apparmor.d name (aa list) or one of the module's own, which config installs straight into /etc/apparmor.d
+# per-app apparmor modes in manual.conf drop-ins, which config runs never touch
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
@@ -33,7 +31,7 @@ def sudo-save [file: path, --append]: string -> nothing {
 def mode-set [profile: string, mode: string]: nothing -> nothing {
     if $profile not-in (available) { die $"no apparmor.d profile named '($profile)' \(try: aa list ($profile)\)" }
     ^sudo touch $INCLUDE $FLAGS
-    # the baseline's flags after its mode (telegram-desktop enforce,mediate_deleted) hold whatever the mode
+    # keep the baseline's extra flags (telegram-desktop enforce,mediate_deleted) across a mode change
     let extra = if ($BASELINE_FLAGS | path exists) {
         open --raw $BASELINE_FLAGS | lines | where (first-word $it) == $profile
         | each { split row --regex '\s+' | get 1 | parse --regex '^[^,]*(?<rest>.*)' | get 0.rest } | str join
@@ -41,7 +39,7 @@ def mode-set [profile: string, mode: string]: nothing -> nothing {
     open --raw $FLAGS | lines | where (first-word $it) != $profile | append $"($profile) ($mode)($extra)"
     | str join "\n" | $"($in)\n" | sudo-save $FLAGS
     let file = $ETC | path join $profile
-    # one of configs/base/apparmor/profiles: config renders its mode into the header from the same manual.conf
+    # an own profile carries its mode in the header, config renders it from the same manual.conf
     if ($file | path exists) and (open --raw $file | lines | any { $in == $OWN_MARKER }) {
         let flag = if $mode == "enforce" { "" } else { $"($mode)," }
         open --raw $file | lines | each {|l|

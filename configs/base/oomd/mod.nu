@@ -23,7 +23,7 @@ export def detect [cfg: record]: nothing -> record {
     {session_memory_low: ([$SESSION_LOW_MAX ((sys mem).total * $SESSION_LOW_PERCENT / 100)] | math min)}
 }
 
-# protection only reaches session.slice (link) through every ancestor: user.slice, user-UID.slice, user@UID.service
+# protection reaches session.slice only through every ancestor slice
 export def system [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
@@ -40,7 +40,6 @@ export def link [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
         (dropin app.slice oomd-app.slice.conf --name 10-oomd.conf)
-        # the desktop itself, never an oomd candidate
         (file-render session-protect.slice.conf (unit-dir | path join session.slice.d 10-protect.conf)
             {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
         (unit-file oom-notify.service --enable --now)

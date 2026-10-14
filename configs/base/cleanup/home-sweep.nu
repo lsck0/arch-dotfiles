@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# weekly sweep of the log and temp accretion in $HOME that no size cap, tmpfiles rule or per-run overwrite reaches:
-# per-launch logs that pile up, app log dirs that grow unbounded, the regenerated install.log, stale failed units.
-# every trim takes only log files, stays out of subdirectories, and skips an app whose process is up
+# log accretion in $HOME no size cap or tmpfiles rule reaches; skips an app whose process is up
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 const SPOTIFY_DIR = ".cache/spotify-player"
@@ -9,9 +7,7 @@ const SPOTIFY_DIR = ".cache/spotify-player"
 const SPOTIFY_KEEP = 3
 const LOG_AGE_MAX = 14day
 const LOG_EXTENSIONS = [log backtrace txt]
-# install.log is rewritten each run, only the recent tail is worth keeping
 const INSTALL_LOG_SIZE_MAX = 2MiB
-# per-app log dirs that accrete, and the process that writes them
 const APP_LOGS = [
     [dir process];
     [.xlcore/logs XIVLauncher]
@@ -46,6 +42,6 @@ def main []: nothing -> nothing {
         | save --force $"($install_log).new"
         mv --force $"($install_log).new" $install_log
     }
-    # claude-*, run-p* and app-*-transient scopes leave failed entries behind; a reset never kills a unit
+    # claude-*, run-p* and app-*-transient scopes leave failed entries behind
     ^systemctl --user reset-failed | complete | ignore
 }

@@ -8,18 +8,15 @@ Rectangle {
   property string glyph: ""
   property string trailing: ""
 
-  // show on/off as a dot instead of an icon
   property bool stateMarker: false
 
   property bool on: false
 
-  // button-style row resting on a fill
   property bool filled: false
   property bool centered: false
 
   signal activated()
 
-  // reachable from the drawer's Tab / arrow walk (HoverPanel)
   activeFocusOnTab: enabled
   Keys.onReturnPressed: root.activated()
   Keys.onEnterPressed: root.activated()
@@ -114,7 +111,6 @@ Rectangle {
     onClicked: root.activated()
   }
 
-  // cursor, the same `>` the overlays use: solid on keyboard focus, faint on pointer hover
   Text {
     visible: root.activeFocus || (mouse.containsMouse && root.enabled)
     opacity: root.activeFocus ? 1 : Style.emphasis.faint

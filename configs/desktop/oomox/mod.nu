@@ -33,8 +33,7 @@ export def theme [cfg: record, wallpaper: string] {
     ]
 }
 
-# themix cannot init gtk without a display and a fresh install's first apply runs headless, so without the theme the
-# first login's gtk dialogs (keyring prompt) would come up in plain adwaita
+# themix cannot init gtk headless, so a fresh install's first login gtk dialogs would be plain adwaita
 export def themix-export []: nothing -> nothing {
     let headless = ($env.WAYLAND_DISPLAY? | is-empty) and ($env.DISPLAY? | is-empty) and (which xvfb-run | is-not-empty)
     let themix = (if $headless { [xvfb-run -a] } else { [] }) ++ [themix-multi-export]

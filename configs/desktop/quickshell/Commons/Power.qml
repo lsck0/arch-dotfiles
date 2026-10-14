@@ -4,7 +4,6 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 
-// saver from toggle-powermode.nu (forced power-saver, or auto on battery), strips fx and live visuals while on
 Singleton {
   id: root
 
@@ -14,7 +13,7 @@ Singleton {
 
   property bool saver: false
 
-  // the script owns the saver rule; it reloads hyprland and pings back here when saver flips
+  // toggle-powermode.nu owns the saver rule and pings back here when saver flips
   readonly property bool onBattery: UPower.onBattery === true
   onOnBatteryChanged: sync()
   Component.onCompleted: sync()

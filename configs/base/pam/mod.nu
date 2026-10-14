@@ -28,11 +28,10 @@ export def detect [cfg: record]: nothing -> record {
     {fido_origin: $"pam://(open --raw /etc/hostname | str trim)"}
 }
 
-# one root-owned mapping, never the user's own u2f_keys a process of theirs could add a key to. the fido2 pin plus
-# touch: a bare touch is no second factor against a process of the session. no nouserok: a user without a key falls
-# through to the password include
+# root-owned mapping, never the user's own u2f_keys a process of theirs could add a key to; touch alone, no pin
+# no nouserok: a user without a key falls through to the password include
 def u2f-line [origin: string]: nothing -> string {
-    let options = $"cue pinverification=1 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
+    let options = $"cue pinverification=0 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
     $"auth       sufficient pam_u2f.so ($options)"
 }
 
@@ -44,8 +43,7 @@ def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
     if $at == null { $lines } else { ($lines | first $at) ++ [$line] ++ ($lines | skip $at) }
 }
 
-# fingerprint and yubikey on sudo, the yubikey on polkit prompts, additive to the password; login takes the password
-# only. the lock screen keeps them apart: a password service and a pin+touch one, so a password never reaches the key
+# yubikey and fingerprint on sudo, yubikey on polkit, additive to the password; login takes the password only
 export def system [cfg: record] {
     # windows owns sign-in hardware under wsl
     if $env.FORM_FACTOR? == "wsl" { return [] }
@@ -57,8 +55,7 @@ export def system [cfg: record] {
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
         (if ($U2F_KEYS | path exists) { file-copy $U2F_KEYS /etc/u2f_mappings } else { [] })
         (step sudo-stack ($u2f | into string) $line)
-        # rebuilt from the vendor stack, so a polkit update reaches it; pam-u2f's polkit-agent-helper@ drop-in lets the
-        # sandboxed helper open the key
+        # rebuilt from the vendor stack, so a polkit update reaches it
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let text = auth-insert (open --raw $POLKIT_VENDOR | lines) $line | str join "\n" | $"($in)\n"
             file-text /etc/pam.d/polkit-1 $text

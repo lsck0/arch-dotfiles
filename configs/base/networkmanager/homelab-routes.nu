@@ -1,15 +1,12 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: on a home link (/run/home-network) the homelab subnets route straight out the lan from their own
-# table, looked up ahead of a full-tunnel vpn's rules (wg-quick, NM wireguard); wg0's main-table routes stay untouched,
-# so they hold again once home is left. an unreachable fallback catches the rest. only on a homelab machine (mod.nu
-# writes homelab.env from its homelab_* options): anyone else's home keeps its router's dns and routes
+# NM dispatcher: on a home link the homelab subnets route out the lan from their own table, ahead of a full-tunnel vpn
 
 const LAB_ENV = "/etc/NetworkManager/homelab.env"
 const HOME_NETWORK = "/run/home-network"
 const TABLE = "178"
 # below wg-quick's suppress_prefixlength 0 rule (32764) and NM wireguard's
 const PRIORITY = "30000"
-# behind wg0's main-table routes; off home and wg0 the homelab fails fast instead of leaking out the default route
+# behind wg0's routes; off home the homelab fails fast instead of leaking out the default route
 const UNREACHABLE_METRIC = "4000"
 
 def --wrapped out [...argv: string]: nothing -> string {
@@ -40,16 +37,13 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         return
     }
 
-    # not while the full tunnel is up: the persona dispatcher drops these on wg0 up so they cannot shadow it, a stray
-    # physical link event must not re-add them under it
+    # the persona dispatcher drops these on wg0 up; a stray link event must not re-add them under it
     if not ("/sys/class/net/wg0" | path exists) {
         for net in $nets { attempt ip route replace unreachable $net metric $UNREACHABLE_METRIC }
     }
     if not ($HOME_NETWORK | path exists) or $iface not-in (open --raw $HOME_NETWORK | lines) { return }
 
-    # the homelab domain only, this link only, set in the applied connection: NM owns the link's resolved config and
-    # re-pushes it on every ip change, so a resolvectl alone is gone a second later. the reapply restarts dhcp, whose
-    # dhcp4-change lands here again: skip once it is in place
+    # through NM, which re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip
     let dns = out nmcli -g IP4.DNS,IP6.DNS device show $iface | lines | where $it != ""
     if $dns != [$lab.HOMELAB_DNS] {
         (

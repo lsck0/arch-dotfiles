@@ -52,8 +52,7 @@ function stringHint(hints, name) {
   return ""
 }
 
-// the hint is sender-controlled, any d-bus client can set it: only the one shape the repo sends
-// (configs/core/ntfy/ntfy-notify.nu: xdg-open on an https link) runs, anything else falls back to the default action
+// any d-bus client sets this hint: only ntfy-notify.nu's shape (xdg-open on an https link) runs
 function parseExecArgv(value) {
   var parsed
   try {

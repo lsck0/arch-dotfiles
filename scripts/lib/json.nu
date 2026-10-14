@@ -1,4 +1,4 @@
-# edits as data, so a merge can cross into the locked process; a set replaces the whole value, like jq's `=`
+# edits as data, so a merge can cross into the locked process
 
 export def json-set [path: list<string>, value: any]: nothing -> record {
     {path: $path, value: $value}

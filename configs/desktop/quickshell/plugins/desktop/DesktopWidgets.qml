@@ -6,27 +6,14 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// ambient desktop cards on the bottom layer: click-through, main screen only, never what the bar
-// already shows. an agenda (reminders + taskwarrior), a notes view and the live pomodoro.
+// ambient cards on the bottom layer: click-through, main screen only, nothing the bar already shows
 Item {
-    /*
-   * ---------------------------------------------------------------------------
-   * CARD PARTS
-   * ---------------------------------------------------------------------------
-   */
-    /*
-   * ---------------------------------------------------------------------------
-   * SURFACE
-   * ---------------------------------------------------------------------------
-   */
-
     id: root
 
     property string mainScreenName: ""
-    // taskwarrior feeds the agenda through TaskState, the one export the bar and the tasks panel share
     readonly property int taskMax: 4
     readonly property int reminderMax: 4
-    // in ~/sync (syncthing), so the pad is the same on the desktop and the laptop
+    // in ~/sync, so desktop and laptop share the pad
     readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
     property string notesText: ""
     readonly property int cardWidth: Style.space(300)
@@ -65,13 +52,11 @@ Item {
             required property var modelData
 
             screen: modelData
-            // one set of cards, on the main output only
             visible: String(modelData.name) === root.mainScreenName
             color: "transparent"
             WlrLayershell.namespace: "quickshell-desktop-widgets"
             WlrLayershell.layer: WlrLayer.Bottom
-            // on demand, not none: the notes card is editable in place, so a click there grabs the keyboard; every
-            // other part of the layer stays click-through through the mask below
+            // not none: a click on the notes card grabs the keyboard, the mask keeps the rest click-through
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
             exclusionMode: ExclusionMode.Ignore
 
@@ -99,7 +84,7 @@ Item {
                 spacing: Style.spacing.md
                 visible: !screenGuard.remapping
 
-                // live pomodoro, only while a phase runs (the bar carries the controls)
+                // read-only, the bar carries the controls
                 Card {
                     heading: "Pomodoro"
                     visible: TimerState.pomoRunning
@@ -135,7 +120,6 @@ Item {
 
                     }
 
-                    // elapsed fill over the phase length
                     Rectangle {
                         width: parent.width
                         height: Style.spacing.xs
@@ -153,12 +137,11 @@ Item {
 
                 }
 
-                // upcoming reminders, then pending tasks
-                // the heading opens the full tasks panel (SUPER+o); it is the card's one input region
                 Card {
                     id: agendaCard
 
                     heading: "Agenda"
+                    visible: !root.agendaEmpty
                     onHeadingClicked: TaskState.panelOpen = true
 
                     Repeater {
@@ -188,26 +171,14 @@ Item {
 
                     }
 
-                    Text {
-                        width: parent.width
-                        visible: root.agendaEmpty
-                        textFormat: Text.PlainText
-                        text: "nothing scheduled"
-                        color: Colors.foreground
-                        opacity: Style.emphasis.faint
-                        font.family: Style.font.family
-                        font.pixelSize: Style.font.body
-                    }
-
                 }
 
-                // a jot pad in $notesPath, edited in place: this card is the layer's one input region (the mask), so a
-                // click starts typing while the rest of the desktop stays click-through. SUPER+SHIFT+n opens the same
-                // file in a floating editor for a longer edit, or when a window covers this bottom-layer card
+                // SUPER+SHIFT+n edits the same file when a window covers this card or the pad is empty
                 Card {
                     id: notesCard
 
                     heading: "Notes"
+                    visible: root.notesText.length > 0 || notesEdit.text.length > 0
 
                     TextEdit {
                         id: notesEdit
@@ -221,30 +192,15 @@ Item {
                         persistentSelection: true
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
-                        // seed from disk once; later external edits re-seed only while unfocused, never clobbering a
-                        // live edit (our own saves reload through the same path)
+                        // external edits re-seed only while unfocused, never clobbering a live edit
                         Component.onCompleted: text = root.notesText
                         onTextChanged: if (activeFocus)
                             saveTimer.restart()
                         onActiveFocusChanged: if (!activeFocus)
                             notesFile.setText(text)
-                        // a click on the bare desktop passes through the mask and never steals focus back, so Escape is
-                        // the way out; clicking any real window releases the keyboard on its own
+                        // a click on the bare desktop passes through the mask and never takes focus back
                         Keys.onEscapePressed: notesEdit.focus = false
 
-                        // the empty-state hint, shown only when there is nothing and the pad is idle
-                        Text {
-                            anchors.fill: parent
-                            visible: notesEdit.text.length === 0 && !notesEdit.activeFocus
-                            textFormat: Text.PlainText
-                            text: "no notes"
-                            color: Colors.foreground
-                            opacity: Style.emphasis.faint
-                            font.family: Style.font.family
-                            font.pixelSize: Style.font.body
-                        }
-
-                        // debounce writes during a burst of typing; a blur flushes immediately above
                         Timer {
                             id: saveTimer
 
@@ -267,13 +223,11 @@ Item {
 
             }
 
-            // only the notes card and the agenda heading are input regions; the pointer passes straight through
-            // everywhere else
             mask: Region {
-                item: notesCard
+                item: notesCard.visible ? notesCard : null
 
                 Region {
-                    item: agendaCard.headingItem
+                    item: agendaCard.visible ? agendaCard.headingItem : null
                 }
 
             }
@@ -282,7 +236,6 @@ Item {
 
     }
 
-    // one framed card over the wallpaper: heading rule, then body
     component Card: Rectangle {
         id: card
 
@@ -331,7 +284,6 @@ Item {
 
     }
 
-    // "> label ........ trailing", the shell's terminal list row
     component Line: Item {
         property string label: ""
         property string trailing: ""

@@ -1,7 +1,4 @@
--- Git worktrees of the current repo: switch the tab to one, or add one next to the existing ones.
---
--- `:G worktree add <path>` resolves <path> against the current worktree, which nested new worktrees inside it
--- (~/projects/probe/master/uwu), and git-worktree.nvim put them inside `.bare/`. `add` follows the layout instead:
+-- `:G worktree add <path>` nested new worktrees inside the current one; add follows the layout instead:
 --   <repo>/.bare + <repo>/branches/<slug>   bare layout of clones-sdd-repos.sh
 --   <bare>/<slug>                            worktrees inside a plain bare repo (~/projects/probe)
 --   ~/.worktrees/<repo>/<slug>               normal checkout, as configs/core/git/wtree.nu does
@@ -127,7 +124,6 @@ function M.pick_branch()
     end)
 end
 
---- Pick one of the repo's worktrees and switch the tab to it.
 function M.pick()
     local list = worktrees()
     if not list then

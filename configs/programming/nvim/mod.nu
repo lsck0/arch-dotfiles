@@ -28,8 +28,7 @@ def plugins-stale []: nothing -> bool {
     } | any { $in }
 }
 
-# a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir.
-# plugins, parsers and lsp tools install now instead of on first launch whenever a plugin is off its lock
+# a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir
 export def link [cfg: record] {
     let prefetch = if (plugins-stale) {
         [(exec prefetch [nvim --headless "+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync" "+qa"])]

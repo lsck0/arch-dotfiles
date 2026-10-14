@@ -27,7 +27,6 @@ Rectangle {
 
   signal activated()
 
-  // fill alphas: rest, hot, plus the danger step
   readonly property real restAlpha: 0.10
   readonly property real hotAlpha: 0.20
   readonly property real dangerStep: 0.08

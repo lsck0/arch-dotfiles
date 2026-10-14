@@ -23,9 +23,9 @@ Item {
   property int revealStartedVersion: -1
   property real revealProgress: 1
 
-  // the wedge's own length, between slow and ambient; instant in power saver
+  // between the slow and ambient durations
   readonly property int wedgeMs: Style.motion.enabled ? 420 : 0
-  // palette sync (signature D): the new palette's crossfade starts as the wedge passes the centre
+  // the new palette crossfades as the wedge passes the centre
   readonly property real paletteCue: 0.5
   readonly property int edgeWidth: Style.space(2)
   onRevealProgressChanged: if (revealProgress >= paletteCue) Colors.syncHold = false
@@ -132,7 +132,6 @@ Item {
 
       property bool maskReady: false
 
-      // decode at drawn size, not stored size
       readonly property real outputScale:
         modelData && modelData.devicePixelRatio ? modelData.devicePixelRatio : 1
       readonly property size decodeSize: Qt.size(
@@ -245,7 +244,6 @@ Item {
         }
       }
 
-      // the wedge's leading edges: 2px accent2 riding the mask, only while it moves
       Shape {
         anchors.fill: parent
         visible: root.incomingBackground !== "" && root.revealProgress < 1 && panel.maskReady

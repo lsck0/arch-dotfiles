@@ -16,7 +16,6 @@ autocmd("FileType", {
     callback = function(args)
         vim.opt_local.textwidth = 100
         vim.opt_local.formatoptions:append("t")
-        -- rst/typst hard-wrap but are not spell-checked
         local spell = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
         if spell[vim.bo[args.buf].filetype] then
             vim.opt_local.spell = true
@@ -43,7 +42,7 @@ autocmd("BufWritePre", {
     callback = function(args)
         if args.match:match("^%w+://") then
             return
-        end -- skip URLs (oil://, scp://, ...)
+        end
         vim.fn.mkdir(vim.fn.fnamemodify(args.file, ":p:h"), "p")
     end,
 })
@@ -90,14 +89,14 @@ autocmd("FileType", {
         if not pcall(vim.treesitter.start, buf, lang) then
             return
         end
-        -- no indents query: keep the runtime indent script (make's recipe tabs, ...)
+        -- keep the runtime indent script (make's recipe tabs)
         if vim.treesitter.query.get(lang, "indents") then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
         end
     end,
 })
 
--- open the explorer sidebar, keeping focus on the main window (the picker grabs it async)
+-- keep focus on the main window: the picker grabs it async
 local function open_explorer_keep_focus()
     local main = vim.api.nvim_get_current_win()
     require("lib.explorer").open()
@@ -112,13 +111,11 @@ autocmd("VimEnter", {
     desc = "Open explorer on a directory argument or a herdr launch",
     group = group("auto-explorer", { clear = true }),
     callback = function()
-        -- directory argument: cd into it and start on an empty buffer, not netrw
         if vim.fn.argc() == 1 and vim.fn.isdirectory(vim.fn.argv(0)) == 1 then
             vim.cmd.cd(vim.fn.fnameescape(vim.fn.fnamemodify(vim.fn.argv(0), ":p")))
             vim.cmd("%argdelete")
             vim.cmd.enew()
             local empty = vim.api.nvim_get_current_buf()
-            -- both the directory buffer and the netrw listing netrw swapped in for it
             for _, buf in ipairs(vim.api.nvim_list_bufs()) do
                 local listing = vim.bo[buf].filetype == "netrw"
                     or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
@@ -129,7 +126,6 @@ autocmd("VimEnter", {
             open_explorer_keep_focus()
             return
         end
-        -- herdr-open launches (NVIM_TMS=1)
         if vim.g.started_by_firenvim then
             return
         end
@@ -138,15 +134,14 @@ autocmd("VimEnter", {
         end
         if vim.fn.argc() > 1 then
             return
-        end -- diff/multi-file: leave alone
+        end
         local ft = vim.bo.filetype
         if ft == "gitcommit" or ft == "gitrebase" then
             return
         end
         if vim.bo.buftype ~= "" then
             return
-        end -- stdin, help, etc.
-        -- never stack a second tree
+        end
         for _, w in ipairs(vim.api.nvim_list_wins()) do
             if
                 vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "snacks_picker_list"
@@ -214,12 +209,12 @@ autocmd("BufReadPost", {
     end,
 })
 
--- transparent separator and bars, reapplied after every theme switch
+-- reapplied after every theme switch
 autocmd({ "ColorScheme", "VimEnter" }, {
     desc = "Transparent separators and bars",
     group = group("transparent-bars", { clear = true }),
     callback = function()
-        -- a faint separator in the theme's own dim shade (NonText: eol/listchars), not a fixed color
+        -- the theme's own dim shade, not a fixed color
         local dim = vim.api.nvim_get_hl(0, { name = "NonText", link = false }).fg
         local sep = vim.api.nvim_get_hl(0, { name = "WinSeparator", link = false }).fg
         vim.api.nvim_set_hl(0, "WinSeparator", { fg = dim or sep, ctermfg = 8 })

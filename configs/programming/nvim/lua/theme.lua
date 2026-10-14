@@ -2,8 +2,7 @@ local M = {}
 
 local MARKER = vim.env.HOME .. "/.cache/wal/nvim_theme"
 
--- theme name -> colorscheme; lazy.nvim loads the owning plugin on ColorSchemePre.
--- a name with no nvim port falls through to the pywal palette.
+-- a theme with no nvim port falls through to the pywal palette
 local COLORSCHEMES = {
     ["ayu-dark"] = "ayu-dark",
     ["ayu-light"] = "ayu-light",
@@ -17,7 +16,7 @@ local COLORSCHEMES = {
     ["one-dark"] = "onedark",
     ["pywal"] = "pywal",
     ["tokyo-night"] = "tokyonight-night",
-    ["void"] = "tokyonight-night", -- tokyonight-night derivative
+    ["void"] = "tokyonight-night",
 }
 
 -- upstream ayu LineNr is ~1.2:1 against bg, nearly invisible

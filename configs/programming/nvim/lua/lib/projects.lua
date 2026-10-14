@@ -1,6 +1,4 @@
--- Git checkouts and worktrees under the tms search dirs, the dirs `hms` and tms's popup show plus bare-repo worktrees.
--- project.nvim only listed directories this nvim had already visited, so a repo was missing from the picker
--- until it had been opened some other way.
+-- project.nvim only listed dirs this nvim had already visited
 local M = {}
 
 local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = 10 } }
@@ -59,7 +57,6 @@ local function is_checkout(path)
     return line:match("^gitdir: .*/worktrees/[^/]+/?$") ~= nil
 end
 
---- Every git checkout and worktree under the search dirs, sorted by display path.
 ---@return { display: string, path: string }[]
 function M.list()
     if vim.fn.executable("fd") ~= 1 then
@@ -79,12 +76,11 @@ function M.list()
 
             local res = vim.system(cmd, { text = true }):wait()
             for line in (res.stdout or ""):gmatch("[^\r\n]+") do
-                -- normalize first: fd prints directories with a trailing slash, which dirname would keep
+                -- fd prints dirs with a trailing slash, which dirname would keep
                 local git = vim.fs.normalize(line)
                 local path = vim.fs.dirname(git)
                 if not seen[path] and is_checkout(git) then
                     seen[path] = true
-                    -- display relative to its search dir, as tms and hms show it
                     local display = path:sub(1, #dir.path) == dir.path and path:sub(#dir.path + 2) or path
                     table.insert(out, { display = display, path = path })
                 end
@@ -98,8 +94,7 @@ function M.list()
     return out
 end
 
---- tcd into DIR and re-root the explorer there, so the whole tab moves to the project. Lands on a fresh empty
---- buffer with the explorer open rather than popping a file picker.
+--- tcd into DIR and re-root the explorer on an empty buffer.
 ---@param dir string
 function M.open(dir)
     pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))
@@ -107,7 +102,6 @@ function M.open(dir)
     require("lib.explorer").open(dir)
 end
 
---- Telescope picker over `M.list()`; confirming switches the tab to that project.
 function M.pick()
     local items = {}
     for _, item in ipairs(M.list()) do

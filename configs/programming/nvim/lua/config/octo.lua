@@ -1,6 +1,6 @@
 local M = {}
 
--- org name from the private per-repo identity (.identity/env), never hardcoded
+-- from the private per-repo identity, never hardcoded
 local function org()
     local o = vim.env.OCTO_DEFAULT_ORG
     if not o or o == "" then
@@ -10,7 +10,6 @@ local function org()
     return o
 end
 
--- run an Octo command with the org substituted for %s
 function M.org_cmd(fmt)
     local o = org()
     if o then
@@ -18,7 +17,6 @@ function M.org_cmd(fmt)
     end
 end
 
--- prefill :Octo search with org:<org> plus filters, editable before running
 function M.org_search(filters)
     local o = org()
     if not o then

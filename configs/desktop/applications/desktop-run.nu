@@ -1,13 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# desktop-run [--file | --files | --dir | --ask <prompt>] [--in-dir] [--cd <dir>] [--open <url>] [--group <group>] [--hold]
-#             [--notify] -- <command...>
-# what a launcher entry runs for a command that wants more than its name: --file/--files/--dir pick through zenity and
-# --ask reads a line (in the terminal, else zenity), the answer appended to the command; --in-dir picks a directory to
-# run it in instead; --cd runs it in <dir>, made first; --open loads <url> in the browser once it answers (a local web
-# ui). --group runs it through sudo unless the user is in <group> (docker: the socket is root:docker, membership is
-# opt-in). in a terminal a failure waits for enter so its error stays readable, --hold waits after any exit; --notify
-# is the same for a gui app: an exit that is an error, or comes within seconds of the start, shows its last stderr
-# lines as a notification instead of a launch that silently opens nothing
+# desktop-run [--file|--files|--dir|--ask <p>] [--in-dir] [--cd <dir>] [--open <url>] [--group <g>] [--hold] [--notify] -- <cmd...>
+# a launcher entry's command: a pick appended, sudo unless in <group>, a failure held in a terminal or notified from a gui
 
 const USAGE = "usage: desktop-run [options] -- <command...>"
 const EXIT_USAGE = 2
@@ -18,7 +11,7 @@ const OPEN_TRIES = 120
 const NOTIFY_EARLY = 5sec
 const NOTIFY_LINES = 5
 
-# zenity's answer, null when cancelled: a cancelled pick or an empty answer is a cancelled launch, not an error
+# null when cancelled: a cancelled pick or an empty answer cancels the launch, not an error
 def --wrapped zenity-ask [...args: string]: nothing -> any {
     let out = ^zenity ...$args | complete
     if $out.exit_code != 0 { null } else { $out.stdout | str trim --right --char "\n" }

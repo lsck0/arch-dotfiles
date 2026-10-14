@@ -4,8 +4,7 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// taskwarrior and the notes pad in one keyboard-first overlay (SUPER+o, the bar's task count, the desktop agenda
-// heading). tasks come from TaskState and are changed by uuid; notes edit the same file as the desktop notes card
+// taskwarrior and the notes pad in one keyboard-first overlay; tasks are changed by uuid
 Item {
   id: root
 
@@ -19,13 +18,12 @@ Item {
   property int selectedIndex: 0
   property string selectedUuid: ""
 
-  // in ~/sync (syncthing), the desktop notes card and SUPER+SHIFT+n edit the same file
+  // in ~/sync; the desktop notes card and SUPER+SHIFT+n edit the same file
   readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
   // the file as last read or written, so a save only happens when the pad really differs
   property string notesDisk: ""
   property bool notesLoaded: false
-  // typed since the last seed or save; only then may a save replace the file, so a pad that was merely shown never
-  // writes stale text over an edit made elsewhere (the desktop card, SUPER+SHIFT+n, syncthing)
+  // only a typed pad may save, so one merely shown never overwrites an edit made elsewhere
   property bool notesEdited: false
   readonly property int notesSaveDelayMs: 600
 
@@ -295,7 +293,6 @@ Item {
     Item {
       anchors.fill: parent
 
-      // view switch, clickable like a tab strip
       Row {
         id: viewTabs
         anchors.top: parent.top
@@ -323,9 +320,6 @@ Item {
         }
       }
 
-      /*
-       * tasks view
-       */
       Item {
         id: tasksView
         anchors.top: viewTabs.bottom
@@ -375,7 +369,6 @@ Item {
             Keys.onPressed: function (event) { event.accepted = root.inputKey(event.key) }
           }
 
-          // idle: the active filter, or what the line does
           Text {
             anchors.left: inputGlyph.right
             anchors.right: parent.right
@@ -479,7 +472,7 @@ Item {
               layer.effect: Glow {}
             }
 
-            // started: timewarrior is tracking it (the on-modify hook)
+            // timewarrior is tracking it (the on-modify hook)
             Text {
               id: activeMark
               anchors.left: reticle.right
@@ -523,7 +516,6 @@ Item {
               }
             }
 
-            // due, or the mouse actions while the row is hot
             Row {
               id: trailing
               anchors.right: parent.right
@@ -583,7 +575,7 @@ Item {
           }
         }
 
-        // pomodoro and reminders, read-only; the bar clock carries their controls
+        // read-only; the bar clock carries the controls
         Column {
           id: timerStrip
           anchors.left: parent.left
@@ -623,9 +615,6 @@ Item {
         }
       }
 
-      /*
-       * notes view
-       */
       Flickable {
         id: notesFlick
         anchors.top: viewTabs.bottom
@@ -640,7 +629,6 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         clip: true
 
-        // keep the caret in view while typing past the bottom
         function ensureVisible(r) {
           if (contentY >= r.y) contentY = r.y
           else if (contentY + height <= r.y + r.height) contentY = r.y + r.height - height

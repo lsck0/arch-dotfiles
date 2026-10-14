@@ -1,13 +1,12 @@
 return {
     {
-        "mfussenegger/nvim-dap", -- debug adapter protocol
+        "mfussenegger/nvim-dap",
         dependencies = {
-            "rcarriga/nvim-dap-ui", -- debugger UI panels
-            "theHamsta/nvim-dap-virtual-text", -- inline debug values
+            "rcarriga/nvim-dap-ui",
+            "theHamsta/nvim-dap-virtual-text",
         },
         cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut" },
         init = function()
-            -- ssh -L tunnels for remote attach: :DapTunnel <ssh-host> <port> [remote-port]
             local tunnels = {}
             vim.api.nvim_create_user_command("DapTunnel", function(o)
                 local host, port = o.fargs[1], o.fargs[2]
@@ -110,7 +109,6 @@ return {
                 end
             end
 
-            -- native: gdb for c/cpp/asm, codelldb for rust
             dap.adapters.gdb = {
                 type = "executable",
                 command = "gdb",
@@ -135,7 +133,6 @@ return {
                     cwd = "${workspaceFolder}",
                 },
                 {
-                    -- remote: gdbserver :2345 ./prog (tunnel with :DapTunnel host 2345)
                     name = "Attach to gdbserver (remote)",
                     type = "gdb",
                     request = "attach",
@@ -179,7 +176,6 @@ return {
                 },
             }, native_attach)
 
-            -- python: debugpy from mason; connect attaches to a `debugpy --listen` server
             local debugpy_python = vim.fn.stdpath("data") .. "/mason/packages/debugpy/venv/bin/python"
             dap.adapters.python = function(cb, config)
                 if config.request == "attach" and config.connect then
@@ -239,7 +235,7 @@ return {
                 },
             }
 
-            -- java: jdtls loads the java-debug bundle (lsp.lua) and hands out the adapter port
+            -- jdtls loads the java-debug bundle and hands out the adapter port
             local function jdtls_command(command, arguments)
                 local client = vim.lsp.get_clients({ name = "jdtls" })[1]
                 assert(client, "jdtls not running, open a .java file first")
@@ -289,7 +285,6 @@ return {
                     cwd = "${workspaceFolder}",
                 },
                 {
-                    -- java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
                     name = "Attach to JDWP port (remote)",
                     type = "java",
                     request = "attach",
@@ -298,7 +293,7 @@ return {
                 },
             }
 
-            -- javascript/typescript: js-debug from mason; node >= 23 runs .ts directly
+            -- node >= 23 runs .ts directly
             local js_debug_server = vim.fn.stdpath("data")
                 .. "/mason/packages/js-debug-adapter/js-debug/src/dapDebugServer.js"
             dap.adapters["pwa-node"] = {
@@ -329,7 +324,6 @@ return {
                     cwd = "${workspaceFolder}",
                 },
                 {
-                    -- node --inspect; remote: :DapTunnel host 9229
                     name = "Attach to inspector port (remote)",
                     type = "pwa-node",
                     request = "attach",
@@ -351,8 +345,7 @@ return {
     },
 
     {
-        -- delve adapter + go configs; reuses the generic <leader>/F5 dap keys
-        "leoluz/nvim-dap-go", -- go debugging via system-wide dlv
+        "leoluz/nvim-dap-go",
         ft = "go",
         dependencies = { "mfussenegger/nvim-dap" },
         main = "dap-go",

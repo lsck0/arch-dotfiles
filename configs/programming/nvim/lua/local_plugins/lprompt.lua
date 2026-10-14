@@ -1,4 +1,3 @@
--- send buffer/selection to this editor's hermes agent, or add it as a +prompt task
 local M = {}
 
 local HERMES_AGENT_NAME = "lprompt-hermes"

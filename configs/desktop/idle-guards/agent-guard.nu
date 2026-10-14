@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file --stdin
-# keeps the machine awake while a coding agent (claude code, hermes) actually works: a turn in flight or a subagent
-# running. an open but idle session holds nothing. called from the agents' hooks with their json on stdin
+# keeps the machine awake while a coding agent has a turn or subagent in flight; called from the agents' hooks
 
 const POLL = 5sec
 const SESSION_DEFAULT = "default"
@@ -29,7 +28,6 @@ def parent-pid []: nothing -> string {
     open --raw $"/proc/($nu.pid)/stat" | str replace --regex '^.*\) ' '' | split row " " | get 1
 }
 
-# busy while its turn flag exists or a subagent count is above zero, and its agent process lives
 def session-busy [dir: path, sid: string]: nothing -> bool {
     if not (alive (read-or ($dir | path join $"($sid).pid") "")) { return false }
     ($dir | path join $"($sid).turn" | path exists) or ((read-or ($dir | path join $"($sid).agents") "0" | into int) > 0)
@@ -74,7 +72,6 @@ def "main subagent-stop" []: string -> nothing {
 # exit 0 while any agent works (hypridle's condition)
 def "main busy" []: nothing -> nothing { if not (any-busy (state-dir)) { exit 1 } }
 
-# the inhibitor's child, holding the block while anything is busy
 def "main hold" []: nothing -> nothing {
     let dir = state-dir
     $nu.pid | into string | save --force ($dir | path join .holder)

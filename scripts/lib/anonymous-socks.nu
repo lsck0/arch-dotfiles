@@ -1,8 +1,7 @@
-# scoped SOCKS anonymiser: a private tor instance whose pool of ports each verifiably exits through tor, its own
-# packets wearing an os persona, everything in anonsocks.slice guarded to lo
+# scoped socks anonymiser: a private tor port pool, each port verified to exit through tor
 
 const CONFIG = ".config/anonymous-socks/config"
-# 9061 and 9161 clear of a system tor's 9050/9051; new streams reuse a circuit this long (tor's default), then rotate
+# ports clear of a system tor's 9050/9051; MAX_CIRCUIT_DIRTINESS is tor's default
 const DEFAULTS = {
     PORT: 9061, RATE: 0, TOR_BIN: tor, POOL_SIZE: 10, CONTROL_PORT: 9161, MAX_CIRCUIT_DIRTINESS: 600, PERSONA: 1
     PERSONA_OS: windows, TOR_CHECK_URL: "https://check.torproject.org/api/ip"
@@ -11,7 +10,7 @@ const DEFAULTS = {
 const TOR_UNIT = "anonymous-socks-tor.service"
 const SLICE = "anonsocks.slice"
 const ISOLATION = "IsolateSOCKSAuth IsolateDestAddr IsolateDestPort"
-# the netfilter half runs as root through configs/core/toggles' toggle-root, which polkit lets the bar call unprompted
+# the root half: configs/core/toggles' toggle-root, which polkit lets the bar call unprompted
 const TOGGLE_ROOT = "/usr/local/bin/toggle-root"
 const PERSONA_TTL = {windows: 128, macos: 64, ios: 64, linux: 64, android: 64}
 const PC_READ_TIMEOUT_MS = 15000
@@ -26,7 +25,6 @@ def runtime [name: string]: nothing -> path {
     $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $name
 }
 
-# defaults < ANONYMOUS_SOCKS_* in the environment < the config file
 def settings []: nothing -> record {
     let file = $env.ANONYMOUS_SOCKS_CONF? | default ($nu.home-dir | path join $CONFIG)
     let from_env = $DEFAULTS | columns | reduce --fold {} {|k, acc|
@@ -52,34 +50,32 @@ def pool-ports [s: record]: nothing -> list<int> { 0..<$s.POOL_SIZE | each { $s.
 
 def err [text: string]: nothing -> nothing { print -e $"anonymous-socks: ($text)" }
 
-# up only when every pool port listens, and only as our tor unit's own pid: a listener another local user planted on a
-# pool port would otherwise be handed every proxied connection
+# only our tor's pid counts: another user's listener on a pool port would get every proxied connection
 def is-up [s: record]: nothing -> bool {
     let pid = do { ^systemctl --user show -p MainPID --value $TOR_UNIT } | complete | get stdout | str trim
     if not ($pid =~ '^[1-9][0-9]*$') { return false }
     let listeners = ^ss -tlnpH | lines | parse --regex '^\S+\s+\S+\s+\S+\s+\S*:(?<port>\d+)\s+\S+\s*(?<proc>.*)$'
         | update port { into int }
-    # any other listener on a port marks it foreign for good
     pool-ports $s | all {|p|
         let on = $listeners | where port == $p
         ($on | is-not-empty) and ($on | all { $in.proc | str contains $"pid=($pid)," })
     }
 }
 
-# never a password prompt, the toggle runs it from the bar: a non-admin is refused before pkexec reaches polkit
+# never a password prompt from the bar: a non-admin is refused before pkexec reaches polkit
 def root-netfilter [...args: string]: nothing -> nothing {
     if not (^id -nG | split row " " | any { $in == wheel }) { error make {msg: "the netfilter guard needs an admin"} }
     ^pkexec $TOGGLE_ROOT anonsocks ...$args
 }
 
-# cap how fast tools may open new SOCKS sessions; its own nft table, never the firewall's
+# its own nft table, never the firewall's
 def rate-on [s: record]: nothing -> nothing {
     if $s.RATE <= 0 { return }
     if (which nft | is-empty) { return (err "nft missing, running without rate cap") }
     root-netfilter rate-on ($s.PORT | into string) ($s.POOL_SIZE | into string) ($s.RATE | into string)
 }
 
-# ttl/hop limit set only on packets whose socket lives in tor's cgroup
+# ttl only on packets whose socket lives in tor's cgroup
 def persona-on [s: record]: nothing -> nothing {
     if $s.PERSONA != "1" { return }
     let ttl = $PERSONA_TTL | get --optional $s.PERSONA_OS
@@ -90,7 +86,7 @@ def persona-on [s: record]: nothing -> nothing {
     root-netfilter persona-on ($ttl | into string) $cgroup
 }
 
-# one pool port reachable and leaving through a tor exit; false on any doubt, so a gating caller fails closed
+# false on any doubt, so a gating caller fails closed
 def check-port [s: record, port: int]: nothing -> bool {
     let proxy = $"127.0.0.1:($port)"
     let got = do { ^curl -fsS --max-time $CHECK_TIMEOUT_S --socks5-hostname $proxy $s.TOR_CHECK_URL } | complete
@@ -109,17 +105,15 @@ def check-all [s: record]: nothing -> bool {
     pool-ports $s | par-each { check-port $s $in } | all { $in }
 }
 
-# every port up and on a tor exit; an error when not
 export def anonymous-socks-check []: nothing -> nothing {
     if not (check-all (settings)) { error make {msg: "anonymous-socks: check failed"} }
 }
 
-# a [ProxyList] spanning the pool; with round_robin and chain_len 1 each connection exits on the next port
+# with round_robin and chain_len 1 each connection exits on the next port
 export def anonymous-socks-proxylist []: nothing -> string {
     ["[ProxyList]"] ++ (pool-ports (settings) | each { $"socks5 127.0.0.1 ($in)" }) | str join "\n" | $"($in)\n"
 }
 
-# the whole proxychains config for the live pool, regenerated on up so it always matches the pool size
 export def anonymous-socks-proxyconf []: nothing -> string {
     [
         ("# generated by anonymous-socks on up, regenerated each time, do not edit by hand; round_robin + chain_len 1: "
@@ -147,7 +141,7 @@ def start [s: record]: nothing -> nothing {
     } catch { error make {msg: "egress guard failed, not starting"} }
     mkdir $s.DATADIR
     chmod 700 $s.DATADIR
-    # one SocksPort per slot, each its own SessionGroup plus Isolate* flags: independent per-destination circuits
+    # a SessionGroup per port plus Isolate* flags: independent per-destination circuits
     let socks = pool-ports $s | enumerate
         | each { [--SocksPort $"127.0.0.1:($in.item) ($ISOLATION) SessionGroup=($in.index)"] }
         | flatten
@@ -191,7 +185,6 @@ export def anonymous-socks-status []: nothing -> string {
     if ($s.VERIFIED | path exists) and (is-up $s) { "on" } else { "off" }
 }
 
-# fresh circuits for new streams: SIGNAL NEWNYM on the control port, cookie auth
 export def anonymous-socks-newnym []: nothing -> nothing {
     let s = settings
     if not (is-up $s) { error make {msg: "tunnel down"} }

@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# the root half of scripts/toggles, run through pkexec: a fixed set of verbs, every argument checked here, so the polkit
-# rule that lets the bar call it unprompted hands out exactly these and nothing else
+# root half of scripts/toggles via pkexec; every argument is checked here, the unprompted polkit rule grants only this
 
 const PERSONA_LOCKDOWN = "/run/persona-lockdown"
 const WG_INTERFACE = "wg0"
@@ -30,8 +29,7 @@ def caller-uid []: nothing -> string {
 
 def persona-off []: nothing -> nothing {
     for ipt in [iptables ip6tables] {
-        # the cgroup is gone once tor stops, so the jump is found by chain name rather than by its match; -S quotes the
-        # --path, whose checked charset holds no space
+        # the cgroup is gone once tor stops, so find the jump by chain name; the checked --path holds no space
         let jumps = ^$ipt -t mangle -S POSTROUTING | complete | get stdout | lines | where ($it | str contains $"-j ($PERSONA_CHAIN)")
         for rule in $jumps {
             let rule_args = $rule | str replace "-A" "-D" | split row " " | str trim --char '"'

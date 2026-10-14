@@ -1,10 +1,8 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: only a network change can move the timezone, so re-check on one instead of polling; every logged-in
-# user's timezone-auto.service, a user without the unit (or outside wheel, polkit) changes nothing
+# NM dispatcher: only a network change can move the timezone, so re-check on one instead of polling
 
 const HOME_NETWORK = "/run/home-network"
-# UNKNOWN when the connectivity check is off (75-connectivity-check turns it off at home); the home gate below keeps
-# either state to a home link
+# UNKNOWN when the connectivity check is off (75-connectivity-check, at home)
 const CONNECTED = [FULL UNKNOWN]
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {

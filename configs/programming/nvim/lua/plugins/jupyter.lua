@@ -9,14 +9,11 @@ end
 
 return {
     {
-        -- open .ipynb as text
         "GCBallesteros/jupytext.nvim",
         event = { "BufReadCmd *.ipynb" }, -- load before its BufReadCmd runs
-        -- .py with `# %%` cell markers
         opts = { style = "percent" },
     },
     {
-        -- run cells in a jupyter kernel
         "benlubas/molten-nvim",
         version = "^1.0.0",
         build = ":UpdateRemotePlugins",
@@ -32,7 +29,6 @@ return {
         },
         ft = { "python", "markdown", "quarto" },
         init = function()
-            -- text-only output without kitty graphics
             vim.g.molten_image_provider = terminal_graphics() and "image.nvim" or "none"
             vim.g.molten_output_win_max_height = 20
             vim.g.molten_auto_open_output = false

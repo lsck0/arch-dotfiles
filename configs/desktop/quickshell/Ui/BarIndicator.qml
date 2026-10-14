@@ -9,7 +9,6 @@ BarIconButton {
   property string activeTooltipText: ""
   property string inactiveTooltipText: activeTooltipText
 
-  // inactive indicators hide fully instead of dimming
   opacity: active ? 1 : 0
   visible: !concealed && (text !== "" || keepSpace)
   text: active ? activeText : inactiveText

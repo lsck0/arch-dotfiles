@@ -1,23 +1,25 @@
 local platform = require("platform")
 local global_opacity = 0.95
+local social_opacity = 0.85
 
 -- their app-drawn menus are windows, only the frame is styleable
 for _, class in ipairs({ "^discord$", "^steam$" }) do
     hl.window_rule({ match = { class = class }, rounding = 8 })
 end
 
--- steam drops its notification toasts on whatever monitor it thinks is primary; pin them to the main monitor,
--- where quickshell's own notifications appear
+-- steam drops its toasts on whatever monitor it thinks is primary
 hl.window_rule({
     match = { title = "^notificationtoasts" },
     float = true,
     monitor = platform.main_monitor,
 })
 
+for _, class in ipairs({ "^[Ss]potify$", "^discord$" }) do
+    hl.window_rule({ match = { class = class }, opacity = social_opacity })
+end
+
 for _, class in ipairs({
-    "^Spotify$",
     "^com.mitchellh.ghostty$",
-    "^discord$",
     "^kitty$",
     "^neovide$",
     "^nemo$",
@@ -34,7 +36,6 @@ hl.window_rule({
     opacity = 1,
 })
 
--- center file pickers
 hl.window_rule({
     match = {
         class = "xdg-desktop-portal-gtk",
@@ -44,7 +45,6 @@ hl.window_rule({
     center = true,
 })
 
--- the scratch notes editor (SUPER+SHIFT+n, same file as the desktop notes card) floats centered
 hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
 hl.window_rule({
@@ -94,7 +94,7 @@ hl.window_rule({
     float = true,
 })
 
--- unreal's slate child windows (menus, drag previews) tile tiny and mispositioned; float them at their own size, keep the main editor tiled
+-- unreal's slate child windows (menus, drag previews) tile tiny and mispositioned
 hl.window_rule({
     match = {
         class = "^UnrealEditor$",
@@ -136,8 +136,7 @@ hl.layer_rule({
     no_anim = true,
 })
 
--- quickshell surfaces are translucent (Commons/Style.qml translucency) and blur what lies under them;
--- ignore_alpha keeps soft edges and glow halos below 0.3 unblurred; quickshell-background stays sharp
+-- ignore_alpha keeps soft edges and glow halos below 0.3 unblurred
 hl.layer_rule({
     name = "quickshell-blur",
     match = {

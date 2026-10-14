@@ -26,7 +26,6 @@ export def link [cfg: record] {
         return [(step profile-create)]
     }
     let pywalfox = if (which pywalfox | is-empty) { [] } else {
-        # the native host lets the theme verb's `pywalfox update` push the palette into the force-installed addon
         [(exec pywalfox-host [pywalfox install] --creates ($nu.home-dir | path join $PYWALFOX_HOST))]
     }
     # pywalfox looks in ~/.config/firefox
@@ -45,15 +44,12 @@ export def profile-create [] {
     ^timeout $HEADLESS_TIMEOUT firefox --headless about:blank | complete | ignore
 }
 
-# pywalfox pushes the wal colors to the running firefox's extension
 export def theme [cfg: record, wallpaper: string] {
     if (which pywalfox | is-empty) { return [] }
     exec pywalfox-update [pywalfox update]
 }
 
-# the new tab url is only settable from autoconfig in the install dir, which survives updates; mozilla.cfg reads each
-# user's home at runtime. the enterprise policy reaches every profile of every user: hardening, and the homelab's
-# searxng as the engine, unreachable elsewhere, where duckduckgo replaces it rather than google
+# the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
 export def system [cfg: record] {
     let policies = if (platform-has homelab) {
         file-copy policies.json $POLICIES

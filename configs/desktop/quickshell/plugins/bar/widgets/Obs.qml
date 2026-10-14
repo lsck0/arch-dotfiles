@@ -47,9 +47,7 @@ BarWidget {
     property var dropHist: []
     readonly property color stateColor: (degraded || faulted) ? Colors.semantic.warn : (streaming ? Colors.semantic.live : (recording ? Colors.semantic.recording : Colors.muted))
     readonly property bool degraded: streamReconnecting || dropPct >= 1 || congestion >= 0.3
-    // obs runs but the helper cannot reach it
     readonly property bool faulted: obsSeen && !connected && errorText !== ""
-    // run the helper only while obs runs
     readonly property bool obsSeen: ObsProcess.running
 
     function clock(seconds) {
@@ -100,8 +98,6 @@ BarWidget {
     }
 
     function apply(payload) {
-        // a paused recording keeps its last rate for the disk estimate
-
         connected = payload.connected === true;
         errorText = String(payload.error || "");
         if (!connected) {
@@ -142,7 +138,7 @@ BarWidget {
         var rBytes = Number(payload.recordBytes) || 0;
         var nowMs = Date.now();
         var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0;
-        // only between two samples of the same session
+        // a reset counter means a new session
         function rate(now, prev) {
             if (prev < 0 || now < prev || deltaS <= 0.2)
                 return -1;
@@ -221,7 +217,6 @@ BarWidget {
                 }
             }
         }
-        // rejected commands
 
         stderr: SplitParser {
             splitMarker: "\n"
@@ -494,7 +489,6 @@ BarWidget {
                 visible: root.connected
             }
 
-            // flow so long scene lists wrap
             Flow {
                 width: parent.width
                 spacing: Style.spacing.xs
@@ -508,7 +502,6 @@ BarWidget {
 
                         text: modelData
                         selected: modelData === root.scene
-                        // already live, skip the round trip
                         onClicked: {
                             if (!selected) {
                                 root.send({
@@ -548,7 +541,6 @@ BarWidget {
                 visible: root.connected
 
                 Repeater {
-                    // only the inputs the loaded collection has
                     model: root.muteSources.filter((s) => {
                         return root.mutes[s] !== undefined;
                     })
@@ -687,7 +679,6 @@ BarWidget {
                 label: "Elapsed"
                 value: root.clock(root.recordSeconds)
             }
-            // the recording is often encoded heavier than the stream
 
             StatRow {
                 visible: root.recording

@@ -1,13 +1,9 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher, first of the three: the one home rule. a physical link is home while it is on its hardware mac and its
-# default gateway's mac is in home-gateways; /run/home-network lists those links one per line and is gone without one.
-# never the ssid: a foreign network can copy that, but only a home profile keeps the hardware mac (mod.nu), and only
-# with the home wifi's key does it associate at all
+# NM dispatcher: home is the hardware mac plus a known gateway mac, never the ssid, which a foreign network can copy
 
 const GATEWAYS = "/etc/NetworkManager/home-gateways"
 const HOME_NETWORK = "/run/home-network"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
-# the egress kill switch, fw-inbound's lan services and portmaster's lab-dns bypass all key on the home links
 const TABLES = [fw_egress fw portmaster_bypass]
 
 def --wrapped out [...argv: string]: nothing -> string {
@@ -25,8 +21,7 @@ def home-links []: nothing -> list<string> {
 def gateway-mac [link: string, gateway: string]: nothing -> string {
     let known = out ip neigh show $gateway dev $link | parse --regex 'lladdr (?<mac>\S+)' | get --optional 0.mac
     if $known != null { return $known }
-    # right after a connect the gateway is often unresolved, and fw-egress drops a ping out of a link not yet decided;
-    # arp sits below it, so ask the gateway directly
+    # fw-egress drops a ping out of an undecided link, arp sits below it
     out arping -c1 -w1 -I $link $gateway | parse --regex '(?m)^\w* reply from \S+ \[(?<mac>[0-9A-Fa-f:]+)\]'
     | get --optional 0.mac | default ""
 }
@@ -61,12 +56,11 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
         ^chmod 644 $next
         mv --force $next $HOME_NETWORK
     }
-    # one transaction per table, so a home link never drops out and a link that left home never keeps its place
+    # one transaction per table so a home link never drops out in between
     for table in $TABLES {
         if (do { ^nft list set inet $table home_ifaces } | complete).exit_code != 0 { continue }
         let add = if ($home | is-empty) { "" } else { $"add element inet ($table) home_ifaces { ($home | str join ',') }\n" }
         $"flush set inet ($table) home_ifaces\n($add)" | do { ^nft -f - } | complete | ignore
     }
-    # tor-router's lan bypass too; a no-op while it is off
     if ($TOR_ROUTER | path exists) { do { ^$TOR_ROUTER home } | complete | ignore }
 }

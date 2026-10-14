@@ -6,14 +6,10 @@
       (project-root proj)
     default-directory))
 
-;;;; which-key ---------------------------------------------------------------
-
 (use-package which-key
-  :ensure nil                             ; built in since Emacs 30
+  :ensure nil
   :init (which-key-mode 1)
-  :config (setq which-key-idle-delay 0.2)) ; nvim timeoutlen = 200
-
-;;;; terminal ----------------------------------------------------------------
+  :config (setq which-key-idle-delay 0.2))
 
 (defun my/eat-style ()
   "Pin eat to the UI font. The 16 ANSI colours follow the theme's themed
@@ -46,7 +42,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
       (quit-restore-window win 'bury)     ; never errors on a sole window
     (let* ((default-directory (my/project-root))
            (buf (or (get-buffer name)
-                    ;; named up front, no clash with the per-tab terminals
                     (save-window-excursion
                       (let ((eat-buffer-name name))
                         (eat program))))))
@@ -65,16 +60,12 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
     (my/eat-popup-toggle (format "%s<%s>" my/eat-popup-name program)
                          (concat "direnv exec . " program))))
 
-;;;; compile -----------------------------------------------------------------
-
 (setq compilation-scroll-output 'first-error
-      compilation-always-kill t           ; never ask before restarting a build
-      compilation-ask-about-save nil      ; save modified buffers silently
+      compilation-always-kill t
+      compilation-ask-about-save nil
       compilation-max-output-line-length nil)
 
 (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
-
-;;;; popups ------------------------------------------------------------------
 
 (add-to-list 'display-buffer-alist
              `(,(rx bos (or "*eat-popup*" "*Warnings*" "*Messages*"
@@ -91,34 +82,26 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
                (display-buffer-reuse-window display-buffer-in-side-window)
                (side . bottom) (slot . 0) (window-height . 0.35)))
 
-;;;; windows -----------------------------------------------------------------
-
 (use-package ace-window
   :commands (ace-window ace-swap-window)
   :config (setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l)
                 aw-scope 'frame))
 
-;;;; editing helpers ---------------------------------------------------------
-
-;; harpoon2: a short per-project file list on SPC a / SPC h / SPC 1-5
 (use-package harpoon
   :commands (harpoon-add-file harpoon-toggle-file
              harpoon-go-to-1 harpoon-go-to-2 harpoon-go-to-3 harpoon-go-to-4 harpoon-go-to-5)
   :init
   (setq harpoon-cache-file (my/cache "harpoon/")
         harpoon-project-package 'project
-        harpoon-separate-by-branch nil))       ; harpoon2 keys the list by cwd only
+        harpoon-separate-by-branch nil))
 
 (use-package vundo
   :commands vundo
   :config (setq vundo-glyph-alist vundo-unicode-symbols))
 
-;; trim only edited lines, no unrelated diff churn
 (use-package ws-butler
   :hook ((prog-mode . ws-butler-mode)
          (text-mode . ws-butler-mode)))
-
-;;;; sessions (persistence.nvim) ---------------------------------------------
 
 (defvar my/session-dir (my/cache "sessions/")
   "One desktop per project root below here, plus `last' naming the most recent one.")
@@ -172,8 +155,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   (setq my/session-save nil)
   (message "session: not saved on exit"))
 
-;;;; claude (claudecode.nvim) ------------------------------------------------
-
 (use-package claude-code
   :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
   :after eat
@@ -181,14 +162,11 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   (setq claude-code-terminal-backend 'eat)
   (claude-code-mode 1))
 
-;;;; debugging (nvim-dap) ----------------------------------------------------
-
 (use-package dap-mode
   :commands (dap-debug dap-continue dap-breakpoint-toggle dap-breakpoint-condition
              dap-next dap-step-in dap-step-out)
   :config
   (require 'dap-ui)
-  ;; missing adapter modules are skipped
   (dolist (m '(dap-gdb-lldb dap-lldb dap-codelldb dap-python))
     (require m nil t))
   (setq dap-python-debugger 'debugpy)
@@ -209,8 +187,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
                 (window-list))
       (dap-ui-hide-many-windows)
     (dap-ui-show-many-windows)))
-
-;;;; testing (neotest core, via compile) -------------------------------------
 
 (defvar my/test-commands
   '((python-ts-mode . "pytest") (python-mode . "pytest")
@@ -263,8 +239,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   "neotest output: show the last test run."
   (interactive)
   (pop-to-buffer (or (get-buffer "*test*") (user-error "No test run yet"))))
-
-;;;; profiling (perf flamegraphs) --------------------------------------------
 
 (defvar my/perf-data-file "perf.data"
   "Default perf recording read by the profiling commands.")

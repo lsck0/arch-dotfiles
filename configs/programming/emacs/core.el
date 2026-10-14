@@ -4,12 +4,9 @@
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
-;; early-init.el sets these (and toggle-font.nu rewrites them there); emacs --batch -l init.el never reads
-;; it, so declare neutral fallbacks rather than a second copy of the real values that could drift
+;; fallbacks: emacs --batch never reads early-init.el, which holds the real values
 (defvar my/font-family "monospace")
 (defvar my/font-size 16)
-
-;;;; runtime state ----------------------------------------------------------
 
 (defvar my/cache-dir
   (expand-file-name "emacs/" (or (getenv "XDG_CACHE_HOME") "~/.cache/"))
@@ -32,7 +29,6 @@
       tramp-persistency-file-name  (my/cache "tramp")
       url-configuration-directory  (my/cache "url/"))
 
-;; no swap/backup/lock clutter
 (setq make-backup-files nil
       auto-save-default nil
       create-lockfiles nil)
@@ -42,46 +38,35 @@
 (setq recentf-max-saved-items 200)
 (savehist-mode 1)
 
-;;;; files ------------------------------------------------------------------
-
 (setq-default vc-follow-symlinks t)
 
-;; autoread
 (setq global-auto-revert-non-file-buffers t
       auto-revert-verbose nil)
 (global-auto-revert-mode 1)
 
-;; create missing parent directories on save
 (add-hook 'before-save-hook
           (lambda ()
             (when buffer-file-name
               (make-directory (file-name-directory buffer-file-name) t))))
-
-;;;; editing ----------------------------------------------------------------
 
 (setq-default indent-tabs-mode nil
               tab-width 4
               standard-indent 4)
 (setq backward-delete-char-untabify-method 'hungry)
 
-;; smartcase search
 (setq case-fold-search t)
 
 (show-paren-mode 1)
 (setq show-paren-delay 0)
 (electric-pair-mode 1)
 
-;;;; display ----------------------------------------------------------------
-
-;; absolute line numbers in insert, relative else
 (setq display-line-numbers-type 'relative)
 (global-display-line-numbers-mode 1)
 (add-hook 'evil-insert-state-entry-hook (lambda () (setq display-line-numbers t)))
 (add-hook 'evil-insert-state-exit-hook  (lambda () (setq display-line-numbers 'relative)))
 
-(global-hl-line-mode 1)                 ; cursorline
+(global-hl-line-mode 1)
 
-;; scrolloff, nowrap, colorcolumn 120
 (setq scroll-margin 8
       scroll-conservatively 101
       scroll-preserve-screen-position t)
@@ -90,15 +75,12 @@
 (setq display-fill-column-indicator-character ?▕)
 (global-display-fill-column-indicator-mode 1)
 
-;; buffers that are not code: no gutter decoration
 (dolist (hook '(term-mode-hook eat-mode-hook eshell-mode-hook dired-mode-hook))
   (add-hook hook (lambda ()
                    (display-line-numbers-mode -1)
                    (display-fill-column-indicator-mode -1))))
 
-;;;; input ------------------------------------------------------------------
-
-;; plain line scroll: pixel precision lags on 4k + big font
+;; pixel scrolling lags on 4k with a big font
 (setq select-enable-clipboard t
       mouse-wheel-progressive-speed nil
       mouse-wheel-follow-mouse t
@@ -108,16 +90,13 @@
       ring-bell-function 'ignore)
 (setopt use-short-answers t)
 
-;; minibuffer hygiene (vertico/consult assume these)
+;; vertico/consult assume these
 (setq enable-recursive-minibuffers t
       read-extended-command-predicate #'command-completion-default-include-p
       minibuffer-prompt-properties
       '(read-only t cursor-intangible t face minibuffer-prompt))
 (add-hook 'minibuffer-setup-hook #'cursor-intangible-mode)
 
-;;;; performance ------------------------------------------------------------
-
-;; stop font-cache compaction (nerd-icons), defer fontification while scrolling
 (setq inhibit-compacting-font-caches t
       redisplay-skip-fontification-on-input t
       fast-but-imprecise-scrolling t
@@ -126,14 +105,10 @@
       bidi-inhibit-bpa t)
 (global-so-long-mode 1)
 
-;;;; server -----------------------------------------------------------------
-
-;; zathura's backward search (configs/latex/sioyek/synctex-edit.nu) and the theme verb reach Emacs over emacsclient
+;; synctex backward search and the theme verb reach emacs over emacsclient
 (require 'server)
 (unless (or noninteractive (server-running-p))
   (server-start))
-
-;;;; projects ---------------------------------------------------------------
 
 (with-eval-after-load 'project
   (setq project-vc-extra-root-markers '(".project-root" "Cargo.toml" "package.json")))
@@ -176,7 +151,7 @@ That is how bare-repo layouts show up, while submodules and the bare layout's ow
     (pcase-dolist (`(,root . ,depth) (my/projects-search-dirs))
       (setq root (file-name-as-directory (expand-file-name root)))
       (when (file-directory-p root)
-        ;; --type f too: a worktree has a .git file, not a directory
+        ;; --type f too: a worktree has a .git file
         (dolist (git (apply #'process-lines-ignore-status
                             "fd" "--hidden" "--no-ignore" "--type" "d" "--type" "f"
                             "--max-depth" (number-to-string depth)

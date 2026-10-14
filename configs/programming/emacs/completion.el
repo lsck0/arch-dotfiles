@@ -1,7 +1,5 @@
 ;;; completion.el --- fuzzy finding + in-buffer completion -*- lexical-binding: t; -*-
 
-;;;; minibuffer (telescope) -------------------------------------------------
-
 (use-package vertico
   :init (vertico-mode 1)
   :config (setq vertico-cycle t
@@ -28,7 +26,6 @@
         register-preview-delay 0.5
         xref-show-xrefs-function #'consult-xref
         xref-show-definitions-function #'consult-xref)
-  ;; skip .git and binaries
   (setq consult-ripgrep-args
         (concat "rg --null --line-buffered --color=never --max-columns=1000 "
                 "--path-separator / --smart-case --no-heading --with-filename "
@@ -38,7 +35,6 @@
         '("fd" "--full-path" "--color=never" "--hidden" "-E" ".git"
           "-E" "*.{png,jpg,jpeg,webp,pdf,ico,odt,xlsx}")))
 
-;; embark-export + wgrep: edit all matches
 (use-package embark)
 
 (use-package embark-consult
@@ -48,8 +44,6 @@
 (use-package wgrep
   :config (setq wgrep-auto-save-buffer t))
 
-;;;; in-buffer (nvim-cmp) ---------------------------------------------------
-
 (use-package corfu
   :init (global-corfu-mode 1)
   :config
@@ -57,7 +51,7 @@
         corfu-auto-delay 0.1
         corfu-auto-prefix 1
         corfu-cycle t
-        corfu-count 12                    ; nvim pumheight
+        corfu-count 12
         corfu-preselect 'first
         corfu-popupinfo-delay '(0.3 . 0.1))
   (corfu-popupinfo-mode 1))
@@ -72,15 +66,12 @@
   (add-hook 'completion-at-point-functions #'cape-dabbrev)
   (add-hook 'completion-at-point-functions #'cape-keyword))
 
-;;;; snippets (LuaSnip, lua/snippets.lua + lua/latex_snippets.lua) ----------------
-
-;; the templates live in templates.eld; tempel-expand offers a template once its name is typed in full
 (use-package tempel
   :init
   (setq tempel-path (expand-file-name "templates.eld" user-emacs-directory))
   (add-hook 'completion-at-point-functions #'tempel-expand))
 
-;; blink.cmp shows lsp items and snippets in one menu; eglot's capf is buffer-local and would hide tempel
+;; eglot's capf is buffer-local and would hide tempel
 (defvar-local my/eglot-capf nil
   "The merged eglot + tempel capf installed in this buffer.")
 

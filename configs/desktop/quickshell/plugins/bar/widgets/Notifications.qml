@@ -11,7 +11,7 @@ BarWidget {
   id: root
   moduleName: "notifications"
 
-  // the notifications plugin's Service, untyped: it is resolved at runtime through the shell's plugin table
+  // untyped: resolved at runtime through the shell's plugin table
   readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
   readonly property string historyDir: service ? service.historyDir : ""
@@ -55,7 +55,7 @@ BarWidget {
     // history replays the sender's hint, so the same allowlist as the popup
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) {
-      // uwsm-app, a browser started here must not join quickshell.service in session.slice
+      // uwsm-app: a browser started here must not join quickshell.service
       Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
@@ -67,7 +67,7 @@ BarWidget {
       if (!id) continue
       let de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
       if (de) {
-        // not de.execute(): it would start the app in quickshell.service's cgroup, killed with every shell restart
+        // not de.execute(): quickshell.service's cgroup dies with every shell restart
         Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", de.id + ".desktop"])
         if (root.bar) root.bar.closePanel(root.moduleName)
         return
@@ -122,7 +122,6 @@ BarWidget {
 
     onOpened: root.refreshHistory()
 
-    // keep the list current while open
     Timer {
       interval: 4000
       running: panel.visible
@@ -208,7 +207,6 @@ BarWidget {
             required property var modelData
             variant: "row"
             now: panel.nowMs
-            // few entries: show the full body
             bodyLines: root.history.length <= 2 ? 10 : 3
             width: content.width
             app: modelData.app || ""
@@ -228,7 +226,6 @@ BarWidget {
       }
     }
 
-    // fade hints at clipped rows
     Rectangle {
       anchors.left: parent.left
       anchors.right: parent.right

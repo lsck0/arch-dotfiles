@@ -18,8 +18,7 @@ Item {
   property int launchSerial: 0
   property int launchToplevelCount: 0
   property var launchActiveToplevel: null
-  // the last window that had focus: a launcher overlay holds the keyboard while it is open, so the active toplevel reads
-  // null at launch and focus going back to that window as the overlay closes must not count as the app appearing
+  // a launcher overlay holds the keyboard, so the active toplevel is null at launch and refocus must not count as the app appearing
   property var lastActiveToplevel: null
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
@@ -198,7 +197,6 @@ Item {
     onExited: root.iconIndex = root.pendingIconIndex
   }
 
-  // coalesce bursts of app-list changes
   Timer {
     id: iconIndexDebounce
     interval: 750

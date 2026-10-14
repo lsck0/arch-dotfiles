@@ -2,8 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [openscad]}}
 
-# openscad-mcp (github.com/RobertCoop/openscad-mcp): stdio over the openscad cli, no gui or listener; its deps frozen
-# at a date so a later fastmcp never slips in under the pin, bump both together
+# deps frozen at a date so a later fastmcp never slips in under the pin; bump both together
 const MCP_VERSION = "0.6.1"
 const MCP_FROZEN = "2026-09-30"
 

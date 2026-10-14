@@ -3,29 +3,25 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 
-// docked drawer under the bar (signature A): grows out of the bar's accent rule, reports hover to the bar.
-// Keys once it has focus (click, or hyprland's on-demand focus): Esc closes, Tab / arrows / hjkl walk
-// the focusable controls, Enter / Space activate them; a focused text input pins the drawer open.
+// keys once focused (click or hyprland on-demand focus); a focused text input pins it open
 PanelWindow {
   id: root
 
-  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property string moduleName: ""
   property real padding: Style.surface.padding
   property string title: ""
-  // add to implicitHeight
+  // callers add this to implicitHeight
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0
   default property alias body: inner.data
 
-  // opens centred under this bar widget
   property BarWidget anchorWidget: null
   readonly property bool anchored: anchorWidget !== null
 
   readonly property real edgeMargin: Style.spacing.sm
 
-  // tallest body that fits under the bar; taller content scrolls (Flickable in the panel). quickshell's qmltypes
-  // stub the screen type as opaque, so qmllint cannot see its height
+  // quickshell's qmltypes stub the screen type as opaque, so qmllint cannot see its height
   readonly property real maxBodyHeight: Math.max(Style.space(120),
     (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset) // qmllint disable missing-property
 
@@ -40,7 +36,6 @@ PanelWindow {
 
   // window stays mapped until the drawer has folded back
   readonly property bool shown: bar !== null && bar.activePanel === moduleName
-  // content reads it for its own row stagger: boot.rowOpacity(i)
   readonly property alias boot: bootIn
 
   visible: shown || bootIn.progress > 0
@@ -62,7 +57,7 @@ PanelWindow {
   }
   // quickshell's qmltypes stub Margins as opaque, so qmllint cannot see its edges
   margins {
-    // docked: the exclusive zone already starts right below the bar rule
+    // the exclusive zone already starts below the bar rule
     top: 0 // qmllint disable missing-property
     left: root.anchored ? root.anchoredLeft : 0 // qmllint disable missing-property
     right: root.anchored ? 0 : Style.spacing.sm // qmllint disable missing-property
@@ -73,13 +68,11 @@ PanelWindow {
   WlrLayershell.layer: WlrLayer.Overlay
   // on-demand: never steals the keyboard, takes it when the pointer clicks in
   property bool acceptsKeyboard: true
-  // extra pin from the owner; a focused text input pins on its own
   property bool pinned: false
   readonly property bool textFocused: {
     var f = keys.Window.activeFocusItem
     return !!f && "cursorPosition" in f && "selectByMouse" in f
   }
-  // pointer exits do not close the panel while held
   readonly property bool held: pinned || textFocused
   onHeldChanged: if (!held && !hover.hovered && bar) bar.hoverPanelExit(moduleName)
   WlrLayershell.keyboardFocus: root.acceptsKeyboard && root.shown
@@ -104,7 +97,7 @@ PanelWindow {
   BootIn {
     id: bootIn
     active: root.shown
-    // a switch between two open drawers snaps, so it reads as one drawer moving, not a close-reopen
+    // snaps so a switch reads as one drawer moving, not a close-reopen
     instant: root.bar !== null && root.bar.panelSwitching
     title: root.title
     span: Math.min(card.width, card.height) / 2
@@ -119,8 +112,7 @@ PanelWindow {
     onTabRequested: function(direction) { root.walkFocus(direction > 0) }
     onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
 
-    // seamless flush: open-top drawer sits right under the bar rule (no neck, no gap), flowing straight
-    // down in the bar's own colour. the clip's height grows 0 -> full on boot.progress; card never resizes.
+    // the clip grows on boot.progress, the card never resizes
     Item {
       id: reveal
       width: parent.width

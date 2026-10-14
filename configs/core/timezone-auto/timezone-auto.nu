@@ -3,8 +3,7 @@
 
 const TOGGLES = path self | path expand | path dirname | path join .. .. .. scripts toggles | path expand
 const TUNNELS = [vpn protonvpn tor]
-# one https provider only: ip-geolocation leaks our ip and location, so no plaintext http and no second phone-home.
-# ipinfo.io, not ipapi.co: that one answered about every second keyless request with 429 RateLimited
+# one https provider, the lookup leaks our ip; not ipapi.co: it 429ed about every second keyless request
 const LOOKUP_URL = "https://ipinfo.io/json"
 const LOOKUP_TIMEOUT = 8sec
 const RETRY_DELAY = 5sec
@@ -31,8 +30,7 @@ def tunnel-up []: nothing -> any {
     null
 }
 
-# off home the lookup would name our real ip on an untrusted link or geolocate the tunnel's exit, so it only runs at
-# home; a machine without the home rule (wsl, no networkmanager) has no untrusted links
+# home only: elsewhere it leaks our ip or geolocates the tunnel exit; no home rule (wsl) means no untrusted links
 def off-home []: nothing -> bool {
     ($HOME_DISPATCHER | path exists) and not (($HOME_NETWORK | path exists) and (open --raw $HOME_NETWORK | is-not-empty))
 }
@@ -46,8 +44,7 @@ def lookup []: nothing -> any {
     try { http get --full --allow-errors --max-time $LOOKUP_TIMEOUT $LOOKUP_URL } catch { null }
 }
 
-# the timezone, null when offline; an answer without one (rate limit, outage) fails, so the unit fails and
-# failure-notify names it instead of a lookup that silently never works
+# null when offline; an answer without a timezone fails loudly so failure-notify reports it
 def tz-detect []: nothing -> any {
     let first = lookup
     let response = if $first != null and ($first.status == 429 or $first.status >= 500) {

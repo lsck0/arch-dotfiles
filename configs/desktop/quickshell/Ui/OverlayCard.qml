@@ -187,7 +187,6 @@ PanelWindow {
         id: footer
         visible: root.hints.length > 0
         hints: root.hints
-        // lands last in the boot stagger
         opacity: bootIn.rowOpacity(bootIn.staggerCap)
       }
     }

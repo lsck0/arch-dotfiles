@@ -1,19 +1,15 @@
-# dot bootstrap, as root from the Arch ISO (or a fresh WSL distro): every question first, nothing written before the
-# summary is confirmed; then the disk is erased and encrypted, the base system pacstrapped and the stage chain armed.
-# a person at the console gets dialog screens; without a tty or with BOOTSTRAP_ASSUME_YES=1 plain prompts and env:
-# BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP}, for a new machine also
-# BOOTSTRAP_{HOSTNAME,GROUPS,TIMEZONE,LOCALE} and BOOTSTRAP_HOME_NETWORK=0|1 (unasked and 0 under ASSUME_YES)
+# unattended env: BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOSTNAME,GROUPS,TIMEZONE,LOCALE,HOME_NETWORK}
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
-# the ranked mirrors' countries, pacstrapped along for the installed system's monthly rebuild (configs/base/ghostmirror)
+# pacstrapped along for ghostmirror's monthly rebuild on the installed system
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
 const MIRROR_CANDIDATES = 20
 const MIRROR_KEEP = 10
-# fewer rated servers and the ranking failed: the country alone is retried worldwide, then the iso's list stays
+# fewer rated servers: the country falls back to worldwide, then to the iso's list
 const MIRROR_RANKED_MIN = 5
 const MIRROR_AGE_H = 12
 const MIRROR_DOWNLOAD_TIMEOUT_S = 5
@@ -29,7 +25,7 @@ const ESP_SIZE_MIB = 1024
 const LUKS_NAME = "root"
 const MOUNT = "/mnt"
 const BTRFS_OPTS = "noatime,compress=zstd"
-# vm disks, models and docker's data top level, out of @: a timeshift snapshot would pin them and a rollback revert them
+# out of @: a timeshift snapshot would pin them and a rollback revert them
 const SUBVOLS = [
     [name mount]; ["@" "/"] ["@home" "/home"] ["@log" "/var/log"] ["@pkg" "/var/cache/pacman/pkg"]
     ["@libvirt" "/var/lib/libvirt/images"] ["@ollama" "/var/lib/ollama"] ["@docker" "/var/lib/docker"]
@@ -51,7 +47,7 @@ const PING_TIMEOUT_S = 2
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
 const PLATFORM_NEW = "new"
 const LOGIN_SHELL = "/usr/bin/zsh"
-# the networkmanager module's home rule: a link is home while its default gateway's mac is listed here
+# networkmanager's home rule: a link is home while its gateway's mac is listed here
 const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
 const HOSTNAME_PATTERN = '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$'
@@ -59,12 +55,12 @@ const KEYMAP_PATTERN = '^[A-Za-z0-9_-]+$'
 const TIMEZONE_PATTERN = '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$'
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 const TUI_WIDTH = 72
-# rows around the text: frame and buttons, an inputbox's field on top; dialog's own auto height drops wrapped text
+# frame and buttons, plus an inputbox's field; dialog's own auto height drops wrapped text
 const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
 const TUI_TEXT_MARGIN = 6
 const TUI_BACKTITLE = "arch-dotfiles bootstrap"
-# console keymaps systemd's kbd-model-map turns into an x11 layout, so the desktop follows too
+# keymaps systemd's kbd-model-map turns into an x11 layout, so the desktop follows
 const COMMON_KEYMAPS = [
     de-latin1 German us "English (US)" uk "English (UK)" fr-latin1 French es Spanish it Italian pl2 Polish
     sv-latin1 Swedish dk Danish no Norwegian fi Finnish pt-latin1 Portuguese br-abnt2 Brazilian be-latin1 Belgian
@@ -118,14 +114,12 @@ def height [text: string, rows: int]: nothing -> string {
     ($text | ^fold -s -w ($TUI_WIDTH - $TUI_TEXT_MARGIN) | lines | length) + $rows | into string
 }
 
-# screen <title> <inputbox|passwordbox|msgbox> <text> [init]: one dialog box sized to its wrapped text
 def screen [title: string, kind: string, text: string, ...init: string]: nothing -> string {
     let rows = if $kind in [inputbox passwordbox] { $TUI_INPUT_ROWS } else { $TUI_BOX_ROWS }
     let extra = if $kind == "passwordbox" { [--insecure] } else { [] }
     dlg --title $title --no-collapse ...$extra $"--($kind)" $text (height $text $rows) ($TUI_WIDTH | into string) ...$init
 }
 
-# ask <check> <label> <text> <default>: an answer <check> accepts; the default as is unattended
 def ask [check: closure, label: string, text: string, default: string]: nothing -> any {
     if (assume) { return $default }
     mut note = ""
@@ -144,7 +138,7 @@ def menu [title: string, text: string, default: string, items: list<string>]: no
 def yes [title: string, text: string]: nothing -> bool {
     if (tui) {
         let status = (^dialog --backtitle $TUI_BACKTITLE --cr-wrap --title $title --defaultno --yesno $text (height $text $TUI_BOX_ROWS) ($TUI_WIDTH | into string) | complete).exit_code
-        # yes 0, no 1, esc quits like every other screen
+        # 0 yes, 1 no, anything else is esc
         if $status > 1 { die aborted }
         $status == 0
     } else {
@@ -163,7 +157,6 @@ def ask-keymap []: nothing -> string {
     ask {|k| keymap-load $k } keymap "Console keymap name, as in /usr/share/kbd/keymaps, e.g. cz, hu, ru, trq:" ""
 }
 
-# ask-password <label> <hint> <empty_ok>: typed twice; empty only when the caller has a default for it
 def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
     mut note = ""
     loop {
@@ -186,7 +179,6 @@ def --wrapped in-target [root: string, ...cmd: string]: nothing -> nothing {
     if ($root | is-empty) { ^($cmd | first) ...($cmd | skip 1) } else { ^arch-chroot $root ...$cmd }
 }
 
-# a GKeyFile string, as NetworkManager's keyfiles read it
 def keyfile-escape [value: string]: nothing -> string {
     $value | str replace --all '\' '\\' | str replace --all "\n" '\n' | str replace --all "\t" '\t' | str replace --all "\r" '\r'
     | str replace --regex '^ ' '\s'
@@ -196,7 +188,6 @@ def default-route []: nothing -> record {
     ^ip -j -4 route show default | from json | get --optional 0 | default {}
 }
 
-# the mac of the router this live system routes through, lowercase; null without one
 def home-gateway-mac []: nothing -> any {
     let route = default-route
     if ($route.gateway? | is-empty) or ($route.dev? | is-empty) { return null }
@@ -212,11 +203,10 @@ def home-ssid []: nothing -> string {
     ^iw dev $dev link | complete | get stdout | lines | parse --regex '^\s*SSID: (?<ssid>.*)$' | get --optional 0.ssid | default ""
 }
 
-# the fastest https mirrors by measured download rate, before anything big downloads; the iso's list is a cdn that can
-# crawl, older isos rate a worldwide --latest 20 at boot
+# the iso's mirror is a cdn that can crawl, older isos only rate a worldwide --latest 20
 def mirrors-rank []: nothing -> nothing {
     if not ("/run/archiso" | path exists) or (which reflector | is-empty) { return }
-    # older isos run reflector.service with Restart=on-failure: let a rating finish, then stop any retry
+    # older isos run reflector.service with Restart=on-failure: let it finish, then stop retries
     for _ in 1..$REFLECTOR_WAIT_S {
         if (^systemctl show -p ActiveState --value reflector.service | complete | get stdout | str trim) != "activating" { break }
         sleep 1sec
@@ -229,7 +219,7 @@ def mirrors-rank []: nothing -> nothing {
         let where = if $scope == "worldwide" { [] } else { [--country $scope] }
         let run = ^reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list) | complete
         if $run.exit_code != 0 { return null }
-        # --verbose logs every rate, a failed one as 0.00
+        # --verbose logs a failed rate as 0.00
         let rates = $run.stderr | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
         let servers = open --raw ($tmp | path join list) | lines | where ($it | str starts-with "Server") | each {|line|
             let url = $line | split row " " | last | str replace '$repo/os/$arch' ""
@@ -259,8 +249,6 @@ def mirrors-rank []: nothing -> nothing {
     log-info $"($ranked.servers | length) mirrors ranked \(($ranked.scope)\), countries: ($order | str join ',')"
 }
 
-# the login user with its password, wheel and zsh, root locked unless given one, the verified repo at home and as the
-# root copy, the machine's and the user's facts
 def user-setup [c: record]: nothing -> nothing {
     let root = $c.target_root
     let home = $"($root)/home/($c.username)"
@@ -345,10 +333,9 @@ def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     mkdir (do $t /etc/kernel)
     # the ukis (configs/base/boot) embed this file as their only cmdline
     $"rd.luks.name=($luks_uuid)=($LUKS_NAME) root=/dev/mapper/($LUKS_NAME) rootflags=subvol=@ ($CMDLINE_TAIL)\n" | save --force (do $t /etc/kernel/cmdline)
-    # systemd initramfs: sd-vconsole so the LUKS prompt uses the right keymap
+    # sd-vconsole: the luks prompt uses the right keymap
     open --raw (do $t /etc/mkinitcpio.conf) | str replace --regex --multiline '^HOOKS=.*$' $HOOKS | save --force (do $t /etc/mkinitcpio.conf)
-    # one uki per kernel from /etc/kernel/cmdline, the preset configs/base/boot/boot.nu's boot-commit keeps; systemd-boot
-    # finds it in /EFI/Linux without an entry
+    # one uki per kernel, the preset boot.nu's boot-commit keeps; systemd-boot finds it in /EFI/Linux without an entry
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }
@@ -359,8 +346,7 @@ def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     mkdir (do $t /boot/EFI/Linux)
     in-target $MOUNT mkinitcpio -P
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
-    # unsigned for the Setup Mode stage boots, which need no menu; the config stage replaces the loader.conf and signs.
-    # --variables=yes: bootctl may skip the firmware's boot order in a chroot
+    # unsigned until config signs; --variables=yes: in a chroot bootctl may skip the firmware's boot order
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
     # zram swap from the first boot, install compiles for hours before config would link it
     ^install -Dm644 ($c.repo | path join configs base zram zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
@@ -375,9 +361,7 @@ def stage-arm [c: record, luks_uuid: string]: nothing -> nothing {
     $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     ^chmod 440 $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
-    # PAMName gives the stages a logind session, so user units and dbus work like after a login. not oneshot:
-    # multi-user.target would wait for the whole stage, and a link restarting a unit ordered after it (tlp) deadlocks.
-    # a tty, not journal+console, so dot re-execs under script and pacman draws its bars
+    # PAMName: a logind session; not oneshot: a link restarting tlp would deadlock multi-user.target
     [
         "[Unit]" "Description=arch-dotfiles install chain (dot stage)" "Wants=network-online.target"
         "After=network-online.target" $"ConditionPathExists=($STAGE_STATE_DIR)/next" "" "[Service]" "Type=exec"
@@ -474,7 +458,6 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             let excludes = input "numbers to EXCLUDE (space-separated), enter for all: " | split row " " | where $it != ""
             $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
         }
-        # before anything is erased: only discovered groups, base always
         let groups = [$REQUIRED_GROUP] ++ ($chosen | where $it != $REQUIRED_GROUP)
         let unknown = $groups | where $it not-in $universe
         if ($unknown | is-not-empty) { die $"unknown package group '($unknown | first)', one of: ($universe | str join ' ')" }
@@ -529,8 +512,10 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     }
     if ($c.user_password | is-empty) { $c.user_password = $luks }
 
+    let held = if ($capabilities | is-empty) { "none" } else { $capabilities | str join " " }
+    let who = if ($profile_nuon | path exists) { $"\(profile: ($held)\)" } else { "(guest)" }
     let summary = [
-        $"user         ($username) (if ($profile_nuon | path exists) { $'\(profile: ($capabilities | str join ' ' | default none)\)' } else { '(guest)' })"
+        $"user         ($username) ($who)"
         $"machine      ($platform)" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
         $"locale       ($c.locale)" $"groups       ($c.groups | str join ' ')"
         $"home network (if $c.home_gateway == null and ($c.home_ssid | is-empty) { 'no, every network locked down' } else { $'router ($c.home_gateway | default "not found")(if ($c.home_ssid | is-empty) { "" } else { $", wifi ($c.home_ssid)" })' })"
@@ -594,9 +579,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ^pacstrap -K $MOUNT ...$PACSTRAP $ucode
         if ($MIRROR_COUNTRIES | path exists) { ^install -Dm644 $MIRROR_COUNTRIES $"($MOUNT)($MIRROR_COUNTRIES)" }
         ^genfstab -U $MOUNT | save --append $"($MOUNT)/etc/fstab"
-        # stage's temporary unlock: a random key in its own slot, found by systemd-cryptsetup in the initramfs. residual
-        # risk: for the chain's hours it sits in plaintext initramfs images on the unencrypted ESP; stage trims the ESP
-        # and logs the reencrypt that rotates the volume key
+        # plaintext in the esp's initramfs for the chain's hours; stage trims the esp and reencrypts the volume key
         let key = $"($MOUNT)($STAGE_KEY_FILE)"
         mkdir ($key | path dirname)
         ^chmod 700 ($key | path dirname)

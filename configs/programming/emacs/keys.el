@@ -1,16 +1,12 @@
 ;;; keys.el --- every keybinding -*- lexical-binding: t; -*-
 
-;; mirrors nvim's mappings.lua, the lazy specs' `keys' and whichkey.lua: same key, action and which-key text
-
 (use-package general
   :config (general-evil-setup t))
-
-;;;; helpers -----------------------------------------------------------------
 
 (defun my/find-files ()
   "telescope find_files: project files, else fd from the project root."
   (interactive)
-  ;; a bare repo's container has no work tree, so project.el's git ls-files fails there
+  ;; a bare repo's container has no work tree, so git ls-files fails
   (condition-case nil
       (if (project-current)
           (project-find-file)
@@ -46,7 +42,6 @@
       (condition-case nil
           (next-error n)
         (error
-         ;; restart from the other end of the list
          (with-current-buffer buf
            (goto-char (if (> n 0) (point-min) (point-max)))
            (when (derived-mode-p 'compilation-mode)
@@ -73,7 +68,7 @@
   "Window resize command calling FN with N, quiet when there is nothing to resize."
   (lambda () (interactive) (ignore-errors (funcall fn n))))
 
-;; bare keys show command names in which-key, where a lambda reads "??": every command gets a name
+;; named commands: which-key shows a lambda as "??"
 (dotimes (i 5)
   (let ((n (1+ i)))
     (defalias (intern (format "my/tab-%d" n))
@@ -95,7 +90,6 @@
          (last (if visual (line-number-at-pos (max (region-beginning) (1- (region-end)))) first))
          (col (current-column)))
     (when (if (> count 0) (< last (line-number-at-pos (point-max))) (> first 1))
-      ;; evil's :m, which also carries a visual selection along
       (evil-move (save-excursion (goto-char (point-min)) (forward-line (1- first)) (point))
                  (save-excursion (goto-char (point-min)) (forward-line last) (point))
                  (if (> count 0) (1+ last) (- first 2)))
@@ -234,13 +228,10 @@
               (win (get-buffer-window buf)))
     (quit-window nil win)))
 
-;; named, for the same which-key reason as the tab and resize commands above
 (dolist (program '("gh-dash" "btop" "taskwarrior-tui"))
   (defalias (intern (format "my/popup-%s" program))
     (my/eat-popup-command program)
     (format "Toggle %s in a bottom popup." program)))
-
-;;;; tmux layer: C-q ---------------------------------------------------------
 
 (defvar my/tmux-map (make-sparse-keymap)
   "Bindings under the tmux prefix C-q.")
@@ -251,19 +242,17 @@
  "C-q" my/tmux-map)
 
 (general-def my/tmux-map
-  "C-q" #'quoted-insert                 ; bind-key C-q send-prefix
+  "C-q" #'quoted-insert
 
-  ;; panes
-  "v" #'evil-window-vsplit              ; bind v split-window -h
-  "s" #'evil-window-split               ; bind s split-window -v
-  "q" #'delete-window                   ; bind q kill-pane
-  "o" #'delete-other-windows            ; tmux default: prefix z (zoom)
-  "w" #'my/project-pick                 ; bind w display-popup -E "tms"
+  "v" #'evil-window-vsplit
+  "s" #'evil-window-split
+  "q" #'delete-window
+  "o" #'delete-other-windows
+  "w" #'my/project-pick
 
-  ;; windows
-  "c" #'tab-bar-new-tab                 ; tmux default: prefix c
-  "x" #'tab-bar-close-tab               ; bind x kill-window
-  "]" #'tab-bar-switch-to-next-tab      ; n/p are popups, as in tmux/herdr
+  "c" #'tab-bar-new-tab
+  "x" #'tab-bar-close-tab
+  "]" #'tab-bar-switch-to-next-tab
   "[" #'tab-bar-switch-to-prev-tab
   "1" #'my/tab-1
   "2" #'my/tab-2
@@ -271,14 +260,12 @@
   "4" #'my/tab-4
   "5" #'my/tab-5
 
-  ;; popups
-  "g" #'my/popup-gh-dash                ; bind g display-popup -E "gh-dash"
-  "p" #'my/popup-btop                   ; bind p display-popup -E "btop"
-  "t" #'my/popup-taskwarrior-tui        ; bind t display-popup -E "taskwarrior-tui"
-  "z" #'my/eat-popup                    ; bind z display-popup -E "zsh"
-  "e" #'my/copy-mode)                   ; bind e copy-mode
+  "g" #'my/popup-gh-dash
+  "p" #'my/popup-btop
+  "t" #'my/popup-taskwarrior-tui
+  "z" #'my/eat-popup
+  "e" #'my/copy-mode)
 
-;; move focus, no prefix
 (general-define-key
  :states '(normal insert visual motion emacs)
  :keymaps 'override
@@ -287,14 +274,11 @@
  "M-K" #'windmove-up
  "M-L" #'windmove-right)
 
-;;;; nvim layer: bare maps -----------------------------------------------------
-
 (general-def 'global "C-s" #'save-buffer)
 (general-imap "C-c" #'evil-normal-state)
-(general-imap "C-SPC" #'completion-at-point)   ; blink.cmp show
+(general-imap "C-SPC" #'completion-at-point)
 (general-nmap "<escape>" #'evil-ex-nohighlight)
 
-;; zoom the current buffer only
 (general-def 'global
   "C-+" #'text-scale-increase
   "C-=" #'text-scale-increase
@@ -307,21 +291,20 @@
   "C-j" #'my/window-shorter
   "C-k" #'my/window-taller)
 
-;; C-n walks the quickfix list (compile, grep, xref results), C-t the trouble list (diagnostics, wrapping)
 (general-nmap
   "C-n"   #'my/quickfix-next
   "C-S-n" #'my/quickfix-prev
   "C-t"   #'flymake-goto-next-error
   "C-S-t" #'flymake-goto-prev-error)
 
-;; nvim swapped them: M-q closes the tab, M-x replays a macro (normal state only, SPC : is M-x)
+;; M-x replays a macro as in nvim, SPC : is M-x
 (general-nmap "M-x" #'my/run-macro)
-;; override map: prog-mode's M-q (fill) and other mode maps must not shadow the tab keys
+;; override map: mode maps such as prog-mode's M-q must not shadow the tab keys
 (general-define-key
   :states '(normal insert visual motion emacs)
   :keymaps 'override
-  "M-t" #'my/eat-popup                  ; Snacks.terminal.toggle
-  "M-w" #'kill-current-buffer           ; Snacks.bufdelete: the window stays
+  "M-t" #'my/eat-popup
+  "M-w" #'kill-current-buffer
   "M-q" #'tab-bar-close-tab
   "M-c" #'tab-bar-new-tab
   "M-1" #'my/tab-1
@@ -330,17 +313,16 @@
   "M-4" #'my/tab-4
   "M-5" #'my/tab-5)
 
-;; barbar <Tab>/<S-Tab>: <tab> is the key, so C-i still jumps forward; modes that fold on TAB keep it
+;; <tab>, not TAB, so C-i still jumps forward
 (general-nmap
   :predicate '(not (derived-mode-p 'org-mode 'markdown-mode 'dired-mode))
   "<tab>"     #'next-buffer
   "<backtab>" #'previous-buffer)
-(setq switch-to-prev-buffer-skip-regexp "\\`[ *]")   ; cycle files, not *Messages* and friends
+(setq switch-to-prev-buffer-skip-regexp "\\`[ *]")   ; skip special buffers
 
 ;; mode maps such as dired's `m` still win
 (general-nmap "m" #'compile)
 
-;; flash.nvim s, vim-visual-multi M-d, mini.move M-hjkl, mini.align ga
 (general-def '(normal visual) "s" #'evil-avy-goto-char-timer)
 (general-nmap "M-d" #'evil-multiedit-match-symbol-and-next)
 (general-vmap "M-d" #'evil-multiedit-match-and-next)
@@ -354,15 +336,13 @@
   "M-l" #'my/shift-right
   "ga"  #'align-regexp)
 
-(general-nmap "zg" #'my/spell-add-word)          ; z= and ]s [s are evil's own
+(general-nmap "zg" #'my/spell-add-word)
 
 (general-def 'global
   "<f5>"  #'my/dap-continue
   "<f10>" #'dap-next
   "<f11>" #'dap-step-in
   "<f12>" #'dap-step-out)
-
-;;;; nvim layer: SPC leader ----------------------------------------------------
 
 (general-create-definer my/leader
   :states '(normal visual)
@@ -382,7 +362,6 @@
   "b" '(dap-breakpoint-toggle :which-key "Toggle breakpoint")
   "B" '(dap-breakpoint-condition :which-key "Conditional breakpoint")
 
-  ;; harpoon
   "a" '(harpoon-add-file :which-key "Harpoon: add file")
   "h" '(harpoon-toggle-file :which-key "Harpoon: quick menu")
   "1" '(harpoon-go-to-1 :which-key "Harpoon: file 1")
@@ -494,20 +473,17 @@
   "ma" '(org-agenda :which-key "org agenda")
   "mc" '(org-capture :which-key "org capture"))
 
-;; prefixes whose keys only exist once the package loads; without these which-key shows the raw key
+;; without these which-key shows the raw key until the package loads
 (which-key-add-key-based-replacements
   "C-q" "tmux"        "gs" "surround")
 
-;;;; package-local maps --------------------------------------------------------
-
-;; gs prefix like nvim mini.surround; an `e` prefix kills the end-of-word motion
+;; an `e` prefix would kill the end-of-word motion
 (with-eval-after-load 'evil-surround
   (evil-define-key '(normal visual) evil-surround-mode-map "gsa" #'evil-surround-region)
   (evil-define-key 'normal evil-surround-mode-map
     "gsd" #'evil-surround-delete
     "gsr" #'evil-surround-change))
 
-;; C-a (telescope smart_send_to_qflist) and M-q export results to an editable wgrep buffer
 (with-eval-after-load 'vertico
   (general-def vertico-map
     "C-j" #'vertico-next
@@ -520,7 +496,6 @@
     "C-." #'embark-act
     "M-." #'embark-dwim))
 
-;; blink.cmp keymap
 (with-eval-after-load 'corfu
   (general-def corfu-map
     "C-SPC"     #'corfu-popupinfo-toggle
@@ -532,13 +507,11 @@
     "C-b"       #'corfu-popupinfo-scroll-down
     "C-f"       #'corfu-popupinfo-scroll-up))
 
-;; LuaSnip snippet_forward / snippet_backward
 (with-eval-after-load 'tempel
   (general-def tempel-map
     "<tab>"     #'tempel-next
     "<backtab>" #'tempel-previous))
 
-;; checkmate.nvim
 (with-eval-after-load 'markdown-mode
   (evil-define-key 'normal markdown-mode-map (kbd "C-SPC") #'markdown-toggle-gfm-checkbox))
 
@@ -550,15 +523,14 @@
     (kbd "<backspace>") #'dired-up-directory
     (kbd "DEL")         #'dired-up-directory))
 
-;; the sidebar: snacks explorer keys, over the dired ones above
 (evil-define-key 'normal my/tree-mode-map
   "l"                 #'my/tree-open
   (kbd "RET")         #'my/tree-open
   (kbd "<return>")    #'my/tree-open
   "h"                 #'my/tree-close
-  (kbd "<backspace>") #'dired-up-directory  ; explorer_up: re-root at the parent
+  (kbd "<backspace>") #'dired-up-directory
   (kbd "DEL")         #'dired-up-directory
-  "."                 #'dired-find-file     ; explorer_focus: re-root at the directory under the cursor
+  "."                 #'dired-find-file
   "H"                 #'my/tree-toggle-hidden
   "a"                 #'my/tree-add
   "d"                 #'dired-do-delete
@@ -571,7 +543,6 @@
   "Z"                 #'dirvish-subtree-clear
   "q"                 #'dirvish-quit)
 
-;; leave the terminal, like nvim's <C-\><C-n>
 (with-eval-after-load 'eat
   (general-def eat-semi-char-mode-map "C-e" #'eat-emacs-mode)
   (general-def eat-char-mode-map      "C-e" #'eat-emacs-mode))

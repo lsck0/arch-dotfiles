@@ -2,9 +2,8 @@ local set = vim.opt
 
 set.clipboard = "unnamedplus"
 
--- synced project wordlist for spell; zg/zw persist here into the dotfiles repo
+-- zg/zw persist into the dotfiles repo
 set.spellfile = vim.fn.stdpath("config") .. "/spell/en.utf-8.add"
--- no sentence-start capitalization warnings
 set.spellcapcheck = ""
 -- GitHub is checked as Git + Hub; not noplainbuffer: .txt has no syntax, so it would never be checked at all
 set.spelloptions = "camel"
@@ -17,7 +16,6 @@ do
     end
 end
 
--- over ssh, yank to the local clipboard via osc 52
 if vim.env.SSH_TTY or vim.env.SSH_CONNECTION then
     local osc = require("vim.ui.clipboard.osc52")
     local function from_reg()
@@ -88,12 +86,12 @@ if vim.g.neovide then
     vim.g.neovide_refresh_rate_idle = 5
     vim.g.neovide_cursor_animation_length = 0.05
     vim.g.neovide_cursor_trail_size = 0.0
-    vim.g.neovide_cursor_vfx_mode = "" -- no particle trail dots
+    vim.g.neovide_cursor_vfx_mode = ""
     vim.g.neovide_padding_top = 4
     vim.g.neovide_padding_bottom = 4
     vim.g.neovide_padding_left = 6
     vim.g.neovide_padding_right = 6
     vim.g.neovide_floating_blur_amount_x = 2.0
     vim.g.neovide_floating_blur_amount_y = 2.0
-    vim.g.neovide_scroll_animation_length = 0.0 -- no smooth scroll
+    vim.g.neovide_scroll_animation_length = 0.0
 end

@@ -1,5 +1,4 @@
 #!/usr/sbin/nft -f
-# maximum lockdown: nothing new gets in from the network or is routed from it, only loopback, ndp, local vm/container interfaces and already-established flows
 
 define trusted_ifaces = { "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*" }
 

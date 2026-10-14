@@ -1,8 +1,5 @@
-// one-shot glitch for Ui/Glitch.qml: rgb split plus per-row offsets under a sine envelope
-// that is zero at both ends, so the effect never leaves a frame behind.
-// qt6 ShaderEffect only reads baked shaders: restart.nu runs
-//   qsb --qt6 -o glitch.frag.qsb glitch.frag
-// (qsb from qt6-shadertools) when the .qsb is missing or older; without it the glitch is skipped.
+// the sine envelope is zero at both ends, so the effect never leaves a frame behind
+// qt6 ShaderEffect reads only baked .qsb: restart.nu runs qsb (qt6-shadertools) when it is stale, else the glitch is skipped
 #version 440
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -19,7 +16,6 @@ layout(std140, binding = 0) uniform buf {
 layout(binding = 1) uniform sampler2D source;
 
 const float PI = 3.14159265;
-// fraction of rows that shift, and how far at the peak
 const float ROW_SHARE = 0.3;
 const float ROW_SHIFT = 0.06;
 const float SPLIT = 0.012;

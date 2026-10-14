@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# yt-dlp only through ProtonVPN, fail closed: the protonvpn namespace's shim (base/protonvpn-netns) when it is deployed,
-# else a refusal, never the bare route; for a machine without the tunnel's secret, where nothing in /usr/local/bin
-# shadows /usr/bin/yt-dlp
+# yt-dlp only through the protonvpn namespace's shim, else a refusal, never the bare route
 
 const SHIM = "/usr/local/bin/yt-dlp"
 

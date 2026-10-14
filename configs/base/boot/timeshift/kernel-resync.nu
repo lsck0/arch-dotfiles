@@ -1,7 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# after a timeshift restore of @ the esp (not in @) still holds the newer kernels, whose modules the restored
-# /usr/lib/modules lacks: put each installed kernel back on the esp and rebuild its uki, as the kernel package's own
-# hook does (sbctl's mkinitcpio post hook signs it), then reboot once when the running kernel was one of them
+# a restore of @ leaves the esp (not in @) with newer kernels whose modules the restored /usr/lib/modules lacks
 
 def main []: nothing -> nothing {
     let stale = glob /usr/lib/modules/*/pkgbase | each {|f|
@@ -18,7 +16,7 @@ def main []: nothing -> nothing {
         ^install -Dm644 $"($k.dir)/vmlinuz" $image
         ^mkinitcpio -p $k.pkgbase
     }
-    # the next boot finds the kernel in step, so this reboots at most once; from the iso (ROLLBACK.md) the chroot ends
+    # the next boot finds the kernel in step, so this reboots at most once
     let running = ^uname -r | str trim
     let chroot = (^systemd-detect-virt -q --chroot | complete).exit_code == 0
     if ($stale | is-not-empty) and not ($"/usr/lib/modules/($running)" | path exists) and not $chroot {

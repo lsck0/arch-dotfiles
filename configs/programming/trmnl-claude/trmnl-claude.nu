@@ -90,8 +90,7 @@ def project-name [encoded: string]: nothing -> string {
     if $marker != null { $segments | skip ($marker + 1) | str join "-" } else { $segments | last 2 | str join "-" }
 }
 
-# claude code writes a line per content block, each repeating the reply's usage, and resumed sessions copy history:
-# one row per api response (message id + request id), rows without an id once per line
+# each content block's line repeats the reply's usage and resumed sessions copy history: dedupe by message + request id
 def usage-rows [since: datetime]: nothing -> table {
     let bases = [(claude-dir | path join projects) ($nu.home-dir | path join .config claude projects)] | uniq
         | where ($it | path exists)

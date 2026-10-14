@@ -32,7 +32,7 @@ Item {
   // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
-  // always-visible hosts (the bar) turn this off; one ping per new sample, never a loop
+  // always-visible hosts (the bar) turn this off
   property bool pulsing: true
   // drives the overlay dots so the ping never repaints the canvas
   property real pulse: 0
@@ -42,7 +42,6 @@ Item {
     NumberAnimation { target: root; property: "pulse"; to: 0; duration: Style.motion.ambient / 2; easing.type: Style.motion.ambientEasing }
   }
 
-  // mirrors the canvas mapping for the newest sample
   readonly property point lastPoint: {
     var v = root.values || []
     var n = v.length

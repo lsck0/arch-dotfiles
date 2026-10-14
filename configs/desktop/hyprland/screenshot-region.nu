@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# region screenshot to the clipboard; slurp in the pywal palette instead of its white tint: the screen dimmed with the
-# background, the selection outlined in the accent (color4, as quickshell's Colors.accent) and lightly filled
+# slurp in the pywal palette instead of its white tint
 
 const COLORS_JSON = ".cache/wal/colors.json"
 const FALLBACK = {bg: "#0b0e14", accent: "#39bae6"}

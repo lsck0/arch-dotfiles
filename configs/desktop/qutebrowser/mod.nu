@@ -42,8 +42,7 @@ export def link [cfg: record] {
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 
-# the block lists arrive only with :adblock-update: a windowless instance on the real basedir, never while one runs,
-# the commands would reach it over ipc, the quit included
+# never while one runs: the commands would reach it over ipc, the quit included
 export def lists-fetch [] {
     if (ps | where name == qutebrowser | is-not-empty) { return }
     with-env {QT_QPA_PLATFORM: offscreen} {

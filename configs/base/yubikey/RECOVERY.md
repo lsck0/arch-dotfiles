@@ -10,7 +10,7 @@ What gets back the secrets, the disks and the backups when a YubiKey, or every m
 | `secrets/` on a machine that already pulled it | also the PGP key in the local `~/.gnupg` (git-crypt's gpg user) |
 | the private `secrets` repo itself | the YubiKey ssh stub, or https with a GitHub personal access token |
 | root disk (LUKS) | the passphrase, then the enrolled YubiKey (FIDO2) and TPM2 + PIN; header copy in `secrets/luks-header-<host>.img` |
-| `sudo` | the password; YubiKey PIN + touch and fingerprint are only shortcuts |
+| `sudo` | the password; a YubiKey touch and fingerprint are only shortcuts |
 | homelab sops files | `secrets/age.txt` and every YubiKey identity |
 
 ## Keep offline

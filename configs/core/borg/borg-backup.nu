@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# daily borg backup of $HOME into the syncthing folder borg-<host>, which ships it to the NAS (README.md)
+# daily borg backup of $HOME into the syncthing folder borg-<host>, which ships it to the NAS
 
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
@@ -9,7 +9,6 @@ const CHECK_DAYS = 7
 const RESTORE_DAYS = 30
 const LOCK_WAIT_S = 600
 const CANARY_BYTES = 4096
-# NetworkManager's global Metered: yes, guess-yes
 const NM_METERED = [
     org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Metered
 ]
@@ -74,7 +73,7 @@ def repo-open [folder: path, host: string]: nothing -> path {
 
 def archive [folder: path, secrets: path, canary: path]: nothing -> int {
     $env.BORG_REPO = repo-open $folder (sys host | get hostname)
-    # the key lives in the repo's config, a damaged config loses every archive: a copy (still passphrase-encrypted)
+    # the key lives in the repo's config, a damaged config loses every archive: keep a (passphrase-encrypted) copy
     let key = $secrets | path join $"borg-key-($env.BORG_REPO | path basename)"
     if not ($key | path exists) or (ls $key | get 0.size) == 0b {
         let text = borg key export $env.BORG_REPO
@@ -113,7 +112,7 @@ def archive [folder: path, secrets: path, canary: path]: nothing -> int {
 def main []: nothing -> nothing {
     $env.DOTFILES = $env.DOTFILES? | default ($nu.home-dir | path join projects arch-dotfiles)
     let host = sys host | get hostname
-    # the syncthing folder (configs/core/syncthing has the same path and id)
+    # same path and id as configs/core/syncthing
     let folder = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join borg-repo
     let folder_id = $"borg-($host)"
     let secrets = $env.DOTFILES_SECRETS? | default ($env.DOTFILES | path join secrets)

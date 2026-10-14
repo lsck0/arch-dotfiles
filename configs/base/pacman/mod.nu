@@ -4,9 +4,7 @@ export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}}
 
 const SNAPSHOT = '^(\d{4}-\d{2}-\d{2})?$'
 
-# run by system-apply install before any sync: [lsck0] and its key first, then the config naming it and the root hooks.
-# lsck0_snapshot=<YYYY-MM-DD> (platform fact) pins [lsck0] to that night's dated snapshot; an unreachable snapshot
-# then fails the sync instead of mixing live core with snapshot sonames
+# lsck0_snapshot pins [lsck0] to a dated snapshot; an unreachable one fails the sync instead of mixing sonames
 export def system [cfg: record] {
     let snapshot = $env.LSCK0_SNAPSHOT? | default ""
     if not ($snapshot =~ $SNAPSHOT) { error make {msg: $"pacman: lsck0_snapshot '($snapshot)' is not YYYY-MM-DD"} }
@@ -19,13 +17,11 @@ export def system [cfg: record] {
     [
         (step trust)
         (file-text /etc/pacman.conf $conf)
-        # hooks run as root: root-owned copies
         (files-into /etc/pacman.d/hooks ...(glob hooks/*.hook))
     ]
 }
 
-# the mirror.lsck0.dev signing key, trusted before pacman.conf names the repo; read in a throwaway keyring so no
-# /root/.gnupg stays behind
+# a throwaway keyring, so no /root/.gnupg stays behind
 export def trust []: nothing -> nothing {
     let home = mktemp --directory
     let fingerprint = ^gpg --homedir $home --show-keys --with-colons archrepo.asc | lines | parse "fpr:{rest}"

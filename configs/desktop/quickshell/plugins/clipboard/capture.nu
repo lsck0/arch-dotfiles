@@ -47,15 +47,14 @@ def image-emit [mime: string, dir: string]: binary -> nothing {
 def main [mime?: string] {
     # only the watch modes get the offer on stdin; the bare call must not wait on it
     let input = if $mime != null { $in | into binary }
-    # tmpfs like Clipboard.qml's history: a copied secret never reaches the disk or a backup
+    # tmpfs: a copied secret never reaches the disk or a backup
     let image_dir = [($env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u)") quickshell clipboard-images] | path join
     mkdir $image_dir
 
     let types = ^wl-paste --list-types | complete | get stdout | lines
     if $env.CLIPBOARD_STATE? == "sensitive" or $PASSWORD_HINT in $types { return }
 
-    # pass -c copies with a plain wl-copy, then starts the sleeper that clears it: one born just now marks this offer
-    # as the secret, an older one only a password still waiting to be cleared
+    # pass -c starts its clearing sleeper right after a plain wl-copy: only a fresh one marks this offer as a secret
     sleep $PASS_SLEEPER_SETTLE
     let sleepers = ^pgrep -u (^id -u) -f $PASS_SLEEPER | complete | get stdout | lines
     if ($sleepers | is-not-empty) and (^ps -o etimes= -p ($sleepers | str join ",") | lines | any { into int | $in <= $PASS_SLEEPER_AGE_MAX_S }) {

@@ -72,8 +72,7 @@ export def link [cfg: record] {
     [
         (files-into ($nu.home-dir | path join .local share applications) ...(glob ($DIR | path join applications "*.desktop")))
         (files-into ($nu.home-dir | path join .local share dolphin view_properties global) dolphin/view_properties/global/.directory)
-        # the dock layout: dolphinrc's action keys only hide the terminal's toggles and no kiosk key hides a dock short of
-        # shell_access=false, which also stops dolphin running any executable. dolphin rewrites the rest of this file
+        # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
         # someone else's formats follow the locale bootstrap.sh set, not luca's
         (rc-files | where {|f| $f != plasma-localerc or (profile-has identity) } | each {|f| file-copy $f ($config | path join $f) })
@@ -92,8 +91,7 @@ def rgb [hex: string]: nothing -> string {
     $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ","
 }
 
-# a selected row sits on the accent, where c6/c5 links nearly vanish and a light theme's bg text fades: readable-on
-# walks them toward black or white until they read on it
+# c6/c5 links nearly vanish on the selection accent: readable-on walks them toward black or white
 def selection [p: record]: nothing -> list<string> {
     let accent = $p.c4 | hex-to-rgb
     [$p.bg $p.c6 $p.c5] | each { hex-to-rgb | readable-on $accent | rgb-to-hex --prefix "#" }
@@ -118,7 +116,6 @@ def kde-colors [p: record]: nothing -> record {
         "Colors:Header][Inactive": (do $set $c.c0 $c.bg $c.c8 $c.c8 $c.c6 $c.c5)
         "Colors:Complementary": (do $set $c.bg $c.c0 $c.fg $c.c8 $c.c6 $c.c5)
         "Colors:Selection": (do $set $c.c4 $c.c4 $sel.0 $c.fg $sel.1 $sel.2)
-        # kwin's titlebar
         WM: {
             activeBackground: $c.bg activeBlend: $c.bg activeForeground: $c.fg
             inactiveBackground: $c.c0 inactiveBlend: $c.c0 inactiveForeground: $c.c8

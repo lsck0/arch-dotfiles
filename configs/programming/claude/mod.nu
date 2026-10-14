@@ -26,8 +26,7 @@ def backup-dir []: nothing -> path {
     $env.DOTFILES | path join secrets claude
 }
 
-# awake only while an agent works: a turn in flight or a subagent running; waiting on the user releases it. a granted
-# permission prompt resumes the turn without a new prompt, so every tool call re-arms it
+# a granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard
 def guard-hooks [guard: path]: nothing -> record {
     let hook = {|action| [{hooks: [{type: command, command: $"($guard) ($action)"}]}] }
     let start = do $hook turn-start
@@ -54,8 +53,7 @@ export def link [cfg: record] {
     let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
     let creds = home .claude .credentials.json
     let token = $env.DOTFILES | path join secrets claude-oauth-token
-    # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off, so claude gets
-    # DO_NOT_TRACK=0 however it is started; error reports and feedback surveys are separate switches and stay off
+    # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
     [
         (files-into (home .claude) CLAUDE.md RTK.md)
         (json-merge $settings [
@@ -68,15 +66,13 @@ export def link [cfg: record] {
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
             (json-set [hooks] (hooks-merge $current (home $GUARD)))
         ])
-        # only a home that is not logged in yet is seeded from the backup
         (if (secret-is-plaintext (backup-dir | path join credentials.json)) and not ($creds | path exists) {
             [
                 (exec claude-login [install -Dm600 (backup-dir | path join credentials.json) $creds] --creates $creds)
                 (json-merge (home .claude.json) (open (backup-dir | path join account.json) | items {|k, v| json-set [$k] $v }))
             ]
         } else { [] })
-        # the long-lived oauth token, session-wide so terminal and gui launches all get it; it wins over
-        # credentials.json. the identity claude stays manual: its envrc unsets it unless an identity token is placed
+        # session-wide so gui launches get it too; it wins over credentials.json
         (if (secret-is-plaintext $token) {
             file-text (home .config $TOKEN_CONF) $"CLAUDE_CODE_OAUTH_TOKEN=(open --raw $token | str trim)\n" --mode $PRIVATE
         } else { [] })

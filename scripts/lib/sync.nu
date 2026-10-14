@@ -1,6 +1,3 @@
-# dot sync: back up live app state into the repo, then commit secrets and the whole tree as the next signed
-# "Generation: N" and push. The same backups run daily before borg-backup (configs/core/borg); only this commits them
-
 use log.nu *
 use secrets.nu [secret-is-plaintext]
 

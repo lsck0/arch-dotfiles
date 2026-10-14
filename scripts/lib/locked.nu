@@ -1,4 +1,4 @@
-# every read-modify-write of a file modules share, run under flock by state-locked with its arguments on stdin
+# runs under flock via state-locked, arguments on stdin
 
 use json.nu [json-edits-apply]
 
@@ -30,7 +30,7 @@ def "main written-forget" []: string -> nothing {
     records-write $args.file (records-read $args.file | where path not-in $args.paths)
 }
 
-# prints "changed" when the file was rewritten, and "owned" too when its new content is to be recorded
+# prints "changed" when rewritten, plus "owned" when the new content is to be recorded
 def "main json-update" []: string -> nothing {
     let args = $in | from json
     let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }

@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# millennium loads by replacing libXtst in steam's runtime dirs, which exist only after steam's first run; steam updates
-# leave the links be. the module stops arming this hook once the links are there
+# millennium replaces libXtst in steam's runtime dirs, which exist only after steam's first run
 
 const LIB = "/usr/lib/millennium"
 const LINKS = [

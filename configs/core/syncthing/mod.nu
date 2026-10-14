@@ -66,8 +66,7 @@ def gui-password []: nothing -> string {
 # any local login could open the gui on 127.0.0.1 and read the api key from it; the password goes over stdin
 def gui-login [user: string, password: string]: nothing -> nothing {
     if $password !~ $PASSWORD_SHAPE { error make {msg: "syncthing: the gui password may only hold base64 characters"} }
-    # one call per setting with a wait after each: a gui change restarts the listener, and `syncthing cli -` sends
-    # the next line into that refused window and still exits 0; the restart can lag the answer, so read it back
+    # one call per setting, read back: a gui change restarts the listener and `cli -` silently loses the next line
     let set = 1..$GUI_TRIES | each { $in } | any {|_|
         try { ^syncthing cli config gui user set $user }
         api-wait
@@ -105,8 +104,7 @@ export def api-config [paired: string]: nothing -> nothing {
     borg-folder
 }
 
-# sent to the nas only; no versioning (a versioned repo keeps every replaced segment twice) and no watcher: borg-backup
-# pauses the folder while it writes and the unpause rescans it
+# no versioning: it would keep every replaced segment twice; no watcher: borg-backup's unpause rescans it
 def borg-folder []: nothing -> nothing {
     let id = borg-id
     if $id not-in (st config folders list | lines) {
@@ -139,7 +137,6 @@ export def link [cfg: record] {
     [
         (step stignore)
         (if $changed { step identity-install } else { [] })
-        # a background job, not an app: lowest cpu weight and priority
         (dropin syncthing.service 10-background.conf --then [systemctl --user try-restart syncthing.service])
         (unit-enable syncthing.service --now)
         (file-text ($nu.home-dir | path join $BORG_FOLDER .stignore) "lock.exclusive\nlock.roster\n")

@@ -13,7 +13,7 @@ def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing
     ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
 }
 
-# "5m 3s", "5m", "3s"; TimerState.qml remainingText mirrors it
+# TimerState.qml remainingText mirrors it
 def remaining-format [seconds: int]: nothing -> string {
     let minutes = $seconds // 60
     let rest = $seconds mod 60
@@ -46,7 +46,7 @@ def reminder-json []: nothing -> record {
     {count: $count, active: ($count > 0), tooltip: $tooltip, reminders: $reminders}
 }
 
-# quickshell's TimerState watches it; atomic so the watcher never reads a partial write
+# atomic so TimerState's watcher never reads a partial write
 def index-write []: nothing -> nothing {
     mkdir (reminder-dir)
     let index = reminder-dir | path join index.json

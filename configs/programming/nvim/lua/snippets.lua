@@ -56,12 +56,12 @@ ls.add_snippets("rust", {
 })
 
 ls.add_snippets("c", {
-    s("sec", { -- l-style section banner
+    s("sec", {
         t({ "/*", " * -----------------------------------------------------------------------------", " * " }),
         i(1, "SECTION"),
         t({ "", " * -----------------------------------------------------------------------------", " */", "" }),
     }),
-    s("const", { -- named constant with derivation comment
+    s("const", {
         t("// "),
         i(1, "why: measured against, trades off, breaks above/below"),
         t({ "", "#define " }),
@@ -70,7 +70,6 @@ ls.add_snippets("c", {
         i(3, "value"),
     }),
     s("assert", { t("assert("), i(1, "cond"), t(");") }),
-    -- doxygen
     s("brief", { t("/** @brief "), i(1, "summary"), t(" */") }),
     s("param", { t("@param "), i(1, "name"), t(" "), i(2, "desc") }),
     s("return", { t("@return "), i(1, "desc") }),

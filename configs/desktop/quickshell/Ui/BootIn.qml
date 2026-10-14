@@ -31,11 +31,9 @@ Item {
   property bool active: false
   property string title: ""
   property real span: 0
-  // snap to the target with no motion: a drawer switching straight from one open panel to the next
   property bool instant: false
 
   property real progress: 0
-  // linear 0..1 over motion.boot, the row stagger timeline
   property real phase: 0
   property int typed: 0
 
@@ -58,7 +56,6 @@ Item {
   function run() {
     anim.stop()
     var opening = root.active
-    // open->open fans fast instead of snapping
     var rate = (opening ? 1 : Style.motion.closeRate) * (root.instant ? Style.motion.switchRate : 1)
     progressAnim.to = opening ? 1 : 0
     progressAnim.duration = Math.round(Style.motion.base * rate)

@@ -2,18 +2,15 @@ use module.nu *
 
 export const meta = {deps: [desktop/hyprland], packages: {pacman: [jdownloader2]}}
 
-# each cfg/<interface-fqn>.json is a flat object JD merges over its defaults (key: the getter lowercased); JD
-# rewrites them itself, so only these keys are merged in. every default is the opposite
+# JD rewrites its cfg files itself, so only these keys are merged in
 const SETTINGS = {
     "org.jdownloader.updatev2.UpdateSettings.json": {autoupdatecheckenabled: false, installupdatesonexitenabled: false}
     "org.jdownloader.jdserv.stats.StatsManagerConfigV2.json": {enabled: false}
     "org.jdownloader.settings.GraphicalUserInterfaceSettings.json": {bannerenabled: false, specialdealsenabled: false}
-    # awt SystemTray needs an xembed tray hyprland/xwayland lacks: the default-on tray only pops "Tray isn't
-    # supported!" each start; freshinstall false keeps JD from re-applying defaults
+    # awt SystemTray needs an xembed tray hyprland lacks; freshinstall false keeps JD from re-applying defaults
     "org.jdownloader.gui.jdtrayicon.TrayExtension.json": {enabled: false, freshinstall: false}
 }
 
-# swing; the container-file entry (.dlc, .ccf, .rsdf) starts the same jvm
 export def link [cfg: record] {
     let scale = $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
     let java = { str replace --all --regex '(?m)^Exec=' $"Exec=env JDK_JAVA_OPTIONS=-Dsun.java2d.uiScale=($scale) " }

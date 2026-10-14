@@ -2,9 +2,8 @@
 # prints "<image>\t<thumbnail or image>" per wallpaper eligible for the largest screen, or with `themes`
 # "<image>\t<thumbnail or image>\t<theme>" per theme wallpaper; thumbnails are made afterwards, detached
 
+# a copy under ~/.config/quickshell, not the repo: the repo's wallpaper-list.nu comes in as an argument
 const SELF = path self
-const WALLPAPER_LIST = path self | path expand | path dirname --num-levels 6 | path join scripts wallpaper-list.nu
-use $WALLPAPER_LIST [wallpaper-resolve]
 
 const THUMB_SIZE = "800x800"
 const THUMB_QUALITY = 88
@@ -48,7 +47,12 @@ def "main thumbnails" [...images: string] {
     }
 }
 
-def "main themes" [theme_dir: string] {
+def wallpaper-resolve [wallpaper_list: string, name: string]: nothing -> any {
+    let found = do { ^$wallpaper_list --resolve $name } | complete
+    if $found.exit_code == 0 { $found.stdout | str trim } else { null }
+}
+
+def "main themes" [theme_dir: string, wallpaper_list: string] {
     mkdir (cache-dir)
     if ($theme_dir | path type) != dir { return }
     let index = index-load
@@ -56,7 +60,7 @@ def "main themes" [theme_dir: string] {
     let rows = glob $"($theme_dir)/*.json" | sort
         | each {|file| {theme: ($file | path parse | get stem), name: (open $file | get wallpaper? | default "")} }
         | where name != "" and not ($it.name | str contains /)
-        | each {|t| $t | insert image (wallpaper-resolve $t.name) }
+        | each {|t| $t | insert image (wallpaper-resolve $wallpaper_list $t.name) }
         | where image != null
         | uniq-by image
     thumbnails-spawn $rows.image
@@ -65,8 +69,7 @@ def "main themes" [theme_dir: string] {
 
 def main [wallpaper_list: string, screen?: string] {
     mkdir (cache-dir)
-    # hyprland's mode is the panel's real size; qt's devicePixelRatio rounds a fractional scale up (1.67 reads as 2),
-    # which turned a 4k panel into 4608x2592 and dropped every exactly-4k wallpaper
+    # not qt's devicePixelRatio: it rounds a 1.67 scale to 2 and made a 4k panel 4608x2592
     let size = $screen | default (^hyprctl -j monitors | from json | sort-by { $in.width * $in.height } | last | $"($in.width)x($in.height)")
     let images = ^$wallpaper_list --screen $size | lines
     let index = index-load

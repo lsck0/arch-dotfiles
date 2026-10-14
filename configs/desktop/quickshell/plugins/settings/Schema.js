@@ -5,11 +5,12 @@ const togglesId = ":toggles"
 const togglesLabel = "Quick toggles"
 // an enum with at most this many choices is a chip row, a longer one a list that opens on enter
 const segmentedMax = 4
+// an open list shows its choices a page at a time, so thousands (font families) stay one screen
+const choicePageSize = 30
 // what an apply needs after the write, weakest first
 const applyOrder = ["live", "relink", "relogin", "reboot"]
 
-// dot's nu types onto the controls: choices make an enum, a list of scalars is a list of entries, anything structured
-// (a record, a list of records) is edited as json
+// choices make an enum, a list of scalars a list of entries, anything structured is edited as json
 function typeOf(option) {
   var type = String(option.type || "").replace(/\?$/, "")
   if ((option.choices || []).length > 0) return "enum"
@@ -53,13 +54,17 @@ function optionMatches(needle, module, option) {
 
 function toggleMatches(needle, toggle) { return contains(needle, [toggle.label, toggle.name, togglesLabel]) }
 
+function toggleOptionMatches(needle, toggle, option) {
+  return contains(needle, [option.label, option.key, option.doc, toggle.name, togglesLabel])
+}
+
 // [{id, label, count}]; count is the match count while searching, else the entry size
 function sections(modules, toggles, query) {
   var needle = query.trim().toLowerCase()
   var out = [{
     id: togglesId,
     label: togglesLabel,
-    count: needle ? toggles.filter(function (t) { return toggleMatches(needle, t) }).length : toggles.length
+    count: toggleEntries(toggles, needle).filter(function (r) { return r.kind !== "header" }).length
   }]
   for (let m = 0; m < modules.length; m++) {
     let module = modules[m]
@@ -79,14 +84,40 @@ function optionRow(module, option) {
 
 function toggleRow(toggle) { return { kind: "toggle", id: togglesId + "." + toggle.name, toggle: toggle } }
 
+// set through the toggle's own verb (option.set) instead of `dot set`, and always live
+function toggleOptionRow(toggle, option) {
+  return {
+    kind: "option",
+    id: togglesId + "." + toggle.name + "." + option.key,
+    option: Object.assign({ apply: "live", source: "toggle", toggle: toggle.name }, option, { nuType: option.type, type: typeOf(option) })
+  }
+}
+
+// plain toggles first: one with options becomes a header over its option rows, and a header claims every row below it
+function toggleEntries(toggles, needle) {
+  var plain = []
+  var grouped = []
+  for (let t = 0; t < toggles.length; t++) {
+    let toggle = toggles[t]
+    if ((toggle.options || []).length === 0) {
+      if (!needle || toggleMatches(needle, toggle)) plain.push(toggleRow(toggle))
+      continue
+    }
+    let options = toggle.options.filter(function (o) { return !needle || toggleOptionMatches(needle, toggle, o) })
+    if (options.length > 0) grouped.push({ kind: "header", id: "#" + togglesId + "/" + toggle.name, text: toggle.name })
+    for (let o = 0; o < options.length; o++) grouped.push(toggleOptionRow(toggle, options[o]))
+  }
+  return plain.concat(grouped)
+}
+
 // headers interleaved with option and toggle rows: one entry's groups, or every match grouped by entry while searching
 function rows(modules, toggles, sectionId, query) {
   var needle = query.trim().toLowerCase()
   var out = []
   if (needle) {
-    let hits = toggles.filter(function (t) { return toggleMatches(needle, t) })
+    let hits = toggleEntries(toggles, needle)
     if (hits.length > 0) out.push({ kind: "header", id: "#" + togglesId, text: togglesLabel })
-    for (let t = 0; t < hits.length; t++) out.push(toggleRow(hits[t]))
+    out = out.concat(hits)
     for (let m = 0; m < modules.length; m++) {
       let module = modules[m]
       let matched = (module.options || []).filter(function (o) { return optionMatches(needle, module, o) })
@@ -95,7 +126,7 @@ function rows(modules, toggles, sectionId, query) {
     }
     return out
   }
-  if (sectionId === togglesId) return toggles.map(toggleRow)
+  if (sectionId === togglesId) return toggleEntries(toggles, "")
   for (let m = 0; m < modules.length; m++) {
     let module = modules[m]
     if (module.name !== sectionId) continue
@@ -177,6 +208,13 @@ function encode(option, value) {
 }
 
 function choiceLabel(choice) { return choice === "" ? "(none)" : String(choice) }
+
+function choicesMatching(option, filter) {
+  var needle = filter.toLowerCase()
+  return (option.choices || []).filter(function (c) { return choiceLabel(c).toLowerCase().indexOf(needle) >= 0 })
+}
+
+function choicePageStart(cursor) { return Math.max(0, Math.floor(cursor / choicePageSize) * choicePageSize) }
 
 // the strongest need of a set of options, "" when all are live
 function strongestApply(options) {

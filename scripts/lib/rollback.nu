@@ -1,16 +1,13 @@
-# roll this machine back to an earlier generation: detach the checkout at that commit, step the root copy back to it
-# and run that generation's own apply. --full also rewinds the packages: [lsck0] pinned to the dated snapshot that was
-# current when the generation was committed, nix re-pinned to its rev, then its install. refuses a dirty tree, so
-# uncommitted work is never touched; secrets/ stays at its own commit
+# refuses a dirty tree so uncommitted work is never touched; secrets/ stays at its own commit
 
 use log.nu [log-info log-warn]
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
 
 const REPO = path self ../..
-# the branch sync commits to; a target must lie on it, so root only ever runs a commit of that history
+# a target must lie on it, so root only ever runs a commit of this history
 const BRANCH = "master"
-# the first generations with the root copy (bash, then nu); an older one ran its system layer from the checkout as root
+# the first generations with the root copy; an older one ran its system layer from the checkout as root
 const FLOOR_FILES = [scripts/lib/system-apply.sh scripts/lib/system-apply.nu]
 const PACMAN_CONF = "configs/base/pacman/pacman.conf"
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
@@ -24,7 +21,6 @@ def --wrapped git-ok [...args: string]: nothing -> bool { (do { ^git -C $REPO ..
 
 def describe-commit [rev: string]: nothing -> string { git-out log -1 "--format=%s, %ci" $rev }
 
-# the full sha of a generation number or commit, refused unless it lies on BRANCH past the floor
 export def rollback-resolve [target: string]: nothing -> string {
     let sha = if $target =~ '^\d+$' {
         let matches = ^git -C $REPO log --format=%H%x09%s $BRANCH | lines | parse "{sha}\t{subject}"
@@ -48,7 +44,7 @@ export def rollback-resolve [target: string]: nothing -> string {
     $sha
 }
 
-# the target's lsck0 pin: the machine's own platform file wins, as at load
+# the machine's own platform file wins, as at load
 def platform-pin [sha: string]: nothing -> string {
     let host = sys host | get hostname
     let text = if ($PLATFORM_LOCAL | path exists) { open --raw $PLATFORM_LOCAL } else {
@@ -57,8 +53,7 @@ def platform-pin [sha: string]: nothing -> string {
     try { $text | from nuon | get facts.lsck0_snapshot? | default "" } catch { "" }
 }
 
-# the newest dated [lsck0] snapshot whose db was published at or before the commit, from the target's own pacman.conf
-# mirror; nothing when the mirror no longer keeps one that old
+# nothing when the mirror no longer keeps a snapshot that old
 def mirror-snapshot [sha: string]: nothing -> string {
     let arch = ^uname -m | str trim
     let conf = git-out show $"($sha):($PACMAN_CONF)" | lines
@@ -77,15 +72,13 @@ def mirror-snapshot [sha: string]: nothing -> string {
     } | get --optional 0 | default ""
 }
 
-# the nixpkgs rev the target pins, wherever its tree spells NIXPKGS
 def nixpkgs-pin [rev: string]: nothing -> string {
     let pattern = $'NIXPKGS[[:space:]]*=[[:space:]]*"?($NIXPKGS_PREFIX)[0-9a-f]+'
     do { ^git -C $REPO grep -h -o -E $pattern $rev -- install.sh scripts } | complete
     | get stdout | lines | get --optional 0 | default "" | str replace --regex '^[^g]*' ''
 }
 
-# profile elements from a pinned nixpkgs rev other than <rev>; one installed by hand from the flake registry is
-# `flake:nixpkgs`, never matched
+# one installed by hand from the flake registry is `flake:nixpkgs`, never matched
 def nix-stale [rev: string]: nothing -> list<string> {
     if (which nix | is-empty) { return [] }
     ^$NIX.0 ...($NIX | skip 1) profile list --json | from json | get elements
@@ -93,9 +86,7 @@ def nix-stale [rev: string]: nothing -> list<string> {
     | where { ($in.url | default "" | str starts-with $NIXPKGS_PREFIX) and $in.url != $rev } | get name | sort
 }
 
-# the target's own drivers: dot from the nu generations on (DOT_ROLLBACK lets its apply step the root copy back, its
-# install takes the pin from LSCK0_SNAPSHOT), its install.sh and config.sh before (whose sudo resets the env, so the
-# pin goes on root's command line and the copy steps back through that tree's system.sh first)
+# before the nu generations, install.sh and config.sh's sudo resets the env: the pin goes on root's command line
 def drivers [sha: string, pin: string]: nothing -> record {
     if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
         let dot = [nu --no-config-file scripts/dot.nu]
@@ -112,7 +103,6 @@ def drivers [sha: string, pin: string]: nothing -> record {
     }
 }
 
-# the root copy stepped back along the history it already ran; a commit off that line is refused
 def copy-rollback []: nothing -> nothing {
     let script = 'source "$1/scripts/lib/system.sh" && system_copy --rollback "$1" "$2" sudo'
     if (do { ^bash -c $script rollback $REPO $SYSTEM_REPO } | complete).exit_code != 0 {
@@ -132,8 +122,7 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     let short = $sha | str substring 0..11
     let label = describe-commit $sha
     let admin = ^id -nG | split row " " | any { $in == wheel }
-    # tracked changes and untracked files alike would ride along into the root copy or block the checkout; secrets/
-    # is its own repo, never checked out here
+    # tracked changes and untracked files would ride into the root copy or block the checkout
     let dirty = git-out status --porcelain --ignore-submodules=all | lines
     log-info $"target ($short) \(($label)\)"
     log-info $"from   (git-out rev-parse HEAD | str substring 0..11) \((describe-commit HEAD)\)"
@@ -197,12 +186,12 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
         log-info $"dry run, a clean tree would run: ($steps | str join ' -> ')"
         return
     }
-    # the submodule keeps its commit: secrets/ history is never moved by a rollback
+    # secrets/ history is never moved by a rollback
     ^git -C $REPO -c submodule.recurse=false checkout --quiet --detach $sha
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO
     if $admin and not $drive.nu { copy-rollback }
-    # install adds only what the profile lacks, so a stale one leaves first and comes back at the target's rev
+    # install adds only what the profile lacks, so a stale one leaves first
     if ($stale | is-not-empty) { ^$NIX.0 ...($NIX | skip 1) profile remove ...$stale }
     with-env {LSCK0_SNAPSHOT: $pin, DOT_ROLLBACK: "1"} {
         $installs | each { driver-run $in install } | ignore

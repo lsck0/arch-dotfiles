@@ -1,5 +1,3 @@
-# dot test lint (static rules over the tree) and check/fmt (every formatter and linter, verify or apply)
-
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
 
@@ -109,6 +107,19 @@ def lint-palette []: nothing -> list<string> {
     } | compact
 }
 
+# nu-check passes these, the run fails
+const NU_PITFALLS = [
+    [pattern why];
+    ['\bexec \^' "exec takes the bare name, the caret becomes part of it"]
+    ["\\$'[^']*\\\\\\(" "\\( is no escape inside $'...'"]
+]
+
+def lint-nu-pitfalls []: nothing -> list<string> {
+    walk | where ($it | str ends-with ".nu") | each {|f|
+        code-lines $f | each {|l| $NU_PITFALLS | where {|p| $l.line =~ $p.pattern } | each {|p| $"(rel $f):($l.n): ($p.why)" } } | flatten
+    } | flatten
+}
+
 def lint-generated []: nothing -> list<string> {
     let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) gen --check | complete
     if $run.exit_code == 0 { [] } else { [$"dot gen --check: ($run.stdout + $run.stderr | str trim)"] }
@@ -122,7 +133,7 @@ def unit-tests []: nothing -> list<string> {
 }
 
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-palette) (lint-generated) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-palette) (lint-generated) (unit-tests)] | flatten
 }
 
 def shell-script [path: path]: nothing -> bool {
@@ -159,7 +170,7 @@ def --wrapped tool [...cmd: string]: nothing -> record {
     do { cd $REPO; ^($cmd | first) ...($cmd | skip 1) } | complete
 }
 
-# every formatter and linter over the walk; findings fail check, notes (a missing optional tool) only warn
+# findings fail check, notes (a missing optional tool) only warn
 export def gate-tools [apply: bool]: nothing -> record {
     let paths = walk
     let pick = {|exts| $paths | where { ($in | path parse | get extension) in $exts } | each { rel $in } | sort }
@@ -208,7 +219,7 @@ export def gate-tools [apply: bool]: nothing -> record {
     {findings: $findings, notes: $notes}
 }
 
-# the probe Palette.js must reproduce: per theme the conditioned bg, its lightness, a surface and a mix, then per slot
+# the values Palette.js must reproduce
 def palette-expect [theme: path]: nothing -> list {
     let c = open $theme
     let raw = $c.special.background | palette hex-to-rgb
@@ -252,8 +263,7 @@ QtObject {
 }
 '
 
-# palette.nu, the conditioning authority, against its quickshell port Palette.js: the same probe in qml6, the engine
-# quickshell runs it in, so a rounding difference of that engine shows up here
+# runs in qml6, the engine quickshell uses, so its rounding differences show up here
 export def gate-palette []: nothing -> record {
     let themes = $PALETTE_THEMES | each {|t| $REPO | path join configs core themes $"($t).json" }
     let py = {synced: (palette palette-js-sync), light: $palette.LIGHT_LUMINANCE, expected: ($themes | each { palette-expect $in })}

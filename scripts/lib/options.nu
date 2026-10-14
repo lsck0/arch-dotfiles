@@ -2,13 +2,11 @@
 
 const SPEC_KEYS = [type default doc label group choices min max step apply scope env toggle]
 const SPEC_REQUIRED = [type default doc]
-# what changing a value takes: live calls the module's apply verb, relink reruns its link verb
 export const OPTION_APPLY = [live relink relogin reboot]
-# machine: set in the platform only; user: the profile may override the machine's value
+# user scope: the profile may override the machine's value
 export const OPTION_SCOPE = [machine user]
 const OPTION_APPLY_DEFAULT = "relink"
 const OPTION_SCOPE_DEFAULT = "user"
-# every module has it: whether this machine (and this user, for the user layer) runs the module at all
 export const OPTION_ENABLE = "enable"
 
 export def option-type-ok [type: string, value: any]: nothing -> bool {
@@ -77,7 +75,6 @@ export def options-schema [module: record]: nothing -> record {
     } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.spec }
 }
 
-# detected: {<module id>: {<option>: value}} from the modules' detect exports, for options without a static default
 export def options-resolve [modules: table, platform: record, profile: any, detected: record = {}]: nothing -> record {
     let ids = $modules.id
     let layers = [
@@ -139,8 +136,7 @@ export def options-notify [key: string, value: any, source: string, runtime?: an
     $"({key: $key, value: $value, source: $source, runtime: $runtime} | to json --raw)\n" | save --append $file
 }
 
-# options-to-nuon: an options file as people edit it, records and lists spelled out (never nuon's table form), one key
-# per line, the order kept
+# records and lists spelled out, never nuon's table form, one key per line, order kept
 export def options-to-nuon [--indent: int = 0]: any -> string {
     let value = $in
     let pad = "    " | fill --width ($indent * 4) --character " " | str substring 0..<($indent * 4)

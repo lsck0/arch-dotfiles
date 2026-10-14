@@ -13,7 +13,7 @@
          (magit-post-refresh . diff-hl-magit-post-refresh))
   :config
   (global-diff-hl-mode 1)
-  (diff-hl-flydiff-mode 1))               ; update without saving
+  (diff-hl-flydiff-mode 1))
 
 (defun my/smerge-maybe-enable ()
   "Turn on `smerge-mode' if the buffer contains conflict markers."
@@ -23,8 +23,6 @@
       (smerge-mode 1))))
 
 (add-hook 'find-file-hook #'my/smerge-maybe-enable)
-
-;;;; worktrees (git-worktree.nvim) ----------------------------------------------
 
 (defun my/git-lines (&rest args)
   "Output lines of git ARGS in `default-directory'; a failure is a `user-error' carrying git's message."
@@ -93,7 +91,7 @@
          (existing (seq-find (lambda (wt) (equal (plist-get wt :branch) branch)) worktrees)))
     (if existing
         (my/project-open (plist-get existing :path))
-      ;; slashes flattened like clones-sdd-repos.sh's slug_of, so feat/x is one directory, not two
+      ;; slashes flattened like slug_of in clones-sdd-repos.sh
       (let ((dir (my/worktree-dir worktrees (replace-regexp-in-string "/" "-" branch))))
         (cond ((ignore-errors (my/git-lines "show-ref" "--verify" "--quiet" (concat "refs/heads/" branch)) t)
                (my/git-lines "worktree" "add" dir branch))
@@ -102,10 +100,6 @@
               (t (my/git-lines "worktree" "add" "-b" branch dir)))
         (message "worktree: %s" (abbreviate-file-name dir))
         (my/project-open (file-name-as-directory dir))))))
-
-;;;; github (octo.nvim) -----------------------------------------------------------
-
-;; octo lists issues and PRs inside nvim; here the same keys open the GitHub pages, gh resolves the repo
 
 (defun my/gh-repo ()
   "(URL . OWNER/NAME) of the current repo on GitHub."

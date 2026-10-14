@@ -2,8 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [obsidian]}}
 
-# the local rest api with mcp: the vault over rest and mcp, served by obsidian while it runs. the release ships no
-# checksum and a tag can be re-uploaded, so each file is pinned by content; bump the version and all three together
+# the release ships no checksum and a tag can be re-uploaded, so each file is pinned by content; bump all together
 const REST_VERSION = "5.4.0"
 const REST_URL = $"https://github.com/coddingtonbear/obsidian-local-rest-api/releases/download/($REST_VERSION)"
 const REST_SHA256 = {
@@ -34,16 +33,14 @@ export def link [cfg: record] {
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join obsidian obsidian.json
     let plugin = $vault | path join .obsidian plugins $REST_ID
     let settings = $plugin | path join data.json
-    # registered so obsidian opens it instead of its starter; the id is the path's, so a rerun finds it again. cli lets
-    # obsidian-launch lift restricted mode on the running app, the one switch obsidian keeps out of the vault
+    # the id is the path's, so a rerun finds it again; cli lets obsidian-launch lift restricted mode on the running app
     let vaults = json-read $config | get --optional vaults | default {}
     let registered = $vaults | values | any { $in.path? == $vault }
     let vault_id = $vault | hash sha256 | str substring 0..($VAULT_ID_LENGTH - 1)
     let vault_entry = {path: $vault, ts: (date now | into int | $in // 1_000_000), open: ($vaults | is-empty)}
     let enabled = json-read ($vault | path join .obsidian community-plugins.json) | default [] | any { $in == $REST_ID }
     let key = json-read $settings | get --optional apiKey | default ""
-    # plain http on loopback only, https off: nothing here trusts its self-signed ca. the bearer key is minted once on
-    # this box and never leaves it; claude reads it at connect time, ~/.claude.json holds no key
+    # plain http on loopback only: nothing here trusts its self-signed ca; claude reads the key at connect time
     let server = [
         (json-set [bindingHost] "127.0.0.1") (json-set [enableInsecureServer] true) (json-set [insecurePort] $REST_PORT)
         (json-set [enableSecureServer] false)

@@ -1,8 +1,6 @@
 use module.nu *
 
-# a network namespace whose only way out is a proton wireguard tunnel (netns.nu), with ani-cli, yt-dlp and streaming
-# mpv routed through it (shim.nu -> run.nu); the tunnel config is the admin's secret, a wireguard .conf from
-# account.protonvpn.com
+# the tunnel config is the admin's secret, a wireguard .conf from account.protonvpn.com
 
 export const meta = {volatile: true}
 
@@ -12,8 +10,7 @@ const NS_ETC = "/etc/netns/protonvpn"
 const UNIT = "protonvpn-netns.service"
 # ahead of /usr/bin in every PATH; mpv-stream is mpv with its ytdl hook, which plain mpv leaves off
 const SHIMS = [ani-cli yt-dlp mpv-stream]
-# tools that must always egress through the tunnel, shimmed only when installed; qbittorrent binds proton0 itself
-# (configs/desktop/qbittorrent), scripts/vpn.nu covers the rest
+# shimmed only when installed; qbittorrent binds proton0 itself
 const VPN_FORCED = [gallery-dl spotdl nicotine]
 const DNS_DEFAULT = "10.2.0.1"
 const PRIVATE_KEY = '^\s*PrivateKey\s*=\s*[A-Za-z0-9+/]{43}=\s*$'

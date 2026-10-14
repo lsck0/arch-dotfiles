@@ -1,10 +1,10 @@
 return {
     {
-        "ej-shafran/compile-mode.nvim", -- Emacs-style compile mode
+        "ej-shafran/compile-mode.nvim",
         branch = "latest",
         cmd = { "Compile", "Recompile" },
         dependencies = {
-            { "m00qek/baleia.nvim", tag = "v1.3.0" }, -- ANSI color rendering
+            { "m00qek/baleia.nvim", tag = "v1.3.0" },
         },
         config = function()
             vim.g.compile_mode = {
@@ -14,18 +14,16 @@ return {
     },
 
     {
-        "MagicDuck/grug-far.nvim", -- fast project-wide search/replace, live preview
+        "MagicDuck/grug-far.nvim",
         cmd = "GrugFar",
         opts = {},
     },
 
     {
-        "dont-be-evil-company/kulala.nvim", -- REST client
-        -- last pure-lua + curl release: the next commit moved requests to a kulala-core binary whose repo is gone,
-        -- later ones fetch it from core.kulala.app behind a license token prompt
+        "dont-be-evil-company/kulala.nvim",
+        -- last pure-lua release: later ones need a kulala-core binary behind a license token
         tag = "v5.3.4",
-        -- its only submodule is kulala-fmt (system package here, conform runs it), and checking it out from a newer
-        -- clone fails; costs only the import/convert-to-http action, which npm-builds that submodule
+        -- checking out its kulala-fmt submodule from a newer clone fails; kulala-fmt is a system package
         submodules = false,
         ft = { "http", "rest" },
         -- the global ones, so they load kulala from any buffer
@@ -77,7 +75,7 @@ return {
     },
 
     {
-        "jiaoshijie/undotree", -- undo history tree
+        "jiaoshijie/undotree",
         dependencies = "nvim-lua/plenary.nvim",
         config = true,
         keys = {
@@ -86,7 +84,7 @@ return {
     },
 
     {
-        "piersolenski/import.nvim", -- auto-import symbols
+        "piersolenski/import.nvim",
         opts = {
             picker = "telescope",
         },
@@ -102,7 +100,7 @@ return {
     },
 
     {
-        "olrtg/nvim-emmet", -- emmet abbreviations
+        "olrtg/nvim-emmet",
         config = function()
             vim.keymap.set(
                 { "n", "v" },

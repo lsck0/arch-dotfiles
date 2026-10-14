@@ -35,7 +35,6 @@ def sign-unsigned []: nothing -> nothing {
         print $"sbctl: signing ($file)"
         ^sbctl sign -s $file
     }
-    # database entries verify did not list
     ^sbctl sign-all
 }
 
@@ -46,7 +45,6 @@ def pk-enrolled []: nothing -> bool {
     $cert != "" and (open --raw $PK_VAR | into binary | encode hex | str contains $cert)
 }
 
-# keys: own plus the tpm event log's option rom hashes, or own plus microsoft's for anyone who may still boot windows
 def enroll [keys: string]: nothing -> nothing {
     if $keys == "own" and ($EVENT_LOG | path exists) {
         print "sbctl: enrolling own keys plus the TPM event log's option rom hashes, no Microsoft keys"
@@ -58,7 +56,7 @@ def enroll [keys: string]: nothing -> nothing {
         }
     } else {
         if $keys == "own" {
-            # without an event log sbctl cannot tell whether an option rom needs microsoft's ca; forcing could brick
+            # without an event log, dropping microsoft's ca could brick a machine whose option rom needs it
             print ("note: sbctl: own keys wanted but no TPM event log to read option rom hashes from, "
                 + "Microsoft's CA stays in db")
         }
@@ -78,8 +76,7 @@ export def secure-boot [keys: string]: nothing -> nothing {
     }
     if not (status-has "Owner GUID") { ^sbctl create-keys }
     sign-unsigned
-    # efivarfs marks the secure boot variables immutable and enroll-keys then never writes PK; the firmware still guards
-    # them outside setup mode
+    # efivarfs marks them immutable and enroll-keys then never writes PK; the firmware still guards them
     for var in (glob /sys/firmware/efi/efivars/{PK,KEK,db,dbx}-*) { ^chattr -i $var }
     enroll $keys
     if not (pk-enrolled) {

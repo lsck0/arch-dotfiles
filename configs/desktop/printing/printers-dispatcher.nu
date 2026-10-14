@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher, after 90-anonymous-persona started avahi: a home link up queues the driverless printers found there.
-# a unit, not inline: discovery takes seconds and dispatcher scripts run one after another
+# after 90-anonymous-persona started avahi; a unit, not inline: discovery takes seconds and dispatchers run serially
 
 const HOME_NETWORK = "/run/home-network"
 

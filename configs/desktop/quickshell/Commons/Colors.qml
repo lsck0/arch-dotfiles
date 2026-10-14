@@ -5,7 +5,6 @@ import "Palette.js" as Palette
 pragma Singleton
 pragma ComponentBehavior: Bound
 
-// wallpaper-derived palette
 QtObject {
     id: root
 
@@ -16,12 +15,11 @@ QtObject {
     property color foreground: "#bfbdb6"
     property color background: "#0b0e14"
     property color accent: "#39bae6"
-    // second palette colour, the one hue-farthest from accent
+    // the palette colour hue-farthest from accent
     property color accent2: "#ffb454"
-    // hue-separated from accent, see conditionPalette
     property color urgent: "#f07178"
     property color muted: "#565b66"
-    // raised fills: panels, cards, toasts. darkens instead on a light theme so the surface stays distinct
+    // darkens on a light theme so the surface stays distinct
     readonly property color surface: surfaceOf(background, surfaceLift)
     readonly property real surfaceLift: 0.04
     // fixed hues tinted toward accent so they sit in the palette
@@ -32,23 +30,19 @@ QtObject {
     readonly property color warnBase: "#e8c317"
     readonly property color okBase: "#23a55a"
     readonly property color severeBase: "#e67e22"
-    // severity ramp, t in 0..1: accent, warn, severe, urgent at rampStops
+    // stops for accent, warn, severe, urgent
     readonly property var rampStops: [0, 0.5, 0.75, 1]
-    // urgent must not read as accent: within urgentMinApart it turns up to urgentMaxTurn toward red,
-    // and if accent itself is red it is pushed to urgentMinApart on the far side
+    // urgent must not read as accent, see Palette.js separateUrgent
     readonly property real urgentMinApart: 40
     readonly property real urgentMaxTurn: 20
-    // farthest hue from accent among candidates that pass contrast; else the farthest lifted to pass
     readonly property real accent2Contrast: 3
     // off until the first load so startup does not fade
     property bool animatePalette: false
-    // fixed colours, never follow the wallpaper
     component SemanticTokens: QtObject {
         id: semanticColors
 
         property color live: "#c0392b"
         property color recording: root.severeBase
-        // tinted roles, kept here for the status users
         property color warn: root.warn
         property color speaking: root.okBase
         // meteoalarm levels 4 and 3, level 2 is warn
@@ -57,9 +51,8 @@ QtObject {
     }
     readonly property SemanticTokens semantic: SemanticTokens {}
 
-    // shared scrim for full-screen overlays
     readonly property color scrim: Util.alpha(root.background, Style.translucency.scrim)
-    // floating surfaces over layer blur: same base as the bar, denser alpha, so they read as the bar not a lighter tone
+    // bar base with denser alpha, so it reads as the bar and not a lighter tone
     readonly property color panelFill: Util.alpha(root.background, Style.translucency.panel)
     readonly property color overlayFill: Util.alpha(root.background, Style.translucency.overlay)
     component BarTokens: QtObject {
@@ -76,7 +69,7 @@ QtObject {
     readonly property PopupTokens popups: PopupTokens {}
 
     component TooltipTokens: QtObject {
-        // topmost transient surface, densest tier so it does not dissolve into the drawers it floats over
+        // densest tier so it does not dissolve into the drawers below
         property color background: root.overlayFill
         property color text: root.foreground
         property color border: Util.alpha(root.foreground, 1)
@@ -84,7 +77,7 @@ QtObject {
     readonly property TooltipTokens tooltip: TooltipTokens {}
 
     component NotificationTokens: QtObject {
-        // toasts float at the overlay z-layer, so they frost at the densest tier like the tooltip
+        // toasts sit on the overlay layer, so densest tier like the tooltip
         property color background: root.overlayFill
         property color text: root.foreground
         property color border: Util.alpha(root.accent, 1)
@@ -112,8 +105,7 @@ QtObject {
 
     // kept so a theme.json edit can re-condition
     property string rawColors: ""
-    // palette sync (signature D): Background.qml holds a new palette while its wedge is short of the
-    // centre, so the crossfade starts as it passes; the hold lifts itself after syncHoldMaxMs
+    // Background.qml holds a new palette until its wedge passes centre, released after syncHoldMaxMs
     property bool syncHold: false
     property var pendingPalette: null
     readonly property int syncHoldMaxMs: 3000
@@ -144,7 +136,7 @@ QtObject {
         path: root.colorsPath
         watchChanges: true
         printErrors: false
-        // defensive, wallust writes in place today
+        // rearm in case the file is ever replaced; wallust writes in place today
         onLoaded: {
             root.applyColors(text());
             Util.rearmWatch(this);
@@ -152,7 +144,7 @@ QtObject {
         onFileChanged: reload()
     }
 
-    // a new wallpaper palette landed (not the first load, not a theme.json re-condition): the OSD sync log
+    // only a new wallpaper palette, not the first load or a theme.json re-condition
     signal paletteSynced(var p)
 
     function ramp(t) {
@@ -168,14 +160,11 @@ QtObject {
         return urgent;
     }
 
-    // a surface offset from its background: lighter on a dark theme, darker on a light one (palette.nu shade)
     function surfaceOf(bg, amount) {
         return Qt.color(Palette.rgbToHex(Palette.shade([bg.r, bg.g, bg.b], amount, Theme.lightLuminance), "#"));
     }
 
-    // wallust colors.json text (or its parsed object) to the conditioned palette as colours, no side effects. the
-    // algorithm is Commons/Palette.js, the port of palette.nu; missing slots keep `fallback`'s (default: the live
-    // palette). throws on invalid JSON. used by applyColors and the picker preview
+    // pure, throws on invalid json; missing slots keep fallback (default: the live palette)
     function conditionPalette(raw, fallback) {
         var parsed = typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {
         });

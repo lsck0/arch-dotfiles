@@ -69,8 +69,7 @@ export def json-merge [file: path, edits: list<record>, --then: list<string> = [
     decl json $file {edits: $edits, then: $then}
 }
 
-# ini-merge <file> {section: {key: value}}: forces only these keys ("" is the part before any section); --missing-only
-# seeds a key only where it is absent
+# forces only these keys ("" is the part before any section); --missing-only seeds absent keys
 export def ini-merge [file: path, values: record, --missing-only, --then: list<string> = []]: nothing -> record {
     decl ini $file {edits: [{values: $values, missing_only: $missing_only}], then: $then}
 }
@@ -110,8 +109,7 @@ export def exec [name: string, argv: list<string>, --creates: path]: nothing -> 
     decl exec $name {argv: $argv, creates: $creates}
 }
 
-# step <command> [args]: one of the module's own exported commands, run at apply time (as root in the system layer)
-# for logic that must read and edit live state
+# one of the module's own exported commands, run at apply time, for logic that edits live state
 export def step [command: string, ...args: string]: nothing -> record {
     decl step $command {argv: $args}
 }
@@ -120,7 +118,7 @@ def --wrapped dot [...args: string]: nothing -> list<string> {
     [(nu-bin) --no-config-file ($env.DOTFILES | path join scripts dot.nu)] ++ $args
 }
 
-# fetch-file <url> <sha256> <dest>: downloaded (resumably), verified, put in place; --extract <member> or . (all)
+# --extract <member> or . (all)
 export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string]: nothing -> list<record> {
     if (fetch-file-done $sha256 $dest) { return [] }
     let extract = if $extract == null { [] } else { [--extract $extract] }
@@ -132,7 +130,7 @@ export def fetch-git [url: string, commit: string, dir: path]: nothing -> list<r
     [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (dot fetch git $url $commit $dir))]
 }
 
-# group-admins <group>: a system group every wheel member is in
+# a system group every wheel member is in
 export def group-admins [group: string]: nothing -> list<record> {
     let groups = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}"
     let wheel = $groups | where name == wheel | get --optional 0.members | default "" | split row "," | where $it != ""
@@ -144,9 +142,7 @@ export def group-admins [group: string]: nothing -> list<record> {
     )
 }
 
-# user-hook <name> <script> --watch [paths]: a path unit that runs <script> when a watched path changes, armed and run
-# once when its units change; --permanent also runs it at login, --mkdir makes a missing watch dir. without --permanent the hook retires
-# when the verb stops declaring it (return no hook once its work is done)
+# runs <script> on a watched change and once when its units change; without --permanent it retires once undeclared
 export def user-hook [name: string, script: path, --watch: list<string>, --permanent, --no-brake, --mkdir]: nothing -> list<record> {
     let dir = unit-dir
     let path_unit = [

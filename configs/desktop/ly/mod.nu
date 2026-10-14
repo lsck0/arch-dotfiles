@@ -20,8 +20,7 @@ const PALETTE = [
     "565b66" f07178 aad94c e6b450 "39bae6" d2a6ff "39bae6" bfbdb6
 ]
 
-# the stock en lang with F4's hibernate hint renamed to reboot-to-firmware (config.ini's hibernate_cmd), so a ly
-# update keeps the rest in step
+# the stock en lang with F4's hint renamed to reboot-to-firmware, so a ly update keeps the rest in step
 def lang-render []: nothing -> string {
     open --raw $LANG_STOCK | lines | each {|line|
         let line = if ($line | str starts-with "hibernate = ") { "hibernate = reboot to firmware" } else { $line }
@@ -53,8 +52,7 @@ export def system [cfg: record] {
     ]
 }
 
-# save.txt: the last user's row, then <user>:<session index>; ly keeps known rows current (save=true), a user it has not
-# seen yet (root, every human account, a later adduser-dotfiles) defaults to Hyprland
+# ly keeps known rows current (save=true); a user it has not seen yet defaults to Hyprland
 export def save-defaults []: nothing -> nothing {
     # ly 1.4.1 lists its shell at 0, then crawls the sessions in readdir order (no sort), so -U as ly will
     let names = ^ls -U $SESSIONS | lines

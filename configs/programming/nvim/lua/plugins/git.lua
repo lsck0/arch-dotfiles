@@ -1,6 +1,6 @@
 return {
     {
-        "tpope/vim-fugitive", -- git commands in vim
+        "tpope/vim-fugitive",
         -- every command it defines, so none is missing until another one loaded it
         cmd = {
             "G",
@@ -38,7 +38,7 @@ return {
     },
 
     {
-        "sindrets/diffview.nvim", -- git diff / merge / file-history views
+        "sindrets/diffview.nvim",
         cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
         keys = {
             { "<leader>gd", "<cmd>DiffviewOpen<cr>", desc = "Diffview open" },
@@ -47,24 +47,24 @@ return {
     },
 
     {
-        "akinsho/git-conflict.nvim", -- merge conflict resolution
+        "akinsho/git-conflict.nvim",
         config = true,
     },
 
     {
-        "lewis6991/gitsigns.nvim", -- git status gutter
+        "lewis6991/gitsigns.nvim",
         event = { "BufReadPre", "BufNewFile" },
         opts = {},
     },
 
     {
-        "nicolasgb/jj.nvim", -- Jujutsu VCS integration
+        "nicolasgb/jj.nvim",
         version = "*",
         opts = {},
     },
 
     {
-        "pwntester/octo.nvim", -- github interactions
+        "pwntester/octo.nvim",
         cmd = "Octo",
         opts = {
             picker = "telescope",
@@ -99,7 +99,7 @@ return {
                 end,
                 desc = "Search GitHub",
             },
-            -- org-wide via the private per-repo identity (.identity/env), never hardcoded here
+            -- org via the private per-repo identity, never hardcoded
             {
                 "<leader>oR",
                 function()
@@ -128,7 +128,6 @@ return {
                 end,
                 desc = "Search org repos",
             },
-            -- kanban board: move/add or remove the current issue/PR card (projects v2)
             {
                 "<leader>oc",
                 "<CMD>Octo card set<CR>",

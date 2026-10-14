@@ -27,14 +27,14 @@ export const options = {
 
 const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 
-# real sshd on knocked 2222, keys only, wheel only, never root: a keyless or non-admin user has no remote ssh surface
+# real sshd on knocked 2222, keys and wheel only, never root
 export def system [cfg: record] {
     step sshd
 }
 
-# a drop-in sshd rejects never replaces the running config: the previous one comes back and sshd is left alone
+# a drop-in sshd rejects is rolled back, the running sshd left alone
 export def sshd []: nothing -> nothing {
-    # no host keys before sshd's first start, and sshd -t needs them
+    # sshd -t needs host keys, absent before sshd's first start
     ^ssh-keygen -A
     let before = if ($DROPIN | path exists) { open --raw $DROPIN } else { null }
     ^install -Dm644 10-hardening.conf $DROPIN
@@ -60,13 +60,11 @@ export def link [cfg: record] {
         ] | each { $"($in)\n" } | str join
     }
     [
-        # the agent for everyone, loading the secrets key only for an identity
         (unit-file ssh-agent.service)
         (unit-file ssh-add.service)
         (if $identity { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (if $hosts != null { file-text (ssh-dir | path join config) $hosts --mode 600 } else { [] })
         (if $identity { step authorize } else { [] })
-        # on PATH, invoked bare by tmux, herdr, nvim and the viewers
         (link-commands sshk.nu)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
             let values = {ROUTER: $cfg.wake_router, HOST: $cfg.wake_host}
@@ -75,7 +73,7 @@ export def link [cfg: record] {
     ]
 }
 
-# only an identity ships keys to authorize; git-crypt checks the secrets key out 0644, which ssh refuses
+# git-crypt checks the secrets key out 0644, which ssh refuses
 export def authorize []: nothing -> nothing {
     let secrets = $env.DOTFILES | path join secrets
     let key = $secrets | path join ssh_privatekey.asc

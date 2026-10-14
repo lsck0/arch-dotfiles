@@ -42,7 +42,6 @@ red = _c("colors", "color1")
 comment = _c("colors", "color8")
 sel = _c("colors", "color8")
 
-# completion popup
 c.colors.completion.fg = fg
 c.colors.completion.odd.bg = bg
 c.colors.completion.even.bg = bg_alt
@@ -59,7 +58,6 @@ c.colors.completion.match.fg = accent
 c.colors.completion.scrollbar.fg = fg
 c.colors.completion.scrollbar.bg = bg
 
-# statusbar
 c.colors.statusbar.normal.bg = bg
 c.colors.statusbar.normal.fg = fg
 c.colors.statusbar.insert.bg = green
@@ -71,7 +69,6 @@ c.colors.statusbar.url.success.https.fg = green
 c.colors.statusbar.url.hover.fg = blue
 c.colors.statusbar.progress.bg = accent
 
-# tabs
 c.colors.tabs.bar.bg = bg
 c.colors.tabs.odd.bg = bg_alt
 c.colors.tabs.even.bg = bg_alt
@@ -84,18 +81,15 @@ c.colors.tabs.selected.even.fg = accent
 c.colors.tabs.indicator.start = blue
 c.colors.tabs.indicator.stop = green
 
-# hints
 c.colors.hints.bg = accent
 c.colors.hints.fg = bg
 c.colors.hints.match.fg = red
 c.hints.border = "0px"
 
-# messages
 c.colors.messages.error.bg = red
 c.colors.messages.warning.bg = accent
 c.colors.messages.info.bg = bg
 
-# ui
 c.tabs.position = "top"
 c.tabs.show = "multiple"
 c.tabs.indicator.width = 2
@@ -105,18 +99,16 @@ c.fonts.default_family = "Kode Mono"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 
-# let sites pick their own light or dark mode to match the active palette
 c.colors.webpage.preferred_color_scheme = "light" if _is_light(bg) else "dark"
 c.colors.webpage.bg = bg
 
-# start page
 _startpage = "file://" + os.path.expanduser("~/.config/qutebrowser/startpage.html")
 c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
 # its search form posts from file:// to google, blocked by default
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
-# search engines; the default is desktop/qutebrowser's search_url option, the homelab searxng only on a homelab machine
+# the default comes from the search_url option, searxng only on a homelab machine
 _search = "https://duckduckgo.com/?q={}"
 try:
     with open(os.path.expanduser("~/.config/qutebrowser/search-url")) as _f:
@@ -137,17 +129,13 @@ c.url.searchengines = {
     "yt": "https://youtube.com/results?search_query={}",
 }
 
-# no ua override: the default is already a plain chrome one with the engine's real version, a pinned one ages into
-# a fingerprint
+# no ua override: the default is a plain chrome one with the real version, a pinned one ages into a fingerprint
 
-# privacy, like the managed chromium policy: webrtc only on the default route, no third-party cookies.
-# blocking uses brave's engine (python-adblock) and the hosts lists; both arrive with :adblock-update, which its module
-# runs once, :adblock-update refreshes them
+# adblock lists arrive with :adblock-update, which the module runs once
 c.content.webrtc_ip_handling_policy = "default-public-interface-only"
 c.content.cookies.accept = "no-3rdparty"
 c.content.blocking.method = "both"
 
-# keybindings
 config.bind("J", "tab-prev")
 config.bind("K", "tab-next")
 

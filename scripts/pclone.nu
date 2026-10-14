@@ -10,7 +10,7 @@ def popup-fail [message: string]: nothing -> nothing {
     exit 1
 }
 
-# Prompt for a git url or user/repo, clone it into ~/projects with submodules, open it in the launching multiplexer.
+# Clone a git url or user/repo into ~/projects with submodules and open it in the multiplexer.
 def main []: nothing -> nothing {
     let typed = try { ^gum input --prompt "❯ " --placeholder "git url or user/repo" --width 60 } catch { "" }
     if $typed == "" { return }

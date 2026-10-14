@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# monitor scale and layout. `set` applies a scale live and persists it as the machine's desktop/hyprland.monitors
-# option; `live` and `layout` are runtime only, a reload restores the option and `reapply` puts them back
+# `live` and `layout` are runtime only: a reload restores the option and `reapply` puts them back
 use lib.nu [notify state-set state-file]
 
 const DOT = path self ../dot.nu
@@ -33,7 +32,6 @@ def monitors-persisted []: nothing -> list<record> {
     ^$DOT options $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
 }
 
-# a field of the output's persisted entry, fallback without one
 def persisted-get [name: string, key: string, fallback: string]: nothing -> string {
     monitors-persisted | where output == $name | get --optional 0 | get --optional $key | default $fallback | into string
 }
@@ -71,7 +69,6 @@ def lua-monitor [fields: record]: nothing -> string {
     $"hl.monitor\({ ($body | str join ', ') }\)"
 }
 
-# live, keeping mode and position
 def scale-apply [name: string, scale: string]: nothing -> nothing {
     let monitor = monitor-find $name
     if $monitor == null { error make {msg: $"unknown monitor: ($name)"} }

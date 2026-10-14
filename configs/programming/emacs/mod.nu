@@ -22,8 +22,7 @@ def grammars-missing []: nothing -> list<string> {
     | where {|lang| $GRAMMAR_DIRS | all {|d| not ((config-dir) | path join $d $"libtree-sitter-($lang).so" | path exists) } }
 }
 
-# the fallback editor has to work offline on its first start: packages and grammars install now, not on first launch.
-# the stamp only after a full load, so an offline run tries again
+# the fallback editor must work offline on first start; the stamp only after a full load, so an offline run retries
 export def link [cfg: record] {
     let dir = config-dir
     let stamp = $dir | path join elpa .dotfiles-prefetched

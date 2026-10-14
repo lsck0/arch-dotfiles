@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# only the managers write these ids: pid 1 for system units, this user's manager (USER_UNIT=) for app.slice; _PID is
-# set by journald, so a logger --journald from any local user cannot fake a kill
+# only the managers write these ids and journald sets _PID, so a local logger --journald cannot fake a kill
 
 # systemd.catalog's ids
 const OOMD_KILL_ID = "d989611b15e44c9dbf31e3c81256e4ed"
@@ -17,8 +16,7 @@ def main []: nothing -> nothing {
     for line in (^journalctl --no-pager -f -n 0 -o json ...$matches | lines) {
         let entry = $line | from json
         let unit = $entry.USER_UNIT? | default $entry.UNIT? | default "unknown unit"
-        # pid 1 also reports the kill on user@UID.service, and a kernel kill is repeated on every ancestor slice
-        # (-.slice, app.slice); slices hold no processes, so only the leaf service/scope names the kill
+        # a kill repeats on user@UID.service and every ancestor slice; only the leaf service or scope names it
         if $unit == $manager_unit or ($unit | str ends-with ".slice") { continue }
         let source = if $entry.MESSAGE_ID? == $OOMD_KILL_ID { "systemd-oomd, memory pressure" } else {
             "kernel OOM killer, last resort"

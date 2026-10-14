@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# branch/worktree picker. a new worktree goes where nvim's lua/lib/worktree.lua puts it:
-#   <repo>/.bare + <repo>/branches/<slug>, <bare>/<slug> in a plain bare repo, ~/.worktrees/<repo>/<slug> otherwise;
-# once linked worktrees exist, the dir most of them share wins over all of these
+# branch/worktree picker; a new worktree goes where nvim's lua/lib/worktree.lua puts it
 
 const WORKTREES_DIR = ".worktrees"
 const BARE_DIR = ".bare"

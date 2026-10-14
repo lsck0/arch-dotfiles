@@ -1,9 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# imports the mascot packs once and sets the overlay's settings; run at hyprland login (hyprland_autostart.lua), since
-# importing a pack starts the overlay, which only a running session can show
+# run at hyprland login: importing a pack starts the overlay, which only a running session can show
 
 const MARKER = ".local/state/shimoji-manual-link.done"
-# window interactions let mascots climb and sit on windows
 const SETTINGS = {BREEDING: false, WINDOW_INTERACTIONS: true}
 
 def main []: nothing -> nothing {

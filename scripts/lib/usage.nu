@@ -1,5 +1,4 @@
-# the contract of every command in scripts/: nu's generated --help exits 0, a failure is one
-# "<command>: error: <why>" line on stderr and exit 1, or exit 2 with --misuse for a bad argument
+# exit 0 for --help, 1 with one "<command>: error: <why>" line on stderr, 2 with --misuse
 
 use log.nu [log-err]
 

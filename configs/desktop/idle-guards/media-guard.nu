@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# holds a sleep inhibitor while any player plays, so the machine never suspends under it; dim and lock still happen,
-# video apps inhibit idle themselves
+# a sleep inhibitor while any player plays; dim and lock still happen, video apps inhibit idle themselves
 
 const ENDED = "ended"
 

@@ -11,7 +11,7 @@ def --wrapped git-out [dir: path, ...args: string]: nothing -> string {
     do { ^git -C $dir ...$args } | complete | get stdout | str trim
 }
 
-# refs as "name sha" lines; refs/remotes/*/HEAD is skipped since fetch creates it without anything new
+# refs/remotes/*/HEAD is skipped: fetch creates it without anything new
 def refs-of [dir: path, ...patterns: string]: nothing -> list<string> {
     git-out $dir for-each-ref --exclude=refs/remotes/*/HEAD "--format=%(refname) %(objectname)" ...$patterns | lines
 }
@@ -22,7 +22,6 @@ def repos-under [base: path]: nothing -> list<path> {
         -o -type f -name HEAD -printf "%h\n")
     | lines | where { ($in | path join objects | path type) == dir and ($in | path join refs | path type) == dir }
     | str replace --regex '/\.git$' '' | uniq | sort
-    # repos their containing repo git-ignores (build or cache dirs)
     | where {|dir|
         let top = git-out ($dir | path dirname) rev-parse --show-toplevel
         $top == "" or $top == $dir or (do { ^git -C $top check-ignore -q $dir } | complete).exit_code != 0
@@ -85,8 +84,7 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
     | compact
 }
 
-# Fetch, pull and push every git repo under a dir (default: the current one) in parallel, GIT_SYNC_JOBS at a time,
-# skipping submodules, vendor/, heavy build and cache trees and gitignored repos.
+# Fetch, pull and push every git repo under a dir (default: here) in parallel, GIT_SYNC_JOBS at a time.
 def main [dir?: path]: nothing -> nothing {
     let base = $dir | default "." | path expand
     if ($base | path type) != dir { die --misuse $"not a directory: ($dir)" }

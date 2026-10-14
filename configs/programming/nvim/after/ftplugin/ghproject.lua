@@ -1,4 +1,4 @@
--- window-local display for the ghproject kanban board; [0][0] is :setlocal, so other buffers in this window keep theirs
+-- [0][0] is :setlocal, so other buffers in this window keep theirs
 
 vim.wo[0][0].number = false
 vim.wo[0][0].relativenumber = false
@@ -9,7 +9,7 @@ vim.wo[0][0].cursorline = false
 vim.wo[0][0].wrap = false
 vim.wo[0][0].list = false
 
--- board highlight groups, linked to builtins so any theme (ayu/pywal/...) fits
+-- linked to builtins so any theme fits
 local function ghproject_hl_apply()
     local function set(name, target)
         vim.api.nvim_set_hl(0, name, { link = target, default = true })
@@ -20,7 +20,6 @@ local function ghproject_hl_apply()
     set("GhProjectSep", sep)
     set("GhProjectSel", "Visual")
     set("GhProjectDim", "Comment")
-    -- one accent group per column, spread across the theme's syntax palette
     local accents = { "Function", "Constant", "String", "Type", "Keyword", "Special", "Identifier" }
     for i, target in ipairs(accents) do
         set("GhProjectHeader" .. i, target)

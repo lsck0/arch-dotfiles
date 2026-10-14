@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-// pick-one-of-n chip row
 Row {
   id: root
 
@@ -13,12 +12,11 @@ Row {
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.body
   property bool focusable: true
-  // stretch chips to the row width, needs an explicit width
+  // needs an explicit width
   property bool fill: false
 
   property int cursorIndex: -1
 
-  // chip under h/l while the group has tab focus
   property int _focusedIndex: -1
 
   signal changed(string value)

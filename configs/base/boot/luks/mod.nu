@@ -14,7 +14,7 @@ def luks-parts []: nothing -> table {
     ^lsblk -J -l -o NAME,UUID,FSTYPE,TYPE | from json | get blockdevices | where fstype == crypto_LUKS and type == part
 }
 
-# the yubikey (fido2 pin + touch) unlocks root; without it the passphrase prompt follows after token-timeout
+# the yubikey unlocks root, the passphrase after token-timeout
 export def system [cfg: record] {
     if (luks-parts | is-empty) { return [] }
     step configure
@@ -26,7 +26,7 @@ def root-backing []: nothing -> any {
     ^lsblk -J -lso NAME,TYPE $src | from json | get blockdevices | where type == part | get --optional 0.name
 }
 
-# crypttab's block from the marker on is rewritten each run: every fixed non-root luks partition, never a usb stick
+# the block from the marker on is rewritten each run
 def crypttab-write [root: any]: nothing -> nothing {
     if ($CRYPTTAB | path exists) {
         if not (open --raw $CRYPTTAB | str contains $MARKER) {
@@ -61,20 +61,17 @@ def hook-place []: nothing -> nothing {
     hooks-write (hooks-insert $hooks $hook ($hooks | enumerate | where item == filesystems | get 0.index))
 }
 
-# a TPM2 seal first, then the yubikey, then the passphrase. tpm2-measure-pcr extends PCR 15 with the volume key once
-# unlocked, so a seal bound to PCR 15's initial zero never opens after another volume did (a swapped-in fake root)
+# a seal bound to PCR 15's initial zero never opens after another volume was unlocked (a swapped-in fake root)
 def root-unlock [part: string]: nothing -> nothing {
     let header = ^cryptsetup luksDump $"/dev/($part)"
-    # tpm2-measure-pcr turns the token plugins off, and the built-in fido2-device=auto fails the unlock outright without
-    # an enrolled fido2 token, passphrase never asked: only with an enrolled yubikey
+    # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase
     let fido = $header | str contains systemd-fido2
     if not $fido {
         print ("note: luks: no yubikey enrolled, once the stage chain is done: "
             + $"sudo systemd-cryptenroll --fido2-device=auto /dev/($part), then rerun dot apply")
     }
     cmdline-set $"rd.luks.options=tpm2-device=auto(if $fido { ',fido2-device=auto' } else { '' }),tpm2-measure-pcr=yes"
-    # additive, never TPM-only: any signed uki would unseal it unattended. PCR 7 tracks secure boot, re-seal after
-    # enrolling or rotating its keys
+    # never TPM-only: any signed uki would unseal it unattended
     let enroll = $"systemd-cryptenroll --tpm2-device=auto --tpm2-with-pin=yes --tpm2-pcrs=7+15:sha256=($PCR15_INITIAL)"
     if not ($header | str contains systemd-tpm2) {
         print $"note: luks: no TPM2 seal enrolled, for a measured-boot pin unlock: sudo ($enroll) /dev/($part)"

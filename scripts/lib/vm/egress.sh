@@ -1,5 +1,4 @@
 # shellcheck shell=bash disable=SC2154  # host and step come from prelude.sh, run ahead of it
-# runs on the test vm's guest as root, fetched by dot test (scripts/lib/vm.nu); @KEY@ placeholders are filled in there
 repo=/var/lib/dotfiles/repo
 nft_file=$repo/configs/base/portmaster/portmaster-bypass.nft
 conf=/etc/wireguard/protonvpn-netns.conf

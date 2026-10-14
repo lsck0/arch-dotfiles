@@ -10,7 +10,6 @@ Item {
   visible: shown && Style.fx.brackets
   z: 5
 
-  // caller gate, combined with the fx setting
   property bool shown: true
   property color color: Colors.accent
   property int len: Style.fx.bracketLen
@@ -18,9 +17,8 @@ Item {
   property real strength: 0.9
   // negative pushes the brackets outward, off the content
   property real margin: 0
-  // extra pull toward the centre, animated by BootIn so the brackets fly out to the corners
   property real inset: 0
-  // the surface's chamfer (DockShape.chamfer, 0 for a square card); that corner's bracket follows the cut
+  // DockShape.chamfer, 0 for a square card
   property real chamfer: 0
   property int chamferCorner: Qt.TopRightCorner
 
@@ -28,14 +26,13 @@ Item {
   readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))
   readonly property int vlen: Math.max(0, Math.min(len, Math.floor(height / 2) - thick))
 
-  // the cut seen from inside: margin + inset move the frame in, which shortens the parallel cut by (2 - sqrt2) each
+  // margin + inset shorten the parallel cut by (2 - sqrt2) each
   readonly property real _c: Math.max(0, Math.min(chamfer - (margin + inset) * (2 - Math.SQRT2),
                                                   width / 2, height / 2))
   readonly property bool _cutTop: _c > 0 && chamferCorner === Qt.TopRightCorner
   readonly property bool _cutBottom: _c > 0 && chamferCorner === Qt.BottomRightCorner
 
-  // the cut corner's stroke centred half a width inside the edges, like the rectangle arms; _k is the cut moved in by
-  // that half width along its normal, measured from the corner (_cr, _ch)
+  // the cut stroke sits half a width inside the edges like the arms
   readonly property real _ch: thick / 2
   readonly property real _cr: width - _ch
   readonly property real _k: _c - thick * (1 - Math.SQRT1_2)
@@ -55,7 +52,6 @@ Item {
   Arm { visible: !root._cutBottom; anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.hlen; height: root.thick }
   Arm { visible: !root._cutBottom; anchors.right: parent.right; anchors.bottom: parent.bottom; width: root.thick; height: root.vlen }
 
-  // the chamfered corner: arm, diagonal along the cut, arm; drawn top-right and mirrored for bottom-right
   Shape {
     visible: root._cutTop || root._cutBottom
     anchors.fill: parent

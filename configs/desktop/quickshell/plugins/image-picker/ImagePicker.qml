@@ -13,9 +13,7 @@ Item {
     id: root
 
     readonly property string pluginDir: Paths.plugin("image-picker")
-    // themes mode reads each theme json's "wallpaper" field
     property string themeDirs: Paths.themes
-    // 0 = wallpapers (wallust palette), 1 = premade themes
     property int mode: 0
     property var modeNames: ["Wallpapers", "Themes"]
     property string imageRows: ""
@@ -50,14 +48,13 @@ Item {
     // slices overlap by their skew
     property int sliceSpacing: -Style.space(30)
     property int skewOffset: Style.space(28)
-    // slices either side of the preview the carousel lays out
+    // laid out either side of the preview
     readonly property int sliceCount: 13
     readonly property int nearbyRange: 16
-    // palette strip under the preview, wallpaper mode only
     readonly property bool showPalette: mode === 0
     readonly property int paletteHeight: showPalette ? Style.space(40) : 0
     property int bottomChromeHeight: paletteHeight + (showLabels ? (filterable ? Style.space(104) : Style.space(74)) : (filterable ? Style.space(60) : Style.space(30)))
-    // palette preview (signature D): the selected wallpaper quantized, conditioned like Colors.qml would
+    // the selected wallpaper quantized, conditioned like Colors.qml would
     property var preview: null
     readonly property int quantizeDepth: 3
     readonly property int quantizeSize: 64
@@ -295,7 +292,7 @@ Item {
         }
         loadImagesProc.activeSerial = serial;
         loadImagesProc.queuedSerial = 0;
-        loadImagesProc.command = root.mode === 1 ? [root.scriptPath("list.nu"), "themes", root.themeDirs] : [root.scriptPath("list.nu"), Paths.wallpaperList];
+        loadImagesProc.command = root.mode === 1 ? [root.scriptPath("list.nu"), "themes", root.themeDirs, Paths.wallpaperList] : [root.scriptPath("list.nu"), Paths.wallpaperList];
         loadImagesProc.running = true;
     }
 
@@ -320,7 +317,6 @@ Item {
         return indexForSelectedImage(imageArray);
     }
 
-    // called by shell.summon with the parsed payload
     function open(args) {
         var tDirs = String(args.themeDirs || themeDirs);
         var rows = String(args.imageRows || "");
@@ -451,7 +447,6 @@ Item {
     }
 
     PanelWindow {
-        // mapped until the close has played out
         visible: root.opened || boot.progress > 0
         color: "transparent"
         WlrLayershell.namespace: "quickshell-image-selector"
@@ -620,7 +615,6 @@ Item {
                             layer.enabled: true
                             layer.smooth: true
 
-                            // thumbnail below, full-res original fades in on top
                             Image {
                                 anchors.fill: parent
                                 source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
@@ -638,7 +632,7 @@ Item {
                                 sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
-                                // only one full-res image is shown, do not cache them
+                                // only one full-res image shows at a time
                                 cache: false
                                 smooth: true
                                 opacity: status === Image.Ready ? 1 : 0
@@ -714,7 +708,7 @@ Item {
                             onClicked: item.selected ? root.applySelected() : root.select(item.index)
                         }
 
-                        // slides and grows on selection; off until the first layout so opening does not fly in
+                        // off until the first layout, so opening does not fly in
                         Behavior on x {
                             enabled: root.layoutSettled
 
@@ -765,7 +759,6 @@ Item {
 
             }
 
-            // bg fg acc acc2 urg of the selected wallpaper, then the contrast verdict
             Row {
                 id: paletteStrip
 
@@ -818,15 +811,14 @@ Item {
 
             }
 
-            // always present while the picker filters; the carousel owns the keys (type to filter, Esc
-            // clears then closes), so this is a styled view of the filter, not a second focus target
+            // a view of the filter, not a focus target: the carousel owns the keys
             BorderSurface {
                 id: searchChip
 
                 readonly property bool focused: root.opened
                 readonly property bool hot: searchHover.hovered
 
-                visible: root.filterable
+                visible: root.filterable && root.filterText.length > 0
                 anchors.top: root.showPalette ? paletteStrip.bottom : carousel.bottom
                 anchors.topMargin: Style.spacing.md
                 anchors.horizontalCenter: carousel.horizontalCenter
@@ -839,7 +831,6 @@ Item {
                 HoverHandler {
                     id: searchHover
                 }
-                // a click anywhere on the field just keeps the keys on the carousel
 
                 TapHandler {
                     onTapped: root.focusPicker()
@@ -851,7 +842,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.left: parent.left
                     anchors.leftMargin: Style.spacing.sm
-                    text: "\u{ea6d}" // cod-search, cmap-verified
+                    text: "\u{ea6d}" // cod-search
                     fontSize: Style.font.body
                     color: Util.alpha(root.foreground, root.filterText ? Style.emphasis.strong : Style.emphasis.dim)
                 }
@@ -872,7 +863,6 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: Math.min(implicitWidth, queryRow.width - caret.width - queryRow.spacing)
                         textFormat: Text.PlainText
-                        // placeholder while the filter is empty
                         text: root.filterText || "filter by name"
                         color: root.foreground
                         opacity: root.filterText ? 1 : Style.emphasis.faint
@@ -905,7 +895,7 @@ Item {
 
                     OpticalGlyph {
                         anchors.centerIn: parent
-                        text: "\u{f0156}" // md-close, cmap-verified
+                        text: "\u{f0156}" // md-close
                         fontSize: Style.font.caption
                         color: Util.alpha(root.foreground, clearHover.hovered ? Style.emphasis.strong : Style.emphasis.dim)
                     }
@@ -930,7 +920,7 @@ Item {
             Text {
                 textFormat: Text.PlainText
                 visible: root.showLabels
-                anchors.top: root.filterable ? searchChip.bottom : root.showPalette ? paletteStrip.bottom : carousel.bottom
+                anchors.top: searchChip.visible ? searchChip.bottom : root.showPalette ? paletteStrip.bottom : carousel.bottom
                 anchors.topMargin: Style.spacing.sm
                 anchors.horizontalCenter: carousel.horizontalCenter
                 width: root.expandedWidth

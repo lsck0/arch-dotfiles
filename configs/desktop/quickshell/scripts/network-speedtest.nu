@@ -12,8 +12,7 @@ def rate-format [value: float]: nothing -> string {
     if $value <= 0 { "0.0" } else if $value < 10 { $value | into string -d 1 } else { $value | math round | into string }
 }
 
-# round-robin from a random start to spread load across fast.com nodes; nu cannot trap TERM, so curl dies with the
-# script through pdeathsig instead of an exit trap
+# nu cannot trap TERM, so curl dies with the script through pdeathsig
 def traffic-worker [direction: string, urls: list<string>] {
     mut index = random int 0..<($urls | length)
     loop {

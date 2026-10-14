@@ -8,7 +8,6 @@ WidgetButton {
   property real slotSize: Style.bar.iconSlot
   property real opticalSize: Style.bar.iconCanvas
 
-  // icon-only, so use the icon family
   fontFamily: bar ? bar.iconFontFamily : Style.font.iconFamily
 
   labelVisible: false

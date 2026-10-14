@@ -31,12 +31,12 @@ BarIndicator {
 
   Component.onCompleted: refresh()
 
-  // the toggle announces every change, keybinds and the toggles menu included
+  // keybinds and the toggles menu change it too
   Connections {
     target: ToggleEvents
     function onChanged(script) { if (script === "toggle-keep-awake.nu") root.refresh() }
   }
 
-  // its inhibitor must outlive a restart of quickshell.service, which kills the unit's whole cgroup
+  // the inhibitor must outlive a quickshell.service restart, which kills its whole cgroup
   onPressed: function() { Quickshell.execDetached(["uwsm-app", "-s", "b", "--", root.toggleScript, "toggle"]) }
 }

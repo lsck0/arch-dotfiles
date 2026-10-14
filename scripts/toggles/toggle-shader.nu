@@ -1,9 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# hyprland's single screen_shader slot; grading and night light are hardware (toggle-color-grading, toggle-nightlight).
-# every configs/desktop/hyprland/shaders/<name>.frag is one, its `// @key value` header lines the metadata: @label,
-# @variants a b c (entries <name>:<variant>, VARIANT rewritten to the index), @animated (uses time, needs damage
-# tracking off), @themed (THEME constants from the shell palette). a source may `#include "x.glsl"`; hyprland loads the
-# rendered copy. any active shader costs direct scanout and a full-screen pass per frame
+# shaders/<name>.frag carry `// @label|@variants|@animated|@themed` header lines; any one costs direct scanout
 use lib.nu [notify state-get state-set quickshell-call]
 
 # hyprland's damage_tracking: full is its default, none redraws every frame for time-driven shaders
@@ -77,7 +73,6 @@ def theme-constants []: nothing -> record {
     } catch { {} }
 }
 
-# writes the loadable copy of an entry, returns its path
 def render [entry: string, shader: record]: nothing -> path {
     let variant = $entry | split row ":" | get 1?
     let constants = if $shader.themed { theme-constants } else { {} }
@@ -109,8 +104,7 @@ def entry-load [entry: string, shaders: table]: nothing -> nothing {
     load (if $shader.animated { $DAMAGE_NONE } else { $DAMAGE_FULL }) (render $entry $shader)
 }
 
-# a config reload drops the shader, so `reapply` restores it; keyed to the compositor instance so a new session never
-# inherits it
+# a config reload drops the shader, so `reapply` restores it, keyed to the compositor instance
 def apply [entry: string, shaders: table]: nothing -> nothing {
     if $entry == off {
         load $DAMAGE_FULL ""

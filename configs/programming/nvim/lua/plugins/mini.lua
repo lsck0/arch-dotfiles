@@ -1,6 +1,6 @@
 return {
     {
-        "echasnovski/mini.nvim", -- small QoL modules
+        "echasnovski/mini.nvim",
         event = "VeryLazy",
         config = function()
             require("mini.ai").setup()

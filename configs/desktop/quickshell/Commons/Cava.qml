@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// spectrum for the media visualizer from cava's raw ascii output
 Singleton {
   id: root
 
@@ -12,14 +11,12 @@ Singleton {
   // 0-100 per band, see ascii_max_range
   property var values: zeroed()
 
-  // peak-hold per band, falls each frame; single source for both visualizers
   property var peaks: zeroed()
   // 0-100 units; a held peak empties in ~0.8s at framerate 25
   readonly property real peakFallPerFrame: 3.5
 
   property bool available: false
 
-  // cava only runs while referenced
   property int refCount: 0
 
   // own config, never the user's ~/.config/cava

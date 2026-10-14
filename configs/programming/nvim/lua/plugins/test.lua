@@ -1,12 +1,12 @@
 return {
     {
-        "nvim-neotest/neotest", -- test runner framework
+        "nvim-neotest/neotest",
         dependencies = {
             "nvim-neotest/nvim-nio",
             "nvim-lua/plenary.nvim",
             "nvim-treesitter/nvim-treesitter",
-            "nvim-neotest/neotest-python", -- Python test adapter
-            "rouge8/neotest-rust", -- Rust test adapter
+            "nvim-neotest/neotest-python",
+            "rouge8/neotest-rust",
         },
         -- full specs so which-key shows them before neotest loads
         keys = {
@@ -77,7 +77,6 @@ return {
         config = function()
             require("neotest").setup({
                 adapters = {
-                    -- runs cargo-nextest
                     require("neotest-rust")({
                         args = { "--no-fail-fast" },
                         dap_adapter = "codelldb",

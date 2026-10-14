@@ -16,7 +16,6 @@ def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
 }
 
-# detect: what a module finds on the machine (a monitor's scale, a gpu) for options without a static default
 def detect [ctx: record, modules: table]: nothing -> record {
     let probing = $modules | where {|m| "detect" in $m.native }
     if ($probing | is-empty) { return {} }
@@ -53,7 +52,7 @@ def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
-# a relative path is the repo's (the module's own dir is hashed anyway), ~ and absolute ones as they are
+# relative to the repo; the module's own dir is hashed anyway
 def stat [repo: path, paths: list<string>]: nothing -> string {
     let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| glob $p } | flatten | uniq
     if ($found | is-empty) { return "" }
@@ -90,9 +89,7 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     }
 }
 
-# a native module whose inputs and outputs are unchanged since its last apply is not even evaluated; its inputs are
-# its files, its options (its dependencies' included), the facts, the profile, the secrets' lock state, meta.inputs,
-# the sources it copies from outside its dir and the library
+# unchanged inputs (files, options, facts, profile, lock state, library) and outputs: not even evaluated
 export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = []]: nothing -> table {
     let unknown = $ids | where $it not-in $ctx.modules.id
     if ($unknown | is-not-empty) {
@@ -137,7 +134,6 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     })
 }
 
-# apply, then evaluate again while an exec ran: converged when a pass runs no exec
 def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> record {
     mut actions = $m.actions
     mut prev = $m.prev

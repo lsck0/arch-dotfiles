@@ -3,12 +3,11 @@ import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
 
-// bar popup (tray menus): docked to the bar rule like HoverPanel when the bar is top or bottom
 PopupWindow {
   id: root
 
   required property Item anchorItem
-  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  // untyped: Ui cannot import plugins/bar back
   required property var bar
   property var owner: null
   property int margin: Style.gapsOut
@@ -35,8 +34,7 @@ PopupWindow {
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
-  // slides out of the bar edge on open, folds back on close; boot.progress carries the curve and the
-  // power-saver gate. only docked (top/bottom) popups slide; beside-the-bar ones just fade.
+  // only docked popups slide; beside-the-bar ones just fade
   readonly property real slideDistance: Style.space(14)
   readonly property real revealSlide: !docked ? 0
     : (root.bar && root.bar.position === "bottom" ? 1 : -1) * (1 - boot.progress) * slideDistance
@@ -62,13 +60,11 @@ PopupWindow {
 
   default property alias body: contentHolder.children
 
-  // mapped until the fold-back ends
   visible: open || boot.progress > 0
   color: "transparent"
   implicitWidth: contentWidth + neckWidth
   implicitHeight: contentHeight
 
-  // click outside dismisses
   HyprlandFocusGrab {
     active: root.open
     windows: root.anchorWindow ? [root, root.anchorWindow] : [root]
@@ -107,7 +103,7 @@ PopupWindow {
       }
 
       var point = window.contentItem.mapFromItem(target, localX, localY) // qmllint disable missing-property
-      // docked: flush with the bar window's edge, so the neck meets the accent rule
+      // flush with the bar window edge so the neck meets the accent rule
       if (root.bar.position === "top") point.y = window.height // qmllint disable missing-property
       else if (root.bar.position === "bottom") point.y = -popupHeight
 
@@ -132,10 +128,8 @@ PopupWindow {
     id: reveal
     width: parent.width
     height: Math.round(parent.height * boot.progress)
-    // a bottom bar grows the drawer upward
     y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
     clip: true
-    // slides out of the bar edge and fades in; folds back on close
     opacity: boot.progress
     transform: Translate { y: root.revealSlide }
 

@@ -1,8 +1,6 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: keep routing table 100 pointed at the real physical gateway and a fwmark rule that sends the games
-# group's marked packets (games-bypass.nft) into it. with proton0 up the main table's default is the tunnel; table 100
-# stays on the physical link, so a marked game packet egresses on the real link instead. fail safe: no gateway, no
-# table and no rule, and an unmarked or unrouted packet just follows the main table back onto the vpn
+# NM dispatcher: table 100 on the physical gateway plus a fwmark rule for the games group's packets, past proton0;
+# fail safe: without a gateway no table and no rule, a packet follows the main table onto the vpn
 
 # the skb mark games-bypass.nft sets and fw-egress' game_mark lets out; kept in sync with both
 const GAME_MARK = "0x6761"
@@ -20,8 +18,7 @@ def --wrapped attempt [...argv: string]: nothing -> nothing {
     if $r.exit_code != 0 { print --stderr --no-newline $r.stderr }
 }
 
-# nmcli reports the link's own gateway even when proton0 owns the main default; ip route is the fallback at first up.
-# nmcli -g escapes the colons of an ipv6 gateway (fe80\:\:...)
+# nmcli has the link's own gateway even under proton0, ip route is the fallback at first up; -g escapes ipv6 colons
 def gateway [iface: string, family: string]: nothing -> string {
     let field = if $family == "-4" { "IP4.GATEWAY" } else { "IP6.GATEWAY" }
     let listed = out nmcli -g $field device show $iface | lines | get --optional 0 | default "" | str replace --all '\' ''

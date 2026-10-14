@@ -1,10 +1,10 @@
 return {
     {
-        "saghen/blink.cmp", -- completion engine
+        "saghen/blink.cmp",
         version = "1.*",
         dependencies = {
             {
-                "windwp/nvim-autopairs", -- auto-close brackets
+                "windwp/nvim-autopairs",
                 opts = {
                     fast_wrap = {},
                     disable_filetype = { "TelescopePrompt", "vim" },
@@ -25,21 +25,21 @@ return {
             },
 
             {
-                "L3MON4D3/LuaSnip", -- snippet engine
+                "L3MON4D3/LuaSnip",
                 version = "v2.*",
                 build = "make install_jsregexp",
             },
 
-            { "onsails/lspkind.nvim" }, -- completion kind icons
+            { "onsails/lspkind.nvim" },
 
             {
-                "saghen/blink.compat", -- nvim-cmp compat layer
+                "saghen/blink.compat",
                 version = "2.*",
                 opts = {},
                 dependencies = {
-                    "Dosx001/cmp-commit", -- commit message source
-                    "davidsierradz/cmp-conventionalcommits", -- conventional commits source
-                    "hrsh7th/cmp-calc", -- inline calculator source
+                    "Dosx001/cmp-commit",
+                    "davidsierradz/cmp-conventionalcommits",
+                    "hrsh7th/cmp-calc",
                 },
             },
         },

@@ -19,13 +19,13 @@ QtObject {
   readonly property string barWidgets: plugins + "/bar/widgets"
   readonly property string shellScripts: shellDir + "/scripts"
 
-  // runtime state, kept out of the tracked config dir
+  // kept out of the tracked config dir
   readonly property string state: {
     var base = String(Quickshell.env("XDG_STATE_HOME") || "").trim() || (home + "/.local/state")
     return base.replace(/\/+$/, "") + "/quickshell"
   }
 
-  // tmpfs, gone at logout and reboot: what must never reach the disk or a backup (clipboard history)
+  // tmpfs: what must never reach the disk or a backup
   readonly property string runtime: {
     return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
   }

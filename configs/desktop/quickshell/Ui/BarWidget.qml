@@ -4,7 +4,7 @@ import qs.Commons
 Item {
   id: root
 
-  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property string moduleName: ""
   property var settings: ({})
@@ -17,7 +17,7 @@ Item {
     return value === undefined || value === null ? fallback : value
   }
 
-  // x in bar-content coordinates
+  // in bar-content coordinates
   property real barX: 0
 
   function refreshBarX() { barXSettle.restart() }

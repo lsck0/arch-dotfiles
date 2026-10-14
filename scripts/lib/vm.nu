@@ -1,6 +1,4 @@
-# the end-to-end test: bootstrap from a bare Arch ISO in a system libvirt VM, then the unattended chain. no guest agent,
-# user-mode networking: input goes in through qemu sendkey, state comes back as beacons to a host server (the guest's
-# 10.0.2.2 is host loopback), which also serves the snapshot bundle and receives the logs
+# no guest agent: input via qemu sendkey, state back as beacons to a host server at the guest's 10.0.2.2
 
 const REPO = path self ../..
 const VM_DIR = path self vm
@@ -9,6 +7,8 @@ const REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
 const CONNECT = "qemu:///system"
 const POOL = "default"
 const POOL_DIR = "/var/lib/libvirt/images"
+# the serial port's file; bootstrap tees its output there
+const CONSOLE_DIR = "/var/log/libvirt/qemu"
 const ISO_VOLUME = "vm-test-archlinux.iso"
 export const USER = "luca"
 # BOOTSTRAP_PASSWORD, LUKS and user alike
@@ -62,7 +62,7 @@ export def cache-dir [name: string]: nothing -> path {
     $dir
 }
 
-# one prompt up front, then kept warm off the tty so it never races a foreground sudo's raw-mode switch
+# kept warm off the tty so it never races a foreground sudo's raw-mode switch
 export def sudo-keepalive []: nothing -> nothing {
     ^sudo -v
     job spawn { loop { "" | ^sudo -n true | complete | ignore; sleep $SUDO_KEEPALIVE } } | ignore
@@ -107,7 +107,7 @@ def key-for [ch: string, layout: string]: nothing -> string {
     $"(if $swapped =~ '[A-Z]' { 'shift-' } else { '' })($swapped | str lowercase)"
 }
 
-# the whole string is checked before half of it is typed; a held key outlasting one virsh call would overlap the next
+# a held key outlasting one virsh call would overlap the next
 export def type-text [name: string, text: string, layout: string]: nothing -> nothing {
     let keys = $text | split chars | each {|c| key-for $c $layout }
     for k in ($keys ++ $MODIFIERS) {
@@ -120,8 +120,17 @@ def clear-line [name: string]: nothing -> nothing {
     virsh qemu-monitor-command $name --hmp "sendkey ctrl-u" | ignore
 }
 
-# the host server: socat runs vm/serve.sh per connection on this state dir
 export def host-start [name: string, upload_to: path]: nothing -> record {
+    # socat's bind error goes nowhere and the guest's curl would hang on another listener
+    let holders = ^ss -Hltnp $"sport = :($PORT)" | parse --regex 'pid=(?<pid>\d+)' | get pid | uniq
+    for pid in $holders {
+        let cmdline = try { open --raw $"/proc/($pid)/cmdline" | str replace --all (char nul) " " } catch { "" }
+        if not ($cmdline | str contains $"($VM_DIR)/serve.sh") {
+            error make {msg: $"port ($PORT) is taken: ss -ltnp 'sport = :($PORT)'"}
+        }
+        ^kill $pid
+    }
+    if ($holders | is-not-empty) { sleep 500ms }
     let dir = cache-dir $name | path join host
     rm --recursive --force $dir
     mkdir ($dir | path join step) ($dir | path join file)
@@ -160,7 +169,7 @@ def mark-read [host: record, n: int]: nothing -> nothing {
     $read + $n | into string | save --force ($host.dir | path join beacons.read)
 }
 
-# the next beacon starting with <prefix>, dropping older unrelated ones; null on timeout
+# drops older unrelated beacons; null on timeout
 export def beacon [host: record, prefix: string, timeout: duration]: nothing -> any {
     let deadline = (date now) + $timeout
     while (date now) < $deadline {
@@ -184,13 +193,13 @@ def drain [host: record]: nothing -> list<string> {
 
 def beacon-cmd [tag: string]: nothing -> string { $"curl -s ($HOST)/beacon/($tag)" }
 
-# serve the script and type one short line that fetches and runs it; sendkey garbles long lines
+# sendkey garbles long lines, so type one short line that fetches the served script
 def run-step [name: string, host: record, step: string, script: string, layout: string]: nothing -> nothing {
     $script | save --force ($host.dir | path join step $step)
     type-text $name $"curl -so /tmp/($step) ($HOST)/step/($step) && bash /tmp/($step)\n" $layout
 }
 
-# the iso goes into the system pool, qemu there cannot read the home dir
+# qemu in the system pool cannot read the home dir
 def pool-iso [iso: path]: nothing -> string {
     if $POOL not-in (virsh pool-list --all --name | lines | str trim) {
         virsh pool-define-as $POOL dir --target $POOL_DIR | ignore
@@ -207,13 +216,12 @@ def pool-iso [iso: path]: nothing -> string {
     virsh vol-path --pool $POOL $ISO_VOLUME | str trim
 }
 
-# only the disk goes: the shared iso volume stays for the next run
+# the shared iso volume stays for the next run
 export def vm-destroy [name: string]: nothing -> nothing {
     virsh destroy $name | ignore
     virsh undefine $name --nvram --storage vda | ignore
 }
 
-# the working tree (untracked included, .gitignore respected) as a commit bundle on top of origin/master
 def snapshot-bundle [name: string]: nothing -> path {
     let index = cache-dir $name | path join snapshot.index
     rm --force $index
@@ -230,14 +238,16 @@ def snapshot-bundle [name: string]: nothing -> path {
     $bundle
 }
 
-# a fresh vm, secure boot firmware without enrolled keys (setup mode), bootstrap.sh typed into the iso console
 def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string]: nothing -> nothing {
     vm-destroy $name
+    let console = $CONSOLE_DIR | path join $"($name)-serial.log"
     (^sudo virt-install --connect $CONNECT --name $name --memory 12288 --vcpus 8 --cpu host-passthrough
-        --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom (pool-iso $iso)
+        --serial $"file,path=($console)" --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom (pool-iso $iso)
         --osinfo archlinux --network user,model=virtio --graphics spice --video virtio --noautoconsole
         --features smm.state=on
         --boot "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no")
+    # --pid ends the tail with this run, an interrupted one included
+    let follow = ^bash -c $"sudo -n tail --pid=($nu.pid) -n +1 -F '($console)' >&2 2>/dev/null & echo $!" | str trim
     wait-screen $name [root@archiso] $BOOT_TIMEOUT | ignore
     let checkout = if $bundle == null { "" } else {
         ^ln -sf $bundle ($host.dir | path join file snapshot.bundle)
@@ -245,9 +255,10 @@ def bootstrap [name: string, iso: path, host: record, bundle: any, platform: str
     }
     let log = cache-dir $name | path join bootstrap.log
     host-upload-to $host $log
-    # success ends in the reboot, which virt-install turns into a power off on this first boot
+    # virt-install turns this first boot's reboot into a power off
     run-step $name $host bootstrap ([
         "set -o pipefail"
+        "exec > >(tee /dev/ttyS0) 2>&1"
         "pacman -Sy --noconfirm --needed git"
         $"cd /tmp && git clone ($REPO_URL) && cd arch-dotfiles($checkout) \\"
         $"    && BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
@@ -255,15 +266,19 @@ def bootstrap [name: string, iso: path, host: record, bundle: any, platform: str
         $"    || { curl -sT /tmp/bootstrap.log ($HOST)/bootstrap.log; (beacon-cmd bootstrap-fail); }"
     ] | str join "\n" | $"($in)\n") us
     let deadline = (date now) + $BOOTSTRAP_TIMEOUT
-    while (virsh domstate $name | str trim) != "shut off" {
-        if (beacon $host bootstrap-fail $POLL) != null { error make {msg: $"bootstrap.sh failed, see ($log)"} }
-        if (date now) > $deadline { error make {msg: $"bootstrap.sh still running after ($BOOTSTRAP_TIMEOUT)"} }
-    }
+    let failed = try {
+        while (virsh domstate $name | str trim) != "shut off" {
+            if (beacon $host bootstrap-fail $POLL) != null { error make {msg: $"bootstrap.sh failed, see ($log)"} }
+            if (date now) > $deadline { error make {msg: $"bootstrap.sh still running after ($BOOTSTRAP_TIMEOUT)"} }
+        }
+        null
+    } catch {|e| $e.msg }
+    ^kill $follow | complete | ignore
+    if $failed != null { error make {msg: $failed} }
     virsh start $name | ignore
 }
 
-# the chain boots without a passphrase; the first prompt is the boot after dot stage disarmed. "nter passphrase", not
-# "passphrase": the config stage prints secret names like borg-passphrase on the console
+# "nter passphrase", not "passphrase": the config stage prints secret names like borg-passphrase
 def await-chain [name: string]: nothing -> nothing {
     let start = date now
     wait-screen $name ["nter passphrase" "root volume"] $CHAIN_TIMEOUT | ignore
@@ -295,7 +310,6 @@ export def login-tty [name: string, host: record, user: string]: nothing -> any 
     error make {msg: $"login failed ($LOGIN_ATTEMPTS) times, see `dot test shot`"}
 }
 
-# the facts doctor asserts live, from the same file; the vm checks every row
 def invariants []: nothing -> table {
     open --raw ($REPO | path join scripts lib invariants.txt) | lines | where {|l| ($l | str trim | is-not-empty) and not ($l | str starts-with "#") }
     | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$'
@@ -362,8 +376,6 @@ export def vm-run [name: string, iso: path, platform: string, user: string, mast
     print "dot test: chain succeeded, the screenshot shows the login manager"
 }
 
-# --- drills: opt-in, against the vm a passed run left installed; a step prints `drill: key=value` lines that must match
-# its table, its whole output lands in ~/.cache/vm-test/<vm>/drill-<step>.log
 
 def unlock [name: string, timeout: duration]: nothing -> bool {
     let deadline = (date now) + $timeout
@@ -387,8 +399,7 @@ def drill-reboot [name: string, host: record, user: string, --again]: nothing ->
     login-tty $name $host $user
 }
 
-# prelude + the step as root on the guest (SUDO_USER is the login), @KEY@ filled from values; its `drill:` lines once its
-# report arrives. files are served beside it for the prelude's fetch
+# runs as root on the guest; SUDO_USER is the login
 def drill-step [name: string, host: record, step: string, values: record = {}, files: record = {}]: nothing -> record {
     let script = [prelude $step] | each { open --raw ($VM_DIR | path join $"($in).sh") | lines | skip 1 | str join "\n" } | str join "\n"
     let body = $values | items {|k, v| {k: $k, v: ($v | into string)} } | reduce --fold ($script | str replace --all "@HOST@" $HOST) {|kv, acc|
@@ -412,8 +423,7 @@ def expect [step: string, got: record, want: record]: nothing -> list<string> {
     $want | items {|k, v| if ($got | get --optional $k) != $v { $"($step): ($k)=($got | get --optional $k), expected ($v)" } } | compact
 }
 
-# (phase, name, proto, daddr, dport, gid, marked): every tuple portmaster-bypass.nft must give connmark 1710, and the near
-# misses it must not; tun0 routes the lab ranges plus 1.1.1.1 and 2001:db8::/32, wan0 the rest
+# (phase, name, proto, daddr, dport, gid, marked): tuples portmaster-bypass.nft must or must not mark 1710
 const BYPASS_MEMBER_GID = 4711
 const BYPASS_PROBES = [
     [phase name proto daddr dport gid marked];
@@ -431,8 +441,7 @@ const BYPASS_PROBES = [
     [home home_lan udp 192.168.178.5 5014 0 false]
 ]
 
-# the protonvpn namespace must fail closed and the bypass mark exactly its tuples; the vm has no proton secret, so the
-# module runs on a throwaway config whose peer never answers and whatever reaches the host from the namespace is a leak
+# no proton secret in the vm: a throwaway config whose peer never answers, so anything reaching the host leaked
 def drill-egress [name: string, host: record, user: string]: nothing -> list<string> {
     drain $host | ignore
     let bypass = (open --raw ($VM_DIR | path join bypass.sh) | str replace "@MEMBER_GID@" ($BYPASS_MEMBER_GID | into string))
@@ -451,8 +460,7 @@ def drill-egress [name: string, host: record, user: string]: nothing -> list<str
     (expect egress $got $want) ++ $control ++ ($beacons | where ($it | str contains leak) | each { $"egress: ($in) reached the host from inside the namespace" })
 }
 
-# ROLLBACK.md's catch, drilled: a snapshot on the previous kernel, a bump, the restore; kernel-resync must put the esp
-# back in step and reboot into the old kernel
+# ROLLBACK.md's catch: kernel-resync must put the esp back in step and boot the old kernel
 def drill-rollback [name: string, host: record, user: string]: nothing -> list<string> {
     let old = drill-step $name $host rollback-old
     let bad = expect rollback-old $old {downgraded: yes}

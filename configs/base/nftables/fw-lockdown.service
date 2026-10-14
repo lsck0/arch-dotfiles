@@ -1,6 +1,6 @@
 [Unit]
 Description=Inbound lockdown firewall, the resting state until a home network or toggle-firewall.nu lifts it
-# shares table inet fw with fw-inbound; a stop is ordered before a start either way, so the old table goes before the new one loads
+# shares table inet fw with fw-inbound: the old table goes before the new one loads
 Conflicts=fw-inbound.service
 After=fw-inbound.service
 Before=network-pre.target

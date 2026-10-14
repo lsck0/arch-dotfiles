@@ -1,9 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# the launcher entry: the user's spicetify copy (hook/spicetify-apply.nu) once there is one, else the stock client.
-# apparmor.d's spotify profile attaches to /opt/spotify only, so the copy enters it through aa-exec (base/apparmor
-# local/spotify); never unconfined while that profile is loaded, the stock client attaches by its path
-# spotify's CEF ignores --ozone-platform-hint=auto and lands on XWayland at 1x, so under wayland name the platform
-# outright (as teamspeak's module, hyprland then drives the scale); the copy skips /usr/bin/spotify's spotify-flags.conf
+# the user's spicetify copy once there is one, entering apparmor.d's /opt/spotify-only profile through aa-exec
+# spotify's CEF ignores --ozone-platform-hint=auto and lands on XWayland at 1x, so the platform is named outright
 
 const STOCK = "/usr/bin/spotify"
 const APPARMOR_ENABLED = "/sys/module/apparmor/parameters/enabled"

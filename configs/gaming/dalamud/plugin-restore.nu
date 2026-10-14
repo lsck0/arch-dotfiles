@@ -1,10 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
-# one backed-up plugin installed the way dalamud's installer would: the newest build from the repo it came from, its
-# manifest carrying the old collection id. dalamud never installs a plugin its collection names by itself
+# one backed-up plugin installed as dalamud's installer would, keeping its collection id: dalamud never installs one
+# its collection names by itself
 
 # InstalledFromUrl is "OFFICIAL" for dalamud's own repo
 const MAIN_REPO_URL = "https://kamori.goats.dev/Plugin/PluginMaster"
-# fields of the backed-up manifest that stay as dalamud kept them locally
 const KEPT = [
     Disabled Testing InstalledFromUrl WorkingPluginId IsThirdParty IsHide DownloadLinkInstall DownloadLinkTesting
     DownloadLinkUpdate DownloadCount LastUpdate TestingAssemblyVersion TestingDalamudApiLevel

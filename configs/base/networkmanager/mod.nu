@@ -68,7 +68,7 @@ def has-modem []: nothing -> bool {
     )
 }
 
-# read by the dispatchers, tor-router and portmaster-bypass as root: only values of the shapes they expect
+# read as root by the dispatchers, tor-router and portmaster-bypass: only values of the shapes they expect
 def homelab-env [cfg: record]: nothing -> any {
     if not (platform-has homelab) or $cfg.homelab_dns == null or $cfg.homelab_domain == null { return null }
     let bad = [[$cfg.homelab_dns $IPV4] [$cfg.homelab_domain $DOMAIN]] ++ ($cfg.homelab_subnets | each { [$in $CIDR4] })
@@ -84,7 +84,7 @@ export def system [cfg: record] {
     let bad = $cfg.home_gateways | where not ($it =~ $MAC)
     if ($bad | is-not-empty) { error make {msg: $"networkmanager: home_gateways has ($bad | str join ' '), not a mac"} }
     let homelab = homelab-env $cfg
-    # a restart drops wifi for seconds, so only on a change, then the network is back for the modules after this one
+    # a restart drops wifi for seconds, so only on a change; nm-online so later modules have network
     let online = $"nm-online -q --timeout=($ONLINE_TIMEOUT_S) || echo 'networkmanager: still offline' >&2"
     let restart = [sh -c $"systemctl restart NetworkManager.service && ($online)"]
     let dispatcher = {|src, name| file-copy $src $"($DISPATCHERS)/($name)" --mode 755 }
@@ -92,15 +92,12 @@ export def system [cfg: record] {
         # ModemManager drives nmcli radio wwan (toggle-mobile)
         (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now } else { [] })
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
-        # NM's one auto wired profile serves every wired network: a laptop's ethernet stays random everywhere, so it is
-        # never home (fail closed); a guest whose home is wired marks that one profile permanent by hand
+        # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart } else { [] })
         # run in name order, so home is decided before the others read it
         (do $dispatcher home-network.nu 70-home-network)
-        # NM's connectivity check off at home, where the split-horizon dns cannot resolve its probe
         (do $dispatcher connectivity-check.nu 75-connectivity-check)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
-        # the untrusted-network persona; the state machine is at its top
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
         (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
         # a vm guest leaves through its host's kill switch
@@ -110,8 +107,7 @@ export def system [cfg: record] {
     ]
 }
 
-# the admin's secrets (data in DOTFILES_SECRETS): saved home wifis keep the hardware mac and ipv6, every other network
-# gets a random mac and no ipv6 (persona dispatcher); home-gateways replaces the list, a run without it keeps it
+# from the admin's secrets: home wifis keep the hardware mac and ipv6; a run without home-gateways keeps the list
 export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"

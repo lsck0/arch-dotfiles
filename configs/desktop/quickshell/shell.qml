@@ -19,14 +19,12 @@ import "services"
 ShellRoot {
   id: shell
 
-  // a reload under the lock would destroy the session lock object without unlocking, which hyprland treats as a crashed
-  // locker; edits land after the unlock
+  // a reload under the lock destroys it without unlocking, which hyprland treats as a crashed locker
   settings.watchFiles: !lockScreen.locked
 
-  // instances, relative-path imports do not share singleton state
+  // one instance here: relative-path imports do not share singleton state
   property AppLibrary appLibrary: AppLibrary { }
 
-  // per-widget saved state, e.g. tray pins
   readonly property string widgetSettingsPath: Paths.state + "/widget-settings.json"
 
   property var widgetSettings: ({})
@@ -36,7 +34,7 @@ ShellRoot {
     return Util.isPlainObject(entry) ? entry : ({})
   }
 
-  // true only if something changed
+  // returns true only if something changed
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
     var next = {}
@@ -137,7 +135,6 @@ ShellRoot {
     }
   }
 
-  // the Plugins.js shell table, each loaded once
   Variants {
     id: plugins
     model: Object.keys(Plugins.shell)
@@ -174,7 +171,7 @@ ShellRoot {
     return true
   }
 
-  // keybinds (hyprland_keybindings.lua) reach discord voice through here
+  // reached from hyprland_keybindings.lua
   IpcHandler {
     target: "discord"
 
@@ -186,7 +183,7 @@ ShellRoot {
   IpcHandler {
     target: "shell"
 
-    // the conditioned palette + fx, for toggle-shader.nu and anything themed after the shell
+    // for toggle-shader.nu and anything themed after the shell
     function palette(): string {
       function rgb(c) { return [c.r, c.g, c.b] }
       return JSON.stringify({
@@ -205,7 +202,7 @@ ShellRoot {
       })
     }
 
-    // toggle-powermode.nu, after saver flips
+    // called by toggle-powermode.nu after saver flips
     function reloadPowerMode(): void {
       Power.reload()
     }

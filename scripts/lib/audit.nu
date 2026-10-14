@@ -1,6 +1,4 @@
-# the age of every credential in secrets/ against the limit of its class, and whether the way back in still exists:
-# secrets.key.age sealed to the paper key, the borg key export and the LUKS header copy of this machine, the yearly
-# recovery drill. a rotation is the date in secrets/rotation.txt, else the blob's last commit
+# a rotation is the date in secrets/rotation.txt, else the blob's last commit
 
 use secrets.nu [secret-is-plaintext]
 
@@ -12,8 +10,7 @@ const DRILL = "recovery-drill"
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
 const SEALED_HEADER_BYTES = 4096
-# <glob under secrets/> <class>, the first match wins; - is no credential (public halves, app state, the recovery
-# copies checked below), a file no row matches is reported so a new secret gets a class
+# first match wins; - is no credential; an unmatched file is reported so a new secret gets a class
 const CLASSES = [
     [glob class];
     ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
@@ -26,8 +23,7 @@ const CLASSES = [
     ["claude/*" -] ["caido/*" -] ["dalamud/*" -] ["ffxiv/*" -] ["modrinth/*" -] ["obs-*.json" -] ["wallpapers/*" -]
     ["todeletewallpapers/*" -]
 ]
-# max age in days: what leaks with a machine or a log (tunnels, ssh, api tokens) turns over yearly to every second
-# year, an identity others pin (pgp, age, syncthing device ids) every five
+# days: what leaks with a machine or log turns over in one or two years, an identity others pin every five
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 
 def finding [level: string, text: string]: nothing -> record { {level: $level, text: $text} }
@@ -44,7 +40,7 @@ def rotation-recorded [path: string]: nothing -> string {
     | get --optional date | last | default ""
 }
 
-# the record, else the blob's last commit, else (not committed yet, sync commits it) the file's own time
+# the file's own time last: not committed yet, sync commits it
 def rotation-date [path: string]: nothing -> string {
     let recorded = rotation-recorded $path
     if $recorded != "" { return $recorded }
@@ -117,7 +113,6 @@ def recovery []: nothing -> list<record> {
     ] | compact
 }
 
-# every finding, ok ones included; a locked worktree is one note, nothing can be read
 export def audit-findings []: nothing -> list<record<level: string, text: string>> {
     if not (secret-is-plaintext $WITNESS) {
         return [(finding note "secrets/ is locked, nothing audited: dot secrets unlock")]
@@ -125,8 +120,7 @@ export def audit-findings []: nothing -> list<record<level: string, text: string
     (credentials) ++ (recovery)
 }
 
-# every credential with its age and limit, then the recovery checks; --brief only the findings as "fail|note <text>";
-# exit 1 on a fail
+# --brief only the findings as "fail|note <text>"
 export def audit-run [--brief]: nothing -> nothing {
     let found = audit-findings
     let shown = if $brief { $found | where level != ok } else { $found }
@@ -135,7 +129,6 @@ export def audit-run [--brief]: nothing -> nothing {
     if ($found | any { $in.level == fail }) { exit 1 }
 }
 
-# today as the rotation of each path under secrets/, the rest kept
 export def audit-rotated [...paths: string]: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
     if ($paths | is-empty) { error make {msg: "rotated <path under secrets/...>"} }
@@ -150,10 +143,9 @@ export def audit-rotated [...paths: string]: nothing -> nothing {
     print $"audit: recorded ($paths | str join ' ') on ($today) in secrets/rotation.txt, dot sync commits it"
 }
 
-# today's recovery drill (RECOVERY.md, "Test it")
 export def audit-drilled []: nothing -> nothing { audit-rotated $DRILL }
 
-# a reminder once the last drill is a year old, at most monthly; never the drill itself, it needs the paper key
+# never the drill itself, it needs the paper key
 export def audit-remind []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { return }
     let drilled = rotation-recorded $DRILL

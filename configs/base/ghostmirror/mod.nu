@@ -23,7 +23,6 @@ const HOMELAB_COMMENT = (
 export def system [cfg: record] {
     let homelab = if (platform-has homelab) and $cfg.homelab_mirror != null { $"Server=($cfg.homelab_mirror)" }
     [
-        # root writes the mirrorlist, so root ranks it from its own copy: weekly sort, monthly rebuild
         (file-copy mirrorlist-update.nu /usr/local/bin/mirrorlist-update --mode 755)
         (if $homelab != null { file-text $HOMELAB_FILE $"($homelab)\n" } else { [] })
         (step place)
@@ -43,8 +42,7 @@ def rank [mode: string]: nothing -> bool {
     (^timeout $RANK_TIMEOUT_S /usr/local/bin/mirrorlist-update $mode | complete).exit_code == 0
 }
 
-# a fresh install's reflector ranking or the old link into the checkout is ranked here by measured speed; failing that,
-# a list with servers stays for the next run, only a link or an empty list gets the committed ranking
+# ranks a fresh or linked mirrorlist; the committed ranking only replaces a link or an empty list
 export def place []: nothing -> nothing {
     let linked = ($MIRRORLIST | path type) == "symlink"
     if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "# lastsync" }) {
@@ -58,12 +56,11 @@ export def place []: nothing -> nothing {
     let current = open --raw $MIRRORLIST | lines
     let homelab = try { open --raw $HOMELAB_FILE | str trim } catch { "" }
     if $homelab == "" {
-        # off a homelab machine the comment above a homelab line goes with it
         let drop = $current | enumerate | where {|l| $l.item | str starts-with "# homelab" }
             | each { [$in.index ($in.index + 1)] } | flatten
         if ($drop | is-not-empty) { mirrorlist-swap ($current | enumerate | where index not-in $drop | get item) }
     } else if $homelab not-in $current {
-        # on top only once it answers; a present line stays when away: wireguard reaches it, pacman skips it otherwise
+        # added only once it answers; a present line stays when away, wireguard reaches it
         let probe = $homelab | str replace "Server=" "" | str replace '$repo' core | str replace '$arch' x86_64
             | $"($in)/core.db"
         if (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $probe | complete).exit_code == 0 {

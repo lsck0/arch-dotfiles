@@ -24,7 +24,6 @@ local function math_not_command(line_to_cursor, trigger)
     return in_math() and not line_to_cursor:sub(1, -#trigger - 1):match("\\%a*$")
 end
 
--- capture group N of a regex trigger, verbatim
 local function cap(n)
     return f(function(_, snip)
         return snip.captures[n]
@@ -32,13 +31,11 @@ local function cap(n)
 end
 
 ls.add_snippets("tex", {
-    -- sections
     s("sec", fmta("\\section{<>}<>", { i(1), i(0) })),
     s("ssec", fmta("\\subsection{<>}<>", { i(1), i(0) })),
     s("sssec", fmta("\\subsubsection{<>}<>", { i(1), i(0) })),
     s("par", fmta("\\paragraph{<>}<>", { i(1), i(0) })),
 
-    -- environments
     s(
         "beg",
         fmta(
@@ -103,7 +100,6 @@ ls.add_snippets("tex", {
         )
     ),
 
-    -- math environments
     s({ trig = "mk", desc = "inline math" }, fmta("$<>$", { i(1) }), { condition = not_math }),
     s(
         { trig = "dm", desc = "display math" },
@@ -140,7 +136,6 @@ ls.add_snippets("tex", {
         )
     ),
 
-    -- math autosnippets (only fire inside a math zone)
     s(
         { trig = "//", desc = "fraction", snippetType = "autosnippet" },
         fmta("\\frac{<>}{<>}", { i(1), i(2) }),

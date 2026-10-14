@@ -1,8 +1,5 @@
-# mod.nu's addon-install runs this in `blender -b` over the person's own preferences: the mcp add-on enabled, its bridge
-# pinned to loopback and never auto-started, and online access on, without which the add-on refuses to open its socket.
-# the bridge runs any python sent to it, so it opens only on an explicit start (blender-mcp-bridge, or the add-on's
-# preferences). saved only when one of these actually changed, so a run over a set-up blender leaves userpref.blend
-# alone
+# online access on, without which the add-on refuses to open its socket; saved only on a change, so userpref.blend
+# is left alone on a set-up blender
 import addon_utils
 import bpy
 

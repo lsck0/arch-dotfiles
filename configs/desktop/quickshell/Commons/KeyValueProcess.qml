@@ -1,22 +1,7 @@
 import QtQuick
 import Quickshell.Io
 
-/**
- * KeyValueProcess: a stoppable, restartable run of a command that prints "<key> <value>" lines.
- *
- * Properties:
- *   command  argv list
- *   values   latest value per key of the current run, cleared by start()
- *   error    stderr of a run that failed on its own, "" otherwise
- *   running  the process is alive
- *
- * start() during a run is ignored, during a stop still in flight it queues one restart for the exit, so an old
- * process never answers for a new run.
- *
- * Usage:
- *   KeyValueProcess { id: test; command: [Paths.script("disk-speedtest.sh")] }
- *   Text { text: test.values.read || "" }
- */
+// start() during a stop in flight queues one restart, so an old process never answers for a new run
 QtObject {
   id: root
 

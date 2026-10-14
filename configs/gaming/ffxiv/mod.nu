@@ -36,8 +36,7 @@ export def seed []: nothing -> nothing {
     touch ($p.config | path join .from-secrets)
 }
 
-# the system cfgs and each character's DATs (named after the content id: macros, gearsets); chat logs, game backups,
-# screenshots and .old rotations stay out, and so does the square enix login
+# chat logs, game backups, screenshots, .old rotations and the square enix login stay out
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path join FFXIV.cfg | path exists) { error make {msg: $"no ($p.config)/FFXIV.cfg"} }

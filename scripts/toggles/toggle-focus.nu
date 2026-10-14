@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# focus mode: a scene of other toggles, put back as they were
 use lib.nu [switch-run toggle-run state-get state-set state-file]
 
 const PARTS = [dnd keep-awake nightlight]

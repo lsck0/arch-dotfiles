@@ -3,8 +3,7 @@ use written.nu [preserve-aside]
 
 export const meta = {packages: {pacman: [gimp]}}
 
-# PhotoGIMP: photoshop shortcuts, tool layout and docks over gimp's config. the release has no checksum and a tag can be
-# re-uploaded, so the archive is pinned by content; bump both together
+# the release has no checksum and a tag can be re-uploaded, so the archive is pinned by content; bump both together
 const PHOTOGIMP_VERSION = "3.1"
 const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e"
 const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/($PHOTOGIMP_VERSION)/PhotoGIMP-linux.zip"
@@ -21,8 +20,7 @@ def stale [dir: path]: nothing -> bool {
     | any {|f| let text = open --raw $f; $RENAMES | columns | any {|old| $text | str contains $'"($old)"' } }
 }
 
-# gimp rewrites these files itself, so they are seeded once per release, then left to it; an installed 3.2 reads its
-# own dir and migrates 3.0's only while its own is missing, so the release's 3.0 tree goes into the installed version
+# 3.2 migrates 3.0's dir only while its own is missing, so the 3.0 tree goes into the installed version
 export def link [cfg: record] {
     if (which gimp | is-empty) { return [] }
     let version = ^gimp --version | parse --regex '(?<v>\d+\.\d+)' | get 0.v

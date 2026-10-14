@@ -35,8 +35,7 @@ def main [xpui?: path]: nothing -> nothing {
     let pristine = $members | where { str ends-with .css }
         | each {|n| {name: ($n | path basename), text: (^unzip -p $backup $n)} }
     let scripts = ^unzip -p $backup ...($members | where { str ends-with .js }) | decode utf-8
-    # spotify >= 1.2.96 runs xpui-snapshot.js from the v8 snapshot, which spicetify patches into xpui/: its names are
-    # live too
+    # spotify >= 1.2.96 runs xpui-snapshot.js from the v8 snapshot, which spicetify patches into xpui/
     let live = glob ($xpui | path join *.js) | each { open --raw $in | decode utf-8 } | str join "\n"
     let keep = $map | transpose hashed friendly
         | where {|r| ($scripts | str contains $r.hashed) or ($live | str contains $r.friendly) }

@@ -1,4 +1,3 @@
-# the base system and the shared libraries and tools no one module owns
 export const meta = {
     packages: {
         pacman: [

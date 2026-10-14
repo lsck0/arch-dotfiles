@@ -105,7 +105,6 @@ BarWidget {
     trayMenuOpen = true
   }
 
-  // symbolic icons are meant to be recoloured by the host
   function iconIsSymbolic(icon) {
     var name = String(icon || "").split("?")[0]
     return name.slice(-9) === "-symbolic"
@@ -139,7 +138,6 @@ BarWidget {
     return result
   }
 
-  // widget-settings.json, keyed by widget name
   function persistTrayState(pinned, hidden) {
     if (!root.bar || !root.bar.shellHost || typeof root.bar.shellHost.setWidgetSettings !== "function") return
     root.bar.shellHost.setWidgetSettings("Tray", { pinned: pinned, hidden: hidden })
@@ -203,7 +201,6 @@ BarWidget {
         height: root.barSize
         visible: root.allItems.length > 0
 
-        // right-click on empty space opens the manage popup
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.RightButton
@@ -559,7 +556,6 @@ BarWidget {
 
               readonly property string rowText: String(modelData.text || "")
               readonly property string activeTitle: root.activeTrayItem ? String(root.activeTrayItem.title || root.activeTrayItem.id || "") : ""
-              // title row and leading separator exist only at the root
               readonly property bool atRoot: root.submenuDepth === 0
               readonly property bool rootTitleEntry: atRoot && index === 0 && modelData.hasChildren && rowText.toLowerCase() === activeTitle.toLowerCase()
               readonly property bool leadingSeparator: atRoot && modelData.isSeparator && index <= 1
@@ -624,7 +620,6 @@ BarWidget {
                 width: Style.space(16)
                 height: Style.space(16)
                 fillMode: Image.PreserveAspectFit
-                // decode at physical pixels for hidpi
                 sourceSize.width: width * Screen.devicePixelRatio
                 sourceSize.height: height * Screen.devicePixelRatio
                 source: menuRow.modelData.icon
@@ -691,7 +686,6 @@ BarWidget {
       id: trayIconImage
       anchors.fill: parent
       fillMode: Image.PreserveAspectFit
-      // decode at physical pixels for hidpi
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       // quickshell already resolves this to an image:// url

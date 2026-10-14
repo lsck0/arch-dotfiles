@@ -27,7 +27,7 @@ def sha [text: any]: nothing -> string {
     $text | hash sha256
 }
 
-# one line per unit from a batched is-enabled; a unit systemd does not know answers on stderr only, then each is asked
+# a unit systemd does not know answers on stderr only, so the batch falls back to asking each
 export def unit-states [scope: string, units: list<string>]: nothing -> list<string> {
     let batch = ^systemctl $"--($scope)" is-enabled ...$units | complete | get stdout | lines
     if ($batch | length) == ($units | length) { return $batch }
@@ -156,7 +156,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     $wanted ++ ($orphans | sort-by {|a| if $a.kind in [disable unmask] { 0 } else { 1 } })
 }
 
-# the dirs a removal left empty, up to the first one that is not (or is a link, or is home); never fails the removal
+# stops at a non-empty dir, a link or home; never fails the removal
 def prune-parents [start: path]: nothing -> nothing {
     mut dir = $start
     while $dir != $nu.home-dir and $dir != "/" and (path-kind $dir) == "dir" and (try { ls --all $dir | is-empty } catch { false }) {

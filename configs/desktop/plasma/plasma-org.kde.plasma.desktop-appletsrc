@@ -34,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-dreamy-1k.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-aether.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-dreamy-1k.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-aether.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]

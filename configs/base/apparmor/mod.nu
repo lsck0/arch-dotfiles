@@ -8,11 +8,11 @@ const ETC = "/etc/apparmor.d"
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
 const EARLY_POLICY = "/etc/apparmor/earlypolicy"
-# apparmor.d's install guide: the policy cached where systemd loads it before the first unit
+# cached where systemd loads it before the first unit (apparmor.d's install guide)
 const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compress-fast]
-# the kernel's CONFIG_LSM default with apparmor before bpf; active after the next reboot
+# the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-# every gui profile reads the ~/.config link targets in the checkout through an abstraction it already includes
+# abstractions every gui profile already includes, so all can read the ~/.config link targets in the checkout
 const CONFIG_LINK_HOOKS = [desktop fonts qt5 qt6 kde]
 const USER_DIRS = "../xdg/user-dirs.dirs"
 
@@ -26,13 +26,12 @@ def own []: nothing -> list<string> {
     ls profiles | get name | path basename
 }
 
-# "<profile> <mode>" in effect: the baseline, then the `aa` command's manual choices
 def modes []: nothing -> record {
     rows profiles.conf | append (rows $MANUAL)
     | reduce --fold {} {|r, acc| $acc | upsert $r.name ($r.flags | split row "," | first) }
 }
 
-# apparmor.d assumes capitalized xdg dirs, configs/base/xdg's are lowercase; core/syncthing's folder is ~/sync
+# apparmor.d assumes capitalized xdg dirs, ours are lowercase
 def xdg-tunables []: nothing -> string {
     open --raw $USER_DIRS | lines | parse --regex '^(?<var>XDG_[A-Z]+_DIR)="\$HOME/(?<dir>.*)"$'
     | each { $'@{($in.var)}+="($in.dir)"' } | append '@{XDG_SYNC_DIR}+="sync"' | str join "\n" | $"($in)\n"
@@ -58,15 +57,13 @@ export def system [cfg: record] {
     [
         (step cmdline-set $LSM)
         (unit-enable apparmor.service)
-        # every denial in the kernel log, which is where they land without auditd
         (file-copy sysctl-apparmor.conf $SYSCTL --then [/usr/lib/systemd/systemd-sysctl $SYSCTL])
         (file-copy modes /etc/apparmor/modes)
-        # the baseline; `aa` layers per-app choices into a sibling manual.conf that runs leave alone
         (file-text /etc/apparmor/flags.d/dotfiles.conf (do $lines ($upstream | each { $"($in.name) ($in.flags)" })))
         (file-text /etc/apparmor/include.d/dotfiles.conf (do $lines $upstream.name))
         (file-text $"($ETC)/tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles" (xdg-tunables))
     ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) {
-        # all below builds on apparmor.d's variables and abstractions and would not compile without them
+        # the rest would not compile without apparmor.d's variables and abstractions
         []
     } else {
         let modes = modes
@@ -76,15 +73,13 @@ export def system [cfg: record] {
             ($CONFIG_LINK_HOOKS | each {|h|
                 file-text $"($ETC)/abstractions/($h).d/dotfiles-config-links" (include config-links)
             })
-            # every QtWebEngine profile builds on apparmor.d's chromium abstraction
             (file-text $"($ETC)/abstractions/common/chromium.d/dotfiles-qtwebengine" (include qtwebengine))
             (glob profiles/* | each {|p| own-profile $p ($modes | get --optional ($p | path basename)) })
         ] | decls-flatten
     }) ++ [(step load)]
 }
 
-# apparmor.d's pacman hook reruns aa-install on every transaction; a failed build keeps the loaded policy, and the
-# check at the end names what is off
+# a failed aa-install keeps the loaded policy, the mode check at the end names what is off
 export def load []: nothing -> nothing {
     mkdir $EARLY_POLICY
     let have = open --raw $PARSER_CONF | lines
@@ -112,7 +107,7 @@ export def load []: nothing -> nothing {
     }
 }
 
-# `aa`: per-app enforce, complain or off, layered into manual.conf (aa.nu)
+# `aa`: per-app enforce, complain or off
 export def link [cfg: record] {
     link-commands aa.nu
 }

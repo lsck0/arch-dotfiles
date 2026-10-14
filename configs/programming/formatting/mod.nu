@@ -1,7 +1,6 @@
 use module.nu *
 
-# clang-format, stylua, prettier, rustfmt and ruff configs are never placed: nvim conform and emacs apheleia pass them
-# only to projects without their own
+# the formatter configs are not placed: the editors pass them only to projects without their own
 export const meta = {
     packages: {pacman: [kulala-fmt prettier shellcheck shfmt stylua taplo-cli typstyle]}
     # rustup installs toolchains, and two rustup runs at once race on its download and settings files

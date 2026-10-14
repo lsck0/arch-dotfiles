@@ -52,7 +52,6 @@ Item {
     dismissAt(index)
   }
 
-  // same output as the bar
   readonly property var mainScreen: {
     var screens = Quickshell.screens
     var name = root.shell ? root.shell.mainScreenName : ""
@@ -84,14 +83,14 @@ Item {
     visible: root.alerts.length > 0
     screen: root.mainScreen
     anchors { top: true; right: true }
-    // quickshell's qmltypes ship PanelWindow's margins as an opaque stub, so qmllint cannot see its edges
+    // quickshell's qmltypes stub PanelWindow.margins
     margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm } // qmllint disable missing-property
     implicitWidth: Style.space(440)
     implicitHeight: stack.implicitHeight
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
-    // ondemand: an alert must not steal keystrokes
+    // an alert must not steal keystrokes
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
 
@@ -213,7 +212,7 @@ Item {
                   id: closeButton
                   anchors.right: parent.right
                   anchors.top: parent.top
-                  iconText: "\u{f0156}" // md-close
+                  iconText: "\u{f0156}"
                   tooltipText: "Dismiss"
                   foreground: Colors.menu.text
                   onClicked: root.dismissAt(card.index)

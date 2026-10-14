@@ -4,8 +4,7 @@ const THUMB_DIR = ".cache/wal/wallpaper-thumbs"
 const THUMB_SIZE_PX = "480"
 const RANDOM = "random"
 
-# a cached vipsthumbnail keyed by mtime and size, so a replaced file gets a new one; chafa over the full image would
-# decode megapixels on every cursor move
+# keyed by mtime and size so a replaced file gets a new thumb; chafa on the full image decodes megapixels per move
 def thumb-of [file: path]: nothing -> path {
     let dir = $nu.home-dir | path join $THUMB_DIR
     let name = $file | path basename

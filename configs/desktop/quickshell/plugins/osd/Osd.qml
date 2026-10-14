@@ -18,7 +18,6 @@ Item {
   property int maxValue: 100
   property bool hasProgress: true
   property int duration: 1200
-  // log mode: typed lines instead of icon and gauge
   property var lines: []
   property int typedChars: 0
   readonly property bool logMode: lines.length > 0
@@ -63,7 +62,6 @@ Item {
     if (root.launching) Qt.callLater(root.launchGlitch)
   }
 
-  // a short typed log, one char per typeStepMs across the lines
   function log(logLines, rawDuration) {
     lines = (logLines || []).map(function(l) { return String(l) })
     typedChars = Style.motion.enabled ? 0 : logChars
@@ -74,7 +72,6 @@ Item {
     else hideTimer.stop()
   }
 
-  // the visible part of line i while typing
   function typedLine(i) {
     var before = 0
     for (let k = 0; k < i; k++) before += lines[k].length
@@ -83,7 +80,6 @@ Item {
 
   function hex(c) { return String(c).substring(0, 7) }
 
-  // palette sync (signature D): Colors applies a new wallpaper palette
   Connections {
     target: Colors
     function onPaletteSynced(p) {
@@ -101,7 +97,6 @@ Item {
     }
   }
 
-  // launching: type the message out like a terminal line (the trailing BlinkCaret reads as the cursor)
   BootIn { id: boot; active: root.opened; title: root.launching ? root.message : "" }
 
   function open(payloadJson) {
@@ -170,7 +165,6 @@ Item {
     function ping(): string { return "ok" }
   }
 
-  // one surface per output, only the focused one visible
   Variants {
     model: Quickshell.screens
 
@@ -186,7 +180,6 @@ Item {
         return mine.name === focused.name
       }
 
-      // mapped until the fade-out ends
       visible: (root.opened || boot.progress > 0) && onFocusedMonitor
       anchors { top: true; bottom: true; left: true; right: true }
       color: "transparent"
@@ -270,7 +263,7 @@ Item {
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
           }
-          // sticky "Launching X..." osd (duration 0): a live cursor until the toplevel appears
+          // a live cursor until the launched toplevel appears
           BlinkCaret {
             visible: !root.hasProgress && root.duration === 0 && root.message !== ""
             anchors.verticalCenter: parent.verticalCenter

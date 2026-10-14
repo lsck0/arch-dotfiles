@@ -1,7 +1,6 @@
--- l-style helpers: banners, doc comments
 return {
     {
-        "LudoPinelli/comment-box.nvim", -- box/line existing text or a selection
+        "LudoPinelli/comment-box.nvim",
         keys = {
             { "<leader>Cb", "<cmd>CBllbox<cr>", mode = { "n", "v" }, desc = "Comment box (left)" },
             { "<leader>Cl", "<cmd>CBline<cr>", desc = "Comment separator line" },
@@ -12,7 +11,7 @@ return {
     },
 
     {
-        "danymat/neogen", -- generate doc-comment (annotation) skeletons
+        "danymat/neogen",
         cmd = "Neogen",
         keys = {
             {

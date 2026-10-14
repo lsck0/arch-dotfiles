@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Io
 pragma Singleton
 
-// user knobs from theme.json, live-watched
 QtObject {
     id: root
 
@@ -12,11 +11,9 @@ QtObject {
     property string fontFamily: "Kode Mono"
     // base px, the whole scale derives from it
     property int fontSize: 12
-    // palette conditioning
     property real backgroundValueMin: 0.08
     property real backgroundValueMax: 0.26
-    // a background whose wcag luminance clears this is a light theme: text resolves toward black and surfaces
-    // darken instead of lifting. kept equal to palette.nu LIGHT_LUMINANCE (the authority)
+    // kept equal to palette.nu LIGHT_LUMINANCE, the authority
     property real lightLuminance: 0.4
     property real foregroundContrast: 7
     property real accentMinSaturation: 0.7
@@ -28,7 +25,7 @@ QtObject {
     // floor only, muted must stay dim
     property real mutedContrast: 1.9
     property int paletteTransitionMs: 600
-    // fx, 0 disables each
+    // 0 disables each fx
     property real glowStrength: 0.55
     property real scanlineOpacity: 0.06
     property int scanlineSpacing: 3
@@ -36,7 +33,6 @@ QtObject {
     property bool cornerBrackets: true
     property real crtFlicker: 0.02
     property real matrixRain: 0.5
-    // bumped on every (re)load
     property int revision: 0
     property FileView file
 

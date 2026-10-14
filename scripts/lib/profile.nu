@@ -1,7 +1,6 @@
-# the running user's facts, user layer only; no profile is a guest
+# user layer only; no profile is a guest
 
 const PROFILE_KEYS = [capabilities name email gpg_fingerprint]
-# secrets (unlock with the yubikey), identity (name, keys, accounts), homelab (nas, ntfy, sync), work (capgemini)
 export const PROFILE_CAPABILITIES = [secrets identity homelab work]
 
 def profile-dir []: nothing -> path {

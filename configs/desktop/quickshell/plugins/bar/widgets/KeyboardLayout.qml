@@ -15,9 +15,7 @@ BarWidget {
   property string keyboardName: ""
   property string typedKeyboardName: ""
   property bool keyboardUnresolved: false
-  // hidden until there are two layouts
   property bool multipleLayouts: true
-  // xkb brief per layout description
   property var layoutBriefs: ({})
   readonly property string layoutLabel: KeyboardLayoutModel.shortLabel(layoutFull, layoutBriefs)
 

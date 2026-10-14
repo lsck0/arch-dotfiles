@@ -18,17 +18,16 @@ local DEFAULT_VIEW = { name = "Board", layout = "BOARD_LAYOUT", filter = "", fie
 local KEY_ALIASES = { assignee = "assignees", label = "labels", reviewer = "reviewers", repo = "repository" }
 local IS_TYPES = { issue = "Issue", pr = "PullRequest", ["pull-request"] = "PullRequest", draft = "DraftIssue" }
 
--- module state
 local state = nil -- current board, see fetch() for its fields
 local cache = {} -- ["org/num"] = state, so reopening renders before the refresh lands
 local projects = nil -- [{number, title}] for the org, fetched once
-local projects_org = nil -- the org `projects` was fetched for
-local proj_idx = 1 -- current index into `projects`
-local cur_org = nil -- org of the open board
-local board_buf = nil -- the reusable board buffer
+local projects_org = nil
+local proj_idx = 1
+local cur_org = nil
+local board_buf = nil
 local views_warned = {} -- ["org/num"] = true once a failed views fetch was reported
 
--- persistent cache: survives restarts and avoids refetching (and gh rate limits)
+-- survives restarts and spares gh rate limits
 local CACHE_DIR = vim.fn.stdpath("cache") .. "/ghproject"
 local CACHE_VERSION = 3 -- bump when the disk format changes
 local TTL = 300 -- seconds; a cache younger than this skips the background refresh
@@ -97,7 +96,7 @@ local function header_group(i)
     return grp("GhProjectHeader", "Title")
 end
 
--- truncate to a DISPLAY width (emoji/wide glyphs count as 2), so columns align
+-- display width: wide glyphs count as 2
 local function truncate(s, n)
     s = tostring(s or ""):gsub("[\r\n]", " ")
     if vim.fn.strdisplaywidth(s) <= n then
@@ -114,7 +113,6 @@ local function truncate(s, n)
     return out .. "…"
 end
 
--- pad to a fixed DISPLAY width (variable bytes), truncating first
 local function pad(s, n)
     s = truncate(s, n)
     return s .. string.rep(" ", n - vim.fn.strdisplaywidth(s))
@@ -165,8 +163,6 @@ local function rule_line(columns)
     end
     return table.concat(segs, "─┼─")
 end
-
--- fields ---------------------------------------------------------------------
 
 -- filter keys compare lowercased with spaces as hyphens ("target-date")
 local function norm(name)
@@ -245,8 +241,6 @@ local function card_display(card, field_name)
     end
     return table.concat(out, ", ")
 end
-
--- filter ---------------------------------------------------------------------
 
 local function match_card(card, q)
     return ((card.title or ""):lower():find(q, 1, true) ~= nil)
@@ -457,8 +451,6 @@ local function compile_filter(s, filter)
         ignored
 end
 
--- views ----------------------------------------------------------------------
-
 local function compile_view(s, raw)
     local pred, ignored = compile_filter(s, raw.filter)
     local col = field_by_name(s.fields, raw.vgroup)
@@ -642,8 +634,6 @@ local function flat_visible()
     return out
 end
 
--- selection helpers ----------------------------------------------------------
-
 local function selected()
     if state.layout == "board" then
         local c = vcols()[state.cur.col]
@@ -685,8 +675,6 @@ local function clamp_all()
     local nf = #flat_visible()
     state.frow = math.max(1, math.min(state.frow, math.max(nf, 1)))
 end
-
--- rendering ------------------------------------------------------------------
 
 local function table_columns(cards)
     local names = cur_view().table_fields
@@ -906,7 +894,6 @@ local function redraw()
         pcall(vim.api.nvim_buf_set_extmark, s.buf, NS, l, a, opts)
     end
 
-    -- keep the selection on screen: place the cursor on it, then centre
     local win = vim.fn.bufwinid(s.buf)
     if win ~= -1 and cursor then
         pcall(vim.api.nvim_win_set_cursor, win, { cursor[1], cursor[2] })
@@ -915,8 +902,6 @@ local function redraw()
         end)
     end
 end
-
--- mutations ------------------------------------------------------------------
 
 local function open_selected()
     local card = selected()
@@ -957,7 +942,6 @@ local function set_field(card, field, opt)
     end)
 end
 
--- step the card through the column field's options
 local function move_status(dir)
     local card = selected()
     if not card then
@@ -1122,9 +1106,7 @@ local function nav_horiz(d)
     redraw()
 end
 
--- project switching ----------------------------------------------------------
-
-local load_board -- forward declaration
+local load_board
 
 local function switch_project(dir)
     if not projects or #projects <= 1 then
@@ -1142,8 +1124,6 @@ end
 local function refresh()
     load_board(proj_idx, true)
 end
-
--- keymaps --------------------------------------------------------------------
 
 local function set_keys(buf)
     local function map(lhs, fn)
@@ -1222,8 +1202,6 @@ local function set_keys(buf)
         vim.api.nvim_buf_delete(buf, { force = true })
     end)
 end
-
--- model building -------------------------------------------------------------
 
 local function build_cards(items)
     local cards = {}
@@ -1489,7 +1467,6 @@ local function ensure_projects(default_num, cb)
 end
 
 function M.open_board()
-    -- org optional: unset uses the personal account (@me); project number required
     local org = (vim.env.OCTO_DEFAULT_ORG and vim.env.OCTO_DEFAULT_ORG ~= "" and vim.env.OCTO_DEFAULT_ORG) or "@me"
     local num = vim.env.OCTO_DEFAULT_PROJECT
     if not num or num == "" then

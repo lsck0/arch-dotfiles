@@ -39,8 +39,6 @@ export def seed []: nothing -> nothing {
     touch ($p.xl | path join .dalamud-from-secrets)
 }
 
-# dalamud's config, the plugin configs (character names, content ids) and each installed plugin's newest manifest,
-# the source repo and collection id link reinstalls it from
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path exists) { error make {msg: $"no ($p.config)"} }

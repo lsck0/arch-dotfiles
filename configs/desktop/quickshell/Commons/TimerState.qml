@@ -3,12 +3,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// single owner of pomodoro + reminder state; pomodoro.nu and reminder.nu mutate the files, this derives the live view
-// the running countdown is a 1Hz QML tick off the absolute end time, never a per-second script fork
+// countdowns tick in qml off the absolute end time, never a per-second script fork
 Singleton {
   id: root
 
-  // the scripts' runtime state, gone on boot
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
   readonly property string pomoPath: runtimeDir + "/quickshell-pomodoro/state.json"
   readonly property string reminderIndexPath: runtimeDir + "/quickshell-reminders/index.json"
@@ -16,18 +14,16 @@ Singleton {
   readonly property string pomoScript: Paths.script("pomodoro.nu")
   readonly property string reminderScript: Paths.script("reminder.nu")
 
-  // mirror pomodoro.nu work_default_min / long_every, only shown while idle
+  // mirrors pomodoro.nu work_default_min / long_every
   readonly property int pomoDefaultWorkMin: 25
   readonly property int pomoLongEvery: 4
 
-  // the reminders overlay sets this while open so its per-reminder countdowns tick
+  // set while the reminders overlay is open so its countdowns tick
   property bool overlayOpen: false
 
-  // raw file-backed state
   property var pomoState: ({})
   property var reminderList: []
 
-  // unix seconds, stepped by the 1Hz tick while something counts down
   property double nowSec: Math.floor(Date.now() / 1000)
 
   // the scripts write asynchronously and a fresh file may be missed by the watch, so ping a reload on every action
@@ -45,7 +41,7 @@ Singleton {
     root.nowSec = Math.floor(Date.now() / 1000)
   }
 
-  // "5m 3s", "5m", "3s" like reminder.nu remaining-format
+  // matches reminder.nu remaining-format
   function remainingText(seconds) {
     var s = Math.max(0, Math.floor(seconds))
     var m = Math.floor(s / 60)
@@ -59,7 +55,6 @@ Singleton {
   readonly property bool pomoPaused: !!pomoState.paused
   readonly property bool pomoTicking: pomoRunning && !pomoPaused
 
-  // paused freezes the leftover, else it counts down from the absolute end
   readonly property int pomoRemainingSeconds: {
     if (!pomoRunning) return 0
     var left = pomoPaused ? Number(pomoState.remaining || 0) : Number(pomoState.endsAt || 0) - nowSec
@@ -81,7 +76,6 @@ Singleton {
       + (pomoPaused ? " (paused)" : "")
     : "Pomodoro: off"
 
-  // the shape the overlay, Clock and the indicator read, recomputed as the tick and the files move
   readonly property var pomo: ({
     running: pomoRunning,
     paused: pomoPaused,
@@ -95,7 +89,6 @@ Singleton {
     tooltip: pomoTooltip
   })
 
-  // drop reminders whose absolute fire time has passed, expose a live remaining string
   readonly property var reminders: {
     var out = []
     var list = reminderList || []

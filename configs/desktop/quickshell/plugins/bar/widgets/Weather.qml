@@ -10,7 +10,6 @@ BarWidget {
   // not `data`, which Item already owns
   property var report: null
   property string errorText: ""
-  // last good forecast, for the stale marker
   property real updatedMs: 0
   // two missed background polls
   readonly property int staleAfterMs: 2 * 60 * 60 * 1000
@@ -18,7 +17,7 @@ BarWidget {
   readonly property var current: report && report.current ? report.current : null
   readonly property var hourly: report && report.hourly ? report.hourly : []
   readonly property var daily: report && report.daily ? report.daily : []
-  // starts tomorrow, today is the current block
+  // today is the current block
   readonly property var forecast: daily.length > 1 ? daily.slice(1) : []
   readonly property var hourlyTemps: hourly.map(function (h) { return Number(h.temp) })
   readonly property real hourlyTempMin: hourlyTemps.length > 0 ? Math.min.apply(null, hourlyTemps) : 0
@@ -52,7 +51,6 @@ BarWidget {
   function iconFor(code, isDay) { return wmoFor(code)[Number(isDay) === 0 ? 3 : 2] }
   function labelFor(code) { return wmoFor(code)[4] }
 
-  // direction the wind comes from
   function compass(deg) {
     var pts = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
     return pts[Math.round(Number(deg) / 45) % 8]
@@ -68,7 +66,6 @@ BarWidget {
   property var alerts: []
   property int countryOthers: 0
 
-  // orange and up
   readonly property var topAlert: alerts.length > 0 ? alerts[0] : null
   readonly property bool alertProminent: topAlert !== null && Number(topAlert.level) >= 3
 
@@ -87,14 +84,12 @@ BarWidget {
   readonly property var radarFrames: radar.frames || []
   readonly property int radarSpanKm: radar.spanKm || 0
 
-  // centre marker to square edge
   readonly property real radarReachKm: radarSpanKm > 0 ? radarSpanKm / 2 : 0
 
   readonly property int radarRingStepKm: {
     if (radarReachKm <= 0) return 0
     var target = radarReachKm / 3
     var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000]
-    // largest round step that still fits three rings
     var chosen = nice[0]
     for (let i = 0; i < nice.length; i++)
       if (nice[i] <= target) chosen = nice[i]
@@ -114,7 +109,7 @@ BarWidget {
   readonly property var radarFrame: radarFrames.length > 0
     ? radarFrames[Math.min(radarIndex, radarFrames.length - 1)] : null
 
-  // bar temp needs a background refresh, just slower while the panel is closed; hover also refreshes
+  // the bar temp needs a background refresh too
   JsonProcess {
     id: forecastProc
     command: [Paths.barWidget("weather.nu"), "forecast"]
@@ -122,13 +117,12 @@ BarWidget {
     intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
     onParsed: function (d) {
       root.errorText = d.ok ? "" : d.error
-      // keep the last good reading
       if (d.ok) { root.report = d; root.updatedMs = Date.now() }
     }
     onFailed: root.errorText = "parse failed"
   }
 
-  // drives the bar alert icon, so keep a background refresh, slower while closed
+  // the bar alert icon needs a background refresh too
   JsonProcess {
     id: alertsProc
     command: [Paths.barWidget("weather.nu"), "alerts"]
@@ -141,7 +135,6 @@ BarWidget {
     onFailed: root.alerts = []
   }
 
-  // radar only shows in the panel
   JsonProcess {
     id: radarProc
     command: [Paths.barWidget("weather.nu"), "radar"]
@@ -177,7 +170,7 @@ BarWidget {
       layer.enabled: Style.fx.glow > 0 && root.alertProminent
       layer.effect: Glow { shadowColor: root.topAlert ? root.alertColor(root.topAlert.level) : Colors.urgent }
 
-      // static once seen: three blinks when the warning appears, never a loop
+      // three blinks when the warning appears, never a loop
       readonly property int flashCount: 3
       SequentialAnimation on opacity {
         id: alertFlash
@@ -210,7 +203,6 @@ BarWidget {
       font.pixelSize: Style.font.body
       opacity: Style.emphasis.strong
     }
-    // `--` before the first reading, `x ERR` when there never was one, ` ~3h` when it is old
     DataState {
       anchors.verticalCenter: parent.verticalCenter
       loading: forecastProc.running
@@ -273,7 +265,6 @@ BarWidget {
       onTriggered: root.radarIndex = (root.radarIndex + 1) % root.radarFrames.length
     }
 
-    // capped to the screen, the rest scrolls
     Flickable {
       width: parent.width
       height: Math.min(content.implicitHeight, panel.maxBodyHeight)
@@ -323,7 +314,7 @@ BarWidget {
                   spacing: Style.spacing.xs
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "\u{f0026}"   // md-alert
+                    text: "\u{f0026}"
                     color: root.alertColor(alertItem.modelData.level)
                     font.family: Style.font.iconFamily
                     font.pixelSize: Style.font.caption
@@ -426,19 +417,19 @@ BarWidget {
           visible: root.current !== null
 
           Stat {
-            glyph: "\u{f058e}"; caption: "HUMIDITY"      // md-water_percent
+            glyph: "\u{f058e}"; caption: "HUMIDITY"
             value: root.current ? root.n0(root.current.humidity) + "%" : "--"
           }
           Stat {
-            glyph: "\u{f0590}"; caption: "CLOUD"          // md-weather_cloudy
+            glyph: "\u{f0590}"; caption: "CLOUD"
             value: root.current ? root.n0(root.current.cloud) + "%" : "--"
           }
           Stat {
-            glyph: "\u{f0599}"; caption: "UV"             // md-weather_sunny
+            glyph: "\u{f0599}"; caption: "UV"
             value: root.current ? (Math.round(Number(root.current.uv) * 10) / 10) : "--"
           }
           Stat {
-            glyph: "\u{f029a}"; caption: "PRESSURE"       // md-gauge
+            glyph: "\u{f029a}"; caption: "PRESSURE"
             value: root.current ? root.n0(root.current.pressure) + " hPa" : "--"
           }
 
@@ -449,7 +440,7 @@ BarWidget {
             Row {
               spacing: Style.spacing.xs
               Text {
-                text: "\u{f0390}"                          // md-navigation
+                text: "\u{f0390}"
                 rotation: root.current ? Number(root.current.windDir) + 180 : 0
                 color: Colors.menu.text; opacity: Style.emphasis.faint
                 font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
@@ -470,15 +461,15 @@ BarWidget {
           }
 
           Stat {
-            glyph: "\u{f059d}"; caption: "GUSTS"          // md-weather_windy
+            glyph: "\u{f059d}"; caption: "GUSTS"
             value: root.current ? root.n0(root.current.gust) + " " + root.windUnits : "--"
           }
           Stat {
-            glyph: "\u{f0597}"; caption: "RAIN NOW"       // md-weather_rainy
+            glyph: "\u{f0597}"; caption: "RAIN NOW"
             value: root.current ? (Math.round(Number(root.current.precip) * 10) / 10) + " mm" : "--"
           }
           Stat {
-            glyph: "\u{f050f}"; caption: "FEELS"          // md-thermometer
+            glyph: "\u{f050f}"; caption: "FEELS"
             value: root.current ? root.t(root.current.feelsLike) : "--"
           }
         }
@@ -491,7 +482,6 @@ BarWidget {
           height: Style.space(64)
           visible: root.hourly.length > 0
           color: Colors.menu.text
-          // hourly forecast changes twice an hour at most
           glow: true
           // the 0..1 defaults would push temps off-canvas
           minValue: root.hourlyTempMin - 1
@@ -541,7 +531,6 @@ BarWidget {
                 required property int index
                 width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
                 spacing: 0
-                // condition icon over the hour label, at each 6h tick
                 Text {
                   text: (hourTick.index % 6 === 0) ? (hourTick.modelData.windy ? "\u{f059d}" : root.iconFor(hourTick.modelData.code, 1)) : ""
                   color: Colors.accent
@@ -656,11 +645,9 @@ BarWidget {
           visible: root.radarFrames.length > 0
           clip: true
 
-          // square source scaled to width, cropped top and bottom
           readonly property real imgSize: width
           readonly property real yOffset: (height - imgSize) / 2
 
-          // one image re-sourced per frame
           Image {
             x: 0
             y: radarBox.yOffset
@@ -683,7 +670,6 @@ BarWidget {
             border.color: Util.alpha(Colors.accent, Style.hoverBorderAlpha)
           }
 
-          // one canvas for rings, wind, isobars and compass
           Canvas {
             id: fieldCanvas
             anchors.fill: parent
@@ -708,7 +694,6 @@ BarWidget {
               function onAccentChanged() { fieldCanvas.requestPaint() }
             }
 
-            // bilinear sample of an n x n grid
             function bilinear(field, n, gx, gy) {
               var x = Math.max(0, Math.min(n - 1.0001, gx))
               var y = Math.max(0, Math.min(n - 1.0001, gy))
@@ -738,7 +723,6 @@ BarWidget {
               function lerp(p, q, vp, vq) { return p + (q - p) * ((level - vp) / (vq - vp)) }
               function seg(p, q) { ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y) }
 
-              // isobars, marching squares
               var values = []
               var hasPressure = true
               for (let i = 0; i < cells.length; i++) {
@@ -794,7 +778,6 @@ BarWidget {
                 ctx.globalAlpha = 1
               }
 
-              // wind vectors, interpolated onto a denser lattice
               var ux = [], vy = []
               for (let ci = 0; ci < cells.length; ci++) {
                 let sp = Number(cells[ci].wind) || 0
@@ -854,7 +837,6 @@ BarWidget {
               }
               ctx.globalAlpha = 1
 
-              // range rings and centre marker
               var centreX = px(0.5), centreY = py(0.5)
               var reachKm = Number(root.radarReachKm) || 0
               var rings = root.radarRingsKm
@@ -897,7 +879,6 @@ BarWidget {
               ctx.fillStyle = Colors.accent
               ctx.fill()
 
-              // compass
               var cxc = Math.round(width * 0.115)
               var cyc = Math.round(height * 0.78)
               var rr = Math.max(4, Math.min(width, height) * 0.075)
@@ -953,7 +934,7 @@ BarWidget {
           spacing: Style.spacing.xs
 
           PanelActionButton {
-            iconText: root.radarPlaying ? "\u{f04c}" : "\u{f04b}"   // fa-pause / fa-play
+            iconText: root.radarPlaying ? "\u{f04c}" : "\u{f04b}"
             tooltipText: root.radarPlaying ? "Pause radar" : "Play radar"
             size: Style.space(22)
             fontSize: Style.font.caption

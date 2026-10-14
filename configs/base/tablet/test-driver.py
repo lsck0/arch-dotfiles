@@ -83,12 +83,12 @@ def drive(pen_frames, button_frames=(), calib=None):
     td.make_keys_uinput = lambda: keys_ui
 
     def feed(path, frames):
-        # Opening for write blocks until the driver opens the read end.
+        # opening for write blocks until the driver opens the read end
         with open(path, "wb", buffering=0) as handle:
             for frame in frames:
                 handle.write(frame)
                 time.sleep(0.0005)
-            # Let the driver drain, then make the node vanish so run() returns.
+            # let the driver drain, then remove the node so run() returns
             time.sleep(1.0)
             if path == pen_path:
                 os.unlink(pen_path)
@@ -144,7 +144,7 @@ def test_tip_drives_touch_and_pressure():
     check("hover reports no contact", touch and touch[0] == 0, f"got {touch}")
     check("tip switch reports contact", 1 in touch, f"got {touch}")
     check("hover pressure is zero despite raw 29", pressure and pressure[0] == 0, f"got {pressure}")
-    # The last value is the release the proximity timeout emits, not the touch.
+    # the last value is the proximity timeout's release, not the touch
     check("light touch outranks hover", max(pressure) >= td.TIP_FLOOR, f"got {pressure}")
 
 
@@ -182,7 +182,7 @@ def test_pen_buttons():
     pen, _, _ = drive([pen_report(20000, 100, 0)], buttons)
 
     def transitions(code):
-        # the proximity timeout releases stylus buttons when the pad goes quiet, so a leading 0 is expected and carries no information
+        # the proximity timeout releases stylus buttons when the pad goes quiet, so a leading 0 is expected
         seq = pen.values(e.EV_KEY, code)
         while seq and seq[0] == 0:
             seq.pop(0)

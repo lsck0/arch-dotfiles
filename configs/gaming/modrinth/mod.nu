@@ -10,7 +10,6 @@ def paths []: nothing -> record {
     }
 }
 
-# a profile's saves still in the launcher, or a synced pack the profile does not link yet
 def unlinked [p: record]: nothing -> list<path> {
     glob ($p.data | path join profiles *) --no-file | where {|profile|
         let live = $profile | path join saves
@@ -24,8 +23,7 @@ export def link [cfg: record] {
     let p = paths
     # launcher state (accounts, auth tokens, instances), seeded once; modrinth rewrites app.db in place with its -wal
     let seed = if (secret-is-plaintext $p.saved) and not ($p.db | path exists) { step seed } else { [] }
-    # worlds sync live through ~/sync, never while a game or the launcher has one open. only into a saves dir syncthing
-    # (or the person) made: one made here before syncthing delivers the real one collides with it
+    # only into a saves dir syncthing made: one made here first collides with the real one it delivers
     let busy = ps | where name in [java modrinth-app] | is-not-empty
     let relocate = (profile-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
     [$seed (if $relocate { step relocate } else { [] })]
@@ -38,8 +36,7 @@ export def seed []: nothing -> nothing {
     touch ($p.data | path join .from-secrets)
 }
 
-# don't play one world on two machines at once: syncthing turns concurrent writes into a conflict copy; an overwrite is
-# covered by ~/sync's versioning. a .mrpack import stays a gui step, its saves are relocated on the next apply
+# one world on two machines at once becomes a syncthing conflict copy
 export def relocate []: nothing -> nothing {
     let p = paths
     for profile in (unlinked $p) {
@@ -58,8 +55,7 @@ export def relocate []: nothing -> nothing {
     }
 }
 
-# app.db holds the accounts and settings; .backup checkpoints the -wal into one consistent file. caches, logs and the
-# profiles' worlds stay out (re-downloadable or synced)
+# .backup checkpoints app.db's -wal into one consistent file
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }

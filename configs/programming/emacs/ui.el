@@ -1,8 +1,5 @@
 ;;; ui.el --- theme, bars, visual aids -*- lexical-binding: t; -*-
 
-;;;; theme + font -----------------------------------------------------------
-
-;; follows the desktop theme
 (defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
 
 (defconst my/system-theme-alist
@@ -39,8 +36,7 @@ frames recolour on a theme switch exactly as a fresh launch would."
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  ;; the theme verb writes doom-pywal-theme.el into the cache, so a theme switch
-  ;; never touches the config; themes/ stays on the path for any hand-authored theme
+  ;; the theme verb writes doom-pywal-theme.el into the cache, so a switch never touches the config
   (add-to-list 'custom-theme-load-path
                (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME")
                                             (expand-file-name "~/.cache/"))))
@@ -49,15 +45,12 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (my/apply-system-theme)
   (doom-themes-org-config))
 
-;; family/size from early-init.el so the first frame is right
 (dolist (face '(default fixed-pitch variable-pitch))
   (set-face-attribute face nil
                       :family my/font-family
                       :height (* 10 my/font-size)))
 
 (use-package nerd-icons)
-
-;;;; bottom bar -------------------------------------------------------------
 
 (use-package doom-modeline
   :init (doom-modeline-mode 1)
@@ -67,24 +60,19 @@ frames recolour on a theme switch exactly as a fresh launch would."
         doom-modeline-buffer-encoding nil
         doom-modeline-icon t))
 
-;;;; top bar ----------------------------------------------------------------
-
-;; tab-bar tabs = tmux windows / nvim tabs
 (setq tab-bar-show 1
-      tab-bar-new-tab-choice "*scratch*"  ; nvim :tabnew: an empty buffer, not a file browser
-      tab-bar-tab-hints t                 ; number each tab
+      tab-bar-new-tab-choice "*scratch*"
+      tab-bar-tab-hints t
       tab-bar-close-button-show nil
       tab-bar-new-button-show nil
       tab-bar-format '(tab-bar-format-tabs tab-bar-separator))
 (tab-bar-mode 1)
 
-;; doom-themes skips tab labels; inherit so theme switches carry over
+;; doom-themes skips tab labels
 (set-face-attribute 'tab-bar-tab nil
                     :inherit 'tab-line-tab-current :box nil :weight 'bold)
 (set-face-attribute 'tab-bar-tab-inactive nil
                     :inherit 'tab-line-tab-inactive :box nil :weight 'normal)
-
-;;;; visual aids ------------------------------------------------------------
 
 (use-package indent-bars
   :hook (prog-mode . indent-bars-mode)
@@ -103,14 +91,11 @@ frames recolour on a theme switch exactly as a fresh launch would."
         '(("TODO" . "#ff7eb6") ("FIXME" . "#ee5396")
           ("HACK" . "#ffe97b") ("NOTE" . "#33b1ff"))))
 
-;; sticky header with the enclosing definition
 (use-package topsy
   :hook (prog-mode . topsy-mode))
 
-;; empty *scratch* in the main window, the dirvish sidebar already shows the files
 (setq initial-buffer-choice t)
 
-;; highlight on yank, like nvim's TextYankPost vim.hl.on_yank
 (defun my/yank-pulse (beg end &rest _)
   (pulse-momentary-highlight-region beg end))
 (with-eval-after-load 'evil

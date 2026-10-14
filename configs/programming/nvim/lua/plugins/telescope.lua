@@ -13,7 +13,7 @@ local ignore_filetypes_list = {
 
 return {
     {
-        "ThePrimeagen/harpoon", -- quick file bookmarks
+        "ThePrimeagen/harpoon",
         branch = "harpoon2",
         -- full specs so which-key labels them before harpoon loads
         keys = function()
@@ -50,11 +50,11 @@ return {
         end,
     },
     {
-        "nvim-telescope/telescope.nvim", -- fuzzy finder
+        "nvim-telescope/telescope.nvim",
         cmd = "Telescope",
         dependencies = {
             {
-                "nvim-telescope/telescope-fzf-native.nvim", -- fzf sorting backend
+                "nvim-telescope/telescope-fzf-native.nvim",
                 build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
             },
         },

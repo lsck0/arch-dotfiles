@@ -24,8 +24,7 @@ BarWidget {
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
-  // full when NM checks, unknown when its check is off (75-connectivity-check disables it at home, where the
-  // split-horizon dns can't answer the gstatic probe): a connected link with the check off is online, not "No internet"
+  // 75-connectivity-check turns NM's probe off at home (split-horizon dns), so unknown on a connected link is online
   readonly property bool reallyOnline: connectivity === "full" || (detailsConnected && connectivity === "unknown")
   property string detailsDevice: ""
   property string detailsSsid: ""
@@ -84,7 +83,6 @@ BarWidget {
     var now = Date.now()
     if (now - lastRefreshMs >= refreshMinAgeMs) refreshAll()
     else if (!detailsProc.running) detailsProc.running = true
-    // the cached list shows at once, a stale one is rescanned
     refreshWifiList(now - lastScanMs >= refreshMinAgeMs)
   }
 
@@ -94,7 +92,7 @@ BarWidget {
     root.connectingSsid = ssid
     root.connectError = ""
     connectProc.command = [Paths.barWidget("network-wifi-connect.nu"), ssid]
-    // the password goes over stdin, an argv is readable by anyone in /proc; closing stdin ends it
+    // over stdin, an argv is readable by anyone in /proc; closing stdin ends it
     connectProc.stdinEnabled = true
     connectProc.running = true
     connectProc.write((password || "") + "\n")
@@ -267,7 +265,6 @@ BarWidget {
     function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
   }
 
-  // live throughput for the open panel's sparklines
   Timer {
     interval: 2000
     running: panel.visible
@@ -277,11 +274,11 @@ BarWidget {
 
   readonly property bool onEthernet: detailsDevice.indexOf("en") === 0 || detailsDevice.indexOf("eth") === 0
   readonly property string statusIcon: {
-    if (offlineModeOn) return "\u{f072}"                                  // fa-plane
-    if (homeVpnState === "on" || protonVpnState === "on") return "\u{f023}" // fa-lock
-    if (!detailsConnected || connectivity === "none") return "\u{f0319}"  // md-lan_disconnect
-    if (connectivity === "limited" || connectivity === "portal") return "\u{f071}" // fa-warning
-    return onEthernet ? "\u{f0318}" : "\u{f1eb}"                         // md-lan_connect / fa-wifi
+    if (offlineModeOn) return "\u{f072}"
+    if (homeVpnState === "on" || protonVpnState === "on") return "\u{f023}"
+    if (!detailsConnected || connectivity === "none") return "\u{f0319}"
+    if (connectivity === "limited" || connectivity === "portal") return "\u{f071}"
+    return onEthernet ? "\u{f0318}" : "\u{f1eb}"
   }
   readonly property string connectivityLabel: {
     switch (connectivity) {
@@ -335,7 +332,6 @@ BarWidget {
     onOpened: root.panelOpened()
     // the password field holds the panel open while it has focus
     pinned: root.passwordFocused
-    // wifi password input needs keyboard
     acceptsKeyboard: true
     title: "NETWORK"
     implicitWidth: Style.panelWidth.normal

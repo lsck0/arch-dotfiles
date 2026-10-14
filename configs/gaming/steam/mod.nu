@@ -16,13 +16,11 @@ export def link [cfg: record] {
     let xtst = try { ^readlink ($steam | path join ubuntu12_32 libXtst.so.6) | str trim } catch { "" }
     let linked = $xtst | str starts-with $"($MILLENNIUM_LIB)/"
     [
-        # every game gets the mangohud overlay and obs capture through the wrapper
         (desktop-override steam.desktop {
             $in | str replace --all "/usr/bin/steam" ($env.PWD | path join steam-launch.nu)
         })
         (glob themes/cyberpunk/* | each {|f| file-copy $f (theme-dir | path join ($f | path basename)) })
-        # wallust renders colors.css into the theme dir itself, millennium ignores links out of it; a palette rendered
-        # before the dir existed only needs copying
+        # millennium ignores links out of the theme dir; a palette rendered before the dir existed only needs copying
         (if ($palette | path exists) and not ($colors | path exists) {
             exec steam-palette [cp $palette $colors] --creates $colors
         } else { [] })
@@ -30,8 +28,7 @@ export def link [cfg: record] {
         (json-merge ($nu.home-dir | path join .config millennium config.json) [
             (json-set [themes activeTheme] cyberpunk)
         ])
-        # gamemode + mangohud per game live in each game's launch options; the default goes onto installed games that
-        # have none (skipped while steam is open, it rewrites localconfig.vdf on exit). also a user command
+        # skipped while steam is open, it rewrites localconfig.vdf on exit
         (link-commands steam-launch-options.nu)
         (exec steam-launch-options [nu --no-config-file steam-launch-options.nu])
         # steam writes the watched file once, after a bootstrap or client update finished extracting

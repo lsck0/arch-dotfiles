@@ -52,7 +52,6 @@ QtObject {
     return next
   }
 
-  // "m:ss", "h:mm:ss" from an hour on
   function clock(seconds) {
     var total = isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0
     var h = Math.floor(total / 3600)
@@ -61,7 +60,7 @@ QtObject {
     return h > 0 ? h + ":" + String(m).padStart(2, "0") + ":" + ss : m + ":" + ss
   }
 
-  // minutes as "5m", "47h", "3d"; days only past two so "36h" stays exact
+  // days only past two so "36h" stays exact
   function span(minutes) {
     var m = Math.max(0, Math.round(Number(minutes) || 0))
     if (m < 60) return m + "m"
@@ -71,13 +70,12 @@ QtObject {
 
   function ago(minutes) { return span(minutes) + " ago" }
 
-  // the session locale's (LC_TIME) short formats; the date without its year, which a clock or a recent stamp never needs
+  // dates drop the year, a clock or a recent stamp never needs it
   readonly property string timeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property string dayFormat: Qt.locale().dateFormat(Locale.ShortFormat).replace(/\W*y+\W*/, "")
 
   readonly property var byteUnits: ["B", "KB", "MB", "GB", "TB"]
 
-  // binary units at three significant digits: "512 B", "1.5 MB", "523 MB"; rates append "/s"
   function bytes(count) {
     var v = Math.max(0, Number(count) || 0)
     var i = 0
@@ -85,7 +83,7 @@ QtObject {
     return Number(v.toPrecision(3)) + " " + byteUnits[i]
   }
 
-  // severity color for a higher-is-worse value against ascending [warn, high, critical], on Colors.ramp
+  // thresholds ascending [warn, high, critical]
   function level(value, thresholds) {
     var stops = Colors.rampStops
     if (value >= thresholds[2]) return Colors.ramp(stops[3])
@@ -94,7 +92,6 @@ QtObject {
     return Colors.ramp(stops[0])
   }
 
-  // image source for a freedesktop icon name, path or url; "" when there is none
   function iconSource(icon) {
     var value = String(icon || "")
     if (value.length === 0) return ""
@@ -103,10 +100,8 @@ QtObject {
     return Quickshell.iconPath(value, true)
   }
 
-  // sparkline window, one sample per poll
   readonly property int historyCountMax: 60
 
-  // copy-on-write append that keeps the newest historyCountMax samples
   function historyPush(history, value) {
     var next = (history || []).slice()
     next.push(value)

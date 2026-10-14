@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// icon button for inline row actions
 BorderSurface {
   id: root
 

@@ -8,8 +8,7 @@ local function is_pointer_type(hover)
     -- arrowdot only runs for clangd, which returns a MarkupContent (contents.value)
     local text = hover.contents.value or ""
 
-    -- only the hovered symbol's own type counts: clangd puts it on a "Type:" line before any docs, and a
-    -- `*` inside template args (std::vector<int *>) or a doc comment says nothing about it
+    -- clangd puts the symbol's type on a "Type:" line; a `*` in template args or docs says nothing
     local line = ("\n" .. text):match("\nType: ([^\n]*)")
     if not line then
         return false

@@ -18,13 +18,11 @@ export def link [cfg: record] {
         (file-copy xdg/xdg-terminals.list ($config | path join xdg-terminals.list))
         # volatile like tlp's forced mode, so a reboot never leaves power-saver tweaks behind
         (file-link ($runtime | path join toggles ghostty-powersave.conf) ($nu.home-dir | path join .cache ghostty-powersave.conf))
-        # xwayland's GDK_SCALE reaches launched apps, not this resident instance's shells; env only goes to what a tab
-        # runs, so ghostty's own gtk keeps the compositor's fractional scale
+        # GDK_SCALE only for what a tab runs, so ghostty's own gtk keeps the compositor's fractional scale
         (file-text ($config | path join dotfiles ghostty-env.conf) $"env = GDK_SCALE=($scale)\n")
         (dropin $SERVICE systemd/override.conf)
         # a prefix drop-in, so every app-ghostty-surface-transient-<pid>.scope picks it up
         (dropin app-ghostty-surface-transient-.scope systemd/surface.conf)
-        # prewarm at login, windows open over d-bus via ghostty +new-window
         (unit-enable $SERVICE)
     ]
 }

@@ -2,7 +2,6 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// divider between groups of bar widgets
 BarWidget {
   id: root
   moduleName: "separator"
@@ -10,7 +9,6 @@ BarWidget {
   readonly property int thickness: Math.max(1, Style.space(1))
   readonly property int pad: setting("pad", Style.bar.groupGap)
 
-  // hide unless there is visible content on both sides
   property bool hasNeighbours: false
 
   // parent is the BarSection Loader, its parent the RowLayout
@@ -29,7 +27,6 @@ BarWidget {
       if (!loader || loader === ownLoader) return false
       var item = loader.item
       if (!item || !item.visible) return false
-      // separators and zero-width widgets are not content
       if (item.moduleName === "separator") return false
       return item.implicitWidth > 0
     }

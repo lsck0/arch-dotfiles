@@ -229,8 +229,8 @@ export def link [cfg: record] {
     ]
 }
 
-# hyprland reloads by itself on a config write, which drops the runtime-only monitor layout and shader; a reload here
-# lands after that one, the toggles put both back, the shader last since a scale re-render after it would drop it again
+# a config write reloads hyprland, dropping the runtime monitor layout and shader; the shader goes last, a scale
+# re-render after it would drop it again
 export def reload []: nothing -> nothing {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return }
     let toggles = $env.DOTFILES | path join scripts toggles
@@ -239,7 +239,6 @@ export def reload []: nothing -> nothing {
     ^($toggles | path join toggle-shader.nu) reapply
 }
 
-# hyprland does not watch the wal colors
 export def theme [cfg: record, wallpaper: string] {
     step reload
 }

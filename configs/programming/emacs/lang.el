@@ -1,10 +1,7 @@
 ;;; lang.el --- treesitter, LSP, diagnostics, formatting -*- lexical-binding: t; -*-
 
-;;;; treesitter --------------------------------------------------------------
-
 (setq treesit-font-lock-level 4)
 
-;; auto-install grammars, route major modes to *-ts-mode
 (use-package treesit-auto
   :init (setq treesit-auto-install 'prompt)
   :config
@@ -19,7 +16,7 @@
 (defun my/treesit-install-langs ()
   "Build the missing grammars of `my/treesit-langs' at treesit-auto's pinned revisions, without asking.
 Signals when one failed, after trying the rest."
-  ;; js-ts-mode also wants jsdoc, which treesit-auto has no recipe for; js.el registers its source
+  ;; js-ts-mode also wants jsdoc, which treesit-auto has no recipe for
   (require 'js)
   (let ((treesit-language-source-alist (append (treesit-auto--build-treesit-source-alist)
                                                treesit-language-source-alist))
@@ -33,10 +30,7 @@ Signals when one failed, after trying the rest."
     (when failed
       (error "tree-sitter: building %s failed" (nreverse failed)))))
 
-;;;; LSP ---------------------------------------------------------------------
-
-;; the servers come from nvim's mason (the nvim module installs them), which puts its bin dir on PATH only inside nvim.
-;; ahead of /usr/bin like mason's own prepend, so rust-analyzer is mason's and not the componentless rustup proxy
+;; mason's bin dir is on PATH only inside nvim; ahead of /usr/bin so rust-analyzer is not the rustup proxy
 (let ((mason-bin (expand-file-name "nvim/mason/bin" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
   (when (file-directory-p mason-bin)
     (add-to-list 'exec-path mason-bin)
@@ -69,10 +63,9 @@ Signals when one failed, after trying the rest."
           zig-mode nix-mode haskell-mode typst-ts-mode) . eglot-ensure)
   :config
   (setq eglot-autoshutdown t
-        eglot-events-buffer-size 0        ; don't log every LSP message
+        eglot-events-buffer-size 0
         eglot-extend-to-xref t
-        ;; pyright watches all of /usr/lib/python3.x (~14k dirs) and exits when the watch is refused;
-        ;; the inotify limit is 524288
+        ;; pyright exits when a watch is refused, /usr/lib/python3.x alone is ~14k dirs
         eglot-max-file-watches 50000)
 
   (add-hook 'eglot-managed-mode-hook
@@ -102,20 +95,16 @@ Signals when one failed, after trying the rest."
   :commands (git-link git-link-homepage)
   :config (setq git-link-open-in-browser t))
 
-;; floating hover box instead of the echo area
 (use-package eldoc-box
   :hook (eglot-managed-mode . eldoc-box-hover-at-point-mode))
-
-;;;; diagnostics -------------------------------------------------------------
 
 (use-package flymake
   :ensure nil
   :hook (prog-mode . flymake-mode)
   :config
-  ;; built in since emacs 30, so no sideline package
   (setq flymake-show-diagnostics-at-end-of-line 'short
         flymake-no-changes-timeout 0.5
-        flymake-wrap-around t))                 ; C-t past the last diagnostic cycles, like trouble
+        flymake-wrap-around t))
 
 (defun my/diagnostic-at-point ()
   "nvim SPC l o: show the diagnostics under the cursor."
@@ -124,21 +113,15 @@ Signals when one failed, after trying the rest."
       (message "%s" (mapconcat #'flymake-diagnostic-text diags "\n"))
     (message "No diagnostics at point")))
 
-;;;; structure (aerial.nvim, nvim-ufo) ------------------------------------------
-
-;; symbol outline on the right
 (use-package imenu-list
   :commands imenu-list-smart-toggle
   :config (setq imenu-list-position 'right
                 imenu-list-size 30
                 imenu-list-focus-after-activation nil))
 
-;; zR / zM / za fold through hideshow
 (add-hook 'prog-mode-hook #'hs-minor-mode)
 
-;;;; formatting --------------------------------------------------------------
-
-;; personal style only where the project has no config of its own, like conform's personal() in nvim lsp.lua
+;; personal style only where the project has no config of its own
 (defun my/formatting-args (names flag file)
   "FLAG joined to the personal FILE (configs/programming/formatting, copied beside init.el), nil when a project config is found.
 NAMES is a list of file names, or a predicate on a directory, searched upward from `default-directory'."
@@ -157,12 +140,10 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
                (insert-file-contents pyproject)
                (search-forward "[tool.ruff" nil t))))))
 
-;; async format-on-save
 (use-package apheleia
   :init (apheleia-global-mode 1)
   :config
-  ;; the args go right after the program name, past the apheleia-npx wrapper (prettier, not the wrapper, reads them);
-  ;; apheleia evaluates the form per buffer and drops a nil
+  ;; args go past the apheleia-npx wrapper; apheleia drops a nil
   (pcase-dolist (`(,formatter . ,form)
                  '((clang-format . (my/formatting-args '(".clang-format" "_clang-format") "--style=file:" "clang-format"))
                    (stylua . (my/formatting-args '("stylua.toml" ".stylua.toml") "--config-path=" "stylua.toml"))
@@ -185,12 +166,11 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
         (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff))
   (dolist (m '(c-mode c-ts-mode c++-mode c++-ts-mode))
     (setf (alist-get m apheleia-mode-alist) 'clang-format))
-  ;; missing formatter binaries are skipped
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
         (alist-get 'sortderives apheleia-formatters) '("sort-derives-stdout"))
   (dolist (m '(rust-mode rust-ts-mode))
     (setf (alist-get m apheleia-mode-alist) '(rustfmt sortderives)))
-  ;; leptosfmt only in leptos projects, else it errors on plain Rust
+  ;; leptosfmt errors on plain rust
   (dolist (hook '(rust-mode-hook rust-ts-mode-hook))
     (add-hook hook (lambda ()
                      (when (my/cargo-toml-mentions-p "leptos")
@@ -205,12 +185,10 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   (dolist (m '(lua-mode lua-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'stylua))
   (dolist (m '(nix-mode nix-ts-mode))   (setf (alist-get m apheleia-mode-alist) 'nixfmt)))
 
-;;;; major modes not bundled with Emacs --------------------------------------
-
 (use-package haskell-mode :defer t)
 (use-package zig-mode     :defer t)
 (use-package nix-mode     :defer t)
-(use-package typst-ts-mode :defer t) ; formats through apheleia's builtin typstyle, like conform in nvim
+(use-package typst-ts-mode :defer t)
 (use-package just-mode    :mode "[Jj]ustfile\\'")
 
 (use-package markdown-mode
@@ -226,7 +204,6 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   :config
   (setq org-directory "~/orgfiles/"
         org-default-notes-file (expand-file-name "refile.org" org-directory)
-        ;; nvim-orgmode reads ~/orgfiles/**/*
         org-agenda-files (when (file-directory-p org-directory)
                            (directory-files-recursively org-directory "\\.org\\'"))))
 
@@ -235,9 +212,7 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   :mode "\\.jai\\'"
   :hook (jai-mode . eglot-ensure))
 
-;;;; prose: hard wrap + spell ---------------------------------------------------
-
-;; nvim's spellfile: hunspell reads and appends to its plain word list, so zg in either editor feeds one list
+;; nvim's spellfile, so zg in either editor feeds one list
 (defconst my/spell-words (expand-file-name "~/.config/nvim/spell/en.utf-8.add"))
 (defconst my/spell-dictionary "en_US")
 
@@ -305,9 +280,6 @@ Like nvim's spelloptions=camel, GitHub or LaTeX is never flagged; whole identifi
   (when (eq major-mode 'text-mode) (my/prose-setup)))
 (add-hook 'text-mode-hook #'my/prose-setup-plain-text)
 
-;;;; notebooks (molten + jupytext.nvim) --------------------------------------
-
-;; `# %%` cells, .ipynb round-trip via jupytext
 (use-package code-cells
   :hook ((python-mode python-ts-mode markdown-mode) . code-cells-mode-maybe))
 

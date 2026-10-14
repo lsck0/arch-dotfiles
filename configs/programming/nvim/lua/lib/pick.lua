@@ -1,4 +1,3 @@
--- telescope over plain { display, value } items, shared by the project and worktree pickers
 local M = {}
 
 --- Open a telescope picker over ITEMS. Confirming calls ON_SELECT with the selected value, or with nil and the typed

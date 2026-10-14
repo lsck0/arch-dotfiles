@@ -13,7 +13,6 @@ BarWidget {
   property bool ok: false
   // "source" means no readable homelab checkout
   property string error: ""
-  // no checkout (guest, or not cloned): hidden and no longer polled
   property bool absent: false
   property var links: ({ homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
   property var services: []
@@ -57,7 +56,6 @@ BarWidget {
     running: true
     // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
-    // full detail only while the panel is open
     command: panel.visible
       ? [Paths.barWidget("homelab-status.nu"), "30"]
       : [Paths.barWidget("homelab-status.nu"), "300", "--summary"]
@@ -148,7 +146,6 @@ BarWidget {
     onClicked: root.open(root.links.homepage)
   }
 
-  // a stat that opens its service page
   component LinkStat: StatRow {
     property string url: ""
     property bool alert: false

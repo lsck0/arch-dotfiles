@@ -7,19 +7,7 @@ import Quickshell.Widgets
 import qs.Commons
 import qs.Ui
 
-// output button in the bar; the panel is the mixer: devices, loudness lanes, per-app faders and routing, what obs taps
 BarWidget {
-    /*
-   * ---------------------------------------------------------------------------
-   * PANEL PARTS
-   * ---------------------------------------------------------------------------
-   */
-    /*
-   * ---------------------------------------------------------------------------
-   * PANEL
-   * ---------------------------------------------------------------------------
-   */
-
     id: root
 
     readonly property var sink: Pipewire.defaultAudioSink
@@ -29,7 +17,6 @@ BarWidget {
     readonly property bool micMuted: source && source.audio ? source.audio.muted : true
     // meters, per-app binds and lane reads only exist while the panel shows
     readonly property bool live: panel.shown
-    // stream whose route chooser is open
     property int routingStreamId: -1
     // lane fader positions by lane name: stream keeps music a bed under voice, chill lets it lead
     readonly property var presets: [{
@@ -45,7 +32,6 @@ BarWidget {
             "voice": 0.85
         }
     }]
-    // a preset reads as active within this volume distance
     readonly property real presetTolerance: 0.02
     readonly property bool deafened: muted && micMuted
     readonly property string activePreset: {
@@ -160,7 +146,6 @@ BarWidget {
             }
         }
 
-        // capped to the screen, the rest scrolls
         Flickable {
             width: parent.width
             height: Math.min(content.implicitHeight, panel.maxBodyHeight)
@@ -422,7 +407,6 @@ BarWidget {
 
                 PanelRow {
                     width: parent.width
-                    // md-graph-outline: the full node graph, for routing the panel does not cover
                     glyph: "\u{f1049}"
                     label: "Patchbay (qpwgraph)"
                     onActivated: {
@@ -448,7 +432,6 @@ BarWidget {
         font.pixelSize: Style.font.caption
     }
 
-    // small outlined label: role, OBS, lane state
     component Tag: Rectangle {
         id: tag
 
@@ -478,7 +461,6 @@ BarWidget {
 
     }
 
-    // section title left, extras right
     component SectionHead: Item {
         id: head
 
@@ -506,7 +488,7 @@ BarWidget {
 
     }
 
-    // live level of a node, dbfs scaled; the capture stream behind it exists only while active
+    // the capture stream behind it exists only while active
     component Meter: Item {
         id: meter
 
@@ -533,8 +515,6 @@ BarWidget {
 
     }
 
-    // mute glyph, cubic fader, db readout. drives a pipewire node, or an external value (an obs input)
-    // when external is set; lane prints a small system/OBS tag at the left and narrows the control
     component Fader: Item {
         id: fader
 
@@ -543,7 +523,6 @@ BarWidget {
         property string glyph: "\u{f057e}"
         property string mutedGlyph: "\u{f075f}"
         property string lane: ""
-        // external mode drives an obs input (by label) instead of a pipewire node
         property bool external: false
         property string obsLabel: ""
         readonly property real obsMul: external ? (Number(ObsProcess.inputVolumes[obsLabel]) || 0) : 0
@@ -644,9 +623,7 @@ BarWidget {
 
     }
 
-    // a source obs taps: the pipewire fader (what you hear) and, while obs is connected and carries
-    // this input, a second fader for the obs input volume (what the stream hears), independent of it.
-    // a single plain fader otherwise, so untapped sources and a disconnected obs read as before.
+    // the obs fader is independent: what the stream hears, not what you hear
     component ObsPair: Column {
         id: pair
 
@@ -682,7 +659,6 @@ BarWidget {
 
     }
 
-    // one app: identity, role, obs tap, route, fader, meter
     component StreamRow: Column {
         id: stream
 
@@ -800,7 +776,6 @@ BarWidget {
 
     }
 
-    // a loudness lane: leveler switch, fader, in/out meters and the apps it carries
     component LaneBlock: Column {
         id: lane
 

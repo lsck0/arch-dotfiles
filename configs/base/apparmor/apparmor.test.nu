@@ -1,13 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# profiles.conf keeps every program that opens other people's content in enforce and the module's own profiles are
-# well formed; where apparmor.d is installed, every name exists and every profile and drop-in compiles. no root, run
-# by dot test lint; the loaded modes themselves are checked by mod.nu's load step at the end of every config run.
-# APPARMOR_D_SRC and APPARMOR_ETC point the compile step at an apparmor.d build instead of the installed one
 
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
-# browsers, mail, chat, media, documents, images, torrents, archives, transcoders, the lan file receiver, the
-# rce-capable mcp servers, and the openers they all hand links to
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
@@ -19,7 +13,6 @@ def basenames [dir: string]: nothing -> list<string> {
     ls $dir | get name | path basename
 }
 
-# "<profile> <mode>[,<flag>...]", apparmor.d's flags.d row; the module's own profiles carry their flags in the header
 def rows-check [rows: table]: nothing -> list<string> {
     let own = basenames profiles
     let malformed = $rows | each {|r|
@@ -40,7 +33,6 @@ def rows-check [rows: table]: nothing -> list<string> {
     $malformed ++ $listed_twice ++ ($loose | each { $"($in) is not enforced in profiles.conf" })
 }
 
-# the module's own: listed, marked for aa.nu, named after the file, with the flags clause mod.nu puts the mode in
 def own-check [rows: table]: nothing -> list<string> {
     let profiles = basenames profiles | each {|name|
         let lines = open --raw ($"profiles/($name)") | lines
@@ -74,14 +66,13 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
             if $n in $upstream { $"apparmor.d now ships ($n), drop profiles/($n)" }
         } else if $n not-in $upstream { $"apparmor.d has no profile named ($n)" }
     } | compact
-    # the repo's abstractions and drop-ins in front of the installed ones
     let work = mktemp -d
     mkdir ($work | path join abstractions dotfiles) ($work | path join local)
     glob abstractions/* | each { cp $in ($work | path join abstractions dotfiles) } | ignore
     glob local/* | each { cp $in ($work | path join local) } | ignore
     let profiles = $own | each { $"profiles/($in)" } | where not (parse-ok $it $work $etc)
         | each { $"($in) does not compile" }
-    # an upstream profile apparmor.d deployed here, under its overwrite name when it replaced a stock one
+    # apparmor.d deploys a profile that replaces a stock one as <name>.apparmor.d
     let locals = basenames local | each {|n|
         let target = [$"($n).apparmor.d" $n] | each {|f| $etc | path join $f }
             | where ($it | path exists) and ($it | path expand | path type) == file | get --optional 0

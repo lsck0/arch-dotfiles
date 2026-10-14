@@ -13,7 +13,6 @@ import "NotificationLogic.js" as NotificationLogic
 Item {
   id: service
 
-  // injected by shell.qml
   property var shell: null
 
   readonly property string stateDir: Paths.state + "/"
@@ -36,7 +35,7 @@ Item {
     printErrors: false
     onAdapterUpdated: writeAdapter()
 
-    // quickshell's qmltypes ship FileViewAdapter as an opaque stub, so qmllint cannot type FileView's default property
+    // quickshell's qmltypes stub FileViewAdapter
     JsonAdapter { // qmllint disable unresolved-type
       id: settings
       property bool dnd: false
@@ -53,18 +52,18 @@ Item {
 
   readonly property alias doNotDisturb: settings.dnd
 
-  // user-facing setter: a manual change takes dnd away from obs, so closing obs leaves it alone
+  // a manual change takes dnd away from obs, so closing obs leaves it alone
   function setDoNotDisturb(value) {
     persisted.dndByObs = false
-    // settings sits in FileView's opaque adapter slot (above), so qmllint cannot resolve the id
+    // settings sits in FileView's opaque adapter slot
     settings.dnd = !!value // qmllint disable unqualified
   }
 
-  // obs turns dnd on while it runs and off on exit, only if dnd was off before it started
+  // obs clears dnd on exit only if dnd was off before it started
   Connections {
     target: ObsProcess
     function onRunningChanged() {
-      // a shell reload re-detects a running obs, the persisted session flag keeps a manual off from flipping back
+      // a reload re-detects a running obs; the persisted flag keeps a manual off from flipping back
       if (ObsProcess.running && !persisted.obsSession) {
         persisted.obsSession = true
         persisted.dndByObs = !settings.dnd // qmllint disable unqualified
@@ -256,7 +255,7 @@ Item {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
-    // uwsm-app, a browser started here must not join quickshell.service in session.slice
+    // a browser started here must not join quickshell.service
     if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
     else if (!invokeDefaultAction(entry)) focusApp(entry)
     removePopup(index)
@@ -330,7 +329,7 @@ Item {
   readonly property string trimScript:
     "ls -1 \"$dir\" 2>/dev/null | sort -n | head -n \"-$keep\" | while IFS= read -r stale; do rm -f \"$dir/$stale\" \"$imgs/${stale%.json}\"-*; done"
 
-  // copies the entry's images and writes it into dir; history is trimmed to historyLimit
+  // history is trimmed to historyLimit
   function writeEntryFile(entry, dir, done) {
     var persistable = NotificationLogic.persistablePopup(entry, imagesDir)
     var command = ["bash", "-c",
@@ -801,7 +800,6 @@ Item {
             if (cardSlot.ticking) expiryTimer.restart()
           }
 
-          // time left until the next segment boundary
           function nextStepMs() {
             var below = (cardSlot.segmentsLeft - 1) * cardSlot.quarterMs
             return Math.max(1, cardSlot.remainingMs - below)

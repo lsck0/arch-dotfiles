@@ -1,7 +1,6 @@
--- tinymist lsp starts via mason automatic_enable (see lsp.lua)
 return {
     {
-        "chomosuke/typst-preview.nvim", -- live browser preview for typst
+        "chomosuke/typst-preview.nvim",
         ft = "typst",
         version = "1.*",
         build = function()

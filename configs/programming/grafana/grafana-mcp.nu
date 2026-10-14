@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# claude's grafana entry (mod.nu) runs this: mcp-grafana over stdio against the homelab grafana, whose url comes from
-# the homelab's desktop export (src/generated/lab.json) and whose service account token comes from secrets. read only:
-# no write or admin tools, no docs lookups on grafana.com, no usage stats
+# mcp-grafana over stdio against the homelab grafana, read only
 
 const REPO = path self | path expand | path dirname --num-levels 4
 

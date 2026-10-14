@@ -5,7 +5,6 @@ const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
 # herdr wants a lighter dark floor than the clamp band; a light theme's conditioned bg is already right
 const DARK_FLOOR = 0.16
-# the surfaces are fg blended over that bg
 const BLENDS = {
     active_row_bg: 0.06, selection_bg: 0.11, surface_dim: 0.0, surface0: 0.08, surface1: 0.14, overlay0: 0.22
     overlay1: 0.34, subtext0: 0.65
@@ -13,8 +12,7 @@ const BLENDS = {
 const SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
 const WAL_COLORS = ".cache/wal/colors.json"
 
-# config.toml with its pywal block filled from the palette; the whole file is rendered, so a switch never touches the
-# repo
+# rendered whole, so a theme switch never touches the repo
 def config-text []: nothing -> string {
     let source = open --raw config.toml
     if not ($nu.home-dir | path join $WAL_COLORS | path exists) { return $source }

@@ -48,6 +48,5 @@ def main []: nothing -> nothing {
         }
     }
     ^herdr-open $selected ($selected | path basename)
-    # outside herdr: attach a client
     if ($env.HERDR_ENV? | is-empty) { exec herdr }
 }

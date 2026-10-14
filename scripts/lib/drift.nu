@@ -1,7 +1,4 @@
-# drift across the machines this repo drives: each publishes its ledger and what it diverged by into
-# secrets/drift/<host> (git-crypt: a machine's package set stays out of the public repo, sync carries it to the
-# others), and the view diffs every published report against its platforms/<host>.nuon and against each other. a report
-# holds no time, so an unchanged machine leaves the file and the worktree alone
+# reports live in git-crypt so a machine's package set stays out of the public repo; no time in them, so no diff when unchanged
 
 use pipeline.nu [pipeline-load]
 use modules.nu [modules-packages]
@@ -13,15 +10,13 @@ use state.nu [SYSTEM_STATE]
 const REPO = path self ../..
 const REPORTS = path self ../../secrets/drift
 const WITNESS = path self ../../secrets/pgp_privatekey.asc
-# names shown per line before the rest is only counted
 const SHOWN_MAX = 12
 
 def ledger [layer: string, kind: string]: nothing -> list<string> {
     with-env {DOT_LAYER: $layer} { ledger-get $kind }
 }
 
-# enabled against the vendor preset, neither owned nor pulled in by an owned unit's Also=; the rule the ledger's
-# unit report follows during a run
+# a unit pulled in by an owned unit's Also= is not by hand; the ledger's unit report follows the same rule
 def units-by-hand [scope: string, layer: string]: nothing -> list<string> {
     let owned = ledger $layer unit | parse "{scope} {name}" | where scope == $scope | get name
     let also = if ($owned | is-empty) { [] } else {
@@ -33,14 +28,13 @@ def units-by-hand [scope: string, layer: string]: nothing -> list<string> {
     | get name | where $it not-in $owned | sort
 }
 
-# declared names neither installed nor provided nor a group with an installed member
+# a provided name or a group with an installed member counts as present
 def packages-missing [names: list<string>]: nothing -> list<string> {
     with-env {LC_ALL: C} { do { ^pacman -Qq ...$names } | complete }
     | get stderr | lines | parse "error: package '{name}' was not found" | get name
     | where {|n| (do { ^pacman -Qqg $n } | complete).exit_code != 0 }
 }
 
-# this machine's report
 export def drift-report []: nothing -> string {
     let ctx = pipeline-load $REPO system
     if $ctx.platform.file == null { error make {msg: $"drift: no platform file for (sys host | get hostname)"} }
@@ -64,7 +58,6 @@ export def drift-report []: nothing -> string {
     ] | str join "\n" | $"($in)\n"
 }
 
-# the report into secrets/drift/<host>, only when it changed
 export def drift-publish []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
     let dest = $REPORTS | path join (sys host | get hostname)
@@ -82,7 +75,6 @@ def names [kind: string, report: path]: nothing -> list<string> {
     | uniq | sort
 }
 
-# the label, the count and the first SHOWN_MAX names, nothing for none
 def line [label: string, names: list<string>]: nothing -> nothing {
     if ($names | is-empty) { return }
     let more = if ($names | length) > $SHOWN_MAX { $" \(+(($names | length) - $SHOWN_MAX) more\)" } else { "" }
@@ -94,8 +86,6 @@ def snapshot-of [report: path]: nothing -> string {
     names snapshot $report | each { split row " " | first 2 | str join " " } | str join "\n"
 }
 
-# every published report: declared groups, missing and hand-installed packages, units enabled by hand, the
-# snapshot, then what the hosts disagree on
 export def drift-view []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "drift: secrets/ is locked: dot secrets unlock"} }
     let reports = glob ($REPORTS | path join "*") --no-dir | where not ($it | str ends-with ".new") | sort
@@ -130,7 +120,6 @@ export def drift-view []: nothing -> nothing {
     line "by hand on every host" $everywhere
     for a in $reports {
         for b in ($reports | where $it != $a) {
-            # what one machine manages and another has only by hand: declared in a group the other lacks
             let label = $"($a | path basename) by hand, ($b | path basename) managed"
             line $label (names hand $a | where $it in (names pkg $b))
         }

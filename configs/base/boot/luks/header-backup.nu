@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the root volume's LUKS header into the git-crypt secrets, never onto a plaintext disk: a damaged header loses the
-# whole disk. run as the admin after every keyslot change (passphrase, yubikey, TPM seal), then commit secrets. a backup
-# keeps opening with whatever passphrase it held, so after removing a leaked one, overwrite every older copy
+# a backup keeps opening with whatever passphrase it held: after removing a leaked one, overwrite every older copy
 
 const REPO = path self | path expand | path dirname | path join ../../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
@@ -19,7 +17,7 @@ def main []: nothing -> nothing {
     let device = $"/dev/($part.0.name)"
     let name = $"luks-header-(open --raw /etc/hostname | str trim).img"
     let dest = $secrets | path join $name
-    # git-crypt encrypts only what .gitattributes filters, a plaintext header must never reach the pushed repo
+    # git-crypt encrypts only what .gitattributes filters
     if not (^git -C $secrets check-attr filter -- $name | str trim | str ends-with ": filter: git-crypt") {
         die $"secrets/.gitattributes does not git-crypt ($name)"
     }
@@ -27,7 +25,7 @@ def main []: nothing -> nothing {
     if (^sudo test -e $STAGE_KEY_FILE | complete).exit_code == 0 {
         die "the stage keyfile is still armed, run this after the stage chain"
     }
-    # root-only tmpfs: cryptsetup writes the backup as root and refuses an existing file
+    # cryptsetup writes the backup as root and refuses an existing file
     let tmp = ^sudo mktemp -d | str trim
     let failed = try {
         ^sudo cryptsetup luksHeaderBackup $device --header-backup-file $"($tmp)/header.img"

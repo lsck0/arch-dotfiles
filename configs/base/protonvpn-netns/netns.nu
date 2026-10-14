@@ -1,7 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# the "protonvpn" network namespace, whose only way out is a wireguard tunnel to proton. the tunnel's udp socket stays
-# in the main namespace with wg-quick's fwmark 51820, so fw-egress lets it out on any link (the same rule as for
-# proton0); inside, nothing but lo and the tunnel exist, so a dead tunnel means no network, never a leak
+# the tunnel's udp socket stays in the main namespace with wg-quick's fwmark, which fw-egress lets out
 
 const NS = "protonvpn"
 const IFACE = "wg-protonvpn"

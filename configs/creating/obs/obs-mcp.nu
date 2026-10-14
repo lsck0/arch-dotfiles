@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# claude's obs-mcp entry: royshil's obs-mcp (stdio) talking obs-websocket v5 on loopback. the websocket password is
-# read from obs's own plugin config at each start, so it never lands in ~/.claude.json and a regenerated one just works.
-# the server is the module's pinned npm ci install, never a runtime fetch
+# the websocket password is read from obs's plugin config at each start, so it never lands in ~/.claude.json
 
 const WS_CONFIG = ".config/obs-studio/plugin_config/obs-websocket/config.json"
 const WS_PORT_DEFAULT = 4455

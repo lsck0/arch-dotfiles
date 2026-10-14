@@ -1,8 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# ghostty-window [--title=<title>] [--working-directory=<dir>] [-e <command...>]: what xdg-terminal-exec runs for a
-# Terminal=true entry, a window of the resident ghostty over d-bus. a hung instance (gtk main loop stuck: d-bus still
-# answers a ping, every action times out after 25s) or a missing one gets a kitty window instead, else the launch
-# opens nothing
+# ghostty-window [--title=<title>] [--working-directory=<dir>] [-e <command...>]: xdg-terminal-exec's terminal
+# a hung ghostty still answers a d-bus ping while every action times out after 25s, so kitty takes over
 
 def ghostty-answers []: nothing -> bool {
     (^timeout 3 gdbus call --session --timeout 2 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty

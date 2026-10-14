@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# focus the herdr workspace labelled <label>, or create it for <dir> as three tabs: 1 nvim, 2 claude, 3 zsh (or as the
-# dir's own .herdr-create lays it out, as tms runs a .tms-create)
+# focus herdr workspace <label>, or create it for <dir> as nvim, claude, zsh tabs (or by the dir's .herdr-create)
 
 # anchored to end-of-line so a stray mid-output glyph does not match early
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'

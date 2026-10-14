@@ -23,9 +23,7 @@ export def detect [cfg: record]: nothing -> record {
     {dpi: ($DPI_BASE * $scale | math round | into int)}
 }
 
-# lutris rewrites runners/wine.yml from its preferences dialog, so the two keys are merged in on each run; a game's own
-# wine options still win, and lutris writes both LogPixels keys from them (battle.net's cef renders blank when they
-# differ)
+# lutris writes both LogPixels keys from a game's own wine options; battle.net's cef renders blank when they differ
 export def link [cfg: record] {
     if (which lutris | is-empty) { return [] }
     # lutris reads ~/.config/lutris only when it exists

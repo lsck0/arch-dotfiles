@@ -5,9 +5,9 @@ export const meta = {packages: {native: [python-evdev]}}
 # the T1161's usb product id; its udev rule starts the driver on an add event
 const PRODUCT_ID = "6811"
 
-# udev rules that keep the kernel's nodes out of libinput's way, plus the userspace driver (tablet-driver.py says why)
+# udev rules that keep the kernel's nodes from libinput, plus the userspace driver (tablet-driver.py says why)
 export def system [cfg: record] {
-    # udevadm comes with systemd everywhere, wsl included, where windows owns the hardware
+    # wsl has udevadm too, but windows owns the hardware
     if (which udevadm | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let plugged = glob /sys/bus/usb/devices/*/idProduct | any { (open --raw $in | str trim) == $PRODUCT_ID }
     # a tablet already plugged in gets no add event

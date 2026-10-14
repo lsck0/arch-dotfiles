@@ -50,7 +50,6 @@ Item {
     BorderSurface {
       id: card
       width: Math.min(parent.width - Style.space(32), Style.space(370))
-      // grows with the wrapped message
       height: card.contentTopInset + card.contentBottomInset + messageText.implicitHeight + Style.space(20) + Style.space(34)
       anchors.centerIn: parent
       opacity: root.opened ? 1 : 0

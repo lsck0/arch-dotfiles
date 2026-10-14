@@ -1,7 +1,7 @@
 use module.nu *
 
 const PAM_ENV = "/etc/security/pam_env.conf"
-# every session gets the base dirs; zshrc sets GOPATH only interactively, and mason's go would create ~/go
+# zshrc sets GOPATH only interactively, and mason's go would create ~/go
 const PAM_LINES = [
     "XDG_CONFIG_HOME DEFAULT=@{HOME}/.config" "XDG_CACHE_HOME  DEFAULT=@{HOME}/.cache"
     "XDG_DATA_HOME   DEFAULT=@{HOME}/.local/share" "XDG_STATE_HOME  DEFAULT=@{HOME}/.local/state"
@@ -19,12 +19,10 @@ export def pam-env []: nothing -> nothing {
 }
 
 const DIRS = [desktop documents downloads music pictures videos sync vault]
-# xdg-user-dirs-update's capitalized defaults from before user-dirs.conf; rmdir keeps any with content
+# xdg-user-dirs-update's old defaults; rmdir keeps any with content
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
-# keep $HOME clean. move: the tool reads an app-dirs.conf var and recreates its dir there, nothing stays in ~. link:
-# the tool hardcodes ~/<name>, its data lives under the xdg dirs and ~/<name> links to it (a bin dir on PATH as
-# ~/<name>/bin resolves through the link). an existing target wins, the source stays for a person to merge
+# move: the tool reads an app-dirs.conf var; link: it hardcodes ~/<name>. an existing target wins, the source stays
 const RECLAIM = [
     [name target mode];
     [.dotnet .local/share/dotnet move] [.omnisharp .config/omnisharp move] [.ipython .config/ipython move]
@@ -58,7 +56,7 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-# dolphin's places, authoritative and in order; it keeps its own Devices and Network sections apart
+# authoritative and in order; dolphin keeps its own Devices and Network sections apart
 def places [nas: bool]: nothing -> string {
     let h = $"file://($nu.home-dir)"
     let rows = [
@@ -88,25 +86,21 @@ export def link [cfg: record] {
     [
         (step home-dirs)
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
-        # systemd's user manager and uwsm read it for every unit and graphical app, zshenv for shells
         (files-into ($config | path join environment.d) app-dirs.conf)
         ($RECLAIM | where mode == link | each {|r| file-link (home $r.target) (home $r.name) })
         # nemo also claims FileManager1 and sorts first; the user dir wins
         (file-copy dolphin.FileManager1.service
             (home .local share dbus-1 services org.freedesktop.FileManager1.service))
-        # folders apps force into ~, hidden in dolphin and nemo
         (file-copy home.hidden (home .hidden))
         # a user entry with Hidden=true shadows the system one of the same id
         (autostart-hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
         })
-        # portal backend preference per session (XDG_CURRENT_DESKTOP picks the file); a user kde-portals.conf replaces
-        # plasma's whole file, so it repeats plasma's lines around the Secret change
+        # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         (if (which Hyprland | is-not-empty) { files-into $portals hyprland-portals.conf } else { [] })
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
-        # sidebar order, dolphin and gtk/nemo alike: Home, the xdg folders, Vault, Sync, NAS, Trash; gtk renders Home,
-        # the xdg dirs and Trash itself
+        # gtk renders Home, the xdg dirs and Trash itself
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
         (file-text (home .local share user-places.xbel) (places $nas) --generated)
         # a fresh user has no applications dir yet, and update-desktop-database fails on a missing one

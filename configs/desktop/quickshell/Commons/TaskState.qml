@@ -3,13 +3,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// single owner of the pending taskwarrior list: the bar count, the desktop agenda and the tasks panel all read this
-// one export instead of polling their own. mutations go through run() by uuid and refresh after, and the due
-// notification fires from here, once per task and due time
+// single owner: the bar, the desktop agenda and the tasks panel read this one export
 Singleton {
   id: root
 
-  // a slow poll keeps the bar count and the due check current; opening the panel and every mutation refresh at once
+  // opening the panel and every mutation refresh at once
   readonly property int refreshMs: 3 * 60 * 1000
   readonly property int dueSoonMs: 15 * 60 * 1000
   // a deleted recurring task asks about its siblings; confirmation=off does not cover that prompt
@@ -17,7 +15,7 @@ Singleton {
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
   readonly property string glyph: "\u{f0756}" // md-format-list-checks
 
-  // the panel binds to this so the bar, the desktop card and IPC all toggle the same overlay
+  // shared so the bar, the desktop card and ipc toggle one overlay
   property bool panelOpen: false
 
   // sorted rows: {uuid, desc, project, tags, due, dueMs, overdue, active, urgency}
@@ -56,10 +54,9 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
-  // soonest due first, then urgency; a task with no due date sinks below dated ones
+  // undated tasks sink below dated ones
   function buildTasks(data) {
-    // data arrives as a QML sequence object, not a true Array (Array.isArray is false across the var signal), so
-    // copy it by length
+    // a qml sequence across the var signal, not an Array, so copy by length
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
     var out = []
     for (let i = 0; i < list.length; i++) {
@@ -101,7 +98,7 @@ Singleton {
     exportProc.run()
   }
 
-  // argv words after `task`, e.g. [uuid, "done"]; queued so two quick keypresses never race
+  // queued so two quick keypresses never race
   function run(args) {
     root.queue = root.queue.concat([root.taskArgv.concat(args)])
     runNext()
@@ -115,8 +112,7 @@ Singleton {
     mutateProc.running = true
   }
 
-  // raw taskwarrior syntax, one argv word per whitespace run, so `fix bar project:x due:tomorrow` parses its
-  // attributes and nothing passes through a shell
+  // one argv word per whitespace run, so attributes parse and nothing passes through a shell
   function add(text) {
     var words = String(text || "").trim().split(/\s+/).filter(function (w) { return w.length > 0 })
     if (words.length === 0) return
@@ -127,7 +123,6 @@ Singleton {
   function remove(uuid) { if (uuid) run([uuid, "delete"]) }
   function toggleActive(uuid, active) { if (uuid) run([uuid, active ? "stop" : "start"]) }
 
-  // one quiet notification per check for every task newly due within dueSoonMs or overdue
   function checkDue() {
     if (!root.notifiedReady || !root.loaded) return
     var now = Date.now()

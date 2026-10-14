@@ -1,7 +1,5 @@
 ;;; files-setup.el --- file browser -*- lexical-binding: t; -*-
 
-;; sidebar = nvim's snacks explorer (tree in place, dotfiles + gitignored marked, H hides both); full dired = oil
-
 (defconst my/tree-ignored-mark "\ue668"
   "Sidebar marker for gitignored entries: the nerd font seti-ignored glyph nvim's explorer shows.")
 
@@ -21,7 +19,7 @@
         (names (directory-files dir nil directory-files-no-dot-files-regexp t)))
     (when names
       (with-temp-buffer
-        ;; outside a repo git exits 128 and prints nothing on stdout, so the table stays empty
+        ;; outside a repo git exits 128 with empty stdout
         (apply #'process-file "git" nil '(t nil) nil "check-ignore" "--" names)
         (dolist (name (split-string (buffer-string) "\n" t))
           (puthash (directory-file-name name) t table))))
@@ -122,7 +120,7 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
   :init (dirvish-override-dired-mode 1)
   :config
   (setq dirvish-attributes '(nerd-icons file-size collapse subtree-state vc-state git-msg)
-        ;; no size or commit message: the sidebar is 30 columns, as narrow as the nvim explorer
+        ;; the sidebar is only 30 columns wide
         dirvish-side-attributes '(nerd-icons collapse subtree-state vc-state tree-dim tree-mark)
         dirvish-use-header-line 'global
         dirvish-mode-line-format '(:left (sort symlink) :right (omit yank index))
@@ -133,13 +131,13 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
           ("p" "~/projects/"                     "projects")
           ("c" "~/projects/arch-dotfiles/configs/" "configs")))
 
-  ;; -v: version sort puts dotfiles first and file2 before file10; it compares bytes, so capitals sort before lowercase
-  ;; --ignore=.git: nvim's explorer excludes **/.git, -I is not overridden by --almost-all
+  ;; -v puts dotfiles first
+  ;; --ignore=.git: --almost-all overrides -I
   (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first -v --ignore=.git"
-        dired-dwim-target t                         ; other window = default target
+        dired-dwim-target t
         dired-recursive-copies 'always
         dired-recursive-deletes 'top
-        dired-kill-when-opening-new-dired-buffer t  ; no buffer pileup
+        dired-kill-when-opening-new-dired-buffer t
         delete-by-moving-to-trash t)
 
   (dirvish-define-attribute tree-dim
@@ -158,11 +156,7 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
       `(right . ,(propertize (if (eq state 'ignored) my/tree-ignored-mark my/tree-hidden-mark)
                              'face (or hl-face 'dired-ignored)))))
 
-  ;; not `dirvish-side-follow-mode': it runs from `buffer-list-update-hook', which fires for any buffer that
-  ;; merely becomes current -- a background process buffer, a `with-current-buffer' inside eglot or diff-hl --
-  ;; and then re-roots the sidebar at that buffer's `default-directory'. Hence the jumping. Drive the follow
-  ;; off the selected window instead, after a short debounce, and like lib/explorer.lua only ever reveal
-  ;; inside the current root: a file elsewhere leaves the tree alone, SPC f p and SPC g f re-root it.
+  ;; not dirvish-side-follow-mode: buffer-list-update-hook fires for background buffers and re-roots the sidebar
   (defvar my/dirvish-side-follow-timer nil)
 
   (defun my/dirvish-side-follow--now ()
@@ -200,10 +194,7 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
     "Sidebar buffers: resizable, explorer keys, fresh gitignore data, the H state."
     (when-let* ((dv (dirvish-curr))
                 ((eq (dv-type dv) 'side)))
-      ;; :config is macroexpanded before dirvish loads, so nothing here may need the struct at
-      ;; expansion time: `(setf (dv-size-fixed dv) ...)' becomes a call to the void
-      ;; `(setf dv-size-fixed)', and `cl-struct-slot-value' inlines `(cl-typep dv 'dirvish)',
-      ;; which falls back to calling the `dirvish' command on DV. Resolve the slot at runtime.
+      ;; :config is macroexpanded before dirvish loads, so struct accessors must resolve at runtime
       (setf (aref dv (cl-struct-slot-offset 'dirvish 'size-fixed)) nil)
       (setq-local window-size-fixed nil
                   my/tree-ignored-cache nil)
@@ -233,7 +224,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
           ((cdr (window-list))
            (dolist (win (get-buffer-window-list (get-scratch-buffer-create)))
              (delete-window win)))))
-  ;; focus stays in the main window
   (when (display-graphic-p)
     (save-selected-window (dirvish-side))))
 

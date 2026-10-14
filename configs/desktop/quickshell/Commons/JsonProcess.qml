@@ -1,32 +1,7 @@
 import QtQuick
 import Quickshell.Io
 
-/**
- * JsonProcess: runs a command that prints JSON and hands back the decoded value.
- *
- * One type for the three shapes the shell needs:
- *   one-shot   call refresh(); parsed fires once the command exits, with all of stdout
- *   polled     intervalMs > 0 also refreshes at start and every intervalMs; bind it to 0 to pause
- *   streaming  streaming: true decodes every stdout line on its own; start with running: true or refresh()
- *
- * Properties:
- *   command     argv list
- *   intervalMs  poll period, 0 means no timer
- *   minAgeMs    refresh() is a no-op while the last run is younger than this; polls ignore it
- *   streaming   one JSON value per line instead of one per run
- *   running     the process is alive; set false to stop a stream
- *
- * Signals:
- *   parsed(data)   one decoded value
- *   failed(error)  stdout, or one line of it, was not JSON (an empty run counts)
- *
- * Usage:
- *   JsonProcess {
- *     command: [Paths.barWidget("agent-usage.nu")]
- *     intervalMs: 10 * 60 * 1000
- *     onParsed: function (data) { root.usage = data }
- *   }
- */
+// minAgeMs rate-limits refresh() only, polls ignore it; an empty run counts as failed
 QtObject {
   id: root
 
@@ -47,7 +22,6 @@ QtObject {
     proc.running = true
   }
 
-  // hover and open refreshes, rate-limited by minAgeMs
   function refresh() {
     if (minAgeMs > 0 && Date.now() - lastRunMs < minAgeMs) return
     run()

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# holds a systemd-inhibit lock against sleep and idle, tracked by its pid
 use lib.nu [switch-run state-file]
 
 const INHIBIT = [systemd-inhibit --what=sleep:idle --who=toggles "--why=keep-awake toggle enabled" --mode=block sleep infinity]

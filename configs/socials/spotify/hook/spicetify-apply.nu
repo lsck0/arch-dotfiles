@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# spicetify apply once spotify is logged in and the user's copy is unpatched (first login, or an upgrade replaced it);
-# permanent, a patched copy is a no-op. /opt/spotify stays root's: a client every user runs is never writable by one
+# spicetify apply once spotify is logged in and the user's copy is unpatched; /opt/spotify stays root's
 
 const UNMAP = path self | path expand | path dirname --num-levels 2 | path join spicetify-unmap-classes.nu
 const SPOTIFY_SYSTEM = "/opt/spotify"
@@ -29,7 +28,6 @@ def "main locked" []: nothing -> nothing {
     let dir = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join spotify-patched
     let apps = $dir | path join Apps
     let stamp = $dir | path join .dotfiles-source
-    # a fresh copy per installed client: reflinked on btrfs, a plain copy elsewhere
     let spa = $SPOTIFY_SYSTEM | path join Apps xpui.spa
     let mtime = if ($spa | path exists) { ^stat -c %Y $spa | str trim } else { "" }
     let source = $"(^pacman -Q spotify | str trim) ($mtime)"
@@ -42,8 +40,7 @@ def "main locked" []: nothing -> nothing {
     }
     ^spicetify config spotify_path $dir | ignore
     if not ($apps | path join xpui.spa | path exists) and ($apps | path join xpui | path exists) { return }
-    # a fresh copy no longer matches the backup, so apply fails and a fresh backup is taken. -n: spicetify's restart
-    # would start the copy itself, outside spotify-launch.nu's apparmor profile; the next launch picks the patch up
+    # -n: spicetify's restart would start the copy outside spotify-launch.nu's apparmor profile
     try { ^spicetify -n apply } catch { ^spicetify -n backup apply }
     ^spicetify -n enable-devtools
     ^$UNMAP ($apps | path join xpui)

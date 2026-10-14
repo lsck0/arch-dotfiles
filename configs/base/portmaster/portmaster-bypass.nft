@@ -1,11 +1,6 @@
 #!/usr/sbin/nft -f
-# owns only table inet portmaster_bypass. portmaster queues every new connection to userspace (~7 ms cpu each, a
-# connect scan is one per port) and answers dns meant for a target's server; a connection whose connmark is 1710
-# (its accept-always verdict) is restored and never queued nor dns-redirected, so this sets that mark first for:
-# loopback (dns and dot left to its interception), pentest vpns to lab ranges (a full-tunnel vpn's internet traffic
-# stays filtered), and sockets of the pentest group (configs/pentesting/pentest) and of libvirt-qemu (system vms,
-# filled in by the service): a slirp guest leaves as its qemu process, and its own portmaster's dot to a resolver ip
-# reads here as a dns bypass and is refused, so the guest goes offline; the guest filters itself
+# connmark 1710 is portmaster's accept-always verdict: never queued (~7 ms cpu each) nor dns-redirected
+# libvirt-qemu: a slirp guest's own dot reads as a dns bypass and is refused, so the guest filters itself
 
 define lab_ifaces = { "tun*" }
 define lab_v4 = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 }
@@ -17,14 +12,12 @@ table inet portmaster_bypass {
         type gid
     }
 
-    # the homelab's dns (HOMELAB_DNS in /etc/NetworkManager/homelab.env, filled by the service): its plain answers carry
-    # the split-horizon zone, so resolved's per-link query to it (homelab-routes.nu) must not be redirected to
-    # portmaster's own resolver. empty off a homelab machine
+    # its plain answers carry the split-horizon zone, so resolved's query must not go to portmaster's resolver
     set lab_dns {
         type ipv4_addr
     }
 
-    # home links, filled by configs/base/networkmanager/home-network.nu; empty off home so the lab-dns bypass is inert there
+    # filled by 70-home-network; empty off home, so the lab-dns bypass is inert there
     set home_ifaces {
         type ifname
     }
@@ -38,7 +31,6 @@ table inet portmaster_bypass {
         ct mark != 0 return
 
         oifname "lo" meta l4proto { tcp, udp } th dport != { 53, 853 } ct mark set 1710
-        # split-horizon dns to the lab router, out a home link only: let resolved's query reach it unredirected
         oifname @home_ifaces ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 ct mark set 1710
         oifname $lab_ifaces ip daddr $lab_v4 ct mark set 1710
         oifname $lab_ifaces ip6 daddr $lab_v6 ct mark set 1710

@@ -20,8 +20,7 @@ def main [action: string = "toggle"] {
             if not (try { "killswitch" in (open $settings) } catch { false }) {
                 ^protonvpn config set kill-switch standard | complete
             }
-            # portmaster's connmark restore overwrites the wireguard fwmark and loops tunnel packets back into proton0.
-            # auto-vpn has no admin to ask for the stop: refused, the persona dispatcher stops it as proton0 comes up
+            # portmaster's connmark restore clobbers the wireguard fwmark; no admin to ask under auto-vpn, the dispatcher stops it
             ^systemctl --no-ask-password stop portmaster.service | complete
             let connect = ^protonvpn connect --country $COUNTRY | complete
             let output = $connect.stdout + $connect.stderr

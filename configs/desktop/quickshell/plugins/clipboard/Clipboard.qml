@@ -198,7 +198,7 @@ Item {
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
     } else if (row.fullText && !copyTextProc.running) {
-      // over stdin: an argv caps at 128 KiB per arg and is readable in /proc; closing stdin lets wl-copy fork off
+      // argv caps at 128 KiB and is readable in /proc; closing stdin lets wl-copy fork off
       copyTextProc.stdinEnabled = true
       copyTextProc.running = true
       copyTextProc.write(row.fullText)
@@ -414,7 +414,6 @@ Item {
               height: root.rowHeight
               radius: Style.shape.data
               opacity: panel.boot.rowOpacity(index)
-              // selected row keeps a faint fill before the cursor engages
               color: hasCursor ? root.selectedBackground
                 : index === root.selectedIndex ? Style.hoverFill : "transparent"
 
@@ -445,7 +444,6 @@ Item {
                   width: visible ? parent.height : 0
                   height: parent.height
                   source: rowDelegate.previewImage
-                  // decode at row height, not full size
                   sourceSize.height: Math.ceil(parent.height * Screen.devicePixelRatio)
                   fillMode: Image.PreserveAspectFit
                   asynchronous: true

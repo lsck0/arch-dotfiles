@@ -1,7 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# load it87 and regenerate a safe /etc/fancontrol every boot before fancontrol starts, so the config matches the live
-# hwmon numbering (it87 shuffles hwmonN across reboots); every fan follows Tctl on a gentle curve with an airflow
-# floor, so no pwmconfig and no per-fan mapping
+# regenerated every boot: it87 shuffles hwmonN across reboots
 
 const SYS = "/sys"
 const HWMON = $"($SYS)/class/hwmon"
@@ -10,10 +8,10 @@ const CONFIG = "/etc/fancontrol"
 const BOARD = "X870E AORUS ELITE WIFI7"
 const FORCE_ID = "0x8622"
 const INTERVAL_S = 10
-# quiet below the minimum, full by the maximum; ryzen Tctl idles ~45C and boosts to ~85C under load
+# ryzen Tctl idles ~45C and boosts to ~85C under load
 const TEMP_MIN_C = 60
 const TEMP_MAX_C = 85
-# 16% floor: near-silent at idle, still spins every fan so a mis-identified channel never stalls
+# 16%: near-silent, still spins every fan so a mis-identified channel never stalls
 const PWM_FLOOR = 40
 const PWM_START = 90
 const PWM_MAX = 255
@@ -37,7 +35,7 @@ def main []: nothing -> nothing {
     if $it87 == null { return (bios "it87 did not load (check dmesg for the force_id)") }
     let k10 = hwmon-find '^k10temp$'
     if $k10 == null { return (bios "no k10temp sensor") }
-    # Tctl is the control temperature, temp1 without its label
+    # temp1 when unlabeled
     let tctl = glob $"($HWMON)/($k10)/temp*_label" | where { (read $in) == "Tctl" }
         | each { path basename | str replace "_label" "_input" } | get --optional 0 | default temp1_input
     let pwms = glob $"($HWMON)/($it87)/pwm[0-9]" | path basename | sort
@@ -62,7 +60,7 @@ def main []: nothing -> nothing {
         $"MINPWM=(do $every $PWM_FLOOR)"
         $"MAXPWM=(do $every $PWM_MAX)"
     ] | str join "\n" | $"($in)\n" | save --force $CONFIG
-    # no systemctl here: this runs before fancontrol.service, which must not be touched while it starts
+    # no systemctl here: fancontrol.service must not be touched while it starts
     let curve = $"($PWM_FLOOR)/($PWM_MAX) floor, full by ($TEMP_MAX_C)C"
     print --stderr $"fancontrol: ($pwms | length) fan channel\(s\) on ($it87) now follow Tctl \(($curve)\)"
 }

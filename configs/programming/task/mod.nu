@@ -30,8 +30,7 @@ def secret-read [file: path]: nothing -> string {
     open --raw $file | str trim --right
 }
 
-# the include taskrc needs: from the secrets, the file as it is while they are locked, else empty (taskwarrior refuses
-# a missing include)
+# taskwarrior refuses a missing include: locked secrets keep the file as it is, else empty
 def sync-text [cfg: record]: nothing -> string {
     let rc = $nu.home-dir | path join $SYNC_RC
     if $cfg.sync_url == null { return "" }
@@ -55,7 +54,6 @@ export def link [cfg: record] {
     let bugwarrior = (profile-has identity) and (which bugwarrior | is-not-empty)
     [
         (file-copy taskrc ($nu.home-dir | path join .taskrc))
-        # palette-driven colour rules, included by taskrc
         (file-copy wal.theme ($nu.home-dir | path join .taskrc.wal.theme))
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
         # taskrc includes it; programming/bugwarrior writes the real one

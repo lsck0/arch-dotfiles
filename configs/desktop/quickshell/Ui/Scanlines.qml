@@ -9,11 +9,9 @@ Item {
   visible: shown && (Style.fx.scanlineOpacity > 0 || Style.fx.flicker > 0)
   z: 10
 
-  // caller gate, combined with the fx settings
   property bool shown: true
   property int spacing: Style.fx.scanlineSpacing
   property real strength: Style.fx.scanlineOpacity
-  // opt-in: two flicker cycles when the surface appears, never a loop
   property bool flicker: false
   readonly property int flickerCycles: 2
 

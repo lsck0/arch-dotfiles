@@ -1,6 +1,3 @@
-# every record is structured ({time, level, run, span, module, verb, kind, target, ms, outcome, msg}): "<tag>: <msg>"
-# on stderr at or above DOT_LOG (INFO), and one json line in the run's file, which dot log reads and journald gets
-
 use state.nu [state-dir SYSTEM_STATE]
 
 const LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
@@ -37,7 +34,6 @@ export def log-info [message: string, fields: record = {}]: nothing -> nothing {
 export def log-warn [message: string, fields: record = {}]: nothing -> nothing { log-record WARN $message $fields }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# one nonfatal failure of the run, in the FAILURES file the driver keeps
 export def fail [message: string]: nothing -> nothing {
     log-err $message {kind: failure}
     $"($message)\n" | save --append $env.FAILURES_FILE
@@ -52,8 +48,7 @@ export def --env run-begin [name: string]: nothing -> nothing {
     log-debug $"run ($name)" {kind: run, target: $name}
 }
 
-# span <name> <fields> <body>: a timed span nested under the open one, which child processes inherit; an error
-# still closes it
+# child processes inherit the open span; an error still closes it
 export def span [name: string, fields: record, body: closure]: nothing -> any {
     let id = random chars --length 8 | str lowercase
     let start = date now
@@ -68,7 +63,6 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
     }
 }
 
-# the run's records at INFO and above to journald, one structured entry each
 export def run-journal []: nothing -> nothing {
     if ($env.DOT_RUN_FILE? | is-empty) or not ($env.DOT_RUN_FILE | path exists) { return }
     open --raw $env.DOT_RUN_FILE | lines | each { from json } | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|

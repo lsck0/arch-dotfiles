@@ -3,16 +3,15 @@ import QtQuick
 import Quickshell
 import Quickshell.Services.Pipewire
 
-// one view of the pipewire graph for the audio widgets: devices, lanes, app streams, who taps what
 Singleton {
   id: root
 
-  // configs/desktop/pipewire/mod.nu: sink lane.<name> with playback lane.<name>.out, headset eq sink eq with playback eq.out
+  // lane and eq names come from configs/desktop/pipewire/mod.nu
   readonly property string lanePrefix: "lane."
   readonly property string eqName: "eq"
-  // the eq switch is this unit's enablement, so it persists
+  // the eq switch is the unit enablement so it persists
   readonly property string eqUnit: "pipewire-chain@eq.service"
-  // node.name of quickshell's own PwNodePeakMonitor capture streams
+  // node.name of our own PwNodePeakMonitor streams
   readonly property string peakMonitorName: "quickshell"
   // obs names pulse captures after the app and pipewire captures "OBS: <source>"
   readonly property var obsNamePattern: /^OBS(:|$)/
@@ -47,7 +46,7 @@ Singleton {
     return out
   }
 
-  // the sink or lane a stream plays into, seen through the eq, null while unlinked
+  // seen through the eq, null while unlinked
   function sinkOf(node) {
     var targets = targetsOf(node)
     for (let i = 0; i < targets.length; i++)
@@ -59,7 +58,6 @@ Singleton {
     return targetsOf(node).some(t => isObs(t))
   }
 
-  // capture streams on the default source, minus the panel's own meters
   readonly property var micListeners: targetsOf(Pipewire.defaultAudioSource).filter(t => t.isStream && !isPeakMonitor(t))
 
   function appEntry(node) {
@@ -103,7 +101,6 @@ Singleton {
     if (d <= floorDb) return "-inf"
     return (d > 0 ? "+" : "") + d.toFixed(1)
   }
-  // 0..1 meter position for a peak
   function meterPosition(peak) { return Math.max(0, Math.min(1, 1 - db(peak) / floorDb)) }
 
   // md-volume mute / high / medium / low
@@ -114,13 +111,12 @@ Singleton {
     return "\u{f057f}"
   }
 
-  // one volumeStep in the direction of a wheel delta
   function nudge(node, delta) {
     if (!node || !node.audio || delta === 0) return
     node.audio.volume = Math.max(0, Math.min(1, node.audio.volume + (delta > 0 ? volumeStep : -volumeStep)))
   }
 
-  // null target hands the stream back to its role lane or the default sink
+  // null hands the stream back to its role lane or the default sink
   function route(stream, target) {
     if (!stream) return
     if (target) Quickshell.execDetached(["pw-metadata", String(stream.id), "target.object", target.name])

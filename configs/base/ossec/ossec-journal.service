@@ -1,5 +1,4 @@
-# arch logs only to journald, and ossec's own journald reader never reads (upstream 3.8 gates its loop on an
-# uninitialized ret): the auth facilities (sshd, sudo, su, pam, login) as a syslog file logcollector tails like secure
+# ossec 3.8's own journald reader never reads (its loop is gated on an uninitialized ret)
 [Unit]
 Description=Journal auth log for OSSEC logcollector
 PartOf=ossec-server.target
@@ -9,13 +8,11 @@ Before=ossec-logcollector.service
 [Service]
 # syslog month names, whatever the system locale
 Environment=LC_ALL=C
-# the cursor survives the run and the boot: a restart resumes where the last one stopped, no gap, no repeat. the log
-# lives on tmpfs, so a boot empties it and nothing needs rotating. append, never truncate: logcollector keeps its
-# offset past a shrunk file and reads nothing more
+# append, never truncate: logcollector keeps its offset past a shrunk file and reads nothing more
 StateDirectory=ossec-journal
 ExecStart=/usr/bin/journalctl --follow --output=short --facility=auth,authpriv --cursor-file=${STATE_DIRECTORY}/cursor
 StandardOutput=append:/run/ossec-journal.log
-# root only, like the journal it copies: journald shows auth lines to wheel and adm alone, logcollector runs as root
+# root only, like the auth journal it copies
 UMask=0077
 Restart=on-failure
 

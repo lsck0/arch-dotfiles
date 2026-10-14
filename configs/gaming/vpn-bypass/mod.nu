@@ -4,10 +4,7 @@ const DISPATCHER = "/etc/NetworkManager/dispatcher.d/85-games-route"
 const UNIT = "games-bypass.service"
 const RELOAD = [systemctl reload-or-restart games-bypass.service]
 
-# the games group's traffic around proton0 on the real link, fail safe: a game leaves the tunnel, nothing else does, and
-# a missing piece leaves the game on the vpn. the group (steam-launch enters it through sudoers), table inet
-# games_bypass marking its sockets, and an NM dispatcher keeping table 100 and a fwmark rule on the physical gateway;
-# the kill switch lets the mark out in configs/base/nftables/fw-egress.nft
+# the games group's traffic around proton0, fail safe: a missing piece leaves the game on the vpn
 export def system [cfg: record] {
     if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     # a broken drop-in would break sudo for every admin
@@ -17,8 +14,7 @@ export def system [cfg: record] {
         (file-copy sudoers /etc/sudoers.d/25-games-bypass --mode 440)
         (file-copy games-bypass.nft /etc/nftables.d/games-bypass.nft --then $RELOAD)
         (unit-file $UNIT --enable --then $RELOAD)
-        # NM owns this only where it is present (not in a bare vm); runs in name order after home-network and
-        # homelab-routes
+        # NM only where present (not a bare vm); in name order after home-network and homelab-routes
         (if ("/etc/NetworkManager/dispatcher.d" | path exists) {
             [(file-copy games-route.nu $DISPATCHER --mode 755) (step nudge)]
         } else { [] })

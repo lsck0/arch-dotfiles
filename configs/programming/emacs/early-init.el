@@ -7,7 +7,7 @@
 (setq package-enable-at-startup nil)
 
 (defvar my/font-family "Kode Mono")
-(defvar my/font-size 16)
+(defvar my/font-size 15)
 
 (setq default-frame-alist
       `((tool-bar-lines . 0)
@@ -26,7 +26,6 @@
       initial-scratch-message nil
       native-comp-async-report-warnings-errors 'silent)
 
-;; don't pop *Warnings* for benign byte/native-compile noise from packages
 (setq warning-minimum-level :error
       warning-minimum-log-level :error
       byte-compile-warnings '(not docstrings free-vars unresolved noruntime

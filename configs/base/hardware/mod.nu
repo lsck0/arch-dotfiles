@@ -1,4 +1,4 @@
-# firmware, gpu drivers and hardware diagnostics; wsl skips them, windows owns the hardware there
+# wsl skips it, windows owns the hardware there
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
 use ../boot/boot.nu [hooks-read hooks-write]

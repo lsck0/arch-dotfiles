@@ -11,8 +11,6 @@ def playwright [browser: string, exe: string, out: path]: nothing -> record {
     }
 }
 
-# playwright-mcp headless on a throwaway profile (chromium, and firefox over webdriver bidi), output in the cache;
-# chrome-devtools-mcp debugs in a visible chromium on its own profile, google's usage stats and crux lookups off.
 # base/apparmor's local/chromium and local/firefox allow these profile dirs
 export def link [cfg: record] {
     let out = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join playwright-mcp

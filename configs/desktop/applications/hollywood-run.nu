@@ -1,10 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# hollywood-run: hollywood on a tmux server of its own with no config. on the user's server it breaks: tmux.conf's
-# base-index 1 misses its 0-based pane targets, and run inside a session it only adds a window there and exits
+# its own tmux server with no config: tmux.conf's base-index 1 misses its 0-based pane targets
 
 const SERVER = "hollywood"
-# hollywood calls tmux (and byobu, when found) by name, so both resolve to the private server; sh, since hollywood
-# runs it for every tmux call
+# hollywood calls tmux (and byobu) by name for every call, so both resolve to the private server
 const SHIM = "#!/bin/sh\nexec /usr/bin/tmux -L hollywood -f /dev/null \"$@\"\n"
 
 def --wrapped main [...args: string]: nothing -> nothing {

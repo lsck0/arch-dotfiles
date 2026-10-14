@@ -2,8 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [waydroid]}}
 
-# the images waydroid's own ota channels serve (ota.waydro.id VANILLA.json and MAINLINE.json), pinned by content:
-# vanilla lineageos, no gapps. bump all four together, the next apply swaps them in
+# waydroid's own ota images (ota.waydro.id VANILLA/MAINLINE.json), lineageos without gapps; bump all four together
 const SYSTEM_URL = "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260927-VANILLA-waydroid_x86_64-system.zip/download"
 const SYSTEM_SHA256 = "053552725bf4ae25e2d3f7e6f1947203294aa9d73dc17fe1f3abe646e5d3bd8a"
 const VENDOR_URL = "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip/download"
@@ -52,11 +51,9 @@ export def system [cfg: record] {
         } else { [] })
         # a changed prop reaches the base props through an offline upgrade
         (ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])
-        # a session chmods the gpu render nodes and cameras to 0777 and never restores them; the rule pins the resting
-        # mode to the render/video groups' 0660, and the leftover world bit goes now unless a live session needs it
+        # a session chmods render nodes and cameras to 0777 and never restores them; the rule pins the groups' 0660
         (file-copy 99-waydroid-devperm.rules $DEVPERM_RULES --then [udevadm control --reload-rules])
         (if $up { [] } else { step devperm-tighten })
-        # the root container a user's `waydroid session start` and its desktop entries attach to
         (unit-enable waydroid-container.service --now)
         (if $up { step freeform } else { [] })
     ]

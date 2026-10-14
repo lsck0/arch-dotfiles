@@ -1,8 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# an untrusted build or test confined by systemd (a transient --user unit): no network, no new privileges, kernel knobs
-# protected, the filesystem read-only except the work dir and a private /tmp; fetch dependencies first, the network is
-# off by design. the work dir is a BindPaths= mount, not ReadWritePaths=: that only remounts an existing path, and
-# under PrivateTmp= a work dir in /tmp does not exist inside the fresh /tmp (226/NAMESPACE); a bind carries it over
 
 const PROPERTIES = [
     PrivateNetwork=yes NoNewPrivileges=yes ProtectSystem=strict ProtectHome=read-only PrivateTmp=yes
@@ -20,6 +16,7 @@ def --wrapped main [
         exit 2
     }
     let work = $work | default $env.PWD | path expand
+    # BindPaths, not ReadWritePaths: under PrivateTmp a work dir in /tmp does not exist (226/NAMESPACE)
     let properties = $PROPERTIES | append $"BindPaths=($work)" | each { [-p $in] } | flatten
     (exec systemd-run --user --pty --wait --collect --quiet $"--unit=sandbox-build-($nu.pid)"
         $"--working-directory=($work)" ...$properties -- ...$command)

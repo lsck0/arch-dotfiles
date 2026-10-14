@@ -1,12 +1,9 @@
 #!/usr/bin/nu --no-config-file
-# run <command> [args...]: run any command inside the protonvpn namespace as the user who called sudo. root is used only
-# for the namespace switch; setpriv then drops to that user with no privileges before the command runs, so the command
-# never runs as root and only its traffic egresses through the proton tunnel. the shims (shim.nu) and the `vpn` wrapper
-# both reach it; every command still runs as the unprivileged caller
+# run <command> [args...] in the protonvpn namespace as the sudo caller, never as root
 
 const NS = "protonvpn"
 const IFACE = "wg-protonvpn"
-# only names, never paths or options, from the caller's environment (sudoers env_keep)
+# kept by sudoers env_keep; values are filtered by PLAIN, never paths or options
 const PASSED = [WAYLAND_DISPLAY DISPLAY TERM COLORTERM LANG]
 const PLAIN = '^[A-Za-z0-9_.:@-]*$'
 const SETPRIV = [--init-groups --inh-caps=-all --bounding-set=-all]
@@ -22,7 +19,7 @@ def --wrapped main [...command: string]: nothing -> nothing {
     if ($command | is-empty) { fail "usage: run <command> [args...]" 2 }
     let uid = ^id -u $user | str trim
     let gid = ^id -g $user | str trim
-    # fail closed: no namespace or tunnel, no start; the command never falls back onto the real link
+    # fail closed: never fall back onto the real link
     if (do { ^ip -n $NS link show $IFACE } | complete).exit_code != 0 {
         fail $"namespace '($NS)' is down \(systemctl status protonvpn-netns\), not starting ($command.0)" 1
     }

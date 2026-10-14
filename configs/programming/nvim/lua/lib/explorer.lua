@@ -9,9 +9,7 @@ local function explorer()
     end
 end
 
---- Open (or re-root) the explorer at DIR, defaulting to the current working directory. Unlike before it never
---- climbs to the enclosing git repo: the tree roots exactly where you are, so entering a subdir or a nested crate
---- keeps the root there instead of jumping up to the parent repo.
+--- Open the explorer at DIR (default cwd), never climbing to the enclosing git repo.
 ---@param dir? string
 function M.open(dir)
     dir = dir and vim.fs.normalize(dir) or vim.uv.cwd()
@@ -25,11 +23,7 @@ function M.open(dir)
     end
 end
 
---- Expand the tree down to FILE and put the cursor on it, without moving focus.
----
---- snacks' own `follow_file` is off: its reveal re-roots the tree at the file's own directory when the file
---- sits outside the explorer cwd, which stacked a second root every time a file outside the repo was opened.
---- This only ever reveals inside the current root and leaves anything else alone.
+--- Expand the tree down to FILE without moving focus, only inside the current root.
 function M.reveal(file)
     local picker = explorer()
     if not picker then
@@ -52,8 +46,7 @@ function M.reveal(file)
     require("snacks.explorer.actions").update(picker, { target = file })
 end
 
---- Reveal the file shown in the current window. Non-file buffers (help, terminals, the picker itself) and
---- floats are skipped, so the tree never follows something the cursor is only passing through.
+--- Skips non-file buffers and floats, so the tree never follows what the cursor only passes through.
 function M.reveal_current()
     if not explorer() then
         return

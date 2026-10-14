@@ -6,11 +6,10 @@ import qs.Commons
 Repeater {
   id: root
 
-  // the owning Bar, untyped: Bar.qml instantiates this file, so it cannot be imported back
+  // untyped: Bar.qml instantiates this file, so it cannot import Bar back
   required property var bar
   required property string section
 
-  // via layoutConfig so secondary screens get their reduced layout
   model: bar && bar.layoutConfig ? bar.layoutConfig[section] : []
 
   delegate: Loader {
@@ -25,7 +24,7 @@ Repeater {
       console.warn("BarSection[" + root.section + "] failed " + modelData + ": " + detail)
     }
 
-    // the loaded widget, duck-typed: bar and settings are set only where the widget declares them
+    // duck-typed: bar and settings exist only where a widget declares them
     readonly property var widget: item
 
     // widgets may hide themselves; size follows widget.visible
@@ -37,7 +36,6 @@ Repeater {
     Layout.preferredHeight: widget && widget.visible ? widget.implicitHeight : 0
     Layout.maximumHeight: widget && widget.visible ? widget.implicitHeight : 0
 
-    // settings file is live-watched, so push updates to loaded items
     readonly property var settings: root.bar && root.bar.shellHost
       ? root.bar.shellHost.settingsForWidget(modelData) : ({})
     onSettingsChanged: if (widget && "settings" in widget) widget.settings = settings

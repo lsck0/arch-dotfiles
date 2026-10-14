@@ -1,6 +1,6 @@
 return {
     {
-        "stevearc/aerial.nvim", -- symbol outline / structure panel
+        "stevearc/aerial.nvim",
         cmd = { "AerialToggle", "AerialOpen", "AerialNavToggle" },
         keys = {
             { "<leader>lc", "<cmd>AerialToggle<cr>", desc = "Code outline (aerial)" },
@@ -19,7 +19,7 @@ return {
     },
 
     {
-        "Bekaboo/dropbar.nvim", -- breadcrumbs (path + LSP/treesitter symbols)
+        "Bekaboo/dropbar.nvim",
         event = "VeryLazy",
         dependencies = { "nvim-telescope/telescope-fzf-native.nvim" },
         config = function()
@@ -29,7 +29,7 @@ return {
     },
 
     {
-        "kevinhwang91/nvim-ufo", -- lsp/treesitter folding
+        "kevinhwang91/nvim-ufo",
         dependencies = { "kevinhwang91/promise-async" },
         event = { "BufReadPost", "BufNewFile" },
         keys = {
@@ -65,7 +65,7 @@ return {
     },
 
     {
-        "folke/persistence.nvim", -- per-directory session save/restore
+        "folke/persistence.nvim",
         event = "BufReadPre",
         opts = {},
         keys = {
@@ -94,7 +94,7 @@ return {
     },
 
     {
-        "j-hui/fidget.nvim", -- LSP progress spinner
+        "j-hui/fidget.nvim",
         event = "LspAttach",
         opts = {},
     },
