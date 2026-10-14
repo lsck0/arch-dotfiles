@@ -10,7 +10,7 @@ use state.nu [nu-bin]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
 # every declaration has exactly these keys, so a plan, the state file and the UI read one shape
-export const DECL_KEYS = [kind target source content mode generated edits state now argv creates then]
+export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates then]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
 const BIN_DIR = ".local/bin"
@@ -20,7 +20,7 @@ const HOOK_BRAKE = "StartLimitIntervalSec=1min\nStartLimitBurst=20\n"
 
 def decl [kind: string, target: string, fields: record]: nothing -> record {
     {
-        kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false edits: []
+        kind: $kind target: $target source: null content: null mode: $MODE_FILE generated: false inplace: false edits: []
         state: null now: false argv: [] creates: null then: []
     } | merge $fields
 }
@@ -43,8 +43,9 @@ export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --then
 }
 
 # generated output (a theme) is rewritten whenever it differs, never drift
-export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --then: list<string> = []]: nothing -> record {
-    decl file $dest {content: $content, mode: $mode, generated: $generated, then: $then}
+# --in-place keeps the inode: a watcher that reads a rename as delete plus add (betterdiscord) sees a change
+export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
+    decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
 }
 
 export def file-render [src: path, dest: path, values: record, --mode: string = $MODE_FILE, --then: list<string> = []]: nothing -> record {

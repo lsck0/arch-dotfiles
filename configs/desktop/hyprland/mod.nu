@@ -118,7 +118,8 @@ const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 def outputs-live []: nothing -> table {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return [] }
     # agents' headless outputs are never a real monitor
-    ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-' | sort-by x
+    # a stale signature (a shell from before a compositor restart) must not cost detect its keyboard half
+    try { ^hyprctl -j monitors | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
 }
 
 def mode-best [modes: list<string>]: nothing -> string {

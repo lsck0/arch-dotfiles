@@ -147,9 +147,25 @@ def size-apply [size: int]: nothing -> nothing {
         [$ZED '"ui_font_size": [0-9.]*' $'"ui_font_size": ($size)' true]
         [$ZED '"font_size": [0-9.]*' $'"font_size": ($size)' true]
         [$EMACS '(?m)^\(defvar my/font-size .*\)' $"\(defvar my/font-size ($size)\)" true]
+        [$VSCODE '"editor\.fontSize": [0-9.]*' $'"editor.fontSize": ($size)' true]
     ]
     nvim-guifont-set null $size
     quickshell-theme-set size $size
+}
+
+# discord and spotify size in rem off a 16px root, which the default ui size stands for
+def ui-size-apply [size: int]: nothing -> nothing {
+    let scale = $size / $UI_SIZE_DEFAULT | math round --precision 2
+    files-edit [
+        [file pattern replacement all];
+        [$QUTEBROWSER '(?m)^c\.fonts\.default_size = ".*"' $'c.fonts.default_size = "($size)pt"' true]
+        [$ZATHURA '(?m)^(set font "[^"]*) [0-9]+"' $'${1} ($size)"' true]
+        [$FIREFOX_CHROME '--rtk-chrome-font-size: [0-9]+pt;' $'--rtk-chrome-font-size: ($size)pt;' true]
+        [$DISCORD '--font-scale: [0-9.]+;' $'--font-scale: ($scale);' true]
+        [$SPOTIFY '--font-scale: [0-9.]+;' $'--font-scale: ($scale);' true]
+    ]
+    gtk-font-set null $size
+    kde-font-set null $size
 }
 
 def reload-hint []: nothing -> nothing {
@@ -220,8 +236,7 @@ def "main set-size" [size: string] {
 
 def "main set-ui-size" [size: string] {
     let size = size-parse $size $UI_SIZE_MIN
-    gtk-font-set null $size
-    kde-font-set null $size
+    ui-size-apply $size
     notify "UI font size" ($size | into string)
     reload-hint
 }

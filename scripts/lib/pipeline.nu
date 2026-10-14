@@ -164,7 +164,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     }
     let failed = $outcomes | where not ok
     let kept = $actions | where kind == drift | each {|a| $"kept ($a.target): ($a.reason); dot adopt it or apply --force" }
-    let lines = $outcomes | each {|o| [$"($o.kind) ($o.target)(if $o.ok { '' } else { $': ($o.error)' })"] ++ ($o.output | lines | where $it != "" | each { $"  ($in)" }) } | flatten
+    let lines = $outcomes | each {|o| [$"($o.kind) ($o.target)(if $o.ok { '' } else { $': ($o.error)' })"] ++ ($o.output | lines | where ($it | str trim | str starts-with $NOTE_PREFIX) | each { $"  ($in)" }) } | flatten
     {ok: ($failed | is-empty), log: ($lines ++ $kept | str join "\n"), outcomes: $outcomes, error: ($failed | get --optional 0.error)}
 }
 

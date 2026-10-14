@@ -42,6 +42,7 @@
 
 :root {
     --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
+    --rtk-chrome-font-size: 10pt;
     --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
 }
 
@@ -58,6 +59,7 @@ panel,
 .menu-text,
 .menupopup-text {
     font-family: var(--rtk-chrome-font) !important;
+    font-size: var(--rtk-chrome-font-size) !important;
 }
 
 .tabbrowser-tab .tab-background,

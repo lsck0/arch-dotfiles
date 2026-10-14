@@ -99,7 +99,7 @@ def online []: nothing -> bool {
 
 def --env tui-init []: nothing -> nothing {
     if (assume) or ($env.TERM? | default dumb) == "dumb" or (^test -t 0 | complete).exit_code != 0 { return }
-    if (which dialog | is-empty) and not ((online) and (^pacman -Sy --noconfirm --needed dialog | complete).exit_code == 0) {
+    if (which dialog | is-empty) and not ((online) and (try { ^pacman -Sy --noconfirm --needed dialog; true } catch { false })) {
         log-warn "dialog unavailable, using plain prompts"
         return
     }
@@ -218,10 +218,10 @@ def mirrors-rank []: nothing -> nothing {
     let tmp = mktemp --directory
     let ranked = [$country worldwide] | where $it != "" | each {|scope|
         let where = if $scope == "worldwide" { [] } else { [--country $scope] }
-        let run = ^reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list) | complete
+        let run = command-stream reflector [reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list)]
         if $run.exit_code != 0 { return null }
         # --verbose logs a failed rate as 0.00
-        let rates = $run.stderr | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
+        let rates = $run.output | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
         let servers = open --raw ($tmp | path join list) | lines | where ($it | str starts-with "Server") | each {|line|
             let url = $line | split row " " | last | str replace '$repo/os/$arch' ""
             $rates | where url == $url | get --optional 0 | if $in == null { null } else { {server: $line, rate: ($in.rate | into float)} }
@@ -598,7 +598,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
 
     # a profile with secrets: pull and unlock them here (the one tap window), so the chained config boot needs no touch
     if "secrets" in $capabilities {
-        if (^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS | complete).exit_code != 0 { log-warn "secrets toolchain install failed, config will unlock instead" }
+        if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets toolchain install failed, config will unlock instead" }
         ^systemctl start pcscd.socket | complete | ignore
         # not captured: the person reads the touch prompts
         let unlocked = try { with-env {DOTFILES: $repo, PROFILE_FILE: $c.profile_file} { ^nu --no-config-file ($repo | path join scripts dot.nu) secrets unlock }; true } catch { false }

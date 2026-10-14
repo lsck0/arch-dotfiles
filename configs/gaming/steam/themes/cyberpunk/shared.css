@@ -184,13 +184,6 @@ button:active,
         0 0 18px -9px var(--cp-accent) !important;
 }
 
-/* dialog header/footer */
-[class*="DialogHeader"],
-[class*="DialogFooter"] {
-    background-color: var(--cp-bg-alt) !important;
-    box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
-}
-
 /* settings and form controls */
 
 html {

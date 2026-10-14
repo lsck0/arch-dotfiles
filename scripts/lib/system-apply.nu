@@ -93,7 +93,7 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     failures-start
     ^pacman-key --init
     ^pacman-key --populate archlinux
-    if (which nm-online | is-not-empty) and (^nm-online -q $"--timeout=($OFFLINE_WAIT_S)" | complete).exit_code != 0 { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
+    if (which nm-online | is-not-empty) and not (try { ^nm-online $"--timeout=($OFFLINE_WAIT_S)"; true } catch { false }) { log-warn $"still offline after ($OFFLINE_WAIT_S)s" }
     let ctx = pipeline-load $repo system | if $pin == null { $in } else { update platform.facts.lsck0_snapshot $pin }
     if not (module-system $ctx $PACMAN_MODULE) {
         fail $PACMAN_MODULE
@@ -110,7 +110,7 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     log-info $"sources: ($available | length) packages in one pass, ($missing | length) not on the mirror"
     # -uu moves pacstrap's packages onto the snapshot, --ask 4 replaces the old lsck0-* names
     mut try = 1
-    while (^pacman -Suu --needed --noconfirm --ask 4 ...$available | complete).exit_code != 0 {
+    while not (try { ^pacman -Suu --needed --noconfirm --ask 4 ...$available; true } catch { false }) {
         if $try >= $DOWNLOAD_TRIES { fail "pacman: the install pass failed"; exit $EXIT_ABORTED }
         log-warn $"transaction failed, try ($try)/($DOWNLOAD_TRIES), again in ($DOWNLOAD_BACKOFF)"
         sleep $DOWNLOAD_BACKOFF

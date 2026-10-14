@@ -26,6 +26,7 @@
     --textbrighter: 222, 222, 222;
     --textdark: 140, 140, 140;
     --font: "Kode Mono";
+    --font-scale: 1;
 }
 
 /* ----------------------------------------------------------------------------
@@ -229,6 +230,9 @@ body,
 [class*="app-"],
 [class*="base-"] {
     font-family: var(--font), sans-serif !important;
+}
+html {
+    font-size: calc(var(--font-scale) * 100%) !important;
 }
 
 ::-webkit-scrollbar {

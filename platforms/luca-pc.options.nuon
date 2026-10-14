@@ -62,7 +62,7 @@
                 silent: false
             }
             {
-                class: "^Spotify$"
+                class: "^[Ss]potify$"
                 workspace: 5
                 silent: true
             }

@@ -92,5 +92,5 @@ export def theme [cfg: record, wallpaper: string] {
     let text = $values | reduce --fold (open --raw $THEME) {|v, css|
         $css | str replace --regex --multiline ('^(\s*--' + $v.var + ':) .*$') $"${1} ($v.value);"
     }
-    file-text (bd | path join themes $THEME) $text --generated
+    file-text (bd | path join themes $THEME) $text --generated --in-place
 }

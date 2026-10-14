@@ -174,25 +174,30 @@ def write-file [a: record]: nothing -> nothing {
     let tmp = $"($d.target).dot-new"
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
     ^chmod $d.mode $tmp
-    ^mv -fT $tmp $d.target
+    if ($d.inplace? | default false) and (path-kind $d.target) == "file" {
+        ^cp $tmp $d.target
+        rm $tmp
+    } else {
+        ^mv -fT $tmp $d.target
+    }
     written-record $d.target
 }
 
 def run-step [a: record, dir: path]: nothing -> string {
     let call = $"use ($dir | to nuon) [($a.target)]; ($a.target) ($a.decl.argv | each { to nuon } | str join ' ')"
-    let out = do { cd $dir; ^(nu-bin) --no-config-file -I $LIB_DIR -c $call o+e>| complete }
+    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" [(nu-bin) --no-config-file -I $LIB_DIR -c $call] }
     if $out.exit_code != 0 {
-        error make {msg: $"step ($a.target) exited ($out.exit_code): ($out.stdout | lines | last 5 | str join "\n")"}
+        error make {msg: $"step ($a.target) exited ($out.exit_code): ($out.tail)"}
     }
-    $out.stdout
+    $out.output
 }
 
 def run-exec [a: record, dir: path]: nothing -> string {
-    let out = do { cd $dir; ^($a.decl.argv | first) ...($a.decl.argv | skip 1) o+e>| complete }
+    let out = do { cd $dir; command-stream $"($a.module) ($a.target)" $a.decl.argv }
     if $out.exit_code != 0 {
-        error make {msg: $"($a.target) exited ($out.exit_code): ($out.stdout | lines | last 5 | str join "\n")"}
+        error make {msg: $"($a.target) exited ($out.exit_code): ($out.tail)"}
     }
-    $out.stdout
+    $out.output
 }
 
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
