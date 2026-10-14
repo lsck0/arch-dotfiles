@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=xeyes
+Comment=Eyes that follow the pointer
+TryExec=xeyes
+Exec=xeyes
+Icon=xorg
+Terminal=false
+Categories=Game;Amusement;

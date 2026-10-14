@@ -1,0 +1,14 @@
+# laptop; bootstrap.sh offers it, every driver reads it when the hostname matches
+{
+    hostname: luca-notebook
+    form_factor: laptop
+    groups: [base core fonts desktop socials creating latex programming pentesting]
+    # board-specific: the synaptics 06cb:009a fingerprint reader; vulkan-intel is the ICD for the UHD 620, without it
+    # mpv's vo=gpu-next finds no device and crashes instead of falling back
+    extra_packages: [python-validity-git vulkan-intel]
+    facts: {
+        homelab: true
+        wireguard: wg0.laptop.conf
+        secure_boot_own_keys: true
+    }
+}

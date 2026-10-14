@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -23,7 +24,9 @@ BarWidget {
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
-  readonly property bool reallyOnline: connectivity === "full"
+  // full when NM checks, unknown when its check is off (75-connectivity-check disables it at home, where the
+  // split-horizon dns can't answer the gstatic probe): a connected link with the check off is online, not "No internet"
+  readonly property bool reallyOnline: connectivity === "full" || (detailsConnected && connectivity === "unknown")
   property string detailsDevice: ""
   property string detailsSsid: ""
   property string detailsIp4: ""
@@ -72,8 +75,8 @@ BarWidget {
     if (wifiScanProc.running) return
     if (rescan) lastScanMs = Date.now()
     wifiScanProc.command = rescan
-      ? [Paths.barWidget("network-wifi-scan.sh"), "rescan"]
-      : [Paths.barWidget("network-wifi-scan.sh")]
+      ? [Paths.barWidget("network-wifi-scan.nu"), "rescan"]
+      : [Paths.barWidget("network-wifi-scan.nu")]
     wifiScanProc.running = true
   }
 
@@ -90,7 +93,7 @@ BarWidget {
     if (connectProc.running) return
     root.connectingSsid = ssid
     root.connectError = ""
-    connectProc.command = [Paths.barWidget("network-wifi-connect.sh"), ssid]
+    connectProc.command = [Paths.barWidget("network-wifi-connect.nu"), ssid]
     // the password goes over stdin, an argv is readable by anyone in /proc; closing stdin ends it
     connectProc.stdinEnabled = true
     connectProc.running = true
@@ -100,55 +103,55 @@ BarWidget {
 
   // each toggle announces its change over ToggleEvents once it settled, which re-reads
   function runToggle(script) { Quickshell.execDetached([Paths.toggle(script), "toggle"]) }
-  function toggleHomeVpn() { runToggle("toggle-vpn.sh") }
-  function toggleProtonVpn() { runToggle("toggle-protonvpn.sh") }
-  function toggleTor() { runToggle("toggle-tor.sh") }
-  function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.sh") }
-  function toggleBluetooth() { runToggle("toggle-bluetooth.sh") }
-  function toggleWifi() { runToggle("toggle-wifi.sh") }
-  function toggleEthernet() { runToggle("toggle-ethernet.sh") }
-  function toggleMobile() { runToggle("toggle-mobile.sh") }
-  function toggleOfflineMode() { runToggle("toggle-offline.sh") }
-  function toggleFirewall() { runToggle("toggle-firewall.sh") }
+  function toggleHomeVpn() { runToggle("toggle-vpn.nu") }
+  function toggleProtonVpn() { runToggle("toggle-protonvpn.nu") }
+  function toggleTor() { runToggle("toggle-tor.nu") }
+  function toggleAnonymousSocks() { runToggle("toggle-anonymous-socks.nu") }
+  function toggleBluetooth() { runToggle("toggle-bluetooth.nu") }
+  function toggleWifi() { runToggle("toggle-wifi.nu") }
+  function toggleEthernet() { runToggle("toggle-ethernet.nu") }
+  function toggleMobile() { runToggle("toggle-mobile.nu") }
+  function toggleOfflineMode() { runToggle("toggle-offline.nu") }
+  function toggleFirewall() { runToggle("toggle-firewall.nu") }
 
   Process {
     id: homeVpnProc
-    command: [Paths.toggle("toggle-vpn.sh"), "get"]
+    command: [Paths.toggle("toggle-vpn.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homeVpnState = String(text || "off").trim() }
   }
   Process {
     id: protonVpnProc
-    command: [Paths.toggle("toggle-protonvpn.sh"), "get"]
+    command: [Paths.toggle("toggle-protonvpn.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.protonVpnState = String(text || "off").trim() }
   }
   Process {
     id: torProc
-    command: [Paths.toggle("toggle-tor.sh"), "get"]
+    command: [Paths.toggle("toggle-tor.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.torState = String(text || "off").trim() }
   }
   Process {
     id: anonymousSocksProc
-    command: [Paths.toggle("toggle-anonymous-socks.sh"), "get"]
+    command: [Paths.toggle("toggle-anonymous-socks.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.anonymousSocksOn = String(text || "").trim() === "on" }
   }
   Process {
     id: btProc
-    command: [Paths.toggle("toggle-bluetooth.sh"), "get"]
+    command: [Paths.toggle("toggle-bluetooth.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.btPowered = String(text || "").trim() === "on" }
   }
   Process {
     id: wifiProc
-    command: [Paths.toggle("toggle-wifi.sh"), "get"]
+    command: [Paths.toggle("toggle-wifi.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.wifiOn = String(text || "").trim() === "on" }
   }
   Process {
     id: ethProc
-    command: [Paths.toggle("toggle-ethernet.sh"), "get"]
+    command: [Paths.toggle("toggle-ethernet.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.ethernetOn = String(text || "").trim() === "on" }
   }
   Process {
     id: mobileProc
-    command: [Paths.toggle("toggle-mobile.sh"), "get"]
+    command: [Paths.toggle("toggle-mobile.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.mobileOn = String(text || "").trim() === "on" }
   }
   // wwan hardware does not appear or vanish at runtime, probe once
@@ -161,7 +164,7 @@ BarWidget {
   }
   Process {
     id: firewallProc
-    command: [Paths.toggle("toggle-firewall.sh"), "get"]
+    command: [Paths.toggle("toggle-firewall.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.firewallState = String(text || "default").trim() }
   }
   Process {
@@ -177,17 +180,17 @@ BarWidget {
   }
   Process {
     id: rfkillProc
-    command: [Paths.toggle("toggle-offline.sh"), "get"]
+    command: [Paths.toggle("toggle-offline.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.offlineModeOn = String(text || "").trim() === "on" }
   }
   Process {
     id: detailsProc
-    command: [Paths.barWidget("network-details.sh")]
+    command: [Paths.barWidget("network-details.nu")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
         try {
-          var d = JSON.parse(text || "{}")
+          let d = JSON.parse(text || "{}")
           root.detailsConnected = !!d.connected
           root.connectivity = d.connectivity || "unknown"
           root.detailsDevice = d.device || ""
@@ -257,8 +260,8 @@ BarWidget {
   }
 
   // vpn, tor, bluetooth and firewall live outside networkmanager
-  readonly property var networkToggles: ["toggle-vpn.sh", "toggle-protonvpn.sh", "toggle-tor.sh", "toggle-anonymous-socks.sh", "toggle-bluetooth.sh",
-    "toggle-wifi.sh", "toggle-ethernet.sh", "toggle-mobile.sh", "toggle-offline.sh", "toggle-firewall.sh"]
+  readonly property var networkToggles: ["toggle-vpn.nu", "toggle-protonvpn.nu", "toggle-tor.nu", "toggle-anonymous-socks.nu", "toggle-bluetooth.nu",
+    "toggle-wifi.nu", "toggle-ethernet.nu", "toggle-mobile.nu", "toggle-offline.nu", "toggle-firewall.nu"]
   Connections {
     target: ToggleEvents
     function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
@@ -286,7 +289,7 @@ BarWidget {
     case "limited": return "No internet"
     case "portal": return "Captive portal"
     case "none": return "Offline"
-    default: return "Unknown"
+    default: return root.detailsConnected ? "Online" : "Unknown"
     }
   }
 
@@ -405,6 +408,7 @@ BarWidget {
         Repeater {
           model: root.wifiNetworks
           delegate: Column {
+            id: wifiNet
             required property var modelData
             width: content.width
 
@@ -414,18 +418,18 @@ BarWidget {
               width: parent.width
               height: Style.row.list
               radius: Style.shape.data
-              color: modelData.active ? Colors.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
+              color: wifiNet.modelData.active ? Colors.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
 
               Text {
                 id: netIcon
                 anchors.left: parent.left
                 anchors.leftMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.active ? "*" : (modelData.secure ? "\u{f023}" : "\u{f1eb}")
-                color: modelData.active ? Colors.menu.selectedText : Colors.menu.text
+                text: wifiNet.modelData.active ? "*" : (wifiNet.modelData.secure ? "\u{f023}" : "\u{f1eb}")
+                color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.iconFamily
-                layer.enabled: Style.fx.glow > 0 && modelData.active
+                layer.enabled: Style.fx.glow > 0 && wifiNet.modelData.active
                 layer.effect: Glow {}
               }
               Text {
@@ -434,8 +438,8 @@ BarWidget {
                 anchors.right: netSignal.left
                 anchors.rightMargin: Style.spacing.xs
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.ssid
-                color: modelData.active ? Colors.menu.selectedText : Colors.menu.text
+                text: wifiNet.modelData.ssid
+                color: wifiNet.modelData.active ? Colors.menu.selectedText : Colors.menu.text
                 font.pixelSize: Style.font.body
                 font.family: Style.font.family
                 elide: Text.ElideRight
@@ -445,9 +449,9 @@ BarWidget {
                 anchors.right: parent.right
                 anchors.rightMargin: Style.spacing.sm
                 anchors.verticalCenter: parent.verticalCenter
-                text: modelData.signal + "%"
+                text: wifiNet.modelData.signal + "%"
                 color: Colors.menu.text
-                opacity: modelData.active ? 1 : Style.emphasis.faint
+                opacity: wifiNet.modelData.active ? 1 : Style.emphasis.faint
                 font.pixelSize: Style.font.caption
                 font.family: Style.font.family
               }
@@ -458,18 +462,18 @@ BarWidget {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                  if (modelData.active) return
-                  if (modelData.secure) {
+                  if (wifiNet.modelData.active) return
+                  if (wifiNet.modelData.secure) {
                     netRow.pendingConnect = !netRow.pendingConnect
                   } else {
-                    root.connectTo(modelData.ssid, "")
+                    root.connectTo(wifiNet.modelData.ssid, "")
                   }
                 }
               }
             }
 
             Row {
-              visible: netRow.pendingConnect && !modelData.active
+              visible: netRow.pendingConnect && !wifiNet.modelData.active
               width: parent.width
               spacing: Style.spacing.xs
               leftPadding: Style.spacing.sm
@@ -494,7 +498,7 @@ BarWidget {
                   color: Colors.menu.text
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
-                  onAccepted: { root.connectTo(modelData.ssid, text); netRow.pendingConnect = false }
+                  onAccepted: { root.connectTo(wifiNet.modelData.ssid, text); netRow.pendingConnect = false }
                 }
               }
               Rectangle {
@@ -505,7 +509,7 @@ BarWidget {
                 color: Style.selectedFillFor(Colors.menu.text, Colors.accent)
                 Text {
                   anchors.centerIn: parent
-                  text: root.connectingSsid === modelData.ssid ? "..." : "Connect"
+                  text: root.connectingSsid === wifiNet.modelData.ssid ? "..." : "Connect"
                   color: Colors.accent
                   font.pixelSize: Style.font.caption
                   font.family: Style.font.family
@@ -513,7 +517,7 @@ BarWidget {
                 MouseArea {
                   anchors.fill: parent
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: { root.connectTo(modelData.ssid, pwInput.text); netRow.pendingConnect = false }
+                  onClicked: { root.connectTo(wifiNet.modelData.ssid, pwInput.text); netRow.pendingConnect = false }
                 }
               }
             }

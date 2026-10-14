@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Macaulay2
+Comment=Algebraic geometry and commutative algebra
+TryExec=M2
+Exec=M2
+Icon=cantor
+Terminal=true
+Categories=Science;Math;Education;ConsoleOnly;

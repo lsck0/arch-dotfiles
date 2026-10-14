@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Clonezilla
+Comment=Clone and image disks and partitions
+TryExec=clonezilla
+Exec=@HOME@/.local/bin/desktop-run -- sudo clonezilla
+Icon=preferences-system-backup
+Terminal=true
+Categories=System;Filesystem;ConsoleOnly;

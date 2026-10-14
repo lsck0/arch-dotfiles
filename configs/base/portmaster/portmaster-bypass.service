@@ -7,10 +7,10 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
 # a load empties gids and home_ifaces; the pentest group exists only with configs/pentesting/pentest, which reloads this
-# once it made it; libvirt-qemu only with the qemu group; home_ifaces is refilled from the dispatcher's home links (home-network.sh)
-ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; true'
+# once it made it; libvirt-qemu only with the qemu group; home_ifaces is refilled from the dispatcher's home links (home-network.nu); lab_dns from the homelab's env file
+ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; true'
+ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
 ExecStop=/usr/sbin/nft destroy table inet portmaster_bypass
 
 [Install]

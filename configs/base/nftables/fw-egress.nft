@@ -1,6 +1,6 @@
 #!/usr/sbin/nft -f
 # the untrusted-network kill switch, in its own table inet fw_egress so it holds across the fw-inbound/fw-lockdown swap
-# and the firewall toggle. traffic leaves through a home link (home-network.sh fills home_ifaces), loopback, a tunnel or
+# and the firewall toggle. traffic leaves through a home link (home-network.nu fills home_ifaces), loopback, a tunnel or
 # a local guest. every other link, which includes every link from boot until the home rule decided, carries only what
 # gets an address and a tunnel up: dhcp, ndp, the kernel's wireguard packets, the tor daemon, and a portal window opened
 # by hand. what leaves through a tunnel is filtered again here as its carrier on the real link
@@ -10,8 +10,12 @@ define inner_ifaces = { "lo", "proton0", "wg*", "tun*", "docker*", "br-*", "veth
 # the fwmark a tunnel puts on its own udp: protonvpn's (proton.vpn.connection.FWMARK_VALUE) and wg-quick's 51820.
 # kept in sync with tor-router
 define tunnel_marks = { 0x0ea13b2c, 0x0000ca6c }
-# rendered by system.sh; (uid_t)-1 when tor is missing, which no process runs as
+# rendered by mod.nu; (uid_t)-1 when tor is missing, which no process runs as
 define tor_uid = @TOR_UID@
+# the games group's packets, marked by table inet games_bypass and routed out the physical link by table 100
+# (configs/gaming/vpn-bypass): games egress on the real link even while proton0 is up, nothing else does. inert on a
+# machine without that module, where the mark is never set. kept in sync with games-bypass.nft and games-route.nu
+define game_mark = 0x6761
 
 add table inet fw_egress
 delete table inet fw_egress
@@ -32,6 +36,7 @@ table inet fw_egress {
         icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
         meta l4proto udp meta mark $tunnel_marks accept
         meta skuid $tor_uid accept
+        meta mark $game_mark accept
         oifname @portal tcp dport { 80, 443 } accept
         oifname @portal meta l4proto { tcp, udp } th dport 53 accept
 

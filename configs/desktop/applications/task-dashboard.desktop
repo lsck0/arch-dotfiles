@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Task Dashboard
+Comment=Taskwarrior, timewarrior and agent tasks
+TryExec=@HOME@/.local/bin/task-dashboard
+Exec=@HOME@/.local/bin/task-dashboard
+Icon=korg-todo
+Terminal=true
+Categories=Office;ProjectManagement;ConsoleOnly;

@@ -1,9 +1,18 @@
+local platform = require("platform")
 local global_opacity = 0.95
 
 -- their app-drawn menus are windows, only the frame is styleable
 for _, class in ipairs({ "^discord$", "^steam$" }) do
     hl.window_rule({ match = { class = class }, rounding = 8 })
 end
+
+-- steam drops its notification toasts on whatever monitor it thinks is primary; pin them to the main monitor,
+-- where quickshell's own notifications appear
+hl.window_rule({
+    match = { title = "^notificationtoasts" },
+    float = true,
+    monitor = platform.main_monitor,
+})
 
 for _, class in ipairs({
     "^Spotify$",
@@ -34,6 +43,9 @@ hl.window_rule({
     float = true,
     center = true,
 })
+
+-- the scratch notes editor (SUPER+SHIFT+n, same file as the desktop notes card) floats centered
+hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
 hl.window_rule({
     match = {

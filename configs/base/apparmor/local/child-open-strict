@@ -1,0 +1,5 @@
+# managed by arch-dotfiles/apparmor
+# a local file goes to its viewer (base/xdg/mimeapps.list), confined itself, as through child-open
+@{bin}/{feh,nsxiv,okular,zathura,sioyek,onlyoffice-desktopeditors,desktopeditors} Px,
+# xdg-open's helpers on hyprland
+include <abstractions/dotfiles/xdg-open>

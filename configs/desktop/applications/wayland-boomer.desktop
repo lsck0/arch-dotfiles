@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Boomer
+Comment=Zoom into the screen
+TryExec=wayland-boomer
+Exec=@DOTFILES@/configs/desktop/hyprland/boomer.nu
+Icon=kmag
+Terminal=false
+Categories=Utility;Accessibility;

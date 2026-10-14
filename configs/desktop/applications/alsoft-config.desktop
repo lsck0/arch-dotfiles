@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=OpenAL Soft Configuration
+Comment=Configure the OpenAL Soft 3D audio library
+TryExec=alsoft-config
+Exec=alsoft-config
+Icon=audio-card
+Terminal=false
+Categories=Settings;AudioVideo;Audio;

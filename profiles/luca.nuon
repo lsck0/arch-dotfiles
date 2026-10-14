@@ -1,0 +1,8 @@
+# bootstrap.sh and adduser-dotfiles copy it to ~/.config/dotfiles for the login luca. secrets: unlock secrets/ with
+# the yubikey; identity: git/gpg/ssh/pass and his accounts; homelab: nas, ntfy, syncthing, weblinks; work: capgemini
+{
+    capabilities: [secrets identity homelab work]
+    name: "Luca Sandrock"
+    email: luca.sandrock@proton.me
+    gpg_fingerprint: E7501F533316E9AFC6AAE907122F2CB527D1EFE3
+}

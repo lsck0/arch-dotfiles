@@ -1,22 +1,22 @@
 gui:
-  nerdFontsVersion: "3"
-  # ansi names track the pywal palette
-  theme:
-    activeBorderColor:
-      - blue
-      - bold
-    inactiveBorderColor:
-      - white
-    selectedLineBgColor:
-      - blue
-    optionsTextColor:
-      - blue
+    nerdFontsVersion: "3"
+    # ansi names track the pywal palette
+    theme:
+        activeBorderColor:
+            - blue
+            - bold
+        inactiveBorderColor:
+            - white
+        selectedLineBgColor:
+            - blue
+        optionsTextColor:
+            - blue
 git:
-  # --no-gitconfig: delta.navigate breaks inside lazygit
-  diffRenderers:
-    - command: delta --no-gitconfig --dark --paging=never --line-numbers
-      name: delta
-    - command: delta --no-gitconfig --dark --paging=never --line-numbers --side-by-side
-      name: delta side-by-side
+    # --no-gitconfig: delta.navigate breaks inside lazygit
+    diffRenderers:
+        - command: delta --no-gitconfig --dark --paging=never --line-numbers
+          name: delta
+        - command: delta --no-gitconfig --dark --paging=never --line-numbers --side-by-side
+          name: delta side-by-side
 os:
-  editPreset: nvim
+    editPreset: nvim

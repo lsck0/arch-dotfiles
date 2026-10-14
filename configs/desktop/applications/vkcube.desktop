@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=vkcube
+Comment=Spinning Vulkan test cube
+TryExec=vkcube
+Exec=vkcube
+Icon=applications-graphics
+Terminal=false
+Categories=Development;Graphics;3DGraphics;

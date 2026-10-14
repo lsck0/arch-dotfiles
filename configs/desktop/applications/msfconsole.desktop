@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Metasploit
+Comment=Metasploit Framework console
+TryExec=msfconsole
+Exec=@HOME@/.local/bin/desktop-run -- msfconsole
+Icon=security-low
+Terminal=true
+Categories=Network;Security;ConsoleOnly;

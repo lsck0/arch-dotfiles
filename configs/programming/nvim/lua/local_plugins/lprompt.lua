@@ -28,17 +28,15 @@ local function add_prompt(text)
     local taskrc = find_taskrc(start_dir)
     if not taskrc then
         vim.notify(
-            "LPrompt: no tasks/.taskrc found above " .. start_dir
-            .. " -- scaffold one first (l-agent-task-db's taskwarrior-init)",
+            "LPrompt: no tasks/.taskrc found above "
+                .. start_dir
+                .. " -- scaffold one first (l-agent-task-db's taskwarrior-init)",
             vim.log.levels.ERROR
         )
         return
     end
 
-    local result = vim.system(
-        { "task", "rc:" .. taskrc, "add", "+prompt", "--", text },
-        { text = true }
-    ):wait()
+    local result = vim.system({ "task", "rc:" .. taskrc, "add", "+prompt", "--", text }, { text = true }):wait()
 
     if result.code ~= 0 then
         vim.notify(
@@ -70,10 +68,7 @@ local function lookup_hermes()
 
     local agents = decoded.result and decoded.result.agents or {}
     for _, agent in ipairs(agents) do
-        if agent.name == HERMES_AGENT_NAME
-            or agent.id == HERMES_AGENT_NAME
-            or agent.agent == HERMES_AGENT_NAME
-        then
+        if agent.name == HERMES_AGENT_NAME or agent.id == HERMES_AGENT_NAME or agent.agent == HERMES_AGENT_NAME then
             return agent.pane_id
         end
     end
@@ -125,10 +120,7 @@ local function send_to_hermes(text)
         vim.notify("LPrompt: hermes forward skipped (" .. err .. ")", vim.log.levels.WARN)
         return
     end
-    local prompt = vim.system(
-        { "herdr", "agent", "prompt", target, text },
-        { text = true }
-    ):wait()
+    local prompt = vim.system({ "herdr", "agent", "prompt", target, text }, { text = true }):wait()
     if prompt.code ~= 0 then
         vim.notify(
             "LPrompt: herdr agent prompt failed: " .. vim.trim(prompt.stderr or prompt.stdout or ""),
@@ -144,8 +136,9 @@ end
 
 function M.setup()
     local function command(name, action, desc)
-        vim.api.nvim_create_user_command(name, function(opts) action(ranged_text(opts)) end,
-            { range = "%", desc = desc })
+        vim.api.nvim_create_user_command(name, function(opts)
+            action(ranged_text(opts))
+        end, { range = "%", desc = desc })
     end
     command("LPromptBuffer", send_to_hermes, "Send current buffer (or range) to the lprompt hermes agent")
     command("LPromptSelection", send_to_hermes, "Send visual selection to the lprompt hermes agent")

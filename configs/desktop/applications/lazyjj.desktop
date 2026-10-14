@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazyjj
+Comment=Jujutsu interface
+TryExec=lazyjj
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- lazyjj
+Icon=folder-git
+Terminal=true
+Categories=Development;RevisionControl;ConsoleOnly;

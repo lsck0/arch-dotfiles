@@ -22,7 +22,7 @@ import Quickshell.Io
  *
  * Usage:
  *   JsonProcess {
- *     command: [Paths.barWidget("agent-usage.py")]
+ *     command: [Paths.barWidget("agent-usage.nu")]
  *     intervalMs: 10 * 60 * 1000
  *     onParsed: function (data) { root.usage = data }
  *   }
@@ -35,16 +35,16 @@ QtObject {
   property int minAgeMs: 0
   property real lastRunMs: 0
   property bool streaming: false
-  property alias running: process.running
+  property alias running: proc.running
 
   signal parsed(var data)
   signal failed(string error)
 
   // a refresh during a run is dropped, the run in flight answers it
   function run() {
-    if (process.running) return
+    if (proc.running) return
     lastRunMs = Date.now()
-    process.running = true
+    proc.running = true
   }
 
   // hover and open refreshes, rate-limited by minAgeMs
@@ -70,7 +70,7 @@ QtObject {
   }
 
   property Process process: Process {
-    id: process
+    id: proc
     command: root.command
     stdout: root.streaming ? root.lines : root.whole
     // quickshell does not reap helpers on reload, stop on teardown

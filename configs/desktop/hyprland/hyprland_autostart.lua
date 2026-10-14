@@ -9,12 +9,13 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("uwsm app -s s -- hypridle")
 
     -- the shell expands $DOTFILES: concatenating an unset getenv would abort this hook
-    -- no hyprpm reload here: it raced manual_link.sh's own and unloaded plugins
-    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/manual_link.sh")
-    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/manual_link.sh")
+    -- no hyprpm reload here: it raced plugins.nu's own and unloaded plugins
+    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
+    hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
 
     hl.exec_cmd("xhost +SI:localuser:root")
-    if require("platform").laptop then
-        hl.exec_cmd("brightnessctl --device=tpacpi::kbd_backlight set 2")
+    local backlight = require("platform").kbd_backlight
+    if backlight then
+        hl.exec_cmd("brightnessctl --device=" .. backlight .. " set 2")
     end
 end)

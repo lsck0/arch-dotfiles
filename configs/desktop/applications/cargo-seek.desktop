@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=cargo-seek
+Comment=Search, add and install crates
+TryExec=cargo-seek
+Exec=cargo-seek
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

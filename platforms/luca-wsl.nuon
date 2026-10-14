@@ -1,0 +1,8 @@
+# windows host; windows owns kernel, boot, drivers, power, audio and network, so base skips its native packages
+{
+    hostname: luca-wsl
+    form_factor: wsl
+    # gui programming tools draw through wslg
+    groups: [base core programming]
+    facts: {homelab: true}
+}

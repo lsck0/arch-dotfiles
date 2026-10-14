@@ -15,6 +15,9 @@ get those right and features fall out.
 - Failure mode per component, numbered: trigger -> behaviour -> fail-closed
   or fail-open -> what the user sees.
 - Monolith by default; split a process out only for a hard constraint.
+- Native over bolt-on: reach for the framework's or platform's own
+  mechanism, not a wrapper or polling loop that reimplements it (`l-style`
+  core). A design that fights its tool is the wrong design.
 - Security, performance budgets, observability and the impact on
   existing modules and workflows, worked out for the spec
   (`l-spec-driven-development`, "SPEC.md"), not left for implementation.

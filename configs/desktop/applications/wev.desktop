@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=wev
+Comment=Show the Wayland input events a window receives
+TryExec=wev
+Exec=wev
+Icon=input-keyboard
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;

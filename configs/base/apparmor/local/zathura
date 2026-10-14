@@ -11,3 +11,6 @@ include <abstractions/dotfiles/synctex-edit>
 owner @{user_cache_dirs}/wal/colors-zathura r,
 # the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
+# gtk4 (zathura 2026) renders through gsk's vulkan or gl backend, which looks up the icd, layer and egl vendor files;
+# without them it falls back to cairo and floods the log with denials
+include <abstractions/graphics>

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=discordo
+Comment=Discord client
+TryExec=discordo
+Exec=discordo
+Icon=discord
+Terminal=true
+Categories=Network;Chat;ConsoleOnly;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=cmatrix
+Comment=The Matrix rain
+TryExec=cmatrix
+Exec=cmatrix
+Icon=preferences-desktop-screensaver
+Terminal=true
+Categories=Game;Amusement;ConsoleOnly;

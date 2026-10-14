@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=bacon
+Comment=Background Rust code checker
+TryExec=bacon
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- bacon
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

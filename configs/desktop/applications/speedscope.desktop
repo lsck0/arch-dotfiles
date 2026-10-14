@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=speedscope
+Comment=Open a profile as a flamegraph in the browser
+TryExec=speedscope
+Exec=@HOME@/.local/bin/desktop-run --file -- speedscope
+Icon=hotspot
+Terminal=false
+Categories=Development;Profiling;

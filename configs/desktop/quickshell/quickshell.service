@@ -10,7 +10,7 @@ StartLimitBurst=5
 Type=exec
 # protected with the compositor (base/oomd), outside oomd's app.slice: the lock screen lives here
 Slice=session.slice
-ExecStartPre=%h/.config/quickshell/restart.sh prepare
+ExecStartPre=%h/.config/quickshell/restart.nu prepare
 ExecStart=/usr/bin/quickshell -p %h/.config/quickshell
 Restart=on-failure
 RestartSec=2

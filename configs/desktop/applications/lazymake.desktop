@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazymake
+Comment=Run Makefile targets
+TryExec=lazymake
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- lazymake
+Icon=run-build
+Terminal=true
+Categories=Development;Building;ConsoleOnly;

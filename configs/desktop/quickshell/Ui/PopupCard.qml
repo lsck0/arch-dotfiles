@@ -8,7 +8,8 @@ PopupWindow {
   id: root
 
   required property Item anchorItem
-  required property QtObject bar
+  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  required property var bar
   property var owner: null
   property int margin: Style.gapsOut
   property int padding: Style.surface.padding
@@ -59,7 +60,7 @@ PopupWindow {
     else root.open = false
   }
 
-  default property alias contentItem: contentHolder.children
+  default property alias body: contentHolder.children
 
   // mapped until the fold-back ends
   visible: open || boot.progress > 0
@@ -74,19 +75,20 @@ PopupWindow {
     onCleared: root.close()
   }
 
+  // quickshell's qmltypes stub PopupAnchor as opaque, so qmllint cannot see its members
   anchor {
-    id: popupAnchor
-    window: root.anchorWindow
-    adjustment: PopupAdjustment.Slide
-    edges: Edges.Top | Edges.Left
-    gravity: Edges.Bottom | Edges.Right
-    rect.width: 1
-    rect.height: 1
+    window: root.anchorWindow // qmllint disable missing-property
+    adjustment: PopupAdjustment.Slide // qmllint disable missing-property
+    edges: Edges.Top | Edges.Left // qmllint disable missing-property
+    gravity: Edges.Bottom | Edges.Right // qmllint disable missing-property
+    rect.width: 1 // qmllint disable unqualified unresolved-type
+    rect.height: 1 // qmllint disable unqualified unresolved-type
 
-    onAnchoring: {
+    onAnchoring: { // qmllint disable unqualified
       if (!root.anchorItem || !root.bar) return
 
       var target = root.anchorItem
+      // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
       var window = target.QsWindow.window
       if (!window) return
       var popupWidth = root.implicitWidth
@@ -104,19 +106,19 @@ PopupWindow {
         localY = target.height / 2 - popupHeight / 2
       }
 
-      var point = window.contentItem.mapFromItem(target, localX, localY)
+      var point = window.contentItem.mapFromItem(target, localX, localY) // qmllint disable missing-property
       // docked: flush with the bar window's edge, so the neck meets the accent rule
-      if (root.bar.position === "top") point.y = window.height
+      if (root.bar.position === "top") point.y = window.height // qmllint disable missing-property
       else if (root.bar.position === "bottom") point.y = -popupHeight
 
       if (root.bar.position === "top" || root.bar.position === "bottom") {
-        point.x = Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin))
+        point.x = Math.max(root.margin, Math.min(point.x, window.width - popupWidth - root.margin)) // qmllint disable missing-property
       } else {
-        point.y = Math.max(root.margin, Math.min(point.y, window.height - popupHeight - root.margin))
+        point.y = Math.max(root.margin, Math.min(point.y, window.height - popupHeight - root.margin)) // qmllint disable missing-property
       }
 
-      popupAnchor.rect.x = Math.round(point.x)
-      popupAnchor.rect.y = Math.round(point.y)
+      root.anchor.rect.x = Math.round(point.x) // qmllint disable missing-property
+      root.anchor.rect.y = Math.round(point.y) // qmllint disable missing-property
     }
   }
 

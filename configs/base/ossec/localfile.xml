@@ -1,0 +1,7 @@
+<!-- appended by the dotfiles (configs/base/ossec), replaced whole on each config run -->
+<ossec_config>
+  <localfile>
+    <log_format>syslog</log_format>
+    <location>/run/ossec-journal.log</location>
+  </localfile>
+</ossec_config>

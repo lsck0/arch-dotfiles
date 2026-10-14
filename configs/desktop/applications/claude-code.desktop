@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Claude Code
+Comment=Agentic coding in the terminal
+TryExec=claude
+Exec=claude
+Icon=claude-desktop
+Terminal=true
+Categories=Development;ConsoleOnly;

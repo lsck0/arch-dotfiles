@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ImageMagick Display
+Comment=Show, edit and convert images
+TryExec=display
+Exec=@HOME@/.local/bin/desktop-run --file -- display
+Icon=image-x-generic
+Terminal=false
+Categories=Graphics;Viewer;2DGraphics;RasterGraphics;

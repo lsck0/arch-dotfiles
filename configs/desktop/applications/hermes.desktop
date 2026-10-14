@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hermes Agent
+Comment=Hermes AI agent
+TryExec=hermes
+Exec=hermes
+Icon=system-run
+Terminal=true
+Categories=Development;Utility;ConsoleOnly;

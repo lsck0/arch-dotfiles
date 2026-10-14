@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=cgdb
+Comment=Curses frontend for GDB
+TryExec=cgdb
+Exec=cgdb
+Icon=debug-run
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;

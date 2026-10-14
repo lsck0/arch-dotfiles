@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=FFplay
+Comment=Play a media file with FFmpeg
+TryExec=ffplay
+Exec=@HOME@/.local/bin/desktop-run --file -- ffplay
+Icon=applications-multimedia
+Terminal=false
+Categories=AudioVideo;Player;Video;

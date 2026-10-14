@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hyprpicker
+Comment=Pick a color on screen and copy it
+TryExec=hyprpicker
+Exec=hyprpicker --autocopy
+Icon=kcolorchooser
+Terminal=false
+Categories=Graphics;Utility;

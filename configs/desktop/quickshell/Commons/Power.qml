@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 
-// saver from toggle-powermode.sh (forced power-saver, or auto on battery), strips fx and live visuals while on
+// saver from toggle-powermode.nu (forced power-saver, or auto on battery), strips fx and live visuals while on
 Singleton {
   id: root
 
@@ -19,7 +19,7 @@ Singleton {
   onOnBatteryChanged: sync()
   Component.onCompleted: sync()
 
-  function sync() { Quickshell.execDetached([Paths.toggle("toggle-powermode.sh"), "sync"]) }
+  function sync() { Quickshell.execDetached([Paths.toggle("toggle-powermode.nu"), "sync"]) }
 
   // the toggle pings over ipc, the file may not exist yet to watch
   function reload() { file.reload() }

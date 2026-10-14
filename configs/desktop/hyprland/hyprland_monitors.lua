@@ -1,9 +1,7 @@
 local platform = require("platform")
 
--- xwayland only; java apps mirror this in java_ui_scale, scripts/lib/module.sh
-local xwayland_scale = platform.laptop and "1" or "2"
-hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", xwayland_scale)
-hl.env("GDK_SCALE", xwayland_scale)
+hl.env("QT_AUTO_SCREEN_SCALE_FACTOR", platform.xwayland_scale)
+hl.env("GDK_SCALE", platform.xwayland_scale)
 
 hl.config({
     xwayland = {
@@ -11,33 +9,14 @@ hl.config({
     },
 })
 
--- notebook
-hl.monitor({
-    output = "eDP-1",
-    mode = "1920x1080",
-    position = "auto",
-    scale = 1,
-})
+for _, monitor in ipairs(platform.monitors) do
+    hl.monitor(monitor)
+end
 
--- desktop
-hl.monitor({
-    output = "DP-1",
-    mode = "3840x2160@144",
-    position = "0x0",
-    scale = 1.666667,
-})
-
-hl.monitor({
-    output = "DP-2",
-    mode = "3840x2160@144",
-    position = "auto",
-    scale = 1.666667,
-})
-
--- fallback
+-- an output the options do not name (a newly plugged one) gets its native mode and an auto fractional scale
 hl.monitor({
     output = "",
-    mode = "1920x1080@60",
+    mode = "preferred",
     position = "auto",
-    scale = 1,
+    scale = "auto",
 })

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gpg-tui
+Comment=Manage GnuPG keys
+TryExec=gpg-tui
+Exec=gpg-tui
+Icon=kleopatra
+Terminal=true
+Categories=Utility;Security;ConsoleOnly;

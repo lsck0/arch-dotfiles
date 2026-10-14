@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Wayland
 import QtQuick
@@ -40,14 +41,14 @@ Item {
 
   function snoozeAt(index, minutes) {
     var alert = root.alerts[index]
-    var argv = [Paths.script("reminder.sh"), String(minutes)]
+    var argv = [Paths.script("reminder.nu"), String(minutes)]
     if (alert && alert.message) argv.push(alert.message)
     Quickshell.execDetached(argv)
     dismissAt(index)
   }
 
   function stopPomodoroAt(index) {
-    Quickshell.execDetached([Paths.script("pomodoro.sh"), "stop"])
+    Quickshell.execDetached([Paths.script("pomodoro.nu"), "stop"])
     dismissAt(index)
   }
 
@@ -55,7 +56,7 @@ Item {
   readonly property var mainScreen: {
     var screens = Quickshell.screens
     var name = root.shell ? root.shell.mainScreenName : ""
-    for (var i = 0; i < screens.length; i++)
+    for (let i = 0; i < screens.length; i++)
       if (String(screens[i].name) === name) return screens[i]
     return screens.length > 0 ? screens[0] : null
   }
@@ -83,7 +84,8 @@ Item {
     visible: root.alerts.length > 0
     screen: root.mainScreen
     anchors { top: true; right: true }
-    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm }
+    // quickshell's qmltypes ship PanelWindow's margins as an opaque stub, so qmllint cannot see its edges
+    margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm } // qmllint disable missing-property
     implicitWidth: Style.space(440)
     implicitHeight: stack.implicitHeight
     color: "transparent"

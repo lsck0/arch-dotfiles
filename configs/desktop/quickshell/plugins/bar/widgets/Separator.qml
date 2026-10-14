@@ -21,7 +21,7 @@ BarWidget {
     if (!section) return false
     var siblings = section.children
     var index = -1
-    for (var i = 0; i < siblings.length; i++)
+    for (let i = 0; i < siblings.length; i++)
       if (siblings[i] === ownLoader) { index = i; break }
     if (index < 0) return false
 
@@ -35,9 +35,9 @@ BarWidget {
     }
 
     var before = false
-    for (var b = index - 1; b >= 0; b--) if (solid(siblings[b])) { before = true; break }
+    for (let b = index - 1; b >= 0; b--) if (solid(siblings[b])) { before = true; break }
     var after = false
-    for (var a = index + 1; a < siblings.length; a++) if (solid(siblings[a])) { after = true; break }
+    for (let a = index + 1; a < siblings.length; a++) if (solid(siblings[a])) { after = true; break }
     return before && after
   }
 

@@ -11,7 +11,7 @@ include <tunables/global>
 @{domain} = org.chromium.Chromium
 
 @{exec_path} = @{bin}/zapzap
-profile zapzap @{exec_path} flags=(attach_disconnected) {
+profile zapzap @{exec_path} flags=(attach_disconnected,mediate_deleted) {
   include <abstractions/base-strict>
   include <abstractions/audio-client>
   include <abstractions/common/chromium>
@@ -38,12 +38,19 @@ profile zapzap @{exec_path} flags=(attach_disconnected) {
 
   @{open_path} rPx -> child-open-strict,
 
-  # l: QSaveFile writes an O_TMPFILE and links it into place (settings, dictionaries)
+  # l: QSaveFile and qt's shader cache write an O_TMPFILE and link it into place (settings, dictionaries, shaders);
+  # the tmpfile is a deleted entry, mediate_deleted lets these rules name it (#<inode>) instead of refusing the link
   owner @{user_config_dirs}/ZapZap/{,**} rwkl,
   owner @{user_share_dirs}/ZapZap/{,**} rwkl,
-  owner @{user_cache_dirs}/ZapZap/{,**} rwk,
+  owner @{user_cache_dirs}/ZapZap/{,**} rwkl,
+  # QtWebEngine looks for chromium's widevine beside its own profile; zapzap plays no drm content
+  deny @{user_config_dirs}/chromium/{,**} r,
 
   owner /tmp/zapzap* rw,
+
+  # qt opens the controlling terminal only to decide whether its log goes to stderr or the journal; a chat client of
+  # other people's messages gets no read of the terminal's input, quietly, the journal it is
+  deny /dev/tty r,
 
   include if exists <local/zapzap>
 }

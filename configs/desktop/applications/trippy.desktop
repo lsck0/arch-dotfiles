@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Trippy
+Comment=Traceroute and ping in one
+TryExec=trip
+Exec=@HOME@/.local/bin/desktop-run --ask Target -- trip
+Icon=network-server
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

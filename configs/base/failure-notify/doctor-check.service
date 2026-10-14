@@ -1,0 +1,12 @@
+[Unit]
+Description=Check this machine against its declared state (dot doctor)
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+# this machine's drift report into secrets/drift for dot drift on the others; locked secrets only skip it
+ExecStart=-%h/.local/bin/dot drift publish
+ExecStart=%h/.local/bin/doctor-check
+Slice=background.slice
+Nice=19
+IOSchedulingClass=idle

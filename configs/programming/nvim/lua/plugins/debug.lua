@@ -1,8 +1,8 @@
 return {
     {
-        "mfussenegger/nvim-dap",               -- debug adapter protocol
+        "mfussenegger/nvim-dap", -- debug adapter protocol
         dependencies = {
-            "rcarriga/nvim-dap-ui",            -- debugger UI panels
+            "rcarriga/nvim-dap-ui", -- debugger UI panels
             "theHamsta/nvim-dap-virtual-text", -- inline debug values
         },
         cmd = { "DapToggleBreakpoint", "DapContinue", "DapStepOver", "DapStepInto", "DapStepOut" },
@@ -14,21 +14,36 @@ return {
                 local forward = ("127.0.0.1:%s:127.0.0.1:%s"):format(port, o.fargs[3] or port)
                 local stderr = {}
                 tunnels[port] = vim.fn.jobstart({
-                    "ssh", "-N", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new",
-                    "-o", "ExitOnForwardFailure=yes", "-L", forward, host,
+                    "ssh",
+                    "-N",
+                    "-o",
+                    "BatchMode=yes",
+                    "-o",
+                    "StrictHostKeyChecking=accept-new",
+                    "-o",
+                    "ExitOnForwardFailure=yes",
+                    "-L",
+                    forward,
+                    host,
                 }, {
                     stderr_buffered = true,
-                    on_stderr = function(_, data) stderr = data end,
+                    on_stderr = function(_, data)
+                        stderr = data
+                    end,
                     on_exit = function(_, code)
                         tunnels[port] = nil
-                        vim.notify(("DapTunnel %s:%s closed (%d) %s"):format(host, port, code,
-                            table.concat(stderr, " ")), code == 0 and vim.log.levels.INFO or vim.log.levels.WARN)
+                        vim.notify(
+                            ("DapTunnel %s:%s closed (%d) %s"):format(host, port, code, table.concat(stderr, " ")),
+                            code == 0 and vim.log.levels.INFO or vim.log.levels.WARN
+                        )
                     end,
                 })
                 vim.notify(("DapTunnel 127.0.0.1:%s -> %s"):format(port, host))
             end, { nargs = "+", desc = "SSH port forward for remote debugging" })
             vim.api.nvim_create_user_command("DapTunnelStop", function()
-                for _, job in pairs(tunnels) do vim.fn.jobstop(job) end
+                for _, job in pairs(tunnels) do
+                    vim.fn.jobstop(job)
+                end
             end, { desc = "Stop all DapTunnel forwards" })
         end,
         config = function()
@@ -60,14 +75,18 @@ return {
             end
             -- js-debug runs child sessions; close only when the last one ends
             local function close_ui()
-                if vim.tbl_count(dap.sessions()) <= 1 then dapui.close() end
+                if vim.tbl_count(dap.sessions()) <= 1 then
+                    dapui.close()
+                end
             end
             dap.listeners.before.event_terminated["dapui_config"] = close_ui
             dap.listeners.before.event_exited["dapui_config"] = close_ui
 
             -- buffers without dap configs list every filetype's configs
             dap.providers.configs["fallback"] = function(bufnr)
-                if dap.configurations[vim.bo[bufnr].filetype] then return {} end
+                if dap.configurations[vim.bo[bufnr].filetype] then
+                    return {}
+                end
                 local all, seen = {}, {}
                 for _, configs in pairs(dap.configurations) do
                     for _, c in ipairs(configs) do
@@ -81,17 +100,21 @@ return {
             end
 
             local function input_port(default)
-                return function() return tonumber(vim.fn.input("Port: ", default)) end
+                return function()
+                    return tonumber(vim.fn.input("Port: ", default))
+                end
             end
             local function input_path(prompt, default)
-                return function() return vim.fn.input(prompt, default, "file") end
+                return function()
+                    return vim.fn.input(prompt, default, "file")
+                end
             end
 
             -- native: gdb for c/cpp/asm, codelldb for rust
             dap.adapters.gdb = {
                 type = "executable",
                 command = "gdb",
-                args = { "--interpreter=dap", "--eval-command", "set print pretty on" }
+                args = { "--interpreter=dap", "--eval-command", "set print pretty on" },
             }
 
             dap.adapters.codelldb = {
@@ -116,7 +139,9 @@ return {
                     name = "Attach to gdbserver (remote)",
                     type = "gdb",
                     request = "attach",
-                    target = function() return "127.0.0.1:" .. vim.fn.input("Port: ", "2345") end,
+                    target = function()
+                        return "127.0.0.1:" .. vim.fn.input("Port: ", "2345")
+                    end,
                     program = input_path("Local binary (symbols): ", vim.fn.getcwd() .. "/"),
                     cwd = "${workspaceFolder}",
                 },
@@ -172,7 +197,9 @@ return {
             local function project_python()
                 for _, venv in ipairs({ "venv", ".venv" }) do
                     local python = vim.fn.getcwd() .. "/" .. venv .. "/bin/python"
-                    if vim.fn.executable(python) == 1 then return python end
+                    if vim.fn.executable(python) == 1 then
+                        return python
+                    end
                 end
                 return vim.fn.exepath("python3")
             end
@@ -201,10 +228,12 @@ return {
                         return { host = "127.0.0.1", port = tonumber(vim.fn.input("Port: ", "5678")) }
                     end,
                     pathMappings = function()
-                        return { {
-                            localRoot = vim.fn.getcwd(),
-                            remoteRoot = vim.fn.input("Remote root: ", "/"),
-                        } }
+                        return {
+                            {
+                                localRoot = vim.fn.getcwd(),
+                                remoteRoot = vim.fn.input("Remote root: ", "/"),
+                            },
+                        }
                     end,
                     justMyCode = false,
                 },
@@ -214,8 +243,8 @@ return {
             local function jdtls_command(command, arguments)
                 local client = vim.lsp.get_clients({ name = "jdtls" })[1]
                 assert(client, "jdtls not running, open a .java file first")
-                local res = client:request_sync("workspace/executeCommand",
-                    { command = command, arguments = arguments }, 30000)
+                local res =
+                    client:request_sync("workspace/executeCommand", { command = command, arguments = arguments }, 30000)
                 assert(res and not res.err, command .. " failed: " .. vim.inspect(res and res.err))
                 return res.result
             end
@@ -226,12 +255,18 @@ return {
                     host = "127.0.0.1",
                     port = jdtls_command("vscode.java.startDebugSession"),
                     enrich_config = function(config, on_config)
-                        if config.request ~= "launch" or config.mainClass then return on_config(config) end
+                        if config.request ~= "launch" or config.mainClass then
+                            return on_config(config)
+                        end
                         vim.ui.select(jdtls_command("vscode.java.resolveMainClass") or {}, {
                             prompt = "Main class: ",
-                            format_item = function(m) return m.mainClass end,
+                            format_item = function(m)
+                                return m.mainClass
+                            end,
                         }, function(m)
-                            if not m then return end
+                            if not m then
+                                return
+                            end
                             local args = { m.mainClass, m.projectName }
                             local paths = jdtls_command("vscode.java.resolveClasspath", args)
                             on_config(vim.tbl_extend("force", config, {
@@ -301,7 +336,9 @@ return {
                     address = "127.0.0.1",
                     port = input_port("9229"),
                     localRoot = "${workspaceFolder}",
-                    remoteRoot = function() return vim.fn.input("Remote root: ", "/opt/") end,
+                    remoteRoot = function()
+                        return vim.fn.input("Remote root: ", "/opt/")
+                    end,
                     cwd = "${workspaceFolder}",
                     sourceMaps = true,
                     skipFiles = { "<node_internals>/**", "node_modules/**" },
@@ -310,7 +347,7 @@ return {
             for _, ft in ipairs({ "typescript", "javascriptreact", "typescriptreact" }) do
                 dap.configurations[ft] = dap.configurations.javascript
             end
-        end
+        end,
     },
 
     {

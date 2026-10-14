@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
@@ -27,8 +28,8 @@ Row {
   readonly property int _slack: {
     if (!fill || chips.count === 0) return 0
     var natural = spacing * (chips.count - 1)
-    for (var i = 0; i < chips.count; i++) {
-      var item = chips.itemAt(i)
+    for (let i = 0; i < chips.count; i++) {
+      let item = chips.itemAt(i)
       if (!item) return 0
       natural += item.implicitWidth
     }
@@ -45,7 +46,7 @@ Row {
   }
 
   function selectedOptionIndex() {
-    for (var i = 0; i < options.length; i++)
+    for (let i = 0; i < options.length; i++)
       if (optionValue(options[i]) === value) return i
     return -1
   }
@@ -58,7 +59,7 @@ Row {
 
   onActiveFocusChanged: {
     if (activeFocus) {
-      var idx = selectedOptionIndex()
+      let idx = selectedOptionIndex()
       _focusedIndex = idx < 0 ? 0 : idx
     } else {
       _focusedIndex = -1
@@ -73,8 +74,8 @@ Row {
       event.accepted = true
     } else if (event.key === Qt.Key_Right || event.key === Qt.Key_L
         || event.text === "l") {
-      var max = options.length - 1
-      var next = (_focusedIndex < 0 ? 0 : _focusedIndex) + 1
+      let max = options.length - 1
+      let next = (_focusedIndex < 0 ? 0 : _focusedIndex) + 1
       _focusedIndex = Math.min(max, next)
       event.accepted = true
     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter

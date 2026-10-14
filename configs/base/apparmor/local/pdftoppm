@@ -1,0 +1,4 @@
+# managed by arch-dotfiles/apparmor
+# yazi's pdf previews and file managers run it on downloads anywhere in the home or temp dirs, beyond apparmor.d's
+# xdg dirs and its /tmp output: the same rules as the module's other file tools
+include <abstractions/dotfiles/file-tool>

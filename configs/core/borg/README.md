@@ -5,8 +5,9 @@ inside the syncthing folder `borg-<host>` (configs/core/syncthing). Syncthing se
 in its own backups, so the NAS and everything behind it only see ciphertext. The run pauses that folder while
 borg writes, so a half-written transaction never syncs, and unpausing rescans it.
 
-Before `create` it runs `scripts/lib/backup-*.sh`, so the app state the checkout keeps (secrets, plasma) is fresh
-in the archive; `sync.sh` commits it. Weekly it runs `borg check --repository-only`, monthly it restores
+Before `create` it runs `dot backup`, the same backup run `dot sync` uses, so the app state the checkout
+keeps (secrets, plasma) is fresh in the archive; `dot sync` commits it. Each module's `backup` verb is that state's
+save, its `link` or `restore` verb the load. Weekly it runs `borg check --repository-only`, monthly it restores
 `~/.local/state/borg/canary` from the newest archive and compares it.
 
 A run fails, and failure-notify says so, when the passphrase is missing or secrets are locked. On battery or a
@@ -18,7 +19,7 @@ holds instead of syncing a fresh repo over the old one's files.
 ## Setup, once per user
 
 ```bash
-head -c 32 /dev/urandom | base64 > secrets/borg-passphrase   # then ./sync.sh
+head -c 32 /dev/urandom | base64 > secrets/borg-passphrase   # then dot sync
 ```
 
 The first run exports the repo key (still encrypted by the passphrase) to `secrets/borg-key-<repo>`. Keep a paper

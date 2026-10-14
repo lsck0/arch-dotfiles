@@ -1,0 +1,4 @@
+# managed by arch-dotfiles/apparmor
+# apparmor.d's ouch reads and writes only the xdg user dirs; an archive tool works where the user is, like 7z and
+# unzip (file-tool): home and temp dirs, which also covers the cgroup cpu.max of an app scope and ~/.gitconfig
+include <abstractions/dotfiles/file-tool>

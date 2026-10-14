@@ -1,0 +1,9 @@
+{
+  "name": "obs-mcp-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repo-pinned local install of obs-mcp for the Claude MCP server (arch-dotfiles/configs/creating/obs).",
+  "dependencies": {
+    "obs-mcp": "1.1.0"
+  }
+}

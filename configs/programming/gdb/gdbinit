@@ -20,3 +20,14 @@ _pwndbg = "/usr/share/pwndbg/gdbinit.py"
 if _os.path.exists(_pwndbg):
     gdb.execute("source " + _pwndbg)
 end
+
+# pwndbg turns on history save, whose default file is ./.gdb_history: keep it in one XDG state file instead of the cwd
+python
+import os as _os
+_state = _os.path.join(_os.environ.get("XDG_STATE_HOME") or _os.path.expanduser("~/.local/state"), "gdb")
+_os.makedirs(_state, mode=0o700, exist_ok=True)
+gdb.execute("set history filename " + _os.path.join(_state, "history"))
+end
+
+# pwndbg sets output-radix 16 for exploitation work: keep values decimal (Jai, C, C++ ints read like their source); `p/x` still gives hex
+set output-radix 10

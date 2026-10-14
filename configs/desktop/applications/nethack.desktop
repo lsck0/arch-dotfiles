@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=NetHack
+Comment=Explore the Mazes of Menace
+TryExec=nethack
+Exec=nethack
+Icon=applications-games
+Terminal=true
+Categories=Game;RolePlaying;ConsoleOnly;

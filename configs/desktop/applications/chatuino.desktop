@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Chatuino
+Comment=Twitch chat client
+TryExec=chatuino
+Exec=chatuino
+Icon=konversation
+Terminal=true
+Categories=Network;Chat;ConsoleOnly;

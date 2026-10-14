@@ -4,7 +4,7 @@
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
-;; early-init.el sets these (and toggle-font.sh rewrites them there); emacs --batch -l init.el never reads
+;; early-init.el sets these (and toggle-font.nu rewrites them there); emacs --batch -l init.el never reads
 ;; it, so declare neutral fallbacks rather than a second copy of the real values that could drift
 (defvar my/font-family "monospace")
 (defvar my/font-size 16)
@@ -128,7 +128,7 @@
 
 ;;;; server -----------------------------------------------------------------
 
-;; zathura's backward search (scripts/synctex-edit.sh) and switch-wallpaper.sh reach Emacs over emacsclient
+;; zathura's backward search (configs/latex/sioyek/synctex-edit.nu) and the theme verb reach Emacs over emacsclient
 (require 'server)
 (unless (or noninteractive (server-running-p))
   (server-start))
@@ -142,7 +142,7 @@
   "Search dirs as (PATH . DEPTH) when ~/.config/tms/config.toml has none.")
 
 (defconst my/projects-exclude '("elpa" "node_modules" ".cargo" "vendor" "target")
-  "Vendored repos are not projects; mirrors the --exclude list in scripts/hms.sh.")
+  "Vendored repos are not projects; mirrors FD_EXCLUDES in scripts/hms.nu.")
 
 (defun my/projects-search-dirs ()
   "The [[search_dirs]] of ~/.config/tms/config.toml as (PATH . DEPTH), so the picker and hms agree."

@@ -11,33 +11,37 @@ both carrying `ConditionPathExists=/etc/initrd-release` so they only ever run in
 
 Per machine, opt in:
 
-- `platforms/<host>.sh`: `REMOTE_UNLOCK=1`
-- `platforms/<host>.sh`: add to `EXTRA_PACKAGES`: `mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox`
+- `platforms/<host>.options.nuon`: `"base/boot/remote-unlock": {ssh_unlock: true}`
+- `platforms/<host>.nuon`: add `mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox` to `extra_packages`
 
-`luca-pc` has both. Dropping `REMOTE_UNLOCK` and re-running `config.sh` removes the wiring (disables the units, drops the
+`luca-pc` has both. Unsetting the option and re-running `dot apply` removes the wiring (disables the units, drops the
 `systemd-tool` hook and `rd.neednet`).
 
-## What `system.sh` does
+## What `mod.nu` does
 
 - `systemctl enable initrd-network.service initrd-tinysshd.service` (the enable symlinks are what the install hook scans;
   the units' condition keeps them initramfs-only).
 - Installs the wired-NIC DHCP `.network` (`Name=en*`), the tinyssh port drop-in (**port 2223**), and `openssh_key_convert=false`.
 - Installs the dedicated initramfs host key to `/etc/tinyssh/sshkeydir` and the authorized key (`secrets/ssh_publickey.asc`)
-  to `/root/.ssh/authorized_keys` (inert on the live system — `PermitRootLogin no`), plus a `/root/.profile` that runs the
-  password agent only under `/etc/initrd-release`.
+  to `/etc/mkinitcpio-systemd-tool/config/authorized_keys`, which `initrd-shell.service` copies to the image's
+  `/root/.ssh/authorized_keys`; the real root gets no key. The image's `/root/.profile` is upstream's `initrd-shell.sh`,
+  the password agent an ssh login lands in.
 - Adds the `systemd-tool` hook after `sd-encrypt` and `rd.neednet=1` to the kernel cmdline.
 - The initramfs rebuilds at `system-apply`'s boot barrier (`BOOT_INPUTS`).
 
 ## Secrets
 
+Both are in `SYSTEM_SECRETS` (`scripts/lib/system.nu`): `dot apply` streams them to the root step as data, the root copy
+carries no `secrets/`.
+
 - `secrets/ssh_publickey.asc` — already present; the key allowed to log in to the initramfs sshd.
-- `secrets/initramfs-ssh/<host>/sshkeydir/` — the dedicated initramfs tinyssh host key. If absent, the first `config.sh`
+- `secrets/initramfs-ssh/<host>/sshkeydir/` — the dedicated initramfs tinyssh host key. If absent, the first `dot apply`
   generates one at `/etc/tinyssh/sshkeydir` and prints the backup command; commit it so reinstalls keep the same host key:
 
   ```
   sudo mkdir -p secrets/initramfs-ssh/$(uname -n)
   sudo cp -a /etc/tinyssh/sshkeydir secrets/initramfs-ssh/$(uname -n)/sshkeydir
-  # then ./sync.sh
+  # then dot sync
   ```
 
 ## Using it
@@ -51,15 +55,14 @@ ssh -p 2223 root@<pc-ip>     # new known_hosts entry (distinct host key); the ag
 ssh luca@<pc-ip>
 ```
 
-If `/root/.profile` does not auto-run the agent for your shell, run it by hand after logging in:
-`systemd-tty-ask-password-agent --query --watch`.
+`Ctrl-C` at the prompt opens `initrd-shell.sh`'s menu; `journalctl -b -t shell` shows its log after boot.
 
 ## FIRST BOOT — verify with physical access available
 
 This touches the initramfs; test the first reboot **at the machine**, with the console reachable, so the passphrase
 fallback is right there if anything is off:
 
-1. `config.sh` (rebuilds the UKI), then reboot.
+1. `dot apply` (rebuilds the UKI), then reboot.
 2. At the console you still get the normal passphrase/YubiKey prompt — confirm it still unlocks locally. (Fallback intact.)
 3. From another host on the LAN (or over WireGuard): `ssh -p 2223 root@<pc-ip>`, enter the passphrase, confirm boot continues.
 4. Confirm the host key is the committed one (`secrets/initramfs-ssh/<host>/sshkeydir/ed25519.pk`, via `tinysshd-printkey`).

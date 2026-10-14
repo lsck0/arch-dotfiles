@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -50,8 +51,8 @@ BarWidget {
     var today = new Date()
 
     var cells = []
-    for (var i = 0; i < startWeekday; i++) cells.push(null)
-    for (var day = 1; day <= daysInMonth; day++) {
+    for (let i = 0; i < startWeekday; i++) cells.push(null)
+    for (let day = 1; day <= daysInMonth; day++) {
       cells.push({
         day: day,
         isToday: today.getFullYear() === year && today.getMonth() === month && today.getDate() === day,
@@ -60,7 +61,7 @@ BarWidget {
     while (cells.length % 7 !== 0) cells.push(null)
 
     var weeks = []
-    for (var w = 0; w < cells.length; w += 7) weeks.push(cells.slice(w, w + 7))
+    for (let w = 0; w < cells.length; w += 7) weeks.push(cells.slice(w, w + 7))
     return weeks
   }
 
@@ -76,7 +77,7 @@ BarWidget {
   function timeInZone(offsetSec) {
     var travelled = root.travelledNow
     var shiftMs = (travelled.getTimezoneOffset() * 60 + offsetSec) * 1000
-    return Qt.formatTime(new Date(travelled.getTime() + shiftMs), "HH:mm")
+    return Qt.formatTime(new Date(travelled.getTime() + shiftMs), Util.timeFormat)
   }
 
   // half-hour steps need one decimal
@@ -90,7 +91,7 @@ BarWidget {
 
   Process {
     id: offsetsProc
-    command: [Paths.barWidget("timezone-offsets.sh")]
+    command: [Paths.barWidget("timezone-offsets.nu")]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -120,7 +121,7 @@ BarWidget {
     id: label
     anchors.centerIn: parent
     textFormat: Text.PlainText
-    text: Qt.formatDateTime(root.now, "ddd dd.MM. HH:mm")
+    text: Qt.formatDateTime(root.now, "ddd " + Util.dayFormat + " " + Util.timeFormat)
     color: root.bar ? root.bar.barForeground : Colors.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
@@ -211,11 +212,13 @@ BarWidget {
           Repeater {
             model: root.calendarModel
             Row {
+              id: week
               required property var modelData
               width: content.width
               Repeater {
-                model: modelData
+                model: week.modelData
                 Rectangle {
+                  id: dayCell
                   required property var modelData
                   width: content.width / 7
                   height: Style.space(24)
@@ -223,9 +226,9 @@ BarWidget {
                   color: modelData && modelData.isToday ? Style.selectedFillFor(Colors.menu.text, Colors.accent) : "transparent"
                   Text {
                     anchors.centerIn: parent
-                    text: modelData ? modelData.day : ""
-                    color: modelData && modelData.isToday ? Colors.accent : Colors.menu.text
-                    font.bold: modelData && modelData.isToday
+                    text: dayCell.modelData ? dayCell.modelData.day : ""
+                    color: dayCell.modelData && dayCell.modelData.isToday ? Colors.accent : Colors.menu.text
+                    font.bold: dayCell.modelData && dayCell.modelData.isToday
                     font.pixelSize: Style.font.caption
                     font.family: Style.font.family
                   }
@@ -243,6 +246,7 @@ BarWidget {
       Repeater {
         model: root.sortedZoneOffsets
         Item {
+          id: zone
           required property var modelData
           width: content.width
           implicitHeight: zoneTime.implicitHeight
@@ -263,7 +267,7 @@ BarWidget {
             anchors.right: zoneTime.left
             anchors.rightMargin: Style.spacing.xs
             anchors.verticalCenter: parent.verticalCenter
-            text: modelData.zone
+            text: zone.modelData.zone
             color: Colors.menu.text
             font.pixelSize: Style.font.body
             font.family: Style.font.family
@@ -277,7 +281,7 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width * 0.32
             horizontalAlignment: Text.AlignRight
-            text: root.timeInZone(modelData.offsetSec)
+            text: root.timeInZone(zone.modelData.offsetSec)
             color: Colors.accent
             font.pixelSize: Style.font.body
             font.family: Style.font.family

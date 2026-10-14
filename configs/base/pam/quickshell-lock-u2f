@@ -1,0 +1,4 @@
+#%PAM-1.0
+# the lock screen's security key mode: the fido2 pin plus touch, never the password; options as sudo's line in mod.nu
+auth       required   pam_u2f.so cue pinverification=1 authfile=/etc/u2f_mappings origin=@ORIGIN@ appid=@ORIGIN@
+account    include    system-auth

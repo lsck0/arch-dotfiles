@@ -9,7 +9,7 @@ include <tunables/global>
 @{att} = ""
 
 @{exec_path} = @{bin}/sioyek
-profile sioyek @{exec_path} flags=(attach_disconnected) {
+profile sioyek @{exec_path} flags=(attach_disconnected,mediate_deleted) {
   include <abstractions/base-strict>
   include <abstractions/desktop>
   include <abstractions/dotfiles/synctex-edit>
@@ -33,7 +33,9 @@ profile sioyek @{exec_path} flags=(attach_disconnected) {
 
   owner @{user_config_dirs}/sioyek/{,**} r,
   owner @{user_share_dirs}/sioyek/{,**} rwk,
-  owner @{user_cache_dirs}/sioyek/{,**} rwk,
+  # l: qt's shader cache writes an O_TMPFILE and links it into place; the tmpfile is a deleted entry, mediate_deleted
+  # lets this rule name it (#<inode>) instead of refusing the link, and every start would recompile the shaders
+  owner @{user_cache_dirs}/sioyek/{,**} rwkl,
   owner @{user_cache_dirs}/wal/colors-sioyek r,
 
   owner /tmp/sioyek* rw,
@@ -41,6 +43,14 @@ profile sioyek @{exec_path} flags=(attach_disconnected) {
   # sha256 of the app (44 chars, one trailing =); denied, sioyek takes itself for a secondary instance and quits
   owner /tmp/qipc_{systemsem,sharedmemory}_* rwk,
   owner /tmp/*= rw,
+  # QLocalServer binds that socket in a private temp dir (/tmp/.XXXXXX/s) and renames it out; denied, listen fails and
+  # a second sioyek (synctex forward search) cannot hand its file to the open window
+  owner /tmp/.??????/ rw,
+  owner /tmp/.??????/s rw,
+
+  # qt opens the controlling terminal only to decide whether its log goes to stderr or the journal; a viewer of other
+  # people's pdfs gets no read of the terminal's input, quietly, the journal it is
+  deny /dev/tty r,
 
   include if exists <local/sioyek>
 }

@@ -2,7 +2,7 @@
 Description=Refresh the Claude usage panel on the TRMNL display
 
 [Timer]
-# changed.sh skips the run unless claude was used or the posted data went stale
+# trmnl-claude.nu changed skips the run unless claude was used or the posted data went stale
 OnCalendar=*:0/15
 Persistent=true
 AccuracySec=1min

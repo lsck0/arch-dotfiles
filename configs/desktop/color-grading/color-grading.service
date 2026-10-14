@@ -1,6 +1,6 @@
 [Unit]
 Description=Color grading in the display CTM and gamma LUT
-Documentation=file:%h/projects/arch-dotfiles/configs/desktop/color-grading/color-grading.py
+Documentation=file:@DOTFILES@/configs/desktop/color-grading/color-grading.py
 After=graphical-session.target
 PartOf=graphical-session.target
 ConditionEnvironment=WAYLAND_DISPLAY
@@ -9,7 +9,7 @@ ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
 
 [Service]
 Type=simple
-ExecStart=%h/projects/arch-dotfiles/configs/desktop/color-grading/color-grading.py run
+ExecStart=@DOTFILES@/configs/desktop/color-grading/color-grading.py run
 # color-grading.py set rewrites the state files, the daemon rereads them
 ExecReload=kill -HUP $MAINPID
 # the compositor drops the LUT with the connection, a restart regrades from scratch

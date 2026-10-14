@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Gemini CLI
+Comment=Google's coding agent in the terminal
+TryExec=gemini
+Exec=gemini
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

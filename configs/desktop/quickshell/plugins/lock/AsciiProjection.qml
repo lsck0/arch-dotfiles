@@ -22,7 +22,7 @@ import qs.Commons
 Item {
   id: root
 
-  property Item image: null
+  property Image image: null
   property bool active: false
   property bool animate: true
 
@@ -100,9 +100,9 @@ Item {
       var k = root.paletteNudge
       var last = root.ramp.length - 1
       var g = [], col = []
-      for (var i = 0; i < root.cols * root.rows; i++) {
-        var r = data[i * 4] / 255, gr = data[i * 4 + 1] / 255, b = data[i * 4 + 2] / 255
-        var lum = 0.2126 * r + 0.7152 * gr + 0.0722 * b
+      for (let i = 0; i < root.cols * root.rows; i++) {
+        const r = data[i * 4] / 255, gr = data[i * 4 + 1] / 255, b = data[i * 4 + 2] / 255
+        const lum = 0.2126 * r + 0.7152 * gr + 0.0722 * b
         g.push(root.ramp.charAt(Math.round(lum * last)))
         col.push(Qt.rgba(r + (acc.r - r) * k, gr + (acc.g - gr) * k, b + (acc.b - b) * k, 1))
       }
@@ -110,9 +110,9 @@ Item {
       root.colors = col
       var heads = []
       var developFrames = root.developMs / root.frameMs
-      for (var c = 0; c < root.cols; c++) {
+      for (let c = 0; c < root.cols; c++) {
         // staggered starts, all columns land within developMs
-        var start = Math.random() * root.rows * 0.5
+        const start = Math.random() * root.rows * 0.5
         heads.push({ y: -start, speed: (root.rows + start) / developFrames * (1 + Math.random() * 0.5), drawn: 0 })
       }
       root.heads = heads
@@ -145,16 +145,16 @@ Item {
     // redraw each drop's trail window over the static projection; cells it has left restore to base
     function rainPaint(ctx) {
       var acc = Colors.accent
-      for (var i = 0; i < root.rain.length; i++) {
-        var d = root.rain[i]
-        var hr = Math.floor(d.y)
-        for (var r = hr - d.len - 2; r <= hr; r++) {
+      for (let i = 0; i < root.rain.length; i++) {
+        const d = root.rain[i]
+        const hr = Math.floor(d.y)
+        for (let r = hr - d.len - 2; r <= hr; r++) {
           if (r < 0 || r >= root.rows) continue
-          var dist = hr - r
+          const dist = hr - r
           if (dist <= 0) { raincell(ctx, d.c, r, acc, true); continue }
           if (dist <= d.len) {
-            var t = dist / d.len
-            var bc = root.colors[r * root.cols + d.c]
+            const t = dist / d.len
+            const bc = root.colors[r * root.cols + d.c]
             raincell(ctx, d.c, r, Qt.rgba(acc.r + (bc.r - acc.r) * t, acc.g + (bc.g - acc.g) * t, acc.b + (bc.b - acc.b) * t, 1), false)
           } else {
             cell(ctx, d.c, r, false)
@@ -176,16 +176,16 @@ Item {
         sample(ctx)
         root.frames = 0
         if (root.animate) timer.start()
-        else for (var h = 0; h < root.heads.length; h++) root.heads[h].y = root.rows
+        else for (let h = 0; h < root.heads.length; h++) root.heads[h].y = root.rows
       }
       ctx.font = Math.floor(root.cellH) + "px '" + Style.font.family + "'"
       ctx.textBaseline = "top"
-      for (var c = 0; c < root.heads.length; c++) {
-        var head = root.heads[c]
+      for (let c = 0; c < root.heads.length; c++) {
+        const head = root.heads[c]
         if (!head) continue
-        var to = Math.min(Math.floor(head.y), root.rows)
+        const to = Math.min(Math.floor(head.y), root.rows)
         // the drop leaves the projection behind it
-        for (var r = Math.max(0, head.drawn); r < to; r++) cell(ctx, c, r, false)
+        for (let r = Math.max(0, head.drawn); r < to; r++) cell(ctx, c, r, false)
         if (to >= 0 && to < root.rows) cell(ctx, c, to, true)
         head.drawn = Math.max(head.drawn, to)
         if (to >= root.rows) root.heads[c] = null
@@ -203,20 +203,20 @@ Item {
       var moving = false
       // a stuck drop must not keep the timer alive: past developMs everything lands
       var overdue = root.frames * root.frameMs > root.developMs
-      for (var c = 0; c < root.heads.length; c++) {
-        var head = root.heads[c]
+      for (let c = 0; c < root.heads.length; c++) {
+        const head = root.heads[c]
         if (!head) continue
         head.y = overdue ? root.rows : head.y + head.speed
         moving = true
       }
       // once the develop has landed, keep a handful of drops raining down random columns forever
       if (root.animate && overdue) {
-        var intensity = Style.fx.matrixRain
-        var maxDrops = Math.max(1, Math.round(intensity * 24))
-        var fall = root.rows * root.frameMs / root.rainFallMs
-        var next = []
-        for (var d = 0; d < root.rain.length; d++) {
-          var drop = root.rain[d]
+        const intensity = Style.fx.matrixRain
+        const maxDrops = Math.max(1, Math.round(intensity * 24))
+        const fall = root.rows * root.frameMs / root.rainFallMs
+        const next = []
+        for (let d = 0; d < root.rain.length; d++) {
+          const drop = root.rain[d]
           drop.y += drop.speed
           if (drop.y - drop.len <= root.rows) next.push(drop)
         }

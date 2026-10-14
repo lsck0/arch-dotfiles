@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons
@@ -40,7 +41,7 @@ BorderSurface {
     var when = new Date(ts * (ts < 1e12 ? 1000 : 1))
     if (ref && Math.round((ref - when.getTime()) / 1000) < 60) return "now"
     var sameDay = when.toDateString() === (ref ? new Date(ref) : new Date()).toDateString()
-    return Qt.formatDateTime(when, sameDay ? "HH:mm" : "dd.MM. HH:mm")
+    return Qt.formatDateTime(when, sameDay ? Util.timeFormat : Util.dayFormat + " " + Util.timeFormat)
   }
 
   property string fontFamily: Style.font.family

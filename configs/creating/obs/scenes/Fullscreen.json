@@ -21,34 +21,6 @@
   ],
   "preview_locked": false,
   "scaling_enabled": false,
-  "DesktopAudioDevice1": {
-    "prev_ver": 537001986,
-    "name": "Desktop Audio",
-    "uuid": "f780472f-c3c5-4d09-8f2e-e4ae88089941",
-    "id": "pulse_output_capture",
-    "versioned_id": "pulse_output_capture",
-    "settings": {
-      "device_id": "default"
-    },
-    "mixers": 193,
-    "sync": 0,
-    "flags": 0,
-    "volume": 0.5956621766090393,
-    "balance": 0.5,
-    "enabled": true,
-    "muted": false,
-    "push-to-mute": false,
-    "push-to-mute-delay": 0,
-    "push-to-talk": false,
-    "push-to-talk-delay": 0,
-    "hotkeys": {},
-    "deinterlace_mode": 0,
-    "deinterlace_field_order": 0,
-    "monitoring_type": 0,
-    "private_settings": {
-      "volume_locked": true
-    }
-  },
   "AuxAudioDevice1": {
     "prev_ver": 537001986,
     "name": "Mic/Aux",
@@ -58,7 +30,7 @@
     "settings": {
       "device_id": "alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback"
     },
-    "mixers": 195,
+    "mixers": 11,
     "sync": 0,
     "flags": 0,
     "volume": 0.8341541290283203,
@@ -85,34 +57,6 @@
         "versioned_id": "noise_suppress_filter_v2",
         "settings": {
           "method": "rnnoise"
-        },
-        "mixers": 255,
-        "sync": 0,
-        "flags": 0,
-        "volume": 1.0,
-        "balance": 0.5,
-        "enabled": true,
-        "muted": false,
-        "push-to-mute": false,
-        "push-to-mute-delay": 0,
-        "push-to-talk": false,
-        "push-to-talk-delay": 0,
-        "hotkeys": {},
-        "deinterlace_mode": 0,
-        "deinterlace_field_order": 0,
-        "monitoring_type": 0,
-        "private_settings": {}
-      },
-      {
-        "prev_ver": 537001986,
-        "name": "3-Band Equalizer",
-        "uuid": "14690712-9abe-47cf-ae4b-df5609f3a512",
-        "id": "basic_eq_filter",
-        "versioned_id": "basic_eq_filter",
-        "settings": {
-          "low": -2.0,
-          "mid": -2.0,
-          "high": -2.0
         },
         "mixers": 255,
         "sync": 0,
@@ -193,7 +137,7 @@
         "id": "limiter_filter",
         "versioned_id": "limiter_filter",
         "settings": {
-          "threshold": -0.1
+          "threshold": -1.0
         },
         "mixers": 255,
         "sync": 0,
@@ -257,7 +201,7 @@
       "versioned_id": "scene",
       "settings": {
         "custom_size": false,
-        "id_counter": 1,
+        "id_counter": 4,
         "items": [
           {
             "name": "Screen Capture",
@@ -281,6 +225,63 @@
               "y": 1.0
             },
             "id": 1
+          },
+          {
+            "name": "Media",
+            "source_uuid": "00000000-0000-4000-8000-0000000000a1",
+            "visible": true,
+            "locked": true,
+            "rot": 0.0,
+            "align": 5,
+            "bounds_type": 0,
+            "bounds_align": 0,
+            "pos": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "id": 2
+          },
+          {
+            "name": "Voice",
+            "source_uuid": "00000000-0000-4000-8000-0000000000a2",
+            "visible": true,
+            "locked": true,
+            "rot": 0.0,
+            "align": 5,
+            "bounds_type": 0,
+            "bounds_align": 0,
+            "pos": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "id": 3
+          },
+          {
+            "name": "Game Audio",
+            "source_uuid": "00000000-0000-4000-8000-0000000000a3",
+            "visible": true,
+            "locked": true,
+            "rot": 0.0,
+            "align": 5,
+            "bounds_type": 0,
+            "bounds_align": 0,
+            "pos": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "scale": {
+              "x": 1.0,
+              "y": 1.0
+            },
+            "id": 4
           }
         ]
       },
@@ -292,6 +293,84 @@
       "enabled": true,
       "muted": false,
       "hotkeys": {}
+    },
+    {
+      "prev_ver": 537001986,
+      "name": "Media",
+      "uuid": "00000000-0000-4000-8000-0000000000a1",
+      "id": "pipewire_audio_application_capture",
+      "versioned_id": "pipewire_audio_application_capture",
+      "settings": {
+        "TargetName": "lane.media"
+      },
+      "mixers": 5,
+      "sync": 0,
+      "flags": 0,
+      "volume": 1.0,
+      "balance": 0.5,
+      "enabled": true,
+      "muted": false,
+      "push-to-mute": false,
+      "push-to-mute-delay": 0,
+      "push-to-talk": false,
+      "push-to-talk-delay": 0,
+      "hotkeys": {},
+      "deinterlace_mode": 0,
+      "deinterlace_field_order": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "prev_ver": 537001986,
+      "name": "Voice",
+      "uuid": "00000000-0000-4000-8000-0000000000a2",
+      "id": "pipewire_audio_application_capture",
+      "versioned_id": "pipewire_audio_application_capture",
+      "settings": {
+        "TargetName": "lane.voice"
+      },
+      "mixers": 13,
+      "sync": 0,
+      "flags": 0,
+      "volume": 1.0,
+      "balance": 0.5,
+      "enabled": true,
+      "muted": false,
+      "push-to-mute": false,
+      "push-to-mute-delay": 0,
+      "push-to-talk": false,
+      "push-to-talk-delay": 0,
+      "hotkeys": {},
+      "deinterlace_mode": 0,
+      "deinterlace_field_order": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
+    },
+    {
+      "prev_ver": 537001986,
+      "name": "Game Audio",
+      "uuid": "00000000-0000-4000-8000-0000000000a3",
+      "id": "pipewire_audio_application_capture",
+      "versioned_id": "pipewire_audio_application_capture",
+      "settings": {
+        "TargetName": "wine64-preloader"
+      },
+      "mixers": 13,
+      "sync": 0,
+      "flags": 0,
+      "volume": 1.0,
+      "balance": 0.5,
+      "enabled": true,
+      "muted": false,
+      "push-to-mute": false,
+      "push-to-mute-delay": 0,
+      "push-to-talk": false,
+      "push-to-talk-delay": 0,
+      "hotkeys": {},
+      "deinterlace_mode": 0,
+      "deinterlace_field_order": 0,
+      "monitoring_type": 0,
+      "private_settings": {}
     }
   ]
 }

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Yozefu
+Comment=Kafka topics explorer
+TryExec=yozf
+Exec=yozf --cluster localhost
+Icon=network-server
+Terminal=true
+Categories=Development;ConsoleOnly;

@@ -34,11 +34,13 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
--- scripts/toggles/toggle-font.sh writes the font here, not into this tracked file
+-- scripts/toggles/toggle-font.nu writes the font here, not into this tracked file
 do
     local f = io.open((vim.env.XDG_STATE_HOME or vim.env.HOME .. "/.local/state") .. "/toggles/nvim-guifont")
     set.guifont = f and f:read("*l") or "Kode Mono:h16"
-    if f then f:close() end
+    if f then
+        f:close()
+    end
 end
 set.ignorecase = true
 set.inccommand = "split"

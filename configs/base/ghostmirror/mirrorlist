@@ -1,7 +1,4 @@
 # lastsync<dd.mm.yyyy> 04.10.2026
-# homelab full mirror (10.100.0.104, nas): the fritzbox routes 10.100.0.0/24 to the lab router, so home-lan and wireguard
-# clients reach it lan-direct (no tunnel); away clients fall through to the ranked public mirrors below
-Server=http://10.100.0.104:8090/archlinux/$repo/os/$arch
 
 ## Germany
 Server=http://mirror.23m.com/archlinux/$repo/os/$arch

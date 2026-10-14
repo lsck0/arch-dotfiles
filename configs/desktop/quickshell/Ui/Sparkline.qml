@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import qs.Commons
@@ -28,7 +29,8 @@ Item {
   onColorChanged: cv.requestPaint()
 
   // items keep visible: true inside a hidden window, endless animations would tick unseen
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
+  // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
+  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   // always-visible hosts (the bar) turn this off; one ping per new sample, never a loop
   property bool pulsing: true
@@ -49,8 +51,8 @@ Item {
     var mn = root.minValue, mx = root.maxValue
     if (mx <= mn) {
       mn = Infinity; mx = -Infinity
-      for (var i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
-      var pad = (mx - mn) * 0.15
+      for (let i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
+      let pad = (mx - mn) * 0.15
       if (!(pad > 0)) pad = 1
       mn -= pad; mx += pad
     }
@@ -76,8 +78,8 @@ Item {
 
       ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.10)
       ctx.lineWidth = 1
-      for (var g = 1; g <= 3; g++) {
-        var gy = Math.round(h * g / 4) + 0.5
+      for (let g = 1; g <= 3; g++) {
+        let gy = Math.round(h * g / 4) + 0.5
         ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke()
       }
       if (n < 1) return
@@ -85,8 +87,8 @@ Item {
       var mn = root.minValue, mx = root.maxValue
       if (mx <= mn) {
         mn = Infinity; mx = -Infinity
-        for (var i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
-        var pad = (mx - mn) * 0.15
+        for (let i = 0; i < n; i++) { mn = Math.min(mn, v[i]); mx = Math.max(mx, v[i]) }
+        let pad = (mx - mn) * 0.15
         if (!(pad > 0)) pad = 1
         mn -= pad; mx += pad
       }
@@ -96,20 +98,20 @@ Item {
 
       var key = c.toString() + "|" + root.fillAlpha
       if (!cv.gradCache || cv.gradH !== h || cv.gradKey !== key) {
-        var grad = ctx.createLinearGradient(0, 0, 0, h)
+        let grad = ctx.createLinearGradient(0, 0, 0, h)
         grad.addColorStop(0, Qt.rgba(c.r, c.g, c.b, root.fillAlpha))
         grad.addColorStop(1, Qt.rgba(c.r, c.g, c.b, 0))
         cv.gradCache = grad; cv.gradH = h; cv.gradKey = key
       }
       ctx.beginPath()
       ctx.moveTo(px(0), py(v[0]))
-      for (var j = 1; j < n; j++) ctx.lineTo(px(j), py(v[j]))
+      for (let j = 1; j < n; j++) ctx.lineTo(px(j), py(v[j]))
       ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath()
       ctx.fillStyle = cv.gradCache; ctx.fill()
 
       ctx.beginPath()
       ctx.moveTo(px(0), py(v[0]))
-      for (var k = 1; k < n; k++) ctx.lineTo(px(k), py(v[k]))
+      for (let k = 1; k < n; k++) ctx.lineTo(px(k), py(v[k]))
       ctx.strokeStyle = c; ctx.lineWidth = root.lineWidth; ctx.stroke()
     }
   }

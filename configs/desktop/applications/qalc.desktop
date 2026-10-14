@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=qalc
+Comment=Calculator with units and currencies
+TryExec=qalc
+Exec=qalc
+Icon=accessories-calculator
+Terminal=true
+Categories=Utility;Calculator;ConsoleOnly;

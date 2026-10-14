@@ -23,8 +23,13 @@ end
 -- $UE_ROOT, else the home install (configs/programming/unreal), else the old pacman one
 local function engine_root()
     local data = vim.env.XDG_DATA_HOME or (vim.env.HOME .. "/.local/share")
-    for _, dir in ipairs({ vim.env.UE_ROOT, data .. "/unreal-engine", "/opt/unreal-engine" }) do
-        if dir and vim.uv.fs_stat(dir .. "/Engine/Build/BatchFiles/Linux/Build.sh") then
+    -- no nil slot: an unset $UE_ROOT first would end ipairs before it looks at any dir
+    local dirs = { data .. "/unreal-engine", "/opt/unreal-engine" }
+    if vim.env.UE_ROOT then
+        table.insert(dirs, 1, vim.env.UE_ROOT)
+    end
+    for _, dir in ipairs(dirs) do
+        if vim.uv.fs_stat(dir .. "/Engine/Build/BatchFiles/Linux/Build.sh") then
             return dir
         end
     end
@@ -32,8 +37,9 @@ end
 
 -- the editor target: Source/<Name>Editor.Target.cs, else the project's name + Editor
 local function editor_target(root)
-    local target = vim.fs.find(function(name) return name:match("Editor%.Target%.cs$") ~= nil end,
-        { path = root .. "/Source", limit = 1 })[1]
+    local target = vim.fs.find(function(name)
+        return name:match("Editor%.Target%.cs$") ~= nil
+    end, { path = root .. "/Source", limit = 1 })[1]
     if target then
         return vim.fs.basename(target):gsub("%.Target%.cs$", "")
     end
@@ -95,8 +101,13 @@ local function ubt(root, extra, on_exit)
         vim.notify("unreal: no engine (set $UE_ROOT)", vim.log.levels.ERROR)
         return
     end
-    local cmd = { engine .. "/Engine/Build/BatchFiles/Linux/Build.sh", editor_target(root), "Linux", "Development",
-        "-Project=" .. uproject(root) }
+    local cmd = {
+        engine .. "/Engine/Build/BatchFiles/Linux/Build.sh",
+        editor_target(root),
+        "Linux",
+        "Development",
+        "-Project=" .. uproject(root),
+    }
     vim.list_extend(cmd, extra)
     vim.system(cmd, { text = true, cwd = root }, vim.schedule_wrap(on_exit))
 end
@@ -150,13 +161,17 @@ local function attach(path)
     end
     local buf = vim.api.nvim_get_current_buf()
     local function map(lhs, fn, desc)
-        vim.keymap.set("n", lhs, function() fn(root) end, { buffer = buf, desc = desc })
+        vim.keymap.set("n", lhs, function()
+            fn(root)
+        end, { buffer = buf, desc = desc })
     end
     map("<leader>Ub", M.build, "Unreal: build editor target")
     map("<leader>Ue", M.editor, "Unreal: open editor")
     map("<leader>Ug", M.clangdb, "Unreal: regenerate compile_commands.json")
     -- buffer-local group, so <leader>U is labelled only where it exists
-    pcall(function() require("which-key").add({ { "<leader>U", group = "unreal", buffer = buf } }) end)
+    pcall(function()
+        require("which-key").add({ { "<leader>U", group = "unreal", buffer = buf } })
+    end)
 end
 
 function M.setup()

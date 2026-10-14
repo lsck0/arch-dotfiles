@@ -1,5 +1,8 @@
 [Unit]
 Description=Desktop notification that %i failed
+# no graphical session (the display-less provisioning boot): skipped, not a minute waiting for a notification daemon
+# that never comes while every failing unit (a D-Bus activated one) queues another
+ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 Type=oneshot

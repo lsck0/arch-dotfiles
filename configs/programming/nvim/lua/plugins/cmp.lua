@@ -17,8 +17,7 @@ return {
                     local cond = require("nvim-autopairs.conds")
                     local tex_ft = { "tex", "latex", "markdown" }
                     npairs.add_rules({
-                        Rule("$", "$", tex_ft)
-                            :with_pair(cond.not_after_regex("[%w]")),
+                        Rule("$", "$", tex_ft):with_pair(cond.not_after_regex("[%w]")),
                         Rule("\\(", "\\)", tex_ft),
                         Rule("\\[", "\\]", tex_ft),
                     })
@@ -28,7 +27,7 @@ return {
             {
                 "L3MON4D3/LuaSnip", -- snippet engine
                 version = "v2.*",
-                build = "make install_jsregexp"
+                build = "make install_jsregexp",
             },
 
             { "onsails/lspkind.nvim" }, -- completion kind icons
@@ -38,9 +37,9 @@ return {
                 version = "2.*",
                 opts = {},
                 dependencies = {
-                    "Dosx001/cmp-commit",                    -- commit message source
+                    "Dosx001/cmp-commit", -- commit message source
                     "davidsierradz/cmp-conventionalcommits", -- conventional commits source
-                    "hrsh7th/cmp-calc",                      -- inline calculator source
+                    "hrsh7th/cmp-calc", -- inline calculator source
                 },
             },
         },

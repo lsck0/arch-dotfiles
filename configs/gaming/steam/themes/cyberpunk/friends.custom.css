@@ -3,39 +3,54 @@
 @import url("colors.css");
 
 /* message entry */
-[class*="chatentry"], [class*="ChatEntry"], [class*="MessageEntry"],
-[class*="chatentry"] textarea, [class*="ChatEntry"] textarea {
-  background-color: var(--cp-bg-alt) !important;
-  color: var(--cp-fg) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+[class*="chatentry"],
+[class*="ChatEntry"],
+[class*="MessageEntry"],
+[class*="chatentry"] textarea,
+[class*="ChatEntry"] textarea {
+    background-color: var(--cp-bg-alt) !important;
+    color: var(--cp-fg) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
 }
-[class*="chatentry"]:focus-within, [class*="ChatEntry"]:focus-within,
+[class*="chatentry"]:focus-within,
+[class*="ChatEntry"]:focus-within,
 [class*="MessageEntry"]:focus-within {
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+    box-shadow:
+        inset 0 0 0 1px var(--cp-accent),
+        0 0 8px -2px var(--cp-accent) !important;
 }
 
 /* friend and group chat rows */
-.friend:hover, .friendListItem:hover, .ChatRoomListGroupItem:hover,
+.friend:hover,
+.friendListItem:hover,
+.ChatRoomListGroupItem:hover,
 [class*="ChatRoomListGroupItem"]:hover {
-  background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+    background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
 }
 
 /* status dot */
-[class*="online"], [class*="Online"], [class*="ingame"], [class*="InGame"],
+[class*="online"],
+[class*="Online"],
+[class*="ingame"],
+[class*="InGame"],
 [class*="statusField"][class*="online"] {
-  color: var(--cp-accent) !important;
-  border-color: var(--cp-accent) !important;
+    color: var(--cp-accent) !important;
+    border-color: var(--cp-accent) !important;
 }
 
 /* selected chat */
-[class*="chatroom"][class*="selected"], [class*="ChatRoom"][class*="Selected"],
-[class*="friend"][class*="selected"], [class*="Friend"][class*="Selected"] {
-  background-color: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
-  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+[class*="chatroom"][class*="selected"],
+[class*="ChatRoom"][class*="Selected"],
+[class*="friend"][class*="selected"],
+[class*="Friend"][class*="Selected"] {
+    background-color: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+    box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
 }
 
 /* own messages */
-[class*="mine"] [class*="bubble"], [class*="Mine"] [class*="Bubble"],
-[class*="selfMessage"], [class*="SelfMessage"] {
-  background-color: color-mix(in srgb, var(--cp-accent) 14%, var(--cp-bg-alt)) !important;
+[class*="mine"] [class*="bubble"],
+[class*="Mine"] [class*="Bubble"],
+[class*="selfMessage"],
+[class*="SelfMessage"] {
+    background-color: color-mix(in srgb, var(--cp-accent) 14%, var(--cp-bg-alt)) !important;
 }

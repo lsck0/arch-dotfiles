@@ -1,0 +1,10 @@
+[Unit]
+Description=On-demand listening socket for ollama
+
+[Socket]
+ListenStream=127.0.0.1:11434
+Accept=no
+Service=ollama-proxy.service
+
+[Install]
+WantedBy=sockets.target

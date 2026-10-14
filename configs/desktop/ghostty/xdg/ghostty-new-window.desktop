@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Ghostty Window
+Comment=A window of the resident ghostty service
+TryExec=/usr/bin/ghostty
+Exec=@HOME@/.local/bin/ghostty-window
+Icon=com.mitchellh.ghostty
+Terminal=false
+NoDisplay=true
+Categories=System;TerminalEmulator;
+StartupWMClass=com.mitchellh.ghostty
+X-TerminalArgExec=-e
+X-TerminalArgTitle=--title=
+X-TerminalArgDir=--working-directory=

@@ -11,7 +11,36 @@
   (treesit-auto-add-to-auto-mode-alist 'all)
   (global-treesit-auto-mode 1))
 
+(defconst my/treesit-langs
+  '(bash c cmake cpp css dockerfile go haskell html javascript jsdoc json lua make markdown nix python ruby rust toml
+    tsx typescript typst yaml zig)
+  "Grammars the dotfiles build ahead: the languages with an LSP below plus config formats; others still prompt.")
+
+(defun my/treesit-install-langs ()
+  "Build the missing grammars of `my/treesit-langs' at treesit-auto's pinned revisions, without asking.
+Signals when one failed, after trying the rest."
+  ;; js-ts-mode also wants jsdoc, which treesit-auto has no recipe for; js.el registers its source
+  (require 'js)
+  (let ((treesit-language-source-alist (append (treesit-auto--build-treesit-source-alist)
+                                               treesit-language-source-alist))
+        (failed nil))
+    (dolist (lang my/treesit-langs)
+      (unless (treesit-ready-p lang t)
+        (condition-case err
+            (treesit-install-language-grammar lang)
+          (error (push lang failed)
+                 (message "tree-sitter: building %s failed: %s" lang (error-message-string err))))))
+    (when failed
+      (error "tree-sitter: building %s failed" (nreverse failed)))))
+
 ;;;; LSP ---------------------------------------------------------------------
+
+;; the servers come from nvim's mason (the nvim module installs them), which puts its bin dir on PATH only inside nvim.
+;; ahead of /usr/bin like mason's own prepend, so rust-analyzer is mason's and not the componentless rustup proxy
+(let ((mason-bin (expand-file-name "nvim/mason/bin" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
+  (when (file-directory-p mason-bin)
+    (add-to-list 'exec-path mason-bin)
+    (setenv "PATH" (concat mason-bin path-separator (getenv "PATH")))))
 
 (defun my/cargo-toml-mentions-p (word)
   "Non-nil when the nearest Cargo.toml above `default-directory' contains WORD."
@@ -33,7 +62,7 @@
   :hook ((c-mode c-ts-mode c++-mode c++-ts-mode
           rust-ts-mode python-mode python-ts-mode
           js-ts-mode typescript-ts-mode tsx-ts-mode
-          bash-ts-mode sh-mode css-ts-mode html-mode
+          bash-ts-mode sh-mode css-ts-mode html-mode html-ts-mode
           json-ts-mode yaml-ts-mode lua-ts-mode go-ts-mode
           ruby-ts-mode ruby-mode markdown-mode gfm-mode
           latex-mode tex-mode bibtex-mode LaTeX-mode
@@ -41,7 +70,10 @@
   :config
   (setq eglot-autoshutdown t
         eglot-events-buffer-size 0        ; don't log every LSP message
-        eglot-extend-to-xref t)
+        eglot-extend-to-xref t
+        ;; pyright watches all of /usr/lib/python3.x (~14k dirs) and exits when the watch is refused;
+        ;; the inotify limit is 524288
+        eglot-max-file-watches 50000)
 
   (add-hook 'eglot-managed-mode-hook
             (lambda () (when (eglot-managed-p) (eglot-inlay-hints-mode 1))))
@@ -108,12 +140,12 @@
 
 ;; personal style only where the project has no config of its own, like conform's personal() in nvim lsp.lua
 (defun my/formatting-args (names flag file)
-  "FLAG joined to the personal FILE in configs/programming/formatting, nil when a project config is found.
+  "FLAG joined to the personal FILE (configs/programming/formatting, copied beside init.el), nil when a project config is found.
 NAMES is a list of file names, or a predicate on a directory, searched upward from `default-directory'."
   (unless (if (functionp names)
               (locate-dominating-file default-directory names)
             (seq-some (lambda (name) (locate-dominating-file default-directory name)) names))
-    (concat flag (expand-file-name "../formatting/" (file-truename user-emacs-directory)) file)))
+    (concat flag (expand-file-name "formatting/" user-emacs-directory) file)))
 
 (defun my/ruff-config-p (dir)
   "Non-nil when DIR holds a ruff config; ruff itself skips a pyproject.toml without [tool.ruff]."
@@ -129,7 +161,8 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
 (use-package apheleia
   :init (apheleia-global-mode 1)
   :config
-  ;; the args go right after the program name; apheleia evaluates the form per buffer and drops a nil
+  ;; the args go right after the program name, past the apheleia-npx wrapper (prettier, not the wrapper, reads them);
+  ;; apheleia evaluates the form per buffer and drops a nil
   (pcase-dolist (`(,formatter . ,form)
                  '((clang-format . (my/formatting-args '(".clang-format" "_clang-format") "--style=file:" "clang-format"))
                    (stylua . (my/formatting-args '("stylua.toml" ".stylua.toml") "--config-path=" "stylua.toml"))
@@ -138,11 +171,13 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
                                   ".prettierrc.toml" ".prettierrc.js" ".prettierrc.cjs" ".prettierrc.mjs" ".prettierrc.ts"
                                   "prettier.config.js" "prettier.config.cjs" "prettier.config.mjs" "prettier.config.ts")
                                 "--config=" "prettierrc.json"))
-                   (rustfmt . (my/formatting-args '("rustfmt.toml" ".rustfmt.toml") "--config-path=" "rustfmt.toml"))
+                   ;; the personal rustfmt.toml sets nightly-only options, which stable rustfmt ignores
+                   (rustfmt . (let ((arg (my/formatting-args '("rustfmt.toml" ".rustfmt.toml") "--config-path=" "rustfmt.toml")))
+                                (and arg (list "+nightly" arg))))
                    (ruff . (my/formatting-args #'my/ruff-config-p "--config=" "ruff.toml"))
                    (ruff-isort . (my/formatting-args #'my/ruff-config-p "--config=" "ruff.toml"))))
     (let* ((command (alist-get formatter apheleia-formatters))
-           (program (and (listp command) (seq-position command nil (lambda (elt _) (stringp elt))))))
+           (program (and (listp command) (seq-position command nil (lambda (elt _) (and (stringp elt) (not (equal elt "apheleia-npx"))))))))
       (when program
         (setf (alist-get formatter apheleia-formatters)
               (append (seq-take command (1+ program)) (list form) (seq-drop command (1+ program)))))))

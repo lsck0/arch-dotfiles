@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=s-tui
+Comment=CPU frequency, temperature and stress
+TryExec=s-tui
+Exec=s-tui
+Icon=cpu
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

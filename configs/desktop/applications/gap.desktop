@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GAP
+Comment=Computational discrete algebra
+TryExec=/usr/bin/gap
+Exec=/usr/bin/gap
+Icon=kalgebra
+Terminal=true
+Categories=Science;Math;Education;ConsoleOnly;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Python
+Comment=Python REPL
+TryExec=python
+Exec=python
+Icon=text-x-python
+Terminal=true
+Categories=Development;ConsoleOnly;

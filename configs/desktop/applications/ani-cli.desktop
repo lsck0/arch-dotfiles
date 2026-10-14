@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ani-cli
+Comment=Watch anime
+TryExec=ani-cli
+Exec=ani-cli
+Icon=dragonplayer
+Terminal=true
+Categories=AudioVideo;Video;Player;ConsoleOnly;

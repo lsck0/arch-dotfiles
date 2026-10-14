@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import QtQuick
 import QtQuick.Controls
@@ -62,7 +63,7 @@ BarWidget {
     // clear the stack before destroying, so no binding reads a dead opener
     var openers = submenuStack
     submenuStack = []
-    for (var i = openers.length - 1; i >= 0; i--) openers[i].opener.destroy()
+    for (let i = openers.length - 1; i >= 0; i--) openers[i].opener.destroy()
   }
 
   function enterSubmenu(entry, title) {
@@ -92,7 +93,7 @@ BarWidget {
     if (!item) return
     if (!item.menu) {
       if (!anchorItem || !anchorItem.QsWindow) return
-      var point = anchorItem.QsWindow.contentItem.mapFromItem(anchorItem, mouse.x, mouse.y)
+      const point = anchorItem.QsWindow.contentItem.mapFromItem(anchorItem, mouse.x, mouse.y)
       item.display(anchorItem.QsWindow.window, point.x, point.y)
       return
     }
@@ -122,10 +123,11 @@ BarWidget {
   }
 
   function bucket(category) {
-    var values = SystemTray.items.values
+    // quickshell's qmltypes ship ObjectModel as an opaque stub, so qmllint cannot see .values
+    var values = SystemTray.items.values // qmllint disable missing-property
     var result = []
-    for (var i = 0; i < values.length; i++) {
-      var item = values[i]
+    for (let i = 0; i < values.length; i++) {
+      const item = values[i]
       if (item.status === Status.Passive) continue
       if (TrayModel.hiddenByDefault(item)) continue
       if (category === "all") {
@@ -149,7 +151,7 @@ BarWidget {
     if (idx !== -1) p.splice(idx, 1)
     else {
       p.push(iid)
-      var hi = h.indexOf(iid)
+      const hi = h.indexOf(iid)
       if (hi !== -1) h.splice(hi, 1)
     }
     persistTrayState(p, h)
@@ -161,7 +163,7 @@ BarWidget {
     if (idx !== -1) h.splice(idx, 1)
     else {
       h.push(iid)
-      var pi = p.indexOf(iid)
+      const pi = p.indexOf(iid)
       if (pi !== -1) p.splice(pi, 1)
     }
     persistTrayState(p, h)
@@ -733,7 +735,7 @@ BarWidget {
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onEntered: if (root.bar) root.bar.showTooltip(trayItemRoot, root.trayTooltip(modelData))
+      onEntered: if (root.bar) root.bar.showTooltip(trayItemRoot, root.trayTooltip(trayItemRoot.modelData))
       onExited: if (root.bar) root.bar.hideTooltip(trayItemRoot)
       onPressed: function(mouse) {
         if (mouse.button === Qt.RightButton) {

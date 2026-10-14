@@ -1,4 +1,5 @@
 # managed by arch-dotfiles/protonvpn-netns
-# the namespace switch for ani-cli (run.sh), no password; it drops back to the caller before execing ani-cli
+# the namespace switch for the shims and the `vpn` wrapper (run.nu), no password; run.nu drops back to the caller with
+# no privileges before execing the command, so this grants netns entry only, never root execution of that command
 Defaults!/usr/local/lib/protonvpn-netns/run env_keep += "WAYLAND_DISPLAY DISPLAY TERM COLORTERM LANG"
 %wheel ALL=(root) NOPASSWD: /usr/local/lib/protonvpn-netns/run

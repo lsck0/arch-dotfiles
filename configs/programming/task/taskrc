@@ -1,5 +1,7 @@
 data.location=~/.task
 include ~/.config/bugwarrior/uda.taskrc
+# sync.* for the homelab's taskchampion server, from the secrets (link.sh); empty without them
+include ~/.config/task/sync.taskrc
 
 # --- reporting -------------------------------------------------------------
 
@@ -38,3 +40,5 @@ urgency.user.tag.involved.coefficient=-1.5
 
 color=on
 rule.precedence.color=deleted,completed,active,keyword.,tag.,project.,overdue,scheduled,due.today,due,blocked,blocking,recurring,tagged,uda.
+# palette-driven colour rules in terminal-colour slots, so they follow every wallpaper switch
+include ~/.taskrc.wal.theme

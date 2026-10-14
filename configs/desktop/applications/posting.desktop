@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Posting
+Comment=HTTP client
+TryExec=posting
+Exec=posting
+Icon=network-server
+Terminal=true
+Categories=Development;Network;ConsoleOnly;

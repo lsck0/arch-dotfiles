@@ -4,3 +4,8 @@
 FAILURES*
 __pycache__
 configs/desktop/plasma/*.lock
+configs/programming/zed/themes/pywal.json
+
+# wallpapers proposed for review; moved into wallpapers/ by hand
+/proposedwallpapers/
+/rejectedwallpapers/

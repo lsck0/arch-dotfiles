@@ -6,5 +6,5 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecCondition=%h/projects/arch-dotfiles/configs/programming/trmnl-claude/changed.sh
-ExecStart=%h/projects/arch-dotfiles/configs/programming/trmnl-claude/run.sh
+ExecCondition=@DIR@/trmnl-claude.nu changed
+ExecStart=@DIR@/trmnl-claude.nu

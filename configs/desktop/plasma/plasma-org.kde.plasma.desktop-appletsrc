@@ -20,6 +20,9 @@ wallpaperplugin=org.kde.image
 immutability=1
 plugin=com.github.prayag2.modernclock
 
+[Containments][1][Applets][30][Configuration][Appearance]
+use_24_hour_format=true
+
 [Containments][1][ConfigDialog]
 DialogHeight=821
 DialogWidth=1128
@@ -31,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/videos","0","5","desktop:/projects","
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-dreamy-1k.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-dreamy-1k.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -50,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file:///home/luca/projects/arch-dotfiles/wallpapers/alena-aenami-dreamy-1k.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-dreamy-1k.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
@@ -91,6 +94,7 @@ DialogWidth=810
 
 [Containments][3][Applets][4][Configuration][General]
 alphaSort=true
+favorites=preferred://browser,com.mitchellh.ghostty.desktop,org.kde.dolphin.desktop,systemsettings.desktop
 favoritesDisplay=1
 favoritesPortedToKAstats=true
 systemFavorites=suspend\\,hibernate\\,reboot\\,shutdown

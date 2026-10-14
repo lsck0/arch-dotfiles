@@ -1,0 +1,11 @@
+# read by every zsh: login, interactive, and the non-interactive shells agents run. systemd's user manager and
+# uwsm read environment.d natively; a tty, an ssh login or a bare `zsh -c` does not, so source those same KEY=value
+# drop-ins here. this carries the telemetry opt-outs (no-telemetry.conf) and the XDG app-home vars that keep $HOME
+# clean (configs/base/xdg/app-dirs.conf), so a tool an agent runs writes under the XDG dirs, not into ~.
+_envd=${XDG_CONFIG_HOME:-$HOME/.config}/environment.d
+if [[ -d $_envd ]]; then
+  set -a
+  for _f in $_envd/*.conf(N); do source $_f; done
+  set +a
+fi
+unset _envd _f

@@ -1,0 +1,103 @@
+{
+    "core/locale": {
+        lang: en_US.UTF-8
+        time: de_DE.UTF-8
+        keyboard_layout: de
+        keyboard_variant: nodeadkeys
+        keyboard_options: ["ctrl:nocaps" "terminate:ctrl_alt_bksp"]
+        wifi_country: DE
+    }
+    "desktop/pipewire": {
+        eq_target: alsa_output.usb-Logitech_PRO_X_2_LIGHTSPEED_0000000000000000-00.analog-stereo
+    }
+    "programming/task": {
+        sync_url: "https://tasks.lsck0.dev"
+    }
+    "base/boot/remote-unlock": {
+        ssh_unlock: true
+    }
+    "creating/obs": {
+        vaapi_render_node: "/dev/dri/by-path/pci-0000:03:00.0-render"
+        canvas: "3840x2160"
+        mic: alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback
+        monitor_device: alsa_output.usb-Logitech_PRO_X_2_LIGHTSPEED_0000000000000000-00.analog-stereo
+        stream_encoder: ffmpeg_vaapi_tex
+        record_encoder: av1_ffmpeg_vaapi_tex
+    }
+    "programming/trmnl-claude": {
+        poster: true
+    }
+    "desktop/hyprland": {
+        monitors: [
+            {
+                output: DP-1
+                mode: "3840x2160@144"
+                position: "0x0"
+                scale: 1.666667
+            }
+            {
+                output: DP-2
+                mode: "3840x2160@144"
+                position: auto
+                scale: 1.666667
+            }
+        ]
+        main_monitor: DP-2
+        workspaces: {
+            "1": DP-2
+            "2": DP-2
+            "3": DP-2
+            "4": DP-2
+            "5": DP-1
+            "6": DP-1
+            "7": DP-1
+            "8": DP-1
+            "9": DP-1
+            "10": DP-1
+        }
+        app_workspaces: [
+            {
+                class: "^steam$"
+                workspace: 1
+                silent: false
+            }
+            {
+                class: "^Spotify$"
+                workspace: 5
+                silent: true
+            }
+            {
+                class: "^discord$"
+                workspace: 5
+                silent: true
+            }
+            {
+                class: "^com.obsproject.Studio$"
+                workspace: 7
+                silent: false
+            }
+        ]
+        pointer_sensitivity: 0.1
+        natural_scroll: true
+    }
+    "base/networkmanager": {
+        untrusted_policy: lockdown-tor
+        homelab_dns: "192.168.178.29"
+        homelab_domain: lsck0.dev
+        homelab_subnets: ["10.100.0.0/16" "10.200.0.0/16"]
+    }
+    "base/ghostmirror": {
+        homelab_mirror: "http://10.100.0.104:8090/archlinux/$repo/os/$arch"
+    }
+    "base/v4l2loopback": {
+        video_nr: 2
+    }
+    "base/pam": {
+        fido_origin: "pam://lsck0"
+    }
+    "base/ssh": {
+        homelab_hosts: ["10.100.0.*" "10.200.0.*" "192.168.178.29" "192.168.178.200"]
+        wake_router: "192.168.178.29"
+        wake_host: "192.168.178.138"
+    }
+}

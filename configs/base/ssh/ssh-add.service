@@ -7,7 +7,7 @@ After=ssh-agent.service graphical-session.target
 [Service]
 Type=oneshot
 Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
-Environment=SSH_ASKPASS=%h/projects/arch-dotfiles/configs/base/ssh/ssh-askpass-keyring.sh
+Environment=SSH_ASKPASS=%h/projects/arch-dotfiles/configs/base/ssh/ssh-askpass-keyring.nu
 Environment=SSH_ASKPASS_REQUIRE=force
 ExecStart=/usr/bin/ssh-add %h/projects/arch-dotfiles/secrets/ssh_privatekey.asc
 

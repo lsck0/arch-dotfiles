@@ -3,7 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 
-// tlp power-mode chips, toggle-powermode.sh owns the state
+// tlp power-mode chips, toggle-powermode.nu owns the state
 Item {
   id: root
 
@@ -19,7 +19,7 @@ Item {
   property color foreground: Colors.menu.text
   property real fontSize: Style.font.caption
 
-  readonly property string script: Paths.toggle("toggle-powermode.sh")
+  readonly property string script: Paths.toggle("toggle-powermode.nu")
 
   function refresh() {
     if (!getProcess.running) getProcess.running = true
@@ -53,7 +53,7 @@ Item {
 
   Connections {
     target: ToggleEvents
-    function onChanged(script) { if (root.active && script === "toggle-powermode.sh") root.refresh() }
+    function onChanged(script) { if (root.active && script === "toggle-powermode.nu") root.refresh() }
   }
 
   ButtonGroup {

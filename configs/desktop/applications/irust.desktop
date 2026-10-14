@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=IRust
+Comment=Rust REPL
+TryExec=irust
+Exec=irust
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

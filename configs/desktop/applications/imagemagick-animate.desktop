@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ImageMagick Animate
+Comment=Play an image sequence or animated GIF
+TryExec=animate
+Exec=@HOME@/.local/bin/desktop-run --file -- animate
+Icon=image-gif
+Terminal=false
+Categories=Graphics;Viewer;2DGraphics;

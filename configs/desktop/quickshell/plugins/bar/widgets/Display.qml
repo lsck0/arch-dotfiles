@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -20,25 +21,25 @@ BarWidget {
   implicitHeight: button.implicitHeight
 
   function refreshBrightnessFor(name) {
-    var proc = brightnessGetComponent.createObject(root, { monitorName: name })
+    const proc = brightnessGetComponent.createObject(root, { monitorName: name }) as Process
     proc.running = true
   }
 
   function refreshAllBrightness() {
-    for (var i = 0; i < root.activeMonitors.length; i++)
+    for (let i = 0; i < root.activeMonitors.length; i++)
       root.refreshBrightnessFor(root.activeMonitors[i].name)
   }
 
   function setBrightnessFor(name, pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
-    Quickshell.execDetached([Paths.script("monitor-brightness.sh"), "set", name, String(pct)])
+    Quickshell.execDetached([Paths.script("monitor-brightness.nu"), "set", name, String(pct)])
   }
 
   function applyBrightnessAll(pct) {
     pct = Math.max(1, Math.min(100, Math.round(pct)))
     root.brightnessPct = pct
     root.brightnessKnown = true
-    for (var i = 0; i < root.activeMonitors.length; i++)
+    for (let i = 0; i < root.activeMonitors.length; i++)
       root.setBrightnessFor(root.activeMonitors[i].name, pct)
   }
 
@@ -47,7 +48,7 @@ BarWidget {
   }
 
   readonly property string gradingCli: Paths.dotfiles + "/configs/desktop/color-grading/color-grading.py"
-  readonly property string shaderScript: Paths.toggle("toggle-shader.sh")
+  readonly property string shaderScript: Paths.toggle("toggle-shader.nu")
   property var grading: ({ preset: "", nightlight: false, presets: [] })
   property var shaders: ({ current: "off", shaders: [] })
 
@@ -95,7 +96,7 @@ BarWidget {
 
 
   function setMonitorLayout(name, action) {
-    var args = [Paths.toggle("toggle-monitor-scale.sh"), "layout", name]
+    var args = [Paths.toggle("toggle-monitor-scale.nu"), "layout", name]
     if (action.indexOf("mirror:") === 0) args.push("mirror", action.substring(7))
     else args.push(action)
     Quickshell.execDetached(args)
@@ -110,7 +111,7 @@ BarWidget {
   }
 
   function setMonitorScale(name, scale) {
-    Quickshell.execDetached([Paths.toggle("toggle-monitor-scale.sh"), "live", String(scale), name])
+    Quickshell.execDetached([Paths.toggle("toggle-monitor-scale.nu"), "live", String(scale), name])
     monitorsSettle.restart()
   }
 
@@ -120,7 +121,7 @@ BarWidget {
     Process {
       id: proc
       property string monitorName: ""
-      command: [Paths.script("monitor-brightness.sh"), "get", monitorName]
+      command: [Paths.script("monitor-brightness.nu"), "get", monitorName]
       stdout: StdioCollector {
         waitForEnd: true
         onStreamFinished: {
@@ -250,7 +251,7 @@ BarWidget {
             stateMarker: true
             on: root.grading.preset === modelData.name
             label: modelData.label
-            onActivated: root.colorRun([Paths.toggle("toggle-color-grading.sh"), "set", modelData.name])
+            onActivated: root.colorRun([Paths.toggle("toggle-color-grading.nu"), "set", modelData.name])
           }
         }
 
@@ -259,7 +260,7 @@ BarWidget {
           glyph: "\u{f0594}"
           on: root.grading.nightlight === true
           label: "Night light"
-          onActivated: root.colorRun([Paths.toggle("toggle-nightlight.sh"), "toggle"])
+          onActivated: root.colorRun([Paths.toggle("toggle-nightlight.nu"), "toggle"])
         }
       }
 
@@ -350,8 +351,8 @@ BarWidget {
               model: {
                 var opts = [{ value: "extend", label: "Extend" }]
                 var others = 0
-                for (var i = 0; i < root.monitors.length; i++) {
-                  var m = root.monitors[i]
+                for (let i = 0; i < root.monitors.length; i++) {
+                  const m = root.monitors[i]
                   if (m.name === monitorRow.modelData.name || m.disabled) continue
                   if (m.mirrorOf && m.mirrorOf !== "none") continue
                   others++

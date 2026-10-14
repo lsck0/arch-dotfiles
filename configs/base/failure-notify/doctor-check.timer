@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly check of this machine against its declared state
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

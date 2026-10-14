@@ -1,11 +1,5 @@
 {
   "0": {
-    "name": "icons",
-    "config": {
-      "default_path": "~/.icons/<THEME_NAME>"
-    }
-  },
-  "1": {
     "name": "base16",
     "config": {
       "default_path": "~/.themes/<THEME_NAME>/index.theme",
@@ -14,7 +8,7 @@
       "default_path_gtk-index.theme": "~/.themes/<THEME_NAME>/index.theme"
     }
   },
-  "2": {
+  "1": {
     "name": "base16",
     "config": {
       "default_path": "~/.themes/<THEME_NAME>/gtk-2.0/gtkrc",
@@ -23,7 +17,7 @@
       "default_path_gtk2-oomox": "~/.themes/<THEME_NAME>/gtk-2.0/gtkrc"
     }
   },
-  "3": {
+  "2": {
     "name": "base16",
     "config": {
       "default_path": "~/.themes/<THEME_NAME>/gtk-3.0/gtk.css",
@@ -32,7 +26,7 @@
       "default_path_gtk3-oodwaita": "~/.themes/<THEME_NAME>/gtk-3.0/gtk.css"
     }
   },
-  "4": {
+  "3": {
     "name": "base16",
     "config": {
       "default_path": "~/.themes/<THEME_NAME>/gtk-4.0/gtk.css",
@@ -41,7 +35,7 @@
       "default_path_gtk4-oodwaita": "~/.themes/<THEME_NAME>/gtk-4.0/gtk.css"
     }
   },
-  "5": {
+  "4": {
     "name": "base16",
     "config": {
       "default_path": "~/.config/oomox-qtstyleplugin/themes/<THEME_NAME>.css",
@@ -50,7 +44,7 @@
       "default_path_qt-oomox-styleplugin": "~/.config/oomox-qtstyleplugin/themes/<THEME_NAME>.css"
     }
   },
-  "6": {
+  "5": {
     "name": "export_xresources",
     "config": {
       "default_path": "~/.Xcolours/<THEME_NAME>"

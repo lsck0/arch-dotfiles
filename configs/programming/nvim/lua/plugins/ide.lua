@@ -33,8 +33,20 @@ return {
         dependencies = { "kevinhwang91/promise-async" },
         event = { "BufReadPost", "BufNewFile" },
         keys = {
-            { "zR", function() require("ufo").openAllFolds() end,  desc = "Open all folds" },
-            { "zM", function() require("ufo").closeAllFolds() end, desc = "Close all folds" },
+            {
+                "zR",
+                function()
+                    require("ufo").openAllFolds()
+                end,
+                desc = "Open all folds",
+            },
+            {
+                "zM",
+                function()
+                    require("ufo").closeAllFolds()
+                end,
+                desc = "Close all folds",
+            },
         },
         init = function()
             -- start unfolded; ufo drives folding from here
@@ -45,7 +57,9 @@ return {
         end,
         config = function()
             require("ufo").setup({
-                provider_selector = function() return { "treesitter", "indent" } end,
+                provider_selector = function()
+                    return { "treesitter", "indent" }
+                end,
             })
         end,
     },
@@ -55,9 +69,27 @@ return {
         event = "BufReadPre",
         opts = {},
         keys = {
-            { "<leader>qs", function() require("persistence").load() end,             desc = "Restore session (cwd)" },
-            { "<leader>ql", function() require("persistence").load({ last = true }) end, desc = "Restore last session" },
-            { "<leader>qd", function() require("persistence").stop() end,             desc = "Stop saving session" },
+            {
+                "<leader>qs",
+                function()
+                    require("persistence").load()
+                end,
+                desc = "Restore session (cwd)",
+            },
+            {
+                "<leader>ql",
+                function()
+                    require("persistence").load({ last = true })
+                end,
+                desc = "Restore last session",
+            },
+            {
+                "<leader>qd",
+                function()
+                    require("persistence").stop()
+                end,
+                desc = "Stop saving session",
+            },
         },
     },
 

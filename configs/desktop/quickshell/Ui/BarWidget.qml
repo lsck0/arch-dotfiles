@@ -4,7 +4,8 @@ import qs.Commons
 Item {
   id: root
 
-  property QtObject bar: null
+  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  property var bar: null
   property string moduleName: ""
   property var settings: ({})
 

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -10,7 +11,8 @@ BarWidget {
   id: root
   moduleName: "notifications"
 
-  readonly property QtObject service: root.bar && root.bar.shellHost
+  // the notifications plugin's Service, untyped: it is resolved at runtime through the shell's plugin table
+  readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
   readonly property string historyDir: service ? service.historyDir : ""
 
@@ -36,13 +38,13 @@ BarWidget {
     var want = String(name || "").trim().toLowerCase()
     if (!want) return null
     var list = DesktopEntries.applications.values || []
-    for (var i = 0; i < list.length; i++) {
-      var e = list[i]
+    for (let i = 0; i < list.length; i++) {
+      let e = list[i]
       if (!e) continue
-      var id = String(e.id || "").toLowerCase()
-      var nm = String(e.name || "").toLowerCase()
+      let id = String(e.id || "").toLowerCase()
+      let nm = String(e.name || "").toLowerCase()
       if (nm === want || id === want) return e
-      var tail = id.indexOf(".") >= 0 ? id.substring(id.lastIndexOf(".") + 1) : id
+      let tail = id.indexOf(".") >= 0 ? id.substring(id.lastIndexOf(".") + 1) : id
       if (tail === want) return e
     }
     return null
@@ -60,10 +62,10 @@ BarWidget {
     }
     // app_name is a display name, so heuristicLookup usually matches
     var candidates = [entry.appIcon, entry.app]
-    for (var i = 0; i < candidates.length; i++) {
-      var id = String(candidates[i] || "").trim()
+    for (let i = 0; i < candidates.length; i++) {
+      let id = String(candidates[i] || "").trim()
       if (!id) continue
-      var de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
+      let de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
       if (de) {
         // not de.execute(): it would start the app in quickshell.service's cgroup, killed with every shell restart
         Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", de.id + ".desktop"])

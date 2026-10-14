@@ -1,0 +1,20 @@
+# managed by arch-dotfiles/apparmor
+# xdg-open outside a known desktop (hyprland): its generic path and xdg-mime's, in the opener itself, so a file
+# reaches its mimeapps.list default instead of the browser. apparmor.d's app/open only covers gio and kde-open.
+# the desktop detection through dbus-send and xprop finds nothing on hyprland and is denied quietly
+
+  abi <abi/4.0>,
+
+  @{bin}/xdg-mime rix,
+  @{bin}/{awk,gawk,basename,cat,cut,dirname,grep,head,hostname,printf,readlink,realpath,sed,tr,uname} rix,
+  # xdg-mime's filetype query reads the file: whatever the viewers it hands to read themselves
+  @{bin}/file rix,
+  /usr/share/file/{,**} r,
+  include <abstractions/user-read-strict>
+  include <abstractions/dotfiles/viewer-read>
+
+  deny @{bin}/{dbus-send,xprop} rx,
+  # and its wsl probe
+  @{PROC}/version r,
+
+  include if exists <abstractions/dotfiles/xdg-open.d>

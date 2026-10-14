@@ -32,7 +32,7 @@ QtObject {
 
   readonly property string toggles: dotfiles + "/scripts/toggles"
   // the one source of wallpaper eligibility and name resolution
-  readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.py"
+  readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.nu"
   readonly property string themes: dotfiles + "/configs/core/themes"
 
   function toggle(name) { return toggles + "/" + name }
@@ -48,8 +48,8 @@ QtObject {
 
   function ipcCall(target, method) {
     var argv = ["quickshell", "ipc", "-p", shellDir, "call", String(target), String(method)]
-    for (var i = 2; i < arguments.length; i++) {
-      var arg = arguments[i]
+    for (let i = 2; i < arguments.length; i++) {
+      let arg = arguments[i]
       if (arg !== undefined && arg !== null) argv.push(String(arg))
     }
     return argv

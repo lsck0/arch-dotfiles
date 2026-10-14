@@ -4,8 +4,20 @@ return {
         "jbyuki/nabla.nvim", -- inline math preview
         ft = { "tex", "plaintex", "markdown" },
         keys = {
-            { "<leader>lp", function() require("nabla").popup() end, desc = "Math preview (popup)" },
-            { "<leader>lP", function() require("nabla").toggle_virt() end, desc = "Math inline preview toggle" },
+            {
+                "<leader>lp",
+                function()
+                    require("nabla").popup()
+                end,
+                desc = "Math preview (popup)",
+            },
+            {
+                "<leader>lP",
+                function()
+                    require("nabla").toggle_virt()
+                end,
+                desc = "Math inline preview toggle",
+            },
         },
     },
     {
@@ -65,12 +77,19 @@ return {
                 callback = function(args)
                     local buf = args.buf
                     vim.schedule(function()
-                        if vim.fn.getcmdwintype() == "" then vim.cmd.checktime() end
+                        if vim.fn.getcmdwintype() == "" then
+                            vim.cmd.checktime()
+                        end
                         -- forward search after every build, so the pdf follows the line just edited; run it in the
                         -- tex buffer (not whatever is focused now), else a moved cursor leaves vim.b.vimtex nil
-                        if args.match == "VimtexEventCompileSuccess"
-                            and vim.api.nvim_buf_is_valid(buf) and vim.b[buf].vimtex then
-                            vim.api.nvim_buf_call(buf, function() vim.cmd.VimtexView() end)
+                        if
+                            args.match == "VimtexEventCompileSuccess"
+                            and vim.api.nvim_buf_is_valid(buf)
+                            and vim.b[buf].vimtex
+                        then
+                            vim.api.nvim_buf_call(buf, function()
+                                vim.cmd.VimtexView()
+                            end)
                         end
                     end)
                 end,

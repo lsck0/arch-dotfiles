@@ -46,7 +46,6 @@ Written the way TigerBeetle writes it. Assertions are good and crashing is good,
 
 - Solve problems with architecture, data flow and data structures. A transform sprinkled across call sites means the data structure is wrong.
 - Single source of truth for every piece of data or state. If two places can disagree, they will.
-- Tolerate duplication until the shape is clear. Extract on the third or fourth occurrence, not the second.
 - A new feature is an addition on existing primitives, not a rewrite of what exists. If it can't be, the missing primitive lands first as its own change.
 - Monolith by default, no microservices. A network hop isn't a module boundary, it's a boundary plus latency, partial failure, serialization and a second deploy. Split a process out only for a hard constraint: different runtime, different security boundary, incompatible resource profile. A database, cache or proxy beside the app is a dependency with a socket.
 - Use each dependency for what it is built for, the way it is meant to be used. A datastore, queue, protocol or library bent into a role it wasn't designed for (a queue as a database, a cache as the source of truth, a relational store as a document blob, an HTTP endpoint as an event bus) is a defect even when it works: it fights the tool's guarantees, its ops story and the next reader's expectations. Pick the tool whose model fits the job, or state in the module header why the standard one lost.
@@ -111,10 +110,7 @@ A caller shouldn't be able to hold it wrong without being told immediately.
 
 ### Naming at the API boundary
 
-The core's Naming section holds the full rule (subject-first shape, verb vocabulary, units, inverse pairs). At the API boundary it also means:
-
-- Inverse verbs ship together, same header, adjacent, same visibility. Teardown accepts every value setup can return.
-- Conversions at a boundary are named `<type>_from_<source>` / `<type>_to_<target>`; between two internal types they are a smell.
+The full rule (subject-first shape, verb vocabulary, units, inverse pairs, conversion naming) is the core's Naming section. At the boundary it binds hardest: inverse verbs ship together in one header, adjacent, same visibility; teardown accepts every value setup can return.
 
 ### The rest
 

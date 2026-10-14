@@ -4,7 +4,7 @@
 -- (~/projects/probe/master/uwu), and git-worktree.nvim put them inside `.bare/`. `add` follows the layout instead:
 --   <repo>/.bare + <repo>/branches/<slug>   bare layout of clones-sdd-repos.sh
 --   <bare>/<slug>                            worktrees inside a plain bare repo (~/projects/probe)
---   ~/.worktrees/<repo>/<slug>               normal checkout, as configs/core/git/wtree.sh does
+--   ~/.worktrees/<repo>/<slug>               normal checkout, as configs/core/git/wtree.nu does
 -- Once linked worktrees exist, the dir most of them share wins over all of the above.
 local M = {}
 
@@ -61,11 +61,17 @@ local function dir_for(list, slug)
             best = parent
         end
     end
-    if best then return vim.fs.joinpath(best, slug) end
+    if best then
+        return vim.fs.joinpath(best, slug)
+    end
 
     local main = list[1].path
-    if not list[1].bare then return vim.fs.joinpath(WORKTREE_HOME, vim.fs.basename(main), slug) end
-    if vim.fs.basename(main) == ".bare" then return vim.fs.joinpath(vim.fs.dirname(main), "branches", slug) end
+    if not list[1].bare then
+        return vim.fs.joinpath(WORKTREE_HOME, vim.fs.basename(main), slug)
+    end
+    if vim.fs.basename(main) == ".bare" then
+        return vim.fs.joinpath(vim.fs.dirname(main), "branches", slug)
+    end
     return vim.fs.joinpath(main, slug)
 end
 
@@ -73,9 +79,13 @@ end
 ---@param branch string
 function M.add(branch)
     local list = worktrees()
-    if not list then return end
+    if not list then
+        return
+    end
     for _, tree in ipairs(list) do
-        if tree.branch == branch then return require("lib.projects").open(tree.path) end
+        if tree.branch == branch then
+            return require("lib.projects").open(tree.path)
+        end
     end
 
     -- slashes flattened like clones-sdd-repos.sh's slug_of, so feat/x is one dir, not two
@@ -98,7 +108,9 @@ end
 --- Pick a local or origin branch for `M.add`; a name that matches nothing creates that branch.
 function M.pick_branch()
     local out = git({ "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin" })
-    if not out then return vim.notify("worktree: not a git repo", vim.log.levels.ERROR) end
+    if not out then
+        return vim.notify("worktree: not a git repo", vim.log.levels.ERROR)
+    end
     local seen, items = {}, {}
     for ref in out:gmatch("[^\n]+") do
         local branch = ref:match("^refs/heads/(.+)$") or ref:match("^refs/remotes/origin/(.+)$")
@@ -109,14 +121,18 @@ function M.pick_branch()
     end
     require("lib.pick").telescope("Worktree branch (new name creates it)", items, function(branch, query)
         branch = branch or vim.trim(query)
-        if branch ~= "" then M.add(branch) end
+        if branch ~= "" then
+            M.add(branch)
+        end
     end)
 end
 
 --- Pick one of the repo's worktrees and switch the tab to it.
 function M.pick()
     local list = worktrees()
-    if not list then return end
+    if not list then
+        return
+    end
     local items = {}
     for _, tree in ipairs(list) do
         if not tree.bare then
@@ -125,7 +141,9 @@ function M.pick()
         end
     end
     require("lib.pick").telescope("Worktrees", items, function(path)
-        if path then require("lib.projects").open(path) end
+        if path then
+            require("lib.projects").open(path)
+        end
     end)
 end
 

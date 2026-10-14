@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -9,7 +10,7 @@ BarWidget {
 
   property bool received: false
   property var usage: ({})
-  // agent-usage.py's {"error": why}; the last good usage stays up
+  // agent-usage.nu's {"error": why}; the last good usage stays up
   property string errorText: ""
   property real updatedMs: 0
   // two missed background polls
@@ -40,7 +41,7 @@ BarWidget {
   // each poll costs an api request: slow in the background, fresh when the panel opens
   JsonProcess {
     id: usageProc
-    command: [Paths.barWidget("agent-usage.py")]
+    command: [Paths.barWidget("agent-usage.nu")]
     intervalMs: 45 * 60 * 1000
     minAgeMs: 60 * 1000
     onParsed: function (data) {

@@ -3,10 +3,37 @@ return {
         "tpope/vim-fugitive", -- git commands in vim
         -- every command it defines, so none is missing until another one loaded it
         cmd = {
-            "G", "Git", "GBrowse", "Gcd", "Glcd", "Gclog", "Gllog", "GcLog", "GlLog", "Ggrep", "Glgrep",
-            "Gedit", "Ge", "Gsplit", "Gvsplit", "Gtabedit", "Gpedit", "Gdrop",
-            "Gdiffsplit", "Gvdiffsplit", "Ghdiffsplit", "Gread", "Gr", "Gwrite", "Gw", "Gwq",
-            "GMove", "GRename", "GDelete", "GRemove", "GUnlink",
+            "G",
+            "Git",
+            "GBrowse",
+            "Gcd",
+            "Glcd",
+            "Gclog",
+            "Gllog",
+            "GcLog",
+            "GlLog",
+            "Ggrep",
+            "Glgrep",
+            "Gedit",
+            "Ge",
+            "Gsplit",
+            "Gvsplit",
+            "Gtabedit",
+            "Gpedit",
+            "Gdrop",
+            "Gdiffsplit",
+            "Gvdiffsplit",
+            "Ghdiffsplit",
+            "Gread",
+            "Gr",
+            "Gwrite",
+            "Gw",
+            "Gwq",
+            "GMove",
+            "GRename",
+            "GDelete",
+            "GRemove",
+            "GUnlink",
         },
     },
 
@@ -14,14 +41,14 @@ return {
         "sindrets/diffview.nvim", -- git diff / merge / file-history views
         cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
         keys = {
-            { "<leader>gd", "<cmd>DiffviewOpen<cr>",         desc = "Diffview open" },
+            { "<leader>gd", "<cmd>DiffviewOpen<cr>", desc = "Diffview open" },
             { "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", desc = "File history (current file)" },
         },
     },
 
     {
         "akinsho/git-conflict.nvim", -- merge conflict resolution
-        config = true
+        config = true,
     },
 
     {
@@ -68,29 +95,37 @@ return {
             {
                 "<leader>os",
                 function()
-                    require("octo.utils").create_base_search_command { include_current_repo = true }
+                    require("octo.utils").create_base_search_command({ include_current_repo = true })
                 end,
                 desc = "Search GitHub",
             },
             -- org-wide via the private per-repo identity (.identity/env), never hardcoded here
             {
                 "<leader>oR",
-                function() require("config.octo").org_cmd("Octo repo list %s") end,
+                function()
+                    require("config.octo").org_cmd("Octo repo list %s")
+                end,
                 desc = "List org repos",
             },
             {
                 "<leader>oI",
-                function() require("config.octo").org_search("is:issue is:open sort:updated-desc") end,
+                function()
+                    require("config.octo").org_search("is:issue is:open sort:updated-desc")
+                end,
                 desc = "List org issues",
             },
             {
                 "<leader>oP",
-                function() require("config.octo").org_search("is:pr is:open sort:updated-desc") end,
+                function()
+                    require("config.octo").org_search("is:pr is:open sort:updated-desc")
+                end,
                 desc = "List org PRs",
             },
             {
                 "<leader>oO",
-                function() require("config.octo").org_search("") end,
+                function()
+                    require("config.octo").org_search("")
+                end,
                 desc = "Search org repos",
             },
             -- kanban board: move/add or remove the current issue/PR card (projects v2)

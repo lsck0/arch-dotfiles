@@ -1,0 +1,11 @@
+export const meta = {
+    packages: {
+        # aspnet-runtime and dotnet-sdk: mason builds and runs csharpier on them; jdk-openjdk: jdtls needs 21+
+        pacman: [
+            android-ndk android-sdk aspnet-runtime avr-binutils avr-gcc avr-gdb avr-libc bear bun clang cmake deno
+            dotnet-runtime dotnet-sdk emscripten fasm ftxui gcc gcc-fortran glfw glm gnucobol go gup jdk-openjdk libxslt
+            llvm make maven meson mingw-w64-gcc mold nasm ninja nodejs npm odin pkgconf protobuf qbe qmk quickjs raylib
+            sdl3 tinymist typst zig
+        ]
+    }
+}

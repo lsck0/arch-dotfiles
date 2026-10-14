@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=binsider
+Comment=Analyze an ELF binary
+TryExec=binsider
+Exec=@HOME@/.local/bin/desktop-run --file -- binsider
+Icon=application-x-executable
+Terminal=true
+Categories=Development;ConsoleOnly;

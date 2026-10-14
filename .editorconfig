@@ -1,0 +1,18 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+# Markdown hard line breaks are two trailing spaces; patches are byte-exact.
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{patch,diff}]
+trim_trailing_whitespace = false
+insert_final_newline = false

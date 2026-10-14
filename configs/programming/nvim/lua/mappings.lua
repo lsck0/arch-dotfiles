@@ -2,16 +2,24 @@ vim.keymap.set("n", "<C-s>", "<cmd>w<CR>", { desc = "Save file" })
 vim.keymap.set("i", "<C-c>", "<ESC>", { desc = "Escape insert mode" })
 vim.keymap.set("t", "<C-e>", [[<C-\><C-n>]], { desc = "Exit terminal mode" })
 
-vim.keymap.set('n', '<M-x>', '@', { noremap = true, desc = "Apply macro (@)" })
+vim.keymap.set("n", "<M-x>", "@", { noremap = true, desc = "Apply macro (@)" })
 
 if vim.g.neovide then
     local function scale(factor)
         vim.g.neovide_scale_factor = vim.g.neovide_scale_factor * factor
     end
-    vim.keymap.set("n", "<C-=>", function() scale(1.1) end, { desc = "Neovide zoom in" })
-    vim.keymap.set("n", "<C-+>", function() scale(1.1) end, { desc = "Neovide zoom in" })
-    vim.keymap.set("n", "<C-->", function() scale(1 / 1.1) end, { desc = "Neovide zoom out" })
-    vim.keymap.set("n", "<C-0>", function() vim.g.neovide_scale_factor = 1.0 end, { desc = "Neovide zoom reset" })
+    vim.keymap.set("n", "<C-=>", function()
+        scale(1.1)
+    end, { desc = "Neovide zoom in" })
+    vim.keymap.set("n", "<C-+>", function()
+        scale(1.1)
+    end, { desc = "Neovide zoom in" })
+    vim.keymap.set("n", "<C-->", function()
+        scale(1 / 1.1)
+    end, { desc = "Neovide zoom out" })
+    vim.keymap.set("n", "<C-0>", function()
+        vim.g.neovide_scale_factor = 1.0
+    end, { desc = "Neovide zoom reset" })
 end
 
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>", { desc = "Clear search highlight" })
@@ -24,8 +32,12 @@ vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Half page up (centered)" })
 vim.keymap.set("n", "n", "nzzzv", { desc = "Next search match (centered)" })
 vim.keymap.set("n", "N", "Nzzzv", { desc = "Prev search match (centered)" })
 
-vim.keymap.set("n", "<M-t>", function() Snacks.terminal.toggle() end, { desc = "Toggle terminal (float)" })
-vim.keymap.set("n", "<M-w>", function() Snacks.bufdelete() end, { desc = "Close buffer (keep layout)" })
+vim.keymap.set("n", "<M-t>", function()
+    Snacks.terminal.toggle()
+end, { desc = "Toggle terminal (float)" })
+vim.keymap.set("n", "<M-w>", function()
+    Snacks.bufdelete()
+end, { desc = "Close buffer (keep layout)" })
 vim.keymap.set("n", "<M-q>", "<cmd>tabclose <CR>", { desc = "Close tab" })
 vim.keymap.set("n", "<M-c>", "<cmd>tabnew <CR>", { desc = "New tab" })
 for i = 1, 5 do
@@ -34,50 +46,76 @@ end
 
 -- deferred require: smart-splits lazy-loads on first use
 for key, dir in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
-    vim.keymap.set("n", "<C-" .. key .. ">", function() require("smart-splits")["resize_" .. dir]() end,
-        { desc = "Resize split " .. dir })
+    vim.keymap.set("n", "<C-" .. key .. ">", function()
+        require("smart-splits")["resize_" .. dir]()
+    end, { desc = "Resize split " .. dir })
 end
 vim.keymap.set("n", "<leader>w", "<cmd>WinShift<CR>", { desc = "Move window (WinShift)" })
 
 -- quickfix and trouble wrap around at either end instead of stopping there
 local function quickfix_cycle(step, wrap)
-    if vim.fn.getqflist({ size = 0 }).size == 0 then return vim.notify("quickfix list is empty") end
-    if not pcall(vim.cmd[step]) then vim.cmd[wrap]() end
+    if vim.fn.getqflist({ size = 0 }).size == 0 then
+        return vim.notify("quickfix list is empty")
+    end
+    if not pcall(vim.cmd[step]) then
+        vim.cmd[wrap]()
+    end
 end
 local function trouble_cycle(step, wrap)
     -- same view lookup as trouble.next; the step runs once the view has rendered, so the end check rides along
     local view = require("trouble").open({ refresh = false })
-    if not view then return end
+    if not view then
+        return
+    end
     local actions = require("trouble.config.actions")
     view:action(function(self, ctx)
         local row = vim.api.nvim_win_get_cursor(self.win.win)[1]
         actions[step](self, ctx)
-        if vim.api.nvim_win_get_cursor(self.win.win)[1] == row then actions[wrap](self, ctx) end
+        if vim.api.nvim_win_get_cursor(self.win.win)[1] == row then
+            actions[wrap](self, ctx)
+        end
     end, { jump = true })
 end
-vim.keymap.set("n", "<C-n>", function() quickfix_cycle("cnext", "cfirst") end, { desc = "Next quickfix item" })
-vim.keymap.set("n", "<C-S-n>", function() quickfix_cycle("cprev", "clast") end, { desc = "Prev quickfix item" })
+vim.keymap.set("n", "<C-n>", function()
+    quickfix_cycle("cnext", "cfirst")
+end, { desc = "Next quickfix item" })
+vim.keymap.set("n", "<C-S-n>", function()
+    quickfix_cycle("cprev", "clast")
+end, { desc = "Prev quickfix item" })
 -- shadows nvim's default ]t/[t (:tnext/:tprevious); <C-t> stays the tag pop
-vim.keymap.set("n", "]t", function() trouble_cycle("next", "first") end, { desc = "Next trouble item" })
-vim.keymap.set("n", "[t", function() trouble_cycle("prev", "last") end, { desc = "Prev trouble item" })
+vim.keymap.set("n", "]t", function()
+    trouble_cycle("next", "first")
+end, { desc = "Next trouble item" })
+vim.keymap.set("n", "[t", function()
+    trouble_cycle("prev", "last")
+end, { desc = "Prev trouble item" })
 
 -- deferred require: telescope lazy-loads on first use
 local function tb(fn, args)
-    return function() require("telescope.builtin")[fn](args) end
+    return function()
+        require("telescope.builtin")[fn](args)
+    end
 end
-vim.keymap.set("n", "<leader>fc", tb("find_files", { cwd = vim.env.DOTFILES or "$DOTFILES" }),
-    { desc = "Find files (dotfiles)" })
+vim.keymap.set(
+    "n",
+    "<leader>fc",
+    tb("find_files", { cwd = vim.env.DOTFILES or "$DOTFILES" }),
+    { desc = "Find files (dotfiles)" }
+)
 vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
 -- every checkout and worktree under the tms search dirs, not only the dirs this nvim has visited
-vim.keymap.set("n", "<leader>fp", function() require("lib.projects").pick() end, { desc = "Projects" })
+vim.keymap.set("n", "<leader>fp", function()
+    require("lib.projects").pick()
+end, { desc = "Projects" })
 vim.keymap.set("n", "<leader>le", tb("diagnostics"), { desc = "Diagnostics (telescope)" })
 vim.keymap.set("n", "<leader>lf", tb("lsp_references"), { desc = "LSP references" })
 vim.keymap.set("n", "<leader>ls", tb("lsp_dynamic_workspace_symbols"), { desc = "Workspace symbols" })
-vim.keymap.set("n", "<leader>lF", function() require("conform").format({ async = true, lsp_format = "fallback" }) end,
-    { desc = "Format buffer" })
+vim.keymap.set("n", "<leader>lF", function()
+    require("conform").format({ async = true, lsp_format = "fallback" })
+end, { desc = "Format buffer" })
 local virtual_text_saved
 vim.keymap.set("n", "<leader>lv", function()
     local config = vim.diagnostic.config()
@@ -101,13 +139,19 @@ vim.api.nvim_create_autocmd("LspAttach", {
         map("<leader>li", vim.lsp.buf.hover, "Hover info")
         map("<leader>lo", vim.diagnostic.open_float, "Open diagnostic float")
         map("<leader>la", vim.lsp.buf.code_action, "Code action")
-        map("<leader>ln", function() vim.diagnostic.jump({ count = 1, float = true }) end, "Next diagnostic")
+        map("<leader>ln", function()
+            vim.diagnostic.jump({ count = 1, float = true })
+        end, "Next diagnostic")
         map("<leader>lr", vim.lsp.buf.rename, "Rename symbol")
     end,
 })
 
-vim.api.nvim_set_keymap('n', '<leader>v', "<cmd>lua Toggle_venn()<CR>",
-    { noremap = true, desc = "Toggle venn (draw boxes)" })
+vim.api.nvim_set_keymap(
+    "n",
+    "<leader>v",
+    "<cmd>lua Toggle_venn()<CR>",
+    { noremap = true, desc = "Toggle venn (draw boxes)" }
+)
 function _G.Toggle_venn()
     local boxes = { Down = "j", Up = "k", Right = "l", Left = "h" }
     if not vim.b.venn_enabled then
@@ -133,8 +177,12 @@ vim.keymap.set("n", "<leader>dt", function()
     require("dapui").toggle()
 end, { desc = "Toggle DAP UI" })
 vim.keymap.set("n", "<leader>b", "<cmd>DapToggleBreakpoint<CR>", { desc = "Toggle breakpoint" })
-vim.keymap.set("n", "<leader>B", "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>",
-    { desc = "Conditional breakpoint" })
+vim.keymap.set(
+    "n",
+    "<leader>B",
+    "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Condition: '))<CR>",
+    { desc = "Conditional breakpoint" }
+)
 vim.keymap.set("n", "<F5>", "<cmd>DapContinue<CR>", { desc = "Debug: continue" })
 vim.keymap.set("n", "<F10>", "<cmd>DapStepOver<CR>", { desc = "Debug: step over" })
 vim.keymap.set("n", "<F11>", "<cmd>DapStepInto<CR>", { desc = "Debug: step into" })
@@ -150,19 +198,30 @@ vim.keymap.set("n", "<leader>e", function()
     end
 end, { desc = "File explorer (snacks)" })
 vim.keymap.set("n", "<leader>gs", "<cmd>G<CR>", { desc = "Git (fugitive)" })
-vim.keymap.set("n", "<leader>gg", function() Snacks.lazygit() end, { desc = "Lazygit" })
-vim.keymap.set("n", "<leader>gy", function() Snacks.gitbrowse() end, { desc = "Open line on GitHub" })
-vim.keymap.set("n", "<leader>gf", function() require("lib.worktree").pick() end, { desc = "Git worktrees" })
-vim.keymap.set("n", "<leader>gc", function() require("lib.worktree").pick_branch() end,
-    { desc = "Git worktree for branch (switch or create)" })
+vim.keymap.set("n", "<leader>gg", function()
+    Snacks.lazygit()
+end, { desc = "Lazygit" })
+vim.keymap.set("n", "<leader>gy", function()
+    Snacks.gitbrowse()
+end, { desc = "Open line on GitHub" })
+vim.keymap.set("n", "<leader>gf", function()
+    require("lib.worktree").pick()
+end, { desc = "Git worktrees" })
+vim.keymap.set("n", "<leader>gc", function()
+    require("lib.worktree").pick_branch()
+end, { desc = "Git worktree for branch (switch or create)" })
 -- unlike `:G worktree add <path>`, places the worktree next to the repo's existing ones
-vim.api.nvim_create_user_command("Worktree", function(o) require("lib.worktree").add(o.args) end,
-    { nargs = 1, desc = "Switch to or create the worktree for a branch" })
+vim.api.nvim_create_user_command("Worktree", function(o)
+    require("lib.worktree").add(o.args)
+end, { nargs = 1, desc = "Switch to or create the worktree for a branch" })
 vim.keymap.set("n", "<leader>O", "<cmd>Oil . --float <CR>", { desc = "Oil file manager (float)" })
 vim.keymap.set("n", "<leader>ss", "<cmd>lua require('grug-far').open()<CR>", { desc = "Search/replace (grug-far)" })
-vim.keymap.set("n", "<leader>sw",
+vim.keymap.set(
+    "n",
+    "<leader>sw",
     "<cmd>lua require('grug-far').open({ prefills = { search = vim.fn.expand('<cword>') } })<CR>",
-    { desc = "Search/replace word under cursor" })
+    { desc = "Search/replace word under cursor" }
+)
 vim.keymap.set("n", "<leader>tt", "<cmd>Trouble diagnostics<CR>", { desc = "Trouble diagnostics" })
 vim.keymap.set("n", "<leader>ts", "<cmd>Trouble symbols toggle<CR>", { desc = "Trouble symbols" })
 vim.keymap.set("n", "<leader>tl", "<cmd>Trouble lsp toggle<CR>", { desc = "Trouble LSP references" })

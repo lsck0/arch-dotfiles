@@ -41,7 +41,9 @@ autocmd("BufWritePre", {
     desc = "Create missing parent directories on save",
     group = group("mkdir-on-save", { clear = true }),
     callback = function(args)
-        if args.match:match("^%w+://") then return end -- skip URLs (oil://, scp://, ...)
+        if args.match:match("^%w+://") then
+            return
+        end -- skip URLs (oil://, scp://, ...)
         vim.fn.mkdir(vim.fn.fnamemodify(args.file, ":p:h"), "p")
     end,
 })
@@ -50,7 +52,9 @@ autocmd({ "FocusGained", "TermClose", "TermLeave" }, {
     desc = "Reload files changed outside nvim",
     group = group("auto-read", { clear = true }),
     callback = function()
-        if vim.fn.getcmdwintype() == "" then vim.cmd.checktime() end
+        if vim.fn.getcmdwintype() == "" then
+            vim.cmd.checktime()
+        end
     end,
 })
 
@@ -59,9 +63,13 @@ autocmd({ "BufEnter", "FocusGained", "InsertLeave", "WinEnter", "BufLeave", "Foc
     desc = "Relative line numbers when active, absolute when inactive",
     group = group("numbertoggle", { clear = true }),
     callback = function(args)
-        if not vim.wo.number then return end
+        if not vim.wo.number then
+            return
+        end
         if numbertoggle_active[args.event] then
-            if vim.fn.mode() ~= "i" then vim.wo.relativenumber = true end
+            if vim.fn.mode() ~= "i" then
+                vim.wo.relativenumber = true
+            end
         else
             vim.wo.relativenumber = false
         end
@@ -75,9 +83,13 @@ autocmd("FileType", {
         local buf = args.buf
         local ft = vim.bo[buf].filetype
         -- tex keeps vim syntax: vimtex mathzone detection needs it
-        if ft == "tex" or ft == "plaintex" or ft == "bib" then return end
+        if ft == "tex" or ft == "plaintex" or ft == "bib" then
+            return
+        end
         local lang = vim.treesitter.language.get_lang(ft) or ft
-        if not pcall(vim.treesitter.start, buf, lang) then return end
+        if not pcall(vim.treesitter.start, buf, lang) then
+            return
+        end
         -- no indents query: keep the runtime indent script (make's recipe tabs, ...)
         if vim.treesitter.query.get(lang, "indents") then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
@@ -90,7 +102,9 @@ local function open_explorer_keep_focus()
     local main = vim.api.nvim_get_current_win()
     require("lib.explorer").open()
     vim.defer_fn(function()
-        if vim.api.nvim_win_is_valid(main) then vim.api.nvim_set_current_win(main) end
+        if vim.api.nvim_win_is_valid(main) then
+            vim.api.nvim_set_current_win(main)
+        end
     end, 100)
 end
 
@@ -106,7 +120,8 @@ autocmd("VimEnter", {
             local empty = vim.api.nvim_get_current_buf()
             -- both the directory buffer and the netrw listing netrw swapped in for it
             for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-                local listing = vim.bo[buf].filetype == "netrw" or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
+                local listing = vim.bo[buf].filetype == "netrw"
+                    or vim.fn.isdirectory(vim.api.nvim_buf_get_name(buf)) == 1
                 if buf ~= empty and listing then
                     vim.api.nvim_buf_delete(buf, { force = true })
                 end
@@ -114,16 +129,28 @@ autocmd("VimEnter", {
             open_explorer_keep_focus()
             return
         end
-        -- herdr-open.sh launches (NVIM_TMS=1)
-        if vim.g.started_by_firenvim then return end
-        if vim.env.NVIM_TMS ~= "1" then return end
-        if vim.fn.argc() > 1 then return end -- diff/multi-file: leave alone
+        -- herdr-open launches (NVIM_TMS=1)
+        if vim.g.started_by_firenvim then
+            return
+        end
+        if vim.env.NVIM_TMS ~= "1" then
+            return
+        end
+        if vim.fn.argc() > 1 then
+            return
+        end -- diff/multi-file: leave alone
         local ft = vim.bo.filetype
-        if ft == "gitcommit" or ft == "gitrebase" then return end
-        if vim.bo.buftype ~= "" then return end -- stdin, help, etc.
+        if ft == "gitcommit" or ft == "gitrebase" then
+            return
+        end
+        if vim.bo.buftype ~= "" then
+            return
+        end -- stdin, help, etc.
         -- never stack a second tree
         for _, w in ipairs(vim.api.nvim_list_wins()) do
-            if vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "snacks_picker_list" then
+            if
+                vim.api.nvim_get_option_value("filetype", { buf = vim.api.nvim_win_get_buf(w) }) == "snacks_picker_list"
+            then
                 return
             end
         end
@@ -137,7 +164,9 @@ autocmd({ "BufWinEnter", "WinEnter" }, {
     callback = function()
         -- scheduled: on BufWinEnter the window still reports the outgoing buffer
         vim.schedule(function()
-            pcall(function() require("lib.explorer").reveal_current() end)
+            pcall(function()
+                require("lib.explorer").reveal_current()
+            end)
         end)
     end,
 })

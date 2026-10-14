@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=heh
+Comment=Hex editor
+TryExec=heh
+Exec=@HOME@/.local/bin/desktop-run --file -- heh
+Icon=okteta
+Terminal=true
+Categories=Development;Utility;ConsoleOnly;

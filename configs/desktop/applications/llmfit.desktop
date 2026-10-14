@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=llmfit
+Comment=Which LLMs fit this machine
+TryExec=llmfit
+Exec=llmfit
+Icon=hwinfo
+Terminal=true
+Categories=Utility;ConsoleOnly;

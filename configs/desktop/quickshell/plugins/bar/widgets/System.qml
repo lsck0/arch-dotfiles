@@ -1,651 +1,1004 @@
+pragma ComponentBehavior: Bound
+import "BatteryModel.js" as BatteryModel
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
-import "BatteryModel.js" as BatteryModel
 
 BarWidget {
-  id: root
-  moduleName: "system"
+    id: root
 
-  property string cpuName: ""
-  property int cpuCores: 0
-  property string gpuName: ""
-  property string gpuVendor: ""
-  property int cpuPct: 0
-  property int freqMhz: 0
-  property int tempC: 0
-  property real memUsedGb: 0
-  property real memTotalGb: 0
-  readonly property real memPct: memTotalGb > 0 ? memUsedGb / memTotalGb * 100 : 0
-  property string memType: ""
-  property int memSpeedMts: 0
-  property int memChannels: 0
-  property int gpuPct: 0
-  property int gpuFreqMhz: 0
-  property var powerW: null
-  property var cpuPowerW: null
-  property var gpuPowerW: null
-  property real energyKwh: 0
-  // assumed flat tariff, eur per kwh
-  readonly property real pricePerKwh: 0.35
-  property var vramUsedMb: null
-  property var vramTotalMb: null
-  // null hides the alerts, the helper stays silent without a running, readable ossec
-  property var ossec: null
+    property string cpuName: ""
+    property int cpuCores: 0
+    property string gpuName: ""
+    property string gpuVendor: ""
+    property int cpuPct: 0
+    property int freqMhz: 0
+    property int tempC: 0
+    property real memUsedGb: 0
+    property real memTotalGb: 0
+    readonly property real memPct: memTotalGb > 0 ? memUsedGb / memTotalGb * 100 : 0
+    property string memType: ""
+    property int memSpeedMts: 0
+    property int memChannels: 0
+    property int gpuPct: 0
+    property int gpuFreqMhz: 0
+    property var powerW: null
+    property var cpuPowerW: null
+    property var gpuPowerW: null
+    property real energyKwh: 0
+    // assumed flat tariff, eur per kwh
+    readonly property real pricePerKwh: 0.35
+    property var vramUsedMb: null
+    property var vramTotalMb: null
+    // null hides the alerts, the helper stays silent without a running, readable ossec
+    property var ossec: null
+    // {cpu:[{name,pct}], mem:[{name,pct}]}, null until the first sample
+    property var topProc: null
+    property var cpuHist: []
+    property var gpuHist: []
+    property var memHist: []
+    property var tempHist: []
+    readonly property var loadThresholds: [60, 80, 92]
+    readonly property var tempThresholds: [60, 75, 85]
+    // ossec levels run 0 to 15
+    readonly property var ossecThresholds: [7, 10, 12]
+    readonly property var batteryDevice: UPower.displayDevice
+    readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
+    readonly property bool onBattery: UPower.onBattery === true
+    readonly property var upowerStates: ({
+        "Charging": UPowerDeviceState.Charging,
+        "Discharging": UPowerDeviceState.Discharging,
+        "FullyCharged": UPowerDeviceState.FullyCharged,
+        "PendingCharge": UPowerDeviceState.PendingCharge
+    })
+    readonly property real batteryFraction: BatteryModel.batteryFraction(batteryDevice)
+    readonly property string batteryIcon: BatteryModel.batteryIcon(batteryDevice, onBattery, upowerStates)
+    readonly property string batteryTime: {
+        if (!batteryPresent)
+            return "";
 
-  property var cpuHist: []
-  property var gpuHist: []
-  property var memHist: []
-  property var tempHist: []
-
-  readonly property var loadThresholds: [60, 80, 92]
-  readonly property var tempThresholds: [60, 75, 85]
-  // ossec levels run 0 to 15
-  readonly property var ossecThresholds: [7, 10, 12]
-  function critLoad(pct) { return Util.level(pct, loadThresholds) }
-  function critTemp(t) { return Util.level(t, tempThresholds) }
-  function critLevel(level) { return Util.level(level, ossecThresholds) }
-
-  readonly property var batteryDevice: UPower.displayDevice
-  readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
-  readonly property bool onBattery: UPower.onBattery === true
-  readonly property var upowerStates: ({
-    Charging: UPowerDeviceState.Charging,
-    Discharging: UPowerDeviceState.Discharging,
-    FullyCharged: UPowerDeviceState.FullyCharged,
-    PendingCharge: UPowerDeviceState.PendingCharge
-  })
-  readonly property real batteryFraction: BatteryModel.batteryFraction(batteryDevice)
-  readonly property string batteryIcon: BatteryModel.batteryIcon(batteryDevice, onBattery, upowerStates)
-  readonly property string batteryTime: {
-    if (!batteryPresent) return ""
-    return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull)
-  }
-
-  implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
-  implicitHeight: barSize
-
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.shape.data
-    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-  }
-
-  // seconds per sample, slower on battery
-  readonly property int statsIntervalS: onBattery ? 15 : 10
-  // a bound command does not rerun a live process: stop it and arm the respawn with the new interval.
-  // arming the timer here (not only from onExited) is load-bearing: at startup this handler can fire
-  // from staged binding resolution before the process has spawned, so no exit arrives to restart it.
-  onStatsIntervalSChanged: { statsProc.running = false; statsRestart.restart() }
-
-  Timer {
-    id: statsRestart
-    interval: 1000
-    onTriggered: statsProc.running = true
-  }
-
-  // long-lived, the script streams on its own interval
-  Process {
-    id: statsProc
-    running: true
-    command: [Paths.barWidget("system-stats.sh"), String(root.statsIntervalS)]
-    onExited: statsRestart.restart()
-    // quickshell does not reap helpers on reload, stop on teardown
-    Component.onDestruction: { statsRestart.stop(); running = false }
-    stdout: SplitParser {
-      splitMarker: "\n"
-      onRead: function(line) {
-        if (!line) return
-        try {
-          var s = JSON.parse(line)
-          root.cpuName = s.cpuName || ""
-          root.cpuCores = s.cpuCores || 0
-          root.gpuName = s.gpuName || ""
-          root.gpuVendor = s.gpuVendor || ""
-          root.cpuPct = s.cpu || 0
-          root.freqMhz = s.freqMhz || 0
-          root.tempC = s.tempC || 0
-          root.memUsedGb = s.memUsedGb || 0
-          root.memTotalGb = s.memTotalGb || 0
-          root.memType = s.memType || ""
-          root.memSpeedMts = s.memSpeedMts || 0
-          root.memChannels = s.memChannels || 0
-          root.gpuPct = s.gpuPct || 0
-          root.gpuFreqMhz = s.gpuFreqMhz || 0
-          root.powerW = (s.powerW === undefined) ? null : s.powerW
-          root.cpuPowerW = (s.cpuPowerW === undefined) ? null : s.cpuPowerW
-          root.gpuPowerW = (s.gpuPowerW === undefined) ? null : s.gpuPowerW
-          root.energyKwh = s.energyKwh || 0
-          root.vramUsedMb = (s.vramUsedMb === undefined) ? null : s.vramUsedMb
-          root.vramTotalMb = (s.vramTotalMb === undefined) ? null : s.vramTotalMb
-          root.cpuHist = Util.historyPush(root.cpuHist, root.cpuPct)
-          root.gpuHist = Util.historyPush(root.gpuHist, root.gpuPct)
-          root.memHist = Util.historyPush(root.memHist, root.memPct)
-          root.tempHist = Util.historyPush(root.tempHist, root.tempC)
-        } catch (e) {}
-      }
+        return BatteryModel.formatDuration(onBattery ? batteryDevice.timeToEmpty : batteryDevice.timeToFull);
     }
-  }
+    // seconds per sample, slower on battery
+    readonly property int statsIntervalS: onBattery ? 15 : 10
 
-  JsonProcess {
-    command: [Paths.barWidget("ossec-alerts.py")]
-    streaming: true
-    running: true
-    onParsed: function (data) { root.ossec = data }
-  }
-
-  // fixed-width slot per stat so the bar does not jitter
-  component Stat: Row {
-    property string glyph: ""
-    property string value: ""
-    property string widest: ""
-    property color tint: root.bar ? root.bar.barForeground : Colors.foreground
-    spacing: Style.spacing.xs
-
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
-      text: parent.glyph
-      color: parent.tint
-      font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
-      font.pixelSize: Style.font.icon
-      opacity: Style.emphasis.dim
-    }
-    Text {
-      id: slotText
-      anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.PlainText
-      width: Math.ceil(sizer.implicitWidth)
-      horizontalAlignment: Text.AlignLeft
-      text: parent.value
-      color: parent.tint
-      font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: Style.font.body
-      font.letterSpacing: Style.displayTracking
-      // an outline, not a glow layer: this text changes every sample
-      style: Style.fx.glow > 0 && !(root.bar && root.bar.quiet) ? Text.Outline : Text.Normal
-      styleColor: Util.alpha(Colors.accent, 0.35)
-
-      // invisible, only measures the widest value
-      Text {
-        id: sizer
-        visible: false
-        textFormat: Text.PlainText
-        text: parent.parent.widest
-        font.family: slotText.font.family
-        font.pixelSize: slotText.font.pixelSize
-      }
-    }
-  }
-
-  Row {
-    id: label
-    anchors.centerIn: parent
-    spacing: Style.spacing.sm
-
-    // too wide for a vertical bar
-    Sparkline {
-      visible: !root.vertical
-      pulsing: false
-      anchors.verticalCenter: parent.verticalCenter
-      width: Style.space(40)
-      height: Style.space(14)
-      values: root.cpuHist
-      minValue: 0
-      maxValue: 100
-      color: Colors.accent
+    function critLoad(pct) {
+        return Util.level(pct, loadThresholds);
     }
 
-    // md-memory, the cpu package glyph
-    Stat { glyph: "\u{f035b}"; widest: "100%"; value: root.cpuPct + "%" }
-    // fa-memory
-    Stat {
-      glyph: "\u{efc5}"
-      widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
-      value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
-    }
-    // md-expansion_card
-    Stat { glyph: "\u{f08ae}"; widest: "100%"; value: root.gpuPct + "%" }
-    // an igpu has no dedicated vram
-    Stat {
-      visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
-      glyph: "\u{f061a}"
-      widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
-      value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
-    }
-    // md-thermometer, unit spelled out so it does not read as a percentage
-    Stat { glyph: "\u{f050f}"; widest: "100\u00b0C"; value: root.tempC + "\u00b0C" }
-    Stat {
-      visible: root.batteryPresent
-      glyph: root.batteryIcon
-      widest: "100%"
-      value: Math.round(root.batteryFraction * 100) + "%"
-    }
-    // md-shield_alert, only for alerts worth a look
-    Stat {
-      visible: root.ossec !== null && root.ossec.high > 0
-      glyph: "\u{f0ce4}"
-      widest: "99"
-      value: root.ossec ? root.ossec.high : ""
-      tint: Colors.semantic.live
-    }
-  }
-
-  MouseArea {
-    id: mouseArea
-    anchors.fill: parent
-    hoverEnabled: true
-    cursorShape: Qt.PointingHandCursor
-    onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
-    onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
-  }
-
-  component SectionHead: Item {
-    property string text: ""
-    width: parent ? parent.width : 0
-    implicitHeight: hdr.implicitHeight
-    height: implicitHeight
-    PanelSectionHeader {
-      id: hdr
-      anchors.left: parent.left
-      text: parent.text
-    }
-    Rectangle {
-      anchors.left: hdr.right
-      anchors.leftMargin: Style.spacing.xs
-      anchors.right: parent.right
-      anchors.verticalCenter: hdr.verticalCenter
-      height: 1
-      color: Util.alpha(Colors.accent, 0.35)
-    }
-  }
-
-  component HudStat: Column {
-    property string label: ""
-    property string value: ""
-    property string note: ""
-    property color tint: Colors.foreground
-    width: parent ? (parent.width - parent.spacing) / 2 : 0
-    spacing: Style.spacing.hair
-    Text {
-      text: parent.label
-      color: Colors.menu.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.labelTracking
-    }
-    Text {
-      text: parent.value
-      color: parent.tint
-      opacity: Style.emphasis.strong
-      font.family: Style.font.family
-      font.pixelSize: Style.font.title
-      font.letterSpacing: Style.displayTracking
-      font.features: { "tnum": 1 }
-    }
-    Text {
-      visible: parent.note.length > 0
-      text: parent.note
-      color: Colors.menu.text
-      opacity: Style.emphasis.dim
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-    }
-  }
-
-  component FluxLabel: Item {
-    property string text: ""
-    property color tint: Colors.accent
-    width: parent ? parent.width : 0
-    Text {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      text: parent.text
-      color: parent.tint
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.bold: true
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.labelTracking
-    }
-  }
-
-  component Meter: Item {
-    id: meterRoot
-    property string label: ""
-    property real fraction: 0
-    property color fill: Colors.accent
-    property string value: ""
-    property string secondary: ""
-    readonly property real frac: Math.max(0, Math.min(1, fraction))
-    width: parent ? parent.width : 0
-    implicitHeight: Style.space(18)
-    height: implicitHeight
-
-    Text {
-      id: meterLabel
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      width: Style.space(34)
-      text: meterRoot.label
-      color: Colors.menu.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
-      font.capitalization: Font.AllUppercase
-      font.letterSpacing: Style.labelTracking
+    function critTemp(t) {
+        return Util.level(t, tempThresholds);
     }
 
-    // fixed width so numerals align across rows
-    Item {
-      id: meterValue
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      width: Style.space(100)
-      height: valPrimary.implicitHeight
-      Text {
-        id: valPrimary
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        text: meterRoot.value
-        color: Colors.foreground
-        opacity: Style.emphasis.strong
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        font.letterSpacing: Style.displayTracking
-        font.features: { "tnum": 1 }
-        style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-        styleColor: Util.alpha(Colors.accent, 0.35)
-      }
-      Text {
-        anchors.left: valPrimary.right
-        anchors.leftMargin: Style.spacing.xs
-        anchors.baseline: valPrimary.baseline
-        visible: meterRoot.secondary.length > 0
-        text: meterRoot.secondary
-        color: Colors.foreground
-        opacity: Style.emphasis.faint
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.letterSpacing: Style.displayTracking
-        font.features: { "tnum": 1 }
-      }
+    function critLevel(level) {
+        return Util.level(level, ossecThresholds);
+    }
+
+    moduleName: "system"
+    implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
+    implicitHeight: barSize
+    // a bound command does not rerun a live process: stop it and arm the respawn with the new interval.
+    // arming the timer here (not only from onExited) is load-bearing: at startup this handler can fire
+    // from staged binding resolution before the process has spawned, so no exit arrives to restart it.
+    onStatsIntervalSChanged: {
+        statsProc.running = false;
+        statsRestart.restart();
     }
 
     Rectangle {
-      anchors.left: meterLabel.right
-      anchors.leftMargin: Style.spacing.xs
-      anchors.right: meterValue.left
-      anchors.rightMargin: Style.spacing.sm
-      anchors.verticalCenter: parent.verticalCenter
-      height: Style.space(7)
-      radius: Style.shape.data
-      color: Util.alpha(Colors.foreground, 0.12)
-      Rectangle {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: meterRoot.frac * parent.width
-        radius: parent.radius
-        color: meterRoot.fill
-        Behavior on width { NumberAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-        // live value: no glow, it would re-render on every sample
-        Behavior on color { ColorAnimation { duration: Style.motion.slow; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-      }
+        anchors.fill: parent
+        radius: Style.shape.data
+        color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Style.motion.fast
+                easing.type: Style.motion.fastEasing
+            }
+
+        }
+
     }
-  }
 
-  HoverPanel {
-    id: panel
-    bar: root.bar
-    moduleName: root.moduleName
-    anchorWidget: root
-    title: "SYSTEM"
-    implicitWidth: Style.panelWidth.normal
-    implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
+    Timer {
+        id: statsRestart
 
-    // capped to the screen, the rest scrolls
-    Flickable {
-      width: parent.width
-      height: Math.min(content.implicitHeight, panel.maxBodyHeight)
-      contentWidth: width
-      contentHeight: content.implicitHeight
-      interactive: contentHeight > height
-      boundsBehavior: Flickable.StopAtBounds
-      clip: true
+        interval: 1000
+        onTriggered: statsProc.running = true
+    }
 
-      Column {
-        id: content
-        width: parent.width
+    // long-lived, the script streams on its own interval
+    Process {
+        id: statsProc
+
+        running: true
+        command: [Paths.barWidget("system-stats.nu"), String(root.statsIntervalS)]
+        onExited: statsRestart.restart()
+        // quickshell does not reap helpers on reload, stop on teardown
+        Component.onDestruction: {
+            statsRestart.stop();
+            running = false;
+        }
+
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: function(line) {
+                if (!line)
+                    return ;
+
+                try {
+                    let s = JSON.parse(line);
+                    root.cpuName = s.cpuName || "";
+                    root.cpuCores = s.cpuCores || 0;
+                    root.gpuName = s.gpuName || "";
+                    root.gpuVendor = s.gpuVendor || "";
+                    root.cpuPct = s.cpu || 0;
+                    root.freqMhz = s.freqMhz || 0;
+                    root.tempC = s.tempC || 0;
+                    root.memUsedGb = s.memUsedGb || 0;
+                    root.memTotalGb = s.memTotalGb || 0;
+                    root.memType = s.memType || "";
+                    root.memSpeedMts = s.memSpeedMts || 0;
+                    root.memChannels = s.memChannels || 0;
+                    root.gpuPct = s.gpuPct || 0;
+                    root.gpuFreqMhz = s.gpuFreqMhz || 0;
+                    root.powerW = (s.powerW === undefined) ? null : s.powerW;
+                    root.cpuPowerW = (s.cpuPowerW === undefined) ? null : s.cpuPowerW;
+                    root.gpuPowerW = (s.gpuPowerW === undefined) ? null : s.gpuPowerW;
+                    root.energyKwh = s.energyKwh || 0;
+                    root.vramUsedMb = (s.vramUsedMb === undefined) ? null : s.vramUsedMb;
+                    root.vramTotalMb = (s.vramTotalMb === undefined) ? null : s.vramTotalMb;
+                    root.topProc = (s.top === undefined) ? null : s.top;
+                    root.cpuHist = Util.historyPush(root.cpuHist, root.cpuPct);
+                    root.gpuHist = Util.historyPush(root.gpuHist, root.gpuPct);
+                    root.memHist = Util.historyPush(root.memHist, root.memPct);
+                    root.tempHist = Util.historyPush(root.tempHist, root.tempC);
+                } catch (e) {
+                }
+            }
+        }
+
+    }
+
+    JsonProcess {
+        command: [Paths.barWidget("ossec-alerts.nu")]
+        streaming: true
+        running: true
+        onParsed: function(data) {
+            root.ossec = data;
+        }
+    }
+
+    Row {
+        id: label
+
+        anchors.centerIn: parent
         spacing: Style.spacing.sm
 
-        Column {
-          width: parent.width
-          spacing: Style.spacing.xs
-          Meter {
-            label: "CPU"
-            fraction: root.cpuPct / 100
-            fill: root.critLoad(root.cpuPct)
-            value: root.cpuPct + "%"
-            secondary: (root.freqMhz / 1000).toFixed(1) + "GHz"
-          }
-          Meter {
-            label: "MEM"
-            fraction: root.memPct / 100
-            fill: root.critLoad(root.memPct)
-            value: Math.round(root.memPct) + "%"
-            secondary: root.memUsedGb.toFixed(0) + "/" + root.memTotalGb.toFixed(0) + "G"
-          }
-          Meter {
-            label: "GPU"
-            fraction: root.gpuPct / 100
-            fill: root.critLoad(root.gpuPct)
-            value: root.gpuPct + "%"
-          }
-          Meter {
-            label: "TMP"
-            fraction: root.tempC / 100
-            fill: root.critTemp(root.tempC)
-            value: root.tempC + "\u00b0C"
-          }
+        // too wide for a vertical bar
+        Sparkline {
+            visible: !root.vertical
+            pulsing: false
+            anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(40)
+            height: Style.space(14)
+            values: root.cpuHist
+            minValue: 0
+            maxValue: 100
+            color: Colors.accent
         }
 
-        PanelSeparator {}
-        SectionHead { text: "FLUX TELEMETRY" }
-        Row {
-          width: parent.width
-          spacing: Style.spacing.xs
-          Column {
-            id: fluxLabels
-            width: Style.space(34)
-            height: flux.height
-            FluxLabel { height: flux.height / 4; text: "CPU"; tint: root.critLoad(root.cpuPct) }
-            FluxLabel { height: flux.height / 4; text: "MEM"; tint: root.critLoad(root.memPct) }
-            FluxLabel { height: flux.height / 4; text: "GPU"; tint: root.critLoad(root.gpuPct) }
-            FluxLabel { height: flux.height / 4; text: "TMP"; tint: root.critTemp(root.tempC) }
-          }
-          Heatmap {
-            id: flux
-            width: parent.width - fluxLabels.width - parent.spacing
-            height: Style.space(88)
-            active: panel.visible
-            rows: [
-              { values: root.cpuHist, max: 100 },
-              { values: root.memHist, max: 100 },
-              { values: root.gpuHist, max: 100 },
-              { values: root.tempHist, max: 100 }
-            ]
-          }
+        // md-memory, the cpu package glyph
+        Stat {
+            glyph: "\u{f035b}"
+            widest: "100%"
+            value: root.cpuPct + "%"
         }
-        // the heatmap spans one history window
-        Row {
-          width: parent.width
-          Text {
-            width: parent.width / 2
-            text: Math.round(Util.historyCountMax * root.statsIntervalS / 60) + " MIN"
+
+        // fa-memory
+        Stat {
+            glyph: "\u{efc5}"
+            widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
+            value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
+        }
+
+        // md-expansion_card
+        Stat {
+            glyph: "\u{f08ae}"
+            widest: "100%"
+            value: root.gpuPct + "%"
+        }
+
+        // an igpu has no dedicated vram
+        Stat {
+            visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
+            glyph: "\u{f061a}"
+            widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
+            value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
+        }
+
+        // md-thermometer, unit spelled out so it does not read as a percentage
+        Stat {
+            glyph: "\u{f050f}"
+            widest: "100\u00b0C"
+            value: root.tempC + "\u00b0C"
+        }
+
+        Stat {
+            visible: root.batteryPresent
+            glyph: root.batteryIcon
+            widest: "100%"
+            value: Math.round(root.batteryFraction * 100) + "%"
+        }
+        // md-shield_alert, only for alerts worth a look
+
+        Stat {
+            visible: root.ossec !== null && root.ossec.high > 0
+            glyph: "\u{f0ce4}"
+            widest: "99"
+            value: root.ossec ? root.ossec.high : ""
+            tint: Colors.semantic.live
+        }
+
+    }
+
+    MouseArea {
+        id: mouseArea
+
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onEntered: {
+            if (root.bar) {
+                root.bar.hoverOpen(root.moduleName);
+            }
+        }
+        onExited: {
+            if (root.bar) {
+                root.bar.hoverTriggerExit(root.moduleName);
+            }
+        }
+    }
+
+    HoverPanel {
+        id: panel
+
+        bar: root.bar
+        moduleName: root.moduleName
+        anchorWidget: root
+        title: "SYSTEM"
+        implicitWidth: Style.panelWidth.normal
+        implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
+
+        // capped to the screen, the rest scrolls
+        Flickable {
+            width: parent.width
+            height: Math.min(content.implicitHeight, panel.maxBodyHeight)
+            contentWidth: width
+            contentHeight: content.implicitHeight
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
+
+            Column {
+                id: content
+
+                width: parent.width
+                spacing: Style.spacing.sm
+
+                Column {
+                    width: parent.width
+                    spacing: Style.spacing.xs
+
+                    Meter {
+                        label: "CPU"
+                        fraction: root.cpuPct / 100
+                        fill: root.critLoad(root.cpuPct)
+                        value: root.cpuPct + "%"
+                        secondary: (root.freqMhz / 1000).toFixed(1) + "GHz"
+                    }
+
+                    Meter {
+                        label: "MEM"
+                        fraction: root.memPct / 100
+                        fill: root.critLoad(root.memPct)
+                        value: Math.round(root.memPct) + "%"
+                        secondary: root.memUsedGb.toFixed(0) + "/" + root.memTotalGb.toFixed(0) + "G"
+                    }
+
+                    Meter {
+                        label: "GPU"
+                        fraction: root.gpuPct / 100
+                        fill: root.critLoad(root.gpuPct)
+                        value: root.gpuPct + "%"
+                    }
+
+                    Meter {
+                        label: "TMP"
+                        fraction: root.tempC / 100
+                        fill: root.critTemp(root.tempC)
+                        value: root.tempC + "\u00b0C"
+                    }
+
+                }
+
+                PanelSeparator {
+                }
+
+                SectionHead {
+                    text: "HISTORY"
+                }
+
+                Row {
+                    width: parent.width
+                    spacing: Style.spacing.xs
+
+                    Column {
+                        id: fluxLabels
+
+                        width: Style.space(34)
+                        height: flux.height
+
+                        FluxLabel {
+                            height: flux.height / 4
+                            text: "CPU"
+                            tint: root.critLoad(root.cpuPct)
+                        }
+
+                        FluxLabel {
+                            height: flux.height / 4
+                            text: "MEM"
+                            tint: root.critLoad(root.memPct)
+                        }
+
+                        FluxLabel {
+                            height: flux.height / 4
+                            text: "GPU"
+                            tint: root.critLoad(root.gpuPct)
+                        }
+
+                        FluxLabel {
+                            height: flux.height / 4
+                            text: "TMP"
+                            tint: root.critTemp(root.tempC)
+                        }
+
+                    }
+
+                    Heatmap {
+                        id: flux
+
+                        width: parent.width - fluxLabels.width - parent.spacing
+                        height: Style.space(88)
+                        active: panel.visible
+                        rows: [{
+                            "values": root.cpuHist,
+                            "max": 100
+                        }, {
+                            "values": root.memHist,
+                            "max": 100
+                        }, {
+                            "values": root.gpuHist,
+                            "max": 100
+                        }, {
+                            "values": root.tempHist,
+                            "max": 100
+                        }]
+                    }
+
+                }
+                // the heatmap spans one history window
+
+                Row {
+                    width: parent.width
+
+                    Text {
+                        width: parent.width / 2
+                        text: Math.round(Util.historyCountMax * root.statsIntervalS / 60) + " MIN"
+                        color: Colors.menu.text
+                        opacity: Style.emphasis.faint
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.caption
+                        font.letterSpacing: Style.labelTracking
+                    }
+
+                    Text {
+                        width: parent.width / 2
+                        horizontalAlignment: Text.AlignRight
+                        text: "LIVE"
+                        color: Colors.accent
+                        opacity: Style.emphasis.dim
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.caption
+                        font.letterSpacing: Style.labelTracking
+                    }
+
+                }
+
+                PanelSeparator {
+                }
+
+                SectionHead {
+                    text: "HARDWARE"
+                }
+
+                Text {
+                    width: parent.width
+                    visible: root.cpuName.length > 0
+                    text: root.cpuName + (root.cpuCores > 0 ? " (" + root.cpuCores + " threads)" : "")
+                    color: Colors.menu.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    width: parent.width
+                    visible: root.gpuName.length > 0
+                    text: root.gpuName
+                    color: Colors.menu.text
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    wrapMode: Text.WordWrap
+                }
+
+                Grid {
+                    width: parent.width
+                    columns: 2
+                    spacing: Style.spacing.sm
+
+                    HudStat {
+                        label: "CPU CLK"
+                        value: root.freqMhz + " MHz"
+                    }
+
+                    HudStat {
+                        label: "PKG TEMP"
+                        value: root.tempC + " \u00b0C"
+                        tint: root.critTemp(root.tempC)
+                    }
+
+                    HudStat {
+                        visible: root.powerW !== null
+                        label: "POWER (EST.)"
+                        value: Math.round(root.powerW) + " W"
+                        note: (root.powerW / 1000 * root.pricePerKwh * 100).toFixed(1) + " ct/h"
+                    }
+
+                    HudStat {
+                        visible: root.powerW !== null
+                        label: "SINCE LOGIN"
+                        value: root.energyKwh.toFixed(3) + " kWh"
+                        note: (root.energyKwh * root.pricePerKwh).toFixed(2) + " \u20ac"
+                    }
+
+                    HudStat {
+                        visible: root.cpuPowerW !== null
+                        label: "CPU PWR"
+                        value: Math.round(root.cpuPowerW) + " W"
+                    }
+
+                    HudStat {
+                        visible: root.gpuPowerW !== null
+                        label: "GPU PWR"
+                        value: Math.round(root.gpuPowerW) + " W"
+                    }
+
+                    HudStat {
+                        label: "MEMORY"
+                        value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + "G"
+                    }
+
+                    HudStat {
+                        visible: root.memType !== "" || root.memSpeedMts > 0
+                        label: "MEM TYPE"
+                        value: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : ""].filter(function(v) {
+                            return v;
+                        }).join(" :: ")
+                    }
+
+                    HudStat {
+                        visible: root.memChannels > 0
+                        label: "CHANNELS"
+                        value: root.memChannels + "-CH"
+                    }
+
+                    HudStat {
+                        label: "GPU CLK"
+                        value: root.gpuFreqMhz + " MHz"
+                    }
+
+                    HudStat {
+                        visible: root.gpuVendor !== "intel"
+                        label: "VRAM"
+                        value: root.vramTotalMb !== null ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB" : "N/A"
+                        tint: root.vramTotalMb === null ? Colors.menu.text : Colors.foreground
+                    }
+
+                    HudStat {
+                        visible: root.batteryPresent
+                        label: "BATTERY"
+                        value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " :: " + root.batteryTime : "")
+                    }
+
+                    HudStat {
+                        visible: root.batteryPresent
+                        label: "STATE"
+                        value: root.onBattery ? "DISCHARGE" : "CHARGE"
+                    }
+
+                }
+
+                Column {
+                    visible: root.topProc !== null
+                    width: parent.width
+                    spacing: Style.spacing.sm
+
+                    PanelSeparator {
+                    }
+
+                    SectionHead {
+                        text: "TOP PROCESSES"
+                    }
+
+                    Row {
+                        id: procSplit
+                        width: parent.width
+                        spacing: Style.spacing.sm
+
+                        Repeater {
+                            model: [{
+                                "head": "CPU",
+                                "items": root.topProc ? root.topProc.cpu : []
+                            }, {
+                                "head": "MEM",
+                                "items": root.topProc ? root.topProc.mem : []
+                            }]
+
+                            Column {
+                                required property var modelData
+
+                                width: (procSplit.width - procSplit.spacing) / 2
+                                spacing: Style.spacing.hair
+
+                                Text {
+                                    text: parent.modelData.head
+                                    color: Colors.menu.text
+                                    font.family: Style.font.family
+                                    font.pixelSize: Style.font.caption
+                                    font.capitalization: Font.AllUppercase
+                                    font.letterSpacing: Style.labelTracking
+                                }
+
+                                Repeater {
+                                    model: parent.modelData.items
+
+                                    Row {
+                                        id: procRow
+                                        required property var modelData
+
+                                        width: parent ? parent.width : 0
+                                        spacing: Style.spacing.xs
+
+                                        Text {
+                                            width: parent.width - procPct.width - parent.spacing
+                                            text: procRow.modelData.name
+                                            elide: Text.ElideRight
+                                            color: Colors.foreground
+                                            opacity: Style.emphasis.strong
+                                            font.family: Style.font.family
+                                            font.pixelSize: Style.font.caption
+                                        }
+
+                                        Text {
+                                            id: procPct
+
+                                            width: Style.space(44)
+                                            text: procRow.modelData.pct.toFixed(1) + "%"
+                                            horizontalAlignment: Text.AlignRight
+                                            color: Colors.menu.text
+                                            opacity: Style.emphasis.dim
+                                            font.family: Style.font.family
+                                            font.pixelSize: Style.font.caption
+                                            font.features: {
+                                                "tnum": 1
+                                            }
+                                        }
+
+                                    }
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                Column {
+                    visible: root.ossec !== null
+                    width: parent.width
+                    spacing: Style.spacing.sm
+
+                    PanelSeparator {
+                    }
+
+                    SectionHead {
+                        text: "ALERTS"
+                    }
+
+                    Grid {
+                        width: parent.width
+                        columns: 2
+                        spacing: Style.spacing.sm
+
+                        HudStat {
+                            label: "24H"
+                            value: root.ossec ? root.ossec.total : ""
+                        }
+
+                        HudStat {
+                            label: "MAX LEVEL"
+                            value: root.ossec ? root.ossec.maxLevel : ""
+                            tint: root.critLevel(root.ossec ? root.ossec.maxLevel : 0)
+                        }
+
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Style.spacing.xs
+
+                        Repeater {
+                            model: root.ossec ? root.ossec.recent : []
+
+                            Row {
+                                id: alertRow
+                                required property var modelData
+
+                                width: parent.width
+                                spacing: Style.spacing.xs
+
+                                Text {
+                                    id: alertLevel
+
+                                    width: Style.space(28)
+                                    text: "L" + alertRow.modelData.level
+                                    color: root.critLevel(alertRow.modelData.level)
+                                    font.family: Style.font.family
+                                    font.pixelSize: Style.font.caption
+                                    font.bold: true
+                                    layer.enabled: Style.fx.glow > 0
+
+                                    layer.effect: Glow {
+                                        shadowColor: alertLevel.color
+                                    }
+
+                                }
+
+                                Text {
+                                    width: parent.width - alertLevel.width - alertTime.width - parent.spacing * 2
+                                    text: alertRow.modelData.desc
+                                    elide: Text.ElideRight
+                                    color: Colors.foreground
+                                    opacity: Style.emphasis.strong
+                                    font.family: Style.font.family
+                                    font.pixelSize: Style.font.caption
+                                }
+
+                                Text {
+                                    id: alertTime
+
+                                    text: alertRow.modelData.t
+                                    color: Colors.menu.text
+                                    opacity: Style.emphasis.dim
+                                    font.family: Style.font.family
+                                    font.pixelSize: Style.font.caption
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+                PanelSeparator {
+                }
+
+                SectionHead {
+                    text: "POWER MODE"
+                }
+
+                // overrides are session-only by design
+                PowerModeSelector {
+                    width: parent.width
+                    active: panel.visible
+                }
+
+                PanelSeparator {
+                }
+
+                SectionHead {
+                    text: "TOOLS"
+                }
+
+                PanelRow {
+                    width: parent.width
+                    // md-harddisk
+                    glyph: "\u{f02ca}"
+                    label: "Disk speed test"
+                    onActivated: {
+                        if (root.bar)
+                            root.bar.closePanel(root.moduleName);
+
+                        Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.disk-speedtest", "{}"));
+                    }
+                }
+
+            }
+
+        }
+
+    }
+
+    // fixed-width slot per stat so the bar does not jitter
+    component Stat: Row {
+        id: stat
+        property string glyph: ""
+        property string value: ""
+        property string widest: ""
+        property color tint: root.bar ? root.bar.barForeground : Colors.foreground
+
+        spacing: Style.spacing.xs
+
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            text: parent.glyph
+            color: parent.tint
+            font.family: root.bar ? root.bar.iconFontFamily : Style.font.iconFamily
+            font.pixelSize: Style.font.icon
+            opacity: Style.emphasis.dim
+        }
+
+        Text {
+            id: slotText
+
+            anchors.verticalCenter: parent.verticalCenter
+            textFormat: Text.PlainText
+            width: Math.ceil(sizer.implicitWidth)
+            horizontalAlignment: Text.AlignLeft
+            text: parent.value
+            color: parent.tint
+            font.family: root.bar ? root.bar.fontFamily : Style.font.family
+            font.pixelSize: Style.font.body
+            font.letterSpacing: Style.displayTracking
+            // an outline, not a glow layer: this text changes every sample
+            style: Style.fx.glow > 0 && !(root.bar && root.bar.quiet) ? Text.Outline : Text.Normal
+            styleColor: Util.alpha(Colors.accent, 0.35)
+
+            // invisible, only measures the widest value
+            Text {
+                id: sizer
+
+                visible: false
+                textFormat: Text.PlainText
+                text: stat.widest
+                font.family: slotText.font.family
+                font.pixelSize: slotText.font.pixelSize
+            }
+
+        }
+
+    }
+
+    component SectionHead: Item {
+        property string text: ""
+
+        width: parent ? parent.width : 0
+        implicitHeight: hdr.implicitHeight
+        height: implicitHeight
+
+        PanelSectionHeader {
+            id: hdr
+
+            anchors.left: parent.left
+            text: parent.text
+        }
+
+        Rectangle {
+            anchors.left: hdr.right
+            anchors.leftMargin: Style.spacing.xs
+            anchors.right: parent.right
+            anchors.verticalCenter: hdr.verticalCenter
+            height: 1
+            color: Util.alpha(Colors.accent, 0.35)
+        }
+
+    }
+
+    component HudStat: Column {
+        property string label: ""
+        property string value: ""
+        property string note: ""
+        property color tint: Colors.foreground
+
+        width: parent ? (parent.width - (parent as Grid).spacing) / 2 : 0
+        spacing: Style.spacing.hair
+
+        Text {
+            text: parent.label
             color: Colors.menu.text
-            opacity: Style.emphasis.faint
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
+            font.capitalization: Font.AllUppercase
             font.letterSpacing: Style.labelTracking
-          }
-          Text {
-            width: parent.width / 2
-            horizontalAlignment: Text.AlignRight
-            text: "LIVE"
-            color: Colors.accent
+        }
+
+        Text {
+            text: parent.value
+            color: parent.tint
+            opacity: Style.emphasis.strong
+            font.family: Style.font.family
+            font.pixelSize: Style.font.title
+            font.letterSpacing: Style.displayTracking
+            font.features: {
+                "tnum": 1
+            }
+        }
+
+        Text {
+            visible: parent.note.length > 0
+            text: parent.note
+            color: Colors.menu.text
             opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
-            font.letterSpacing: Style.labelTracking
-          }
         }
 
-        PanelSeparator {}
-        SectionHead { text: "HUD READOUT" }
-        Text {
-          width: parent.width
-          visible: root.cpuName.length > 0
-          text: root.cpuName + (root.cpuCores > 0 ? " (" + root.cpuCores + " threads)" : "")
-          color: Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          wrapMode: Text.WordWrap
-        }
-        Text {
-          width: parent.width
-          visible: root.gpuName.length > 0
-          text: root.gpuName
-          color: Colors.menu.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          wrapMode: Text.WordWrap
-        }
-        Grid {
-          width: parent.width
-          columns: 2
-          spacing: Style.spacing.sm
-          HudStat { label: "CPU CLK"; value: root.freqMhz + " MHz" }
-          HudStat { label: "PKG TEMP"; value: root.tempC + " \u00b0C"; tint: root.critTemp(root.tempC) }
-          HudStat { visible: root.powerW !== null; label: "POWER (EST.)"; value: Math.round(root.powerW) + " W"
-            note: (root.powerW / 1000 * root.pricePerKwh * 100).toFixed(1) + " ct/h" }
-          HudStat { visible: root.powerW !== null; label: "SINCE LOGIN"; value: root.energyKwh.toFixed(3) + " kWh"
-            note: (root.energyKwh * root.pricePerKwh).toFixed(2) + " \u20ac" }
-          HudStat { visible: root.cpuPowerW !== null; label: "CPU PWR"; value: Math.round(root.cpuPowerW) + " W" }
-          HudStat { visible: root.gpuPowerW !== null; label: "GPU PWR"; value: Math.round(root.gpuPowerW) + " W" }
-          HudStat { label: "MEMORY"; value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + "G" }
-          HudStat {
-            visible: root.memType !== "" || root.memSpeedMts > 0
-            label: "MEM TYPE"
-            value: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : ""].filter(function(v) { return v }).join(" :: ")
-          }
-          HudStat { visible: root.memChannels > 0; label: "CHANNELS"; value: root.memChannels + "-CH" }
-          HudStat { label: "GPU CLK"; value: root.gpuFreqMhz + " MHz" }
-          HudStat {
-            visible: root.gpuVendor !== "intel"
-            label: "VRAM"
-            value: root.vramTotalMb !== null
-              ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB" : "N/A"
-            tint: root.vramTotalMb === null ? Colors.menu.text : Colors.foreground
-          }
-          HudStat {
-            visible: root.batteryPresent
-            label: "BATTERY"
-            value: Math.round(root.batteryFraction * 100) + "%" + (root.batteryTime ? " :: " + root.batteryTime : "")
-          }
-          HudStat {
-            visible: root.batteryPresent
-            label: "STATE"
-            value: root.onBattery ? "DISCHARGE" : "CHARGE"
-          }
-        }
-
-        Column {
-          visible: root.ossec !== null
-          width: parent.width
-          spacing: Style.spacing.sm
-          PanelSeparator {}
-          SectionHead { text: "ALERTS" }
-          Grid {
-            width: parent.width
-            columns: 2
-            spacing: Style.spacing.sm
-            HudStat { label: "24H"; value: root.ossec ? root.ossec.total : "" }
-            HudStat {
-              label: "MAX LEVEL"
-              value: root.ossec ? root.ossec.maxLevel : ""
-              tint: root.critLevel(root.ossec ? root.ossec.maxLevel : 0)
-            }
-          }
-          Column {
-            width: parent.width
-            spacing: Style.spacing.xs
-            Repeater {
-              model: root.ossec ? root.ossec.recent : []
-              Row {
-                required property var modelData
-                width: parent.width
-                spacing: Style.spacing.xs
-                Text {
-                  id: alertLevel
-                  width: Style.space(28)
-                  text: "L" + modelData.level
-                  color: root.critLevel(modelData.level)
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: true
-                  layer.enabled: Style.fx.glow > 0
-                  layer.effect: Glow { shadowColor: alertLevel.color }
-                }
-                Text {
-                  width: parent.width - alertLevel.width - alertTime.width - parent.spacing * 2
-                  text: modelData.desc
-                  elide: Text.ElideRight
-                  color: Colors.foreground
-                  opacity: Style.emphasis.strong
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                }
-                Text {
-                  id: alertTime
-                  text: modelData.t
-                  color: Colors.menu.text
-                  opacity: Style.emphasis.dim
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                }
-              }
-            }
-          }
-        }
-
-        PanelSeparator {}
-        SectionHead { text: "POWER MODE" }
-
-        // overrides are session-only by design
-        PowerModeSelector {
-          width: parent.width
-          active: panel.visible
-        }
-
-        PanelSeparator {}
-        SectionHead { text: "TOOLS" }
-
-        PanelRow {
-          width: parent.width
-          // md-harddisk
-          glyph: "\u{f02ca}"
-          label: "Disk speed test"
-          onActivated: {
-            if (root.bar) root.bar.closePanel(root.moduleName)
-            Quickshell.execDetached(Paths.ipcCall("shell", "summon", "panel.disk-speedtest", "{}"))
-          }
-        }
-      }
     }
-  }
+
+    component FluxLabel: Item {
+        property string text: ""
+        property color tint: Colors.accent
+
+        width: parent ? parent.width : 0
+
+        Text {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.text
+            color: parent.tint
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.labelTracking
+        }
+
+    }
+
+    component Meter: Item {
+        id: meterRoot
+
+        property string label: ""
+        property real fraction: 0
+        property color fill: Colors.accent
+        property string value: ""
+        property string secondary: ""
+        readonly property real frac: Math.max(0, Math.min(1, fraction))
+
+        width: parent ? parent.width : 0
+        implicitHeight: Style.space(18)
+        height: implicitHeight
+
+        Text {
+            id: meterLabel
+
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(34)
+            text: meterRoot.label
+            color: Colors.menu.text
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.capitalization: Font.AllUppercase
+            font.letterSpacing: Style.labelTracking
+        }
+
+        // fixed width so numerals align across rows
+        Item {
+            id: meterValue
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: Style.space(100)
+            height: valPrimary.implicitHeight
+
+            Text {
+                id: valPrimary
+
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: meterRoot.value
+                color: Colors.foreground
+                opacity: Style.emphasis.strong
+                font.family: Style.font.family
+                font.pixelSize: Style.font.body
+                font.letterSpacing: Style.displayTracking
+                font.features: {
+                    "tnum": 1
+                }
+                style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
+                styleColor: Util.alpha(Colors.accent, 0.35)
+            }
+
+            Text {
+                anchors.left: valPrimary.right
+                anchors.leftMargin: Style.spacing.xs
+                anchors.baseline: valPrimary.baseline
+                visible: meterRoot.secondary.length > 0
+                text: meterRoot.secondary
+                color: Colors.foreground
+                opacity: Style.emphasis.faint
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                font.letterSpacing: Style.displayTracking
+                font.features: {
+                    "tnum": 1
+                }
+            }
+
+        }
+
+        Rectangle {
+            anchors.left: meterLabel.right
+            anchors.leftMargin: Style.spacing.xs
+            anchors.right: meterValue.left
+            anchors.rightMargin: Style.spacing.sm
+            anchors.verticalCenter: parent.verticalCenter
+            height: Style.space(7)
+            radius: Style.shape.data
+            color: Util.alpha(Colors.foreground, 0.12)
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: meterRoot.frac * parent.width
+                radius: parent.radius
+                color: meterRoot.fill
+
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Style.motion.slow
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Style.motion.enter
+                    }
+
+                }
+                // live value: no glow, it would re-render on every sample
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Style.motion.slow
+                        easing.type: Easing.BezierSpline
+                        easing.bezierCurve: Style.motion.enter
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
 }

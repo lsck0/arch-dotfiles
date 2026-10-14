@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=jolt
+Comment=Battery and energy monitor
+TryExec=jolt
+Exec=jolt
+Icon=utilities-energy-monitor
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

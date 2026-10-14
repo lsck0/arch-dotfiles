@@ -1,6 +1,8 @@
 *.elc
 *.gz
 custom.el
+# generated per wallpaper switch into ~/.cache/wal now, not the repo
+themes/doom-pywal-theme.el
 eln-cache/
 elpa/
 network-security.data

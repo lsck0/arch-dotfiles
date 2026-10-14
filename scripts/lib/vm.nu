@@ -1,0 +1,508 @@
+# the end-to-end test: bootstrap from a bare Arch ISO in a system libvirt VM, then the unattended chain. no guest agent,
+# user-mode networking: input goes in through qemu sendkey, state comes back as beacons to a host server (the guest's
+# 10.0.2.2 is host loopback), which also serves the snapshot bundle and receives the logs
+
+const REPO = path self ../..
+const VM_DIR = path self vm
+const REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
+# gnome-boxes saves every session vm when it quits, which stalls a run
+const CONNECT = "qemu:///system"
+const POOL = "default"
+const POOL_DIR = "/var/lib/libvirt/images"
+const ISO_VOLUME = "vm-test-archlinux.iso"
+export const USER = "luca"
+# BOOTSTRAP_PASSWORD, LUKS and user alike
+const PASSWORD = "admin"
+export const PLATFORM = "test-vm"
+const DISK = "/dev/vda"
+const PORT = 8765
+const HOST = "10.0.2.2:8765"
+const POLL = 15sec
+const DISK_GIB = 200
+const BOOTSTRAP_TIMEOUT = 1hr
+# dot install plus dot apply, longer when the mirror is down and everything compiles
+const CHAIN_TIMEOUT = 12hr
+export const BOOT_TIMEOUT = 5min
+const LOGIN_ATTEMPTS = 3
+# tty1 carries the chain's console, ly sits on tty2
+const LOGIN_TTY = 3
+const SNAPSHOT_REF = "refs/vm-test/snapshot"
+const KEY_HOLD_MS = 10
+# each key is a sudo virsh call; the guest console drops keys sent faster
+const KEY_GAP = 30ms
+# well under sudo's 5 min timestamp
+const SUDO_KEEPALIVE = 50sec
+const MODIFIERS = [shift shift_r ctrl ctrl_r alt alt_r]
+const DRILL_STEP_TIMEOUT = 1hr
+const DRILL_SETTLE = 30sec
+const DRILL_VALUE = '^[A-Za-z0-9._:+-]+$'
+const UPLOAD_TIMEOUT = 5min
+# the iso console is us, the installed system de-latin1
+const KEYS_US = {
+    " ": spc "-": minus ".": dot "/": slash ":": shift-semicolon ";": semicolon "$": shift-4 "(": shift-9 ")": shift-0
+    "*": shift-8 "_": shift-minus "=": equal ">": shift-dot "<": shift-comma "'": apostrophe "\"": shift-apostrophe
+    "\n": ret ",": comma "&": shift-7 "|": shift-backslash "~": shift-grave_accent "@": shift-2 "%": shift-5 "#": shift-3
+    "!": shift-1 "?": shift-slash "\\": backslash "+": shift-equal "[": bracket_left "]": bracket_right
+    "{": shift-bracket_left "}": shift-bracket_right
+}
+const KEYS_DE = {
+    " ": spc "-": slash ".": dot "/": shift-7 ":": shift-dot ";": shift-comma "$": shift-4 "(": shift-8 ")": shift-9
+    "*": shift-bracket_right "_": shift-slash "=": shift-0 ">": shift-less "<": less "'": shift-backslash "\"": shift-2
+    "\n": ret ",": comma "&": shift-6 "|": alt_r-less "~": alt_r-bracket_right "@": alt_r-q "%": shift-5 "#": backslash
+    "!": shift-1 "?": shift-minus "\\": alt_r-minus "+": bracket_right "[": alt_r-8 "]": alt_r-9 "{": alt_r-7 "}": alt_r-0
+}
+
+def --wrapped virsh [...args: string]: nothing -> string {
+    ^sudo virsh -c $CONNECT ...$args | complete | get stdout
+}
+
+export def cache-dir [name: string]: nothing -> path {
+    let dir = $nu.home-dir | path join .cache vm-test $name
+    mkdir $dir
+    $dir
+}
+
+# one prompt up front, then kept warm off the tty so it never races a foreground sudo's raw-mode switch
+export def sudo-keepalive []: nothing -> nothing {
+    ^sudo -v
+    job spawn { loop { "" | ^sudo -n true | complete | ignore; sleep $SUDO_KEEPALIVE } } | ignore
+}
+
+# streamed through stdout, so root's virsh never leaves a root-owned file in the user's cache
+export def screenshot [name: string]: nothing -> path {
+    let png = cache-dir $name | path join screen.png
+    let ppm = cache-dir $name | path join screen.ppm
+    let shot = ^sudo virsh -q -c $CONNECT screenshot $name /dev/stdout | complete
+    if $shot.exit_code != 0 { error make {msg: "screenshot failed, is the vm running?"} }
+    $shot.stdout | save --force --raw $ppm
+    ^magick $ppm $png
+    $png
+}
+
+def screen-text [name: string]: nothing -> string {
+    let ppm = cache-dir $name | path join screen.ppm
+    let shot = ^sudo virsh -q -c $CONNECT screenshot $name /dev/stdout | complete
+    if $shot.exit_code != 0 { return "" }
+    $shot.stdout | save --force --raw $ppm
+    ^tesseract $ppm - | complete | get stdout
+}
+
+def wait-screen [name: string, needles: list<string>, timeout: duration]: nothing -> any {
+    let deadline = (date now) + $timeout
+    while (date now) < $deadline {
+        let text = screen-text $name
+        let found = $needles | where {|n| $text | str contains $n } | get --optional 0
+        if $found != null { return $found }
+        sleep $POLL
+    }
+    error make {msg: $"none of ($needles | str join ', ') on screen after ($timeout), see `dot test shot`"}
+}
+
+def key-for [ch: string, layout: string]: nothing -> string {
+    let table = if $layout == "de" { $KEYS_DE } else { $KEYS_US }
+    if $ch in $table { return ($table | get $ch) }
+    if $ch =~ '^[0-9]$' { return $ch }
+    if not ($ch =~ '^[A-Za-z]$') { error make {msg: $"no key for ($ch | to nuon) on layout ($layout)"} }
+    let swapped = if $layout == "de" { {y: z, z: y, Y: Z, Z: Y} | get --optional $ch | default $ch } else { $ch }
+    $"(if $swapped =~ '[A-Z]' { 'shift-' } else { '' })($swapped | str lowercase)"
+}
+
+# the whole string is checked before half of it is typed; a held key outlasting one virsh call would overlap the next
+export def type-text [name: string, text: string, layout: string]: nothing -> nothing {
+    let keys = $text | split chars | each {|c| key-for $c $layout }
+    for k in ($keys ++ $MODIFIERS) {
+        virsh qemu-monitor-command $name --hmp $"sendkey ($k) ($KEY_HOLD_MS)" | ignore
+        sleep $KEY_GAP
+    }
+}
+
+def clear-line [name: string]: nothing -> nothing {
+    virsh qemu-monitor-command $name --hmp "sendkey ctrl-u" | ignore
+}
+
+# the host server: socat runs vm/serve.sh per connection on this state dir
+export def host-start [name: string, upload_to: path]: nothing -> record {
+    let dir = cache-dir $name | path join host
+    rm --recursive --force $dir
+    mkdir ($dir | path join step) ($dir | path join file)
+    "" | save ($dir | path join beacons)
+    "0" | save ($dir | path join beacons.read)
+    $upload_to | save ($dir | path join upload-to)
+    let pid = ^bash -c $"socat TCP-LISTEN:($PORT),bind=127.0.0.1,reuseaddr,fork EXEC:'bash ($VM_DIR)/serve.sh ($dir)' > /dev/null 2>&1 & echo $!" | str trim
+    {dir: $dir, pid: $pid}
+}
+
+export def host-stop [host: record]: nothing -> nothing {
+    ^kill $host.pid | complete | ignore
+}
+
+def host-upload-to [host: record, path: path]: nothing -> nothing {
+    $path | save --force ($host.dir | path join upload-to)
+    rm --force ($host.dir | path join uploaded)
+}
+
+def host-uploaded [host: record, timeout: duration]: nothing -> bool {
+    let deadline = (date now) + $timeout
+    while (date now) < $deadline {
+        if ($host.dir | path join uploaded | path exists) { return true }
+        sleep 1sec
+    }
+    false
+}
+
+def unread [host: record]: nothing -> list<string> {
+    let read = open --raw ($host.dir | path join beacons.read) | into int
+    open --raw ($host.dir | path join beacons) | lines | skip $read
+}
+
+def mark-read [host: record, n: int]: nothing -> nothing {
+    let read = open --raw ($host.dir | path join beacons.read) | into int
+    $read + $n | into string | save --force ($host.dir | path join beacons.read)
+}
+
+# the next beacon starting with <prefix>, dropping older unrelated ones; null on timeout
+export def beacon [host: record, prefix: string, timeout: duration]: nothing -> any {
+    let deadline = (date now) + $timeout
+    while (date now) < $deadline {
+        let new = unread $host
+        let at = $new | enumerate | where {|b| $b.item | str starts-with $prefix } | get --optional 0
+        if $at != null {
+            mark-read $host ($at.index + 1)
+            return $at.item
+        }
+        mark-read $host ($new | length)
+        sleep 1sec
+    }
+    null
+}
+
+def drain [host: record]: nothing -> list<string> {
+    let new = unread $host
+    mark-read $host ($new | length)
+    $new
+}
+
+def beacon-cmd [tag: string]: nothing -> string { $"curl -s ($HOST)/beacon/($tag)" }
+
+# serve the script and type one short line that fetches and runs it; sendkey garbles long lines
+def run-step [name: string, host: record, step: string, script: string, layout: string]: nothing -> nothing {
+    $script | save --force ($host.dir | path join step $step)
+    type-text $name $"curl -so /tmp/($step) ($HOST)/step/($step) && bash /tmp/($step)\n" $layout
+}
+
+# the iso goes into the system pool, qemu there cannot read the home dir
+def pool-iso [iso: path]: nothing -> string {
+    if $POOL not-in (virsh pool-list --all --name | lines | str trim) {
+        virsh pool-define-as $POOL dir --target $POOL_DIR | ignore
+        virsh pool-build $POOL | ignore
+        virsh pool-autostart $POOL | ignore
+    }
+    if not (virsh pool-info $POOL | str contains running) { virsh pool-start $POOL | ignore }
+    let size = ls $iso | get 0.size | into int | into string
+    if not (virsh vol-info --pool $POOL $ISO_VOLUME --bytes | str contains $size) {
+        virsh vol-delete --pool $POOL $ISO_VOLUME | ignore
+        virsh vol-create-as $POOL $ISO_VOLUME $size --format raw | ignore
+        virsh vol-upload --pool $POOL $ISO_VOLUME $iso | ignore
+    }
+    virsh vol-path --pool $POOL $ISO_VOLUME | str trim
+}
+
+# only the disk goes: the shared iso volume stays for the next run
+export def vm-destroy [name: string]: nothing -> nothing {
+    virsh destroy $name | ignore
+    virsh undefine $name --nvram --storage vda | ignore
+}
+
+# the working tree (untracked included, .gitignore respected) as a commit bundle on top of origin/master
+def snapshot-bundle [name: string]: nothing -> path {
+    let index = cache-dir $name | path join snapshot.index
+    rm --force $index
+    ^git -C $REPO fetch -q origin master
+    let tree = with-env {GIT_INDEX_FILE: $index} {
+        ^git -C $REPO read-tree HEAD
+        ^git -C $REPO add -A
+        ^git -C $REPO write-tree | str trim
+    }
+    let commit = ^git -C $REPO commit-tree $tree -p HEAD -m "vm-test snapshot" | str trim
+    ^git -C $REPO update-ref $SNAPSHOT_REF $commit
+    let bundle = cache-dir $name | path join snapshot.bundle
+    ^git -C $REPO bundle create $bundle $SNAPSHOT_REF ^origin/master
+    $bundle
+}
+
+# a fresh vm, secure boot firmware without enrolled keys (setup mode), bootstrap.sh typed into the iso console
+def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string]: nothing -> nothing {
+    vm-destroy $name
+    (^sudo virt-install --connect $CONNECT --name $name --memory 12288 --vcpus 8 --cpu host-passthrough
+        --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom (pool-iso $iso)
+        --osinfo archlinux --network user,model=virtio --graphics spice --video virtio --noautoconsole
+        --features smm.state=on
+        --boot "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no")
+    wait-screen $name [root@archiso] $BOOT_TIMEOUT | ignore
+    let checkout = if $bundle == null { "" } else {
+        ^ln -sf $bundle ($host.dir | path join file snapshot.bundle)
+        $" && curl -so /tmp/snapshot.bundle ($HOST)/file/snapshot.bundle && git fetch -q /tmp/snapshot.bundle ($SNAPSHOT_REF) && git checkout -q FETCH_HEAD"
+    }
+    let log = cache-dir $name | path join bootstrap.log
+    host-upload-to $host $log
+    # success ends in the reboot, which virt-install turns into a power off on this first boot
+    run-step $name $host bootstrap ([
+        "set -o pipefail"
+        "pacman -Sy --noconfirm --needed git"
+        $"cd /tmp && git clone ($REPO_URL) && cd arch-dotfiles($checkout) \\"
+        $"    && BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
+        "    | tee /tmp/bootstrap.log \\"
+        $"    || { curl -sT /tmp/bootstrap.log ($HOST)/bootstrap.log; (beacon-cmd bootstrap-fail); }"
+    ] | str join "\n" | $"($in)\n") us
+    let deadline = (date now) + $BOOTSTRAP_TIMEOUT
+    while (virsh domstate $name | str trim) != "shut off" {
+        if (beacon $host bootstrap-fail $POLL) != null { error make {msg: $"bootstrap.sh failed, see ($log)"} }
+        if (date now) > $deadline { error make {msg: $"bootstrap.sh still running after ($BOOTSTRAP_TIMEOUT)"} }
+    }
+    virsh start $name | ignore
+}
+
+# the chain boots without a passphrase; the first prompt is the boot after dot stage disarmed. "nter passphrase", not
+# "passphrase": the config stage prints secret names like borg-passphrase on the console
+def await-chain [name: string]: nothing -> nothing {
+    let start = date now
+    wait-screen $name ["nter passphrase" "root volume"] $CHAIN_TIMEOUT | ignore
+    print $"dot test: chain done after ((date now) - $start)"
+    type-text $name $"($PASSWORD)\n" de
+}
+
+# getty drops input typed before it cleared the screen, and the shell starts slowly: several beacon polls per login
+export def login-tty [name: string, host: record, user: string]: nothing -> any {
+    for attempt in 0..<$LOGIN_ATTEMPTS {
+        sleep (if $attempt == 0 { $POLL } else { 3sec })
+        virsh qemu-monitor-command $name --hmp $"sendkey ctrl-alt-f($LOGIN_TTY)" | ignore
+        sleep 3sec
+        type-text $name $"($user)\n" de
+        sleep 3sec
+        type-text $name $"($PASSWORD)\n" de
+        sleep 5sec
+        # the installed app firewall (portmaster) blocks the host beacon; verify does not need it
+        clear-line $name
+        type-text $name $"echo ($PASSWORD) | sudo -S systemctl stop portmaster.service 2>/dev/null\n" de
+        for poll in 0..<4 {
+            sleep 6sec
+            clear-line $name
+            let tag = $"login-($attempt)-($poll)"
+            type-text $name $"(beacon-cmd $tag)\n" de
+            if (beacon $host $tag 15sec) != null { return }
+        }
+    }
+    error make {msg: $"login failed ($LOGIN_ATTEMPTS) times, see `dot test shot`"}
+}
+
+# the facts doctor asserts live, from the same file; the vm checks every row
+def invariants []: nothing -> table {
+    open --raw ($REPO | path join scripts lib invariants.txt) | lines | where {|l| ($l | str trim | is-not-empty) and not ($l | str starts-with "#") }
+    | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$'
+}
+
+export def pull-logs [name: string, host: record]: nothing -> path {
+    let out = cache-dir $name
+    let tgz = $out | path join logs.tgz
+    rm --force $tgz
+    host-upload-to $host $tgz
+    clear-line $name
+    let probes = invariants | each {|i| $'    printf "%s=%s\n" ($i.key) "$(($i.probe | str replace --all "@PASSWORD@" $PASSWORD | str replace --all "@DISK@" $DISK))"' } | str join "\n"
+    run-step $name $host logs ([
+        "cd ~/projects/arch-dotfiles"
+        "sudo -k"
+        "{"
+        $probes
+        '    echo "backup_roundtrip=$(nu --no-config-file scripts/dot.nu backup --roundtrip > backup-roundtrip.log 2>&1 && echo ok || echo fail)"'
+        "} > verify.log"
+        "cp /var/lib/dotfiles-stage/log stage.log"
+        $"echo ($PASSWORD) | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log"
+        $"echo ($PASSWORD) | sudo -S journalctl -b -1 -p warning --no-pager -o short-iso > config-boot-warnings.log"
+        "{ resolvectl status; cat /etc/resolv.conf; } > network.log 2>&1"
+        "tar czf /tmp/vm-test-logs.tgz $(ls FAILURES.* 2>/dev/null) $(find . -name '*.log')"
+        $"curl -sT /tmp/vm-test-logs.tgz ($HOST)/logs.tgz"
+    ] | str join "\n" | $"($in)\n") de
+    # the backup round trip runs first and may fetch a plasmoid into its empty home
+    if not (host-uploaded $host $UPLOAD_TIMEOUT) { error make {msg: "no log upload arrived, see `dot test shot`"} }
+    let logs = $out | path join logs
+    rm --recursive --force $logs
+    mkdir $logs
+    ^tar -xzf $tgz -C $logs
+    $logs
+}
+
+export def verify [logs: path]: nothing -> list<string> {
+    let state = open --raw ($logs | path join verify.log) | lines | where ($it | str contains "=") | parse "{key}={value}" | reduce --fold {} {|r, acc| $acc | upsert $r.key $r.value }
+    let expected = invariants | reduce --fold {backup_roundtrip: ok} {|i, acc| $acc | insert $i.key $i.want }
+    let facts = $expected | items {|key, want| let got = $state | get --optional $key; if $got != $want { $"($key)=($got), expected ($want)" } } | compact
+    let failures = glob ($logs | path join "FAILURES.*") | sort | where { open --raw $in | str trim | is-not-empty } | each {|f| $"($f | path basename):\n(open --raw $f | str trim --right)" }
+    let stage_log = try { open --raw ($logs | path join stage.log) } catch { "" }
+    let stages = [install config] | where {|s| not ($stage_log | str contains $"($s): ok") } | each { $"stage ($in) did not finish ok, see ($in).log" }
+    $facts ++ $failures ++ $stages
+}
+
+export def vm-run [name: string, iso: path, platform: string, user: string, master: bool]: nothing -> nothing {
+    for t in [virt-install virsh tesseract magick socat] {
+        if (which $t | is-empty) { error make {msg: $"($t) missing"} }
+    }
+    if not ($iso | path exists) { error make {msg: $"no iso at ($iso)"} }
+    sudo-keepalive
+    let host = host-start $name (cache-dir $name | path join logs.tgz)
+    bootstrap $name $iso $host (if $master { null } else { snapshot-bundle $name }) $platform $user
+    await-chain $name
+    login-tty $name $host $user
+    let logs = pull-logs $name $host
+    host-stop $host
+    print $"dot test: logs in ($logs)"
+    let problems = verify $logs
+    virsh qemu-monitor-command $name --hmp "sendkey ctrl-alt-f2" | ignore
+    sleep 5sec
+    print (screenshot $name)
+    if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
+    print "dot test: chain succeeded, the screenshot shows the login manager"
+}
+
+# --- drills: opt-in, against the vm a passed run left installed; a step prints `drill: key=value` lines that must match
+# its table, its whole output lands in ~/.cache/vm-test/<vm>/drill-<step>.log
+
+def unlock [name: string, timeout: duration]: nothing -> bool {
+    let deadline = (date now) + $timeout
+    while (date now) < $deadline {
+        let text = screen-text $name
+        if ($text | str contains "nter passphrase") or ($text | str contains "root volume") {
+            type-text $name $"($PASSWORD)\n" de
+            return true
+        }
+        sleep $POLL
+    }
+    false
+}
+
+def drill-reboot [name: string, host: record, user: string, --again]: nothing -> nothing {
+    if not (unlock $name $BOOT_TIMEOUT) { error make {msg: "no passphrase prompt after the drill's reboot, see `dot test shot`"} }
+    if $again {
+        sleep $DRILL_SETTLE
+        unlock $name $BOOT_TIMEOUT | ignore
+    }
+    login-tty $name $host $user
+}
+
+# prelude + the step as root on the guest (SUDO_USER is the login), @KEY@ filled from values; its `drill:` lines once its
+# report arrives. files are served beside it for the prelude's fetch
+def drill-step [name: string, host: record, step: string, values: record = {}, files: record = {}]: nothing -> record {
+    let script = [prelude $step] | each { open --raw ($VM_DIR | path join $"($in).sh") | lines | skip 1 | str join "\n" } | str join "\n"
+    let body = $values | items {|k, v| {k: $k, v: ($v | into string)} } | reduce --fold ($script | str replace --all "@HOST@" $HOST) {|kv, acc|
+        if not ($kv.v =~ $DRILL_VALUE) { error make {msg: $"drill value ($kv.k)=($kv.v | to nuon) is no plain word, not handing it to the guest"} }
+        $acc | str replace --all $"@($kv.k | str uppercase)@" $kv.v
+    }
+    let left = $body | parse --regex '(?<p>@[A-Z_]+@)' | get p | uniq
+    if ($left | is-not-empty) { error make {msg: $"drill step ($step) left ($left | str join ' ') unfilled"} }
+    let log = cache-dir $name | path join $"drill-($step).log"
+    rm --force $log
+    host-upload-to $host $log
+    $body | save --force ($host.dir | path join step $"($step).root")
+    $files | items {|suffix, text| $text | save --force ($host.dir | path join step $"($step).($suffix)") } | ignore
+    clear-line $name
+    run-step $name $host $step $"curl -so /tmp/($step).root ($HOST)/step/($step).root && echo ($PASSWORD) | sudo -S -p '' bash /tmp/($step).root > /tmp/($step).root.log 2>&1\n" de
+    if not (host-uploaded $host $DRILL_STEP_TIMEOUT) { error make {msg: $"drill step ($step) sent no report in ($DRILL_STEP_TIMEOUT), see `dot test shot`"} }
+    open --raw $log | lines | parse --regex '^drill: (?<k>[a-z0-9_]+)=(?<v>.*)$' | reduce --fold {} {|r, acc| $acc | upsert $r.k $r.v }
+}
+
+def expect [step: string, got: record, want: record]: nothing -> list<string> {
+    $want | items {|k, v| if ($got | get --optional $k) != $v { $"($step): ($k)=($got | get --optional $k), expected ($v)" } } | compact
+}
+
+# (phase, name, proto, daddr, dport, gid, marked): every tuple portmaster-bypass.nft must give connmark 1710, and the near
+# misses it must not; tun0 routes the lab ranges plus 1.1.1.1 and 2001:db8::/32, wan0 the rest
+const BYPASS_MEMBER_GID = 4711
+const BYPASS_PROBES = [
+    [phase name proto daddr dport gid marked];
+    [away lo_udp udp 127.0.0.1 5000 0 true] [away lo_tcp tcp 127.0.0.1 5001 0 true]
+    [away lo_dns_udp udp 127.0.0.1 53 0 false] [away lo_dns_tcp tcp 127.0.0.1 53 0 false]
+    [away lo_dot tcp 127.0.0.1 853 0 false] [away lo6_udp udp "::1" 5002 0 true] [away lo6_dns udp "::1" 53 0 false]
+    [away labdns_away udp 192.168.178.29 53 0 false] [away lab_v4_10 udp 10.8.0.1 5003 0 true]
+    [away lab_v4_172 tcp 172.16.1.1 5004 0 true] [away lab_v4_192 udp 192.168.50.1 5005 0 true]
+    [away lab_internet udp 1.1.1.1 5006 0 false] [away lab_v6 udp "fd00::1" 5007 0 true]
+    [away lab_v6_internet udp "2001:db8::1" 5008 0 false] [away wan_lab_range udp 172.20.1.1 5009 0 false]
+    [away wan_member_gid udp 203.0.113.7 5010 4711 true] [away wan_member_gid6 udp "2001:db8:ff::7" 5011 4711 true]
+    [away wan_other_gid udp 203.0.113.7 5012 4712 false] [away wan_root udp 203.0.113.7 5013 0 false]
+    [home labdns_udp udp 192.168.178.29 53 0 true] [home labdns_tcp tcp 192.168.178.29 53 0 true]
+    [home labdns_other_port udp 192.168.178.29 5353 0 false] [home home_other_dns udp 192.168.178.1 53 0 false]
+    [home home_lan udp 192.168.178.5 5014 0 false]
+]
+
+# the protonvpn namespace must fail closed and the bypass mark exactly its tuples; the vm has no proton secret, so the
+# module runs on a throwaway config whose peer never answers and whatever reaches the host from the namespace is a leak
+def drill-egress [name: string, host: record, user: string]: nothing -> list<string> {
+    drain $host | ignore
+    let bypass = (open --raw ($VM_DIR | path join bypass.sh) | str replace "@MEMBER_GID@" ($BYPASS_MEMBER_GID | into string))
+        + ($BYPASS_PROBES | each {|p| $"probe ($p.phase) ($p.name) ($p.proto) ($p.daddr) ($p.dport) ($p.gid)" } | str join "\n") + "\n"
+    let got = drill-step $name $host egress {} {bypass: $bypass}
+    let want = {bypass_deployed: yes, bypass_live_gids: yes}
+        | merge ($BYPASS_PROBES | reduce --fold {} {|p, acc| $acc | insert $"bypass_($p.name)" (if $p.marked { "marked" } else { "unmarked" }) })
+        | merge {
+            vpn_conf: drill, vpn_module: ok, vpn_links: "lo,wg-protonvpn", vpn_routes: "default dev wg-protonvpn scope link"
+            vpn_ipv6_off: "1", vpn_route_host: wg-protonvpn, vpn_run_user: $user, vpn_run_ns: yes, vpn_up_curl: no, vpn_up_dns: no
+            vpn_down_route: none, vpn_down_curl: no, vpn_gone_links: lo, vpn_gone_leak: no, vpn_gone_run: refused
+            vpn_gone_shim: refused, vpn_restart_links: "lo,wg-protonvpn", vpn_stopped_ns: absent, vpn_stopped_run: refused
+        }
+    let beacons = drain $host
+    let control = if "drill-control" in $beacons { [] } else { ["egress: the control beacon never reached the host, so no leak beacon could have either"] }
+    (expect egress $got $want) ++ $control ++ ($beacons | where ($it | str contains leak) | each { $"egress: ($in) reached the host from inside the namespace" })
+}
+
+# ROLLBACK.md's catch, drilled: a snapshot on the previous kernel, a bump, the restore; kernel-resync must put the esp
+# back in step and reboot into the old kernel
+def drill-rollback [name: string, host: record, user: string]: nothing -> list<string> {
+    let old = drill-step $name $host rollback-old
+    let bad = expect rollback-old $old {downgraded: yes}
+    if ($bad | is-not-empty) { return $bad }
+    drill-reboot $name $host $user
+    let vals = $old | select pkgbase kver_new kernel_new kernel_old
+    let snap = drill-step $name $host rollback-snap $vals
+    let bad = expect rollback-snap $snap {booted_old: yes, snapshot_made: yes, bumped: yes}
+    if ($bad | is-not-empty) { return $bad }
+    drill-reboot $name $host $user
+    let vals = $vals | merge {kver_old: $snap.kver_old, snapshot: $snap.snapshot}
+    let bumped = drill-step $name $host rollback-restore $vals
+    let bad = expect rollback-restore $bumped {kver_bumped: $vals.kver_new, esp_kver: $vals.kver_new}
+    if ($bad | is-not-empty) { return $bad }
+    drill-reboot $name $host $user --again
+    let after = drill-step $name $host rollback-verify $vals
+    expect rollback-verify $after {
+        kver_running: $vals.kver_old, pkg_version: $vals.kernel_old, modprobe: yes, esp_in_step: yes, marker_before: yes
+        marker_after: no, resync_restored: yes, resync_rebooted: yes, resync_result: success
+    }
+}
+
+export def vm-drill [name: string, drill: string, user: string]: nothing -> nothing {
+    if $drill not-in [egress rollback] { error make {msg: $"no drill ($drill), one of egress rollback"} }
+    sudo-keepalive
+    match (virsh domstate $name | str trim) {
+        "shut off" => {
+            virsh start $name | ignore
+            if not (unlock $name $BOOT_TIMEOUT) { error make {msg: $"($name) started but asked no passphrase, see `dot test shot`"} }
+        }
+        "running" => {}
+        $state => { error make {msg: $"no installed vm ($name) \(($state | default missing)\), `dot test run` makes one"} }
+    }
+    let host = host-start $name (cache-dir $name | path join drill.log)
+    login-tty $name $host $user
+    let problems = if $drill == "egress" { drill-egress $name $host $user } else { drill-rollback $name $host $user }
+    host-stop $host
+    if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
+    print $"dot test: drill ($drill) passed, its logs are (cache-dir $name)/drill-*.log"
+}
+
+export def vm-logs [name: string]: nothing -> nothing {
+    sudo-keepalive
+    let host = host-start $name (cache-dir $name | path join logs.tgz)
+    let logs = pull-logs $name $host
+    host-stop $host
+    print $logs
+    print (verify $logs | str join "\n")
+}
+
+export def vm-type [name: string, text: string, layout: string]: nothing -> nothing {
+    type-text $name ($text | str replace --all '\n' "\n") $layout
+}

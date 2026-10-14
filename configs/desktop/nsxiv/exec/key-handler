@@ -1,14 +1,11 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env -S nu --no-config-file --stdin
+# nsxiv's key handler: the key, then the marked or current files one per line on stdin
 
-case "$1" in
-    "d")
-        while read -r line; do
-            trash "$line"
-        done
-    ;;
-    "w")
-        read -r line
-        switch-wallpaper "$(realpath "$line")"
-    ;;
-esac
+def main [key: string]: string -> nothing {
+    let files = $in | lines | where $it != ""
+    match $key {
+        "d" => { $files | each {|f| ^trash $f } | ignore }
+        "w" => { ^($nu.home-dir | path join .local bin dot) theme set ($files | first | path expand) }
+        _ => {}
+    }
+}

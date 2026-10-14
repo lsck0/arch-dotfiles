@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
@@ -106,6 +107,7 @@ Item {
             model: [root.cancelText, root.confirmText]
 
             BorderSurface {
+              id: choice
               required property int index
               required property string modelData
 
@@ -125,8 +127,8 @@ Item {
               Text {
                 textFormat: Text.PlainText
                 anchors.centerIn: parent
-                text: "[ " + modelData + " ]"
-                color: destructive ? (selected ? Colors.urgent : root.foreground) : (selected ? root.selectedText : root.foreground)
+                text: "[ " + choice.modelData + " ]"
+                color: choice.destructive ? (choice.selected ? Colors.urgent : root.foreground) : (choice.selected ? root.selectedText : root.foreground)
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 font.capitalization: Font.AllUppercase
@@ -137,9 +139,9 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onEntered: root.selectedIndex = index
+                onEntered: root.selectedIndex = choice.index
                 onClicked: {
-                  if (index === 0) root.canceled()
+                  if (choice.index === 0) root.canceled()
                   else root.confirmed()
                 }
               }

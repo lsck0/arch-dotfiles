@@ -1,0 +1,10 @@
+[Unit]
+Description=Sweep accumulated app logs and temp files in the home directory
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/home-sweep
+Slice=background.slice
+Nice=19
+CPUSchedulingPolicy=batch
+IOSchedulingClass=idle

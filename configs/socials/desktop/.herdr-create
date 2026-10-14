@@ -1,0 +1,40 @@
+#!/usr/bin/env -S nu --no-config-file
+# herdr-open runs this for the "desktop" workspace, as tms runs .tms-create: tab social, browser left with discord and
+# spotify stacked right; tab dev, nvim alone; tab shell, a zsh. every pane starts in $HOME
+
+const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
+const PROMPT_TIMEOUT_MS = 60000
+const SEARCH = "https://lite.duckduckgo.com/lite/"
+
+# as herdr-open: herdr pane run drops keystrokes typed before the shell's prompt is up
+def pane-run [pane: string, ...argv: string]: nothing -> nothing {
+    let ready = do { ^herdr pane wait-output --regex $PROMPT --timeout $PROMPT_TIMEOUT_MS $pane } | complete
+    if $ready.exit_code == 0 { ^herdr pane run $pane ...$argv | ignore }
+}
+
+def split [pane: string, direction: string, ratio: float]: nothing -> string {
+    ^herdr pane split $pane --direction $direction --ratio $ratio --cwd $nu.home-dir --no-focus
+    | from json | get result.pane.pane_id
+}
+
+def tab-create [workspace: string, name: string]: nothing -> string {
+    let tab = ^herdr tab create --workspace $workspace --cwd $nu.home-dir --no-focus | from json | get result
+    ^herdr tab rename $tab.tab.tab_id $name | ignore
+    $tab.root_pane.pane_id
+}
+
+def main [label: string]: nothing -> nothing {
+    let created = ^herdr workspace create --cwd $nu.home-dir --label $label --focus | from json | get result
+    let browser = $created.root_pane.pane_id
+    ^herdr tab rename $created.tab.tab_id social | ignore
+    let discord = split $browser right 0.6
+    let spotify = split $discord down 0.5
+    let nvim = tab-create $created.workspace.workspace_id dev
+    tab-create $created.workspace.workspace_id shell | ignore
+    pane-run $browser cha $SEARCH
+    pane-run $discord discordo
+    pane-run $spotify spotify_player
+    pane-run $nvim nvim
+    # the splits never took focus, so the browser has it
+    ^herdr tab focus $created.tab.tab_id | ignore
+}

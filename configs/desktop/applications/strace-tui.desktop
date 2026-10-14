@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=strace-tui
+Comment=Trace a command's system calls
+TryExec=strace-tui
+Exec=@HOME@/.local/bin/desktop-run --ask Command -- strace-tui trace -- sh -c
+Icon=debug-run
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;

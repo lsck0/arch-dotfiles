@@ -10,19 +10,5 @@
   "workbench.enableExperiments": false,
   "workbench.settings.enableNaturalLanguageSearch": false,
   "redhat.telemetry.enabled": false,
-  "workbench.colorTheme": "Dark Modern",
-  "vim.useSystemClipboard": true,
-  "workbench.colorCustomizations": {
-    "editor.background": "#0B0E14",
-    "editor.foreground": "#BFBDB6",
-    "sideBar.background": "#01060E",
-    "activityBar.background": "#01060E",
-    "statusBar.background": "#01060E",
-    "titleBar.activeBackground": "#01060E",
-    "tab.activeBackground": "#0B0E14",
-    "tab.inactiveBackground": "#01060E",
-    "focusBorder": "#39BAE6",
-    "terminal.background": "#0B0E14",
-    "terminal.foreground": "#BFBDB6"
-  }
+  "vim.useSystemClipboard": true
 }

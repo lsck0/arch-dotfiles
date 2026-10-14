@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=mov-cli
+Comment=Watch films and shows
+TryExec=mov-cli
+Exec=@HOME@/.local/bin/desktop-run --ask Search -- mov-cli
+Icon=kmplayer
+Terminal=true
+Categories=AudioVideo;Video;Player;ConsoleOnly;

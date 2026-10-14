@@ -1,5 +1,5 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import qs.Commons
 import qs.Ui
 
@@ -45,7 +45,7 @@ BarWidget {
 
   function wmoFor(code) {
     var c = Number(code)
-    for (var i = 0; i < wmo.length; i++) if (c >= wmo[i][0] && c <= wmo[i][1]) return wmo[i]
+    for (let i = 0; i < wmo.length; i++) if (c >= wmo[i][0] && c <= wmo[i][1]) return wmo[i]
     return [c, c, "\u{f0590}", "\u{f0590}", "--"]
   }
 
@@ -96,7 +96,7 @@ BarWidget {
     var nice = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000]
     // largest round step that still fits three rings
     var chosen = nice[0]
-    for (var i = 0; i < nice.length; i++)
+    for (let i = 0; i < nice.length; i++)
       if (nice[i] <= target) chosen = nice[i]
     return chosen
   }
@@ -104,7 +104,7 @@ BarWidget {
   readonly property var radarRingsKm: {
     var out = []
     if (radarRingStepKm <= 0) return out
-    for (var km = radarRingStepKm; km <= radarReachKm; km += radarRingStepKm)
+    for (let km = radarRingStepKm; km <= radarReachKm; km += radarRingStepKm)
       out.push(km)
     return out
   }
@@ -117,7 +117,7 @@ BarWidget {
   // bar temp needs a background refresh, just slower while the panel is closed; hover also refreshes
   JsonProcess {
     id: forecastProc
-    command: [Paths.barWidget("weather.py"), "forecast"]
+    command: [Paths.barWidget("weather.nu"), "forecast"]
     minAgeMs: 60 * 1000
     intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
     onParsed: function (d) {
@@ -131,7 +131,7 @@ BarWidget {
   // drives the bar alert icon, so keep a background refresh, slower while closed
   JsonProcess {
     id: alertsProc
-    command: [Paths.barWidget("weather.py"), "alerts"]
+    command: [Paths.barWidget("weather.nu"), "alerts"]
     minAgeMs: 60 * 1000
     intervalMs: panel.visible ? 30 * 60 * 1000 : 60 * 60 * 1000
     onParsed: function (d) {
@@ -144,7 +144,7 @@ BarWidget {
   // radar only shows in the panel
   JsonProcess {
     id: radarProc
-    command: [Paths.barWidget("weather.py"), "radar"]
+    command: [Paths.barWidget("weather.nu"), "radar"]
     intervalMs: panel.visible ? 10 * 60 * 1000 : 0
     onParsed: function (d) {
       if (d.radar.ok) root.radar = d.radar
@@ -240,6 +240,7 @@ BarWidget {
     implicitHeight: Math.min(content.implicitHeight, maxBodyHeight) + padding * 2 + titleInset
 
     component Stat: Column {
+      id: stat
       property string glyph: ""
       property string caption: ""
       property string value: ""
@@ -248,18 +249,18 @@ BarWidget {
       Row {
         spacing: Style.spacing.xs
         Text {
-          text: parent.parent.glyph
+          text: stat.glyph
           color: Colors.menu.text; opacity: Style.emphasis.faint
           font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
         }
         Text {
-          text: parent.parent.caption
+          text: stat.caption
           color: Colors.menu.text
           font.family: Style.font.family; font.pixelSize: Style.font.caption
         }
       }
       Text {
-        text: parent.value
+        text: stat.value
         color: Colors.menu.text
         font.family: Style.font.family; font.pixelSize: Style.font.body
       }
@@ -295,16 +296,17 @@ BarWidget {
           Repeater {
             model: root.alerts
             delegate: Rectangle {
+              id: alertItem
               required property var modelData
               width: content.width
               height: alertRow.implicitHeight + Style.spacing.xs * 2
               radius: Style.shape.data
-              color: Util.alpha(root.alertColor(modelData.level), 0.16)
+              color: Util.alpha(root.alertColor(alertItem.modelData.level), 0.16)
               Rectangle {
                 width: Style.space(3)
                 height: parent.height
                 radius: Style.shape.data
-                color: root.alertColor(modelData.level)
+                color: root.alertColor(alertItem.modelData.level)
               }
 
               Column {
@@ -322,14 +324,14 @@ BarWidget {
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u{f0026}"   // md-alert
-                    color: root.alertColor(modelData.level)
+                    color: root.alertColor(alertItem.modelData.level)
                     font.family: Style.font.iconFamily
                     font.pixelSize: Style.font.caption
                   }
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.alertLabel(modelData.level)
-                    color: root.alertColor(modelData.level)
+                    text: root.alertLabel(alertItem.modelData.level)
+                    color: root.alertColor(alertItem.modelData.level)
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
                     font.letterSpacing: Style.headerTracking
@@ -337,7 +339,7 @@ BarWidget {
                   }
                   Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: modelData.event || modelData.kind || "Weather warning"
+                    text: alertItem.modelData.event || alertItem.modelData.kind || "Weather warning"
                     color: Colors.menu.text
                     font.family: Style.font.family
                     font.pixelSize: Style.font.caption
@@ -350,11 +352,11 @@ BarWidget {
                   width: parent.width
                   text: {
                     var bits = []
-                    if (Number(modelData.startsIn) > 0) bits.push("starts in " + Util.span(modelData.startsIn))
-                    if (modelData.endsIn !== null) bits.push("ends in " + Util.span(modelData.endsIn))
+                    if (Number(alertItem.modelData.startsIn) > 0) bits.push("starts in " + Util.span(alertItem.modelData.startsIn))
+                    if (alertItem.modelData.endsIn !== null) bits.push("ends in " + Util.span(alertItem.modelData.endsIn))
                     // here is a polygon hit, region only a name match
-                    bits.push(modelData.scope === "here" ? "your area" : "your region")
-                    if (modelData.certainty) bits.push(String(modelData.certainty).toLowerCase())
+                    bits.push(alertItem.modelData.scope === "here" ? "your area" : "your region")
+                    if (alertItem.modelData.certainty) bits.push(String(alertItem.modelData.certainty).toLowerCase())
                     return bits.join(" :: ")
                   }
                   color: Colors.menu.text
@@ -512,13 +514,14 @@ BarWidget {
               Repeater {
                 model: root.hourly
                 delegate: Item {
+                  id: hourBar
                   required property var modelData
                   width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
                   height: hourlyBars.height
                   Rectangle {
                     anchors.bottom: parent.bottom
                     width: parent.width
-                    height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(modelData.pop) || 0)) / 100)
+                    height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
                     color: Util.alpha(Colors.accent, 0.55)
                     antialiasing: false
                   }
@@ -533,18 +536,19 @@ BarWidget {
             Repeater {
               model: root.hourly
               delegate: Column {
+                id: hourTick
                 required property var modelData
                 required property int index
                 width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
                 spacing: 0
                 // condition icon over the hour label, at each 6h tick
                 Text {
-                  text: (index % 6 === 0) ? (modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)) : ""
+                  text: (hourTick.index % 6 === 0) ? (hourTick.modelData.windy ? "\u{f059d}" : root.iconFor(hourTick.modelData.code, 1)) : ""
                   color: Colors.accent
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
                 }
                 Text {
-                  text: index % 6 === 0 ? modelData.h : ""
+                  text: hourTick.index % 6 === 0 ? hourTick.modelData.h : ""
                   color: Colors.menu.text; opacity: Style.emphasis.faint
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                 }
@@ -570,6 +574,7 @@ BarWidget {
           Repeater {
             model: root.forecast
             delegate: Rectangle {
+              id: dayTile
               required property var modelData
               width: (content.width - Style.spacing.xs * (root.forecast.length - 1)) / Math.max(1, root.forecast.length)
               implicitHeight: tile.implicitHeight + Style.spacing.sm * 2
@@ -591,7 +596,7 @@ BarWidget {
                 Text {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
-                  text: modelData.label
+                  text: dayTile.modelData.label
                   color: Colors.accent
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                   font.bold: true
@@ -602,14 +607,14 @@ BarWidget {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
                   // windy is derived, not a wmo code
-                  text: modelData.windy ? "\u{f059d}" : root.iconFor(modelData.code, 1)
+                  text: dayTile.modelData.windy ? "\u{f059d}" : root.iconFor(dayTile.modelData.code, 1)
                   color: Colors.menu.text
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.heading
                 }
                 Text {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
-                  text: modelData.windy ? "Windy" : root.labelFor(modelData.code)
+                  text: dayTile.modelData.windy ? "Windy" : root.labelFor(dayTile.modelData.code)
                   color: Colors.menu.text; opacity: Style.emphasis.dim
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                   elide: Text.ElideRight
@@ -617,7 +622,7 @@ BarWidget {
                 Text {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
-                  text: root.t(modelData.hi) + "  " + root.t(modelData.lo)
+                  text: root.t(dayTile.modelData.hi) + "  " + root.t(dayTile.modelData.lo)
                   color: Colors.menu.text
                   font.family: Style.font.family; font.pixelSize: Style.font.caption
                 }
@@ -625,12 +630,12 @@ BarWidget {
                   width: parent.width
                   height: Style.spacing.xs
                   segments: 8
-                  value: Math.max(0, Math.min(100, Number(modelData.pop) || 0)) / 100
+                  value: Math.max(0, Math.min(100, Number(dayTile.modelData.pop) || 0)) / 100
                 }
                 Text {
                   width: parent.width
                   horizontalAlignment: Text.AlignHCenter
-                  text: "\u{f0597} " + root.n0(modelData.pop) + "%"
+                  text: "\u{f0597} " + root.n0(dayTile.modelData.pop) + "%"
                   color: Colors.menu.text; opacity: Style.emphasis.dim
                   font.family: Style.font.iconFamily; font.pixelSize: Style.font.caption
                 }
@@ -736,41 +741,41 @@ BarWidget {
               // isobars, marching squares
               var values = []
               var hasPressure = true
-              for (var i = 0; i < cells.length; i++) {
+              for (let i = 0; i < cells.length; i++) {
                 if (cells[i].hpa === undefined) { hasPressure = false; break }
                 values.push(Number(cells[i].hpa))
               }
 
               if (hasPressure && root.field.pressureMax - root.field.pressureMin >= 0.8) {
                 // 4 hPa would give one line over a 2 hPa spread
-                var isobarStep = 1.0
-                var firstIsobar = Math.ceil(root.field.pressureMin / isobarStep) * isobarStep
+                let isobarStep = 1.0
+                let firstIsobar = Math.ceil(root.field.pressureMin / isobarStep) * isobarStep
                 ctx.lineWidth = 1
                 ctx.strokeStyle = Colors.menu.text
                 ctx.globalAlpha = 0.42
                 // sub-sampled so isobars curve
-                var sub = 6
-                var cellsAcross = (n - 1) * sub
+                let sub = 6
+                let cellsAcross = (n - 1) * sub
                 for (level = firstIsobar; level <= root.field.pressureMax; level += isobarStep) {
                   ctx.beginPath()
-                  for (var msRow = 0; msRow < cellsAcross; msRow++) {
-                    for (var msCol = 0; msCol < cellsAcross; msCol++) {
-                      var gx0 = msCol / sub, gy0 = msRow / sub
-                      var gx1 = (msCol + 1) / sub, gy1 = (msRow + 1) / sub
-                      var a = bilinear(values, n, gx0, gy0)
-                      var b = bilinear(values, n, gx1, gy0)
-                      var c = bilinear(values, n, gx1, gy1)
-                      var d = bilinear(values, n, gx0, gy1)
-                      var idx = (a > level ? 8 : 0) | (b > level ? 4 : 0)
+                  for (let msRow = 0; msRow < cellsAcross; msRow++) {
+                    for (let msCol = 0; msCol < cellsAcross; msCol++) {
+                      let gx0 = msCol / sub, gy0 = msRow / sub
+                      let gx1 = (msCol + 1) / sub, gy1 = (msRow + 1) / sub
+                      let a = bilinear(values, n, gx0, gy0)
+                      let b = bilinear(values, n, gx1, gy0)
+                      let c = bilinear(values, n, gx1, gy1)
+                      let d = bilinear(values, n, gx0, gy1)
+                      let idx = (a > level ? 8 : 0) | (b > level ? 4 : 0)
                               | (c > level ? 2 : 0) | (d > level ? 1 : 0)
                       if (idx === 0 || idx === 15) continue
 
-                      var px0 = px(gx0 / (n - 1)), px1 = px(gx1 / (n - 1))
-                      var py0 = py(gy0 / (n - 1)), py1 = py(gy1 / (n - 1))
-                      var top = { x: lerp(px0, px1, a, b), y: py0 }
-                      var right = { x: px1, y: lerp(py0, py1, b, c) }
-                      var bottom = { x: lerp(px0, px1, d, c), y: py1 }
-                      var left = { x: px0, y: lerp(py0, py1, a, d) }
+                      let px0 = px(gx0 / (n - 1)), px1 = px(gx1 / (n - 1))
+                      let py0 = py(gy0 / (n - 1)), py1 = py(gy1 / (n - 1))
+                      let top = { x: lerp(px0, px1, a, b), y: py0 }
+                      let right = { x: px1, y: lerp(py0, py1, b, c) }
+                      let bottom = { x: lerp(px0, px1, d, c), y: py1 }
+                      let left = { x: px0, y: lerp(py0, py1, a, d) }
 
                       switch (idx) {
                       case 1: case 14: seg(left, bottom); break
@@ -791,16 +796,16 @@ BarWidget {
 
               // wind vectors, interpolated onto a denser lattice
               var ux = [], vy = []
-              for (var ci = 0; ci < cells.length; ci++) {
-                var sp = Number(cells[ci].wind) || 0
+              for (let ci = 0; ci < cells.length; ci++) {
+                let sp = Number(cells[ci].wind) || 0
                 // dir is where the wind comes from, draw where it goes
-                var rr0 = (Number(cells[ci].dir) + 180) * Math.PI / 180
+                let rr0 = (Number(cells[ci].dir) + 180) * Math.PI / 180
                 ux.push(Math.sin(rr0) * sp)
                 vy.push(-Math.cos(rr0) * sp)
               }
 
               var maxWind = 1
-              for (var w = 0; w < cells.length; w++)
+              for (let w = 0; w < cells.length; w++)
                 maxWind = Math.max(maxWind, Number(cells[w].wind) || 0)
 
               // odd so one arrow lands dead centre
@@ -812,33 +817,33 @@ BarWidget {
               ctx.fillStyle = Colors.accent
               ctx.lineWidth = 1
 
-              for (var gy = 0; gy < density; gy++) {
-                for (var gx = 0; gx < density; gx++) {
-                  var fu = (gx + 0.5) / density
-                  var fv = (gy + 0.5) / density
-                  var x = px(fu), y = py(fv)
+              for (let gy = 0; gy < density; gy++) {
+                for (let gx = 0; gx < density; gx++) {
+                  let fu = (gx + 0.5) / density
+                  let fv = (gy + 0.5) / density
+                  let x = px(fu), y = py(fv)
                   if (y < -arrowReach || y > height + arrowReach) continue
 
-                  var sx = bilinear(ux, n, fu * (n - 1), fv * (n - 1))
-                  var sy = bilinear(vy, n, fu * (n - 1), fv * (n - 1))
-                  var speed = Math.sqrt(sx * sx + sy * sy)
+                  let sx = bilinear(ux, n, fu * (n - 1), fv * (n - 1))
+                  let sy = bilinear(vy, n, fu * (n - 1), fv * (n - 1))
+                  let speed = Math.sqrt(sx * sx + sy * sy)
                   if (speed < 0.01) continue
-                  var dx = sx / speed, dy = sy / speed
+                  let dx = sx / speed, dy = sy / speed
 
-                  var strength = Math.min(1, speed / maxWind)
-                  var shaped = Math.sqrt(strength)
-                  var len = arrowReach * (0.55 + 0.45 * shaped)
+                  let strength = Math.min(1, speed / maxWind)
+                  let shaped = Math.sqrt(strength)
+                  let len = arrowReach * (0.55 + 0.45 * shaped)
                   ctx.globalAlpha = 0.13 + 0.29 * shaped
 
-                  var tipX = x + dx * len, tipY = y + dy * len
+                  let tipX = x + dx * len, tipY = y + dy * len
                   ctx.beginPath()
                   ctx.moveTo(x - dx * len, y - dy * len)
                   ctx.lineTo(tipX, tipY)
                   ctx.stroke()
 
-                  var head = Math.max(1.5, arrowReach * 0.46)
-                  var ang = Math.atan2(dx, -dy)
-                  var la = ang + Math.PI * 0.82, ra = ang - Math.PI * 0.82
+                  let head = Math.max(1.5, arrowReach * 0.46)
+                  let ang = Math.atan2(dx, -dy)
+                  let la = ang + Math.PI * 0.82, ra = ang - Math.PI * 0.82
                   ctx.beginPath()
                   ctx.moveTo(tipX, tipY)
                   ctx.lineTo(tipX + Math.sin(la) * head, tipY - Math.cos(la) * head)
@@ -855,9 +860,9 @@ BarWidget {
               var rings = root.radarRingsKm
               ctx.textAlign = "center"
               ctx.font = Style.font.caption + 'px "' + Style.font.family + '"'
-              for (var r = 0; r < rings.length; r++) {
-                var km = rings[r]
-                var rad = S / 2 * (Number(km) / Math.max(1, reachKm))
+              for (let r = 0; r < rings.length; r++) {
+                let km = rings[r]
+                let rad = S / 2 * (Number(km) / Math.max(1, reachKm))
                 // ctx.arc refuses a non-finite or negative radius
                 if (!isFinite(rad) || rad <= 0) continue
                 ctx.strokeStyle = Colors.menu.text
@@ -867,8 +872,8 @@ BarWidget {
                 ctx.arc(centreX, centreY, rad, 0, Math.PI * 2)
                 ctx.stroke()
 
-                var label = km + " km"
-                var lw = ctx.measureText(label).width
+                let label = km + " km"
+                let lw = ctx.measureText(label).width
                 ctx.globalAlpha = 1
                 ctx.fillStyle = Colors.surface
                 // tall enough to hide the ring stroke
@@ -911,9 +916,9 @@ BarWidget {
               ctx.stroke()
 
               ctx.globalAlpha = 0.4
-              for (var q = 0; q < 4; q++) {
-                var qa = q * Math.PI / 2
-                var inner = rr - (q === 0 ? rr * 0.45 : rr * 0.2)
+              for (let q = 0; q < 4; q++) {
+                let qa = q * Math.PI / 2
+                let inner = rr - (q === 0 ? rr * 0.45 : rr * 0.2)
                 ctx.beginPath()
                 ctx.moveTo(cxc + Math.sin(qa) * inner, cyc - Math.cos(qa) * inner)
                 ctx.lineTo(cxc + Math.sin(qa) * rr, cyc - Math.cos(qa) * rr)

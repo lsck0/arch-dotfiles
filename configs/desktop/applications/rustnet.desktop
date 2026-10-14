@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=RustNet
+Comment=Network connections monitor
+TryExec=rustnet
+Exec=rustnet
+Icon=network-workgroup
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

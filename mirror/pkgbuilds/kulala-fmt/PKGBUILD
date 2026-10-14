@@ -1,23 +1,35 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
 # Formatter/converter for Kulala .http/.rest files; conform in configs/programming/nvim/lua/plugins/lsp.lua
 # calls `kulala-fmt` from PATH.
+# pinned to 2.11.0, the last release that parses with its own tree-sitter grammar: 3.x and later hand parsing to a
+# downloaded kulala-core binary (github repo gone, now behind a license token on core.kulala.app) and fail every file
+# with "Error parsing file". epoch so the downgrade from 4.6.1 wins
 pkgname=kulala-fmt
-pkgver=4.6.1
+pkgver=2.11.0
 pkgrel=1
+epoch=1
 pkgdesc="Formatter and converter for Kulala HTTP (.http/.rest) files"
-arch=(any)
-url="https://github.com/dont-be-evil-company/kulala-fmt"
+arch=(x86_64)
+url="https://github.com/mistweaverco/kulala-fmt"
 license=(MIT)
 depends=(nodejs)
-makedepends=(npm)
-source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@dont-be-evil-company/kulala-fmt/-/kulala-fmt-$pkgver.tgz")
-sha256sums=(c121a28e252c8f984a625cf047c3ac0e93217f5a7e2e906dd8cabcfb9b87ada9)
+makedepends=(npm python)
+options=(!debug)
+source=("$pkgname-$pkgver.tgz::https://registry.npmjs.org/@mistweaverco/kulala-fmt/-/kulala-fmt-$pkgver.tgz")
+sha256sums=(081f8e4192cfe46fcdbec66fc447f3e33d5f5fa766a4ce6863fc6848a9e53ed8)
 
 package() {
-    npm install -g --prefix "$pkgdir/usr" "$srcdir/$pkgname-$pkgver.tgz"
+    # the grammar is a native addon built by its install script, which npm blocks unless allowed
+    npm install -g --prefix "$pkgdir/usr" --allow-scripts=@mistweaverco/tree-sitter-kulala,tree-sitter \
+        "$srcdir/$pkgname-$pkgver.tgz"
 
-    # standard npm-package cleanup: drop $srcdir references and normalise perms
+    # standard npm-package cleanup: keep only the built addon (the rest of build/ embeds $srcdir paths), normalise perms
+    local mod="$pkgdir/usr/lib/node_modules/@mistweaverco/kulala-fmt"
+    local grammar="$mod/node_modules/@mistweaverco/tree-sitter-kulala/build"
+    find "$grammar" -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} +
+    find "$grammar/Release" -mindepth 1 ! -name '*.node' -exec rm -rf {} +
+    # tree-sitter itself ships prebuilds for every platform, strip chokes on the foreign ones
+    find "$mod/node_modules/tree-sitter/prebuilds" -mindepth 1 -maxdepth 1 ! -name linux-x64 -exec rm -rf {} +
     find "$pkgdir/usr" -type d -exec chmod 755 {} +
-    local mod="$pkgdir/usr/lib/node_modules/@dont-be-evil-company/kulala-fmt"
     install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
 }

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Wine
+Comment=Run a Windows program
+TryExec=wine
+Exec=@HOME@/.local/bin/desktop-run --file -- wine start /unix
+Icon=winetricks
+Terminal=false
+Categories=System;Emulator;

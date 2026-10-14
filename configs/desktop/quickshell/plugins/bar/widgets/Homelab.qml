@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -58,14 +59,14 @@ BarWidget {
     Component.onDestruction: running = false
     // full detail only while the panel is open
     command: panel.visible
-      ? [Paths.barWidget("homelab-status.py"), "30"]
-      : [Paths.barWidget("homelab-status.py"), "300", "--summary"]
+      ? [Paths.barWidget("homelab-status.nu"), "30"]
+      : [Paths.barWidget("homelab-status.nu"), "300", "--summary"]
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {
         if (!line) return
         try {
-          var s = JSON.parse(line)
+          let s = JSON.parse(line)
           root.received = true
           root.ok = s.ok === true
           root.error = s.error || ""
@@ -388,7 +389,7 @@ BarWidget {
           glyph: "\u{f0582}"   // md-vpn
           label: "Connect homelab VPN"
           onActivated: {
-            Quickshell.execDetached([Paths.toggle("toggle-vpn.sh"), "on"])
+            Quickshell.execDetached([Paths.toggle("toggle-vpn.nu"), "on"])
             if (root.bar) root.bar.closePanel(root.moduleName)
           }
         }

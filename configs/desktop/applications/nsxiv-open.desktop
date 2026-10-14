@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=nsxiv
+Comment=Browse images in nsxiv
+TryExec=nsxiv
+Exec=@HOME@/.local/bin/desktop-run --files -- nsxiv
+Icon=nsxiv
+Terminal=false
+Categories=Graphics;Viewer;2DGraphics;

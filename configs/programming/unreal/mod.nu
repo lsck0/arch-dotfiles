@@ -1,0 +1,30 @@
+use module.nu *
+
+export const meta = {inputs: [~/sync/vendor ~/.local/share/unreal-engine/.installed-from]}
+
+const MCP = {type: http, url: "http://127.0.0.1:8766/mcp"}
+
+def data-dir []: nothing -> path {
+    $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
+}
+
+# a ~60 GB engine is a desktop workload. the engine comes from the newest ~/sync/vendor zip into the home (no root,
+# never asked): now if one is there, else a path unit waits for one until an engine is in
+export def link [cfg: record] {
+    if $env.FORM_FACTOR? != "desktop" { return [] }
+    let mime = data-dir | path join mime
+    let stamp = data-dir | path join unreal-engine .installed-from
+    let installed = $stamp | path exists
+    let zip = glob ($nu.home-dir | path join sync vendor Linux_Unreal_Engine_*.zip) | sort --natural | last
+    let desktop = data-dir | path join applications unreal-engine.desktop
+    let current = $installed and ($desktop | path exists) and (open --raw $stamp | str trim) == ($zip | default "" | path basename)
+    [
+        # the editor launcher, the mcp server it starts, and bridge and fab again after a new plugin zip
+        (link-commands unreal-editor.nu unreal-install-plugins.nu)
+        # .uproject's type, for the desktop entry and mimeapps.list
+        (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
+        (json-merge ($nu.home-dir | path join .claude.json) [(json-set [mcpServers unreal-mcp] $MCP)])
+        (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] })
+        (if $installed { [] } else { user-hook unreal-install hook/unreal-install.nu --watch ["%h/sync/vendor"] })
+    ]
+}

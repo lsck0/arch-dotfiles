@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=jless
+Comment=JSON viewer
+TryExec=jless
+Exec=@HOME@/.local/bin/desktop-run --file -- jless
+Icon=application-json
+Terminal=true
+Categories=Development;Viewer;ConsoleOnly;

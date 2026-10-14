@@ -1,5 +1,5 @@
+pragma ComponentBehavior: Bound
 import Quickshell
-import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -16,9 +16,8 @@ Item {
   readonly property var pomo: TimerState.pomo
   readonly property var reminders: TimerState.reminders
 
-  readonly property string reminderScript: Paths.script("reminder.sh")
-  readonly property string pomodoroScript: Paths.script("pomodoro.sh")
-  readonly property string notifyScript: Paths.dotfiles + "/scripts/lib/notification-send.sh"
+  readonly property string reminderScript: Paths.script("reminder.nu")
+  readonly property string pomodoroScript: Paths.script("pomodoro.nu")
 
   readonly property string promptText: step === "message"
     ? "Message for the " + minutes + " min reminder..."
@@ -49,9 +48,9 @@ Item {
   function submit() {
     if (root.step === "minutes") {
       if (!root.filterText.trim()) return
-      var valid = ReminderFlowModel.validMinutes(root.filterText)
+      let valid = ReminderFlowModel.validMinutes(root.filterText)
       if (!valid) {
-        Quickshell.execDetached([root.notifyScript, "Invalid reminder", "Enter the number of minutes"])
+        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", "Enter the number of minutes"])
         return
       }
       root.minutes = valid
@@ -86,7 +85,7 @@ Item {
       ? [["ENTER", "set"], ["ESC", "back"]]
       : [["0-9", "minutes"], ["ENTER", "set"], ["ESC", "close"]]
     cardWidth: Style.space(560)
-    cardHeight: content.implicitHeight + chromeHeight
+    cardHeight: flowContent.implicitHeight + chromeHeight
     onDismissed: root.close()
 
     Item {
@@ -116,7 +115,7 @@ Item {
     }
 
     Column {
-      id: content
+      id: flowContent
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top

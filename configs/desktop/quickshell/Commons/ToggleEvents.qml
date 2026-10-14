@@ -2,7 +2,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 
-// scripts/toggles/lib.sh calls `toggles changed <script>` after any toggle changes state, so readers refresh on the event instead of polling
+// scripts/toggles/lib.nu calls `toggles changed <script>` after any toggle changes state, so readers refresh on the event instead of polling
 Singleton {
   id: root
 

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Caligula
+Comment=Burn a disk image to a drive
+TryExec=caligula
+Exec=@HOME@/.local/bin/desktop-run --file -- caligula burn
+Icon=usb-creator-kde
+Terminal=true
+Categories=System;ConsoleOnly;

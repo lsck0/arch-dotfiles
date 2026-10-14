@@ -36,11 +36,11 @@ pane_scrollbars = false
 
 [keys]
 prefix = "ctrl+q"
-split_horizontal = "prefix+s"     # tmux: bind s split-window -v (stacked)
-split_vertical = "prefix+v"       # tmux: bind v split-window -h (side by side)
-edit_scrollback = "prefix+e"      # tmux: bind e copy-mode (scrollback/copy)
-settings = ""                     # cleared: prefix+s is split_horizontal, not settings
-toggle_sidebar = ""               # cleared: prefix+b is the wtree popup, not sidebar
+split_horizontal = "prefix+s" # tmux: bind s split-window -v (stacked)
+split_vertical = "prefix+v"   # tmux: bind v split-window -h (side by side)
+edit_scrollback = "prefix+e"  # tmux: bind e copy-mode (scrollback/copy)
+settings = ""                 # cleared: prefix+s is split_horizontal, not settings
+toggle_sidebar = ""           # cleared: prefix+b is the wtree popup, not sidebar
 close_pane = "prefix+q"
 close_tab = "prefix+x"
 detach = ""
@@ -49,11 +49,11 @@ focus_pane_left = "alt+shift+h"
 focus_pane_down = "alt+shift+j"
 focus_pane_up = "alt+shift+k"
 focus_pane_right = "alt+shift+l"
-workspace_picker = ""             # tmux: bind w -> sessionizer popup, not workspace picker
-goto = ""                         # tmux: bind g -> gh-dash popup, not goto
-next_tab = ""                     # tmux: bind n -> netscanner popup, not next-window
-previous_tab = ""                 # tmux: bind p -> btop popup, not previous-window
-zoom = ""                         # tmux: bind z -> zsh popup, not pane zoom
+workspace_picker = ""            # tmux: bind w -> sessionizer popup, not workspace picker
+goto = ""                        # tmux: bind g -> gh-dash popup, not goto
+next_tab = ""                    # tmux: bind n -> netscanner popup, not next-window
+previous_tab = ""                # tmux: bind p -> btop popup, not previous-window
+zoom = ""                        # tmux: bind z -> zsh popup, not pane zoom
 new_workspace = ""
 next_workspace = "prefix+]"
 previous_workspace = "prefix+["
@@ -133,7 +133,7 @@ height = "90%"
 [[keys.command]]
 key = "prefix+m"
 type = "popup"
-command = "direnv exec . $DOTFILES/scripts/toggles/menu.sh --fzf"
+command = "direnv exec . $DOTFILES/scripts/toggles/menu.nu --fzf"
 width = "90%"
 height = "90%"
 

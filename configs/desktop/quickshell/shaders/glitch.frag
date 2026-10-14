@@ -1,6 +1,6 @@
 // one-shot glitch for Ui/Glitch.qml: rgb split plus per-row offsets under a sine envelope
 // that is zero at both ends, so the effect never leaves a frame behind.
-// qt6 ShaderEffect only reads baked shaders: restart.sh runs
+// qt6 ShaderEffect only reads baked shaders: restart.nu runs
 //   qsb --qt6 -o glitch.frag.qsb glitch.frag
 // (qsb from qt6-shadertools) when the .qsb is missing or older; without it the glitch is skipped.
 #version 440

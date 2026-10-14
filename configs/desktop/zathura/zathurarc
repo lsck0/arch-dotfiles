@@ -1,7 +1,7 @@
 set selection-clipboard clipboard
 set selection-notification true
 
-# alt + left click jumps to that line in the nvim or emacs that has the source open (scripts/synctex-edit.sh)
+# alt + left click jumps to that line in the nvim or emacs that has the source open (configs/latex/sioyek/synctex-edit.nu)
 set synctex true
 set synctex-edit-modifier alt
 set synctex-editor-command "synctex-edit %{input} %{line} %{column}"
@@ -37,4 +37,5 @@ map <C-i> recolor
 map i recolor
 map p print
 
-include colors-zathura
+# wallust renders the palette on every wallpaper switch
+include @HOME@/.cache/wal/colors-zathura

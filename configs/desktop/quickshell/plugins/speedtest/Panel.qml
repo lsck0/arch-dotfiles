@@ -14,7 +14,7 @@ Item {
 
   KeyValueProcess {
     id: test
-    command: [Paths.script("network-speedtest.sh")]
+    command: [Paths.script("network-speedtest.nu")]
   }
 
   SpeedTestOverlay {

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Hollywood
+Comment=Hollywood hacker melodrama
+TryExec=hollywood
+Exec=@HOME@/.local/bin/hollywood-run
+Icon=utilities-terminal
+Terminal=true
+Categories=Game;Amusement;ConsoleOnly;

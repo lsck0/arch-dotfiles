@@ -23,24 +23,24 @@ QtObject {
   property var command: []
   property var values: ({})
   property string error: ""
-  readonly property alias running: process.running
+  readonly property alias running: proc.running
   // between start() and stop(), so a stopped run's exit is not an error
   property bool wanted: false
   property bool queued: false
 
   function start() {
-    queued = process.running && !wanted
-    if (process.running) return
+    queued = proc.running && !wanted
+    if (proc.running) return
     wanted = true
     values = {}
     error = ""
-    process.running = true
+    proc.running = true
   }
 
   function stop() {
     wanted = false
     queued = false
-    process.running = false
+    proc.running = false
   }
 
   // exit and stderr eof race; prefer the specific message
@@ -57,7 +57,7 @@ QtObject {
   }
 
   property Process process: Process {
-    id: process
+    id: proc
     command: root.command
     stdout: root.lines
     stderr: root.errors

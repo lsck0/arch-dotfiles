@@ -1,6 +1,6 @@
 ---
 name: l-spec-driven-development
-description: "Agent programming workflow."
+description: "Spec-driven workflow for real features, bugs and investigations: a specs/ corpus, full research then a phased spec, each phase landing as its own revertible PR with a trace back to its requirements. Owns the parallelism budget and the GitHub/branch/PR rules the task-mode skills reuse. Load for any non-trivial change in Luca's repos."
 ---
 
 # l-spec-driven-development

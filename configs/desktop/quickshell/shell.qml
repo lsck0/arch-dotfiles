@@ -11,11 +11,17 @@ import "plugins/appsearch"
 import "plugins/power"
 import "plugins/overview"
 import "plugins/lock"
+import "plugins/desktop"
+import "plugins/settings"
 import "plugins/Plugins.js" as Plugins
 import "services"
 
 ShellRoot {
   id: shell
+
+  // a reload under the lock would destroy the session lock object without unlocking, which hyprland treats as a crashed
+  // locker; edits land after the unlock
+  settings.watchFiles: !lockScreen.locked
 
   // instances, relative-path imports do not share singleton state
   property AppLibrary appLibrary: AppLibrary { }
@@ -34,7 +40,7 @@ ShellRoot {
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
     var next = {}
-    for (var k in settings) if (k !== "id") next[k] = settings[k]
+    for (let k in settings) if (k !== "id") next[k] = settings[k]
     var current = widgetSettings[key]
     if (current && JSON.stringify(current) === JSON.stringify(next)) return false
     widgetSettings = Util.mapSet(widgetSettings, key, next)
@@ -49,7 +55,7 @@ ShellRoot {
       return
     }
     try {
-      var parsed = JSON.parse(text)
+      let parsed = JSON.parse(text)
       widgetSettings = Util.isPlainObject(parsed) ? parsed : ({})
     } catch (e) {
       console.warn("widget-settings.json parse failed, ignoring it:", e)
@@ -76,15 +82,15 @@ ShellRoot {
     var screens = Quickshell.screens
     // a workspace rule may name the other machine's monitor
     function connected(name) {
-      for (var s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
+      for (let s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
       return false
     }
     var workspaces = Hyprland.workspaces.values
-    for (var w = 0; w < workspaces.length; w++)
+    for (let w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
     // workspace 1 only exists while it has windows
     if (workspaceOneRuleMonitor && connected(workspaceOneRuleMonitor)) return workspaceOneRuleMonitor
-    for (var i = 0; i < screens.length; i++)
+    for (let i = 0; i < screens.length; i++)
       if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
     return screens.length > 0 ? String(screens[0].name) : ""
   }
@@ -99,9 +105,9 @@ ShellRoot {
       onStreamFinished: {
         var name = ""
         try {
-          var rules = JSON.parse(text || "[]")
-          for (var i = 0; i < rules.length; i++) {
-            var ws = String(rules[i].workspaceString || "")
+          let rules = JSON.parse(text || "[]")
+          for (let i = 0; i < rules.length; i++) {
+            let ws = String(rules[i].workspaceString || "")
             if (ws === "1" && rules[i].monitor) { name = String(rules[i].monitor); break }
           }
         } catch (e) {
@@ -146,7 +152,7 @@ ShellRoot {
 
   function plugin(id) {
     var loaders = plugins.instances
-    for (var i = 0; i < loaders.length; i++)
+    for (let i = 0; i < loaders.length; i++)
       if (loaders[i].modelData === id) return loaders[i].item
     return null
   }
@@ -180,7 +186,7 @@ ShellRoot {
   IpcHandler {
     target: "shell"
 
-    // the conditioned palette + fx, for toggle-shader.sh and anything themed after the shell
+    // the conditioned palette + fx, for toggle-shader.nu and anything themed after the shell
     function palette(): string {
       function rgb(c) { return [c.r, c.g, c.b] }
       return JSON.stringify({
@@ -199,7 +205,7 @@ ShellRoot {
       })
     }
 
-    // toggle-powermode.sh, after saver flips
+    // toggle-powermode.nu, after saver flips
     function reloadPowerMode(): void {
       Power.reload()
     }
@@ -210,10 +216,12 @@ ShellRoot {
   }
 
   Background {}
+  DesktopWidgets { mainScreenName: shell.mainScreenName }
   Osd {}
   Clipboard {}
   AppSearch { appLibrary: shell.appLibrary }
   PowerMenu {}
   Overview {}
-  Lock {}
+  Settings {}
+  Lock { id: lockScreen }
 }

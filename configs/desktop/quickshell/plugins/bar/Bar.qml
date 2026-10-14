@@ -285,8 +285,9 @@ PanelWindow {
     color: "transparent"
     implicitWidth: tooltipSurface.width
     implicitHeight: tooltipSurface.height
-    anchor.window: root
-    anchor.rect.x: {
+    // quickshell's qmltypes stub PopupAnchor as opaque, so qmllint cannot see window or rect
+    anchor.window: root // qmllint disable missing-property
+    anchor.rect.x: { // qmllint disable unqualified unresolved-type
       if (!root.tooltipItem) return 0
       var pos = root.tooltipItem.mapToItem(root.contentItem, 0, 0)
       return Math.max(0, Math.min(root.width - tooltipSurface.width, pos.x))

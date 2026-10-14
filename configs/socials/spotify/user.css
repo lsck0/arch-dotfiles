@@ -1,100 +1,115 @@
 * {
-  font-family: "Kode Mono", "Symbols Nerd Font", sans-serif !important;
+    font-family: "Kode Mono", "Symbols Nerd Font", sans-serif !important;
 }
 
 body {
-  zoom: 85%;
+    zoom: 85%;
 }
 
 :root {
-  --gradient-colors: var(--spice-gradienttop), var(--spice-gradientbottom);
+    --gradient-colors: var(--spice-gradienttop), var(--spice-gradientbottom);
+}
+
+/* spotify's own encore "bright accent" (its built-in green) ignores the pywal
+   color_scheme; remap the tokens to the wal accent so the play FAB, progress
+   thumb, toggles, "liked"/positive text and selection follow the palette */
+:root {
+    --essential-bright-accent: var(--spice-button) !important;
+    --background-bright-accent: var(--spice-button) !important;
+    --background-bright-accent-hover: var(--spice-button-active) !important;
+    --background-bright-accent-active: var(--spice-button-active) !important;
+    --text-bright-accent: var(--spice-button) !important;
+    --decorative-base: var(--spice-button) !important;
+    --text-positive: var(--spice-button) !important;
+    --essential-positive: var(--spice-button) !important;
+    --background-positive: var(--spice-button) !important;
 }
 
 .Root__globalNav {
-  margin: 0;
-  padding: 0;
-  background-color: var(--spice-main);
-  color: var(--spice-text);
+    margin: 0;
+    padding: 0;
+    background-color: var(--spice-main);
+    color: var(--spice-text);
 }
 
 /* no grid-template-areas override, it blanks the content pane */
 
 /* never display:none, queue and device picker live here */
 .Root__right-sidebar {
-  background-color: var(--spice-main);
+    background-color: var(--spice-main);
 }
 
 .main-globalNav-navLink {
-  background-color: var(--spice-main) !important;
-  color: var(--spice-text) !important;
+    background-color: var(--spice-main) !important;
+    color: var(--spice-text) !important;
 }
 
 .main-topBar-searchBar {
-  background-color: var(--spice-main) !important;
-  color: var(--spice-text) !important;
+    background-color: var(--spice-main) !important;
+    color: var(--spice-text) !important;
 }
 
 .main-globalNav-searchSection {
-  background-color: var(--spice-main);
-  color: var(--spice-text);
+    background-color: var(--spice-main);
+    color: var(--spice-text);
 }
 
 .Root__now-playing-bar {
-  background-color: var(--spice-main);
-  color: var(--spice-text);
+    background-color: var(--spice-main);
+    color: var(--spice-text);
 }
 
 .main-rootlist-rootlistItem:hover {
-  background-color: var(--spice-card-background);
+    background-color: var(--spice-card-background);
 }
 
 .main-navBar-navBar {
-  background-image: linear-gradient(var(--gradient-colors));
+    background-image: linear-gradient(var(--gradient-colors));
 }
 
 /* buttons */
 .main-navBar-navBarLink {
-  border-radius: var(--border-radius-2);
-  color: var(--spice-text);
+    border-radius: var(--border-radius-2);
+    color: var(--spice-text);
 }
 .main-addButton-active,
 .main-addButton-active:focus,
 .main-addButton-active:hover {
-  color: var(--spice-button);
+    color: var(--spice-button);
 }
 /* menus */
 .main-card-card {
-  background-image: linear-gradient(var(--gradient-colors));
+    background-image: linear-gradient(var(--gradient-colors));
 }
 
 .main-card-card:hover {
-  background-color: var(--spice-card-hover);
+    background-color: var(--spice-card-hover);
 }
 
 .main-contextMenu-menuItemButton,
 .main-userWidget-dropDownMenuItemButton {
-  color: var(--spice-text);
-  height: 32px;
-  padding-left: 8px;
+    color: var(--spice-text);
+    height: 32px;
+    padding-left: 8px;
 }
 .main-trackList-trackListHeaderStuck.main-trackList-trackListHeader {
-  background: transparent;
-  -webkit-box-shadow: 0 -1px 0 0 var(--spice-highlight);
-  box-shadow: 0 -1px 0 0 var(--spice-highlight);
+    background: transparent;
+    -webkit-box-shadow: 0 -1px 0 0 var(--spice-highlight);
+    box-shadow: 0 -1px 0 0 var(--spice-highlight);
 }
 .main-trackList-trackListHeaderStuck .main-trackList-trackListHeaderRow {
-  border-bottom: 1px solid transparent;
-  background: var(--spice-main);
+    border-bottom: 1px solid transparent;
+    background: var(--spice-main);
 }
 #spicetify-home-config button:disabled,
 #spicetify-sidebar-config button:disabled {
-  color: var(--spice-text) !important;
+    color: var(--spice-text) !important;
 }
 
 /* remove gradients */
 .main-home-homeHeader,
 .main-actionBarBackground-background {
-  background-image: none;
+    background-image: none;
 }
 .main-actionBarBackground-background,
 .main-home-homeHeader,
@@ -104,91 +119,113 @@ body {
 .x-actionBarBackground-background,
 ._UFTK833WfTNGb4agRTd,
 .Ic3iDUCnC09k55peZBfC {
-  background-color: var(--spice-main) !important;
+    background-color: var(--spice-main) !important;
 }
 .x-actionBarBackground-background,
 .x-entityHeader-overlay,
 .Ic3iDUCnC09k55peZBfC,
 ._UFTK833WfTNGb4agRTd {
-  background-image: none !important;
+    background-image: none !important;
 }
 .main-entityHeader-backgroundColor {
-  background: var(--spice-main);
+    background: var(--spice-main);
 }
 .Root__top-container {
-  background-color: var(--spice-main);
+    background-color: var(--spice-main);
 }
 
 /* thin accent scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+    width: 8px;
+    height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: var(--spice-button);
-  border-radius: 2px;
+    background-color: var(--spice-button);
+    border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--spice-button-active);
+    background-color: var(--spice-button-active);
 }
 
 /* accent glow on now-playing track title */
 .main-nowPlayingWidget-trackTitle,
 .main-trackInfo-name {
-  text-shadow: 0 0 6px var(--spice-button);
+    text-shadow: 0 0 6px var(--spice-button);
 }
 
 /* accent glow on play button hover */
 .main-playButton-PlayButton:hover,
 .main-playPauseButton-button:hover {
-  box-shadow: 0 0 8px var(--spice-button);
+    box-shadow: 0 0 8px var(--spice-button);
 }
 
 /* accent glow on active nav item */
 .main-navBar-navBarLinkActive,
 .main-yourLibraryX-navLinkActive {
-  text-shadow: 0 0 5px var(--spice-highlight);
+    text-shadow: 0 0 5px var(--spice-highlight);
 }
 
 /* accent glow on play-control and liked icons on hover */
 .main-playPauseButton-button:hover,
 .control-button:hover,
 .main-addButton-button:hover {
-  color: var(--spice-button);
-  text-shadow: 0 0 5px var(--spice-button);
+    color: var(--spice-button);
+    text-shadow: 0 0 5px var(--spice-button);
 }
 
 /* progress + volume bars in accent with faint glow */
 .x-progressBar-fillColor,
 .x-volumeBar-fillColor,
 .progress-bar__fg {
-  background-color: var(--spice-button) !important;
-  box-shadow: 0 0 4px var(--spice-button);
+    background-color: var(--spice-button) !important;
+    box-shadow: 0 0 4px var(--spice-button);
 }
 
 /* tighter terminal-style corners on cards */
 .main-card-card,
 .main-card-card:hover {
-  border-radius: 3px;
+    border-radius: 3px;
 }
 
 /* accent hover borders via inset shadow (no reflow) */
 .main-card-card:hover,
 .main-rootlist-rootlistItem:hover,
 .main-trackList-trackListRow:hover {
-  box-shadow: inset 0 0 0 1px var(--spice-button);
+    box-shadow: inset 0 0 0 1px var(--spice-button);
 }
 .main-topBar-searchBar:hover,
 .main-topBar-searchBar:focus-within {
-  box-shadow: inset 0 0 0 1px var(--spice-button);
+    box-shadow: inset 0 0 0 1px var(--spice-button);
+}
+
+/* primary play FAB: wal accent fill with a dark glyph so the icon stays legible */
+.main-playButton-PlayButton,
+.main-playButton-PlayButton:focus {
+    background-color: var(--spice-button) !important;
+    color: var(--spice-main) !important;
+}
+.main-playButton-PlayButton:hover {
+    background-color: var(--spice-button-active) !important;
+}
+
+/* in-text links follow the accent instead of spotify's stock blue/green */
+.main-trackCredits-credit a,
+.main-entityHeader-subtitle a,
+.main-type-mesto a,
+[data-encore-id="text"] a {
+    color: var(--spice-button);
+    text-decoration: none;
+}
+[data-encore-id="text"] a:hover {
+    text-decoration: underline;
 }
 
 /* entity header by its spotify 1.2.96 hash, the dom never gets main-entityHeader-container; fixed height clips the title */
 .XToncn4_mYHzhKy7 {
-  padding-top: 65px !important;
-  height: auto !important;
-  max-height: none !important;
+    padding-top: 65px !important;
+    height: auto !important;
+    max-height: none !important;
 }

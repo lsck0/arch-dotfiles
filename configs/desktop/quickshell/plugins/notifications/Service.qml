@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -35,7 +36,8 @@ Item {
     printErrors: false
     onAdapterUpdated: writeAdapter()
 
-    JsonAdapter {
+    // quickshell's qmltypes ship FileViewAdapter as an opaque stub, so qmllint cannot type FileView's default property
+    JsonAdapter { // qmllint disable unresolved-type
       id: settings
       property bool dnd: false
     }
@@ -54,7 +56,8 @@ Item {
   // user-facing setter: a manual change takes dnd away from obs, so closing obs leaves it alone
   function setDoNotDisturb(value) {
     persisted.dndByObs = false
-    settings.dnd = !!value
+    // settings sits in FileView's opaque adapter slot (above), so qmllint cannot resolve the id
+    settings.dnd = !!value // qmllint disable unqualified
   }
 
   // obs turns dnd on while it runs and off on exit, only if dnd was off before it started
@@ -64,10 +67,10 @@ Item {
       // a shell reload re-detects a running obs, the persisted session flag keeps a manual off from flipping back
       if (ObsProcess.running && !persisted.obsSession) {
         persisted.obsSession = true
-        persisted.dndByObs = !settings.dnd
-        settings.dnd = true
+        persisted.dndByObs = !settings.dnd // qmllint disable unqualified
+        settings.dnd = true // qmllint disable unqualified
       } else if (!ObsProcess.running) {
-        if (persisted.dndByObs) settings.dnd = false
+        if (persisted.dndByObs) settings.dnd = false // qmllint disable unqualified
         persisted.obsSession = false
         persisted.dndByObs = false
       }
@@ -166,15 +169,15 @@ Item {
       service.refreshPopup(notification, snapshot.originalId, snapshot.timestamp)
     }
 
-    for (var i = 0; i < updateSignals.length; i++) {
-      var signal = notification[updateSignals[i]]
+    for (let i = 0; i < updateSignals.length; i++) {
+      let signal = notification[updateSignals[i]]
       if (signal && typeof signal.connect === "function") signal.connect(refresh)
     }
   }
 
   function rowIndexOf(originalId, timestamp) {
-    for (var i = 0; i < popupModel.count; i++) {
-      var row = popupModel.get(i)
+    for (let i = 0; i < popupModel.count; i++) {
+      let row = popupModel.get(i)
       if (row && row.originalId === originalId && row.timestamp === timestamp) return i
     }
     return -1
@@ -201,8 +204,8 @@ Item {
   }
 
   function removePopupsByOriginalId(originalId, keepFileName) {
-    for (var i = popupModel.count - 1; i >= 0; i--) {
-      var row = popupModel.get(i)
+    for (let i = popupModel.count - 1; i >= 0; i--) {
+      let row = popupModel.get(i)
       if (!row || row.originalId !== originalId) continue
       if (isRestoredRow(row)) continue
       if (NotificationLogic.popupFileName(row) !== keepFileName) deletePopupFileFor(row)
@@ -236,8 +239,8 @@ Item {
   function invokeDefaultAction(entry) {
     var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
     try {
-      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
-        var action = ref.actions[i]
+      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+        let action = ref.actions[i]
         if (action && action.identifier === "default") {
           action.invoke()
           return true
@@ -407,7 +410,7 @@ Item {
     if (!imageGrabWindow.backingWindowVisible) return
     var queued = service.pendingGrabs
     service.pendingGrabs = []
-    for (var i = 0; i < queued.length; i++)
+    for (let i = 0; i < queued.length; i++)
       service.materializeImage(queued[i].snapshot, queued[i].done)
   }
 
@@ -484,10 +487,10 @@ Item {
 
   function liveRowsForReplay() {
     var rows = []
-    for (var i = 0; i < popupModel.count; i++) {
-      var row = popupModel.get(i)
+    for (let i = 0; i < popupModel.count; i++) {
+      let row = popupModel.get(i)
       if (!row || row.originalId < 0) continue
-      var entry = { id: row.id, originalId: row.originalId, timestamp: row.timestamp }
+      let entry = { id: row.id, originalId: row.originalId, timestamp: row.timestamp }
       NotificationLogic.POPUP_ROLES.forEach(function(role) { entry[role] = row[role] })
       rows.push(NotificationLogic.persistablePopup(entry, imagesDir).entry)
     }
@@ -512,7 +515,7 @@ Item {
     }
 
     clearPopups()
-    for (var i = 0; i < rows.length; i++) {
+    for (let i = 0; i < rows.length; i++) {
       service.restoredPopups[NotificationLogic.popupFileName(rows[i])] = true
       popupModel.append(rows[i])
     }
@@ -601,7 +604,7 @@ Item {
       var needle = String(summary || "")
       if (!needle) return "none"
       var hit = false
-      for (var i = popupModel.count - 1; i >= 0; i--) {
+      for (let i = popupModel.count - 1; i >= 0; i--) {
         if (String(popupModel.get(i).summary || "").indexOf(needle) === -1) continue
         service.removePopup(i)
         hit = true
@@ -630,7 +633,7 @@ Item {
     var focused = Hyprland.focusedMonitor
     var name = focused ? String(focused.name) : ""
     if (!name && service.shell) name = String(service.shell.mainScreenName || "")
-    for (var i = 0; i < screens.length; i++)
+    for (let i = 0; i < screens.length; i++)
       if (String(screens[i].name) === name) return screens[i]
     return screens.length > 0 ? screens[0] : null
   }
@@ -682,8 +685,8 @@ Item {
     var ref = liveRefs[originalId]
     var out = []
     try {
-      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
-        var a = ref.actions[i]
+      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+        let a = ref.actions[i]
         if (a && a.identifier !== "default" && String(a.text || "").length > 0)
           out.push({ id: String(a.identifier), text: String(a.text) })
       }
@@ -698,7 +701,7 @@ Item {
     var entry = popupModel.get(index)
     var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
     try {
-      for (var i = 0; ref && ref.actions && i < ref.actions.length; i++) {
+      for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
         if (ref.actions[i] && String(ref.actions[i].identifier) === identifier) {
           ref.actions[i].invoke()
           break
@@ -774,7 +777,7 @@ Item {
           required property double expireTimeout
           required property double timestamp
 
-          readonly property int groupSize: { service.popupRevision; return index >= 0 ? service.groupSizeAt(index) : 1 }
+          readonly property int groupSize: { void service.popupRevision; return index >= 0 ? service.groupSizeAt(index) : 1 }
           readonly property bool folded: groupSize === 0
 
           width: popupList.width

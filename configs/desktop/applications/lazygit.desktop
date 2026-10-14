@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazygit
+Comment=Git interface
+TryExec=lazygit
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- lazygit
+Icon=folder-git
+Terminal=true
+Categories=Development;RevisionControl;ConsoleOnly;

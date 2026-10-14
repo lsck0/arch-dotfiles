@@ -1,3 +1,5 @@
 # managed by arch-dotfiles/apparmor
 # the desktop/gtk theme ~/.config/gtk-3.0/gtk.css links to
 include <abstractions/dotfiles/gtk-theme>
+# Chromium sizes its heap and threads by its cgroup's memory and cpu limits
+@{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,

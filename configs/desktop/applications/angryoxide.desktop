@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AngryOxide
+Comment=802.11 attack tool
+TryExec=angryoxide
+Exec=@HOME@/.local/bin/desktop-run --ask Interface -- sudo angryoxide --interface
+Icon=network-wireless
+Terminal=true
+Categories=Network;Security;ConsoleOnly;

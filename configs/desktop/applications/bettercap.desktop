@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=bettercap
+Comment=Network attack and monitoring framework
+TryExec=bettercap
+Exec=@HOME@/.local/bin/desktop-run -- sudo bettercap
+Icon=firewall-config
+Terminal=true
+Categories=Network;Security;ConsoleOnly;

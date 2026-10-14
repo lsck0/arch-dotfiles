@@ -41,7 +41,7 @@ Rejected alternatives:
     - saturation boost and vibrance: saturation > 1 needs negative off-diagonal CTM entries, which
       hyprland-ctm-control-v1 rejects (CTMControl.cpp: el < 0 is invalid_matrix), vibrance is not
       linear at all, the monitors' DDC/CI has no saturation VCP (0x8A), and Hyprland exposes no KMS
-      3D LUT. The vivid screen shader (toggle-shader.sh) is the opt-in for that.
+      3D LUT. The vivid screen shader (toggle-shader.nu) is the opt-in for that.
     - hyprsunset: temperature and a brightness scalar only, no arbitrary matrix for grayscale or red.
     - wl-gammactl, gammastep, wlsunset, wl-gammarelay-rs: temperature, brightness or a bare gamma
       exponent, none takes contrast around mid grey with a black point.
@@ -152,10 +152,21 @@ PRESETS: dict[str, Preset] = {
     for p in (
         Preset("off", "Off", CURVE_IDENTITY, IDENTITY, None),
         Preset("default", "Default", CURVE_DEFAULT, IDENTITY, 6000),
-        Preset("reading", "Reading", Curve(contrast=0.92, blackpoint=0.0, gamma=1.0, floor=0.04, ceiling=1.0), IDENTITY, 4500),
+        Preset(
+            "reading",
+            "Reading",
+            Curve(contrast=0.92, blackpoint=0.0, gamma=1.0, floor=0.04, ceiling=1.0),
+            IDENTITY,
+            4500,
+        ),
         Preset("grayscale", "Grayscale", CURVE_DEFAULT, LUMA * 3, None),
-        Preset("red-night", "Red night", Curve(contrast=1.0, blackpoint=0.0, gamma=1.1, floor=0.0, ceiling=0.55),
-               (*LUMA, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0), None),
+        Preset(
+            "red-night",
+            "Red night",
+            Curve(contrast=1.0, blackpoint=0.0, gamma=1.1, floor=0.0, ceiling=0.55),
+            (*LUMA, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
+            None,
+        ),
     )
 }
 PRESET_DEFAULT = PRESETS["default"]
@@ -345,7 +356,9 @@ def matrix_for_kelvin(kelvin: int) -> Matrix:
 def ctm_compose(settings: Settings) -> Matrix:
     kelvins = [k for k in (settings.preset.kelvin, NIGHT_KELVIN if settings.nightlight else None) if k is not None]
     whitepoint = matrix_for_kelvin(min(kelvins)) if kelvins else IDENTITY
-    ctm = matrix_multiply(matrix_scale(settings.brightness_percent / 100), matrix_multiply(whitepoint, settings.preset.matrix))
+    ctm = matrix_multiply(
+        matrix_scale(settings.brightness_percent / 100), matrix_multiply(whitepoint, settings.preset.matrix)
+    )
     assert all(v >= 0 and math.isfinite(v) for v in ctm)
     return ctm
 
@@ -396,13 +409,19 @@ def settings_save(settings: Settings) -> None:
 def output_attach(client: Client, global_name: int, version: int) -> None:
     assert client.synced and global_name not in client.outputs
     bound = min(version, WL_OUTPUT_VERSION_NAME)
-    output = Output(global_name=global_name, output_id=client_bind(client, global_name, WL_OUTPUT, bound), version=bound)
+    output = Output(
+        global_name=global_name, output_id=client_bind(client, global_name, WL_OUTPUT, bound), version=bound
+    )
     client.outputs[global_name] = output
     client.objects[output.output_id] = output
     if client.gamma_manager_id is not None:
         output.control_id = client_id_allocate(client)
-        client_request(client, client.gamma_manager_id, GAMMA_MANAGER_GET_GAMMA_CONTROL,
-                       wire_uint(output.control_id) + wire_uint(output.output_id))
+        client_request(
+            client,
+            client.gamma_manager_id,
+            GAMMA_MANAGER_GET_GAMMA_CONTROL,
+            wire_uint(output.control_id) + wire_uint(output.output_id),
+        )
         client.objects[output.control_id] = output
 
 
@@ -544,8 +563,13 @@ def client_connect(settings: Settings) -> Client:
         sock.close()
         raise ProtocolError(f"cannot connect to {path}: {error.strerror}") from error
     # the first two client ids, handed out in request order
-    client = Client(sock=sock, registry_id=WL_DISPLAY_ID + 1, sync_id=WL_DISPLAY_ID + 2, id_next=WL_DISPLAY_ID + 3,
-                    settings=settings)
+    client = Client(
+        sock=sock,
+        registry_id=WL_DISPLAY_ID + 1,
+        sync_id=WL_DISPLAY_ID + 2,
+        id_next=WL_DISPLAY_ID + 3,
+        settings=settings,
+    )
     client_request(client, WL_DISPLAY_ID, WL_DISPLAY_GET_REGISTRY, wire_uint(client.registry_id))
     client_request(client, WL_DISPLAY_ID, WL_DISPLAY_SYNC, wire_uint(client.sync_id))
     return client
@@ -610,7 +634,9 @@ def command_set(key: str, value: str) -> int:
             settings = dataclasses.replace(settings, nightlight=nightlight_parse(value))
         else:
             assert key == "brightness"
-            settings = dataclasses.replace(settings, brightness_percent=brightness_parse(value, settings.brightness_percent))
+            settings = dataclasses.replace(
+                settings, brightness_percent=brightness_parse(value, settings.brightness_percent)
+            )
     except ValueError as error:
         log(str(error))
         return 2
@@ -634,12 +660,16 @@ def command_get(key: str) -> int:
 
 def command_status() -> int:
     settings = settings_load()
-    print(json.dumps({
-        "preset": settings.preset.name,
-        "nightlight": settings.nightlight,
-        "brightness": settings.brightness_percent,
-        "presets": [{"name": p.name, "label": p.label} for p in PRESETS.values()],
-    }))
+    print(
+        json.dumps(
+            {
+                "preset": settings.preset.name,
+                "nightlight": settings.nightlight,
+                "brightness": settings.brightness_percent,
+                "presets": [{"name": p.name, "label": p.label} for p in PRESETS.values()],
+            }
+        )
+    )
     return 0
 
 

@@ -1,0 +1,61 @@
+# managed by arch-dotfiles/apparmor
+# obsidian, the electron notes app: it opens vaults of other people's markdown and the html and javascript a note can
+# embed, rendered in chromium, so it is confined like the other electron apps. the arch package runs the shared
+# electron43 runtime from a bash wrapper, so the profile attaches to the wrapper and the runtime runs inside it
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+@{name} = obsidian
+@{domain} = org.chromium.Chromium
+@{lib_dirs} = /usr/lib/obsidian
+@{config_dirs} = @{user_config_dirs}/obsidian
+@{cache_dirs} = @{user_cache_dirs}/obsidian
+
+# the electron abstraction's crashpad handler reattaches its disconnected paths under @{att}, as apparmor.d's own
+# electron profiles (spotify, discord) do
+@{att} = /att/obsidian/
+
+@{exec_path} = @{bin}/obsidian
+profile obsidian @{exec_path} flags=(attach_disconnected,attach_disconnected.path=@{att},mediate_deleted) {
+  # common/electron provides no base of its own (apparmor.d's electron profiles add attached/base themselves), so the
+  # loader cache and the bash wrapper's libc and readline come from here
+  include <abstractions/attached/base>
+  include <abstractions/common/electron>
+  include <abstractions/dotfiles/deny-sensitive-home>
+  include <abstractions/user-read-strict>
+
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+  network netlink raw,
+
+  @{exec_path} mr,
+  # the two bash wrappers (@{bin}/obsidian, electron43) read the flags file with grep, then exec the shared runtime,
+  # all kept in this profile
+  @{sh_path} rix,
+  @{bin}/grep rix,
+  @{bin}/electron@{int} rix,
+  @{lib}/electron@{int}/electron rix,
+
+  # the obsidian-cli single-instance control socket in the runtime dir
+  unix (bind, listen) type=stream,
+  owner @{run}/user/@{uid}/.obsidian-cli.sock rw,
+
+  # a link or a file a note opens leaves through the confined opener, as from the other apps
+  @{open_path} rPx -> child-open,
+
+  # the vault and its attachments: notes live under documents (the configured vault), and a vault or attachment may be
+  # pulled from projects, the sync tree or downloads. .obsidian/ (config, plugins), .trash/ and the notes are inside it
+  owner @{user_documents_dirs}/{,**} rwkl,
+  owner @{user_projects_dirs}/{,**} rwkl,
+  owner @{user_sync_dirs}/{,**} rwkl,
+  owner @{user_download_dirs}/{,**} rwkl,
+
+  # qt/chromium open the controlling terminal only to route their log; a reader of other people's notes gets no tty
+  deny /dev/tty r,
+
+  include if exists <local/obsidian>
+}

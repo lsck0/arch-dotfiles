@@ -1,0 +1,37 @@
+# managed by arch-dotfiles/apparmor
+# handbrake (ghb), the gtk transcoder: libav's demuxers and decoders over downloaded media and discs, so it is confined
+# like the module's file tools (abstractions/dotfiles/file-tool): it reads what the user can (its in-process file
+# chooser browses the home and /dev/sr*), writes in the home, temp and removable dirs but nothing that runs on the next
+# login, has no network, and execs only the opener. its presets, queue and logs live in ~/.config/ghb
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/ghb
+profile handbrake @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/dotfiles/file-tool>
+  include <abstractions/audio-client>
+  include <abstractions/bus/session/own>
+  include <abstractions/desktop>
+  include <abstractions/graphics>
+  include <abstractions/gstreamer>
+
+  # the GApplication's unique name (refused, ghb fails to register and quits) and what gtk exports on it
+  dbus bind bus=session name=fr.handbrake.ghb,
+  dbus receive bus=session path=/fr/handbrake/ghb{,/**} peer=(name=@{busname}),
+  dbus send bus=session path=/fr/handbrake/ghb{,/**} peer=(name="{@{busname},org.freedesktop.DBus}"),
+
+  @{exec_path} mr,
+
+  # removable media, where camera footage and recordings arrive and encodes leave
+  owner @{MOUNTS}/** rwk,
+
+  # "open folder" when an encode is done
+  @{open_path} rPx -> child-open-strict,
+
+  include if exists <local/handbrake>
+}

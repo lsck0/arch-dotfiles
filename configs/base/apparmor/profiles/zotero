@@ -1,0 +1,93 @@
+# managed by arch-dotfiles/apparmor
+# zotero, the reference manager: a gecko (firefox-esr) runtime that opens other people's pdfs and web snapshots and
+# syncs over the network. apparmor.d ships firefox itself only as a named-unconfined stub; this draws a real boundary
+# around that gecko instead. it reads and maps its own install tree, keeps its profile and data library, reaches the
+# network, hands anything opened externally to the confined opener, and is refused the home secrets and the login and
+# shell init a compromised renderer would persist through. the arch package starts zotero-bin from a bash wrapper, so
+# the profile attaches to the wrapper and the runtime and its helpers run inside it
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{zotero_lib} = /usr/lib/zotero
+@{exec_path} = @{zotero_lib}/{zotero,zotero-bin}
+profile zotero @{exec_path} flags=(attach_disconnected,mediate_deleted) {
+  include <abstractions/base-strict>
+  include <abstractions/audio-client>
+  include <abstractions/desktop>
+  include <abstractions/dconf-write>
+  include <abstractions/fontconfig-cache-read>
+  include <abstractions/graphics>
+  include <abstractions/mesa>
+  include <abstractions/nameservice-strict>
+  include <abstractions/opengl>
+  include <abstractions/ssl_certs>
+  include <abstractions/user-read-strict>
+  include <abstractions/user-download-strict>
+  include <abstractions/dotfiles/deny-sensitive-home>
+  include <abstractions/dotfiles/viewer-read>
+
+  # gecko sandboxes its content and gpu processes in an unprivileged user namespace, as firefox does; without it the
+  # sandbox cannot start and the renderers abort
+  userns,
+
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+  network netlink raw,
+
+  @{exec_path} mr,
+  # the bash wrapper resolves its own dir and raises the fd limit, then execs zotero-bin; the runtime forks its
+  # gecko helpers (crash handler, gpu and va-api probes, the content plugin-container) from the same tree
+  @{sh_path} rix,
+  @{bin}/{dirname,readlink,basename} rix,
+  @{zotero_lib}/{,**} r,
+  @{zotero_lib}/**.so{,.*} mr,
+  @{zotero_lib}/{zotero-bin,crashhelper,glxtest,vaapitest,plugin-container,updater,minidump-analyzer} rix,
+
+  # an attachment or link opened in an external app leaves through the confined opener, as from the other viewers
+  @{open_path} rPx -> child-open,
+
+  # the gecko profile (MOZ_LEGACY_PROFILES keeps it in ~/.zotero), the startup and cache2 trees in the cache dir, and
+  # the data library (storage holds the pdfs and web snapshots); user-read-strict already reads the content dirs an
+  # attachment is linked from
+  owner @{HOME}/.zotero/{,**} rwkl,
+  owner @{HOME}/Zotero/{,**} rwkl,
+  owner @{user_cache_dirs}/zotero/{,**} rwkl,
+
+  # gecko's update lock and scratch dir in tmp
+  owner /tmp/MozillaUpdateLock-* rwk,
+  owner /tmp/zotero/{,**} rwk,
+
+  # gecko reads its own process metadata and probes the machine's dmi ids at startup
+  owner @{PROC}/@{pid}/cgroup r,
+  owner @{PROC}/@{pid}/mountinfo r,
+  owner @{PROC}/@{pid}/fd/ r,
+  @{sys}/devices/virtual/dmi/id/product_{name,sku,family,version,uuid} r,
+
+  # gecko sizes its thread and memory pools from the session's cgroup limits
+  @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/**/{cpu.max,memory.max,memory.high} r,
+
+  # the content sandbox probes for sys_admin (CLONE_NEWPID); it falls back cleanly, kept denied without the log noise
+  deny capability sys_admin,
+
+  # gecko ranks its own processes and polls their threads
+  owner @{PROC}/@{pid}/stat r,
+  owner @{PROC}/@{pid}/task/@{tid}/stat r,
+  owner @{PROC}/@{pid}/oom_score_adj rw,
+
+  # gecko's shared memory and its own temp files
+  owner /dev/shm/org.mozilla.* rw,
+  owner /tmp/Zotero-* rwk,
+  owner @{tmp}/@{hex}.mozrunner/{,**} rwk,
+
+  # a renderer of other people's documents gets no read of the controlling terminal; its log goes to the journal
+  deny /dev/tty rw,
+
+  include if exists <local/zotero>
+}

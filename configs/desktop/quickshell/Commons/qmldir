@@ -15,3 +15,4 @@ singleton Util 1.0 Util.qml
 JsonProcess 1.0 JsonProcess.qml
 singleton TimerState 1.0 TimerState.qml
 KeyValueProcess 1.0 KeyValueProcess.qml
+singleton TaskState 1.0 TaskState.qml

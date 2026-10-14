@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=rizin
+Comment=Reverse engineering framework
+TryExec=rizin
+Exec=@HOME@/.local/bin/desktop-run --file -- rizin
+Icon=cutter
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;

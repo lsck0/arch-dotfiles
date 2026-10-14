@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=cava
+Comment=Audio visualizer
+TryExec=cava
+Exec=cava
+Icon=audio-x-generic
+Terminal=true
+Categories=AudioVideo;Audio;ConsoleOnly;

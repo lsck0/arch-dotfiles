@@ -47,9 +47,9 @@ Pwn: `python-pwntools` (exploit development), `gdb`+`pwndbg`, `afl++`
 (fuzzing to find the primitive), `metasploit` (ready exploits). Crypto: `sage` (lattices, number
 theory, elliptic curves), `python-sympy`, `z3` (SMT), `openssl`. Password/hash: `hashcat`, `john`. Forensics: `binwalk` (firmware
 and embedded files), `foremost` (file carving), `tcpdump` (capture), `volatility3` (memory images), `yara` (pattern matching), `wireshark-qt`/`tshark` (pcap).
-Web: the dotfiles `scripts/server-fucker.sh` wrapper for the provided
-instance. Prefer analyzing the local challenge copy before touching any
-remote instance.
+Web: the `~/sync/scripts/server-fucker.sh` wrapper (kept out of the public
+repo, see `l-persona-pentester`) for the provided instance. Prefer
+analyzing the local challenge copy before touching any remote instance.
 Sandbox: run an untrusted challenge binary under `bubblewrap`, never bare. Home, `/run` and `/tmp` hidden, the rest
 read-only, only the challenge dir writable, no network; `gdb ./chall` works inside, and pwntools takes it as
 `process(["bwrap", ..., "./chall"])`:

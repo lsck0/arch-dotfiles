@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=updo
+Comment=Website uptime monitor
+TryExec=updo
+Exec=@HOME@/.local/bin/desktop-run --ask URL -- updo monitor
+Icon=network-wired
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

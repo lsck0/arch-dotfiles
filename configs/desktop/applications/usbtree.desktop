@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=usbtree
+Comment=Live USB device tree
+TryExec=usbtree
+Exec=usbtree
+Icon=drive-removable-media-usb
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

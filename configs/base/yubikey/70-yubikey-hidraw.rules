@@ -1,2 +1,2 @@
-# fido for wheel too: uaccess only reaches the active seat, not config.sh run unattended
+# fido for wheel too: uaccess only reaches the active seat, not dot apply run unattended
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1050", MODE="0660", GROUP="wheel"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ls-horizons
+Comment=Deep space network and spacecraft tracker
+TryExec=ls-horizons
+Exec=ls-horizons
+Icon=kstars
+Terminal=true
+Categories=Science;Astronomy;ConsoleOnly;

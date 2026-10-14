@@ -1,6 +1,7 @@
 [Added Associations]
 application/pdf=org.kde.okular.desktop;
 inode/directory=org.kde.dolphin.desktop;
+x-scheme-handler/curseforge=curseforge.desktop;
 
 [Default Applications]
 application/pdf=org.kde.okular.desktop
@@ -35,6 +36,7 @@ application/x-shellscript=nvim.desktop
 text/x-csrc=nvim.desktop
 x-scheme-handler/proton-meet=proton-meet.desktop
 x-scheme-handler/bruno=bruno.desktop
+x-scheme-handler/curseforge=curseforge.desktop
 
 [Removed Associations]
 application/pdf=chromium.desktop;

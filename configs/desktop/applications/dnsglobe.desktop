@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=dnsglobe
+Comment=Watch a DNS record propagate
+TryExec=dnsglobe
+Exec=dnsglobe
+Icon=planetkde
+Terminal=true
+Categories=Network;ConsoleOnly;

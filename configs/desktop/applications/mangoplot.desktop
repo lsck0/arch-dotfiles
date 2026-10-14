@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MangoPlot
+Comment=Plot a folder of MangoHud benchmark logs
+TryExec=mangoplot
+Exec=@HOME@/.local/bin/desktop-run --dir -- mangoplot
+Icon=io.github.flightlessmango.mangohud
+Terminal=false
+Categories=Game;Utility;

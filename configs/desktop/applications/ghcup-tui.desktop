@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GHCup
+Comment=Manage Haskell toolchains
+TryExec=ghcup
+Exec=ghcup tui
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

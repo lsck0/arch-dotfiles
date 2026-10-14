@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -21,8 +22,8 @@ Item {
   function workspacesOn(monitorName) {
     var values = Hyprland.workspaces.values
     var out = []
-    for (var i = 0; i < values.length; i++) {
-      var w = values[i]
+    for (let i = 0; i < values.length; i++) {
+      const w = values[i]
       if (w.id > 0 && w.monitor && String(w.monitor.name) === monitorName) out.push(w)
     }
     out.sort(function(a, b) { return a.id - b.id })
@@ -128,7 +129,7 @@ Item {
         var list = root.workspacesOn(monitorName)
         selectedIndex = 0
         lastPointer = Qt.point(NaN, NaN)
-        for (var i = 0; i < list.length; i++) if (list[i].id === active) selectedIndex = i
+        for (let i = 0; i < list.length; i++) if (list[i].id === active) selectedIndex = i
         if (focusedOutput) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
       }
 

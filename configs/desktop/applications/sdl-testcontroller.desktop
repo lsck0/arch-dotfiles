@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SDL Test Controller
+Comment=Test gamepads and joysticks
+TryExec=testcontroller
+Exec=testcontroller
+Icon=input-gaming
+Terminal=false
+Categories=Development;Game;

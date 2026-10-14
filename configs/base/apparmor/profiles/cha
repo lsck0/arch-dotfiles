@@ -1,0 +1,47 @@
+# managed by arch-dotfiles/apparmor
+# chawan, the terminal browser (socials/desktop's session): network, its own protocol and image helpers, a shell
+# for mailcap and its own commands; what that shell starts stays in this profile, links leave through the browser
+# opener as from the other browsers
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
+@{att} = ""
+
+@{exec_path} = @{bin}/cha
+profile cha @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/consoles>
+  include <abstractions/mime>
+  include <abstractions/nameservice-strict>
+  include <abstractions/ssl_certs>
+  include <abstractions/user-download-strict>
+  include <abstractions/user-read-strict>
+  include <abstractions/dotfiles/viewer-read>
+
+  network inet dgram,
+  network inet6 dgram,
+  network inet stream,
+  network inet6 stream,
+  network unix stream,
+  # glibc's getaddrinfo asks the kernel for the host's addresses
+  network netlink raw,
+
+  @{exec_path} mr,
+  # the cgi-bin protocol handlers (http, ssl, gemini, ...) and the converters and image decoders it pipes pages through
+  @{lib}/chawan/{,**} rix,
+  @{sh_path} rix,
+  @{open_path} rPx -> child-open-browsers,
+
+  /usr/share/terminfo/{,**} r,
+
+  # config, history, cookies and gemini's known hosts: the xdg dir once it exists, else ~/.chawan
+  owner @{user_config_dirs}/chawan/{,**} rwk,
+  owner @{HOME}/.chawan/{,**} rwk,
+  # external.tmpdir, the pages and images it hands to mailcap entries and the editor
+  owner /tmp/cha-tmp-@{user}/{,**} rwk,
+
+  include if exists <local/cha>
+}

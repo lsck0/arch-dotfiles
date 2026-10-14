@@ -1,26 +1,69 @@
 local installed = {
-    "asm-lsp", "bash-language-server", "bibtex-tidy", "clangd",
-    "cobol-language-support", "codelldb", "css-lsp", "cssmodules-language-server",
-    "debugpy", "docker-compose-language-service", "dockerfile-language-server",
-    "emmet-language-server", "eslint-lsp", "glsl_analyzer", "gopls",
-    "haskell-language-server", "hlint", "html-lsp", "hyprls", "java-debug-adapter",
-    "java-test", "jdtls", "jinja-lsp", "js-debug-adapter", "json-lsp",
+    "asm-lsp",
+    "bash-language-server",
+    "bibtex-tidy",
+    "clangd",
+    "cobol-language-support",
+    "codelldb",
+    "css-lsp",
+    "cssmodules-language-server",
+    "debugpy",
+    "docker-compose-language-service",
+    "dockerfile-language-server",
+    "emmet-language-server",
+    "eslint-lsp",
+    "glsl_analyzer",
+    "gopls",
+    "haskell-language-server",
+    "hlint",
+    "html-lsp",
+    "hyprls",
+    "java-debug-adapter",
+    "java-test",
+    "jdtls",
+    "jinja-lsp",
+    "js-debug-adapter",
+    "json-lsp",
     -- kulala-fmt comes from the system package, see conform below
-    "latexindent", "lean-language-server", "lemminx", "lua-language-server", "nil",
-    "ormolu", "pyright",
+    "latexindent",
+    "lean-language-server",
+    "lemminx",
+    "lua-language-server",
+    "nil",
+    "ormolu",
+    "pyright",
     "ruff", -- python lint/format LSP, pyright keeps types
-    "rust-analyzer", "slang-server",
+    "rust-analyzer",
+    "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
-    "stylua", "gofumpt", "goimports", "tailwindcss-language-server", -- shfmt is a pacman package (programming/packages.txt)
-    "taplo", "terraform-ls", "texlab",
+    "stylua",
+    "gofumpt",
+    "goimports",
+    "tailwindcss-language-server", -- shfmt is a pacman package (programming/packages.txt)
+    "taplo",
+    "terraform-ls",
+    "texlab",
     "tinymist", -- typst LSP
-    "typescript-language-server", "typos-lsp", "vim-language-server",
+    "typescript-language-server",
+    "typos-lsp",
+    "vim-language-server",
     "wgsl-analyzer", -- mason package hyphenated, lspconfig server is wgsl_analyzer
-    "yaml-language-server", "zls", "clojure-lsp", "graphql-language-service-cli",
-    "intelephense", "marksman", "omnisharp", "svelte-language-server",
+    "yaml-language-server",
+    "zls",
+    "clojure-lsp",
+    "graphql-language-service-cli",
+    "intelephense",
+    "marksman",
+    "omnisharp",
+    "svelte-language-server",
     "vue-language-server",
     -- formatters
-    "cljfmt", "csharpier", "ktlint", "php-cs-fixer", "rubocop", "sql-formatter",
+    "cljfmt",
+    "csharpier",
+    "ktlint",
+    "php-cs-fixer",
+    "rubocop",
+    "sql-formatter",
 }
 
 return {
@@ -36,23 +79,29 @@ return {
     -- per-language plugins live in lua/languages/ (jai.vim, vimtex, crates, lean)
 
     {
-        "mason-org/mason.nvim",                              -- LSP/tool installer
+        "mason-org/mason.nvim", -- LSP/tool installer
         -- automatic_enable walks every installed server (~200ms), so wait for a real buffer;
         -- BufReadPre runs before FileType, so the first file still attaches
         event = { "BufReadPre", "BufNewFile" },
         cmd = {
-            "Mason", "MasonInstall", "MasonUninstall", "MasonUpdate", "MasonLog",
-            "MasonToolsInstall", "MasonToolsInstallSync", "MasonToolsUpdate",
-            "LspInfo", "LspLog", "LspStart", "LspStop", "LspRestart",
+            "Mason",
+            "MasonInstall",
+            "MasonUninstall",
+            "MasonUpdate",
+            "MasonLog",
+            "MasonToolsInstall",
+            "MasonToolsInstallSync",
+            "MasonToolsUpdate",
+            -- no Lsp* commands: lspconfig skips them on nvim 0.12, whose native :lsp covers info/log/start/stop/restart
         },
         dependencies = {
-            { "neovim/nvim-lspconfig" },                     -- LSP server configs
-            { "mason-org/mason-lspconfig.nvim" },            -- mason lspconfig bridge
+            { "neovim/nvim-lspconfig" }, -- LSP server configs
+            { "mason-org/mason-lspconfig.nvim" }, -- mason lspconfig bridge
             { "WhoIsSethDaniel/mason-tool-installer.nvim" }, -- auto-install LSP tools
-            { "marilari88/twoslash-queries.nvim" },          -- inline TS type hints
-            { "ivanjermakov/troublesum.nvim",       opts = {} }, -- diagnostic count summary
+            { "marilari88/twoslash-queries.nvim" }, -- inline TS type hints
+            { "ivanjermakov/troublesum.nvim", opts = {} }, -- diagnostic count summary
             { "Sebastian-Nielsen/better-type-hover", opts = {} }, -- improved hover popup
-            { "dmmulroy/ts-error-translator.nvim",   opts = {} }, -- readable TS errors
+            { "dmmulroy/ts-error-translator.nvim", opts = {} }, -- readable TS errors
         },
         config = function()
             vim.diagnostic.config({
@@ -70,9 +119,9 @@ return {
                 signs = {
                     text = {
                         [vim.diagnostic.severity.ERROR] = vim.fn.nr2char(0xea87), -- nf-cod-error
-                        [vim.diagnostic.severity.WARN]  = vim.fn.nr2char(0xea6c), -- nf-cod-warning
-                        [vim.diagnostic.severity.INFO]  = vim.fn.nr2char(0xea74), -- nf-cod-info
-                        [vim.diagnostic.severity.HINT]  = vim.fn.nr2char(0xea61), -- nf-cod-lightbulb
+                        [vim.diagnostic.severity.WARN] = vim.fn.nr2char(0xea6c), -- nf-cod-warning
+                        [vim.diagnostic.severity.INFO] = vim.fn.nr2char(0xea74), -- nf-cod-info
+                        [vim.diagnostic.severity.HINT] = vim.fn.nr2char(0xea61), -- nf-cod-lightbulb
                     },
                 },
             })
@@ -81,7 +130,7 @@ return {
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
                 -- installs missing tools on first launch; auto_update stays off so upgrades
-                -- remain in scripts/system-update.sh, not on every startup
+                -- remain in scripts/system-update.nu, not on every startup
                 run_on_start = true,
             })
             vim.lsp.config("clangd", {
@@ -102,6 +151,12 @@ return {
                 vim.lsp.config("cobol_ls", { cmd = { "java", "-jar", cobol_jar } })
                 vim.lsp.enable("cobol_ls")
             end
+
+            -- nu ships its own language server; -I so `use module.nu` in the dotfiles resolves
+            vim.lsp.config("nushell", {
+                cmd = { "nu", "--no-config-file", "-I", (os.getenv("DOTFILES") or "") .. "/scripts/lib", "--lsp" },
+            })
+            vim.lsp.enable("nushell")
 
             -- kani projects need these cfgs + nightly, plain rust must not get them
             local function rust_extra_env(root)
@@ -130,15 +185,23 @@ return {
                     ["rust-analyzer"] = {
                         cargo = { allFeatures = true },
                         check = { command = "clippy" },
-                    }
-                }
+                    },
+                },
             })
 
             -- tailwindcss only where class attributes exist
             vim.lsp.config("tailwindcss", {
                 filetypes = {
-                    "html", "css", "scss", "less", "javascript", "javascriptreact",
-                    "typescript", "typescriptreact", "vue", "svelte",
+                    "html",
+                    "css",
+                    "scss",
+                    "less",
+                    "javascript",
+                    "javascriptreact",
+                    "typescript",
+                    "typescriptreact",
+                    "vue",
+                    "svelte",
                 },
             })
 
@@ -171,20 +234,30 @@ return {
             vim.lsp.config("jdtls", {
                 cmd = { "jdtls", "--java-executable", "/usr/lib/jvm/default/bin/java" },
                 init_options = {
-                    bundles = vim.fn.glob(vim.fn.stdpath("data")
-                        .. "/mason/packages/java-debug-adapter/extension/server/com.microsoft.java.debug.plugin-*.jar", true, true),
+                    bundles = vim.fn.glob(
+                        vim.fn.stdpath("data")
+                            .. "/mason/packages/java-debug-adapter/extension/server/com.microsoft.java.debug.plugin-*.jar",
+                        true,
+                        true
+                    ),
                 },
             })
 
             -- jupytext buffers: drop undefined-var noise for ipython builtins
             local ipython_builtins = {
-                display = true, get_ipython = true, In = true, Out = true,
-                exit = true, quit = true,
+                display = true,
+                get_ipython = true,
+                In = true,
+                Out = true,
+                exit = true,
+                quit = true,
             }
             -- project venv, so pyright sees poetry-installed packages
             local function project_python(root)
                 -- a json-null rootPath is vim.NIL, which is truthy
-                if type(root) ~= "string" or root == "" then return nil end
+                if type(root) ~= "string" or root == "" then
+                    return nil
+                end
                 local venv = vim.env.VIRTUAL_ENV
                 if venv and vim.fn.executable(venv .. "/bin/python") == 1 then
                     return venv .. "/bin/python"
@@ -192,19 +265,21 @@ return {
                 if vim.fn.executable(root .. "/.venv/bin/python") == 1 then
                     return root .. "/.venv/bin/python"
                 end
-                if vim.fn.filereadable(root .. "/pyproject.toml") == 1
-                    and vim.fn.executable("poetry") == 1 then
+                if vim.fn.filereadable(root .. "/pyproject.toml") == 1 and vim.fn.executable("poetry") == 1 then
                     -- timeout so a slow poetry cannot block LSP init
                     local out = vim.trim(vim.fn.system({ "timeout", "2", "poetry", "-C", root, "env", "info", "-e" }))
-                    if vim.v.shell_error == 0 and out ~= "" then return out end
+                    if vim.v.shell_error == 0 and out ~= "" then
+                        return out
+                    end
                 end
             end
 
             local function drop_ipython_noise(buf, diagnostics)
-                if not vim.b[buf].is_jupytext then return diagnostics end
+                if not vim.b[buf].is_jupytext then
+                    return diagnostics
+                end
                 return vim.tbl_filter(function(d)
-                    local name = d.code == "reportUndefinedVariable"
-                        and d.message:match('"([%w_]+)"')
+                    local name = d.code == "reportUndefinedVariable" and d.message:match('"([%w_]+)"')
                     return not (name and ipython_builtins[name])
                 end, diagnostics)
             end
@@ -213,8 +288,7 @@ return {
             local pull = vim.lsp.handlers["textDocument/diagnostic"]
             vim.lsp.config("pyright", {
                 before_init = function(params, config)
-                    local root = params.rootPath
-                        or (params.rootUri and vim.uri_to_fname(params.rootUri))
+                    local root = params.rootPath or (params.rootUri and vim.uri_to_fname(params.rootUri))
                     local py = project_python(root)
                     if py then
                         config.settings = config.settings or {}
@@ -280,7 +354,9 @@ return {
             local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"
             local function personal(names, flag, file)
                 return function(_, ctx)
-                    if vim.fs.find(names, { path = ctx.dirname, upward = true })[1] then return {} end
+                    if vim.fs.find(names, { path = ctx.dirname, upward = true })[1] then
+                        return {}
+                    end
                     return { flag .. formatting .. file }
                 end
             end
@@ -292,21 +368,54 @@ return {
             }
             require("conform").formatters.prettier = {
                 prepend_args = personal({
-                    ".prettierrc", ".prettierrc.json", ".prettierrc.json5", ".prettierrc.yaml", ".prettierrc.yml",
-                    ".prettierrc.toml", ".prettierrc.js", ".prettierrc.cjs", ".prettierrc.mjs", ".prettierrc.ts",
-                    "prettier.config.js", "prettier.config.cjs", "prettier.config.mjs", "prettier.config.ts",
+                    ".prettierrc",
+                    ".prettierrc.json",
+                    ".prettierrc.json5",
+                    ".prettierrc.yaml",
+                    ".prettierrc.yml",
+                    ".prettierrc.toml",
+                    ".prettierrc.js",
+                    ".prettierrc.cjs",
+                    ".prettierrc.mjs",
+                    ".prettierrc.ts",
+                    "prettier.config.js",
+                    "prettier.config.cjs",
+                    "prettier.config.mjs",
+                    "prettier.config.ts",
                 }, "--config=", "prettierrc.json"),
             }
+            -- the personal rustfmt.toml sets nightly-only options, which stable rustfmt ignores; a project's own
+            -- config runs on the project's toolchain (formatting/link.sh installs nightly)
+            local rustfmt = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml")
             require("conform").formatters.rustfmt = {
-                prepend_args = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml"),
+                prepend_args = function(self, ctx)
+                    local args = rustfmt(self, ctx)
+                    if args[1] then
+                        table.insert(args, 1, "+nightly")
+                    end
+                    return args
+                end,
             }
             local ruff = personal(function(name, path)
-                if name == "ruff.toml" or name == ".ruff.toml" then return true end
+                if name == "ruff.toml" or name == ".ruff.toml" then
+                    return true
+                end
                 -- ruff itself skips a pyproject.toml without [tool.ruff]
-                return name == "pyproject.toml" and vim.fn.readblob(path .. "/" .. name):find("[tool.ruff", 1, true) ~= nil
+                return name == "pyproject.toml"
+                    and vim.fn.readblob(path .. "/" .. name):find("[tool.ruff", 1, true) ~= nil
             end, "--config=", "ruff.toml")
             require("conform").formatters.ruff_format = { prepend_args = ruff }
             require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
+            -- php-cs-fixer with neither rules nor a config prints usage and leaves the file as is, PSR-12 fills in
+            require("conform").formatters.php_cs_fixer = {
+                prepend_args = function(_, ctx)
+                    local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
+                    if vim.fs.find(configs, { path = ctx.dirname, upward = true })[1] then
+                        return {}
+                    end
+                    return { "--rules=@PSR12" }
+                end,
+            }
 
             local formatters_by_ft = {
                 bib = { "bibtex-tidy" },
@@ -323,7 +432,9 @@ return {
                     local root = vim.fs.root(bufnr, { "Cargo.toml" })
                     local f = root and io.open(root .. "/Cargo.toml")
                     if f then
-                        if f:read("*a"):find("leptos") then table.insert(fmts, "leptosfmt") end
+                        if f:read("*a"):find("leptos") then
+                            table.insert(fmts, "leptosfmt")
+                        end
                         f:close()
                     end
                     return fmts
@@ -344,8 +455,20 @@ return {
                 sql = { "sql_formatter" },
             }
             for _, ft in ipairs({
-                "css", "html", "javascript", "javascriptreact", "json", "jsonc", "markdown",
-                "scss", "svelte", "typescript", "typescriptreact", "vue", "yaml", "graphql",
+                "css",
+                "html",
+                "javascript",
+                "javascriptreact",
+                "json",
+                "jsonc",
+                "markdown",
+                "scss",
+                "svelte",
+                "typescript",
+                "typescriptreact",
+                "vue",
+                "yaml",
+                "graphql",
             }) do
                 formatters_by_ft[ft] = { "prettier" }
             end
@@ -370,5 +493,5 @@ return {
                 vim.notify("autoformat " .. ((vim.g.disable_autoformat or vim.b.disable_autoformat) and "off" or "on"))
             end, { bang = true, desc = "Toggle format-on-save (! = buffer only)" })
         end,
-    }
+    },
 }

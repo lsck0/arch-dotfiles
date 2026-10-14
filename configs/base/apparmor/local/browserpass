@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# ~/.password-store links into the synced store (core/proton/pass), and apparmor checks the path the link resolves to
+owner @{user_sync_dirs}/password-store/{,**} r,

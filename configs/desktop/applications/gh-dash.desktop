@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gh-dash
+Comment=GitHub pull requests and issues dashboard
+TryExec=gh-dash
+Exec=gh-dash
+Icon=folder-git
+Terminal=true
+Categories=Development;RevisionControl;ConsoleOnly;

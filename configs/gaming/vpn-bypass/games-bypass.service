@@ -1,0 +1,19 @@
+# managed by arch-dotfiles/gaming/vpn-bypass
+[Unit]
+Description=Mark games-group sockets so they egress on the real link, owns table inet games_bypass
+# the mark only matters once it can be routed out and let past the kill switch
+Wants=network-pre.target
+Before=network-pre.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/games-bypass.nft
+# a load empties gids; the games group always exists with this module, fill it so the match has a gid from boot
+ExecStartPost=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"; true'
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/games-bypass.nft
+ExecReload=-/bin/sh -c 'gid=$(getent group games | cut -d: -f3) && /usr/sbin/nft add element inet games_bypass gids "{ $gid }"; true'
+ExecStop=/usr/sbin/nft destroy table inet games_bypass
+
+[Install]
+WantedBy=multi-user.target

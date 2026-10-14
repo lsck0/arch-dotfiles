@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=dua
+Comment=Interactive disk usage of the home folder
+TryExec=dua
+Exec=dua interactive @HOME@
+Icon=filelight
+Terminal=true
+Categories=System;Filesystem;ConsoleOnly;

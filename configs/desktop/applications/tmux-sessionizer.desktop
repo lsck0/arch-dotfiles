@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=tmux-sessionizer
+Comment=Open a project as a tmux session
+TryExec=tms
+Exec=tms
+Icon=folder-development
+Terminal=true
+Categories=Development;ConsoleOnly;

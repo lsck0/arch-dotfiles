@@ -10,10 +10,6 @@
 define lab_ifaces = { "tun*" }
 define lab_v4 = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 }
 define lab_v6 = { fc00::/7 }
-# the home lab router: its plain dns carries lsck0.dev's split-horizon answers, so resolved's per-link query to it
-# (configs/base/networkmanager/homelab-routes.sh) must not be redirected to portmaster's own cloudflare resolver
-define lab_dns = 192.168.178.29
-
 add table inet portmaster_bypass
 delete table inet portmaster_bypass
 table inet portmaster_bypass {
@@ -21,7 +17,14 @@ table inet portmaster_bypass {
         type gid
     }
 
-    # home links, filled by configs/base/networkmanager/home-network.sh; empty off home so the lab-dns bypass is inert there
+    # the homelab's dns (HOMELAB_DNS in /etc/NetworkManager/homelab.env, filled by the service): its plain answers carry
+    # the split-horizon zone, so resolved's per-link query to it (homelab-routes.nu) must not be redirected to
+    # portmaster's own resolver. empty off a homelab machine
+    set lab_dns {
+        type ipv4_addr
+    }
+
+    # home links, filled by configs/base/networkmanager/home-network.nu; empty off home so the lab-dns bypass is inert there
     set home_ifaces {
         type ifname
     }
@@ -35,8 +38,8 @@ table inet portmaster_bypass {
         ct mark != 0 return
 
         oifname "lo" meta l4proto { tcp, udp } th dport != { 53, 853 } ct mark set 1710
-        # lsck0.dev split-horizon dns to the lab router, out a home link only: let resolved's query reach it unredirected
-        oifname @home_ifaces ip daddr $lab_dns meta l4proto { tcp, udp } th dport 53 ct mark set 1710
+        # split-horizon dns to the lab router, out a home link only: let resolved's query reach it unredirected
+        oifname @home_ifaces ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 ct mark set 1710
         oifname $lab_ifaces ip daddr $lab_v4 ct mark set 1710
         oifname $lab_ifaces ip6 daddr $lab_v6 ct mark set 1710
         meta skgid @gids ct mark set 1710

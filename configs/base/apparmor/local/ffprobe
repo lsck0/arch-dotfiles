@@ -1,0 +1,3 @@
+# managed by arch-dotfiles/apparmor
+# the same demuxers as ffmpeg, run by scripts and media tools on files anywhere: the same rules as local/ffmpeg
+include <abstractions/dotfiles/file-tool>

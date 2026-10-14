@@ -1,39 +1,19 @@
 local platform = require("platform")
 
--- desktop: 1-4 right (main), 5-10 left; laptop: all on the panel
-for workspace = 1, 10 do
-    local monitor = platform.laptop and "eDP-1" or (workspace <= 4 and "DP-2" or "DP-1")
+for workspace, monitor in pairs(platform.workspaces) do
     hl.workspace_rule({
-        workspace = tostring(workspace),
+        workspace = workspace,
         monitor = monitor,
     })
 end
 
--- app homes are for the desktop, where 5-10 sit on the left monitor; on a single panel they only yank apps off the
--- workspace they were opened on
-if platform.form_factor == "desktop" then
+for _, home in ipairs(platform.app_workspaces) do
     hl.window_rule({
         match = {
-            class = "^steam$",
+            class = home.class,
         },
-        workspace = "1",
-    })
-
-    for _, class in ipairs({ "^Spotify$", "^discord$" }) do
-        hl.window_rule({
-            match = {
-                class = class,
-            },
-            workspace = "5",
-            no_initial_focus = true,
-        })
-    end
-
-    hl.window_rule({
-        match = {
-            class = "^com.obsproject.Studio$",
-        },
-        workspace = "7",
+        workspace = tostring(home.workspace),
+        no_initial_focus = home.silent or nil,
     })
 end
 

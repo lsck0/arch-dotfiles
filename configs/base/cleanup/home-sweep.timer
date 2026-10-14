@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly home directory log and temp sweep
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+# a machine that was off at the start of the week catches up at boot, not all at once with the other weekly jobs
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

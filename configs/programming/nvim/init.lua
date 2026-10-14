@@ -1,9 +1,11 @@
 vim.g.mapleader = " "
-require "options"
+require("options")
 
 -- built-in message ui, before plugins so their startup messages land in it; pcall: absent before nvim 0.12
 -- msg target: with cmdheight=0 the cmd target expands the cmdline for every message
-pcall(function() require("vim._core.ui2").enable({ msg = { targets = "msg" } }) end)
+pcall(function()
+    require("vim._core.ui2").enable({ msg = { targets = "msg" } })
+end)
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
@@ -12,7 +14,7 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
     if vim.v.shell_error ~= 0 then
         vim.api.nvim_echo({
             { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
-            { out,                            "WarningMsg" },
+            { out, "WarningMsg" },
             { "\nPress any key to exit..." },
         }, true, {})
         vim.fn.getchar()
@@ -31,9 +33,9 @@ require("lazy").setup({
 
 require("theme").apply_from_marker()
 
-require "autocmds"
-require "filetype"
-require "mappings"
-require "snippets"
+require("autocmds")
+require("filetype")
+require("mappings")
+require("snippets")
 
-require "local_plugins.init"
+require("local_plugins.init")

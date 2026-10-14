@@ -1,8 +1,7 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "WifiQrModel.js" as WifiQrModel
@@ -97,8 +96,8 @@ Item {
       pwProc.running = false
     }
     qrProc.command = requestedIface
-      ? [Paths.script("network-qr.sh"), "--meta", requestedIface]
-      : [Paths.script("network-qr.sh"), "--meta"]
+      ? [Paths.script("network-qr.nu"), "--meta", requestedIface]
+      : [Paths.script("network-qr.nu"), "--meta"]
     qrProc.running = true
   }
 
@@ -120,7 +119,7 @@ Item {
     passwordError = ""
     // only a deliberate lookup lowers the canceled-fetch guard
     pwExpectedStop = false
-    pwProc.command = [Paths.script("network-password.sh"), iface]
+    pwProc.command = [Paths.script("network-password.nu"), iface]
     pwProc.running = true
   }
 
@@ -174,8 +173,8 @@ Item {
     hints: [["ESC", "close"]]
     // scanlines would cross the code and hurt the scan
     scanlines: false
-    cardWidth: Math.max(content.implicitWidth, Style.space(280)) + chromeWidth
-    cardHeight: content.implicitHeight + chromeHeight
+    cardWidth: Math.max(qrContent.implicitWidth, Style.space(280)) + chromeWidth
+    cardHeight: qrContent.implicitHeight + chromeHeight
     onDismissed: root.close()
 
     Item {
@@ -186,7 +185,7 @@ Item {
     }
 
     ColumnLayout {
-      id: content
+      id: qrContent
       anchors.centerIn: parent
       spacing: Style.spacing.lg
 
@@ -197,8 +196,8 @@ Item {
           : 0
 
         visible: root.showingQr
-        width: root.qrSize * moduleSize
-        height: width
+        implicitWidth: root.qrSize * moduleSize
+        implicitHeight: implicitWidth
         color: "white"
         radius: Style.shape.data
         Layout.alignment: Qt.AlignHCenter

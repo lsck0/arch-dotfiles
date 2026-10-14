@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=diskwatch
+Comment=Disk health and I/O diagnostics
+TryExec=diskwatch
+Exec=diskwatch
+Icon=drive-harddisk
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

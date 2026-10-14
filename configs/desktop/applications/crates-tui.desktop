@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=crates-tui
+Comment=Browse crates.io
+TryExec=crates-tui
+Exec=crates-tui
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

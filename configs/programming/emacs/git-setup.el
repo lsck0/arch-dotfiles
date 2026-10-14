@@ -47,7 +47,7 @@
 
 (defun my/worktree-dir (worktrees slug)
   "Where the worktree SLUG goes: the directory most linked WORKTREES share (ties: the shallower one), else
-<repo>/branches/ beside a .bare layout, inside a plain bare repo, or ~/.worktrees/<repo>/ as scripts/wtree.sh does.
+<repo>/branches/ beside a .bare layout, inside a plain bare repo, or ~/.worktrees/<repo>/ as configs/core/git/wtree.nu does.
 `git worktree add <path>' resolves relative to the current checkout, which nested ~/projects/probe/master/uwu."
   (let ((count (make-hash-table :test #'equal))
         best)

@@ -9,23 +9,25 @@ import qs.Commons
 PanelWindow {
   id: root
 
-  property QtObject bar: null
+  // the owning Bar (plugins/bar), untyped: Ui cannot import it back
+  property var bar: null
   property string moduleName: ""
   property real padding: Style.surface.padding
   property string title: ""
   // add to implicitHeight
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0
-  default property alias data: inner.data
+  default property alias body: inner.data
 
   // opens centred under this bar widget
-  property Item anchorWidget: null
+  property BarWidget anchorWidget: null
   readonly property bool anchored: anchorWidget !== null
 
   readonly property real edgeMargin: Style.spacing.sm
 
-  // tallest body that fits under the bar; taller content scrolls (Flickable in the panel)
+  // tallest body that fits under the bar; taller content scrolls (Flickable in the panel). quickshell's qmltypes
+  // stub the screen type as opaque, so qmllint cannot see its height
   readonly property real maxBodyHeight: Math.max(Style.space(120),
-    (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset)
+    (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset) // qmllint disable missing-property
 
   readonly property real anchoredLeft: {
     if (!anchored || !bar) return 0
@@ -39,9 +41,9 @@ PanelWindow {
   // window stays mapped until the drawer has folded back
   readonly property bool shown: bar !== null && bar.activePanel === moduleName
   // content reads it for its own row stagger: boot.rowOpacity(i)
-  readonly property alias boot: boot
+  readonly property alias boot: bootIn
 
-  visible: shown || boot.progress > 0
+  visible: shown || bootIn.progress > 0
   onShownChanged: {
     if (!shown) return
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
@@ -58,11 +60,12 @@ PanelWindow {
     left: root.anchored
     right: !root.anchored
   }
+  // quickshell's qmltypes stub Margins as opaque, so qmllint cannot see its edges
   margins {
     // docked: the exclusive zone already starts right below the bar rule
-    top: 0
-    left: root.anchored ? root.anchoredLeft : 0
-    right: root.anchored ? 0 : Style.spacing.sm
+    top: 0 // qmllint disable missing-property
+    left: root.anchored ? root.anchoredLeft : 0 // qmllint disable missing-property
+    right: root.anchored ? 0 : Style.spacing.sm // qmllint disable missing-property
   }
 
   // hyprland_windowrules.lua blurs quickshell-panel-*
@@ -74,7 +77,7 @@ PanelWindow {
   property bool pinned: false
   readonly property bool textFocused: {
     var f = keys.Window.activeFocusItem
-    return !!f && f.cursorPosition !== undefined && f.selectByMouse !== undefined
+    return !!f && "cursorPosition" in f && "selectByMouse" in f
   }
   // pointer exits do not close the panel while held
   readonly property bool held: pinned || textFocused
@@ -99,7 +102,7 @@ PanelWindow {
   }
 
   BootIn {
-    id: boot
+    id: bootIn
     active: root.shown
     // a switch between two open drawers snaps, so it reads as one drawer moving, not a close-reopen
     instant: root.bar !== null && root.bar.panelSwitching
@@ -121,10 +124,10 @@ PanelWindow {
     Item {
       id: reveal
       width: parent.width
-      height: Math.round(parent.height * boot.progress)
+      height: Math.round(parent.height * bootIn.progress)
       y: root.bar && root.bar.position === "bottom" ? parent.height - height : 0
       clip: true
-      opacity: boot.progress
+      opacity: bootIn.progress
 
       DockShape {
         id: card
@@ -148,7 +151,7 @@ PanelWindow {
         y: card.y
         width: card.width - card.sideInset * 2
         height: card.height
-        HudFrame { inset: boot.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
+        HudFrame { inset: bootIn.bracketInset; chamfer: card.cut; chamferCorner: card.cutCorner }
       }
 
       Item {
@@ -157,7 +160,7 @@ PanelWindow {
         y: card.y + card.contentTopInset + root.titleInset
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: card.height - card.contentTopInset - card.contentBottomInset - root.titleInset
-        opacity: boot.rowOpacity(1)
+        opacity: bootIn.rowOpacity(1)
       }
 
       HudTitle {
@@ -169,7 +172,7 @@ PanelWindow {
         width: card.width - card.contentLeftInset - card.contentRightInset
         height: visible ? implicitHeight : 0
         text: root.title
-        typed: boot.typed
+        typed: bootIn.typed
         decor: true
         rule: true
         blinking: visible && root.shown

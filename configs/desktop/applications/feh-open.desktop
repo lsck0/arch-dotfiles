@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=feh
+Comment=Open images in feh
+TryExec=feh
+Exec=@HOME@/.local/bin/desktop-run --files -- feh
+Icon=feh
+Terminal=false
+Categories=Graphics;Viewer;2DGraphics;

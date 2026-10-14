@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=herdr
+Comment=Workspace manager for AI coding agents
+TryExec=herdr
+Exec=herdr
+Icon=yakuake
+Terminal=true
+Categories=Development;ConsoleOnly;

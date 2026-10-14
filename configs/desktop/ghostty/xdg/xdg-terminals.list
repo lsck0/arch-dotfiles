@@ -1,0 +1,4 @@
+# xdg-terminal-exec, what gio runs Terminal=true entries through: a window of the resident ghostty over d-bus (kitty
+# when it hangs, see ghostty-window.nu), kitty when ghostty is gone
+ghostty-new-window.desktop
+kitty.desktop

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ctop
+Comment=Container metrics
+TryExec=ctop
+Exec=@HOME@/.local/bin/desktop-run --group docker -- ctop
+Icon=terminal-distrobox-icon
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

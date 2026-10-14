@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Chiko
+Comment=gRPC client
+TryExec=chiko
+Exec=@HOME@/.local/bin/desktop-run -- chiko
+Icon=network-server
+Terminal=true
+Categories=Development;Network;ConsoleOnly;

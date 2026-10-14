@@ -1,4 +1,4 @@
-// pcscd only serves the active seat; config.sh runs unattended outside one. local, not active: the unattended chain
+// pcscd only serves the active seat; dot apply runs unattended outside one. local, not active: the unattended chain
 // has a session but no seat, an ssh login (remote) falls back to pcsc's default of no
 polkit.addRule(function (action, subject) {
     if ((action.id == "org.debian.pcsc-lite.access_pcsc" || action.id == "org.debian.pcsc-lite.access_card") &&

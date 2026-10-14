@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=nnd
+Comment=Debugger
+TryExec=nnd
+Exec=@HOME@/.local/bin/desktop-run --file -- nnd
+Icon=debug-run
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;

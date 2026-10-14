@@ -3,17 +3,17 @@
 # image preview unset so yazi auto-detects the protocol
 
 [mgr]
-ratio          = [ 1, 4, 3 ]
-sort_by        = "alphabetical"
+ratio = [1, 4, 3]
+sort_by = "alphabetical"
 sort_dir_first = true
 sort_sensitive = false
-sort_reverse   = false
-linemode       = "size"
-show_hidden    = false
-show_symlink   = true
-scrolloff      = 5
+sort_reverse = false
+linemode = "size"
+show_hidden = false
+show_symlink = true
+scrolloff = 5
 
 [preview]
-wrap          = "no"
-image_delay   = 20
+wrap = "no"
+image_delay = 20
 image_quality = 90

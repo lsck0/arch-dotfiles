@@ -29,86 +29,189 @@ end
 -- display CTM brightness, the software dimmer below the monitor's own backlight
 local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
 
--- obs hotkeys only fire while obs is focused on wayland; obs-status.py exits after stdin eof, timeout covers obs closed
+-- obs hotkeys only fire while obs is focused on wayland; obs-status.nu exits after stdin eof, timeout covers obs closed
 local function obs_command(cmd)
-    return hl.dsp.exec_cmd("echo '{\"cmd\":\"" .. cmd .. "\"}' | timeout 5 "
-        .. "$DOTFILES/configs/desktop/quickshell/plugins/bar/widgets/obs-status.py >/dev/null")
+    return hl.dsp.exec_cmd(
+        'echo \'{"cmd":"'
+            .. cmd
+            .. "\"}' | timeout 5 "
+            .. "$DOTFILES/configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu >/dev/null"
+    )
 end
 
-hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"))
-hl.bind(mod .. " + SHIFT + s", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.sh"))
-hl.bind(mod .. " + SHIFT + d", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " decrypt"))
-hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " encrypt"))
-hl.bind(mod .. " + SHIFT + c", hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " sign"))
-hl.bind(mod .. " + SHIFT + PRINT", hl.dsp.exec_cmd(
-    "grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"))
-hl.bind("CTRL + SHIFT + ALT + s", hl.dsp.exec_cmd(
-    "grim -g \"$(hyprctl -j activewindow | jq -r 'select(.at and .size) | \\\"\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])\\\"')\" - | wl-copy"))
-hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"))
-hl.bind(mod .. " + F9", obs_command("saveReplay"))
-hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"))
-hl.bind(mod .. " + Tab", quickshell_call("overview", "open"))
+-- every bind carries a description: hyprctl binds lists it and dot gen builds docs/generated.md#keybinds from it
+hl.bind(mod .. " + SHIFT + e", quickshell_toggle("powermenu"), { description = "power menu" })
+hl.bind(
+    mod .. " + SHIFT + s",
+    hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/screenshot-region.nu"),
+    { description = "screenshot a region to the clipboard" }
+)
+hl.bind(
+    mod .. " + SHIFT + d",
+    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " decrypt"),
+    { description = "decrypt the clipboard with gpg" }
+)
+hl.bind(
+    mod .. " + SHIFT + x",
+    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " encrypt"),
+    { description = "encrypt the clipboard with gpg" }
+)
+hl.bind(
+    mod .. " + SHIFT + c",
+    hl.dsp.exec_cmd(shell_bin("gpg-clip") .. " sign"),
+    { description = "sign the clipboard with gpg" }
+)
+hl.bind(
+    mod .. " + SHIFT + PRINT",
+    hl.dsp.exec_cmd("grim -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wl-copy"),
+    { description = "screenshot the focused monitor to the clipboard" }
+)
+hl.bind(
+    "CTRL + SHIFT + ALT + s",
+    hl.dsp.exec_cmd(
+        'grim -g "$(hyprctl -j activewindow | jq -r \'select(.at and .size) | "\\(.at[0]),\\(.at[1]) \\(.size[0])x\\(.size[1])"\')" - | wl-copy'
+    ),
+    { description = "screenshot the active window to the clipboard" }
+)
+hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"), { description = "stop the desktop mascots" })
+hl.bind(mod .. " + F9", obs_command("saveReplay"), { description = "obs: save the replay buffer" })
+hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"), { description = "obs: start or stop the replay buffer" })
+hl.bind(mod .. " + Tab", quickshell_call("overview", "open"), { description = "overview of workspaces and windows" })
 -- straight d-bus into the resident ghostty service, skips the ~180ms ghostty cli start of +new-window; kitty, themed to
 -- parity, when that service is broken or hangs, and on its own key
-hl.bind(mod .. " + Return", hl.dsp.exec_cmd("gdbus call --session --timeout 5 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}' || uwsm-app -- kitty"))
-hl.bind(mod .. " + SHIFT + Return", app("kitty"))
-hl.bind(mod .. " + a", app("firefox"))
-hl.bind(mod .. " + SHIFT + a", app("qutebrowser"))
-hl.bind(mod .. " + d", quickshell_toggle("appsearch"))
+hl.bind(
+    mod .. " + Return",
+    hl.dsp.exec_cmd(
+        "gdbus call --session --timeout 5 --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-window '[]' '{}' || uwsm-app -- kitty"
+    ),
+    { description = "terminal (ghostty, kitty when ghostty is down)" }
+)
+hl.bind(mod .. " + SHIFT + Return", app("kitty"), { description = "kitty terminal" })
+hl.bind(mod .. " + a", app("firefox"), { description = "firefox" })
+hl.bind(mod .. " + SHIFT + a", app("qutebrowser"), { description = "qutebrowser" })
+hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app launcher" })
 -- quickshell down: a bemenu over $PATH launches, super+shift+r brings the shell back
-hl.bind(mod .. " + ALT + d", hl.dsp.exec_cmd(
-    "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/picker.sh -p run) && uwsm-app -- sh -c \"$cmd\""))
-hl.bind(mod .. " + SHIFT + r", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/quickshell/restart.sh"))
+hl.bind(
+    mod .. " + ALT + d",
+    hl.dsp.exec_cmd(
+        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
+    ),
+    { description = "run a command from $PATH (the launcher while quickshell is down)" }
+)
+hl.bind(
+    mod .. " + SHIFT + r",
+    hl.dsp.exec_cmd("$DOTFILES/configs/desktop/quickshell/restart.nu"),
+    { description = "restart quickshell" }
+)
 -- loginctl, so hypridle's lock_cmd picks quickshell or hyprlock
-hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"))
-hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"))
-hl.bind(mod .. " + e", app("dolphin"))
-hl.bind(mod .. " + n", app("neovide"))
-hl.bind(mod .. " + p", hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"))
-hl.bind(mod .. " + t", helper("$DOTFILES/scripts/toggles/menu.sh"))
-hl.bind(mod .. " + SHIFT + t", app("missioncenter"))
-hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")))
-hl.bind(mod .. " + y", helper("spawn-shimeji"))
--- boomer.sh stops hyprland warping the cursor to monitor 0
-hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.sh"))
+hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("loginctl lock-session"), { description = "lock the screen" })
+hl.bind(mod .. " + m", quickshell_call("discord", "toggleMute"), { description = "mute or unmute discord" })
+hl.bind(mod .. " + e", app("dolphin"), { description = "file manager (dolphin)" })
+hl.bind(mod .. " + n", app("neovide"), { description = "editor (neovide)" })
+-- the desktop notes card's file in a floating terminal editor: a longer edit, or when a window covers the card
+hl.bind(
+    mod .. " + SHIFT + n",
+    app(
+        "kitty --class notes-scratch sh -c "
+            .. '\'d="$HOME/sync/notes"; mkdir -p "$d"; exec "${EDITOR:-nvim}" "$d/notes.md"\''
+    ),
+    { description = "notes pad in a floating editor" }
+)
+-- taskwarrior and the same notes pad in one keyboard overlay
+hl.bind(mod .. " + o", quickshell_toggle("tasks"), { description = "tasks and notes panel" })
+hl.bind(mod .. " + comma", quickshell_toggle("settings"), { description = "settings window" })
+hl.bind(
+    mod .. " + p",
+    hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"),
+    { description = "pick a screen color to the clipboard" }
+)
+hl.bind(mod .. " + t", helper("$DOTFILES/scripts/toggles/menu.nu"), { description = "toggles menu" })
+hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
+hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
+hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
+-- boomer.nu stops hyprland warping the cursor to monitor 0
+hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
 -- focused-monitor-only backup; the monitor-0 window rule misplaces it
 -- hl.bind(mod .. " + SHIFT + x", hl.dsp.exec_cmd(
 --     "grim -t ppm -o \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .name')\" - | wayland-boomer --monitor-scaling \"$(hyprctl -j monitors | jq -r '.[] | select(.focused) | .scale' | head -n1)\""))
 
-hl.bind(mod .. " + Q", hl.dsp.window.close())
-hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }))
-hl.bind(mod .. " + s", hl.dsp.focus({ last = true }))
-hl.bind(mod .. " + f", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
-hl.bind(mod .. " + v", quickshell_toggle("clipboard"))
+hl.bind(mod .. " + Q", hl.dsp.window.close(), { description = "close the window" })
+hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }), { description = "float or tile the window" })
+hl.bind(mod .. " + s", hl.dsp.focus({ last = true }), { description = "focus the previous window" })
+hl.bind(
+    mod .. " + f",
+    hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }),
+    { description = "fullscreen the window" }
+)
+hl.bind(mod .. " + v", quickshell_toggle("clipboard"), { description = "clipboard history" })
 
-hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"))
+hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"), { description = "toggle the split direction" })
 
-hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"))
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"))
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"))
-hl.bind("XF86AudioMedia", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true })
-hl.bind("XF86AudioRaiseVolume", media_key("volume-up"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", media_key("volume-down"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", media_key("volume-mute"), { locked = true })
-hl.bind("XF86AudioMicMute", media_key("mic-mute"), { locked = true })
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), { description = "play or pause media" })
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { description = "previous track" })
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { description = "next track" })
+hl.bind(
+    "XF86AudioMedia",
+    hl.dsp.exec_cmd("playerctl play-pause"),
+    { locked = true, description = "play or pause media" }
+)
+hl.bind("XF86AudioStop", hl.dsp.exec_cmd("playerctl stop"), { locked = true, description = "stop media" })
+hl.bind("XF86AudioRaiseVolume", media_key("volume-up"), { locked = true, repeating = true, description = "volume up" })
+hl.bind(
+    "XF86AudioLowerVolume",
+    media_key("volume-down"),
+    { locked = true, repeating = true, description = "volume down" }
+)
+hl.bind("XF86AudioMute", media_key("volume-mute"), { locked = true, description = "mute the output" })
+hl.bind("XF86AudioMicMute", media_key("mic-mute"), { locked = true, description = "mute the microphone" })
 
-hl.bind("XF86MonBrightnessUp", media_key("brightness-up"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", media_key("brightness-down"), { locked = true, repeating = true })
-hl.bind("SHIFT + XF86MonBrightnessUp", hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
-    { locked = true, repeating = true })
-hl.bind("SHIFT + XF86MonBrightnessDown", hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
-    { locked = true, repeating = true })
+hl.bind(
+    "XF86MonBrightnessUp",
+    media_key("brightness-up"),
+    { locked = true, repeating = true, description = "brightness up" }
+)
+hl.bind(
+    "XF86MonBrightnessDown",
+    media_key("brightness-down"),
+    { locked = true, repeating = true, description = "brightness down" }
+)
+hl.bind(
+    "SHIFT + XF86MonBrightnessUp",
+    hl.dsp.exec_cmd(color_grading .. " set brightness +5"),
+    { locked = true, repeating = true, description = "software brightness up (color grading)" }
+)
+hl.bind(
+    "SHIFT + XF86MonBrightnessDown",
+    hl.dsp.exec_cmd(color_grading .. " set brightness -5"),
+    { locked = true, repeating = true, description = "software brightness down (color grading)" }
+)
 
-hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true })
-hl.bind("XF86KbdBrightnessDown", media_key("kbd-backlight-down"), { locked = true })
-hl.bind("XF86KbdLightOnOff", media_key("kbd-backlight-toggle"), { locked = true })
-hl.bind(mod .. " + SHIFT + b", media_key("kbd-backlight-toggle"), { locked = true })
+hl.bind("XF86KbdBrightnessUp", media_key("kbd-backlight-up"), { locked = true, description = "keyboard backlight up" })
+hl.bind(
+    "XF86KbdBrightnessDown",
+    media_key("kbd-backlight-down"),
+    { locked = true, description = "keyboard backlight down" }
+)
+hl.bind(
+    "XF86KbdLightOnOff",
+    media_key("kbd-backlight-toggle"),
+    { locked = true, description = "keyboard backlight on or off" }
+)
+hl.bind(
+    mod .. " + SHIFT + b",
+    media_key("kbd-backlight-toggle"),
+    { locked = true, description = "keyboard backlight on or off" }
+)
 
 -- agent-guard can inhibit the lid switch, then closing the lid undocked would neither suspend nor lock
-hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd(
-    "loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
-    .. " && loginctl show-session -p Docked --value | grep -qx no && loginctl lock-session"), { locked = true })
+hl.bind(
+    "switch:on:Lid Switch",
+    hl.dsp.exec_cmd(
+        "loginctl show-session -p BlockInhibited --value | grep -qw handle-lid-switch"
+            .. " && loginctl show-session -p Docked --value | grep -qx no && loginctl lock-session"
+    ),
+    { locked = true, description = "lid closed undocked while the lid is inhibited: lock the session" }
+)
 
 local DIRECTIONS = {
     { keys = { "h", "Left" }, focus = "left", move = "l" },
@@ -118,23 +221,47 @@ local DIRECTIONS = {
 }
 for _, direction in ipairs(DIRECTIONS) do
     for _, key in ipairs(direction.keys) do
-        hl.bind(mod .. " + " .. key, hl.dsp.focus({ direction = direction.focus }))
-        hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = direction.move }))
-        hl.bind(mod .. " + CTRL + " .. key, hl.dsp.window.move({ into_or_create_group = direction.move }))
+        hl.bind(
+            mod .. " + " .. key,
+            hl.dsp.focus({ direction = direction.focus }),
+            { description = "focus the window " .. direction.focus }
+        )
+        hl.bind(
+            mod .. " + SHIFT + " .. key,
+            hl.dsp.window.move({ direction = direction.move }),
+            { description = "move the window " .. direction.focus }
+        )
+        hl.bind(
+            mod .. " + CTRL + " .. key,
+            hl.dsp.window.move({ into_or_create_group = direction.move }),
+            { description = "move the window into the group " .. direction.focus }
+        )
     end
 end
 
-hl.bind(mod .. " + CTRL + w", hl.dsp.group.toggle())
-hl.bind(mod .. " + c", hl.dsp.group.next())
+hl.bind(mod .. " + CTRL + w", hl.dsp.group.toggle(), { description = "group or ungroup the window" })
+hl.bind(mod .. " + c", hl.dsp.group.next(), { description = "next window in the group" })
 
 for workspace = 1, 10 do
     local key = tostring(workspace % 10)
-    hl.bind(mod .. " + " .. key, hl.dsp.focus({ workspace = workspace }))
-    hl.bind(mod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = workspace }))
+    hl.bind(
+        mod .. " + " .. key,
+        hl.dsp.focus({ workspace = workspace }),
+        { description = "focus workspace 1 to 10 (0 is 10)" }
+    )
+    hl.bind(
+        mod .. " + SHIFT + " .. key,
+        hl.dsp.window.move({ workspace = workspace }),
+        { description = "move the window to workspace 1 to 10 (0 is 10)" }
+    )
 end
 
-hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
-hl.bind(mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+hl.bind(mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "move the window with the mouse" })
+hl.bind(
+    mod .. " + mouse:273",
+    hl.dsp.window.resize(),
+    { mouse = true, description = "resize the window with the mouse" }
+)
 
 local RESIZE_STEP = 30
 local RESIZE = {
@@ -143,27 +270,40 @@ local RESIZE = {
     { keys = { "k", "Up" }, x = 0, y = -RESIZE_STEP },
     { keys = { "j", "Down" }, x = 0, y = RESIZE_STEP },
 }
-hl.bind(mod .. " + R", hl.dsp.submap("resize"))
+hl.bind(mod .. " + R", hl.dsp.submap("resize"), { description = "resize mode" })
 hl.define_submap("resize", function()
     for _, step in ipairs(RESIZE) do
         for _, key in ipairs(step.keys) do
-            hl.bind(key, hl.dsp.window.resize({ x = step.x, y = step.y, relative = true }), { repeating = true })
+            hl.bind(
+                key,
+                hl.dsp.window.resize({ x = step.x, y = step.y, relative = true }),
+                { repeating = true, description = "resize the window by " .. RESIZE_STEP .. " px" }
+            )
         end
     end
 
-    hl.bind(mod .. " + R", hl.dsp.submap("reset"))
-    hl.bind("Escape", hl.dsp.submap("reset"))
+    hl.bind(mod .. " + R", hl.dsp.submap("reset"), { description = "leave resize mode" })
+    hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 
 -- the overview enters this while open and resets it on close. hyprland's binds win over the overlay's keyboard focus,
 -- so with mod still held a second mod+tab would toggle it shut and mod+return open a terminal: here they cycle and go
 -- like alt-tab. keys bound nowhere here still reach the overlay (arrows, digits, a bare return)
 hl.define_submap("overview", function()
-    hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true })
-    hl.bind(mod .. " + SHIFT + Tab", quickshell_call("overview", "prev"), { repeating = true })
-    hl.bind(mod .. " + Return", quickshell_call("overview", "commit"))
+    hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next window" })
+    hl.bind(
+        mod .. " + SHIFT + Tab",
+        quickshell_call("overview", "prev"),
+        { repeating = true, description = "previous window" }
+    )
+    hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected window" })
     -- also the way out should quickshell be gone, so the submap never traps the session
-    hl.bind("Escape", hl.dsp.exec_cmd("quickshell ipc -p ~/.config/quickshell call overview close; "
-        .. "hyprctl dispatch 'hl.dsp.submap(\"reset\")'"))
+    hl.bind(
+        "Escape",
+        hl.dsp.exec_cmd(
+            "quickshell ipc -p ~/.config/quickshell call overview close; "
+                .. "hyprctl dispatch 'hl.dsp.submap(\"reset\")'"
+        ),
+        { description = "close the overview" }
+    )
 end)
-

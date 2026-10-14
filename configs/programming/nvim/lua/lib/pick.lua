@@ -13,25 +13,27 @@ function M.telescope(title, items, on_select)
     local actions = require("telescope.actions")
     local state = require("telescope.actions.state")
 
-    pickers.new({}, {
-        prompt_title = title,
-        finder = finders.new_table({
-            results = items,
-            entry_maker = function(item)
-                return { value = item.value, display = item.display, ordinal = item.display }
+    pickers
+        .new({}, {
+            prompt_title = title,
+            finder = finders.new_table({
+                results = items,
+                entry_maker = function(item)
+                    return { value = item.value, display = item.display, ordinal = item.display }
+                end,
+            }),
+            sorter = conf.generic_sorter({}),
+            attach_mappings = function(bufnr)
+                actions.select_default:replace(function()
+                    local entry = state.get_selected_entry()
+                    local query = state.get_current_line()
+                    actions.close(bufnr)
+                    on_select(entry and entry.value, query)
+                end)
+                return true
             end,
-        }),
-        sorter = conf.generic_sorter({}),
-        attach_mappings = function(bufnr)
-            actions.select_default:replace(function()
-                local entry = state.get_selected_entry()
-                local query = state.get_current_line()
-                actions.close(bufnr)
-                on_select(entry and entry.value, query)
-            end)
-            return true
-        end,
-    }):find()
+        })
+        :find()
 end
 
 return M

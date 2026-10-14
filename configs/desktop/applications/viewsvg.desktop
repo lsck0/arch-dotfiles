@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=viewsvg
+Comment=View an SVG through resvg
+TryExec=viewsvg
+Exec=@HOME@/.local/bin/desktop-run --file -- viewsvg
+Icon=image-svg+xml
+Terminal=false
+Categories=Graphics;Viewer;VectorGraphics;

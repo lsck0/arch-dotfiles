@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gifview
+Comment=Play an animated GIF
+TryExec=gifview
+Exec=@HOME@/.local/bin/desktop-run --file -- gifview --animate
+Icon=image-gif
+Terminal=false
+Categories=Graphics;Viewer;2DGraphics;

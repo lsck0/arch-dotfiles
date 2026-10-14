@@ -63,7 +63,7 @@ Singleton {
 
   function zeroed() {
     var out = []
-    for (var i = 0; i < barCount; i++) out.push(0)
+    for (let i = 0; i < barCount; i++) out.push(0)
     return out
   }
 
@@ -98,13 +98,13 @@ Singleton {
         var parts = data.split(";")
         if (parts.length < root.barCount) return
         var out = []
-        for (var i = 0; i < root.barCount; i++) {
-          var v = parseInt(parts[i], 10)
+        for (let i = 0; i < root.barCount; i++) {
+          let v = parseInt(parts[i], 10)
           out.push(isNaN(v) ? 0 : Math.max(0, Math.min(100, v)))
         }
         var prev = root.peaks, pk = []
-        for (var j = 0; j < root.barCount; j++) {
-          var p = prev[j] || 0
+        for (let j = 0; j < root.barCount; j++) {
+          let p = prev[j] || 0
           pk.push(out[j] >= p ? out[j] : Math.max(out[j], p - root.peakFallPerFrame))
         }
         root.values = out

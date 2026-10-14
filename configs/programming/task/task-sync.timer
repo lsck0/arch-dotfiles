@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync taskwarrior shortly after login and every 10 minutes
+
+[Timer]
+OnStartupSec=1min
+OnCalendar=*:0/10
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

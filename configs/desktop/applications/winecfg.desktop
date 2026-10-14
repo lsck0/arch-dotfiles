@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Wine Configuration
+Comment=Configure the Wine prefix
+TryExec=winecfg
+Exec=winecfg
+Icon=winetricks
+Terminal=false
+Categories=Settings;System;Emulator;

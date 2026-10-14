@@ -1,1 +1,1 @@
-core                              # wallust theming scripts (generate-hermes-skin.py, hermes/link.sh)
+core                              # wallust palette.nu (the theme verbs of hermes, zed, vscode, emacs, gh-dash)

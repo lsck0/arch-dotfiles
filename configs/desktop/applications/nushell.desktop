@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Nushell
+Comment=A structured data shell
+TryExec=nu
+Exec=nu
+Icon=utilities-terminal
+Terminal=true
+Categories=System;Utility;ConsoleOnly;

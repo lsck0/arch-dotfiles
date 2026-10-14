@@ -1,7 +1,7 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -56,7 +56,7 @@ Item {
 
   function hotkeyIndex(key) {
     var letter = String.fromCharCode(key).toUpperCase()
-    for (var i = 0; i < root.actions.length; i++)
+    for (let i = 0; i < root.actions.length; i++)
       if (root.actions[i].hotkey === letter) return i
     return -1
   }
@@ -109,7 +109,7 @@ Item {
           root.activate(root.selectedIndex)
           event.accepted = true
         } else {
-          var index = root.hotkeyIndex(event.key)
+          let index = root.hotkeyIndex(event.key)
           if (index >= 0) {
             root.activate(index)
             event.accepted = true

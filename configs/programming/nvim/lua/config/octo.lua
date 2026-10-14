@@ -13,15 +13,19 @@ end
 -- run an Octo command with the org substituted for %s
 function M.org_cmd(fmt)
     local o = org()
-    if o then vim.cmd(string.format(fmt, o)) end
+    if o then
+        vim.cmd(string.format(fmt, o))
+    end
 end
 
 -- prefill :Octo search with org:<org> plus filters, editable before running
 function M.org_search(filters)
     local o = org()
-    if not o then return end
+    if not o then
+        return
+    end
     local q = "org:" .. o .. " " .. filters
-    require("octo.utils").create_base_search_command { query = q }
+    require("octo.utils").create_base_search_command({ query = q })
 end
 
 return M

@@ -23,6 +23,10 @@ profile feh @{exec_path} flags=(attach_disconnected) {
   @{lib}/imlib2/{,**} mr,
 
   /usr/share/feh/{,**} r,
+  # libmagic's database, its file type check before imlib2 loads a file
+  /usr/share/file/{,**} r,
+  # feh.desktop's --start-at lists the opened file's directory; viewer-read covers /tmp's owned entries, not /tmp itself
+  /tmp/ r,
 
   owner @{user_config_dirs}/feh/{,**} r,
   owner @{user_cache_dirs}/thumbnails/{,**} rw,

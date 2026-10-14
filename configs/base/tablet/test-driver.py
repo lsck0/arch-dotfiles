@@ -93,8 +93,10 @@ def drive(pen_frames, button_frames=(), calib=None):
             if path == pen_path:
                 os.unlink(pen_path)
 
-    threads = [threading.Thread(target=feed, args=(pen_path, pen_frames), daemon=True),
-               threading.Thread(target=feed, args=(btn_path, button_frames), daemon=True)]
+    threads = [
+        threading.Thread(target=feed, args=(pen_path, pen_frames), daemon=True),
+        threading.Thread(target=feed, args=(btn_path, button_frames), daemon=True),
+    ]
     for t in threads:
         t.start()
     try:
@@ -119,8 +121,10 @@ def check(name, cond, detail=""):
 
 def test_pen_maps_across_full_range():
     calib = dict(td.DEFAULT_CALIB)
-    frames = [pen_report(calib["x_min"], 0, 0),
-              pen_report(calib["x_max"], td.RAW_MAX, 8000, td.IN_RANGE_BIT | td.TIP_BIT)]
+    frames = [
+        pen_report(calib["x_min"], 0, 0),
+        pen_report(calib["x_max"], td.RAW_MAX, 8000, td.IN_RANGE_BIT | td.TIP_BIT),
+    ]
     pen, _, _ = drive(frames)
     xs = pen.values(e.EV_ABS, e.ABS_X)
     ys = pen.values(e.EV_ABS, e.ABS_Y)
@@ -130,8 +134,10 @@ def test_pen_maps_across_full_range():
 
 
 def test_tip_drives_touch_and_pressure():
-    frames = [pen_report(20000, 100, 29),  # hover: pressure above a light touch
-              pen_report(20000, 100, 11, td.IN_RANGE_BIT | td.TIP_BIT)]
+    frames = [
+        pen_report(20000, 100, 29),  # hover: pressure above a light touch
+        pen_report(20000, 100, 11, td.IN_RANGE_BIT | td.TIP_BIT),
+    ]
     pen, _, _ = drive(frames)
     touch = pen.values(e.EV_KEY, e.BTN_TOUCH)
     pressure = pen.values(e.EV_ABS, e.ABS_PRESSURE)
@@ -164,8 +170,11 @@ def test_wrong_pen_mode_recovers():
 def test_wrong_mode_does_not_toggle_forever():
     frames = [other_mode_report() for _ in range((td.MAX_RETOGGLES + 3) * td.WRONG_MODE_LIMIT)]
     _, _, unlocks = drive(frames)
-    check("re-toggling is bounded", len(unlocks) <= td.MAX_RETOGGLES,
-          f"unlocked {len(unlocks)} times, limit {td.MAX_RETOGGLES}")
+    check(
+        "re-toggling is bounded",
+        len(unlocks) <= td.MAX_RETOGGLES,
+        f"unlocked {len(unlocks)} times, limit {td.MAX_RETOGGLES}",
+    )
 
 
 def test_pen_buttons():
@@ -192,8 +201,11 @@ def test_express_keys():
     _, keys, _ = drive([pen_report(20000, 100, 0)], buttons)
     pressed = [c for t, c, v in keys.events if v == 1]
     expected = [getattr(e, n) for n in td.EXPRESS_KEY_NAMES]
-    check("all 12 express keys are distinct", sorted(pressed) == sorted(expected),
-          f"got {len(set(pressed))} distinct of {len(expected)}")
+    check(
+        "all 12 express keys are distinct",
+        sorted(pressed) == sorted(expected),
+        f"got {len(set(pressed))} distinct of {len(expected)}",
+    )
     for code in set(pressed):
         ups = len([1 for t, c, v in keys.events if c == code and v == 0])
         downs = len([1 for t, c, v in keys.events if c == code and v == 1])
@@ -201,8 +213,7 @@ def test_express_keys():
 
 
 def test_no_key_sticks_when_several_are_held():
-    buttons = [button_report(mask4=0x01), button_report(mask4=0x03), button_report(mask4=0x02),
-               button_report()]
+    buttons = [button_report(mask4=0x01), button_report(mask4=0x03), button_report(mask4=0x02), button_report()]
     _, keys, _ = drive([pen_report(20000, 100, 0)], buttons)
     held = set()
     for _, code, value in keys.events:

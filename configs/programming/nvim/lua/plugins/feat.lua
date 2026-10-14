@@ -10,7 +10,7 @@ return {
             vim.g.compile_mode = {
                 ansi_color = { kind = "render" },
             }
-        end
+        end,
     },
 
     {
@@ -30,11 +30,43 @@ return {
         ft = { "http", "rest" },
         -- the global ones, so they load kulala from any buffer
         keys = {
-            { "<leader>rb", function() require("kulala").scratchpad() end, desc = "Open scratchpad" },
-            { "<leader>ro", function() require("kulala").open() end, desc = "Open kulala" },
-            { "<leader>rs", function() require("kulala").run() end, mode = { "n", "v" }, desc = "Send request" },
-            { "<leader>ra", function() require("kulala").run_all() end, mode = { "n", "v" }, desc = "Send all requests" },
-            { "<leader>rr", function() require("kulala").replay() end, desc = "Replay the last request" },
+            {
+                "<leader>rb",
+                function()
+                    require("kulala").scratchpad()
+                end,
+                desc = "Open scratchpad",
+            },
+            {
+                "<leader>ro",
+                function()
+                    require("kulala").open()
+                end,
+                desc = "Open kulala",
+            },
+            {
+                "<leader>rs",
+                function()
+                    require("kulala").run()
+                end,
+                mode = { "n", "v" },
+                desc = "Send request",
+            },
+            {
+                "<leader>ra",
+                function()
+                    require("kulala").run_all()
+                end,
+                mode = { "n", "v" },
+                desc = "Send all requests",
+            },
+            {
+                "<leader>rr",
+                function()
+                    require("kulala").replay()
+                end,
+                desc = "Replay the last request",
+            },
         },
         opts = {
             global_keymaps = true,
@@ -45,7 +77,7 @@ return {
     },
 
     {
-        "jiaoshijie/undotree",                  -- undo history tree
+        "jiaoshijie/undotree", -- undo history tree
         dependencies = "nvim-lua/plenary.nvim",
         config = true,
         keys = {
@@ -72,8 +104,12 @@ return {
     {
         "olrtg/nvim-emmet", -- emmet abbreviations
         config = function()
-            vim.keymap.set({ "n", "v" }, "<leader>E", require("nvim-emmet").wrap_with_abbreviation,
-                { desc = "Emmet wrap with abbreviation" })
+            vim.keymap.set(
+                { "n", "v" },
+                "<leader>E",
+                require("nvim-emmet").wrap_with_abbreviation,
+                { desc = "Emmet wrap with abbreviation" }
+            )
         end,
     },
 }

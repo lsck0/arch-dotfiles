@@ -5,9 +5,17 @@
 # that reads the palette and serves its socket, never unconfined
 @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
 
+# the homelab share and attachments in temp dirs, as for every viewer: file:// pages, pdfs and images other apps drop
+# in /tmp
+include <abstractions/dotfiles/viewer-read>
+
 # the new tab and home page (desktop/firefox), qutebrowser's; links.js and the wallpaper are in ~/projects
 owner @{user_config_dirs}/qutebrowser/startpage.html r,
 owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
+
+# claude's playwright-mcp (programming/playwright) drives a headless firefox on a throwaway profile in temp
+owner /tmp/playwright_firefoxdev_profile-*/ rw,
+owner /tmp/playwright_firefoxdev_profile-*/** rwk,
 
 # a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
 deny @{user_config_dirs}/mimeapps.list* w,
@@ -30,6 +38,10 @@ profile pywalfox flags=(attach_disconnected) {
   owner @{user_cache_dirs}/pywalfox.log{,.1} rw,
   owner @{user_config_dirs}/pywalfox/{,config.json} rw,
   owner @{tmp}/pywalfox_socket_@{uid} rw,
+  # python's tempfile probes /tmp then /var/tmp (@{tmp}) for a writable dir at startup by creating a scratch file;
+  # without this it falls through to its cwd (the site-packages bin dir) and, denied there too, dies with "No usable
+  # temporary directory"
+  owner @{tmp}/* rw,
 
   # its css toggles: profiles.ini through the ~/.config/firefox link, and the profile's chrome dir
   owner @{user_config_dirs}/mozilla/firefox/profiles.ini r,

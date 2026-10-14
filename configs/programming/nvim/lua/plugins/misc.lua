@@ -5,17 +5,45 @@ return {
             require("early-retirement").setup({
                 retirementAgeMins = 3,
             })
-        end
+        end,
     },
     {
         "folke/flash.nvim", -- jump/select via labels, treesitter, search
         event = "VeryLazy",
         opts = {},
         keys = {
-            { "s", mode = { "n", "x", "o" }, function() require("flash").jump() end,             desc = "Flash jump" },
-            { "S", mode = { "n", "x", "o" }, function() require("flash").treesitter() end,       desc = "Flash treesitter" },
-            { "r", mode = "o",               function() require("flash").remote() end,           desc = "Remote flash" },
-            { "R", mode = { "o", "x" },      function() require("flash").treesitter_search() end, desc = "Treesitter search" },
+            {
+                "s",
+                mode = { "n", "x", "o" },
+                function()
+                    require("flash").jump()
+                end,
+                desc = "Flash jump",
+            },
+            {
+                "S",
+                mode = { "n", "x", "o" },
+                function()
+                    require("flash").treesitter()
+                end,
+                desc = "Flash treesitter",
+            },
+            {
+                "r",
+                mode = "o",
+                function()
+                    require("flash").remote()
+                end,
+                desc = "Remote flash",
+            },
+            {
+                "R",
+                mode = { "o", "x" },
+                function()
+                    require("flash").treesitter_search()
+                end,
+                desc = "Treesitter search",
+            },
         },
     },
     {
@@ -31,27 +59,33 @@ return {
         init = function()
             -- M-d, not M-n: herdr binds alt+n to next_agent and would swallow it
             vim.g.VM_maps = {
-                ["Find Under"]         = "<M-d>",
+                ["Find Under"] = "<M-d>",
                 ["Find Subword Under"] = "<M-d>",
             }
             -- it borrows autopairs' buffer <BS> map for the session and warns about it every start
             vim.g.VM_show_warnings = 0
-        end
+        end,
     },
     { "mrjones2014/smart-splits.nvim", lazy = true }, -- resize/navigate splits
     {
-        "nacro90/numb.nvim",             -- peek line on jump
+        "nacro90/numb.nvim", -- peek line on jump
         opts = {},
     },
     {
         "nosduco/remote-sshfs.nvim", -- browse remote files via SSH
-        cmd = { "RemoteSSHFSConnect", "RemoteSSHFSEdit", "RemoteSSHFSDisconnect", "RemoteSSHFSFindFiles", "RemoteSSHFSLiveGrep" },
+        cmd = {
+            "RemoteSSHFSConnect",
+            "RemoteSSHFSEdit",
+            "RemoteSSHFSDisconnect",
+            "RemoteSSHFSFindFiles",
+            "RemoteSSHFSLiveGrep",
+        },
         dependencies = { "nvim-telescope/telescope.nvim", "nvim-lua/plenary.nvim" },
         opts = {},
     },
-    { "sindrets/winshift.nvim", cmd = "WinShift" },      -- move/swap windows
-    { "tpope/vim-repeat" },            -- repeat plugin actions
-    { "zeioth/garbage-day.nvim" },     -- restart idle LSP clients
+    { "sindrets/winshift.nvim", cmd = "WinShift" }, -- move/swap windows
+    { "tpope/vim-repeat" }, -- repeat plugin actions
+    { "zeioth/garbage-day.nvim" }, -- restart idle LSP clients
     {
         "ziontee113/icon-picker.nvim", -- emoji/icon picker
         cmd = { "IconPickerNormal", "IconPickerInsert", "IconPickerYank" },
@@ -89,7 +123,7 @@ return {
                 "type_definition",
                 "while_statement",
             },
-        }
+        },
     },
     {
         "folke/zen-mode.nvim", -- distraction-free writing

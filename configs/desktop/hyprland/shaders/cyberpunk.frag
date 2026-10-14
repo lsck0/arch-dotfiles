@@ -3,7 +3,7 @@
 // @animated
 // @themed
 
-// THEME constants are rewritten by toggle-shader.sh
+// THEME constants are rewritten by toggle-shader.nu
 
 precision highp float;
 in vec2 v_texcoord;

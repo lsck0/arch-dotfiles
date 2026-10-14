@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Gonzo
+Comment=Log file analysis
+TryExec=gonzo
+Exec=@HOME@/.local/bin/desktop-run --file -- gonzo --file
+Icon=utilities-log-viewer
+Terminal=true
+Categories=Development;Monitor;ConsoleOnly;

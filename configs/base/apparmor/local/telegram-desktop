@@ -10,3 +10,6 @@ owner /tmp/*-TD-webview-* rw,
 owner /tmp/*.rmlock rwk,
 owner @{user_cache_dirs}/TelegramDesktop/{,**} rwk,
 owner @{run}/user/@{uid}/qtwayland-* rw,
+# l: qt's shader cache links an O_TMPFILE into place, a deleted entry the mediate_deleted flag (profiles.conf) names
+# #<inode> for this rule; without it every start recompiles the shaders
+owner @{user_cache_dirs}/TelegramDesktop/qtshadercache-*/{,**} rwkl,

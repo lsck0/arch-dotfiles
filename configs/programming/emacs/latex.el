@@ -7,7 +7,7 @@
         TeX-parse-self t
         TeX-source-correlate-start-server t
         TeX-view-program-selection '((output-pdf "Sioyek"))
-        ;; the builtin entry adds --inverse-search emacsclient, which overrides prefs_user.config's synctex-edit.sh
+        ;; the builtin entry adds --inverse-search emacsclient, which overrides prefs_user.config's synctex-edit
         TeX-view-program-list '(("Sioyek" ("sioyek --nofocus %o" (mode-io-correlate " --forward-search-file \"%b\" --forward-search-line %n"))
                                  "sioyek"))
         TeX-clean-confirm nil))

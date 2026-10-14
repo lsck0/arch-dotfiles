@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lean-tui
+Comment=Lean 4 infoview
+TryExec=lean-tui
+Exec=lean-tui
+Icon=kalgebra
+Terminal=true
+Categories=Science;Math;ConsoleOnly;

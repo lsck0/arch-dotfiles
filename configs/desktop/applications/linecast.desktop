@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=linecast
+Comment=Weather, sunlight, the moon and the sky
+TryExec=linecast
+Exec=@HOME@/.local/bin/desktop-run --hold -- linecast weather
+Icon=weather-clear
+Terminal=true
+Categories=Utility;ConsoleOnly;

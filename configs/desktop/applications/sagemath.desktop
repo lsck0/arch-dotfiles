@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SageMath
+Comment=Mathematics software system
+TryExec=sage
+Exec=sage
+Icon=cantor
+Terminal=true
+Categories=Science;Math;Education;ConsoleOnly;

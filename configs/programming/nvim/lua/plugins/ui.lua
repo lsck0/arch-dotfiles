@@ -44,8 +44,8 @@ return {
     },
 
     -- colorschemes, applied by lua/theme.lua
-    { "folke/tokyonight.nvim",      lazy = true },
-    { "Shatur/neovim-ayu",          lazy = true },
+    { "folke/tokyonight.nvim", lazy = true },
+    { "Shatur/neovim-ayu", lazy = true },
     {
         "catppuccin/nvim",
         name = "catppuccin",
@@ -53,11 +53,11 @@ return {
         -- flavour comes from the colorscheme name; auto_integrations detects installed plugins
         opts = { term_colors = true },
     },
-    { "shaunsingh/nord.nvim",     lazy = true },
+    { "shaunsingh/nord.nvim", lazy = true },
     { "ellisonleao/gruvbox.nvim", lazy = true },
-    { "oxfist/night-owl.nvim",    lazy = true },
-    { "Mofiqul/dracula.nvim",     lazy = true },
-    { "navarasu/onedark.nvim",    lazy = true },
+    { "oxfist/night-owl.nvim", lazy = true },
+    { "Mofiqul/dracula.nvim", lazy = true },
+    { "navarasu/onedark.nvim", lazy = true },
 
     { "romgrk/barbar.nvim", event = "VeryLazy" }, -- buffer tabline
 
@@ -79,7 +79,13 @@ return {
                     lualine_a = { "mode" },
                     lualine_b = { "branch", "diff", "diagnostics" },
                     -- dropbar breadcrumbs
-                    lualine_c = { { function() return "%{%v:lua.dropbar()%}" end } },
+                    lualine_c = {
+                        {
+                            function()
+                                return "%{%v:lua.dropbar()%}"
+                            end,
+                        },
+                    },
                     lualine_x = { "filetype" },
                     lualine_y = {},
                     lualine_z = { "location" },
@@ -88,7 +94,7 @@ return {
             for _, prefix in ipairs({ "lualine_b", "lualine_c", "lualine_x", "lualine_y" }) do
                 require("transparent").clear_prefix(prefix)
             end
-        end
+        end,
     },
 
     {
@@ -97,7 +103,7 @@ return {
         config = function()
             vim.g.virtcolumn_char = "▕"
             vim.g.virtcolumn_priority = 10
-        end
+        end,
     },
 
     {
@@ -105,8 +111,13 @@ return {
         event = { "BufReadPost", "BufNewFile" },
         config = function()
             local highlight = {
-                "RainbowRed", "RainbowYellow", "RainbowBlue", "RainbowOrange",
-                "RainbowGreen", "RainbowViolet", "RainbowCyan",
+                "RainbowRed",
+                "RainbowYellow",
+                "RainbowBlue",
+                "RainbowOrange",
+                "RainbowGreen",
+                "RainbowViolet",
+                "RainbowCyan",
             }
             vim.api.nvim_set_hl(0, "RainbowRed", { fg = "#E06C75" })
             vim.api.nvim_set_hl(0, "RainbowYellow", { fg = "#E5C07B" })
@@ -116,7 +127,7 @@ return {
             vim.api.nvim_set_hl(0, "RainbowViolet", { fg = "#C678DD" })
             vim.api.nvim_set_hl(0, "RainbowCyan", { fg = "#56B6C2" })
             vim.g.rainbow_delimiters = { highlight = highlight }
-        end
+        end,
     },
 
     {
@@ -144,7 +155,7 @@ return {
                     typescriptreact = { tailwind = true },
                 },
             })
-        end
+        end,
     },
 
     {
@@ -162,16 +173,22 @@ return {
                 convert = {
                     magick = {
                         pdf = {
-                            "-density", 192, "{src}[0]", "-background", "white", "-alpha", "remove",
+                            "-density",
+                            192,
+                            "{src}[0]",
+                            "-background",
+                            "white",
+                            "-alpha",
+                            "remove",
                         },
-                    }
+                    },
                 },
                 math = { enabled = false },
             },
             notifier = { enabled = true },
             indent = { enabled = true }, -- indent guides + scope
             scroll = { enabled = false }, -- no smooth scrolling
-            words = { enabled = true },  -- highlight lsp references under cursor
+            words = { enabled = true }, -- highlight lsp references under cursor
             -- the VimEnter autocmd is the only opener, else roots stack
             explorer = { replace_netrw = false },
             picker = {
@@ -203,7 +220,9 @@ return {
                             local ret = require("snacks.picker.format").file(item, picker)
                             -- ignored wins: no hidden mark on an ignored entry or anything inside an ignored dir
                             local it = item
-                            while it and not it.ignored do it = it.parent end
+                            while it and not it.ignored do
+                                it = it.parent
+                            end
                             if item.hidden and not it then
                                 table.insert(ret, {
                                     col = 0,

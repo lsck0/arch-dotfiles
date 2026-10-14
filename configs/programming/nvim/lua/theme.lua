@@ -42,7 +42,9 @@ function M.apply(name)
         return
     end
     local linenr = AYU_LINENR[name]
-    if linenr then vim.api.nvim_set_hl(0, "LineNr", { fg = linenr }) end
+    if linenr then
+        vim.api.nvim_set_hl(0, "LineNr", { fg = linenr })
+    end
 end
 
 function M.apply_from_marker()

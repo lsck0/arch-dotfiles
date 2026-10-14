@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Kismet
+Comment=Wireless network detector with a web interface
+TryExec=kismet
+Exec=@HOME@/.local/bin/desktop-run --open http://localhost:2501 -- kismet
+Icon=network-wireless
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

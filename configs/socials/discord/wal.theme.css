@@ -1,62 +1,249 @@
 /**
  * @name Custom WAL Theme
  * @author lsck0
- * @description Colorscheme based on WAL.
- * @version 1.0
+ * @description Self-contained wal palette theme: no remote imports, every colour
+ *              derives from the palette vars the theme verb patches live.
+ * @version 2.0
  * @source https://github.com/lsck0/arch-dotfiles
  * @website https://github.com/lsck0/arch-dotfiles
 */
 
-@import url("https://mwittrien.github.io/BetterDiscordAddons/Themes/DiscordRecolor/DiscordRecolor.css");
-
+/* ----------------------------------------------------------------------------
+ * palette inputs. the theme verb rewrites each of these lines on a theme
+ * switch (and so does nothing until one happens, hence the literal fallbacks);
+ * keep the "--name: r, g, b;" shape or the sed stops matching.
+ * -------------------------------------------------------------------------- */
 :root {
-  --accentcolor: 57, 186, 230;
-  --accentcolor2: 57, 186, 230;
-  --linkcolor: 0, 176, 244;
-  --mentioncolor: 250, 166, 26;
-  --textbrightest: 255, 255, 255;
-  --textbrighter: 222, 222, 222;
-  --textbright: 185, 185, 185;
-  --textdark: 140, 140, 140;
-  --textdarker: 115, 115, 115;
-  --textdarkest: 80, 80, 80;
-  --font: "Kode Mono";
-  --backgroundaccent: 50, 50, 50;
-  --backgroundprimary: 10, 10, 23;
-  --backgroundsecondary: 10, 10, 23;
-  --backgroundsecondaryalt: 10, 10, 23;
-  --backgroundtertiary: 10, 10, 23;
-  --backgroundfloating: 0, 0, 0;
-  --settingsicons: 1;
+    --accentcolor: 57, 186, 230;
+    --accentcolor2: 57, 186, 230;
+    --backgroundprimary: 10, 10, 23;
+    --backgroundsecondary: 10, 10, 23;
+    --backgroundsecondaryalt: 10, 10, 23;
+    --backgroundtertiary: 10, 10, 23;
+    --backgroundaccent: 50, 50, 50;
+    --backgroundfloating: 0, 0, 0;
+    --textbrightest: 255, 255, 255;
+    --textbrighter: 222, 222, 222;
+    --textdark: 140, 140, 140;
+    --font: "Kode Mono";
+}
+
+/* ----------------------------------------------------------------------------
+ * derived tiers. these are NOT patched by the theme verb, so they are
+ * expressed from the patched inputs above and recolour with the palette instead
+ * of being frozen to one theme. status hues stay fixed: they carry meaning
+ * (success/warning/danger) rather than following the accent.
+ * -------------------------------------------------------------------------- */
+:root {
+    --linkcolor: var(--accentcolor);
+    --mentioncolor: var(--accentcolor);
+    --textbright: var(--textbrighter);
+    --textdarker: var(--textdark);
+    --textdarkest: var(--textdark);
+    --backgroundcode: var(--backgroundtertiary);
+
+    --successcolor: 59, 165, 92;
+    --warningcolor: 230, 180, 80;
+    --dangercolor: 237, 66, 69;
+}
+
+/* ----------------------------------------------------------------------------
+ * map the palette onto discord's own css variables. covers the current
+ * ("visual refresh") token set plus the classic names still read in places;
+ * anything unmapped falls back to discord's stock dark theme, never to a broken
+ * layout, because every override here is colour-only.
+ * -------------------------------------------------------------------------- */
+:root,
+.theme-dark,
+.theme-light,
+.theme-amoled,
+.visual-refresh,
+.visual-refresh .theme-dark,
+.visual-refresh .theme-light,
+.visual-refresh .theme-amoled,
+.visual-refresh.theme-dark,
+.visual-refresh.theme-light,
+.visual-refresh.theme-amoled {
+    /* surfaces */
+    --background-base-low: rgb(var(--backgroundprimary)) !important;
+    --background-base-lower: rgb(var(--backgroundsecondary)) !important;
+    --background-base-lowest: rgb(var(--backgroundtertiary)) !important;
+    --background-surface-high: rgb(var(--backgroundprimary)) !important;
+    --background-surface-higher: rgb(var(--backgroundprimary)) !important;
+    --background-surface-highest: rgb(var(--backgroundaccent)) !important;
+    --background-primary: rgb(var(--backgroundprimary)) !important;
+    --background-secondary: rgb(var(--backgroundsecondary)) !important;
+    --background-secondary-alt: rgb(var(--backgroundsecondaryalt)) !important;
+    --background-tertiary: rgb(var(--backgroundtertiary)) !important;
+    --background-accent: rgb(var(--backgroundaccent)) !important;
+    --background-floating: rgb(var(--backgroundfloating)) !important;
+    --background-code: rgb(var(--backgroundcode)) !important;
+    --home-background: rgb(var(--backgroundprimary)) !important;
+    --modal-background: rgb(var(--backgroundprimary)) !important;
+    --modal-footer-background: rgb(var(--backgroundsecondary)) !important;
+    --bg-surface-overlay: rgb(var(--backgroundprimary)) !important;
+    --bg-surface-raised: rgb(var(--backgroundprimary)) !important;
+    --chat-background-default: rgb(var(--backgroundprimary)) !important;
+    --card-background-default: rgb(var(--backgroundsecondary)) !important;
+    --card-primary-bg: rgb(var(--backgroundprimary)) !important;
+    --card-secondary-bg: rgb(var(--backgroundsecondary)) !important;
+    --activity-card-background: rgb(var(--backgroundtertiary)) !important;
+    --deprecated-card-bg: rgba(var(--backgroundtertiary), 0.6) !important;
+    --deprecated-store-bg: rgb(var(--backgroundprimary)) !important;
+
+    /* elevation modifiers + dividers */
+    --background-modifier-hover: rgba(var(--backgroundaccent), 0.3) !important;
+    --background-modifier-active: rgba(var(--backgroundaccent), 0.4) !important;
+    --background-modifier-selected: rgba(var(--backgroundaccent), 0.6) !important;
+    --background-modifier-accent: rgba(var(--textdark), 0.1) !important;
+    --background-mod-faint: rgba(var(--backgroundaccent), 0.2) !important;
+    --background-mod-subtle: rgba(var(--backgroundaccent), 0.3) !important;
+    --background-mod-normal: rgba(var(--backgroundaccent), 0.4) !important;
+    --background-mod-strong: rgba(var(--backgroundaccent), 0.5) !important;
+    --border-faint: rgba(var(--backgroundaccent), 0.3) !important;
+    --border-subtle: rgba(var(--backgroundaccent), 0.5) !important;
+    --border-strong: rgba(var(--backgroundaccent), 0.7) !important;
+    --divider-faint: rgba(var(--backgroundaccent), 0.3) !important;
+    --divider-subtle: rgba(var(--backgroundaccent), 0.5) !important;
+    --divider-strong: rgba(var(--backgroundaccent), 0.7) !important;
+
+    /* text */
+    --text-strong: rgb(var(--textbrightest)) !important;
+    --text-default: rgb(var(--textbrighter)) !important;
+    --text-normal: rgb(var(--textbrighter)) !important;
+    --text-subtle: rgb(var(--textbright)) !important;
+    --text-muted: rgb(var(--textdarker)) !important;
+    --chat-text-muted: rgb(var(--textdark)) !important;
+    --header-primary: rgb(var(--textbrightest)) !important;
+    --header-secondary: rgb(var(--textdark)) !important;
+    --channels-default: rgb(var(--textdark)) !important;
+    --channel-icon: rgb(var(--textdark)) !important;
+    --interactive-normal: rgb(var(--textbright)) !important;
+    --interactive-hover: rgb(var(--textbrighter)) !important;
+    --interactive-active: rgb(var(--textbrightest)) !important;
+    --interactive-muted: rgb(var(--textdarker)) !important;
+    --interactive-text-default: rgb(var(--textbright)) !important;
+    --interactive-text-hover: rgb(var(--textbrighter)) !important;
+    --interactive-text-active: rgb(var(--textbrightest)) !important;
+    --interactive-icon-default: rgb(var(--textbright)) !important;
+    --interactive-icon-hover: rgb(var(--textbrighter)) !important;
+    --interactive-icon-active: rgb(var(--textbrightest)) !important;
+    --icon-strong: rgb(var(--textbrightest)) !important;
+    --icon-default: rgb(var(--textbrighter)) !important;
+    --icon-subtle: rgb(var(--textbright)) !important;
+    --icon-muted: rgb(var(--textdarker)) !important;
+
+    /* accent / brand: the blurple becomes the wal accent everywhere */
+    --brand-360: rgb(var(--accentcolor)) !important;
+    --brand-400: rgb(var(--accentcolor)) !important;
+    --brand-500: rgb(var(--accentcolor)) !important;
+    --brand-560: rgb(var(--accentcolor)) !important;
+    --brand-600: rgb(var(--accentcolor)) !important;
+    --brand-experiment: rgb(var(--accentcolor)) !important;
+    --brand-experiment-360: rgb(var(--accentcolor)) !important;
+    --brand-experiment-400: rgb(var(--accentcolor)) !important;
+    --brand-experiment-500: rgb(var(--accentcolor)) !important;
+    --brand-experiment-560: rgb(var(--accentcolor)) !important;
+    --brand-experiment-600: rgb(var(--accentcolor)) !important;
+    --brand-experiment-05a: rgba(var(--accentcolor), 0.05) !important;
+    --brand-experiment-10a: rgba(var(--accentcolor), 0.1) !important;
+    --brand-experiment-15a: rgba(var(--accentcolor), 0.15) !important;
+    --brand-experiment-20a: rgba(var(--accentcolor), 0.2) !important;
+    --brand-experiment-30a: rgba(var(--accentcolor), 0.3) !important;
+    --bg-brand: rgb(var(--accentcolor)) !important;
+    --background-brand: rgb(var(--accentcolor)) !important;
+    --text-brand: rgb(var(--accentcolor)) !important;
+    --control-brand-foreground: rgb(var(--accentcolor)) !important;
+    --control-brand-foreground-new: rgb(var(--accentcolor)) !important;
+
+    /* primary (brand-filled) buttons */
+    --button-filled-brand-background: rgb(var(--accentcolor)) !important;
+    --button-filled-brand-background-hover: color-mix(in srgb, rgb(var(--accentcolor)) 88%, white) !important;
+    --button-filled-brand-background-active: color-mix(in srgb, rgb(var(--accentcolor)) 82%, black) !important;
+    --button-filled-brand-text: rgb(var(--backgroundtertiary)) !important;
+    --control-primary-background-default: rgb(var(--accentcolor)) !important;
+    --control-primary-background-hover: color-mix(in srgb, rgb(var(--accentcolor)) 88%, white) !important;
+    --control-primary-background-active: color-mix(in srgb, rgb(var(--accentcolor)) 82%, black) !important;
+    --control-background-primary-default: rgb(var(--accentcolor)) !important;
+    --control-background-primary-hover: color-mix(in srgb, rgb(var(--accentcolor)) 88%, white) !important;
+    --control-background-primary-active: color-mix(in srgb, rgb(var(--accentcolor)) 82%, black) !important;
+
+    /* secondary buttons: a neutral surface, not the accent */
+    --button-secondary-background: rgb(var(--backgroundaccent)) !important;
+    --button-secondary-background-hover: color-mix(in srgb, rgb(var(--backgroundaccent)) 85%, white) !important;
+    --button-secondary-background-active: color-mix(in srgb, rgb(var(--backgroundaccent)) 75%, white) !important;
+
+    /* checkboxes, focus rings, input borders track the accent */
+    --checkbox-background-checked: rgb(var(--accentcolor)) !important;
+    --checkbox-border-checked: rgb(var(--accentcolor)) !important;
+    --input-focused-border: rgb(var(--accentcolor)) !important;
+    --input-border-active: rgb(var(--accentcolor)) !important;
+    --border-focus: rgb(var(--accentcolor)) !important;
+    --focus-primary: rgb(var(--linkcolor)) !important;
+
+    /* links */
+    --text-link: rgb(var(--linkcolor)) !important;
+    --text-link-low-saturation: rgb(var(--linkcolor)) !important;
+    --icon-link: rgb(var(--linkcolor)) !important;
+
+    /* inputs + chat box */
+    --input-background: rgb(var(--backgroundtertiary)) !important;
+    --channeltextarea-background: rgba(var(--backgroundaccent), 0.6) !important;
+    --channel-text-area-placeholder: rgb(var(--textdarker)) !important;
+
+    /* mentions */
+    --mention-background: rgba(var(--mentioncolor), 0.3) !important;
+    --mention-foreground: rgb(var(--textbrightest)) !important;
+    --background-mentioned: rgba(var(--mentioncolor), 0.08) !important;
+    --background-mentioned-hover: rgba(var(--mentioncolor), 0.12) !important;
+    --message-highlight-background-default: rgba(var(--mentioncolor), 0.15) !important;
+
+    /* status */
+    --text-positive: rgb(var(--successcolor)) !important;
+    --text-warning: rgb(var(--warningcolor)) !important;
+    --text-danger: rgb(var(--dangercolor)) !important;
+    --status-positive: rgb(var(--successcolor)) !important;
+    --status-warning: rgb(var(--warningcolor)) !important;
+    --status-danger: rgb(var(--dangercolor)) !important;
+
+    /* scrollbars */
+    --scrollbar-thin-thumb: rgb(var(--backgroundtertiary)) !important;
+    --scrollbar-thin-track: transparent !important;
+    --scrollbar-auto-thumb: rgb(var(--backgroundtertiary)) !important;
+    --scrollbar-auto-track: rgb(var(--backgroundsecondary)) !important;
+}
+
+html {
+    color: rgb(var(--textbrighter));
 }
 
 /* discord ignores --font, so override its own font vars */
 :root {
-  --font-primary: var(--font), sans-serif;
-  --font-display: var(--font), sans-serif;
-  --font-headline: var(--font), sans-serif;
-  --font-feature-settings: normal;
+    --font-primary: var(--font), sans-serif;
+    --font-display: var(--font), sans-serif;
+    --font-headline: var(--font), sans-serif;
+    --font-feature-settings: normal;
 }
 body,
 #app-mount,
 [class*="app-"],
 [class*="base-"] {
-  font-family: var(--font), sans-serif !important;
+    font-family: var(--font), sans-serif !important;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+    width: 8px;
+    height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(var(--accentcolor), 0.5);
-  border-radius: 2px;
+    background: rgba(var(--accentcolor), 0.5);
+    border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--accentcolor));
+    background: rgb(var(--accentcolor));
 }
 
 button[class*="button"],
@@ -65,62 +252,62 @@ button[class*="button"],
 [class*="textArea"],
 [class*="searchBar"],
 [class*="modal"] {
-  border-radius: 2px !important;
+    border-radius: 2px !important;
 }
 
 button[class*="button"]:hover {
-  box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
-  border: 1px solid rgba(var(--accentcolor), 0.5);
+    box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
+    border: 1px solid rgba(var(--accentcolor), 0.5);
 }
 
 /* server icons */
 [class*="listItem"]:hover [class*="wrapper"],
 [class*="listItemWrapper"]:hover {
-  box-shadow: 0 0 8px rgba(var(--accentcolor), 0.2);
+    box-shadow: 0 0 8px rgba(var(--accentcolor), 0.2);
 }
 
 /* selected channel */
 [class*="modeSelected"] {
-  box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
+    box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
 }
 [class*="modeSelected"] [class*="name"] {
-  text-shadow: 0 0 4px rgba(var(--accentcolor), 0.2);
+    text-shadow: 0 0 4px rgba(var(--accentcolor), 0.2);
 }
 
 [class*="mention"] {
-  text-shadow: 0 0 4px rgba(var(--mentioncolor), 0.2);
+    text-shadow: 0 0 4px rgba(var(--mentioncolor), 0.2);
 }
 
 li[class*="messageListItem"]:hover {
-  box-shadow: inset 0 0 8px rgba(var(--accentcolor), 0.2);
+    box-shadow: inset 0 0 8px rgba(var(--accentcolor), 0.2);
 }
 
 /* chat input */
 [class*="channelTextArea"] [class*="scrollableContainer"]:focus-within {
-  box-shadow: 0 0 8px rgba(var(--accentcolor), 0.18);
+    box-shadow: 0 0 8px rgba(var(--accentcolor), 0.18);
 }
 
 /* hud corner brackets */
 [class*="userPopout"] {
-  position: relative;
+    position: relative;
 }
 [class*="userPopout"]::before,
 [class*="userPopout"]::after {
-  content: "";
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  pointer-events: none;
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
 }
 [class*="userPopout"]::before {
-  top: 4px;
-  left: 4px;
-  border-top: 1px solid rgba(var(--accentcolor), 0.5);
-  border-left: 1px solid rgba(var(--accentcolor), 0.5);
+    top: 4px;
+    left: 4px;
+    border-top: 1px solid rgba(var(--accentcolor), 0.5);
+    border-left: 1px solid rgba(var(--accentcolor), 0.5);
 }
 [class*="userPopout"]::after {
-  bottom: 4px;
-  right: 4px;
-  border-bottom: 1px solid rgba(var(--accentcolor), 0.5);
-  border-right: 1px solid rgba(var(--accentcolor), 0.5);
+    bottom: 4px;
+    right: 4px;
+    border-bottom: 1px solid rgba(var(--accentcolor), 0.5);
+    border-right: 1px solid rgba(var(--accentcolor), 0.5);
 }

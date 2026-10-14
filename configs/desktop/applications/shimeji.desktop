@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Shimeji
+Comment=Summon a desktop mascot
+TryExec=shimejictl
+Exec=@HOME@/.local/bin/spawn-shimeji
+Icon=face-smile-big
+Terminal=false
+Categories=Game;Amusement;

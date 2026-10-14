@@ -1,0 +1,35 @@
+{
+    "cookies": [
+        "[*.]capgemini.com",
+        "[*.]zpa-auth.net",
+        "[*.]zpa-app.net",
+        "[*.]zscaler.com",
+        "[*.]pingone.eu",
+        "[*.]pingone.com",
+        "[*.]pingidentity.com",
+        "[*.]ping.cloud",
+        "[*.]microsoftonline.com",
+        "[*.]microsoft.com",
+        "[*.]cloud.microsoft",
+        "[*.]office.com",
+        "[*.]sharepoint.com",
+        "[*.]live.com"
+    ],
+    "durable_storage": [
+        "[*.]capgemini.com",
+        "[*.]zscaler.com",
+        "[*.]microsoftonline.com",
+        "[*.]microsoft.com",
+        "[*.]cloud.microsoft",
+        "[*.]office.com",
+        "[*.]sharepoint.com"
+    ],
+    "popups": [
+        "[*.]capgemini.com",
+        "[*.]zpa-app.net",
+        "[*.]zscaler.com"
+    ],
+    "clipboard": [
+        "[*.]isolation.zscaler.com"
+    ]
+}

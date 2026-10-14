@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=mitmproxy
+Comment=Interactive HTTPS proxy
+TryExec=mitmproxy
+Exec=mitmproxy
+Icon=network-server
+Terminal=true
+Categories=Network;Development;ConsoleOnly;

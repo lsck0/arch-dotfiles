@@ -1,0 +1,46 @@
+# managed by arch-dotfiles/apparmor
+# the obs-mcp server (configs/creating/obs): royshil's node mcp server claude starts over stdio through obs-mcp.nu,
+# which hands it the obs-websocket password and loopback url in its environment. it drives obs over that socket and
+# nothing else, so it reads only its own npm ci'd tree and node, writes nothing, is refused the home secrets and execs
+# no shell or other runtime. obs-mcp.nu execs the package's bin (#!/usr/bin/env node); apparmor attaches to the
+# script at its resolved path under the install prefix, then env and node run inside this profile
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+# apparmor.d's abstractions prefix some paths with it, this profile sets it empty
+@{att} = ""
+
+@{obs_mcp} = @{HOME}/.local/share/obs-mcp
+
+@{exec_path} = @{obs_mcp}/node_modules/obs-mcp/build/index.js
+profile obs-mcp @{exec_path} flags=(attach_disconnected) {
+  include <abstractions/base-strict>
+  include <abstractions/dotfiles/deny-sensitive-home>
+
+  # obs-websocket on loopback (ws://127.0.0.1:<port> from obs's own plugin config)
+  network inet stream,
+  network inet6 stream,
+
+  # the shebang's env and the system node it finds, in this profile
+  @{exec_path} r,
+  @{bin}/env ix,
+  @{bin}/node ix,
+
+  # its own tree, installed by link.sh from the committed lockfile
+  @{obs_mcp}/{,**} r,
+
+  # v8 and libuv size the heap and thread pool from memory, the cpu count and the session's cgroup limits
+  owner @{PROC}/@{pid}/{maps,cgroup} r,
+  @{PROC}/meminfo r,
+  @{PROC}/sys/vm/overcommit_memory r,
+  @{sys}/devices/system/cpu/online r,
+  @{sys}/fs/cgroup/**/memory.{max,high} r,
+
+  # a websocket client never spawns a shell or another language runtime
+  deny @{shells_path} x,
+  deny @{bin}/{deno,bun,perl,python*,ruby,lua*,php*} x,
+
+  include if exists <local/obs-mcp>
+}

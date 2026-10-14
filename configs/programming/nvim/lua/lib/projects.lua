@@ -5,7 +5,7 @@ local M = {}
 
 local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = 10 } }
 
--- vendored repos are not projects; mirrors the --exclude list in scripts/hms.sh
+-- vendored repos are not projects; mirrors FD_EXCLUDES in scripts/hms.nu
 local EXCLUDE = { "elpa", "node_modules", ".cargo", "vendor", "target" }
 
 --- Parse `~/.config/tms/config.toml` so the picker and `hms` never disagree about what a project is.
@@ -13,7 +13,9 @@ local EXCLUDE = { "elpa", "node_modules", ".cargo", "vendor", "target" }
 local function search_dirs()
     local file = vim.fs.normalize("~/.config/tms/config.toml")
     local fd = io.open(file, "r")
-    if not fd then return DEFAULT_DIRS end
+    if not fd then
+        return DEFAULT_DIRS
+    end
 
     local dirs, current = {}, nil
     for line in fd:lines() do
@@ -23,13 +25,19 @@ local function search_dirs()
         elseif current then
             local path = line:match('^%s*path%s*=%s*"(.-)"')
             local depth = line:match("^%s*depth%s*=%s*(%d+)")
-            if path then current.path = vim.fs.normalize(path) end
-            if depth then current.depth = tonumber(depth) end
+            if path then
+                current.path = vim.fs.normalize(path)
+            end
+            if depth then
+                current.depth = tonumber(depth)
+            end
         end
     end
     fd:close()
 
-    dirs = vim.tbl_filter(function(d) return d.path ~= nil end, dirs)
+    dirs = vim.tbl_filter(function(d)
+        return d.path ~= nil
+    end, dirs)
     return #dirs > 0 and dirs or DEFAULT_DIRS
 end
 
@@ -39,9 +47,13 @@ end
 ---@param path string
 ---@return boolean
 local function is_checkout(path)
-    if vim.fn.isdirectory(path) == 1 then return true end
+    if vim.fn.isdirectory(path) == 1 then
+        return true
+    end
     local fd = io.open(path, "r")
-    if not fd then return false end
+    if not fd then
+        return false
+    end
     local line = fd:read("*l") or ""
     fd:close()
     return line:match("^gitdir: .*/worktrees/[^/]+/?$") ~= nil
@@ -80,7 +92,9 @@ function M.list()
         end
     end
 
-    table.sort(out, function(a, b) return a.display < b.display end)
+    table.sort(out, function(a, b)
+        return a.display < b.display
+    end)
     return out
 end
 
@@ -104,7 +118,9 @@ function M.pick()
         return
     end
     require("lib.pick").telescope("Projects", items, function(path)
-        if path then M.open(path) end
+        if path then
+            M.open(path)
+        end
     end)
 end
 

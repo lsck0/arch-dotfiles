@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=superseedr
+Comment=BitTorrent client
+TryExec=superseedr
+Exec=superseedr
+Icon=ktorrent
+Terminal=true
+Categories=Network;P2P;FileTransfer;ConsoleOnly;

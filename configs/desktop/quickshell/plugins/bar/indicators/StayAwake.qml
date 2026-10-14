@@ -7,7 +7,7 @@ import qs.Ui
 BarIndicator {
   id: root
 
-  readonly property string toggleScript: Paths.toggle("toggle-keep-awake.sh")
+  readonly property string toggleScript: Paths.toggle("toggle-keep-awake.nu")
 
   active: false
   activeText: "\u{f0176}"
@@ -34,7 +34,7 @@ BarIndicator {
   // the toggle announces every change, keybinds and the toggles menu included
   Connections {
     target: ToggleEvents
-    function onChanged(script) { if (script === "toggle-keep-awake.sh") root.refresh() }
+    function onChanged(script) { if (script === "toggle-keep-awake.nu") root.refresh() }
   }
 
   // its inhibitor must outlive a restart of quickshell.service, which kills the unit's whole cgroup

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=tig
+Comment=Git history browser
+TryExec=tig
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- tig
+Icon=folder-git
+Terminal=true
+Categories=Development;RevisionControl;ConsoleOnly;

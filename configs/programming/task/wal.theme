@@ -1,0 +1,32 @@
+# palette-driven taskwarrior theme. every rule names one of the 16 terminal colour slots (color0..color15),
+# which wallust repaints on each wallpaper switch, so the task list tracks the active theme in light and dark.
+# foreground-only on purpose: a slot sits on the terminal background, which already matches the theme, so every
+# rule stays readable without a per-theme contrast pass.
+
+color.active=color2
+color.due=color3
+color.due.today=color1
+color.overdue=color1
+color.scheduled=color6
+color.blocked=color8
+color.blocking=color5
+color.recurring=color4
+color.tagged=color2
+color.completed=color8
+color.deleted=color8
+color.label=color4
+color.header=color3
+color.footnote=color8
+color.error=color1
+color.warning=color3
+color.debug=color4
+color.sync.added=color2
+color.sync.changed=color3
+color.sync.rejected=color1
+color.undo.before=color1
+color.undo.after=color2
+color.calendar.today=color4
+color.calendar.due=color1
+color.calendar.overdue=color1
+color.calendar.weekend=color8
+color.calendar.holiday=color3

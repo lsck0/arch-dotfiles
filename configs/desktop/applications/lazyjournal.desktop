@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazyjournal
+Comment=Browse journald, docker and file logs
+TryExec=lazyjournal
+Exec=lazyjournal
+Icon=utilities-log-viewer
+Terminal=true
+Categories=System;Monitor;ConsoleOnly;

@@ -114,7 +114,6 @@ alias lsql = lazysql
 alias lt = eza -lah --tree
 alias mkdir = mkdir -v
 alias mv = mv -v
-alias pacman = sudo pacman
 alias trash-rm = trash -v
 alias sshnb = sshk luca@192.168.178.73
 alias sshpc = sshk luca@192.168.178.138
@@ -132,6 +131,20 @@ def --wrapped git [...rest] {
     }
 }
 
+# sudo only for what changes the system: queries, searches, file lookups and -Sp stay unprivileged (no fido touch);
+# the same op letters as zsh's pacman function
+def --wrapped pacman [...rest] {
+    let long = {
+        --query: Q --deptest: T --version: V --help: h --sync: S --files: F --search: s --info: i --groups: g
+        --list: l --print: p --refresh: y --sysupgrade: u --clean: c --downloadonly: w
+    }
+    let ops = ($rest | take until {|a| $a == "--" } | each {|a|
+        if ($a | str starts-with "--") { $long | get -o $a | default "" } else if ($a =~ '^-.') { $a | str substring 1.. } else { "" }
+    } | str join)
+    let unprivileged = ($ops =~ '[QTVh]') or ($ops =~ 'F' and $ops !~ 'y') or ($ops =~ 'S' and $ops =~ '[siglp]' and $ops !~ '[yucw]')
+    if $unprivileged { ^pacman ...$rest } else { ^sudo pacman ...$rest }
+}
+
 # remote control breaks under DO_NOT_TRACK
 def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
@@ -139,11 +152,18 @@ def --wrapped claude [...rest] {
 
 # --------------------------------------------------------------- integrations
 
-source ~/.cache/nushell/starship.nu
-source ~/.cache/nushell/zoxide.nu
+# configs/core/nushell writes the init scripts, wallust the colours; a missing one is skipped (source null)
+const STARSHIP_INIT = $nu.home-dir | path join .cache nushell starship.nu
+const ZOXIDE_INIT = $nu.home-dir | path join .cache nushell zoxide.nu
+const WAL_COLORS = $nu.home-dir | path join .cache wal colors-nushell.nu
+const STARSHIP = if ($STARSHIP_INIT | path exists) { $STARSHIP_INIT }
+const ZOXIDE = if ($ZOXIDE_INIT | path exists) { $ZOXIDE_INIT }
+const WAL = if ($WAL_COLORS | path exists) { $WAL_COLORS }
+source $STARSHIP
+source $ZOXIDE
 alias cd = z
 alias cdi = zi
-source ~/.cache/nushell/wal.nu
+source $WAL
 
 if ("TERM" in $env) and $env.TERM != "dumb" and (which fastfetch | is-not-empty) {
     fastfetch

@@ -47,7 +47,7 @@ QtObject {
   // copy-on-write so property var maps notify
   function mapSet(map, key, value) {
     var next = ({})
-    for (var k in map) next[k] = map[k]
+    for (let k in map) next[k] = map[k]
     next[String(key)] = value
     return next
   }
@@ -70,6 +70,10 @@ QtObject {
   }
 
   function ago(minutes) { return span(minutes) + " ago" }
+
+  // the session locale's (LC_TIME) short formats; the date without its year, which a clock or a recent stamp never needs
+  readonly property string timeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
+  readonly property string dayFormat: Qt.locale().dateFormat(Locale.ShortFormat).replace(/\W*y+\W*/, "")
 
   readonly property var byteUnits: ["B", "KB", "MB", "GB", "TB"]
 

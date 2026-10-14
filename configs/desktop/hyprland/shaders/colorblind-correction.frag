@@ -14,7 +14,7 @@ out vec4 fragColor;
 
 #include "color.glsl"
 
-// rewritten by toggle-shader.sh from @variants, CVD_* order
+// rewritten by toggle-shader.nu from @variants, CVD_* order
 const int VARIANT = 0;
 
 // Fidaner 2005 error shift for protan and deutan, rows: red error into green and blue

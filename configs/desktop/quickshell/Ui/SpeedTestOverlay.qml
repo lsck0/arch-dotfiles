@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
@@ -33,7 +34,7 @@ OverlayCard {
   }
 
   function expandScale(value) {
-    for (var i = 0; i < scaleStops.length; i++) {
+    for (let i = 0; i < scaleStops.length; i++) {
       if (value <= scaleStops[i] * 0.92) {
         if (scaleStops[i] > fullScale) fullScale = scaleStops[i]
         return

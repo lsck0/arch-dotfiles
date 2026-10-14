@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=csvi
+Comment=CSV editor
+TryExec=csvi
+Exec=@HOME@/.local/bin/desktop-run --file -- csvi
+Icon=text-csv
+Terminal=true
+Categories=Office;Spreadsheet;ConsoleOnly;

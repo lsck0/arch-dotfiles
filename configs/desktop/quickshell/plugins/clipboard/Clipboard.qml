@@ -1,6 +1,6 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -17,7 +17,7 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  // capture.sh keeps its images beside it
+  // capture.nu keeps its images beside it
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
@@ -122,8 +122,8 @@ Item {
     var rows = ClipboardHistory.displayRows(root.history, root.filterText, 50)
 
     displayModel.clear()
-    for (var i = 0; i < rows.length; i++) {
-      var row = rows[i]
+    for (let i = 0; i < rows.length; i++) {
+      let row = rows[i]
       displayModel.append({
         entryType: row.entryType,
         fullText: row.fullText,
@@ -243,7 +243,7 @@ Item {
   // reap watchers left by a previous shell
   Process {
     id: initProc
-    command: ["pkill", "-f", "wl-paste .*--watch .*/quickshell/plugins/clipboard/capture\\.sh"]
+    command: ["pkill", "-f", "wl-paste .*--watch .*/quickshell/plugins/clipboard/capture\\.nu"]
     onExited: {
       currentProc.running = true
       textWatchProc.running = true
@@ -253,7 +253,7 @@ Item {
 
   Process {
     id: currentProc
-    command: [root.pluginDir + "/capture.sh"]
+    command: [root.pluginDir + "/capture.nu"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.addClipboardJson(text)
@@ -262,14 +262,14 @@ Item {
 
   Process {
     id: textWatchProc
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "text", "--watch", root.pluginDir + "/capture.sh", "text"]
+    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "text", "--watch", root.pluginDir + "/capture.nu", "text"]
     onExited: watchRestartTimer.restart()
     stdout: SplitParser { onRead: function(data) { root.addClipboardJson(data) } }
   }
 
   Process {
     id: imageWatchProc
-    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "image/png", "--watch", root.pluginDir + "/capture.sh", "image/png"]
+    command: ["setpriv", "--pdeathsig", "TERM", "wl-paste", "--type", "image/png", "--watch", root.pluginDir + "/capture.nu", "image/png"]
     onExited: watchRestartTimer.restart()
     stdout: SplitParser { onRead: function(data) { root.addClipboardJson(data) } }
   }

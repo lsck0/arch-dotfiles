@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=kmon
+Comment=Linux kernel module manager
+TryExec=kmon
+Exec=kmon
+Icon=hwinfo
+Terminal=true
+Categories=System;ConsoleOnly;

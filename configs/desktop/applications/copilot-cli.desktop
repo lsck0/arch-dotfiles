@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Copilot CLI
+Comment=GitHub Copilot in the terminal
+TryExec=copilot
+Exec=copilot
+Icon=applications-development
+Terminal=true
+Categories=Development;ConsoleOnly;

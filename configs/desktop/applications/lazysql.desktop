@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazysql
+Comment=SQL database client
+TryExec=lazysql
+Exec=lazysql
+Icon=sqlitebrowser
+Terminal=true
+Categories=Development;Database;ConsoleOnly;

@@ -1,184 +1,275 @@
 /* fallbacks, colors.css overrides */
 :root {
-  --cp-bg: #01060e;
-  --cp-bg-alt: #0a0f18;
-  --cp-fg: #bfbdb6;
-  --cp-accent: #39bae6;
-  --cp-accent-2: #d2a6ff;
-  --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
+    --cp-bg: #01060e;
+    --cp-bg-alt: #0a0f18;
+    --cp-fg: #bfbdb6;
+    --cp-accent: #39bae6;
+    --cp-accent-2: #d2a6ff;
+    --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
+}
+
+/* derived borders, palette-driven off --cp-accent; muted so popups and button
+   rows read as surfaces, not a grid of loud blue outlines */
+:root {
+    --cp-border-faint: color-mix(in srgb, var(--cp-accent) 14%, transparent);
+    --cp-border: color-mix(in srgb, var(--cp-accent) 26%, transparent);
+    --cp-border-strong: color-mix(in srgb, var(--cp-accent) 45%, transparent);
 }
 
 /* steam's own panel and text variables, the ones its css reads */
 :root {
-  --gpBackground-DarkSoft: color-mix(in srgb, var(--cp-bg-alt) 60%, transparent) !important;
-  --gpBackground-DarkMedium: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
-  --gpBackground-LightSoft: color-mix(in srgb, var(--cp-accent) 10%, transparent) !important;
-  --gpBackground-LightMedium: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
-  --gpStoreLighterGrey: var(--cp-fg) !important;
-  --gpStoreLightestGrey: var(--cp-fg) !important;
-  /* steam's accent blue (links, progress, focus) and highlight yellow */
-  --gpColor-Blue: var(--cp-accent) !important;
-  --gpColor-Yellow: var(--cp-accent-2) !important;
+    --gpBackground-DarkSoft: color-mix(in srgb, var(--cp-bg-alt) 60%, transparent) !important;
+    --gpBackground-DarkMedium: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+    --gpBackground-LightSoft: color-mix(in srgb, var(--cp-accent) 10%, transparent) !important;
+    --gpBackground-LightMedium: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+    --gpStoreLighterGrey: var(--cp-fg) !important;
+    --gpStoreLightestGrey: var(--cp-fg) !important;
+    /* steam's accent blue (links, progress, focus) and highlight yellow */
+    --gpColor-Blue: var(--cp-accent) !important;
+    --gpColor-Yellow: var(--cp-accent-2) !important;
 }
 
-html, body { background-color: var(--cp-bg) !important; }
+html,
+body {
+    background-color: var(--cp-bg) !important;
+}
 
 /* text controls only, keeps steam icon fonts */
-body, button, input, textarea, select { font-family: var(--cp-font) !important; }
+body,
+button,
+input,
+textarea,
+select {
+    font-family: var(--cp-font) !important;
+}
 
-* { border-radius: 0 !important; }
+* {
+    border-radius: 0 !important;
+}
 
 /* scrollbars */
-* { scrollbar-width: thin; scrollbar-color: var(--cp-accent) transparent; }
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--cp-accent) 60%, transparent); }
-::-webkit-scrollbar-thumb:hover { background: var(--cp-accent); }
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cp-accent) transparent;
+}
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--cp-accent) 60%, transparent);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--cp-accent);
+}
 
-::selection { background: var(--cp-accent) !important; color: var(--cp-bg) !important; }
+::selection {
+    background: var(--cp-accent) !important;
+    color: var(--cp-bg) !important;
+}
 
 /* focus glow */
-button:focus-visible, a:focus-visible, input:focus-visible, [class*="gpfocus"] {
-  outline: 1px solid var(--cp-accent) !important;
-  box-shadow: 0 0 6px -1px var(--cp-accent) !important;
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[class*="gpfocus"] {
+    outline: 1px solid var(--cp-accent) !important;
+    box-shadow: 0 0 6px -1px var(--cp-accent) !important;
 }
 
 /* text fields */
-input, textarea {
-  background-color: var(--cp-bg-alt) !important;
-  color: var(--cp-fg) !important;
-  border: 1px solid color-mix(in srgb, var(--cp-accent) 40%, transparent) !important;
+input,
+textarea {
+    background-color: var(--cp-bg-alt) !important;
+    color: var(--cp-fg) !important;
+    border: 1px solid color-mix(in srgb, var(--cp-accent) 40%, transparent) !important;
 }
-input:focus, textarea:focus {
-  border-color: var(--cp-accent) !important;
-  box-shadow: 0 0 6px -2px var(--cp-accent) !important;
+input:focus,
+textarea:focus {
+    border-color: var(--cp-accent) !important;
+    box-shadow: 0 0 6px -2px var(--cp-accent) !important;
 }
 
 /* inset shadows as borders, no reflow */
 
-/* buttons */
-button, [class*="DialogButton"] {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+/* buttons: faint resting edge, a crisp (but glowless) accent on interaction */
+button,
+[class*="DialogButton"] {
+    box-shadow: inset 0 0 0 1px var(--cp-border-faint) !important;
 }
-button:hover, [class*="DialogButton"]:hover {
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+button:hover,
+[class*="DialogButton"]:hover {
+    box-shadow: inset 0 0 0 1px var(--cp-border-strong) !important;
 }
-button:active, [class*="DialogButton"]:active {
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 11px -1px var(--cp-accent) !important;
+button:active,
+[class*="DialogButton"]:active {
+    box-shadow: inset 0 0 0 1px var(--cp-accent) !important;
 }
 
 /* secondary buttons */
-[class*="Secondary"]:hover, [class*="secondary"]:hover {
-  box-shadow: inset 0 0 0 1px var(--cp-accent-2), 0 0 8px -2px var(--cp-accent-2) !important;
+[class*="Secondary"]:hover,
+[class*="secondary"]:hover {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent-2) 45%, transparent) !important;
 }
 
 /* green install/play buttons */
-[class*="Green"], [class*="appactionbutton"], [class*="AppActionButton"] {
-  background-color: color-mix(in srgb, var(--cp-accent) 22%, var(--cp-bg)) !important;
-  color: var(--cp-fg) !important;
-  box-shadow: inset 0 0 0 1px var(--cp-accent) !important;
+[class*="Green"],
+[class*="appactionbutton"],
+[class*="AppActionButton"] {
+    background-color: color-mix(in srgb, var(--cp-accent) 22%, var(--cp-bg)) !important;
+    color: var(--cp-fg) !important;
+    box-shadow: inset 0 0 0 1px var(--cp-accent) !important;
 }
-[class*="Green"]:hover, [class*="appactionbutton"]:hover, [class*="AppActionButton"]:hover {
-  background-color: color-mix(in srgb, var(--cp-accent) 34%, var(--cp-bg)) !important;
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 10px -2px var(--cp-accent) !important;
+[class*="Green"]:hover,
+[class*="appactionbutton"]:hover,
+[class*="AppActionButton"]:hover {
+    background-color: color-mix(in srgb, var(--cp-accent) 34%, var(--cp-bg)) !important;
+    box-shadow:
+        inset 0 0 0 1px var(--cp-accent),
+        0 0 10px -2px var(--cp-accent) !important;
 }
 
 /* active tab */
-[class*="tab"][class*="active"], [class*="Tab"][class*="Active"],
-[class*="Tab"][class*="Selected"], [class*="navtab"][class*="active"] {
-  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
-  color: var(--cp-fg) !important;
+[class*="tab"][class*="active"],
+[class*="Tab"][class*="Active"],
+[class*="Tab"][class*="Selected"],
+[class*="navtab"][class*="active"] {
+    box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+    color: var(--cp-fg) !important;
 }
 
-/* tooltips and context menus */
-[class*="tooltip"], [class*="Tooltip"], [class*="_hint"],
-[class*="contextMenu"], [class*="ContextMenu"] {
-  background-color: var(--cp-bg-alt) !important;
-  color: var(--cp-fg) !important;
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 10px -3px var(--cp-accent) !important;
+/* tooltips and context menus: one soft container edge, no loud per-popup glow */
+[class*="tooltip"],
+[class*="Tooltip"],
+[class*="_hint"],
+[class*="contextMenu"],
+[class*="ContextMenu"] {
+    background-color: var(--cp-bg-alt) !important;
+    color: var(--cp-fg) !important;
+    box-shadow: inset 0 0 0 1px var(--cp-border) !important;
+}
+
+/* buttons inside a popup menu must not each carry their own outline; the one
+   container edge above plus the hover fill below are the whole frame */
+[class*="contextMenu"] button,
+[class*="ContextMenu"] button,
+[class*="contextMenu"] [class*="DialogButton"],
+[class*="ContextMenu"] [class*="DialogButton"] {
+    box-shadow: none !important;
 }
 
 /* hovered menu item */
-[class*="contextMenuItem"]:hover, [class*="ContextMenuItem"]:hover,
-[class*="_menuitem"]:hover, [class*="MenuItem"]:hover {
-  background-color: color-mix(in srgb, var(--cp-accent) 24%, transparent) !important;
-  color: var(--cp-fg) !important;
+[class*="contextMenuItem"]:hover,
+[class*="ContextMenuItem"]:hover,
+[class*="_menuitem"]:hover,
+[class*="MenuItem"]:hover {
+    background-color: color-mix(in srgb, var(--cp-accent) 24%, transparent) !important;
+    color: var(--cp-fg) !important;
 }
 
 /* dialogs; not ModalPosition, the full-screen positioner */
-[class*="DialogContent"], [class*="DialogBody"],
-[class*="_DialogLayout"], [class*="dialog_"] {
-  background-color: var(--cp-bg) !important;
+[class*="DialogContent"],
+[class*="DialogBody"],
+[class*="_DialogLayout"],
+[class*="dialog_"] {
+    background-color: var(--cp-bg) !important;
 }
 /* frame on the outer dialog only; substring selectors also hit InnerWidth and BodyText and nest boxes */
 [class~="DialogContent"] {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 55%, transparent), 0 0 16px -6px var(--cp-accent) !important;
+    box-shadow:
+        inset 0 0 0 1px var(--cp-border),
+        0 0 18px -9px var(--cp-accent) !important;
 }
 
 /* dialog header/footer */
-[class*="DialogHeader"], [class*="DialogFooter"] {
-  background-color: var(--cp-bg-alt) !important;
-  box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+[class*="DialogHeader"],
+[class*="DialogFooter"] {
+    background-color: var(--cp-bg-alt) !important;
+    box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
 }
 
 /* settings and form controls */
 
-html { accent-color: var(--cp-accent); }
+html {
+    accent-color: var(--cp-accent);
+}
 
 /* toggles */
-[class*="DialogToggle"][class*="On"], [class*="Toggle_On"], [class*="toggle_On"] {
-  background-color: var(--cp-accent) !important;
-  box-shadow: 0 0 8px -2px var(--cp-accent) !important;
+[class*="DialogToggle"][class*="On"],
+[class*="Toggle_On"],
+[class*="toggle_On"] {
+    background-color: var(--cp-accent) !important;
+    box-shadow: 0 0 8px -2px var(--cp-accent) !important;
 }
 
 /* dropdowns */
-[class*="DialogDropDown"], [class*="_DropDown"], [class*="dropDown"] {
-  background-color: var(--cp-bg-alt) !important;
-  color: var(--cp-fg) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent) 35%, transparent) !important;
+[class*="DialogDropDown"],
+[class*="_DropDown"],
+[class*="dropDown"] {
+    background-color: var(--cp-bg-alt) !important;
+    color: var(--cp-fg) !important;
+    box-shadow: inset 0 0 0 1px var(--cp-border) !important;
 }
-[class*="DialogDropDown"]:hover, [class*="_DropDown"]:hover, [class*="dropDown"]:hover {
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 8px -2px var(--cp-accent) !important;
+[class*="DialogDropDown"]:hover,
+[class*="_DropDown"]:hover,
+[class*="dropDown"]:hover {
+    box-shadow: inset 0 0 0 1px var(--cp-border-strong) !important;
 }
 
 /* settings nav */
-[class*="PageListItem"][class*="Active"], [class*="pagedsettings"][class*="Active"],
+[class*="PageListItem"][class*="Active"],
+[class*="pagedsettings"][class*="Active"],
 [class*="SettingsPage"][class*="active"] {
-  background-color: color-mix(in srgb, var(--cp-accent) 18%, transparent) !important;
-  box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
-  color: var(--cp-fg) !important;
+    background-color: color-mix(in srgb, var(--cp-accent) 18%, transparent) !important;
+    box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
+    color: var(--cp-fg) !important;
 }
 
 /* progress bars */
-[class*="ProgressBar"] [class*="Fill"], [class*="progressbar"] [class*="fill"],
-[class*="_Progress"] [class*="_Bar"], [class*="downloadbar"] [class*="fill"] {
-  background-color: var(--cp-accent) !important;
-  box-shadow: 0 0 8px -3px var(--cp-accent) !important;
+[class*="ProgressBar"] [class*="Fill"],
+[class*="progressbar"] [class*="fill"],
+[class*="_Progress"] [class*="_Bar"],
+[class*="downloadbar"] [class*="fill"] {
+    background-color: var(--cp-accent) !important;
+    box-shadow: 0 0 8px -3px var(--cp-accent) !important;
 }
 
 /* titlebar overlays popup content, so an opaque one covers dialog tops */
-[class*="TitleBar"], [class*="titlebar"] {
-  background-color: transparent !important;
+[class*="TitleBar"],
+[class*="titlebar"] {
+    background-color: transparent !important;
 }
 [class*="_URLBar"] {
-  background-color: var(--cp-bg) !important;
+    background-color: var(--cp-bg) !important;
 }
 
 /* toasts */
-[class*="notificationgroup"], [class*="Notification"], [class*="_Toast"], [class*="toast_"] {
-  background-color: var(--cp-bg-alt) !important;
-  color: var(--cp-fg) !important;
-  box-shadow: inset 0 0 0 1px var(--cp-accent), 0 0 12px -4px var(--cp-accent) !important;
+[class*="notificationgroup"],
+[class*="Notification"],
+[class*="_Toast"],
+[class*="toast_"] {
+    background-color: var(--cp-bg-alt) !important;
+    color: var(--cp-fg) !important;
+    box-shadow:
+        inset 0 0 0 1px var(--cp-border),
+        0 0 14px -8px var(--cp-accent) !important;
 }
 
 /* badges */
-[class*="_Badge"], [class*="unreadcount"], [class*="UnreadCount"] {
-  background-color: var(--cp-accent) !important;
-  color: var(--cp-bg) !important;
+[class*="_Badge"],
+[class*="unreadcount"],
+[class*="UnreadCount"] {
+    background-color: var(--cp-accent) !important;
+    color: var(--cp-bg) !important;
 }
 
 /* underline only, capsules stay legible */
-a:hover { text-decoration-color: var(--cp-accent) !important; }
+a:hover {
+    text-decoration-color: var(--cp-accent) !important;
+}
 
 /* hashed class names change with steam builds; re-dump the dom when stale */
 
@@ -187,7 +278,7 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._3VQUewWB8g6Z5qB4C7dGFr,
 ._17uEBe5Ri8TMsnfELvs8-N,
 ._3x1HklzyDs4TEjACrRO2tB {
-  background: var(--cp-bg) !important;
+    background: var(--cp-bg) !important;
 }
 
 /* top/bottom bars and raised panels */
@@ -198,7 +289,7 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._2TKEazUUS3TlniZfpc8OOe,
 ._3pSPluBgf0NeR1kkCLWMhR,
 ._1LJqx_qFOC8199RBQO5kU8 {
-  background: var(--cp-bg-alt) !important;
+    background: var(--cp-bg-alt) !important;
 }
 
 /* menu bar dropdowns and the notifications popup */
@@ -206,7 +297,7 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._2EstNjFIIZm_WUSKm5Wt7n,
 ._3k90ug209sE23xAMqcM74s,
 ._1oERP7bVictkby2hP4BBva {
-  background: var(--cp-bg-alt) !important;
+    background: var(--cp-bg-alt) !important;
 }
 
 /* steam blue: update banner, event dates, progress, title highlight */
@@ -214,14 +305,14 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._3OSZu24hLN7YKjqGi7I2Xp,
 ._5wILZhsLODVwGfcJ0hKmJ,
 .title-area-highlight {
-  background: var(--cp-accent) !important;
+    background: var(--cp-accent) !important;
 }
 
 /* library filter panel and its header */
 ._20QAC4WMXm8qFE8waUT5oo,
 .Woh0kBQCmatzC1daBX9i6,
 ._276E6ijBpjMA2_iTxNhhjc {
-  background: var(--cp-bg-alt) !important;
+    background: var(--cp-bg-alt) !important;
 }
 
 /* translucent chips: game tiles, avatar badges, shelf drag handle */
@@ -229,15 +320,19 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._3yD46y5pd3zOGR7CzKs0mC,
 .RtSv39ZoBOySnb8XQ5hJf,
 ._3IWn-2rn7x98o5fDd0rAxb {
-  background: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
+    background: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
 }
 
 /* game page: backdrop, header fade, play bar, side panels */
 ._3lDczhulqraStjCitLYJ1K {
-  background: var(--cp-bg) !important;
+    background: var(--cp-bg) !important;
 }
 .Jbe--NUNw7sxbxGsMSjVa {
-  background: linear-gradient(transparent 0%, color-mix(in srgb, var(--cp-bg) 70%, transparent) 82px, var(--cp-bg) 100%) !important;
+    background: linear-gradient(
+        transparent 0%,
+        color-mix(in srgb, var(--cp-bg) 70%, transparent) 82px,
+        var(--cp-bg) 100%
+    ) !important;
 }
 ._3fLo166MlaNqP8r8tTyRz,
 ._1HZy7BvOZuPT8feUwadL4W,
@@ -248,25 +343,25 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 ._38t1mljBjmJfqjpVzMT1CG,
 ._2JSyABqFEh-v_dwaTnBydR,
 .bACIuqv-b_9TztCczFK19 {
-  background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
+    background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
 }
 /* install / play button, its dropdown and the loading sweep */
 ._3ydigb6zZAjJ0JCDgHwSYA,
 ._3pXasCUulX4jjqO79s4q_F {
-  background: var(--cp-accent) !important;
-  color: var(--cp-bg) !important;
+    background: var(--cp-accent) !important;
+    color: var(--cp-bg) !important;
 }
 /* gear, info, favorite buttons */
 ._3qDWQGB0rtwM3qpXTb11Q- {
-  background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
+    background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
 }
 
 /* store url bar in the client */
 .UkR3sY319PuaUNuUWks2K {
-  background: var(--cp-bg) !important;
+    background: var(--cp-bg) !important;
 }
 ._2m_orETo6AghzAnc0sISCt {
-  background: transparent !important;
+    background: transparent !important;
 }
 
 /* friends list and chat windows (stable class names) */
@@ -277,7 +372,7 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 .ChatRoomGroupDialog_contents,
 ._3Ule3rolhZJiBN4yNNtk1s,
 ._2WfNoLBdfKwyutA6ho4aSH {
-  background: var(--cp-bg) !important;
+    background: var(--cp-bg) !important;
 }
 .friendListHeaderContainer,
 .ChatTabs.titleBarContainer,
@@ -290,11 +385,11 @@ a:hover { text-decoration-color: var(--cp-accent) !important; }
 .RVIs84dAE6wHcjH9tkinc,
 .VoiceToggle,
 ._2XZq-_f6npaQdAgeRzKIkz {
-  background: var(--cp-bg-alt) !important;
+    background: var(--cp-bg-alt) !important;
 }
 .friendTab.activeTab {
-  box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
+    box-shadow: inset 0 -2px 0 0 var(--cp-accent) !important;
 }
 .singleWindowFocusBar {
-  background: var(--cp-accent) !important;
+    background: var(--cp-accent) !important;
 }

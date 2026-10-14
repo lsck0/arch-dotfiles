@@ -1,0 +1,25 @@
+# gitleaks config for the dot sync preflight. Secrets live git-crypt encrypted under secrets/, which gitleaks sees as
+# GITCRYPT-header binary, not plaintext. This allowlists the public key material that is committed on purpose.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "committed public keys and git-crypt encrypted blobs"
+paths = [
+  '''configs/core/gnupg/luca-sandrock\.pub\.asc''',
+  '''configs/base/yubikey/ssh-39779321\.pub''',
+  '''configs/base/yubikey/age-39779321\.identity''',
+  '''configs/base/yubikey/recipients\.txt''',
+  '''configs/base/pacman/archrepo\.asc''',
+  '''secrets/.*''',
+]
+regexes = [
+  '''-----BEGIN (PGP PUBLIC KEY BLOCK|OPENSSH PUBLIC KEY|PUBLIC KEY)-----''',
+  '''AGE-PLUGIN-YUBIKEY-''',
+  '''age1[0-9a-z]{58}''',
+]
+
+[[allowlists]]
+description = "the public signing key fingerprint bootstrap trusts"
+regexTarget = "match"
+regexes = ['''SIGNING_KEY_FINGERPRINT\s*=\s*"?[0-9A-F]{40}"?''']

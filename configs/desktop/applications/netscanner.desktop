@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=netscanner
+Comment=Network scanner
+TryExec=netscanner
+Exec=netscanner
+Icon=network-workgroup
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

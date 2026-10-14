@@ -1,4 +1,4 @@
-// shared color math, pasted into a shader by toggle-shader.sh where it says #include "color.glsl"
+// shared color math, pasted into a shader by toggle-shader.nu where it says #include "color.glsl"
 //
 // sRGB transfer: IEC 61966-2-1 piecewise curve, the exact inverse pair rather than a 2.2 power.
 // OKLab: Bjoern Ottosson, "A perceptual color space for image processing" (2020), matrices as published

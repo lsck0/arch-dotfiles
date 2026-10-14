@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=flamelens
+Comment=Flamegraph viewer
+TryExec=flamelens
+Exec=@HOME@/.local/bin/desktop-run --file -- flamelens
+Icon=hotspot
+Terminal=true
+Categories=Development;Profiling;ConsoleOnly;

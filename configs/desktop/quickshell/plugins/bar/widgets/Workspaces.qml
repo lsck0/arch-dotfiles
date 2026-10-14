@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell.Hyprland
@@ -10,7 +11,7 @@ BarWidget {
 
   function workspaceById(id) {
     var values = Hyprland.workspaces.values
-    for (var i = 0; i < values.length; i++) {
+    for (let i = 0; i < values.length; i++) {
       if (values[i].id === id) return values[i]
     }
     return null
@@ -42,8 +43,8 @@ BarWidget {
     var values = Hyprland.workspaces.values
     var monitorActiveId = root.activeWorkspaceId
 
-    for (var i = 0; i < values.length; i++) {
-      var id = values[i].id
+    for (let i = 0; i < values.length; i++) {
+      let id = values[i].id
       if (id <= 0 || id > 10) continue
       if (root.myMonitor && values[i].monitor !== root.myMonitor) continue
       if (values[i].toplevels.values.length === 0 && id !== monitorActiveId) continue

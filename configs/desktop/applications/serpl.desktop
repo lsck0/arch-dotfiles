@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=serpl
+Comment=Search and replace across a folder
+TryExec=serpl
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- serpl
+Icon=edit-find-replace
+Terminal=true
+Categories=Development;ConsoleOnly;

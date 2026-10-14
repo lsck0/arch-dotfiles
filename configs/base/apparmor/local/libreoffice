@@ -1,3 +1,17 @@
 # managed by arch-dotfiles/apparmor
 # the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
+# an editor, unlike the viewers: an attachment opened from a temp dir is edited and saved in place (with its
+# .~lock.<name># beside it), --convert-to writes there, and unoserver (stirling-pdf) runs soffice with a fresh
+# -env:UserInstallation in a mkdtemp dir; as for onlyoffice
+owner /tmp/** rwk,
+
+# document signing and openpgp encryption: gpgme's gpg and gpgconf in a child, as for thunderbird, instead of
+# apparmor.d's gpg profiles, which would confine gpg everywhere. priority beats the upstream px
+priority=1 @{bin}/gpg{,2} rCx -> gpg,
+priority=1 @{bin}/gpgconf rCx -> gpg,
+priority=1 @{bin}/gpgsm   rCx -> gpg,
+
+profile gpg flags=(attach_disconnected) {
+  include <abstractions/dotfiles/gpg-client>
+}

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=openapi-tui
+Comment=Browse an OpenAPI specification
+TryExec=openapi-tui
+Exec=@HOME@/.local/bin/desktop-run --file -- openapi-tui --input
+Icon=network-server
+Terminal=true
+Categories=Development;ConsoleOnly;

@@ -16,8 +16,12 @@ owner @{user_config_dirs}/discord/app-*/modules/discord_voice-*/discord_voice/gp
 /etc/arch-release r,
 # betterdiscord (socials/discord): the injected core requires its asar, plugins and themes keep their data beside it
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
-# settings.json links into the dotfiles checkout
-owner @{HOME}/projects/arch-dotfiles/configs/socials/discord/discord_settings.json rw,
 # the voice status plugin's files the quickshell bar reads and writes
 owner @{run}/user/@{uid}/quickshell-discord-voice.json{,.tmp} rw,
 owner @{run}/user/@{uid}/quickshell-discord-cmd rw,
+# Chromium sizes its heap and threads by its cgroup's memory and cpu limits
+@{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
+# it probes the distro, X11 window props and a dbus call on every start; all optional, kept denied without the log noise
+deny @{bin}/lsb_release x,
+deny @{bin}/xprop rx,
+deny @{bin}/dbus-send rx,

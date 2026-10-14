@@ -1,6 +1,6 @@
 // spicetify extension: block spotify's ad and telemetry traffic, in the spirit of BlockTheSpot. it works at the network
 // layer -- url patterns, not internal class names -- so a client update that renames classes does not break it.
-// injected by spicetify apply (configs/socials/spotify/hook/spicetify-apply.sh), registered in link.sh
+// injected by spicetify apply (configs/socials/spotify/hook/spicetify-apply.nu), registered in mod.nu
 (function adblock() {
   // ad slots, the ad-logic/gabo receivers, and the telemetry/collect endpoints; everything else reaches the network
   const BLOCK = [

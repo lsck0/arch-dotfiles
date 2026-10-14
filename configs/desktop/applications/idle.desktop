@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=IDLE
+Comment=Python's own editor and shell
+TryExec=idle
+Exec=idle %F
+Icon=text-x-python
+Terminal=false
+Categories=Development;IDE;

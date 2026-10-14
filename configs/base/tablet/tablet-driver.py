@@ -51,15 +51,24 @@ BUTTON_REPORT_LEN = 8
 
 # the only stylus buttons: the barrel and eraser bits in pen report id 9 are never set by this device
 PEN_BUTTON_BITS = {
-    (5, 0x20): "BTN_STYLUS",   # lower
+    (5, 0x20): "BTN_STYLUS",  # lower
     (5, 0x10): "BTN_STYLUS2",  # upper
 }
 
 # 12 express keys published as F13..F24, keycodes no keyboard emits so they bind without collision; order is bit order not physical, rebind to taste
 EXPRESS_KEY_BITS = [
-    (4, 0x01), (4, 0x02), (4, 0x04), (4, 0x08),
-    (4, 0x10), (4, 0x20), (4, 0x40), (4, 0x80),
-    (5, 0x01), (5, 0x02), (5, 0x04), (5, 0x08),
+    (4, 0x01),
+    (4, 0x02),
+    (4, 0x04),
+    (4, 0x08),
+    (4, 0x10),
+    (4, 0x20),
+    (4, 0x40),
+    (4, 0x80),
+    (5, 0x01),
+    (5, 0x02),
+    (5, 0x04),
+    (5, 0x08),
 ]
 EXPRESS_KEY_NAMES = [f"KEY_F{n}" for n in range(13, 25)]
 
@@ -228,11 +237,7 @@ def make_uinput(calib: dict):
     # ui.device scans /dev/input for the new node and races udev creating it; not worth waiting for, it is only a label
     node = getattr(getattr(ui, "device", None), "path", None) or "pending"
     log(f"uinput: created {ui.name} at {node}")
-    log(
-        "uinput: X raw {x_min}..{x_max} -> 0..{m}, Y raw {y_min}..{y_max} -> 0..{m}".format(
-            m=OUT_MAX, **calib
-        )
-    )
+    log("uinput: X raw {x_min}..{x_max} -> 0..{m}, Y raw {y_min}..{y_max} -> 0..{m}".format(m=OUT_MAX, **calib))
     return ui
 
 
@@ -353,8 +358,10 @@ def calibrate(node: str, duration: float, path: str) -> int:
     calib = {"x_min": min(xs), "x_max": max(xs), "y_min": min(ys), "y_max": max(ys)}
     span_x = calib["x_max"] - calib["x_min"]
     span_y = calib["y_max"] - calib["y_min"]
-    log(f"calibration: {len(xs)} samples, X {calib['x_min']}..{calib['x_max']} "
-        f"(span {span_x}), Y {calib['y_min']}..{calib['y_max']} (span {span_y})")
+    log(
+        f"calibration: {len(xs)} samples, X {calib['x_min']}..{calib['x_max']} "
+        f"(span {span_x}), Y {calib['y_min']}..{calib['y_max']} (span {span_y})"
+    )
     if span_x < 4096 or span_y < 4096:
         log("calibration: span too small, the pad was not swept fully")
         return 1
@@ -461,8 +468,7 @@ def run(node: str, calib: dict) -> int:
                     data = os.read(btn_fd, 64)
                     if not data:
                         # same EOF trap as the pen node below: select() keeps reporting it readable forever
-                        log("driver: button node reached end of file; "
-                            "buttons disabled")
+                        log("driver: button node reached end of file; buttons disabled")
                         release_keys()
                         os.close(btn_fd)
                         btn_fd = -1
@@ -510,9 +516,11 @@ def run(node: str, calib: dict) -> int:
                 if retoggles >= MAX_RETOGGLES or btn_node is None:
                     continue
                 retoggles += 1
-                log(f"driver: interface 1 is sending report id {data[0]}, not "
+                log(
+                    f"driver: interface 1 is sending report id {data[0]}, not "
                     f"{PEN_REPORT_ID}; re-toggling the pen mode "
-                    f"({retoggles}/{MAX_RETOGGLES})")
+                    f"({retoggles}/{MAX_RETOGGLES})"
+                )
                 unlock(btn_node)
                 continue
 
@@ -558,13 +566,17 @@ def run(node: str, calib: dict) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--calibrate", type=float, metavar="SECONDS", nargs="?",
-                    const=20.0, help="measure the usable axis range and store it")
+    ap.add_argument(
+        "--calibrate",
+        type=float,
+        metavar="SECONDS",
+        nargs="?",
+        const=20.0,
+        help="measure the usable axis range and store it",
+    )
     ap.add_argument("--calibration", default=CALIB_PATH, help="calibration file path")
-    ap.add_argument("--wait", type=float, default=15.0,
-                    help="seconds to wait for the device to appear")
-    ap.add_argument("--no-unlock", action="store_true",
-                    help="skip the sleep-mode handshake")
+    ap.add_argument("--wait", type=float, default=15.0, help="seconds to wait for the device to appear")
+    ap.add_argument("--no-unlock", action="store_true", help="skip the sleep-mode handshake")
     args = ap.parse_args()
 
     if not args.no_unlock:

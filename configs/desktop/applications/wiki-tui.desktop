@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=wiki-tui
+Comment=Read Wikipedia
+TryExec=wiki-tui
+Exec=wiki-tui
+Icon=accessories-dictionary
+Terminal=true
+Categories=Network;Education;ConsoleOnly;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=TParted
+Comment=Partition editor
+TryExec=tparted
+Exec=@HOME@/.local/bin/desktop-run -- sudo tparted
+Icon=partitionmanager
+Terminal=true
+Categories=System;Filesystem;ConsoleOnly;

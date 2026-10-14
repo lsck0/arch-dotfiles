@@ -8,6 +8,13 @@ description: "Implement tickets: write the actual code."
 Turn a ticket into working code, to the project's own conventions.
 
 - Implement exactly what the ticket specifies.
+- Native over bolt-on: build on the framework's own mechanism, never a
+  wrapper or polling loop that reimplements what the tool already provides
+  (`l-style` core).
+- One extension pattern, same for a human and an agent: a new capability
+  is a file that follows the project's established convention and is
+  discoverable from its index; adding the file is the whole change,
+  nothing central edits to register it (`l-style` core).
 - Tests alongside the code, not after, named with the requirement ID
   they prove.
 - The governing spec changes in the same commit as the code: requirements

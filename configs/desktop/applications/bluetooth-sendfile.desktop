@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Bluetooth File Transfer
+Comment=Send files to a Bluetooth device
+TryExec=bluedevil-sendfile
+Exec=bluedevil-sendfile
+Icon=preferences-system-bluetooth
+Terminal=false
+Categories=Network;Settings;HardwareSettings;

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=tmux
+Comment=Terminal multiplexer
+TryExec=tmux
+Exec=tmux
+Icon=utilities-terminal
+Terminal=true
+Categories=System;Utility;ConsoleOnly;

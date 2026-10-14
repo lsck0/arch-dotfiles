@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=rgx
+Comment=Regex tester
+TryExec=rgx
+Exec=rgx
+Icon=kfind
+Terminal=true
+Categories=Development;ConsoleOnly;

@@ -16,8 +16,8 @@ return {
                     find_left = "gsF",
                     highlight = "gsh",
                     update_n_lines = "gsn",
-                }
+                },
             })
-        end
+        end,
     },
 }

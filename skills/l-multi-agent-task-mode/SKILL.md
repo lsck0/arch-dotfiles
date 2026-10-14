@@ -346,6 +346,14 @@ name). The model comes from the ticket's `model:`/`provider:` annotation
 durable file under `tasks/context/` or `tasks/agents/<uuid8>-<slug>/`, not
 to pane/chat text; after it settles, read the file directly.
 
+A worker that launches an app, game or editor only to screenshot or verify
+it (not because the user is watching that task) keeps it off the physical
+screen. On Luca's Hyprland desktop that is the headless-output pattern in
+the dotfiles AGENTS.md gotchas: `hyprctl output create headless` ->
+HEADLESS-N, move the window there, `grim -o HEADLESS-N`, then `hyprctl
+output remove HEADLESS-N`. Each worker makes and removes its own, so many
+verify at once without taking over the monitors; say so in its prompt.
+
 | operation | HERDR_ENV=1 (Hermes panes) | Claude Code (Agent tool) |
 |---|---|---|
 | spawn a worker | `herdr pane split --current --direction right --cwd "$PROJECT_DIR" --no-focus` (read `.result.pane.pane_id`), then `herdr agent start <name> --kind hermes --pane <id> --timeout 30000 -- -m <model> --provider <prov> -s <persona>[,l-style,l-style-architecture[,l-style-testing]]` | one Agent tool call per worker (`subagent_type` general-purpose, never `fork`: a worker starts from the durable files, not this context); set `model` to the annotation's model; the prompt names the role, tells the worker to load the `l-persona-*` skill (and the l-style parts) and to write its output to the durable file then stop |

@@ -1,0 +1,46 @@
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import qs.Commons
+import qs.Ui
+
+// `dot doctor`'s FAIL lines as doctor-check.service last wrote them, gone while there are none; a click checks again
+BarIndicator {
+  id: root
+
+  readonly property string findingsPath: {
+    var base = String(Quickshell.env("XDG_STATE_HOME") || "").trim() || (Paths.home + "/.local/state")
+    return base.replace(/\/+$/, "") + "/doctor/findings"
+  }
+  property var findings: []
+
+  active: findings.length > 0
+  activeText: "\u{f04d9}"
+  inactiveText: "\u{f04d9}"
+  activeTooltipText: findings.join("\n")
+  useActiveColor: true
+
+  function apply(text) {
+    root.findings = String(text || "").split("\n").filter(function (line) { return line.trim() !== "" })
+  }
+
+  FileView {
+    id: file
+    path: root.findingsPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: { root.apply(text()); Util.rearmWatch(this) }
+    onLoadFailed: root.findings = []
+    onFileChanged: reload()
+  }
+
+  // the file appears only after the first check, and a watch set before that sees nothing
+  Timer {
+    interval: 10 * 60 * 1000
+    running: true
+    repeat: true
+    onTriggered: file.reload()
+  }
+
+  onPressed: Quickshell.execDetached(["systemctl", "--user", "start", "--no-block", "doctor-check.service"])
+}

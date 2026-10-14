@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gh-enhance
+Comment=GitHub Actions runs of a repository
+TryExec=gh-enhance
+Exec=@HOME@/.local/bin/desktop-run --in-dir -- gh-enhance
+Icon=folder-git
+Terminal=true
+Categories=Development;RevisionControl;ConsoleOnly;

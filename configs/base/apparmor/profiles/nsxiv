@@ -21,9 +21,9 @@ profile nsxiv @{exec_path} flags=(attach_disconnected) {
   @{exec_path} mr,
   @{lib}/imlib2/{,**} mr,
 
-  # desktop/nsxiv's key-handler (trash, set wallpaper) is a shell script: a compromised viewer that may run it can
-  # run anything, so its keys stay off while nsxiv is confined
-  deny @{HOME}/projects/arch-dotfiles/configs/desktop/nsxiv/exec/* x,
+  # desktop/nsxiv's key-handler (trash, set wallpaper) runs commands: a compromised viewer that may run it can run
+  # anything, so its keys stay off while nsxiv is confined
+  deny @{user_config_dirs}/nsxiv/exec/* x,
 
   owner @{user_cache_dirs}/nsxiv/{,**} rw,
 

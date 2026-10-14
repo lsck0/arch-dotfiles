@@ -10,7 +10,7 @@ return {
         ft = "markdown",
         opts = {
             files = {
-                "*.md"
+                "*.md",
             },
             keys = {
                 ["<C-Space>"] = {
@@ -22,7 +22,7 @@ return {
             todo_states = {
                 unchecked = { marker = "□" },
                 checked = { marker = "✔" },
-            }
+            },
         },
     },
 
@@ -43,7 +43,7 @@ return {
                     },
                 },
             })
-        end
+        end,
     },
 
     {

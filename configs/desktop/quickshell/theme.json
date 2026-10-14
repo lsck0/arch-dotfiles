@@ -12,6 +12,7 @@
   "palette": {
     "backgroundValueMin": 0.08,
     "backgroundValueMax": 0.26,
+    "lightLuminance": 0.4,
     "foregroundContrast": 7.0,
     "accentMinSaturation": 0.7,
     "accentMinValue": 0.62,

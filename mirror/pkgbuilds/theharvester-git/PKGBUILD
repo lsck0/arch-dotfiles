@@ -5,7 +5,7 @@
 # Contributor: éclairevoyant
 
 pkgname=theharvester-git
-pkgver=4.8.2.r66.g5116b856
+pkgver=4.11.1.r467.g49a38f8d
 pkgrel=1
 pkgdesc="Gather emails, names, subdomains, IPs and URLs related to targets using public sources"
 arch=(any)
@@ -14,12 +14,15 @@ license=(GPL-2.0-only)
 depends=(
     python-aiodns
     python-aiohttp
+    python-aiohttp-socks
     python-aiomultiprocess
     python-aiosqlite
     python-beautifulsoup4
     python-certifi
+    python-dateutil
     python-fastapi
     python-netaddr
+    python-sqlalchemy
     python-ujson
     python-yaml
     python-shodan

@@ -1,4 +1,0 @@
-# initramfs only: on ssh login answer the LUKS passphrase prompt so boot continues. a no-op on the running system
-if [ -e /etc/initrd-release ]; then
-    exec systemd-tty-ask-password-agent --query --watch
-fi

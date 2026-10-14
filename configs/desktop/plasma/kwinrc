@@ -11,6 +11,10 @@ Id_9=efb5580d-9f01-4f06-bd5b-5ca5e3833fcb
 Number=9
 Rows=1
 
+[EdgeBarrier]
+CornerBarrier=false
+EdgeBarrier=0
+
 [NightColor]
 Mode=Constant
 
@@ -126,17 +130,13 @@ tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"wi
 padding=4
 tiles={"layoutDirection":"horizontal","tiles":[{"width":0.25},{"width":0.5},{"width":0.25}]}
 
+[Windows]
+FocusPolicy=FocusFollowsMouse
+NextFocusPrefersMouse=true
+
 [Xwayland]
 Scale=1.6
 
 [org.kde.kdecoration2]
 BorderSize=Normal
 BorderSizeAuto=false
-
-[EdgeBarrier]
-CornerBarrier=false
-EdgeBarrier=0
-
-[Windows]
-FocusPolicy=FocusFollowsMouse
-NextFocusPrefersMouse=true

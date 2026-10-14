@@ -3,7 +3,7 @@
 ## Building:
 
 ```bash
-./build.sh
+./build.nu
 ```
 
 ## Flashing:

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -56,7 +57,7 @@ BarWidget {
 
   readonly property int speakingCount: {
     var n = 0
-    for (var i = 0; i < participants.length; i++)
+    for (let i = 0; i < participants.length; i++)
       if (participants[i].speaking) n++
     return n
   }
@@ -135,11 +136,11 @@ BarWidget {
           color: "transparent"
           antialiasing: true
           border.width: root.ringWidth
-          border.color: modelData.speaking && !parent.silenced
+          border.color: chip.modelData.speaking && !parent.silenced
             ? Colors.semantic.speaking
             : Util.alpha(Colors.menu.text, parent.silenced ? 0.12 : 0.22)
           Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
-          layer.enabled: Style.fx.glow > 0 && modelData.speaking && !chip.silenced
+          layer.enabled: Style.fx.glow > 0 && chip.modelData.speaking && !chip.silenced
           layer.effect: Glow { shadowColor: Colors.semantic.speaking }
         }
 
@@ -152,7 +153,7 @@ BarWidget {
           Image {
             id: avatarImage
             anchors.fill: parent
-            source: modelData.avatar || ""
+            source: chip.modelData.avatar || ""
             sourceSize.width: Math.ceil(width * 2 * Screen.devicePixelRatio)
             sourceSize.height: Math.ceil(height * 2 * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
@@ -168,7 +169,7 @@ BarWidget {
           Text {
             anchors.centerIn: parent
             visible: !avatarImage.visible
-            text: String(modelData.name || "?").charAt(0).toUpperCase()
+            text: String(chip.modelData.name || "?").charAt(0).toUpperCase()
             color: Colors.menu.text
             opacity: 0.8
             font.family: Style.font.family
@@ -195,7 +196,7 @@ BarWidget {
 
           OpticalGlyph {
             anchors.centerIn: parent
-            text: (modelData.selfDeaf || modelData.deaf)
+            text: (chip.modelData.selfDeaf || chip.modelData.deaf)
               ? "\u{f0581}"    // md-volume_off
               : "\u{f036d}"    // md-microphone_off
             color: Colors.urgent
@@ -323,6 +324,7 @@ BarWidget {
       Repeater {
         model: root.participants
         delegate: Row {
+          id: participant
           required property var modelData
           width: content.width
           spacing: Style.spacing.xs
@@ -341,7 +343,7 @@ BarWidget {
 
               Image {
                 anchors.fill: parent
-                source: modelData.avatar || ""
+                source: participant.modelData.avatar || ""
                 sourceSize.width: Math.ceil(width * 2 * Screen.devicePixelRatio)
                 sourceSize.height: Math.ceil(height * 2 * Screen.devicePixelRatio)
                 fillMode: Image.PreserveAspectCrop
@@ -358,7 +360,7 @@ BarWidget {
               color: "transparent"
               antialiasing: true
               border.width: Math.max(1, Style.space(2))
-              border.color: modelData.speaking
+              border.color: participant.modelData.speaking
                 ? Colors.semantic.speaking : Util.alpha(Colors.menu.text, 0.18)
               Behavior on border.color { ColorAnimation { duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter } }
             }
@@ -372,17 +374,17 @@ BarWidget {
               id: nameLabel
               width: Math.min(implicitWidth, parent.width - (youLabel.visible ? youLabel.implicitWidth + parent.spacing : 0))
               textFormat: Text.PlainText
-              text: modelData.name
-              color: modelData.speaking ? Colors.accent : Colors.menu.text
+              text: participant.modelData.name
+              color: participant.modelData.speaking ? Colors.accent : Colors.menu.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
-              layer.enabled: Style.fx.glow > 0 && modelData.speaking
+              layer.enabled: Style.fx.glow > 0 && participant.modelData.speaking
               layer.effect: Glow {}
             }
             Text {
               id: youLabel
-              visible: !!modelData.self
+              visible: !!participant.modelData.self
               anchors.baseline: nameLabel.baseline
               text: "you"
               color: Colors.menu.text
@@ -399,21 +401,21 @@ BarWidget {
             spacing: Style.spacing.xs
 
             Text {
-              visible: modelData.selfDeaf || modelData.deaf
+              visible: participant.modelData.selfDeaf || participant.modelData.deaf
               text: "\u{f0581}"   // md-volume_off
-              color: modelData.deaf ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
+              color: participant.modelData.deaf ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
-              visible: modelData.selfMute || modelData.mute
+              visible: participant.modelData.selfMute || participant.modelData.mute
               text: "\u{f036d}"   // md-microphone_off
-              color: modelData.mute ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
+              color: participant.modelData.mute ? Colors.urgent : Util.alpha(Colors.urgent, 0.75)
               font.family: Style.font.iconFamily
               font.pixelSize: Style.font.caption
             }
             Text {
-              visible: modelData.video
+              visible: participant.modelData.video
               text: "\u{f0567}"   // md-video
               color: Colors.menu.text
               opacity: Style.emphasis.dim
@@ -421,7 +423,7 @@ BarWidget {
               font.pixelSize: Style.font.caption
             }
             Text {
-              visible: modelData.streaming
+              visible: participant.modelData.streaming
               text: "\u{f1483}"   // md-monitor_share
               color: Colors.menu.text
               opacity: Style.emphasis.dim

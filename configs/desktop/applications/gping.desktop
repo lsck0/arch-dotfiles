@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gping
+Comment=Ping with a live graph
+TryExec=gping
+Exec=@HOME@/.local/bin/desktop-run --ask Host -- gping
+Icon=network-wired
+Terminal=true
+Categories=Network;Monitor;ConsoleOnly;

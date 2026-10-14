@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=spotify_player
+Comment=Spotify client
+TryExec=spotify_player
+Exec=spotify_player
+Icon=spotify
+Terminal=true
+Categories=AudioVideo;Audio;Player;ConsoleOnly;

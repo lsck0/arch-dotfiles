@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=k9s
+Comment=Kubernetes cluster manager
+TryExec=k9s
+Exec=k9s
+Icon=network-server
+Terminal=true
+Categories=Development;System;ConsoleOnly;

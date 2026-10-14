@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=bibiman
+Comment=BibLaTeX bibliography manager
+TryExec=bibiman
+Exec=@HOME@/.local/bin/desktop-run --files -- bibiman
+Icon=text-x-bibtex
+Terminal=true
+Categories=Office;ConsoleOnly;

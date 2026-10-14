@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Glow
+Comment=Markdown reader
+TryExec=glow
+Exec=glow
+Icon=text-markdown
+Terminal=true
+Categories=Office;Viewer;ConsoleOnly;

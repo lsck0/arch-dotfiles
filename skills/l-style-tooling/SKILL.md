@@ -11,7 +11,7 @@ holds the conventional-commit rules).
 
 ## Tooling & Reproducibility
 
-- One entry point per repo: a `justfile`, a `Makefile`, or a custom CLI. Run it bare and it lists everything it can do. Subcommands nested verb then noun, unlike identifiers: `run debug`, `run test`, `run bench`, `build release-linux`, `check --strict`.
+- One entry point per repo: a `justfile`, a `Makefile`, or a custom CLI (a nushell script with `def "main <verb>"` subcommands is a good default: typed flags, generated help). Run it bare and it lists everything it can do. Subcommands nested verb then noun, unlike identifiers: `run debug`, `run test`, `run bench`, `build release-linux`, `check --strict`.
 - Every command and flag carries its description in the same table that parses it, so help, usage and completions are generated from the definition and can't drift.
 - The same commands run locally and in CI. Bad input prints the error and the usage and exits non-zero, never a panic and a stack trace.
 - Modes are first-class and symmetric: `debug` (sanitized, hot reload, slow), `dev` (optimized, hot reload, no sanitizers), `release`, plus `test`, `bench`, `coverage`, `profile`. For services: `dev`, `prod`, `test`, `bench`.

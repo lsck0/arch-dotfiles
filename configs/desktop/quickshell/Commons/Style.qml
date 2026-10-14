@@ -1,4 +1,5 @@
 pragma Singleton
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
 
@@ -15,7 +16,7 @@ QtObject {
   readonly property int cornerRadius: Math.max(0, Math.round(2 * scale))
   property int gapsOut: 5
 
-  readonly property QtObject fx: QtObject {
+  component FxTokens: QtObject {
     readonly property real glow: Power.saver ? 0 : Theme.glowStrength
     readonly property color glowColor: Colors.accent
     readonly property int glowRadius: Math.max(2, Math.round(4 * root.scale))
@@ -28,6 +29,7 @@ QtObject {
     readonly property real matrixRain: Power.saver ? 0 : Theme.matrixRain
     function glowAlpha(mult) { return Math.min(1, root.fx.glow * (mult === undefined ? 1 : mult)) }
   }
+  readonly property FxTokens fx: FxTokens {}
 
   readonly property real normalFillAlpha: 0.04
   readonly property real hoverFillAlpha: 0.10
@@ -77,28 +79,31 @@ QtObject {
     return normalFillFor(foreground || Colors.foreground, accent || Colors.accent)
   }
 
-  readonly property QtObject row: QtObject {
+  component RowTokens: QtObject {
     readonly property int list: root.space(32)
     readonly property int control: root.space(28)
   }
+  readonly property RowTokens row: RowTokens {}
 
   // drawer widths include the neck flare on both sides, so content keeps its old width
-  readonly property QtObject panelWidth: QtObject {
+  component PanelWidthTokens: QtObject {
     readonly property int narrow: root.space(320) + root.shape.neck * 2
     readonly property int normal: root.space(360) + root.shape.neck * 2
     readonly property int wide: root.space(460) + root.shape.neck * 2
   }
+  readonly property PanelWidthTokens panelWidth: PanelWidthTokens {}
 
-  readonly property QtObject emphasis: QtObject {
+  component EmphasisTokens: QtObject {
     readonly property real strong: 1.0
     readonly property real dim: 0.7
     readonly property real faint: 0.45
     // below faint so off differs from quiet
     readonly property real disabled: 0.3
   }
+  readonly property EmphasisTokens emphasis: EmphasisTokens {}
 
   // 4px grid; 3, 6, 10, 14, 18 and 22 are gone on purpose
-  readonly property QtObject spacing: QtObject {
+  component SpacingTokens: QtObject {
     // one physical pixel at any scale
     readonly property int hair: 1
     readonly property int xxs: root.space(2)
@@ -119,9 +124,10 @@ QtObject {
     readonly property int panelPadding: lg
     readonly property int popupPadding: lg
   }
+  readonly property SpacingTokens spacing: SpacingTokens {}
 
   // radius 0 for data (rows, chips, gauges, inputs, selection), surface radius matches hyprland rounding
-  readonly property QtObject shape: QtObject {
+  component ShapeTokens: QtObject {
     readonly property int data: 0
     readonly property int surface: root.cornerRadius
     // one 45deg cut on the top-right outer corner of floating surfaces
@@ -129,26 +135,29 @@ QtObject {
     // inverted corner where a drawer leaves the bar's accent rule
     readonly property int neck: root.space(8)
   }
+  readonly property ShapeTokens shape: ShapeTokens {}
 
   // one chrome for hover panels, popup cards and overlay cards
-  readonly property QtObject surface: QtObject {
+  component SurfaceTokens: QtObject {
     readonly property int padding: root.spacing.lg
     readonly property int borderWidth: root.spacing.hair
     // the bar's accent rule and the drawer outline that continues it
     readonly property real ruleAlpha: 0.85
   }
+  readonly property SurfaceTokens surface: SurfaceTokens {}
 
   // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
-  readonly property QtObject translucency: QtObject {
+  component TranslucencyTokens: QtObject {
     readonly property real saver: 0.96
     readonly property real bar: Power.saver ? saver : 0.78
     readonly property real panel: Power.saver ? saver : 0.85
     readonly property real overlay: Power.saver ? saver : 0.92
     readonly property real scrim: 0.55
   }
+  readonly property TranslucencyTokens translucency: TranslucencyTokens {}
 
   // the only durations and curves; power saver zeroes all but snap
-  readonly property QtObject motion: QtObject {
+  component MotionTokens: QtObject {
     readonly property bool enabled: !Power.saver
     readonly property int snap: 0
     readonly property int fast: enabled ? 90 : 0
@@ -169,6 +178,7 @@ QtObject {
     readonly property var enter: [0.05, 0.7, 0.1, 1, 1, 1]
     readonly property var leave: [0.38, 0.04, 1, 0.07, 1, 1]
   }
+  readonly property MotionTokens motion: MotionTokens {}
 
   // ui and icon families resolve separately
   readonly property string fontFamily: Theme.fontFamily
@@ -176,7 +186,7 @@ QtObject {
   readonly property string iconFontFamily: "0xProto Nerd Font"
   property string resolvedIconFontFamily: "0xProto Nerd Font"
 
-  readonly property QtObject font: QtObject {
+  component FontTokens: QtObject {
     readonly property string family: root.resolvedFontFamily
     // glyphs must use this, never family
     readonly property string iconFamily: root.resolvedIconFontFamily
@@ -198,6 +208,7 @@ QtObject {
     readonly property int icon: root.baseSize + 2
     readonly property int iconSmall: Math.max(1, root.baseSize - 1)
   }
+  readonly property FontTokens font: FontTokens {}
 
   readonly property real headerTracking: 2.4 * scale
   // the AllUppercase caption tier, one tracking for every small label
@@ -207,7 +218,7 @@ QtObject {
   readonly property string decor: "[- o x]"
 
   // fixed slots so bar items align on a grid
-  readonly property QtObject bar: QtObject {
+  component BarTokens: QtObject {
     readonly property int sizeHorizontal: root.space(30)
     readonly property int iconSlot: root.space(28)
     readonly property int iconCanvas: root.space(16)
@@ -220,18 +231,18 @@ QtObject {
     readonly property int groupGap: root.spacing.md
     readonly property int pillInset: root.spacing.xs
   }
+  readonly property BarTokens bar: BarTokens {}
 
   // half of hyprland general:gaps_out
   property Process gapsOutProc: Process {
-    id: gapsOutProc
     command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
         try {
-          var json = JSON.parse(text || "{}")
-          var parts = String(json.css || "").match(/-?\d+(?:\.\d+)?/g) || []
-          var n = parts.length > 0 ? Number(parts[0]) : Number(json.int)
+          const json = JSON.parse(text || "{}")
+          const parts = String(json.css || "").match(/-?\d+(?:\.\d+)?/g) || []
+          const n = parts.length > 0 ? Number(parts[0]) : Number(json.int)
           if (isFinite(n) && n >= 0) root.gapsOut = Math.max(0, Math.round(n / 2))
         } catch (e) {
           // hyprland not up yet, keep previous
@@ -280,7 +291,7 @@ QtObject {
   onFontFamilyChanged: resolveUiFont()
 
   Component.onCompleted: {
-    gapsOutProc.running = true
+    root.gapsOutProc.running = true
     fcMatchIconProc.running = true
     resolveUiFont()
   }

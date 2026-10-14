@@ -1,6 +1,6 @@
 ---
 name: l-style
-description: "How Luca wants all code, prose, commits and docs written: the always-on core (philosophy, naming, code style, comments, the Writing hard rules) plus an index of the on-demand l-style-* parts. Load before writing anything in Luca's name."
+description: "How Luca wants all code, prose, commits and docs written: the always-on core (philosophy, naming, code style, comments, the Writing hard rules, no AI slop) plus an index of the on-demand l-style-* parts. Load before writing anything in Luca's name."
 ---
 
 # l-style (core)
@@ -35,6 +35,9 @@ The commit-message rules live in `l-style-tooling` (Git); load it before writing
 - Find the primitives of the problem first: the few irreducible operations and the data they act on. Get those right and features fall out. Get them wrong and nothing above them recovers.
 - Execute the core feature well; everything else enhances it. Features must interact predictably, and one that only works in isolation isn't done.
 - Complexity comes from the problem or not at all. Power comes from orthogonal primitives that compose, not from a list of special cases.
+- Native over bolt-on. Solve each thing with the framework's own mechanism, not a wrapper or a polling loop that reimplements what the tool already provides. A solution that fights its tool is the wrong solution.
+- Sane over default. Being the convention is not a reason on its own: when a better-designed tool exists and fits, use it. Scripting is nushell (typed, structured data, real control flow), not bash or python; bash only where nothing else can run (an install ISO, an initramfs, a tool that sources sh). Config is the app's own language (lua where the app takes lua). Native over bolt-on still holds: the saner tool is used directly, never wrapped around the default.
+- One extension pattern, same for a human and an agent. A new capability is a file that follows the established convention, discoverable from the project's index; adding the file is the whole change, nothing central edits to register it.
 - Design by workflow. Start from the sequence a person actually performs and make it short. Nothing gets built that isn't on a real workflow.
 - Abstractions are earned by three or four real call sites and a problem they remove. Two similar pieces of code are not yet a pattern; extracting them early guesses the shape wrong.
 - Never settle for quick and dirty, and carry no technical debt. If the fix doesn't fit the architecture, change the architecture, but propose it first and do it only when asked; a requested small fix stays small.
@@ -53,6 +56,7 @@ Nyangine style everywhere, adapted to each language's casing but not to its habi
 - Rust: free functions in the type's module, `user::get_display_name`, `user::from_row`. Inherent methods where the language expects them, ordering still subject-first (`User::find_by_email`, not a free `find_user`). Types `PascalCase`, constants `SCREAMING_SNAKE`.
 - TypeScript: `userGetDisplayName`, `userFromRow`. Camel because the language is camel, subject-first because that's the rule.
 - Python: `user_get_display_name`, `user_from_row`, straight across.
+- nushell: kebab-case commands and variables, subject first: `user-get-display-name`, `file-update`; subcommands as `def "main user get"`.
 - Program identifiers are explicit and unabbreviated (LaTeX macros and labels may abbreviate standard math terms), with qualifiers in them: `count_max`. No negations.
 - Every quantity carries its unit, because the software runs in reality. With an algebraic type system (Rust, OCaml, Haskell) the unit is the type: `Meters`, `Duration`, `Bytes`, and mixing them fails to compile. With a weaker one (C, C++, Java) the unit is in the name: `timeout_ms`, `size_bytes`, `distance_m`. Never neither.
 - One verb vocabulary across every language. Inverse pairs: `create`/`destroy`, `init`/`shutdown`, `start`/`stop`, `begin`/`end`, `open`/`close`, `acquire`/`release`, `lock`/`unlock`, `push`/`pop`, `add`/`remove`, `attach`/`detach`, `enable`/`disable`, `bind`/`unbind`, `subscribe`/`unsubscribe`, `save`/`load`, `serialize`/`deserialize`, `encode`/`decode`. Unpaired verbs: `get`, `set`, `find`, `contains`, `from`, `to`, `parse`, `render`. Never two words for one operation, never a language-specific synonym.
@@ -97,6 +101,20 @@ Usual sections, lowest level first: `CONSTANTS`, `TYPES`, `INTERNAL`, `LIFETIME`
 - Formatting is tool-enforced and never argued about: wide columns (120 to 150), aligned consecutive assignments, declarations and macros, block indent, no bin-packing of arguments, regrouped sorted includes (clang-format; other languages use their standard formatter at the same width).
 - Zero warnings, zero lint findings, zero errors. Lint sets are maximal (`bugprone-*`, `cert-*`, `clang-analyzer-*`, `concurrency-*`, `performance-*`, `readability-*`, clippy pedantic). A disabled check needs a comment saying why it doesn't apply.
 
+## No AI slop
+
+Everything in my name reads like a careful human wrote it. The test for every line, in code and prose alike: would someone who cared, and had to type it by hand, have written this? If not, delete it.
+
+- No restating, narrating or summarizing comments, no comment essays, no "Step 1:" walkthroughs, no section banners around three lines of code.
+- No dead or defensive code nobody asked for: checks that cannot trigger, fallbacks for states that cannot exist, unused parameters, options and flags no caller passes, wrappers that only forward.
+- No duplicated helpers. Before writing a function, find the existing one; one implementation per concern.
+- No generic names (`data`, `result`, `info`, `helper`, `manager`, `utils`, `handle_stuff`) and no names that inflate (`ultimate`, `enhanced`, `smart`, `advanced`).
+- No hype vocabulary in prose: robust, seamless, leverage, comprehensive, cutting-edge, powerful, elevate, delve, crucial, ensure (as filler), "it's worth noting", "in summary", "let's dive in". No hedging stacks, no restating the question, no closing recap.
+- No decoration: emoji, unicode arrows and bullets, bold scattered through sentences, exclamation marks, headers on a five-line file.
+- No sci-fi or marketing labels in a UI ("HUD READOUT", "FLUX TELEMETRY"): name the thing plainly, in the casing the rest of the UI uses.
+- No AI attribution in the artifact: no "generated by", no co-author trailers, no assistant voice ("I've updated", "Here's").
+- Output follows the repo, not the model's habits: its formatter, its line width, its helper library, its comment density.
+
 ## Writing
 
 How I write prose: essays, docs, commit and PR bodies, issue and gh comments, emails, chat. Skill files and repo docs (README, AGENTS.md, specs, TODO.md) count as docs, so the hard rules below apply to them.
@@ -106,7 +124,7 @@ Hard rules, no exceptions:
 - ASCII punctuation and symbols only: no smart or typographic quotes, no unicode dashes, arrows or bullets. Straight `"` and `'`. The letters of the language (ä, ö, ü, ß) are allowed.
 - No em dashes. No en dashes. Use `to` / `bis` for ranges in prose; code keeps its own range syntax.
 - Never use `" - "` (space hyphen space) as a sentence connector. Use a colon, a period, or restructure.
-- Terse, for everything outside the long-form list below. No filler, no throat-clearing, no padding. No comment essays. Say the thing and stop.
+- Terse, for everything outside the long-form list below. No filler, no throat-clearing, no padding. Say the thing and stop.
 - gh, PR and issue comments are one or two short lines. The root-cause story goes in the commit or `TODO.md`, not the comment.
 - Preserve the language being written in. Most of my prose is German, some English. Write in the language of the context or request and never mix the two in one piece. Code, identifiers, comments and commits are English; only prose for people follows the context language.
 

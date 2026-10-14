@@ -1,4 +1,5 @@
 {
+  "bf": 2,
   "bitrate": 6000,
   "keyint_sec": 2,
   "rate_control": "CBR"

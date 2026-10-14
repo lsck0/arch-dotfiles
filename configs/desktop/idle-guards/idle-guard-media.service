@@ -4,7 +4,7 @@ PartOf=graphical-session.target
 After=graphical-session.target
 
 [Service]
-ExecStart=%h/.config/idle-guards/media-guard.sh
+ExecStart=%h/.config/idle-guards/media-guard.nu
 Restart=on-failure
 
 [Install]

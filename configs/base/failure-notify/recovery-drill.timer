@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly look whether the paper-key recovery drill is due
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

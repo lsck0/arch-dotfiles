@@ -45,24 +45,24 @@ Item {
       var cellW = w / root.cols
       var g = root.cellGap
 
-      for (var r = 0; r < nr; r++) {
-        var row = rws[r] || {}
-        var vals = row.values || []
-        var mx = row.max || 100
-        var n = vals.length
-        var y0 = r * rowH
-        for (var i = 0; i < n; i++) {
-          var x = w - (n - i) * cellW
+      for (let r = 0; r < nr; r++) {
+        let row = rws[r] || {}
+        let vals = row.values || []
+        let mx = row.max || 100
+        let n = vals.length
+        let y0 = r * rowH
+        for (let i = 0; i < n; i++) {
+          let x = w - (n - i) * cellW
           if (x + cellW < 0) continue
-          var t = Math.max(0, Math.min(1, mx > 0 ? vals[i] / mx : 0))
+          let t = Math.max(0, Math.min(1, mx > 0 ? vals[i] / mx : 0))
           ctx.fillStyle = root.colorFor(t)
           ctx.fillRect(x, y0 + g, cellW + 0.6, rowH - g * 2)
         }
       }
       ctx.strokeStyle = Util.alpha(Colors.foreground, 0.10)
       ctx.lineWidth = 1
-      for (var s = 1; s < nr; s++) {
-        var sy = Math.round(s * rowH) + 0.5
+      for (let s = 1; s < nr; s++) {
+        let sy = Math.round(s * rowH) + 0.5
         ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(w, sy); ctx.stroke()
       }
     }

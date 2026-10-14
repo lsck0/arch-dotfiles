@@ -1,24 +1,53 @@
 -- lua patterns on the (relative or absolute) path: only a vendor/ directory, not every name containing "vendor"
 local ignore_filetypes_list = {
-    "%.xlsx", "%.jpg", "%.png", "%.webp", "%.pdf", "%.odt", "%.ico", "^vendor/", "/vendor/"
+    "%.xlsx",
+    "%.jpg",
+    "%.png",
+    "%.webp",
+    "%.pdf",
+    "%.odt",
+    "%.ico",
+    "^vendor/",
+    "/vendor/",
 }
 
 return {
     {
         "ThePrimeagen/harpoon", -- quick file bookmarks
         branch = "harpoon2",
-        keys = { "<leader>a", "<leader>h", "<leader>1", "<leader>2", "<leader>3", "<leader>4", "<leader>5" },
-        config = function()
-            -- real maps set on load, `keys` above only triggers the lazy load
-            local harpoon = require("harpoon")
-            harpoon:setup()
-
-            vim.keymap.set("n", "<leader>a", function() harpoon:list():add() end, { desc = "Harpoon: add file" })
-            vim.keymap.set("n", "<leader>h", function() harpoon.ui:toggle_quick_menu(harpoon:list()) end, { desc = "Harpoon: quick menu" })
+        -- full specs so which-key labels them before harpoon loads
+        keys = function()
+            local keys = {
+                {
+                    "<leader>a",
+                    function()
+                        require("harpoon"):list():add()
+                    end,
+                    desc = "Harpoon: add file",
+                },
+                {
+                    "<leader>h",
+                    function()
+                        local harpoon = require("harpoon")
+                        harpoon.ui:toggle_quick_menu(harpoon:list())
+                    end,
+                    desc = "Harpoon: quick menu",
+                },
+            }
             for i = 1, 5 do
-                vim.keymap.set("n", "<leader>" .. i, function() harpoon:list():select(i) end, { desc = "Harpoon: file " .. i })
+                table.insert(keys, {
+                    "<leader>" .. i,
+                    function()
+                        require("harpoon"):list():select(i)
+                    end,
+                    desc = "Harpoon: file " .. i,
+                })
             end
-        end
+            return keys
+        end,
+        config = function()
+            require("harpoon"):setup()
+        end,
     },
     {
         "nvim-telescope/telescope.nvim", -- fuzzy finder
@@ -26,8 +55,8 @@ return {
         dependencies = {
             {
                 "nvim-telescope/telescope-fzf-native.nvim", -- fzf sorting backend
-                build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release"
-            }
+                build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release",
+            },
         },
         config = function()
             local actions = require("telescope.actions")
@@ -45,16 +74,16 @@ return {
                             ["<C-a>"] = function(prompt_bufnr)
                                 actions.smart_send_to_qflist(prompt_bufnr)
                                 actions.open_qflist(prompt_bufnr)
-                            end
+                            end,
                         },
                     },
                 },
                 extensions = {
                     fzf = {},
-                }
+                },
             })
 
             require("telescope").load_extension("fzf")
-        end
+        end,
     },
 }

@@ -1,8 +1,4 @@
-# telemetry opt-outs: a graphical session has them from environment.d already, a tty or ssh login not
-_no_telemetry=${XDG_CONFIG_HOME:-$HOME/.config}/environment.d/no-telemetry.conf
-[[ -r $_no_telemetry ]] && { set -a; source $_no_telemetry; set +a }
-unset _no_telemetry
-
+# session env (telemetry opt-outs, XDG app-home vars) comes from .zshenv, which sources every environment.d drop-in
 [ -f ~/.cache/wal/colors.sh ] && source ~/.cache/wal/colors.sh
 
 fpath=(~/.zsh/completions $fpath)
@@ -84,13 +80,23 @@ path+=("$HOME/.cargo/bin")
 path+=("$HOME/.ghcup/bin")
 path+=("$HOME/.go/bin")
 path+=("$HOME/.jai/bin")
-path+=("$HOME/.local/bin")
+# prepended: wrappers in ~/.local/bin (yt-dlp) shadow the /usr/bin command of the same name
+path=("$HOME/.local/bin" $path)
+# opam's default switch and its installs ahead of the system ocaml; opam init --no-setup leaves no rc
+# hook, and variables.sh is the static env opam rewrites on every switch change, so sourcing it forks nothing
+[[ -r ~/.opam/opam-init/variables.sh ]] && source ~/.opam/opam-init/variables.sh
 
 export PATH
 export GOPATH="$HOME/.go"
 export DOTFILES="$HOME/projects/arch-dotfiles"
 export EDITOR=nvim
-export SHELL=zsh
+# ansi: bat paints syntax from the 16 terminal colours, so it tracks every wallpaper switch and follows light/dark
+export BAT_THEME=ansi
+# man pages through bat pick up the same palette; -c keeps the control chars col strips back to escapes bat reads
+export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+export MANROFF_OPT=-c
+# absolute: pkexec rejects a SHELL that is not listed in /etc/shells
+export SHELL=/usr/bin/zsh
 # pinentry asks on this terminal rather than the desktop, which over ssh or on wsl is out of reach
 export GPG_TTY=$TTY
 [[ -n $SSH_CONNECTION ]] && gpg-connect-agent updatestartuptty /bye >/dev/null
@@ -142,11 +148,11 @@ function pacman {
   fi
 }
 
-# in anonsocks.slice, whose egress guard from `anonymous-socks.sh up` rejects what proxychains misses (static binaries, raw sockets, udp)
+# in anonsocks.slice, whose egress guard from `toggle-anonymous-socks.nu on` rejects what proxychains misses (static binaries, raw sockets, udp)
 anonymous-socks-proxychains() {
   local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}
   # status, not the marker alone: it also checks every pool port is still our tor's, not a listener another user put there
-  [[ "$("$DOTFILES/scripts/lib/anonymous-socks.sh" status 2>/dev/null)" == on ]] || { echo "anonymous-socks-proxychains: run anonymous-socks.sh up first" >&2; return 1; }
+  [[ "$("$DOTFILES/scripts/toggles/toggle-anonymous-socks.nu" get 2>/dev/null)" == on ]] || { echo "anonymous-socks-proxychains: run scripts/toggles/toggle-anonymous-socks.nu on first" >&2; return 1; }
   systemd-run --user --scope --quiet --slice=anonsocks.slice -- proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-$rt/anonymous-socks-proxychains.conf}" "$@"
 }
 

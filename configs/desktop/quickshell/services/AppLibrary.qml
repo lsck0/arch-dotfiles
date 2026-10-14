@@ -62,7 +62,7 @@ Item {
     printErrors: false
     onLoaded: {
       try {
-        var parsed = JSON.parse(text() || "{}")
+        let parsed = JSON.parse(text() || "{}")
         root.frecency = Util.isPlainObject(parsed) ? parsed : ({})
       } catch (e) {
         // corrupt state only costs the ranking
@@ -99,8 +99,8 @@ Item {
   function parseIdSet(rawText) {
     var next = ({})
     var lines = String(rawText || "").split(/\n/)
-    for (var i = 0; i < lines.length; i++) {
-      var id = root.normalizeDesktopId(lines[i])
+    for (let i = 0; i < lines.length; i++) {
+      let id = root.normalizeDesktopId(lines[i])
       if (id.length > 0) next[id] = true
     }
     return next
@@ -182,7 +182,7 @@ Item {
 
   Process {
     id: hiddenEntryScan
-    command: ["bash", Paths.shellDir + "/services/hidden-entries.sh", root.sessionDesktops]
+    command: [Paths.shellDir + "/services/hidden-entries.nu", root.sessionDesktops]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: root.loadDesktopHiddenEntries(text)

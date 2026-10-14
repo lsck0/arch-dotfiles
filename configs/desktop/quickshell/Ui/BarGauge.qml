@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
@@ -16,6 +17,7 @@ Row {
   Repeater {
     model: root.segments
     Rectangle {
+      required property int index
       width: (root.width - root.gap * (root.segments - 1)) / root.segments
       height: root.height
       radius: 0

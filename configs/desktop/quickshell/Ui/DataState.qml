@@ -16,7 +16,7 @@ import qs.Commons
  *   detailed      append the error text after `x ERR`
  *   updatedMs     epoch ms of the last good data, 0 when none
  *   staleAfterMs  age at which the suffix appears
- *   state         "loading" | "error" | "stale" | "fresh"
+ *   freshness     "loading" | "error" | "stale" | "fresh"
  *
  * The age ticks once a minute only while the marker is on screen and stale.
  *
@@ -36,12 +36,13 @@ Text {
   property real nowMs: Date.now()
   readonly property bool hasData: updatedMs > 0
   readonly property bool stale: hasData && staleAfterMs > 0 && nowMs - updatedMs >= staleAfterMs
-  readonly property string state: !hasData && error !== "" ? "error"
+  readonly property string freshness: !hasData && error !== "" ? "error"
     : !hasData ? "loading"
     : stale || error !== "" ? "stale"
     : "fresh"
 
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
+  // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
+  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   // stale may flip on its own, so the clock runs while there is data that can age
   Timer {
@@ -53,12 +54,12 @@ Text {
   onUpdatedMsChanged: nowMs = Date.now()
 
   textFormat: Text.PlainText
-  text: state === "loading" ? "--"
-    : state === "error" ? "x ERR" + (detailed ? " " + error : "")
-    : state === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
+  text: freshness === "loading" ? "--"
+    : freshness === "error" ? "x ERR" + (detailed ? " " + error : "")
+    : freshness === "stale" ? " ~" + Util.span((nowMs - updatedMs) / minuteMs)
     : ""
-  color: state === "error" ? Colors.urgent : Colors.foreground
-  opacity: state === "error" ? Style.emphasis.strong : Style.emphasis.faint
+  color: freshness === "error" ? Colors.urgent : Colors.foreground
+  opacity: freshness === "error" ? Style.emphasis.strong : Style.emphasis.faint
   font.family: Style.font.family
   font.pixelSize: Style.font.caption
   elide: Text.ElideRight

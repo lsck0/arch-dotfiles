@@ -4,6 +4,12 @@ owner @{user_cache_dirs}/wal/colors-thunderbird.css r,
 # the profile root thunderbird creates on a fresh home, beside apparmor.d's ~/.thunderbird
 owner @{user_config_dirs}/{,.}thunderbird/ rw,
 owner @{user_config_dirs}/{,.}thunderbird/** rwk,
+# the homelab share and .eml files or attachments other apps hand over through temp dirs, as for every viewer
+include <abstractions/dotfiles/viewer-read>
+
+# thunderbird 157 probes the gpu with one gfxtest, which apparmor.d (glxtest, vaapitest) has no rule for: denied, it
+# runs without the probe's result. a child like apparmor.d's firefox-gfxtest
+@{lib_dirs}/gfxtest rCx -> gfxtest,
 
 # external gnupg (desktop/thunderbird/user.js, the yubikey): gpgme's gpg and gpgconf in a child instead of apparmor.d's
 # gpg profiles, which would confine gpg everywhere. priority beats the upstream px
@@ -12,25 +18,23 @@ priority=1 @{bin}/gpgconf rCx -> gpg,
 priority=1 @{bin}/gpgsm   rCx -> gpg,
 
 profile gpg flags=(attach_disconnected) {
+  include <abstractions/dotfiles/gpg-client>
+}
+
+profile gfxtest flags=(attach_disconnected) {
   include <abstractions/base-strict>
-  include <abstractions/nameservice-strict>
+  include <abstractions/graphics>
 
-  # gpg-agent, keyboxd and dirmngr come from systemd's user sockets, never from here: one spawned by this child would
-  # read a gpg-agent.conf (pinentry-program) from any --homedir thunderbird names
-  unix (create, connect, send, receive, getattr, getopt, setopt, shutdown) type=stream,
-  owner @{run}/user/@{uid}/gnupg/ r,
-  owner @{run}/user/@{uid}/gnupg/{,d.*/}S.{gpg-agent,keyboxd,dirmngr} rw,
+  network netlink raw,
 
-  @{bin}/gpg{,2} mrix,
-  @{bin}/gpgconf mrix,
-  @{bin}/gpgsm   mrix,
+  @{lib_dirs}/gfxtest mr,
 
-  /etc/gnupg/{,**} r,
-  /usr/share/gnupg/{,**} r,
+  / r,
 
-  # the keyring and trustdb, but no config: every *.conf there can name a program to run
-  owner @{HOME}/.gnupg/ r,
-  # gnupg's dotlock takes its locks with link()
-  owner @{HOME}/.gnupg/** rwkl -> @{HOME}/.gnupg/**,
-  deny @{HOME}/.gnupg/{*.conf,sshcontrol} wl,
+  # the profile locks it inherits open from thunderbird
+  owner @{HOME}/.thunderbird/**/.parentlock rw,
+  owner @{user_config_dirs}/{,.}thunderbird/**/.parentlock rw,
+  owner @{tmp}/org.mozilla.thunderbird/.parentlock rw,
+
+  owner /dev/pts/@{u8} rw,
 }

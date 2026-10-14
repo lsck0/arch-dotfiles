@@ -41,9 +41,9 @@ stuff" in one project.
 ## Dashboard: exactly what's queued, what stage, what needs you
 
 ```bash
-python3 <this-skill-dir>/scripts/task-dashboard.py [project-dir]   # defaults to $PWD
+<this-skill-dir>/scripts/task-dashboard.nu [project-dir]   # defaults to $PWD
 ```
-Run this skill's own `scripts/task-dashboard.py`, not the `task-dashboard`
+Run this skill's own `scripts/task-dashboard.nu`, not the `task-dashboard`
 command on PATH (that one is the human's curses TUI over `~/.taskrc` and
 ignores the project-dir). Taskrc resolution: `<project-dir>/tasks/.taskrc`
 if given, else `$TASKRC`, else `./tasks/.taskrc`. Prints and exits.
@@ -62,7 +62,7 @@ at a glance instead of hand-parsing `task list`/`task export`.
   entry), or a `<project-root>/tasks/.taskrc` file even when operating
   outside that shell (pass it explicitly: `TASKRC=./tasks/.taskrc task ...`).
 - If neither exists, run `taskwarrior-init [project-dir]` (defaults to
-  `$PWD`; it wraps this skill's `scripts/scaffold.sh`). It is safe to
+  `$PWD`; it wraps this skill's `scripts/scaffold.nu`). It is safe to
   re-run: every step checks before writing and existing db data is never
   touched. It:
   - `git init`s a new repo at the target if it isn't already inside one

@@ -1,12 +1,11 @@
 # managed by arch-dotfiles/apparmor
-# ~/.config files link into the dotfiles checkout (plasma's kdeglobals/kcminputrc, xdg's user-dirs.dirs, fontconfig,
-# gtk.css) and apparmor checks the link's target, so a confined app reading its theme, fonts or xdg dirs is refused
-# there and falls back to breeze light, default fonts and cursors, or aborts. configs/ is the public part of the repo,
-# secrets/ stays out
+# the two config files still links into the checkout (toggle-font rewrites them there): gtk.css and firefox's
+# userChrome.css. apparmor checks a link's target, so a confined app reading them is refused there and falls back to
+# the default theme; every other config is a real copy now
 # installed into the desktop, fonts, qt and kde abstractions' .d hooks, so every gui profile gets it
 
   abi <abi/4.0>,
 
-  owner @{HOME}/projects/arch-dotfiles/configs/{,**} r,
+  owner @{HOME}/projects/arch-dotfiles/configs/desktop/{gtk/gtk.css,firefox/userChrome.css} r,
 
   include if exists <abstractions/dotfiles/config-links.d>

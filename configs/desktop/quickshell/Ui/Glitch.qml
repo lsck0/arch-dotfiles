@@ -7,7 +7,7 @@ import qs.Commons
  *
  * Only for lock, unlock and wallpaper change. While playing it hides the source and draws it through
  * shaders/glitch.frag.qsb for durationMs; idle it is invisible and holds no texture. When the baked
- * shader is missing (no qsb, see restart.sh), it failed to load, or motion is off, play() finishes
+ * shader is missing (no qsb, see restart.nu), it failed to load, or motion is off, play() finishes
  * at once without touching the source.
  *
  * Properties:

@@ -53,7 +53,7 @@ PanelWindow {
 
   default property alias content: body.data
   readonly property alias card: card
-  readonly property alias boot: boot
+  readonly property alias boot: bootIn
   readonly property real contentWidth: body.width
   readonly property real contentHeight: body.height
 
@@ -64,7 +64,7 @@ PanelWindow {
     + (root.prompt ? root.promptHeight + chrome.spacing : 0)
     + (root.hints.length > 0 ? footer.implicitHeight + chrome.spacing : 0)
 
-  visible: open || boot.progress > 0
+  visible: open || bootIn.progress > 0
   anchors { top: true; bottom: true; left: true; right: true }
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
@@ -73,7 +73,7 @@ PanelWindow {
   WlrLayershell.keyboardFocus: root.open && root.keyboard ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
   BootIn {
-    id: boot
+    id: bootIn
     active: root.open
     title: root.title
     span: Math.min(card.width, card.height) / 2
@@ -82,7 +82,7 @@ PanelWindow {
   Rectangle {
     anchors.fill: parent
     color: Colors.scrim
-    opacity: boot.progress
+    opacity: bootIn.progress
   }
 
   MouseArea {
@@ -96,7 +96,7 @@ PanelWindow {
     anchors.centerIn: parent
     width: Math.min(root.cardWidth, root.width - Style.gapsOut * 2)
     height: Math.min(root.cardHeight, root.height - Style.gapsOut * 2)
-    opacity: boot.progress
+    opacity: bootIn.progress
 
     // swallow clicks so only the scrim dismisses
     MouseArea { anchors.fill: parent }
@@ -121,7 +121,7 @@ PanelWindow {
         width: parent.width
         text: root.title
         suffix: root.suffix
-        typed: boot.typed
+        typed: bootIn.typed
         size: Style.font.title
         decor: true
         rule: true
@@ -188,11 +188,11 @@ PanelWindow {
         visible: root.hints.length > 0
         hints: root.hints
         // lands last in the boot stagger
-        opacity: boot.rowOpacity(boot.staggerCap)
+        opacity: bootIn.rowOpacity(bootIn.staggerCap)
       }
     }
 
-    HudFrame { inset: boot.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner }
+    HudFrame { inset: bootIn.bracketInset; chamfer: shape.cut; chamferCorner: shape.cutCorner }
     Scanlines { shown: root.scanlines; flicker: true }
   }
 }

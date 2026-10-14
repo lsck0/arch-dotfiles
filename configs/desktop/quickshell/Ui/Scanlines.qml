@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import qs.Commons
@@ -17,7 +18,8 @@ Item {
   readonly property int flickerCycles: 2
 
   // items keep visible: true inside a hidden window, endless animations would tick unseen
-  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true)
+  // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
+  readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   // a canvas holds a window-sized image, so it only exists while the window shows
   Loader {
@@ -30,7 +32,7 @@ Item {
         ctx.clearRect(0, 0, width, height)
         ctx.strokeStyle = Qt.rgba(0, 0, 0, root.strength)
         ctx.lineWidth = 1
-        for (var y = 0.5; y < height; y += root.spacing) {
+        for (let y = 0.5; y < height; y += root.spacing) {
           ctx.beginPath()
           ctx.moveTo(0, y)
           ctx.lineTo(width, y)

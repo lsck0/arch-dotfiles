@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=lazydocker
+Comment=Docker containers, images and logs
+TryExec=lazydocker
+Exec=@HOME@/.local/bin/desktop-run --group docker -- lazydocker
+Icon=terminal-distrobox-icon
+Terminal=true
+Categories=Development;System;ConsoleOnly;

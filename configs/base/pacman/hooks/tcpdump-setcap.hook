@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = tcpdump
+
+[Action]
+Description = Granting the wireshark group tcpdump cap_net_raw/net_admin instead of needing sudo
+When = PostTransaction
+Exec = /usr/bin/sh -c 'if getent group wireshark >/dev/null; then chgrp wireshark /usr/bin/tcpdump && chmod 750 /usr/bin/tcpdump && setcap cap_net_raw,cap_net_admin+ep /usr/bin/tcpdump; fi'

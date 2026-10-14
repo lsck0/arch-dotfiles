@@ -31,7 +31,7 @@ function summaryStartsWithGlyph(summary) {
   return /^\s*(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|\S) {2}/.test(String(summary || ""))
 }
 
-// app name scripts/lib/notification-send.sh uses for reminders, pomodoro and alerts: shown through dnd, never kept in history
+// app name the reminders, pomodoro and alerts send with: shown through dnd, never kept in history
 var ACTION_APP = "quickshell-action"
 
 function shouldBypassDnd(notification) {
@@ -53,7 +53,7 @@ function stringHint(hints, name) {
 }
 
 // the hint is sender-controlled, any d-bus client can set it: only the one shape the repo sends
-// (configs/core/ntfy/ntfy-notify.py: xdg-open on an https link) runs, anything else falls back to the default action
+// (configs/core/ntfy/ntfy-notify.nu: xdg-open on an https link) runs, anything else falls back to the default action
 function parseExecArgv(value) {
   var parsed
   try {

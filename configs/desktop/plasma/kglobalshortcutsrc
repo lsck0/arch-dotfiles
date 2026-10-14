@@ -276,5 +276,14 @@ _launch=Meta+Return
 [services][firefox.desktop]
 _launch=Meta+A
 
+[services][gpg-clip-decrypt.desktop]
+_launch=Meta+Shift+D
+
+[services][gpg-clip-encrypt.desktop]
+_launch=Meta+Shift+X
+
+[services][gpg-clip-sign.desktop]
+_launch=Meta+Shift+C
+
 [services][org.qutebrowser.qutebrowser.desktop]
 _launch=Meta+Shift+A

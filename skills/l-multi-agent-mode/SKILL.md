@@ -1,6 +1,6 @@
 ---
 name: l-multi-agent-mode
-description: "Live orchestrator: task-planner plans, orchestrator spawns/drives workers (Herdr/Hermes under HERDR_ENV, else Claude Code Agent tool)."
+description: "Live orchestrator for one idea worked now, no task db: task-planner plans, orchestrator spawns/drives workers (Herdr/Hermes under HERDR_ENV, else Claude Code Agent tool). Self-polling queue instead -> l-multi-agent-task-mode (spawns workers) or l-single-agent-task-mode (works tickets itself)."
 ---
 
 # Multi-agent mode (live orchestrator, no task db)
@@ -134,6 +134,14 @@ that is how you target prompts and reads, and how the human reads the team.
 Tell every worker to write its output to a durable file under `$SPEC_DIR`,
 not to pane/chat text: every persona skill already states this discipline.
 After a worker settles, read the file directly.
+
+A worker that launches an app, game or editor only to screenshot or verify
+it (not because the user is watching that task) keeps it off the physical
+screen. On Luca's Hyprland desktop that is the headless-output pattern in
+the dotfiles AGENTS.md gotchas: `hyprctl output create headless` ->
+HEADLESS-N, move the window there, `grim -o HEADLESS-N`, then `hyprctl
+output remove HEADLESS-N`. Each worker makes and removes its own, so many
+verify at once without taking over the monitors; say so in its prompt.
 
 Herdr notes: a bare `--kind hermes` start goes straight to `agent_status:
 idle`, unlike native CLIs that show a one-time trust dialog. If a start

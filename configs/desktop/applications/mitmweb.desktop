@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=mitmweb
+Comment=Intercepting HTTPS proxy with a web interface
+TryExec=mitmweb
+Exec=mitmweb
+Icon=network-server
+Terminal=true
+Categories=Network;Development;ConsoleOnly;

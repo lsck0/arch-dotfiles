@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=gnuplot
+Comment=Interactive plotting
+TryExec=gnuplot
+Exec=gnuplot
+Icon=kmplot
+Terminal=true
+Categories=Science;Math;Education;ConsoleOnly;

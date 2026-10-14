@@ -3,7 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// single owner of pomodoro + reminder state; pomodoro.sh and reminder.sh mutate the files, this derives the live view
+// single owner of pomodoro + reminder state; pomodoro.nu and reminder.nu mutate the files, this derives the live view
 // the running countdown is a 1Hz QML tick off the absolute end time, never a per-second script fork
 Singleton {
   id: root
@@ -13,10 +13,10 @@ Singleton {
   readonly property string pomoPath: runtimeDir + "/quickshell-pomodoro/state.json"
   readonly property string reminderIndexPath: runtimeDir + "/quickshell-reminders/index.json"
 
-  readonly property string pomoScript: Paths.script("pomodoro.sh")
-  readonly property string reminderScript: Paths.script("reminder.sh")
+  readonly property string pomoScript: Paths.script("pomodoro.nu")
+  readonly property string reminderScript: Paths.script("reminder.nu")
 
-  // mirror pomodoro.sh DEF_WORK / LONG_EVERY, only shown while idle
+  // mirror pomodoro.nu work_default_min / long_every, only shown while idle
   readonly property int pomoDefaultWorkMin: 25
   readonly property int pomoLongEvery: 4
 
@@ -45,7 +45,7 @@ Singleton {
     root.nowSec = Math.floor(Date.now() / 1000)
   }
 
-  // "5m 3s", "5m", "3s" like reminder.sh format_remaining
+  // "5m 3s", "5m", "3s" like reminder.nu remaining-format
   function remainingText(seconds) {
     var s = Math.max(0, Math.floor(seconds))
     var m = Math.floor(s / 60)
@@ -99,8 +99,8 @@ Singleton {
   readonly property var reminders: {
     var out = []
     var list = reminderList || []
-    for (var i = 0; i < list.length; i++) {
-      var at = Number(list[i].at || 0)
+    for (let i = 0; i < list.length; i++) {
+      let at = Number(list[i].at || 0)
       if (at <= nowSec) continue
       out.push({ unit: list[i].unit, label: list[i].label, atTime: list[i].atTime, remaining: remainingText(at - nowSec) })
     }

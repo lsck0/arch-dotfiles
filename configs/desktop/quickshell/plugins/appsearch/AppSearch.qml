@@ -1,7 +1,7 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
-import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -49,6 +49,8 @@ Item {
   readonly property int calcTimeoutS: 5
 
   function open() {
+    var focused = Hyprland.focusedMonitor
+    panel.screen = Array.from(Quickshell.screens).find(function (s) { return focused && s.name === focused.name }) || null
     root.opened = true
     root.filterText = ""
     root.selectedIndex = 0
@@ -72,8 +74,8 @@ Item {
     if (!root.appLibrary) return []
     var entries = root.appLibrary.sortedEntries(root.modeQuery)
     var out = []
-    for (var i = 0; i < entries.length; i++) {
-      var e = entries[i]
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i]
       out.push({ kind: "app", name: root.appLibrary.entryName(e), sub: root.appLibrary.entrySubtext(e),
                  icon: root.appLibrary.iconSource(e.icon), glyph: "", payload: e })
     }
@@ -84,13 +86,13 @@ Item {
     var q = root.modeQuery.toLowerCase()
     var values = Hyprland.toplevels.values
     var out = []
-    for (var i = 0; i < values.length; i++) {
-      var t = values[i]
+    for (let i = 0; i < values.length; i++) {
+      const t = values[i]
       // the wayland app id is the class, no ipc refresh needed
-      var cls = t.wayland ? String(t.wayland.appId || "") : ""
-      var title = String(t.title || "")
+      const cls = t.wayland ? String(t.wayland.appId || "") : ""
+      const title = String(t.title || "")
       if (q && (title + " " + cls).toLowerCase().indexOf(q) < 0) continue
-      var ws = t.workspace ? String(t.workspace.id) : "--"
+      const ws = t.workspace ? String(t.workspace.id) : "--"
       out.push({ kind: "window", name: title || cls || "--", sub: "[" + ws + "] " + cls,
                  icon: cls ? Util.iconSource(cls.toLowerCase()) : "", glyph: "\u{f2d0}", payload: String(t.address || "") })
     }
@@ -151,7 +153,7 @@ Item {
       root.appLibrary.launch(row.payload.id, row.name)
     } else if (row.kind === "window") {
       if (!row.payload) return
-      var address = row.payload.indexOf("0x") === 0 ? row.payload : "0x" + row.payload
+      const address = row.payload.indexOf("0x") === 0 ? row.payload : "0x" + row.payload
       Hyprland.dispatch("hl.dsp.focus({ window = 'address:" + address + "' })")
     } else if (row.kind === "calc") {
       if (root.calcState !== "" || !row.payload) return

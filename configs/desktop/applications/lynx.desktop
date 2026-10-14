@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Lynx
+Comment=Text web browser
+TryExec=lynx
+Exec=lynx
+Icon=internet-web-browser
+Terminal=true
+Categories=Network;WebBrowser;ConsoleOnly;

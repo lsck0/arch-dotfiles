@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=bluetui
+Comment=Bluetooth manager
+TryExec=bluetui
+Exec=bluetui
+Icon=preferences-system-bluetooth
+Terminal=true
+Categories=Settings;HardwareSettings;ConsoleOnly;

@@ -6,7 +6,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/projects/arch-dotfiles/configs/core/ntfy/ntfy-notify.py
+ExecStart=@DIR@/ntfy-notify.nu
 Restart=on-failure
 RestartSec=10
 

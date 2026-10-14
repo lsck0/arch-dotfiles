@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import qs.Commons
@@ -5,7 +6,8 @@ import qs.Commons
 Repeater {
   id: root
 
-  required property QtObject bar
+  // the owning Bar, untyped: Bar.qml instantiates this file, so it cannot be imported back
+  required property var bar
   required property string section
 
   // via layoutConfig so secondary screens get their reduced layout
@@ -23,24 +25,27 @@ Repeater {
       console.warn("BarSection[" + root.section + "] failed " + modelData + ": " + detail)
     }
 
-    // widgets may hide themselves; size follows item.visible
+    // the loaded widget, duck-typed: bar and settings are set only where the widget declares them
+    readonly property var widget: item
+
+    // widgets may hide themselves; size follows widget.visible
     visible: true
     Layout.minimumWidth: 0
-    Layout.preferredWidth: item && item.visible ? item.implicitWidth : 0
-    Layout.maximumWidth: item && item.visible ? item.implicitWidth : 0
+    Layout.preferredWidth: widget && widget.visible ? widget.implicitWidth : 0
+    Layout.maximumWidth: widget && widget.visible ? widget.implicitWidth : 0
     Layout.minimumHeight: 0
-    Layout.preferredHeight: item && item.visible ? item.implicitHeight : 0
-    Layout.maximumHeight: item && item.visible ? item.implicitHeight : 0
+    Layout.preferredHeight: widget && widget.visible ? widget.implicitHeight : 0
+    Layout.maximumHeight: widget && widget.visible ? widget.implicitHeight : 0
 
     // settings file is live-watched, so push updates to loaded items
     readonly property var settings: root.bar && root.bar.shellHost
       ? root.bar.shellHost.settingsForWidget(modelData) : ({})
-    onSettingsChanged: if (item && "settings" in item) item.settings = settings
+    onSettingsChanged: if (widget && "settings" in widget) widget.settings = settings
 
     onLoaded: {
-      if (!item) return
-      if ("bar" in item) item.bar = root.bar
-      if ("settings" in item) item.settings = widgetLoader.settings
+      if (!widget) return
+      if ("bar" in widget) widget.bar = root.bar
+      if ("settings" in widget) widget.settings = widgetLoader.settings
     }
   }
 }

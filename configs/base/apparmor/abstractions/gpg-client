@@ -1,0 +1,29 @@
+# managed by arch-dotfiles/apparmor
+# the body of a gpg child (local/thunderbird, local/libreoffice): gpgme's gpg, gpgconf and gpgsm on the user's
+# keyring, instead of apparmor.d's gpg profiles, which would confine gpg everywhere
+
+  abi <abi/4.0>,
+
+  include <abstractions/base-strict>
+  include <abstractions/nameservice-strict>
+
+  # gpg-agent, keyboxd and dirmngr come from systemd's user sockets, never from here: one spawned by this child would
+  # read a gpg-agent.conf (pinentry-program) from any --homedir its parent names
+  unix (create, connect, send, receive, getattr, getopt, setopt, shutdown) type=stream,
+  owner @{run}/user/@{uid}/gnupg/ r,
+  owner @{run}/user/@{uid}/gnupg/{,d.*/}S.{gpg-agent,keyboxd,dirmngr} rw,
+
+  @{bin}/gpg{,2} mrix,
+  @{bin}/gpgconf mrix,
+  @{bin}/gpgsm   mrix,
+
+  /etc/gnupg/{,**} r,
+  /usr/share/gnupg/{,**} r,
+
+  # the keyring and trustdb, but no config: every *.conf there can name a program to run
+  owner @{HOME}/.gnupg/ r,
+  # gnupg's dotlock takes its locks with link()
+  owner @{HOME}/.gnupg/** rwkl -> @{HOME}/.gnupg/**,
+  deny @{HOME}/.gnupg/{*.conf,sshcontrol} wl,
+
+  include if exists <abstractions/dotfiles/gpg-client.d>

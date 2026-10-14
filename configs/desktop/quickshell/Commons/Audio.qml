@@ -7,7 +7,7 @@ import Quickshell.Services.Pipewire
 Singleton {
   id: root
 
-  // configs/desktop/pipewire/chains.sh: sink lane.<name> with playback lane.<name>.out, headset eq sink eq with playback eq.out
+  // configs/desktop/pipewire/mod.nu: sink lane.<name> with playback lane.<name>.out, headset eq sink eq with playback eq.out
   readonly property string lanePrefix: "lane."
   readonly property string eqName: "eq"
   // the eq switch is this unit's enablement, so it persists
@@ -22,8 +22,9 @@ Singleton {
   // one wheel notch, 20 to cross the range
   readonly property real volumeStep: 0.05
 
-  readonly property var nodes: Pipewire.nodes.values
-  readonly property var linkGroups: Pipewire.linkGroups.values
+  // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
+  readonly property var nodes: Pipewire.nodes.values // qmllint disable missing-property
+  readonly property var linkGroups: Pipewire.linkGroups.values // qmllint disable missing-property
 
   function isLane(node) { return !!node && node.name.indexOf(lanePrefix) === 0 }
   function isChain(node) { return isLane(node) || (!!node && (node.name === eqName || node.name === eqName + ".out")) }
@@ -41,7 +42,7 @@ Singleton {
 
   function targetsOf(node) {
     var out = []
-    for (var i = 0; i < linkGroups.length; i++)
+    for (let i = 0; i < linkGroups.length; i++)
       if (linkGroups[i].source === node && linkGroups[i].target) out.push(linkGroups[i].target)
     return out
   }
@@ -49,7 +50,7 @@ Singleton {
   // the sink or lane a stream plays into, seen through the eq, null while unlinked
   function sinkOf(node) {
     var targets = targetsOf(node)
-    for (var i = 0; i < targets.length; i++)
+    for (let i = 0; i < targets.length; i++)
       if (!targets[i].isStream) return targets[i] === eq ? sinkOf(eqOut) : targets[i]
     return null
   }
@@ -64,9 +65,9 @@ Singleton {
   function appEntry(node) {
     var p = node.properties || {}
     var keys = [p["application.process.binary"], p["application.name"], node.name]
-    for (var i = 0; i < keys.length; i++) {
+    for (let i = 0; i < keys.length; i++) {
       if (!keys[i]) continue
-      var entry = DesktopEntries.heuristicLookup(String(keys[i]))
+      let entry = DesktopEntries.heuristicLookup(String(keys[i]))
       if (entry) return entry
     }
     return null

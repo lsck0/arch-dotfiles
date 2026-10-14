@@ -28,7 +28,7 @@
 
 (defun my/apply-system-theme ()
   "Load the theme matching the desktop's, replacing whatever is enabled.
-Called at startup and again by switch-wallpaper.sh over emacsclient, so open
+Called at startup and again by the theme verb over emacsclient, so open
 frames recolour on a theme switch exactly as a fresh launch would."
   (interactive)
   (mapc #'disable-theme custom-enabled-themes)
@@ -39,7 +39,11 @@ frames recolour on a theme switch exactly as a fresh launch would."
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  ;; where generate-editor-themes.sh writes doom-pywal-theme.el
+  ;; the theme verb writes doom-pywal-theme.el into the cache, so a theme switch
+  ;; never touches the config; themes/ stays on the path for any hand-authored theme
+  (add-to-list 'custom-theme-load-path
+               (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME")
+                                            (expand-file-name "~/.cache/"))))
   (add-to-list 'custom-theme-load-path
                (expand-file-name "themes/" user-emacs-directory))
   (my/apply-system-theme)

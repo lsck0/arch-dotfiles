@@ -1,0 +1,7 @@
+# managed by arch-dotfiles/apparmor
+# ffmpeg run by hand, by scripts and by yt-dlp on downloaded media, from and to wherever the user works: apparmor.d's
+# profile only reaches the xdg media and download dirs, so this gives it the module's file-tool rules (read what the
+# user can, write the home and temp dirs but nothing that runs on the next login) plus removable media. pipes and
+# the terminal come with apparmor.d's consoles abstraction
+include <abstractions/dotfiles/file-tool>
+owner @{MOUNTS}/** rwk,

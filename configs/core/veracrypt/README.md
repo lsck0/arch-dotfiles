@@ -1,9 +1,9 @@
 # VeraCrypt vault
 
 Container `~/sync/vault.hc` (synced by syncthing), mounted at `~/vault` (not
-synced). `link.sh` links `veracrypt-vault.sh` to `~/.local/bin/veracrypt-vault`
+synced). `mod.nu` links `veracrypt-vault.nu` to `~/.local/bin/veracrypt-vault`
 and, while there is no container yet, prints the command to create it: the password
-prompt needs a terminal, which `link.sh` never has.
+prompt needs a terminal, which an apply never has.
 
 ```
 veracrypt-vault create [size]   # once, default 1G

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Sliver
+Comment=Sliver C2 client
+TryExec=sliver-client
+Exec=@HOME@/.local/bin/desktop-run --hold -- sliver-client console
+Icon=security-medium
+Terminal=true
+Categories=Network;Security;ConsoleOnly;

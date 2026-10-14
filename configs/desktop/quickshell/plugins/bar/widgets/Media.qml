@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Services.Mpris
@@ -22,11 +23,12 @@ BarWidget {
   readonly property var players: {
     var unique = []
     var seen = ({})
-    var values = Mpris.players ? Mpris.players.values : []
-    for (var i = 0; i < values.length; i++) {
-      var bus = String(values[i].dbusName || "")
+    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
+    var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
+    for (let i = 0; i < values.length; i++) {
+      let bus = String(values[i].dbusName || "")
       if (bus.indexOf("playerctld") !== -1) continue
-      var key = bus || String(values[i].identity || i)
+      let key = bus || String(values[i].identity || i)
       if (seen[key] === true) continue
       seen[key] = true
       unique.push(values[i])
@@ -34,9 +36,9 @@ BarWidget {
 
     var byIdentity = ({})
     var order = []
-    for (var j = 0; j < unique.length; j++) {
-      var p = unique[j]
-      var idKey = String(p.identity || p.dbusName).toLowerCase().trim()
+    for (let j = 0; j < unique.length; j++) {
+      let p = unique[j]
+      let idKey = String(p.identity || p.dbusName).toLowerCase().trim()
       if (byIdentity[idKey] === undefined) {
         byIdentity[idKey] = p
         order.push(idKey)
@@ -46,7 +48,7 @@ BarWidget {
       }
     }
     var deduped = []
-    for (var k = 0; k < order.length; k++) deduped.push(byIdentity[order[k]])
+    for (let k = 0; k < order.length; k++) deduped.push(byIdentity[order[k]])
     return deduped
   }
 
@@ -58,13 +60,13 @@ BarWidget {
   function pickPlayer() {
     var list = players
     if (pinnedPlayer) {
-      for (var i = 0; i < list.length; i++)
+      for (let i = 0; i < list.length; i++)
         if (list[i].dbusName === pinnedPlayer) return list[i]
     }
-    for (var j = 0; j < list.length; j++)
+    for (let j = 0; j < list.length; j++)
       if (list[j].playbackState === MprisPlaybackState.Playing) return list[j]
     if (lastShownPlayer) {
-      for (var k = 0; k < list.length; k++)
+      for (let k = 0; k < list.length; k++)
         if (list[k].dbusName === lastShownPlayer) return list[k]
     }
     return list.length > 0 ? list[0] : null
@@ -78,9 +80,10 @@ BarWidget {
 
   // players does not change on playback with a single player
   readonly property string playbackKey: {
-    var values = Mpris.players ? Mpris.players.values : []
+    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
+    var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     var key = ""
-    for (var i = 0; i < values.length; i++)
+    for (let i = 0; i < values.length; i++)
       key += values[i].dbusName + ":" + values[i].playbackState + ";"
     return key
   }
@@ -90,8 +93,8 @@ BarWidget {
 
   onPlayersChanged: {
     if (pinnedPlayer) {
-      var stillThere = false
-      for (var i = 0; i < players.length; i++)
+      let stillThere = false
+      for (let i = 0; i < players.length; i++)
         if (players[i].dbusName === pinnedPlayer) stillThere = true
       if (!stillThere) pinnedPlayer = ""
     }
@@ -176,11 +179,12 @@ BarWidget {
   // prefer mpris volume, spotify resets stream volume per track
   readonly property var playerStreams: {
     var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
-    var nodes = Pipewire.nodes ? Pipewire.nodes.values : []
+    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
+    var nodes = Pipewire.nodes ? Pipewire.nodes.values : [] // qmllint disable missing-property
     var out = []
     if (!entry) return out
-    for (var i = 0; i < nodes.length; i++) {
-      var n = nodes[i]
+    for (let i = 0; i < nodes.length; i++) {
+      let n = nodes[i]
       if (n && n.isStream && n.isSink && String(n.name || "").toLowerCase() === entry) out.push(n)
     }
     return out
@@ -202,8 +206,8 @@ BarWidget {
       player.volume = v
       return
     }
-    for (var i = 0; i < playerStreams.length; i++) {
-      var audio = playerStreams[i].audio
+    for (let i = 0; i < playerStreams.length; i++) {
+      let audio = playerStreams[i].audio
       if (!audio) continue
       audio.volume = v
       if (v > 0) audio.muted = false
@@ -221,7 +225,7 @@ BarWidget {
       return
     }
     var muted = !playerMuted
-    for (var i = 0; i < playerStreams.length; i++)
+    for (let i = 0; i < playerStreams.length; i++)
       if (playerStreams[i].audio) playerStreams[i].audio.muted = muted
   }
 

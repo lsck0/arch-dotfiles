@@ -1,9 +1,14 @@
 # managed by arch-dotfiles/apparmor
 # the desktop/gtk theme ~/.config/gtk-3.0/gtk.css links to
 include <abstractions/dotfiles/gtk-theme>
-# the spicetify copy (socials/spotify), which apparmor.d attaches nothing to: spotify-launch.sh starts it in this
+# the spicetify copy (socials/spotify), which apparmor.d attaches nothing to: spotify-launch.nu starts it in this
 # profile through aa-exec. read and run, never written from in here
 owner @{user_share_dirs}/spotify-patched/{,**} r,
 owner @{user_share_dirs}/spotify-patched/*.so* mr,
 owner @{user_share_dirs}/spotify-patched/spotify mrix,
 deny @{user_share_dirs}/spotify-patched/** w,
+# chromium's gpu info reads the microcode version at every start (apparmor.d's own chromium abstraction allows it)
+@{sys}/devices/system/cpu/cpu@{int}/microcode/version r,
+# the main process tries a boost unique_path dir (/tmp/xxxx-xxxx-xxxx-xxxx) once at start and never touches it
+# again after EACCES: kept out of /tmp, only silenced
+deny /tmp/@{hex4}-@{hex4}-@{hex4}-@{hex4}/ w,

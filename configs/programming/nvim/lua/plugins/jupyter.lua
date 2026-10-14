@@ -1,10 +1,10 @@
 -- image.nvim needs the kitty graphics protocol
 local function terminal_graphics()
-    if vim.g.neovide then return false end
+    if vim.g.neovide then
+        return false
+    end
     local term = vim.env.TERM or ""
-    return vim.env.GHOSTTY_RESOURCES_DIR ~= nil
-        or vim.env.KITTY_WINDOW_ID ~= nil
-        or term:find("kitty", 1, true) ~= nil
+    return vim.env.GHOSTTY_RESOURCES_DIR ~= nil or vim.env.KITTY_WINDOW_ID ~= nil or term:find("kitty", 1, true) ~= nil
 end
 
 return {
@@ -41,16 +41,16 @@ return {
             vim.g.molten_virt_lines_off_by_1 = true
         end,
         keys = {
-            { "<leader>ji", "<cmd>MoltenInit<cr>",              desc = "Init kernel" },
-            { "<leader>je", "<cmd>MoltenEvaluateOperator<cr>",  desc = "Evaluate operator" },
-            { "<leader>jl", "<cmd>MoltenEvaluateLine<cr>",      desc = "Evaluate line" },
+            { "<leader>ji", "<cmd>MoltenInit<cr>", desc = "Init kernel" },
+            { "<leader>je", "<cmd>MoltenEvaluateOperator<cr>", desc = "Evaluate operator" },
+            { "<leader>jl", "<cmd>MoltenEvaluateLine<cr>", desc = "Evaluate line" },
             { "<leader>jv", ":<C-u>MoltenEvaluateVisual<cr>gv", mode = "v", desc = "Evaluate selection" },
-            { "<leader>jr", "<cmd>MoltenReevaluateCell<cr>",    desc = "Re-evaluate cell" },
-            { "<leader>jd", "<cmd>MoltenDelete<cr>",            desc = "Delete cell" },
-            { "<leader>jo", "<cmd>MoltenShowOutput<cr>",        desc = "Show output" },
-            { "<leader>jh", "<cmd>MoltenHideOutput<cr>",        desc = "Hide output" },
-            { "<leader>jn", "<cmd>MoltenNext<cr>",              desc = "Next cell" },
-            { "<leader>jp", "<cmd>MoltenPrev<cr>",              desc = "Previous cell" },
+            { "<leader>jr", "<cmd>MoltenReevaluateCell<cr>", desc = "Re-evaluate cell" },
+            { "<leader>jd", "<cmd>MoltenDelete<cr>", desc = "Delete cell" },
+            { "<leader>jo", "<cmd>MoltenShowOutput<cr>", desc = "Show output" },
+            { "<leader>jh", "<cmd>MoltenHideOutput<cr>", desc = "Hide output" },
+            { "<leader>jn", "<cmd>MoltenNext<cr>", desc = "Next cell" },
+            { "<leader>jp", "<cmd>MoltenPrev<cr>", desc = "Previous cell" },
         },
     },
 }

@@ -19,14 +19,15 @@ BarWidget {
     columnSpacing: 0
 
     Repeater {
-      model: ["StayAwake.qml", "Reminder.qml", "Pomodoro.qml"]
+      model: ["Doctor.qml", "StayAwake.qml", "Reminder.qml", "Pomodoro.qml"]
 
       // Loader implicit size is read-only, do not assign it
       Loader {
         id: slot
         required property string modelData
         source: "../indicators/" + modelData
-        visible: item ? item.visible : true
+        // the indicator's own conceal, not item.visible: that is false while this loader is hidden, so it never comes back
+        visible: item ? !(item as BarIndicator).concealed : true
 
         // bound, not assigned: these load before BarSection hands this widget its bar
         Binding {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <action id="dev.lsck0.dotfiles.system-apply">
+    <description>Apply the system layer of the dotfiles</description>
+    <message>arch-dotfiles wants to apply its system configuration as root ($(command_line)). Only expected after you ran dot set, dot apply or changed a machine setting.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/var/lib/dotfiles/repo/scripts/lib/system-apply.nu</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">apply</annotate>
+  </action>
+</policyconfig>

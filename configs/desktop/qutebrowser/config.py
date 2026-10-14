@@ -1,3 +1,4 @@
+# ruff: noqa: F821  # qutebrowser injects `config` and `c` into this file's namespace at load time
 import json
 import os
 
@@ -6,8 +7,7 @@ config.load_autoconfig()
 # live wal palette, ayu fallback for a fresh machine
 _fb = {
     "special": {"background": "#1f2430", "foreground": "#cbccc6"},
-    "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e",
-               "color4": "#73d0ff", "color8": "#5c6773"},
+    "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e", "color4": "#73d0ff", "color8": "#5c6773"},
 }
 _wal = _fb
 try:
@@ -16,12 +16,25 @@ try:
 except (OSError, ValueError):
     pass
 
+
 def _c(section, key):
     return _wal.get(section, {}).get(key) or _fb[section][key]
+
 
 bg = _c("special", "background")
 bg_alt = _c("colors", "color0")
 fg = _c("special", "foreground")
+
+
+def _is_light(hex_color):
+    h = hex_color.lstrip("#")
+    try:
+        r, g, b = (int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    except (ValueError, IndexError):
+        return False
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5
+
+
 accent = _c("colors", "color4")
 blue = _c("colors", "color4")
 green = _c("colors", "color2")
@@ -92,8 +105,8 @@ c.fonts.default_family = "Kode Mono"
 c.fonts.default_size = "11pt"
 c.fonts.hints = "bold 11pt default_family"
 
-# let sites use their own dark mode
-c.colors.webpage.preferred_color_scheme = "dark"
+# let sites pick their own light or dark mode to match the active palette
+c.colors.webpage.preferred_color_scheme = "light" if _is_light(bg) else "dark"
 c.colors.webpage.bg = bg
 
 # start page
@@ -103,10 +116,15 @@ c.url.default_page = _startpage
 # its search form posts from file:// to google, blocked by default
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
-# search engines
+# search engines; the default is desktop/qutebrowser's search_url option, the homelab searxng only on a homelab machine
+_search = "https://duckduckgo.com/?q={}"
+try:
+    with open(os.path.expanduser("~/.config/qutebrowser/search-url")) as _f:
+        _search = _f.read().strip()
+except OSError:
+    pass
 c.url.searchengines = {
-    # default to the homelab SearXNG like firefox (off the homelab swap to ddg); g/ddg bangs stay reachable
-    "DEFAULT": "https://search.lsck0.dev/search?q={}",
+    "DEFAULT": _search,
     "ddg": "https://duckduckgo.com/?q={}",
     "g": "https://www.google.com/search?q={}",
     "ap": "https://archlinux.org/packages/?q={}",
@@ -123,8 +141,8 @@ c.url.searchengines = {
 # a fingerprint
 
 # privacy, like the managed chromium policy: webrtc only on the default route, no third-party cookies.
-# blocking uses brave's engine (python-adblock) and the hosts lists; both arrive with :adblock-update, which
-# qutebrowser asks for on the first start
+# blocking uses brave's engine (python-adblock) and the hosts lists; both arrive with :adblock-update, which its module
+# runs once, :adblock-update refreshes them
 c.content.webrtc_ip_handling_policy = "default-public-interface-only"
 c.content.cookies.accept = "no-3rdparty"
 c.content.blocking.method = "both"
@@ -136,7 +154,7 @@ config.bind("K", "tab-next")
 config.bind("<Alt+x>", "tab-close")
 config.bind("<Alt+c>", "open -t")
 for i in range(1, 10):
-    config.bind("<Alt+{}>".format(i), "tab-focus {}".format(i))
+    config.bind(f"<Alt+{i}>", f"tab-focus {i}")
 
 config.bind(",v", "mode-enter passthrough")
 

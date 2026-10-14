@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GDB
+Comment=The GNU debugger
+TryExec=gdb
+Exec=gdb
+Icon=debug-run
+Terminal=true
+Categories=Development;Debugger;ConsoleOnly;
