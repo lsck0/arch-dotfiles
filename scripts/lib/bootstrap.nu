@@ -7,10 +7,11 @@ use system.nu [system-pack system-unpack]
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 # pacstrapped along for ghostmirror's monthly rebuild on the installed system
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
-const MIRROR_CANDIDATES = 20
-const MIRROR_KEEP = 10
+# ranking takes longer than a slow mirror costs, so only a few recent ones are timed
+const MIRROR_CANDIDATES = 5
+const MIRROR_KEEP = 5
 # fewer rated servers: the country falls back to worldwide, then to the iso's list
-const MIRROR_RANKED_MIN = 5
+const MIRROR_RANKED_MIN = 3
 const MIRROR_AGE_H = 12
 const MIRROR_DOWNLOAD_TIMEOUT_S = 5
 const REFLECTOR_WAIT_S = 90
@@ -216,18 +217,22 @@ def mirrors-rank []: nothing -> nothing {
     let country = try { ^curl -fsS -m $GEO_TIMEOUT_S https://www.cloudflare.com/cdn-cgi/trace | lines | parse "loc={loc}" | get 0.loc } catch { "" }
     log-info $"ranking mirrors by download rate(if ($country | is-empty) { '' } else { $' in ($country)' })"
     let tmp = mktemp --directory
-    let ranked = [$country worldwide] | where $it != "" | each {|scope|
+    mut ranked: any = null
+    for scope in ([$country worldwide] | where $it != "") {
         let where = if $scope == "worldwide" { [] } else { [--country $scope] }
         let run = command-stream reflector [reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list)]
-        if $run.exit_code != 0 { return null }
+        if $run.exit_code != 0 { continue }
         # --verbose logs a failed rate as 0.00
         let rates = $run.output | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
         let servers = open --raw ($tmp | path join list) | lines | where ($it | str starts-with "Server") | each {|line|
             let url = $line | split row " " | last | str replace '$repo/os/$arch' ""
             $rates | where url == $url | get --optional 0 | if $in == null { null } else { {server: $line, rate: ($in.rate | into float)} }
         } | compact
-        {scope: $scope, servers: $servers}
-    } | compact | where ($it.servers | length) >= $MIRROR_RANKED_MIN | get --optional 0
+        if ($servers | length) >= $MIRROR_RANKED_MIN {
+            $ranked = {scope: $scope, servers: $servers}
+            break
+        }
+    }
     rm --recursive --force $tmp
     if $ranked == null {
         log-warn "mirror ranking failed, keeping the iso's list"
@@ -286,7 +291,7 @@ def user-setup [c: record]: nothing -> nothing {
 }
 
 def --wrapped in-target-ok [root: string, ...cmd: string]: nothing -> bool {
-    (try { in-target $root ...$cmd; true } catch { false })
+    (do { in-target $root ...$cmd } | complete).exit_code == 0
 }
 
 def --wrapped in-target-input [root: string, ...cmd: string]: string -> nothing {

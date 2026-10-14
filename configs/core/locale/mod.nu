@@ -11,11 +11,11 @@ export const options = {
         apply: relogin
         scope: machine
     }
-    time: {
+    formats: {
         type: string?
         default: null
-        doc: "LC_TIME (dates, weekdays, 24h clock); unset follows the language"
-        label: "Date and time format"
+        doc: "Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); unset follows the language"
+        label: "Formats"
         apply: relogin
         scope: machine
     }
@@ -61,8 +61,9 @@ const VCONSOLE = "/etc/vconsole.conf"
 const REGDOM = "/etc/conf.d/wireless-regdom"
 const ZONES = "/usr/share/zoneinfo/zone1970.tab"
 const XKB_MODEL = "pc105"
-# besides lang and time: what tools without a translation fall back to
+# besides lang and formats: what tools without a translation fall back to
 const LOCALE_BASE = "en_US.UTF-8"
+const FORMAT_CATEGORIES = [LC_TIME LC_NUMERIC LC_MONETARY LC_PAPER LC_MEASUREMENT LC_ADDRESS LC_TELEPHONE LC_NAME]
 
 def env-file [file: path]: nothing -> record {
     if not ($file | path exists) { return {} }
@@ -82,7 +83,7 @@ export def detect [cfg: record]: nothing -> record {
     let regdom = env-file $REGDOM
     {
         lang: ($locale.LANG? | default null)
-        time: ($locale.LC_TIME? | default null)
+        formats: ($locale.LC_TIME? | default null)
         keyboard_layout: ($console.XKBLAYOUT? | default null)
         keyboard_variant: ($console.XKBVARIANT? | default "")
         keyboard_options: ($console.XKBOPTIONS? | default "" | split row "," | where $it != "")
@@ -95,8 +96,9 @@ def charmap [locale: string]: nothing -> string {
 }
 
 export def system [cfg: record] {
-    let locales = [$cfg.lang $cfg.time $LOCALE_BASE] | compact | uniq
-    let conf = [[LANG $cfg.lang] [LC_TIME $cfg.time]] | where $it.1 != null | each { $"($in.0)=($in.1)" }
+    let locales = [$cfg.lang $cfg.formats $LOCALE_BASE] | compact | uniq
+    let formats = if $cfg.formats == null { [] } else { $FORMAT_CATEGORIES | each {|c| [$c $cfg.formats] } }
+    let conf = [[LANG $cfg.lang]] ++ $formats | where $it.1 != null | each { $"($in.0)=($in.1)" }
     let console = env-file $VCONSOLE
     let keyboard = [$cfg.keyboard_layout ($cfg.keyboard_variant | default "") ($cfg.keyboard_options | default [] | str join ",")]
     let current = [$console.XKBLAYOUT? ($console.XKBVARIANT? | default "") ($console.XKBOPTIONS? | default "")]
