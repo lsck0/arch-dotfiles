@@ -107,7 +107,8 @@ def --env tui-init []: nothing -> nothing {
 }
 
 def --wrapped dlg [...args: string]: nothing -> string {
-    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args } catch { die aborted }
+    # collected inside the try: a msgbox's empty stream piped out of it raises nu's "internal error"
+    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die aborted }
 }
 
 def height [text: string, rows: int]: nothing -> string {
