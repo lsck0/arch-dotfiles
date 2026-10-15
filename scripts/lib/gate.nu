@@ -114,6 +114,7 @@ const NU_PITFALLS = [
     ["\\$'[^']*\\\\\\(" "\\( is no escape inside $'...'"]
     ['\bnot \((\^|do )[^()]*\)\.[a-z_]+ *(==|!=|<|>)' "not binds before the comparison, compare with != instead"]
     ['^\s*else\b' "else must follow the closing brace on the same line"]
+    ['\$"\((into|encode|decode) ' "an interpolation does not pipe $in into its command, pass it explicitly"]
     ["\\$'[^']*\\(\\\\" "a ( inside $'...' starts a subexpression, build the regex with + instead"]
 ]
 

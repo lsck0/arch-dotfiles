@@ -317,7 +317,7 @@ def wifi-carry [c: record]: nothing -> nothing {
         if ($passphrase | is-empty) { continue }
         # the home rule needs the hardware mac there, every other wifi gets NetworkManager.conf's random one
         let mac = if $c.home_gateway != null and $ssid == $c.home_ssid { "\ncloned-mac-address=permanent" } else { "" }
-        let bytes = $ssid | encode utf-8 | chunks 1 | each { $"(into int);" } | str join
+        let bytes = $ssid | encode utf-8 | chunks 1 | each {|b| $"($b | into int);" } | str join
         let file = $"($MOUNT)/etc/NetworkManager/system-connections/($name).nmconnection"
         mkdir ($file | path dirname)
         [
