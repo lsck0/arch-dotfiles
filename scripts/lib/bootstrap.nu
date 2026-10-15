@@ -421,6 +421,17 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         home_ssid: "" target_root: $MOUNT profile_file: ($repo | path join profiles $"($username).nuon")
         user_password: "" root_password: ""
     }
+    # every machine, owner platforms too: asked while still on that network, its router's mac is what the installed
+    # machine recognises home by before any secret is unlocked
+    if not $wsl {
+        let home = env-or BOOTSTRAP_HOME_NETWORK | if ($in | is-not-empty) { $in } else if (assume) { "0" } else {
+            if (yes "home network" "Is the network you are on now your home network?\n\nYes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.\n\nNo locks down every network, this one included.") { "1" } else { "0" }
+        }
+        if $home not-in ["0" "1"] { die $"BOOTSTRAP_HOME_NETWORK is '($home)', expected 0 or 1" }
+        let gateway = if $home == "1" { home-gateway-mac } else { null }
+        if $home == "1" and $gateway == null { log-warn "no router mac found, every network stays foreign" }
+        $c = $c | merge {home_gateway: $gateway, home_ssid: (if $home == "1" { home-ssid } else { "" })}
+    }
     if $platform != $PLATFORM_NEW {
         let file = $repo | path join platforms $"($platform).nuon"
         if not ($file | path exists) { die $"unknown platform '($platform)', one of: ($platforms | str join ' ') ($PLATFORM_NEW)" }
@@ -446,14 +457,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
                 ask {|l| $l in $known } locale "Language and formats, e.g. en_US.UTF-8, de_DE.UTF-8." $LOCALE_DEFAULT
             } else { $in }
             if $locale not-in $known { die $"unknown locale '($locale)'" }
-            # asked once, while still on that network: its router's mac is what the installed machine recognises home by
-            let home = env-or BOOTSTRAP_HOME_NETWORK | if ($in | is-not-empty) { $in } else if (assume) { "0" } else {
-                if (yes "home network" "Is the network you are on now your home network?\n\nYes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.\n\nNo locks down every network, this one included.") { "1" } else { "0" }
-            }
-            if $home not-in ["0" "1"] { die $"BOOTSTRAP_HOME_NETWORK is '($home)', expected 0 or 1" }
-            let gateway = if $home == "1" { home-gateway-mac } else { null }
-            if $home == "1" and $gateway == null { log-warn "no router mac found, every network stays foreign" }
-            $c = $c | merge {timezone: $timezone, locale: $locale, home_gateway: $gateway, home_ssid: (if $home == "1" { home-ssid } else { "" })}
+            $c = $c | merge {timezone: $timezone, locale: $locale}
         }
         let universe = ls ($repo | path join configs) | where type == dir | get name | path basename | sort
         let chosen = if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
