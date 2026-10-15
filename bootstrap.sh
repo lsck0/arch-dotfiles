@@ -13,7 +13,8 @@ if [[ -d /run/archiso ]]; then
     # nushell alone outgrows the iso's default 256 MiB overlay
     (($(df --output=size -BM /run/archiso/cowspace | tail -1 | tr -dc 0-9) >= COW_MIN_MIB)) ||
         mount -o "remount,size=${COW_MIN_MIB}M" /run/archiso/cowspace
-    pacman -Sy --noconfirm --needed nushell git gnupg
+    # no -u on the iso, so glibc comes along explicitly: today's nushell needs a newer one than an older iso ships
+    pacman -Sy --noconfirm --needed glibc nushell git gnupg
 else
     pacman-key --init && pacman-key --populate archlinux
     pacman -Syu --noconfirm --needed nushell git gnupg sudo zsh
