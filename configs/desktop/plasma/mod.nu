@@ -24,7 +24,7 @@ export const options = {
 const DIR = path self .
 const CONFIG = ".config"
 # plasma's machine state: applet positions per resolution and the screen mapping, rendered, carried back by backup
-const TEMPLATES = [plasma-org.kde.plasma.desktop-appletsrc plasmarc]
+const TEMPLATES = [plasma-org.kde.plasma.desktop-appletsrc plasmarc kscreenlockerrc]
 const OUTPUTS = "kwinoutputconfig.json"
 # both written by the theme verb from the palette
 const THEMED = ["kdeglobals" "color-schemes/pywal.colors"]
@@ -78,6 +78,7 @@ export def link [cfg: record] {
         (rc-files | where {|f| $f != plasma-localerc or (profile-has identity) } | each {|f| file-copy $f ($config | path join $f) })
         $applets
         (file-render plasmarc ($config | path join plasmarc) $values)
+        (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
         (if $cfg.kwin_outputs == true { file-copy $OUTPUTS ($config | path join $OUTPUTS) } else { [] })
         $dirs
         (if ($nu.home-dir | path join .local share plasma plasmoids $MODERNCLOCK.id | path exists) { [] } else {
