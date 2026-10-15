@@ -21,7 +21,7 @@ def status-has [field: string]: nothing -> bool {
 }
 
 def enabled [field: string]: nothing -> bool {
-    ^sbctl status | lines | any { $in =~ $'($field):\s+(\S+\s+)?Enabled' }
+    ^sbctl status | lines | any { $in =~ ($field + ':\s+(\S+\s+)?Enabled') }
 }
 
 # the plain kernels stay unsigned: a type #1 entry on the unverified esp could boot a signed one with any cmdline

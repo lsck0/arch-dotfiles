@@ -188,8 +188,11 @@ def "main snapshot" []: nothing -> nothing {
         return
     }
     let sha = open --raw ($repo | path join .source) | str trim | str substring 0..11
-    ^timeshift --create --scripted --tags O --comments $"($PRE_APPLY_COMMENT) ($sha)"
-    for old in (snapshots | drop $PRE_APPLY_KEEP | get name) { ^timeshift --delete --scripted --snapshot $old }
+    # timeshift narrates every step and tries a desktop notification, which root has no session for
+    let made = ^timeshift --create --scripted --tags O --comments $"($PRE_APPLY_COMMENT) ($sha)" | complete
+    if $made.exit_code != 0 { error make {msg: $"timeshift --create: ($made.stdout)($made.stderr)"} }
+    log-info $"pre-apply snapshot of ($sha)"
+    for old in (snapshots | drop $PRE_APPLY_KEEP | get name) { ^timeshift --delete --scripted --snapshot $old | complete | ignore }
 }
 
 # remove explicit packages no module declares, keep list aside, recorded in the ledger for rollback

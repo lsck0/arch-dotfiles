@@ -26,7 +26,7 @@ manager, terminals, browsers, document and media viewers and their theming.
 - `nsxiv`: the image viewer.
 - `obsidian`: notes, with the Local REST API and MCP served by obsidian while it runs.
 - `oomox`: the gtk/icon theme generator fed from the wallpaper palette.
-- `pipewire`: the audio server, lanes and eq chains, roles. See `pipewire/AGENTS.md`.
+- `pipewire`: the audio server and the headset eq chain. See `pipewire/AGENTS.md`.
 - `plasma`: the few KDE/dolphin settings kept (global view properties).
 - `printing`: cups and avahi for printer discovery.
 - `qbittorrent`: torrent client bound to the ProtonVPN tunnel (proton0).

@@ -5,7 +5,7 @@ export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player]}}
 
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
 const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"
-# obs taps spotify before its loudness lanes, so spotify normalizes itself: -14 lufs, no limiter
+# nothing levels playback downstream, so spotify normalizes itself: -14 lufs, no limiter
 const LOUDNESS = {"": {audio.normalize_v2: "true", audio.loudness.environment: "1"}}
 
 const THEME_INI = "Themes/wal/color.ini"

@@ -72,7 +72,12 @@ export def keys []: nothing -> nothing {
 }
 
 # after sd-encrypt, so the cryptsetup machinery it feeds is in place
+# the hook refuses to build an image without the key file, so no key means no remote unlock yet
 export def wire []: nothing -> nothing {
+    if not ($AUTHORIZED_KEYS | path exists) {
+        unwire
+        return
+    }
     let hooks = hooks-read
     if $HOOK not-in $hooks {
         let anchor = [sd-encrypt filesystems] | where $it in $hooks | get --optional 0
@@ -86,8 +91,12 @@ export def wire []: nothing -> nothing {
     cmdline-set rd.neednet=1
 }
 
-export def teardown []: nothing -> nothing {
-    rm --force --recursive $AUTHORIZED_KEYS /etc/systemd/system/initrd-tinysshd.service.d
+def unwire []: nothing -> nothing {
     if ($MKINITCPIO | path exists) { hooks-write (hooks-read | where $it != $HOOK) }
     cmdline-unset rd.neednet
+}
+
+export def teardown []: nothing -> nothing {
+    rm --force --recursive $AUTHORIZED_KEYS /etc/systemd/system/initrd-tinysshd.service.d
+    unwire
 }

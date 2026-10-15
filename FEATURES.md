@@ -283,8 +283,7 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
   anonymous SOCKS), radios (Wi-Fi, Ethernet, mobile, Bluetooth, offline, firewall), speed test, Wi-Fi QR share.
 - Display: brightness per monitor (backlight or DDC), color grading presets, night light, shaders, monitor layout
   (extend, mirror, off) and scale.
-- Audio: output and input devices, loudness lanes with leveler, fader and meters, EQ switch, per-app routing, "heard
-  by", deafen, qpwgraph.
+- Audio: output and input devices, fader and meters, per-app routing, "heard by", deafen, qpwgraph.
 - Notifications: history, clear, do not disturb (middle click toggles).
 - Indicators: doctor findings (click runs the check), keep awake, reminders, pomodoro; tray with pin and hide per icon.
 - Keyboard layout: click cycles the xkb layout.
@@ -383,10 +382,9 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
   ZapZap, hexchat, Proton Mail and Meet, TeamSpeak (native Wayland).
 - Spotify patched with spicetify (theme, ad and telemetry blocking), confined by AppArmor; spotify_player in the
   terminal.
-- mpv (gpu-next, MPRIS, media role for the audio lanes), zathura and sioyek with synctex back to nvim, okular,
-  bookokrat, nsxiv (`d` trashes, `w` sets wallpaper).
-- PipeWire: loudness lanes (media and voice, normalized to -18 LUFS) and an AutoEq headset EQ
-  (`desktop/pipewire.eq_target`, `eq_preset`).
+- mpv (gpu-next, MPRIS), zathura and sioyek with synctex back to nvim, okular, bookokrat,
+  nsxiv (`d` trashes, `w` sets wallpaper).
+- PipeWire: an AutoEq headset EQ (`desktop/pipewire.eq_target`, `eq_preset`).
 - LibreOffice and OnlyOffice; obsidian with a local REST API; feather Monero wallet in `~/sync`; JDownloader quiet;
   gparted through pkexec.
 - About 120 own desktop entries (TUI apps open in ghostty); `desktop-run` adds file pickers, group switching and

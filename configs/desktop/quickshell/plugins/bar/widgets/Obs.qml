@@ -32,7 +32,7 @@ BarWidget {
     property string scene: ""
     property var scenes: []
     // labels map to obs inputs via MUTE_SOURCES in obs-status.nu
-    readonly property var muteSources: ["Mic", "Media", "Voice", "Game"]
+    readonly property var muteSources: ["Mic", "Game"]
     property var mutes: ({
     })
     // obs reports cumulative bytes, so rates are derived here

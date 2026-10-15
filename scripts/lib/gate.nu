@@ -113,6 +113,8 @@ const NU_PITFALLS = [
     ['\bexec \^' "exec takes the bare name, the caret becomes part of it"]
     ["\\$'[^']*\\\\\\(" "\\( is no escape inside $'...'"]
     ['\bnot \((\^|do )[^()]*\)\.[a-z_]+ *(==|!=|<|>)' "not binds before the comparison, compare with != instead"]
+    ['^\s*else\b' "else must follow the closing brace on the same line"]
+    ["\\$'[^']*\\(\\\\" "a ( inside $'...' starts a subexpression, build the regex with + instead"]
 ]
 
 def lint-nu-pitfalls []: nothing -> list<string> {
@@ -124,7 +126,7 @@ def lint-nu-pitfalls []: nothing -> list<string> {
 # a script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git
 def lint-exec-bits []: nothing -> list<string> {
     ^git -C $REPO ls-files -s | lines | parse "{mode} {hash} {stage}\t{path}" | where mode == "100644"
-    | where {|f| (open --raw ($REPO | path join $f.path) | into binary | bytes at 0..1) == 0x[2321] }
+    | where {|f| ($REPO | path join $f.path | path exists) and (open --raw ($REPO | path join $f.path) | into binary | bytes at 0..1) == 0x[2321] }
     | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
 }
 

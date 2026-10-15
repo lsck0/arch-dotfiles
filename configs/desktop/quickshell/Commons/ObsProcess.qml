@@ -10,7 +10,7 @@ Singleton {
 
     property bool running: false
     property bool connected: false
-    // panel label (Mic/Media/Voice/Game) -> 0..1 multiplier
+    // panel label (Mic/Game) -> 0..1 multiplier
     property var inputVolumes: ({
     })
     property var inputMutes: ({

@@ -3,6 +3,8 @@ use module.nu *
 export const meta = {packages: {pacman: [dnsmasq gnome-boxes libvirt qemu-full virt-install]}}
 
 const NESTED = {AuthenticAMD: kvm_amd, GenuineIntel: kvm_intel}
+const DEFAULT_SUBNET = "192.168.122.0/24"
+const DEFAULT_BRIDGE = "virbr0"
 
 # a guest's own 192.168.122.0/24 would collide with a nested default network
 export def system [cfg: record] {
@@ -23,7 +25,11 @@ export def system [cfg: record] {
 # slirp would leave guest flows to portmaster as qemu's, which refuses the guest's dns-over-tls
 export def network []: nothing -> nothing {
     ^virsh -q -c qemu:///system net-autostart default | ignore
-    if not (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) {
-        ^virsh -q -c qemu:///system net-start default
+    if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
+    let taken = ^ip -j -4 route | from json | where dst == $DEFAULT_SUBNET and dev != $DEFAULT_BRIDGE | get --optional 0.dev
+    if $taken != null {
+        print $"note: libvirt: ($DEFAULT_SUBNET) is already this machine's network on ($taken), the default network stays off"
+        return
     }
+    ^virsh -q -c qemu:///system net-start default
 }

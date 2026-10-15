@@ -6,7 +6,7 @@ const PORT_DEFAULT = 4455
 # obs-websocket 5.x event subscriptions: general, scenes, inputs, outputs
 const SUBSCRIPTIONS = 0b1001101
 const EVENTS_REPOLL = [StreamState RecordState CurrentProgramScene Exit InputMuteStateChanged]
-const MUTE_SOURCES = {Mic: "Mic/Aux", Media: "Media", Voice: "Voice", Game: "Game Audio"}
+const MUTE_SOURCES = {Mic: "Mic/Aux", Game: "Game Audio"}
 # cmd -> [requestType, payload key]
 const COMMANDS = {
     toggleStream: [ToggleStream null]

@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Widgets
 import qs.Commons
@@ -15,32 +14,10 @@ BarWidget {
     readonly property real volume: sink && sink.audio ? sink.audio.volume : 0
     readonly property var source: Pipewire.defaultAudioSource
     readonly property bool micMuted: source && source.audio ? source.audio.muted : true
-    // meters, per-app binds and lane reads only exist while the panel shows
+    // meters and per-app binds only exist while the panel shows
     readonly property bool live: panel.shown
     property int routingStreamId: -1
-    // lane fader positions by lane name: stream keeps music a bed under voice, chill lets it lead
-    readonly property var presets: [{
-        "label": "STREAM",
-        "faders": {
-            "media": 0.55,
-            "voice": 1
-        }
-    }, {
-        "label": "CHILL",
-        "faders": {
-            "media": 1,
-            "voice": 0.85
-        }
-    }]
-    readonly property real presetTolerance: 0.02
     readonly property bool deafened: muted && micMuted
-    readonly property string activePreset: {
-        for (let i = 0; i < presets.length; i++) if (presetActive(presets[i])) {
-            return presets[i].label;
-        }
-        return "";
-    }
-
     function toggleMute() {
         if (sink && sink.audio)
             sink.audio.muted = !sink.audio.muted;
@@ -58,41 +35,6 @@ BarWidget {
 
     }
 
-    function laneKey(lane) {
-        return lane.name.substring(Audio.lanePrefix.length);
-    }
-
-    function presetActive(preset) {
-        var matched = false;
-        for (let i = 0; i < Audio.lanes.length; i++) {
-            let lane = Audio.lanes[i];
-            let want = preset.faders[laneKey(lane)];
-            if (want === undefined || !lane.audio)
-                continue;
-
-            if (Math.abs(lane.audio.volume - want) > presetTolerance)
-                return false;
-
-            matched = true;
-        }
-        return matched;
-    }
-
-    function presetApply(label) {
-        var preset = presets.find((p) => {
-            return p.label === label;
-        });
-        if (!preset)
-            return ;
-
-        for (let i = 0; i < Audio.lanes.length; i++) {
-            let want = preset.faders[laneKey(Audio.lanes[i])];
-            if (want !== undefined && Audio.lanes[i].audio)
-                Audio.lanes[i].audio.volume = want;
-
-        }
-    }
-
     moduleName: "audio-io"
     visible: sink !== null
     implicitWidth: button.implicitWidth
@@ -101,7 +43,7 @@ BarWidget {
     PwObjectTracker {
         objects: [root.sink, root.source].filter((n) => {
             return !!n;
-        }).concat(root.live ? Audio.lanes.concat(Audio.appStreams, Audio.micListeners) : [])
+        }).concat(root.live ? Audio.appStreams.concat(Audio.micListeners) : [])
     }
 
     BarIconButton {
@@ -170,12 +112,6 @@ BarWidget {
                         tint: Colors.semantic.live
                     }
 
-                    Chip {
-                        text: "EQ"
-                        selected: Audio.eq !== null
-                        onClicked: Audio.eqSet(Audio.eq === null)
-                    }
-
                 }
 
                 Hero {
@@ -220,52 +156,16 @@ BarWidget {
                 }
 
                 PanelSeparator {
-                    visible: Audio.lanes.length > 0
-                }
-
-                SectionHead {
-                    text: "LANES"
-                    visible: Audio.lanes.length > 0
-
-                    ButtonGroup {
-                        focusable: false
-                        fontSize: Style.font.caption
-                        options: root.presets.map((p) => {
-                            return p.label;
-                        })
-                        value: root.activePreset
-                        onChanged: function(v) {
-                            root.presetApply(v);
-                        }
-                    }
-
-                }
-
-                Repeater {
-
-                    model: ScriptModel {
-                        values: Audio.lanes
-                    }
-
-                    delegate: LaneBlock {
-                        host: root
-                    }
-
-                }
-
-                PanelSeparator {
                 }
 
                 PanelSectionHeader {
-                    text: "DIRECT"
+                    text: "APPS"
                 }
 
                 Repeater {
 
                     model: ScriptModel {
-                        values: Audio.appStreams.filter((s) => {
-                            return !Audio.isLane(Audio.sinkOf(s));
-                        })
+                        values: Audio.appStreams
                     }
 
                     delegate: StreamRow {
@@ -522,7 +422,7 @@ BarWidget {
         property AudioIO host: null
         property string glyph: "\u{f057e}"
         property string mutedGlyph: "\u{f075f}"
-        property string lane: ""
+        property string caption: ""
         property bool external: false
         property string obsLabel: ""
         readonly property real obsMul: external ? (Number(ObsProcess.inputVolumes[obsLabel]) || 0) : 0
@@ -557,13 +457,13 @@ BarWidget {
         implicitHeight: slider.implicitHeight
 
         Caption {
-            id: laneLabel
+            id: captionLabel
 
-            visible: fader.lane !== ""
+            visible: fader.caption !== ""
             width: visible ? Style.space(52) : 0
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: fader.lane
+            text: fader.caption
             color: fader.muted ? Colors.urgent : Colors.menu.text
             opacity: Style.emphasis.dim
         }
@@ -572,8 +472,8 @@ BarWidget {
             id: muteGlyph
 
             width: Style.space(24)
-            anchors.left: laneLabel.right
-            anchors.leftMargin: fader.lane !== "" ? Style.spacing.xs : 0
+            anchors.left: captionLabel.right
+            anchors.leftMargin: fader.caption !== "" ? Style.spacing.xs : 0
             anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignHCenter
             textFormat: Text.PlainText
@@ -643,7 +543,7 @@ BarWidget {
             host: pair.host
             glyph: pair.glyph
             mutedGlyph: pair.mutedGlyph
-            lane: pair.obsHas ? "system" : ""
+            caption: pair.obsHas ? "system" : ""
         }
 
         Fader {
@@ -651,7 +551,7 @@ BarWidget {
             visible: pair.obsHas
             external: true
             host: pair.host
-            lane: "OBS"
+            caption: "OBS"
             glyph: pair.glyph
             mutedGlyph: pair.mutedGlyph
             obsLabel: pair.obsLabel
@@ -756,7 +656,7 @@ BarWidget {
             Repeater {
 
                 model: ScriptModel {
-                    values: Audio.lanes.concat(Audio.sinks)
+                    values: Audio.sinks
                 }
 
                 delegate: Chip {
@@ -770,170 +670,6 @@ BarWidget {
                     }
                 }
 
-            }
-
-        }
-
-    }
-
-    component LaneBlock: Column {
-        id: lane
-
-        required property var modelData
-        property AudioIO host: null
-        readonly property var node: modelData
-        readonly property var outNode: Audio.nodes.find((n) => {
-            return n.name === lane.node.name + ".out";
-        }) || null
-        readonly property var streams: Audio.appStreams.filter((s) => {
-            return Audio.sinkOf(s) === lane.node;
-        })
-        // obs captures a lane under its key, capitalised, matching MUTE_SOURCES in obs-status.nu
-        readonly property string obsLabel: {
-            var k = root.laneKey(lane.node);
-            return k ? k.charAt(0).toUpperCase() + k.slice(1) : "";
-        }
-        // read back from the filter graph, controls named in configs/desktop/pipewire/mod.nu
-        property bool levelerOn: true
-        property real targetLufs: NaN
-
-        function refresh() {
-            if (!readProc.running)
-                readProc.running = true;
-
-        }
-
-        function levelerSet(on) {
-            writeProc.command = ["pw-cli", "set-param", String(node.id), "Props", "{ params = [ \"amount:Mult\" " + (on ? 1 : 0) + " \"amount:Add\" " + (on ? 0 : 1) + " ] }"];
-            writeProc.running = true;
-        }
-
-        function parse(text) {
-            var values = ({
-            });
-            try {
-                let props = JSON.parse(text || "[]")[0].info.params.Props || [];
-                for (let i = 0; i < props.length; i++) {
-                    let p = props[i].params;
-                    if (!p)
-                        continue;
-
-                    for (let j = 0; j + 1 < p.length; j += 2) values[p[j]] = p[j + 1]
-                }
-            } catch (e) {
-                return ;
-            }
-            levelerOn = values["amount:Mult"] > 0.5;
-            targetLufs = Number(values["target:Target LUFS"]);
-        }
-
-        Component.onCompleted: {
-            if (host && host.live) {
-                refresh();
-            }
-        }
-        width: parent ? parent.width : 0
-        spacing: Style.spacing.xs
-
-        Process {
-            id: readProc
-
-            command: ["pw-dump", String(lane.node.id)]
-
-            stdout: StdioCollector {
-                waitForEnd: true
-                onStreamFinished: lane.parse(text)
-            }
-
-        }
-
-        Process {
-            id: writeProc
-
-            onExited: lane.refresh()
-        }
-
-        Connections {
-            function onLiveChanged() {
-                if (lane.host.live)
-                    lane.refresh();
-
-            }
-
-            target: lane.host
-        }
-
-        SectionHead {
-            text: lane.node.description
-
-            // obs taps a lane's playback side, after the leveler and fader (configs/creating/obs)
-            Tag {
-                visible: Audio.isTappedByObs(lane.outNode)
-                text: "OBS"
-                tint: Colors.semantic.live
-            }
-
-            Chip {
-                text: lane.levelerOn ? "LEVEL " + (isFinite(lane.targetLufs) ? lane.targetLufs.toFixed(0) + " LUFS" : "ON") : "LEVEL OFF"
-                selected: lane.levelerOn
-                onClicked: lane.levelerSet(!lane.levelerOn)
-            }
-
-        }
-
-        ObsPair {
-            width: parent.width
-            node: lane.node
-            host: lane.host
-            obsLabel: lane.obsLabel
-        }
-
-        Row {
-            readonly property real meterWidth: (width - inLabel.width - outLabel.width - spacing * 3) / 2
-
-            width: parent.width
-            spacing: Style.spacing.xs
-
-            Caption {
-                id: inLabel
-
-                text: "IN"
-                opacity: Style.emphasis.dim
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Meter {
-                width: parent.meterWidth
-                anchors.verticalCenter: parent.verticalCenter
-                node: lane.node
-                active: lane.host.live
-            }
-
-            Caption {
-                id: outLabel
-
-                text: "OUT"
-                opacity: Style.emphasis.dim
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Meter {
-                width: parent.meterWidth
-                anchors.verticalCenter: parent.verticalCenter
-                node: lane.outNode
-                active: lane.host.live
-            }
-
-        }
-
-        Repeater {
-
-            model: ScriptModel {
-                values: lane.streams
-            }
-
-            delegate: StreamRow {
-                host: lane.host
             }
 
         }

@@ -17,6 +17,6 @@ export def link [cfg: record] {
         (file-copy chktexrc ($nu.home-dir | path join .chktexrc))
         (file-copy latexindent.yaml $latexindent)
         # latexindent finds its config only through this file
-        (file-text ($nu.home-dir | path join .indentconfig.yaml) $"paths:\n  - ($latexindent)\n")
+        (file-text ($nu.home-dir | path join .config latexindent indentconfig.yaml) $"paths:\n  - ($latexindent)\n")
     ]
 }

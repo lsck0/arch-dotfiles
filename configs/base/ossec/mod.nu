@@ -33,9 +33,9 @@ export def localfiles []: nothing -> nothing {
     let ours = $lines | enumerate | where {|l| $l.item | str starts-with $MARKER } | get --optional 0.index
         | default ($lines | length)
     let shipped = $lines | first $ours | reduce --fold {out: [], skip: false} {|l, acc|
-        if $l == "  <localfile>" { $acc | update skip true }
-        else if $l == "  </localfile>" and $acc.skip { $acc | update skip false }
-        else if $acc.skip { $acc } else { $acc | update out { append $l } }
+        if $l == "  <localfile>" { $acc | update skip true } else if $l == "  </localfile>" and $acc.skip {
+            $acc | update skip false
+        } else if $acc.skip { $acc } else { $acc | update out { append $l } }
     } | get out
     let want = $shipped | append (open --raw localfile.xml | lines) | str join "\n" | $"($in)\n"
     if $want != (open --raw $OSSEC_CONF) {

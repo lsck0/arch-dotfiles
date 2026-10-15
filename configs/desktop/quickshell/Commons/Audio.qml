@@ -6,11 +6,8 @@ import Quickshell.Services.Pipewire
 Singleton {
   id: root
 
-  // lane and eq names come from configs/desktop/pipewire/mod.nu
-  readonly property string lanePrefix: "lane."
+  // the eq name comes from configs/desktop/pipewire/mod.nu
   readonly property string eqName: "eq"
-  // the eq switch is the unit enablement so it persists
-  readonly property string eqUnit: "pipewire-chain@eq.service"
   // node.name of our own PwNodePeakMonitor streams
   readonly property string peakMonitorName: "quickshell"
   // obs names pulse captures after the app and pipewire captures "OBS: <source>"
@@ -25,19 +22,15 @@ Singleton {
   readonly property var nodes: Pipewire.nodes.values // qmllint disable missing-property
   readonly property var linkGroups: Pipewire.linkGroups.values // qmllint disable missing-property
 
-  function isLane(node) { return !!node && node.name.indexOf(lanePrefix) === 0 }
-  function isChain(node) { return isLane(node) || (!!node && (node.name === eqName || node.name === eqName + ".out")) }
+  function isChain(node) { return !!node && (node.name === eqName || node.name === eqName + ".out") }
   function isObs(node) { return !!node && obsNamePattern.test(node.name) }
   function isPeakMonitor(node) { return !!node && node.name === peakMonitorName }
 
   readonly property var sinks: nodes.filter(n => n.audio && n.isSink && !n.isStream && !isChain(n))
   readonly property var sources: nodes.filter(n => n.audio && !n.isSink && !n.isStream)
-  readonly property var lanes: nodes.filter(n => n.audio && n.isSink && !n.isStream && isLane(n))
   readonly property var appStreams: nodes.filter(n => n.audio && n.isSink && n.isStream && !isChain(n))
   readonly property var eq: nodes.find(n => n.name === eqName) || null
   readonly property var eqOut: nodes.find(n => n.name === eqName + ".out") || null
-
-  function eqSet(on) { Quickshell.execDetached(["systemctl", "--user", on ? "enable" : "disable", "--now", eqUnit]) }
 
   function targetsOf(node) {
     var out = []
@@ -90,7 +83,6 @@ Singleton {
   // devices carry long alsa names, the panel wants the product
   function deviceName(node) {
     if (!node) return "--"
-    if (isLane(node)) return node.description.toUpperCase()
     return (node.nickname || node.description || node.name).replace(/ (Analog|Digital) (Stereo|Mono|Surround.*)$/, "")
   }
 
@@ -116,7 +108,7 @@ Singleton {
     node.audio.volume = Math.max(0, Math.min(1, node.audio.volume + (delta > 0 ? volumeStep : -volumeStep)))
   }
 
-  // null hands the stream back to its role lane or the default sink
+  // null hands the stream back to the default sink
   function route(stream, target) {
     if (!stream) return
     if (target) Quickshell.execDetached(["pw-metadata", String(stream.id), "target.object", target.name])
