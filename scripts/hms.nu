@@ -20,7 +20,8 @@ def server-running []: nothing -> bool {
 
 def repos-in [root: string, depth: int]: nothing -> list<record> {
     let excludes = $FD_EXCLUDES | each { [--exclude $in] } | flatten
-    do { ^fd --type d --type f --hidden --no-ignore --max-depth $depth ...$excludes '^\.git$' $root } | complete
+    # tms counts project dirs, the .git entry sits one level below them
+    do { ^fd --type d --type f --hidden --no-ignore --max-depth ($depth + 1) ...$excludes '^\.git$' $root } | complete
     | get stdout | lines
     # a .git file is a project only as a linked worktree, so submodules and the `gitdir: ./.bare` root stay out
     | where {|git| ($git | path type) == dir or (open --raw $git | lines | first) =~ '^gitdir: .*/worktrees/[^/]+/?$' }

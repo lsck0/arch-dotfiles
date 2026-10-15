@@ -144,10 +144,11 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
         if $private { ^bash -c 'umask 077 && exec "$@"' private ...$run | complete } else { ^($run | first) ...($run | skip 1) | complete }
     }
     child-warnings $out.stderr
-    let result = if $out.exit_code == 0 { open --raw $out_file | from nuon } else { null }
+    # a child killed outside its per-module try exits without the file, whatever its code says
+    let result = if $out.exit_code == 0 and ($out_file | path type) == "file" { open --raw $out_file | from nuon } else { null }
     rm --force $out_file
     if $result == null {
-        error make {msg: $"evaluating ($verb): ($out.stderr)"}
+        error make {msg: $"evaluating ($verb) exited ($out.exit_code): ($out.stdout)($out.stderr)"}
     }
     $result
 }

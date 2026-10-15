@@ -4,18 +4,21 @@ export const meta = {packages: {pacman: [entr tmux tmux-fingers tmux-sessionizer
 
 const CONFIG_DIR = ".config/tmux"
 const TMS_CONFIG = ".config/tms/config.toml"
+# only the projects themselves, not repos nested in them (worktrees, vendored checkouts); hms reads the same entry
+const PROJECTS_DEPTH = 1
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let projects = $nu.home-dir | path join projects
     let tms = $nu.home-dir | path join $TMS_CONFIG
-    # tms owns its config (bookmarks land there too), so only a missing search dir is added
-    let searched = if ($tms | path exists) { open $tms | get --optional search_dirs.path | default [] } else { [] }
+    # tms owns its config (bookmarks land there too), so only the projects entry is kept as wanted
+    let wanted = {path: $projects, depth: $PROJECTS_DEPTH}
+    let searched = if ($tms | path exists) { open $tms | get --optional search_dirs | default [] } else { [] }
     [
         (file-copy tmux.conf ($dir | path join tmux.conf))
         (file-copy popup.nu ($dir | path join popup.nu) --mode 755)
         (file-copy autoreload.nu ($dir | path join autoreload.nu) --mode 755)
-        (if $projects in $searched { [] } else { exec tms-search [tms config -p $projects] })
+        (if $wanted in $searched { [] } else { step tms-search $projects ($PROJECTS_DEPTH | into string) })
     ]
 }
 
@@ -29,4 +32,13 @@ export def tmux-reload []: nothing -> nothing {
 
 export def theme [cfg: record, wallpaper: string] {
     step tmux-reload
+}
+
+export def tms-search [path: string, depth: string]: nothing -> nothing {
+    let wanted = {path: $path, depth: ($depth | into int)}
+    let file = $nu.home-dir | path join $TMS_CONFIG
+    let config = if ($file | path exists) { open $file } else { {} }
+    let dirs = $config.search_dirs? | default [] | where path != $wanted.path | append $wanted
+    mkdir ($file | path dirname)
+    $config | upsert search_dirs $dirs | to toml | save --force $file
 }

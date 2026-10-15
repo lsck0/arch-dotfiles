@@ -26,7 +26,6 @@ const PLUGINS = [
     ["https://raw.githubusercontent.com/fluzzeon/betterdiscord-OpenInApp/2b1f7c2c05af8abb16529dc9c248a224a15492c3/OpenInApp.plugin.js" 9910d9cfde13490328fb9387e2f02a222e090a679c82fec99590211e058cc7cc]
     ["https://raw.githubusercontent.com/Skamt/BDAddons/20be7c0e79ddd8b7e6d290c14ebe49aef5f7f650/SpotifyEnhance/SpotifyEnhance.plugin.js" b587949472153b720ea5ca14e39d790a83f430968679bad956c67060223712a1]
     ["https://raw.githubusercontent.com/Farcrada/DiscordPlugins/c1250d3990ed3b9f1bf3518aa68050402929c52b/Hide-Chat-Icons/HideChatIcons.plugin.js" a3e3b4af105403b12b78a2168ad3a5adfecbe5f72d1dff06ed8c896cd259e085]
-    ["https://raw.githubusercontent.com/zerebos/BetterDiscordAddons/49cdbe56ffc5d9d815663d83454cbe361af2b2cf/Plugins/PermissionsViewer/PermissionsViewer.plugin.js" 6f62e73ad44b2c8ec23a352e5b120b674090eca141d75bc360bef08e2bf2a58e]
 ]
 # the app's own preferences; window state and the rest of settings.json stay discord's
 const SETTINGS = {
