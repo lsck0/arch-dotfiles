@@ -17,11 +17,13 @@ const METERED = ["1" "3"]
 const EXCLUDES = [
     sync downloads Downloads .cache .local/share/Trash .local/share/baloo ".var/app/*/cache"
     .steam .local/share/Steam .local/share/flatpak .local/share/containers
-    .xlcore/ffxiv .xlcore/wineprefix .xlcore/compatibilitytool .xlcore/runtime
-    .xlcore/dalamud .xlcore/dalamudAssets .xlcore/installedPlugins .xlcore/logs
-    .local/share/libvirt/images .local/share/gnome-boxes .ollama/models .lmstudio/models
-    .gradle .m2/repository .ghcup .rustup .cargo/registry .cargo/git
-    .go/pkg go/pkg .npm .opam .local/share/mise .local/share/zinit
+    .local/share/xlcore/ffxiv .local/share/xlcore/wineprefix .local/share/xlcore/compatibilitytool
+    .local/share/xlcore/runtime .local/share/xlcore/dalamud .local/share/xlcore/dalamudAssets
+    .local/share/xlcore/installedPlugins .local/share/xlcore/logs
+    .local/share/libvirt/images .local/share/gnome-boxes .ollama/models .lmstudio/models .local/share/unreal-engine
+    .gradle .m2/repository .local/share/ghcup .local/share/rustup .local/share/elan .local/share/kani
+    .local/share/cargo/registry .local/share/cargo/git .local/share/dotnet .local/share/nuget
+    .local/share/go/pkg go/pkg .npm .local/share/opam .local/share/mise .local/share/zinit
     .local/share/nvim/lazy .local/share/nvim/mason .local/share/torbrowser
     "**/node_modules" "**/target" "**/.venv"
 ]

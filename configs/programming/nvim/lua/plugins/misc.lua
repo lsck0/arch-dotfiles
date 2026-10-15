@@ -66,7 +66,7 @@ return {
             vim.g.VM_show_warnings = 0
         end,
     },
-    { "mrjones2014/smart-splits.nvim", lazy = true },
+    { "smart-splits-nvim/smart-splits.nvim", lazy = true },
     {
         "nacro90/numb.nvim",
         opts = {},

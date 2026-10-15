@@ -111,8 +111,10 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     action $id skip $d.target "" $d $obs.link $d.source
                 } else if $obs.type == "" or ($obs.type == symlink and ((own-link $obs.link $repo) or not ($d.target | path exists))) {
                     action $id create $d.target "missing" $d $obs.link $d.source
-                } else if $obs.type == file and $obs.hash == (open --raw $d.source | sha $in) {
+                } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | sha $in) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
+                } else if $obs.type == file and $d.target not-in $prev.target {
+                    action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $d.source
                 } else if $force {
                     action $id update $d.target "drift, forced: preserved aside" ($d | insert preserve true) $obs.hash $d.source
                 } else {

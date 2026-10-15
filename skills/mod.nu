@@ -25,7 +25,9 @@ export def gemini-register [] {
         for d in (skill-dirs) {
             let name = $d | path basename
             if not ($linked | lines | any { $in == $"($name) [Enabled]" }) {
-                ^gemini skills link $d --scope user --consent
+                # it prints a consent banner per skill; only a failure is worth showing
+                let run = ^gemini skills link $d --scope user --consent | complete
+                if $run.exit_code != 0 { error make {msg: $"gemini skills link ($name): ($run.stdout)($run.stderr)"} }
             }
         }
     }
