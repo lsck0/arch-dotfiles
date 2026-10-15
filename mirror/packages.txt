@@ -448,6 +448,7 @@ neovide
 neovim
 netexec
 nethack
+netkit-bsd-finger
 netscanner
 networkmanager
 nftables

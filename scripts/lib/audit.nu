@@ -20,6 +20,7 @@ const CLASSES = [
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
     ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["borg-key-*" -]
     ["luks-header-*" -] [rotation.txt -] [home-gateways -] [repositories -] [.gitattributes -] [".git-crypt/*" -]
+    ["drift/*" -]
     ["claude/*" -] ["caido/*" -] ["dalamud/*" -] ["ffxiv/*" -] ["modrinth/*" -] ["obs-*.json" -] ["wallpapers/*" -]
     ["todeletewallpapers/*" -]
 ]

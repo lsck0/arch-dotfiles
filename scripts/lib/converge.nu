@@ -80,10 +80,25 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
     {module: $module, kind: $kind, target: $target, reason: $reason, decl: $decl, before: $before, after: $after}
 }
 
+# two merge decls on one file would each plan against the file on disk and the last apply would win, so they are
+# folded into one decl whose edits apply in declaration order
+def fold-merges [decls: list<record>]: nothing -> list<record> {
+    let dup = $decls | where kind in [json ini] | group-by target | items {|t, g| if ($g | length) > 1 { $t } } | compact
+    if ($dup | is-empty) { return $decls }
+    let first = $decls | enumerate | where item.kind in [json ini] and item.target in $dup | group-by {|r| $r.item.target } | items {|_, g| $g.0.index }
+    $decls | enumerate | each {|r|
+        let d = $r.item
+        if $d.kind not-in [json ini] or $d.target not-in $dup { return $d }
+        if $r.index not-in $first { return null }
+        let g = $decls | where kind in [json ini] and target == $d.target
+        $d | update edits ($g | each { $in.edits } | flatten) | update then ($g | each { $in.then } | flatten | uniq)
+    } | compact
+}
+
 # a file changed since its last apply is drift, kept unless forced; one the dotfiles never wrote is taken over. both
 # are preserved aside first
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
-    let wanted = $decls | each {|d|
+    let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == "unreadable" { return (action $id unreadable $d.target "unreadable as this user, checked at apply" $d null null) }
         match $d.kind {
@@ -167,10 +182,11 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     $wanted ++ ($orphans | sort-by {|a| if $a.kind in [disable unmask] { 0 } else { 1 } })
 }
 
-# stops at a non-empty dir, a link or home; never fails the removal
+# stops at a non-empty dir, a link, home or a dir a package owns; never fails the removal
 def prune-parents [start: path]: nothing -> nothing {
     mut dir = $start
     while $dir != $nu.home-dir and $dir != "/" and (path-kind $dir) == "dir" and (try { ls --all $dir | is-empty } catch { false }) {
+        if (^pacman -Qo $dir | complete).exit_code == 0 { break }
         try { rm $dir } catch { break }
         $dir = $dir | path dirname
     }
@@ -180,6 +196,7 @@ def write-file [a: record]: nothing -> nothing {
     let d = $a.decl
     mkdir ($d.target | path dirname)
     let tmp = $"($d.target).dot-new"
+    if (path-kind $tmp) == "symlink" { rm $tmp }
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
     ^chmod $d.mode $tmp
     if ($d.inplace? | default false) and (path-kind $d.target) == "file" {

@@ -63,11 +63,13 @@ def wifi [enabled: bool]: nothing -> list<record> {
     if not $enabled {
         return [(unit-disable $WIFI_UNIT) (step wifi-teardown)]
     }
+    # the unit declares the conf as a required source, so enabling it without one fails every mkinitcpio build;
+    # volatile, so the next apply picks it up once the secrets are readable
     [
         (step wifi-conf)
-        (file-copy $WIFI_UNIT $"/etc/systemd/system/($WIFI_UNIT)")
-        (unit-enable $WIFI_UNIT)
-    ]
+    ] ++ (if ($WIFI_CONF | path exists) {
+        [(file-copy $WIFI_UNIT $"/etc/systemd/system/($WIFI_UNIT)") (unit-enable $WIFI_UNIT)]
+    } else { [(unit-disable $WIFI_UNIT)] })
 }
 
 # one wpa_supplicant network per line of secrets/wifi (ssid, a tab, the passphrase), each key as wpa_passphrase's

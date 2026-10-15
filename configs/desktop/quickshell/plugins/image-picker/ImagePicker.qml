@@ -257,8 +257,8 @@ Item {
         filterText = "";
         layoutSettled = false;
         if (imageRows && imageRows === loadedImageRows && imageArray.length > 0) {
-            root.select(root.selectedImageIndex(), true);
             root.rebuildFilterCache();
+            root.select(root.selectedImageIndex(), true);
             imagesLoaded = true;
             opened = true;
             root.revealWhenSettled(requestSerial);

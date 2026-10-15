@@ -555,7 +555,7 @@ BarWidget {
           bar: root.bar
           minimum: 0
           maximum: root.player && root.player.length > 0 ? root.player.length : 1
-          value: root.player && !dragging ? root.player.position : value
+          value: root.player ? root.player.position : 0
           enabled: root.player !== null && root.player.canSeek
           opacity: enabled ? 1 : 0.4
           onReleased: function (v) {

@@ -90,6 +90,12 @@ def assume []: nothing -> bool { $env.BOOTSTRAP_ASSUME_YES? == "1" }
 def tui []: nothing -> bool { $env.BOOTSTRAP_TUI? == "1" }
 def env-or [name: string]: nothing -> string { $env | get --optional $name | default "" }
 
+# chpasswd and cryptsetup read one line, so a newline would inject a second account or key
+def one-line [value: string, label: string]: nothing -> string {
+    if $value =~ '[\n\r]' { die $"($label) must not contain a newline" }
+    $value
+}
+
 def die [message: string] {
     # a leftover dialog screen would hide the reason
     if (tui) { ^clear }
@@ -162,6 +168,11 @@ def ask-keymap []: nothing -> string {
 }
 
 def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
+    # an unattended run has no one to type it, and must not block on the prompt below
+    if (assume) {
+        if $empty_ok { return "" }
+        die $"($label) is required unattended, set it in the environment"
+    }
     mut note = ""
     loop {
         let first = if (tui) { screen $label passwordbox $"($note)($hint)" } else { print -e $hint; input -s $"($label): " }
@@ -245,7 +256,6 @@ def mirrors-rank []: nothing -> nothing {
     | append $ranked.servers.server | append ["" "# the list before ranking, the fallback"] | append $fallback
     | str join "\n" | $"($in)\n" | save --force $MIRRORLIST
     let urls = $ranked.servers.server | each { split row " " | last }
-    let countries = ^reflector --info --protocol https | complete | get stdout | lines | window 2 | where {|w| ($w.0 | str starts-with "https:") }
     let info = ^reflector --info --protocol https | complete | get stdout | split row "\n\n" | each {|block|
         let url = $block | lines | where ($it | str starts-with "https:") | get --optional 0
         let country = $block | lines | parse --regex '^country\s+:\s*(?<c>.*)$' | get --optional 0.c
@@ -264,9 +274,9 @@ def user-setup [c: record]: nothing -> nothing {
     if not (in-target-ok $root id -u $c.username) {
         in-target $root useradd -m -G wheel -s $LOGIN_SHELL $c.username
     }
-    $"($c.username):($c.user_password)\n" | in-target-input $root chpasswd
+    $"($c.username):(one-line $c.user_password 'user password')\n" | in-target-input $root chpasswd
     in-target $root passwd -l root
-    if ($c.root_password | is-not-empty) { $"root:($c.root_password)\n" | in-target-input $root chpasswd }
+    if ($c.root_password | is-not-empty) { $"root:(one-line $c.root_password 'root password')\n" | in-target-input $root chpasswd }
     # sudo skips a drop-in named with a dot, so this one is checked before it can lock anyone out
     let sudoers = $"($root)/etc/sudoers.d/10-wheel"
     ^install -Dm440 ($c.repo | path join configs base sudo 10-wheel) $"($sudoers).new"
@@ -399,6 +409,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
 
     let profiles = glob ($repo | path join profiles *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem }
     let username = env-or BOOTSTRAP_USERNAME | if ($in | is-empty) {
+        # the default is the first profile, so defaulting it unattended would hand a stranger the owner's capabilities
+        if (assume) { die "BOOTSTRAP_USERNAME is required unattended" }
         ask {|u| $u =~ $USERNAME_PATTERN } username $"Your login name. A name with a profile \(($profiles | str join ' ' | default none)\) gets that profile's secrets/identity/homelab; any other name is a guest \(same desktop and tools, no personal parts\)." ($profiles | get --optional 0 | default "")
     } else { $in }
     if $username !~ $USERNAME_PATTERN { die $"invalid username '($username)', expected ($USERNAME_PATTERN)" }
@@ -509,13 +521,15 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         input $"disk to erase \(($disks | str join ' ')\): "
     }
     if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die $"($disk) is not a block device" }
+    # BOOTSTRAP_DISK skips the menu's filter, and a partition or dm device would be zapped before the parts check
+    if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die $"($disk) is not a whole disk" }
     let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
     let erase = $"ERASE ALL DATA on ($disk)? type the device path to confirm:"
     let typed = if (assume) { $disk } else if (tui) { screen $"erase ($disk)" inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
     if $typed != $disk { die aborted }
 
     # unattended: BOOTSTRAP_PASSWORD is the LUKS one and nothing is asked; the user's defaults to it, root stays locked
-    mut luks = env-or BOOTSTRAP_PASSWORD
+    mut luks = one-line (env-or BOOTSTRAP_PASSWORD) "LUKS password"
     $c.user_password = env-or BOOTSTRAP_USER_PASSWORD
     $c.root_password = env-or BOOTSTRAP_ROOT_PASSWORD
     if ($luks | is-empty) {
@@ -547,6 +561,9 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     let parts = span partition {} {
         ^umount -R $MOUNT | complete | ignore
         ^cryptsetup close $LUKS_NAME | complete | ignore
+        # after the unmounts above: anything still held is not this install's to erase (the live medium, a raid member)
+        let held = ^lsblk -lno MOUNTPOINTS $disk | lines | each { str trim } | where $it != ""
+        if ($held | is-not-empty) { die $"($disk) is in use, mounted at ($held | str join ' ')" }
         ^wipefs -af $disk
         ^sgdisk --zap-all $disk
         ^sgdisk -n $"1:0:+($ESP_SIZE_MIB)M" -t 1:ef00 -c 1:ESP $disk

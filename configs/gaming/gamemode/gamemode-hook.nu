@@ -25,7 +25,7 @@ def main []: nothing -> nothing {
 }
 
 def "main start" []: nothing -> nothing {
-    ^systemctl --user stop $TRMNL_TIMER
+    if (succeeds systemctl --user is-enabled -q $TRMNL_TIMER) { ^systemctl --user stop $TRMNL_TIMER }
     if (succeeds systemctl is-active -q $VLLM_PROXY) { ^systemctl --no-ask-password stop $VLLM_PROXY }
     if (succeeds systemctl is-active -q $OLLAMA) {
         mkdir (ollama-mark | path dirname)

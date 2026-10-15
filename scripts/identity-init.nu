@@ -33,6 +33,7 @@ def main [repo_dir?: path]: nothing -> nothing {
     if not ($env_file | path exists) {
         ^install -m 600 /dev/null $env_file
         let name = do { ^git config --global user.name } | complete | get stdout | str trim
+            | str replace --all '\' '\\' | str replace --all '"' '\"' | str replace --all '$' '\$' | str replace --all '`' '\`'
         [
             $'GIT_NAME="($name)"'
             "GIT_EMAIL="

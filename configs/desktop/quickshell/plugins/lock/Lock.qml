@@ -109,7 +109,7 @@ Item {
     }
 
     function submit() {
-        if (!root.locked || !root.activeField || root.activeField.text.length === 0)
+        if (!root.locked || !root.activeField || root.activeField.text.length === 0 || pamPw.active)
             return ;
 
         root._pw = root.activeField.text;

@@ -110,9 +110,10 @@ def copy-rollback []: nothing -> nothing {
     }
 }
 
-def driver-run [argv: list<string>, what: string]: nothing -> nothing {
+def driver-run [argv: list<string>, what: string]: nothing -> bool {
     let ok = try { ^$argv.0 ...($argv | skip 1); true } catch { false }
     if not $ok { log-warn $"($what) reported failures" }
+    $ok
 }
 
 export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing {
@@ -194,8 +195,12 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     # install adds only what the profile lacks, so a stale one leaves first
     if ($stale | is-not-empty) { ^$NIX.0 ...($NIX | skip 1) profile remove ...$stale }
     with-env {LSCK0_SNAPSHOT: $pin, DOT_ROLLBACK: "1"} {
-        $installs | each { driver-run $in install } | ignore
-        driver-run $drive.apply apply
+        let installs_ok = $installs | each { driver-run $in install } | all { $in }
+        if $installs_ok {
+            driver-run $drive.apply apply
+        } else {
+            log-warn "skipping apply: an install step failed, rollback is incomplete"
+        }
     }
     log-info $"at ($short) \(($label)\); to return: git switch ($BRANCH) && dot install && dot apply"
 }

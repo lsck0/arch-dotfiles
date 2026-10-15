@@ -123,8 +123,10 @@ def outputs-live []: nothing -> table {
 }
 
 def mode-best [modes: list<string>]: nothing -> string {
-    $modes | parse --regex '(?<w>\d+)x(?<h>\d+)@(?<hz>[\d.]+)Hz' | into int w h | into float hz
-    | sort-by --reverse {|m| [($m.w * $m.h) $m.hz] } | first | $"($in.w)x($in.h)@($in.hz | math round)"
+    let best = $modes | parse --regex '(?<w>\d+)x(?<h>\d+)@(?<hz>[\d.]+)Hz' | into int w h | into float hz
+        | sort-by --reverse {|m| [($m.w * $m.h) $m.hz] } | first
+    # an output whose edid gave no parsable mode must not fail the whole detect
+    if $best == null { "preferred" } else { $"($best.w)x($best.h)@($best.hz | math round)" }
 }
 
 def scale-for [output: record]: nothing -> float {
@@ -138,7 +140,8 @@ def monitors-detect []: nothing -> list<record> {
     outputs-live | reduce --fold {x: 0, rows: []} {|o, acc|
         let scale = scale-for $o
         let mode = mode-best $o.availableModes
-        let width = $mode | split row x | first | into int
+        # preferred has no width to advance x by, so fall back to the output's current one
+        let width = if $mode == "preferred" { $o.width? | default 1920 } else { $mode | split row x | first | into int }
         {
             x: ($acc.x + ($width / $scale | math round))
             rows: ($acc.rows | append {output: $o.name, mode: $mode, position: $"($acc.x)x0", scale: $scale})

@@ -70,7 +70,7 @@ Item {
 
   function requestClearHistory() {
     if (root.history.length === 0) return
-    clearConfirm.selectedIndex = 1
+    clearConfirm.selectedIndex = 0
     root.clearConfirmOpen = true
   }
 

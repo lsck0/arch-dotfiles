@@ -155,7 +155,9 @@ def owned-targets []: nothing -> list<string> {
 }
 
 def theme-init []: nothing -> nothing {
-    let stamp = ^git -C $REPO ls-files -s ...$THEME_STAMP_PATHS | ^sha1sum | str trim
+    # over the worktree, not ls-files -s: an index stamp never changes on an uncommitted theming edit
+    let files = ^git -C $REPO ls-files ...$THEME_STAMP_PATHS | lines | where $it != "" | each {|f| $REPO | path join $f }
+    let stamp = ^sha1sum ...$files | ^sha1sum | str trim
     let cache = $nu.home-dir | path join .cache wal
     let current = try { open --raw ($cache | path join .theme-stamp) | str trim } catch { "" }
     if ($cache | path join wallpaper | path exists) and $current == $stamp {
@@ -461,12 +463,18 @@ def --env install-run [user: bool, yes: bool, snapshot: bool]: nothing -> int {
     "" | save --force $env.FAILURES_FILE
     if $system {
         let status = system-run install --snapshot=$snapshot
-        if $status == $EXIT_ABORTED { fail "system layer: install aborted"; return $EXIT_ABORTED }
+        if $status == $EXIT_ABORTED {
+            fail "system layer: install aborted"
+            # the chain may give up after this, so the reason has to outlive the run file
+            $"(open --raw $env.FAILURES_FILE | str trim)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
+            hide-env FAILURES_FILE
+            return $EXIT_ABORTED
+        }
         if $status != 0 { system-failed install }
     }
     let ctx = pipeline-load $REPO user
     install-user (modules-packages $REPO $ctx.modules $ctx.platform)
-    if $system { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages ...(if $yes { [--yes] } else { [] }) }
+    if $system { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) }
     let failed = open --raw $env.FAILURES_FILE | str trim
     hide-env FAILURES_FILE
     if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
@@ -743,7 +751,8 @@ def "main rollback" [target?: string, --snapshot, --full, --dry-run]: nothing ->
 # generation, last run, drift and pending migrations at a glance
 def "main status" []: nothing -> record {
     guarded status {
-        let last = ls (runs-dir) | sort-by name | last
+        # this status run has its own file already; the interesting one is the last real run before it
+        let last = ls (runs-dir) | where name !~ $env.DOT_RUN_ID | sort-by name | last
         let records = open --raw $last.name | lines | each { from json }
         {
             generation: (^git -C $REPO log -1 --format=%s | str trim)

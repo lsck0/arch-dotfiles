@@ -212,11 +212,14 @@ QtObject {
 
     function applyColors(raw) {
         var fromFile = raw !== undefined;
-        if (fromFile)
-            rawColors = raw || "";
+        var source = fromFile ? (raw || "") : rawColors;
 
         try {
-            const p = conditionPalette(rawColors);
+            const p = conditionPalette(source);
+            // only once it parsed: a torn wallust write would otherwise poison every later re-parse
+            if (fromFile)
+                rawColors = source;
+
             if (fromFile && root.animatePalette && root.syncHold) {
                 pendingPalette = p;
                 return ;

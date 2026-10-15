@@ -17,9 +17,15 @@ def note [message: string]: nothing -> nothing {
     $"(date now | format date '%+') ($message)\n" | ^sudo tee -a ($STATE_DIR | path join log) | ignore
 }
 
+def luks-device []: nothing -> string {
+    let file = $STATE_DIR | path join luks-device
+    if ($file | path exists) { open --raw $file | str trim } else { "" }
+}
+
 # idempotent; sudo test because cryptsetup-keys.d is root-only
 def disarm []: nothing -> bool {
-    let device = open --raw ($STATE_DIR | path join luks-device) | str trim
+    let device = luks-device
+    if $device == "" { return false }
     if (^sudo test -f $KEY_FILE | complete).exit_code == 0 {
         let status = (^sudo cryptsetup open --test-passphrase --key-file $KEY_FILE $device | complete).exit_code
         if $status == 0 {
@@ -47,9 +53,11 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     note $"($stage): start"
     if $stage == "config" {
-        # a fresh install is already at the current generation: every migration counts as run, none runs
-        ^nu --no-config-file ($repo | path join scripts dot.nu) migrate --baseline
-        ^sudo ($"/var/lib/dotfiles/repo/scripts/lib/system-apply.nu") migrate --baseline
+        # best effort: a migration bookkeeping failure must not strand the sudo drop-in and the keyfile
+        try {
+            ^nu --no-config-file ($repo | path join scripts dot.nu) migrate --baseline
+            ^sudo ($"/var/lib/dotfiles/repo/scripts/lib/system-apply.nu") migrate --baseline
+        } catch {|e| note $"migrate --baseline failed: ($e.msg)" }
     }
     # stdout stays the tty, so dot re-execs under script and pacman draws its bars
     let verb = if $stage == "install" { "install" } else { "apply" }
@@ -73,7 +81,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     # a trim lets the ssd drop the keyfile's old ESP blocks; only a reencrypt rotates the volume key
     ^sudo fstrim /boot | complete | ignore
-    note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (open --raw ($STATE_DIR | path join luks-device) | str trim)"
+    note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (luks-device)"
     # one sudo call: after the rm there is no passwordless sudo left to reboot with
     ^sudo systemctl disable dotfiles-stage.service
     ^sudo sh -c $"rm -f ($UNIT) ($STATE_DIR)/next ($SUDOERS_DROPIN) && systemctl reboot"

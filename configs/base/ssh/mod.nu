@@ -27,8 +27,10 @@ export const options = {
 
 const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 
-# real sshd on knocked 2222, keys and wheel only, never root
+# real sshd on knocked 2222, keys and wheel only, never root; windows owns inbound under wsl, where the knock
+# chain, fail2ban and endlessh all declare nothing
 export def system [cfg: record] {
+    if $env.FORM_FACTOR? == "wsl" { return [] }
     step sshd
 }
 
@@ -60,7 +62,7 @@ export def link [cfg: record] {
         ] | each { $"($in)\n" } | str join
     }
     [
-        (unit-file ssh-agent.service)
+        (unit-file ssh-agent.service --enable)
         (unit-file ssh-add.service)
         (if $identity { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (if $hosts != null { file-text (ssh-dir | path join config) $hosts --mode 600 } else { [] })

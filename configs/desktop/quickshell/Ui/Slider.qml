@@ -31,7 +31,8 @@ Item {
   // Left / Right (h / l) step it; Up / Down stay with the drawer's focus walk
   activeFocusOnTab: true
   function nudge(direction) {
-    var next = Math.max(root.minimum, Math.min(root.maximum, root.liveValue + direction * root.step))
+    var step = root.integer ? Math.max(1, root.step) : root.step
+    var next = Math.max(root.minimum, Math.min(root.maximum, root.liveValue + direction * step))
     if (root.integer) next = Math.round(next)
     root.liveValue = next
     root.moved(next)

@@ -19,9 +19,9 @@ Singleton {
 
   property int refCount: 0
 
-  // own config, never the user's ~/.config/cava
+  // own config, never the user's ~/.config/cava; no /tmp fallback, the write would follow a planted symlink
   readonly property string confPath:
-    (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/quickshell-cava.conf"
+    Quickshell.env("XDG_RUNTIME_DIR") ? Quickshell.env("XDG_RUNTIME_DIR") + "/quickshell-cava.conf" : ""
 
   property string source: ""
 
@@ -31,7 +31,7 @@ Singleton {
   function restart() {
     if (!cavaProc.running) return
     cavaProc.running = false
-    cavaProc.running = Qt.binding(function() { return root.available && root.refCount > 0 && !Power.saver })
+    cavaProc.running = Qt.binding(function() { return root.available && root.confPath !== "" && root.refCount > 0 && !Power.saver })
   }
 
   readonly property string configText:
@@ -78,7 +78,7 @@ Singleton {
 
   Process {
     id: cavaProc
-    running: root.available && root.refCount > 0 && !Power.saver
+    running: root.available && root.confPath !== "" && root.refCount > 0 && !Power.saver
 
     // config via argv so the shell never interprets it
     command: ["sh", "-c",

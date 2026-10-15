@@ -2,7 +2,7 @@
 # root's one entry, run only from the root-owned copy; apply is the single command sudo or polkit allows
 
 use log.nu *
-use state.nu [SYSTEM_REPO SYSTEM_STATE]
+use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
 use pipeline.nu [pipeline-load pipeline-plan pipeline-apply]
 use modules.nu [modules-packages]
 use ledger.nu [packages-convergence ledger-get ledger-set ledger-packages ledger-generation ledger-units]
@@ -159,7 +159,9 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     let planned = pipeline-plan $ctx system [] $force | where id != $PACMAN_MODULE
     # one at a time: the system modules share pacman, /etc/group and the boot queue
     let results = pipeline-apply $ctx $planned system 1
-    if ($results | all { $in.ok }) { written-prune [] } else { written-end }
+    # a module skipped by its input hash writes nothing this run, so its targets have to be kept explicitly
+    let owned = glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | concat
+    if ($results | all { $in.ok }) { written-prune $owned } else { written-end }
     rm --recursive --force $secrets
     # root runs nothing from a home
     ls /usr/local/bin | where type == symlink | where { (^readlink $in.name | str starts-with "/home/") } | each { rm $in.name } | ignore
@@ -198,8 +200,9 @@ def "main snapshot" []: nothing -> nothing {
 }
 
 # remove explicit packages no module declares, keep list aside, recorded in the ledger for rollback
-def "main packages" [--yes, --plan]: nothing -> nothing {
+def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let repo = repo-guard
+    unattended $unattended
     locked packages --yes=($yes) --plan=($plan)
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
@@ -241,7 +244,12 @@ const DOTFILES_URL = "https://github.com/lsck0/arch-dotfiles.git"
 def "main adduser" [name: string]: nothing -> nothing {
     repo-guard | ignore
     if not ($name =~ $USERNAME_PATTERN) { error make {msg: $"invalid name '($name)', expected ($USERNAME_PATTERN)"} }
-    if (^id -u $name | complete).exit_code != 0 { ^useradd -m -s /usr/bin/zsh $name }
+    # an existing system account would get a password set and a checkout in its home, root's run as uid 0
+    let existing = ^id -u $name | complete
+    if $existing.exit_code == 0 and ($existing.stdout | str trim | into int) < 1000 {
+        error make {msg: $"($name) is a system account, not a login to add"}
+    }
+    if $existing.exit_code != 0 { ^useradd -m -s /usr/bin/zsh $name }
     # a rerun after a skipped passwd asks again
     if (^passwd -S $name | split row " " | get 1) != "P" { ^passwd $name }
     let home = ^getent passwd $name | split row ":" | get 5

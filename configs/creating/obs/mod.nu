@@ -279,7 +279,7 @@ def scene-back [cfg: record, live: path, repo: path, --machine]: nothing -> noth
 
 # placeholder lines stay placeholders, a path under this user's dirs becomes one again (videos first, it is under home)
 def profile-back [live: path, repo: path]: nothing -> nothing {
-    let placeholders = ini-lines (open --raw $repo) | where value =~ '^@[A-Z_]+@$'
+    let placeholders = ini-lines (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
     let videos = videos-dir
     ini-lines (open --raw $live) | each {|l|
         let kept = $placeholders | where section == $l.section and key == $l.key | get --optional 0.value

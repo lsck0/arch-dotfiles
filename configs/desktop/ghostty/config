@@ -1,4 +1,4 @@
-config-file=~/.cache/wal/ghostty.conf
+config-file=?~/.cache/wal/ghostty.conf
 # toggle-powermode.nu fills it while saver is on, a dangling link otherwise
 config-file=?~/.cache/ghostty-powersave.conf
 # the module writes it: GDK_SCALE for what runs in a tab, so java apps started from a shell scale like launched ones

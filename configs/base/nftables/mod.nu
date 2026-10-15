@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [nftables]}}
+export const meta = {packages: {native: [nftables]}, volatile: true, deps: [tor]}
 
 const DIR = "/etc/nftables.d"
 # (uid_t)-1 when tor is missing, which no process runs as

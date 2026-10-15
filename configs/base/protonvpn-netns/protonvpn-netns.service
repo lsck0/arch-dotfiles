@@ -2,7 +2,7 @@
 [Unit]
 Description=ProtonVPN-only network namespace for single apps (ani-cli, yt-dlp, mpv-stream)
 Wants=network-online.target
-After=network-online.target nftables.service
+After=network-online.target fw-egress.service
 
 [Service]
 Type=oneshot

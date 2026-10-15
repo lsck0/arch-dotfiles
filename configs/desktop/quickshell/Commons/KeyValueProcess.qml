@@ -31,7 +31,7 @@ QtObject {
   // exit and stderr eof race; prefer the specific message
   property StdioCollector errors: StdioCollector {
     waitForEnd: true
-    onStreamFinished: if (root.error !== "" && text.trim() !== "") root.error = text.trim()
+    onStreamFinished: if (root.error === "" && text.trim() !== "") root.error = text.trim()
   }
 
   property SplitParser lines: SplitParser {

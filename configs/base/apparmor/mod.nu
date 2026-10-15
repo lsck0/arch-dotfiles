@@ -44,7 +44,7 @@ def include [abstraction: string]: nothing -> string {
 def own-profile [file: path, mode: any]: nothing -> record {
     let text = open --raw $file | lines | each {|l|
         if $mode in [complain unconfined] and ($l | str starts-with "profile ") {
-            $l | str replace "flags=(" $"flags=($mode),"
+            $l | str replace "flags=(" $"flags=\(($mode),"
         } else { $l }
     } | str join "\n"
     file-text ($ETC | path join ($file | path basename)) $"($text)\n"

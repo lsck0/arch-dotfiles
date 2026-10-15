@@ -417,8 +417,8 @@ Item {
     stdout: StdioCollector { id: setOut; waitForEnd: true }
     stderr: StdioCollector { id: setErr; waitForEnd: true }
     onExited: function (exitCode) {
-      root.batch.notes = root.batch.notes.concat(Schema.notes(setOut.text))
-      root.setDone(setProc.id, setProc.value, exitCode, String(setErr.text || setOut.text || "").trim().split("\n")[0])
+      root.batch.notes = root.batch.notes.concat(Schema.notes(setErr.text)).concat(Schema.notes(setOut.text))
+      root.setDone(setProc.id, setProc.value, exitCode, String(setErr.text || setOut.text || "").trim().split("\n").pop())
       root.runNext()
     }
   }
@@ -430,7 +430,7 @@ Item {
     stderr: StdioCollector { id: applyErr; waitForEnd: true }
     onExited: function (exitCode) {
       if (exitCode === 0) root.systemPending = false
-      root.notice = exitCode === 0 ? ["system part applied"].concat(Schema.notes(applyOut.text)).join("; ")
+      root.notice = exitCode === 0 ? ["system part applied"].concat(Schema.notes(applyErr.text)).concat(Schema.notes(applyOut.text)).join("; ")
         : "apply failed: " + String(applyErr.text || applyOut.text || "").trim().split("\n").pop()
       root.load()
     }

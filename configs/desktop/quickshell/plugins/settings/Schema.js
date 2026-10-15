@@ -28,10 +28,11 @@ function moduleNormalize(module) {
 // only a value this window wrote can be dropped: the profile's for a user option, the platform's for a machine one
 function resettable(option) { return option.source === (option.scope === "machine" ? "platform" : "profile") }
 
-// the `note:` lines of a dot run's output, what it asks of the person (a relogin, a pending system part)
+// the `note:` lines of a dot run's output, what it asks of the person (a relogin, a pending system part);
+// log-record writes them to stderr as "<tag>: note: <text>"
 function notes(text) {
-  return String(text || "").split("\n").filter(function (l) { return l.indexOf("note:") === 0 })
-    .map(function (l) { return l.slice("note:".length).trim() })
+  return String(text || "").split("\n").filter(function (l) { return /(^|: )note: /.test(l) })
+    .map(function (l) { return l.slice(l.indexOf("note:") + "note:".length).trim() })
 }
 
 function optionId(module, option) { return module.name + "." + option.key }

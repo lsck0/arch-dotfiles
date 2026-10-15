@@ -9,7 +9,7 @@ Item {
   property string message: ""
   property string cancelText: "Cancel"
   property string confirmText: "Confirm"
-  property int selectedIndex: 1
+  property int selectedIndex: 0
   property color background: Colors.background
   property color foreground: Colors.foreground
   property color scrim: Colors.scrim

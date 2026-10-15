@@ -91,6 +91,12 @@ export def system [cfg: record] {
     [
         # ModemManager drives nmcli radio wwan (toggle-mobile)
         (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now } else { [] })
+        # ahead of the restart below and the dispatchers: one reading a missing policy falls back to lockdown-tor,
+        # which starts fw-egress and cuts this run's egress on a link not yet decided home
+        (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
+        # a vm guest leaves through its host's kill switch
+        (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" } else { [] })
+        (if $homelab != null { file-text $"($NM)/homelab.env" $homelab } else { [] })
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart } else { [] })
@@ -99,10 +105,6 @@ export def system [cfg: record] {
         (do $dispatcher connectivity-check.nu 75-connectivity-check)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
-        (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
-        # a vm guest leaves through its host's kill switch
-        (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" } else { [] })
-        (if $homelab != null { file-text $"($NM)/homelab.env" $homelab } else { [] })
         (step home ($home_wired | into string) ...$cfg.home_gateways)
     ]
 }

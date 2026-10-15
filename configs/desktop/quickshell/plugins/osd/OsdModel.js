@@ -24,7 +24,8 @@ function iconFor(name) {
 }
 
 function stateForShow(iconName, rawMessage, rawValue, rawMax, rawProgressText, rawDuration) {
-  var maxValue = Math.max(1, parseInt(rawMax || "100", 10))
+  var parsedMax = parseInt(rawMax || "100", 10)
+  var maxValue = isNaN(parsedMax) ? 100 : Math.max(1, parsedMax)
   var parsedValue = parseInt(rawValue || "0", 10)
   var hasProgress = rawValue !== "" && !isNaN(parsedValue) && rawMessage === ""
   var value = hasProgress ? clamp(parsedValue, 0, maxValue) : 0

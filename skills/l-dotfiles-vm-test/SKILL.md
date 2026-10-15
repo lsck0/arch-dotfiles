@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-vm-test
-description: The end-to-end test, dot test run: bootstrap from the Arch ISO in a libvirt VM through the whole unattended chain, plus its logs, screenshot and teardown. Takes hours. Load before testing a fresh install or the install stages.
+description: "The end-to-end test, dot test run: bootstrap from the Arch ISO in a libvirt VM through the whole unattended chain, plus its logs, screenshot and teardown. Takes hours. Load before testing a fresh install or the install stages."
 ---
 
 # vm-test

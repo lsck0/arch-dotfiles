@@ -14,8 +14,8 @@ export def system [cfg: record] {
         # swappiness 150 only pays off with zram; without the generator a disk swap would get it
         (if ("/usr/lib/systemd/system-generators/zram-generator" | path exists) {
             [
-                (file-copy sysctl-zram.conf /etc/sysctl.d/99-zram.conf)
-                (file-copy zram-generator.conf /etc/systemd/zram-generator.conf)
+                (file-copy sysctl-zram.conf /etc/sysctl.d/99-zram.conf --then [/usr/lib/systemd/systemd-sysctl /etc/sysctl.d/99-zram.conf])
+                (file-copy zram-generator.conf /etc/systemd/zram-generator.conf --then [systemctl daemon-reload])
             ]
         } else { [] })
     ] | decls-flatten

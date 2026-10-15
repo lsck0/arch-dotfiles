@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [proton-vpn-cli]}}
+export const meta = {packages: {pacman: [proton-vpn-cli]}, volatile: true}
 
 # only an identity has a proton account; without NetworkManager (wsl) nmcli monitor ends at once and Restart= loops
 export def link [cfg: record] {

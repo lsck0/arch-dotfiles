@@ -190,6 +190,11 @@ local function field_by_key(fields, key)
     end
 end
 
+-- gh keys item json with its own camelCase: only the first character is lowered
+local function raw_key(name)
+    return name:sub(1, 1):lower() .. name:sub(2)
+end
+
 -- a card's value for a field as lowercase strings, one per list entry
 local function card_values(card, field_name)
     local lname = field_name:lower()
@@ -200,7 +205,7 @@ local function card_values(card, field_name)
         local full = card.repo_full:lower()
         return full ~= "" and { full, card.repo:lower() } or {}
     end
-    local v = card.raw and card.raw[lname]
+    local v = card.raw and card.raw[raw_key(field_name)]
     if v == nil or v == "" then
         return {}
     end
@@ -228,7 +233,7 @@ local function card_display(card, field_name)
     if lname == "repository" then
         return card.repo
     end
-    local v = card.raw and card.raw[lname]
+    local v = card.raw and card.raw[raw_key(field_name)]
     if type(v) ~= "table" then
         return v ~= nil and tostring(v) or ""
     end
@@ -328,9 +333,9 @@ end
 
 -- @current/@next/@previous as an iteration title, from the iteration dates the cards carry
 local function iteration_title(s, field, which)
-    local its, seen, lname = {}, {}, field.name:lower()
+    local its, seen = {}, {}
     for _, card in ipairs(s.cards) do
-        local it = card.raw and card.raw[lname]
+        local it = card.raw and card.raw[raw_key(field.name)]
         if type(it) == "table" and it.startDate and not seen[it.startDate] then
             seen[it.startDate] = true
             its[#its + 1] = it
@@ -935,7 +940,7 @@ local function set_field(card, field, opt)
             err("edit failed: " .. tostring(res))
             return
         end
-        card.raw[field.name:lower()] = opt.name
+        card.raw[raw_key(field.name)] = opt.name
         invalidate()
         follow(card)
         redraw()
@@ -1010,7 +1015,7 @@ local function reorder_selected(dir)
         return
     end
     -- afterId: the visible item the card should follow at its new slot (nil = top)
-    local after = dir > 0 and col_v.cards[target] or col_v.cards[target - 2]
+    local after = dir > 0 and col_v.cards[target] or col_v.cards[target - 1]
     local args = {
         "api",
         "graphql",

@@ -7,7 +7,7 @@ const MCP = {type: stdio, command: uvx, args: ["mcp-server-docker==0.3.0"]}
 # forward policy lives in table inet fw: docker's own FORWARD drop would also cut libvirt and lxc bridges
 export def system [cfg: record] {
     [
-        (file-copy daemon.json /etc/docker/daemon.json)
+        (file-copy daemon.json /etc/docker/daemon.json --then [systemctl try-restart docker.service])
         (unit-enable docker.socket)
         (unit-file docker-prune.service --enable)
     ]

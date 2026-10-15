@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {native: [portmaster-bin]}}
+export const meta = {packages: {native: [portmaster-bin]}, volatile: true}
 
 const BYPASS_RELOAD = [systemctl reload-or-restart portmaster-bypass.service]
 

@@ -39,7 +39,8 @@ def sizes-of [files: table]: nothing -> table {
         do { ^vipsheader ...$unknown.path } | complete | get stdout | lines
         | parse --regex '^(?<path>.*): (?<width>\d+)x(?<height>\d+) ' | into int width height | join $unknown path
     }
-    let sizes = $known ++ $read | sort-by path
+    # the read rows carry the join's column order, and to tsv serialises in the first row's: pin it to the read order
+    let sizes = $known ++ $read | sort-by path | select path mtime width height
     $unknown | where path not-in $read.path
     | each { print --stderr $"wallpaper-list: skipping ($in.path): unreadable image" }
     mkdir ($cache_file | path dirname)
