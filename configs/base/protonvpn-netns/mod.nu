@@ -23,7 +23,7 @@ def secret []: nothing -> path {
 export def system [cfg: record] {
     # only the machine fact removes it: a run without secrets never undoes one that had them
     if $env.FORM_FACTOR? == "wsl" or not ((secret | path exists) or ($CONF | path exists)) { return [] }
-    let restart = [systemctl restart $UNIT]
+    let restart = unit-restart $UNIT
     let shims = $SHIMS ++ ($VPN_FORCED | where { $"/usr/bin/($in)" | path exists })
     # validated first, a broken drop-in would lock every admin out
     if (^visudo -cf sudoers | complete).exit_code != 0 { error make {msg: "protonvpn-netns: sudoers does not parse"} }
@@ -37,7 +37,7 @@ export def system [cfg: record] {
         # glibc in the namespace asks the tunnel's resolver directly, never resolved over its unix socket (a leak)
         (file-text $"($NS_ETC)/nsswitch.conf" $nsswitch)
         (file-copy sudoers /etc/sudoers.d/20-protonvpn-netns --mode 440)
-        (unit-file $UNIT --enable --now)
+        (unit-file $UNIT --enable --now --then $restart)
     ]
 }
 
@@ -59,6 +59,6 @@ export def tunnel []: nothing -> nothing {
     if not ($resolv_file | path exists) or (open --raw $resolv_file) != $resolv { $resolv | save --force $resolv_file }
     if $changed {
         ^install -Dm600 -o root -g root (secret) $CONF
-        ^systemctl restart $UNIT
+        if (^systemctl cat $UNIT | complete).exit_code == 0 { ^systemctl restart $UNIT }
     }
 }

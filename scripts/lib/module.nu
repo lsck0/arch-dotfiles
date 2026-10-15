@@ -80,6 +80,13 @@ export def unit-file [src: path, --enable, --now, --then: list<string> = []]: no
     [(file-copy $src (unit-dir | path join $name) --then $then)] ++ (if $enable { [(unit-enable $name --now=$now)] } else { [] })
 }
 
+# a --then that acts on the module's own unit: skipped while that unit is not installed yet (a fresh install)
+export def unit-restart [name: string, --reload]: nothing -> list<string> {
+    let scope = if ($env.DOT_LAYER? | default user) == "system" { "--system" } else { "--user" }
+    let verb = if $reload { "reload-or-restart" } else { "restart" }
+    [sh -c $"! systemctl ($scope) cat ($name) >/dev/null 2>&1 || systemctl ($scope) ($verb) ($name)"]
+}
+
 export def unit-enable [name: string, --now]: nothing -> record {
     decl unit $name {state: enabled, now: $now}
 }

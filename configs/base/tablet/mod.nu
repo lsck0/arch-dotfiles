@@ -15,9 +15,10 @@ export def system [cfg: record] {
     let trigger = "udevadm trigger --subsystem-match=input --subsystem-match=hidraw"
     let restart = [sh -c $"udevadm control --reload-rules && ($trigger)($nudge)"]
     [
+        # ahead of what restarts it: the udev nudge starts the unit, which runs this driver
+        (unit-file tablet-driver.service)
+        (file-copy tablet-driver.py /usr/local/bin/tablet-driver --mode 755 --then $restart)
         # 71- puts the uaccess tag in place before 73-seat-late.rules runs the builtin
         (file-copy 71-graphics-tablet.rules /etc/udev/rules.d/71-graphics-tablet.rules --then $restart)
-        (file-copy tablet-driver.py /usr/local/bin/tablet-driver --mode 755 --then $restart)
-        (unit-file tablet-driver.service)
     ]
 }

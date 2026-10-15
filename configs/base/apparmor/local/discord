@@ -13,6 +13,9 @@ owner @{user_config_dirs}/discord/app-*/{,**} mr,
 owner @{user_config_dirs}/discord/app-*/modules/discord_voice-*/discord_voice/gpu_encoder_helper ix,
 # watching a stream decodes h264 with cisco's openh264, which it downloads there; denied, every stream ends in error 2012
 owner @{user_config_dirs}/discord/discord_asset_cache/openh264/libopenh264-*.so mr,
+# saving an attachment: the base profile grants only pictures and videos
+owner @{user_download_dirs}/{,**} rwl,
+owner @{user_sync_dirs}/{,**} rwl,
 # its updater reads both on start
 @{PROC}/uptime r,
 /etc/arch-release r,

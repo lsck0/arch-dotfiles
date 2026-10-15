@@ -88,7 +88,7 @@ return {
                     lualine_z = { "location" },
                 },
             })
-            for _, prefix in ipairs({ "lualine_b", "lualine_c", "lualine_x", "lualine_y" }) do
+            for _, prefix in ipairs({ "lualine_b", "lualine_c", "lualine_x", "lualine_y", "lualine_z" }) do
                 require("transparent").clear_prefix(prefix)
             end
         end,

@@ -73,6 +73,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
             | each {|row| print $"($row.unit) ($row.state)" } | ignore
         }
         "daemon-reload" => {}
+        "cat" => { if ($units | any {|u| $snapshot | where unit == $u | is-empty }) { exit 1 } }
         $v if $v in $CHANGE_VERBS => {
             let changed = $units | where {|u|
                 let current = $snapshot | where unit == $u | get --optional state | last | default ""

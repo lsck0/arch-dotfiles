@@ -24,9 +24,6 @@
     --gpBackground-LightMedium: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
     --gpStoreLighterGrey: var(--cp-fg) !important;
     --gpStoreLightestGrey: var(--cp-fg) !important;
-    /* steam's accent blue (links, progress, focus) and highlight yellow */
-    --gpColor-Blue: var(--cp-accent) !important;
-    --gpColor-Yellow: var(--cp-accent-2) !important;
 }
 
 html,
@@ -43,8 +40,10 @@ select {
     font-family: var(--cp-font) !important;
 }
 
+/* steam sets its progress token per widget, so it has to be beaten per element */
 * {
     border-radius: 0 !important;
+    --color-progress-bar-foreground: var(--cp-accent) !important;
 }
 
 /* scrollbars */
@@ -222,12 +221,8 @@ html {
 }
 
 /* progress bars */
-[class*="ProgressBar"] [class*="Fill"],
-[class*="progressbar"] [class*="fill"],
-[class*="_Progress"] [class*="_Bar"],
-[class*="downloadbar"] [class*="fill"] {
-    background-color: var(--cp-accent) !important;
-    box-shadow: 0 0 8px -3px var(--cp-accent) !important;
+.DialogProgressBar_Value {
+    background: var(--cp-accent) !important;
 }
 
 /* titlebar overlays popup content, so an opaque one covers dialog tops */
@@ -385,4 +380,33 @@ a:hover {
 }
 .singleWindowFocusBar {
     background: var(--cp-accent) !important;
+}
+
+/* steam's remaining hardcoded blues: selected nav tab label, review playtime
+   line, download footer status, online friend names, dialog links */
+._1gqEjB5QsKT_NftD1dEsdZ ._19axKcqYRuaJ8vdYKYmtTQ,
+.qX4kNo6O0M-mYntdErKSJ,
+._1xCcFYWIrJ7W8WRDmGvR3y,
+.friend.online,
+.friend.online .status,
+.DialogBody a,
+.DialogHighlight {
+    color: var(--cp-accent) !important;
+    text-shadow: none !important;
+}
+._1gqEjB5QsKT_NftD1dEsdZ ._19axKcqYRuaJ8vdYKYmtTQ::after {
+    background: var(--cp-accent) !important;
+}
+
+/* review nudge yes / no / maybe later */
+._1kCN0pAntrcGCSmcc-vYdk,
+._35_OgqfHHZfSzTYfv367K6 {
+    background: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
+    color: var(--cp-accent) !important;
+}
+._1kCN0pAntrcGCSmcc-vYdk:not(.Z3L6KGVxi4ZjGUzbYUjBC):hover,
+._1kCN0pAntrcGCSmcc-vYdk.Z3L6KGVxi4ZjGUzbYUjBC,
+._35_OgqfHHZfSzTYfv367K6:hover {
+    background: var(--cp-accent) !important;
+    color: var(--cp-bg) !important;
 }

@@ -14,10 +14,10 @@ const shell = {
 
 // bar widgets by file name in bar/widgets, the rest of that dir is unplaced
 const bar = {
-    left:   ["AppMenu", "Workspaces", "Clock", "Weather"],
-    center: ["Media", "Obs", "Discord"],
-    right:  ["Tray", "Separator", "Agents", "Homelab", "System", "Network", "Display", "AudioIO",
-             "Notifications", "KeyboardLayout", "Indicators", "Exit"]
+    left:   ["AppMenu", "Workspaces", "Weather"],
+    center: ["Clock"],
+    right:  ["Media", "Obs", "Discord", "Tray", "Separator", "Agents", "Homelab", "System", "Network",
+             "Display", "AudioIO", "Notifications", "KeyboardLayout", "Indicators", "Exit"]
 };
 
 // non-main screens

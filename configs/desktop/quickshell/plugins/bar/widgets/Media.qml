@@ -288,40 +288,35 @@ BarWidget {
       width: Style.space(96)
       height: Math.round(root.barSize * 0.5)
 
+      readonly property int rows: 4
+      readonly property real cellHeight: (height - (rows - 1)) / rows
+
       Repeater {
         model: Cava.barCount
-        delegate: Item {
+        delegate: Column {
           id: sbar
           required property int index
-          readonly property real level: Math.min(1, (Cava.values && Cava.values[index] || 0) / 100)
-          readonly property real peak: Math.min(1, (Cava.peaks && Cava.peaks[index] || 0) / 100)
-          readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
+          readonly property real lit: root.specHeightFrac(Math.min(1, (Cava.values && Cava.values[sbar.index] || 0) / 100)) * spectrum.rows
+          readonly property int cap: Math.ceil(root.specHeightFrac(Math.min(1, (Cava.peaks && Cava.peaks[sbar.index] || 0) / 100)) * spectrum.rows)
+          readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
+          spacing: 1
           width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
-          height: spectrum.height
 
-          Rectangle {
-            anchors.centerIn: parent
-            width: parent.width
-            radius: 0
-            antialiasing: false
-            opacity: 0.4 + sbar.level * 0.6
-            gradient: Gradient {
-              GradientStop { position: 0.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
-              GradientStop { position: 0.5; color: root.specColor(sbar.frac, 1.1 + sbar.level, 1.0) }
-              GradientStop { position: 1.0; color: root.specColor(sbar.frac, 1.0, 0.2) }
+          Repeater {
+            model: spectrum.rows
+            delegate: Rectangle {
+              id: cell
+              required property int index
+              // cells stack downwards, so cell 1 is the bottom led
+              readonly property int n: spectrum.rows - cell.index
+              readonly property real on: Math.max(0, Math.min(1, sbar.lit - (cell.n - 1)))
+              width: sbar.width
+              height: spectrum.cellHeight
+              antialiasing: false
+              color: sbar.cap === cell.n
+                ? root.specColor(sbar.frac, 2.0, 1.0)
+                : root.specColor(sbar.frac, 0.7 + cell.on * 0.8, 0.14 + cell.on * 0.86)
             }
-            height: Math.max(2, spectrum.height * root.specHeightFrac(sbar.level))
-          }
-
-          Rectangle {
-            width: parent.width; height: 1
-            color: root.specColor(sbar.frac, 1.6, 0.9)
-            y: parent.height / 2 - parent.height / 2 * root.specHeightFrac(sbar.peak) - height
-          }
-          Rectangle {
-            width: parent.width; height: 1
-            color: root.specColor(sbar.frac, 1.6, 0.9)
-            y: parent.height / 2 + parent.height / 2 * root.specHeightFrac(sbar.peak)
           }
         }
       }

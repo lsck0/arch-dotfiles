@@ -24,6 +24,12 @@ BarWidget {
 
     }
 
+    function toggleMicMute() {
+        if (source && source.audio)
+            source.audio.muted = !source.audio.muted;
+
+    }
+
     // undeafen unmutes both, not the prior state
     function toggleDeafen() {
         var target = !deafened;
@@ -125,12 +131,6 @@ BarWidget {
                     node: root.sink
                     host: root
                     glyph: Audio.volumeIcon(root.volume, false)
-                }
-
-                Meter {
-                    width: content.width
-                    node: root.sink
-                    active: root.live
                 }
 
                 Flow {
@@ -257,49 +257,22 @@ BarWidget {
                 PanelSeparator {
                 }
 
-                Rectangle {
+                PanelRow {
                     width: content.width
-                    height: Style.row.list
-                    radius: Style.shape.data
-                    color: root.deafened ? Util.alpha(Colors.urgent, 0.18) : (deafenHover.containsMouse ? Style.selectedFill : "transparent")
+                    centered: true
+                    glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
+                    label: root.micMuted ? "Mic muted, click to restore" : "Mute"
+                    on: root.micMuted
+                    onActivated: root.toggleMicMute()
+                }
 
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: Style.spacing.xs
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-                            color: root.deafened ? Colors.urgent : Colors.menu.text
-                            font.pixelSize: Style.font.icon
-                            font.family: Style.font.iconFamily
-                            layer.enabled: Style.fx.glow > 0 && root.deafened
-
-                            layer.effect: Glow {
-                                shadowColor: Colors.urgent
-                            }
-
-                        }
-
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: root.deafened ? "Deafened, click to restore" : "Deafen"
-                            color: root.deafened ? Colors.urgent : Colors.menu.text
-                            font.pixelSize: Style.font.body
-                            font.family: Style.font.family
-                        }
-
-                    }
-
-                    MouseArea {
-                        id: deafenHover
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.toggleDeafen()
-                    }
-
+                PanelRow {
+                    width: content.width
+                    centered: true
+                    glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
+                    label: root.deafened ? "Deafened, click to restore" : "Deafen"
+                    on: root.deafened
+                    onActivated: root.toggleDeafen()
                 }
 
                 PanelSeparator {
@@ -632,12 +605,6 @@ BarWidget {
             width: parent.width
             node: stream.node
             host: stream.host
-        }
-
-        Meter {
-            width: parent.width
-            node: stream.node
-            active: stream.host !== null && stream.host.live
         }
 
         Flow {

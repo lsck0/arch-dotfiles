@@ -32,11 +32,13 @@ def plugins-stale []: nothing -> bool {
 }
 
 # a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir
+# the bare headless start is the cheap pass: lazy finishes any pending install or build, so the first real launch has none
 export def link [cfg: record] {
-    let prefetch = if (plugins-stale) {
-        [(exec prefetch [env ...$QUIET_GIT nvim --headless "+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync" "+qa"])]
-    } else { [] }
-    [(file-link . ($nu.home-dir | path join .config nvim))] ++ $prefetch
+    let restore = if (plugins-stale) { ["+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync"] } else { [] }
+    [
+        (file-link . ($nu.home-dir | path join .config nvim))
+        (exec prefetch [env ...$QUIET_GIT nvim --headless ...$restore "+qa"])
+    ]
 }
 
 export def theme [cfg: record, wallpaper: string] {

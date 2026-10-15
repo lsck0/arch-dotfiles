@@ -75,13 +75,13 @@ export def spicetify-colors []: nothing -> any {
     ] | each { {key: $in.0, hex: ($in.1 | rgb-to-hex)} }
 }
 
-# a running spotify keeps playing and picks the theme up on its next start
+# the theme lands on a running spotify too: refresh reloads it, which briefly interrupts playback
 export def theme [cfg: record, wallpaper: string] {
     let ini = spicetify-dir | path join $THEME_INI
     let colors = spicetify-colors
     if $colors == null or not ($ini | path dirname | path exists) { return [] }
     let width = $colors.key | str length | math max
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
-    let refresh = if (which spicetify | is-empty) { [] } else { [spicetify -n refresh] }
+    let refresh = if (which spicetify | is-empty) { [] } else { [spicetify refresh] }
     file-text $ini $"[pywal]\n($body)" --generated --then $refresh
 }

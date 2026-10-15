@@ -1,4 +1,6 @@
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+// without this the wayland surface is marked opaque and userChrome.css alpha never shows
+user_pref("widget.wayland.opaque-region.enabled", false);
 
 // reuse qutebrowser's start page, mozilla.cfg points the new tab there too
 user_pref("browser.startup.homepage", "file://@HOME@/.config/qutebrowser/startpage.html");

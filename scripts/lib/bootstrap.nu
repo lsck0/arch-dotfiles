@@ -20,6 +20,7 @@ const HOMELAB_MIRROR = 'http://10.100.0.104:8090/archlinux/$repo/os/$arch'
 const HOMELAB_MIRROR_PROBE = "http://10.100.0.104:8090/archlinux/core/os/x86_64/core.db"
 
 const KEYMAP_DEFAULT = "de-latin1"
+const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
 const TIMEZONE_DEFAULT = "Europe/Berlin"
 const LOCALE_DEFAULT = "en_US.UTF-8"
 const ESP_SIZE_MIB = 1024
@@ -338,6 +339,16 @@ def wifi-carry [c: record]: nothing -> nothing {
     }
 }
 
+# KEYMAP alone leaves x11 and the compositor on us: core/locale detects the layout from XKBLAYOUT
+def xkb-vars [keymap: string]: nothing -> list<string> {
+    let row = if ($KBD_MODEL_MAP | path exists) {
+        open --raw $KBD_MODEL_MAP | lines | parse --regex '^(?<console>\S+)\s+(?<layout>\S+)\s+\S+\s+(?<variant>\S+)'
+        | where console == $keymap | get --optional 0
+    }
+    if $row == null { return [] }
+    [$"XKBLAYOUT=($row.layout)"] ++ (if $row.variant == "-" { [] } else { [$"XKBVARIANT=($row.variant)"] })
+}
+
 def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     let t = {|path| $"($MOUNT)($path)" }
     ^ln -sf $"/usr/share/zoneinfo/($c.timezone)" (do $t /etc/localtime)
@@ -345,7 +356,7 @@ def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     open --raw (do $t /etc/locale.gen) | str replace --regex --multiline $"^#\(($c.locale) \)" '$1' | save --force (do $t /etc/locale.gen)
     in-target $MOUNT locale-gen
     $"LANG=($c.locale)\n" | save --force (do $t /etc/locale.conf)
-    $"KEYMAP=($c.keymap)\n" | save --force (do $t /etc/vconsole.conf)
+    [$"KEYMAP=($c.keymap)"] ++ (xkb-vars $c.keymap) | str join "\n" | $"($in)\n" | save --force (do $t /etc/vconsole.conf)
     $"($c.hostname)\n" | save --force (do $t /etc/hostname)
     $"127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ($c.hostname)\n" | save --force (do $t /etc/hosts)
     mkdir (do $t /etc/kernel)

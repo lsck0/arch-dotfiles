@@ -240,8 +240,8 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     } else {
                         write-file $a
                     }
-                    # a unit's own --then (start it) needs the manager to know the new file first
-                    if ($a.decl.then | is-not-empty) and ($a.target | str starts-with (unit-dir)) { ^systemctl $"--($scope)" daemon-reload }
+                    # a --then (a restart) and every later step must see the new unit file or drop-in
+                    if ($a.target | str starts-with (unit-dir)) { ^systemctl $"--($scope)" daemon-reload }
                     let output = if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" }
                     {aside: $aside, output: $output}
                 }
