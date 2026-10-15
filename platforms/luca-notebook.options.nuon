@@ -1,7 +1,7 @@
 {
     "core/locale": {
         lang: en_US.UTF-8
-        time: de_DE.UTF-8
+        formats: de_DE.UTF-8
         keyboard_layout: de
         keyboard_variant: nodeadkeys
         keyboard_options: ["ctrl:nocaps" "terminate:ctrl_alt_bksp"]
@@ -16,6 +16,10 @@
     }
     "base/boot/hardening": {
         allow_smt: true
+    }
+    "base/boot/remote-unlock": {
+        ssh_unlock: true
+        wifi: true
     }
     "creating/obs": {
         vaapi_render_node: "/dev/dri/by-path/pci-0000:00:02.0-render"

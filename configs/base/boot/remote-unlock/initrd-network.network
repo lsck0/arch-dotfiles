@@ -1,7 +1,8 @@
-# systemd-networkd config used inside the initramfs (mkinitcpio-systemd-tool) to bring the wired nic up for remote unlock.
+# systemd-networkd config used inside the initramfs (mkinitcpio-systemd-tool) to bring the nic up for remote unlock: the
+# wired one, or the wifi initrd-wifi.service joined.
 # wildcard match so it works regardless of the predictable ifname; the dhcp reservation gives a stable address
 [Match]
-Name=en*
+Name=en* wl*
 
 [Network]
 DHCP=ipv4

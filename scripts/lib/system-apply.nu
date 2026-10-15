@@ -183,10 +183,12 @@ def "main snapshot" []: nothing -> nothing {
     let repo = repo-guard
     locked snapshot
     let fstype = ^findmnt -n -o FSTYPE / | str trim
-    if (^systemd-detect-virt | complete | get stdout | str trim) == "wsl" or (which timeshift | is-empty) or $fstype != "btrfs" {
-        log-info $"no pre-apply snapshot: needs timeshift on btrfs, / is ($fstype)"
+    if (^systemd-detect-virt | complete | get stdout | str trim) == "wsl" or $fstype != "btrfs" {
+        log-info $"no pre-apply snapshot: / is ($fstype), not btrfs"
         return
     }
+    # the first install pass is the one that brings timeshift
+    if (which timeshift | is-empty) { return }
     let sha = open --raw ($repo | path join .source) | str trim | str substring 0..11
     # timeshift narrates every step and tries a desktop notification, which root has no session for
     let made = ^timeshift --create --scripted --tags O --comments $"($PRE_APPLY_COMMENT) ($sha)" | complete

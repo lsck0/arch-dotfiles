@@ -14,7 +14,14 @@ Per machine, opt in:
 - `platforms/<host>.options.nuon`: `"base/boot/remote-unlock": {ssh_unlock: true}`
 - `platforms/<host>.nuon`: add `mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox` to `extra_packages`
 
-`luca-pc` has both. Unsetting the option and re-running `dot apply` removes the wiring (disables the units, drops the
+A laptop off its cable also joins a home wifi in the initramfs: set `wifi` too
+(`"base/boot/remote-unlock": {ssh_unlock: true, wifi: true}`). `dot apply` turns every line of `secrets/wifi` (ssid, a
+tab, the passphrase; already in `SYSTEM_SECRETS`) into a `wpa_supplicant` network, the key hashed by `wpa_passphrase`,
+in `/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf`; `initrd-wifi.service` runs `wpa_supplicant` on the first
+wireless interface the driver brings up. It uses the card's own mac, as NetworkManager does for the home wifis
+(`base/networkmanager`), so the dhcp lease is the running system's.
+
+`luca-pc` has both; `luca-notebook` adds `wifi`. Unsetting the option and re-running `dot apply` removes the wiring (disables the units, drops the
 `systemd-tool` hook and `rd.neednet`).
 
 ## What `mod.nu` does
@@ -73,3 +80,5 @@ fallback is right there if anything is off:
 - The initramfs sshd is up only during the unlock window (it is gone once the real system boots).
 - During that window it is reachable on the LAN / WireGuard subnet on port 2223. It does nothing but drive the password
   agent for the root volume.
+- With `wifi` the image carries the home wifis' keys (as wpa_passphrase's hash, which joins the network as well as the
+  passphrase does). The image sits unencrypted on the ESP, so whoever holds the disk can join that wifi.

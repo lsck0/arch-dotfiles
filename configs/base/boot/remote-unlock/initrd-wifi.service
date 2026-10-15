@@ -1,0 +1,30 @@
+# Join the home wifi inside the initramfs, so a laptop without a cable is reachable for remote unlock
+# (configs/base/boot/remote-unlock). systemd-networkd's initrd-network.network then takes its address by dhcp.
+
+[Unit]
+Description=Initrd WiFi for remote unlock
+ConditionPathExists=/etc/initrd-release
+DefaultDependencies=no
+After=systemd-udevd.service
+Before=cryptsetup-pre.target
+
+[Service]
+Type=simple
+# the driver and its firmware load after udev starts, so the interface appears a few seconds into boot; 30 tries of
+# one second each, then give up: the console prompt stays the unlock. $$ and %% are systemd's escapes for the shell's
+# $ and %.
+ExecStart=/bin/sh -c 'for try in $$(seq 30); do for d in /sys/class/net/*/wireless; do [ -e "$$d" ] || continue; i=$${d%%/wireless}; exec /usr/bin/wpa_supplicant -i "$${i##*/}" -c /etc/wpa_supplicant/initrd.conf; done; sleep 1; done; echo "initrd-wifi: no wireless interface"; exit 1'
+
+[Install]
+WantedBy=sysinit.target
+
+[X-SystemdTool]
+
+InitrdBinary=/usr/bin/wpa_supplicant
+
+# written by mod.nu from the NetworkManager profile of the ssid the platform names; root only
+InitrdPath=/etc/wpa_supplicant/initrd.conf source=/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf
+
+# the regulatory database cfg80211 asks for; without it the card stays on the world domain, which still connects
+InitrdPath=/usr/lib/firmware/regulatory.db optional=yes
+InitrdPath=/usr/lib/firmware/regulatory.db.p7s optional=yes

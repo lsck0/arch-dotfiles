@@ -14,7 +14,7 @@ const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOO
 const BOOT_INPUTS = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
     /etc/plymouth /usr/share/plymouth/themes /etc/mkinitcpio-systemd-tool /etc/tinyssh
-    /etc/systemd/system/initrd-tinysshd.service.d
+    /etc/systemd/system/initrd-tinysshd.service.d /etc/systemd/system/initrd-wifi.service
 ]
 
 export def esp-supported []: nothing -> bool {

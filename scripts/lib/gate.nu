@@ -131,6 +131,20 @@ def lint-exec-bits []: nothing -> list<string> {
     | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
 }
 
+# a renamed or dropped option breaks only the machines whose options file still sets it, at their next install
+def lint-platform-options []: nothing -> list<string> {
+    let script = "use pipeline.nu *; pipeline-load $env.DOT_REPO user | get modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} } | to nuon"
+    let known = with-env {DOT_REPO: $REPO} { ^nu --no-config-file -I ($REPO | path join scripts lib) -c $script | from nuon }
+    glob ($REPO | path join platforms *.options.nuon) | sort | each {|f|
+        open $f | items {|id, values|
+            let module = $known | where id == $id | get --optional 0
+            if $module == null { [$"(rel $f): ($id) is no module"] } else {
+                $values | columns | where $it not-in $module.keys | each { $"(rel $f): ($id).($in) is no option of it" }
+            }
+        } | flatten
+    } | flatten
+}
+
 def lint-generated []: nothing -> list<string> {
     let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) gen --check | complete
     if $run.exit_code == 0 { [] } else { [$"dot gen --check: ($run.stdout + $run.stderr | str trim)"] }
@@ -144,7 +158,7 @@ def unit-tests []: nothing -> list<string> {
 }
 
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-palette) (lint-generated) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (unit-tests)] | flatten
 }
 
 def shell-script [path: path]: nothing -> bool {
