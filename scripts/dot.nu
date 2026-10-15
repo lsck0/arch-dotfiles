@@ -67,7 +67,7 @@ def jobs []: nothing -> int {
 
 def build []: nothing -> record {
     let head = try { ^git -C $REPO rev-parse --short=12 HEAD | str trim } catch { "none" }
-    let dirty = (try { ^git -C $REPO status --porcelain | str trim } catch { "" }) | is-not-empty
+    let dirty = (try { ^git -C $REPO status --porcelain --ignore-submodules=all | str trim } catch { "" }) | is-not-empty
     {commit: $head, dirty: $dirty, nu: (version | get version)}
 }
 
@@ -712,7 +712,7 @@ def "main migrate" [--baseline, --system]: nothing -> nothing {
 # the one command: pull the current generation, snapshot, migrate, install, apply
 def "main update" [--yes]: nothing -> nothing {
     guarded update {
-        if (^git -C $REPO status --porcelain --untracked-files=no | str trim | is-not-empty) { error make {msg: "the checkout has uncommitted changes; commit them with dot sync or stash them"} }
+        if (^git -C $REPO status --porcelain --untracked-files=no --ignore-submodules=all | str trim | is-not-empty) { error make {msg: "the checkout has uncommitted changes; commit them with dot sync or stash them"} }
         if (try { ^git -C $REPO symbolic-ref -q --short HEAD | str trim } catch { "" }) != "master" { error make {msg: "HEAD is not on master, go back with: git switch master"} }
         ^git -C $REPO pull --ff-only
         migrations-run $REPO user | ignore
