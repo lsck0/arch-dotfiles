@@ -27,7 +27,8 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
         mkdir ($cached | path dirname)
-        ^curl -fsSL --retry 3 -C - -o $"($cached).part" $url
+        let got = ^curl -fsSL --retry 3 -C - -o $"($cached).part" $url | complete
+        if $got.exit_code != 0 { error make {msg: $"download of ($url) failed: ($got.stderr | str trim | lines | last)"} }
         if (open --raw $"($cached).part" | hash sha256) != $sha256 {
             rm --force $"($cached).part"
             error make {msg: $"($url) does not match its pinned sha256 ($sha256)"}
@@ -57,7 +58,8 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
 export def fetch-git-run [url: string, commit: string, dir: path]: nothing -> nothing {
     if (fetch-git-done $commit $dir) { return }
     ^git init -q $dir
-    ^git -C $dir fetch -q --depth 1 $url $commit
+    let got = ^git -C $dir fetch -q --depth 1 $url $commit | complete
+    if $got.exit_code != 0 { error make {msg: $"git fetch of ($url) failed: ($got.stderr | str trim | lines | last)"} }
     ^git -C $dir -c advice.detachedHead=false checkout -q $commit
     ^git -C $dir submodule -q update --init --recursive --depth 1
 }

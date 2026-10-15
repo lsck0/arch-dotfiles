@@ -36,6 +36,7 @@ FontSize=10
 FontWeight=50
 IconSize=48
 ItalicFont=false
+PreviewSize=48
 UseSystemFont=false
 
 [KDE Action Restrictions]

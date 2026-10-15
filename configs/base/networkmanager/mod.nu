@@ -116,8 +116,11 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
         let ssids = open --raw $wifi | lines | each { split row "\t" | first } | where $it != ""
         # the ssid is only ever compared, never an nmcli argument
         for p in ($profiles | where type == 802-11-wireless) {
-            if (^nmcli -g 802-11-wireless.ssid connection show $p.uuid | str trim) in $ssids {
+            let mac = ^nmcli -g 802-11-wireless.cloned-mac-address connection show $p.uuid | str trim
+            if (^nmcli -g 802-11-wireless.ssid connection show $p.uuid | str trim) in $ssids and $mac != "permanent" {
                 ^nmcli connection modify $p.uuid 802-11-wireless.cloned-mac-address permanent ipv6.method auto
+                # a live connection keeps its random mac until it comes up again, and coming up runs the dispatchers
+                if $p.uuid in (^nmcli -g UUID connection show --active | lines) { ^nmcli connection up $p.uuid | ignore }
             }
         }
     }
@@ -136,4 +139,8 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     } else if ($file | path exists) { open --raw $file | lines } else { [] }
     let want = $listed | append ($gateways | where $it not-in $listed)
     if ($want | is-not-empty) { $want | str join "\n" | $"($in)\n" | save --force $file }
+    # the links came up before this dispatcher existed, so home is decided once here and on every event after
+    for link in (^nmcli -g DEVICE,STATE device | lines | parse "{dev}:{state}" | where state == connected | get dev) {
+        ^$"($DISPATCHERS)/70-home-network" $link up
+    }
 }
