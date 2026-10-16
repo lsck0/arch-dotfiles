@@ -103,7 +103,7 @@ const CONFIG_DIR = ".config/hypr"
 const LUA = [
     hyprland.lua hyprland_autostart.lua hyprland_cursor.lua hyprland_input.lua hyprland_keybindings.lua
     hyprland_layout.lua hyprland_misc.lua hyprland_monitors.lua hyprland_plugins.lua hyprland_powersave.lua
-    hyprland_windowrules.lua hyprland_windows.lua wal_colors.lua hyprlock.conf
+    hyprland_windowrules.lua hyprland_windows.lua wal_colors.lua hyprlock.conf xdph.conf
 ]
 # hypridle and the quickshell lock run these by their path under the config dir
 const COMMANDS = [lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]

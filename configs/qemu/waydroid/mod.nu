@@ -49,8 +49,13 @@ export def system [cfg: record] {
         (if (status | str contains "not initialized") {
             exec waydroid-init [waydroid init] --creates $CONFIG
         } else { [] })
-        # a changed prop reaches the base props through an offline upgrade
-        (ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])
+        # merging before init has ever run would plan against a config that doesn't exist yet, then clobber
+        # whatever init just wrote with that stale (sectionless) content once the exec above creates it in the
+        # same pass; waiting for init's own pass to land first keeps init's [waydroid] section intact
+        (if ($CONFIG | path exists) {
+            # a changed prop reaches the base props through an offline upgrade
+            [(ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])]
+        } else { [] })
         # a session chmods render nodes and cameras to 0777 and never restores them; the rule pins the groups' 0660
         (file-copy 99-waydroid-devperm.rules $DEVPERM_RULES --then [udevadm control --reload-rules])
         (if $up { [] } else { step devperm-tighten })

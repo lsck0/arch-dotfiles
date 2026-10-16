@@ -5,11 +5,11 @@ def main []: nothing -> nothing {
     let stale = glob /usr/lib/modules/*/pkgbase | each {|f|
         let dir = $f | path dirname
         {dir: $dir, kver: ($dir | path basename), pkgbase: (open --raw $f | str trim)}
-    } | where {|k|
+    } | where {|k| (
         # by the version in the image header, so a signed copy still matches
         ($"($k.dir)/vmlinuz" | path exists)
         and not ((^file -bL $"/boot/vmlinuz-($k.pkgbase)" | complete).stdout | str contains $", version ($k.kver) ")
-    }
+    )}
     for k in $stale {
         let image = $"/boot/vmlinuz-($k.pkgbase)"
         print --stderr $"kernel-resync: ($image) is not ($k.kver), restoring it from the installed ($k.pkgbase)"

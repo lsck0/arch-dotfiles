@@ -285,11 +285,13 @@ BarWidget {
       anchors.verticalCenter: parent.verticalCenter
       spacing: Math.max(1, Style.spacing.xxs - 1)
       visible: root.spectrumLive
-      width: Style.space(96)
-      height: Math.round(root.barSize * 0.5)
-
+      // whole-pixel cells and a size built from them, so no row or column blurs or
+      // leaves slack at the edge
       readonly property int rows: 4
-      readonly property real cellHeight: (height - (rows - 1)) / rows
+      readonly property int cellHeight: Math.max(2, Math.floor((root.barSize * 0.4 - (rows - 1)) / rows))
+      readonly property int cellWidth: Math.max(2, Math.floor((Style.space(96) - spacing * (Cava.barCount - 1)) / Cava.barCount))
+      width: cellWidth * Cava.barCount + spacing * (Cava.barCount - 1)
+      height: cellHeight * rows + rows - 1
 
       Repeater {
         model: Cava.barCount
@@ -300,7 +302,7 @@ BarWidget {
           readonly property int cap: Math.ceil(root.specHeightFrac(Math.min(1, (Cava.peaks && Cava.peaks[sbar.index] || 0) / 100)) * spectrum.rows)
           readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
           spacing: 1
-          width: Math.max(2, Math.floor((spectrum.width - spectrum.spacing * (Cava.barCount - 1)) / Cava.barCount))
+          width: spectrum.cellWidth
 
           Repeater {
             model: spectrum.rows

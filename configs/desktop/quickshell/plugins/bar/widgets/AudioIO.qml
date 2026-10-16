@@ -155,33 +155,6 @@ BarWidget {
 
                 }
 
-                // hidden entirely while nothing is producing sound, not just an empty list
-                Column {
-                    width: content.width
-                    spacing: Style.spacing.sm
-                    visible: Audio.appStreams.length > 0
-
-                    PanelSeparator {
-                    }
-
-                    PanelSectionHeader {
-                        text: "APPS"
-                    }
-
-                    Repeater {
-
-                        model: ScriptModel {
-                            values: Audio.appStreams
-                        }
-
-                        delegate: StreamRow {
-                            host: root
-                        }
-
-                    }
-
-                }
-
                 PanelSeparator {
                 }
 
@@ -256,6 +229,33 @@ BarWidget {
 
                             text: Audio.appName(modelData)
                             tint: Audio.isObs(modelData) ? Colors.semantic.live : Colors.semantic.speaking
+                        }
+
+                    }
+
+                }
+
+                // hidden entirely while nothing is producing sound, not just an empty list
+                Column {
+                    width: content.width
+                    spacing: Style.spacing.sm
+                    visible: Audio.appStreams.length > 0
+
+                    PanelSeparator {
+                    }
+
+                    PanelSectionHeader {
+                        text: "APPS"
+                    }
+
+                    Repeater {
+
+                        model: ScriptModel {
+                            values: Audio.appStreams
+                        }
+
+                        delegate: StreamRow {
+                            host: root
                         }
 
                     }

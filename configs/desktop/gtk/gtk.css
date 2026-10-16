@@ -98,3 +98,20 @@
 .nemo-window .nemo-status-bar {
     border-top: 1px solid alpha(@borders, 0.8);
 }
+
+/* lutris ships a light sidebar that ignores the oomox dark palette, leaving it white on a dark window */
+.lutris-sidebar,
+.lutris-sidebar list,
+.lutris-sidebar list row {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+
+.lutris-sidebar list row:hover {
+    background-color: alpha(@theme_selected_bg_color, 0.18);
+}
+
+.lutris-sidebar list row:selected {
+    background-color: alpha(@theme_selected_bg_color, 0.28);
+    color: @theme_fg_color;
+}

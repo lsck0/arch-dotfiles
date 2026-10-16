@@ -6,7 +6,7 @@ def paths []: nothing -> record {
     let data = $nu.home-dir | path join .local share ModrinthApp
     {
         data: $data, db: ($data | path join app.db), saved: ($env.DOTFILES | path join secrets modrinth app.db)
-        saves: ($nu.home-dir | path join sync minecraft saves)
+        saves: ($nu.home-dir | path join sync games mc saves)
     }
 }
 

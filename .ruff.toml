@@ -1,13 +1,8 @@
-# the repo's own python: dot test check and fmt run ruff with this file, editors find it by walking up.
-# configs/programming/formatting/ruff.toml is the fallback for projects without a config, not this repo's
 line-length = 120
 target-version = "py313"
-# the git-crypt submodule and the mirror's build trees are not our python; force-exclude holds even for explicit paths
 extend-exclude = ["secrets", "mirror/pkgbuilds"]
 force-exclude = true
 
 [lint]
-# pyflakes, import order, syntax errors, pyupgrade, bugbear. E501 is left to the formatter at the house width
 select = ["F", "I", "E9", "UP", "B"]
-# percent formatting is the clearer spelling for the hex and fixed-width colour strings the generators build
 ignore = ["UP031"]

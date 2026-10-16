@@ -1,5 +1,5 @@
 [Favorites-org.kde.plasma.kickoff.favorites.instance-4-230c143b-accd-470f-bc9e-bcd19408078e]
-ordering=
+ordering=preferred://browser,com.mitchellh.ghostty.desktop,org.kde.dolphin.desktop,systemsettings.desktop
 
 [Favorites-org.kde.plasma.kickoff.favorites.instance-4-global]
-ordering=
+ordering=preferred://browser,com.mitchellh.ghostty.desktop,org.kde.dolphin.desktop,systemsettings.desktop

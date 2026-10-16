@@ -41,7 +41,7 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     $fresh | reduce --fold $old {|f, acc| $acc | upsert $f.k $f.v }
     | merge {AssemblyVersion: $version, ScheduledForDeletion: false}
     | update DalamudApiLevel {|m| try { $m.DalamudApiLevel | into int } catch { $m.DalamudApiLevel } }
-    | to json --indent 2 | save ($dir | path join $"($name).json")
+    | to json --indent 2 | save --force ($dir | path join $"($name).json")
     mkdir $plugins
     mv ($work | path join $name) ($plugins | path join $name)
     rm --recursive $work

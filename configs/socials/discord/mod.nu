@@ -70,6 +70,10 @@ export def link [cfg: record] {
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)))
         ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest } | flatten)
         (json-merge ($data | path join plugins.json) ($managed | each {|f| json-set [(addon-name $f)] true }))
+        # incognito swallows the read-state ack, so anything read here stays unread on the phone
+        (json-merge ($plugins | path join Incognito.config.json) [
+            (json-set [settings blockReadReceipts] false)
+        ])
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])
         # discord self-updates and relaunches past any wrapper, so the hook stays armed

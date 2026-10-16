@@ -19,7 +19,8 @@ BarWidget {
     columnSpacing: 0
 
     Repeater {
-      model: ["Doctor.qml", "StayAwake.qml", "Reminder.qml", "Pomodoro.qml"]
+      // reminders, pomodoro and doctor are driven from their panels and keybindings, not from the bar
+      model: ["StayAwake.qml"]
 
       // Loader implicit size is read-only, do not assign it
       Loader {
