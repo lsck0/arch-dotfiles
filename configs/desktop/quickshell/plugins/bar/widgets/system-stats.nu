@@ -80,8 +80,10 @@ def hardware-detect []: nothing -> record {
             memChannels: (if ($banks | length) == ($populated | length) { $banks | get value | uniq | length } else { $populated | length })
         }
         gpu_card: $gpu_card
-        # power1_average on newer amdgpu, power1_input on older
-        gpu_power: ([power1_average power1_input] | each { [$amdgpu_hwmon $in] | path join } | where { $amdgpu_hwmon != null and ($in | path exists) } | get 0?)
+        # power1_average on newer amdgpu, power1_input on older; only present when this is an amd card
+        gpu_power: (if $amdgpu_hwmon == null { null } else {
+            [power1_average power1_input] | each { [$amdgpu_hwmon $in] | path join } | where { $in | path exists } | get 0?
+        })
         cpu_temp: $cpu_temp
         rapl_max: (int-read $"($RAPL)/max_energy_range_uj")
         mem_total_kb: (open /proc/meminfo | lines | first | split row -r '\s+' | get 1 | into int)
@@ -131,9 +133,11 @@ def main [interval_s: number = 10] {
         let power_w = if $cpu_w != null or $gpu_w != null { (($cpu_w | default 0) + ($gpu_w | default 0) + $OVERHEAD_W) / $PSU_EFFICIENCY }
         let energy_wh = (line-read $energy_file | default -e "0" | into float) + ($power_w | default 0) * $dt_ms / $MS_PER_HOUR
         if $power_w != null { $"($energy_wh | math round -p 4)\n" | save -f $energy_file }
-        let vram_mb = [used total] | each {|kind|
+        def vram-mb [kind: string]: nothing -> any {
             if $amd { number-or-null (line-read $"($device)/mem_info_vram_($kind)") $BYTES_PER_MIB | if $in != null { math round } }
         }
+        let vram_used_mb = vram-mb used
+        let vram_total_mb = vram-mb total
         let mem_available_kb = open /proc/meminfo | lines | where $it starts-with MemAvailable: | first | split row -r '\s+' | get 1 | into int
 
         $hw.static | merge {
@@ -148,8 +152,8 @@ def main [interval_s: number = 10] {
             cpuPowerW: ($cpu_w | round-or-null 1)
             gpuPowerW: ($gpu_w | round-or-null 1)
             energyKwh: ($energy_wh / 1000 | math round -p 4)
-            vramUsedMb: $vram_mb.0
-            vramTotalMb: $vram_mb.1
+            vramUsedMb: $vram_used_mb
+            vramTotalMb: $vram_total_mb
             top: {cpu: (top-read %cpu), mem: (top-read %mem)}
         } | to json -r | print
 

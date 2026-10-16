@@ -152,9 +152,10 @@ That is how bare-repo layouts show up, while submodules and the bare layout's ow
       (setq root (file-name-as-directory (expand-file-name root)))
       (when (file-directory-p root)
         ;; --type f too: a worktree has a .git file
+        ;; tms counts project dirs, the .git entry sits one level below them (mirrors scripts/hms.nu)
         (dolist (git (apply #'process-lines-ignore-status
                             "fd" "--hidden" "--no-ignore" "--type" "d" "--type" "f"
-                            "--max-depth" (number-to-string depth)
+                            "--max-depth" (number-to-string (1+ depth))
                             (append (mapcan (lambda (ex) (list "--exclude" ex)) my/projects-exclude)
                                     (list "^\\.git$" root))))
           (let* ((dir (file-name-directory (directory-file-name git)))

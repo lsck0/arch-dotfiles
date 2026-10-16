@@ -21,7 +21,10 @@ def head-commit [git: path]: nothing -> any {
     let ref = $head | str substring 5..
     let loose = $git | path join $ref
     if ($loose | path exists) { return (open --raw $loose | str trim) }
-    open --raw ($git | path join packed-refs) | lines | parse "{sha} {name}" | where name == $ref | get --optional 0.sha
+    let packed = $git | path join packed-refs
+    # a partial clone (interrupted restore) leaves neither the loose ref nor packed-refs; treat as stale, not a crash
+    if not ($packed | path exists) { return null }
+    open --raw $packed | lines | parse "{sha} {name}" | where name == $ref | get --optional 0.sha
 }
 
 def plugins-stale []: nothing -> bool {
