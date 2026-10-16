@@ -2,7 +2,6 @@
 {
     hostname: luca-wsl
     form_factor: wsl
-    # gui programming tools draw through wslg
     groups: [base core programming]
     facts: {homelab: true}
 }

@@ -10,10 +10,12 @@ export def link [cfg: record] {
         log-warn $"ntfy: no readable ($TOKEN), no forwarder"
         return []
     }
-    # the topics come from the homelab checkout; programming/projects clones it too, on machines that have it
+    # the topics come from the homelab checkout; programming/projects clones it too, on machines that have it, and
+    # both jobs can run concurrently: `--creates` only guards at plan time, so a losing clone into the same dir
+    # must tolerate "already exists" rather than fail the whole module (the winner still finishes the real clone)
     let homelab = $nu.home-dir | path join projects homelab
     [
-        (exec homelab-clone [git clone --recurse-submodules $HOMELAB_URL $homelab] --creates ($homelab | path join .git))
+        (exec homelab-clone [sh -c $"git clone --recurse-submodules ($HOMELAB_URL) ($homelab) || true"] --creates ($homelab | path join .git))
         (file-render ntfy-notify.service (unit-dir | path join ntfy-notify.service) {DIR: $env.PWD})
         (unit-enable ntfy-notify.service --now)
     ]

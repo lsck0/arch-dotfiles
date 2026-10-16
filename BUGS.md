@@ -1,3 +1,79 @@
+This system was installed with those dotfiles, do a full and throughrow review of both the dotfiles and the system it created.
+Use workflows and address the list of bugs below. Fix absolutely everything and make this perfect.
+Especially do a ui/ux pass and make sure that all themes, fonts, transparencies match.
+Make sure no userfacing texts look blatantly ai generated, remove ai-isms.
+Make sure that both me and other people can use this setup reliably.
+
+Bugs i found:
+
+- zapzap, telegram cant save/upload files
+- spotify did not automatically theme when opened
+- remove the "mark as read" button on notifications
+- qutebrowser has "Your Internet access is blocked"
+- nvim error: vim.schedule callback: Keyboard interrupt stack traceback: [C]: in function 'getcompletion' ...hare/nvim/lazy/transparent.nvim/lua/transparent/init.lua:46: in function 'fn' [string "vim/_core/editor"]:526: in function <[string "vim/_core/editor"]:521>
+- the music viz in the bar and in the widget are not the same? use the one in the bar but make it better and more
+  responsive to the music playing
+- tab autocomplete for tags does notwork in mod+o, it changes to notes and changing back the bar is empty..
+- clicking on firewall turns restrictive but clickig again doesnt go back or forward... it should be permissive,
+  default, restrictive
+- in nvim it auto new lines when it gets too long, which is cool, but that does not respect the tab indentation at the front
+- bluetooth, wifi, etc start auto enabled, it should only enable either ethernet or wifi, depending whats used in the install
+- widgets sometimes not close when clicking outside
+- modtab should show one global list of all workspaces and not just the ones on your monitor
+- tmux fingers is not working
+- the top bars of firefox and chrome should be a lil bit transparent, glass morphism style
+- discord is lagging A LOT when enabling camera, both real and virtual
+- ff14 rshift+f12 doesnt bring up mangohud, not working in other steamgames, like deadlock either
+- in nvim, seeing the chooses autocomplete option is really hard
+- make the timezones like NA west/central/east UK, Central EU, NZ, jp
+- spotify is not live changing theme
+- in settings, ctrl w or ctrl backspace should delete the word. closing window should clear search
+- font size and family changing is not live across everything...
+- there are also artifacts from changing themes, ie going from light to dark some things stay white in nvim like lualine
+  or treesitter context bars
+- take new and better showcase screenshots
+- dot cli could have a overhaul, so many slightly different commands. main workflow should be ONE. dot sync: pull,
+  apply, push. one command to bring the pc to what the dotfiles prescribe
+- leader fp doesnt find sdd and probe
+- my calendar and time dont change on using timetravel slider
+- i cant give reminders a name
+- sort the info in the weather widget more sanely, same for system stats. keep related close
+- in network widget, above tunnels, create new section "FIREWALL" where you can quick select all 3 modes instead of cycling
+- on display, remove red and only show nightmode with no icon in front, put monitors topmost after birghtness and before
+  colorgrading
+- the notifcation bell should always be one color and show a dot if there are notifs, and strike through if dnd
+- the default notification window needs to have a little bit more height when empty to not cut off whats written there
+- settings menu kinda laggy
+- in the install step, in the blue menu, you have to click platform twice (so luca-pc/note...) because it weirdly hangs?
+- firefox should never show "import bookmarks"
+- applying colortheme still takes very long
+- projects folder is missing in the file explorer bookmarks
+- remove the steam .desktop thing on the actual desktop when installing
+- between plymouth and ly is a short black screen with tex on it.
+- in plasma: Ksplash service failed: journalctl --user -xeu dbus-:1.1-org.kde.KSplash@0.service
+- i dont see WOL in bios, can you enable it software side? its supported (by internet research)
+- can we get autocomplete in shell for dot file
+- in nvim the icons for hidden and gitignored are two different eyes.. make that coherent
+- sometimes an error overlaps into the ly password bar, it reads: Bluetooth hci0: reading supported features failed
+- mod shift e exit does exit not exit, it leaves behind a hyprland session where i am then stuck in
+- why does the header of firefox (so everything not the page) look so much better in plasma than in hyprland
+- weather shows ERR when booting.
+- idle ram is quite high
+- in okular: Could not print the document. Detailed error is "Printing process could not start". Please report to bugs.kde.org
+- fans are quite loud in idle on my pc, check
+- initial unreal window is too small, then scaled up and then clipped so i need to manually resize it everytime
+- add a formfactor/profile thingy for server, where its a bare minimum hardened empty server with just docker
+- still too many comments scattered across the source code
+- is the settings menu truely working for all things?
+- why is there are latex_snippets.lua and a snippets.lua ???? make a snippets/ folder. dont do these kinds of stupid mistakes
+- nvim doesnt have support for PKGBUILD files
+- opening emacs fucking flashbangs me with pure white
+- do i have all symbols i need on my split keyboard config?
+- nvim: /usr/src/debug/neovim/neovim/src/nvim/grid.c:672: grid_put_linebuf: Assertion `0 <= row && row < grid->rows' failed.
+- is there a way to save noscript allows somewhere?
+- firefox shows "you cant use speech synthess because speech dispatcher wont open"
+- add this https://k6.io/open-source/
+
 # Known bugs
 
 Open findings from the full AI code review of 2026-10-15. The 52 bugs that were fixed in that pass are not listed

@@ -42,7 +42,7 @@
 
 :root {
     --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
-    --rtk-chrome-font-size: 10pt;
+    --rtk-chrome-font-size: 11pt;
     --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
 }
 

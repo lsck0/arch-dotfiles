@@ -160,7 +160,7 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     # one at a time: the system modules share pacman, /etc/group and the boot queue
     let results = pipeline-apply $ctx $planned system 1
     # a module skipped by its input hash writes nothing this run, so its targets have to be kept explicitly
-    let owned = glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | concat
+    let owned = glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | flatten
     if ($results | all { $in.ok }) { written-prune $owned } else { written-end }
     rm --recursive --force $secrets
     # root runs nothing from a home

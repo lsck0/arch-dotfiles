@@ -1,10 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
 # hand-dismissed alert card, a notification when the shell cannot show it; kind: reminder (snooze) or pomodoro (stop)
 
-const SOUND = "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
+const SOUND_DIR = "sounds"
+const SOUND_FALLBACK = "reminder"
 const GLYPH_BELL = "\u{F0020}"
 const TIMEOUT = "3s"
-const SOUND_TIMEOUT = "10s"
+# the cues are single-shot and under 2s, so a dismissed alert cannot keep ringing; the timeout is only a guard
+const SOUND_TIMEOUT = "3s"
 
 def main [title = "Reminder", body = "", glyph = $GLYPH_BELL, kind = "", snooze_message = ""] {
     let payload = {title: $title, body: $body, glyph: $glyph, kind: $kind, message: $snooze_message} | to json -r
@@ -15,5 +17,6 @@ def main [title = "Reminder", body = "", glyph = $GLYPH_BELL, kind = "", snooze_
         try { ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body }
     }
     # foreground: the systemd unit kills background children on exit
-    if ($SOUND | path exists) { ^timeout $SOUND_TIMEOUT pw-play $SOUND | complete | ignore }
+    let cue = $nu.home-dir | path join .config quickshell $SOUND_DIR $"(if $kind == "" { $SOUND_FALLBACK } else { $kind }).oga"
+    if ($cue | path exists) { ^timeout $SOUND_TIMEOUT pw-play $cue | complete | ignore }
 }

@@ -82,6 +82,9 @@ export def theme [cfg: record, wallpaper: string] {
     if $colors == null or not ($ini | path dirname | path exists) { return [] }
     let width = $colors.key | str length | math max
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
-    let refresh = if (which spicetify | is-empty) { [] } else { [spicetify refresh] }
+    # best-effort: before the first `spicetify backup apply` (hook/spicetify-apply.nu, gated on spotify login)
+    # refresh has nothing patched to reload yet and errors "you haven't backed up"; the next real apply picks up
+    # today's colors anyway, so a failed refresh here must not fail the whole theme pass
+    let refresh = if (which spicetify | is-empty) { [] } else { [sh -c "spicetify refresh || true"] }
     file-text $ini $"[pywal]\n($body)" --generated --then $refresh
 }

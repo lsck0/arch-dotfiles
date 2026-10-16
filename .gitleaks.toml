@@ -1,5 +1,3 @@
-# gitleaks config for the dot sync preflight. Secrets live git-crypt encrypted under secrets/, which gitleaks sees as
-# GITCRYPT-header binary, not plaintext. This allowlists the public key material that is committed on purpose.
 [extend]
 useDefault = true
 

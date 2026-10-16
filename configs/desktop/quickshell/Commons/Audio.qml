@@ -51,7 +51,19 @@ Singleton {
     return targetsOf(node).some(t => isObs(t))
   }
 
-  readonly property var micListeners: targetsOf(Pipewire.defaultAudioSource).filter(t => t.isStream && !isPeakMonitor(t))
+  // wine/proton apps hold several capture streams at once, so tag by app rather than by stream
+  readonly property var micListeners: {
+    var streams = targetsOf(Pipewire.defaultAudioSource).filter(t => t.isStream && !isPeakMonitor(t))
+    var names = []
+    var out = []
+    for (let i = 0; i < streams.length; i++) {
+      let name = appName(streams[i])
+      if (names.indexOf(name) >= 0) continue
+      names.push(name)
+      out.push(streams[i])
+    }
+    return out
+  }
 
   function appEntry(node) {
     var p = node.properties || {}

@@ -1,4 +1,2 @@
-# Follow `source ./lib.sh` relative to each script (the toggles and scripts/lib share libraries this way).
-# A `$VAR/file.sh` source still needs a `# shellcheck source=` directive at the line, since the path is dynamic.
 external-sources=true
 source-path=SCRIPTDIR
