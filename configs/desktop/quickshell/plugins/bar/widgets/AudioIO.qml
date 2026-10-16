@@ -155,21 +155,29 @@ BarWidget {
 
                 }
 
-                PanelSeparator {
-                }
+                // hidden entirely while nothing is producing sound, not just an empty list
+                Column {
+                    width: content.width
+                    spacing: Style.spacing.sm
+                    visible: Audio.appStreams.length > 0
 
-                PanelSectionHeader {
-                    text: "APPS"
-                }
-
-                Repeater {
-
-                    model: ScriptModel {
-                        values: Audio.appStreams
+                    PanelSeparator {
                     }
 
-                    delegate: StreamRow {
-                        host: root
+                    PanelSectionHeader {
+                        text: "APPS"
+                    }
+
+                    Repeater {
+
+                        model: ScriptModel {
+                            values: Audio.appStreams
+                        }
+
+                        delegate: StreamRow {
+                            host: root
+                        }
+
                     }
 
                 }
@@ -257,22 +265,29 @@ BarWidget {
                 PanelSeparator {
                 }
 
-                PanelRow {
+                // mute and deafen are the two "silence everything" actions, side by side
+                Row {
                     width: content.width
-                    centered: true
-                    glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
-                    label: root.micMuted ? "Mic muted, click to restore" : "Mute"
-                    on: root.micMuted
-                    onActivated: root.toggleMicMute()
-                }
+                    spacing: Style.spacing.sm
 
-                PanelRow {
-                    width: content.width
-                    centered: true
-                    glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
-                    label: root.deafened ? "Deafened, click to restore" : "Deafen"
-                    on: root.deafened
-                    onActivated: root.toggleDeafen()
+                    PanelRow {
+                        width: (parent.width - parent.spacing) / 2
+                        centered: true
+                        glyph: root.micMuted ? "\u{f036d}" : "\u{f036c}"
+                        label: root.micMuted ? "Muted" : "Mute"
+                        on: root.micMuted
+                        onActivated: root.toggleMicMute()
+                    }
+
+                    PanelRow {
+                        width: (parent.width - parent.spacing) / 2
+                        centered: true
+                        glyph: root.deafened ? "\u{f07ce}" : "\u{f02cb}"
+                        label: root.deafened ? "Deafened" : "Deafen"
+                        on: root.deafened
+                        onActivated: root.toggleDeafen()
+                    }
+
                 }
 
                 PanelSeparator {

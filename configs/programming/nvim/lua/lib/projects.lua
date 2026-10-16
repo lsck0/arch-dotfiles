@@ -68,7 +68,8 @@ function M.list()
     for _, dir in ipairs(search_dirs()) do
         if vim.fn.isdirectory(dir.path) == 1 then
             local cmd = { "fd", "--type", "d", "--type", "f", "--hidden", "--no-ignore" }
-            vim.list_extend(cmd, { "--max-depth", tostring(dir.depth) })
+            -- tms counts project dirs, the .git entry sits one level below them (mirrors scripts/hms.nu)
+            vim.list_extend(cmd, { "--max-depth", tostring(dir.depth + 1) })
             for _, ex in ipairs(EXCLUDE) do
                 vim.list_extend(cmd, { "--exclude", ex })
             end

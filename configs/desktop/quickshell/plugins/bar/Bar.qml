@@ -216,8 +216,8 @@ PanelWindow {
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
-      width: Math.max(0, Math.min(leftSection.implicitWidth,
-                                  centerSection.x - x - parent.keepClear))
+      // reserved before center, which centres itself in whatever gap remains
+      width: Math.max(0, Math.min(leftSection.implicitWidth, parent.width - parent.keepClear))
 
       RowLayout {
         id: leftSection
@@ -231,17 +231,9 @@ PanelWindow {
       }
     }
 
-    RowLayout {
-      id: centerSection
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.bar.itemGap
-      onXChanged: root.layoutRevision++
-      onWidthChanged: root.layoutRevision++
-
-      BarSection { bar: root; section: "center" }
-    }
-
+    // right reserves its natural width first (it is the crowded side with many
+    // icons plus media); left and center then share whatever remains, so a wide
+    // right section never gets clipped behind a dead-centered clock/weather
     Item {
       id: rightHolder
       anchors.right: parent.right
@@ -249,8 +241,7 @@ PanelWindow {
       height: parent.height
       clip: true
       width: Math.max(0, Math.min(rightSection.implicitWidth,
-                                  parent.width - (centerSection.x + centerSection.width)
-                                    - parent.keepClear))
+                                  parent.width - leftHolder.width - parent.keepClear))
 
       RowLayout {
         id: rightSection
@@ -262,6 +253,31 @@ PanelWindow {
         onWidthChanged: root.layoutRevision++
 
         BarSection { bar: root; section: "right" }
+      }
+    }
+
+    // centred in the gap between the side holders, not the raw screen centre,
+    // so it slides out of the way (and clips itself) before it ever forces
+    // rightHolder to clip a widget like Media
+    Item {
+      id: centerHolder
+      readonly property real gapLeft: leftHolder.x + leftHolder.width + parent.keepClear
+      readonly property real gapRight: rightHolder.x - parent.keepClear
+      anchors.verticalCenter: parent.verticalCenter
+      height: parent.height
+      clip: true
+      width: Math.max(0, Math.min(centerSection.implicitWidth, gapRight - gapLeft))
+      x: gapLeft + Math.max(0, (gapRight - gapLeft - width) / 2)
+
+      RowLayout {
+        id: centerSection
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.bar.itemGap
+        onXChanged: root.layoutRevision++
+        onWidthChanged: root.layoutRevision++
+
+        BarSection { bar: root; section: "center" }
       }
     }
   }

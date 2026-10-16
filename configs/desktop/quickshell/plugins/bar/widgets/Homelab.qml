@@ -56,9 +56,12 @@ BarWidget {
     running: true
     // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
+    // never --summary: that drops host/storage/traffic entirely, so until the
+    // panel was opened once the trigger icon was stuck showing only alerts
+    // and up/down counts. Still poll far less often while idle.
     command: panel.visible
       ? [Paths.barWidget("homelab-status.nu"), "30"]
-      : [Paths.barWidget("homelab-status.nu"), "300", "--summary"]
+      : [Paths.barWidget("homelab-status.nu"), "300"]
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function(line) {
