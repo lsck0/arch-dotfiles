@@ -6,6 +6,9 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
 
 - `dalamud`: the FFXIV plugin runtime; config and plugin manifests in `secrets/dalamud` (its `backup` verb), plugins
   reinstalled from their repos by `plugin-restore.nu`.
+- `d2launcher`: the Diablo II / Median XL launcher, a pinned upstream checkout (it has no aur package) plus its
+  config and desktop entry; its bulk downloads (the game, the proton build, save backups and the wine prefix) live
+  in `~/sync/vendor/d2launcher`, reached through symlinks because the script hardcodes `~/.d2launcher/{bin,backup}`.
 - `ffxiv`: the FFXIV client and launcher config, seeded once from `secrets/ffxiv` (its `backup` verb).
 - `gamemode`: feral gamemode (`gamemode.ini`, its `[gpu]` from the detected card), engaged per game through a launch
   option.

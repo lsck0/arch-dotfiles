@@ -51,6 +51,12 @@ Singleton {
     return targetsOf(node).some(t => isObs(t))
   }
 
+  // the tap node is named "OBS: <input>", and that input name is the key obs-websocket uses
+  function obsInputOf(node) {
+    var tap = targetsOf(node).find(t => isObs(t))
+    return tap ? tap.name.replace(/^OBS:\s*/, "") : ""
+  }
+
   // wine/proton apps hold several capture streams at once, so tag by app rather than by stream
   readonly property var micListeners: {
     var streams = targetsOf(Pipewire.defaultAudioSource).filter(t => t.isStream && !isPeakMonitor(t))

@@ -9,7 +9,6 @@ Bugs i found:
 - zapzap, telegram cant save/upload files
 - spotify did not automatically theme when opened
 - remove the "mark as read" button on notifications
-- qutebrowser has "Your Internet access is blocked"
 - nvim error: vim.schedule callback: Keyboard interrupt stack traceback: [C]: in function 'getcompletion' ...hare/nvim/lazy/transparent.nvim/lua/transparent/init.lua:46: in function 'fn' [string "vim/_core/editor"]:526: in function <[string "vim/_core/editor"]:521>
 - the music viz in the bar and in the widget are not the same? use the one in the bar but make it better and more
   responsive to the music playing
@@ -18,6 +17,7 @@ Bugs i found:
   default, restrictive
 - in nvim it auto new lines when it gets too long, which is cool, but that does not respect the tab indentation at the front
 - bluetooth, wifi, etc start auto enabled, it should only enable either ethernet or wifi, depending whats used in the install
+- now that raddebugger had a linux release, also install that.
 - widgets sometimes not close when clicking outside
 - modtab should show one global list of all workspaces and not just the ones on your monitor
 - tmux fingers is not working
@@ -28,6 +28,7 @@ Bugs i found:
 - make the timezones like NA west/central/east UK, Central EU, NZ, jp
 - spotify is not live changing theme
 - in settings, ctrl w or ctrl backspace should delete the word. closing window should clear search
+- the Diablo2 / Median XL / PD2 setups are still rather broken
 - font size and family changing is not live across everything...
 - there are also artifacts from changing themes, ie going from light to dark some things stay white in nvim like lualine
   or treesitter context bars

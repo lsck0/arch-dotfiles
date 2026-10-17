@@ -616,10 +616,11 @@ BarWidget {
 
         }
 
-        Fader {
+        ObsPair {
             width: parent.width
             node: stream.node
             host: stream.host
+            obsLabel: Audio.obsInputOf(stream.node)
         }
 
         Flow {

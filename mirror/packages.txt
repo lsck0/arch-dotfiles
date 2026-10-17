@@ -490,6 +490,7 @@ oha
 okular
 ollama
 ollama-rocm
+omarchy-share-picker-git
 onefetch
 onlyoffice-bin
 opam
@@ -927,6 +928,7 @@ wireshark-qt
 wivrn-server
 wl-clipboard
 wl_shimeji-git
+wmctrl
 wpa_supplicant
 xdg-desktop-portal-gtk
 xdg-desktop-portal-hyprland
