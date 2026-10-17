@@ -47,6 +47,14 @@ hl.window_rule({
 
 hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
+-- the xdph screen-share picker: thumbnails need room, and it must not tile over what you are picking
+hl.window_rule({
+    match = { class = "^omarchy-share-picker$" },
+    float = true,
+    center = true,
+    size = "1150 750",
+})
+
 hl.window_rule({
     match = {
         title = "^wayland-boomer$",

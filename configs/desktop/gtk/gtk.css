@@ -99,6 +99,36 @@
     border-top: 1px solid alpha(@borders, 0.8);
 }
 
+/* The oomox gtk3 export never maps the palette onto the sidebar_* colors, so they stay at the light
+   adwaita defaults (#ebebed) while the rest of the theme is dark: every places sidebar in a gtk3 file
+   chooser comes up white. The gtk-4.0 export gets this right (#1B1F27), so this is gtk3 only. */
+@define-color sidebar_bg_color @theme_bg_color;
+@define-color sidebar_fg_color @theme_fg_color;
+@define-color sidebar_backdrop_color @theme_bg_color;
+
+.sidebar,
+.sidebar list,
+placessidebar.sidebar,
+placessidebar.sidebar list,
+placessidebar.sidebar row,
+.sidebar:backdrop,
+.sidebar list:backdrop,
+placessidebar.sidebar:backdrop,
+placessidebar.sidebar list:backdrop,
+placessidebar.sidebar row:backdrop {
+    background-color: @theme_bg_color;
+    color: @theme_fg_color;
+}
+
+placessidebar.sidebar row:hover {
+    background-color: alpha(@theme_selected_bg_color, 0.18);
+}
+
+placessidebar.sidebar row:selected {
+    background-color: alpha(@theme_selected_bg_color, 0.28);
+    color: @theme_fg_color;
+}
+
 /* lutris ships a light sidebar that ignores the oomox dark palette, leaving it white on a dark window */
 .lutris-sidebar,
 .lutris-sidebar list,

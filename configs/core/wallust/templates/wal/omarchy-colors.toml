@@ -1,0 +1,11 @@
+# omarchy-share-picker's palette (the xdph screen-share picker), read from
+# ~/.local/state/omarchy/current/theme/colors.toml and re-read whenever these bytes change.
+# Flat keys only, see src/theme.rs upstream: background, foreground, lighter_background|panel,
+# muted|dark_foreground, accent, selection, mode.
+mode = "dark"
+background = "{{background}}"
+foreground = "{{foreground}}"
+lighter_background = "{{background | lighten(0.06)}}"
+muted = "{{color8}}"
+accent = "{{color4}}"
+selection = "{{background | lighten(0.12)}}"
