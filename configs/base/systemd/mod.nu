@@ -51,8 +51,8 @@ export def system [cfg: record] {
 export def link [cfg: record] {
     let keyring = present gnome-keyring-daemon.service
     [
-        # ly's pam stack already starts and unlocks the keyring
-        ([gnome-keyring-daemon.service gnome-keyring-daemon.socket] | each {|u| if-present $u { unit-mask $u } })
+        # ly's pam stack already starts and unlocks the keyring; the socket runs from first login until stopped
+        ([gnome-keyring-daemon.service gnome-keyring-daemon.socket] | each {|u| if-present $u { unit-mask $u --now } })
         # its secrets component waits for --start, which gnome's OnlyShowIn=GNOME autostart entry would send
         (if $keyring { unit-file keyring-secrets.service --enable } else { [] })
         ([pipewire-pulse.service pipewire-pulse.socket ssh-agent.service]

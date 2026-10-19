@@ -91,8 +91,9 @@ export def unit-disable [name: string, --now]: nothing -> record {
     decl unit $name {state: disabled, now: $now}
 }
 
-export def unit-mask [name: string]: nothing -> record {
-    decl unit $name {state: masked}
+# --now also stops a running unit, else every later daemon-reload warns that it changed under it
+export def unit-mask [name: string, --now]: nothing -> record {
+    decl unit $name {state: masked, now: $now}
 }
 
 export def dropin [unit: string, src: path, --name: string, --then: list<string> = []]: nothing -> record {

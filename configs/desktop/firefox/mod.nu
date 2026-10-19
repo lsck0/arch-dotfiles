@@ -187,7 +187,9 @@ export def restore [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    if (which pywalfox | is-empty) { return [] }
+    # the native host listens only while firefox runs; a firefox started later reads the colors itself
+    let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
+    if (which pywalfox | is-empty) or not ($socket | path exists) { return [] }
     exec pywalfox-update [pywalfox update]
 }
 

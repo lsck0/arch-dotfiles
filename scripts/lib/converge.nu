@@ -277,12 +277,12 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     {output: (if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" })}
                 }
-                "enable" | "disable" => {
+                "enable" | "disable" | "mask" => {
                     let now = if ($a.decl.now? | default false) { [--now] } else { [] }
                     ^systemctl $"--($scope)" $a.kind ...$now $a.target
                     {}
                 }
-                "mask" | "unmask" => { ^systemctl $"--($scope)" $a.kind $a.target; {} }
+                "unmask" => { ^systemctl $"--($scope)" unmask $a.target; {} }
                 "step" => { {output: (run-step $a $dir)} }
                 "remove" => {
                     rm --force $a.target
