@@ -2,8 +2,10 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-Easiest: write [Arch Linux-LSCK0](https://mirror.lsck0.dev/iso/) (`archlinux-lsck0-latest-x86_64.iso`) to a stick and
-boot it; the installer starts on its own (`mirror/iso/README.md`: answer file, verifying the download).
+Easiest: write [Arch Linux-LSCK0](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso)
+([sha256](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sha256),
+[sig](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sig)) to a stick and boot it; the installer
+starts on its own (`mirror/iso/README.md`: answer file, verifying the download).
 
 Or from the official Arch ISO:
 

@@ -59,28 +59,25 @@ dot internal iso [--out DIR] [--work DIR] [--mirror URL] [--sign FPR] [--keep N]
   symlink `archlinux-lsck0-latest-x86_64.iso` and `archlinux-lsck0-latest-x86_64.iso.sha256` (naming the latest
   file, so `sha256sum -c` works on a download of either name). `--sign FPR` adds `.sig` (and a latest `.sig`
   symlink) with that key from the caller's gpg keyring. `--keep N` (default 3) deletes older dated isos and their
-  `.sha256`/`.sig`. Every path is printed, any failure exits nonzero, nothing is asked.
+  `.sha256`/`.sig` in `--out`. Every path is printed, any failure exits nonzero, nothing is asked.
 
 ## Homelab handoff
 
-The mirror host (vm-112's container, root, with loop devices and mounts) builds it nightly after the [lsck0] package
-build and publishes to https://mirror.lsck0.dev/iso/.
+The homelab builds it on vm-112 after the nightly [lsck0] package build, signs it in its own publish step and serves
+it at https://mirror.lsck0.dev/iso/:
 
-1. Inputs: a checkout of `https://github.com/lsck0/arch-dotfiles` at master (`git fetch && git checkout --detach
-   origin/master`; no submodules or lfs needed); `archiso`, `nushell`, `git`, `gnupg` installed; the repo signing key
-   (`88042EFBF5F141C2ACF4697ADD84D7C4053DD354`) in root's gpg keyring.
-2. Run, as root in the checkout:
+- build, as root in a checkout of signed master (no submodules or lfs needed):
+  `nu --no-config-file scripts/dot.nu internal iso --work <dir> --out <dir> --mirror <lan mirror> --keep 1000`;
+  retention is the publish step's, not `--keep`.
+- publish: the dated iso, `.sha256`, `.sig` (repo key `88042EFBF5F141C2ACF4697ADD84D7C4053DD354`), the
+  `archlinux-lsck0-latest-x86_64.iso` names pointing at the newest, and `lsck0-signing.asc`.
+- retention: the newest, the first of each month and the first of each week (Monday), like the package snapshots.
+- a failed build keeps the previous files.
 
-   ```bash
-   nu --no-config-file scripts/dot.nu internal iso --work /var/cache/lsck0-iso --out /srv/mirror/iso \
-       --mirror 'http://10.100.0.104:8090/archlinux/$repo/os/$arch' --sign 88042EFBF5F141C2ACF4697ADD84D7C4053DD354 --keep 3
-   ```
-
-3. Publish `/srv/mirror/iso` as `/iso/`: the dated iso, `.sha256`, `.sig`, the `latest` symlinks (served as files,
-   so the web server follows symlinks), and the public key as `lsck0-signing.asc` (a copy of
-   `configs/base/pacman/archrepo.asc`).
-4. Schedule: nightly, after the package build (e.g. 04:30). A failed build leaves yesterday's files in place.
-   Retention: the last 3 dated isos.
+Links: [latest](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso),
+[sha256](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sha256),
+[sig](https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso.sig),
+[key](https://mirror.lsck0.dev/iso/lsck0-signing.asc), [all builds](https://mirror.lsck0.dev/iso/).
 
 ## Verify a download
 
