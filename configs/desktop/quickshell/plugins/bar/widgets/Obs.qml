@@ -502,6 +502,7 @@ BarWidget {
                     model: root.scenes
 
                     delegate: Chip {
+                        focusable: true
                         required property string modelData
 
                         text: modelData

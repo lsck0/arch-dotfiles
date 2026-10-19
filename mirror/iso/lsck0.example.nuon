@@ -1,0 +1,36 @@
+# lsck0.nuon: answers for the lsck0 iso's installer. Every key is optional; the bootstrap asks for the ones left out.
+# Put it on a FAT partition labelled LSCK0 (or any medium's root, or beside the iso on a Ventoy stick), or point
+# lsck0.answers=<url or path> at it on the kernel command line; lsck0.<key>=<value> there overrides one key.
+# An unknown key or a wrong type stops the installer with one line before anything is written.
+{
+    profile: "luca"                   # profiles/<name>, or "custom"
+    platform: "luca-pc"               # platforms/<name> (luca-pc, luca-notebook), "server" or "custom"
+    username: "luca"
+    keymap: "de-latin1"               # also used for the Wi-Fi password
+    disk: "/dev/nvme0n1"              # erased
+    encrypt: true
+    password: "ask"                   # disk and login password; "ask" or left out asks, a crypt hash is refused
+    # user_password: "ask"            # login only, when it differs from the disk's
+    # root_password: "ask"            # left out: root stays locked
+    home_network: false
+
+    # a custom or server machine only; a platforms/ file brings its own
+    # hostname: "archlinux"
+    # timezone: "Europe/Berlin"
+    # locale: "en_US.UTF-8"
+    # groups: [base core desktop fonts programming]
+    # secure_boot: "microsoft"        # own, microsoft or off
+    # server: false
+    # ssh_key: "ssh-ed25519 AAAA... luca"
+
+    # tried in order when no cable is online; a failing one falls through to the picker
+    wifi: [
+        {ssid: "home", psk: "passphrase"}
+        # {ssid: "hidden-net", psk: "passphrase", hidden: true}
+    ]
+
+    unattended: false                 # true: no summary and no erase confirmation, missing keys take their defaults
+
+    # the vm test's unpublished tree, applied on top of master and run unverified; paths are relative to this file
+    # source: {bundle: "snapshot.bundle", lfs: "snapshot-lfs.tar"}
+}

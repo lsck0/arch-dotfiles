@@ -92,6 +92,38 @@ def fold-merges [decls: list<record>]: nothing -> list<record> {
     } | compact
 }
 
+# a link where a copy belongs: the old linked form of this module, or one that points nowhere
+def link-stale [obs: record, target: string, repo: string]: nothing -> bool {
+    $obs.type == symlink and ((own-link $obs.link $repo) or not ($target | path exists))
+}
+
+# what an apply does to a declared file: <obs> on disk, <want> the content's hash, <recorded> the hash it last wrote
+export def file-classify [obs: record, want: string, recorded: any, generated: bool, stale_link: bool, force: bool]: nothing -> record {
+    let c = {|kind, reason, preserve| {kind: $kind, reason: $reason, preserve: $preserve} }
+    if $obs.type == "" {
+        do $c create "missing" false
+    } else if $stale_link {
+        do $c update "a link of the old linked form" false
+    } else if $obs.type == file and $obs.hash == $want {
+        if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
+    } else if $obs.type == file and ($generated or $recorded == $obs.hash) {
+        do $c update "changed in the module" false
+    } else if $recorded == null {
+        do $c update "not the dotfiles' own yet: preserved aside" true
+    } else if $force {
+        do $c update "drift, forced: preserved aside" true
+    } else {
+        do $c drift "changed since the last apply" false
+    }
+}
+
+# a recorded file output as the next apply sees it, without evaluating its module: drift, missing or null (holds,
+# or the apply rewrites it on its own: generated, the old linked form)
+export def output-file-state [output: record, obs: record, repo: string]: nothing -> any {
+    let c = file-classify $obs $output.hash $output.hash ($output.generated? | default false) (link-stale $obs $output.target $repo) false
+    match $c.kind { "drift" => "changed", "create" => "missing", _ => null }
+}
+
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -100,21 +132,9 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             "file" => {
                 let want = if $d.content != null { sha $d.content } else { open --raw $d.source | sha $in }
                 let rec = $prev | where target == $d.target | get --optional 0.hash | default ($recorded | get --optional $d.target)
-                if $obs.type == "" {
-                    action $id create $d.target "missing" $d null $want
-                } else if $obs.type == symlink and ((own-link $obs.link $repo) or not ($d.target | path exists)) {
-                    action $id update $d.target "a link of the old linked form" $d $obs.link $want
-                } else if $obs.type == file and $obs.hash == $want {
-                    if $rec == $want { action $id skip $d.target "" $d $want $want } else { action $id record $d.target "already this content" $d $obs.hash $want }
-                } else if $obs.type == file and ($d.generated or $rec == $obs.hash) {
-                    action $id update $d.target "changed in the module" $d $obs.hash $want
-                } else if $rec == null {
-                    action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $want
-                } else if $force {
-                    action $id update $d.target "drift, forced: preserved aside" ($d | insert preserve true) $obs.hash $want
-                } else {
-                    action $id drift $d.target "changed since the last apply" $d $obs.hash $want
-                }
+                let c = file-classify $obs $want $rec $d.generated (link-stale $obs $d.target $repo) $force
+                let before = match $obs.type { "" => null, "symlink" => $obs.link, _ => $obs.hash }
+                action $id $c.kind $d.target $c.reason (if $c.preserve { $d | insert preserve true } else { $d }) $before $want
             }
             "link" => {
                 if $obs.type == symlink and $obs.link == $d.source {
@@ -297,6 +317,7 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
                 kind: $a.decl.kind
                 target: $a.target
                 hash: (if $a.decl.kind == "file" { $a.after } else { null })
+                generated: ($a.decl.generated? | default false)
                 source: (if $a.decl.kind == "exec" { $a.decl.creates } else { $a.decl.source })
                 state: $a.decl.state?
                 aside: ($done | get --optional $a.target | get --optional aside | default ($before.aside? | default null))

@@ -30,7 +30,12 @@ an edit reaches the running shell with `dot apply desktop/quickshell`. Entry `sh
 qs ipc -p ~/.config/quickshell show                          # every target and function
 qs ipc -p ~/.config/quickshell call notifications isDnd
 qs ipc -p ~/.config/quickshell call bar toggle <panel>
+qs ipc -p ~/.config/quickshell call bar list                 # panel names (each HoverPanel's moduleName)
 ```
+
+`bar open|toggle` is the keyboard path (mod+b then a letter, the `panels` submap): the panel stays open, takes the
+keyboard (`WlrKeyboardFocus.Exclusive`) and focuses its first control; hjkl/arrows walk the controls, Tab jumps
+per `PanelSectionHeader`, Esc or q closes. Hover opens after 140 ms; a click on the bar item pins the panel.
 
 An `IpcHandler { target: "<name>" }` in any QML file adds a target. Keybinds call these from
 `configs/desktop/hyprland/hyprland_keybindings.lua` (`quickshell_call(target, fn)`).

@@ -1,0 +1,27 @@
+{
+  "wallpaper": "sparth-vestige.jpg",
+  "pair": "tokyo-night",
+  "special": {
+    "background": "#e1e2e7",
+    "foreground": "#3760bf",
+    "cursor": "#3760bf"
+  },
+  "colors": {
+    "color0": "#b4b5b9",
+    "color1": "#f52a65",
+    "color2": "#587539",
+    "color3": "#8c6c3e",
+    "color4": "#2463b9",
+    "color5": "#9854f1",
+    "color6": "#007197",
+    "color7": "#6172b0",
+    "color8": "#7b7f97",
+    "color9": "#e8416a",
+    "color10": "#5c8524",
+    "color11": "#a27629",
+    "color12": "#2664b9",
+    "color13": "#9d5ff5",
+    "color14": "#007ea8",
+    "color15": "#3760bf"
+  }
+}

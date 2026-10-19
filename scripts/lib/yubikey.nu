@@ -1,5 +1,5 @@
 use profile.nu [profile-load]
-use secrets.nu [secret-is-plaintext]
+use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const REPO = path self ../..
 const KEY_DIR = path self ../../configs/base/yubikey
@@ -13,6 +13,13 @@ const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "60"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
+
+# a profile without the secrets capability never pulls or unlocks the private submodule
+def unwanted []: nothing -> bool {
+    if (secrets-wanted) { return false }
+    print "secrets: this profile has no secrets capability, secrets/ is not pulled or unlocked"
+    true
+}
 
 def heading [text: string]: nothing -> nothing { print $"\n== ($text)" }
 
@@ -180,6 +187,7 @@ def unlock-identity [identity: path]: nothing -> nothing {
 
 # each step is one touch; no key, no enrollment or no touch just skips
 export def yubikey-unlock [--identity: path]: nothing -> nothing {
+    if (unwanted) { return }
     if $identity != null { return (unlock-identity $identity) }
     let pulled = $SECRETS | path join .git | path exists
     if not (present) {
@@ -230,5 +238,6 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
 }
 
 export def yubikey-lock []: nothing -> nothing {
+    if (unwanted) { return }
     ^git -C $SECRETS crypt lock
 }

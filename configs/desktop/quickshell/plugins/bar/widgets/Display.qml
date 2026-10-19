@@ -301,6 +301,7 @@ BarWidget {
                 return opts
               }
               Chip {
+                focusable: true
                 required property var modelData
                 text: modelData.label
                 selected: modelData.value === monitorRow.layoutValue
@@ -316,6 +317,7 @@ BarWidget {
             Repeater {
               model: [1, 1.25, 1.5, 1.666667, 2]
               Chip {
+                focusable: true
                 required property real modelData
                 // hyprland reports 1.666667 as 1.6666666
                 selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01

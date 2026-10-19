@@ -84,7 +84,7 @@ the tree itself; this file says what they do.
 
 - `platforms/<host>.nuon`: machine facts and the groups it installs (luca-pc, luca-notebook, luca-wsl, test-vm);
   `platforms/<host>.options.nuon` holds machine-scoped option values.
-- `profiles/<user>.nuon`: user capabilities (`secrets`, `identity`, `homelab`, `work`) that gate modules, never a
+- `profiles/<name>.nuon`: profiles picked at install (or `custom`, none), user capabilities (`secrets`, `identity`, `homelab`, `work`) that gate modules, never a
   username check.
 - Every module has an `enable` option; typed options (bool, int, string, list, record, filesize) carry docs, min/max,
   choices and an apply mode, and can be detected from the hardware when unset. Full list under [Options](#options).
@@ -342,8 +342,9 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 ## Theming and wallpapers
 
 - `dot theme <name|path>`, `dot theme random`, `dot theme` (fzf with previews), `SUPER+w` (picker), nsxiv `w`.
-- 20 hand-made palettes (ayu, catppuccin, dracula, everforest, gruvbox, kanagawa, monokai, night-owl, nord, one-dark,
-  rose-pine, solarized, tokyo-night, void); a wallpaper named in a palette uses it and its font, any other wallpaper
+- 34 hand-made palettes (ayu, catppuccin, dracula, everforest, gruvbox, kanagawa, monokai, night-owl, nord, one,
+  rose-pine, solarized, tokyo-night, void), most families with a light and some with a soft variant, which the
+  light/dark toggle flips between; a wallpaper named in a palette uses it and its font, any other wallpaper
   gets a palette from wallust.
 - `palette.nu` enforces WCAG contrast and background clamps for every consumer; quickshell mirrors it.
 - Theme verbs recolor live: Hyprland borders, quickshell, GTK 3/4 (oomox), KDE colors, kitty, ghostty, konsole, tmux,
@@ -477,7 +478,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 - Tools in the `pentest` group bypass Portmaster; `pentest <cmd>` enters it.
 - caido (plugins restored, themed), ZAP with the MCP add-on, ghidra (themed, MCP extension), metasploit (db, rpcd on
   loopback, autoscan rc), wireshark and tcpdump without sudo via file caps, nuclei, rustscan, netscanner, seclists at
-  `~/.wordlists`, proxychains with the anonymous SOCKS pool, sliver, semgrep.
+  `~/.wordlists`, pinned LLM jailbreak and prompt-injection corpora in `~/.local/share/llm-jailbreaks`, proxychains
+  with the anonymous SOCKS pool, sliver, semgrep.
 - A CLI toolkit grouped in `pentesting/toolkit`.
 
 ## Backups and sync

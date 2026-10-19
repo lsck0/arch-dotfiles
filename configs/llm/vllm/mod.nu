@@ -3,16 +3,32 @@ use module.nu *
 export const options = {
     model: {
         type: string
-        default: "mattbucci/gemma-4-12B-AWQ"
-        doc: "The hugging face repo vllm serves; its tool calls go through the gemma4 parser"
+        # https://huggingface.co/Goekdeniz-Guelmez/Josiefied-Qwen3-8B-abliterated-v1 (qwen3 8b, abliterated and tuned
+        # uncensored) as autoawq 4-bit gemm: 5.7 GiB of weights, 27k of context in the 0.70 share of a 16 GiB card
+        default: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
+        doc: "The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1"
         label: "Model"
         scope: machine
     }
     model_revision: {
         type: string
-        default: c4a82eea03b40ecaeb4ef265b3fd27461c8a87ed
+        default: 0244c2514cc272a603368c0440ff3002143b2336
         doc: "The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main"
         label: "Model revision"
+        scope: machine
+    }
+    tool_call_parser: {
+        type: string
+        default: hermes
+        doc: "vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4)"
+        label: "Tool call parser"
+        scope: machine
+    }
+    reasoning_parser: {
+        type: string
+        default: qwen3
+        doc: "vllm's reasoning parser, which moves the model's thinking out of the reply into reasoning_content"
+        label: "Reasoning parser"
         scope: machine
     }
     gpu_memory_utilization: {
@@ -53,7 +69,10 @@ def rocm-gpu []: nothing -> bool {
 export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
-    let values = {MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share}
+    let values = {
+        MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
+        TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser
+    }
     [
         (step venv)
         (file-copy vllm-wait-ready.nu /usr/local/bin/vllm-wait-ready --mode 755)

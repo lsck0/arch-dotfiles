@@ -1,5 +1,5 @@
 use log.nu *
-use secrets.nu [secret-is-plaintext]
+use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const BRANCH = "master"
 const FINGERPRINT_LINE = '(?m)^SIGNING_KEY_FINGERPRINT=(?<fpr>[0-9A-F]{40})$'
@@ -11,10 +11,12 @@ export def sync-branch-check [repo: path]: nothing -> nothing {
     }
 }
 
-# local edits ride along; one that conflicts with the pulled generation stops the run before anything applies
+# local edits ride along; one that conflicts with the pulled generation stops the run before anything applies;
+# without the secrets capability no submodule is fetched, so the private secrets remote is never asked
 export def sync-pull [repo: path]: nothing -> nothing {
     sync-branch-check $repo
-    try { ^git -C $repo pull --ff-only --autostash } catch {
+    let recurse = if (secrets-wanted) { [] } else { [--no-recurse-submodules] }
+    try { ^git -C $repo pull --ff-only --autostash ...$recurse } catch {
         error make {msg: $"git pull --ff-only failed: offline, or ($BRANCH) diverged from origin \(git -C ($repo) pull --rebase\)"}
     }
     let conflicts = ^git -C $repo diff --name-only --diff-filter=U | lines
@@ -27,7 +29,7 @@ export def sync-pull [repo: path]: nothing -> nothing {
 # the pulled generation may name a newer secrets revision; the commit's `git add .` would record the old checkout back
 def secrets-follow [repo: path]: nothing -> nothing {
     let secrets = $repo | path join secrets
-    if not ($secrets | path join .git | path exists) { return }
+    if not (secrets-wanted) or not ($secrets | path join .git | path exists) { return }
     let recorded = ^git -C $repo ls-tree HEAD secrets | parse --regex '^\S+ commit (?<sha>[0-9a-f]+)' | get --optional 0.sha
     let current = ^git -C $secrets rev-parse HEAD | str trim
     if $recorded == null or $recorded == $current { return }
@@ -64,7 +66,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     ^nu --no-config-file ($repo | path join scripts lib internal.nu) backup
     # secrets first, so the generation commit records its new revision
     let secrets = $repo | path join secrets
-    if (secret-is-plaintext ($secrets | path join pgp_privatekey.asc)) {
+    if (secrets-wanted) and (secret-is-plaintext ($secrets | path join pgp_privatekey.asc)) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
             ^git -C $secrets add -A
             ^git -C $secrets commit -m "chore(sync): back up live app state"

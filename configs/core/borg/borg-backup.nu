@@ -22,7 +22,7 @@ const EXCLUDES = [
     .gradle .m2/repository .local/share/ghcup .local/share/rustup .local/share/elan .local/share/kani
     .local/share/cargo/registry .local/share/cargo/git .local/share/dotnet .local/share/nuget
     .local/share/go/pkg go/pkg .npm .local/share/opam .local/share/mise .local/share/zinit
-    .local/share/nvim/lazy .local/share/nvim/mason .local/share/torbrowser
+    .local/share/nvim/lazy .local/share/nvim/mason .local/share/torbrowser .local/share/llm-jailbreaks
     "**/node_modules" "**/target" "**/.venv"
 ]
 

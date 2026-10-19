@@ -7,6 +7,14 @@ Rectangle {
   property string text: ""
   property bool selected: false
   property bool hasCursor: false
+  // the keyboard cursor of a focused ButtonGroup, or this chip focused on its own: ringed even when selected
+  property bool focused: activeFocus
+  // a standalone chip in a panel; inside a ButtonGroup the group takes the keys
+  property bool focusable: false
+  activeFocusOnTab: focusable
+  Keys.onReturnPressed: root.clicked()
+  Keys.onEnterPressed: root.clicked()
+  Keys.onSpacePressed: root.clicked()
   property real fontSize: Style.font.caption
   property string fontFamily: Style.font.family
   property real minimumWidth: Style.space(40)
@@ -24,8 +32,9 @@ Rectangle {
     : hot ? Style.hoverFill
     : Style.normalFill
 
-  border.color: Style.hoverBorderColor
-  border.width: hot && !selected ? Style.hoverBorderWidth : 0
+  border.color: focused ? Util.alpha(Style.focusStateColor(Colors.foreground, Colors.accent), Style.focusBorderAlpha)
+    : Style.hoverBorderColor
+  border.width: focused ? Style.focusBorderWidth : hot && !selected ? Style.hoverBorderWidth : 0
 
   Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
 

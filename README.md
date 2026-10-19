@@ -2,7 +2,10 @@
   <h1>Arch Dotfiles</h1>
 </div>
 
-From the Arch ISO:
+Easiest: write [Arch Linux-LSCK0](https://mirror.lsck0.dev/iso/) (`archlinux-lsck0-latest-x86_64.iso`) to a stick and
+boot it; the installer starts on its own (`mirror/iso/README.md`: answer file, verifying the download).
+
+Or from the official Arch ISO:
 
 ```bash
 curl -fsSL https://install-linux.lsck0.dev | sh

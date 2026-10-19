@@ -77,6 +77,19 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
     }
 }
 
+const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):\d+\]'
+const ERROR_MARK = '^(x|×) '
+
+# one line from a rendered nushell error: the first file:line it points at, then its message
+export def error-brief [rendered: string, --root: path]: nothing -> string {
+    let rows = $rendered | lines | str trim | where $it != ""
+    let message = $rows | where $it =~ $ERROR_MARK | get --optional 0 | default ($rows | get --optional 0 | default "unknown error") | str replace --regex $ERROR_MARK "" | str trim --right --char "."
+    let at = $rendered | parse --regex $ERROR_AT | where file != "<commandline>" | get --optional 0
+    if $at == null { return $message }
+    let file = if $root != null and ($at.file | str starts-with $"($root)/") { $at.file | path relative-to $root } else { $at.file }
+    $"($file):($at.line): ($message)"
+}
+
 export def run-journal []: nothing -> nothing {
     if ($env.DOT_RUN_FILE? | is-empty) or not ($env.DOT_RUN_FILE | path exists) { return }
     open --raw $env.DOT_RUN_FILE | lines | each { from json } | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|

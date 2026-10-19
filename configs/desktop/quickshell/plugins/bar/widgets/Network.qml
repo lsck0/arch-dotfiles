@@ -411,7 +411,24 @@ BarWidget {
               width: parent.width
               height: Style.row.list
               radius: Style.shape.data
-              color: wifiNet.modelData.active ? Colors.menu.selectedBackground : (netMouse.containsMouse ? Style.hoverFill : "transparent")
+              color: wifiNet.modelData.active ? Colors.menu.selectedBackground
+                : activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+                : netMouse.containsMouse ? Style.hoverFill : "transparent"
+
+              activeFocusOnTab: !wifiNet.modelData.active
+              Keys.onReturnPressed: netRow.activate()
+              Keys.onEnterPressed: netRow.activate()
+              Keys.onSpacePressed: netRow.activate()
+
+              function activate() {
+                if (wifiNet.modelData.active) return
+                if (!wifiNet.modelData.secure) {
+                  root.connectTo(wifiNet.modelData.ssid, "")
+                  return
+                }
+                netRow.pendingConnect = !netRow.pendingConnect
+                if (netRow.pendingConnect) Qt.callLater(pwInput.forceActiveFocus)
+              }
 
               Text {
                 id: netIcon
@@ -454,14 +471,7 @@ BarWidget {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  if (wifiNet.modelData.active) return
-                  if (wifiNet.modelData.secure) {
-                    netRow.pendingConnect = !netRow.pendingConnect
-                  } else {
-                    root.connectTo(wifiNet.modelData.ssid, "")
-                  }
-                }
+                onClicked: netRow.activate()
               }
             }
 

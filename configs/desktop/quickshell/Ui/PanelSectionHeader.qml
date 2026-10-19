@@ -4,6 +4,9 @@ import qs.Commons
 Text {
   id: root
 
+  // HoverPanel's Tab jumps between these
+  readonly property bool panelSectionHeader: true
+
   property color foreground: Colors.accent
   property string fontFamily: Style.font.family
   property real fontSize: Style.font.caption

@@ -78,7 +78,7 @@ export def link [cfg: record] {
         (files-into ($nu.home-dir | path join .local share dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
-        # someone else's formats follow the locale bootstrap.sh set, not luca's
+        # without identity the formats follow the locale bootstrap.sh set, not the owner's
         (rc-files | where {|f| $f != plasma-localerc or (profile-has identity) } | each {|f| file-copy $f ($config | path join $f) })
         $applets
         (file-render plasmarc ($config | path join plasmarc) $values)

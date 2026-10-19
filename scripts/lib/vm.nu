@@ -7,7 +7,14 @@ const POOL = "default"
 const POOL_DIR = "/var/lib/libvirt/images"
 const CONSOLE_DIR = "/var/log/libvirt/qemu"
 const ISO_VOLUME = "vm-test-archlinux.iso"
+# the lsck0 iso (dot internal iso) runs its installer on its own and reads lsck0.nuon from a medium labelled LSCK0
+const LSCK0_ISO_LABEL = "ARCH_LSCK0_"
+const LSCK0_VOLUME = "vm-test-archlinux-lsck0.iso"
+const ANSWERS_LABEL = "LSCK0"
+const ANSWERS_NAME = "lsck0.nuon"
+const LSCK0_FAILED = "install: failed"
 export const USER = "luca"
+export const PROFILE = "luca"
 const PASSWORD = "admin"
 export const PLATFORM = "test-vm"
 const BOOTSTRAP_PASSTHROUGH = [BOOTSTRAP_SERVER BOOTSTRAP_SECURE_BOOT BOOTSTRAP_HOSTNAME BOOTSTRAP_GROUPS BOOTSTRAP_SSH_KEY]
@@ -195,7 +202,7 @@ def run-step [name: string, host: record, step: string, script: string, layout: 
 }
 
 # qemu in the system pool cannot read the home dir
-def pool-iso [iso: path]: nothing -> string {
+def pool-iso [iso: path, volume: string, --fresh]: nothing -> string {
     if $POOL not-in (virsh pool-list --all --name | lines | str trim) {
         virsh pool-define-as $POOL dir --target $POOL_DIR | ignore
         virsh pool-build $POOL | ignore
@@ -203,17 +210,51 @@ def pool-iso [iso: path]: nothing -> string {
     }
     if not (virsh pool-info $POOL | str contains running) { virsh pool-start $POOL | ignore }
     let size = ls $iso | get 0.size | into int | into string
-    if not (virsh vol-info --pool $POOL $ISO_VOLUME --bytes | str contains $size) {
-        virsh vol-delete --pool $POOL $ISO_VOLUME | ignore
-        virsh vol-create-as $POOL $ISO_VOLUME $size --format raw | ignore
-        virsh vol-upload --pool $POOL $ISO_VOLUME $iso | ignore
+    if $fresh or not (virsh vol-info --pool $POOL $volume --bytes | str contains $size) {
+        virsh vol-delete --pool $POOL $volume | ignore
+        virsh vol-create-as $POOL $volume $size --format raw | ignore
+        virsh vol-upload --pool $POOL $volume $iso | ignore
     }
-    virsh vol-path --pool $POOL $ISO_VOLUME | str trim
+    virsh vol-path --pool $POOL $volume | str trim
+}
+
+def iso-is-lsck0 [iso: path]: nothing -> bool {
+    ^blkid -p -s LABEL -o value $iso | complete | get stdout | str trim | str starts-with $LSCK0_ISO_LABEL
+}
+
+def answers-volume [name: string]: nothing -> string { $"vm-test-($name)-answers.iso" }
+
+# the same answers the typed path passes as env, as the lsck0 iso's answer file on a second cd
+def answers-iso [name: string, bundle: any, platform: string, user: string, profile: string]: nothing -> path {
+    let dir = cache-dir $name | path join answers
+    rm --recursive --force $dir
+    mkdir $dir
+    let given = {|n| $env | get --optional $n | default "" }
+    let passthrough = [
+        [var key value];
+        [BOOTSTRAP_SERVER server ((do $given BOOTSTRAP_SERVER) == "1")]
+        [BOOTSTRAP_SECURE_BOOT secure_boot (do $given BOOTSTRAP_SECURE_BOOT)]
+        [BOOTSTRAP_HOSTNAME hostname (do $given BOOTSTRAP_HOSTNAME)]
+        [BOOTSTRAP_GROUPS groups (do $given BOOTSTRAP_GROUPS | split row --regex '\s+' | where $it != "")]
+        [BOOTSTRAP_SSH_KEY ssh_key (do $given BOOTSTRAP_SSH_KEY)]
+    ] | where {|r| (do $given $r.var) != "" } | reduce --fold {} {|r, acc| $acc | insert $r.key $r.value }
+    let source = if $bundle == null { {} } else {
+        cp $bundle ($dir | path join snapshot.bundle)
+        let lfs = snapshot-lfs $name
+        if $lfs != null { cp $lfs ($dir | path join snapshot-lfs.tar) }
+        {source: ({bundle: snapshot.bundle} | merge (if $lfs == null { {} } else { {lfs: snapshot-lfs.tar} }))}
+    }
+    {username: $user, profile: $profile, platform: $platform, disk: $DISK, password: $PASSWORD, unattended: true}
+    | merge $passthrough | merge $source | to nuon | save --force ($dir | path join $ANSWERS_NAME)
+    let iso = cache-dir $name | path join answers.iso
+    ^xorriso -as mkisofs -quiet -V $ANSWERS_LABEL -J -r -o $iso $dir
+    $iso
 }
 
 export def vm-destroy [name: string]: nothing -> nothing {
     virsh destroy $name | ignore
     virsh undefine $name --nvram --storage vda | ignore
+    virsh vol-delete --pool $POOL (answers-volume $name) | ignore
 }
 
 def snapshot-bundle [name: string]: nothing -> path {
@@ -246,15 +287,36 @@ def snapshot-lfs [name: string]: nothing -> any {
     $tar
 }
 
-def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string]: nothing -> nothing {
+# nothing typed: the iso's installer reads the answers, its failure line stays on tty1
+def lsck0-await [name: string]: nothing -> nothing {
+    let deadline = (date now) + $BOOTSTRAP_TIMEOUT
+    while (virsh domstate $name | str trim) != "shut off" {
+        if (screen-text $name | str contains $LSCK0_FAILED) { error make {msg: "the lsck0 iso's install failed, see `dot test shot` (log in the guest's /tmp/lsck0-install.log)"} }
+        if (date now) > $deadline { error make {msg: $"the lsck0 iso's install still running after ($BOOTSTRAP_TIMEOUT)"} }
+        sleep $POLL
+    }
+}
+
+def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string, profile: string]: nothing -> nothing {
     vm-destroy $name
+    let lsck0 = iso-is-lsck0 $iso
+    let cdrom = if $lsck0 { pool-iso $iso $LSCK0_VOLUME } else { pool-iso $iso $ISO_VOLUME }
+    let answers = if $lsck0 {
+        [--disk $"path=(pool-iso (answers-iso $name $bundle $platform $user $profile) (answers-volume $name) --fresh),device=cdrom,readonly=on"]
+    } else { [] }
     let console = $CONSOLE_DIR | path join $"($name)-serial.log"
     (^sudo virt-install --connect $CONNECT --name $name --memory 12288 --vcpus 8 --cpu host-passthrough
-        --serial $"file,path=($console)" --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom (pool-iso $iso)
+        --serial $"file,path=($console)" --disk $"pool=($POOL),size=($DISK_GIB),format=qcow2,bus=virtio,discard=unmap" --cdrom $cdrom ...$answers
         --osinfo archlinux --network user,model=virtio --graphics spice --video virtio --noautoconsole
         --features smm.state=on
         --boot "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no")
     let follow = ^bash -c $"sudo -n tail --pid=($nu.pid) -n +1 -F '($console)' >&2 2>/dev/null & echo $!" | str trim
+    if $lsck0 {
+        lsck0-await $name
+        ^kill $follow | complete | ignore
+        virsh start $name | ignore
+        return
+    }
     wait-screen $name [root@archiso] $BOOT_TIMEOUT | ignore
     let checkout = if $bundle == null { "" } else {
         ^ln -sf $bundle ($host.dir | path join file snapshot.bundle)
@@ -276,7 +338,7 @@ def bootstrap [name: string, iso: path, host: record, bundle: any, platform: str
         "exec > >(tee /dev/ttyS0) 2>&1"
         "pacman -Sy --noconfirm --needed git"
         $"cd /tmp && git clone ($REPO_URL) && cd arch-dotfiles($checkout) \\"
-        $"    && ($answers)BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
+        $"    && ($answers)BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_PROFILE=($profile) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
         "    | tee /tmp/bootstrap.log \\"
         $"    || { curl -sT /tmp/bootstrap.log ($HOST)/bootstrap.log; (beacon-cmd bootstrap-fail); }"
     ] | str join "\n" | $"($in)\n") us
@@ -374,14 +436,14 @@ export def verify [logs: path]: nothing -> list<string> {
     $facts ++ $failures ++ $stages
 }
 
-export def vm-run [name: string, iso: path, platform: string, user: string, master: bool]: nothing -> nothing {
-    for t in [virt-install virsh tesseract magick socat] {
+export def vm-run [name: string, iso: path, platform: string, user: string, profile: string, master: bool]: nothing -> nothing {
+    for t in [virt-install virsh tesseract magick socat xorriso blkid] {
         if (which $t | is-empty) { error make {msg: $"($t) missing"} }
     }
     if not ($iso | path exists) { error make {msg: $"no iso at ($iso)"} }
     sudo-keepalive
     let host = host-start $name (cache-dir $name | path join logs.tgz)
-    bootstrap $name $iso $host (if $master { null } else { snapshot-bundle $name }) $platform $user
+    bootstrap $name $iso $host (if $master { null } else { snapshot-bundle $name }) $platform $user $profile
     await-chain $name
     login-tty $name $host $user
     let logs = pull-logs $name $host

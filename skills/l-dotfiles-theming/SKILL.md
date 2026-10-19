@@ -30,8 +30,9 @@ Shape and glass come from `palette.nu` too: `RADIUS_PX`, `BORDER_PX`, `OPACITY_W
 them into its program's config (`style.lua`, `dotfiles-style.css`, `ROUNDNESS`), quickshell reads them from
 `Palette.js`, and a program that reads config live (qutebrowser, nvim) reads `~/.config/dotfiles/style.json`.
 
-Light themes: `ayu-light`, `gruvbox-light`, `solarized-dawn`. Every theme names its closest theme of the other mode
-in `"pair"` (a light one pairs back), which `toggle-theme-mode.nu` flips to; `themes.test.nu` checks it, so a new
+Most families have a light theme (`catppuccin-latte`, `rose-pine-dawn`, `alucard`, ...) and some a soft one
+(`gruvbox-*-soft`, `everforest-*-soft`). Every theme names its family's theme of the other mode in `"pair"` (a light
+one pairs back), which `toggle-theme-mode.nu` flips to; `themes.test.nu` checks it, so a new
 theme needs one. It also holds every theme's raw palette to contrast floors on its background (foreground and
 color4 4.5:1, the accents and color8 3:1), since templates use those colours unconditioned. `gruvbox-light`'s
 wallpaper is in `secrets/wallpapers/` and needs unlocked secrets.

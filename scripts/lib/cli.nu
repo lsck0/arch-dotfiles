@@ -39,9 +39,8 @@ export def guarded [name: string, body: closure]: nothing -> any {
         let run = $env.DOT_RUN_FILE
         let file = $run | path dirname | path dirname | path join crash.json
         let tail = if ($run | path exists) { open --raw $run | lines | last $CRASH_LOG_LINES } else { [] }
-        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, debug: $err.debug, build: (build), log: $tail} | save --force $file
-        print -e $err.rendered
-        log-record PANIC $"crash record: ($file)" {msg_detail: $err.msg}
+        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, debug: $err.debug, rendered: $err.rendered, build: (build), log: $tail} | save --force $file
+        log-record PANIC $"(error-brief $err.rendered --root $REPO); the full error is in ($file)" {msg_detail: $err.msg}
         run-journal
         exit 1
     }

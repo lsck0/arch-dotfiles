@@ -1,0 +1,27 @@
+{
+  "wallpaper": "anime-spirited-away-sea-railway-island-house.jpg",
+  "pair": "kanagawa",
+  "special": {
+    "background": "#f2ecbc",
+    "foreground": "#545464",
+    "cursor": "#43436c"
+  },
+  "colors": {
+    "color0": "#1f1f28",
+    "color1": "#c84053",
+    "color2": "#6f894e",
+    "color3": "#77713f",
+    "color4": "#4d699b",
+    "color5": "#b35b79",
+    "color6": "#597b75",
+    "color7": "#545464",
+    "color8": "#87867e",
+    "color9": "#d7474b",
+    "color10": "#6d905e",
+    "color11": "#836f4a",
+    "color12": "#4b6d8d",
+    "color13": "#624c83",
+    "color14": "#5e857a",
+    "color15": "#43436c"
+  }
+}

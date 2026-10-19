@@ -1,0 +1,27 @@
+{
+  "wallpaper": "anime-spirited-away-stone-statues-field.jpg",
+  "pair": "everforest-dark-soft",
+  "special": {
+    "background": "#f3ead3",
+    "foreground": "#5c6a72",
+    "cursor": "#5c6a72"
+  },
+  "colors": {
+    "color0": "#708089",
+    "color1": "#eb514e",
+    "color2": "#7d8f01",
+    "color3": "#b07e00",
+    "color4": "#2c7095",
+    "color5": "#cc60aa",
+    "color6": "#309670",
+    "color7": "#939f91",
+    "color8": "#7c8b7b",
+    "color9": "#d76161",
+    "color10": "#768e47",
+    "color11": "#b07e00",
+    "color12": "#2c7095",
+    "color13": "#cc60aa",
+    "color14": "#309670",
+    "color15": "#a6b0a0"
+  }
+}

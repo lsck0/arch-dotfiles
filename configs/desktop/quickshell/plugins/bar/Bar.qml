@@ -56,13 +56,56 @@ PanelWindow {
   readonly property bool quiet: Power.saver || fullscreenBelow
 
   property string activePanel: ""
+  // opened by a click or a keybind: hover no longer closes or switches it, only a toggle, Esc or an outside click
+  property string pinnedPanel: ""
+  // opened by a keybind: the panel takes the keyboard
+  property bool keyboardPanel: false
+  property var panelNames: []
+
+  function panelRegister(id) {
+    if (panelNames.indexOf(id) === -1) panelNames = panelNames.concat([id])
+  }
+
+  function panelUnregister(id) {
+    panelNames = panelNames.filter(function(name) { return name !== id })
+  }
+
+  function panelShow(id, pinned, keyboard) {
+    hoverCloseTimer.stop()
+    switchIntent.stop()
+    // set before activePanel: HoverPanel reads both when it turns shown
+    pinnedPanel = pinned ? id : ""
+    keyboardPanel = keyboard
+    if (activePanel === id) return
+    panelSwitching = activePanel !== ""
+    activePanel = id
+    panelHovered = false
+    if (panelSwitching) switchSettle.restart()
+  }
+
+  function panelHide() {
+    hoverCloseTimer.stop()
+    switchIntent.stop()
+    pendingPanel = ""
+    pinnedPanel = ""
+    keyboardPanel = false
+    activePanel = ""
+  }
 
   function togglePanel(id) {
-    activePanel = activePanel === id ? "" : id
+    if (activePanel === id) panelHide()
+    else panelShow(id, true, true)
   }
 
   function closePanel(id) {
-    if (activePanel === id) activePanel = ""
+    if (activePanel === id) panelHide()
+  }
+
+  // a click on the trigger pins a hover-opened panel, a second click closes it
+  function panelClick(id) {
+    if (panelNames.indexOf(id) === -1) return
+    if (activePanel === id && pinnedPanel === id) panelHide()
+    else panelShow(id, true, false)
   }
 
   property bool triggerHovered: false
@@ -72,7 +115,8 @@ PanelWindow {
     id: hoverCloseTimer
     interval: 350
     onTriggered: {
-      if (!root.triggerHovered && !root.panelHovered) root.activePanel = ""
+      if (root.pinnedPanel !== "") return
+      if (!root.triggerHovered && !root.panelHovered) root.panelHide()
     }
   }
 
@@ -83,32 +127,36 @@ PanelWindow {
     onTriggered: root.panelSwitching = false
   }
 
+  // passing over the bar opens nothing; once one panel is open, moving to the next switches faster
+  readonly property int hoverOpenDelayMs: 140
+  readonly property int hoverSwitchDelayMs: 70
+
   property string pendingPanel: ""
   Timer {
     id: switchIntent
-    interval: 70
+    interval: root.hoverOpenDelayMs
     onTriggered: root.applyHoverOpen(root.pendingPanel)
   }
 
   function hoverOpen(id) {
+    if (root.pinnedPanel !== "") {
+      if (root.pinnedPanel === id) root.triggerHovered = true
+      return
+    }
     hoverCloseTimer.stop()
     root.pendingPanel = id
-    if (root.activePanel === "" || root.activePanel === id) {
+    if (root.activePanel === id) {
       switchIntent.stop()
       root.applyHoverOpen(id)
-    } else {
-      switchIntent.restart()
+      return
     }
+    switchIntent.interval = root.activePanel === "" ? root.hoverOpenDelayMs : root.hoverSwitchDelayMs
+    switchIntent.restart()
   }
 
   function applyHoverOpen(id) {
-    if (root.pendingPanel !== id) return
-    if (root.activePanel !== id) {
-      root.panelSwitching = root.activePanel !== ""
-      root.activePanel = id
-      root.panelHovered = false
-      if (root.panelSwitching) switchSettle.restart()
-    }
+    if (root.pendingPanel !== id || root.pinnedPanel !== "") return
+    if (root.activePanel !== id) root.panelShow(id, false, false)
     root.triggerHovered = true
   }
 
@@ -140,12 +188,26 @@ PanelWindow {
   }
   readonly property string ipcTarget: ownsGlobalIpcTarget ? "bar" : "bar-" + ipcScreenName
 
+  function panelUnknown(panel) {
+    return "unknown panel " + panel + ", panels: " + panelNames.join(" ")
+  }
+
+  // keybinds in hyprland_keybindings.lua (the panels submap) call toggle
   IpcHandler {
     target: root.ipcTarget
-    function open(panel: string): void { root.activePanel = panel }
-    function close(): void { root.activePanel = "" }
-    function toggle(panel: string): void { root.togglePanel(panel) }
+    function open(panel: string): string {
+      if (root.panelNames.indexOf(panel) === -1) return root.panelUnknown(panel)
+      root.panelShow(panel, true, true)
+      return ""
+    }
+    function close(): void { root.panelHide() }
+    function toggle(panel: string): string {
+      if (root.panelNames.indexOf(panel) === -1) return root.panelUnknown(panel)
+      root.togglePanel(panel)
+      return ""
+    }
     function state(): string { return root.activePanel }
+    function list(): string { return root.panelNames.join(" ") }
   }
 
   property int layoutRevision: 0

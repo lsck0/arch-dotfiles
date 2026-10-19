@@ -1,6 +1,7 @@
-# unattended env: BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOME_NETWORK,ENCRYPT} and for a new
-# machine BOOTSTRAP_{HOSTNAME,SERVER,SSH_KEY,GROUPS,TIMEZONE,LOCALE,SECURE_BOOT}; ENCRYPT and SERVER are 0 or 1 (1 and 0
-# by default), SECURE_BOOT is own, microsoft (the default) or off
+# unattended env: BOOTSTRAP_{USERNAME,PROFILE,PLATFORM,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOME_NETWORK,
+# ENCRYPT} and for a server or custom machine BOOTSTRAP_{HOSTNAME,SSH_KEY,GROUPS,TIMEZONE,LOCALE,SECURE_BOOT}. PROFILE is
+# a profiles/ name or custom (the default), PLATFORM a platforms/ name, server or custom (the default; the argument wins);
+# ENCRYPT is 0 or 1 (default 1), SECURE_BOOT own, microsoft (the default) or off. BOOTSTRAP_SERVER=1 still means server
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
@@ -54,13 +55,15 @@ const PLATFORM_LOCAL_OPTIONS = "/etc/dotfiles/platform.options.nuon"
 const PLATFORM_NEW = "custom"
 const PLATFORM_TEMPLATES = "platforms/templates"
 const SERVER = "server"
-const SERVER_DESCRIPTION = "the base system hardened, ssh and docker, nothing else"
+const PROFILE_CUSTOM = "custom"
+# menu labels by a platform file's form_factor
+const FORM_FACTOR_LABELS = {desktop: PC, laptop: notebook, wsl: WSL, vm: VM, server: server}
 const SBCTL_MODULE = "base/boot/sbctl"
 const SECURE_BOOT_DEFAULT = "microsoft"
 const SECURE_BOOT_CHOICES = {
-    own: "own keys and this machine's option rom hashes, no Microsoft CA: no Windows or other signed loaders"
-    microsoft: "own keys plus Microsoft's CA: Windows and any option rom keep booting"
-    off: "no secure boot keys, nothing signed"
+    own: "own keys only, Windows will not boot"
+    microsoft: "own keys plus Microsoft's, Windows still boots"
+    off: "no Secure Boot"
 }
 const SSH_KEY_PATTERN = '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
 const PLATFORMS_HIDDEN = [test-vm]
@@ -149,13 +152,19 @@ def ask [check: closure, label: string, text: string, default: string]: nothing 
     loop {
         let answer = if (tui) { screen $label inputbox $"($note)($text)" $default } else { input $"($label) [($default)]: " | if ($in | is-empty) { $default } else { $in } }
         if (do $check $answer) { return $answer }
-        $note = $"'($answer)' is not valid, try again.\n\n"
+        $note = $"'($answer)' is not valid.\n\n"
         if not (tui) { log-warn $note }
     }
 }
 
 def menu [title: string, text: string, default: string, items: list<string>]: nothing -> string {
     dlg --title $title --default-item $default --menu $text "0" ($TUI_WIDTH | into string) "0" ...$items
+}
+
+# a menu without dialog: the tags with their text, then the tag typed
+def menu-plain [label: string, default: string, items: list<string>]: nothing -> string {
+    $items | chunks 2 | each {|i| print -e $"  ($i.0 | fill --width 16)($i.1)" } | ignore
+    input $"($label) [($default)]: " | default --empty $default
 }
 
 def yes [title: string, text: string, --default-yes]: nothing -> bool {
@@ -186,9 +195,9 @@ def keymap-load [keymap: string]: nothing -> bool {
 
 def ask-keymap []: nothing -> string {
     if not (tui) { return (ask {|k| keymap-load $k } keymap "" $KEYMAP_DEFAULT) }
-    let picked = menu keyboard "Keyboard layout (console, boot password prompt, desktop). Applies now." $KEYMAP_DEFAULT ($COMMON_KEYMAPS ++ [other "type another console keymap"])
+    let picked = menu keyboard "Keyboard layout:" $KEYMAP_DEFAULT ($COMMON_KEYMAPS ++ [other "type one in"])
     if $picked != "other" { return $picked }
-    ask {|k| keymap-load $k } keymap "Console keymap name, as in /usr/share/kbd/keymaps, e.g. cz, hu, ru, trq:" ""
+    ask {|k| keymap-load $k } keymap "Keymap name, e.g. cz, hu, ru:" ""
 }
 
 def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
@@ -201,15 +210,15 @@ def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
         let first = if (tui) { screen $label passwordbox $"($note)($hint)" } else { print -e $hint; input -s $"($label): " }
         if ($first | is-empty) {
             if $empty_ok { return "" }
-            $note = "It must not be empty.\n\n"
+            $note = "It can't be empty.\n\n"
             if not (tui) { die $"empty ($label)" }
             continue
         }
-        let second = if (tui) { screen $label passwordbox "The same again:" } else { print -e ""; input -s "again: " }
+        let second = if (tui) { screen $label passwordbox "Again:" } else { print -e ""; input -s "again: " }
         if not (tui) { print -e "" }
         if $first == $second { return $first }
-        if not (tui) { die "passwords differ" }
-        $note = "The two did not match, once more.\n\n"
+        if not (tui) { die "the passwords did not match" }
+        $note = "They did not match.\n\n"
     }
 }
 
@@ -311,7 +320,7 @@ def user-setup [c: record]: nothing -> nothing {
     }
     let local = $"($root)($PLATFORM_LOCAL)"
     let local_options = $"($root)($PLATFORM_LOCAL_OPTIONS)"
-    if $c.platform == $PLATFORM_NEW {
+    if $c.generic {
         mkdir ($local | path dirname)
         let facts = if $c.secure_boot == "own" { {facts: {secure_boot_own_keys: true}} } else { {} }
         let kind = if $c.form_factor in ["" wsl] { {} } else { {form_factor: $c.form_factor} }
@@ -325,7 +334,7 @@ def user-setup [c: record]: nothing -> nothing {
         rm --force $local
     }
     let profile = $home | path join .config dotfiles profile.nuon
-    if ($c.profile_file | path exists) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
+    if ($c.profile_file | is-not-empty) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
     # password logins are off in sshd (base/ssh), so a headless machine is reachable only with this key
     if ($c.ssh_key | is-not-empty) {
         let keys = $home | path join .ssh authorized_keys
@@ -442,104 +451,152 @@ def on-wsl []: nothing -> bool {
     open --raw /proc/sys/kernel/osrelease | str lowercase | str contains microsoft
 }
 
+def platform-names [repo: path]: nothing -> list<string> {
+    glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem } | sort
+}
+
+# the menu's tag and text pairs: the platform files for this kind of host, then server and custom
+def platform-items [repo: path, wsl: bool]: nothing -> list<string> {
+    let fixed = platform-names $repo | where $it not-in $PLATFORMS_HIDDEN | each {|p|
+        {name: $p, form_factor: (open ($repo | path join platforms $"($p).nuon") | get --optional form_factor | default "")}
+    } | where {|p| ($p.form_factor == "wsl") == $wsl } | each {|p|
+        [$p.name ($FORM_FACTOR_LABELS | get --optional $p.form_factor | default $p.form_factor)]
+    } | flatten
+    let server = if $wsl { [] } else { [$SERVER "no desktop, just ssh and docker"] }
+    $fixed ++ $server ++ [$PLATFORM_NEW "any other machine, you pick hostname and groups"]
+}
+
+# the profiles/ name and its capabilities; custom has none and copies no file
+export def bootstrap-profile-resolve [repo: path, picked: string]: nothing -> record {
+    if $picked == $PROFILE_CUSTOM { return {name: $PROFILE_CUSTOM, file: "", capabilities: []} }
+    let names = glob ($repo | path join profiles *.nuon) | each { path parse | get stem } | sort
+    if $picked not-in $names { die $"unknown profile '($picked)', one of: ($names | append $PROFILE_CUSTOM | str join ' ')" }
+    let file = $repo | path join profiles $"($picked).nuon"
+    {name: $picked, file: $file, capabilities: (open $file | get --optional capabilities | default [])}
+}
+
+# a platforms/ file, or server and custom: the two that ask for the machine and write /etc/dotfiles/platform.nuon
+export def bootstrap-platform-resolve [repo: path, picked: string, wsl: bool]: nothing -> record {
+    let server_flag = env-or BOOTSTRAP_SERVER
+    if $server_flag not-in ["" "0" "1"] { die $"BOOTSTRAP_SERVER is '($server_flag)', expected 0 or 1" }
+    let name = if $picked == $PLATFORM_NEW and $server_flag == "1" { $SERVER } else { $picked }
+    if $name == $SERVER and $wsl { die "server is not for WSL, pick custom" }
+    if $name in [$PLATFORM_NEW $SERVER] { return {name: $name, generic: true, server: ($name == $SERVER)} }
+    let names = platform-names $repo
+    if $name not-in $names { die $"unknown machine '($name)', one of: ($names | where $it not-in $PLATFORMS_HIDDEN | append [$SERVER $PLATFORM_NEW] | str join ' ')" }
+    {name: $name, generic: false, server: false}
+}
+
+export def bootstrap-profile-choose [repo: path]: nothing -> record {
+    let given = env-or BOOTSTRAP_PROFILE
+    let picked = if ($given | is-not-empty) { $given } else if (assume) { $PROFILE_CUSTOM } else {
+        let named = glob ($repo | path join profiles *.nuon) | sort | each {|f|
+            let p = open $f
+            let caps = $p.capabilities? | default [] | str join ", "
+            [($f | path parse | get stem) $"($p.name? | default ($f | path parse | get stem)): ($caps)"]
+        } | flatten
+        let items = $named ++ [$PROFILE_CUSTOM "nothing personal: no secrets, accounts or homelab"]
+        if (tui) { menu profile "Profile:" $PROFILE_CUSTOM $items } else { menu-plain profile $PROFILE_CUSTOM $items }
+    }
+    bootstrap-profile-resolve $repo $picked
+}
+
+export def bootstrap-platform-choose [repo: path, platform_arg: string, wsl: bool]: nothing -> record {
+    let given = [$platform_arg (env-or BOOTSTRAP_PLATFORM)] | where $it != "" | get --optional 0
+    let picked = if $given != null { $given } else if (assume) { $PLATFORM_NEW } else {
+        let items = platform-items $repo $wsl
+        if (tui) { menu machine "Machine:" $PLATFORM_NEW $items } else { menu-plain machine $PLATFORM_NEW $items }
+    }
+    bootstrap-platform-resolve $repo $picked $wsl
+}
+
 export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing {
     if not (is-admin) { die "run as root" }
-    if not (on-archiso) and not (on-wsl) { die "bootstrap runs only from the Arch ISO or inside WSL" }
+    if not (on-archiso) and not (on-wsl) { die "run this from the Arch ISO or inside WSL" }
     $env.LOG_TAG = "bootstrap"
     let wsl = on-wsl
     mirrors-rank
     tui-init
     let welcome = if $wsl {
-        "WSL setup: a user with sudo, the checkout, wsl.conf. Then restart the distro and run dot sync --no-push.\n\nEsc or Cancel quits."
+        "Sets up this WSL distro: a user with sudo, the dotfiles and wsl.conf.\n\nEsc quits."
     } else {
-        "Installs Arch Linux with the arch-dotfiles. Questions first (nothing written until you confirm), then the chosen disk is ERASED (and encrypted, unless you opt out), then unattended reboots while it installs (can take hours; stay plugged in and online).\n\nEsc or Cancel quits."
+        "Installs Arch Linux. Nothing changes until you confirm at the end.\nThen the disk is erased and the install runs on its own over a few reboots. That can take hours.\n\nEsc quits."
     }
     if (tui) { screen welcome msgbox $welcome | ignore }
 
     let keymap = if $wsl { $KEYMAP_DEFAULT } else { env-or BOOTSTRAP_KEYMAP | if ($in | is-empty) { ask-keymap } else { $in } }
     if not $wsl and not (keymap-load $keymap) { die $"unknown keymap '($keymap)'" }
 
-    let profiles = glob ($repo | path join profiles *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem }
     let username = env-or BOOTSTRAP_USERNAME | if ($in | is-empty) {
-        # no default: a profile's name taken by enter would hand a stranger the owner's identity and capabilities
         if (assume) { die "BOOTSTRAP_USERNAME is required unattended" }
-        ask {|u| $u =~ $USERNAME_PATTERN } username $"Your login name. A name with a profile \(($profiles | str join ' ' | default none)\) gets that profile's secrets/identity/homelab; any other name is a guest \(same desktop and tools, no personal parts\)." ""
+        ask {|u| $u =~ $USERNAME_PATTERN } "login name" "Login name:" ""
     } else { $in }
-    if $username !~ $USERNAME_PATTERN { die $"invalid username '($username)', expected ($USERNAME_PATTERN)" }
-    let profile_nuon = $repo | path join profiles $"($username).nuon"
-    let capabilities = if ($profile_nuon | path exists) { open $profile_nuon | get capabilities } else { [] }
-
-    let platforms = glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem }
-        | where $it not-in $PLATFORMS_HIDDEN
-    let platform = if ($platform_arg | is-not-empty) { $platform_arg } else if (assume) { $PLATFORM_NEW } else if (tui) {
-        let items = $platforms | each {|p| [$p (open ($repo | path join platforms $"($p).nuon") | get form_factor)] } | flatten
-        menu machine "Which machine is this?" $PLATFORM_NEW ($items ++ [$PLATFORM_NEW "any other machine: a few questions"])
-    } else {
-        print $"platforms: ($platforms | str join ' ') ($PLATFORM_NEW)"
-        input $"platform [($PLATFORM_NEW)]: " | if ($in | is-empty) { $PLATFORM_NEW } else { $in }
-    }
+    if $username !~ $USERNAME_PATTERN { die $"invalid login name '($username)', expected ($USERNAME_PATTERN)" }
+    let profile = bootstrap-profile-choose $repo
+    let capabilities = $profile.capabilities
+    let platform = bootstrap-platform-choose $repo $platform_arg $wsl
+    let platforms = platform-names $repo
 
     mut c = {
-        repo: $repo username: $username platform: $platform keymap: $keymap timezone: $TIMEZONE_DEFAULT
-        locale: $LOCALE_DEFAULT hostname: "" groups: [] form_factor: "" homelab: false home_gateway: null
-        home_ssid: "" target_root: $MOUNT profile_file: ($repo | path join profiles $"($username).nuon")
-        user_password: "" root_password: "" encrypt: true secure_boot: $SECURE_BOOT_DEFAULT options: {} ssh_key: ""
+        repo: $repo username: $username platform: $platform.name generic: $platform.generic keymap: $keymap
+        timezone: $TIMEZONE_DEFAULT locale: $LOCALE_DEFAULT hostname: "" groups: [] form_factor: "" homelab: false
+        home_gateway: null home_ssid: "" target_root: $MOUNT profile_file: $profile.file user_password: ""
+        root_password: "" encrypt: true secure_boot: $SECURE_BOOT_DEFAULT options: {} ssh_key: ""
     }
     if not $wsl {
-        let home = ask-flag BOOTSTRAP_HOME_NETWORK false "home network" "Is the network you are on now your home network?\n\nYes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.\n\nNo locks down every network, this one included."
+        let home = ask-flag BOOTSTRAP_HOME_NETWORK false "home network" "Are you on your home network right now?\n\nYes lets this machine find printers and other devices here. Other networks stay locked down."
         let gateway = if $home { home-gateway-mac } else { null }
-        if $home and $gateway == null { log-warn "no router mac found, every network stays foreign" }
+        if $home and $gateway == null { log-warn "no router found, every network counts as foreign" }
         $c = $c | merge {home_gateway: $gateway, home_ssid: (if $home { home-ssid } else { "" })}
     }
-    if $platform != $PLATFORM_NEW {
-        let file = $repo | path join platforms $"($platform).nuon"
-        if not ($file | path exists) { die $"unknown platform '($platform)', one of: ($platforms | str join ' ') ($PLATFORM_NEW)" }
+    if not $platform.generic {
+        let file = $repo | path join platforms $"($platform.name).nuon"
         let p = open $file
         if ($p.hostname? | is-empty) { die $"($file) sets no hostname" }
         let all = ls ($repo | path join configs) | where type == dir | get name | path basename
-        let options = $repo | path join platforms $"($platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
+        let options = $repo | path join platforms $"($platform.name).options.nuon" | if ($in | path exists) { open $in } else { {} }
         let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
         $c = $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
     } else {
         if $wsl { $c.form_factor = "wsl" }
+        let valid = {|h| $h =~ $HOSTNAME_PATTERN and $h not-in $platforms }
         let hostname = env-or BOOTSTRAP_HOSTNAME | if ($in | is-empty) {
-            ask {|h| $h =~ $HOSTNAME_PATTERN and $h not-in $platforms } hostname $"The machine's name on the network: letters, digits and dashes, none of ($platforms | str join ' ')." $"($username)-pc"
+            ask $valid hostname "Hostname (letters, digits, dashes):" (if $platform.server { $SERVER } else { "archlinux" })
         } else { $in }
-        if $hostname !~ $HOSTNAME_PATTERN or $hostname in $platforms { die $"invalid hostname '($hostname)', expected ($HOSTNAME_PATTERN) and none of: ($platforms | str join ' ')" }
+        if not (do $valid $hostname) { die $"invalid hostname '($hostname)': letters, digits and dashes, and none of ($platforms | str join ' ')" }
         $c.hostname = $hostname
-        let server = not $wsl and (ask-flag BOOTSTRAP_SERVER false server $"Is this a server?\n\nYes installs no desktop: ($SERVER_DESCRIPTION).\n\nNo asks for the package groups next.")
-        if $server {
+        if $platform.server {
             let template = $repo | path join $PLATFORM_TEMPLATES $"($SERVER).nuon"
             let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
             $c = $c | merge {form_factor: $SERVER, groups: (open $template | get groups), options: (if ($options | path exists) { open $options } else { {} })}
             let key = env-or BOOTSTRAP_SSH_KEY | if ($in | is-not-empty) or (assume) { $in } else {
-                ask {|k| ($k | is-empty) or $k =~ $SSH_KEY_PATTERN } "ssh key" $"($username)'s ssh public key, one line as in ~/.ssh/id_ed25519.pub. sshd takes keys only \(port 2222 after the knock, see sshk\), so without one the server is reachable at its console alone." ""
+                ask {|k| ($k | is-empty) or $k =~ $SSH_KEY_PATTERN } "ssh key" "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nThe server only takes key logins. Empty leaves just the console." ""
             }
             if ($key | is-not-empty) and $key !~ $SSH_KEY_PATTERN { die "BOOTSTRAP_SSH_KEY is not one ssh public key line" }
             $c.ssh_key = $key
         }
         if not $wsl {
             let timezone = env-or BOOTSTRAP_TIMEZONE | if ($in | is-empty) {
-                ask {|z| $z =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($z)" | path exists) } timezone "Region/City, e.g. Europe/London. Later follows your location on its own." $TIMEZONE_DEFAULT
+                ask {|z| $z =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($z)" | path exists) } timezone "Timezone, e.g. Europe/London:" $TIMEZONE_DEFAULT
             } else { $in }
             if not ($timezone =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($timezone)" | path exists)) { die $"unknown timezone '($timezone)'" }
             let known = open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }
             let locale = env-or BOOTSTRAP_LOCALE | if ($in | is-empty) {
-                ask {|l| $l in $known } locale "Language and formats, e.g. en_US.UTF-8, de_DE.UTF-8." $LOCALE_DEFAULT
+                ask {|l| $l in $known } locale "Locale, e.g. en_US.UTF-8 or de_DE.UTF-8:" $LOCALE_DEFAULT
             } else { $in }
             if $locale not-in $known { die $"unknown locale '($locale)'" }
             $c = $c | merge {timezone: $timezone, locale: $locale}
         }
         let universe = ls ($repo | path join configs) | where type == dir | get name | path basename | sort
-        let chosen = if $server { $c.groups } else if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
+        let chosen = if $platform.server { $c.groups } else if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
             env-or BOOTSTRAP_GROUPS | split row --regex '\s+' | where $it != ""
         } else if (assume) { $universe } else if (tui) {
             let items = $universe | where $it != $REQUIRED_GROUP | each {|g| [$g ($GROUP_DESCRIPTIONS | get --optional $g | default "") on] } | flatten
-            dlg --title "package groups" --separate-output --checklist $"Space toggles, Enter accepts. '($REQUIRED_GROUP)' \(($GROUP_DESCRIPTIONS | get $REQUIRED_GROUP)\) is always installed." "0" ($TUI_WIDTH | into string) "0" ...$items | lines
+            dlg --title groups --separate-output --checklist $"Package groups. Space toggles, Enter accepts. ($REQUIRED_GROUP) is always in." "0" ($TUI_WIDTH | into string) "0" ...$items | lines
         } else {
-            print -e $"package groups \(($REQUIRED_GROUP) always\):"
+            print -e $"package groups \(($REQUIRED_GROUP) is always in\):"
             $universe | enumerate | each { print -e $"  ($in.index + 1)  ($in.item)" } | ignore
-            let excludes = input "numbers to EXCLUDE (space-separated), enter for all: " | split row " " | where $it != ""
+            let excludes = input "numbers to leave out, Enter for none: " | split row " " | where $it != ""
             $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
         }
         let groups = [$REQUIRED_GROUP] ++ ($chosen | where $it != $REQUIRED_GROUP)
@@ -549,9 +606,9 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         if not $wsl {
             let modes = $SECURE_BOOT_CHOICES | columns
             let secure_boot = env-or BOOTSTRAP_SECURE_BOOT | if ($in | is-not-empty) or (assume) { $in | default --empty $SECURE_BOOT_DEFAULT } else if (tui) {
-                menu "secure boot" "Secure Boot: install signs the boot files with keys made on this machine and enrolls them in the firmware." $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
+                menu "secure boot" "Secure Boot:" $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
             } else {
-                input $"secure boot \(($modes | str join ', ')\) [($SECURE_BOOT_DEFAULT)]: " | default --empty $SECURE_BOOT_DEFAULT
+                menu-plain "secure boot" $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
             }
             if $secure_boot not-in $modes { die $"BOOTSTRAP_SECURE_BOOT is '($secure_boot)', expected one of ($modes | str join ', ')" }
             $c.secure_boot = $secure_boot
@@ -559,15 +616,15 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     }
 
     if $c.form_factor == "wsl" {
-        if not $wsl { die $"($platform) is a wsl platform, run it in the distro's root shell" }
-        let password = env-or BOOTSTRAP_USER_PASSWORD | if ($in | is-empty) { ask-password $"($username) password" "For login and sudo." false } else { $in }
+        if not $wsl { die $"($platform.name) is a WSL machine, run this in the distro's root shell" }
+        let password = env-or BOOTSTRAP_USER_PASSWORD | if ($in | is-empty) { ask-password $"($username) password" "Password for login and sudo:" false } else { $in }
         if ($password | is-empty) { die "empty password" }
         if (tui) { ^clear }
         pacman-init
         user-setup ($c | merge {target_root: "", user_password: $password, root_password: (env-or BOOTSTRAP_ROOT_PASSWORD)})
         $"($c.hostname)\n" | save --force /etc/hostname
         open --raw ($repo | path join configs base wsl wsl.conf) | str replace --all "@USER@" $username | str replace --all "@HOSTNAME@" $c.hostname | save --force /etc/wsl.conf
-        log-info $"done. from windows: wsl --terminate archlinux, reopen it \(now ($username) with systemd\), then: cd ~/projects/arch-dotfiles && dot sync --no-push"
+        log-info "done. in windows run: wsl --terminate archlinux, open it again, then: cd ~/projects/arch-dotfiles && dot sync --no-push"
         return
     }
 
@@ -575,8 +632,8 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     if not ("/sys/firmware/efi" | path exists) { die "not booted in UEFI mode" }
     if not (online) { die "no network" }
     let setup_mode = (try { open --raw $SETUP_MODE_VAR | into binary | last 1 | into int } catch { 0 }) == 1
-    if $c.secure_boot != "off" and not $setup_mode and not (assume) and not (yes "secure boot" "Firmware not in Secure Boot Setup Mode, so install cannot enroll keys. Continue without Secure Boot? (To use it: quit, clear the keys / enable Setup Mode in firmware, rerun.)") {
-        die "enable Setup Mode in the firmware, then rerun"
+    if $c.secure_boot != "off" and not $setup_mode and not (assume) and not (yes "secure boot" "The firmware is not in Setup Mode, so Secure Boot keys can't be enrolled.\n\nContinue without Secure Boot?") {
+        die "put the firmware in Secure Boot Setup Mode, then run this again"
     }
 
     let disks = ^lsblk -J -dnpo NAME,TYPE,RM | from json | get blockdevices | where type == disk and rm == false and not ($it.name =~ 'zram|loop') | get name
@@ -584,20 +641,20 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     let disk = env-or BOOTSTRAP_DISK | if ($in | is-not-empty) { $in } else if ($disks | is-empty) {
         die "no disk found (set BOOTSTRAP_DISK)"
     } else if ($disks | length) == 1 { $disks.0 } else if (tui) {
-        menu disk "Which disk gets erased and installed to?" $disks.0 ($disks | each {|d| [$d (do $label $d)] } | flatten)
+        menu disk "Install to which disk? It gets erased." $disks.0 ($disks | each {|d| [$d (do $label $d)] } | flatten)
     } else {
         ^lsblk -dpo NAME,SIZE,MODEL ...$disks
-        input $"disk to erase \(($disks | str join ' ')\): "
+        input $"disk \(($disks | str join ' ')\): "
     }
     if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die $"($disk) is not a block device" }
     # BOOTSTRAP_DISK skips the menu's filter, and a partition or dm device would be zapped before the parts check
     if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die $"($disk) is not a whole disk" }
     let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
-    let erase = $"ERASE ALL DATA on ($disk)? type the device path to confirm:"
-    let typed = if (assume) { $disk } else if (tui) { screen $"erase ($disk)" inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
+    let erase = $"Everything on ($disk) will be erased. Type ($disk) to confirm:"
+    let typed = if (assume) { $disk } else if (tui) { screen erase inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
     if $typed != $disk { die aborted }
 
-    $c.encrypt = ask-flag BOOTSTRAP_ENCRYPT true encryption "Encrypt the disk (LUKS2)?\n\nYes asks a password at every boot; a lost or stolen disk reveals nothing.\n\nNo boots without a password, and whoever holds the disk reads everything on it."
+    $c.encrypt = ask-flag BOOTSTRAP_ENCRYPT true encryption "Encrypt the disk? You type its password at every boot.\n\nWithout it, anyone who gets the disk can read it."
 
     let password = one-line (env-or BOOTSTRAP_PASSWORD) "password"
     mut luks = if $c.encrypt { $password } else { "" }
@@ -605,27 +662,26 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     $c.root_password = env-or BOOTSTRAP_ROOT_PASSWORD
     if ($password | is-empty) {
         if $c.encrypt {
-            $luks = ask-password "LUKS password" $"Disk encryption password, asked at every boot on the ($keymap) layout." false
-            if ($c.user_password | is-empty) { $c.user_password = ask-password $"($username) password [LUKS password]" "For login and sudo; empty uses the LUKS password." true }
+            $luks = ask-password "disk password" $"Disk password, typed at every boot \(($keymap) layout\):" false
+            if ($c.user_password | is-empty) { $c.user_password = ask-password $"($username) password" "Password for login and sudo. Empty uses the disk password:" true }
         } else if ($c.user_password | is-empty) {
-            $c.user_password = ask-password $"($username) password" "For login and sudo." false
+            $c.user_password = ask-password $"($username) password" "Password for login and sudo:" false
         }
-        if ($c.root_password | is-empty) { $c.root_password = ask-password "root password [locked]" "Empty keeps root locked (sudo still works; no emergency shell)." true }
+        if ($c.root_password | is-empty) { $c.root_password = ask-password "root password" "Root password. Empty keeps root locked:" true }
     }
     if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
     if ($c.user_password | is-empty) { die $"($username) password is required unattended, set BOOTSTRAP_PASSWORD or BOOTSTRAP_USER_PASSWORD" }
 
-    let held = if ($capabilities | is-empty) { "none" } else { $capabilities | str join " " }
-    let who = if ($profile_nuon | path exists) { $"\(profile: ($held)\)" } else { "(guest)" }
     let summary = [
-        $"user         ($username) ($who)"
-        $"machine      ($platform)(if $c.form_factor == $SERVER { ', server' } else { '' })" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
+        $"login        ($username)"
+        $"profile      ($profile.name) \((if ($capabilities | is-empty) { 'nothing personal' } else { $capabilities | str join ' ' })\)"
+        $"machine      ($platform.name)" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
         $"locale       ($c.locale)" $"groups       ($c.groups | str join ' ')"
-        $"home network (if $c.home_gateway == null and ($c.home_ssid | is-empty) { 'no, every network locked down' } else { $'router ($c.home_gateway | default "not found")(if ($c.home_ssid | is-empty) { "" } else { $", wifi ($c.home_ssid)" })' })"
-        $"disk         ($disk) (do $label $disk), erased, (if $c.encrypt { 'encrypted' } else { 'NOT encrypted' })"
-        $"secure boot  (if $c.secure_boot == 'off' { 'off' } else if $setup_mode { $'($c.secure_boot) keys get enrolled' } else { 'skipped, not in Setup Mode' })"
-        $"root         (if ($c.root_password | is-empty) { 'locked' } else { 'own password' })"
-    ] | append (if $c.form_factor == $SERVER { [$"ssh key      (if ($c.ssh_key | is-empty) { 'none, console only' } else { $c.ssh_key | split row ' ' | first })"] } else { [] }) | str join "\n"
+        $"home network (if $c.home_gateway == null and ($c.home_ssid | is-empty) { 'no' } else { $'router ($c.home_gateway | default "not found")(if ($c.home_ssid | is-empty) { "" } else { $", wifi ($c.home_ssid)" })' })"
+        $"disk         ($disk) (do $label $disk), erased, (if $c.encrypt { 'encrypted' } else { 'not encrypted' })"
+        $"secure boot  (if $c.secure_boot == 'off' { 'off' } else if $setup_mode { $c.secure_boot } else { 'off, firmware not in Setup Mode' })"
+        $"root         (if ($c.root_password | is-empty) { 'locked' } else { 'password set' })"
+    ] | append (if $platform.server { [$"ssh key      (if ($c.ssh_key | is-empty) { 'none, console only' } else { $c.ssh_key | split row ' ' | first })"] } else { [] }) | str join "\n"
     if (tui) {
         dlg --title summary --no-collapse --yes-label install --no-label quit --yesno $"($summary)\n\nInstall now? This erases ($disk)." (height $summary ($TUI_BOX_ROWS + 2)) ($TUI_WIDTH | into string) | ignore
         ^clear
@@ -707,16 +763,16 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     if $c.home_gateway != null { $"($c.home_gateway)\n" | save --force $"($MOUNT)($HOME_GATEWAYS)" }
 
     if "secrets" in $capabilities {
-        if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets toolchain install failed, config will unlock instead" }
+        if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets tools did not install, the config stage unlocks instead" }
         ^systemctl start pcscd.socket | complete | ignore
         let unlocked = try { with-env {DOTFILES: $repo, PROFILE_FILE: $c.profile_file} { ^nu --no-config-file ($repo | path join scripts dot.nu) secrets unlock }; true } catch { false }
-        if not $unlocked { log-warn "secrets unlock skipped" }
+        if not $unlocked { log-warn "secrets stay locked for now" }
     }
     user-setup $c
     stage-arm $c $parts.uuid
     ^umount -R $MOUNT
     if $c.encrypt { ^cryptsetup close $LUKS_NAME }
-    log-info $"done, rebooting in ($REBOOT_DELAY); remove the ISO. the next boots install and configure by themselves"
+    log-info $"done. rebooting in ($REBOOT_DELAY), remove the ISO; the install goes on by itself"
     sleep $REBOOT_DELAY
     ^reboot
 }

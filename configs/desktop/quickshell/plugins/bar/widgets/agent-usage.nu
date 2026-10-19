@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const USAGE_USER = "luca"
 const SCRIPT_RELATIVE = "configs/programming/trmnl-claude/trmnl-claude.nu"
 const TIMEOUT = "60s"
 const TIMEOUT_EXIT_CODE = 124
@@ -8,7 +7,8 @@ const TIMEOUT_EXIT_CODE = 124
 def main [] {
     let repo = $env.DOTFILES? | default ($env.FILE_PWD | path join ../../../../../.. | path expand)
     let script = $repo | path join $SCRIPT_RELATIVE
-    if $env.USER != $USAGE_USER or not ($script | path exists) {
+    let claude = [($nu.home-dir | path join .claude) ($nu.home-dir | path join .config claude)] | any { path exists }
+    if not $claude or not ($script | path exists) {
         print "{}"
         return
     }

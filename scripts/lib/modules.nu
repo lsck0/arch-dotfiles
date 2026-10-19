@@ -2,6 +2,7 @@ use log.nu *
 use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
 
 const SELF = path self
+const REPO = path self ../..
 
 export const VERBS = [link unlink system theme apply backup restore check]
 const HOOKS = [detect packages]
@@ -44,7 +45,10 @@ def native-read [dirs: list<path>]: nothing -> list<record> {
     let broken = $dirs | each {|dir| {dir: $dir, check: (^(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($dir | to nuon)" | complete)} }
         | where check.exit_code != 0
     if ($broken | is-empty) { error make {msg: $"reading the modules failed: ($found.stderr)"} }
-    $broken | each { log-err $"($in.dir)/mod.nu does not parse, left out:\n($in.check.stderr | str trim)" } | ignore
+    $broken | each {|b|
+        log-debug ($b.check.stderr | str trim)
+        log-err $"($b.dir | path relative-to $REPO)/mod.nu does not parse, left out: (error-brief $b.check.stderr --root $REPO)"
+    } | ignore
     let rest = $dirs | where $it not-in $broken.dir
     (if ($rest | is-empty) { [] } else { native-read $rest }) ++ ($broken | each {|b| {dir: $b.dir, consts: {}, commands: [], broken: true} })
 }

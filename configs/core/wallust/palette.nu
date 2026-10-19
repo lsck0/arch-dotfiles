@@ -9,7 +9,7 @@ export const TEXT_RATIO = 4.5
 # the background-value clamp band; quickshell's live knob is backgroundValueMin/Max in Theme.qml and theme.json
 export const BG_VALUE_MIN = 0.08
 export const BG_VALUE_MAX = 0.26
-# ayu-light 0.97, gruvbox-light 0.87, solarized-dawn 0.80; any dark theme's conditioned bg is below 0.06
+# light themes span 0.76 (tokyo-night-day) to 0.97 (light-owl); any dark theme's conditioned bg is below 0.06
 export const LIGHT_LUMINANCE = 0.4
 export const WHITE_TEXT_LUMINANCE_MAX = 0.18
 # 24 steps of 0.12 reach 95% of the target, the rest falls back to the target
@@ -174,11 +174,13 @@ export def dim-toward [bg: list<float>, --ratio: float = $DIM_RATIO]: list<float
 export def semantic [role: string, bg: list<float>, --ratio: float = $TEXT_RATIO]: list<float> -> list<float> {
     let hsv = $in | rgb-to-hsv
     let h = $SEMANTIC_HUES | get $role
+    let light = $bg | is-light
     mut out = hsv-to-rgb $h ($hsv.1 | clamp 0.45 0.85) (max2 0.55 $hsv.2)
     for _ in 1..$WALK_COUNT_MAX {
         if (passes $out $bg $ratio) { return $out }
         let o = $out | rgb-to-hsv
-        $out = hsv-to-rgb $h (max2 0.35 ($o.1 * 0.96)) (min2 1.0 ($o.2 * 1.07))
+        let v = if $light { $o.2 / 1.07 } else { min2 1.0 ($o.2 * 1.07) }
+        $out = hsv-to-rgb $h (max2 0.35 ($o.1 * 0.96)) $v
     }
     $out
 }

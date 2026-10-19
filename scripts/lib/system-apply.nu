@@ -76,14 +76,13 @@ def main [] {
 def "main apply" [sha: string, stage: string, --snapshot, --unattended, --force, --pin: string]: nothing -> nothing {
     repo-guard | ignore
     if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
-    let flags = [--unattended=($unattended)] ++ (if $pin == null { [] } else { [--pin $pin] })
-    locked apply $sha $stage --snapshot=($snapshot) ...$flags
+    locked apply $sha $stage --snapshot=($snapshot) --unattended=($unattended) --force=($force) ...(if $pin == null { [] } else { [--pin $pin] })
     let work = mktemp --directory --tmpdir-path /run
     ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
     open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
     let entry = $SYSTEM_REPO | path join $ENTRY
     if $snapshot { ^/usr/bin/nu --no-config-file $entry snapshot }
-    let flags = if $stage == "install" { $flags } else { [--unattended=($unattended)] ++ (if $force { [--force] } else { [] }) }
+    let flags = if $stage == "install" { [--unattended=($unattended)] ++ (if $pin == null { [] } else { [--pin $pin] }) } else { [--unattended=($unattended) --force=($force)] }
     let status = try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     rm --recursive --force $work
     exit $status
@@ -145,7 +144,7 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
 # every system verb; the secrets arrive as a tar on stdin into a tmpfs gone at exit
 def "main config" [--unattended, --force]: nothing -> nothing {
     let repo = repo-guard
-    locked config --unattended=($unattended)
+    locked config --unattended=($unattended) --force=($force)
     unattended $unattended
     failures-start
     let ctx = pipeline-load $repo system
@@ -201,7 +200,7 @@ def "main snapshot" []: nothing -> nothing {
 def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     let repo = repo-guard
     unattended $unattended
-    locked packages --yes=($yes) --plan=($plan)
+    locked packages --yes=($yes) --plan=($plan) --unattended=($unattended)
     let ctx = pipeline-load $repo system
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     let found = packages-convergence $declared.pacman $ctx.platform.packages_keep
@@ -237,11 +236,19 @@ const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
 const SIGNING_KEY_FINGERPRINT = "E7501F533316E9AFC6AAE907122F2CB527D1EFE3"
 const SIGNING_KEY_FILE = "configs/core/gnupg/luca-sandrock.pub.asc"
 const DOTFILES_URL = "https://github.com/lsck0/arch-dotfiles.git"
+const PROFILE_CUSTOM = "custom"
 
-# adduser-dotfiles <name>: a new non-wheel login with its own verified checkout and user layer; rerun-safe
-def "main adduser" [name: string]: nothing -> nothing {
-    repo-guard | ignore
+# adduser-dotfiles <name> [--profile <p>]: a new non-wheel login with its own verified checkout and user layer;
+# rerun-safe. The profile is a profiles/ name or custom (nothing personal); without the flag it is asked on a tty
+def "main adduser" [name: string, --profile: string]: nothing -> nothing {
+    let repo = repo-guard
     if not ($name =~ $USERNAME_PATTERN) { error make {msg: $"invalid name '($name)', expected ($USERNAME_PATTERN)"} }
+    let profiles = glob ($repo | path join profiles *.nuon) | each { path parse | get stem } | sort | append $PROFILE_CUSTOM
+    let picked = if $profile != null { $profile } else if (^test -t 0 | complete).exit_code == 0 {
+        print -e $"profiles: ($profiles | str join ' ')"
+        input $"profile for ($name) [($PROFILE_CUSTOM)]: " | default --empty $PROFILE_CUSTOM
+    } else { $PROFILE_CUSTOM }
+    if $picked not-in $profiles { error make {msg: $"unknown profile '($picked)', one of: ($profiles | str join ' ')"} }
     # an existing system account would get a password set and a checkout in its home, root's run as uid 0
     let existing = ^id -u $name | complete
     if $existing.exit_code == 0 and ($existing.stdout | str trim | into int) < 1000 {
@@ -262,9 +269,10 @@ def "main adduser" [name: string]: nothing -> nothing {
             error make {msg: $"($DOTFILES_URL) HEAD is not signed by ($SIGNING_KEY_FINGERPRINT), refusing it"}
         }
     }
-    let template = $checkout | path join profiles $"($name).nuon"
-    let profile = $home | path join .config dotfiles profile.nuon
-    if ($template | path exists) and not ($profile | path exists) { ^runuser -u $name -- install -Dm644 $template $profile }
+    let live = $home | path join .config dotfiles profile.nuon
+    if $picked != $PROFILE_CUSTOM and not ($live | path exists) {
+        ^runuser -u $name -- install -Dm644 ($checkout | path join profiles $"($picked).nuon") $live
+    }
     ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --packages --user
     ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --user
 }

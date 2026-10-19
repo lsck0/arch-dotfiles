@@ -14,15 +14,20 @@ their own boots, logs in on tty3, pulls logs and checks the end state. Install p
 - `dot test lint` (also run first by `run`).
 - Needs sudo (asked once, kept alive), `virt-install`, `virsh`, `tesseract`, `magick`, `socat` (the beacon server), and the ISO at
   `~/downloads/archlinux-x86_64.iso` (`--iso PATH` otherwise).
+- `--iso` with an Arch Linux-LSCK0 iso (`dot internal iso`, told apart by its `ARCH_LSCK0_` volume label) types
+  nothing: the answers, the snapshot bundle and its lfs objects go on a second cd labelled `LSCK0` (`lsck0.nuon`,
+  `unattended: true`), the iso's own installer runs them, and its `install: failed` line on tty1 fails the run
+  (the log is the guest's `/tmp/lsck0-install.log`). Also needs `xorriso` (archiso pulls it in).
 - It tests the local working tree, untracked files included, as a bundle on top of `origin/master`; `--master`
   tests GitHub master instead.
 
 ## Run
 
 ```bash
-dot test run                              # platforms/test-vm.nuon, user luca
+dot test run                              # platforms/test-vm.nuon, login luca, profile luca
 dot test run --platform luca-notebook     # another platform file
-dot test run --user guest                 # a login without a profile: the guest path
+dot test run --profile custom             # no profile: nothing personal
+dot test run --platform server            # the server path (hostname, groups, ssh key from BOOTSTRAP_*)
 dot test run --name other-vm              # a second VM beside the default archlinux-test
 ```
 

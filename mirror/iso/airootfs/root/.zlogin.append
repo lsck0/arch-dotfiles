@@ -1,0 +1,4 @@
+# tty1 runs the installer, every other login gets the plain live shell
+if [[ $(tty) == /dev/tty1 ]]; then
+    lsck0-install
+fi

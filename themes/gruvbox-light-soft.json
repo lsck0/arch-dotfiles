@@ -1,0 +1,27 @@
+{
+  "wallpaper": "sparth-some-tower.jpg",
+  "pair": "gruvbox-dark-soft",
+  "special": {
+    "background": "#f2e5bc",
+    "foreground": "#3c3836",
+    "cursor": "#665c54"
+  },
+  "colors": {
+    "color0": "#ebdbb2",
+    "color1": "#cc241d",
+    "color2": "#878717",
+    "color3": "#ac7a1a",
+    "color4": "#396f71",
+    "color5": "#b16286",
+    "color6": "#5e8e60",
+    "color7": "#7c6f64",
+    "color8": "#8f8172",
+    "color9": "#9d0006",
+    "color10": "#79740e",
+    "color11": "#b57614",
+    "color12": "#076678",
+    "color13": "#8f3f71",
+    "color14": "#427b58",
+    "color15": "#282828"
+  }
+}

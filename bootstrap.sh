@@ -12,7 +12,7 @@ if [[ -d /run/archiso ]] && grep -q 'archisobasedir=' /proc/cmdline; then
 elif grep -qi microsoft /proc/sys/kernel/osrelease; then
     :
 else
-    echo "bootstrap: runs only from the Arch ISO or inside WSL" >&2
+    echo "bootstrap: run this from the Arch ISO or inside WSL" >&2
     exit 1
 fi
 
@@ -36,7 +36,7 @@ if [[ ! -f "$repo/scripts/dot.nu" ]]; then
         GNUPGHOME=$gnupg gpg --batch -q --import "$repo/$SIGNING_KEY_FILE"
         if ! status=$(GNUPGHOME=$gnupg git -C "$repo" verify-commit --raw HEAD 2>&1) ||
             ! grep -q "^\[GNUPG:\] VALIDSIG .* $SIGNING_KEY_FINGERPRINT\$" <<< "$status"; then
-            echo "bootstrap: $DOTFILES_URL HEAD is not signed by $SIGNING_KEY_FINGERPRINT, refusing; BOOTSTRAP_INSECURE=1 runs it unverified" >&2
+            echo "bootstrap: $DOTFILES_URL HEAD is not signed by $SIGNING_KEY_FINGERPRINT. BOOTSTRAP_INSECURE=1 skips this check." >&2
             exit 1
         fi
     fi

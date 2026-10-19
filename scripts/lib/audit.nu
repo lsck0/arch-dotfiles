@@ -1,4 +1,4 @@
-use secrets.nu [secret-is-plaintext]
+use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const SECRETS = path self ../../secrets
 const KEY_DIR = path self ../../configs/base/yubikey
@@ -111,6 +111,7 @@ def recovery []: nothing -> list<record> {
 }
 
 export def audit-findings []: nothing -> list<record<level: string, text: string>> {
+    if not (secrets-wanted) { return [(finding note "this profile has no secrets capability, nothing audited")] }
     if not (secret-is-plaintext $WITNESS) {
         return [(finding note "secrets/ is locked, nothing audited: dot secrets unlock")]
     }

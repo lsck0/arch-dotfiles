@@ -1,6 +1,7 @@
 use log.nu [log-info log-warn]
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
+use migrate.nu [migrations-list migration-run]
 
 const REPO = path self ../..
 # a target must lie on it, so root only ever runs a commit of this history
@@ -122,6 +123,10 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     if ($env.DIRENV_DIR? | is-not-empty) { error make {msg: "run outside a direnv directory"} }
     let sha = rollback-resolve $target
     let short = $sha | str substring 0..11
+    # applied here, absent at the target: undone newest first, the last step before the checkout
+    let later = migrations-list $REPO | where id in (ledger-get migration) | where {|m| not (git-ok cat-file -e $"($sha):($m.file | path relative-to $REPO)") }
+    let stuck = $later | where not reversible
+    if ($stuck | is-not-empty) { error make {msg: $"($target) predates migration ($stuck.id | str join ', '), which has no down"} }
     let label = describe-commit $sha
     let admin = ^id -nG | split row " " | any { $in == wheel }
     let dirty = git-out status --porcelain --ignore-submodules=all | lines
@@ -177,6 +182,7 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
         _ => [$drive.root $drive.user]
     }
     let steps = [
+        (if ($later | is-not-empty) { $"migration down ($later.id | reverse | str join ' ')" })
         $"git checkout --detach ($short)"
         (if $admin and not $drive.nu { "root copy --rollback" })
         (if ($stale | is-not-empty) { $"nix profile remove ($stale | str join ' ')" })
@@ -187,6 +193,7 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
         log-info $"dry run, a clean tree would run: ($steps | str join ' -> ')"
         return
     }
+    $later | reverse | each { migration-run $in down } | ignore
     ^git -C $REPO -c submodule.recurse=false checkout --quiet --detach $sha
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO

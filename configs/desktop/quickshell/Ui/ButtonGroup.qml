@@ -93,8 +93,8 @@ Row {
       width: implicitWidth + (index === chips.count - 1 ? root._slack - _share * (chips.count - 1) : _share)
       text: root.optionLabel(modelData)
       selected: root.optionValue(modelData) === root.value
-      hasCursor: root.cursorIndex === index
-        || (root.activeFocus && root._focusedIndex === index)
+      hasCursor: root.cursorIndex === index || focused
+      focused: root.activeFocus && root._focusedIndex === index
       fontFamily: root.fontFamily
       fontSize: root.fontSize
       onClicked: root.changed(root.optionValue(modelData))

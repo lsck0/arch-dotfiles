@@ -10,6 +10,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "media"
+  panelPinOnClick: false
 
   property string pinnedPlayer: ""
 

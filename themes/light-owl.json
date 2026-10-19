@@ -1,0 +1,27 @@
+{
+  "wallpaper": "masterteacher-highlands.jpg",
+  "pair": "night-owl",
+  "special": {
+    "background": "#fbfbfb",
+    "foreground": "#403f53",
+    "cursor": "#90a7b2"
+  },
+  "colors": {
+    "color0": "#403f53",
+    "color1": "#de3d3b",
+    "color2": "#08916a",
+    "color3": "#b38c02",
+    "color4": "#2279b7",
+    "color5": "#d6438a",
+    "color6": "#2aa298",
+    "color7": "#93a1a1",
+    "color8": "#403f53",
+    "color9": "#de3d3b",
+    "color10": "#08916a",
+    "color11": "#b48c01",
+    "color12": "#2279b7",
+    "color13": "#d6438a",
+    "color14": "#2aa298",
+    "color15": "#93a1a1"
+  }
+}

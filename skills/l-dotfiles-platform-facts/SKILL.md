@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-platform-facts
-description: Machine facts in platforms/<host>.nuon versus user capabilities in profiles/<user>.nuon versus per-module options, which to use, and adding a fact. Load when a module must behave differently per machine or per user.
+description: Machine facts in platforms/<host>.nuon versus user capabilities in profiles/<name>.nuon versus per-module options, which to use, and adding a fact. Load when a module must behave differently per machine or per user.
 ---
 
 # platform-facts
@@ -37,5 +37,6 @@ Hyprland reads the form factor at runtime from `~/.config/dotfiles/form-factor`,
 
 ## Add a capability
 
-Add it to `PROFILE_CAPABILITIES` in `scripts/lib/profile.nu` and to `profiles/<user>.nuon`. The live copy is
-`~/.config/dotfiles/profile.nuon` (copied once by `bootstrap.sh` or `adduser-dotfiles`).
+Add it to `PROFILE_CAPABILITIES` in `scripts/lib/profile.nu` and to `profiles/<name>.nuon`. The live copy is
+`~/.config/dotfiles/profile.nuon`, copied once from the profile picked in `bootstrap.sh` or `adduser-dotfiles`; the
+login name never selects one.

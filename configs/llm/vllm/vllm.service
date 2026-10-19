@@ -42,7 +42,8 @@ Environment=VLLM_USE_TRITON_AWQ=1
 # the hub repo at a fixed commit, weights and tokenizer alike: a push to it never reaches this root-started service
 Environment=VLLM_MODEL_REVISION=@MODEL_REVISION@
 # the share of vram left over leaves room for the desktop that renders on the card, else ttm evicts its buffers; the kv
-# cache shrinks to fit (max-model-len auto)
+# cache shrinks to fit (max-model-len auto), in fp8 for twice the context (27k instead of 13k for qwen3 8b at 0.70);
+# one user, so eight sequences at most
 ExecStart=/opt/vllm/venv/bin/vllm serve @MODEL@ \
     --revision ${VLLM_MODEL_REVISION} \
     --tokenizer-revision ${VLLM_MODEL_REVISION} \
@@ -52,7 +53,10 @@ ExecStart=/opt/vllm/venv/bin/vllm serve @MODEL@ \
     --gpu-memory-utilization @GPU_MEMORY_UTILIZATION@ \
     --language-model-only \
     --compilation-config '{"cudagraph_capture_sizes": [1, 2, 4, 8]}' \
+    --kv-cache-dtype fp8 \
+    --max-num-seqs 8 \
     --enable-auto-tool-choice \
-    --tool-call-parser gemma4
+    --tool-call-parser @TOOL_CALL_PARSER@ \
+    --reasoning-parser @REASONING_PARSER@
 Restart=on-failure
 RestartSec=5

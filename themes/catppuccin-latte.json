@@ -1,0 +1,27 @@
+{
+  "wallpaper": "alena-aenami-endless.jpg",
+  "pair": "catppuccin-mocha",
+  "special": {
+    "background": "#eff1f5",
+    "foreground": "#4c4f69",
+    "cursor": "#dc8a78"
+  },
+  "colors": {
+    "color0": "#5c5f77",
+    "color1": "#d20f39",
+    "color2": "#3f9d2a",
+    "color3": "#c27b19",
+    "color4": "#1d63ef",
+    "color5": "#cd67b2",
+    "color6": "#179299",
+    "color7": "#acb0be",
+    "color8": "#6c6f85",
+    "color9": "#d20f39",
+    "color10": "#3f9d2a",
+    "color11": "#c27b19",
+    "color12": "#1d63ef",
+    "color13": "#cd67b2",
+    "color14": "#179299",
+    "color15": "#bcc0cc"
+  }
+}

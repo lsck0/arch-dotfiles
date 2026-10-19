@@ -125,13 +125,14 @@ export def options-events-file []: nothing -> path {
     $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $EVENTS_FILE
 }
 
-export def options-notify [key: string, value: any, source: string, runtime?: any]: nothing -> nothing {
+# --error: the value is stored but applying it failed
+export def options-notify [key: string, value: any, source: string, runtime?: any, --error: any]: nothing -> nothing {
     let file = options-events-file
     mkdir ($file | path dirname)
     if ($file | path exists) and (ls $file | get 0.size | into int) > $EVENTS_MAX_BYTES {
         "" | save --force $file
     }
-    $"({key: $key, value: $value, source: $source, runtime: $runtime} | to json --raw)\n" | save --append $file
+    $"({key: $key, value: $value, source: $source, runtime: $runtime, error: $error} | to json --raw)\n" | save --append $file
 }
 
 # records and lists spelled out, never nuon's table form, one key per line, order kept

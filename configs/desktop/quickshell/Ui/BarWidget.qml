@@ -17,6 +17,23 @@ Item {
     return value === undefined || value === null ? fallback : value
   }
 
+  // false where a left click already does something else (Media plays, Homelab opens its homepage)
+  property bool panelPinOnClick: true
+  readonly property bool panelPinnable: panelPinOnClick && bar !== null
+    && bar.panelNames.indexOf(moduleName) !== -1
+
+  // above the widget's own MouseArea: a passive tap grab lets the press through to it
+  Item {
+    anchors.fill: parent
+    z: 1000
+    enabled: root.panelPinnable
+    HoverHandler { cursorShape: Qt.PointingHandCursor }
+    TapHandler {
+      acceptedButtons: Qt.LeftButton
+      onTapped: root.bar.panelClick(root.moduleName)
+    }
+  }
+
   property real barX: 0
 
   function refreshBarX() { barXSettle.restart() }

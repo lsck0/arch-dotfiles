@@ -178,6 +178,7 @@ BarWidget {
                         }
 
                         delegate: Chip {
+                            focusable: true
                             required property var modelData
 
                             text: Audio.deviceName(modelData)
@@ -229,6 +230,7 @@ BarWidget {
                         }
 
                         delegate: Chip {
+                            focusable: true
                             required property var modelData
 
                             text: Audio.deviceName(modelData)
@@ -632,6 +634,7 @@ BarWidget {
             }
 
             Chip {
+                focusable: true
                 id: routeChip
 
                 anchors.right: parent.right
@@ -657,6 +660,7 @@ BarWidget {
             spacing: Style.spacing.xs
 
             Chip {
+                focusable: true
                 text: "AUTO"
                 onClicked: {
                     Audio.route(stream.node, null);
@@ -671,6 +675,7 @@ BarWidget {
                 }
 
                 delegate: Chip {
+                    focusable: true
                     required property var modelData
 
                     text: Audio.deviceName(modelData)

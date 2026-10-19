@@ -8,6 +8,7 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "homelab"
+  panelPinOnClick: false
 
   property bool received: false
   property bool ok: false
@@ -240,6 +241,10 @@ BarWidget {
           required property var modelData
           readonly property bool asleep: modelData.up === false && modelData.onDemand
           readonly property bool down: modelData.up === false && !modelData.onDemand
+          activeFocusOnTab: !!modelData.url
+          Keys.onReturnPressed: root.open(tile.modelData.url)
+          Keys.onEnterPressed: root.open(tile.modelData.url)
+          Keys.onSpacePressed: root.open(tile.modelData.url)
           width: (serviceGrid.width - serviceGrid.columnSpacing * (serviceGrid.columns - 1)) / serviceGrid.columns
           height: Style.row.control
 
@@ -247,7 +252,8 @@ BarWidget {
             anchors.fill: parent
             anchors.leftMargin: -Style.spacing.xs
             radius: Style.shape.data
-            color: tileMouse.containsMouse && tile.modelData.url ? Style.hoverFill : "transparent"
+            color: tile.activeFocus ? Style.focusFillFor(Colors.foreground, Colors.accent)
+              : tileMouse.containsMouse && tile.modelData.url ? Style.hoverFill : "transparent"
             Behavior on color { ColorAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
           }
           Row {

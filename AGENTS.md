@@ -48,7 +48,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   list, show, set or reset options. `dot module adopt|unlink|remove|restore`, `dot explain <path|package>`,
   `dot log [--trace]`, `dot secrets audit`.
 - `dot internal <cmd>`: what scripts, units and completion run, kept out of `dot --help` (`scripts/lib/internal.nu`):
-  `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `packages`, `migrate`, `fetch`,
+  `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `iso [--out] [--work] [--mirror]
+  [--sign] [--keep]` builds the install iso (`mirror/iso/README.md`; root for mkarchiso), `packages`, `migrate`, `fetch`,
   `stage`, `bootstrap`, `backup`, `watch`, `prune`, `theme get|list|apply`, `drift publish`, `audit remind`,
   `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values, themes; `base/dot`
   installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
@@ -63,9 +64,9 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   `l-dotfiles-add-module`); optional `*.test.{nu,sh}`. Groups: base, core, fonts, desktop, socials, latex, qemu,
   creating, gaming, programming, llm, rocm, pentesting. `dependencies.txt` names the groups a group reaches into.
   Before editing under `configs/<group>/`, read its `AGENTS.md` (and the module's own where present).
-- `platforms/<host>.nuon`: machine facts and groups; `<host>.options.nuon` its option values. `profiles/<user>.nuon`:
-  user capabilities, copied to `~/.config/dotfiles/profile.nuon` by bootstrap and `adduser-dotfiles`. A platform's
-  `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.
+- `platforms/<host>.nuon`: machine facts and groups; `<host>.options.nuon` its option values. `profiles/<name>.nuon`:
+  user capabilities, copied to `~/.config/dotfiles/profile.nuon` when bootstrap or `adduser-dotfiles --profile` picks
+  it (`custom` picks none). A platform's `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.
 - `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`, `down`), run once per machine by `dot sync`.
 - `scripts/`: commands linked into `~/.local/bin`; `scripts/lib/*.nu` the engine (`module.nu` the module API,
   `pipeline.nu` the run, `converge.nu` plan and apply, `system-apply.nu` root's one entry, `system.nu` the root copy).
@@ -73,7 +74,9 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/core/wallust/` (templates, `palette.nu`), `themes/*.json`, `dot theme [name|random]`;
   each module themes its own program in its `theme` verb, run by `dot internal theme apply`.
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
-- `secrets/`: git-crypt submodule. `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror.
+- `secrets/`: git-crypt submodule. `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
+  `mirror/iso/` the install iso (Arch Linux-LSCK0, served at https://mirror.lsck0.dev/iso/): releng plus an overlay,
+  its installer `airootfs/usr/local/bin/lsck0-install` (answer file, network, then `bootstrap.sh`).
 - `bootstrap.sh` (from the ISO: nushell and a verified checkout, then `dot internal bootstrap`), `dot internal stage`
   (one unattended stage per boot), `dot test` (lint, check, the VM test).
 
@@ -88,7 +91,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   untracked files with the system secrets into one archive for `system-apply.nu apply` (the one command sudo or the
   polkit action runs); root never executes the user's checkout.
 - Machine facts live in the platform file (`platform-has`), user capabilities in the profile (`profile-has
-  secrets|identity|homelab|work`), per-module settings in typed options. Never gate on a username.
+  secrets|identity|homelab|work`), per-module settings in typed options. Never gate on a username: profile and
+  machine are explicit choices at install, independent of the login name.
 - A module declares what it wants (`scripts/lib/module.nu`: `file-copy`, `files-into`, `file-text`, `file-render`,
   `file-link`, `link-commands`, `json-merge`, `unit-file`, `unit-enable`, `dropin`, `desktop-override`, `exec`); the
   engine applies the difference. Managed files are real copies with their hash recorded; a file changed since its last
@@ -111,7 +115,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `dot` manages this machine only: nothing in other repos, no per-project hooks or shells it would need.
 - One extension pattern, same for human and agent: a new capability is a file that follows the established
   convention (a `configs/<group>/<module>/mod.nu`, an entry in its `options` or `meta.packages`, a
-  `migrations/<NNNN>-<slug>.nu`, a `scripts/toggles/toggle-*.nu`, a `themes/*.json`, a `profiles/<user>.nuon`),
+  `migrations/<NNNN>-<slug>.nu`, a `scripts/toggles/toggle-*.nu`, a `themes/*.json`, a `profiles/<name>.nuon`),
   discoverable from this file and the skills. No special-case wiring: adding the file is the whole change.
 
 ## Backup model

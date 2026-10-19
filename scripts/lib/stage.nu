@@ -51,7 +51,7 @@ export def stage-run [repo: path]: nothing -> nothing {
         _ => { error make {msg: $"unknown stage '($stage)' in ($STATE_DIR)/next"} }
     }
     if $stage == "config" and not (disarm) {
-        note "disarm failed, the temporary keyfile is still in place"
+        note "disarm failed: the temporary disk key is still in place"
         exit 1
     }
     note $"($stage): start"
@@ -73,7 +73,7 @@ export def stage-run [repo: path]: nothing -> nothing {
             note $"install: aborted, attempt ($attempts)/($INSTALL_ATTEMPTS_MAX), retrying next boot"
             $next = "install"
         } else {
-            note $"install: aborted ($attempts) times, moving on to config; rerun dot apply --packages by hand"
+            note $"install: aborted ($attempts) times, going on with config; run dot apply --packages later"
         }
     }
     note "rebooting"
@@ -85,7 +85,7 @@ export def stage-run [repo: path]: nothing -> nothing {
     # a trim lets the ssd drop the keyfile's old ESP blocks; only a reencrypt rotates the volume key
     ^sudo fstrim /boot | complete | ignore
     if (luks-device) != "" {
-        note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (luks-device)"
+        note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (luks-device)"
     }
     # one sudo call: after the rm there is no passwordless sudo left to reboot with
     ^sudo systemctl disable dotfiles-stage.service

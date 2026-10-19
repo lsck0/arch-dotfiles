@@ -280,6 +280,37 @@ hl.define_submap("resize", function()
     hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 
+-- bar panels from the keyboard: mod+b, then a letter; the panel takes the keyboard (hjkl/arrows, Tab per section,
+-- Enter/Space, Esc or q). One key leaves the submap: a letter after its dispatch, anything else through catchall.
+local PANELS = {
+    { key = "a", panel = "audio-io", name = "audio" },
+    { key = "b", panel = "notifications", name = "notifications" },
+    { key = "c", panel = "clock", name = "clock and calendar" },
+    { key = "d", panel = "display", name = "display" },
+    { key = "h", panel = "homelab", name = "homelab" },
+    { key = "i", panel = "agents", name = "agents" },
+    { key = "m", panel = "media", name = "media" },
+    { key = "n", panel = "network", name = "network" },
+    { key = "o", panel = "obs", name = "obs" },
+    { key = "s", panel = "system", name = "system" },
+    { key = "v", panel = "discord", name = "discord voice" },
+    { key = "w", panel = "weather", name = "weather" },
+}
+hl.bind(mod .. " + b", hl.dsp.submap("panels"), { description = "bar panel: then a letter (a n s c ...)" })
+hl.define_submap("panels", "reset", function()
+    -- with mod still held too, else catchall would take mod+letter
+    for _, entry in ipairs(PANELS) do
+        for _, keys in ipairs({ entry.key, mod .. " + " .. entry.key }) do
+            hl.bind(
+                keys,
+                quickshell_call("bar", "toggle " .. entry.panel),
+                { description = "bar panel: " .. entry.name }
+            )
+        end
+    end
+    hl.bind("catchall", hl.dsp.submap("reset"), { description = "leave the panel keys" })
+end)
+
 -- hyprland binds beat the overlay's focus: with mod held, mod+tab and mod+return cycle and go instead of closing it
 hl.define_submap("overview", function()
     hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next window" })

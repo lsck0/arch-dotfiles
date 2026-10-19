@@ -34,18 +34,30 @@ PanelWindow {
   signal opened()
 
   readonly property bool shown: bar !== null && bar.activePanel === moduleName
+  // opened by a keybind (Bar.keyboardPanel): takes the keyboard and focuses its first control
+  readonly property bool keyboardOpened: shown && bar.keyboardPanel
+  readonly property bool barPinned: shown && bar.pinnedPanel === moduleName
+
+  readonly property bool panelRegistered: bar !== null && moduleName !== ""
+  onPanelRegisteredChanged: if (panelRegistered) bar.panelRegister(moduleName)
+  Component.onCompleted: if (panelRegistered) bar.panelRegister(moduleName)
+  Component.onDestruction: if (panelRegistered) bar.panelUnregister(moduleName)
+
   readonly property alias boot: bootIn
 
   visible: shown || bootIn.progress > 0
   onShownChanged: {
     root.clicked = false
     if (!shown) return
-    // a hover open passes through Bar.hoverOpen, which leaves the pending id behind; ipc and keybinds do not
-    root.hoverOpened = !!bar && bar.pendingPanel === moduleName
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
     keys.forceActiveFocus()
     opened()
   }
+
+  // the focus chain is empty until the compositor hands the surface the keyboard
+  readonly property bool windowActive: keys.Window.active
+  onWindowActiveChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
+  onKeyboardOpenedChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
 
   screen: bar && bar.screen ? bar.screen : null
   color: "transparent"
@@ -71,17 +83,17 @@ PanelWindow {
     var f = keys.Window.activeFocusItem
     return !!f && "cursorPosition" in f && "selectByMouse" in f
   }
-  readonly property bool held: pinned || textFocused
+  readonly property bool held: pinned || barPinned || textFocused
   onHeldChanged: if (!held && !hover.hovered && bar) bar.hoverPanelExit(moduleName)
-  WlrLayershell.keyboardFocus: root.acceptsKeyboard && root.shown
-    ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+  // OnDemand would leave the keys with the focused window until a click lands in the panel
+  WlrLayershell.keyboardFocus: !root.acceptsKeyboard || !root.shown ? WlrKeyboardFocus.None
+    : root.keyboardOpened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
-  property bool hoverOpened: false
   property bool clicked: false
 
   // the grab keeps the pointer on the bar and this drawer, so a hover-out no longer reaches it: only outside clicks close
   HyprlandFocusGrab {
-    active: root.shown && (root.held || root.clicked || !root.hoverOpened)
+    active: root.shown && (root.held || root.clicked)
     windows: root.bar ? [root, root.bar] : [root]
     onCleared: if (root.bar) root.bar.closePanel(root.moduleName)
   }
@@ -101,6 +113,60 @@ PanelWindow {
     if (next && next !== from) next.forceActiveFocus()
   }
 
+  readonly property int focusChainMax: 512
+
+  function itemInside(item) {
+    for (let walk = item; walk; walk = walk.parent) if (walk === keys) return item !== keys
+    return false
+  }
+
+  function itemY(item) { return item.mapToItem(keys, 0, 0).y }
+
+  function focusChainItems() {
+    let items = []
+    let item = keys.nextItemInFocusChain(true)
+    for (let step = 0; item && step < focusChainMax && items.indexOf(item) === -1; step++) {
+      if (itemInside(item)) items.push(item)
+      item = item.nextItemInFocusChain(true)
+    }
+    return items
+  }
+
+  function sectionHeaderYs(item, ys) {
+    for (let i = 0; i < item.children.length; i++) {
+      const child = item.children[i]
+      if (!child.visible) continue
+      if (child.panelSectionHeader === true) ys.push(itemY(child))
+      else sectionHeaderYs(child, ys)
+    }
+    return ys
+  }
+
+  // Tab jumps to the first control below the next PanelSectionHeader, wrapping; no headers: the next control
+  function sectionJump(forward) {
+    const headers = sectionHeaderYs(inner, []).sort(function(a, b) { return a - b })
+    const items = focusChainItems()
+    if (items.length === 0) return
+    if (headers.length === 0) { walkFocus(forward); return }
+    function sectionOf(y) {
+      let section = 0
+      while (section < headers.length && headers[section] <= y) section++
+      return section
+    }
+    const current = keys.Window.activeFocusItem
+    if (!current || !itemInside(current)) { items[forward ? 0 : items.length - 1].forceActiveFocus(); return }
+    const sectionCount = headers.length + 1
+    const from = sectionOf(itemY(current))
+    for (let step = 1; step <= sectionCount; step++) {
+      const target = (from + (forward ? step : sectionCount - step)) % sectionCount
+      for (let i = 0; i < items.length; i++) {
+        if (sectionOf(itemY(items[i])) !== target) continue
+        items[i].forceActiveFocus()
+        return
+      }
+    }
+  }
+
   BootIn {
     id: bootIn
     active: root.shown
@@ -114,7 +180,8 @@ PanelWindow {
     anchors.fill: parent
     blocked: !root.shown
     onCloseRequested: if (root.bar) root.bar.closePanel(root.moduleName)
-    onTabRequested: function(direction) { root.walkFocus(direction > 0) }
+    onTextKey: function(text) { if (text === "q" && root.bar) root.bar.closePanel(root.moduleName) }
+    onTabRequested: function(direction) { root.sectionJump(direction > 0) }
     onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
 
     Item {

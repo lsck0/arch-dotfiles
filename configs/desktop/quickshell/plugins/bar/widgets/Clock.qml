@@ -31,6 +31,13 @@ BarWidget {
   readonly property date travelledNow: new Date(now.getTime() + travelMs)
   readonly property date travelledPrecise: new Date(nowPrecise.getTime() + travelMs)
 
+  // Qt.DayOfWeek counts Sunday as 7, Date.getDay() as 0
+  readonly property int firstWeekday: Qt.locale().firstDayOfWeek % 7
+  // Locale.dayName() names days in the formats locale; Qt.formatDate() in the language, like every other date here.
+  // 2000-01-02 was a Sunday.
+  readonly property var weekdayLetters: [0, 1, 2, 3, 4, 5, 6].map(i => Qt.formatDate(new Date(2000, 0, 2 + (firstWeekday + i) % 7), "ddd").charAt(0))
+  readonly property string preciseFormat: Qt.locale().timeFormat(Locale.LongFormat).replace("ss", "ss.zzz").replace(/t+/, "t")
+
   readonly property string calendarKey: Qt.formatDate(travelledNow, "yyyy-MM-dd") + Qt.formatDate(now, "yyyy-MM-dd")
   property var calendarModel: []
   onCalendarKeyChanged: calendarModel = calendarWeeks()
@@ -45,11 +52,11 @@ BarWidget {
     var month = travelled.getMonth()
     var firstOfMonth = new Date(year, month, 1)
     var daysInMonth = new Date(year, month + 1, 0).getDate()
-    var startWeekday = firstOfMonth.getDay()
+    var leading = (firstOfMonth.getDay() - root.firstWeekday + 7) % 7
     var today = root.now
 
     var cells = []
-    for (let i = 0; i < startWeekday; i++) cells.push(null)
+    for (let i = 0; i < leading; i++) cells.push(null)
     for (let day = 1; day <= daysInMonth; day++) {
       cells.push({
         day: day,
@@ -155,7 +162,7 @@ BarWidget {
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
-        text: Qt.formatDateTime(root.travelledPrecise, "HH:mm:ss.zzz") + " " + Qt.formatDateTime(root.travelledPrecise, "t")
+        text: Qt.formatDateTime(root.travelledPrecise, root.preciseFormat)
         color: Colors.accent
         font.family: Style.font.family
         font.bold: true
@@ -166,7 +173,7 @@ BarWidget {
       Text {
         anchors.horizontalCenter: parent.horizontalCenter
         textFormat: Text.PlainText
-        text: Qt.formatDate(root.travelledNow, "dddd d MMMM yyyy")
+        text: Qt.formatDate(root.travelledNow, Qt.locale().dateFormat(Locale.LongFormat))
         color: Colors.menu.text
         opacity: Style.emphasis.dim
         font.family: Style.font.family
@@ -202,7 +209,7 @@ BarWidget {
           Row {
             width: parent.width
             Repeater {
-              model: ["S", "M", "T", "W", "T", "F", "S"]
+              model: root.weekdayLetters
               Text {
                 required property string modelData
                 width: content.width / 7

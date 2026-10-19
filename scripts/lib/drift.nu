@@ -4,7 +4,7 @@ use pipeline.nu [pipeline-load]
 use modules.nu [modules-packages]
 use platform.nu [platform-groups-all]
 use ledger.nu [ledger-get]
-use secrets.nu [secret-is-plaintext]
+use secrets.nu [secret-is-plaintext secrets-wanted]
 use state.nu [SYSTEM_STATE]
 
 const REPO = path self ../..
@@ -58,7 +58,9 @@ export def drift-report []: nothing -> string {
     ] | str join "\n" | $"($in)\n"
 }
 
+# a timer runs it on every machine; without the secrets capability there is nowhere to publish
 export def drift-publish []: nothing -> nothing {
+    if not (secrets-wanted) { return }
     if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
     let dest = $REPORTS | path join (sys host | get hostname)
     let report = drift-report

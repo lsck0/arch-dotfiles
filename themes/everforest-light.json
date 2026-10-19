@@ -1,0 +1,27 @@
+{
+  "wallpaper": "camille-sule-a-short-walk.jpg",
+  "pair": "everforest-dark",
+  "special": {
+    "background": "#fdf6e3",
+    "foreground": "#5c6a72",
+    "cursor": "#5c6a72"
+  },
+  "colors": {
+    "color0": "#708089",
+    "color1": "#f85552",
+    "color2": "#859801",
+    "color3": "#ba8500",
+    "color4": "#2f78a0",
+    "color5": "#d765b4",
+    "color6": "#339f76",
+    "color7": "#939f91",
+    "color8": "#829181",
+    "color9": "#e56767",
+    "color10": "#7e984c",
+    "color11": "#ba8500",
+    "color12": "#2f78a0",
+    "color13": "#d765b4",
+    "color14": "#339f76",
+    "color15": "#a6b0a0"
+  }
+}

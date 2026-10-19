@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [dnsmasq gnome-boxes libvirt qemu-full virt-install]}}
+export const meta = {packages: {pacman: [archiso dnsmasq gnome-boxes libvirt qemu-full virt-install]}}
 
 const NESTED = {AuthenticAMD: kvm_amd, GenuineIntel: kvm_intel}
 const DEFAULT_SUBNET = "192.168.122.0/24"

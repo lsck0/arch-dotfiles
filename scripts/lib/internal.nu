@@ -9,7 +9,7 @@ use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
 use ($LIB | path join modules.nu) [modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
-use ($LIB | path join secrets.nu) [secret-is-plaintext]
+use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted]
 use ($LIB | path join written.nu) [preserve-prune]
 use ($LIB | path join migrate.nu) [migrations-run]
 use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
@@ -18,6 +18,7 @@ use ($LIB | path join stage.nu) [stage-run]
 use ($LIB | path join audit.nu) [audit-remind]
 use ($LIB | path join drift.nu) [drift-report drift-publish]
 use ($LIB | path join wallpaper.nu) [wallpaper-get wallpaper-list]
+use ($LIB | path join iso.nu) [iso-build]
 
 const DOT = $REPO | path join scripts dot.nu
 const MIRROR_LIST = "mirror/packages.txt"
@@ -83,6 +84,11 @@ def "main gen" [--check]: nothing -> nothing {
         }
         mirror-list | save --force ($REPO | path join $MIRROR_LIST)
     }
+}
+
+# build the lsck0 install iso (needs root for mkarchiso); --work or DOT_ISO_WORK, default ~/.cache/dotfiles-iso
+def "main iso" [--out: path, --work: path, --mirror: string, --sign: string, --keep: int = 3]: nothing -> nothing {
+    guarded iso { iso-build $out $work $mirror $sign $keep }
 }
 
 # declared packages of a kind, one per line; --groups/--form-factor for another machine
@@ -168,13 +174,14 @@ def backup-native [ctx: record, m: record]: nothing -> record {
 def "main backup" [--roundtrip]: nothing -> nothing {
     guarded backup {
         let ctx = pipeline-load $REPO user
-        let locked = not (secret-is-plaintext ($REPO | path join secrets pgp_privatekey.asc))
+        let wanted = secrets-wanted
+        let locked = not $wanted or not (secret-is-plaintext ($REPO | path join secrets pgp_privatekey.asc))
         let mods = $ctx.modules | where {|m| "backup" in $m.native and $m.cfg.enable }
         let secret = {|m| $m.meta.backup?.secrets? | default false }
         if not $roundtrip {
             let skipped = $mods | where {|m| (do $secret $m) and $locked }
             with-env (platform-env $ctx.platform) { $mods | where id not-in $skipped.id | each {|m| backup-native $ctx $m } | ignore }
-            if ($skipped | is-not-empty) { log-warn $"backup: secrets is locked, skipped ($skipped.id | str join ' ')" }
+            if $wanted and ($skipped | is-not-empty) { log-warn $"backup: secrets is locked, skipped ($skipped.id | str join ' ')" }
             return
         }
         for m in ($mods | where {|m| not (do $secret $m) }) {

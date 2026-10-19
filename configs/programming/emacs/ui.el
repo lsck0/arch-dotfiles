@@ -10,6 +10,7 @@
     ("gruvbox-dark"   . doom-gruvbox)
     ("nord"           . doom-nord)
     ("one-dark"       . doom-one)
+    ("one-light"      . doom-one-light)
     ("solarized-dawn" . doom-solarized-light)
     ("tokyo-night"    . doom-tokyo-night))
   "Theme names from the repo's themes/ with a doom-themes equivalent; the rest use doom-pywal.")

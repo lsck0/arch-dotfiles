@@ -6,8 +6,8 @@ Extends the root `AGENTS.md`. Local LLM runtimes and frontends.
 
 - `alpaca`: a flatpak chat frontend, configured only once installed (seeds its sqlite db).
 - `ollama`: the local model server; models are pulled lazily on first use, never during `dot apply`.
-- `vllm`: the ROCm vLLM build, pinned by release and rocm tag under a resolvable index; model, revision and vram share
-  are options (the share detected from the card's vram).
+- `vllm`: the ROCm vLLM build, pinned by release and rocm tag under a resolvable index; model, revision, parsers and
+  vram share are options (the share detected from the card's vram).
 - `tools`: llmfit and heretic (packages only).
 
 ## Conventions

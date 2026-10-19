@@ -17,6 +17,7 @@ apparmor
 apparmor.d
 appimagetool-git
 arch-audit
+archiso
 argon2
 arjun
 arp-scan
@@ -307,6 +308,7 @@ jetbrains-toolbox
 jless
 john
 jolt
+josm
 jq
 jrnl
 jujutsu

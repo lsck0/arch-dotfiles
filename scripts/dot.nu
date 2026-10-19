@@ -12,20 +12,20 @@ use ($LIB | path join profile.nu) [profile-has]
 use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
 use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
-use ($LIB | path join converge.nu) [state-read observe decls-check plan-module recorded-hashes apply-module state-write]
+use ($LIB | path join converge.nu) [state-read observe decls-check plan-module recorded-hashes apply-module state-write output-file-state]
 use ($LIB | path join written.nu) [written-begin written-prune written-end preserve-report tty-confirm]
 use ($LIB | path join ledger.nu) [ledger-units ledger-get ledger-set packages-convergence]
-use ($LIB | path join migrate.nu) [migrations-run migrations-pending migrations-list migration-run]
+use ($LIB | path join migrate.nu) [migrations-run migrations-pending]
 use ($LIB | path join sandbox.nu) [plan-sandbox plan-snapshot-units plan-report plan-end]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
-use ($LIB | path join vm.nu) [USER PLATFORM vm-run vm-logs vm-drill vm-destroy vm-type screenshot]
+use ($LIB | path join vm.nu) [USER PROFILE PLATFORM vm-run vm-logs vm-drill vm-destroy vm-type screenshot]
 use ($LIB | path join yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
 use ($LIB | path join audit.nu) [audit-run audit-rotated audit-drilled]
 use ($LIB | path join drift.nu) [drift-view]
 use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
 use ($LIB | path join system.nu) [system-pack system-archive ENTRY]
 use ($LIB | path join wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
-use ($LIB | path join rollback.nu) [rollback-run rollback-resolve]
+use ($LIB | path join rollback.nu) [rollback-run]
 use ($LIB | path join sync.nu) [sync-pull sync-commit sync-can-sign]
 
 const INTERNAL = $LIB | path join internal.nu
@@ -60,16 +60,24 @@ def summary [results: table]: nothing -> nothing {
     log-debug $"slowest: ($slow)"
 }
 
-def plan-print [planned: table, verb: string]: nothing -> nothing {
-    for m in $planned {
-        let shown = $m.actions | where kind != skip
+# <mods> the ones asked for: each that has no row here gets its reason
+def plan-print [planned: table, verb: string, modules: table = [], mods: list<string> = []]: nothing -> nothing {
+    let busy = $planned | where {|m| $m.error != null or ($m.actions | any { $in.kind != skip }) }
+    for m in $busy {
         if $m.error != null {
             print $"($m.id): error: ($m.error)"
-        } else if ($shown | is-not-empty) {
+        } else {
             print $m.id
-            $shown | each {|a| print $"  ($a.kind | fill --width 8) ($a.target)(if ($a.reason | is-empty) { '' } else { $'  (($a.reason))' })" } | ignore
+            $m.actions | where kind != skip | each {|a| print $"  ($a.kind | fill --width 8) ($a.target)(if ($a.reason | is-empty) { '' } else { $'  (($a.reason))' })" } | ignore
         }
     }
+    let layer = if $verb == "system" { "system" } else { "user" }
+    let absent = $mods | where $it not-in $planned.id | each {|id|
+        let m = $modules | where id == $id | first
+        if not $m.cfg.enable { $"($id): disabled on this machine" } else { $"($id): no ($layer) layer" }
+    }
+    $absent | each { print $in } | ignore
+    if ($busy | is-empty) and ($absent | is-empty) { print (if $verb == "unlink" { "nothing to undo" } else { "nothing to apply" }) }
 }
 
 def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> table {
@@ -78,7 +86,7 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     $env.GOPATH = $nu.home-dir | path join .go
     let planned = pipeline-plan $ctx link $mods $force
     if $plan {
-        plan-print $planned link
+        plan-print $planned link $ctx.modules $mods
         return []
     }
     let full = $mods | is-empty
@@ -173,9 +181,23 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   dot <command> --help for its flags"
 
+# retired names, so an unknown command can point at its successor
+const COMMANDS_MOVED = {
+    update: sync, link: "apply --user", system: "apply --system", install: "apply --packages", gen: "internal gen"
+    options: set, unlink: "module unlink", remove: "module remove", adopt: "module adopt", restore: "module restore"
+    diff: plan, watch: "internal watch"
+}
+const LOG_LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
+
 # this machine as code; `dot sync` brings it to what the repo prescribes
-def main []: nothing -> nothing {
-    print $USAGE
+def --wrapped main [...args: string]: nothing -> nothing {
+    let word = $args | get --optional 0
+    if $word == null or $word in [--help -h help] {
+        print $USAGE
+        return
+    }
+    let moved = $COMMANDS_MOVED | transpose name now | where name == $word | get --optional 0.now
+    die --misuse $"unknown command '($word)'(if $moved == null { ', dot lists them' } else { $', it is dot ($moved) now' })"
 }
 
 # what an apply would do, touching nothing
@@ -198,7 +220,7 @@ def "main plan" [
                 | update after { str join " " }
             } else {
                 $ctx.modules | each {|m|
-                    {id: $m.id, kind: (if ($m.native | is-empty) { "legacy" } else { "native" }), verbs: ($m.verbs | str join " "), enabled: $m.cfg.enable, packages: ($m.meta.packages.pacman | length)}
+                    {id: $m.id, kind: (if ($m.native | is-empty) { "packages" } else { "native" }), verbs: ($m.verbs | str join " "), enabled: $m.cfg.enable, packages: ($m.meta.packages.pacman | length)}
                 }
             }
             if $json { $rows | to json } else { $rows }
@@ -207,7 +229,7 @@ def "main plan" [
     guarded plan {
         if $system {
             let ctx = pipeline-load $REPO system
-            plan-print (pipeline-plan $ctx system $mods $force) system
+            plan-print (pipeline-plan $ctx system $mods $force) system $ctx.modules $mods
         } else {
             link-run $mods $force true | ignore
         }
@@ -271,6 +293,17 @@ def system-run [stage: string, --snapshot, --force]: nothing -> int {
     try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
 }
 
+# a skipped root part is work left, not success: recorded for dot plan and status, the run exits 3
+def --env system-skipped [what: string, pending: bool]: nothing -> nothing {
+    if $pending { $"($what)\n" | save --append (pending-file) }
+    log-note $"system part pending \(DOT_SYSTEM=skip\): ($what)"
+    $env.DOT_SYSTEM_PENDING = true
+}
+
+def --env pending-exit []: nothing -> nothing {
+    if $env.DOT_SYSTEM_PENDING? == true { exit $EXIT_SYSTEM_PENDING }
+}
+
 def system-failed [stage: string]: nothing -> nothing {
     fail $"system layer: ($stage)"
     let root = $SYSTEM_STATE | path join FAILURES
@@ -282,8 +315,10 @@ def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     failures-open
     if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail $"dot secrets unlock: ($e.msg)" } }
     if (which git-lfs | is-not-empty) { try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch { fail "git lfs pull" } }
-    if $system {
+    if $system and (system-allowed) {
         if (system-run config --snapshot --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
+    } else if $system and (admin) {
+        system-skipped "system layer" true
     }
     if $user { link-run [] $force false } else { [] }
 }
@@ -309,23 +344,28 @@ def "main apply" [
         if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
         if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
         pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes))
-        guarded apply { exit (install-run ($one == "user") $yes true) }
+        guarded apply {
+            let status = install-run ($one == "user") $yes true
+            if $status != 0 { exit $status }
+            pending-exit
+        }
     }
     match $one {
         "user" => { guarded apply { link-run $mods $force false | finish $in } }
         "system" => {
             pty-log config ([apply --system] ++ (flag force $force))
             guarded apply {
-                if not (system-allowed) {
-                    print "note: system part pending, DOT_SYSTEM=skip"
-                    exit $EXIT_SYSTEM_PENDING
-                }
+                if not (admin) { error make {msg: "apply --system: the system layer is root's, and this login is not in wheel"} }
                 apply-run true false $force | finish $in
+                pending-exit
             }
         }
         _ => {
             pty-log config ([apply] ++ (flag force $force))
-            guarded apply { apply-run (system-allowed) true $force | finish $in }
+            guarded apply {
+                apply-run true true $force | finish $in
+                pending-exit
+            }
         }
     }
 }
@@ -341,9 +381,8 @@ def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
 def --env unlink-run [mod: string]: nothing -> table {
     let ctx = pipeline-load $REPO user
     let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null or ($m.native | is-empty) {
-        error make {msg: $"($mod) is no native module; unlink needs its mod.nu"}
-    }
+    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
+    if ($m.native | is-empty) { error make {msg: $"($mod) only declares packages, there is nothing to unlink"} }
     failures-open
     let extra = if "unlink" in $m.native { modules-eval [$m] unlink {$mod: $m.cfg} [] | get 0.decls } else { [] }
     decls-check $mod $extra
@@ -368,17 +407,22 @@ def --env unlink-run [mod: string]: nothing -> table {
 def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
     guarded remove {
         let ctx = pipeline-load $REPO user
-        let dependents = $ctx.modules | where {|m| $m.cfg.enable and $mod in $m.meta.deps } | get id
+        let m = $ctx.modules | where id == $mod | get --optional 0
+        if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
+        let dependents = $ctx.modules | where {|d| $d.cfg.enable and $mod in $d.meta.deps } | get id
         if ($dependents | is-not-empty) { error make {msg: $"($dependents | str join ', ') depend on ($mod), remove those first"} }
-        unlink-run $mod | ignore
+        if ($m.native | is-not-empty) { unlink-run $mod | ignore }
         option-write $mod enable false $machine | ignore
-        let mine = $ctx.modules | where id == $mod | get 0.meta.packages.pacman
         let others = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform | get pacman
-        let only = $mine | where $it not-in $others
+        let only = $m.meta.packages.pacman | where $it not-in $others
         if ($only | is-not-empty) {
             print $"packages only ($mod) declares: ($only | str join ' ')"
-            if $yes or (tty-confirm "remove them?") { ^sudo pacman -Rns ...$only }
+            if not (system-allowed) {
+                print $"remove them as root: pacman -Rns ($only | str join ' ')"
+                if (admin) { system-skipped $"packages of ($mod)" false }
+            } else if $yes or (tty-confirm "remove them?") { ^sudo pacman -Rns ...$only }
         }
+        pending-exit
     }
 }
 
@@ -446,6 +490,8 @@ def install-user [declared: record]: nothing -> nothing {
 
 def --env install-run [user: bool, yes: bool, snapshot: bool]: nothing -> int {
     let system = not $user and (system-allowed)
+    # packages are no apply's work, so nothing goes to the pending file; the exit says it
+    if not $user and not $system and (admin) { system-skipped "packages" false }
     $env.FAILURES_FILE = $env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures"
     "" | save --force $env.FAILURES_FILE
     if $system {
@@ -527,35 +573,44 @@ def option-write [mod: string, key: string, value: any, machine: bool]: nothing 
     {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key)}
 }
 
+# the value is stored either way; a failed apply is reported to the settings window and exits 1
 def option-apply [target: string, set: record]: nothing -> nothing {
-    let runtime = match $set.spec.apply {
+    mut results = []
+    mut toggle_error = ""
+    mut runtime: any = null
+    match $set.spec.apply {
         "live" => {
             if "apply" in $set.module.native {
                 let ctx = pipeline-load $REPO user
-                pipeline-apply $ctx (pipeline-plan $ctx apply [$set.module.id] true) apply 1 | ignore
-                null
+                $results = pipeline-apply $ctx (pipeline-plan $ctx apply [$set.module.id] true) apply 1
             } else if ($set.spec.toggle? | default null) != null {
                 let argv = match ($set.value | describe) { "bool" => [(if $set.value { "on" } else { "off" })], _ => [set ($set.value | into string)] }
-                ^(toggle-script $set.spec.toggle) ...$argv
-                option-runtime $set.spec
-            } else { null }
+                let toggled = ^(toggle-script $set.spec.toggle) ...$argv | complete
+                if ($toggled.stdout | str trim | is-not-empty) { print ($toggled.stdout | str trim) }
+                if $toggled.exit_code != 0 {
+                    $toggle_error = $"toggle-($set.spec.toggle) exited ($toggled.exit_code): ($toggled.stderr | str trim | lines | last 1 | str join '')"
+                }
+                $runtime = option-runtime $set.spec
+            }
         }
         $apply => {
             # a disabled module is skipped by link, so turning it off has to undo it here
             if ($target | str ends-with $".($OPTION_ENABLE)") and $set.value == false and ($set.module.native | is-not-empty) {
-                unlink-run $set.module.id | ignore
+                $results = unlink-run $set.module.id
                 print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
-            } else if "link" in $set.module.verbs { link-run [$set.module.id] false false | ignore }
+            } else if "link" in $set.module.verbs { $results = link-run [$set.module.id] false false }
             # machine options reach the system verb only through the root-owned copy
             if $set.spec.scope == "machine" and "system" in $set.module.verbs and (admin) { system-part $target }
             if $apply != "relink" {
                 log-note $"($target) takes effect after a ($apply)"
             }
-            null
         }
     }
-    options-notify $target $set.value $set.source $runtime
-    if ($env.DOT_SYSTEM_PENDING? == true) { exit $EXIT_SYSTEM_PENDING }
+    let failed = $results | where not ok | each {|r| $"($r.id): ($r.error | default 'failed')" }
+    let error = if ($failed | is-not-empty) { $"stored, the apply failed: ($failed | str join '; ')" } else if $toggle_error != "" { $"stored, ($toggle_error)" } else { null }
+    options-notify $target $set.value $set.source $runtime --error $error
+    if $error != null { error make {msg: $"($target): ($error)"} }
+    pending-exit
 }
 
 def pending-file []: nothing -> path {
@@ -611,6 +666,7 @@ def "main set" [
     }
 }
 
+# every recorded output that no longer holds; pending: the next apply puts it back without being told to
 def managed-drift []: nothing -> table {
     glob (state-dir | path join modules **/*.nuon) | each {|f|
         let id = $f | path dirname | path relative-to (state-dir | path join modules)
@@ -619,15 +675,16 @@ def managed-drift []: nothing -> table {
         $outs | each {|o|
             let obs = $seen.paths | get --optional $o.target
             let state = match $o.kind {
-                "file" => (if $obs.type == "" { "missing" } else if $obs.hash != $o.hash { "changed" } else { null })
+                "file" => (output-file-state $o $obs $REPO)
                 "link" => (if $obs.link? != $o.source { "relinked" } else { null })
                 "unit" => {
                     let now = $seen.units | get --optional $o.target
                     let held = match ($o.state? | default enabled) { "disabled" => ($now != "enabled"), $want => ($now == $want) }
                     if $held { null } else { $now | default missing }
                 }
+                _ => null
             }
-            if $state == null { null } else { {module: $id, target: $o.target, drift: $state} }
+            if $state == null { null } else { {module: $id, target: $o.target, drift: $state, pending: ($o.kind == "unit" or $state == "missing")} }
         } | compact
     } | flatten
 }
@@ -651,8 +708,8 @@ def --env update-run [yes: bool]: nothing -> record {
     migrations-run $REPO user | ignore
     let install = install-run false $yes true
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
-    if (system-allowed) { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate }
-    {install: $install, results: (apply-run (system-allowed) true false)}
+    if (system-allowed) { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } else if (admin) { system-skipped "system migrations" false }
+    {install: $install, results: (apply-run true true false)}
 }
 
 # the one command: pull, snapshot, migrate, install, apply, back up app state, commit the signed generation, push
@@ -674,6 +731,7 @@ def "main sync" [
         }
         run-journal
         if not $clean or $run.install != 0 { exit 1 }
+        pending-exit
     }
 }
 
@@ -686,11 +744,6 @@ def "main rollback" [target?: string, --snapshot, --full, --dry-run]: nothing ->
             return
         }
         if $target == null { error make {msg: "dot rollback <generation|commit> or --snapshot"} }
-        let sha = rollback-resolve $target
-        let later = migrations-list $REPO | where id in (ledger-get migration) | where {|m| (^git -C $REPO cat-file -e $"($sha):($m.file | path relative-to $REPO)" | complete).exit_code != 0 }
-        let stuck = $later | where not reversible
-        if ($stuck | is-not-empty) { error make {msg: $"($target) predates migration ($stuck.id | str join ', '), which has no down"} }
-        if not $dry_run { $later | reverse | each { migration-run $in down } | ignore }
         rollback-run $target --full=$full --dry-run=$dry_run
     }
 }
@@ -724,7 +777,7 @@ def "main status" [
         let drift = managed-drift
         if $json {
             let checks = doctor-checks
-            print ($head | merge {drift: $drift, checks: $checks} | to json)
+            print ($head | merge {drift: ($drift | where not pending | reject pending), pending_apply: ($drift | where pending | reject pending), checks: $checks} | to json)
             if ($checks | any { $in.level == "FAIL" }) { exit 1 }
             return
         }
@@ -732,7 +785,8 @@ def "main status" [
         print $"last run ($head.last_run), ($head.errors) errors"
         if ($head.migrations_pending | is-not-empty) { print $"migrations pending: ($head.migrations_pending | str join ' ')" }
         if ($head.system_pending | is-not-empty) { print $"system part pending: ($head.system_pending | str join ' '); dot apply runs it" }
-        $drift | each { print $"changed since its apply: ($in.target) \(($in.module), ($in.drift)\); dot module adopt or apply --force" } | ignore
+        $drift | where pending | each { print $"pending apply: ($in.target) \(($in.module), ($in.drift)\); dot apply puts it back" } | ignore
+        $drift | where not pending | each { print $"changed since its apply: ($in.target) \(($in.module), ($in.drift)\); dot module adopt or apply --force" } | ignore
         print ""
         let failed = doctor-run
         try { drift-view } catch { }
@@ -742,6 +796,7 @@ def "main status" [
 
 # a run's records (default the last) by module and level; --trace the span tree with timings
 def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@[TRACE DEBUG INFO WARN ERROR PANIC] = "INFO", --trace]: nothing -> any {
+    if ($level | str uppercase) not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
     let file = if $run == null { glob (runs-dir | path join "*.jsonl") | sort | last } else { runs-dir | path join $"($run).jsonl" }
     if $file == null or not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
     let records = open --raw $file | lines | each { from json }
@@ -801,11 +856,11 @@ def "main test check" []: nothing -> nothing {
 const VM_NAME = "archlinux-test"
 
 # end-to-end vm test from the iso through the whole chain; hours; local tree unless --master
-def "main test run" [--iso: path, --platform: string, --user: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
+def "main test run" [--iso: path, --platform: string, --user: string, --profile: string, --master, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test {
         let problems = gate-lint
         if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-        vm-run $name ($iso | default ($nu.home-dir | path join downloads archlinux-x86_64.iso)) ($platform | default $PLATFORM) ($user | default $USER) $master
+        vm-run $name ($iso | default ($nu.home-dir | path join downloads archlinux-x86_64.iso)) ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
     }
 }
 

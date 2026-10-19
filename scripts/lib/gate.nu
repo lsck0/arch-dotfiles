@@ -110,6 +110,20 @@ def lint-palette []: nothing -> list<string> {
     } | compact
 }
 
+const SYSTEM_APPLY = "scripts/lib/system-apply.nu"
+
+# root re-execs each command under flock with the flags it spells out; a flag it leaves out is dropped silently
+def lint-locked-flags []: nothing -> list<string> {
+    open --raw ($REPO | path join $SYSTEM_APPLY)
+    | parse --regex '(?ms)^def "main (?<cmd>[a-z-]+)" \[(?<sig>[^\]]*)\][^\n]*\n(?<body>.*?)^\}'
+    | each {|d|
+        let call = $d.body | lines | str trim | where ($it | str starts-with $"locked ($d.cmd)") | get --optional 0
+        if $call == null { return [] }
+        $d.sig | parse --regex '--(?<flag>[a-z][a-z-]*)' | get flag | where {|f| not ($call =~ $"--($f)\\b") }
+        | each {|f| $"($SYSTEM_APPLY): main ($d.cmd) takes --($f), its locked re-exec drops it" }
+    } | flatten
+}
+
 # nu-check passes these, the run fails
 const NU_PITFALLS = [
     [pattern why];
@@ -161,7 +175,7 @@ def unit-tests []: nothing -> list<string> {
 }
 
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
 }
 
 def shell-script [path: path]: nothing -> bool {
