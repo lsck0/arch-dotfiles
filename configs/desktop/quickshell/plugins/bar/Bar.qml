@@ -138,9 +138,10 @@ PanelWindow {
     onTriggered: root.applyHoverOpen(root.pendingPanel)
   }
 
+  // a pin only keeps its panel open when the pointer leaves; hovering another trigger still switches to it
   function hoverOpen(id) {
-    if (root.pinnedPanel !== "") {
-      if (root.pinnedPanel === id) root.triggerHovered = true
+    if (root.pinnedPanel === id) {
+      root.triggerHovered = true
       return
     }
     hoverCloseTimer.stop()
@@ -155,7 +156,7 @@ PanelWindow {
   }
 
   function applyHoverOpen(id) {
-    if (root.pendingPanel !== id || root.pinnedPanel !== "") return
+    if (root.pendingPanel !== id || root.pinnedPanel === id) return
     if (root.activePanel !== id) root.panelShow(id, false, false)
     root.triggerHovered = true
   }
