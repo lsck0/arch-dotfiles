@@ -20,6 +20,14 @@ export const options = {
         label: "Wired is home"
         scope: machine
     }
+    wifi_radio: {
+        type: bool?
+        default: null
+        doc: ("Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. "
+            + "Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it")
+        label: "Wi-Fi radio"
+        scope: machine
+    }
     home_gateways: {
         type: list<string>
         default: []
@@ -54,12 +62,21 @@ const IPV4 = '^(\d{1,3}\.){3}\d{1,3}$'
 const CIDR4 = '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
 const DOMAIN = '^[A-Za-z0-9.-]+$'
 const ONLINE_TIMEOUT_S = 60
+const ARPHRD_ETHER = "1"
+const WIFI_OFF_MARK = "/var/lib/NetworkManager/dotfiles-wifi-off"
 
-export def detect [cfg: record]: nothing -> record {
-    {home_wired: ($env.FORM_FACTOR? == "desktop")}
+# the class entries are links, which glob does not follow
+def ethernet-up []: nothing -> bool {
+    ls /sys/class/net | get name | where {|n| ($n | path join device | path exists) and not ($n | path join wireless | path exists) }
+        | where {|n| (try { open --raw ($n | path join type) | str trim } catch { "" }) == $ARPHRD_ETHER }
+        | any {|n| (try { open --raw ($n | path join carrier) | str trim } catch { "0" }) == "1" }
 }
 
-# a qmi/mbim modem makes a wwan*/wwp* iface and a cdc-wdm node; ModemManager idles needlessly without one
+export def detect [cfg: record]: nothing -> record {
+    let desktop = $env.FORM_FACTOR? == "desktop"
+    {home_wired: $desktop, wifi_radio: (not ($desktop and (ethernet-up)))}
+}
+
 def has-modem []: nothing -> bool {
     (
         (glob /sys/class/net/{wwan,wwp}* | append (glob /dev/cdc-wdm*) | is-not-empty)
@@ -89,12 +106,9 @@ export def system [cfg: record] {
     let restart = [sh -c $"systemctl restart NetworkManager.service && ($online)"]
     let dispatcher = {|src, name| file-copy $src $"($DISPATCHERS)/($name)" --mode 755 }
     [
-        # ModemManager drives nmcli radio wwan (toggle-mobile)
         (if (which ModemManager | is-not-empty) and (has-modem) { unit-enable ModemManager.service --now } else { [] })
-        # ahead of the restart below and the dispatchers: one reading a missing policy falls back to lockdown-tor,
-        # which starts fw-egress and cuts this run's egress on a link not yet decided home
+        # before the dispatchers: a missing policy means lockdown-tor, cutting this run's egress
         (file-text $"($NM)/untrusted-policy" $"($cfg.untrusted_policy)\n")
-        # a vm guest leaves through its host's kill switch
         (if $env.FORM_FACTOR? == "vm" { file-text $"($NM)/vm-guest" "" } else { [] })
         (if $homelab != null { file-text $"($NM)/homelab.env" $homelab } else { [] })
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
@@ -106,10 +120,13 @@ export def system [cfg: record] {
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
         (do $dispatcher persona-dispatcher.nu 90-anonymous-persona)
         (step home ($home_wired | into string) ...$cfg.home_gateways)
+        # once: NM keeps the radio state across boots, so a later toggle-wifi on stays on
+        (if $cfg.wifi_radio == false {
+            exec "wifi radio off" [sh -c $"nmcli radio wifi off && touch ($WIFI_OFF_MARK)"] --creates $WIFI_OFF_MARK
+        } else { [] })
     ]
 }
 
-# from the admin's secrets: home wifis keep the hardware mac and ipv6; a run without home-gateways keeps the list
 export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let profiles = ^nmcli -g UUID,TYPE connection show | lines | parse "{uuid}:{type}"
@@ -133,7 +150,6 @@ export def home [home_wired: string, ...gateways: string]: nothing -> nothing {
     let secret = $secrets | path join home-gateways
     let listed = if ($secret | path exists) {
         let lines = open --raw $secret | lines
-        # comments and blanks never equal a mac in home-network.nu's whole-line match, so they may stay
         if ($lines | any {|l| not ($l =~ $MAC or $l =~ '^(#.*)?$') }) or not ($lines | any { $in =~ $MAC }) {
             error make {msg: $"networkmanager: home-gateways is not one mac address per line, keeping ($file)"}
         }

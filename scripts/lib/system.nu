@@ -4,9 +4,7 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use secrets.nu [secret-is-plaintext]
 
-# what the system layer may read; skills, weblinks, wallpapers and secrets stay out
 const SYSTEM_PATHS = [configs platforms profiles scripts]
-# streamed on the root step's stdin as data; ssh_publickey.asc is remote-unlock's initramfs host key
 const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 
@@ -29,7 +27,6 @@ export def system-pack [checkout: path, --rollback]: nothing -> binary {
     let files = ^git -C $checkout ls-files -z --cached --others --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
         | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
     if $ENTRY not-in $files { error make {msg: $"($checkout) lists no ($ENTRY), not packing"} }
-    # modes as a fresh clone has them, whatever the admin's umask
     $files | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf -
 }
 

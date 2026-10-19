@@ -39,7 +39,6 @@ Item {
   property real neck: docked ? Style.shape.neck : 0
   readonly property real sideInset: neck
 
-  // half-pixel inset keeps the stroke inside the item
   readonly property real _h: strokeWidth / 2
   readonly property real _l: neck + _h
   readonly property real _r: width - neck - _h

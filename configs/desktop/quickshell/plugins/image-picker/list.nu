@@ -12,7 +12,6 @@ def cache-dir []: nothing -> string {
     [($env.XDG_CACHE_HOME? | default ($env.HOME | path join .cache)) quickshell image-selector] | path join
 }
 
-# the index keeps thumbnails stable across runs
 def thumb-name [image: string, index: record]: nothing -> record {
     let stat = ls ($image | path expand) | first
     let key = $"($image)\t($stat.size | into int):(($stat.modified | into int) // 1_000_000_000)"
@@ -56,7 +55,6 @@ def "main themes" [theme_dir: string, wallpaper_list: string] {
     mkdir (cache-dir)
     if ($theme_dir | path type) != dir { return }
     let index = index-load
-    # themes name their wallpaper by file name; the first theme to claim one wins
     let rows = glob $"($theme_dir)/*.json" | sort
         | each {|file| {theme: ($file | path parse | get stem), name: (open $file | get wallpaper? | default "")} }
         | where name != "" and not ($it.name | str contains /)
@@ -69,7 +67,7 @@ def "main themes" [theme_dir: string, wallpaper_list: string] {
 
 def main [wallpaper_list: string, screen?: string] {
     mkdir (cache-dir)
-    # not qt's devicePixelRatio: it rounds a 1.67 scale to 2 and made a 4k panel 4608x2592
+    # not qt's devicePixelRatio: it rounds a 1.67 scale to 2, so a 4k panel reads as 4608x2592
     let size = $screen | default (^hyprctl -j monitors | from json | sort-by { $in.width * $in.height } | last | $"($in.width)x($in.height)")
     let images = ^$wallpaper_list --screen $size | lines
     let index = index-load

@@ -3,40 +3,37 @@
 const REPO = path self | path expand | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
 use ($LIB | path join log.nu) *
+use ($LIB | path join cli.nu) [concat jobs build guarded]
+use ($LIB | path join usage.nu) [die]
+use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
 use ($LIB | path join state.nu) [SYSTEM_REPO SYSTEM_STATE state-dir]
 use ($LIB | path join platform.nu) [platform-load platform-env]
-use ($LIB | path join profile.nu) [profile-load profile-has]
-use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-events-file options-to-nuon]
+use ($LIB | path join profile.nu) [profile-has]
+use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
 use ($LIB | path join modules.nu) [modules-graph modules-packages modules-eval]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
 use ($LIB | path join converge.nu) [state-read observe decls-check plan-module recorded-hashes apply-module state-write]
-use ($LIB | path join secrets.nu) [secret-is-plaintext]
-use ($LIB | path join written.nu) [written-begin written-prune written-end preserve-prune preserve-report tty-confirm]
+use ($LIB | path join written.nu) [written-begin written-prune written-end preserve-report tty-confirm]
 use ($LIB | path join ledger.nu) [ledger-units ledger-get ledger-set packages-convergence]
 use ($LIB | path join migrate.nu) [migrations-run migrations-pending migrations-list migration-run]
 use ($LIB | path join sandbox.nu) [plan-sandbox plan-snapshot-units plan-report plan-end]
-use ($LIB | path join fetch.nu) [fetch-file-run fetch-git-run]
-use ($LIB | path join bootstrap.nu) [bootstrap-run]
-use ($LIB | path join stage.nu) [stage-run]
 use ($LIB | path join gate.nu) [gate-lint gate-tools gate-palette]
 use ($LIB | path join vm.nu) [USER PLATFORM vm-run vm-logs vm-drill vm-destroy vm-type screenshot]
 use ($LIB | path join yubikey.nu) [yubikey-init yubikey-seal yubikey-unlock yubikey-lock]
-use ($LIB | path join audit.nu) [audit-run audit-rotated audit-drilled audit-remind]
-use ($LIB | path join drift.nu) [drift-report drift-publish drift-view]
-use ($LIB | path join doctor.nu) [doctor-run]
+use ($LIB | path join audit.nu) [audit-run audit-rotated audit-drilled]
+use ($LIB | path join drift.nu) [drift-view]
+use ($LIB | path join doctor.nu) [doctor-run doctor-checks]
 use ($LIB | path join system.nu) [system-pack system-archive ENTRY]
-use ($LIB | path join wallpaper.nu) [wallpaper-get wallpaper-list wallpaper-set wallpaper-random wallpaper-pick]
+use ($LIB | path join wallpaper.nu) [wallpaper-set wallpaper-random wallpaper-pick]
 use ($LIB | path join rollback.nu) [rollback-run rollback-resolve]
-use ($LIB | path join sync.nu) [sync-run]
+use ($LIB | path join sync.nu) [sync-pull sync-commit sync-can-sign]
 
+const INTERNAL = $LIB | path join internal.nu
 const FAILURES = "FAILURES.config"
 const EXIT_SYSTEM_PENDING = 3
-const CRASH_LOG_LINES = 20
-const MIRROR_LIST = "mirror/packages.txt"
 const FAILURES_INSTALL = "FAILURES.install"
-# dot stage retries an abort, moves on from a run that only recorded failures
+# dot internal stage retries an abort, moves on from a run that only recorded failures
 const EXIT_ABORTED = 2
-# pinned so a generation installs what it was tested with
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 # core/git's lfs filter, which a first apply pulls before it exists; without it lfs pull skips the checkout
@@ -50,50 +47,8 @@ const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
 # seeds a root copy that predates the nu entry: a fixed script, no repo code as root
 const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
-const THEME_STAMP_PATHS = [configs/core/wallust configs/core/themes 'configs/*/*/mod.nu' scripts/lib/wallpaper.nu]
+const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu' scripts/lib/wallpaper.nu]
 const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
-# discord recolours from spotify's palette; discord and gtk would race a second switch
-const THEME_FOREGROUND = [socials/spotify socials/discord desktop/gtk]
-
-def concat []: list -> list {
-    reduce --fold [] {|part, acc| $acc ++ $part }
-}
-
-def jobs []: nothing -> int {
-    let jobs = $env.DOTFILES_JOBS? | default (sys cpu | length) | into int
-    if $jobs < 1 { error make {msg: $"DOTFILES_JOBS=($jobs) is not a positive number"} }
-    $jobs
-}
-
-def build []: nothing -> record {
-    let head = try { ^git -C $REPO rev-parse --short=12 HEAD | str trim } catch { "none" }
-    let dirty = (try { ^git -C $REPO status --porcelain --ignore-submodules=all | str trim } catch { "" }) | is-not-empty
-    {commit: $head, dirty: $dirty, nu: (version | get version)}
-}
-
-def guarded [name: string, body: closure]: nothing -> any {
-    run-begin $name | ignore
-    $env.DOTFILES = $REPO
-    $env.LOG_TAG = "dot"
-    try {
-        span $name {} $body
-    } catch {|err|
-        # own refusals (error make) name the fix themselves, no crash record
-        if ($err.debug | str starts-with "LabeledError") {
-            log-err $err.msg
-            run-journal
-            exit 1
-        }
-        let run = $env.DOT_RUN_FILE
-        let file = $run | path dirname | path dirname | path join crash.json
-        let tail = if ($run | path exists) { open --raw $run | lines | last $CRASH_LOG_LINES } else { [] }
-        {run: $env.DOT_RUN_ID, command: $name, error: $err.msg, debug: $err.debug, build: (build), log: $tail} | save --force $file
-        print -e $err.rendered
-        log-record PANIC $"crash record: ($file)" {msg_detail: $err.msg}
-        run-journal
-        exit 1
-    }
-}
 
 def summary [results: table]: nothing -> nothing {
     let outcomes = $results | get outcomes | concat
@@ -131,7 +86,6 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     failures-open
     if $full { written-begin }
     let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
-    # theme outputs are desired state too: one removed by an unlink returns with the link
     let wallpaper = $nu.home-dir | path join .cache wal wallpaper
     let themed = if ($wallpaper | path exists) {
         let ids = $planned | where native | get id
@@ -178,8 +132,8 @@ def --env failures-open []: nothing -> nothing {
     }
 }
 
-def finish [results: table]: nothing -> nothing {
-    run-journal
+# false when the run left a failure; FAILURES.config always holds the last full run's
+def failures-publish [results: table]: nothing -> bool {
     let owned = $env.DOT_FAILURES_OWNED? == true
     let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
     if ($failures | is-not-empty) {
@@ -188,67 +142,68 @@ def finish [results: table]: nothing -> nothing {
         mv --force $"($published).($env.DOT_RUN_ID)" $published
         print "=== FAILED ==="
         print $failures
-        exit 1
+        return false
     }
-    if ($results | any { not $in.ok }) { exit 1 }
-    # only a full run clears the last list; a partial run leaves it
+    if ($results | any { not $in.ok }) { return false }
     if $owned and ($env.DOT_FULL_RUN? == true) { rm --force ($REPO | path join $FAILURES) }
+    true
 }
 
-const USAGE = "dot: this machine as code. `dot update` brings it to the current generation
+def finish [results: table]: nothing -> nothing {
+    run-journal
+    if not (failures-publish $results) { exit 1 }
+}
 
-  update                       pull, snapshot, migrate, install, apply
-  status | doctor              at a glance | full health check
-  sync                         back up, commit the signed generation, push
-  theme [set|random|get|list]  wallpaper and theme
+const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo prescribes and records it
 
-  plan [mod...]                what an apply would do, touching nothing
-  apply [--force]              system layer, then user layer; --force overwrites drift
-  link [mod...] | system       user layer | system layer alone
-  install                      every declared package
-  unlink | remove <mod>        undo a module | also turn it off
+  sync [--no-push]                pull, migrate, install, apply, back up, commit the signed generation, push
+  apply [mod...]                  converge now, no git: system layer, then user layer; modules: their user layer
+    --user | --system             one layer
+    --packages                    declared packages, flatpak and nix instead, removals after a yes
+  plan [mod...]                   what an apply would do; --order the run order, --modules every module
+  status [--brief]                generation, pending work, failures, drift, secrets, backups
+  set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
+  theme [name|random]             wallpaper and theme, fzf without a name
+  module adopt|unlink|remove|restore
+  log [run] | explain <thing>     a run's records | who wrote a path, who declares a package
+  secrets unlock|lock|init|seal|audit
+  rollback [gen]                  an earlier generation
+  test lint|check|fmt|run|...     the gates and the vm test
 
-  list | graph                 modules | run order
-  options [mod]                options and values; set | unset <mod>.<key>
-  diff | adopt | explain       drift | keep a live edit | who wrote a path
-  log [run] [--trace]          a run's records or span tree
-
-  secrets [unlock|lock|init]   the yubikey-backed secrets
-  backup | restore <mod>       app state into the repo | back out
-  rollback [gen]               an earlier generation
-  test lint|check|run|shot     static gates | the vm test
-
-  more: audit bootstrap drift fetch gen migrate packages prune stage watch
+  --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   dot <command> --help for its flags"
 
-# infrastructure as code for this machine; `dot update` brings it to the current generation
+# this machine as code; `dot sync` brings it to what the repo prescribes
 def main []: nothing -> nothing {
     print $USAGE
 }
 
-# every module: group, kind, verbs, whether this machine runs it
-def "main list" [--json]: nothing -> any {
-    guarded list {
-        let ctx = pipeline-load $REPO user
-        let rows = $ctx.modules | each {|m|
-            {id: $m.id, kind: (if ($m.native | is-empty) { "legacy" } else { "native" }), verbs: ($m.verbs | str join " "), enabled: $m.cfg.enable, packages: ($m.meta.packages.pacman | length)}
-        }
-        if $json { $rows | to json } else { $rows }
+# what an apply would do, touching nothing
+def "main plan" [
+    ...mods: string@module-ids
+    --system   # the system layer
+    --sandbox  # also a real run under bubblewrap, for its write set
+    --force    # as an apply --force would
+    --order    # each enabled module with its level and what it waits for
+    --modules  # every module: kind, verbs, whether this machine runs it
+    --json     # --order or --modules as json
+]: nothing -> any {
+    if $order or $modules {
+        return (guarded plan {
+            let layer = if $system { "system" } else { "user" }
+            let ctx = pipeline-load $REPO $layer
+            let rows = if $order {
+                let verb = if $system { "system" } else { "link" }
+                modules-graph $REPO ($ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable }) | select level id after
+                | update after { str join " " }
+            } else {
+                $ctx.modules | each {|m|
+                    {id: $m.id, kind: (if ($m.native | is-empty) { "legacy" } else { "native" }), verbs: ($m.verbs | str join " "), enabled: $m.cfg.enable, packages: ($m.meta.packages.pacman | length)}
+                }
+            }
+            if $json { $rows | to json } else { $rows }
+        })
     }
-}
-
-# the run order: each enabled module with its level and what it waits for
-def "main graph" [--system]: nothing -> any {
-    guarded graph {
-        let ctx = pipeline-load $REPO (if $system { "system" } else { "user" })
-        let verb = if $system { "system" } else { "link" }
-        modules-graph $REPO ($ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable }) | select level id after
-        | update after { str join " " }
-    }
-}
-
-# what an apply would do, touching nothing; --sandbox adds the legacy modules' write set
-def "main plan" [...mods: string, --system, --sandbox, --force]: nothing -> nothing {
     guarded plan {
         if $system {
             let ctx = pipeline-load $REPO system
@@ -264,38 +219,20 @@ def "main plan" [...mods: string, --system, --sandbox, --force]: nothing -> noth
         let declared = modules-packages $REPO $ctx.modules $ctx.platform
         let extra = packages-convergence $declared.pacman $ctx.platform.packages_keep
         if ($extra.remove | is-not-empty) {
-            print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot install removes them after a yes"
+            print $"installed, declared by no module \(($extra.remove | length)\): ($extra.remove | str join ' ')\n  dot apply --packages removes them after a yes"
         }
         if $sandbox {
             let dir = mktemp --directory
             plan-snapshot-units $dir user
             let roots = [$nu.home-dir] | append (if ($REPO | str starts-with $nu.home-dir) { [] } else { [$REPO] })
             let status = with-env {FAILURES_FILE: ($dir | path join FAILURES)} {
-                plan-sandbox $dir $roots [($REPO | path join scripts dot.nu) link ...$mods]
+                plan-sandbox $dir $roots [($REPO | path join scripts dot.nu) apply --user ...$mods]
             }
             print (plan-report $dir ($dir | path join FAILURES))
             plan-end $dir
             if $status != 0 { log-err $"the sandboxed run itself failed \(($status)\), the write set above is partial" }
         }
     }
-}
-
-# converge the user layer: every enabled module's link verb, unchanged native modules skipped
-def "main link" [...mods: string, --force]: nothing -> nothing {
-    guarded link { link-run $mods $force false | finish $in }
-}
-
-def mirror-list []: nothing -> string {
-    let ctx = pipeline-load $REPO system
-    let all = $ctx.modules | update selected true | update cfg { upsert enable true }
-    let extras = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { open $in | get --optional extra_packages | default [] } | flatten
-    # a computed list depends on detection: every choice of every option
-    let variants = $all | where {|m| "packages" in $m.native } | each {|m|
-        $m.options | items {|name, spec| $spec.choices? | default [] | each {|c| {m: $m, cfg: ($m.cfg | upsert $name $c)} } } | flatten
-    } | flatten
-    let candidates = $variants | each {|v| modules-eval [$v.m] packages {$v.m.id: $v.cfg} [] | get 0.decls | get --optional 0 | default {} | select --optional pacman native | values | flatten } | flatten
-    let platform = $ctx.platform | update form_factor desktop | update extra_packages ($extras ++ $candidates)
-    modules-packages $REPO $all $platform | get pacman | str join "\n" | $"($in)\n"
 }
 
 def admin []: nothing -> bool {
@@ -310,7 +247,7 @@ def system-allowed []: nothing -> bool {
 # pacman draws its bars only on a terminal, so rerun under script to keep and log them
 def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
     if ($env.DOT_PTY_LOG? | is-not-empty) { return }
-    # before the re-exec: its pty stdin would look like a person even under dot stage's </dev/null
+    # before the re-exec: its pty stdin would look like a person even under dot internal stage's </dev/null
     if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
     if (is-terminal --stdout) and (which script | is-not-empty) {
         let cmd = [nu --no-config-file ($REPO | path join scripts dot.nu) ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
@@ -351,27 +288,53 @@ def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     if $user { link-run [] $force false } else { [] }
 }
 
-# converge the machine: the system layer from the root-owned copy, then the user layer
-def "main apply" [--user, --no-system, --force]: nothing -> nothing {
-    let flags = [[--user $user] [--no-system $no_system] [--force $force]] | where { $in.1 } | each { $in.0 }
-    pty-log config ([apply] ++ $flags)
-    guarded apply { apply-run (not $user and not $no_system and (system-allowed)) true $force | finish $in }
+def flag [name: string, on: bool]: nothing -> list<string> {
+    if $on { [$"--($name)"] } else { [] }
 }
 
-# the system layer alone: a snapshot, then every system verb from the root-owned copy
-def "main system" [--force]: nothing -> nothing {
-    pty-log config ([system] ++ (if $force { [--force] } else { [] }))
-    guarded system {
-        if not (system-allowed) {
-            print "note: system part pending, DOT_SYSTEM=skip"
-            exit $EXIT_SYSTEM_PENDING
+# converge now, no git: system layer from the root-owned copy, then user layer; modules: only their user layer
+def "main apply" [
+    ...mods: string@module-ids
+    --user       # the user layer alone
+    --system     # the system layer alone
+    --packages   # every declared package, flatpak and nix after a snapshot, then removals after a yes
+    --force      # overwrite drift, the live copy preserved aside
+    --yes        # with --packages: remove packages no module declares without asking
+    --no-system  # only the user part, same as DOT_SYSTEM=skip
+]: nothing -> nothing {
+    if $no_system { $env.DOT_SYSTEM = "skip" }
+    let one = if $user and $system { "" } else if $user or ($mods | is-not-empty) { "user" } else if $system { "system" } else { "" }
+    if ($mods | is-not-empty) and $system { die --misuse "apply: modules converge their user layer, --system takes none" }
+    if $packages {
+        if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
+        if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
+        pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes))
+        guarded apply { exit (install-run ($one == "user") $yes true) }
+    }
+    match $one {
+        "user" => { guarded apply { link-run $mods $force false | finish $in } }
+        "system" => {
+            pty-log config ([apply --system] ++ (flag force $force))
+            guarded apply {
+                if not (system-allowed) {
+                    print "note: system part pending, DOT_SYSTEM=skip"
+                    exit $EXIT_SYSTEM_PENDING
+                }
+                apply-run true false $force | finish $in
+            }
         }
-        apply-run true false $force | finish $in
+        _ => {
+            pty-log config ([apply] ++ (flag force $force))
+            guarded apply { apply-run (system-allowed) true $force | finish $in }
+        }
     }
 }
 
+# one module by hand: adopt, unlink, remove, restore
+def "main module" []: nothing -> nothing { help main module }
+
 # reverse a native module's last apply; files changed since stay, originals come back
-def "main unlink" [mod: string]: nothing -> nothing {
+def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
     guarded unlink { unlink-run $mod | finish $in }
 }
 
@@ -402,7 +365,7 @@ def --env unlink-run [mod: string]: nothing -> table {
 }
 
 # unlink a module, turn it off (--machine: for the machine), offer its packages for removal
-def "main remove" [mod: string, --machine, --yes]: nothing -> nothing {
+def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
     guarded remove {
         let ctx = pipeline-load $REPO user
         let dependents = $ctx.modules | where {|m| $m.cfg.enable and $mod in $m.meta.deps } | get id
@@ -419,9 +382,33 @@ def "main remove" [mod: string, --machine, --yes]: nothing -> nothing {
     }
 }
 
+# carry a live edit of a managed copy back into the module's source, so the next apply keeps it
+def "main module adopt" [file: path]: nothing -> nothing {
+    guarded adopt {
+        let target = $file | path expand
+        let ctx = pipeline-load $REPO user
+        let planned = pipeline-plan $ctx link [] true
+        let found = $planned | get actions | concat | where target == $target and decl.kind == file | get --optional 0
+        if $found == null { error make {msg: $"($target) is no file a module copies; dot status lists the changed ones"} }
+        if $found.decl.source == null { error make {msg: $"($target) is rendered by ($found.module), adopt it by editing its template"} }
+        ^cp $target $found.decl.source
+        log-info $"($target) -> ($found.decl.source | path relative-to $REPO)"
+    }
+}
+
+# run one module's restore verb (state its link does not already restore)
+def "main module restore" [mod: string@module-ids]: nothing -> nothing {
+    guarded restore {
+        let ctx = pipeline-load $REPO user
+        let m = $ctx.modules | where id == $mod | get --optional 0
+        if $m == null or "restore" not-in $m.native { error make {msg: $"($mod) has no restore verb"} }
+        let r = with-env (platform-env $ctx.platform) { modules-eval [$m] restore {$m.id: $m.cfg} [] } | first
+        if not $r.ok { error make {msg: $"restore ($mod): ($r.error)"} }
+    }
+}
+
 # flatpak in user scope: a system deploy needs a polkit agent the unattended chain lacks
 def install-user [declared: record]: nothing -> nothing {
-    # stable only, a project pins nightly in its rust-toolchain.toml
     if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
     let apps = $declared.flatpak | transpose app commit
     if ($apps | is-not-empty) and (which flatpak | is-not-empty) {
@@ -483,35 +470,6 @@ def --env install-run [user: bool, yes: bool, snapshot: bool]: nothing -> int {
     1
 }
 
-# install every declared package after a snapshot, then remove undeclared ones after a yes
-def "main install" [--yes, --user]: nothing -> nothing {
-    pty-log install ([install] ++ (if $yes { [--yes] } else { [] }) ++ (if $user { [--user] } else { [] }))
-    guarded install { exit (install-run $user $yes true) }
-}
-
-# declared packages of a kind, one per line; --groups/--form-factor for another machine
-def "main packages" [kind: string = "pacman", --groups: string, --form-factor: string]: nothing -> nothing {
-    guarded packages {
-        let ctx = pipeline-load $REPO system
-        let chosen = $groups | default "" | split row --regex '[ ,]+' | where $it != ""
-        let mods = if ($chosen | is-empty) { $ctx.modules } else { $ctx.modules | update selected {|m| $m.group in $chosen or $m.group == "" } }
-        let platform = if ($chosen | is-empty) { $ctx.platform } else { $ctx.platform | update extra_packages [] | update form_factor ($form_factor | default $ctx.platform.form_factor) }
-        let out = modules-packages $REPO $mods $platform | get $kind
-        print (if $kind == "flatpak" { $out | items {|app, commit| $"($app) ($commit)" } } else { $out } | str join "\n")
-    }
-}
-
-# regenerate mirror/packages.txt; --check fails when it is stale
-def "main gen" [--check]: nothing -> nothing {
-    guarded gen {
-        if $check {
-            if (open --raw ($REPO | path join $MIRROR_LIST)) != (mirror-list) { error make {msg: $"($MIRROR_LIST) is stale, run dot gen"} }
-            return
-        }
-        mirror-list | save --force ($REPO | path join $MIRROR_LIST)
-    }
-}
-
 def toggle-script [name: string]: nothing -> path {
     $REPO | path join scripts toggles $"toggle-($name).nu"
 }
@@ -521,28 +479,25 @@ def option-runtime [spec: record]: nothing -> any {
     try { ^(toggle-script $spec.toggle) get | str trim } catch { null }
 }
 
-# every option with its value and source; --json adds schema and live state for a frontend
-def "main options" [mod?: string, --json]: nothing -> any {
-    guarded options {
-        let ctx = pipeline-load $REPO user
-        let mods = $ctx.modules | where {|m| $mod == null or $m.id == $mod }
-        if $json {
-            let modules = $mods | each {|m|
-                let options = options-schema $m | items {|key, spec|
-                    $spec | reject --optional env toggle | merge {
-                        key: $key
-                        value: ($m.cfg | get $key)
-                        source: ($m.sources | get $key)
-                        runtime: (if $spec.apply == "live" { option-runtime $spec } else { null })
-                    }
+def options-list [mod: any, json: bool]: nothing -> any {
+    let ctx = pipeline-load $REPO user
+    let mods = $ctx.modules | where {|m| $mod == null or $m.id == $mod }
+    if $json {
+        let modules = $mods | each {|m|
+            let options = options-schema $m | items {|key, spec|
+                $spec | reject --optional env toggle | merge {
+                    key: $key
+                    value: ($m.cfg | get $key)
+                    source: ($m.sources | get $key)
+                    runtime: (if $spec.apply == "live" { option-runtime $spec } else { null })
                 }
-                {name: $m.id, label: $m.id, doc: ($m.meta.doc? | default ""), options: $options}
             }
-            return ({modules: $modules} | to json --raw)
+            {name: $m.id, label: $m.id, doc: ($m.meta.doc? | default ""), options: $options}
         }
-        $mods | each {|m| options-schema $m | items {|key, spec| {module: $m.id, option: $key, value: ($m.cfg | get $key), source: ($m.sources | get $key)} } }
-        | concat | where {|r| $mod != null or $r.option != "enable" or not $r.value }
+        return ({modules: $modules} | to json --raw)
     }
+    $mods | each {|m| options-schema $m | items {|key, spec| {module: $m.id, option: $key, value: ($m.cfg | get $key), source: ($m.sources | get $key)} } }
+    | concat | where {|r| $mod != null or $r.option != "enable" or not $r.value }
 }
 
 def option-target [target: string]: nothing -> record {
@@ -555,9 +510,9 @@ def option-target [target: string]: nothing -> record {
 def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {
     let ctx = pipeline-load $REPO user
     let m = $ctx.modules | where id == $mod | get --optional 0
-    if $m == null { error make {msg: $"no module ($mod); dot list shows them"} }
+    if $m == null { error make {msg: $"no module ($mod); dot plan --modules lists them"} }
     let spec = options-schema $m | get --optional $key
-    if $spec == null { error make {msg: $"($mod) has no option ($key); dot options ($mod) lists them"} }
+    if $spec == null { error make {msg: $"($mod) has no option ($key); dot set ($mod) lists them"} }
     let bad = if $value == null { [] } else { option-value-errors $mod $key $spec $value "dot set" }
     if ($bad | is-not-empty) { error make {msg: ($bad | str join "\n")} }
     if $spec.scope == "machine" and not $machine { error make {msg: $"($mod).($key) is a machine option: dot set --machine"} }
@@ -589,7 +544,7 @@ def option-apply [target: string, set: record]: nothing -> nothing {
             # a disabled module is skipped by link, so turning it off has to undo it here
             if ($target | str ends-with $".($OPTION_ENABLE)") and $set.value == false and ($set.module.native | is-not-empty) {
                 unlink-run $set.module.id | ignore
-                print $"note: ($set.module.id) unlinked; dot remove ($set.module.id) also drops its packages"
+                print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
             } else if "link" in $set.module.verbs { link-run [$set.module.id] false false | ignore }
             # machine options reach the system verb only through the root-owned copy
             if $set.spec.scope == "machine" and "system" in $set.module.verbs and (admin) { system-part $target }
@@ -618,115 +573,107 @@ def --env system-part [target: string]: nothing -> nothing {
     $env.DOT_SYSTEM_PENDING = true
 }
 
-# set <module>.<option> to a value (nuon or json), validated, stored, applied as the option says
-def "main set" [target: string, value: any, --machine, --no-system]: nothing -> nothing {
+# options: every one off its default, a module's, one; a value sets it, --default resets it
+def "main set" [
+    target?: string@option-keys
+    ...value: any@option-values  # nuon or json, validated, stored, applied as the option says
+    --default    # reset it, the layer below applies
+    --machine    # the platform's value, for a machine option
+    --json       # with schema and live state, for the settings window
+    --no-system  # only the user part, same as DOT_SYSTEM=skip
+]: nothing -> any {
     if $no_system { $env.DOT_SYSTEM = "skip" }
     guarded set {
+        # a rest, so a given null (reset, as the settings window sends it) differs from none
+        if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
+        let given = $value | is-not-empty
+        let value = $value | get --optional 0
+        let ids = if $target == null { [] } else { pipeline-load $REPO user | get modules.id }
+        if $target == null or $target in $ids {
+            if $default or $given { error make {msg: "dot set <module>.<option> <value>, or --default"} }
+            return (options-list $target $json)
+        }
         let t = option-target $target
+        if $json { return (options-list $t.mod true) }
+        if $default {
+            if $given { error make {msg: "dot set --default takes no value"} }
+            option-apply $target (option-write $t.mod $t.key null $machine)
+            return
+        }
+        if not $given {
+            let row = options-list $t.mod false | where option == $t.key | get --optional 0
+            if $row == null { error make {msg: $"no option ($target); dot set lists them"} }
+            return $row
+        }
         # nu passes true, 3 or [a b] typed; a string may still be nuon or json (the settings window)
         let parsed = if ($value | describe) != "string" { $value } else { try { $value | from nuon } catch { try { $value | from json } catch { $value } } }
         option-apply $target (option-write $t.mod $t.key $parsed $machine)
     }
 }
 
-# reset one option (--machine: the platform's), its default comes back
-def "main unset" [target: string, --machine, --no-system]: nothing -> nothing {
-    if $no_system { $env.DOT_SYSTEM = "skip" }
-    guarded unset {
-        let t = option-target $target
-        option-apply $target (option-write $t.mod $t.key null $machine)
-    }
-}
-
-# every option and live state change as json lines {key, value, source, runtime}
-def "main watch" []: nothing -> nothing {
-    let file = options-events-file
-    mkdir ($file | path dirname)
-    if not ($file | path exists) { "" | save $file }
-    ^tail --follow=name --retry --lines=0 $file
-}
-
-# drift: managed files changed since their last apply, links pointing elsewhere, units disabled
-def "main diff" [mod?: string]: nothing -> any {
-    guarded diff {
-        let files = glob (state-dir | path join modules **/*.nuon)
-        $files | each {|f|
-            let id = $f | path dirname | path relative-to (state-dir | path join modules)
-            if $mod != null and $id != $mod { return [] }
-            let outs = open $f | get outputs
-            let seen = observe ($outs | where kind != unit | get target) ($outs | where kind == unit | get target) user
-            $outs | each {|o|
-                let obs = $seen.paths | get --optional $o.target
-                let state = match $o.kind {
-                    "file" => (if $obs.type == "" { "missing" } else if $obs.hash != $o.hash { "changed" } else { null })
-                    "link" => (if $obs.link? != $o.source { "relinked" } else { null })
-                    "unit" => (if ($seen.units | get --optional $o.target) != "enabled" { "disabled" } else { null })
+def managed-drift []: nothing -> table {
+    glob (state-dir | path join modules **/*.nuon) | each {|f|
+        let id = $f | path dirname | path relative-to (state-dir | path join modules)
+        let outs = open $f | get outputs
+        let seen = observe ($outs | where kind != unit | get target) ($outs | where kind == unit | get target) user
+        $outs | each {|o|
+            let obs = $seen.paths | get --optional $o.target
+            let state = match $o.kind {
+                "file" => (if $obs.type == "" { "missing" } else if $obs.hash != $o.hash { "changed" } else { null })
+                "link" => (if $obs.link? != $o.source { "relinked" } else { null })
+                "unit" => {
+                    let now = $seen.units | get --optional $o.target
+                    let held = match ($o.state? | default enabled) { "disabled" => ($now != "enabled"), $want => ($now == $want) }
+                    if $held { null } else { $now | default missing }
                 }
-                if $state == null { null } else { {module: $id, target: $o.target, drift: $state} }
-            } | compact
-        } | flatten
-    }
+            }
+            if $state == null { null } else { {module: $id, target: $o.target, drift: $state} }
+        } | compact
+    } | flatten
 }
 
-# carry a live edit of a managed copy back into the module's source, so the next apply keeps it
-def "main adopt" [file: path]: nothing -> nothing {
-    guarded adopt {
-        let target = $file | path expand
-        let ctx = pipeline-load $REPO user
-        let planned = pipeline-plan $ctx link [] true
-        let found = $planned | get actions | concat | where target == $target and decl.kind == file | get --optional 0
-        if $found == null { error make {msg: $"($target) is no file a module copies; dot diff lists the managed ones"} }
-        if $found.decl.source == null { error make {msg: $"($target) is rendered by ($found.module), adopt it by editing its template"} }
-        ^cp $target $found.decl.source
-        log-info $"($target) -> ($found.decl.source | path relative-to $REPO)"
-    }
-}
-
-# pick a wallpaper and theme with fzf
-def "main theme" []: nothing -> nothing { guarded theme { wallpaper-pick } }
-# the current wallpaper
-def "main theme get" []: nothing -> nothing { guarded theme { print (wallpaper-get) } }
-# the wallpapers for the largest monitor
-def "main theme list" []: nothing -> nothing { guarded theme { print (wallpaper-list | str join "\n") } }
-# a random wallpaper and its theme; --sync waits for every theme verb
-def "main theme random" [--sync]: nothing -> nothing { guarded theme { wallpaper-random --sync=$sync } }
-# switch to <name|path> and its theme; --sync waits for every theme verb
-def "main theme set" [wallpaper: string, --sync]: nothing -> nothing { guarded theme { wallpaper-set $wallpaper --sync=$sync } }
-
-# every module's theme verb for this wallpaper (--only foreground|background)
-def "main theme apply" [wallpaper: path, ...mods: string, --only: string]: nothing -> nothing {
+# wallpaper and theme: fzf without a name, random for any
+def "main theme" [
+    wallpaper?: string@theme-names
+    --sync  # wait for every theme verb
+]: nothing -> nothing {
     guarded theme {
-        let ctx = pipeline-load $REPO user
-        let planned = pipeline-plan $ctx theme $mods true [$wallpaper]
-        let results = if $only != "foreground" {
-            pipeline-apply $ctx ($planned | where id not-in $THEME_FOREGROUND) theme (jobs) [$wallpaper]
-        } else { [] }
-        let ordered = if $only != "background" {
-            let foreground = $THEME_FOREGROUND | each {|id| $planned | where id == $id } | concat | update after []
-            pipeline-apply $ctx $foreground theme 1 [$wallpaper]
-        } else { [] }
-        $results ++ $ordered | where not ok | each { log-err $"theme: ($in.id) failed" } | ignore
+        match $wallpaper {
+            null => (wallpaper-pick)
+            "random" => (wallpaper-random --sync=$sync)
+            _ => (wallpaper-set $wallpaper --sync=$sync)
+        }
     }
 }
 
-# pending one-time migrations (--system: root's); --baseline marks them run on a fresh install
-def "main migrate" [--baseline, --system]: nothing -> nothing {
-    guarded migrate {
-        let done = migrations-run $REPO (if $system { "system" } else { "user" }) --baseline=$baseline
-        if ($done | is-not-empty) { log-info $"migrations (if $baseline { 'marked' } else { 'applied' }): ($done | str join ' ')" }
-    }
+def --env update-run [yes: bool]: nothing -> record {
+    sync-pull $REPO
+    migrations-run $REPO user | ignore
+    let install = install-run false $yes true
+    if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
+    if (system-allowed) { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate }
+    {install: $install, results: (apply-run (system-allowed) true false)}
 }
 
-# the one command: pull the current generation, snapshot, migrate, install, apply
-def "main update" [--yes]: nothing -> nothing {
-    guarded update {
-        if (^git -C $REPO status --porcelain --untracked-files=no --ignore-submodules=all | str trim | is-not-empty) { error make {msg: "the checkout has uncommitted changes; commit them with dot sync or stash them"} }
-        if (try { ^git -C $REPO symbolic-ref -q --short HEAD | str trim } catch { "" }) != "master" { error make {msg: "HEAD is not on master, go back with: git switch master"} }
-        ^git -C $REPO pull --ff-only
-        migrations-run $REPO user | ignore
-        if (install-run false $yes true) == $EXIT_ABORTED { exit $EXIT_ABORTED }
-        if (system-allowed) { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate }
-        apply-run (system-allowed) true false | finish $in
+# the one command: pull, snapshot, migrate, install, apply, back up app state, commit the signed generation, push
+def "main sync" [
+    --no-push    # stop after the apply: no backup, commit or push; a machine that does not sign always stops there
+    --yes        # remove packages no module declares without asking
+    --no-system  # only the user part, same as DOT_SYSTEM=skip
+    --no-verify  # commit without the formatter, linter and gitleaks gates
+]: nothing -> nothing {
+    if $no_system { $env.DOT_SYSTEM = "skip" }
+    guarded sync {
+        let run = update-run $yes
+        let clean = failures-publish $run.results
+        if $no_push {
+        } else if (sync-can-sign $REPO) {
+            sync-commit $REPO --no-verify=$no_verify
+        } else {
+            log-note "this machine does not sign: applied, no backup, commit or push"
+        }
+        run-journal
+        if not $clean or $run.install != 0 { exit 1 }
     }
 }
 
@@ -748,28 +695,55 @@ def "main rollback" [target?: string, --snapshot, --full, --dry-run]: nothing ->
     }
 }
 
-# generation, last run, drift and pending migrations at a glance
-def "main status" []: nothing -> record {
+def status-head []: nothing -> record {
+    # this status run has its own file already; the interesting one is the last real run before it
+    let last = ls (runs-dir) | where name ends-with ".jsonl" and name !~ $env.DOT_RUN_ID | sort-by name | last
+    let records = if $last == null { [] } else { open --raw $last.name | lines | each { from json } }
+    {
+        generation: (^git -C $REPO log -1 --format=%s | str trim)
+        build: (build)
+        last_run: (if $last == null { "none" } else { $last.name | path basename | str replace ".jsonl" "" })
+        errors: ($records | where level in [ERROR PANIC] | length)
+        migrations_pending: (migrations-pending $REPO user | get id)
+        system_pending: (try { open --raw (pending-file) | lines | uniq } catch { [] })
+        preserved: (preserve-report)
+    }
+}
+
+# generation, pending work, every health check; --brief the failures alone
+def "main status" [
+    --brief  # only the failed checks as "<check>: <text>"
+    --json   # everything as one record, managed drift and checks included
+]: nothing -> nothing {
     guarded status {
-        # this status run has its own file already; the interesting one is the last real run before it
-        let last = ls (runs-dir) | where name !~ $env.DOT_RUN_ID | sort-by name | last
-        let records = open --raw $last.name | lines | each { from json }
-        {
-            generation: (^git -C $REPO log -1 --format=%s | str trim)
-            build: (build)
-            last_run: ($last.name | path basename | str replace ".jsonl" "")
-            errors: ($records | where level in [ERROR PANIC] | length)
-            drift: (main diff | length)
-            migrations_pending: (migrations-pending $REPO user | get id)
-            system_pending: (try { open --raw (pending-file) | lines | uniq } catch { [] })
-            preserved: (preserve-report)
+        if $brief {
+            if (doctor-run --brief) { exit 1 }
+            return
         }
+        let head = status-head
+        let drift = managed-drift
+        if $json {
+            let checks = doctor-checks
+            print ($head | merge {drift: $drift, checks: $checks} | to json)
+            if ($checks | any { $in.level == "FAIL" }) { exit 1 }
+            return
+        }
+        print $"($head.generation) at ($head.build.commit)(if $head.build.dirty { ', with edits' } else { '' })"
+        print $"last run ($head.last_run), ($head.errors) errors"
+        if ($head.migrations_pending | is-not-empty) { print $"migrations pending: ($head.migrations_pending | str join ' ')" }
+        if ($head.system_pending | is-not-empty) { print $"system part pending: ($head.system_pending | str join ' '); dot apply runs it" }
+        $drift | each { print $"changed since its apply: ($in.target) \(($in.module), ($in.drift)\); dot module adopt or apply --force" } | ignore
+        print ""
+        let failed = doctor-run
+        try { drift-view } catch { }
+        if $failed { exit 1 }
     }
 }
 
 # a run's records (default the last) by module and level; --trace the span tree with timings
-def "main log" [run?: string, --module: string, --level: string = "INFO", --trace]: nothing -> any {
-    let file = if $run == null { ls (runs-dir) | sort-by name | last | get name } else { runs-dir | path join $"($run).jsonl" }
+def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@[TRACE DEBUG INFO WARN ERROR PANIC] = "INFO", --trace]: nothing -> any {
+    let file = if $run == null { glob (runs-dir | path join "*.jsonl") | sort | last } else { runs-dir | path join $"($run).jsonl" }
+    if $file == null or not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
     let records = open --raw $file | lines | each { from json }
     if $trace {
         let spans = $records | where kind? == span
@@ -814,7 +788,7 @@ def gate-report [what: string, findings: list<string>, notes: list<string>]: not
 # the static gates (lint, check, fmt) and the vm test (run, logs, drill, shot, type, destroy)
 def "main test" []: nothing -> nothing { help main test }
 
-# static checks: module refs, layer rules, ~/sync writes, generated files, *.test.sh
+# static checks: module refs, layer rules, ~/sync writes, generated files, *.test.nu
 def "main test lint" []: nothing -> nothing { gate-report lint (gate-lint) [] }
 
 # every formatter and linter, verified (the sync gate), plus palette.nu against Palette.js
@@ -836,10 +810,10 @@ def "main test run" [--iso: path, --platform: string, --user: string, --master, 
 }
 
 # pull the stage logs, FAILURES.* and every *.log of the test vm to ~/.cache/vm-test/<name>/logs
-def "main test logs" [--name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-logs $name } }
+def "main test logs" [--user: string, --name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-logs $name ($user | default $USER) } }
 
 # a drill on a passed run's vm: egress or rollback; both change the vm
-def "main test drill" [drill: string, --user: string, --name: string = $VM_NAME]: nothing -> nothing {
+def "main test drill" [drill: string@[egress rollback], --user: string, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test { vm-drill $name $drill ($user | default $USER) }
 }
 
@@ -854,19 +828,22 @@ def "main test type" [text: string, --layout: string = "de", --name: string = $V
 # delete the test vm and its disk
 def "main test destroy" [--name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-destroy $name } }
 
-# secrets: the git-crypt worktree behind the yubikey; init enrolls a key, seal re-seals
+# the git-crypt worktree behind the yubikey
 def "main secrets" []: nothing -> nothing { help main secrets }
+# enroll a yubikey for secrets (every step, or the named ones)
 def "main secrets init" [...steps: string]: nothing -> nothing { guarded secrets { yubikey-init ...$steps } }
+# re-seal the git-crypt key to every enrolled key's recipient
 def "main secrets seal" []: nothing -> nothing { guarded secrets { yubikey-seal } }
 # pull and unlock secrets/ with a touch of the yubikey, or --identity <age file> without one
 def "main secrets unlock" [--identity: path]: nothing -> nothing { guarded secrets { yubikey-unlock --identity=$identity } }
+# lock secrets/ again
 def "main secrets lock" []: nothing -> nothing { guarded secrets { yubikey-lock } }
-
-# the secrets audit: what is due for rotation or a recovery drill; --brief for the login notice
-def "main audit" [--brief]: nothing -> nothing { guarded audit { audit-run --brief=$brief } }
-def "main audit rotated" [...paths: path]: nothing -> nothing { guarded audit { audit-rotated ...$paths } }
-def "main audit drilled" []: nothing -> nothing { guarded audit { audit-drilled } }
-def "main audit remind" []: nothing -> nothing { guarded audit { audit-remind } }
+# what is due for rotation or a recovery drill
+def "main secrets audit" [--brief]: nothing -> nothing { guarded audit { audit-run --brief=$brief } }
+# record <paths> as rotated today
+def "main secrets audit rotated" [...paths: path]: nothing -> nothing { guarded audit { audit-rotated ...$paths } }
+# record the recovery drill as done today
+def "main secrets audit drilled" []: nothing -> nothing { guarded audit { audit-drilled } }
 
 # every formatter applied, then what is left
 def "main test fmt" []: nothing -> nothing {
@@ -877,89 +854,10 @@ def "main test fmt" []: nothing -> nothing {
     print $"dot test: formatted; ($tools.findings | length) finding\(s\) remain \(run after installing any missing tool\)"
 }
 
-def module-hash [dir: path]: nothing -> string {
-    glob $"($dir)/**/*" --no-dir | where not ($it | str ends-with ".log") | sort | each {|f| $"($f) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
-}
-
-def backup-native [ctx: record, m: record]: nothing -> record {
-    let r = modules-eval [$m] backup {$m.id: $m.cfg} [] --private=($m.meta.backup?.secrets? | default false) | first
-    if not $r.ok { log-warn $"backup: ($m.id) failed, its state is from an older run: ($r.error)" }
-    $r
-}
-
-# copy live app state into the repo; --roundtrip backs up, restores, backs up and compares
-def "main backup" [--roundtrip]: nothing -> nothing {
-    guarded backup {
-        let ctx = pipeline-load $REPO user
-        let locked = not (secret-is-plaintext ($REPO | path join secrets pgp_privatekey.asc))
-        let mods = $ctx.modules | where {|m| "backup" in $m.native and $m.cfg.enable }
-        let secret = {|m| $m.meta.backup?.secrets? | default false }
-        if not $roundtrip {
-            let skipped = $mods | where {|m| (do $secret $m) and $locked }
-            with-env (platform-env $ctx.platform) { $mods | where id not-in $skipped.id | each {|m| backup-native $ctx $m } | ignore }
-            if ($skipped | is-not-empty) { log-warn $"backup: secrets is locked, skipped ($skipped.id | str join ' ')" }
-            return
-        }
-        for m in ($mods | where {|m| not (do $secret $m) }) {
-            backup-native $ctx $m | ignore
-            let before = module-hash $m.dir
-            let home = mktemp --directory
-            let env_home = {HOME: $home, XDG_CONFIG_HOME: $"($home)/.config", XDG_DATA_HOME: $"($home)/.local/share", XDG_STATE_HOME: $"($home)/.local/state", XDG_CACHE_HOME: $"($home)/.cache"}
-            let restored = with-env $env_home {
-                let step = if "restore" in $m.native { [restore] } else { [link] }
-                (^nu --no-config-file ($REPO | path join scripts dot.nu) ...(if $step.0 == "link" { [link $m.id] } else { [restore $m.id] }) | complete).exit_code == 0
-            }
-            let again = with-env $env_home { backup-native $ctx $m }
-            rm --recursive --force $home
-            if not ($restored and $again.ok and (module-hash $m.dir) == $before) { error make {msg: $"backup: ($m.id) round trip changed the module or failed"} }
-            log-info $"backup: ($m.id) round trip ok"
-        }
+# plumbing for scripts, units and completion; dot internal --help
+def --wrapped "main internal" [...args: string]: nothing -> nothing {
+    if ($args | get --optional 0) in [complete completions] {
+        $env.DOT_COMMANDS = command-table | to nuon
     }
-}
-
-# run one module's restore verb (state its link does not already restore)
-def "main restore" [mod: string]: nothing -> nothing {
-    guarded restore {
-        let ctx = pipeline-load $REPO user
-        let m = $ctx.modules | where id == $mod | get --optional 0
-        if $m == null or "restore" not-in $m.native { error make {msg: $"($mod) has no restore verb"} }
-        let r = with-env (platform-env $ctx.platform) { modules-eval [$m] restore {$m.id: $m.cfg} [] } | first
-        if not $r.ok { error make {msg: $"restore ($mod): ($r.error)"} }
-    }
-}
-# back up, commit the next signed generation and push; --no-verify skips the gates
-def "main sync" [--no-verify]: nothing -> nothing { guarded sync { sync-run $REPO --no-verify=$no_verify } }
-# health of this machine: failures, pending applies, drift, secrets, backups; --brief for the login notice
-def "main doctor" [--brief]: nothing -> nothing { guarded doctor { doctor-run --brief=$brief } }
-
-# packages and units that differ between machines
-def "main drift" []: nothing -> nothing { guarded drift { drift-view } }
-# this machine's drift report
-def "main drift report" []: nothing -> nothing { guarded drift { drift-report | print -n } }
-# publish this machine's report into secrets/drift/<host> when it changed
-def "main drift publish" []: nothing -> nothing { guarded drift { drift-publish } }
-
-# install a machine from the Arch ISO or set up a fresh WSL distro
-def "main bootstrap" [platform: string = ""]: nothing -> nothing {
-    guarded bootstrap { bootstrap-run $REPO $platform }
-}
-
-# one stage of the unattended install chain (dotfiles-stage.service)
-def "main stage" []: nothing -> nothing {
-    guarded stage { stage-run $REPO }
-}
-
-# download a pinned file, verify its sha256, put it in place; --extract <member> or .
-def "main fetch file" [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
-    guarded fetch { fetch-file-run $url $sha256 $dest --mode $mode --extract=$extract }
-}
-
-# <dir> checked out at exactly <commit>, submodules too
-def "main fetch git" [url: string, commit: string, dir: path]: nothing -> nothing {
-    guarded fetch { fetch-git-run $url $commit $dir }
-}
-
-# preserved copies older than <days>, after a yes
-def "main prune" [days: int]: nothing -> nothing {
-    guarded prune { preserve-prune $days }
+    exec $nu.current-exe --no-config-file $INTERNAL ...$args
 }

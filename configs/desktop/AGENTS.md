@@ -26,7 +26,7 @@ manager, terminals, browsers, document and media viewers and their theming.
 - `nsxiv`: the image viewer.
 - `obsidian`: notes, with the Local REST API and MCP served by obsidian while it runs.
 - `oomox`: the gtk/icon theme generator fed from the wallpaper palette.
-- `pipewire`: the audio server and the headset eq chain. See `pipewire/AGENTS.md`.
+- `pipewire`: the audio server, the headset eq chain and the per-app loopbacks. See `pipewire/AGENTS.md`.
 - `plasma`: the few KDE/dolphin settings kept (global view properties).
 - `printing`: cups and avahi for printer discovery.
 - `qbittorrent`: torrent client bound to the ProtonVPN tunnel (proton0).
@@ -40,7 +40,7 @@ manager, terminals, browsers, document and media viewers and their theming.
 ## Conventions
 
 - Hyprland config is Lua (`hl.*`); dispatch is Lua too (see root gotchas). See `hyprland/AGENTS.md`.
-- GUI programs take the wallpaper palette through wallust/oomox templates (`core/wallust`, `core/themes`), not a
-  hardcoded theme; a theme switch dirties the tree.
-- Background GUI testing stays off the user's screen: use a headless output (see root gotchas), never a visible
-  workspace unless the user is working on that task.
+- GUI programs take the wallpaper palette through wallust/oomox templates (`core/wallust`, `themes/`), not a
+  hardcoded theme; a theme switch writes only outside the repo.
+- Background GUI testing stays off the user's screen: the agent's own headless output (skill
+  `l-dotfiles-gui-testing`), never a visible workspace unless the user is working on that task.

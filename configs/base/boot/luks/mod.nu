@@ -5,7 +5,6 @@ export const meta = {packages: {native: [cryptsetup]}, volatile: true}
 
 const MARKER = "# MARKER:arch-dotfiles/boot/luks"
 const CRYPTTAB = "/etc/crypttab"
-# nofail: a missing or locked data volume must not hold up the boot
 const ENTRY_OPTIONS = "luks,nofail,discard,perf-no-read-workqueue,perf-no-write-workqueue"
 # PCR 15 before any volume key is measured into it
 const PCR15_INITIAL = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -14,7 +13,6 @@ def luks-parts []: nothing -> table {
     ^lsblk -J -l -o NAME,UUID,FSTYPE,TYPE | from json | get blockdevices | where fstype == crypto_LUKS and type == part
 }
 
-# the yubikey unlocks root, the passphrase after token-timeout
 export def system [cfg: record] {
     if (luks-parts | is-empty) { return [] }
     step configure
@@ -26,7 +24,6 @@ def root-backing []: nothing -> any {
     ^lsblk -J -lso NAME,TYPE $src | from json | get blockdevices | where type == part | get --optional 0.name
 }
 
-# the block from the marker on is rewritten each run
 def crypttab-write [root: any]: nothing -> nothing {
     if ($CRYPTTAB | path exists) {
         if not (open --raw $CRYPTTAB | str contains $MARKER) {

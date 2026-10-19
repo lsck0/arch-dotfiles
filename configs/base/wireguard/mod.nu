@@ -8,7 +8,6 @@ const CONF = "/etc/wireguard/wg0.conf"
 const IFACE = "wg0"
 const SECRET_NAME = '^[A-Za-z0-9._-]+$'
 
-# the platform's wireguard fact names its tunnel config in the admin's secrets
 export def system [cfg: record] {
     let name = $env.WIREGUARD? | default ""
     if $name != "" and not ($name =~ $SECRET_NAME) {

@@ -9,7 +9,6 @@ def --wrapped main [...command: string]: nothing -> nothing {
         print --stderr "usage: vpn <command> [args...]"
         exit 2
     }
-    # a nested call is already inside
     if (do { ^ip netns identify } | complete | get stdout | str trim) == $NETNS { exec ...$command }
     exec sudo -n $NETNS_RUN ...$command
 }

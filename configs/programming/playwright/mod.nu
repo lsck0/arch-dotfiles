@@ -11,7 +11,6 @@ def playwright [browser: string, exe: string, out: path]: nothing -> record {
     }
 }
 
-# base/apparmor's local/chromium and local/firefox allow these profile dirs
 export def link [cfg: record] {
     let out = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join playwright-mcp
     let chromium = playwright chromium $CHROMIUM $out

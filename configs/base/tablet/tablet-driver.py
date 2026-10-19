@@ -1,27 +1,9 @@
 #!/usr/bin/env python3
-"""Userspace driver for the SZ PENG YI [T1161] "Driver Inside" tablet (08f2:6811).
+"""Userspace driver for the SZ PENG YI [T1161] tablet (08f2:6811).
 
-Why this exists
----------------
-The kernel cannot drive this pad usefully on its own:
-
-  * Out of reset the device sits in a shrunken "sleep mode" and reports the pen
-    on USB interface 2 (report id 5, 0..4095) using only a fraction of the
-    surface.  hid-uclogic cannot unlock it -- every UC-Logic magic string
-    descriptor STALLs on this unit.
-  * A vendor feature handshake on interface 2 (report id 8) switches it into its
-    real mode, where the pen moves to *interface 1* as report id 9 at 0..32767.
-  * Even then the firmware squeezes the X axis into the *upper half* of its own
-    declared logical range: the left edge of the pad reads ~16384 and the right
-    edge ~32767, while Y correctly spans 0..32767.  The kernel believes the
-    descriptor, so half of the mapped screen is physically unreachable.
-
-So we read the HID reports ourselves, rescale X, and republish the pen as a
-clean uinput tablet whose axes really do span their full declared range.  The
-compositor then maps it bijectively onto one output with no tricks.
-
-Run it as root (it needs hidraw + /dev/uinput).  It exits when the tablet is
-unplugged; the systemd unit restarts it when it comes back.
+Sends the unlock handshake, reads the pen and buttons over hidraw, rescales X onto its full range and republishes
+them as uinput devices. Runs as root (hidraw, /dev/uinput) and exits when the tablet is unplugged; udev starts it
+again. README.md says why no kernel driver does this.
 """
 
 from __future__ import annotations
@@ -44,6 +26,9 @@ HID_ID = f"0003:{VENDOR:08X}:{PRODUCT:08X}"
 
 PEN_REPORT_ID = 9
 PEN_REPORT_LEN = 10
+
+# the pen in sleep mode, on interface 2; a usb reset on resume from suspend drops the pad back into it
+SLEEP_PEN_REPORT_ID = 5
 
 # no kernel driver decodes it; payload `01 80 <in range> 00 <mask4> <mask5> 00 00`
 BUTTON_REPORT_ID = 1
@@ -188,7 +173,6 @@ def make_uinput(calib: dict):
     from evdev import AbsInfo, UInput
     from evdev import ecodes as e
 
-    # units per mm, so userspace sees a sane physical size
     res_x = round(OUT_MAX / AREA_W_MM)
     res_y = round(OUT_MAX / AREA_H_MM)
 
@@ -403,6 +387,19 @@ def run(node: str, calib: dict) -> int:
         ui_keys.syn()
         key_mask = 0
 
+    def retoggle(why: str) -> None:
+        """Count a report that says the pad left report-9 mode; past WRONG_MODE_LIMIT, handshake again."""
+        nonlocal wrong_mode, retoggles
+        wrong_mode += 1
+        if wrong_mode < WRONG_MODE_LIMIT:
+            return
+        wrong_mode = 0
+        if retoggles >= MAX_RETOGGLES or btn_node is None:
+            return
+        retoggles += 1
+        log(f"driver: {why}; re-toggling the pen mode ({retoggles}/{MAX_RETOGGLES})")
+        unlock(btn_node)
+
     def handle_buttons(data):
         """Decode report id 1 into stylus buttons and pad keys."""
         nonlocal key_mask
@@ -432,7 +429,6 @@ def run(node: str, calib: dict) -> int:
     try:
         while True:
             watch = [fd] + ([btn_fd] if btn_fd >= 0 else [])
-            # a deadline only while in range, to catch the silent lift
             timeout = max(0.0, last_report + PROXIMITY_TIMEOUT_S - time.monotonic()) if in_proximity else None
             ready, _, _ = select.select(watch, [], [], timeout)
 
@@ -447,6 +443,8 @@ def run(node: str, calib: dict) -> int:
                         btn_fd = -1
                     elif data[0] == BUTTON_REPORT_ID and len(data) >= BUTTON_REPORT_LEN:
                         handle_buttons(data)
+                    elif data[0] == SLEEP_PEN_REPORT_ID:
+                        retoggle("interface 2 is sending the sleep-mode pen")
                 except OSError as exc:
                     if exc.errno not in (errno.EAGAIN, errno.EINTR):
                         log(f"driver: button read failed ({exc}); buttons disabled")
@@ -473,7 +471,7 @@ def run(node: str, calib: dict) -> int:
                     leave_proximity()
                 return 0
             if not data:
-                # the other end closed; select() keeps reporting EOF readable, so continuing would spin
+                # select() keeps reporting EOF readable, so continuing would spin
                 log("driver: pen node reached end of file")
                 if in_proximity:
                     leave_proximity()
@@ -482,19 +480,7 @@ def run(node: str, calib: dict) -> int:
                 continue
             if data[0] != PEN_REPORT_ID:
                 # the handshake toggled one step too far (see unlock()); hidraw nodes survive another
-                wrong_mode += 1
-                if wrong_mode < WRONG_MODE_LIMIT:
-                    continue
-                wrong_mode = 0
-                if retoggles >= MAX_RETOGGLES or btn_node is None:
-                    continue
-                retoggles += 1
-                log(
-                    f"driver: interface 1 is sending report id {data[0]}, not "
-                    f"{PEN_REPORT_ID}; re-toggling the pen mode "
-                    f"({retoggles}/{MAX_RETOGGLES})"
-                )
-                unlock(btn_node)
+                retoggle(f"interface 1 is sending report id {data[0]}, not {PEN_REPORT_ID}")
                 continue
 
             if wrong_mode or retoggles:

@@ -8,6 +8,8 @@ const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
 # v1.0.3
 const MCP_COMMIT = "2cea8d566dde07fbac28a61d698909d69724e853"
 const MCP_PORT = "9876"
+# apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime
+const INSTALL_FLAGS = ["--compile-bytecode"]
 const HERE = path self | path dirname
 
 def src []: nothing -> path {
@@ -15,7 +17,7 @@ def src []: nothing -> path {
 }
 
 def pin []: nothing -> string {
-    $"($MCP_COMMIT) (open --raw ($HERE | path join constraints.txt) | hash sha256)"
+    $"($MCP_COMMIT) (open --raw ($HERE | path join constraints.txt) | hash sha256) ($INSTALL_FLAGS | str join ' ')"
 }
 
 def pin-file []: nothing -> path {
@@ -27,7 +29,6 @@ export def link [cfg: record] {
     let installed = try { open --raw (pin-file) | str trim } catch { "" }
     [
         (fetch-git $MCP_URL $MCP_COMMIT (src))
-        # the server's deps held to constraints.txt, reinstalled only when the commit or the pins move
         (if $installed == (pin) { [] } else { step server-install })
         (step addon-install)
         (link-commands blender-mcp-bridge.nu)
@@ -49,11 +50,10 @@ export def link [cfg: record] {
 
 export def server-install []: nothing -> nothing {
     let pkg = $"blender-mcp @ git+($MCP_URL)@($MCP_COMMIT)#subdirectory=mcp"
-    ^uv tool install -q --force --constraints ($HERE | path join constraints.txt) $pkg
+    ^uv tool install -q --force ...$INSTALL_FLAGS --constraints ($HERE | path join constraints.txt) $pkg
     pin | save --force (pin-file)
 }
 
-# reinstalled when the installed copy differs from the pinned tree; mcp-prefs.py saves only on a change
 export def addon-install []: nothing -> nothing {
     let addon = src | path join addon blender_mcp_addon
     let query = 'import bpy; print("EXT=" + bpy.utils.user_resource("EXTENSIONS"))'

@@ -7,7 +7,6 @@ local M = {}
 
 local WORKTREE_HOME = vim.fs.normalize("~/.worktrees")
 
--- git root, so a nested crate never re-roots the search; an unnamed buffer roots at cwd
 local function git_root()
     local name = vim.api.nvim_buf_get_name(0)
     local start = name ~= "" and name or vim.uv.cwd()
@@ -23,7 +22,6 @@ local function git(args)
     return res.code == 0 and res.stdout or nil, res.stderr or ""
 end
 
---- `git worktree list --porcelain`; the first entry is the main checkout or the bare repo itself.
 ---@return { path: string, branch: string?, bare: boolean }[]?
 local function worktrees()
     local out, err = git({ "worktree", "list", "--porcelain" })
@@ -53,7 +51,6 @@ local function dir_for(list, slug)
     for i = 2, #list do
         local parent = vim.fs.dirname(list[i].path)
         count[parent] = (count[parent] or 0) + 1
-        -- ties go to the shallower dir, so one stray nested worktree never becomes the convention
         if not best or count[parent] > count[best] or (count[parent] == count[best] and #parent < #best) then
             best = parent
         end
@@ -72,7 +69,6 @@ local function dir_for(list, slug)
     return vim.fs.joinpath(main, slug)
 end
 
---- Switch the tab to BRANCH's worktree, creating the worktree (and the branch, tracking origin if it has one) first.
 ---@param branch string
 function M.add(branch)
     local list = worktrees()
@@ -85,7 +81,6 @@ function M.add(branch)
         end
     end
 
-    -- slashes flattened like clones-sdd-repos.sh's slug_of, so feat/x is one dir, not two
     local dir = dir_for(list, (branch:gsub("/", "-")))
     local args = { "worktree", "add", "-b", branch, dir }
     if git({ "show-ref", "--verify", "--quiet", "refs/heads/" .. branch }) then
@@ -102,7 +97,6 @@ function M.add(branch)
     require("lib.projects").open(dir)
 end
 
---- Pick a local or origin branch for `M.add`; a name that matches nothing creates that branch.
 function M.pick_branch()
     local out = git({ "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin" })
     if not out then

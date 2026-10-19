@@ -13,3 +13,18 @@ owner @{run}/user/@{uid}/qtwayland-* rw,
 # l: qt's shader cache links an O_TMPFILE into place, a deleted entry the mediate_deleted flag (profiles.conf) names
 # #<inode> for this rule; without it every start recompiles the shaders
 owner @{user_cache_dirs}/TelegramDesktop/qtshadercache-*/{,**} rwkl,
+# uploads: the base profile reads only downloads
+include <abstractions/user-read-strict>
+# saving a file where the save dialog points
+owner @{user_documents_dirs}/{,**} rwl,
+owner @{user_music_dirs}/{,**} rwl,
+owner @{user_pictures_dirs}/{,**} rwl,
+owner @{user_videos_dirs}/{,**} rwl,
+owner @{user_sync_dirs}/{,**} rwl,
+# its own cgroup, read once at start; harmless, and the denial was the only one it logged
+owner @{PROC}/@{pid}/cgroup r,
+# crash report metadata and a terminal it never has; optional, kept denied without the log noise
+deny @{sys}/devices/virtual/dmi/id/* r,
+deny @{sys}/class/power_supply/ r,
+deny @{bin}/systemd-detect-virt x,
+deny /dev/tty r,

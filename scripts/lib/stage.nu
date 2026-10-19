@@ -5,9 +5,8 @@ const KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const MKINITCPIO_DROPIN = "/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
 const SUDOERS_DROPIN = "/etc/sudoers.d/zz-dotfiles-stage"
 const UNIT = "/etc/systemd/system/dotfiles-stage.service"
-# a few boots cover a flaky network or mirror, a real bug would loop forever
 const INSTALL_ATTEMPTS_MAX = 3
-# dot install's code for an abort, as opposed to a finished run that logged failures
+# dot apply --packages' code for an abort, as opposed to a finished run that logged failures
 const INSTALL_EXIT_ABORTED = 2
 # cryptsetup's "no key available": a crash between the kill and the rm already removed the slot
 const CRYPTSETUP_NO_KEY = 2
@@ -25,8 +24,13 @@ def luks-device []: nothing -> string {
 # idempotent; sudo test because cryptsetup-keys.d is root-only
 def disarm []: nothing -> bool {
     let device = luks-device
-    if $device == "" { return false }
-    if (^sudo test -f $KEY_FILE | complete).exit_code == 0 {
+    let armed = (^sudo test -f $KEY_FILE | complete).exit_code == 0
+    if $device == "" {
+        if $armed { return false }
+        ^sudo rm -f $MKINITCPIO_DROPIN
+        return true
+    }
+    if $armed {
         let status = (^sudo cryptsetup open --test-passphrase --key-file $KEY_FILE $device | complete).exit_code
         if $status == 0 {
             if (^sudo cryptsetup luksRemoveKey $device $KEY_FILE | complete).exit_code != 0 { return false }
@@ -46,7 +50,6 @@ export def stage-run [repo: path]: nothing -> nothing {
         "config" => ""
         _ => { error make {msg: $"unknown stage '($stage)' in ($STATE_DIR)/next"} }
     }
-    # the keyfile only exists to boot into this stage, so nothing below can leave it armed
     if $stage == "config" and not (disarm) {
         note "disarm failed, the temporary keyfile is still in place"
         exit 1
@@ -55,13 +58,13 @@ export def stage-run [repo: path]: nothing -> nothing {
     if $stage == "config" {
         # best effort: a migration bookkeeping failure must not strand the sudo drop-in and the keyfile
         try {
-            ^nu --no-config-file ($repo | path join scripts dot.nu) migrate --baseline
+            ^nu --no-config-file ($repo | path join scripts lib internal.nu) migrate --baseline
             ^sudo ($"/var/lib/dotfiles/repo/scripts/lib/system-apply.nu") migrate --baseline
         } catch {|e| note $"migrate --baseline failed: ($e.msg)" }
     }
     # stdout stays the tty, so dot re-execs under script and pacman draws its bars
-    let verb = if $stage == "install" { "install" } else { "apply" }
-    let status = try { "" | ^nu --no-config-file ($repo | path join scripts dot.nu) $verb; 0 } catch {|e| $e.exit_code? | default 1 }
+    let args = if $stage == "install" { [apply --packages] } else { [apply] }
+    let status = try { "" | ^nu --no-config-file ($repo | path join scripts dot.nu) ...$args; 0 } catch {|e| $e.exit_code? | default 1 }
     note (if $status == 0 { $"($stage): ok" } else { $"($stage): failed, see ($stage).log" })
     if $stage == "install" and $status == $INSTALL_EXIT_ABORTED {
         let attempts = (try { open --raw ($STATE_DIR | path join install-attempts) | into int } catch { 0 }) + 1
@@ -70,7 +73,7 @@ export def stage-run [repo: path]: nothing -> nothing {
             note $"install: aborted, attempt ($attempts)/($INSTALL_ATTEMPTS_MAX), retrying next boot"
             $next = "install"
         } else {
-            note $"install: aborted ($attempts) times, moving on to config; rerun dot install by hand"
+            note $"install: aborted ($attempts) times, moving on to config; rerun dot apply --packages by hand"
         }
     }
     note "rebooting"
@@ -81,7 +84,9 @@ export def stage-run [repo: path]: nothing -> nothing {
     }
     # a trim lets the ssd drop the keyfile's old ESP blocks; only a reencrypt rotates the volume key
     ^sudo fstrim /boot | complete | ignore
-    note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (luks-device)"
+    if (luks-device) != "" {
+        note $"volume key unchanged since bootstrap; to rotate it \(online, slow\): sudo cryptsetup reencrypt (luks-device)"
+    }
     # one sudo call: after the rm there is no passwordless sudo left to reboot with
     ^sudo systemctl disable dotfiles-stage.service
     ^sudo sh -c $"rm -f ($UNIT) ($STATE_DIR)/next ($SUDOERS_DROPIN) && systemctl reboot"

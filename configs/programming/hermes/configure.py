@@ -10,7 +10,6 @@ from hermes_cli.skin_cmd import _use
 
 want = json.loads(sys.argv[1])
 for key, value in want["settings"].items():
-    # set_config_value coerces a string like `hermes config set`
     set_config_value(key, value if isinstance(value, str) else json.dumps(value))
 _use(want["skin"])
 

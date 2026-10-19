@@ -1,11 +1,5 @@
 local platform = require("platform")
-local global_opacity = 0.95
-local social_opacity = 0.88
-
--- their app-drawn menus are windows, only the frame is styleable
-for _, class in ipairs({ "^discord$", "^steam$" }) do
-    hl.window_rule({ match = { class = class }, rounding = 8 })
-end
+local style = require("style")
 
 -- steam drops its toasts on whatever monitor it thinks is primary
 hl.window_rule({
@@ -15,18 +9,16 @@ hl.window_rule({
 })
 
 for _, class in ipairs({ "^[Ss]potify$", "^discord$" }) do
-    hl.window_rule({ match = { class = class }, opacity = social_opacity })
+    hl.window_rule({ match = { class = class }, opacity = style.opacity_surface })
 end
 
 for _, class in ipairs({
-    "^com.mitchellh.ghostty$",
-    "^kitty$",
     "^neovide$",
     "^nemo$",
     "^(org.kde.)?dolphin$",
     "^steam$",
 }) do
-    hl.window_rule({ match = { class = class }, opacity = global_opacity })
+    hl.window_rule({ match = { class = class }, opacity = style.opacity })
 end
 
 hl.window_rule({
@@ -47,7 +39,6 @@ hl.window_rule({
 
 hl.window_rule({ match = { class = "^notes-scratch$" }, float = true, center = true, size = "900 600" })
 
--- the xdph screen-share picker: thumbnails need room, and it must not tile over what you are picking
 hl.window_rule({
     match = { class = "^omarchy-share-picker$" },
     float = true,
@@ -102,6 +93,18 @@ hl.window_rule({
     float = true,
 })
 
+-- median xl inside gamescope (gaming/d2launcher): floats at a 4:3 size, 80% of the monitor's height; the game
+-- scales with every resize, bars fill the rest
+hl.window_rule({
+    match = {
+        class = "^gamescope$",
+        title = "^Diablo II$",
+    },
+    float = true,
+    center = true,
+    size = "monitor_h*1.0667 monitor_h*0.8",
+})
+
 -- unreal's slate child windows (menus, drag previews) tile tiny and mispositioned
 hl.window_rule({
     match = {
@@ -110,9 +113,11 @@ hl.window_rule({
     float = true,
 })
 
+-- floating, they map before the output scale is known and render scaled up and clipped
 hl.window_rule({
     match = {
-        title = ".* Unreal Editor$",
+        class = "^UnrealEditor$",
+        title = "^(.* - Unreal Editor|Unreal Engine [0-9.]+)$",
     },
     float = false,
 })
@@ -144,7 +149,6 @@ hl.layer_rule({
     no_anim = true,
 })
 
--- ignore_alpha keeps soft edges and glow halos below 0.3 unblurred
 hl.layer_rule({
     name = "quickshell-blur",
     match = {

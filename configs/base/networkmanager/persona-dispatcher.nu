@@ -8,7 +8,6 @@ const MARKER = "/run/persona-lockdown"
 # a tor the user started is never stopped here
 const TOR_MARKER = "/run/persona-tor"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
-# the host's fw_egress already holds a vm guest
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
 const POLICY_FILE = "/etc/NetworkManager/untrusted-policy"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
@@ -16,7 +15,6 @@ const VPN_IFACE = "proton0"
 const WG_IFACE = "wg0"
 const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
-# homelab-routes' fail-fast fallback
 const UNREACHABLE_METRIC = "4000"
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
@@ -121,7 +119,6 @@ def portal [iface: string]: nothing -> nothing {
         | where $it != ""
     let back = [--quiet --collect $"--unit=($PORTAL_UNIT)" $"--on-active=($PORTAL_S)s" $SELF $iface portal-end]
     if not (ok systemd-run ...$back ...$domains) {
-        # without the way back the window stays shut
         ok nft delete element inet fw_egress portal $"{ ($iface) }" | ignore
         exit 1
     }
@@ -133,7 +130,6 @@ def portal [iface: string]: nothing -> nothing {
     ok resolvectl domain $iface "~." | ignore
 }
 
-# domains are the link's own from before the window; none clears with ""
 def portal-end [policy: string, iface: string, domains: list<string>]: nothing -> nothing {
     ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     if (foreign $policy) { tor-on $policy }
@@ -151,7 +147,6 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
     } else if not ($VM_GUEST | path exists) {
         ok systemctl start fw-egress.service | ignore
     }
-    # the effects are global, so trust is decided over every physical link, not just this one
     if $action == up and ($HOME_NETWORK | path exists) and not (foreign $policy) {
         if ($MARKER | path exists) {
             rm --force $MARKER

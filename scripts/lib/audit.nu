@@ -1,5 +1,3 @@
-# a rotation is the date in secrets/rotation.txt, else the blob's last commit
-
 use secrets.nu [secret-is-plaintext]
 
 const SECRETS = path self ../../secrets
@@ -24,7 +22,6 @@ const CLASSES = [
     ["claude/*" -] ["caido/*" -] ["dalamud/*" -] ["ffxiv/*" -] ["modrinth/*" -] ["obs-*.json" -] ["wallpapers/*" -]
     ["todeletewallpapers/*" -]
 ]
-# days: what leaks with a machine or log turns over in one or two years, an identity others pin every five
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 
 def finding [level: string, text: string]: nothing -> record { {level: $level, text: $text} }
@@ -67,7 +64,7 @@ def credentials []: nothing -> list<record> {
         let age = days-since $day
         if $age > $limit {
             let why = $"last rotated ($day), ($age) days ago, limit ($limit)"
-            finding fail $"secrets/($path) \(($class)\) ($why); rotate it, then dot audit rotated ($path)"
+            finding fail $"secrets/($path) \(($class)\) ($why); rotate it, then dot secrets audit rotated ($path)"
         } else {
             finding ok $"secrets/($path) \(($class)\) ($day), ($age) of ($limit) days"
         }
@@ -80,7 +77,6 @@ def recovery []: nothing -> list<record> {
     let recipients = if ($file | path exists) {
         open --raw $file | lines | where ($it | str starts-with age1) | length
     } else { 0 }
-    # each recipient is one X25519 stanza in the age header
     let sealed = $KEY_DIR | path join secrets.key.age
     let stanzas = if ($sealed | path exists) {
         open --raw $sealed | first $SEALED_HEADER_BYTES | decode utf-8 | lines
@@ -104,9 +100,9 @@ def recovery []: nothing -> list<record> {
             finding fail $"no secrets/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
         })
         (if $drilled == "" {
-            finding note 'recovery drill never recorded: RECOVERY.md "Test it", then dot audit drilled'
+            finding note 'recovery drill never recorded: RECOVERY.md "Test it", then dot secrets audit drilled'
         } else if (days-since $drilled) > $MAX_DAYS.recovery-drill {
-            let how = 'RECOVERY.md "Test it", then dot audit drilled'
+            let how = 'RECOVERY.md "Test it", then dot secrets audit drilled'
             finding note $"recovery drill last done ($drilled), (days-since $drilled) days ago: ($how)"
         } else {
             finding ok $"recovery drill ($drilled), (days-since $drilled) of ($MAX_DAYS.recovery-drill) days"
@@ -153,7 +149,7 @@ export def audit-remind []: nothing -> nothing {
     if $drilled != "" and (days-since $drilled) <= $MAX_DAYS.recovery-drill { return }
     let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join $REMIND_STATE
     if ($state | path exists) and (ls $state | get 0.modified) > ((date now) - $REMIND_EVERY) { return }
-    let how = 'RECOVERY.md "Test it": unlock a scratch clone with the paper key, then dot audit drilled'
+    let how = 'RECOVERY.md "Test it": unlock a scratch clone with the paper key, then dot secrets audit drilled'
     let body = $"last: ($drilled | default --empty never). ($how)"
     # not shown (no notification daemon yet): not recorded, the next run tries again
     if (do { ^notify-send -a secrets -u normal "Recovery drill due" $body } | complete).exit_code != 0 { return }

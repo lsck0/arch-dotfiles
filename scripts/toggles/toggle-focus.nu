@@ -2,13 +2,12 @@
 use lib.nu [switch-run toggle-run state-get state-set state-file]
 
 const PARTS = [dnd keep-awake nightlight]
-# n-state, so recorded by name and put back with `set`
 const GRADING_PRESET = "grayscale"
 
 def main [action: string = "toggle"] {
     let previous = state-file focus-previous
     switch-run {
-        label: "Focus Mode"
+        label: "Focus mode"
         is-on: {|| (state-get focus) == on }
         on: {||
             # a second on would record the focus scene itself as the state to restore
@@ -22,7 +21,6 @@ def main [action: string = "toggle"] {
             state-set focus on
         }
         off: {||
-            # no record: off, the safe direction that never leaves the machine silently muted, and the default grade
             let states = try { open --raw $previous | from nuon } catch { [] }
             $PARTS | where {|name| ($states | where name == $name | get state.0? | default off) != on } | each {|name|
                 try { toggle-run $name off o+e> /dev/null }

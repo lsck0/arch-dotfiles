@@ -44,14 +44,17 @@ def lint-modules []: nothing -> list<string> {
     let groups = ls $configs | where type == dir | get name | path basename
     let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | reduce --fold {} {|g, acc| $acc | insert $g (names-read ($configs | path join $g dependencies.txt)) }
     let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a module" } } | flatten
-    let platforms = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each {|f| open $f | get --optional groups | default [] | where $it not-in $groups | each { $"(rel $f): groups has '($in)', not a module" } } | flatten
+    let platforms = glob ($REPO | path join platforms '{*,templates/*}.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
+        open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
+        | each { $"(rel $f): groups has '($in)', not a group or module" }
+    } | flatten
     let siblings = glob $"($configs)/*/*/**/dependencies.txt" | each {|df|
         let grp = $df | path relative-to $configs | path split | first
         names-read $df | where {|d| not ($configs | path join $grp $d mod.nu | path exists) } | each { $"(rel $df): '($in)' is no module of configs/($grp)" }
     } | flatten
     let order = [[] [--system]] | each {|flags|
-        let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) graph ...$flags | complete
-        if $run.exit_code != 0 { $"run order (dot graph ($flags | str join ' ')): ($run.stderr | str trim)" }
+        let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) plan --order ...$flags | complete
+        if $run.exit_code != 0 { $"run order (dot plan --order ($flags | str join ' ')): ($run.stderr | str trim)" }
     } | compact
     $bad_deps ++ $platforms ++ $siblings ++ $order
 }
@@ -89,7 +92,7 @@ def lint-sync []: nothing -> list<string> {
 }
 
 def lint-platform-facts []: nothing -> list<string> {
-    glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
+    glob ($REPO | path join platforms '{*,templates/*}.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
         open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
         | each { $"(rel $f): fact '($in)' is not in PLATFORM_FACTS; add it there so modules see it, or it is set for nothing" }
     } | flatten
@@ -135,7 +138,7 @@ def lint-exec-bits []: nothing -> list<string> {
 def lint-platform-options []: nothing -> list<string> {
     let script = "use pipeline.nu *; pipeline-load $env.DOT_REPO user | get modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} } | to nuon"
     let known = with-env {DOT_REPO: $REPO} { ^nu --no-config-file -I ($REPO | path join scripts lib) -c $script | from nuon }
-    glob ($REPO | path join platforms *.options.nuon) | sort | each {|f|
+    glob ($REPO | path join platforms '{*,templates/*}.options.nuon') | sort | each {|f|
         open $f | items {|id, values|
             let module = $known | where id == $id | get --optional 0
             if $module == null { [$"(rel $f): ($id) is no module"] } else {
@@ -146,12 +149,12 @@ def lint-platform-options []: nothing -> list<string> {
 }
 
 def lint-generated []: nothing -> list<string> {
-    let run = ^nu --no-config-file ($REPO | path join scripts dot.nu) gen --check | complete
-    if $run.exit_code == 0 { [] } else { [$"dot gen --check: ($run.stdout + $run.stderr | str trim)"] }
+    let run = ^nu --no-config-file ($REPO | path join scripts lib internal.nu) gen --check | complete
+    if $run.exit_code == 0 { [] } else { [$"dot internal gen --check: ($run.stdout + $run.stderr | str trim)"] }
 }
 
 def unit-tests []: nothing -> list<string> {
-    glob $"($REPO)/configs/**/*.test.{sh,nu}" | sort | each {|t|
+    glob $"($REPO)/{configs,themes}/**/*.test.{sh,nu}" | sort | each {|t|
         let run = if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact
@@ -244,7 +247,6 @@ export def gate-tools [apply: bool]: nothing -> record {
     {findings: $findings, notes: $notes}
 }
 
-# the values Palette.js must reproduce
 def palette-expect [theme: path]: nothing -> list {
     let c = open $theme
     let raw = $c.special.background | palette hex-to-rgb
@@ -290,7 +292,7 @@ QtObject {
 
 # runs in qml6, the engine quickshell uses, so its rounding differences show up here
 export def gate-palette []: nothing -> record {
-    let themes = $PALETTE_THEMES | each {|t| $REPO | path join configs core themes $"($t).json" }
+    let themes = $PALETTE_THEMES | each {|t| $REPO | path join themes $"($t).json" }
     let py = {synced: (palette palette-js-sync), light: $palette.LIGHT_LUMINANCE, expected: ($themes | each { palette-expect $in })}
     let sync = if $py.synced { [] } else { [$"($PALETTE_JS): constants block is stale, run ($PALETTE_NU) js --write"] }
     let qml_light = open --raw ($REPO | path join configs desktop quickshell Commons Theme.qml) | parse --regex 'lightLuminance\s*:\s*(?<v>[0-9.]+)' | get --optional 0.v | if $in == null { null } else { into float }

@@ -53,10 +53,9 @@ export def link [cfg: record] {
     let sync = sync-text $cfg
     let bugwarrior = (profile-has identity) and (which bugwarrior | is-not-empty)
     [
-        (file-copy taskrc ($nu.home-dir | path join .taskrc))
-        (file-copy wal.theme ($nu.home-dir | path join .taskrc.wal.theme))
+        (file-copy taskrc ($nu.home-dir | path join .config task taskrc))
+        (file-copy wal.theme ($nu.home-dir | path join .config task wal.theme))
         (if ($HOOK | path exists) { file-copy $HOOK ($nu.home-dir | path join .task hooks on-modify.timewarrior) --mode 755 } else { [] })
-        # taskrc includes it; programming/bugwarrior writes the real one
         (if $bugwarrior { [] } else { file-text ($nu.home-dir | path join .config bugwarrior uda.taskrc) "" })
         (file-text ($nu.home-dir | path join $SYNC_RC) $sync --mode 600)
         (if ($sync | is-empty) { [] } else { (unit-file task-sync.service) ++ (unit-file task-sync.timer --enable --now) })

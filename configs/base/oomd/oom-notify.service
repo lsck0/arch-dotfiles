@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/projects/arch-dotfiles/configs/base/oomd/oom-notify.nu
+ExecStart=@DOTFILES@/configs/base/oomd/oom-notify.nu
 Restart=always
 RestartSec=5
 

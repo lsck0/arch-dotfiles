@@ -1,6 +1,6 @@
 [general]
 targets = ["github", "github_involved"]
-taskrc = "~/.taskrc"
+taskrc = "~/.config/task/taskrc"
 static_fields = ["priority", "project"]
 static_tags = ["inbox"]
 annotation_links = true

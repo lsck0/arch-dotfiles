@@ -2,19 +2,35 @@
 
 const ZONES = [
     [zone iana];
-    ["Central Europe" Europe/Berlin]
+    ["NA West" America/Los_Angeles]
+    ["NA Central" America/Chicago]
+    ["NA East" America/New_York]
     [UK Europe/London]
-    ["USA East" America/New_York]
-    ["USA Central" America/Chicago]
-    ["USA West" America/Los_Angeles]
-    ["New Zealand" Pacific/Auckland]
+    ["Central EU" Europe/Berlin]
+    [NZ Pacific/Auckland]
+    [JP Asia/Tokyo]
 ]
+const WINDOW_H = 25
+# every one of these zones switches on a whole utc hour
+const STEP_S = 3600
+
+def offset-at [unix_s: int, iana: string]: nothing -> int {
+    let z = $unix_s * 1_000_000_000 | into datetime | date to-timezone $iana | format date "%z"
+        | parse -r '(?<sign>[+-])(?<h>\d\d)(?<m>\d\d)' | first
+    let seconds = ($z.h | into int) * 3600 + ($z.m | into int) * 60
+    if $z.sign == "-" { 0 - $seconds } else { $seconds }
+}
 
 def main [] {
-    let now = date now
+    let start = ((date now | into int) // 1_000_000_000 // $STEP_S - $WINDOW_H) * $STEP_S
     $ZONES | each {|z|
-        let offset = $now | date to-timezone $z.iana | format date "%z" | parse -r '(?<sign>[+-])(?<h>\d\d)(?<m>\d\d)' | first
-        let seconds = ($offset.h | into int) * 3600 + ($offset.m | into int) * 60
-        {zone: $z.zone, offsetSec: (if $offset.sign == "-" { -1 * $seconds } else { $seconds })}
+        let samples = 0..(2 * $WINDOW_H) | each {|i|
+            let at = $start + $i * $STEP_S
+            {fromMs: ($at * 1000), offsetSec: (offset-at $at $z.iana)}
+        }
+        let spans = $samples | enumerate | where {|s|
+            $s.index == 0 or $s.item.offsetSec != ($samples | get ($s.index - 1) | get offsetSec)
+        } | get item
+        {zone: $z.zone, spans: $spans}
     } | to json -r | print
 }

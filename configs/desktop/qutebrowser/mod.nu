@@ -1,6 +1,8 @@
 use module.nu *
+use ../../core/wallust/palette.nu [RADIUS_PX]
 
-export const meta = {packages: {pacman: [qutebrowser python-adblock]}}
+# config.py reads the style.json core/wallust writes, also in the first link's lists-fetch
+export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
 
 const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
 const SEARCH_HOMELAB = "https://search.lsck0.dev/search?q={}"
@@ -38,15 +40,23 @@ export def link [cfg: record] {
         (file-link config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($search)\n")
         # a per-user copy: the page needs absolute paths into this home; toggle-font edits this copy and the repo's
-        (file-render startpage.html ($dir | path join startpage.html) {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES})
+        (file-render startpage.html ($dir | path join startpage.html) {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES, RADIUS: $RADIUS_PX})
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 
+def qutebrowser-running []: nothing -> bool { (^pgrep -x qutebrowser | complete).exit_code == 0 }
+
 # never while one runs: the commands would reach it over ipc, the quit included
 export def lists-fetch [] {
-    if (ps | where name == qutebrowser | is-not-empty) { return }
+    if (qutebrowser-running) { return }
     with-env {QT_QPA_PLATFORM: offscreen} {
         ^timeout $FETCH_TIMEOUT qutebrowser --nowindow ":adblock-update" $":later ($FETCH_QUIT_MS) quit" | complete | ignore
     }
-    if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot link --force desktop/qutebrowser retries" }
+    if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
+}
+
+# config.py reads the palette when sourced; without a running instance the command would start one
+export def theme [cfg: record, wallpaper: string] {
+    if not (qutebrowser-running) { return [] }
+    exec qutebrowser-config-source [qutebrowser :config-source]
 }

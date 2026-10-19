@@ -9,18 +9,32 @@ Singleton {
     id: root
 
     property bool running: false
+    property bool probed: false
     property bool connected: false
-    // panel label (Mic/Game) -> 0..1 multiplier
+    // hearing obs's stream mix instead of the system audio (scripts/toggles/toggle-obs-listen.nu)
+    property bool listening: false
+    readonly property string listenScript: Paths.toggle("toggle-obs-listen.nu")
     property var inputVolumes: ({
     })
     property var inputMutes: ({
     })
 
-    // the obs widget forwards these to the helper
     signal commandRequested(var command)
 
     function send(command) {
         root.commandRequested(command);
+    }
+
+    function listenSet(on) {
+        if (on !== root.listening)
+            Quickshell.execDetached([root.listenScript, on ? "on" : "off"]);
+
+    }
+
+    function listenRefresh() {
+        if (!listenProc.running)
+            listenProc.running = true;
+
     }
 
     function probe() {
@@ -29,8 +43,50 @@ Singleton {
 
     }
 
-    // obs may already run when the shell starts
-    Component.onCompleted: root.probe()
+    Component.onCompleted: {
+        root.probe();
+        root.listenRefresh();
+    }
+
+    Process {
+        id: listenProc
+
+        command: [root.listenScript, "get"]
+        onExited: root.listening = (listenOutput.text || "").trim() === "on"
+
+        stdout: StdioCollector {
+            id: listenOutput
+
+            waitForEnd: true
+        }
+
+    }
+
+    Connections {
+        function onChanged(script) {
+            if (script === "toggle-obs-listen.nu")
+                root.listenRefresh();
+
+        }
+
+        target: ToggleEvents
+    }
+
+    IpcHandler {
+        function toggleListen(): void {
+            root.listenSet(!root.listening);
+        }
+
+        function listen(on: bool): void {
+            root.listenSet(on);
+        }
+
+        function listening(): string {
+            return root.listening ? "on" : "off";
+        }
+
+        target: "obs"
+    }
 
     Process {
         id: proc
@@ -39,6 +95,7 @@ Singleton {
         command: ["pgrep", "-x", "obs"]
         onExited: function(exitCode) {
             root.running = exitCode === 0;
+            root.probed = true;
         }
     }
 

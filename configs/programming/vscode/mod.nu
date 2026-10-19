@@ -4,13 +4,12 @@ export const meta = {packages: {pacman: [vscodium-bin]}}
 
 const USER_DIR = ".config/VSCodium/User"
 
-# the theme verb and link render the same file, so neither sees the other's write as drift
+# merged, not rendered: VSCodium rewrites settings.json from its settings UI and keeps its own keys there
 def settings [] {
     let p = palette-load
-    let base = open settings.json
-    let text = if $p == null { $base } else {
+    let theme = if $p == null { {} } else {
         # the base theme carries every token not overridden here, so it must match the luminance
-        $base | merge {
+        {
             "workbench.colorTheme": (if $p.light == "1" { "Default Light Modern" } else { "Default Dark Modern" })
             "workbench.colorCustomizations": {
                 "editor.background": $p.bg_conditioned
@@ -27,7 +26,8 @@ def settings [] {
             }
         }
     }
-    file-text ($nu.home-dir | path join $USER_DIR settings.json) $"($text | to json --indent 2)\n"
+    let edits = open settings.json | merge $theme | items {|k, v| json-set [$k] $v }
+    json-merge ($nu.home-dir | path join $USER_DIR settings.json) $edits
 }
 
 export def link [cfg: record] {

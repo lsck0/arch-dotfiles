@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
 
 export const meta = {
     packages: {
@@ -96,7 +97,9 @@ export const options = {
     idle_lock_s: {type: int, default: 1200, doc: "Idle seconds until the session locks", label: "Lock after", group: idle, min: 60, apply: relogin}
     idle_dpms_s: {type: int, default: 2100, doc: "Idle seconds until the screens go off", label: "Screens off after", group: idle, min: 60, apply: relogin}
     idle_suspend_s: {type: int, default: 2400, doc: "Idle seconds until suspend, unless an agent works or an inhibitor holds", label: "Suspend after", group: idle, min: 60, apply: relogin}
-    idle_suspend_saver_s: {type: int, default: 600, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, apply: relogin}
+    idle_dim_saver_s: {type: int, default: 300, doc: "Idle seconds until the screens dim in power saver (a laptop on battery)", label: "Dim in power saver after", group: idle, min: 60, apply: relogin}
+    idle_lock_saver_s: {type: int, default: 600, doc: "Idle seconds until the session locks in power saver", label: "Lock in power saver after", group: idle, min: 60, apply: relogin}
+    idle_suspend_saver_s: {type: int, default: 1800, doc: "Idle seconds until suspend in power saver", label: "Suspend in power saver after", group: idle, min: 60, apply: relogin}
 }
 
 const CONFIG_DIR = ".config/hypr"
@@ -105,7 +108,6 @@ const LUA = [
     hyprland_layout.lua hyprland_misc.lua hyprland_monitors.lua hyprland_plugins.lua hyprland_powersave.lua
     hyprland_windowrules.lua hyprland_windows.lua wal_colors.lua hyprlock.conf xdph.conf
 ]
-# hypridle and the quickshell lock run these by their path under the config dir
 const COMMANDS = [lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]
 const KEYBOARD_CONF = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
@@ -117,7 +119,6 @@ const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 
 def outputs-live []: nothing -> table {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return [] }
-    # agents' headless outputs are never a real monitor
     # a stale signature (a shell from before a compositor restart) must not cost detect its keyboard half
     try { ^hyprctl -j monitors | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
 }
@@ -140,7 +141,6 @@ def monitors-detect []: nothing -> list<record> {
     outputs-live | reduce --fold {x: 0, rows: []} {|o, acc|
         let scale = scale-for $o
         let mode = mode-best $o.availableModes
-        # preferred has no width to advance x by, so fall back to the output's current one
         let width = if $mode == "preferred" { $o.width? | default 1920 } else { $mode | split row x | first | into int }
         {
             x: ($acc.x + ($width / $scale | math round))
@@ -226,15 +226,16 @@ export def link [cfg: record] {
         ($COMMANDS | each {|f| file-copy $f ($dir | path join $f) --mode 755 })
         (file-render hypridle.conf ($dir | path join hypridle.conf) {
             DIM_S: $cfg.idle_dim_s LOCK_S: $cfg.idle_lock_s DPMS_S: $cfg.idle_dpms_s
-            SUSPEND_S: $cfg.idle_suspend_s SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
+            SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
+            SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
         })
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
+        (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
         (step reload)
     ]
 }
 
-# a config write reloads hyprland, dropping the runtime monitor layout and shader; the shader goes last, a scale
-# re-render after it would drop it again
+# the shader goes last: a config write or scale re-render after it drops it
 export def reload []: nothing -> nothing {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return }
     let toggles = $env.DOTFILES | path join scripts toggles

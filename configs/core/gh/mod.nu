@@ -13,11 +13,10 @@ def token-file []: nothing -> path {
 export def link [cfg: record] {
     let token = token-file
     if (which gh | is-empty) or not (secret-is-plaintext $token) or (open --raw $token) !~ $TOKEN_SHAPE { return [] }
-    let helpers = ^git config --global --get-all credential.https://github.com.helper | complete | get stdout
+    # the git credential helper is core/git's: `gh auth setup-git` would write into its managed config
     [
         # file storage: plasma swaps the secret service to ksecretd, which hides a gnome-keyring token
         (if ($nu.home-dir | path join $HOSTS | path exists) { [] } else { step gh-login })
-        (if ($helpers | str contains "gh auth git-credential") { [] } else { exec gh-setup-git [gh auth setup-git] })
     ]
 }
 

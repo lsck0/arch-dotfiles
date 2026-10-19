@@ -1,7 +1,6 @@
 add_newline = true
 
-# the default 30 ms is too tight for $HOME (many files) on a slower disk, so starship prints
-# "scanning the current directory timed out" and drops the language modules; the laptop needs more
+# the default 30 ms times out on $HOME on a slower disk and drops the language modules
 scan_timeout = 500
 
 format = """

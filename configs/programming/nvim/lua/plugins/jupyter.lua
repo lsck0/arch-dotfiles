@@ -1,4 +1,3 @@
--- image.nvim needs the kitty graphics protocol
 local function terminal_graphics()
     if vim.g.neovide then
         return false

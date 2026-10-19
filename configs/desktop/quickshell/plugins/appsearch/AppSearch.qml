@@ -16,7 +16,6 @@ Item {
   property bool opened: false
   property string filterText: ""
   property int selectedIndex: 0
-  // uniform rows: { kind, name, sub, icon, glyph, payload }
   property var rows: []
 
   property color foreground: Colors.menu.text
@@ -38,12 +37,9 @@ Item {
     windows: [["ESC", "clear"], ["^ v", "select"], ["ENTER", "focus"]]
   })
 
-  // qalc is slow to start, so the calculator waits for typing to pause
   readonly property int calcDebounceMs: 150
   property string calcResult: ""
-  // "", "loading", "error", "missing"
   property string calcState: ""
-  // the wrapper's exit when qalc is missing
   readonly property int exitNotFound: 127
   // a stuck qalc (currency update, huge factorial) must not hold the row on `--`
   readonly property int calcTimeoutS: 5
@@ -88,7 +84,6 @@ Item {
     var out = []
     for (let i = 0; i < values.length; i++) {
       const t = values[i]
-      // the wayland app id is the class, no ipc refresh needed
       const cls = t.wayland ? String(t.wayland.appId || "") : ""
       const title = String(t.title || "")
       if (q && (title + " " + cls).toLowerCase().indexOf(q) < 0) continue
@@ -123,7 +118,6 @@ Item {
   }
 
   function setFilter(text) {
-    // `:` belongs to the clipboard overlay, one history browser in the shell
     if (text === ":") {
       root.close()
       Quickshell.execDetached(Paths.ipcCall("clipboard", "open"))
@@ -180,7 +174,6 @@ Item {
     id: calcProc
     stdout: StdioCollector { id: calcOut; waitForEnd: true }
     onExited: function(code) {
-      // a superseded run, killed for the newer query
       if (root.mode !== "calc" || calcProc.command[4] !== root.modeQuery) return
       var text = String(calcOut.text || "").trim().split("\n").pop()
       root.calcState = code === root.exitNotFound ? "missing" : code !== 0 || !text ? "error" : ""
@@ -252,6 +245,9 @@ Item {
           event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
           root.activateAt(root.selectedIndex)
+          event.accepted = true
+        } else if (Util.isWordDelete(event.key, event.modifiers)) {
+          root.setFilter(Util.wordDelete(root.filterText))
           event.accepted = true
         } else if (event.key === Qt.Key_Backspace) {
           root.setFilter(root.filterText.slice(0, -1))
@@ -370,7 +366,6 @@ Item {
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          // hover deliberately does not move the selection
           onClicked: root.activateAt(rowDelegate.index)
         }
       }

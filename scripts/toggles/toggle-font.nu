@@ -14,27 +14,28 @@ const VSCODE = path self ../../configs/programming/vscode/settings.json
 const ZATHURA = path self ../../configs/desktop/zathura/zathurarc
 const FIREFOX_CHROME = path self ../../configs/desktop/firefox/userChrome.css
 const GTK_CSS = path self ../../configs/desktop/gtk/gtk.css
-# gtk's settings.ini is generated into ~/.config by the theme switch, not tracked here
+const DOT = path self ../dot.nu
+const RELINKED = [desktop/zathura desktop/qutebrowser programming/zed programming/emacs]
+const RETHEMED = [
+    desktop/kitty desktop/ghostty programming/emacs programming/vscode socials/spotify socials/discord desktop/gtk
+    desktop/plasma desktop/zathura desktop/qutebrowser
+]
 const GTK_DIRS = [gtk-3.0 gtk-4.0]
 const KDE_FONT_KEYS = [
     [group key];
     [General font] [General fixed] [General menuFont] [General smallestReadableFont] [General toolBarFont] [WM activeFont]
 ]
-# smallestReadableFont sits this far below the body font
 const KDE_SMALLEST_OFFSET = 2
 # a desktop asking qt for a 2pt smallestReadableFont makes the settings ui unusable
 const UI_SIZE_MIN = 6
 const UI_SIZE_DEFAULT = 10
 const SIZE_MIN = 1
-# the settings window's slider end and clamp; set-size and set-ui-size take any size
 const SIZE_MAX = 48
 const NVIM_GUIFONT_DEFAULT = "Kode Mono:h16"
-# cycled by toggle and served to quickshell's display panel through shortlist, so both share one list
 const SHORTLIST = [
     "Kode Mono" "Tektur" "0xProto Nerd Font" "JetBrainsMono Nerd Font" "FiraCode Nerd Font" "Hack Nerd Font"
     "CaskaydiaCove Nerd Font" "CommitMono Nerd Font"
 ]
-# terminals and editors need fixed pitch: a proportional family maps to its monospace partner
 const MONO_PARTNERS = {Tektur: "Kode Mono"}
 
 def ghostty-get [key: string]: nothing -> string {
@@ -111,17 +112,14 @@ def kde-font-set [family: any, size: any]: nothing -> nothing {
 
 def family-apply [family: string]: nothing -> nothing {
     let mono = mono-family $family
-    let startpages = [$QUTEBROWSER_STARTPAGE ($nu.home-dir | path join .config qutebrowser startpage.html)]
-        | where ($it | path exists) and ($it | path type) != symlink
     files-edit ([
         [file pattern replacement all];
         [$GHOSTTY '(?m)^font-family = .*$' $"font-family = ($mono)" false]
-        # zed's buffer, ui and terminal keys; only the ui one may be proportional
         [$ZED '"buffer_font_family": "[^"]*"' $'"buffer_font_family": "($mono)"' true]
         [$ZED '"ui_font_family": "[^"]*"' $'"ui_font_family": "($family)"' true]
         [$ZED '"font_family": "[^"]*"' $'"font_family": "($mono)"' true]
         [$EMACS '(?m)^\(defvar my/font-family ".*"\)' $"\(defvar my/font-family \"($mono)\"\)" true]
-        [$DISCORD '(?m)^  --font: ".*";' $'  --font: "($family)";' true]
+        [$DISCORD '(?m)^(\s*)--font: ".*";' $'${1}--font: "($family)";' true]
         [$SPOTIFY 'font-family: "[^"]*", "Symbols Nerd Font"' $'font-family: "($family)", "Symbols Nerd Font"' true]
         [$KITTY '(?m)^font_family .*$' $"font_family ($mono)" true]
         [$QUTEBROWSER '(?m)^c\.fonts\.default_family = ".*"' $'c.fonts.default_family = "($family)"' true]
@@ -129,9 +127,8 @@ def family-apply [family: string]: nothing -> nothing {
         [$ZATHURA '(?m)^set font "[^"]*( [0-9]*)"' $'set font "($family)${1}"' true]
         [$FIREFOX_CHROME '--rtk-chrome-font: "[^"]*",' $'--rtk-chrome-font: "($family)",' true]
         [$GTK_CSS 'font-family: "[^"]*", sans-serif;' $'font-family: "($family)", sans-serif;' true]
-    ] | append ($startpages | each {|page|
-        {file: $page, pattern: 'font-family: "[^"]*", monospace;', replacement: $'font-family: "($family)", monospace;', all: true}
-    }))
+        [$QUTEBROWSER_STARTPAGE 'font-family: "[^"]*", monospace;' $'font-family: "($family)", monospace;' true]
+    ])
     nvim-guifont-set $mono null
     quickshell-theme-set family $family
     gtk-font-set $family null
@@ -168,17 +165,25 @@ def ui-size-apply [size: int]: nothing -> nothing {
     kde-font-set null $size
 }
 
+# detached: the theme verbs take seconds and the caller (the settings window, a keybind) must not wait
+def live-apply []: nothing -> nothing {
+    let wallpaper = ^readlink -f ($nu.home-dir | path join .cache wal wallpaper) | complete | get stdout | str trim
+    let dot = $"^nu --no-config-file ($DOT | to nuon)"
+    let link = $"($dot) apply --user ...($RELINKED | to nuon)"
+    let theme = if ($wallpaper | path exists) { $"; ($dot) internal theme apply ($wallpaper | to nuon) ...($RETHEMED | to nuon)" } else { "" }
+    ^setsid -f nu --no-config-file -c $"($link)($theme)" out+err> /dev/null
+}
+
 def reload-hint []: nothing -> nothing {
-    touch $GHOSTTY
+    live-apply
     let theme = ^gsettings get org.gnome.desktop.interface gtk-theme | complete | get stdout | str trim | str trim --char "'"
     if ($theme | is-not-empty) {
         ^gsettings set org.gnome.desktop.interface gtk-theme '' | complete
         ^gsettings set org.gnome.desktop.interface gtk-theme $theme | complete
     }
     print -e (
-        "quickshell: applied live; gtk: applied live (portal apps) or on next start; qt/kde: next app start; "
-        + "ghostty: reload with its own keybind; emacs/nvim/zed/discord: restart to pick this up; "
-        + "spotify: run 'spicetify apply' then restart Spotify to pick this up"
+        "quickshell, terminals, emacs, vscodium, zed, spotify, discord, zathura and qutebrowser: applied live; "
+        + "gtk and qt/kde: live where the app follows the desktop, else on its next start; nvim and firefox: next start"
     )
 }
 
@@ -202,7 +207,7 @@ def "main label" [] { $"󰛖 Font: (family-get) (ghostty-get font-size)" }
 def "main list" [] { print (families-installed | str join "\n") }
 def "main shortlist" [] { print (shortlist | str join "\n") }
 
-# rows shaped like `dot options --json`, each with the verb that sets it, for the settings window
+# rows shaped like `dot set --json`, each with the verb that sets it, for the settings window
 def "main options" [] {
     [
         {

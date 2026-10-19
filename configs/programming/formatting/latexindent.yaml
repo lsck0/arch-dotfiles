@@ -4,5 +4,13 @@ maxNumberOfBackUps: 1
 removeTrailingWhitespace:
     beforeProcessing: 1
     afterProcessing: 1
+# applied with -m: paragraphs reflow at 120, a block ends at every environment, display math, item and row break
 modifyLineBreaks:
     preserveBlankLines: 1
+    textWrapOptions:
+        columns: 120
+        when: after
+        blocksFollow:
+            other: '\\\]|\\item(?:\h|\[)|\\begin\{[^}]*\}(?:\[[^\]]*\])?(?:\\label\{[^}]*\})?|\\end\{[^}]*\}|\\\\(?:\[[^\]]*\])?'
+        blocksEndBefore:
+            other: '\\begin\{|\\\[|\\end\{'

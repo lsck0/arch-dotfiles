@@ -1,12 +1,8 @@
-# the machine's facts: data, never code, so root reading them runs nothing
-
 use log.nu *
 
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
-const FORM_FACTORS = [desktop laptop vm wsl]
-# the facts every module may read, exported to each module process as upper-case env names
+const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
-# the platform record's keys; anything else in a platform file is a typo, caught at load
 const PLATFORM_KEYS = [hostname form_factor groups extra_packages facts packages_keep]
 
 export def platform-groups-all [repo: path]: nothing -> list<string> {
@@ -49,9 +45,9 @@ export def platform-load [repo: path]: nothing -> record {
     }
     let all = platform-groups-all $repo
     let groups = $raw.groups? | default [] | if ($in | is-empty) { $all } else { $in }
-    let bad = $groups | where $it not-in $all
+    let bad = $groups | where {|g| $g not-in $all and not ($repo | path join configs $g mod.nu | path exists) }
     if ($bad | is-not-empty) {
-        error make {msg: $"($file): groups has ($bad | str join ', '), not a group in configs/"}
+        error make {msg: $"($file): groups has ($bad | str join ', '), not a group or module in configs/"}
     }
     let form_factor = $env.FORM_FACTOR? | default ($raw.form_factor? | default "")
         | if ($in | is-empty) { platform-probe-form-factor } else { $in }
@@ -95,7 +91,6 @@ export def platform-has [fact: string]: nothing -> bool {
 export def display-xwayland-scale [form_factor: string]: nothing -> int {
     if $form_factor == "laptop" { 1 } else { 2 }
 }
-
 
 const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
 

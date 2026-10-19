@@ -17,7 +17,6 @@ local function app(cmd)
     return hl.dsp.exec_cmd("uwsm-app -- " .. cmd)
 end
 
--- a helper that may outlive the keypress (pickers, toggles) in background-graphical.slice
 local function helper(cmd)
     return hl.dsp.exec_cmd("uwsm-app -s b -- " .. cmd)
 end
@@ -74,8 +73,13 @@ hl.bind(
 hl.bind(mod .. " + SHIFT + y", hl.dsp.exec_cmd("shimejictl stop"), { description = "stop the desktop mascots" })
 hl.bind(mod .. " + F9", obs_command("saveReplay"), { description = "obs: save the replay buffer" })
 hl.bind(mod .. " + SHIFT + F9", obs_command("toggleReplay"), { description = "obs: start or stop the replay buffer" })
+-- mangohud's own toggle_hud never sees a key on wayland (gaming/mangohud); non-consuming so editors keep shift+f12
+hl.bind(
+    "SHIFT + F12",
+    hl.dsp.exec_cmd(shell_bin("mangohud-toggle")),
+    { non_consuming = true, description = "show or hide the mangohud overlay" }
+)
 hl.bind(mod .. " + Tab", quickshell_call("overview", "open"), { description = "overview of workspaces and windows" })
--- d-bus into the resident ghostty skips the ~180ms cli start of +new-window; kitty when that service hangs
 hl.bind(
     mod .. " + Return",
     hl.dsp.exec_cmd(
@@ -87,7 +91,6 @@ hl.bind(mod .. " + SHIFT + Return", app("kitty"), { description = "kitty termina
 hl.bind(mod .. " + a", app("firefox"), { description = "firefox" })
 hl.bind(mod .. " + SHIFT + a", app("qutebrowser"), { description = "qutebrowser" })
 hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app launcher" })
--- quickshell down: a bemenu over $PATH launches, super+shift+r brings the shell back
 hl.bind(
     mod .. " + ALT + d",
     hl.dsp.exec_cmd(
@@ -124,7 +127,6 @@ hl.bind(mod .. " + t", helper("$DOTFILES/scripts/toggles/menu.nu"), { descriptio
 hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
 hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
--- boomer.nu stops hyprland warping the cursor to monitor 0
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
 
 hl.bind(mod .. " + Q", hl.dsp.window.close(), { description = "close the window" })
@@ -287,7 +289,6 @@ hl.define_submap("overview", function()
         { repeating = true, description = "previous window" }
     )
     hl.bind(mod .. " + Return", quickshell_call("overview", "commit"), { description = "go to the selected window" })
-    -- the way out even with quickshell gone, so the submap never traps the session
     hl.bind(
         "Escape",
         hl.dsp.exec_cmd(

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# ossec alert summary for System.qml: one JSON line per change, inotify driven, silent exit when ossec is off
 
 const ALERTS_DIR = "/var/lib/ossec-hids/logs/alerts"
 const ALERTS_LOG = "/var/lib/ossec-hids/logs/alerts/alerts.log"
@@ -8,7 +7,6 @@ const WINDOW = 24hr
 # ossec levels: 7 fires on every syscheck change after an upgrade, 10+ is repeated failures or high importance
 const LEVEL_HIGH = 10
 const RECENT_COUNT = 3
-# a syscheck scan writes alerts in bursts, one summary per burst
 const DEBOUNCE = 500ms
 const ALERT_MARK = "** Alert "
 const MAIN_JOB = 0
@@ -32,7 +30,6 @@ def main [] {
     mut alerts = []
     mut last = ""
     loop {
-        # absent for a moment while ossec rotates it
         if ($ALERTS_LOG | path exists) {
             let stat = ^stat -c '%i %s' $ALERTS_LOG | split row " " | into int
             if $stat.0 != $tail.inode or $stat.1 < $tail.offset { $tail = {inode: $stat.0, offset: 0, pending: ""} }
@@ -60,7 +57,6 @@ def main [] {
             print $line
             $last = $line
         }
-        # wake on the next write or when the oldest alert leaves the window, never on a fixed tick
         let expiry = if ($alerts | is-empty) { null } else { ($alerts.0.ts + $window_s - $now_s + 1) * 1sec }
         try { if $expiry == null { job recv } else { job recv --timeout $expiry } }
     }

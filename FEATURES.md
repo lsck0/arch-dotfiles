@@ -2,8 +2,8 @@
 
 This is an unreviewed AI generated summary of dotfile features.
 
-Everything below is set up by `dot update` (or `dot install` plus `dot apply`) on a fresh machine; nothing is set by
-hand. SUPER is the mod key. `dot list`, `dot options` and `hyprctl binds` list the modules, options and keybinds from
+Everything below is set up by `dot sync` (`--no-push` does not commit) on a fresh machine; nothing is set by hand.
+SUPER is the mod key. `dot plan --modules`, `dot set` and `hyprctl binds` list the modules, options and keybinds from
 the tree itself; this file says what they do.
 
 - [Install and the dot CLI](#install-and-the-dot-cli)
@@ -32,45 +32,43 @@ the tree itself; this file says what they do.
 
 ## Install and the dot CLI
 
-- `bootstrap.sh` from the Arch ISO hands over to `dot bootstrap`: all questions first, then disk, base system and the
-  unattended chain; it also sets up a fresh WSL distro.
-- `dotfiles-stage.service` runs `dot stage` once per boot until install and config are done, with no one at the keyboard.
-- `dot update`: the one command; pulls the current generation, snapshots, runs migrations, installs, applies.
-- `dot install`: snapshot, every declared package from the `[lsck0]` mirror, the user's flatpak and nix packages, then
+- `bootstrap.sh` from the Arch ISO hands over to `dot internal bootstrap`: all questions first, then disk, base system
+  and the unattended chain; it also sets up a fresh WSL distro.
+- `dotfiles-stage.service` runs `dot internal stage` once per boot until install and config are done, with no one at
+  the keyboard.
+- `dot sync`: the one command; pulls, snapshots, runs migrations, installs, applies, backs up live app state, runs the
+  gates, makes the signed `Generation: <n>` commit and pushes. `--no-push`, and a machine that does not sign, stop
+  after the apply.
+- `dot apply`: converges the machine without git: the system layer (an admin's, after a snapshot) from the root-owned
+  copy `/var/lib/dotfiles/repo`, then the user layer. `--system` and `--user` (or naming modules) run one layer alone.
+  `--packages`: snapshot, every declared package from the `[lsck0]` mirror, the user's flatpak and nix packages, then
   offers to remove packages no module declares.
-- `dot apply`: converges the machine: the system layer (an admin's, after a snapshot) from the root-owned copy
-  `/var/lib/dotfiles/repo`, then the user layer. `dot system` and `dot link` run one layer alone.
-- `dot plan`: what an apply would do, touching nothing; `--sandbox` runs legacy modules in a bubblewrap overlay and
-  reports their write set; `dot plan --system` for the system layer.
-- `dot diff`: drift of managed files changed since their last apply, links pointing elsewhere, units disabled.
-- `dot adopt`: carries a live edit of a managed copy back into the module's source, so the next apply keeps it.
-- `dot unlink <module>`: reverses a module's last apply; unchanged files, links and units go, originals come back.
-- `dot remove <module>`: unlink, turn off (`--machine` for the machine) and offer its packages for removal.
+- `dot plan`: what an apply would do, touching nothing; `--sandbox` also runs the user layer in a bubblewrap overlay
+  and reports its write set; `--system` for the system layer; `--order` the run order, `--modules` every module.
+- `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply,
+  then every health check (failures, pending applies, drift, firewall, units, backups, snapshots, secrets due for
+  rotation or a recovery drill) and the drift report each machine publishes into `secrets/drift/<host>`; `--brief`
+  the failures alone, for the login notice and the bar; `--json` all of it.
+- `dot set`: every option off its default with value and source (default, platform, profile, detected); a module or
+  `<module>.<option>` shows those; a value sets one, validated, stored in the profile (or `--machine` in the platform),
+  applied as the option says (live, relink, reapply, reboot); `--default` resets it; `--json` is the schema, values
+  and live state for a frontend (the settings window).
+- `dot module adopt <file>`: carries a live edit of a managed copy back into the module's source, so the next apply
+  keeps it. `unlink <module>` reverses a module's last apply (unchanged files, links and units go, originals come
+  back); `remove <module>` also turns it off (`--machine` for the machine) and offers its packages for removal;
+  `restore <module>` runs its restore verb.
 - `dot rollback`: back to an earlier generation, undoing newer migrations; `--snapshot` lists the pre-apply btrfs
   snapshots and how to restore one.
-- `dot migrate`: one-time migrations not yet run here (`--system` for root's; `--baseline` on a fresh install).
-- `dot sync`: backs up live app state, runs the gates, makes the signed `Generation: <n>` commit and pushes.
-- `dot backup` / `dot restore <module>`: every module's backup verb into the repo or `secrets/`; `--roundtrip` backs up,
-  restores into an empty home and fails on any difference.
-- `dot status`: generation, last run, drift and pending migrations at a glance.
-- `dot doctor`: health of the machine: failures, pending applies, drift, secrets, backups; `--brief` for the login
-  notice and the bar.
-- `dot audit`: secrets due for rotation or a recovery drill; `dot audit rotated|drilled|remind` record and nag.
-- `dot drift`: packages and units that differ between machines, against the reports each one publishes into
-  `secrets/drift/<host>` (`dot drift publish`, hourly).
-- `dot options [module]`: every option with value and source (default, platform, profile, detected); `--json` is the
-  schema, values and live state for a frontend (the settings window).
-- `dot set <module>.<option> <value>` / `dot unset`: validated, stored in the profile (or `--machine` in the platform),
-  applied as the option says (live, relink, reapply, reboot).
-- `dot watch`: every option and live state change as JSON lines `{key, value, source, runtime}`, from any writer.
-- `dot theme`, `dot theme set|random|get|list|apply`: wallpaper and theme switching (see Theming).
+- `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
 - `dot secrets unlock|lock|init|seal`: the git-crypt `secrets/` worktree behind the YubiKey; `--identity <age file>`
-  without one.
-- `dot list`, `dot graph`, `dot explain <path|package>`, `dot log [--trace]`, `dot packages`: what runs, in which
-  order, who wrote a path or declared a package, a run's records and span tree.
-- `dot fetch file|git`: pinned downloads (sha256, resumable) and pinned git checkouts used by modules.
-- `dot prune <days>`: preserved copies of a person's own files that modules moved aside.
-- `dot gen`: regenerates `mirror/packages.txt`.
+  without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording it.
+- `dot explain <path|package>`, `dot log [--trace]`: who wrote a path or declared a package, a run's records and span
+  tree.
+- `dot internal`: the plumbing other code runs, out of `dot --help`: `migrate` (`--system`, `--baseline`), `backup`
+  (`--roundtrip` backs up, restores into an empty home and fails on any difference), `fetch file|git` (pinned
+  downloads and checkouts), `prune <days>`, `gen` (`mirror/packages.txt`), `packages`, `watch` (every option and live
+  state change as JSON lines), `theme get|list|apply`, `drift publish` (hourly), `audit remind`, `completions zsh|nu`
+  (installed by `base/dot`).
 - `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, platform facts, generated files, every
   `*.test.sh`/`*.test.nu`); `dot test check`: every formatter and linter (the sync gate); `dot test fmt` applies them.
 - `dot test run`: the end-to-end VM test: a libvirt VM with secure boot in setup mode boots the ISO, `bootstrap.sh` is
@@ -79,7 +77,7 @@ the tree itself; this file says what they do.
   admin password every time.
 - `FAILURES.*` at the repo root lists what failed in the last run; a login notification shows them
   (`failures-login.service`).
-- `system-update`: confirm, then `dot install`, `dot apply`, flatpak, rustup, opam, ghcup, Hyprland plugins, tldr, nvim
+- `system-update`: confirm, then `dot sync --no-push`, flatpak, rustup, opam, ghcup, Hyprland plugins, tldr, nvim
   Lazy/Mason/treesitter and emacs package upgrades.
 
 ## Machines, profiles and options
@@ -244,13 +242,13 @@ the tree itself; this file says what they do.
   1080x720, Steam toasts pinned to the main monitor, Unreal child windows floating.
 - Workspaces split across monitors (`desktop/hyprland.workspaces`); app homes by class
   (`desktop/hyprland.app_workspaces`).
-- Idle chain from options: dim at 15 min, lock at 20, screens off at 35, suspend at 40 (10 in power saver); suspend
-  waits while an agent works or an inhibitor holds.
+- Idle chain from options: dim at 15 min, lock at 20, screens off at 35, suspend at 40; in power saver (a laptop on
+  battery) dim at 5, lock at 10, suspend at 30. Suspend waits while an agent works or an inhibitor holds.
 - Idle guards: no sleep while media plays, an SSH session is open, or a coding agent is mid-turn (`agent-guard`).
 - Lock through quickshell, hyprlock as fallback; lid close locks even while the lid switch is inhibited.
 - Screen shaders (`toggle-shader`): colorblind correction and simulation, false color, smart invert, vivid,
   composition grid, cyberpunk.
-- Color grading through the display CTM (`color-grading`): presets default, reading, grayscale, red-night, night light
+- Color grading through the display CTM (`color-grading`): presets default, reading, grayscale, night light
   and software brightness; night light resets at reboot.
 - Power saver turns off animations, blur, shadows, shaders and dynamic cursors.
 - hypr-dynamic-cursors plugin (shake to find) via hyprpm.
@@ -280,7 +278,8 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 - System: CPU, memory, GPU and temperature with history, top processes, OSSEC alerts, power mode selector, disk speed
   test.
 - Network: details, throughput, Wi-Fi list with password entry, tunnel switches (ProtonVPN, homelab VPN, tor,
-  anonymous SOCKS), radios (Wi-Fi, Ethernet, mobile, Bluetooth, offline, firewall), speed test, Wi-Fi QR share.
+  anonymous SOCKS), radios (Wi-Fi, Ethernet, mobile, Bluetooth, offline), a firewall mode picker (permissive, default,
+  restrictive), speed test, Wi-Fi QR share.
 - Display: brightness per monitor (backlight or DDC), color grading presets, night light, shaders, monitor layout
   (extend, mirror, off) and scale.
 - Audio: output and input devices, fader and meters, per-app routing, "heard by", deafen, qpwgraph.
@@ -290,7 +289,7 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 
 ### Panels and overlays
 
-- Settings window (`SUPER+comma`): every module's options from `dot options --json`, searchable, typed rows (bool,
+- Settings window (`SUPER+comma`): every module's options from `dot set --json`, searchable, typed rows (bool,
   choice, number, list, path picker); `dot set` live or queued with apply and revert; offers the admin system apply
   when needed; quick toggles from `status.nu`.
 - Tasks and notes (`SUPER+o`): taskwarrior pending list with filter, add in task syntax, done, start, delete; the notes
@@ -309,9 +308,9 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 - Lock (`SUPER+Escape`): password, or `Ctrl+K` for YubiKey with PIN; ASCII-art wallpaper, clock, media, stats, a
   notification dock without content; relocks after a quickshell restart.
 - Wallpaper picker (`SUPER+w`): wallpapers that fit the largest screen with a palette preview, or the themes; Enter
-  runs `dot theme set`.
+  runs `dot theme <name>`.
 - Reminders: minutes and a message become a systemd user timer; presets; snooze 5 or 15 minutes from the alert card.
-- Pomodoro: focus blocks with pause, skip, stop.
+- Pomodoro: focus blocks with pause, skip, stop; focus, break and long break lengths and the cycle count are options.
 - Internet speed test (fast.com), disk speed test (direct I/O), Wi-Fi QR code with the password shown on demand.
 - Background: the wallpaper with a reveal and palette crossfade on every switch.
 
@@ -325,7 +324,8 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 - `color-grading`: cycles the CTM presets; `set <preset>`.
 - `dnd`: quickshell do not disturb.
 - `docker`, `ollama`, `oom-protection`, `tor`, `vllm`: start or stop the service.
-- `firewall`: default (inbound plus Portmaster), restrictive (lockdown plus Portmaster), off.
+- `firewall`: permissive (no inbound table, Portmaster off), default (inbound plus Portmaster), restrictive (lockdown
+  plus Portmaster), cycled in that order; the network panel picks one directly.
 - `focus`: DND, keep awake, night light and grayscale together; off restores the previous states.
 - `font`: UI font family across terminals, editors, browsers, GTK, KDE and quickshell; `set`, `set-size`, shortlist.
 - `keep-awake`: a sleep and idle inhibitor.
@@ -341,7 +341,7 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 
 ## Theming and wallpapers
 
-- `dot theme set <name|path>`, `dot theme random`, `dot theme` (fzf with previews), `SUPER+w` (picker), nsxiv `w`.
+- `dot theme <name|path>`, `dot theme random`, `dot theme` (fzf with previews), `SUPER+w` (picker), nsxiv `w`.
 - 20 hand-made palettes (ayu, catppuccin, dracula, everforest, gruvbox, kanagawa, monokai, night-owl, nord, one-dark,
   rose-pine, solarized, tokyo-night, void); a wallpaper named in a palette uses it and its font, any other wallpaper
   gets a palette from wallust.
@@ -363,7 +363,8 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 - tmux (prefix `C-q`), vi copy mode, OSC 52, tmux-fingers, autoreload, popups: btop, lazydocker, gh-dash, lazyjj, k9s,
   lazysql, lazyjournal, rustnet, netscanner, taskwarrior-tui, toggles, wtree, pclone, tms.
 - herdr multiplexer with the same prefix and popups; `herdr-open <dir>` lays out nvim, claude and zsh tabs; `hms`
-  picks a project.
+  picks a project; prefix `o` is `herdr-fingers` (pick a url, path, hash or ip off the pane: enter copies, ctrl-o
+  opens). tmux-fingers' jump mode is prefix `O`.
 - ghostty as a resident D-Bus service for instant windows; kitty as the fallback.
 - yazi with `g h`, `g c`, `g p` jumps.
 - `wtree` (git worktrees), `pclone` (clone into ~/projects and open), `git-sync` (pull and push every repo),
@@ -422,8 +423,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 - git: delta, mergiraf, zdiff3, jj, lazygit, git-lfs; GitHub through `gh` with the token from secrets; gh-dash themed.
 - taskwarrior synced with a taskchampion server every 10 minutes (`programming/task.sync_url`), timewarrior hook,
   GitHub issues pulled by bugwarrior.
-- Docker (system socket, no implicit group), images and build cache older than a week pruned with the daemon, podman and distrobox rootless; kubernetes tools and
-  minikube.
+- Docker (system socket, no implicit group), images and build cache older than a week pruned with the daemon; podman
+  and distrobox rootless; kubernetes tools and minikube.
 - PostgreSQL with a role and database per admin; SQLite tools.
 - nix (flakes) with a low-priority daemon; devenv through direnv; per-repo `.identity` dirs (`identity-init`).
 - Godot, Unreal Engine (from `~/sync/vendor`), Bruno, HTTP tools, terraform, aws and stackit CLIs.
@@ -452,7 +453,9 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 ## Creating
 
 - OBS: Recording, Streaming and VirtualCam profiles rendered from options (canvas, encoders, mic, monitor device), VAAPI
-  encoders detected; replay buffer on `SUPER+F9`.
+  encoders detected; replay buffer on `SUPER+F9`. The stream scales to 1080p60 for Twitch while the canvas and the
+  recording keep full size. Collections: Streaming (stream and record), VirtualCam (desktop plus the webcam, one scene
+  per corner, Desktop without it), Bare (desktop and all audio).
 - Blender with the MCP bridge (`blender-mcp-bridge`); GIMP with PhotoGIMP; Krita with a prebuilt resource cache;
   Inkscape, OpenSCAD, Audacity with mod-script-pipe.
 - kdenlive, handbrake, lmms, aseprite, tiled, rawtherapee, xournalpp, gpu-screen-recorder.
@@ -479,7 +482,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 
 ## Backups and sync
 
-- Config in git; app state in git-crypt `secrets/<app>/`, written by `dot backup` and restored by each module's link.
+- Config in git; app state in git-crypt `secrets/<app>/`, written by `dot sync`'s backup and restored by each module's
+  link.
 - syncthing: `~/sync` with the NAS (30 day versioning), announce, relays and NAT off; GUI password from secrets.
 - borg daily for `homelab` profiles: `$HOME` minus what lives elsewhere (sync, caches, toolchains, models, games, VMs),
   repokey-blake2, prune 7/4/6, weekly repository check, monthly canary restore; skipped on battery or metered
@@ -540,7 +544,7 @@ them all. Most used:
 
 ## Options
 
-Every typed option besides `enable` (`dot options` shows values and sources; `dot set` changes one). Detected means
+Every typed option besides `enable` (`dot set` shows values and sources and changes one). Detected means
 the value comes from the hardware or system when the platform and profile leave it unset.
 
 | option | type | default | what it does |
@@ -571,8 +575,9 @@ the value comes from the hardware or system when the platform and profile leave 
 | `core/locale.keyboard_options` | `list<string>?` | unset | xkb options, e.g. ctrl:nocaps |
 | `core/locale.wifi_country` | `string?` | detected | Wi-Fi regulatory domain (ISO 3166 alpha-2); detected: the country of the timezone, else the world domain |
 | `creating/obs.vaapi_render_node` | `string?` | unset | The /dev/dri render node the vaapi encoders use, by-path so it survives reboots |
-| `creating/obs.canvas` | `string?` | unset | Base and output canvas of every profile and the Fullscreen collection, WxH |
-| `creating/obs.mic` | `string?` | unset | The pipewire source node the Fullscreen collection's Mic/Aux captures |
+| `creating/obs.canvas` | `string?` | unset | Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH |
+| `creating/obs.mic` | `string?` | unset | The pipewire source node the repo collections' Mic/Aux captures |
+| `creating/obs.webcam` | `string?` | unset | The v4l2 device the VirtualCam collection's Webcam captures, by-id so it survives replugging |
 | `creating/obs.monitor_device` | `string?` | unset | The pipewire sink node obs monitors audio on |
 | `creating/obs.record_encoder` | `string?` | unset | The recording encoder of the Recording and Streaming profiles |
 | `creating/obs.stream_encoder` | `string?` | unset | The streaming encoder; h264 is what every ingest takes |
@@ -590,10 +595,16 @@ the value comes from the hardware or system when the platform and profile leave 
 | `desktop/hyprland.idle_lock_s` | `int` | `1200` | Idle seconds until the session locks |
 | `desktop/hyprland.idle_dpms_s` | `int` | `2100` | Idle seconds until the screens go off |
 | `desktop/hyprland.idle_suspend_s` | `int` | `2400` | Idle seconds until suspend, unless an agent works or an inhibitor holds |
-| `desktop/hyprland.idle_suspend_saver_s` | `int` | `600` | Idle seconds until suspend in power saver |
+| `desktop/hyprland.idle_dim_saver_s` | `int` | `300` | Idle seconds until the screens dim in power saver (a laptop on battery) |
+| `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
+| `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
 | `desktop/pipewire.eq_target` | `string?` | unset | node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
+| `desktop/quickshell.pomodoro_focus_min` | `int` | `25` | Minutes of one focus block |
+| `desktop/quickshell.pomodoro_break_min` | `int` | `5` | Minutes of the short break after a focus block |
+| `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
+| `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
 | `gaming/gamemode.gpu_device` | `int?` | unset | The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone |
 | `gaming/gamemode.amd_performance_level` | `string?` | unset | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |

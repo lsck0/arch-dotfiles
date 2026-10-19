@@ -12,6 +12,7 @@ Item {
   property string step: "minutes"
   property string minutes: ""
   property string filterText: ""
+  property var renameTarget: null
 
   readonly property var pomo: TimerState.pomo
   readonly property var reminders: TimerState.reminders
@@ -19,15 +20,21 @@ Item {
   readonly property string reminderScript: Paths.script("reminder.nu")
   readonly property string pomodoroScript: Paths.script("pomodoro.nu")
 
-  readonly property string promptText: step === "message"
-    ? "Message for the " + minutes + " min reminder..."
-    : "Remind me in ... minutes"
+  readonly property string promptText: step === "name" ? "Name for the " + minutes + " min reminder (optional)"
+    : step === "rename" ? "New name for " + (renameTarget ? renameTarget.label : "")
+    : "Remind me in ... minutes, then a name"
 
-  function open() {
-    root.opened = true
+  function reset() {
     root.step = "minutes"
     root.minutes = ""
     root.filterText = ""
+    root.renameTarget = null
+  }
+
+  function open() {
+    root.opened = true
+    root.reset()
+    root.pomoDraft = ({})
     TimerState.reload()
     Qt.callLater(function() { keyCatcher.forceActiveFocus() })
   }
@@ -41,27 +48,80 @@ Item {
     TimerState.reload()
   }
 
-  function remindIn(minutes, message) {
-    run([root.reminderScript].concat(ReminderFlowModel.reminderArgs(minutes, message)))
+  function remindIn(minutes, name) {
+    run([root.reminderScript].concat(ReminderFlowModel.reminderArgs(minutes, name)))
+  }
+
+  function askName(minutes) {
+    root.minutes = String(minutes)
+    root.step = "name"
+    root.filterText = ""
+    keyCatcher.forceActiveFocus()
+  }
+
+  function askRename(reminder) {
+    root.renameTarget = reminder
+    root.step = "rename"
+    root.filterText = ""
+    keyCatcher.forceActiveFocus()
   }
 
   function submit() {
     if (root.step === "minutes") {
       if (!root.filterText.trim()) return
-      let valid = ReminderFlowModel.validMinutes(root.filterText)
-      if (!valid) {
-        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", "Enter the number of minutes"])
+      let entry = ReminderFlowModel.parseEntry(root.filterText)
+      if (!entry) {
+        Quickshell.execDetached(["notify-send", "-a", "quickshell-action", "-u", "low", "Invalid reminder", "Start with the number of minutes"])
         return
       }
-      root.minutes = valid
-      root.step = "message"
-      root.filterText = ""
+      if (entry.name) {
+        root.remindIn(entry.minutes, entry.name)
+        root.reset()
+      } else {
+        root.askName(entry.minutes)
+      }
+      return
+    }
+    if (root.step === "rename") {
+      if (root.renameTarget) run([root.reminderScript, "rename", root.renameTarget.unit, root.filterText.trim()])
+      root.reset()
       return
     }
     root.remindIn(root.minutes, root.filterText)
-    root.step = "minutes"
-    root.minutes = ""
-    root.filterText = ""
+    root.reset()
+  }
+
+  property var pomoDraft: ({})
+  readonly property var pomoLengths: [
+    { key: "focus", label: "Focus", step: 5, minimum: 1, maximum: 180, unit: "min" },
+    { key: "break", label: "Break", step: 1, minimum: 1, maximum: 60, unit: "min" },
+    { key: "long", label: "Long break", step: 5, minimum: 1, maximum: 120, unit: "min" },
+    { key: "cycles", label: "Cycles", step: 1, minimum: 1, maximum: 12, unit: "" }
+  ]
+
+  function pomoValue(key) {
+    return Number(key in root.pomoDraft ? root.pomoDraft[key] : TimerState.pomoConfig[key])
+  }
+
+  function pomoStep(length, direction) {
+    var value = root.pomoValue(length.key)
+    var next = direction > 0 ? (Math.floor(value / length.step) + 1) * length.step
+                             : (Math.ceil(value / length.step) - 1) * length.step
+    next = Math.max(length.minimum, Math.min(length.maximum, next))
+    if (next === value) return
+    root.pomoDraft = Util.mapSet(root.pomoDraft, length.key, next)
+    pomoCommit.restart()
+  }
+
+  Timer {
+    id: pomoCommit
+    interval: 700
+    onTriggered: TimerState.setPomoConfig(root.pomoDraft)
+  }
+
+  Connections {
+    target: TimerState
+    function onPomoConfigChanged() { if (!pomoCommit.running && !TimerState.pomoSaving) root.pomoDraft = ({}) }
   }
 
   function phaseLabel() {
@@ -70,7 +130,6 @@ Item {
     return pomo.phase === "work" ? "Focus" : pomo.phase === "long" ? "Long break" : "Break"
   }
 
-  // the singleton ticks the countdowns only while the overlay is open
   Binding { target: TimerState; property: "overlayOpen"; value: root.opened }
 
   OverlayCard {
@@ -81,9 +140,9 @@ Item {
     prompt: true
     query: root.filterText
     placeholder: root.promptText
-    hints: root.step === "message"
-      ? [["ENTER", "set"], ["ESC", "back"]]
-      : [["0-9", "minutes"], ["ENTER", "set"], ["ESC", "close"]]
+    hints: root.step === "minutes"
+      ? [["0-9", "minutes"], ["ENTER", "next"], ["ESC", "close"]]
+      : [["ENTER", "set"], ["ESC", "back"]]
     cardWidth: Style.space(560)
     cardHeight: flowContent.implicitHeight + chromeHeight
     onDismissed: root.close()
@@ -97,7 +156,7 @@ Item {
       Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Escape) {
           if (root.filterText) root.filterText = ""
-          else if (root.step === "message") root.step = "minutes"
+          else if (root.step !== "minutes") root.reset()
           else root.close()
           event.accepted = true
         } else if (event.key === Qt.Key_Backspace) {
@@ -107,7 +166,7 @@ Item {
           root.submit()
           event.accepted = true
         } else if (event.text && event.text.length === 1 && event.text.charCodeAt(0) >= 32 && event.text.charCodeAt(0) !== 127) {
-          if (root.step === "message" || /[0-9]/.test(event.text)) root.filterText += event.text
+          if (root.step !== "minutes" || /[0-9]/.test(event.text) || /^[0-9]/.test(root.filterText)) root.filterText += event.text
           event.accepted = true
         }
       }
@@ -132,7 +191,7 @@ Item {
             required property int modelData
             width: (chips.width - chips.spacing * (chips.presets.length - 1)) / chips.presets.length
             text: modelData + " min"
-            onClicked: root.remindIn(String(modelData), "")
+            onClicked: root.askName(modelData)
           }
         }
       }
@@ -197,7 +256,7 @@ Item {
             }
             Row {
               id: when
-              anchors.right: cancel.left
+              anchors.right: rename.left
               anchors.rightMargin: Style.spacing.sm
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.spacing.xs
@@ -216,6 +275,15 @@ Item {
                 font.family: Style.font.family
                 font.pixelSize: Style.font.body
               }
+            }
+            PanelActionButton {
+              id: rename
+              anchors.right: cancel.left
+              anchors.verticalCenter: parent.verticalCenter
+              iconText: "\u{f03eb}" // md-pencil
+              tooltipText: "Rename reminder"
+              foreground: Colors.menu.text
+              onClicked: root.askRename(reminderRow.modelData)
             }
             PanelActionButton {
               id: cancel
@@ -240,7 +308,6 @@ Item {
           width: parent.width
           height: pomoHeader.implicitHeight
           PanelSectionHeader { id: pomoHeader; text: "Pomodoro" }
-          // one dot per focus block; a long break follows the last
           Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -279,7 +346,6 @@ Item {
             font.family: Style.font.family
             font.pixelSize: Style.font.display
             font.bold: true
-            // ticks every second: outline, never a MultiEffect
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
           }
@@ -337,9 +403,71 @@ Item {
           width: parent.width
           visible: !root.pomo.running
           glyph: "\u{f040a}"
-          label: "Start a " + (root.pomo.defaultWork || 25) + " min focus block"
+          label: "Start a " + root.pomoValue("focus") + " min focus block"
           filled: true
           onActivated: root.run([root.pomodoroScript, "start"])
+        }
+
+        Row {
+          id: lengths
+          width: parent.width
+          spacing: Style.spacing.xs
+
+          Repeater {
+            model: root.pomoLengths
+            Column {
+              id: length
+              required property var modelData
+              width: (lengths.width - lengths.spacing * (root.pomoLengths.length - 1)) / root.pomoLengths.length
+              spacing: Style.spacing.xxs
+
+              Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                textFormat: Text.PlainText
+                text: length.modelData.label
+                color: Colors.menu.text
+                opacity: Style.emphasis.dim
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                elide: Text.ElideRight
+              }
+
+              Item {
+                width: parent.width
+                height: Math.max(less.height, amount.implicitHeight)
+
+                PanelActionButton {
+                  id: less
+                  anchors.left: parent.left
+                  anchors.verticalCenter: parent.verticalCenter
+                  iconText: "\u{f0374}" // md-minus
+                  tooltipText: "Shorter"
+                  foreground: Colors.menu.text
+                  enabled: root.pomoValue(length.modelData.key) > length.modelData.minimum
+                  onClicked: root.pomoStep(length.modelData, -1)
+                }
+                Text {
+                  id: amount
+                  anchors.centerIn: parent
+                  textFormat: Text.PlainText
+                  text: root.pomoValue(length.modelData.key) + (length.modelData.unit ? " " + length.modelData.unit : "")
+                  color: Colors.menu.text
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.body
+                }
+                PanelActionButton {
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
+                  iconText: "\u{f0415}" // md-plus
+                  tooltipText: "Longer"
+                  foreground: Colors.menu.text
+                  enabled: root.pomoValue(length.modelData.key) < length.modelData.maximum
+                  onClicked: root.pomoStep(length.modelData, 1)
+                }
+              }
+            }
+          }
         }
       }
     }

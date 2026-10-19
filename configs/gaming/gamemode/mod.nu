@@ -20,7 +20,6 @@ export const options = {
     }
 }
 
-# the card with the most vram, which on a hybrid machine is the one games render on
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | get --optional 0
     {
@@ -45,7 +44,6 @@ export def link [cfg: record] {
 export def system [cfg: record] {
     [
         (file-copy split-lock-mitigate.nu /usr/local/bin/split-lock-mitigate --mode 755)
-        # the hook stops vllm/ollama to free vram and relaxes split lock mitigation; polkit lets it do both unprompted
         (file-copy 49-gamemode-services.rules /etc/polkit-1/rules.d/49-gamemode-services.rules)
         (group-admins gamemode)
     ]

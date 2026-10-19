@@ -1,6 +1,5 @@
 .pragma library
 
-// xkbcli yaml -> {description: brief}
 function layoutBriefs(text) {
   var briefs = {}
   var brief = ""
@@ -26,7 +25,6 @@ function layoutBriefs(text) {
 function shortLabel(description, briefs) {
   if (!description) return ""
 
-  // skip inherited members like "constructor"
   var brief = (briefs || {})[description]
   var label = typeof brief === "string" && brief ? brief.split("-")[0] : description.split(/\s+/)[0]
   return label.substring(0, 3).toUpperCase()
@@ -53,7 +51,6 @@ function isTypedKeyboard(name) {
   return !UNTYPED_KEYBOARDS.test(String(name || ""))
 }
 
-// only the typed-on keyboard advances its layout index
 function selectKeyboard(typed, namedByEvent) {
   var keyboards = typed || []
 

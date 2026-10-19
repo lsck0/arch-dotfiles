@@ -173,8 +173,8 @@ dialogsUnreadBgActive: dialogsTextFgActive; // chat list unread badge background
 dialogsUnreadBgMutedActive: {color4}; // chat list unread badge background for muted chat for current (active) chat
 dialogsUnreadFgActive: {color4}; // chat list unread badge text for current (active) chat
 dialogsOnlineBadgeFgActive: {foreground}; // chat list online status for current (active) chat
-dialogsRippleBg: {color4}2b; // 
-dialogsRippleBgActive: {color4}; // 
+dialogsRippleBg: {color4}2b; //
+dialogsRippleBgActive: {color4}; //
 dialogsForwardBg: dialogsBgActive; // forwarding panel background (when forwarding messages in the smallest window size)
 dialogsForwardFg: dialogsNameFgActive; // forwarding panel text (when forwarding messages in the smallest window size)
 searchedBarBg: {background}; // search results bar background (in chats list, contacts box..)
@@ -390,8 +390,8 @@ changePhoneSimcardTo: notificationSampleNameFg; // change phone number box right
 mainMenuBg: windowBg; // main menu background
 mainMenuCoverBg: {color4}; // main menu top cover background
 mainMenuCoverFg: windowFgActive; // main menu top cover text
-mainMenuCloudFg: activeButtonFg; // 
-mainMenuCloudBg: {color4}; // 
+mainMenuCloudFg: activeButtonFg; //
+mainMenuCloudBg: {color4}; //
 mediaPlayerBg: windowBg; // audio file player background
 mediaPlayerActiveFg: windowBgActive; // audio file player playback progress already played part
 mediaPlayerInactiveFg: sliderBgInactive; // audio file player playback progress upcoming (not played yet) part with mouse over

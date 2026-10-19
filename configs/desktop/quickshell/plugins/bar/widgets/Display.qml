@@ -10,9 +10,7 @@ BarWidget {
   moduleName: "display"
 
   property real brightnessPct: 50
-  // false until a read answers, shown as "--" instead of a made-up 50
   property bool brightnessKnown: false
-  // reads never fight a drag
   property bool brightnessDragging: false
   property var monitors: []
   readonly property var activeMonitors: monitors.filter(function (m) { return !m.disabled })
@@ -51,8 +49,9 @@ BarWidget {
   readonly property string shaderScript: Paths.toggle("toggle-shader.nu")
   property var grading: ({ preset: "", nightlight: false, presets: [] })
   property var shaders: ({ current: "off", shaders: [] })
+  readonly property string themeModeScript: Paths.toggle("toggle-theme-mode.nu")
+  property string themeMode: "dark"
 
-  // panel opens re-read grading and shaders at most this often; actions re-read at once
   readonly property int colorMinAgeMs: 60 * 1000
   property real colorReadMs: 0
 
@@ -60,6 +59,7 @@ BarWidget {
     root.colorReadMs = Date.now()
     if (!gradingProc.running) gradingProc.running = true
     if (!shaderProc.running) shaderProc.running = true
+    if (!themeModeProc.running) themeModeProc.running = true
   }
 
   function colorRun(argv) {
@@ -90,10 +90,23 @@ BarWidget {
   }
 
   Process {
+    id: themeModeProc
+    command: [root.themeModeScript, "get"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: { var mode = String(text || "").trim(); if (mode !== "") root.themeMode = mode }
+    }
+  }
+
+  Connections {
+    target: ToggleEvents
+    function onChanged(script) { if (script === "toggle-theme-mode.nu") themeModeProc.running = true }
+  }
+
+  Process {
     id: colorActionProc
     onExited: root.refreshColor()
   }
-
 
   function setMonitorLayout(name, action) {
     var args = [Paths.toggle("toggle-monitor-scale.nu"), "layout", name]
@@ -180,7 +193,6 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    // keys and the osd change brightness behind the panel's back
     onOpened: {
       root.refreshMonitors()
       if (Date.now() - root.colorReadMs >= root.colorMinAgeMs) root.refreshColor()
@@ -237,6 +249,94 @@ BarWidget {
         }
       }
 
+      PanelSectionHeader { text: "MONITORS" }
+
+      Repeater {
+        model: root.monitors
+        Column {
+          id: monitorRow
+          required property var modelData
+          width: content.width
+          spacing: Style.spacing.xs
+
+          readonly property bool disabled: !!modelData.disabled
+          readonly property string mirrorOf: modelData.mirrorOf && modelData.mirrorOf !== "none" ? modelData.mirrorOf : ""
+          readonly property string layoutValue: disabled ? "off" : (mirrorOf ? "mirror:" + mirrorOf : "extend")
+
+          Row {
+            spacing: Style.spacing.sm
+            Text {
+              text: monitorRow.modelData.name
+              color: Colors.menu.text
+              font.pixelSize: Style.font.bodySmall
+              font.family: Style.font.family
+            }
+            Text {
+              text: monitorRow.disabled ? "off"
+                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
+                  + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
+              color: Colors.menu.text
+              opacity: Style.emphasis.dim
+              font.pixelSize: Style.font.bodySmall
+              font.family: Style.font.family
+            }
+          }
+
+          Flow {
+            visible: root.monitors.length > 1
+            width: parent.width
+            spacing: Style.spacing.xs
+            Repeater {
+              model: {
+                var opts = [{ value: "extend", label: "Extend" }]
+                var others = 0
+                for (let i = 0; i < root.monitors.length; i++) {
+                  const m = root.monitors[i]
+                  if (m.name === monitorRow.modelData.name || m.disabled) continue
+                  if (m.mirrorOf && m.mirrorOf !== "none") continue
+                  others++
+                  opts.push({ value: "mirror:" + m.name, label: "Mirror " + m.name })
+                }
+                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "Off" })
+                return opts
+              }
+              Chip {
+                required property var modelData
+                text: modelData.label
+                selected: modelData.value === monitorRow.layoutValue
+                onClicked: if (!selected) root.setMonitorLayout(monitorRow.modelData.name, modelData.value)
+              }
+            }
+          }
+
+          Flow {
+            visible: !monitorRow.disabled
+            width: parent.width
+            spacing: Style.spacing.xs
+            Repeater {
+              model: [1, 1.25, 1.5, 1.666667, 2]
+              Chip {
+                required property real modelData
+                // hyprland reports 1.666667 as 1.6666666
+                selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
+                text: (Math.round(modelData * 100) / 100) + "x"
+                onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)
+              }
+            }
+          }
+        }
+      }
+
+      PanelSectionHeader { text: "THEME" }
+
+      PanelRow {
+        width: parent.width
+        glyph: "\u{f050e}"   // md-theme_light_dark
+        on: root.themeMode === "light"
+        label: "Light mode"
+        onActivated: Quickshell.execDetached([root.themeModeScript, "toggle"])
+      }
+
       PanelSectionHeader { text: "COLOR GRADING" }
 
       Column {
@@ -257,7 +357,6 @@ BarWidget {
 
         PanelRow {
           width: parent.width
-          glyph: "\u{f0594}"
           on: root.grading.nightlight === true
           label: "Night light"
           onActivated: root.colorRun([Paths.toggle("toggle-nightlight.nu"), "toggle"])
@@ -304,85 +403,6 @@ BarWidget {
               options: shaderItem.modelData.variants.map(function(v) { return { value: v, label: v.toUpperCase() } })
               value: shaderItem.active ? root.shaderVariant(root.shaders.current) : ""
               onChanged: function(v) { root.colorRun([root.shaderScript, "set", shaderItem.modelData.name + ":" + v]) }
-            }
-          }
-        }
-      }
-
-      PanelSectionHeader { text: "MONITORS" }
-
-      Repeater {
-        model: root.monitors
-        Column {
-          id: monitorRow
-          required property var modelData
-          width: content.width
-          spacing: Style.spacing.xs
-
-          readonly property bool disabled: !!modelData.disabled
-          readonly property string mirrorOf: modelData.mirrorOf && modelData.mirrorOf !== "none" ? modelData.mirrorOf : ""
-          readonly property string layoutValue: disabled ? "off" : (mirrorOf ? "mirror:" + mirrorOf : "extend")
-
-          Row {
-            spacing: Style.spacing.sm
-            Text {
-              text: monitorRow.modelData.name
-              color: Colors.menu.text
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
-            }
-            Text {
-              text: monitorRow.disabled ? "off"
-                : monitorRow.modelData.width + "x" + monitorRow.modelData.height + "@" + Math.round(monitorRow.modelData.refreshRate) + "Hz"
-                  + (monitorRow.mirrorOf ? "  |  mirroring " + monitorRow.mirrorOf : "")
-              color: Colors.menu.text
-              opacity: Style.emphasis.dim
-              font.pixelSize: Style.font.bodySmall
-              font.family: Style.font.family
-            }
-          }
-
-          // no off on the last active output
-          Flow {
-            visible: root.monitors.length > 1
-            width: parent.width
-            spacing: Style.spacing.xs
-            Repeater {
-              model: {
-                var opts = [{ value: "extend", label: "Extend" }]
-                var others = 0
-                for (let i = 0; i < root.monitors.length; i++) {
-                  const m = root.monitors[i]
-                  if (m.name === monitorRow.modelData.name || m.disabled) continue
-                  if (m.mirrorOf && m.mirrorOf !== "none") continue
-                  others++
-                  opts.push({ value: "mirror:" + m.name, label: "Mirror " + m.name })
-                }
-                if (others > 0 || monitorRow.disabled) opts.push({ value: "off", label: "Off" })
-                return opts
-              }
-              Chip {
-                required property var modelData
-                text: modelData.label
-                selected: modelData.value === monitorRow.layoutValue
-                onClicked: if (!selected) root.setMonitorLayout(monitorRow.modelData.name, modelData.value)
-              }
-            }
-          }
-
-          Flow {
-            visible: !monitorRow.disabled
-            width: parent.width
-            spacing: Style.spacing.xs
-            Repeater {
-              model: [1, 1.25, 1.5, 1.666667, 2]
-              Chip {
-                required property real modelData
-                // hyprland reports 1.666667 as 1.6666666
-                selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
-                text: (Math.round(modelData * 100) / 100) + "x"
-                onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)
-              }
             }
           }
         }

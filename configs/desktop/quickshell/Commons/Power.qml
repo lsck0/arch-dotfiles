@@ -7,7 +7,6 @@ import Quickshell.Services.UPower
 Singleton {
   id: root
 
-  // volatile toggle state, gone on boot like tlp's forced mode
   readonly property string path:
     (Quickshell.env("XDG_RUNTIME_DIR") || "/tmp") + "/toggles/powersaver"
 

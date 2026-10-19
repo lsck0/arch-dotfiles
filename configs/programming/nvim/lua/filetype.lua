@@ -1,4 +1,5 @@
 vim.filetype.add({
+    filename = { PKGBUILD = "pkgbuild" },
     extension = {
         avsc = "json",
         con = "c",
@@ -10,10 +11,11 @@ vim.filetype.add({
     },
     pattern = {
         [".*/hyprland/.*%.conf"] = "hyprlang",
-        -- compose files get the docker compose LSP on top of yamlls, treesitter still reads the yaml part
         [".*/compose%.ya?ml"] = "yaml.docker-compose",
         [".*/compose%.[^/]+%.ya?ml"] = "yaml.docker-compose", -- compose.override.yaml, ...
         [".*/docker%-compose%.ya?ml"] = "yaml.docker-compose",
         [".*/docker%-compose%.[^/]+%.ya?ml"] = "yaml.docker-compose",
     },
 })
+
+vim.treesitter.language.register("bash", "pkgbuild")

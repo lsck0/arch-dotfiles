@@ -17,7 +17,7 @@ for _, home in ipairs(platform.app_workspaces) do
     })
 end
 
--- it flashes a window, move it offscreen
+-- themix's headless export still maps a window for a moment
 hl.window_rule({
     match = {
         class = "^multi_export_cli.py$",

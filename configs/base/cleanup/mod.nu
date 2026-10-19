@@ -14,7 +14,6 @@ export def link [cfg: record] {
         (unit-file home-sweep.service)
         (unit-file home-sweep.timer --enable --now)
     ] ++ (if (which nix | is-empty) { [] } else {
-        # as the profile owner: expires its generations, the daemon collects the store
         [(unit-file nix-gc.service) (unit-file nix-gc.timer --enable --now)]
     })
 }

@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// centres a glyph on its painted bounds, not the font box
 Item {
   id: root
 

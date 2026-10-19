@@ -2,7 +2,6 @@ vim.g.mapleader = " "
 require("options")
 
 -- before plugins so their startup messages land in it; pcall: absent before nvim 0.12
--- with cmdheight=0 the cmd target expands the cmdline for every message
 pcall(function()
     require("vim._core.ui2").enable({ msg = { targets = "msg" } })
 end)
@@ -36,6 +35,5 @@ require("theme").apply_from_marker()
 require("autocmds")
 require("filetype")
 require("mappings")
-require("snippets")
 
 require("local_plugins.init")

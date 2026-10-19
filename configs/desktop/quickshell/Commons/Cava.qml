@@ -7,13 +7,17 @@ Singleton {
   id: root
 
   readonly property int barCount: 24
+  readonly property int framerate: 60
 
-  // 0-100 per band, see ascii_max_range
   property var values: zeroed()
 
   property var peaks: zeroed()
-  // 0-100 units; a held peak empties in ~0.8s at framerate 25
-  readonly property real peakFallPerFrame: 3.5
+
+  // cava runs with little noise reduction so a hit lands on the next frame; the fall is smoothed here instead
+  readonly property real releaseKeep: 0.72
+  readonly property int peakHoldFrames: Math.round(framerate * 0.2)
+  readonly property real peakFallPerFrame: 100 / (framerate * 0.6)
+  property var peakAge: zeroed()
 
   property bool available: false
 
@@ -36,12 +40,12 @@ Singleton {
 
   readonly property string configText:
     "[general]\n" +
-    "framerate=25\n" +
+    "framerate=" + framerate + "\n" +
     "bars=" + barCount + "\n" +
     "autosens=1\n" +
     "sensitivity=100\n" +
     "sleep_timer=3\n" +
-    "lower_cutoff_freq=50\n" +
+    "lower_cutoff_freq=40\n" +
     "higher_cutoff_freq=12000\n" +
     "\n[output]\n" +
     "method=raw\n" +
@@ -51,17 +55,21 @@ Singleton {
     "channels=mono\n" +
     "mono_option=average\n" +
     "\n[smoothing]\n" +
-    "noise_reduction=20\n" +
-    "integral=90\n" +
-    "gravity=95\n" +
-    "ignore=2\n" +
-    "monstercat=1.5\n" +
+    "noise_reduction=12\n" +
+    "monstercat=0\n" +
+    "waves=0\n" +
     (source ? "\n[input]\nmethod=pipewire\nsource=" + source + "\n" : "")
 
   function zeroed() {
     var out = []
     for (let i = 0; i < barCount; i++) out.push(0)
     return out
+  }
+
+  function reset() {
+    values = zeroed()
+    peaks = zeroed()
+    peakAge = zeroed()
   }
 
   Process {
@@ -85,27 +93,35 @@ Singleton {
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",
       "sh", root.configText, root.confPath]
 
-    onRunningChanged: if (!running) { root.values = root.zeroed(); root.peaks = root.zeroed() }
+    onRunningChanged: if (!running) root.reset()
 
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function (data) {
         if (root.refCount <= 0 || !data) return
-        // trailing semicolon yields one extra empty part
         var parts = data.split(";")
         if (parts.length < root.barCount) return
-        var out = []
+        var prev = root.values, prevPeak = root.peaks, prevAge = root.peakAge
+        var out = [], pk = [], age = []
         for (let i = 0; i < root.barCount; i++) {
-          let v = parseInt(parts[i], 10)
-          out.push(isNaN(v) ? 0 : Math.max(0, Math.min(100, v)))
-        }
-        var prev = root.peaks, pk = []
-        for (let j = 0; j < root.barCount; j++) {
-          let p = prev[j] || 0
-          pk.push(out[j] >= p ? out[j] : Math.max(out[j], p - root.peakFallPerFrame))
+          let raw = parseInt(parts[i], 10)
+          raw = isNaN(raw) ? 0 : Math.max(0, Math.min(100, raw))
+          let v = raw >= prev[i] ? raw : prev[i] * root.releaseKeep + raw * (1 - root.releaseKeep)
+          out.push(v)
+          if (v >= prevPeak[i]) {
+            pk.push(v)
+            age.push(0)
+          } else if (prevAge[i] < root.peakHoldFrames) {
+            pk.push(prevPeak[i])
+            age.push(prevAge[i] + 1)
+          } else {
+            pk.push(Math.max(v, prevPeak[i] - root.peakFallPerFrame))
+            age.push(prevAge[i] + 1)
+          }
         }
         root.values = out
         root.peaks = pk
+        root.peakAge = age
       }
     }
   }

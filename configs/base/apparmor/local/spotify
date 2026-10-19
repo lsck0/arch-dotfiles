@@ -1,6 +1,7 @@
 # managed by arch-dotfiles/apparmor
 # the desktop/gtk theme ~/.config/gtk-3.0/gtk.css links to
 include <abstractions/dotfiles/gtk-theme>
+include <abstractions/dotfiles/nssdb>
 # the spicetify copy (socials/spotify), which apparmor.d attaches nothing to: spotify-launch.nu starts it in this
 # profile through aa-exec. read and run, never written from in here
 owner @{user_share_dirs}/spotify-patched/{,**} r,

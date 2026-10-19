@@ -10,8 +10,8 @@ Extends the root `AGENTS.md`. Content-creation apps, each paired with an agent M
 - `gimp`: GIMP with the PhotoGIMP config (photoshop layout and shortcuts).
 - `inkscape`: Inkscape plus inkscape_mcp (headless cli, live over d-bus when an instance is open).
 - `krita`: the paint app (first start builds its resource db over the full font set).
-- `obs`: OBS; collections and profiles rendered for this machine (canvas, monitoring device, mic, encoders, vaapi node:
-  options detected from the hardware), carried back into the repo by the module's `backup` verb (the portal
+- `obs`: OBS; collections and profiles rendered for this machine (canvas, monitoring device, mic, webcam, encoders,
+  vaapi node: options detected from the hardware), carried back into the repo by the module's `backup` verb (the portal
   RestoreToken is per machine, never committed; the profiles' `basic.ini` keep `@KEY@` placeholders).
 - `openscad`: OpenSCAD plus openscad-mcp (stdio over the openscad cli).
 - `apps`: the creative apps with no config of their own (packages only).

@@ -14,7 +14,6 @@ BarWidget {
     readonly property real volume: sink && sink.audio ? sink.audio.volume : 0
     readonly property var source: Pipewire.defaultAudioSource
     readonly property bool micMuted: source && source.audio ? source.audio.muted : true
-    // meters and per-app binds only exist while the panel shows
     readonly property bool live: panel.shown
     property int routingStreamId: -1
     readonly property bool deafened: muted && micMuted
@@ -46,10 +45,11 @@ BarWidget {
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
 
+    // the sinks too while open: Audio.route sends their object.serial, and an unbound node has no properties
     PwObjectTracker {
         objects: [root.sink, root.source].filter((n) => {
             return !!n;
-        }).concat(root.live ? Audio.appStreams.concat(Audio.micListeners) : [])
+        }).concat(root.live ? Audio.appStreams.concat(Audio.loopbackOuts, Audio.micListeners, Audio.sinks) : [])
     }
 
     BarIconButton {
@@ -131,6 +131,40 @@ BarWidget {
                     node: root.sink
                     host: root
                     glyph: Audio.volumeIcon(root.volume, false)
+                }
+
+                // what the headset plays: the system audio, or the stream mix the viewers get
+                Item {
+                    width: content.width
+                    visible: ObsProcess.connected || ObsProcess.listening
+                    implicitHeight: hearGroup.implicitHeight
+
+                    Caption {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "HEAR"
+                        opacity: Style.emphasis.dim
+                    }
+
+                    ButtonGroup {
+                        id: hearGroup
+
+                        anchors.right: parent.right
+                        spacing: Style.spacing.xs
+                        fontSize: Style.font.caption
+                        options: [{
+                            "value": "me",
+                            "label": "System"
+                        }, {
+                            "value": "obs",
+                            "label": "OBS output"
+                        }]
+                        value: ObsProcess.listening ? "obs" : "me"
+                        onChanged: function(v) {
+                            ObsProcess.listenSet(v === "obs");
+                        }
+                    }
+
                 }
 
                 Flow {
@@ -235,7 +269,6 @@ BarWidget {
 
                 }
 
-                // hidden entirely while nothing is producing sound, not just an empty list
                 Column {
                     width: content.width
                     spacing: Style.spacing.sm
@@ -265,7 +298,6 @@ BarWidget {
                 PanelSeparator {
                 }
 
-                // mute and deafen are the two "silence everything" actions, side by side
                 Row {
                     width: content.width
                     spacing: Style.spacing.sm
@@ -329,7 +361,7 @@ BarWidget {
         implicitWidth: tagLabel.implicitWidth + Style.spacing.sm * 2
         implicitHeight: tagLabel.implicitHeight + Style.spacing.xxs * 2
         radius: Style.shape.data
-        color: Util.alpha(tint, 0.16)
+        color: Util.alpha(tint, Style.tintFillAlpha)
         border.color: Util.alpha(tint, 0.6)
         border.width: Style.spacing.hair
 
@@ -376,7 +408,6 @@ BarWidget {
 
     }
 
-    // the capture stream behind it exists only while active
     component Meter: Item {
         id: meter
 
@@ -397,7 +428,6 @@ BarWidget {
             anchors.fill: parent
             segments: 32
             value: meter.active ? Audio.meterPosition(monitor.peak) : 0
-            // dBFS: -9 hot, -3 close, -1 clipping
             color: Util.level(meter.levelDb, [-9, -3, -1])
         }
 
@@ -433,7 +463,6 @@ BarWidget {
         }
 
         function setExternal(value) {
-            // optimistic, so the slider does not snap back before the next obs poll
             ObsProcess.inputVolumes = Util.mapSet(ObsProcess.inputVolumes, fader.obsLabel, value);
             ObsProcess.send({
                 "cmd": "setInputVolume",
@@ -511,7 +540,6 @@ BarWidget {
 
     }
 
-    // the obs fader is independent: what the stream hears, not what you hear
     component ObsPair: Column {
         id: pair
 
@@ -618,7 +646,7 @@ BarWidget {
 
         ObsPair {
             width: parent.width
-            node: stream.node
+            node: Audio.levelOf(stream.node)
             host: stream.host
             obsLabel: Audio.obsInputOf(stream.node)
         }

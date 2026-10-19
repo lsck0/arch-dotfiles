@@ -12,13 +12,14 @@ def main [mode?: string] {
         | lines
         | parse -r '^(?<active>[^:]*):(?<signal>[^:]*):(?<security>[^:]*):(?<ssid>.*)$'
         | where ssid != ""
-        | uniq-by ssid
         | each {|n| {
             active: ($n.active == yes)
             ssid: $n.ssid
             signal: ($n.signal | into int)
             secure: ($n.security not-in ["" "--"])
         } }
+        | sort-by --reverse active signal
+        | uniq-by ssid
         | to json -r
         | print
 }

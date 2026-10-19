@@ -4,7 +4,6 @@ const SELF = path self
 const TARGET = "/etc/pacman.d/mirrorlist"
 const LOCK = "/etc/pacman.d"
 const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
-# written by bootstrap.sh from its measured ranking
 const COUNTRIES_FILE = "/etc/pacman.d/mirror-countries"
 const COUNTRIES = "Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands"
 const MIRRORS_MAX = 30
@@ -51,6 +50,5 @@ def main [mode: string]: nothing -> nothing {
     let kept = $homelab != "" and $homelab in (open --raw $TARGET | lines)
     let first = if $kept { [$HOMELAB_COMMENT $homelab ""] } else { [] }
     $first ++ $public | str join "\n" | $"($in)\n" | save --force $"($TARGET).new"
-    # rename so pacman never reads a half-written list
     mv --force $"($TARGET).new" $TARGET
 }

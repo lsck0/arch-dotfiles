@@ -1,11 +1,9 @@
 #!/usr/bin/env -S nu --no-config-file
-# the engine from the newest ~/sync/vendor zip into the home, never root; a no-op unless the zip is new
 
 const PLUGINS_INSTALL = path self | path expand | path dirname --num-levels 2 | path join unreal-install-plugins.nu
 const ZIP_GLOB = "Linux_Unreal_Engine_*.zip"
 const EDITOR = "Engine/Binaries/Linux/UnrealEditor"
 const ICON = "Engine/Source/Runtime/Launch/Resources/Linux/UnrealEngine.png"
-# a file under a Private dir, without the characters unzip reads as a pattern
 const CANARY = '^[^\]\[*?]*/Private/[^\]\[*?/]+$'
 
 def data-dir []: nothing -> path { $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) }
@@ -19,7 +17,6 @@ def zip-newest []: nothing -> any {
 # rewritten on every run, not only on an install, so a fix here reaches an engine that is already in
 def desktop-write [version: string]: nothing -> nothing {
     let file = data-dir | path join applications unreal-engine.desktop
-    # the binary zip ships no UnrealVersionSelector sources, only the launch module's own linux icon
     let icon = engine-dir | path join $ICON
     mkdir ($file | path dirname)
     [
@@ -42,7 +39,7 @@ def fail [message: string]: nothing -> nothing {
 def main []: nothing -> nothing {
     if (zip-newest) == null { return }
     mkdir (data-dir)
-    # dot link and the path unit both run this: the second waits, then finds the stamp the first wrote
+    # dot apply and the path unit both run this: the second waits, then finds the stamp the first wrote
     ^flock $"(engine-dir).lock" $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }
 
@@ -75,7 +72,6 @@ def "main locked" []: nothing -> nothing {
         rm --recursive --force $staging
         fail $"cannot unpack ($name) into ($staging)"
     }
-    # the zip holds Engine/ either at its top or under one folder
     let root = [$staging] ++ (ls $staging | where type == dir | get name)
         | where {|d| ($d | path join Engine | path type) == dir } | get --optional 0
     if $root == null or not ($root | path join $EDITOR | path exists) {

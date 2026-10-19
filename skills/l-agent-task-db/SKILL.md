@@ -44,7 +44,7 @@ stuff" in one project.
 <this-skill-dir>/scripts/task-dashboard.nu [project-dir]   # defaults to $PWD
 ```
 Run this skill's own `scripts/task-dashboard.nu`, not the `task-dashboard`
-command on PATH (that one is the human's curses TUI over `~/.taskrc` and
+command on PATH (that one is the human's curses TUI over `~/.config/task/taskrc` and
 ignores the project-dir). Taskrc resolution: `<project-dir>/tasks/.taskrc`
 if given, else `$TASKRC`, else `./tasks/.taskrc`. Prints and exits.
 Read-only, human-facing view (never modifies the db): `+prompt` tasks
@@ -143,8 +143,8 @@ profile is already running them. So the orchestrator's context settings
 have to be solved by LAUNCHING the self-polling process under the right
 profile, not by anything a skill instructs itself to do once running.
 
-This repo provisions that profile via `configs/programming/hermes/link.sh`
-(discovered by `install.sh`): a Hermes profile named `orchestrator`,
+The dotfiles provision that profile in `configs/programming/hermes/mod.nu`
+(its `link` verb, run by `dot apply`): a Hermes profile named `orchestrator`,
 cloned from `default` (same model/provider/skills/`.env`), with
 `compression.threshold_tokens: 500000` set ONLY in that profile's
 `config.yaml`. Compressing an orchestrator's chat history is safe because

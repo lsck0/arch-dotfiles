@@ -12,7 +12,7 @@
     ("one-dark"       . doom-one)
     ("solarized-dawn" . doom-solarized-light)
     ("tokyo-night"    . doom-tokyo-night))
-  "Theme names from configs/themes with a doom-themes equivalent; the rest use doom-pywal.")
+  "Theme names from the repo's themes/ with a doom-themes equivalent; the rest use doom-pywal.")
 
 (defun my/system-theme ()
   "Return the doom theme symbol matching the desktop's current theme."
@@ -30,7 +30,10 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (interactive)
   (mapc #'disable-theme custom-enabled-themes)
   (unless (ignore-errors (load-theme (my/system-theme) t))
-    (load-theme 'doom-one t)))
+    (load-theme 'doom-one t))
+  ;; early-init's palette colours only cover the first frame; left in, they override the theme on every later frame
+  (setq default-frame-alist
+        (assq-delete-all 'background-color (assq-delete-all 'foreground-color default-frame-alist))))
 
 (use-package doom-themes
   :config

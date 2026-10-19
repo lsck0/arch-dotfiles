@@ -52,7 +52,6 @@ BarWidget {
 
   property string lastShownPlayer: ""
 
-  // assigned, not bound
   property var player: null
 
   function pickPlayer() {
@@ -76,7 +75,6 @@ BarWidget {
     lastShownPlayer = player ? player.dbusName : ""
   }
 
-  // players does not change on playback with a single player
   readonly property string playbackKey: {
     // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
@@ -114,7 +112,6 @@ BarWidget {
 
   // qt in-process tls crashes, so remote art is fetched by curl
   readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
-  // tmpfs, so remote covers never outlive the session
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string artCacheDir: runtimeDir ? runtimeDir + "/quickshell-mediaart" : ""
   readonly property string artCacheFile:
@@ -153,7 +150,6 @@ BarWidget {
     onExited: root.fetchArt()
   }
 
-  // the cached file is reused only while the check still passes
   Process {
     id: artProc
     command: ["sh", "-c",
@@ -165,7 +161,6 @@ BarWidget {
     onExited: function (exitCode) {
       if (exitCode !== 0) return
       if (root.artFetchedUrl !== root.artUrl) return
-      // force a reload of the unchanged source
       root.artSource = ""
       root.artSource = "file://" + root.artCacheFile
     }
@@ -193,7 +188,6 @@ BarWidget {
     : volumeStream && volumeStream.audio ? volumeStream.audio.volume : 0
   readonly property bool playerMuted: mprisVolume ? player.volume === 0
     : volumeStream && volumeStream.audio ? volumeStream.audio.muted : false
-  // mpris has no mute, restored on unmute
   property real unmuteVolume: 1
 
   function setPlayerVolume(v) {
@@ -244,7 +238,6 @@ BarWidget {
   readonly property bool spectrumLive: barSpectrum && visible && Cava.available && playing
     && !(root.bar && root.bar.quiet)
 
-  // this player's stream, not the whole sink
   readonly property string spectrumSource: volumeStream ? String(volumeStream.name || "") : ""
   onSpectrumSourceChanged: Cava.source = spectrumSource
 
@@ -256,17 +249,6 @@ BarWidget {
   visible: player !== null && recentlyActive
   implicitWidth: row.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
-
-  function specColor(frac, valMul, a) {
-    var c = Colors.accent
-    var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
-    if (h < 0) h += 1
-    else if (h > 1) h -= 1
-    return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
-  }
-
-  // sqrt lifts quiet passages, gain makes peaks pop
-  function specHeightFrac(level) { return Math.min(1, Math.pow(level, 0.5) * 1.4) }
 
   Rectangle {
     anchors.fill: parent
@@ -280,48 +262,12 @@ BarWidget {
     anchors.centerIn: parent
     spacing: Style.spacing.xs
 
-    Row {
-      id: spectrum
+    CavaBars {
       anchors.verticalCenter: parent.verticalCenter
-      spacing: Math.max(1, Style.spacing.xxs - 1)
       visible: root.spectrumLive
-      // whole-pixel cells and a size built from them, so no row or column blurs or
-      // leaves slack at the edge
-      readonly property int rows: 4
-      readonly property int cellHeight: Math.max(2, Math.floor((root.barSize * 0.4 - (rows - 1)) / rows))
-      readonly property int cellWidth: Math.max(2, Math.floor((Style.space(96) - spacing * (Cava.barCount - 1)) / Cava.barCount))
-      width: cellWidth * Cava.barCount + spacing * (Cava.barCount - 1)
-      height: cellHeight * rows + rows - 1
-
-      Repeater {
-        model: Cava.barCount
-        delegate: Column {
-          id: sbar
-          required property int index
-          readonly property real lit: root.specHeightFrac(Math.min(1, (Cava.values && Cava.values[sbar.index] || 0) / 100)) * spectrum.rows
-          readonly property int cap: Math.ceil(root.specHeightFrac(Math.min(1, (Cava.peaks && Cava.peaks[sbar.index] || 0) / 100)) * spectrum.rows)
-          readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
-          spacing: 1
-          width: spectrum.cellWidth
-
-          Repeater {
-            model: spectrum.rows
-            delegate: Rectangle {
-              id: cell
-              required property int index
-              // cells stack downwards, so cell 1 is the bottom led
-              readonly property int n: spectrum.rows - cell.index
-              readonly property real on: Math.max(0, Math.min(1, sbar.lit - (cell.n - 1)))
-              width: sbar.width
-              height: spectrum.cellHeight
-              antialiasing: false
-              color: sbar.cap === cell.n
-                ? root.specColor(sbar.frac, 2.0, 1.0)
-                : root.specColor(sbar.frac, 0.7 + cell.on * 0.8, 0.14 + cell.on * 0.86)
-            }
-          }
-        }
-      }
+      rows: 4
+      targetWidth: Style.space(96)
+      targetHeight: root.barSize * 0.4
     }
 
     Text {
@@ -349,7 +295,7 @@ BarWidget {
       color: root.bar ? root.bar.barForeground : Colors.foreground
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
       font.pixelSize: Style.font.body
-      opacity: 0.85
+      opacity: Style.emphasis.dim
     }
   }
 
@@ -377,7 +323,6 @@ BarWidget {
     implicitWidth: Style.panelWidth.normal
     implicitHeight: content.implicitHeight + padding * 2 + titleInset
 
-    // keeps the spectrum alive while paused with the panel open
     Loader {
       active: panel.visible && Cava.available
       sourceComponent: CavaRef {}
@@ -418,7 +363,6 @@ BarWidget {
             cache: true
             visible: status === Image.Ready
             onStatusChanged: {
-              // a truncated cache file: drop it and fetch once more
               if (status === Image.Error && root.artRemote && root.artTries < 2) {
                 root.artTries += 1
                 root.artSource = ""
@@ -459,7 +403,6 @@ BarWidget {
           }
           Text {
             width: parent.width
-            // opacity, not visible, so the popup does not jump
             textFormat: Text.PlainText
             text: root.artist
             color: Colors.menu.text
@@ -481,67 +424,17 @@ BarWidget {
         }
       }
 
-      Item {
-        id: panelSpectrum
-        width: parent.width
-        height: Style.space(72)
-        // redrawn at cava's frame rate, so no glow
+      CavaBars {
+        anchors.horizontalCenter: parent.horizontalCenter
         visible: panel.visible && Cava.available
-
-        Row {
-          id: panelBars
-          anchors.fill: parent
-          spacing: Math.max(1, Style.spacing.xxs - 1)
-
-          Repeater {
-            model: Cava.barCount
-            delegate: Item {
-              id: pbar
-              required property int index
-              readonly property real level: Math.min(1, (Cava.values && Cava.values[index] || 0) / 100)
-              readonly property real peak: Math.min(1, (Cava.peaks && Cava.peaks[index] || 0) / 100)
-              readonly property real frac: Cava.barCount > 1 ? index / (Cava.barCount - 1) : 0
-              width: Math.max(2, Math.floor((panelBars.width - panelBars.spacing * (Cava.barCount - 1)) / Cava.barCount))
-              height: panelSpectrum.height
-
-              Rectangle {
-                anchors.centerIn: parent
-                width: parent.width
-                radius: 0
-                antialiasing: false
-                height: Math.max(2, parent.height * Math.pow(pbar.level, 0.6))
-                opacity: 0.45 + pbar.level * 0.55
-                gradient: Gradient {
-                  GradientStop { position: 0.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
-                  GradientStop { position: 0.5; color: root.specColor(pbar.frac, 1.1 + pbar.level, 1.0) }
-                  GradientStop { position: 1.0; color: root.specColor(pbar.frac, 1.0, 0.16) }
-                }
-                Behavior on height { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-              }
-
-              Rectangle {
-                width: parent.width
-                height: Math.max(1, Style.spacing.xxs - 1)
-                color: root.specColor(pbar.frac, 1.6, 0.9)
-                y: pbar.height / 2 - pbar.height / 2 * Math.pow(pbar.peak, 0.6) - height
-                Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-              }
-              Rectangle {
-                width: parent.width
-                height: Math.max(1, Style.spacing.xxs - 1)
-                color: root.specColor(pbar.frac, 1.6, 0.9)
-                y: pbar.height / 2 + pbar.height / 2 * Math.pow(pbar.peak, 0.6)
-                Behavior on y { NumberAnimation { duration: Style.motion.fast; easing.type: Style.motion.fastEasing } }
-              }
-            }
-          }
-        }
+        rows: 12
+        targetWidth: parent.width
+        targetHeight: Style.space(72)
       }
 
       Column {
         width: parent.width
         spacing: Style.spacing.xxs
-        // opacity, not visible, so the popup does not jump
         readonly property bool supported:
           root.player !== null && root.player.lengthSupported && root.player.length > 0
         opacity: supported ? 1 : 0
@@ -567,14 +460,14 @@ BarWidget {
           Text {
             width: parent.width / 2
             text: root.player ? Util.clock(seek.dragging ? seek.liveValue : root.player.position) : "0:00"
-            color: Colors.menu.text; opacity: 0.6
+            color: Colors.menu.text; opacity: Style.emphasis.dim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
           Text {
             width: parent.width / 2
             horizontalAlignment: Text.AlignRight
             text: root.player ? Util.clock(root.player.length) : "0:00"
-            color: Colors.menu.text; opacity: 0.6
+            color: Colors.menu.text; opacity: Style.emphasis.dim
             font.family: Style.font.family; font.pixelSize: Style.font.caption
           }
         }
@@ -616,7 +509,6 @@ BarWidget {
             opacity: root.player && root.player.canTogglePlaying ? 1 : 0.3
             enabled: root.player !== null && root.player.canTogglePlaying
             fontFamily: Style.font.family
-            // bigger glyph, not button, row top-aligns children
             fontSize: Style.font.icon + Style.space(4)
             onClicked: if (root.player) root.player.togglePlaying()
           }
@@ -733,6 +625,58 @@ BarWidget {
             label: modelData.identity || modelData.dbusName
             onActivated: root.pinnedPlayer =
               (root.pinnedPlayer === modelData.dbusName) ? "" : modelData.dbusName
+          }
+        }
+      }
+    }
+  }
+
+  component CavaBars: Row {
+    id: spec
+    property int rows: 4
+    property real targetWidth: 0
+    property real targetHeight: 0
+    readonly property int cellHeight: Math.max(2, Math.floor((targetHeight - (rows - 1)) / rows))
+    readonly property int cellWidth: Math.max(2, Math.floor((targetWidth - spacing * (Cava.barCount - 1)) / Cava.barCount))
+
+    function ledColor(frac, valMul, a) {
+      var c = Colors.accent
+      var h = (c.hsvHue < 0 ? 0 : c.hsvHue) + (frac - 0.5) * 0.16
+      if (h < 0) h += 1
+      else if (h > 1) h -= 1
+      return Qt.hsva(h, c.hsvSaturation, Math.min(1, c.hsvValue * valMul), a)
+    }
+
+    function heightFrac(level) { return Math.min(1, Math.pow(Math.max(0, Math.min(1, level / 100)), 0.5) * 1.4) }
+
+    spacing: Math.max(1, Style.spacing.xxs - 1)
+    width: cellWidth * Cava.barCount + spacing * (Cava.barCount - 1)
+    height: cellHeight * rows + rows - 1
+
+    Repeater {
+      model: Cava.barCount
+      delegate: Column {
+        id: sbar
+        required property int index
+        readonly property real lit: spec.heightFrac(Cava.values[sbar.index] || 0) * spec.rows
+        readonly property int cap: Math.ceil(spec.heightFrac(Cava.peaks[sbar.index] || 0) * spec.rows)
+        readonly property real frac: Cava.barCount > 1 ? sbar.index / (Cava.barCount - 1) : 0
+        spacing: 1
+        width: spec.cellWidth
+
+        Repeater {
+          model: spec.rows
+          delegate: Rectangle {
+            id: cell
+            required property int index
+            readonly property int n: spec.rows - cell.index
+            readonly property real on: Math.max(0, Math.min(1, sbar.lit - (cell.n - 1)))
+            width: sbar.width
+            height: spec.cellHeight
+            antialiasing: false
+            color: sbar.cap === cell.n
+              ? spec.ledColor(sbar.frac, 2.0, 1.0)
+              : spec.ledColor(sbar.frac, 0.7 + cell.on * 0.8, 0.14 + cell.on * 0.86)
           }
         }
       }

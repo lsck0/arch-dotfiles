@@ -23,14 +23,11 @@ Item {
   property int revealStartedVersion: -1
   property real revealProgress: 1
 
-  // between the slow and ambient durations
   readonly property int wedgeMs: Style.motion.enabled ? 420 : 0
-  // the new palette crossfades as the wedge passes the centre
   readonly property real paletteCue: 0.5
   readonly property int edgeWidth: Style.space(2)
   onRevealProgressChanged: if (revealProgress >= paletteCue) Colors.syncHold = false
 
-  // every output glitches once as the new wallpaper settles
   signal settled()
 
   function refreshBackground() {
@@ -58,7 +55,6 @@ Item {
     oldBackground = displayedBackground
     incomingBackground = path
     revealProgress = 0
-    // wallust usually lands later; this only catches a palette that beats the wedge
     Colors.syncHold = Style.motion.enabled
   }
 
@@ -153,7 +149,6 @@ Item {
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
       exclusionMode: ExclusionMode.Ignore
 
-      // everything the glitch captures; the mask stays outside it
       Item {
         id: content
         anchors.fill: parent
@@ -184,7 +179,6 @@ Item {
           asynchronous: true
           cache: false
           smooth: true
-          // no mipmaps: sourceSize already matches the drawn size
           visible: root.oldBackground !== "" && root.revealProgress < 1
           onStatusChanged: panel.maybeStartReveal()
         }

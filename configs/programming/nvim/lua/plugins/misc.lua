@@ -62,7 +62,6 @@ return {
                 ["Find Under"] = "<M-d>",
                 ["Find Subword Under"] = "<M-d>",
             }
-            -- it borrows autopairs' buffer <BS> map for the session and warns about it every start
             vim.g.VM_show_warnings = 0
         end,
     },
@@ -150,7 +149,6 @@ return {
     {
         "matthandzel/taskwarrior.nvim",
         main = "taskwarrior",
-        -- <leader>T: its default <leader>t* collides with trouble
         opts = {
             capture_key = "<leader>Ta",
             open_key = "<leader>Tt",

@@ -2,10 +2,9 @@ use module.nu *
 
 export const meta = {packages: {pacman: [protonup-git]}}
 
-# pinned to a repo-held sha256, not the latest tag with its same-release checksum (pure tofu); bump both together
+# pinned by a repo-held sha256, not the release's own checksum; bump both together
 const PROTON_GE_VERSION = "GE-Proton11-7"
 const PROTON_GE_SHA256 = "c5448b76a230384e2d7bc6beb5ccb97bafb7e2c3b6c527cb03a1a546bbcb00a0"
-# the release ships no checksum and a tag can be re-uploaded, so pinned by content
 const OVERLAY_URL = "https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
 const OVERLAY_SHA256 = "ba515bf1fa6e7f9634cb894640f21f0359dc7435c3a5ce458a37087ed6c3a4d7"
 const OVERLAY_DIR = "Proton-LayeredOverlay"
@@ -27,7 +26,6 @@ export def link [cfg: record] {
     ]
 }
 
-# the stale real dir's tools move to the data dir, then steam can link it again; rmdir leaves anything unexpected alone
 export def root-repair []: nothing -> nothing {
     let stale = $nu.home-dir | path join .steam root
     let compat = steam-data | path join compatibilitytools.d

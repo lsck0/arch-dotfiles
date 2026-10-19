@@ -21,7 +21,6 @@ Item {
   readonly property string historyDir: popupStateDir + "history/"
   readonly property string imagesDir: popupStateDir + "images/"
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
-  // NotificationCard's toast width
   readonly property int toastWidth: Style.space(420)
 
   // kept out of the model: stale qobject roles segfault
@@ -39,46 +38,48 @@ Item {
     JsonAdapter { // qmllint disable unresolved-type
       id: settings
       property bool dnd: false
+      property bool dndByObs: false
     }
   }
 
-  // survive a shell reload so obs closing after a reload still restores dnd
   PersistentProperties {
     id: persisted
     reloadableId: "quickshell-notifications"
     property bool obsSession: false
-    property bool dndByObs: false
   }
 
   readonly property alias doNotDisturb: settings.dnd
 
-  // a manual change takes dnd away from obs, so closing obs leaves it alone
   function setDoNotDisturb(value) {
-    persisted.dndByObs = false
     // settings sits in FileView's opaque adapter slot
+    settings.dndByObs = false // qmllint disable unqualified
     settings.dnd = !!value // qmllint disable unqualified
   }
 
-  // obs clears dnd on exit only if dnd was off before it started
+  function obsSync() {
+    if (!ObsProcess.probed) return
+    if (ObsProcess.running && !persisted.obsSession) {
+      persisted.obsSession = true
+      if (!settings.dnd) { // qmllint disable unqualified
+        settings.dndByObs = true // qmllint disable unqualified
+        settings.dnd = true // qmllint disable unqualified
+      }
+    } else if (!ObsProcess.running) {
+      if (settings.dndByObs) settings.dnd = false // qmllint disable unqualified
+      settings.dndByObs = false // qmllint disable unqualified
+      persisted.obsSession = false
+    }
+  }
+
   Connections {
     target: ObsProcess
-    function onRunningChanged() {
-      // a reload re-detects a running obs; the persisted flag keeps a manual off from flipping back
-      if (ObsProcess.running && !persisted.obsSession) {
-        persisted.obsSession = true
-        persisted.dndByObs = !settings.dnd // qmllint disable unqualified
-        settings.dnd = true // qmllint disable unqualified
-      } else if (!ObsProcess.running) {
-        if (persisted.dndByObs) settings.dnd = false // qmllint disable unqualified
-        persisted.obsSession = false
-        persisted.dndByObs = false
-      }
-    }
+    function onRunningChanged() { service.obsSync() }
+    function onProbedChanged() { service.obsSync() }
   }
 
   ListModel { id: popupModel }
 
-  readonly property int historyLimit: 10
+  readonly property int historyLimit: 30
 
   property double popupNowMs: Date.now()
   Timer {
@@ -89,7 +90,6 @@ Item {
     onTriggered: service.popupNowMs = Date.now()
   }
 
-  // shortest popup lifetime by urgency (low, normal, critical), 0 stays until dismissed
   readonly property var popupMinMs: [5000, 8000, 0]
   readonly property int popupMaxMs: 30000
 
@@ -107,9 +107,19 @@ Item {
     return transient || NotificationLogic.isEphemeralApp(String(notification.appName || ""))
   }
 
+  function entryNameOf(notification) {
+    var id = String(notification.desktopEntry || "")
+    var entry = id ? DesktopEntries.byId(id) : null
+    return entry ? String(entry.name || "") : ""
+  }
+
+  function snapshotOf(notification, originalId, timestamp) {
+    return NotificationLogic.replacementSnapshot(notification, originalId, timestamp, entryNameOf(notification))
+  }
+
   function handleNotification(notification) {
     notification.tracked = true
-    var snapshot = NotificationLogic.snapshotOf(notification, Date.now())
+    var snapshot = NotificationLogic.snapshotOf(notification, Date.now(), entryNameOf(notification))
     var originalId = snapshot.originalId
     liveRefs[originalId] = notification
     notification.closed.connect(function() {
@@ -134,11 +144,12 @@ Item {
   function writeSilenced(notification, written) {
     service.materializeImage(written, function(resolved) {
       service.writeEntryFile(resolved, service.historyDir, function() {
+        // a sender's CloseNotification while the write was queued leaves a destroyed object that reads as empty
+        if (service.liveRefs[resolved.originalId] !== notification) return
         var updated = null
         try {
-          updated = NotificationLogic.replacementSnapshot(notification, resolved.originalId, resolved.timestamp)
+          updated = service.snapshotOf(notification, resolved.originalId, resolved.timestamp)
         } catch (e) {
-          // torn down while the write was queued
         }
         // compare unresolved input, else the png re-encodes forever
         if (updated && NotificationLogic.popupRowChanged(written, updated)) {
@@ -187,7 +198,7 @@ Item {
 
     var updated
     try {
-      updated = NotificationLogic.replacementSnapshot(notification, originalId, timestamp)
+      updated = service.snapshotOf(notification, originalId, timestamp)
     } catch (e) {
       return
     }
@@ -212,7 +223,6 @@ Item {
     }
   }
 
-  // reason "expire" tells the sender the popup timed out, anything else is a dismiss
   function removePopup(index, reason) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
@@ -234,7 +244,6 @@ Item {
     while (popupModel.count > 0) removePopup(0)
   }
 
-  // true when the live notification had a default action to run
   function invokeDefaultAction(entry) {
     var ref = !isRestoredRow(entry) ? liveRefs[entry.originalId] : null
     try {
@@ -273,12 +282,9 @@ Item {
 
   Process { id: focusAppProc; running: false }
 
-  // one file job at a time so writes, moves and reads of the same files never interleave
   property var restoredPopups: ({})
   property var fileJobs: []
-  // the job in flight; running lags a start requested before the process is complete
   property var fileJob: null
-  // bumped after every job that touched the history dir, so the bar bell stays live without polling
   property int historyRevision: 0
 
   function enqueueFileJob(command, done) {
@@ -298,12 +304,13 @@ Item {
     id: fileJobProc
     running: false
     stdout: StdioCollector { id: fileJobOut; waitForEnd: true }
-    // the collector finishes before exited fires, so its text is the job's whole stdout
     onExited: {
       var done = service.fileJob.done
-      var touchedHistory = service.fileJob.command.indexOf(service.historyDir) >= 0
+      var touchedFiles = service.fileJob.command.some(function(arg) {
+        return String(arg).indexOf(service.popupStateDir) === 0
+      })
       service.fileJob = null
-      if (touchedHistory) service.historyRevision++
+      if (touchedFiles) service.historyRevision++
       try {
         if (done) done(fileJobOut.text)
       } catch (e) {
@@ -313,7 +320,6 @@ Item {
     }
   }
 
-  // each entry file is one json line, so the concatenation parses line by line
   function readEntryFiles(dir, done) {
     enqueueFileJob(["bash", "-c", "awk 1 \"$1\"/*.json 2>/dev/null || true", "--", dir], done)
   }
@@ -325,11 +331,9 @@ Item {
     "  shift 2\n" +
     "done\n"
 
-  // keeps the newest $keep files of $dir, with their images in $imgs
   readonly property string trimScript:
     "ls -1 \"$dir\" 2>/dev/null | sort -n | head -n \"-$keep\" | while IFS= read -r stale; do rm -f \"$dir/$stale\" \"$imgs/${stale%.json}\"-*; done"
 
-  // history is trimmed to historyLimit
   function writeEntryFile(entry, dir, done) {
     var persistable = NotificationLogic.persistablePopup(entry, imagesDir)
     var command = ["bash", "-c",
@@ -352,7 +356,6 @@ Item {
     service.materializeImage(snapshot, function(resolved) { service.writeEntryFile(resolved, service.popupStateDir) })
   }
 
-  // image-data hints are in-process image:// urls, save them to disk
   function materializeImage(snapshot, done) {
     var url = String((snapshot && snapshot.image) || "")
     if (url.indexOf("image://") !== 0) {
@@ -360,7 +363,6 @@ Item {
       return
     }
 
-    // grab surface not mapped yet
     if (!imageGrabWindow.backingWindowVisible) {
       if (service.pendingGrabs.length >= service.pendingGrabsMax) {
         done(snapshot)
@@ -459,7 +461,17 @@ Item {
   }
 
   function clearHistory() {
+    clearPopups()
     enqueueFileJob(["bash", "-c", "dir=\"$1\" keep=0 imgs=\"$2\"\n" + trimScript, "--", historyDir, imagesDir])
+  }
+
+  // the files go before the toast, else its archive move shows the row again until the delete
+  function removeEntry(originalId, timestamp) {
+    var row = { originalId: originalId, timestamp: timestamp }
+    enqueueFileJob(["bash", "-c",
+      "rm -f \"$1/$3.json\" \"$2/$3.json\" \"$4/$3\"-*", "--",
+      popupStateDir, historyDir, NotificationLogic.imageStem(row), imagesDir])
+    removePopup(rowIndexOf(originalId, timestamp))
   }
 
   function sweepOrphanImages() {
@@ -637,9 +649,7 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // pinned while toasts are up so they do not jump outputs; released only after the last exit played
   property var popupScreen: null
-  // bumped on every insert/remove so group bindings re-read the model
   property int popupRevision: 0
 
   Connections {
@@ -657,7 +667,6 @@ Item {
 
   Timer {
     id: releaseTimer
-    // the last toast's exit transition, plus a frame
     interval: Style.motion.exit + 16
     onTriggered: if (popupModel.count === 0) service.popupScreen = null
   }
@@ -667,7 +676,6 @@ Item {
     return row ? String(row.app || "") : ""
   }
 
-  // consecutive toasts of one app fold under the newest: 0 for a folded row, else the group size
   function groupSizeAt(i) {
     var app = rowApp(i)
     if (!app) return 1
@@ -677,7 +685,6 @@ Item {
     return n
   }
 
-  // the live notification's non-default actions, [] for restored or closed ones
   function actionsFor(originalId, timestamp) {
     var index = rowIndexOf(originalId, timestamp)
     if (index < 0 || isRestoredRow(popupModel.get(index))) return []
@@ -686,11 +693,11 @@ Item {
     try {
       for (let i = 0; ref && ref.actions && i < ref.actions.length; i++) {
         let a = ref.actions[i]
-        if (a && a.identifier !== "default" && String(a.text || "").length > 0)
+        if (a && a.identifier !== "default" && String(a.text || "").length > 0
+            && !NotificationLogic.isHiddenAction(a.identifier, a.text))
           out.push({ id: String(a.identifier), text: String(a.text) })
       }
     } catch (e) {
-      // torn down meanwhile
     }
     return out
   }
@@ -737,10 +744,8 @@ Item {
         anchors.topMargin: service.barClearance
         anchors.rightMargin: Style.gapsOut
         width: service.toastWidth
-        // capped to the output; older toasts past the edge wait their turn
         height: Math.min(contentHeight, parent.height - service.barClearance - Style.gapsOut)
         interactive: false
-        // the gap lives in each delegate, so folded rows take no space
         spacing: 0
         model: popupModel
 
@@ -756,7 +761,6 @@ Item {
             NumberAnimation { property: "opacity"; to: 0; duration: Style.motion.exit }
           }
         }
-        // the rest close the gap: the exiting toast reads as collapsing
         displaced: Transition {
           NumberAnimation { properties: "x,y"; duration: Style.motion.base; easing.type: Easing.BezierSpline; easing.bezierCurve: Style.motion.enter }
           NumberAnimation { property: "opacity"; to: 1; duration: Style.motion.fast }
@@ -785,11 +789,9 @@ Item {
 
           readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout)
           readonly property real quarterMs: cardSlot.lifetime / card.gaugeSegments
-          // hover pauses the countdown, leaving resumes the remainder
           property real remainingMs: cardSlot.lifetime
           property double resumedAtMs: Date.now()
           readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && cardSlot.index >= 0
-          // the gauge steps only when the expiry timer fires, one segment per quarter
           readonly property int segmentsLeft: cardSlot.lifetime > 0
             ? Math.max(0, Math.ceil(cardSlot.remainingMs / cardSlot.quarterMs - 0.001)) : 0
 

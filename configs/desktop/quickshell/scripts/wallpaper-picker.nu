@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# opens the quickshell picker on the eligible wallpapers, else the fzf picker of `dot theme`
 
 const SUMMON_TIMEOUT = "3s"
 const PICK_TIMEOUT = "300"
@@ -12,7 +11,7 @@ def main [] {
     let selection = $runtime | path join $"wallpaper-picker.selection.($nu.pid)"
     let done = $runtime | path join $"wallpaper-picker.done.($nu.pid)"
     let payload = {
-        themeDirs: ($dotfiles | path join configs core themes)
+        themeDirs: ($dotfiles | path join themes)
         mode: 0
         selectionFile: $selection
         doneFile: $done
@@ -31,7 +30,6 @@ def main [] {
 
     touch $selection
     ^timeout $PICK_TIMEOUT inotifywait -qq -e create -e close_write --include ($done | path basename) $runtime | complete | ignore
-    # selection and done are two separate writes
     for _ in 1..$SELECTION_WAIT_TRIES {
         if (ls $selection).0.size > 0b { break }
         sleep 50ms
@@ -47,5 +45,5 @@ def main [] {
         print -e $"selected file does not exist: ($selected)"
         exit 1
     }
-    exec $dot theme set $selected
+    exec $dot theme $selected
 }

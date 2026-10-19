@@ -1,6 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# pull the pinned ollama models on first use, never during an apply
-
 # pin: sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<name>/manifests/<tag>`
 const REGISTRY = "https://registry.ollama.ai/v2/library"
 const MANIFEST_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
@@ -9,7 +7,6 @@ const NIMBLE = {model: "nimble:latest", pin: "6aa3fde96874d5d9f03306e795016e2326
 const LLAMA = {model: "llama3.1:8b", pin: "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e"}
 const SYSTEM_ONE_VERSION = "0.35.0"
 const LONG_CONTEXT = "llama3.1-64k"
-# ollama's default num_ctx is small regardless of the model
 const LONG_CONTEXT_TOKENS = 65536
 const START_TRIES = 30
 
@@ -40,7 +37,6 @@ def main []: nothing -> nothing {
         print --stderr $"ollama: ($version) predates System One, not pulling nimble"
         []
     } else { [$NIMBLE] }
-    # the first request starts ollama through ollama.socket
     for _ in 1..$START_TRIES {
         if (do { ^ollama list } | complete).exit_code == 0 { break }
         sleep 1sec

@@ -21,7 +21,6 @@ def bus-find [connector: string]: nothing -> any {
     let cached = if ($BUS_MAP | path expand | path exists) {
         open --raw ($BUS_MAP | path expand) | lines | split column "\t" connector bus
     } else { [] }
-    # a monitor plugged in after the map was built
     $cached | where connector == $connector | get 0?.bus
         | default { bus-map-refresh | where connector == $connector | get 0?.bus }
 }

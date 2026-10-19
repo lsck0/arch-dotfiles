@@ -5,7 +5,7 @@ inside the syncthing folder `borg-<host>` (configs/core/syncthing). Syncthing se
 in its own backups, so the NAS and everything behind it only see ciphertext. The run pauses that folder while
 borg writes, so a half-written transaction never syncs, and unpausing rescans it.
 
-Before `create` it runs `dot backup`, the same backup run `dot sync` uses, so the app state the checkout
+Before `create` it runs `dot internal backup`, the same backup run `dot sync` uses, so the app state the checkout
 keeps (secrets, plasma) is fresh in the archive; `dot sync` commits it. Each module's `backup` verb is that state's
 save, its `link` or `restore` verb the load. Weekly it runs `borg check --repository-only`, monthly it restores
 `~/.local/state/borg/canary` from the newest archive and compares it.

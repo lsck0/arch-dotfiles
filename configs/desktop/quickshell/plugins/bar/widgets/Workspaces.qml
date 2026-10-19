@@ -20,7 +20,6 @@ BarWidget {
   function scrollWorkspace(direction) {
     var ids = root.workspaceIds
     if (ids.length === 0) return
-    // this bar's monitor, not the globally focused one
     var currentId = root.activeWorkspaceId !== -1 ? root.activeWorkspaceId : ids[0]
     var index = ids.indexOf(currentId)
     if (index === -1) index = 0
@@ -55,7 +54,6 @@ BarWidget {
   }
 
   function focusWorkspace(id) {
-    // over the socket, no hyprctl process per click
     Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + id + "\" })")
   }
 
@@ -64,7 +62,6 @@ BarWidget {
   implicitWidth: grid.implicitWidth + trailingGap
   implicitHeight: grid.implicitHeight
 
-  // the leading edge moves first (worm stretch)
   property real pillTargetX: 0
   property real pillTargetW: 0
   property real pillX: 0
@@ -77,7 +74,6 @@ BarWidget {
     root.pillTargetX = x
     root.pillTargetW = w
     if (!root.pillShown) {
-      // first placement jumps, no stretch from 0
       pillXBehavior.enabled = false
       pillRightBehavior.enabled = false
       root.pillX = x
@@ -126,7 +122,6 @@ BarWidget {
     width: Math.max(0, root.pillRight - root.pillX - Style.bar.pillInset * 2)
     height: Math.max(1, Style.space(2))
     color: Colors.accent
-    // static rule, its size animates only on a workspace switch
     layer.enabled: Style.fx.glow > 0 && !(root.bar && root.bar.quiet)
     layer.effect: Glow {}
   }
@@ -180,7 +175,6 @@ BarWidget {
     }
   }
 
-  // wheel only; clicks pass through to the buttons
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.NoButton

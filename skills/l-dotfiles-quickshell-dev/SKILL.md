@@ -6,14 +6,14 @@ description: Editing the quickshell shell (bar, launcher, lock, notifications, O
 # quickshell-dev
 
 `configs/desktop/quickshell/mod.nu` copies the checkout into `~/.config/quickshell` (`theme.json` stays a link), so
-an edit reaches the running shell with `dot link desktop/quickshell`. Entry `shell.qml`; plugins under
+an edit reaches the running shell with `dot apply desktop/quickshell`. Entry `shell.qml`; plugins under
 `plugins/<name>/`, shared singletons in `Commons/` (`Colors`, `Style`, `Paths`, `ToggleEvents`), helper scripts in
 `scripts/` (linked as commands). It runs as `quickshell.service`
 (user unit, started by `hyprland_autostart.lua`, not enabled).
 
 ## Edit loop
 
-1. Save the `.qml` and run `dot link desktop/quickshell`: quickshell watches its copies and reloads
+1. Save the `.qml` and run `dot apply desktop/quickshell`: quickshell watches its copies and reloads
    (`Reloading configuration...` then `Configuration Loaded` in the log); not while the session lock is held,
    `shell.qml` turns the watch off then.
 2. Logs:
@@ -46,12 +46,19 @@ grim -g "$g" /tmp/bar.png
 Layer geometry is logical; the PNG is in physical pixels (scale 1.67 on the desktop). Read the image to check the
 change. A panel opened over IPC first (`call bar open <panel>`) shows up as its own layer.
 
-When an agent screenshots only to verify a change (not because the user is watching the bar), do it on a headless
-output the user never sees rather than the physical monitors: `hyprctl output create headless` gives a `HEADLESS-N`
-that the running shell puts a bar on, `grim -o HEADLESS-N`, then `hyprctl output remove HEADLESS-N`. Each agent
-makes and removes its own, so several can check at once without taking over the screen (AGENTS.md gotchas).
+A screenshot only to verify a change goes on the agent's own headless output, which the running shell puts a bar on
+(skill `l-dotfiles-gui-testing`).
 
 Never start a second quickshell in the user's session: it competes for `org.freedesktop.Notifications`, and a
 session lock is compositor-wide, so a test lock locks the real screen. Test the lock only fully isolated:
 `dbus-run-session` around a nested compositor (`Hyprland` or `weston --backend=headless`) with `WAYLAND_DISPLAY` and
 `HYPRLAND_INSTANCE_SIGNATURE` pointing at it.
+
+## Pitfalls
+
+- `~/.config/quickshell` is copies: an edit in the repo does nothing until `dot apply desktop/quickshell`.
+- Hot reload sometimes misses: check `journalctl --user -u quickshell` for a fresh `Configuration Loaded`, else run
+  `configs/desktop/quickshell/restart.nu`.
+- Widget helper processes (`obs-status.nu`, cava, pomodoro) keep their old code until the shell restarts.
+- Never `pkill -f`: the pattern matches the agent's own shell. Kill by PID.
+- The bar's IPC target is `bar` on the main screen (else the first) and `bar-<output>` on the others (`plugins/bar/Bar.qml`).

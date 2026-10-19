@@ -6,8 +6,7 @@ def data-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join capgemini chromium
 }
 
-# arc's sign-in bounces through zpa-auth.net, zscaler and pingfederate with SameSite=None cookies, third-party once
-# embedded; restore_on_startup 1 carries pingfederate's session-only PF cookie across restarts
+# the sso needs third-party SameSite=None cookies; restore_on_startup 1 keeps pingfederate's session cookie
 def preferences-edits []: nothing -> list<record> {
     open site-settings.json | items {|kind, sites|
         $sites | each {|site| json-set [profile content_settings exceptions $kind $"($site),*"] {setting: 1} }

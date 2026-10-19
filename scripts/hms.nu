@@ -20,11 +20,19 @@ def server-running []: nothing -> bool {
 
 def repos-in [root: string, depth: int]: nothing -> list<record> {
     let excludes = $FD_EXCLUDES | each { [--exclude $in] } | flatten
-    # tms counts project dirs, the .git entry sits one level below them
-    do { ^fd --type d --type f --hidden --no-ignore --max-depth ($depth + 1) ...$excludes '^\.git$' $root } | complete
-    | get stdout | lines
-    # a .git file is a project only as a linked worktree, so submodules and the `gitdir: ./.bare` root stay out
-    | where {|git| ($git | path type) == dir or (open --raw $git | lines | first) =~ '^gitdir: .*/worktrees/[^/]+/?$' }
+    do { ^fd --type d --type f --hidden --no-ignore --max-depth ($depth + 1) ...$excludes '^(\.git|HEAD)$' $root }
+    | complete | get stdout | lines
+    | where {|entry|
+        if ($entry | path basename) == HEAD {
+            # a plain bare repo, as lua/lib/projects.lua is_bare; HEADs inside a .git or .bare are not projects
+            let dir = $entry | path dirname
+            (($entry | path type) == file and ($dir | path join objects | path type) == dir
+                and ($dir | path join refs | path type) == dir and $entry !~ '/\.(git|bare)/')
+        } else {
+            # a .git file is a project only as a linked worktree, so submodules and the `gitdir: ./.bare` root stay out
+            ($entry | path type) == dir or (open --raw $entry | lines | first) =~ '^gitdir: .*/worktrees/[^/]+/?$'
+        }
+    }
     | each {|git| $git | path dirname | {display: ($in | path relative-to $root), full: $in} }
 }
 
@@ -33,7 +41,6 @@ def main []: nothing -> nothing {
     let config = open ($nu.home-dir | path join $TMS_CONFIG)
     let projects = $config.search_dirs? | default [] | where { $in.path | path exists }
         | each { repos-in $in.path ($in.depth? | default $SEARCH_DEPTH_DEFAULT) } | flatten
-    # tms bookmarks are non-git dirs, under the session name tms gives them
     let bookmarks = $config.bookmarks? | default [] | where { ($in | path type) == dir }
         | each { {display: ($in | path basename), full: $in} }
     let entries = $projects ++ $bookmarks | sort-by display | uniq-by display

@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # disk throughput behind a dir: "disk <model>", then "read <MB/s>" and "write <MB/s>" each second, steady mean last.
-# runs as a transient unit whose ExecStopPost removes the test files; a stopped or killed reader breaks the pipe, so
-# the next line fails, the unit ends and its cleanup runs (systemd-run going away alone leaves the unit running)
+# runs as a transient unit: a closed reader breaks the pipe, so the unit ends and its ExecStopPost removes the test files
 
 const PHASE_SECONDS = 8
 const PARALLEL = 4
@@ -9,7 +8,6 @@ const CHUNK_MB = 4
 const FILE_MB = 256
 const SECTOR_BYTES = 512
 const BYTES_PER_MB = 1_000_000
-# fields of /sys/class/block/<dev>/stat
 const STAT_FIELD = {read: 2, write: 6}
 
 def fail [message: string] {
@@ -21,7 +19,6 @@ def rate-format [value: float]: nothing -> string {
     if $value <= 0 { "0.0" } else if $value < 10 { $value | into string --decimals 1 } else { $value | math round | into string }
 }
 
-# the whole disk under a partition, lvm or luks mapping
 def disk-root [dev: string]: nothing -> string {
     let slave = glob $"/sys/class/block/($dev)/slaves/*" | sort | get --optional 0
     if $slave != null { return (disk-root ($slave | path basename)) }
@@ -50,11 +47,9 @@ def phase-run [phase: string, chunk: path, files: list<path>, stat: path] {
         $end_time = date now
         print $"($phase) (rate-format ([0 ($after - $before)] | math max | $in * $SECTOR_BYTES / $BYTES_PER_MB))"
         $samples += 1
-        # first second is warm-up
         if $samples == 1 { $baseline = {sectors: $after, time: $end_time} }
         $before = $after
     }
-    # a worker gone before the deadline means dd failed
     let alive = job list | where id in $workers | length
     $workers | each { job kill $in } | ignore
     if $alive < $PARALLEL { fail $"Disk ($phase) test failed before finishing" }
@@ -82,10 +77,8 @@ def "main measure" [run_dir: path, chunk: path] {
     let model = ^lsblk -dno MODEL $"/dev/($disk)" | complete | get stdout | str trim
     print $"disk ($model | default --empty $disk)"
 
-    # incompressible data
     ^dd if=/dev/urandom $"of=($chunk)" $"bs=($CHUNK_MB)M" $"count=($FILE_MB // $CHUNK_MB)" status=none
     let files = 0..<$PARALLEL | each { $run_dir | path join $"($in).dat" }
-    # stage data, the read phase runs first
     let staged = $files | par-each { dd-pass write $chunk $in } | all { $in }
     if not $staged or (ls $files.0 | get 0.size) == 0B { fail $"Direct disk I/O is not available on ($target_dir)" }
 

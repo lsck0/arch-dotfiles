@@ -40,12 +40,12 @@ export def drift-report []: nothing -> string {
     if $ctx.platform.file == null { error make {msg: $"drift: no platform file for (sys host | get hostname)"} }
     let machine = $SYSTEM_STATE | path join ledger
     if not ($machine | path exists) {
-        error make {msg: $"drift: no machine ledger at ($machine), run dot install first"}
+        error make {msg: $"drift: no machine ledger at ($machine), run dot apply --packages first"}
     }
     let declared = modules-packages $REPO $ctx.modules $ctx.platform | get pacman
     let pkgs = ledger system pkg
     [
-        $"# drift report of ($ctx.platform.hostname), dot drift publish"
+        $"# drift report of ($ctx.platform.hostname), dot internal drift publish"
         $"groups ($ctx.platform.groups | str join ' ')"
         ...(ledger system snapshot | each { $"snapshot ($in)" })
         ...(packages-missing $declared | each { $"missing ($in)" })
@@ -90,7 +90,7 @@ export def drift-view []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "drift: secrets/ is locked: dot secrets unlock"} }
     let reports = glob ($REPORTS | path join "*") --no-dir | where not ($it | str ends-with ".new") | sort
     if ($reports | is-empty) {
-        error make {msg: "drift: nothing published in secrets/drift yet: dot drift publish on each machine, dot sync"}
+        error make {msg: "drift: nothing published in secrets/drift yet: dot internal drift publish on each machine, dot sync"}
     }
     for report in $reports {
         let host = $report | path basename
@@ -114,7 +114,6 @@ export def drift-view []: nothing -> nothing {
     }
     if ($reports | length) < 2 { return }
     print "across hosts"
-    # by hand everywhere: a candidate for a module's packages
     let everywhere = $reports | skip 1
         | reduce --fold (names hand $reports.0) {|r, acc| $acc | where $it in (names hand $r) }
     line "by hand on every host" $everywhere

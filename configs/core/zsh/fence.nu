@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# run a heavy build off the v-cache ccd, niced and oom-first in its own scope so oomd evicts it, not its terminal
 
 const OOM_SCORE_ADJ = 1000
 const NICENESS = 19

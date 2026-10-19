@@ -1,5 +1,4 @@
-# online access on, without which the add-on refuses to open its socket; saved only on a change, so userpref.blend
-# is left alone on a set-up blender
+# without online access the add-on refuses to open its socket
 import addon_utils
 import bpy
 

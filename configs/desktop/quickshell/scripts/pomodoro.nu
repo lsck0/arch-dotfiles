@@ -1,14 +1,21 @@
 #!/usr/bin/env -S nu --no-config-file
-# phases run as systemd-run --user transient timers; TimerState.qml watches the state file
 
-const work_default_min = 25
-const break_default_min = 5
-const long_default_min = 15
-const long_every = 4
+const config_path = ($nu.home-dir | path join .config quickshell pomodoro.json)
+const config_default = {focus: 25, break: 5, long: 15, cycles: 4}
+const option_names = {
+    focus: pomodoro_focus_min, break: pomodoro_break_min, long: pomodoro_long_break_min, cycles: pomodoro_cycles
+}
+const dot = ($nu.home-dir | path join .local bin dot)
 const unit_prefix = "quickshell-pomodoro"
 const glyph = "\u{f051f}"
-const alert = ($nu.home-dir | path join .config quickshell scripts alert.nu)
 const phase_labels = {work: "Focus", break: "Break", long: "Long break"}
+const chime = ($nu.home-dir | path join .config quickshell sounds pomodoro.oga)
+const chime_volume = 0.3
+const chime_timeout = "3s"
+
+def config-load []: nothing -> record {
+    $config_default | merge (try { open $config_path } catch { {} })
+}
 
 def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro state.json }
 
@@ -18,7 +25,7 @@ def state-load []: nothing -> record {
 
 def state-save [state: record]: nothing -> nothing {
     mkdir (state-path | path dirname)
-    $state | select running paused phase endsAt cycle remaining work break long | to json -r | save -f (state-path)
+    $state | select --optional running paused phase endsAt cycle remaining work break long cycles | to json -r | save -f (state-path)
 }
 
 # the app name the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP)
@@ -26,20 +33,26 @@ def notify [title: string, body: string = ""]: nothing -> nothing {
     ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
 }
 
+# foreground: the timer's unit kills background children on exit
+# a notification passes the app loopbacks (configs/desktop/pipewire): own level, heard while listening to obs
+def chime-play []: nothing -> nothing {
+    if ($chime | path exists) { ^timeout $chime_timeout pw-play --media-role Notification --volume $chime_volume $chime | complete | ignore }
+}
+
 def clock [seconds: int]: nothing -> string { $"($seconds // 60):($seconds mod 60 | fill -a r -c 0 -w 2)" }
 
 def now []: nothing -> int { date now | into int | $in // 1_000_000_000 }
 
-# timers only: a firing phase's own service is still running
 def timer-cancel []: nothing -> nothing {
     let timers = systemctl --user list-timers --all --output=json $"($unit_prefix)-*.timer" | from json | get unit
     if ($timers | is-not-empty) { systemctl --user stop ...$timers }
 }
 
+# nanoseconds in the unit name: two skips in one second would otherwise collide
 def timer-arm [seconds: int]: nothing -> nothing {
     timer-cancel
     (systemd-run --user --quiet --collect $"--on-active=($seconds)s" --timer-property=AccuracySec=1s
-        $"--unit=($unit_prefix)-(now)" ($env.CURRENT_FILE | path expand) skip)
+        $"--unit=($unit_prefix)-(date now | into int)" ($env.CURRENT_FILE | path expand) _elapsed)
 }
 
 def phase-start [state: record, phase: string, seconds: int]: nothing -> nothing {
@@ -47,11 +60,28 @@ def phase-start [state: record, phase: string, seconds: int]: nothing -> nothing
     timer-arm $seconds
 }
 
-def "main start" [work: int = $work_default_min, break: int = $break_default_min, long: int = $long_default_min]: nothing -> nothing {
-    if $work <= 0 { error make {msg: "work minutes must be a positive integer"} }
-    if $break <= 0 { error make {msg: "break minutes must be a positive integer"} }
-    phase-start {cycle: 1, work: $work, break: $break, long: $long} work ($work * 60)
-    notify $"Focus for ($work) min" "Pomodoro 1 started"
+def phase-advance [--chime]: nothing -> nothing {
+    let state = state-load
+    if not $state.running { return }
+    let config = config-load
+    let lengths = {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
+    if $state.phase == work {
+        let next = if $state.cycle mod $config.cycles == 0 { "long" } else { "break" }
+        let minutes = $lengths | get $next
+        phase-start ($state | merge $lengths) $next ($minutes * 60)
+        notify "Focus block done" $"($phase_labels | get $next) for ($minutes) min"
+    } else {
+        let cycle = $state.cycle + 1
+        phase-start ($state | merge $lengths | merge {cycle: $cycle}) work ($config.focus * 60)
+        notify "Break over" $"Focus for ($config.focus) min, pomodoro ($cycle)"
+    }
+    if $chime { chime-play }
+}
+
+def "main start" []: nothing -> nothing {
+    let config = config-load
+    phase-start {cycle: 1, work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles} work ($config.focus * 60)
+    notify $"Focus for ($config.focus) min" "Pomodoro 1 started"
 }
 
 def "main stop" []: nothing -> nothing {
@@ -82,27 +112,35 @@ def "main toggle" []: nothing -> nothing {
     if not $state.running { main start } else if $state.paused { main resume } else { main pause }
 }
 
-def "main skip" []: nothing -> nothing {
-    let state = state-load
-    if not $state.running { return }
-    if $state.phase == work {
-        let next = if $state.cycle mod $long_every == 0 { "long" } else { "break" }
-        let minutes = $state | get $next
-        phase-start $state $next ($minutes * 60)
-        ^$alert "Focus block done" $"Take a ($phase_labels | get $next | str lowercase), ($minutes) min" $glyph pomodoro
-    } else {
-        let cycle = $state.cycle + 1
-        phase-start ($state | merge {cycle: $cycle}) work ($state.work * 60)
-        ^$alert "Break over" $"Focus for ($state.work) min, pomodoro ($cycle)" $glyph pomodoro
+def "main skip" []: nothing -> nothing { phase-advance }
+
+# the timer's own command
+def "main _elapsed" []: nothing -> nothing { phase-advance --chime }
+
+# the lengths in minutes and the focus blocks before a long break, as json
+def "main config" []: nothing -> nothing { print (config-load | to json -r) }
+
+# set <key> <value> ...: focus, break, long (minutes) or cycles, stored as the module's options
+def "main set" [...pairs: string]: nothing -> nothing {
+    if ($pairs | is-empty) or ($pairs | length) mod 2 != 0 { error make {msg: "want <key> <value> pairs, keys: focus break long cycles"} }
+    for pair in ($pairs | chunks 2) {
+        let option = $option_names | get --optional $pair.0
+        if $option == null { error make {msg: $"($pair.0): want one of ($option_names | columns | str join ', ')"} }
+        let saved = ^$dot set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
+        if $saved.exit_code != 0 {
+            notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
+            exit 1
+        }
     }
 }
 
 def "main status" [--json (-j)]: nothing -> nothing {
     let state = state-load
+    let config = config-load
     let status = if not $state.running {
         {
             running: false, paused: false, phase: idle, label: Pomodoro, remainingSeconds: 0, remaining: "", cycle: 0,
-            totalSeconds: 0, defaultWork: $work_default_min, longEvery: $long_every, tooltip: "Pomodoro: off"
+            totalSeconds: 0, defaultWork: $config.focus, longEvery: $config.cycles, tooltip: "Pomodoro: off"
         }
     } else {
         let remaining = [(if $state.paused { $state.remaining } else { $state.endsAt - (now) }) 0] | math max
@@ -112,7 +150,8 @@ def "main status" [--json (-j)]: nothing -> nothing {
             running: true, paused: $state.paused, phase: $state.phase, label: $label, remainingSeconds: $remaining,
             remaining: (clock $remaining), cycle: $state.cycle,
             totalSeconds: (($state | get $state.phase) * 60),
-            longEvery: $long_every, tooltip: $"($label) :: (clock $remaining) left :: pomodoro ($state.cycle)($paused_note)"
+            longEvery: ($state.cycles? | default $config.cycles),
+            tooltip: $"($label) :: (clock $remaining) left :: pomodoro ($state.cycle)($paused_note)"
         }
     }
     print (if $json { $status | to json -r } else { $status.tooltip })

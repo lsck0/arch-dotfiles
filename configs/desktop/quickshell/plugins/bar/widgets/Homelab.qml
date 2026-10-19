@@ -11,7 +11,6 @@ BarWidget {
 
   property bool received: false
   property bool ok: false
-  // "source" means no readable homelab checkout
   property string error: ""
   property bool absent: false
   property var links: ({ homepage: "", dashboard: "", alerts: "", proxmox: "", nas: "" })
@@ -25,7 +24,6 @@ BarWidget {
   property var cpuHist: []
   property var memHist: []
 
-  // link-only entries have up === null
   readonly property var monitored: services.filter(function(s) { return s.up === true || s.up === false })
   readonly property var downServices: monitored.filter(function(s) { return !s.up && !s.onDemand })
   readonly property int upCount: monitored.filter(function(s) { return s.up }).length
@@ -33,7 +31,6 @@ BarWidget {
   readonly property int problemCount: alerts.length + downServices.length
   readonly property real memFraction: (Number(host.memTotalGb) || 0) > 0
     ? (Number(host.memUsedGb) || 0) / Number(host.memTotalGb) : 0
-  // nightly backups, 26h leaves some slack
   readonly property bool backupStale: storage.backupAgeMin === null || storage.backupAgeMin === undefined
     || storage.backupAgeMin > 26 * 60
 
@@ -56,9 +53,7 @@ BarWidget {
     running: true
     // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
-    // never --summary: that drops host/storage/traffic entirely, so until the
-    // panel was opened once the trigger icon was stuck showing only alerts
-    // and up/down counts. Still poll far less often while idle.
+    // never --summary: it drops host, storage and traffic, which the bar icon needs too
     command: panel.visible
       ? [Paths.barWidget("homelab-status.nu"), "30"]
       : [Paths.barWidget("homelab-status.nu"), "300"]
@@ -78,7 +73,6 @@ BarWidget {
           if (s.links) root.links = s.links
           root.services = s.services || []
           root.alerts = s.alerts || []
-          // summary lines carry no host detail, keep the last full sample
           if (!s.host) return
           root.host = s.host
           root.storage = s.storage || {}
@@ -91,7 +85,6 @@ BarWidget {
     }
   }
 
-  // restart so the new cadence applies at once
   Connections {
     target: panel
     function onVisibleChanged() {
@@ -185,13 +178,12 @@ BarWidget {
         implicitHeight: entryName.implicitHeight + Style.spacing.xxs
 
         Rectangle {
-          // behind the text, the column has no width for a track
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           height: parent.height
           width: parent.width * Math.max(0, Math.min(100, entry.modelData.pct || 0)) / 100
           radius: Style.shape.data
-          color: Util.alpha(Colors.accent, 0.15)
+          color: Util.alpha(Colors.accent, Style.tintFillAlpha)
         }
         Text {
           id: entryName
@@ -263,7 +255,6 @@ BarWidget {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.xs
 
-            // * up or link-only, o asleep
             Text {
               anchors.verticalCenter: parent.verticalCenter
               textFormat: Text.PlainText
@@ -382,7 +373,6 @@ BarWidget {
         }
         PanelSeparator { visible: root.received && !root.ok && root.error !== "source" }
         PanelSectionHeader { text: "Tools"; visible: root.received && !root.ok && root.error !== "source" }
-        // off the lan the monitor vm is only reachable over wireguard
         PanelRow {
           width: parent.width
           visible: root.received && !root.ok && root.error !== "source"
@@ -498,7 +488,6 @@ BarWidget {
             url: root.links.dashboard
           }
 
-          // from loki, traefik counters carry no client detail
           Column {
             width: parent.width
             visible: (root.clients.countries || []).length > 0

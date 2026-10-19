@@ -1,11 +1,11 @@
 [Unit]
-Description=Check this machine against its declared state (dot doctor)
+Description=Check this machine against its declared state (dot status)
 After=graphical-session.target
 
 [Service]
 Type=oneshot
 # locked secrets only skip it
-ExecStart=-%h/.local/bin/dot drift publish
+ExecStart=-%h/.local/bin/dot internal drift publish
 ExecStart=%h/.local/bin/doctor-check
 Slice=background.slice
 Nice=19

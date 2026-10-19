@@ -5,7 +5,6 @@ const brightness_step_percent = 5
 const shell_config = ($nu.home-dir | path join .config quickshell)
 const monitor_brightness = ($shell_config | path join scripts monitor-brightness.nu)
 
-# semantic icon names, OsdModel.js maps them to glyphs; best effort, the shell may be down
 def osd [icon: string, field: string, value: any]: nothing -> nothing {
     ^timeout 2 quickshell ipc -p $shell_config call osd present ({icon: $icon, $field: $value} | to json -r)
     | complete | ignore
@@ -34,12 +33,10 @@ def brightness-step [delta: int]: nothing -> nothing {
     }
     let sign = if $delta > 0 { "+" } else { "-" }
     brightnessctl -q -c backlight set $"($delta | math abs)%($sign)"
-    # never reach a black screen
     if (backlight-percent) < 1 { brightnessctl -q -c backlight set 1% }
     osd brightness value (backlight-percent)
 }
 
-# kbd backlight is often a 3-step switch (max 2), not a percentage
 def kbd-step [next_from: closure]: nothing -> nothing {
     let device = glob /sys/class/leds/*kbd_backlight*/brightness | get 0? | default "" | path dirname | path basename
     if $device == "" { osd keyboard-backlight-off message "No keyboard backlight"; return }
@@ -57,7 +54,6 @@ def main []: nothing -> nothing {
 
 def "main volume-up" []: nothing -> nothing {
     pactl set-sink-volume @DEFAULT_SINK@ $"+($volume_step_percent)%"
-    # pactl can exceed 100%
     if (sink-volume) > 100 { pactl set-sink-volume @DEFAULT_SINK@ 100% }
     pactl set-sink-mute @DEFAULT_SINK@ 0
     volume-osd

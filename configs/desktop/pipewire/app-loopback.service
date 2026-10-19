@@ -1,0 +1,13 @@
+[Unit]
+Description=Per-app loopbacks between app streams and devices
+After=pipewire.service wireplumber.service
+BindsTo=pipewire.service
+
+[Service]
+ExecStart=/usr/bin/wpexec %h/.local/share/wireplumber/scripts/app-loopback.lua
+ExecStop=/usr/bin/wpexec %h/.local/share/wireplumber/scripts/app-loopback.lua "{ release = true }"
+Restart=on-failure
+Slice=session.slice
+
+[Install]
+WantedBy=pipewire.service

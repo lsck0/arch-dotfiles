@@ -1,11 +1,11 @@
 use state.nu [LIB_DIR]
 
 const REPO = path self ../..
-const DOT = path self ../dot.nu
+const INTERNAL = path self internal.nu
 const LIST = path self ../wallpaper-list.nu
 const PICK = path self ../wallpaper-pick.nu
 const FONT = path self ../toggles/toggle-font.nu
-const THEMES = path self ../../configs/core/themes
+const THEMES = path self ../../themes
 const WAL = ".cache/wal"
 const LOCK = "theme.lock"
 const LOCK_BUSY = 75
@@ -15,32 +15,28 @@ def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$
 
 # background verbs run detached outside the lock so a hung one never blocks later switches; foreground ones would race
 def theme-run [file: path, sync: bool]: nothing -> nothing {
-    let background = [nu --no-config-file $DOT theme apply $file --only background]
+    let background = [nu --no-config-file $INTERNAL theme apply $file --only background]
     if $sync {
         ^$background.0 ...($background | skip 1) | ignore
     } else {
         ^setsid --fork ...$background o+e> /dev/null
     }
-    ^nu --no-config-file $DOT theme apply $file --only foreground | ignore
+    ^nu --no-config-file $INTERNAL theme apply $file --only foreground | ignore
 }
 
 export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
-    # a missing path would link wal/wallpaper to nothing and break every downstream generator
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
-    # the link lives in ~/.cache/wal, so a relative path would point nowhere
     let file = $file | path expand
     # Background.qml refreshes over IPC only, it does not watch the link
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
-    # a dead shell reads the link on its next start
     let shell = $nu.home-dir | path join .config quickshell
     do { ^timeout $IPC_TIMEOUT_S quickshell ipc -p $shell call background set $file } | complete | ignore
-    # themes name their wallpaper by file name, so a secrets copy matches too
     let theme = glob ($THEMES | path join "*.json") | sort
         | each {|f| {name: ($f | path parse | get stem), spec: (open $f)} }
         | where spec.wallpaper? == ($file | path basename) | get --optional 0
     let nvim_theme = if $theme != null {
-        ^wallust cs -s $theme.name
+        ^wallust cs -s --wallpaper $file $theme.name
         if ($theme.spec.font? | default "" | is-not-empty) { do { ^$FONT set $theme.spec.font } | complete | ignore }
         $theme.name
     } else {
@@ -48,7 +44,6 @@ export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
         ^wallust run -s $file
         "pywal"
     }
-    # read by nvim's lua/theme.lua at startup and by its theme verb
     $"($nvim_theme)\n" | save --force (wal nvim_theme)
     theme-run $file $sync
 }
@@ -76,7 +71,7 @@ export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
         0
     } catch {|e| $e.exit_code? | default 1 }
     if $code == $LOCK_BUSY {
-        print -e "Another wallpaper switch is already in progress, skipping."
+        print -e "wallpaper: a switch is already running, skipping"
     } else if $code != 0 {
         error make {msg: $"wallpaper: switching to ($file) failed"}
     }
@@ -93,7 +88,7 @@ export def wallpaper-pick []: nothing -> nothing {
     if $picked.exit_code != 0 { error make {msg: "no eligible wallpaper"} }
     let file = $picked.stdout | str trim
     if $file == "" {
-        print "No wallpaper selected."
+        print "wallpaper: none picked"
         return
     }
     wallpaper-set $file

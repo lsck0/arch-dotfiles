@@ -11,7 +11,6 @@ Presets (PRESETS below, the single list; toggles and the bar read it through `li
     default    contrast 1.05 around mid grey, black point 0.010, gamma 1.07, 6000K
     reading    4500K, contrast 0.92, blacks lifted to 4%: paper-like, low strain
     grayscale  every channel gets Rec.709 luma, then the default curve
-    red-night  red channel carries luma, green and blue are dark, dimmed to 55%: keeps dark adaptation
 Night light (4000K) and brightness compose with any preset: CTM = brightness * whitepoint * preset.
 The whitepoint is the warmer of the preset's and the night light's, never both multiplied.
 
@@ -42,7 +41,7 @@ Rejected alternatives:
       hyprland-ctm-control-v1 rejects (CTMControl.cpp: el < 0 is invalid_matrix), vibrance is not
       linear at all, the monitors' DDC/CI has no saturation VCP (0x8A), and Hyprland exposes no KMS
       3D LUT. The vivid screen shader (toggle-shader.nu) is the opt-in for that.
-    - hyprsunset: temperature and a brightness scalar only, no arbitrary matrix for grayscale or red.
+    - hyprsunset: temperature and a brightness scalar only, no arbitrary matrix for grayscale.
     - wl-gammactl, gammastep, wlsunset, wl-gammarelay-rs: temperature, brightness or a bare gamma
       exponent, none takes contrast around mid grey with a black point.
     - pywayland: not packaged in the arch repos and needs a scanner step for wlr protocols; the
@@ -91,7 +90,6 @@ class Preset:
     curve: Curve
     # row-major, applied to the encoded rgb before the whitepoint
     matrix: Matrix
-    # None is a neutral whitepoint
     kelvin: int | None
 
 
@@ -123,10 +121,8 @@ class Client:
     gamma_manager_id: int | None = None
     ctm_manager_id: int | None = None
     ctm_blocked: bool = False
-    # registry global name -> output, plus object id -> output for event routing
     outputs: dict[int, Output] = dataclasses.field(default_factory=dict)
     objects: dict[int, Output] = dataclasses.field(default_factory=dict)
-    # wl_output globals seen before the initial sync
     outputs_pending: list[tuple[int, int]] = dataclasses.field(default_factory=list)
     inbox: bytearray = dataclasses.field(default_factory=bytearray)
 
@@ -144,7 +140,6 @@ IDENTITY: Matrix = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
 # ITU-R BT.709 luma weights, the primaries sRGB shares
 LUMA = (0.2126, 0.7152, 0.0722)
 CURVE_IDENTITY = Curve(contrast=1.0, blackpoint=0.0, gamma=1.0, floor=0.0, ceiling=1.0)
-# the former color-correction.frag screen shader, minus its saturation and vibrance
 CURVE_DEFAULT = Curve(contrast=1.05, blackpoint=0.010, gamma=1.07, floor=0.0, ceiling=1.0)
 
 PRESETS: dict[str, Preset] = {
@@ -160,13 +155,6 @@ PRESETS: dict[str, Preset] = {
             4500,
         ),
         Preset("grayscale", "Grayscale", CURVE_DEFAULT, LUMA * 3, None),
-        Preset(
-            "red-night",
-            "Red night",
-            Curve(contrast=1.0, blackpoint=0.0, gamma=1.1, floor=0.0, ceiling=0.55),
-            (*LUMA, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0),
-            None,
-        ),
     )
 }
 PRESET_DEFAULT = PRESETS["default"]
@@ -641,7 +629,6 @@ def command_set(key: str, value: str) -> int:
         log(str(error))
         return 2
     settings_save(settings)
-    # no-op while the daemon is stopped, it reads the files when it starts
     subprocess.run(["systemctl", "--user", "--quiet", "try-reload-or-restart", UNIT], check=False)
     return 0
 

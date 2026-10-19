@@ -5,7 +5,6 @@ const PLUGIN = "res://addons/godot_mcp/plugin.cfg"
 const RUNTIME = 'MCPRuntime="*res://addons/godot_mcp/runtime/mcp_runtime.gd"'
 const ENABLED = "enabled=PackedStringArray("
 
-# <line> as the first key of [section], the section appended when missing
 def ini-add [lines: list<string>, section: string, line: string]: nothing -> list<string> {
     let header = $"[($section)]"
     let at = $lines | enumerate | where item == $header | get --optional 0.index
@@ -23,7 +22,7 @@ def main [project: path = "."]: nothing -> nothing {
     let addon = $data | path join godot-mcp addons godot_mcp
     if not ($conf | path exists) { print -e $"godot-mcp-addon: no project.godot in ($project)"; exit 1 }
     if not ($addon | path join plugin.cfg | path exists) {
-        print -e $"godot-mcp-addon: no addon at ($addon) \(dot link programming/godot\)"
+        print -e $"godot-mcp-addon: no addon at ($addon) \(dot apply --user programming/godot\)"
         exit 1
     }
     mkdir ($project | path join addons)

@@ -22,7 +22,7 @@ def main []: nothing -> nothing {
     if ($updates | is-not-empty) {
         let security = if ($advisories | is-empty) { "" } else { $"\nsecurity fixes for: ($advisories | str join ' ')" }
         let urgency = if ($advisories | is-empty) { "low" } else { "normal" }
-        let body = $"($updates | length) packages, dot update installs them($security)"
+        let body = $"($updates | length) packages, dot sync installs them($security)"
         # no notification daemon yet: not recorded, tomorrow's run tries again
         if (^notify-send -a updates -u $urgency "Updates available" $body | complete).exit_code != 0 { return }
     }

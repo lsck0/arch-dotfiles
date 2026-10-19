@@ -23,7 +23,6 @@ return {
         "lervag/vimtex",
         ft = { "tex", "plaintex" },
         init = function()
-            -- engine and bib come from ~/.latexmkrc
             vim.g.vimtex_compiler_method = "latexmk"
             vim.g.vimtex_compiler_latexmk = {
                 options = {
@@ -42,6 +41,7 @@ return {
             vim.g.vimtex_view_automatic = 0
 
             vim.g.vimtex_fold_enabled = 1
+            vim.g.vimtex_format_enabled = 1
             vim.g.vimtex_toc_config = {
                 name = "TOC",
                 layers = { "content", "todo", "include" },

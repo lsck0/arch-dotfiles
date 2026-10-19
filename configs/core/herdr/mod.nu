@@ -3,7 +3,7 @@ use ../wallust/palette.nu [palette-slots hex-to-rgb rgb-to-hex tone-map mix]
 
 const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
-# herdr wants a lighter dark floor than the clamp band; a light theme's conditioned bg is already right
+# herdr wants a lighter dark floor than the clamp band
 const DARK_FLOOR = 0.16
 const BLENDS = {
     active_row_bg: 0.06, selection_bg: 0.11, surface_dim: 0.0, surface0: 0.08, surface1: 0.14, overlay0: 0.22
@@ -11,6 +11,7 @@ const BLENDS = {
 }
 const SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light bg_conditioned]
 const WAL_COLORS = ".cache/wal/colors.json"
+const TMPFILES = ".config/user-tmpfiles.d/herdr.conf"
 
 # rendered whole, so a theme switch never touches the repo
 def config-text []: nothing -> string {
@@ -36,14 +37,17 @@ def config []: nothing -> list<record> {
     [(file-text ($nu.home-dir | path join $CONFIG) (config-text) --mode 600 --generated) (step herdr-reload)]
 }
 
-# no running herdr server is fine, the next one reads the file
 export def herdr-reload []: nothing -> nothing {
     try { ^herdr server reload-config o+e>| ignore }
 }
 
 export def link [cfg: record] {
-    # invoked bare by tmux/nvim/viewers
-    [(config) (link-commands herdr-open.nu)]
+    [
+        (config)
+        (link-commands herdr-open.nu herdr-fingers.nu)
+        (file-copy herdr.tmpfiles.conf ($nu.home-dir | path join $TMPFILES))
+        (unit-enable systemd-tmpfiles-setup.service)
+    ]
 }
 
 export def theme [cfg: record, wallpaper: string] {

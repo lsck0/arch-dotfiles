@@ -8,41 +8,36 @@ import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
 
-// `dot options --json` plus the toggles until they are options; non-live ones wait in the pending bar
 Item {
   id: root
 
   property bool opened: false
   property bool picking: false
   property string query: ""
-  // "sections" (the sidebar) or "rows"
   property string pane: "sections"
   property int sectionIndex: 0
   property int rowIndex: -1
   property string expandedId: ""
   property int choiceCursor: -1
-  // typed while a list is open, narrows its choices
   property string choiceQuery: ""
   property string editingId: ""
   property string draft: ""
 
   property var modules: []
+  property string modulesText: ""
   property bool loaded: false
   property string loadError: ""
   property var toggles: []
   property var busyToggles: ({})
 
-  // id -> {value, option}; live ones only while their set runs
   property var pending: ({})
-  // id -> message of the last failed set
   property var errors: ({})
   property var queue: []
   property var batch: ({ applied: [], failed: 0, notes: [] })
-  // a set saved the value but its root part waits for `dot apply` (dot set exit 3)
   property bool systemPending: false
   readonly property int exitSystemPending: 3
-  // a set or apply may ask for a polkit password, whose dialog needs the keyboard
-  readonly property bool busy: setProc.running || systemApplyProc.running
+  // a set, apply or root toggle may ask for a polkit password, whose dialog needs the keyboard
+  readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running
   property string notice: ""
 
   // graphviz installs a /usr/bin/dot too, so never by PATH
@@ -82,6 +77,7 @@ Item {
   function close() {
     root.endEdit(false)
     root.expandedId = ""
+    root.query = ""
     root.opened = false
   }
 
@@ -142,7 +138,6 @@ Item {
 
   function printable(text) { return text && text.length === 1 && text.charCodeAt(0) >= 32 && text.charCodeAt(0) !== 127 }
 
-  // true when used; the focused text field sees every key first
   function handleKey(key, text, modifiers) {
     var ctrl = (modifiers & Qt.ControlModifier) !== 0
     var row = root.pane === "rows" ? root.cursorRow : null
@@ -158,6 +153,11 @@ Item {
     if (root.editingId) {
       if (key !== Qt.Key_Up && key !== Qt.Key_Down && key !== Qt.Key_Tab && key !== Qt.Key_Backtab) return false
       root.endEdit(true)
+    }
+    if (Util.isWordDelete(key, modifiers)) {
+      if (root.expandedId) root.filterChoices(Util.wordDelete(root.choiceQuery))
+      else if (root.query) root.setQuery(Util.wordDelete(root.query))
+      return true
     }
     if (ctrl) {
       if (key === Qt.Key_S) root.applyQueued()
@@ -232,7 +232,6 @@ Item {
     return next
   }
 
-  // false when Left/Right mean nothing for the row's type
   function adjust(row, direction) {
     if (row.kind === "toggle") return false
     if (row.option.type === "enum" && !Schema.segmented(row.option)) return false
@@ -276,7 +275,6 @@ Item {
     keyCatcher.forceActiveFocus()
   }
 
-  // enter in a field: a list takes the entry and stays open for the next, anything else commits
   function submitEdit() {
     var row = root.rowById(root.editingId)
     if (row && row.option.type === "list" && root.draft.trim() !== "") {
@@ -294,7 +292,6 @@ Item {
     if (root.expandedId === row.id) root.expandedId = ""
     if (Schema.equal(value, root.valueOf(row)) && !(row.id in root.errors)) return
     root.errors = root.without(root.errors, row.id)
-    // a live set always runs, an earlier one may still be in flight
     if (option.apply !== "live" && Schema.equal(value, option.value)) {
       root.pending = root.without(root.pending, row.id)
       return
@@ -303,7 +300,6 @@ Item {
     if (option.apply === "live") root.enqueue([row.id])
   }
 
-  // drops the value from the layer this window writes, so the detected or default one comes back
   function reset(row) {
     if (!Schema.resettable(row.option)) return
     root.errors = root.without(root.errors, row.id)
@@ -346,9 +342,11 @@ Item {
     setProc.id = id
     setProc.value = entry.value
     var option = entry.option
-    setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.encode(option, entry.value)]
-      : (entry.reset ? [root.dot, "unset", id] : [root.dot, "set", id, Schema.encode(option, entry.value)])
-        .concat(option.scope === "machine" ? ["--machine"] : [])
+    // flags before `--`, so a negative number is a value and not a flag
+    var machine = option.scope === "machine" ? ["--machine"] : []
+    setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.toggleArgument(option, entry.value)]
+      : entry.reset ? [root.dot, "set", "--default"].concat(machine, ["--", id])
+      : [root.dot, "set"].concat(machine, ["--", id, Schema.encode(option, entry.value)])
     setProc.running = true
   }
 
@@ -358,7 +356,6 @@ Item {
     var current = entry.reset === true || Schema.equal(entry.value, value)
     if (exitCode === root.exitSystemPending) root.systemPending = true
     if (exitCode === 0 || exitCode === root.exitSystemPending) {
-      // the reload replaces it; until then the row must not flash the old value
       entry.option.value = value
       if (current) root.pending = root.without(root.pending, id)
       if (entry.option.apply !== "live") root.batch.applied.push(entry.option)
@@ -387,26 +384,32 @@ Item {
   }
 
   function runToggle(toggle) {
+    if (toggleProc.running) return
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
-    Quickshell.execDetached([Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"])
+    toggleProc.command = [Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
+    toggleProc.running = true
   }
 
   Process {
     id: optionsProc
-    command: [root.dot, "options", "--json"]
+    command: [root.dot, "set", "--json"]
     stdout: StdioCollector { id: optionsOut; waitForEnd: true }
     stderr: StdioCollector { id: optionsErr; waitForEnd: true }
     onExited: function (exitCode) {
       var data = null
       try { data = JSON.parse(optionsOut.text) } catch (e) { data = null }
       if (exitCode !== 0 || !data || !Array.isArray(data.modules)) {
-        root.loadError = String(optionsErr.text || "").trim().split("\n")[0] || "options exited with " + exitCode
+        root.loadError = String(optionsErr.text || "").trim().split("\n")[0] || "dot set --json exited with " + exitCode
         return
       }
       root.loadError = ""
-      root.modules = data.modules.map(Schema.moduleNormalize)
       root.loaded = true
+      if (optionsOut.text === root.modulesText) return
+      root.modulesText = optionsOut.text
+      root.modules = data.modules.map(Schema.moduleNormalize)
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
+      else root.selectRow(root.rowIndex)
+      sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
     }
   }
 
@@ -436,6 +439,12 @@ Item {
     }
   }
 
+  // a toggle that fails never announces itself, so its exit clears the busy mark
+  Process {
+    id: toggleProc
+    onExited: statusProc.refresh()
+  }
+
   Process {
     id: pickProc
     property var row: null
@@ -452,12 +461,12 @@ Item {
     id: statusProc
     command: [Paths.toggle("status.nu"), "--options"]
     onParsed: function (data) {
-      root.toggles = Array.from(data || [])
       root.busyToggles = ({})
+      var next = Array.from(data || [])
+      if (!Schema.equal(next, root.toggles)) root.toggles = next
     }
   }
 
-  // every toggle announces its change, refresh only while it can be seen
   Connections {
     target: ToggleEvents
     function onChanged(script) { if (root.opened) statusProc.refresh() }
@@ -629,7 +638,6 @@ Item {
               }
             }
 
-            // menu.nu semantics: enter toggles, a setting (scale, shader) steps to its next value
             Component {
               id: toggleRow
               Rectangle {
@@ -656,7 +664,7 @@ Item {
 
                 ToggleSwitch {
                   id: toggleState
-                  visible: !parent.toggle.setting && !parent.busy
+                  visible: !Schema.toggleCycles(parent.toggle) && !parent.busy
                   anchors.right: parent.right
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
@@ -666,7 +674,7 @@ Item {
                 }
 
                 Text {
-                  visible: parent.toggle.setting || parent.busy
+                  visible: Schema.toggleCycles(parent.toggle) || parent.busy
                   anchors.right: parent.right
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter

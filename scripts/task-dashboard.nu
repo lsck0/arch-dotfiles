@@ -1,11 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const HUMAN_TASKRC = ".taskrc"
+const HUMAN_TASKRC = ".config/task/taskrc"
 const AGENT_DB_GLOB = "projects/*/tasks/.taskrc"
 const READY_LIMIT = 10
 const AGING_LIMIT = 10
 const GITHUB_LIMIT = 15
-# the agent dashboard's description cap, so its lines stay aligned
 const AGENT_DESC_MAX = 50
 const PROJECT_TOP_TASKS = 2
 const ACTIVE_TAG_LIMIT = 3
@@ -93,7 +92,6 @@ def agent-db [taskrc: path]: nothing -> record {
             | str substring 6.. | uniq --count | sort-by value | each { $"($in.value):($in.count)" } | str join " ")
         clarify: ($waiting | where { "human-clarification-needed" in (tags-of $in) } | each {|t|
             let annotated = do $annotations $t | where { str contains tasks/context/questions/ } | get --optional 0
-            # unannotated: the <uuid8>-<slug> file name
             let link = if $annotated != null { $annotated | split row "context: " | last } else {
                 glob ($root | path join tasks context questions $"($t.uuid | str substring 0..<8)-*.md") | sort
                 | get --optional 0 | if $in == null { null } else { $in | path relative-to $root }
@@ -510,7 +508,6 @@ def tui []: nothing -> nothing {
         if (date now) - $state.fast_at >= $FAST_REFRESH { $state = refresh-fast $state }
         let size = term size
         $scroll = (frame $state $tab $scroll $size.columns $size.rows).scroll
-        # a timeout is the redraw tick
         let event = try { input listen --types [key resize] --timeout $REDRAW_INTERVAL } catch { null }
         if $event == null or $event.type? != key { continue }
         let key = if $event.key_type == char { $event.code } else { $event.code | str lowercase }

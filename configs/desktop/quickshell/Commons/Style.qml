@@ -2,6 +2,7 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell.Io
+import "Palette.js" as Palette
 
 QtObject {
   id: root
@@ -12,7 +13,8 @@ QtObject {
   function space(px) { return Math.max(0, Math.round(px * scale)) }
   function spaceReal(px) { return Math.max(0, px * scale) }
 
-  readonly property int cornerRadius: Math.max(0, Math.round(2 * scale))
+  // unscaled, the same radius as hyprland's window frame at every font size
+  readonly property int cornerRadius: Palette.RADIUS_PX
   property int gapsOut: 5
 
   component FxTokens: QtObject {
@@ -36,14 +38,15 @@ QtObject {
   readonly property real pressedFillAlpha: 0.28
   readonly property real focusFillAlpha: 0.14
   readonly property real selectionFillAlpha: 0.35
+  readonly property real tintFillAlpha: 0.16
 
   readonly property real normalBorderAlpha: 0.45
   readonly property real hoverBorderAlpha: 0.70
   readonly property real focusBorderAlpha: 0.85
   readonly property real selectedBorderAlpha: 1.0
 
-  readonly property int normalBorderWidth: 1
-  readonly property int hoverBorderWidth: 1
+  readonly property int normalBorderWidth: Palette.BORDER_PX
+  readonly property int hoverBorderWidth: Palette.BORDER_PX
   readonly property int focusBorderWidth: 2
   readonly property int selectedBorderWidth: 2
 
@@ -71,7 +74,6 @@ QtObject {
   readonly property color normalBorderColor: normalBorderFor(Colors.foreground, Colors.accent)
   readonly property color hoverBorderColor: hoverBorderFor(Colors.foreground, Colors.accent)
 
-  // focus > hover > normal
   function controlFill(focused, hot, foreground, accent) {
     if (focused) return focusFillFor(foreground || Colors.foreground, accent || Colors.accent)
     if (hot) return hoverFillFor(foreground || Colors.foreground, accent || Colors.accent)
@@ -84,7 +86,6 @@ QtObject {
   }
   readonly property RowTokens row: RowTokens {}
 
-  // drawer widths include the neck flare on both sides, so content keeps its old width
   component PanelWidthTokens: QtObject {
     readonly property int narrow: root.space(320) + root.shape.neck * 2
     readonly property int normal: root.space(360) + root.shape.neck * 2
@@ -96,14 +97,11 @@ QtObject {
     readonly property real strong: 1.0
     readonly property real dim: 0.7
     readonly property real faint: 0.45
-    // below faint so off differs from quiet
     readonly property real disabled: 0.3
   }
   readonly property EmphasisTokens emphasis: EmphasisTokens {}
 
-  // 4px grid; 3, 6, 10, 14, 18 and 22 are gone on purpose
   component SpacingTokens: QtObject {
-    // one physical pixel at any scale
     readonly property int hair: 1
     readonly property int xxs: root.space(2)
     readonly property int xs: root.space(4)
@@ -124,7 +122,6 @@ QtObject {
   }
   readonly property SpacingTokens spacing: SpacingTokens {}
 
-  // radius 0 for data, surface radius matches hyprland rounding
   component ShapeTokens: QtObject {
     readonly property int data: 0
     readonly property int surface: root.cornerRadius
@@ -135,7 +132,7 @@ QtObject {
 
   component SurfaceTokens: QtObject {
     readonly property int padding: root.spacing.lg
-    readonly property int borderWidth: root.spacing.hair
+    readonly property int borderWidth: Palette.BORDER_PX
     readonly property real ruleAlpha: 0.85
   }
   readonly property SurfaceTokens surface: SurfaceTokens {}
@@ -143,14 +140,13 @@ QtObject {
   // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
   component TranslucencyTokens: QtObject {
     readonly property real saver: 0.96
-    readonly property real bar: Power.saver ? saver : 0.78
-    readonly property real panel: Power.saver ? saver : 0.85
+    readonly property real bar: Power.saver ? saver : Palette.OPACITY_BAR
+    readonly property real panel: Power.saver ? saver : Palette.OPACITY_SURFACE
     readonly property real overlay: Power.saver ? saver : 0.92
     readonly property real scrim: 0.55
   }
   readonly property TranslucencyTokens translucency: TranslucencyTokens {}
 
-  // power saver zeroes all but snap
   component MotionTokens: QtObject {
     readonly property bool enabled: !Power.saver
     readonly property int snap: 0
@@ -164,7 +160,6 @@ QtObject {
     readonly property real switchRate: 0.3
     readonly property int fastEasing: Easing.OutCubic
     readonly property int ambientEasing: Easing.InOutQuad
-    // md3 decelerate and menu accelerate, for Easing.BezierSpline
     readonly property var enter: [0.05, 0.7, 0.1, 1, 1, 1]
     readonly property var leave: [0.38, 0.04, 1, 0.07, 1, 1]
   }
@@ -180,9 +175,7 @@ QtObject {
     // glyphs must use this, never family
     readonly property string iconFamily: root.resolvedIconFontFamily
 
-    // decoration only, never content
     readonly property int micro: Math.max(1, root.baseSize - 2)
-    // the smallest content text, floored for legibility
     readonly property int captionFloor: 11
     readonly property int caption: Math.max(captionFloor, root.baseSize - 1)
     readonly property int bodySmall: caption
@@ -192,7 +185,6 @@ QtObject {
     readonly property int heading: root.baseSize + 4
     readonly property int display: root.baseSize * 2
     readonly property int displayLarge: display
-    // one per surface
     readonly property int hero: Math.round(root.baseSize * 10 / 3)
     readonly property int icon: root.baseSize + 2
     readonly property int iconSmall: Math.max(1, root.baseSize - 1)
@@ -231,7 +223,6 @@ QtObject {
           const n = parts.length > 0 ? Number(parts[0]) : Number(json.int)
           if (isFinite(n) && n >= 0) root.gapsOut = Math.max(0, Math.round(n / 2))
         } catch (e) {
-          // hyprland not up yet, keep previous
         }
       }
     }

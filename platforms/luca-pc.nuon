@@ -3,14 +3,12 @@
     hostname: luca-pc
     form_factor: desktop
     groups: [base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting]
-    # board-specific: it87 for the gigabyte x870e fan headers, amdgpu_top and the rocm group for the rx 7800 xt;
-    # vulkan-radeon is the ICD for gpu-next/libplacebo, pinned here so it never depends on steam pulling it.
-    # the last four are for remote unlock (initramfs ssh, configs/base/boot/remote-unlock)
+    # it87 for the x870e fan headers, amdgpu_top for the rx 7800 xt, vulkan-radeon for gpu-next without steam pulling
+    # it in; the last four are for remote unlock (configs/base/boot/remote-unlock)
     extra_packages: [it87-dkms-git amdgpu_top vulkan-radeon mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox]
     facts: {
         # the homelab: pacman mirror line, nas mount, home gateways and routes, searxng in the firefox policy
         homelab: true
-        # secrets tunnel config for wg0
         wireguard: wg0.pc.conf
         # sbctl enrolls own secure boot keys and the event log's option rom hashes, no microsoft ca
         secure_boot_own_keys: true

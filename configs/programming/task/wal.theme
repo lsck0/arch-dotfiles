@@ -1,7 +1,5 @@
-# palette-driven taskwarrior theme. every rule names one of the 16 terminal colour slots (color0..color15),
-# which wallust repaints on each wallpaper switch, so the task list tracks the active theme in light and dark.
-# foreground-only on purpose: a slot sits on the terminal background, which already matches the theme, so every
-# rule stays readable without a per-theme contrast pass.
+# terminal colour slots only, which a theme switch repaints; foreground only, so every rule stays readable on the
+# terminal background without a per-theme contrast pass
 
 color.active=color2
 color.due=color3

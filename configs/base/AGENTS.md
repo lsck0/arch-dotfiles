@@ -11,6 +11,8 @@ one of the module's own exported commands, run at apply time.
 - `boot`: UKI, secure boot (sbctl), luks, remote-unlock, the boot barrier. See `boot/AGENTS.md`.
 - `cleanup`: journald size cap and periodic pacman cache/orphan cleanup.
 - `coredump`: systemd-coredump storage, age and size limits.
+- `dot`: dot's own wiring: the zsh and nushell completions (`dot internal completions`) and the polkit action
+  `system-apply.nu` runs under (`dev.lsck0.dotfiles.policy`, auth_admin every time).
 - `endlessh`: ssh tarpit holding scanners on a decoy port.
 - `essentials`: the base system and the shared libraries and tools no one module owns (packages only).
 - `fail2ban`: ban hosts after repeated auth failures.

@@ -4,43 +4,7 @@ return {
     {
         url = "https://github.com/AlphaTechnolog/pywal.nvim.git",
         name = "pywal",
-        lazy = true, -- loaded on :colorscheme pywal; colors/pywal.vim calls setup()
-    },
-
-    {
-        "xiyaowong/transparent.nvim",
-        dependencies = { "pywal" },
-        init = function()
-            -- opaque in neovide: no wallpaper behind it, a stripped bg renders black
-            vim.g.transparent_enabled = vim.g.neovide ~= true
-        end,
-        config = function()
-            require("transparent").setup({
-                extra_groups = {
-                    "NormalFloat",
-                    "TelescopeNormal",
-                    "TabLine",
-                    "TabLineFill",
-                    "StatusLine",
-                    "StatusLineNC",
-                    "WinSeparator",
-                    "SignColumn",
-                    "EndOfBuffer",
-                },
-            })
-            require("transparent").clear_prefix("Buffer")
-
-            if not vim.g.neovide then
-                vim.api.nvim_create_autocmd("ColorScheme", {
-                    callback = function()
-                        vim.schedule(function()
-                            require("transparent").clear()
-                        end)
-                    end,
-                })
-                require("transparent").clear()
-            end
-        end,
+        lazy = true, -- loaded by colors/wal.lua
     },
 
     { "folke/tokyonight.nvim", lazy = true },
@@ -62,11 +26,10 @@ return {
     {
         "nvim-lualine/lualine.nvim",
         event = "VeryLazy",
-        dependencies = { "xiyaowong/transparent.nvim" },
         config = function()
             require("lualine").setup({
                 options = {
-                    theme = "auto",
+                    theme = vim.g.neovide and "auto" or "glass",
                     globalstatus = true,
                     refresh = { refresh_time = 250 },
 
@@ -88,9 +51,6 @@ return {
                     lualine_z = { "location" },
                 },
             })
-            for _, prefix in ipairs({ "lualine_b", "lualine_c", "lualine_x", "lualine_y", "lualine_z" }) do
-                require("transparent").clear_prefix(prefix)
-            end
         end,
     },
 
@@ -103,35 +63,16 @@ return {
         end,
     },
 
+    -- its default groups are redefined on every ColorScheme, and themes with an integration override them
     {
         "HiPhish/rainbow-delimiters.nvim",
         event = { "BufReadPost", "BufNewFile" },
-        config = function()
-            local highlight = {
-                "RainbowRed",
-                "RainbowYellow",
-                "RainbowBlue",
-                "RainbowOrange",
-                "RainbowGreen",
-                "RainbowViolet",
-                "RainbowCyan",
-            }
-            vim.api.nvim_set_hl(0, "RainbowRed", { fg = "#E06C75" })
-            vim.api.nvim_set_hl(0, "RainbowYellow", { fg = "#E5C07B" })
-            vim.api.nvim_set_hl(0, "RainbowBlue", { fg = "#61AFEF" })
-            vim.api.nvim_set_hl(0, "RainbowOrange", { fg = "#D19A66" })
-            vim.api.nvim_set_hl(0, "RainbowGreen", { fg = "#98C379" })
-            vim.api.nvim_set_hl(0, "RainbowViolet", { fg = "#C678DD" })
-            vim.api.nvim_set_hl(0, "RainbowCyan", { fg = "#56B6C2" })
-            vim.g.rainbow_delimiters = { highlight = highlight }
-        end,
     },
 
     {
         "NvChad/nvim-colorizer.lua",
         event = "VeryLazy",
         config = function()
-            -- names/tailwind only in css-like filetypes, else plain words get colored
             require("colorizer").setup({
                 user_default_options = {
                     mode = "virtualtext",
@@ -193,8 +134,8 @@ return {
                     explorer = {
                         -- off: its reveal re-roots at the file, stacking roots; lib/explorer.lua reveals instead
                         follow_file = false,
-                        hidden = true, -- show dotfiles on start
-                        ignored = true, -- and gitignored files; they are still dimmed by the git status
+                        hidden = true,
+                        ignored = true, -- still dimmed by the git status
                         -- fd only skipped .git because of --no-ignore, which `ignored` just removed
                         exclude = { "**/.git" },
                         auto_close = false,
@@ -209,10 +150,9 @@ return {
                             end,
                         },
                         win = { list = { keys = { ["H"] = "toggle_hidden_ignored" } } },
-                        icons = { git = { ignored = "\u{e668} " } },
+                        icons = { git = { ignored = "\u{f0209} " } },
                         format = function(item, picker)
                             local ret = require("snacks.picker.format").file(item, picker)
-                            -- ignored wins: no hidden mark on an ignored entry or anything inside an ignored dir
                             local it = item
                             while it and not it.ignored do
                                 it = it.parent

@@ -17,7 +17,6 @@ Item {
     return value === undefined || value === null ? fallback : value
   }
 
-  // in bar-content coordinates
   property real barX: 0
 
   function refreshBarX() { barXSettle.restart() }
@@ -35,7 +34,6 @@ Item {
   onXChanged: refreshBarX()
   onWidthChanged: refreshBarX()
 
-  // own x does not change when a parent section moves
   Connections {
     target: root.bar
     enabled: root.bar !== null

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# n-state preset cycler; the preset table and its state live in color-grading.py, never here
 use lib.nu [notify cycle-next]
 
 const GRADING = path self ../../configs/desktop/color-grading/color-grading.py

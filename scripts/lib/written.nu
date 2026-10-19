@@ -1,5 +1,3 @@
-# the bash helpers' files and format, so both engines agree on what is the dotfiles' own
-
 use log.nu *
 use state.nu [state-dir state-locked path-kind]
 use sandbox.nu [plan-note]

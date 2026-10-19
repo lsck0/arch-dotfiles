@@ -4,23 +4,18 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// taskwarrior and the notes pad in one keyboard-first overlay; tasks are changed by uuid
 Item {
   id: root
 
   property var shell: null
 
-  // "tasks" or "notes"
   property string view: "tasks"
-  // "" is the list, "add" and "filter" type into the input line
   property string inputMode: ""
   property string filterText: ""
   property int selectedIndex: 0
   property string selectedUuid: ""
 
-  // in ~/sync; the desktop notes card and SUPER+SHIFT+n edit the same file
   readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
-  // the file as last read or written, so a save only happens when the pad really differs
   property string notesDisk: ""
   property bool notesLoaded: false
   // only a typed pad may save, so one merely shown never overwrites an edit made elsewhere
@@ -49,7 +44,7 @@ Item {
     ? filtered[selectedIndex] : null
 
   readonly property var hints: view === "notes" ? [["ESC", "close"], ["TAB", "tasks"]]
-    : inputMode === "add" ? [["ENTER", "add"], ["ESC", "back"], ["TAB", "notes"]]
+    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project:"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["ESC", "clear"], ["TAB", "notes"]]
     : [["J/K", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
        ["TAB", "notes"], ["ESC", "close"]]
@@ -97,7 +92,6 @@ Item {
 
   function setView(name) {
     if (root.view === "notes") root.saveNotes()
-    root.inputMode = ""
     root.view = name
     if (name === "notes") root.seedNotes()
     root.focusView()
@@ -109,7 +103,6 @@ Item {
    * ---------------------------------------------------------------------------
    */
 
-  // the cursor follows its task across refreshes; a done or deleted one leaves it on the row that moved up
   onFilteredChanged: {
     if (root.selectedUuid) {
       for (let i = 0; i < filtered.length; i++) {
@@ -138,7 +131,6 @@ Item {
     keyCatcher.forceActiveFocus()
   }
 
-  // true when the key was used
   function listKey(key, text) {
     if (key === Qt.Key_Escape) {
       if (root.filterText) root.filterText = ""
@@ -173,14 +165,15 @@ Item {
     return true
   }
 
-  // the input line's own keys; the rest edit its text
-  function inputKey(key) {
-    if (key === Qt.Key_Escape) {
+  function inputKey(key, modifiers) {
+    if (Util.isWordDelete(key, modifiers)) {
+      input.remove(Util.wordStart(input.text, input.cursorPosition), input.cursorPosition)
+      if (root.inputMode === "filter") root.filterText = input.text
+    } else if (key === Qt.Key_Escape) {
       if (root.inputMode === "filter") root.filterText = ""
       input.text = ""
       root.endInput()
     } else if (key === Qt.Key_Return || key === Qt.Key_Enter) {
-      // add stays in add mode for the next task, ESC leaves
       if (root.inputMode === "add") {
         TaskState.add(input.text)
         input.text = ""
@@ -188,13 +181,36 @@ Item {
         root.endInput()
       }
     } else if (key === Qt.Key_Tab || key === Qt.Key_Backtab) {
-      root.setView("notes")
+      if (key === Qt.Key_Backtab || root.inputMode !== "add" || !root.completeInput()) root.setView("notes")
     } else if (root.inputMode === "filter" && (key === Qt.Key_Down || key === Qt.Key_Up)) {
       root.endInput()
       root.select(key === Qt.Key_Down ? 0 : root.filtered.length - 1)
     } else {
       return false
     }
+    return true
+  }
+
+  function known(field) {
+    var seen = {}
+    var list = TaskState.tasks || []
+    for (let i = 0; i < list.length; i++) {
+      let values = field === "tags" ? list[i].tags : [list[i].project]
+      for (let j = 0; j < values.length; j++) if (values[j]) seen[values[j]] = true
+    }
+    return Object.keys(seen).sort()
+  }
+
+  function completeInput() {
+    var head = input.text.slice(0, input.cursorPosition)
+    var start = head.search(/\S*$/)
+    var match = head.slice(start).match(/^([+-]|pro(?:ject)?:)(.*)$/)
+    if (!match) return false
+    var pool = root.known(match[1].length === 1 ? "tags" : "project")
+    var done = Util.completion(match[2], pool)
+    var unique = pool.filter(function (c) { return c.indexOf(done) === 0 }).length === 1
+    input.remove(start, input.cursorPosition)
+    input.insert(start, match[1] + done + (unique ? " " : ""))
     return true
   }
 
@@ -215,7 +231,6 @@ Item {
    * ---------------------------------------------------------------------------
    */
 
-  // seed from disk only while the pad is not being typed in, never clobbering a live edit
   function seedNotes() {
     if (notesEdit.activeFocus || !root.notesLoaded) return
     if (notesEdit.text !== root.notesDisk) notesEdit.text = root.notesDisk
@@ -242,7 +257,6 @@ Item {
       root.seedNotes()
       Util.rearmWatch(this)
     }
-    // a missing file is an empty pad; the first save creates it
     onLoadFailed: {
       root.notesDisk = ""
       root.notesLoaded = true
@@ -280,7 +294,6 @@ Item {
     cardHeight: Style.space(540)
     onDismissed: root.close()
 
-    // list-mode keys; the input line and the notes pad take over their own
     Item {
       id: keyCatcher
       anchors.fill: parent
@@ -329,7 +342,6 @@ Item {
         anchors.bottom: parent.bottom
         visible: root.view === "tasks"
 
-        // the prompt line: `+ text` adds in raw taskwarrior syntax, `/ text` filters
         Item {
           id: inputLine
           anchors.top: parent.top
@@ -366,7 +378,7 @@ Item {
             onTextEdited: if (root.inputMode === "filter") root.filterText = text
 
             Keys.priority: Keys.BeforeItem
-            Keys.onPressed: function (event) { event.accepted = root.inputKey(event.key) }
+            Keys.onPressed: function (event) { event.accepted = root.inputKey(event.key, event.modifiers) }
           }
 
           Text {
@@ -472,7 +484,6 @@ Item {
               layer.effect: Glow {}
             }
 
-            // timewarrior is tracking it (the on-modify hook)
             Text {
               id: activeMark
               anchors.left: reticle.right
@@ -575,7 +586,6 @@ Item {
           }
         }
 
-        // read-only; the bar clock carries the controls
         Column {
           id: timerStrip
           anchors.left: parent.left

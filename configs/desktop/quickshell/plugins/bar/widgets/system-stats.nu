@@ -1,10 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# streams one json line of system stats per sample
 
-# unmetered ram, board, drives and fans
 const OVERHEAD_W = 40
 const PSU_EFFICIENCY = 0.9
-# short first window so the bar fills in fast
 const FIRST_SAMPLE = 300ms
 # intel-rapl is also the name on amd zen
 const RAPL = "/sys/class/powercap/intel-rapl:0"
@@ -14,6 +11,9 @@ const CPU_TEMP_LABEL = '^(Tctl|Tdie|Package.*|CPU Temperature)$'
 const CPU_FREQ = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
 const GPU_CLASSES = '^\S+ (0300|0302): '
 const TOP_COUNT = 2
+# utime and stime after the comm field of /proc/<pid>/stat
+const PROC_STAT = '(?m)^(?<pid>\d+) \((?<name>.*)\) \S+(?: \S+){10} (?<utime>\d+) (?<stime>\d+) '
+const GPU_TEMP_LABEL = "edge"
 const MS_PER_HOUR = 3_600_000
 const UW_PER_W = 1_000_000
 const KIB_PER_GIB = 1048576
@@ -39,11 +39,30 @@ def stat-read []: nothing -> list<int> {
     open --raw /proc/stat | lines | first | split row -r '\s+' | slice 1..4 | into int
 }
 
-def top-read [column: string]: nothing -> list {
-    ^ps -eo $"($column),comm" $"--sort=-($column)" --no-headers
-        | lines | first $TOP_COUNT
-        | parse -r '^\s*(?<pct>\S+)\s+(?<name>.*)$'
-        | each {|p| {name: ($p.name | split row -r '\s+' | str join " "), pct: ($p.pct | into float | math round -p 1)} }
+def top-by-name []: table -> list {
+    group-by name | items {|name, rows| {name: $name, pct: ($rows.pct | math sum)} }
+        | sort-by pct -r | first $TOP_COUNT | update pct { math round -p 1 }
+}
+
+def proc-ticks []: nothing -> table {
+    let self = $nu.pid | into string
+    glob /proc/[0-9]*/stat | each {|f| try { open --raw $f } } | str join "\n" | parse -r $PROC_STAT
+        | where pid != $self
+        | each {|p| {pid: $p.pid, name: $p.name, ticks: (($p.utime | into int) + ($p.stime | into int))} }
+}
+
+# ps %cpu is the lifetime average, this is the share of one core since the last sample, like top
+def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> list {
+    if $dt_ms <= 0 { return [] }
+    $now | join --left $before pid | each {|p|
+        let ticks = [($p.ticks - ($p.ticks_? | default 0)) 0] | math max
+        {name: $p.name, pct: ($ticks * 100_000 / $tck / $dt_ms)}
+    } | where pct > 0 | top-by-name
+}
+
+def top-mem []: nothing -> list {
+    ^ps -eo %mem,comm --no-headers | lines | parse -r '^\s*(?<pct>\S+)\s+(?<name>.*)$'
+        | each {|p| {name: ($p.name | str trim), pct: ($p.pct | into float)} } | top-by-name
 }
 
 def hardware-detect []: nothing -> record {
@@ -59,6 +78,10 @@ def hardware-detect []: nothing -> record {
         _ => "unknown"
     }
     let amdgpu_hwmon = if $gpu_vendor == amd { glob $"($gpu_card)/device/hwmon/hwmon*" | sort | where { line-read $"($in)/name" | $in == amdgpu } | get 0? }
+    let gpu_temp = if $amdgpu_hwmon == null { null } else {
+        glob $"($amdgpu_hwmon)/temp*_label" | sort | where { line-read $in | $in == $GPU_TEMP_LABEL }
+            | each { str replace -r '_label$' '_input' } | where { path exists } | get 0?
+    }
     let cpu_temp = glob /sys/class/hwmon/hwmon* | sort | where { line-read $"($in)/name" | $in in $CPU_TEMP_DRIVERS } | each {|h|
         glob $"($h)/temp*_label" | sort | where { line-read $in | $in =~ $CPU_TEMP_LABEL } | each { str replace -r '_label$' '_input' } | append $"($h)/temp1_input"
     } | flatten | where { path exists } | get 0?
@@ -66,7 +89,6 @@ def hardware-detect []: nothing -> record {
     # udev's dmi_memory_id import (70-memory.rules) is readable without root, unlike dmidecode
     let dmi = ^udevadm info --query=property $"--path=($DMI_DEVICE)" | complete | get stdout | lines | parse 'MEMORY_DEVICE_{slot}_{key}={value}'
     let field = {|key| $dmi | where key == $key }
-    # SIZE is set only for a populated slot
     let populated = do $field SIZE | where ($it.value | into int) > 0 | get slot
     let banks = do $field BANK_LOCATOR | where slot in $populated
     {
@@ -80,11 +102,11 @@ def hardware-detect []: nothing -> record {
             memChannels: (if ($banks | length) == ($populated | length) { $banks | get value | uniq | length } else { $populated | length })
         }
         gpu_card: $gpu_card
-        # power1_average on newer amdgpu, power1_input on older; only present when this is an amd card
         gpu_power: (if $amdgpu_hwmon == null { null } else {
             [power1_average power1_input] | each { [$amdgpu_hwmon $in] | path join } | where { $in | path exists } | get 0?
         })
         cpu_temp: $cpu_temp
+        gpu_temp: $gpu_temp
         rapl_max: (int-read $"($RAPL)/max_energy_range_uj")
         mem_total_kb: (open /proc/meminfo | lines | first | split row -r '\s+' | get 1 | into int)
     }
@@ -95,10 +117,13 @@ def main [interval_s: number = 10] {
     let amd = $hw.static.gpuVendor == amd
     let device = $"($hw.gpu_card)/device"
     let rc6_path = $"($hw.gpu_card)/gt/gt0/rc6_residency_ms"
-    # on tmpfs so a shell restart does not reset it
     let energy_file = [($env.XDG_RUNTIME_DIR? | default /tmp) quickshell-energy-wh] | path join
 
-    mut prev = {stat: (stat-read), rc6: (int-read $rc6_path), energy: (line-read $"($RAPL)/energy_uj"), time: (date now)}
+    let tck = ^getconf CLK_TCK | into int
+    mut prev = {
+        stat: (stat-read), rc6: (int-read $rc6_path), energy: (line-read $"($RAPL)/energy_uj"), procs: (proc-ticks)
+        time: (date now)
+    }
     mut temp_c = 0
     mut delay = $FIRST_SAMPLE
     loop {
@@ -106,6 +131,7 @@ def main [interval_s: number = 10] {
         $delay = $interval_s * 1sec
 
         let stat = stat-read
+        let procs = proc-ticks
         let time = date now
         let dt_ms = ($time - $prev.time) / 1ms
         let rc6 = if $amd { $prev.rc6 } else { int-read $rc6_path }
@@ -125,6 +151,7 @@ def main [interval_s: number = 10] {
             open --raw $"($device)/pp_dpm_sclk" | parse -r '(?<mhz>\d+)Mhz \*' | get mhz.0? | default 0 | into int
         } else { int-read $"($hw.gpu_card)/gt_act_freq_mhz" }
         let gpu_w = if $amd { number-or-null (line-read $hw.gpu_power) $UW_PER_W }
+        let gpu_temp_c = number-or-null (line-read $hw.gpu_temp) 1000 | if $in != null { math round }
         let cpu_w = if $energy != "" and $prev.energy != "" and $dt_ms > 0 {
             let delta = ($energy | into int) - ($prev.energy | into int)
             let wrapped = if $delta < 0 and $hw.rapl_max > 0 { $delta + $hw.rapl_max } else { $delta }
@@ -148,15 +175,19 @@ def main [interval_s: number = 10] {
             memTotalGb: ($hw.mem_total_kb / $KIB_PER_GIB | math round -p 2)
             gpuPct: ($gpu_pct | math round)
             gpuFreqMhz: $gpu_freq
+            gpuTempC: $gpu_temp_c
             powerW: ($power_w | round-or-null 1)
             cpuPowerW: ($cpu_w | round-or-null 1)
             gpuPowerW: ($gpu_w | round-or-null 1)
             energyKwh: ($energy_wh / 1000 | math round -p 4)
             vramUsedMb: $vram_used_mb
             vramTotalMb: $vram_total_mb
-            top: {cpu: (top-read %cpu), mem: (top-read %mem)}
+            top: {cpu: (top-cpu $procs $prev.procs $dt_ms $tck), mem: (top-mem)}
         } | to json -r | print
 
-        $prev = {stat: $stat, rc6: $rc6, energy: (if $energy != "" { $energy } else { $prev.energy }), time: $time}
+        $prev = {
+            stat: $stat, rc6: $rc6, energy: (if $energy != "" { $energy } else { $prev.energy }), procs: $procs
+            time: $time
+        }
     }
 }

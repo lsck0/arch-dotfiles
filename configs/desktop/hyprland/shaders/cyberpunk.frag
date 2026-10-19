@@ -3,15 +3,13 @@
 // @animated
 // @themed
 
-// THEME constants are rewritten by toggle-shader.nu
-
 precision highp float;
 in vec2 v_texcoord;
 uniform sampler2D tex;
 uniform float time;
 out vec4 fragColor;
 
-// THEME
+// rewritten by toggle-shader.nu from the shell palette
 const vec3 BACKGROUND = vec3(0.0431, 0.0549, 0.0784);
 const vec3 ACCENT = vec3(0.2235, 0.7294, 0.9020);
 const float GLOW = 0.55;

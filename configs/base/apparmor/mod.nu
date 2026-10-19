@@ -79,7 +79,6 @@ export def system [cfg: record] {
     }) ++ [(step load)]
 }
 
-# a failed aa-install keeps the loaded policy, the mode check at the end names what is off
 export def load []: nothing -> nothing {
     mkdir $EARLY_POLICY
     let have = open --raw $PARSER_CONF | lines
@@ -107,7 +106,6 @@ export def load []: nothing -> nothing {
     }
 }
 
-# `aa`: per-app enforce, complain or off
 export def link [cfg: record] {
     link-commands aa.nu
 }

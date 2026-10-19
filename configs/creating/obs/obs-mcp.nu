@@ -9,7 +9,7 @@ def main []: nothing -> nothing {
     let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
     let bin = $data | path join obs-mcp node_modules .bin obs-mcp
     if not ($bin | path exists) {
-        print --stderr $"obs-mcp: ($bin) missing, rerun dot link creating/obs \(it installs it with npm ci\)"
+        print --stderr $"obs-mcp: ($bin) missing, rerun dot apply --user creating/obs \(it installs it with npm ci\)"
         exit 1
     }
     $env.OBS_WEBSOCKET_PASSWORD = $ws.server_password? | default ""

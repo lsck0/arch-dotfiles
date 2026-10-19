@@ -19,7 +19,6 @@ QtObject {
   readonly property string barWidgets: plugins + "/bar/widgets"
   readonly property string shellScripts: shellDir + "/scripts"
 
-  // kept out of the tracked config dir
   readonly property string state: {
     var base = String(Quickshell.env("XDG_STATE_HOME") || "").trim() || (home + "/.local/state")
     return base.replace(/\/+$/, "") + "/quickshell"
@@ -31,15 +30,13 @@ QtObject {
   }
 
   readonly property string toggles: dotfiles + "/scripts/toggles"
-  // the one source of wallpaper eligibility and name resolution
   readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.nu"
-  readonly property string themes: dotfiles + "/configs/core/themes"
+  readonly property string themes: dotfiles + "/themes"
 
   function toggle(name) { return toggles + "/" + name }
 
   function barWidget(name) { return barWidgets + "/" + name }
 
-  // name optional, then it is the plugin dir
   function plugin(pluginDir, name) {
     return plugins + "/" + pluginDir + (name ? "/" + name : "")
   }

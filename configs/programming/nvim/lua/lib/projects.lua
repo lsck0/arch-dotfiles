@@ -1,4 +1,3 @@
--- project.nvim only listed dirs this nvim had already visited
 local M = {}
 
 local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = 10 } }
@@ -6,20 +5,27 @@ local DEFAULT_DIRS = { { path = vim.fs.normalize("~/projects"), depth = 10 } }
 -- vendored repos are not projects; mirrors FD_EXCLUDES in scripts/hms.nu
 local EXCLUDE = { "elpa", "node_modules", ".cargo", "vendor", "target" }
 
---- Parse `~/.config/tms/config.toml` so the picker and `hms` never disagree about what a project is.
----@return { path: string, depth: integer }[]
-local function search_dirs()
+---@return { path: string, depth: integer }[] dirs, string[] bookmarks
+local function tms_config()
     local file = vim.fs.normalize("~/.config/tms/config.toml")
     local fd = io.open(file, "r")
     if not fd then
-        return DEFAULT_DIRS
+        return DEFAULT_DIRS, {}
     end
 
-    local dirs, current = {}, nil
+    local dirs, bookmarks, current, in_bookmarks = {}, {}, nil, false
     for line in fd:lines() do
         if line:match("^%s*%[%[search_dirs%]%]") then
-            current = { depth = 10 }
+            current, in_bookmarks = { depth = 10 }, false
             table.insert(dirs, current)
+        elseif line:match("^%s*bookmarks%s*=") then
+            current, in_bookmarks = nil, true
+        end
+        if in_bookmarks then
+            for path in line:gmatch('"(.-)"') do
+                table.insert(bookmarks, vim.fs.normalize(path))
+            end
+            in_bookmarks = not line:find("]", 1, true)
         elseif current then
             local path = line:match('^%s*path%s*=%s*"(.-)"')
             local depth = line:match("^%s*depth%s*=%s*(%d+)")
@@ -36,12 +42,9 @@ local function search_dirs()
     dirs = vim.tbl_filter(function(d)
         return d.path ~= nil
     end, dirs)
-    return #dirs > 0 and dirs or DEFAULT_DIRS
+    return #dirs > 0 and dirs or DEFAULT_DIRS, bookmarks
 end
 
---- A `.git` dir marks a checkout. A `.git` file marks a worktree only when it points into `<gitdir>/worktrees/`:
---- that is how bare-repo layouts (`<repo>/.bare` + `<repo>/branches/<branch>`, or worktrees inside a plain bare
---- repo) show up, while submodules and the bare layout's own root (`gitdir: ./.bare`) are not projects.
 ---@param path string
 ---@return boolean
 local function is_checkout(path)
@@ -57,6 +60,16 @@ local function is_checkout(path)
     return line:match("^gitdir: .*/worktrees/[^/]+/?$") ~= nil
 end
 
+---@param head string
+---@return boolean
+local function is_bare(head)
+    local dir = vim.fs.dirname(head)
+    if head:find("/%.git/") or head:find("/%.bare/") then
+        return false
+    end
+    return vim.fn.isdirectory(dir .. "/objects") == 1 and vim.fn.isdirectory(dir .. "/refs") == 1
+end
+
 ---@return { display: string, path: string }[]
 function M.list()
     if vim.fn.executable("fd") ~= 1 then
@@ -64,28 +77,44 @@ function M.list()
         return {}
     end
 
+    local dirs, bookmarks = tms_config()
     local seen, out = {}, {}
-    for _, dir in ipairs(search_dirs()) do
+    local function add(path, display)
+        if not seen[path] then
+            seen[path] = true
+            table.insert(out, { display = display, path = path })
+        end
+    end
+    for _, dir in ipairs(dirs) do
         if vim.fn.isdirectory(dir.path) == 1 then
             local cmd = { "fd", "--type", "d", "--type", "f", "--hidden", "--no-ignore" }
-            -- tms counts project dirs, the .git entry sits one level below them (mirrors scripts/hms.nu)
             vim.list_extend(cmd, { "--max-depth", tostring(dir.depth + 1) })
             for _, ex in ipairs(EXCLUDE) do
                 vim.list_extend(cmd, { "--exclude", ex })
             end
-            vim.list_extend(cmd, { "^\\.git$", dir.path })
+            vim.list_extend(cmd, { "^(\\.git|HEAD)$", dir.path })
 
             local res = vim.system(cmd, { text = true }):wait()
             for line in (res.stdout or ""):gmatch("[^\r\n]+") do
                 -- fd prints dirs with a trailing slash, which dirname would keep
-                local git = vim.fs.normalize(line)
-                local path = vim.fs.dirname(git)
-                if not seen[path] and is_checkout(git) then
-                    seen[path] = true
+                local entry = vim.fs.normalize(line)
+                local path = vim.fs.dirname(entry)
+                local project
+                if vim.fs.basename(entry) == "HEAD" then
+                    project = is_bare(entry)
+                else
+                    project = is_checkout(entry)
+                end
+                if project then
                     local display = path:sub(1, #dir.path) == dir.path and path:sub(#dir.path + 2) or path
-                    table.insert(out, { display = display, path = path })
+                    add(path, display)
                 end
             end
+        end
+    end
+    for _, path in ipairs(bookmarks) do
+        if vim.fn.isdirectory(path) == 1 then
+            add(path, vim.fs.basename(path))
         end
     end
 
@@ -95,7 +124,6 @@ function M.list()
     return out
 end
 
---- tcd into DIR and re-root the explorer on an empty buffer.
 ---@param dir string
 function M.open(dir)
     pcall(vim.cmd.tcd, vim.fn.fnameescape(dir))

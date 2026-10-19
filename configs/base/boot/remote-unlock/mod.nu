@@ -32,11 +32,9 @@ const UNITS = [initrd-network.service initrd-tinysshd.service]
 const HOOK_INSTALL = "/usr/lib/initcpio/install/systemd-tool"
 const ED25519_SK_BYTES = 64
 const WIFI_UNIT = "initrd-wifi.service"
-# the image's /etc/wpa_supplicant/initrd.conf; the image sits unencrypted on the esp, so whoever holds the disk holds
-# the wifi key (README, Security)
+# the image sits unencrypted on the esp: whoever holds the disk holds the wifi key (README, Security)
 const WIFI_CONF = "/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf"
 
-# ssh into the initramfs to answer the passphrase prompt, the console prompt stays the fallback
 export def system [cfg: record] {
     if not $cfg.ssh_unlock {
         if not ($HOOK_INSTALL | path exists) { return [] }
@@ -58,13 +56,11 @@ export def system [cfg: record] {
     ]
 }
 
-# a laptop off its cable joins a home wifi in the initramfs; without the option the image stays wired only
 def wifi [enabled: bool]: nothing -> list<record> {
     if not $enabled {
         return [(unit-disable $WIFI_UNIT) (step wifi-teardown)]
     }
-    # the unit declares the conf as a required source, so enabling it without one fails every mkinitcpio build;
-    # volatile, so the next apply picks it up once the secrets are readable
+    # the unit requires the conf, else every mkinitcpio build fails; the next apply enables it once secrets are readable
     [
         (step wifi-conf)
     ] ++ (if ($WIFI_CONF | path exists) {
@@ -72,8 +68,7 @@ def wifi [enabled: bool]: nothing -> list<record> {
     } else { [(unit-disable $WIFI_UNIT)] })
 }
 
-# one wpa_supplicant network per line of secrets/wifi (ssid, a tab, the passphrase), each key as wpa_passphrase's
-# hash; a run without DOTFILES_SECRETS keeps what is there
+# secrets/wifi lines are ssid, a tab, the passphrase; a run without DOTFILES_SECRETS keeps what is there
 export def wifi-conf []: nothing -> nothing {
     let wifi = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join wifi
     if not ($wifi | path exists) {
@@ -97,7 +92,6 @@ export def wifi-teardown []: nothing -> nothing {
     rm --force $WIFI_CONF $"/etc/systemd/system/($WIFI_UNIT)"
 }
 
-# a run without DOTFILES_SECRETS keeps what is there
 export def keys []: nothing -> nothing {
     let secrets = $env.DOTFILES_SECRETS? | default "/nonexistent"
     let host = ^uname -n | str trim
@@ -124,7 +118,6 @@ export def keys []: nothing -> nothing {
 }
 
 # after sd-encrypt, so the cryptsetup machinery it feeds is in place
-# the hook refuses to build an image without the key file, so no key means no remote unlock yet
 export def wire []: nothing -> nothing {
     if not ($AUTHORIZED_KEYS | path exists) {
         unwire

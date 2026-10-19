@@ -11,7 +11,6 @@ Item {
   property real maximum: 1
   property real step: 0.05
   property bool integer: false
-  // Bar exposes barForeground, not foreground
   property color trackColor: bar ? Style.selectedFillFor(bar.barForeground, Colors.accent) : Style.selectedFill
   property color fillColor: bar ? bar.barForeground : Colors.foreground
   property color knobColor: bar ? bar.barForeground : Colors.foreground
@@ -28,7 +27,6 @@ Item {
 
   signal rightClicked()
 
-  // Left / Right (h / l) step it; Up / Down stay with the drawer's focus walk
   activeFocusOnTab: true
   function nudge(direction) {
     var step = root.integer ? Math.max(1, root.step) : root.step

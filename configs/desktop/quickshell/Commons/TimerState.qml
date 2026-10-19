@@ -10,15 +10,15 @@ Singleton {
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || "/tmp"
   readonly property string pomoPath: runtimeDir + "/quickshell-pomodoro/state.json"
   readonly property string reminderIndexPath: runtimeDir + "/quickshell-reminders/index.json"
+  readonly property string pomoConfigPath: Paths.home + "/.config/quickshell/pomodoro.json"
 
   readonly property string pomoScript: Paths.script("pomodoro.nu")
   readonly property string reminderScript: Paths.script("reminder.nu")
 
-  // mirrors pomodoro.nu work_default_min / long_every
-  readonly property int pomoDefaultWorkMin: 25
-  readonly property int pomoLongEvery: 4
+  // mirrors pomodoro.nu config_default, until the module first writes the file
+  readonly property var pomoConfigDefault: ({ focus: 25, break: 5, long: 15, cycles: 4 })
+  property var pomoConfig: pomoConfigDefault
 
-  // set while the reminders overlay is open so its countdowns tick
   property bool overlayOpen: false
 
   property var pomoState: ({})
@@ -30,6 +30,30 @@ Singleton {
   function reload() { reloadTimer.restart() }
   function runPomo(args) { Quickshell.execDetached([root.pomoScript].concat(args)); reload() }
   function runReminder(args) { Quickshell.execDetached([root.reminderScript].concat(args)); reload() }
+
+  // dot set takes seconds and its first write may be missed by the watch, so re-read once it exited
+  property var pomoSetQueued: ({})
+  readonly property bool pomoSaving: pomoSetProc.running
+  function setPomoConfig(changes) {
+    root.pomoSetQueued = Object.assign({}, root.pomoSetQueued, changes)
+    if (!pomoSetProc.running) pomoSetNext()
+  }
+
+  function pomoSetNext() {
+    var argv = [root.pomoScript, "set"]
+    for (const key in root.pomoSetQueued) argv.push(key, String(root.pomoSetQueued[key]))
+    root.pomoSetQueued = ({})
+    if (argv.length === 2) return false
+    pomoSetProc.command = argv
+    pomoSetProc.running = true
+    return true
+  }
+
+  function applyPomoConfig(txt) {
+    var read = {}
+    try { read = JSON.parse(txt || "{}") || {} } catch (e) {}
+    root.pomoConfig = Object.assign({}, root.pomoConfigDefault, read)
+  }
 
   function applyPomo(txt) {
     try { root.pomoState = JSON.parse(txt || "{}") || ({}) } catch (e) { root.pomoState = ({}) }
@@ -84,8 +108,8 @@ Singleton {
     remainingSeconds: pomoRemainingSeconds,
     totalSeconds: pomoTotalSeconds,
     cycle: Number(pomoState.cycle || 0),
-    longEvery: pomoLongEvery,
-    defaultWork: pomoDefaultWorkMin,
+    longEvery: Number(pomoRunning && pomoState.cycles ? pomoState.cycles : pomoConfig.cycles),
+    defaultWork: Number(pomoConfig.focus),
     tooltip: pomoTooltip
   })
 
@@ -121,6 +145,21 @@ Singleton {
     printErrors: false
     onLoaded: { root.applyPomo(text()); Util.rearmWatch(this) }
     onLoadFailed: root.pomoState = ({})
+    onFileChanged: reload()
+  }
+
+  Process {
+    id: pomoSetProc
+    onExited: if (!root.pomoSetNext()) pomoConfigFile.reload()
+  }
+
+  FileView {
+    id: pomoConfigFile
+    path: root.pomoConfigPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: { root.applyPomoConfig(text()); Util.rearmWatch(this) }
+    onLoadFailed: root.applyPomoConfig("")
     onFileChanged: reload()
   }
 

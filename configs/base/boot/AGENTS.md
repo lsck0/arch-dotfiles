@@ -10,8 +10,11 @@ Root only.
   `/etc/mkinitcpio.conf`), called from each module's own `step` commands; `boot-commit`, the system layer's boot
   barrier: one UKI rebuild when `BOOT_INPUTS` (everything mkinitcpio reads) changed, then every boot file signed.
 - `systemd-boot/`: the bootloader install.
-- `sbctl/`: secure boot key enrollment and signing (signs the UKIs and systemd-boot).
-- `luks/`: the root disk encryption unlock (keyfile/crypttab.initramfs).
+- `sbctl/`: secure boot key enrollment and signing (signs the UKIs and systemd-boot). Own keys only with the
+  `secure_boot_own_keys` fact, else Microsoft's CA stays; off through its `enable` option (bootstrap's secure boot
+  answer for a new machine).
+- `luks/`: the root disk encryption unlock (keyfile/crypttab.initramfs); declares nothing on a disk without LUKS
+  (bootstrap's `BOOTSTRAP_ENCRYPT=0`).
 - `remote-unlock/`: an initramfs tinyssh server to unlock luks over the network at boot (host key, authorized key,
   network and port drop-in, all in `BOOT_INPUTS`).
 - `hardening/`: boot-path hardening.

@@ -16,7 +16,6 @@ def paths []: nothing -> record {
     }
 }
 
-# builds are small xml and worth keeping across machines; the other games' saves live beside this one in sync/games
 export def link [cfg: record] {
     let p = paths
     # pobfrontend rewrites a build on save, so relinking under it would drop whatever it holds open
@@ -25,11 +24,10 @@ export def link [cfg: record] {
     if $relink { step relocate } else { [] }
 }
 
-# one build edited on two machines at once becomes a syncthing conflict copy, never a silent overwrite
 export def relocate []: nothing -> nothing {
     let p = paths
     if ($p.pob | path exists) and ($p.pob_synced | path exists) {
-        # both hold builds: add the ones the synced tree lacks, never overwrite or delete a synced copy
+        # -n: never overwrite a synced copy
         ^cp -rn $"($p.pob)/." $"($p.pob_synced)/"
         let kept = $"($p.pob).pre-sync.(date now | format date '%s')"
         mv $p.pob $kept

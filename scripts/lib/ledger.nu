@@ -1,12 +1,9 @@
-# only an owned entry the repo stopped declaring is removed; anything done by hand is reported, never touched
-
 use log.nu *
 use state.nu [state-dir]
 use written.nu [tty-confirm]
 use converge.nu [unit-states]
 
-# never removed, whatever the modules say: what boots, unlocks and repairs the machine
-export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|timeshift)$'
+export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|timeshift|zsh)$'
 const UNIT_NAME = '[A-Za-z0-9][A-Za-z0-9:_.-]*(@[A-Za-z0-9:_.-]*)?\.(service|socket|timer|path|mount|automount|target)'
 
 export def ledger-file []: nothing -> path {

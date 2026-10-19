@@ -1,17 +1,12 @@
-# overlays catch whatever a shell module writes, not only what its helpers note
-
 use log.nu *
 use state.nu [LIB_DIR path-kind]
 
-# an area (overlay root plus PLAN_AREA_DEPTH components) past this many paths collapses to its counts
 const PLAN_AREA_MAX = 10
 const PLAN_AREA_DEPTH = 3
 # disk filesystems an overlay may cover below a writable root; anything else (network, fuse, autofs) stays hidden
 const PLAN_DISK_FS = [btrfs ext2 ext3 ext4 xfs f2fs vfat exfat]
-# where the sandbox finds the systemctl stand-in, ahead of /usr/bin on PATH
 const PLAN_BIN = "/run/dotfiles-plan/bin"
 const PLAN_SYSTEMCTL = path self plan-systemctl.nu
-# root keeps only the file capabilities inside the sandbox
 const PLAN_ROOT_CAPS = [CAP_CHOWN CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_FSETID CAP_SETUID CAP_SETGID]
 
 export def plan-active []: nothing -> bool {

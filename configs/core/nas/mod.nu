@@ -6,7 +6,6 @@ const MOUNT = "/mnt/homelab"
 const CRED = "/etc/samba/homelab.cred"
 const CRED_KEYS = '^(username|password|domain)='
 
-# the share for every admin of a homelab machine; the credentials are the admin's secret, streamed in as data
 export def system [cfg: record] {
     if not (platform-has homelab) { return [] }
     let secret = $env.DOTFILES_SECRETS? | default "" | path join samba-homelab
@@ -30,7 +29,6 @@ export def system [cfg: record] {
     ]
 }
 
-# the mount is the machine's; the shortcut only for a homelab user (the sidebar bookmark is base/xdg's)
 export def link [cfg: record] {
     if (profile-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
 }

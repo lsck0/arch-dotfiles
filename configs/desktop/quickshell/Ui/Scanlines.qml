@@ -19,7 +19,6 @@ Item {
   // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
-  // a canvas holds a window-sized image, so it only exists while the window shows
   Loader {
     anchors.fill: parent
     active: root.onScreen && root.strength > 0

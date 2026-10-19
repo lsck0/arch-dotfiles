@@ -23,7 +23,6 @@ return {
         event = "VeryLazy",
         dependencies = { "nvim-telescope/telescope-fzf-native.nvim" },
         config = function()
-            -- no top winbar, lualine renders it
             require("dropbar").setup({ bar = { enable = false } })
         end,
     },
@@ -49,7 +48,6 @@ return {
             },
         },
         init = function()
-            -- start unfolded; ufo drives folding from here
             vim.o.foldcolumn = "0"
             vim.o.foldlevel = 99
             vim.o.foldlevelstart = 99

@@ -1,5 +1,5 @@
 # the declared end state, one fact per line, asserted by dot test run's verify inside the VM (every row) and by
-# dot doctor on the live machine (the live rows). one definition, so both check the same facts.
+# dot status on the live machine (the live rows). one definition, so both check the same facts.
 # <key> <want> <where> <probe>: where is live (both) or vm (the test only: it needs the install password, or root
 # would be needed to see a real answer). the probe runs in bash as the admin, read-only, and prints the value; n/a is a
 # fact this platform does not have (no efi under wsl, no cups), skipped live and a mismatch in the VM.

@@ -18,20 +18,20 @@ Six separate faults stack up, and the first two hide the rest:
 1. **The pad boots into a shrunken "sleep mode."** The pen appears on USB
    interface 2 (report id 5, axes 0..4095) and only part of the surface
    senses. A vendor feature handshake on report id 8 switches it into its
-   real mode, after which the pen moves to **interface 1** (report id 9, axes
+   real mode, after which the pen moves to interface 1 (report id 9, axes
    0..32767) and interface 2 goes silent. `hid-uclogic` cannot do this: every
    UC-Logic magic string descriptor STALLs on this unit.
 
-   The handshake is a **toggle, not an unlock**, which is a trap: all six
+   The handshake is a toggle, not an unlock, which is a trap: all six
    commands are accepted every time, so it looks idempotent. From the
    power-on state the first one gives report id 9; a second advances to a
-   *third* mode where interface 1 sends a big-endian report id 6 instead, and
+   third mode where interface 1 sends a big-endian report id 6 instead, and
    a third brings report 9 back. In mode 6 the driver sees nothing it
    recognises, so the tablet is dead while systemd, udev, libinput and the
-   driver's own log all look perfectly healthy. Restarting the service with
+   driver's own log all look healthy. Restarting the service with
    the pad plugged in is enough to land in it.
 
-   A USB reset does **not** undo this: the device comes back with its mode
+   A USB reset does not undo this: the device comes back with its mode
    intact. Nor can the mode be read back: report id 8 is write-only, so
    `HIDIOCGFEATURE` on it returns `EINVAL`. So the driver does not try to
    reach a known state, it watches what the pen actually sends and toggles
@@ -39,8 +39,8 @@ Six separate faults stack up, and the first two hide the rest:
 
    It therefore always sends the handshake at startup, even though that
    flips a pad that was already correct. That is deliberate: a wrong mode
-   produces *reports*, which can be detected and corrected, whereas skipping
-   the handshake on a pad that turned out to be asleep produces **silence**,
+   produces reports, which can be detected and corrected, whereas skipping
+   the handshake on a pad that turned out to be asleep produces silence,
    which is indistinguishable from a pen nobody is holding. The cost is that
    a restart with the pad plugged in needs about a third of a second of pen
    movement before it corrects itself.
@@ -55,7 +55,7 @@ Six separate faults stack up, and the first two hide the rest:
    to an output and half the screen is physically unreachable, which looks
    exactly like a clamped mapping.
 4. **It almost never announces pen-lift.** Across 7470 captured reports it sent
-   an out-of-range status exactly *once*; normally it just stops reporting.
+   an out-of-range status exactly once; normally it just stops reporting.
    Taken literally that freezes the tip in whatever state it last had, so
    lifting mid-stroke leaves the tip logically down and the next touch draws a
    line joining the two points. The driver treats a silence longer than
@@ -70,8 +70,8 @@ Six separate faults stack up, and the first two hide the rest:
 6. **No kernel driver decodes the buttons.** None of the 14 buttons travel
    with the pen. They arrive on interface 2 as vendor report id 1, an opaque
    collection the kernel hands to nobody, so without this driver all of them
-   are simply dead. Worse, a few of them *also* emit canned keystrokes through
-   the pad's keyboard and consumer collections, which the kernel *does* expose
+   are dead. A few of them also emit canned keystrokes through
+   the pad's keyboard and consumer collections, which the kernel does expose,
    so one express key muted the machine while doing nothing else useful.
    The udev rule suppresses those nodes and the driver republishes all 14 from
    the vendor report instead.
@@ -94,9 +94,9 @@ release clears it, and letting go of everything sends an all-zero mask.
 | `mask5` `0x01`..`0x08` | 4 | `F21`..`F24` | `SDD Tablet T1161 Keys` |
 
 The pen buttons go on the tablet device so drawing applications treat them as
-stylus buttons. The 12 express keys go on a *separate virtual keyboard*
+stylus buttons. The 12 express keys go on a separate virtual keyboard
 instead: extra keys on a `BUS_USB` tablet would make libinput classify it as a
-tablet *pad*, whose events only reach an application that has grabbed the pad,
+tablet pad, whose events only reach an application that has grabbed the pad,
 whereas plain keys go through the compositor's normal keybinding path. `F13`
 to `F24` are real keycodes that no keyboard emits on its own, so nothing
 collides. Bind them in Hyprland like any other key:
@@ -127,7 +127,7 @@ libinput list-devices | grep '^Device.*T1161'
 whole decode path (axis mapping, tip and pressure, pen-lift, all 14 buttons
 and the wrong-mode recovery) is checked without touching the hardware. Run it
 after any change to the driver; several of these faults are invisible until a
-pen is physically in range, which makes them miserable to test by hand.
+pen is physically in range, which makes them hard to test by hand.
 
 `verify-mapping.py` reconstructs the whole transfer function rather than
 comparing extremes, because a clamped or folded mapping still reaches both
@@ -154,17 +154,17 @@ the defaults. Delete the file to go back to them.
 
 ## Gotchas
 
-- `hyprctl keyword` is a **no-op** on this machine: the Hyprland config is Lua,
+- `hyprctl keyword` is a no-op on this machine: the Hyprland config is Lua,
   and the Lua parser rejects it with *"keyword can't work with non-legacy
   parsers."* Use `hyprctl eval` or edit the Lua. Every online guide for tablet
   mapping fails silently here for this reason.
-- Set the tablet mapping **globally**, never per device. The `-1` suffixes
+- Set the tablet mapping globally, never per device. The `-1` suffixes
   follow enumeration order and are not stable.
 - In a udev rule, all `ATTRS`/`KERNELS`/`SUBSYSTEMS`/`DRIVERS` keys must match
   one and the same parent, so `bInterfaceNumber` (USB interface) cannot be
   combined with `idVendor` (USB device). `ENV{}` keys are read off the device
   itself and are exempt.
-- libinput reads `ID_INPUT_*` from the event node **and** its parent `input*`
+- libinput reads `ID_INPUT_*` from the event node and its parent `input*`
   node and takes the union, so both have to be cleared.
 - The rules file must sort after `60-input-id.rules` and before
   `73-seat-late.rules`. Hence `71-`.
@@ -174,7 +174,7 @@ the defaults. Delete the file to go back to them.
 - After changing the rules, `udevadm control --reload` alone is not enough and
   neither is a `USBDEVFS_RESET` ioctl: the reset reattaches the device without
   re-creating its input nodes, so udev replays nothing and the old properties
-  stay in the database. `udevadm test` will happily show the new result while
+  stay in the database. `udevadm test` shows the new result while
   the live device keeps the old one. Force real `add` events by rebinding the
   interfaces, or just replug:
 

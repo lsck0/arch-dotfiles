@@ -1,16 +1,15 @@
 use module.nu *
 use ../spotify/mod.nu [spicetify-colors]
+use ../../core/wallust/palette.nu [RADIUS_PX]
 
 export const meta = {packages: {pacman: [discord discordo-git]}}
 
 const BOOTSTRAP = "/usr/share/discord/updater_bootstrap"
 const BOOTSTRAP_TIMEOUT = "900"
 const UPDATES_URL = "https://updates.discord.com/"
-# /usr/bin/discord's first run: the bootstrap prints the app dir it filled, the launcher links <config>/Discord into it
 const BOOTSTRAP_RUN = 'app=$(timeout "$1" "$2" --no-zenity "$3" stable "$4") && ln -sfn "$3/$app/Discord" "$3/Discord"'
 const THEME = "wal.theme.css"
 const VOICE_PLUGIN = "plugins/QuickshellVoiceStatus.plugin.js"
-# raw files at commit shas, pinned by content too
 const PLUGINS = [
     [url sha256];
     ["https://raw.githubusercontent.com/mwittrien/BetterDiscordAddons/21c049bb77fbe3ffc5cda8961830c098fc6bccad/Library/0BDFDB.plugin.js" 4f4e0180f1977167f70bc7562c4e45cdb096d074805a74742f74e53602f7534a]
@@ -27,7 +26,6 @@ const PLUGINS = [
     ["https://raw.githubusercontent.com/Skamt/BDAddons/20be7c0e79ddd8b7e6d290c14ebe49aef5f7f650/SpotifyEnhance/SpotifyEnhance.plugin.js" b587949472153b720ea5ca14e39d790a83f430968679bad956c67060223712a1]
     ["https://raw.githubusercontent.com/Farcrada/DiscordPlugins/c1250d3990ed3b9f1bf3518aa68050402929c52b/Hide-Chat-Icons/HideChatIcons.plugin.js" a3e3b4af105403b12b78a2168ad3a5adfecbe5f72d1dff06ed8c896cd259e085]
 ]
-# the app's own preferences; window state and the rest of settings.json stay discord's
 const SETTINGS = {
     DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING: true
     enableHardwareAcceleration: true
@@ -36,7 +34,6 @@ const SETTINGS = {
     enableLibOpenH264Electron: true
     openH264Enabled: true
 }
-# the theme's colour variables and the spicetify palette key each takes, so discord matches spotify
 const THEME_SLOTS = {
     accentcolor: button, accentcolor2: button, backgroundprimary: main, backgroundsecondary: main
     backgroundsecondaryalt: main, backgroundtertiary: main, backgroundaccent: highlight
@@ -58,10 +55,10 @@ export def link [cfg: record] {
     # betterdiscord adds a new addon disabled, keyed by its @name; the updater stays off, it would replace the pins
     let managed = $fetched.dest | where ($it | path exists) | append $VOICE_PLUGIN
     let data = bd | path join data stable
-    let bootstrapping = ps | where name == updater_bootstr | is-not-empty
+    let bootstrapping = (^pgrep -x updater_bootstr | complete).exit_code == 0
     [
         (json-merge ($config | path join settings.json) ($SETTINGS | items {|k, v| json-set [$k] $v }))
-        # the first run downloads the app (~150 MB) before any window; never beside a running bootstrap, one download dir
+        # never beside a running bootstrap: they share one download dir
         (if $bootstrapping or not ($BOOTSTRAP | path exists) { [] } else {
             let download = [sh -c $BOOTSTRAP_RUN discord-app $BOOTSTRAP_TIMEOUT $BOOTSTRAP $config $UPDATES_URL]
             exec discord-app $download --creates ($config | path join Discord)
@@ -70,9 +67,10 @@ export def link [cfg: record] {
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)))
         ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest } | flatten)
         (json-merge ($data | path join plugins.json) ($managed | each {|f| json-set [(addon-name $f)] true }))
-        # incognito swallows the read-state ack, so anything read here stays unread on the phone
+        # read receipts stay unread on the phone, usage profiling throws on saving a favourite gif
         (json-merge ($plugins | path join Incognito.config.json) [
             (json-set [settings blockReadReceipts] false)
+            (json-set [settings blockUsageProfiling] false)
         ])
         (json-merge ($data | path join themes.json) [(json-set [(addon-name $THEME)] true)])
         (json-merge ($data | path join settings.json) [(json-set [addons checkForUpdates] false)])
@@ -87,13 +85,12 @@ def rgb [hex: string]: nothing -> string {
     $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ", "
 }
 
-# generated, so betterdiscord's live copy is rewritten on every switch and never drifts
 export def theme [cfg: record, wallpaper: string] {
     let palette = spicetify-colors | default [] | reduce --fold {} {|c, acc| $acc | insert $c.key $c.hex }
     let font = try { ^($env.DOTFILES | path join scripts toggles toggle-font.nu) get | str trim } catch { "" }
     let colours = $THEME_SLOTS | items {|var, key| {var: $var, hex: ($palette | get --optional $key)} }
         | where hex != null | each {|c| {var: $c.var, value: (rgb $c.hex)} }
-    let values = $colours ++ (if ($font | is-empty) { [] } else { [{var: font, value: $'"($font)"'}] })
+    let values = $colours ++ [{var: radius, value: $"($RADIUS_PX)px"}] ++ (if ($font | is-empty) { [] } else { [{var: font, value: $'"($font)"'}] })
     let text = $values | reduce --fold (open --raw $THEME) {|v, css|
         $css | str replace --regex --multiline ('^(\s*--' + $v.var + ':) .*$') $"${1} ($v.value);"
     }

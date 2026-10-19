@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# regenerates the theme's solid-colour pngs
 
 const HERE = path self | path expand | path dirname
 const ACCENT = "#39bae6ff"

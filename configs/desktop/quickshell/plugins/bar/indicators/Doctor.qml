@@ -4,7 +4,6 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// the FAIL lines doctor-check.service last wrote
 BarIndicator {
   id: root
 

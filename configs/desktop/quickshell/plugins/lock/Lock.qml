@@ -20,21 +20,17 @@ Item {
     // in-flight pam response; the field enter was pressed in is the source of truth
     property string _pw: ""
     property var activeField: null
-    // notifications that arrived since this
     property real lockedAtMs: 0
     // own pam service and field content, so the password and the pin never cross
     property bool keyMode: false
     property string _pin: ""
     property string keyDevice: ""
-    // -1 until the key answered
     property int pinRetries: -1
     // ctap2's floor until the key reports its own; a shorter pin could only cost an attempt
     property int pinLengthMin: 4
     property string keyCue: ""
     property string keyNote: ""
-    // a plug event lands as a burst, one line per hid interface
     readonly property int keyProbeSettleMs: 250
-    // the field's placeholder stays hidden while it has focus, so this line labels the pin field
     readonly property string keyStatus: {
         if (pamU2f.active)
             return root.keyCue !== "" ? root.keyCue : "waiting for security key";
@@ -286,7 +282,6 @@ Item {
         }
     }
 
-    // any fido key, found by its hid usage page; the first one listed is the one asked
     Process {
         id: keyProbe
 
@@ -356,7 +351,6 @@ Item {
 
     }
 
-    // stats and the notification dock are ambient, not live
     Timer {
         interval: root.ambientMs
         running: root.locked
@@ -429,13 +423,11 @@ Item {
                 glitch.play();
             })
 
-            // what the glitch captures
             Item {
                 id: lockContent
 
                 anchors.fill: parent
 
-                // unset while unlocked so each lock decodes the current wallpaper
                 Image {
                     id: wallpaper
 
@@ -460,7 +452,6 @@ Item {
 
                 }
 
-                // the dim wallpaper alone reads as a washed-out photo
                 Rectangle {
                     anchors.fill: parent
 
@@ -535,7 +526,6 @@ Item {
                         // opacity, not visible: it keeps focus, so the first key still lands in the field
                         opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0
 
-                        // takes input but draws nothing; the row below draws it
                         TextField {
                             id: pwField
 
@@ -631,7 +621,6 @@ Item {
 
                     }
 
-                    // laid out even when empty, so a plugged key or a cue never moves the clock
                     Text {
                         id: keyStatusText
 

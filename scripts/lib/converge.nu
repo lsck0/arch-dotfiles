@@ -5,7 +5,6 @@ use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
 
-# a link into one of these is the dotfiles' own, replaced without asking
 const OWN_LINK_PREFIXES = ["/var/lib/dotfiles/"]
 
 export def state-path [id: string, verb: string]: nothing -> path {
@@ -50,7 +49,6 @@ export def observe [targets: list<string>, units: list<string>, scope: string]: 
         {
             target: $t
             type: $type
-            # a root-only file seen by a user's plan of the system layer
             hash: (if $type == file { try { open --raw $t | sha $in } catch { "unreadable" } } else { null })
             link: (if $type == symlink { ^readlink $t } else { null })
         }
@@ -80,8 +78,7 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
     {module: $module, kind: $kind, target: $target, reason: $reason, decl: $decl, before: $before, after: $after}
 }
 
-# two merge decls on one file would each plan against the file on disk and the last apply would win, so they are
-# folded into one decl whose edits apply in declaration order
+# two merge decls on one file would each plan against the file on disk and the last apply would win
 def fold-merges [decls: list<record>]: nothing -> list<record> {
     let dup = $decls | where kind in [json ini] | group-by target | items {|t, g| if ($g | length) > 1 { $t } } | compact
     if ($dup | is-empty) { return $decls }
@@ -95,8 +92,6 @@ def fold-merges [decls: list<record>]: nothing -> list<record> {
     } | compact
 }
 
-# a file changed since its last apply is drift, kept unless forced; one the dotfiles never wrote is taken over. both
-# are preserved aside first
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -128,6 +123,9 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                     action $id create $d.target "missing" $d $obs.link $d.source
                 } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | sha $in) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
+                } else if $obs.type == file and ($prev | where target == $d.target | get --optional 0.hash) == $obs.hash {
+                    # a file-copy turned file-link: the module's own unchanged copy, not drift
+                    action $id update $d.target "a copy the dotfiles wrote" ($d | insert preserve true) $obs.hash $d.source
                 } else if $obs.type == file and $d.target not-in $prev.target {
                     action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $d.source
                 } else if $force {

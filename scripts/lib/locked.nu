@@ -1,5 +1,3 @@
-# runs under flock via state-locked, arguments on stdin
-
 use json.nu [json-edits-apply]
 
 def main [] {

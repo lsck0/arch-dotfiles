@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the one walker behind menu.nu and quickshell's settings window
 use lib.nu [TOGGLES_DIR]
 
 const OPTIONS_VERB = 'def "main options"'
@@ -14,6 +13,7 @@ def main [--options] {
             name: $name
             on: ($line starts-with "●")
             setting: ($line !~ '^[●○] ')
+            cycles: ($line =~ '^[●○] ' and $line !~ ' \((on|off)\)$')
             label: ($line | str replace --regex '^[●○] ' '' | str replace --regex ' \((on|off)\)$' '')
         }
         if $options and (open --raw $script | str contains $OPTIONS_VERB) {

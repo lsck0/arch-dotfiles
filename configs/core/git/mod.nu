@@ -1,19 +1,22 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs]}
+export const meta = {packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
-# ~/.gitconfig stays the person's and gh's (credential helpers); git reads this one first
 const CONFIG_DIR = ".config/git"
-# delta's light/dark line tint, rewritten per theme (syntax-theme ansi follows the 16 terminal colours by itself)
 const DELTA_THEME = ".cache/wal/delta.gitconfig"
 const MERGIRAF_DRIVER = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L"
+const GH_HELPER = "!/usr/bin/gh auth git-credential"
+const GH_HOSTS = [github.com gist.github.com]
 
 def has [tool: string]: nothing -> bool {
     which $tool | is-not-empty
 }
 
+# a list value repeats its key, one line per item, in order
 def ini [sections: list<list>]: nothing -> string {
-    $sections | each {|s| $s.1 | items {|k, v| $"\t($k) = ($v)" } | prepend $"[($s.0)]" | str join "\n" } | str join "\n" | $"($in)\n"
+    $sections | each {|s|
+        $s.1 | items {|k, v| [$v] | flatten | each {|one| $"\t($k) = ($one)" } } | flatten | prepend $"[($s.0)]" | str join "\n"
+    } | str join "\n" | $"($in)\n"
 }
 
 def jj-config [identity: oneof<record, nothing>]: nothing -> string {
@@ -40,14 +43,14 @@ export def link [cfg: record] {
             ['filter "lfs"' {clean: "git-lfs clean -- %f", smudge: "git-lfs smudge -- %f", process: "git-lfs filter-process", required: true}]
         } else { null })
         [include {path: ($nu.home-dir | path join $DELTA_THEME)}]
+        # what `gh auth setup-git` would append: the empty helper clears any inherited one, then gh answers
+        ...(if (has gh) { $GH_HOSTS | each {|host| [$'credential "https://($host)"' {helper: ["" $GH_HELPER]}] } } else { [] })
     ] | compact
     [
         (file-text ($dir | path join config) (ini $sections))
-        # gitleaks gate for new repos; `git init` adds it to an existing one
         (file-copy template/hooks/pre-commit ($template | path join hooks pre-commit) --mode 755)
         (if (has mergiraf) { file-text ($dir | path join attributes) $"(^mergiraf languages --gitattributes)\n" } else { [] })
         (if (has jj) { file-text ($nu.home-dir | path join .config jj config.toml) (jj-config $identity) } else { [] })
-        # on PATH, invoked bare by tmux/herdr/nvim/viewers
         (link-commands wtree.nu)
     ]
 }

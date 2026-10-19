@@ -9,7 +9,6 @@ vim.wo[0][0].cursorline = false
 vim.wo[0][0].wrap = false
 vim.wo[0][0].list = false
 
--- linked to builtins so any theme fits
 local function ghproject_hl_apply()
     local function set(name, target)
         vim.api.nvim_set_hl(0, name, { link = target, default = true })

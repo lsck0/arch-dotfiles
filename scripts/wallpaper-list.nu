@@ -8,9 +8,7 @@ const PUBLIC_DIR = $SCRIPTS | path dirname | path join wallpapers
 const SECRET_DIR = $SCRIPTS | path dirname | path join secrets wallpapers
 const IMAGE_SUFFIXES = [jpg jpeg png gif webp]
 const SCREEN_DEFAULT = "3840x2160"
-# filling a screen crops what does not fit; more than this and the picture loses its composition
 const CROP_PERCENT_MAX = 10
-# upscaling by this little is invisible; beyond it the picture turns soft
 const UPSCALE_PERCENT_MAX = 105
 const CACHE = ".cache/wallpaper-list/sizes.tsv"
 
@@ -29,7 +27,6 @@ def wallpapers []: nothing -> table {
 # header reads only, cached by mtime, one vipsheader for every file the cache does not know
 def sizes-of [files: table]: nothing -> table {
     let cache_file = $nu.home-dir | path join $CACHE
-    # a missing or torn cache only costs a rescan
     let cached = try {
         open --raw $cache_file | from tsv --noheaders | rename path mtime width height | into int mtime width height
     } catch { [] }
@@ -44,14 +41,12 @@ def sizes-of [files: table]: nothing -> table {
     $unknown | where path not-in $read.path
     | each { print --stderr $"wallpaper-list: skipping ($in.path): unreadable image" }
     mkdir ($cache_file | path dirname)
-    # written aside and renamed, so a concurrent run never reads half a file
     let tmp = $"($cache_file).($nu.pid)"
     $sizes | to tsv --noheaders | save --force $tmp
     mv --force $tmp $cache_file
     $sizes
 }
 
-# the path a bare file name resolves to, secrets first, or null
 export def wallpaper-resolve [name: string]: nothing -> any {
     if $name == "" or "/" in $name or $name in [. ..] { return null }
     [$SECRET_DIR $PUBLIC_DIR] | each { path join $name }

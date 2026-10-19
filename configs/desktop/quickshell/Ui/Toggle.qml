@@ -76,7 +76,6 @@ BorderSurface {
       }
     }
 
-    // the row owns the click
     ToggleSwitch {
       id: track
       checked: root.checked

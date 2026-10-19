@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# claude code usage for the trmnl plugin: the merge variables its templates render, posted or printed
 
 use ../../../scripts/lib/usage.nu [die]
 
@@ -9,7 +8,6 @@ const MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 const HTTP_TIMEOUT = 15sec
 const POST_TIMEOUT = 30sec
 const PUSHED = ".trmnl_last_push"
-# the usage window, so a reset shows up on the panel
 const PUSH_STALE = 300min
 const DAYS_SCANNED = 7
 const SPARK_BLOCKS = [" " "\u{2581}" "\u{2582}" "\u{2583}" "\u{2584}" "\u{2585}" "\u{2586}" "\u{2587}" "\u{2588}"]
@@ -56,7 +54,6 @@ def cost-format [c: float]: nothing -> string {
     } else { $"$($c | into string --decimals (if $c >= 10 { 1 } else { 2 }))" }
 }
 
-# only versions that differ in price get their own key
 def model-key [name: string]: nothing -> any {
     let n = $name | str lowercase
     if ($n | str contains fable) {
@@ -75,7 +72,6 @@ def model-display [key: string]: nothing -> string {
     }
 }
 
-# gateway models have no price here and never count against anthropic's limits, so they stay out of those figures
 def is-anthropic [key: string]: nothing -> bool {
     let n = $key | str lowercase
     ($n =~ $ANTHROPIC) or (not ($n =~ $FOREIGN) and ($n | str starts-with claude))
@@ -158,7 +154,6 @@ def reset-format [epoch: any]: nothing -> any {
     }
 }
 
-# the rate-limit headers of a one-token call; a 429 still carries them. no per-model row exists among them
 def usage-limits [claude: path]: nothing -> record {
     let token = try { open ($claude | path join .credentials.json) | get claudeAiOauth.accessToken } catch { null }
     if $token == null { return {} }
@@ -203,7 +198,6 @@ def payload-build [include_other: bool, strict_activity: bool, scrape: bool]: no
     let week_rows = $counted | where day >= $week_start
     let spark_values = ($DAYS_SCANNED - 1)..0 | each {|i| do $day_total (do $day_key $i) $wide }
     let spark_max = if ($spark_values | any { $in > 0 }) { $spark_values | math max } else { 1 }
-    # no usage yet today starts the count at yesterday
     let streak_from = if (do $day_total $today $wide) == 0 { 1 } else { 0 }
     let streak = $streak_from..$DAYS_SCANNED | each { $in }
         | take while {|i| (do $day_total (do $day_key $i) $wide) > 0 } | length

@@ -4,7 +4,6 @@ export const meta = {packages: {pacman: [entr tmux tmux-fingers tmux-sessionizer
 
 const CONFIG_DIR = ".config/tmux"
 const TMS_CONFIG = ".config/tms/config.toml"
-# only the projects themselves, not repos nested in them (worktrees, vendored checkouts); hms reads the same entry
 const PROJECTS_DEPTH = 1
 
 export def link [cfg: record] {
@@ -22,7 +21,6 @@ export def link [cfg: record] {
     ]
 }
 
-# every running server (each -L socket) re-sources the colours, no restart; a dead socket is skipped
 export def tmux-reload []: nothing -> nothing {
     let colors = $nu.home-dir | path join .cache wal colors-tmux.conf
     for s in (glob ($env.TMUX_TMPDIR? | default /tmp | path join $"tmux-(^id -u | str trim)" "*")) {

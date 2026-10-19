@@ -39,7 +39,6 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     }
     let homelab = $profile != null and "homelab" in $profile.capabilities
     let values = $resolved.rows | reduce --fold {} {|r, acc| $acc | insert $r.id $r }
-    # a module reads its dependencies' resolved options, read-only, as cfg.deps."<id>"
     let modules = $found | each {|m|
         let row = $values | get $m.id
         let deps = $m.meta.deps | where $it in ($values | columns) | reduce --fold {} {|d, acc| $acc | insert $d ($values | get $d | get values) }
@@ -52,7 +51,6 @@ def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
-# relative to the repo; the module's own dir is hashed anyway
 def stat [repo: path, paths: list<string>]: nothing -> string {
     let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| glob $p } | flatten | uniq
     if ($found | is-empty) { return "" }
@@ -94,7 +92,7 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
 export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = []]: nothing -> table {
     let unknown = $ids | where $it not-in $ctx.modules.id
     if ($unknown | is-not-empty) {
-        error make {msg: $"no module ($unknown | str join ', '); dot list shows them"}
+        error make {msg: $"no module ($unknown | str join ', '); dot plan --modules lists them"}
     }
     let broken = $ctx.modules | where broken and ($ids | is-empty) or $it.id in $ids | where broken
     if ($ids | is-not-empty) and ($broken | is-not-empty) {
@@ -145,7 +143,6 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         let current = $actions
         let done = with-env (platform-env $ctx.platform) { apply-module $current $m.dir (scope-of $ctx.layer) }
         $outcomes = $outcomes ++ $done
-        # only an exec that creates state the verb may read asks for another pass
         let ran = $done | where {|o| $o.kind == "exec" and $o.ok and $o.decl.creates? != null }
         let failed = $done | where not ok
         if ($ran | is-empty) or ($failed | is-not-empty) or $pass >= $EXEC_PASSES_MAX {
@@ -164,7 +161,7 @@ def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         $actions = $again.actions
     }
     let failed = $outcomes | where not ok
-    let kept = $actions | where kind == drift | each {|a| $"kept ($a.target): ($a.reason); dot adopt it or apply --force" }
+    let kept = $actions | where kind == drift | each {|a| $"kept ($a.target): ($a.reason); dot module adopt it or apply --force" }
     let lines = $outcomes | each {|o| [$"($o.kind) ($o.target)(if $o.ok { '' } else { $': ($o.error)' })"] ++ ($o.output | lines | where ($it | str trim | str starts-with $NOTE_PREFIX) | each { $"  ($in)" }) } | flatten
     {ok: ($failed | is-empty), log: ($lines ++ $kept | str join "\n"), outcomes: $outcomes, error: ($failed | get --optional 0.error)}
 }
@@ -183,7 +180,6 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
         }
     }
     let notes = $result.log | lines | where ($it | str trim | str starts-with $NOTE_PREFIX) | each { str trim | str replace $NOTE_PREFIX "" | str trim }
-    # shown in the module's block already, so only the run log gets it
     $notes | each { log-debug $"note: ($m.id): ($in)" {kind: note} } | ignore
     $result | insert id $m.id | insert notes $notes | insert ms ((date now) - $start | into int | $in // 1_000_000)
 }

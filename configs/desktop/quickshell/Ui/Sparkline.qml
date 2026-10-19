@@ -3,18 +3,15 @@ import QtQuick
 import Quickshell
 import qs.Commons
 
-// values newest last
 Item {
   id: root
 
   property var values: []
   property real minValue: 0
-  // <= minValue auto-scales to the data
   property real maxValue: 0
   property color color: Colors.accent
   property real lineWidth: 1.6
   property real fillAlpha: 0.22
-  // opt-in: only for series that change rarely, a live one would re-render the effect per sample
   property bool glow: false
 
   implicitWidth: 64
@@ -32,9 +29,7 @@ Item {
   // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
-  // always-visible hosts (the bar) turn this off
   property bool pulsing: true
-  // drives the overlay dots so the ping never repaints the canvas
   property real pulse: 0
   SequentialAnimation {
     id: ping

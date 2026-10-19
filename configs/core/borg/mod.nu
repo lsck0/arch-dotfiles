@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [borg]}}
 
-# the repo is a syncthing folder only a homelab user's nas receives, so only a homelab user backs up
 export def link [cfg: record] {
     if not (profile-has homelab) { return [] }
     if not (secret-is-plaintext ($env.DOTFILES | path join secrets borg-passphrase)) {

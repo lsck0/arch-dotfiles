@@ -40,6 +40,10 @@
     # notify-send names its own cgroup; nu probes the controlling terminal at startup and has none here
     owner @{PROC}/@{pid}/cgroup r,
     deny /dev/tty rw,
+    # the viewer's open pdf comes along as an inherited fd, and a server lookup lists the runtime dir; neither is
+    # needed, both stay denied without the log noise
+    deny @{HOME}/**.pdf r,
+    deny @{run}/user/@{uid}/*/ r,
   }
 
   include if exists <abstractions/dotfiles/synctex-edit.d>

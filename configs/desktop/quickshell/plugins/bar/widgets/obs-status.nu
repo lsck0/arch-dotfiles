@@ -1,13 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# streams obs state as JSON lines, applies JSON commands read from stdin; exits when stdin closes
 
 const CONFIG_RELATIVE = "obs-studio/plugin_config/obs-websocket/config.json"
 const PORT_DEFAULT = 4455
-# obs-websocket 5.x event subscriptions: general, scenes, inputs, outputs
 const SUBSCRIPTIONS = 0b1001101
 const EVENTS_REPOLL = [StreamState RecordState CurrentProgramScene Exit InputMuteStateChanged]
 const MUTE_SOURCES = {Mic: "Mic/Aux", Desktop: "Desktop Audio", Game: "Game Audio"}
-# cmd -> [requestType, payload key]
+const APP_CAPTURE_KIND = "pipewire_audio_application_capture"
 const COMMANDS = {
     toggleStream: [ToggleStream null]
     toggleRecord: [ToggleRecord null]
@@ -30,30 +28,28 @@ const RECONNECT_MAX = 5sec
 const RECONNECT_GROWTH = 1.6
 const ERROR_LENGTH_MAX = 120
 const MAIN_JOB = 0
-# mailbox tags: replies and the close marker are awaited by tag, events and stdin wake the main loop
 const TAG_SOCKET = 1
 const TAG_EVENT = 2
 const TAG_STDIN = 3
 
-def config-read []: nothing -> any {
+export def config-read []: nothing -> any {
     let path = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $CONFIG_RELATIVE
     let config = try { open $path } catch { return null }
     if $config.server_enabled? != true { return null }
     {port: ($config.server_port? | default $PORT_DEFAULT), password: ($config.server_password? | default "")}
 }
 
-def sha256-base64 []: string -> string { hash sha256 --binary | encode base64 }
+export def sha256-base64 []: string -> string { hash sha256 --binary | encode base64 }
 
-def socket-recv []: nothing -> record {
+export def socket-recv []: nothing -> record {
     let message = try { job recv --tag $TAG_SOCKET --timeout $RECV_TIMEOUT } catch { error make {msg: "obs-websocket timed out"} }
     if $message.op == null { error make {msg: "connection closed"} }
     $message
 }
 
-def socket-send [socket: int, message: record]: nothing -> nothing { $message | to json -r | job send $socket }
+export def socket-send [socket: int, message: record]: nothing -> nothing { $message | to json -r | job send $socket }
 
-# the reply is matched by requestId since events interleave; null when obs rejects it
-def request [socket: int, type: string, data: record = {}]: nothing -> any {
+export def request [socket: int, type: string, data: record = {}]: nothing -> any {
     let id = random uuid
     socket-send $socket {op: $OP_REQUEST, d: {requestType: $type, requestId: $id, requestData: $data}}
     let deadline = (date now) + $REQUEST_TIMEOUT
@@ -66,7 +62,7 @@ def request [socket: int, type: string, data: record = {}]: nothing -> any {
     }
 }
 
-def socket-open [port: int]: nothing -> int {
+export def socket-open [port: int]: nothing -> int {
     # a reply or close left over from the previous session would be read as this one's
     while (try { job recv --tag $TAG_SOCKET --timeout 0sec; true } catch { false }) { }
     job spawn {
@@ -82,7 +78,7 @@ def socket-open [port: int]: nothing -> int {
     }
 }
 
-def socket-identify [socket: int, password: string]: nothing -> nothing {
+export def socket-identify [socket: int, password: string]: nothing -> nothing {
     let hello = socket-recv
     if $hello.op != $OP_HELLO { error make {msg: "unexpected greeting"} }
     let auth = $hello.d.authentication?
@@ -109,8 +105,9 @@ def snapshot [socket: int]: nothing -> record {
     let record = request $socket GetRecordStatus | default {}
     let scene = request $socket GetCurrentProgramScene | default {}
     let scenes = request $socket GetSceneList | default {}
-    # a label the loaded collection lacks is dropped, the widget only sees inputs that exist
-    let inputs = $MUTE_SOURCES | transpose label name | each {|input|
+    let apps = request $socket GetInputList {inputKind: $APP_CAPTURE_KIND} | get -o inputs | default []
+        | each {|input| {label: $input.inputName, name: $input.inputName} }
+    let inputs = $MUTE_SOURCES | transpose label name | append $apps | uniq-by label | each {|input|
         let mute = request $socket GetInputMute {inputName: $input.name}
         let volume = request $socket GetInputVolume {inputName: $input.name}
         {label: $input.label, mute: ($mute | get -o inputMuted), volume: ($volume | get -o inputVolumeMul)}
@@ -147,14 +144,13 @@ def snapshot [socket: int]: nothing -> record {
     }
 }
 
-# true when a status re-poll is warranted
 def command-apply [socket: int, line: string]: nothing -> bool {
-    # stdin is the widget's and the keybind's, not trusted to be JSON
     let message = try { $line | from json | into record } catch { return false }
     let cmd = $message.cmd? | default ""
     if $cmd in [toggleMute setInputVolume] {
-        let input = $MUTE_SOURCES | get -o ($message.source? | default "")
-        if $input == null { return false }
+        let source = $message.source? | default ""
+        if $source == "" { return false }
+        let input = $MUTE_SOURCES | get -o $source | default $source
         if $cmd == toggleMute {
             if (request $socket ToggleInputMute {inputName: $input}) == null {
                 print -e $"obs-status: ToggleInputMute\(($input)) rejected"
@@ -214,7 +210,6 @@ def main [] {
                     $polled = date now
                     $due = false
                 }
-                # a timeout is the next poll tick
                 let message = try { job recv --timeout ($interval - ((date now) - $polled)) } catch { null }
                 if $message == null { continue }
                 if $message.eof? == true { exit 0 }
@@ -227,7 +222,6 @@ def main [] {
                 }
             }
         } catch {|error| $error.msg }
-        # gone already when websocat exited on its own
         try { job kill $socket }
         $last = emit {connected: false, error: ($failure | str substring 0..<$ERROR_LENGTH_MAX)} $last
         sleep $backoff

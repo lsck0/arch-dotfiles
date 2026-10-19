@@ -19,8 +19,8 @@ BarWidget {
   property bool mobileOn: false
   property bool hasMobile: false
   property bool offlineModeOn: false
-  property string firewallState: "default"
-  property bool isPersonal: false
+  property string firewallState: ""
+  property bool homelabAvailable: false
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
@@ -50,7 +50,6 @@ BarWidget {
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // nmcli monitor and ToggleEvents keep state live, so an open re-reads only past this age
   readonly property int refreshMinAgeMs: 60 * 1000
   property real lastRefreshMs: 0
   property real lastScanMs: 0
@@ -99,7 +98,6 @@ BarWidget {
     connectProc.stdinEnabled = false
   }
 
-  // each toggle announces its change over ToggleEvents once it settled, which re-reads
   function runToggle(script) { Quickshell.execDetached([Paths.toggle(script), "toggle"]) }
   function toggleHomeVpn() { runToggle("toggle-vpn.nu") }
   function toggleProtonVpn() { runToggle("toggle-protonvpn.nu") }
@@ -110,7 +108,13 @@ BarWidget {
   function toggleEthernet() { runToggle("toggle-ethernet.nu") }
   function toggleMobile() { runToggle("toggle-mobile.nu") }
   function toggleOfflineMode() { runToggle("toggle-offline.nu") }
-  function toggleFirewall() { runToggle("toggle-firewall.nu") }
+  function setFirewall(state) { Quickshell.execDetached([Paths.toggle("toggle-firewall.nu"), "set", state]) }
+
+  readonly property var firewallModes: [
+    { value: "permissive", label: "PERMISSIVE" },
+    { value: "default", label: "DEFAULT" },
+    { value: "restrictive", label: "RESTRICTIVE" }
+  ]
 
   Process {
     id: homeVpnProc
@@ -152,18 +156,16 @@ BarWidget {
     command: [Paths.toggle("toggle-mobile.nu"), "get"]
     stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.mobileOn = String(text || "").trim() === "on" }
   }
-  // wwan hardware does not appear or vanish at runtime, probe once
-  Component.onCompleted: { hasMobileProc.running = true; userProc.running = true; refreshAll() }
-  // the homelab vpn is luca's; a guest never sees the row
+  Component.onCompleted: { hasMobileProc.running = true; homelabProc.running = true; refreshAll() }
   Process {
-    id: userProc
-    command: ["id", "-un"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.isPersonal = String(text || "").trim() === "luca" }
+    id: homelabProc
+    command: [Paths.toggle("toggle-vpn.nu"), "available"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.homelabAvailable = String(text || "").trim() === "true" }
   }
   Process {
     id: firewallProc
     command: [Paths.toggle("toggle-firewall.nu"), "get"]
-    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.firewallState = String(text || "default").trim() }
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.firewallState = String(text || "").trim() }
   }
   Process {
     id: hasMobileProc
@@ -240,11 +242,9 @@ BarWidget {
       splitMarker: "\n"
       onRead: nmDebounce.restart()
     }
-    // exits when networkmanager restarts
     onExited: nmRestartTimer.restart()
   }
 
-  // one nm change emits several lines
   Timer {
     id: nmDebounce
     interval: 400
@@ -257,7 +257,6 @@ BarWidget {
     onTriggered: nmMonitorProc.running = true
   }
 
-  // vpn, tor, bluetooth and firewall live outside networkmanager
   readonly property var networkToggles: ["toggle-vpn.nu", "toggle-protonvpn.nu", "toggle-tor.nu", "toggle-anonymous-socks.nu", "toggle-bluetooth.nu",
     "toggle-wifi.nu", "toggle-ethernet.nu", "toggle-mobile.nu", "toggle-offline.nu", "toggle-firewall.nu"]
   Connections {
@@ -330,7 +329,6 @@ BarWidget {
     moduleName: root.moduleName
     anchorWidget: root
     onOpened: root.panelOpened()
-    // the password field holds the panel open while it has focus
     pinned: root.passwordFocused
     acceptsKeyboard: true
     title: "NETWORK"
@@ -379,7 +377,6 @@ BarWidget {
         width: content.width
         spacing: Style.spacing.xs
 
-        // live rate: outline, never a glow layer
         Hero {
           value: root.fmtSpeed(root.detailsRxKbps)
           live: true
@@ -541,10 +538,22 @@ BarWidget {
       }
 
       PanelSeparator {}
+      PanelSectionHeader { text: "FIREWALL" }
+      ButtonGroup {
+        width: content.width
+        fill: true
+        spacing: Style.spacing.xs
+        fontSize: Style.font.caption
+        options: root.firewallModes
+        value: root.firewallState
+        onChanged: function(state) { if (state !== root.firewallState) root.setFirewall(state) }
+      }
+
+      PanelSeparator {}
       PanelSectionHeader { text: "TUNNELS" }
       ToggleRow { label: "ProtonVPN"; on: root.protonVpnState === "on"; onActivated: root.toggleProtonVpn() }
-      ToggleRow { visible: root.isPersonal; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
-      ToggleRow { label: "Tor Network"; on: root.torState === "on"; onActivated: root.toggleTor() }
+      ToggleRow { visible: root.homelabAvailable; label: "Homelab VPN"; on: root.homeVpnState === "on"; onActivated: root.toggleHomeVpn() }
+      ToggleRow { label: "Tor network"; on: root.torState === "on"; onActivated: root.toggleTor() }
       ToggleRow { label: "Anonymous SOCKS"; on: root.anonymousSocksOn; onActivated: root.toggleAnonymousSocks() }
 
       PanelSeparator {}
@@ -554,7 +563,6 @@ BarWidget {
       ToggleRow { visible: root.hasMobile; label: "Mobile"; on: root.mobileOn; onActivated: root.toggleMobile() }
       ToggleRow { label: "Bluetooth"; on: root.btPowered; onActivated: root.toggleBluetooth() }
       ToggleRow { label: "Offline mode"; on: root.offlineModeOn; onActivated: root.toggleOfflineMode() }
-      ToggleRow { label: "Firewall: " + root.firewallState; on: root.firewallState !== "off"; onActivated: root.toggleFirewall() }
 
       PanelSeparator {}
       PanelSectionHeader { text: "TOOLS" }

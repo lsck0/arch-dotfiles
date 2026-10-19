@@ -5,7 +5,6 @@ local function is_pointer_type(hover)
         return false
     end
 
-    -- arrowdot only runs for clangd, which returns a MarkupContent (contents.value)
     local text = hover.contents.value or ""
 
     -- clangd puts the symbol's type on a "Type:" line; a `*` in template args or docs says nothing
@@ -13,7 +12,6 @@ local function is_pointer_type(hover)
     if not line then
         return false
     end
-    -- a typedef'd pointer shows its canonical type as aka
     local ty = line:match("%(aka `([^`]+)`%)") or line:match("^`([^`]+)`") or line
     ty = ty:gsub("%b<>", "")
     local prev
@@ -36,7 +34,6 @@ function M.dot()
     end
     -- clangd's own encoding (utf-16), else columns are off
     local params = vim.lsp.util.make_position_params(0, clients[1].offset_encoding)
-    -- blocks the ui on every ".", so cap the stall at 40ms
     local responses = vim.lsp.buf_request_sync(0, "textDocument/hover", params, 40)
 
     if not responses then

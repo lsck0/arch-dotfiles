@@ -11,6 +11,10 @@ var WHITE_TEXT_LUMINANCE_MAX = 0.18;
 var WALK_STEP = 0.12;
 var WALK_COUNT_MAX = 24;
 var SURFACE_SATURATION = 0.9;
+var RADIUS_PX = 2;
+var BORDER_PX = 1;
+var OPACITY_SURFACE = 0.85;
+var OPACITY_BAR = 0.78;
 // END generated
 
 // floored %, as nu's mod: the result takes the divisor's sign
@@ -92,7 +96,6 @@ function toneMap(rgb, lo, hi) {
         Math.min(hi === undefined ? BG_VALUE_MAX : hi, hsv[2])));
 }
 
-// quickshell passes its live theme.json knobs, else the generated constants
 function isLight(rgb, lightLuminance) {
     return luminance(rgb) >= (lightLuminance === undefined ? LIGHT_LUMINANCE : lightLuminance);
 }
@@ -132,12 +135,10 @@ function readableOn(bg, preferred, ratio) {
 
 // bar-only roles below, no nu twin
 
-// hue in degrees, achromatic reads as 0
 function hueDeg(rgb) {
     return rgbToHsv(rgb)[0] * 360;
 }
 
-// signed shortest turn from a to b, degrees
 function turn(a, b) {
     return pyMod(pyMod(b - a, 360) + 540, 360) - 180;
 }
@@ -147,7 +148,6 @@ function withHue(rgb, deg) {
     return hsvToRgb(pyMod(deg, 360) / 360, hsv[1], hsv[2]);
 }
 
-// an achromatic colour counts as green already
 function phosphor(rgb, amount) {
     if (!amount)
         return rgb;
@@ -194,7 +194,6 @@ function pickAccent2(candidates, accent, bg, ratio) {
     return readableOn(bg, best || withHue(accent, hueDeg(accent) + 180), ratio);
 }
 
-// verdict is "LOW" when foreground or accent miss their contrast on background
 function conditionPalette(parsed, fallback, knobs) {
     var special = parsed.special || {};
     var colors = parsed.colors || {};
@@ -208,12 +207,15 @@ function conditionPalette(parsed, fallback, knobs) {
     var urgent = colors.color1 ? readableOn(bg, vivify(hexToRgb(colors.color1), k.urgentMinSaturation,
         k.urgentMinValue), k.urgentContrast) : hexToRgb(fallback.urgent);
     urgent = readableOn(bg, separateUrgent(urgent, accent, k.urgentMinApart, k.urgentMaxTurn), k.urgentContrast);
-    // muted only floored, it must stay dim
     var muted = colors.color8 ? readableOn(bg, hexToRgb(colors.color8), k.mutedContrast) : hexToRgb(fallback.muted);
+    // not color1 (urgent's source) or color4 (accent's), nor anything that would read as urgent
     var pool = [];
-    for (var i = 1; i <= 6; i++) {
-        if (colors["color" + i])
-            pool.push(vivify(hexToRgb(colors["color" + i]), k.accentMinSaturation, k.accentMinValue));
+    for (var i = 2; i <= 6; i++) {
+        if (i === 4 || !colors["color" + i])
+            continue;
+        var c = vivify(hexToRgb(colors["color" + i]), k.accentMinSaturation, k.accentMinValue);
+        if (Math.abs(turn(hueDeg(urgent), hueDeg(c))) >= k.urgentMinApart)
+            pool.push(c);
     }
     var accent2 = pool.length > 0 ? pickAccent2(pool, accent, bg, k.accent2Contrast) : hexToRgb(fallback.accent2);
     var ok = passes(fg, bg, k.foregroundContrast) && passes(accent, bg, k.accentContrast);

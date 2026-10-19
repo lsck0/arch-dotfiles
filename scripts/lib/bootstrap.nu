@@ -1,16 +1,16 @@
-# unattended env: BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOSTNAME,GROUPS,TIMEZONE,LOCALE,HOME_NETWORK}
+# unattended env: BOOTSTRAP_{USERNAME,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOME_NETWORK,ENCRYPT} and for a new
+# machine BOOTSTRAP_{HOSTNAME,SERVER,SSH_KEY,GROUPS,TIMEZONE,LOCALE,SECURE_BOOT}; ENCRYPT and SERVER are 0 or 1 (1 and 0
+# by default), SECURE_BOOT is own, microsoft (the default) or off
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
-# pacstrapped along for ghostmirror's monthly rebuild on the installed system
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
 # ranking takes longer than a slow mirror costs, so only a few recent ones are timed
 const MIRROR_CANDIDATES = 5
 const MIRROR_KEEP = 5
-# fewer rated servers: the country falls back to worldwide, then to the iso's list
 const MIRROR_RANKED_MIN = 3
 const MIRROR_AGE_H = 12
 const MIRROR_DOWNLOAD_TIMEOUT_S = 5
@@ -25,6 +25,9 @@ const TIMEZONE_DEFAULT = "Europe/Berlin"
 const LOCALE_DEFAULT = "en_US.UTF-8"
 const ESP_SIZE_MIB = 1024
 const LUKS_NAME = "root"
+# gpt type codes: linux luks, linux x86-64 root
+const PART_TYPE_LUKS = "8309"
+const PART_TYPE_ROOT = "8304"
 const MOUNT = "/mnt"
 const BTRFS_OPTS = "noatime,compress=zstd"
 # out of @: a timeshift snapshot would pin them and a rollback revert them
@@ -35,7 +38,7 @@ const SUBVOLS = [
 const LUKS_FORMAT = [--type luks2 --cipher aes-xts-plain64 --key-size 512 --sector-size 4096 --pbkdf argon2id]
 const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_workqueue --persistent]
 const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
-const HOOKS = "HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)"
+const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
 const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
 const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
@@ -47,11 +50,21 @@ const SYNC_WAIT_S = 120
 const NETWORK_TIMEOUT_S = 10
 const PING_TIMEOUT_S = 2
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
+const PLATFORM_LOCAL_OPTIONS = "/etc/dotfiles/platform.options.nuon"
 const PLATFORM_NEW = "custom"
-# the vm test passes its platform by argument; nobody installs it by hand
+const PLATFORM_TEMPLATES = "platforms/templates"
+const SERVER = "server"
+const SERVER_DESCRIPTION = "the base system hardened, ssh and docker, nothing else"
+const SBCTL_MODULE = "base/boot/sbctl"
+const SECURE_BOOT_DEFAULT = "microsoft"
+const SECURE_BOOT_CHOICES = {
+    own: "own keys and this machine's option rom hashes, no Microsoft CA: no Windows or other signed loaders"
+    microsoft: "own keys plus Microsoft's CA: Windows and any option rom keep booting"
+    off: "no secure boot keys, nothing signed"
+}
+const SSH_KEY_PATTERN = '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
 const PLATFORMS_HIDDEN = [test-vm]
 const LOGIN_SHELL = "/usr/bin/zsh"
-# networkmanager's home rule: a link is home while its gateway's mac is listed here
 const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
 const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
 const HOSTNAME_PATTERN = '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$'
@@ -98,7 +111,6 @@ def one-line [value: string, label: string]: nothing -> string {
 }
 
 def die [message: string] {
-    # a leftover dialog screen would hide the reason
     if (tui) { ^clear }
     error make {msg: $message}
 }
@@ -146,15 +158,26 @@ def menu [title: string, text: string, default: string, items: list<string>]: no
     dlg --title $title --default-item $default --menu $text "0" ($TUI_WIDTH | into string) "0" ...$items
 }
 
-def yes [title: string, text: string]: nothing -> bool {
+def yes [title: string, text: string, --default-yes]: nothing -> bool {
     if (tui) {
-        let status = (^dialog --backtitle $TUI_BACKTITLE --cr-wrap --title $title --defaultno --yesno $text (height $text $TUI_BOX_ROWS) ($TUI_WIDTH | into string) | complete).exit_code
-        # 0 yes, 1 no, anything else is esc
+        let default = if $default_yes { [] } else { [--defaultno] }
+        # --stdout: else dialog draws into complete's pipe and the next enter answers a box never shown
+        let status = (^dialog --backtitle $TUI_BACKTITLE --stdout --cr-wrap --title $title ...$default --yesno $text (height $text $TUI_BOX_ROWS) ($TUI_WIDTH | into string) | complete).exit_code
         if $status > 1 { die aborted }
         $status == 0
+    } else if $default_yes {
+        (input $"($text) [Y/n] " | str lowercase) != "n"
     } else {
-        (input $"($text) [y/N] ") == "y"
+        (input $"($text) [y/N] " | str lowercase) == "y"
     }
+}
+
+def ask-flag [name: string, default: bool, title: string, text: string]: nothing -> bool {
+    let value = env-or $name | if ($in | is-not-empty) { $in } else if (assume) { if $default { "1" } else { "0" } } else {
+        if (yes $title $text --default-yes=$default) { "1" } else { "0" }
+    }
+    if $value not-in ["0" "1"] { die $"($name) is '($value)', expected 0 or 1" }
+    $value == "1"
 }
 
 def keymap-load [keymap: string]: nothing -> bool {
@@ -169,7 +192,6 @@ def ask-keymap []: nothing -> string {
 }
 
 def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
-    # an unattended run has no one to type it, and must not block on the prompt below
     if (assume) {
         if $empty_ok { return "" }
         die $"($label) is required unattended, set it in the environment"
@@ -253,7 +275,7 @@ def mirrors-rank []: nothing -> nothing {
         return
     }
     let fallback = open --raw $MIRRORLIST | lines | where ($it | str starts-with "Server") and $it not-in $ranked.servers.server
-    [$"# ranked by dot bootstrap (date now | format date '%F'): the fastest https mirrors \(($ranked.scope)\) by download rate"]
+    [$"# ranked by dot internal bootstrap (date now | format date '%F'): the fastest https mirrors \(($ranked.scope)\) by download rate"]
     | append $ranked.servers.server | append ["" "# the list before ranking, the fallback"] | append $fallback
     | str join "\n" | $"($in)\n" | save --force $MIRRORLIST
     let urls = $ranked.servers.server | each { split row " " | last }
@@ -283,22 +305,35 @@ def user-setup [c: record]: nothing -> nothing {
     ^install -Dm440 ($c.repo | path join configs base sudo 10-wheel) $"($sudoers).new"
     if not (in-target-ok $root visudo -cqf /etc/sudoers.d/10-wheel.new) { die "the wheel sudoers drop-in does not parse" }
     mv --force $"($sudoers).new" $sudoers
-    # a rerun under wsl keeps the checkout and whatever work is in it
     if not ($repo_copy | path exists) {
         mkdir ($repo_copy | path dirname)
         ^cp -a $c.repo $repo_copy
     }
     let local = $"($root)($PLATFORM_LOCAL)"
+    let local_options = $"($root)($PLATFORM_LOCAL_OPTIONS)"
     if $c.platform == $PLATFORM_NEW {
         mkdir ($local | path dirname)
-        {hostname: $c.hostname, groups: $c.groups} | to nuon | save --force $local
+        let facts = if $c.secure_boot == "own" { {facts: {secure_boot_own_keys: true}} } else { {} }
+        let kind = if $c.form_factor in ["" wsl] { {} } else { {form_factor: $c.form_factor} }
+        {hostname: $c.hostname} | merge $kind | merge {groups: $c.groups} | merge $facts | to nuon --indent 4 | save --force $local
+        let options = $c.options | merge (if $c.secure_boot == "off" { {$SBCTL_MODULE: {enable: false}} } else { {} })
+        if ($options | is-not-empty) {
+            let kept = if ($local_options | path exists) { open $local_options } else { {} }
+            $kept | merge deep $options | to nuon --indent 4 | save --force $local_options
+        }
     } else {
-        # the platform file prefers the machine's own answers, so a rerun's earlier ones must not outlive this choice
         rm --force $local
     }
     let profile = $home | path join .config dotfiles profile.nuon
     if ($c.profile_file | path exists) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
-    # the system layer only ever runs from this root-owned copy of the verified clone
+    # password logins are off in sshd (base/ssh), so a headless machine is reachable only with this key
+    if ($c.ssh_key | is-not-empty) {
+        let keys = $home | path join .ssh authorized_keys
+        mkdir ($keys | path dirname)
+        ^chmod 700 ($keys | path dirname)
+        $"($c.ssh_key)\n" | save --force $keys
+        ^chmod 600 $keys
+    }
     try { system-pack $c.repo | system-unpack $"($root)($SYSTEM_REPO)" (^git -C $c.repo rev-parse HEAD | str trim) } catch {|e| die $"cannot seed the root copy ($root)($SYSTEM_REPO): ($e.msg)" }
     in-target $root chown -R $"($c.username):($c.username)" $"/home/($c.username)"
 }
@@ -349,7 +384,7 @@ def xkb-vars [keymap: string]: nothing -> list<string> {
     [$"XKBLAYOUT=($row.layout)"] ++ (if $row.variant == "-" { [] } else { [$"XKBVARIANT=($row.variant)"] })
 }
 
-def target-system [c: record, luks_uuid: string]: nothing -> nothing {
+def target-system [c: record, root_uuid: string]: nothing -> nothing {
     let t = {|path| $"($MOUNT)($path)" }
     ^ln -sf $"/usr/share/zoneinfo/($c.timezone)" (do $t /etc/localtime)
     in-target $MOUNT hwclock --systohc
@@ -360,16 +395,14 @@ def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     $"($c.hostname)\n" | save --force (do $t /etc/hostname)
     $"127.0.0.1 localhost\n::1 localhost\n127.0.1.1 ($c.hostname)\n" | save --force (do $t /etc/hosts)
     mkdir (do $t /etc/kernel)
-    # the ukis (configs/base/boot) embed this file as their only cmdline
-    $"rd.luks.name=($luks_uuid)=($LUKS_NAME) root=/dev/mapper/($LUKS_NAME) rootflags=subvol=@ ($CMDLINE_TAIL)\n" | save --force (do $t /etc/kernel/cmdline)
-    # sd-vconsole: the luks prompt uses the right keymap
-    open --raw (do $t /etc/mkinitcpio.conf) | str replace --regex --multiline '^HOOKS=.*$' $HOOKS | save --force (do $t /etc/mkinitcpio.conf)
-    # one uki per kernel, the preset boot.nu's boot-commit keeps; systemd-boot finds it in /EFI/Linux without an entry
+    let root = if $c.encrypt { $"rd.luks.name=($root_uuid)=($LUKS_NAME) root=/dev/mapper/($LUKS_NAME)" } else { $"root=UUID=($root_uuid)" }
+    $"($root) rootflags=subvol=@ ($CMDLINE_TAIL)\n" | save --force (do $t /etc/kernel/cmdline)
+    let hooks = $HOOKS | where $c.encrypt or $it != "sd-encrypt" | str join " " | $"HOOKS=\(($in)\)"
+    open --raw (do $t /etc/mkinitcpio.conf) | str replace --regex --multiline '^HOOKS=.*$' $hooks | save --force (do $t /etc/mkinitcpio.conf)
     for preset in (glob (do $t /etc/mkinitcpio.d/*.preset)) {
         let pkgbase = $preset | path parse | get stem
         open --raw $preset | lines | where not ($it =~ '^#?default_(image|uki|cmdline)=') | each { str replace --regex '^PRESETS=.*' "PRESETS=('default')" }
         | append [$"default_uki=\"/boot/EFI/Linux/arch-($pkgbase).efi\"" 'default_cmdline="/etc/kernel/cmdline"'] | str join "\n" | $"($in)\n" | save --force $preset
-        # pacstrap's plain image, built before the uki preset
         rm --force (do $t $"/boot/initramfs-($pkgbase).img") (do $t $"/boot/initramfs-($pkgbase)-fallback.img")
     }
     mkdir (do $t /boot/EFI/Linux)
@@ -377,52 +410,60 @@ def target-system [c: record, luks_uuid: string]: nothing -> nothing {
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
     # unsigned until config signs; --variables=yes: in a chroot bootctl may skip the firmware's boot order
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
-    # zram swap from the first boot, install compiles for hours before config would link it
     ^install -Dm644 ($c.repo | path join configs base zram zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
 }
 
-def stage-arm [c: record, luks_uuid: string]: nothing -> nothing {
+def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     let state = $"($MOUNT)($STAGE_STATE_DIR)"
     mkdir $state
     "install\n" | save --force ($state | path join next)
-    $"/dev/disk/by-uuid/($luks_uuid)\n" | save --force ($state | path join luks-device)
+    if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
     # verifypw=any: with %wheel still asking, `sudo -v` would want a password despite the NOPASSWD rule
     $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     ^chmod 440 $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
     # PAMName: a logind session; not oneshot: a link restarting tlp would deadlock multi-user.target
     [
-        "[Unit]" "Description=arch-dotfiles install chain (dot stage)" "Wants=network-online.target"
+        "[Unit]" "Description=arch-dotfiles install chain (dot internal stage)" "Wants=network-online.target"
         "After=network-online.target" $"ConditionPathExists=($STAGE_STATE_DIR)/next" "" "[Service]" "Type=exec"
         $"User=($c.username)" "PAMName=login" $"WorkingDirectory=($checkout)"
-        $"ExecStart=/usr/bin/nu --no-config-file ($checkout)/scripts/dot.nu stage" "StandardOutput=tty"
+        $"ExecStart=/usr/bin/nu --no-config-file ($checkout)/scripts/dot.nu internal stage" "StandardOutput=tty"
         "TimeoutStartSec=infinity" "" "[Install]" "WantedBy=multi-user.target"
     ] | str join "\n" | $"($in)\n" | save --force $"($MOUNT)/etc/systemd/system/dotfiles-stage.service"
     in-target $MOUNT systemctl enable dotfiles-stage.service
 }
 
+# the live iso: archiso's runtime dir and its boot parameter; a running install has neither
+def on-archiso []: nothing -> bool {
+    ("/run/archiso" | path exists) and (open --raw /proc/cmdline | str contains "archisobasedir=")
+}
+
+def on-wsl []: nothing -> bool {
+    open --raw /proc/sys/kernel/osrelease | str lowercase | str contains microsoft
+}
+
 export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing {
     if not (is-admin) { die "run as root" }
+    if not (on-archiso) and not (on-wsl) { die "bootstrap runs only from the Arch ISO or inside WSL" }
     $env.LOG_TAG = "bootstrap"
-    let wsl = (^systemd-detect-virt | complete | get stdout | str trim) == "wsl"
+    let wsl = on-wsl
     mirrors-rank
     tui-init
     let welcome = if $wsl {
-        "WSL setup: a user with sudo, the checkout, wsl.conf. Then restart the distro and run dot update.\n\nEsc or Cancel quits."
+        "WSL setup: a user with sudo, the checkout, wsl.conf. Then restart the distro and run dot sync --no-push.\n\nEsc or Cancel quits."
     } else {
-        "Installs Arch Linux with the arch-dotfiles. Questions first (nothing written until you confirm), then the chosen disk is ERASED and encrypted, then unattended reboots while it installs (can take hours; stay plugged in and online).\n\nEsc or Cancel quits."
+        "Installs Arch Linux with the arch-dotfiles. Questions first (nothing written until you confirm), then the chosen disk is ERASED (and encrypted, unless you opt out), then unattended reboots while it installs (can take hours; stay plugged in and online).\n\nEsc or Cancel quits."
     }
     if (tui) { screen welcome msgbox $welcome | ignore }
 
-    # the layout first: every later answer and password is typed on it
     let keymap = if $wsl { $KEYMAP_DEFAULT } else { env-or BOOTSTRAP_KEYMAP | if ($in | is-empty) { ask-keymap } else { $in } }
     if not $wsl and not (keymap-load $keymap) { die $"unknown keymap '($keymap)'" }
 
     let profiles = glob ($repo | path join profiles *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem }
     let username = env-or BOOTSTRAP_USERNAME | if ($in | is-empty) {
-        # the default is the first profile, so defaulting it unattended would hand a stranger the owner's capabilities
+        # no default: a profile's name taken by enter would hand a stranger the owner's identity and capabilities
         if (assume) { die "BOOTSTRAP_USERNAME is required unattended" }
-        ask {|u| $u =~ $USERNAME_PATTERN } username $"Your login name. A name with a profile \(($profiles | str join ' ' | default none)\) gets that profile's secrets/identity/homelab; any other name is a guest \(same desktop and tools, no personal parts\)." ($profiles | get --optional 0 | default "")
+        ask {|u| $u =~ $USERNAME_PATTERN } username $"Your login name. A name with a profile \(($profiles | str join ' ' | default none)\) gets that profile's secrets/identity/homelab; any other name is a guest \(same desktop and tools, no personal parts\)." ""
     } else { $in }
     if $username !~ $USERNAME_PATTERN { die $"invalid username '($username)', expected ($USERNAME_PATTERN)" }
     let profile_nuon = $repo | path join profiles $"($username).nuon"
@@ -442,18 +483,13 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         repo: $repo username: $username platform: $platform keymap: $keymap timezone: $TIMEZONE_DEFAULT
         locale: $LOCALE_DEFAULT hostname: "" groups: [] form_factor: "" homelab: false home_gateway: null
         home_ssid: "" target_root: $MOUNT profile_file: ($repo | path join profiles $"($username).nuon")
-        user_password: "" root_password: ""
+        user_password: "" root_password: "" encrypt: true secure_boot: $SECURE_BOOT_DEFAULT options: {} ssh_key: ""
     }
-    # every machine, owner platforms too: asked while still on that network, its router's mac is what the installed
-    # machine recognises home by before any secret is unlocked
     if not $wsl {
-        let home = env-or BOOTSTRAP_HOME_NETWORK | if ($in | is-not-empty) { $in } else if (assume) { "0" } else {
-            if (yes "home network" "Is the network you are on now your home network?\n\nYes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.\n\nNo locks down every network, this one included.") { "1" } else { "0" }
-        }
-        if $home not-in ["0" "1"] { die $"BOOTSTRAP_HOME_NETWORK is '($home)', expected 0 or 1" }
-        let gateway = if $home == "1" { home-gateway-mac } else { null }
-        if $home == "1" and $gateway == null { log-warn "no router mac found, every network stays foreign" }
-        $c = $c | merge {home_gateway: $gateway, home_ssid: (if $home == "1" { home-ssid } else { "" })}
+        let home = ask-flag BOOTSTRAP_HOME_NETWORK false "home network" "Is the network you are on now your home network?\n\nYes remembers its router as home: there this machine finds printers and other devices on its own (mDNS) and keeps its real network address. Every other network stays locked down.\n\nNo locks down every network, this one included."
+        let gateway = if $home { home-gateway-mac } else { null }
+        if $home and $gateway == null { log-warn "no router mac found, every network stays foreign" }
+        $c = $c | merge {home_gateway: $gateway, home_ssid: (if $home { home-ssid } else { "" })}
     }
     if $platform != $PLATFORM_NEW {
         let file = $repo | path join platforms $"($platform).nuon"
@@ -461,7 +497,9 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         let p = open $file
         if ($p.hostname? | is-empty) { die $"($file) sets no hostname" }
         let all = ls ($repo | path join configs) | where type == dir | get name | path basename
-        $c = $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false)}
+        let options = $repo | path join platforms $"($platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
+        let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
+        $c = $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
     } else {
         if $wsl { $c.form_factor = "wsl" }
         let hostname = env-or BOOTSTRAP_HOSTNAME | if ($in | is-empty) {
@@ -469,12 +507,22 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         } else { $in }
         if $hostname !~ $HOSTNAME_PATTERN or $hostname in $platforms { die $"invalid hostname '($hostname)', expected ($HOSTNAME_PATTERN) and none of: ($platforms | str join ' ')" }
         $c.hostname = $hostname
+        let server = not $wsl and (ask-flag BOOTSTRAP_SERVER false server $"Is this a server?\n\nYes installs no desktop: ($SERVER_DESCRIPTION).\n\nNo asks for the package groups next.")
+        if $server {
+            let template = $repo | path join $PLATFORM_TEMPLATES $"($SERVER).nuon"
+            let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
+            $c = $c | merge {form_factor: $SERVER, groups: (open $template | get groups), options: (if ($options | path exists) { open $options } else { {} })}
+            let key = env-or BOOTSTRAP_SSH_KEY | if ($in | is-not-empty) or (assume) { $in } else {
+                ask {|k| ($k | is-empty) or $k =~ $SSH_KEY_PATTERN } "ssh key" $"($username)'s ssh public key, one line as in ~/.ssh/id_ed25519.pub. sshd takes keys only \(port 2222 after the knock, see sshk\), so without one the server is reachable at its console alone." ""
+            }
+            if ($key | is-not-empty) and $key !~ $SSH_KEY_PATTERN { die "BOOTSTRAP_SSH_KEY is not one ssh public key line" }
+            $c.ssh_key = $key
+        }
         if not $wsl {
             let timezone = env-or BOOTSTRAP_TIMEZONE | if ($in | is-empty) {
                 ask {|z| $z =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($z)" | path exists) } timezone "Region/City, e.g. Europe/London. Later follows your location on its own." $TIMEZONE_DEFAULT
             } else { $in }
             if not ($timezone =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($timezone)" | path exists)) { die $"unknown timezone '($timezone)'" }
-            # the iso's locale.gen lists every locale the installed glibc can generate
             let known = open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }
             let locale = env-or BOOTSTRAP_LOCALE | if ($in | is-empty) {
                 ask {|l| $l in $known } locale "Language and formats, e.g. en_US.UTF-8, de_DE.UTF-8." $LOCALE_DEFAULT
@@ -483,7 +531,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             $c = $c | merge {timezone: $timezone, locale: $locale}
         }
         let universe = ls ($repo | path join configs) | where type == dir | get name | path basename | sort
-        let chosen = if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
+        let chosen = if $server { $c.groups } else if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
             env-or BOOTSTRAP_GROUPS | split row --regex '\s+' | where $it != ""
         } else if (assume) { $universe } else if (tui) {
             let items = $universe | where $it != $REQUIRED_GROUP | each {|g| [$g ($GROUP_DESCRIPTIONS | get --optional $g | default "") on] } | flatten
@@ -495,9 +543,19 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
         }
         let groups = [$REQUIRED_GROUP] ++ ($chosen | where $it != $REQUIRED_GROUP)
-        let unknown = $groups | where $it not-in $universe
+        let unknown = $groups | where {|g| ($g | path split | first) not-in $universe }
         if ($unknown | is-not-empty) { die $"unknown package group '($unknown | first)', one of: ($universe | str join ' ')" }
         $c.groups = $groups
+        if not $wsl {
+            let modes = $SECURE_BOOT_CHOICES | columns
+            let secure_boot = env-or BOOTSTRAP_SECURE_BOOT | if ($in | is-not-empty) or (assume) { $in | default --empty $SECURE_BOOT_DEFAULT } else if (tui) {
+                menu "secure boot" "Secure Boot: install signs the boot files with keys made on this machine and enrolls them in the firmware." $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
+            } else {
+                input $"secure boot \(($modes | str join ', ')\) [($SECURE_BOOT_DEFAULT)]: " | default --empty $SECURE_BOOT_DEFAULT
+            }
+            if $secure_boot not-in $modes { die $"BOOTSTRAP_SECURE_BOOT is '($secure_boot)', expected one of ($modes | str join ', ')" }
+            $c.secure_boot = $secure_boot
+        }
     }
 
     if $c.form_factor == "wsl" {
@@ -509,15 +567,15 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         user-setup ($c | merge {target_root: "", user_password: $password, root_password: (env-or BOOTSTRAP_ROOT_PASSWORD)})
         $"($c.hostname)\n" | save --force /etc/hostname
         open --raw ($repo | path join configs base wsl wsl.conf) | str replace --all "@USER@" $username | str replace --all "@HOSTNAME@" $c.hostname | save --force /etc/wsl.conf
-        log-info $"done. from windows: wsl --terminate archlinux, reopen it \(now ($username) with systemd\), then: cd ~/projects/arch-dotfiles && dot update"
+        log-info $"done. from windows: wsl --terminate archlinux, reopen it \(now ($username) with systemd\), then: cd ~/projects/arch-dotfiles && dot sync --no-push"
         return
     }
 
-    if not ("/run/archiso" | path exists) { die "not running from the Arch ISO" }
+    if not (on-archiso) { die "not running from the Arch ISO" }
     if not ("/sys/firmware/efi" | path exists) { die "not booted in UEFI mode" }
     if not (online) { die "no network" }
     let setup_mode = (try { open --raw $SETUP_MODE_VAR | into binary | last 1 | into int } catch { 0 }) == 1
-    if not $setup_mode and not (assume) and not (yes "secure boot" "Firmware not in Secure Boot Setup Mode, so install cannot enroll keys. Continue without Secure Boot? (To use it: quit, clear the keys / enable Setup Mode in firmware, rerun.)") {
+    if $c.secure_boot != "off" and not $setup_mode and not (assume) and not (yes "secure boot" "Firmware not in Secure Boot Setup Mode, so install cannot enroll keys. Continue without Secure Boot? (To use it: quit, clear the keys / enable Setup Mode in firmware, rerun.)") {
         die "enable Setup Mode in the firmware, then rerun"
     }
 
@@ -539,28 +597,35 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     let typed = if (assume) { $disk } else if (tui) { screen $"erase ($disk)" inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
     if $typed != $disk { die aborted }
 
-    # unattended: BOOTSTRAP_PASSWORD is the LUKS one and nothing is asked; the user's defaults to it, root stays locked
-    mut luks = one-line (env-or BOOTSTRAP_PASSWORD) "LUKS password"
+    $c.encrypt = ask-flag BOOTSTRAP_ENCRYPT true encryption "Encrypt the disk (LUKS2)?\n\nYes asks a password at every boot; a lost or stolen disk reveals nothing.\n\nNo boots without a password, and whoever holds the disk reads everything on it."
+
+    let password = one-line (env-or BOOTSTRAP_PASSWORD) "password"
+    mut luks = if $c.encrypt { $password } else { "" }
     $c.user_password = env-or BOOTSTRAP_USER_PASSWORD
     $c.root_password = env-or BOOTSTRAP_ROOT_PASSWORD
-    if ($luks | is-empty) {
-        $luks = ask-password "LUKS password" $"Disk encryption password, asked at every boot on the ($keymap) layout." false
-        if ($c.user_password | is-empty) { $c.user_password = ask-password $"($username) password [LUKS password]" "For login and sudo; empty uses the LUKS password." true }
+    if ($password | is-empty) {
+        if $c.encrypt {
+            $luks = ask-password "LUKS password" $"Disk encryption password, asked at every boot on the ($keymap) layout." false
+            if ($c.user_password | is-empty) { $c.user_password = ask-password $"($username) password [LUKS password]" "For login and sudo; empty uses the LUKS password." true }
+        } else if ($c.user_password | is-empty) {
+            $c.user_password = ask-password $"($username) password" "For login and sudo." false
+        }
         if ($c.root_password | is-empty) { $c.root_password = ask-password "root password [locked]" "Empty keeps root locked (sudo still works; no emergency shell)." true }
     }
-    if ($c.user_password | is-empty) { $c.user_password = $luks }
+    if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
+    if ($c.user_password | is-empty) { die $"($username) password is required unattended, set BOOTSTRAP_PASSWORD or BOOTSTRAP_USER_PASSWORD" }
 
     let held = if ($capabilities | is-empty) { "none" } else { $capabilities | str join " " }
     let who = if ($profile_nuon | path exists) { $"\(profile: ($held)\)" } else { "(guest)" }
     let summary = [
         $"user         ($username) ($who)"
-        $"machine      ($platform)" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
+        $"machine      ($platform)(if $c.form_factor == $SERVER { ', server' } else { '' })" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
         $"locale       ($c.locale)" $"groups       ($c.groups | str join ' ')"
         $"home network (if $c.home_gateway == null and ($c.home_ssid | is-empty) { 'no, every network locked down' } else { $'router ($c.home_gateway | default "not found")(if ($c.home_ssid | is-empty) { "" } else { $", wifi ($c.home_ssid)" })' })"
-        $"disk         ($disk) (do $label $disk), erased"
-        $"secure boot  (if $setup_mode { 'keys get enrolled' } else { 'skipped, not in Setup Mode' })"
+        $"disk         ($disk) (do $label $disk), erased, (if $c.encrypt { 'encrypted' } else { 'NOT encrypted' })"
+        $"secure boot  (if $c.secure_boot == 'off' { 'off' } else if $setup_mode { $'($c.secure_boot) keys get enrolled' } else { 'skipped, not in Setup Mode' })"
         $"root         (if ($c.root_password | is-empty) { 'locked' } else { 'own password' })"
-    ] | str join "\n"
+    ] | append (if $c.form_factor == $SERVER { [$"ssh key      (if ($c.ssh_key | is-empty) { 'none, console only' } else { $c.ssh_key | split row ' ' | first })"] } else { [] }) | str join "\n"
     if (tui) {
         dlg --title summary --no-collapse --yes-label install --no-label quit --yesno $"($summary)\n\nInstall now? This erases ($disk)." (height $summary ($TUI_BOX_ROWS + 2)) ($TUI_WIDTH | into string) | ignore
         ^clear
@@ -582,26 +647,31 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         let per_4k = 4096 // (^blockdev --getss $disk | into int)
         let first = ^sgdisk -F $disk | into int
         let last = ^sgdisk -E $disk | into int
-        ^sgdisk -n $"2:($first):($first + ($last - $first + 1) // $per_4k * $per_4k - 1)" -t 2:8309 -c 2:cryptroot $disk
+        let kind = if $c.encrypt { {type: $PART_TYPE_LUKS, name: cryptroot} } else { {type: $PART_TYPE_ROOT, name: root} }
+        ^sgdisk -n $"2:($first):($first + ($last - $first + 1) // $per_4k * $per_4k - 1)" -t $"2:($kind.type)" -c $"2:($kind.name)" $disk
         ^partprobe $disk
         ^udevadm settle
         let parts = ^lsblk -J -lnpo NAME,TYPE $disk | from json | get blockdevices | where type == part | get name
         if ($parts | length) != 2 { die $"expected 2 partitions on ($disk) after partitioning, got ($parts | length)" }
-        $luks_pw | ^cryptsetup --batch-mode luksFormat ...$LUKS_FORMAT --key-file - $parts.1
-        $luks_pw | ^cryptsetup open ...$LUKS_OPEN --key-file - $parts.1 $LUKS_NAME
+        if $c.encrypt {
+            $luks_pw | ^cryptsetup --batch-mode luksFormat ...$LUKS_FORMAT --key-file - $parts.1
+            $luks_pw | ^cryptsetup open ...$LUKS_OPEN --key-file - $parts.1 $LUKS_NAME
+        }
+        let root = if $c.encrypt { $"/dev/mapper/($LUKS_NAME)" } else { $parts.1 }
         ^mkfs.fat -F 32 -n ESP $parts.0
-        ^mkfs.btrfs -f -L arch $"/dev/mapper/($LUKS_NAME)"
-        ^mount $"/dev/mapper/($LUKS_NAME)" $MOUNT
+        ^mkfs.btrfs -f -L arch $root
+        ^mount $root $MOUNT
         for s in $SUBVOLS { ^btrfs subvolume create ($MOUNT | path join $s.name) }
         ^umount $MOUNT
         for s in $SUBVOLS {
             let at = $"($MOUNT)($s.mount)" | str trim --right --char "/"
             mkdir $at
-            ^mount -o $"($BTRFS_OPTS),subvol=($s.name)" $"/dev/mapper/($LUKS_NAME)" $at
+            ^mount -o $"($BTRFS_OPTS),subvol=($s.name)" $root $at
         }
         mkdir $"($MOUNT)/boot"
         ^mount -o umask=0077 $parts.0 $"($MOUNT)/boot"
-        {esp: $parts.0, root: $parts.1, uuid: (^cryptsetup luksUUID $parts.1 | str trim)}
+        # the luks header's uuid, or the filesystem's on a plain root; -p skips blkid's cache, a rerun's old fs may be in it
+        {esp: $parts.0, root: $parts.1, uuid: (if $c.encrypt { ^cryptsetup luksUUID $parts.1 } else { ^blkid -p -s UUID -o value $parts.1 } | str trim)}
     }
 
     span pacstrap {} {
@@ -612,7 +682,6 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
             sleep 1sec
         }
         let ucode = if (open --raw /proc/cpuinfo | str contains GenuineIntel) { "intel-ucode" } else { "amd-ucode" }
-        # homelab mirror first so pacstrap and install pull at lan speed, only when it answers; pacstrap copies the list
         let base = $HOMELAB_MIRROR | split row '$' | first
         if $c.homelab and not (open --raw $MIRRORLIST | str contains $base) and (^curl -fs -m $PING_TIMEOUT_S -r 0-0 -o /dev/null $HOMELAB_MIRROR_PROBE | complete).exit_code == 0 {
             $"Server = ($HOMELAB_MIRROR)\n(open --raw $MIRRORLIST)" | save --force $MIRRORLIST
@@ -620,34 +689,33 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ^pacstrap -K $MOUNT ...$PACSTRAP $ucode
         if ($MIRROR_COUNTRIES | path exists) { ^install -Dm644 $MIRROR_COUNTRIES $"($MOUNT)($MIRROR_COUNTRIES)" }
         ^genfstab -U $MOUNT | save --append $"($MOUNT)/etc/fstab"
-        # plaintext in the esp's initramfs for the chain's hours; stage trims the esp and reencrypts the volume key
-        let key = $"($MOUNT)($STAGE_KEY_FILE)"
-        mkdir ($key | path dirname)
-        ^chmod 700 ($key | path dirname)
-        ^head -c $STAGE_KEY_BYTES /dev/urandom | save --force --raw $key
-        ^chmod 600 $key
-        # a random key needs no slow kdf, argon2id would only delay every chained boot
-        $luks_pw | ^cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 $parts.root $key
-        $"FILES+=\(($STAGE_KEY_FILE)\)\n" | save --force $"($MOUNT)/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
+        if $c.encrypt {
+            # plaintext in the esp's initramfs for the chain's hours; stage trims the esp and reencrypts the volume key
+            let key = $"($MOUNT)($STAGE_KEY_FILE)"
+            mkdir ($key | path dirname)
+            ^chmod 700 ($key | path dirname)
+            ^head -c $STAGE_KEY_BYTES /dev/urandom | save --force --raw $key
+            ^chmod 600 $key
+            # a random key needs no slow kdf, argon2id would only delay every chained boot
+            $luks_pw | ^cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 $parts.root $key
+            $"FILES+=\(($STAGE_KEY_FILE)\)\n" | save --force $"($MOUNT)/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
+        }
         target-system $c $parts.uuid
     }
 
     wifi-carry $c
-    # the new machine's home, machine-local: no secret ever removes it
     if $c.home_gateway != null { $"($c.home_gateway)\n" | save --force $"($MOUNT)($HOME_GATEWAYS)" }
 
-    # a profile with secrets: pull and unlock them here (the one tap window), so the chained config boot needs no touch
     if "secrets" in $capabilities {
         if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets toolchain install failed, config will unlock instead" }
         ^systemctl start pcscd.socket | complete | ignore
-        # not captured: the person reads the touch prompts
         let unlocked = try { with-env {DOTFILES: $repo, PROFILE_FILE: $c.profile_file} { ^nu --no-config-file ($repo | path join scripts dot.nu) secrets unlock }; true } catch { false }
         if not $unlocked { log-warn "secrets unlock skipped" }
     }
     user-setup $c
     stage-arm $c $parts.uuid
     ^umount -R $MOUNT
-    ^cryptsetup close $LUKS_NAME
+    if $c.encrypt { ^cryptsetup close $LUKS_NAME }
     log-info $"done, rebooting in ($REBOOT_DELAY); remove the ISO. the next boots install and configure by themselves"
     sleep $REBOOT_DELAY
     ^reboot

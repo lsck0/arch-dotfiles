@@ -11,7 +11,6 @@ BarWidget {
 
   property bool hasNeighbours: false
 
-  // parent is the BarSection Loader, its parent the RowLayout
   readonly property Item ownLoader: parent
   readonly property Item section: ownLoader ? ownLoader.parent : null
 
@@ -62,7 +61,7 @@ BarWidget {
     textFormat: Text.PlainText
     text: root.vertical ? ":" : "::"
     color: Colors.accent
-    opacity: 0.5
+    opacity: Style.emphasis.faint
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
     font.letterSpacing: Style.headerTracking

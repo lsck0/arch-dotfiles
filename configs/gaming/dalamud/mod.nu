@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {deps: [gaming/ffxiv], backup: {secrets: true}}
 
-# caches and recordings the plugins rebuild or download: vnavmesh alone is 500+ MiB
 const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathData/ '*.bak']
 
 def paths []: nothing -> record {
@@ -13,7 +12,7 @@ def paths []: nothing -> record {
     }
 }
 
-# seeded once from secrets, then dalamud's: it rewrites these files in place of a link or a managed copy
+# seeded once: dalamud rewrites these files in place
 export def link [cfg: record] {
     let p = paths
     let unlocked = secret-is-plaintext ($p.saved | path join dalamudConfig.json)
@@ -30,7 +29,6 @@ export def link [cfg: record] {
     ]
 }
 
-# no-clobber: whatever is already there stays
 export def seed []: nothing -> nothing {
     let p = paths
     mkdir ($p.xl | path join pluginConfigs)
@@ -47,9 +45,11 @@ export def backup [cfg: record]: nothing -> nothing {
     cp --force $p.config ($p.xl | path join dalamudUI.ini) $p.saved
     let excludes = $BACKUP_EXCLUDES | each {|e| [--exclude $e] } | flatten
     ^rsync -a --delete ...$excludes $"($p.xl | path join pluginConfigs)/" ($p.saved | path join pluginConfigs)
-    for dir in (ls $p.plugins | where type == dir | get name) {
+    for dir in (glob ($p.plugins | path join *) --no-file) {
         let name = $dir | path basename
-        let newest = ls $dir | where type == dir | get name | sort --natural | last
+        # an uninstall or an interrupted plugin-restore.nu leaves the plugin dir without a version dir
+        let newest = glob ($dir | path join *) --no-file | sort --natural | last
+        if $newest == null { continue }
         let manifest = $newest | path join $"($name).json"
         if ($manifest | path exists) { cp --force $manifest ($p.saved | path join manifests) }
     }

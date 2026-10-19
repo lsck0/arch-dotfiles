@@ -44,7 +44,6 @@ for i = 1, 5 do
     vim.keymap.set("n", "<M-" .. i .. ">", "<cmd>tabn " .. i .. "<CR>", { desc = "Go to tab " .. i })
 end
 
--- deferred require: smart-splits lazy-loads on first use
 for key, dir in pairs({ h = "left", j = "down", k = "up", l = "right" }) do
     vim.keymap.set("n", "<C-" .. key .. ">", function()
         require("smart-splits")["resize_" .. dir]()
@@ -61,7 +60,6 @@ local function quickfix_cycle(step, wrap)
     end
 end
 local function trouble_cycle(step, wrap)
-    -- same view lookup as trouble.next; the step runs once the view has rendered, so the end check rides along
     local view = require("trouble").open({ refresh = false })
     if not view then
         return
@@ -81,7 +79,6 @@ end, { desc = "Next quickfix item" })
 vim.keymap.set("n", "<C-S-n>", function()
     quickfix_cycle("cprev", "clast")
 end, { desc = "Prev quickfix item" })
--- shadows nvim's default ]t/[t (:tnext/:tprevious); <C-t> stays the tag pop
 vim.keymap.set("n", "]t", function()
     trouble_cycle("next", "first")
 end, { desc = "Next trouble item" })
@@ -89,7 +86,6 @@ vim.keymap.set("n", "[t", function()
     trouble_cycle("prev", "last")
 end, { desc = "Prev trouble item" })
 
--- deferred require: telescope lazy-loads on first use
 local function tb(fn, args)
     return function()
         require("telescope.builtin")[fn](args)
@@ -105,6 +101,9 @@ vim.keymap.set("n", "<leader>ff", tb("find_files"), { desc = "Find files" })
 vim.keymap.set("n", "<leader>fw", tb("live_grep"), { desc = "Live grep" })
 vim.keymap.set("n", "<leader>fb", tb("buffers"), { desc = "Buffers" })
 vim.keymap.set("n", "<leader>f*", tb("grep_string"), { desc = "Grep word under cursor" })
+vim.keymap.set("n", "<leader>fC", function()
+    require("lib.citation").pick()
+end, { desc = "Citations (insert key)" })
 vim.keymap.set("n", "<leader>fp", function()
     require("lib.projects").pick()
 end, { desc = "Projects" })
@@ -208,7 +207,6 @@ end, { desc = "Git worktrees" })
 vim.keymap.set("n", "<leader>gc", function()
     require("lib.worktree").pick_branch()
 end, { desc = "Git worktree for branch (switch or create)" })
--- unlike `:G worktree add <path>`, places the worktree next to the repo's existing ones
 vim.api.nvim_create_user_command("Worktree", function(o)
     require("lib.worktree").add(o.args)
 end, { nargs = 1, desc = "Switch to or create the worktree for a branch" })
@@ -264,6 +262,5 @@ end, { nargs = "+", complete = "shellcmd", desc = "perf record -g a command -> p
 vim.keymap.set("n", "<leader>pc", "<cmd>CargoFlamegraph<CR>", { desc = "cargo flamegraph" })
 vim.keymap.set("n", "<leader>pr", ":PerfRecord ", { desc = "perf record a command" })
 
--- shadows <C-i> jump on <Tab>
 vim.keymap.set("n", "<Tab>", "<cmd>BufferNext<CR>", { desc = "Next buffer" })
 vim.keymap.set("n", "<S-Tab>", "<cmd>BufferPrevious<CR>", { desc = "Prev buffer" })

@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# one backed-up plugin installed as dalamud's installer would, keeping its collection id: dalamud never installs one
-# its collection names by itself
+# installed as dalamud's installer would: dalamud never installs a collection's plugins by itself
 
 # InstalledFromUrl is "OFFICIAL" for dalamud's own repo
 const MAIN_REPO_URL = "https://kamori.goats.dev/Plugin/PluginMaster"
@@ -8,7 +7,6 @@ const KEPT = [
     Disabled Testing InstalledFromUrl WorkingPluginId IsThirdParty IsHide DownloadLinkInstall DownloadLinkTesting
     DownloadLinkUpdate DownloadCount LastUpdate TestingAssemblyVersion TestingDalamudApiLevel
 ]
-# one restore run fetches each repo index once, not once per plugin
 const INDEX_MAX_AGE = 10min
 
 def main [manifest: path, plugins: path]: nothing -> nothing {
@@ -24,7 +22,6 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     }
     let entry = open $cache | where InternalName == $name | get --optional 0
     if $entry == null {
-        # delisted upstream: a retry cannot help, the marker keeps link from trying again
         print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from secrets/dalamud/manifests"
         touch ($cache | path dirname | path join $"($name).delisted")
         return

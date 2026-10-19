@@ -17,7 +17,6 @@ def main []: nothing -> nothing {
     let device = $"/dev/($part.0.name)"
     let name = $"luks-header-(open --raw /etc/hostname | str trim).img"
     let dest = $secrets | path join $name
-    # git-crypt encrypts only what .gitattributes filters
     if not (^git -C $secrets check-attr filter -- $name | str trim | str ends-with ": filter: git-crypt") {
         die $"secrets/.gitattributes does not git-crypt ($name)"
     }

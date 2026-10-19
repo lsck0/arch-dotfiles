@@ -9,7 +9,6 @@ local function explorer()
     end
 end
 
---- Open the explorer at DIR (default cwd), never climbing to the enclosing git repo.
 ---@param dir? string
 function M.open(dir)
     dir = dir and vim.fs.normalize(dir) or vim.uv.cwd()
@@ -23,7 +22,6 @@ function M.open(dir)
     end
 end
 
---- Expand the tree down to FILE without moving focus, only inside the current root.
 function M.reveal(file)
     local picker = explorer()
     if not picker then
@@ -46,7 +44,6 @@ function M.reveal(file)
     require("snacks.explorer.actions").update(picker, { target = file })
 end
 
---- Skips non-file buffers and floats, so the tree never follows what the cursor only passes through.
 function M.reveal_current()
     if not explorer() then
         return

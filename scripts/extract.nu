@@ -60,11 +60,10 @@ def stage-fill [archive: path, stage: path]: nothing -> nothing {
     }
 }
 
-# Safely extract a supported archive into a same-named directory, printing its path.
+# Extract an archive into a same-named directory and print its path; links, paths leaving it and bombs are refused.
 def main [archive: path, destination?: path]: nothing -> nothing {
     if ($archive | path expand | path type) != file { die --misuse $"not a regular file: ($archive)" }
     let archive = $archive | path expand
-    # a compressed tar's two suffixes count as one: linux-6.1.tar.xz is linux-6.1
     let base = $archive | path basename | str replace --regex '(\.tar\.(gz|bz2|xz|zst)|\.[^.]*)$' ''
     let root = $destination | default $env.PWD | path expand
     let dest = $root | path join $base

@@ -15,7 +15,6 @@ Item {
   readonly property string ramp: " .:-=+*#%@"
   readonly property int maxCols: 240
   readonly property int maxRows: 70
-  // monospace advance over line height
   readonly property real glyphAspect: 0.6
   readonly property int developMs: 4000
   readonly property int frameMs: 40
@@ -27,13 +26,11 @@ Item {
   readonly property real cellW: Math.max(width / maxCols, cellH * glyphAspect)
   readonly property int cols: Math.max(1, Math.floor(width / cellW))
   readonly property int rows: Math.max(1, Math.floor(height / cellH))
+  readonly property string fontFamily: Style.font.family
 
-  // row-major; null until the next paint samples it
   property var glyphs: null
   property var colors: null
-  // per column: { y: head row, speed: rows per frame, drawn: last row drawn as head }
   property var heads: []
-  // continuous-rain drops: { c: column, y: head row, speed: rows per frame, len: trail length }
   property var rain: []
   property int frames: 0
 
@@ -43,11 +40,9 @@ Item {
     root.colors = null
     root.heads = []
     root.rain = []
-    // drop any cached pixels so a changed wallpaper re-decodes
     if (root.image && root.image.source) canvas.unloadImage(root.image.source)
     canvas.requestPaint()
   }
-
 
   onActiveChanged: {
     if (active) project()
@@ -60,7 +55,7 @@ Item {
   }
   onColsChanged: if (active) project()
   onRowsChanged: if (active) project()
-  // power saver flips matrixRain and motion while locked
+  onFontFamilyChanged: if (active) project()
   onAnimateChanged: if (active) project()
 
   Connections {
@@ -95,7 +90,6 @@ Item {
       var heads = []
       var developFrames = root.developMs / root.frameMs
       for (let c = 0; c < root.cols; c++) {
-        // staggered, yet every column lands within developMs
         const start = Math.random() * root.rows * 0.5
         heads.push({ y: -start, speed: (root.rows + start) / developFrames * (1 + Math.random() * 0.5), drawn: 0 })
       }
@@ -116,7 +110,6 @@ Item {
       ctx.fillText(glyph, x, y)
     }
 
-    // forceDot draws a drop over empty space
     function raincell(ctx, c, r, style, forceDot) {
       var x = c * root.cellW, y = r * root.cellH
       ctx.clearRect(x, y, root.cellW, root.cellH)
@@ -160,7 +153,7 @@ Item {
         if (root.animate) timer.start()
         else for (let h = 0; h < root.heads.length; h++) root.heads[h].y = root.rows
       }
-      ctx.font = Math.floor(root.cellH) + "px '" + Style.font.family + "'"
+      ctx.font = Math.floor(root.cellH) + "px '" + root.fontFamily + "'"
       ctx.textBaseline = "top"
       for (let c = 0; c < root.heads.length; c++) {
         const head = root.heads[c]
@@ -182,7 +175,6 @@ Item {
     onTriggered: {
       root.frames++
       var moving = false
-      // a stuck drop must not keep the timer alive: past developMs everything lands
       var overdue = root.frames * root.frameMs > root.developMs
       for (let c = 0; c < root.heads.length; c++) {
         const head = root.heads[c]

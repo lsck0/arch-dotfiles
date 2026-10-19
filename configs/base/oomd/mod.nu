@@ -42,6 +42,7 @@ export def link [cfg: record] {
         (dropin app.slice oomd-app.slice.conf --name 10-oomd.conf)
         (file-render session-protect.slice.conf (unit-dir | path join session.slice.d 10-protect.conf)
             {MEMORY_LOW: (systemd-size $cfg.session_memory_low)})
-        (unit-file oom-notify.service --enable --now)
+        (file-render oom-notify.service (unit-dir | path join oom-notify.service) {DOTFILES: $env.DOTFILES})
+        (unit-enable oom-notify.service --now)
     ]
 }

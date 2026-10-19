@@ -37,7 +37,6 @@ BorderSurface {
   Keys.onEnterPressed: if (focusable) root.clicked()
   Keys.onSpacePressed: if (focusable) root.clicked()
 
-  // reserve the widest border any state can paint
   implicitWidth: row.implicitWidth + (horizontalPadding + _reservedBorder) * 2
   implicitHeight: row.implicitHeight + (verticalPadding + _reservedBorder) * 2
   radius: Style.shape.data

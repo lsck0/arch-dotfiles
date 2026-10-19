@@ -23,5 +23,5 @@ Type=cifs
 Options=credentials=/etc/samba/homelab.cred,seal,uid=0,gid=wheel,vers=3.1.1,_netdev,nofail,file_mode=0660,dir_mode=0770,soft,echo_interval=10
 TimeoutSec=15s
 
-# no [Install]: only the automount is enabled (nas/system.sh). a WantedBy here would boot-mount before the
+# no [Install]: only the automount is enabled (nas/mod.nu). a WantedBy here would boot-mount before the
 # home network and creds are ready, failing with cifs -11; access through the automount is the only path

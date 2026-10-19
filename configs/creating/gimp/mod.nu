@@ -3,7 +3,7 @@ use written.nu [preserve-aside]
 
 export const meta = {packages: {pacman: [gimp]}}
 
-# the release has no checksum and a tag can be re-uploaded, so the archive is pinned by content; bump both together
+# a tag can be re-uploaded, so pinned by content; bump both together
 const PHOTOGIMP_VERSION = "3.1"
 const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e"
 const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/($PHOTOGIMP_VERSION)/PhotoGIMP-linux.zip"
@@ -41,7 +41,6 @@ export def migrate [dir: path]: nothing -> nothing {
     }
 }
 
-# only the gimp config: the release's .desktop runs the flatpak. a file of gimp's own it replaces is preserved first
 export def seed [config: path, version: string]: nothing -> nothing {
     let src = unpacked | path join PhotoGIMP-linux .config GIMP "3.0"
     if $version != "3.0" { migrate $src }

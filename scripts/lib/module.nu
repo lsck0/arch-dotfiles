@@ -1,5 +1,3 @@
-# a module's verbs return declarations built here; the engine applies the difference, nothing here writes
-
 export use log.nu [log-info log-note log-warn log-err log-debug]
 export use profile.nu [profile-has profile-load]
 export use platform.nu [platform-has display-xwayland-scale gpu-list]
@@ -9,7 +7,6 @@ use fetch.nu [fetch-file-done fetch-git-done]
 use state.nu [nu-bin]
 use ../../configs/core/wallust/palette.nu [palette-slots]
 
-# every declaration has exactly these keys, so a plan, the state file and the UI read one shape
 export const DECL_KEYS = [kind target source content mode generated inplace edits state now argv creates then]
 export const DECL_KINDS = [file link json ini unit exec step]
 const MODE_FILE = "644"
@@ -42,7 +39,6 @@ export def file-copy [src: path, dest: path, --mode: string = $MODE_FILE, --then
     decl file $dest {source: (module-path $src), mode: $mode, then: $then}
 }
 
-# generated output (a theme) is rewritten whenever it differs, never drift
 # --in-place keeps the inode: a watcher that reads a rename as delete plus add (betterdiscord) sees a change
 export def file-text [dest: path, content: string, --mode: string = $MODE_FILE, --generated, --in-place, --then: list<string> = []]: nothing -> record {
     decl file $dest {content: $content, mode: $mode, generated: $generated, inplace: $in_place, then: $then}
@@ -122,20 +118,20 @@ export def step [command: string, ...args: string]: nothing -> record {
     decl step $command {argv: $args}
 }
 
-def --wrapped dot [...args: string]: nothing -> list<string> {
-    [(nu-bin) --no-config-file ($env.DOTFILES | path join scripts dot.nu)] ++ $args
+def --wrapped internal [...args: string]: nothing -> list<string> {
+    [(nu-bin) --no-config-file ($env.DOTFILES | path join scripts lib internal.nu)] ++ $args
 }
 
 # --extract <member> or . (all)
 export def fetch-file [url: string, sha256: string, dest: path, --mode: string = $MODE_FILE, --extract: string]: nothing -> list<record> {
     if (fetch-file-done $sha256 $dest) { return [] }
     let extract = if $extract == null { [] } else { [--extract $extract] }
-    [(exec $"fetch ($dest)" (dot fetch file $url $sha256 $dest --mode $mode ...$extract))]
+    [(exec $"fetch ($dest)" (internal fetch file $url $sha256 $dest --mode $mode ...$extract))]
 }
 
 export def fetch-git [url: string, commit: string, dir: path]: nothing -> list<record> {
     if (fetch-git-done $commit $dir) { return [] }
-    [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (dot fetch git $url $commit $dir))]
+    [(exec $"fetch ($dir) at ($commit | str substring 0..11)" (internal fetch git $url $commit $dir))]
 }
 
 # a system group every wheel member is in
@@ -160,7 +156,6 @@ export def user-hook [name: string, script: path, --watch: list<string>, --perma
     let service = $"[Unit]\nDescription=run the ($name) hook\n(if $no_brake { '' } else { $HOOK_BRAKE })\n[Service]\nType=oneshot\nExecStart=(module-path $script)\n($install)"
     [
         (file-text ($dir | path join $"($name).path") $"($path_unit | str join "\n")\n")
-        # started once whenever its units changed; the path unit runs it from then on
         (file-text ($dir | path join $"($name).service") $service --then [systemctl --user start --no-block $"($name).service"])
         (unit-enable $"($name).path" --now)
     ] ++ (if $permanent { [(unit-enable $"($name).service")] } else { [] })

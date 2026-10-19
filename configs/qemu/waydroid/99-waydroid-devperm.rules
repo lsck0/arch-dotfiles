@@ -1,7 +1,3 @@
-# managed by arch-dotfiles/qemu/waydroid: a running waydroid session chmods these nodes to 0777 (world-readable and
-# -writable gpu render nodes and cameras) and never restores them, so they stay world-accessible after the session too.
-# the render/video groups already own them, so pin the resting mode to 0660: group-only whenever no session is actively
-# re-loosening them. dot apply and every device event re-apply this; the user is in both groups, so their own apps are
-# unaffected.
+# from arch-dotfiles qemu/waydroid: a waydroid session chmods render nodes and cameras to 0777 and never restores them
 SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"
 SUBSYSTEM=="video4linux", KERNEL=="video*", GROUP="video", MODE="0660"

@@ -167,6 +167,13 @@ def test_wrong_pen_mode_recovers():
     check("and keeps working afterwards", pen.values(e.EV_ABS, e.ABS_X), "no position published")
 
 
+def test_sleep_mode_after_resume_recovers():
+    """A usb reset on resume puts the pen back on interface 2 as report id 5; interface 1 falls silent."""
+    sleep_report = bytes([td.SLEEP_PEN_REPORT_ID, 0x40, 0x00, 0x08, 0x00, 0x08, 0x00, 0x00])
+    _, _, unlocks = drive([], [sleep_report for _ in range(td.WRONG_MODE_LIMIT + 5)])
+    check("driver re-toggles a pad back in sleep mode", len(unlocks) == 1, f"unlocked {len(unlocks)} times")
+
+
 def test_wrong_mode_does_not_toggle_forever():
     frames = [other_mode_report() for _ in range((td.MAX_RETOGGLES + 3) * td.WRONG_MODE_LIMIT)]
     _, _, unlocks = drive(frames)

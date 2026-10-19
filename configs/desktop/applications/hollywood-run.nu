@@ -13,7 +13,6 @@ def --wrapped main [...args: string]: nothing -> nothing {
     ^ln -sfn tmux ($bin | path join byobu)
     $env.PATH = $env.PATH | prepend $bin
     hide-env --ignore-errors TMUX
-    # inside the session hollywood splits the current window and kills the session once it quits
     ^tmux kill-server | complete | ignore
     let size = term size
     let command = [hollywood ...($args | each { $"'($in | str replace --all "'" "'\\''")'" })] | str join " "

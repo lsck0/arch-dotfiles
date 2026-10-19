@@ -52,6 +52,8 @@ Layout and format:
   copies that line.
 - Symlink `.claude/skills -> ../skills`, so Claude Code discovers the
   skills natively; other harnesses reach them through the index.
+  arch-dotfiles is the exception: its `l-*` skills are global, linked by
+  `skills/mod.nu`, with no `.claude/skills` symlink.
 - One workflow per skill. A skill that grows a second workflow splits.
 
 ## AGENTS.md

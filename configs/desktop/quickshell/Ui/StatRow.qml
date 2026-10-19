@@ -34,7 +34,6 @@ Item {
   implicitWidth: labelText.implicitWidth + valueRow.implicitWidth + Style.spacing.md
   implicitHeight: valueText.implicitHeight + Style.spacing.xxs * 2
 
-  // bleeds past the edge so the text stays aligned with headers
   Rectangle {
     anchors.fill: parent
     anchors.leftMargin: -Style.spacing.xs
@@ -59,7 +58,6 @@ Item {
     font.letterSpacing: Style.labelTracking
   }
 
-  // AlignRight hugs the value; clip hides left overflow and collapses to nothing when the label eats the gap
   Text {
     clip: true
     anchors.left: labelText.right

@@ -3,7 +3,6 @@ local M = {}
 local HERMES_AGENT_NAME = "lprompt-hermes"
 
 local function find_taskrc(start_dir)
-    -- parents of start_dir/. yields start_dir first, then every ancestor
     for dir in vim.fs.parents(start_dir .. "/.") do
         local candidate = dir .. "/tasks/.taskrc"
         if vim.fn.filereadable(candidate) == 1 then
@@ -128,7 +127,6 @@ local function send_to_hermes(text)
     end
 end
 
--- range="%" defaults to the whole buffer, so one handler serves both the buffer and a visual range
 local function ranged_text(opts)
     return table.concat(vim.api.nvim_buf_get_lines(0, opts.line1 - 1, opts.line2, false), "\n")
 end

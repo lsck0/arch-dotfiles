@@ -22,7 +22,6 @@ def main [] {
     if (which quickshell | is-not-empty) and (running quickshell) {
         let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join quickshell
         let asked = ^timeout 5s quickshell ipc -p $config call lock lock | complete | get stdout | str trim
-        # never granted: refused or stuck handshake, fall through to hyprlock
         if $asked == "ok" and (granted) { return }
     }
     if (which hyprlock | is-not-empty) {
@@ -31,7 +30,6 @@ def main [] {
         ^setsid -f hyprlock --grace 0 --immediate-render o+e> /dev/null
         if (granted) { return }
     }
-    # no locker left: blank and fail rather than fake a lock
     ^notify-send -u critical lock "quickshell and hyprlock unreachable, cannot lock" | complete | ignore
     ^hyprctl dispatch "hl.dsp.dpms({ mode = 'off' })" | complete | ignore
     exit 1

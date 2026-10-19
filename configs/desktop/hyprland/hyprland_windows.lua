@@ -1,4 +1,5 @@
 local wal = require("wal_colors")
+local style = require("style")
 
 local walGradient = { colors = { wal.color1, wal.color2, wal.color3 }, angle = 45 }
 
@@ -94,7 +95,7 @@ hl.config({
     general = {
         gaps_in = 4,
         gaps_out = 8,
-        border_size = 1,
+        border_size = style.border,
         col = {
             active_border = walGradient,
             inactive_border = "rgba(2a2a2aaa)",
@@ -105,13 +106,12 @@ hl.config({
         active_opacity = 1.0,
         inactive_opacity = 1.0,
         fullscreen_opacity = 1.0,
-        rounding = 2,
+        rounding = style.rounding,
         dim_inactive = false,
         dim_strength = 0.0,
         blur = {
             enabled = true,
             xray = false,
-            -- more passes, so quickshell popups stay see-through yet readable over a busy wallpaper
             size = 4,
             passes = 2,
             new_optimizations = true,

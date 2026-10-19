@@ -34,7 +34,9 @@ export def link [cfg: record] {
         # steam writes the watched file once, after a bootstrap or client update finished extracting
         (if $linked { [] } else {
             let installed = "%h/.local/share/Steam/package/steam_client_ubuntu12.installed"
-            user-hook millennium-link hook/millennium-link.nu --no-brake --watch [$installed]
+            user-hook steam-bootstrap hook/steam-bootstrap.nu --no-brake --watch [$installed]
         })
+        # idempotent: also clears a shortcut a bootstrap left while the hook was not armed
+        (exec steam-bootstrap [nu --no-config-file hook/steam-bootstrap.nu])
     ]
 }

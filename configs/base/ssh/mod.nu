@@ -27,14 +27,11 @@ export const options = {
 
 const DROPIN = "/etc/ssh/sshd_config.d/10-hardening.conf"
 
-# real sshd on knocked 2222, keys and wheel only, never root; windows owns inbound under wsl, where the knock
-# chain, fail2ban and endlessh all declare nothing
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     step sshd
 }
 
-# a drop-in sshd rejects is rolled back, the running sshd left alone
 export def sshd []: nothing -> nothing {
     # sshd -t needs host keys, absent before sshd's first start
     ^ssh-keygen -A
@@ -63,7 +60,7 @@ export def link [cfg: record] {
     }
     [
         (unit-file ssh-agent.service --enable)
-        (unit-file ssh-add.service)
+        (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
         (if $identity { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (if $hosts != null { file-text (ssh-dir | path join config) $hosts --mode 600 } else { [] })
         (if $identity { step authorize } else { [] })

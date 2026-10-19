@@ -4,6 +4,8 @@
 # pywalfox is a bash and python script, so the browser's environment (BASH_ENV, PYTHONPATH, PATH) steers it: a child
 # that reads the palette and serves its socket, never unconfined
 @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
+# the per-user manifests: base/xdg links ~/.mozilla here, so the profile's ~/.mozilla rule never matches
+owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
 
 # the homelab share and attachments in temp dirs, as for every viewer: file:// pages, pdfs and images other apps drop
 # in /tmp
@@ -16,6 +18,12 @@ owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
 # claude's playwright-mcp (programming/playwright) drives a headless firefox on a throwaway profile in temp
 owner /tmp/playwright_firefoxdev_profile-*/ rw,
 owner /tmp/playwright_firefoxdev_profile-*/** rwk,
+
+# the crash reporter's request it writes beside the minidump
+owner /tmp/crashreporter*-request*.json rw,
+
+# web speech: libspeechd talks to the socket-activated user speech-dispatcher (desktop/firefox)
+owner @{run}/user/@{uid}/speech-dispatcher/speechd.sock rw,
 
 # a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
 deny @{user_config_dirs}/mimeapps.list* w,
@@ -33,6 +41,8 @@ profile pywalfox flags=(attach_disconnected) {
   @{bin}/pywalfox rix,
 
   @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh r,
+  # bash probes the terminal it never has under the browser
+  deny /dev/tty rw,
 
   owner @{user_cache_dirs}/wal/colors.json r,
   owner @{user_cache_dirs}/pywalfox.log{,.1} rw,

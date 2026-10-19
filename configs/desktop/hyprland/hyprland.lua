@@ -23,6 +23,7 @@ end
 -- package.loaded survives a config reload, so drop everything before requiring
 package.loaded["platform"] = nil
 package.loaded["wal_colors"] = nil
+package.loaded["style"] = nil
 for _, module in ipairs(MODULES) do
     package.loaded[module] = nil
 end

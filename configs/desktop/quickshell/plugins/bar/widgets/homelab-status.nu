@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# streams homelab health as one JSON line per poll for Homelab.qml
 
 # the homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix)
 const LAB_RELATIVE = "src/generated/lab.json"
@@ -8,16 +7,13 @@ const LAB_SCHEMA = 1
 const SEEN = "6h"
 const CLIENT_WINDOW = "24h"
 const CLIENT_ROWS = 8
-# sorts after every real vmid
 const UNKNOWN_VM_ID = 100000
 const ORDER_UNLISTED = 1000
-# a route on one of these is a guest's web ui
 const WEB_PORTS = [80 443]
 const STATUS_CLASSES = [2xx 3xx 4xx 5xx]
 const FETCH_TIMEOUT = 5sec
 const PROBE_TIMEOUT = 3sec
 const GIB = 1073741824
-# fold raw user agents into a family before counting
 const AGENT_FAMILY = (
     '{{ if or (contains "bot" .ua) (contains "Bot" .ua) (contains "crawl" .ua) (contains "spider" .ua) }}bot'
     + '{{ else if contains "Edg/" .ua }}Edge'
@@ -44,7 +40,6 @@ def source-load [lab: record]: nothing -> record {
             onDemand: ($g.guest.enabled == onDemand)
         }
     }
-    # a vm with several routes keeps the one named like the vm, else the one on a web port
     let urls = $lab.routes | transpose route r | where r.protocol == http | each {|route|
         let vm = $guests | where id == $route.r.vmid | get 0?
         if $vm != null {
@@ -56,11 +51,9 @@ def source-load [lab: record]: nothing -> record {
     let monitor_ip = $monitoring.prometheus | url parse | get host
     let vms = $guests | each {|vm|
         let url = $urls | where id == $vm.id | get 0?.url | default ""
-        # the grafana tile opens the dashboard
         $vm | insert url (if $vm.ip == $monitor_ip { $dashboard } else { $url })
     }
     let by_ip = $vms | where ip != null and ip != "" | each {|vm| [$vm.ip $vm] } | into record
-    # the router answers on its address in every zone
     let router = $vms | where type == router | get 0?
     let by_ip = if $router == null { $by_ip } else {
         $lab.zones | values | reduce --fold $by_ip {|zone, acc| $acc | upsert $zone.router $router }
@@ -107,14 +100,12 @@ def count-human []: number -> string {
     }
 }
 
-# pct is the share of the largest row, not the total
 def bars [scale?: number]: list<any> -> list<any> {
     let rows = $in
     let top = $scale | default ($rows.count | append 0 | math max)
     $rows | each {|r| {name: $r.name, count: ($r.count | count-human), pct: (if $top > 0 { 100 * $r.count / $top | math round | into int } else { 0 })} }
 }
 
-# incoming lists from traefik's access log via loki
 def clients [src: record]: nothing -> record {
     if ($src.loki | is-empty) or ($src.ingress | is-empty) { return {} }
     let stream = $'{job="traefik-access", host="($src.ingress)"}'
@@ -134,7 +125,6 @@ def clients [src: record]: nothing -> record {
     let suffix = if ($src.domain | is-empty) { "" } else { $".($src.domain)" }
     let hosts = do $ranked $"topk\(($CLIENT_ROWS), sum by \(h) \(count_over_time\(($stream) | json h=\"RequestHost\" [($CLIENT_WINDOW)])))" h direct
     | update name {|h|
-        # a bare address in the Host header is a scanner, not a visitor
         if $suffix != "" and ($h.name | str ends-with $suffix) { $h.name | str replace $suffix "" } else if $h.name =~ '^\d' { "by address" } else { $h.name }
     }
     let by_status = do $instant $"sum by \(status) \(count_over_time\(($stream)[($CLIENT_WINDOW)]))" | each {|r|
@@ -159,14 +149,11 @@ def sample [src: record, summary: bool]: nothing -> record {
     let seen = 'up{job="homelab-node-exporter"} and on(instance) max_over_time(up{job="homelab-node-exporter"}[' + $SEEN + ']) > 0'
     let services = do $query $seen | reduce --fold {} {|row, acc|
         let vm = vm-for ($row.metric.instance? | default "") $src
-        # skip disabled vms and removed ones that are down
         if $vm.enabled? == "false" or ($row.value != 1 and $vm.id == $UNKNOWN_VM_ID) { return $acc }
-        # the router answers on both subnets
         let key = $"($vm.id)/($vm.name)"
         let up = ($acc | get -o $key | get -o up | default false) or $row.value == 1
         $acc | upsert $key ($vm | select id name url onDemand | insert group (if $vm.type? == router { "infra" } else { $vm.type? | default -e internal }) | insert up $up)
     }
-    # infra follows homepage; unwatched hosts are probed, link-only ones get none
     let services = $src.infra | enumerate | reduce --fold $services {|item, acc|
         let infra = $item.item
         let ip = $infra.ping | default -e $infra.href | parse -r '^\w+://(?<ip>[^/:]+)' | get 0?.ip
@@ -188,7 +175,6 @@ def sample [src: record, summary: bool]: nothing -> record {
         } else if $target =~ '^\d+\.\d+\.\d+\.\d+' { vm-for $target $src }
         if $vm == null { {name: $target, disabled: false} } else { {name: $vm.name, disabled: ($vm.enabled? == "false")} }
     }
-    # grafana alerting: a gauge valued with the start time; without it there are just no alerts
     let alerts = try { do $query homelab_alert_firing } catch { [] } | each {|alert|
         let target = if ($alert.metric.target? | is-empty) { {name: "", disabled: false} } else { do $target_name $alert.metric.target }
         if not $target.disabled {
@@ -235,7 +221,6 @@ def sample [src: record, summary: bool]: nothing -> record {
             externalRps: (if external in $src.subnets { do $rps external })
             errorRps: (do $rounded (do $scalar 'sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m]))' | default 0) 2)
         }
-        # a loki failure only costs the incoming lists
         clients: (try { clients $src } catch { {} })
     }
 }
@@ -246,7 +231,6 @@ def main [interval_s: int = 30, --summary] {
     mut modified: any = null
     mut src = {by_ip: {}, prometheus: ""}
     loop {
-        # parse once per version of lab.json: a sync rewrites it, a missing one is retried
         let stamp = try { ls -l $lab_path | get 0.modified } catch { null }
         if $stamp == null or $stamp != $modified {
             let lab = try { open $lab_path } catch { null }

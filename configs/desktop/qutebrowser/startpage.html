@@ -18,7 +18,7 @@
         overflow: hidden;
         /* absolute url, firefox resolves relative to the symlink target; the module renders the home in */
         background:
-          linear-gradient(rgba(7, 9, 13, 0.78), rgba(7, 9, 13, 0.78)),
+          linear-gradient(color-mix(in srgb, var(--background) 78%, transparent), color-mix(in srgb, var(--background) 78%, transparent)),
           url("file://@HOME@/.cache/wal/wallpaper") center / cover no-repeat fixed;
         background-color: var(--background);
       }
@@ -69,9 +69,9 @@
         font-family: "Kode Mono", monospace;
         font-size: 1.1rem;
         color: var(--foreground);
-        background: rgba(7, 9, 13, 0.72);
+        background: color-mix(in srgb, var(--background) 72%, transparent);
         border: 1px solid var(--cell);
-        border-radius: 6px;
+        border-radius: @RADIUS@px;
         outline: none;
         text-align: center;
       }

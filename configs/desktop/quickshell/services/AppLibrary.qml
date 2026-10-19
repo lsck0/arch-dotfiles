@@ -46,7 +46,6 @@ Item {
       function(entry) { return AppSearch.frecencyRank(root.frecency[String(entry.id || "")], now) })
   }
 
-  // launcher frecency, { desktopId: { n: launches, t: last ms } }
   property var frecency: ({})
 
   function recordLaunch(id) {
@@ -64,7 +63,6 @@ Item {
         let parsed = JSON.parse(text() || "{}")
         root.frecency = Util.isPlainObject(parsed) ? parsed : ({})
       } catch (e) {
-        // corrupt state only costs the ranking
         root.frecency = ({})
       }
     }
@@ -118,7 +116,6 @@ Item {
   function iconIndexScanCommand() {
     return [
       'dirs="$HOME/.icons $HOME/.local/share/icons";',
-      // ${d%/} avoids doubled slashes from XDG_DATA_DIRS
       'IFS=":"; for d in ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do dirs="$dirs ${d%/}/icons"; done; unset IFS;',
       'for ext in svg png; do',
       '  for base in $dirs; do',
@@ -167,7 +164,6 @@ Item {
     }
   }
 
-  // a new window, or focus moving to another existing one (a single-instance app raising itself)
   function launchSettled() {
     if (root.toplevelCount() > root.launchToplevelCount) return true
     var active = ToplevelManager.activeToplevel
@@ -193,7 +189,6 @@ Item {
     command: ["bash", "-c", root.iconIndexScanCommand()]
     stdout: SplitParser { onRead: function(line) { root.indexIconLine(line) } }
     onStarted: root.pendingIconIndex = ({})
-    // swapping the map re-evaluates every iconSource() binding
     onExited: root.iconIndex = root.pendingIconIndex
   }
 

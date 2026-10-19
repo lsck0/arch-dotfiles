@@ -1,3 +1,20 @@
 # managed by arch-dotfiles/apparmor
 # the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
+
+# printing: okular renders a pdf to a temp file and hands it to lpr, which deletes it once cups has it; a postscript
+# document goes as is, so lpr reads what okular reads
+@{bin}/lpr rCx -> lpr,
+
+profile lpr {
+  include <abstractions/base-strict>
+  include <abstractions/cups-client>
+  include <abstractions/nameservice-strict>
+  include <abstractions/user-read-strict>
+  include <abstractions/dotfiles/viewer-read>
+
+  @{bin}/lpr mr,
+
+  /etc/cups/lpoptions r,
+  owner @{tmp}/okular_@{rand6}.{ps,pdf} rw,
+}

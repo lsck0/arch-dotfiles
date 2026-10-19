@@ -1,5 +1,5 @@
 use module.nu *
-use ../../core/wallust/palette.nu [wal-load condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex]
+use ../../core/wallust/palette.nu [wal-load condition-bg vivify shade selection-pair readable-on is-light rgb-to-hex RADIUS_PX]
 
 export const meta = {packages: {pacman: [themix-gui-git themix-plugin-base16-git xorg-server-xvfb]}}
 
@@ -8,6 +8,7 @@ const EXPORT_CONFIGS = [multi_export_oomox_classic.json multi_export_oodwaita.js
 const COLORS = ".cache/wal/colors-oomox"
 # themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap, so timeout kills it after this
 const THEMIX_TIMEOUT = [timeout -k 5 20]
+const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
     files-into ($nu.home-dir | path join $EXPORT_DIR) ...$EXPORT_CONFIGS
@@ -24,7 +25,7 @@ export def theme [cfg: record, wallpaper: string] {
     let values = {NAME: wal, BG: ($bg | rgb-to-hex), FG: ($fg | readable-on $bg | rgb-to-hex)}
         | merge ($surfaces | items {|name, c| {$"($name)_BG": ($c | rgb-to-hex), $"($name)_FG": ($fg | readable-on $c | rgb-to-hex)} } | reduce {|it, acc| $acc | merge $it })
         | merge {SEL_BG: ($selection.0 | rgb-to-hex), SEL_FG: ($selection.1 | rgb-to-hex)}
-        | merge {GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: 3, SPACING: 3, GRADIENT: "0.0"}
+        | merge {GTK3_GENERATE_DARK: (if ($bg | is-light) { "False" } else { "True" }), ROUNDNESS: $RADIUS_PX, SPACING: 3, GRADIENT: "0.0"}
     let order = [NAME BG FG MENU_BG MENU_FG SEL_BG SEL_FG TXT_BG TXT_FG BTN_BG BTN_FG HDR_BTN_BG HDR_BTN_FG GTK3_GENERATE_DARK ROUNDNESS SPACING GRADIENT]
     let text = $order | each {|k| $"($k)=($values | get $k)" } | str join "\n"
     [
@@ -36,11 +37,20 @@ export def theme [cfg: record, wallpaper: string] {
 # themix cannot init gtk headless, so a fresh install's first login gtk dialogs would be plain adwaita
 export def themix-export []: nothing -> nothing {
     let headless = ($env.WAYLAND_DISPLAY? | is-empty) and ($env.DISPLAY? | is-empty) and (which xvfb-run | is-not-empty)
-    let themix = (if $headless { [xvfb-run -a] } else { [] }) ++ [themix-multi-export]
+    # -e: Xvfb's own errors, else a server that died leaves only themix's last benign lines
+    let themix = (if $headless { [xvfb-run -a -e /dev/stderr] } else { [] }) ++ [themix-multi-export]
     let argv = $THEMIX_TIMEOUT ++ $themix
-    for config in $EXPORT_CONFIGS {
+    let export = {|config|
         # themix reports a missing layout file on every run, so its output only matters when it fails
         let out = ^($argv | first) ...($argv | skip 1) ($nu.home-dir | path join $EXPORT_DIR $config) ($nu.home-dir | path join $COLORS) o+e>| complete
-        if $out.exit_code != 0 { error make {msg: $"themix export ($config) exited ($out.exit_code): ($out.stdout | lines | last 3 | str join ' ')"} }
+        if $out.exit_code == 0 { null } else { $"themix export ($config) exited ($out.exit_code): ($out.stdout | lines | last 6 | str join ' ')" }
     }
+    # two xvfb-run -a at once pick the same display: one Xvfb dies, its export lands on the other and exits 1
+    let failed = if $headless { $EXPORT_CONFIGS | each $export } else { $EXPORT_CONFIGS | par-each $export } | compact
+    if ($failed | is-not-empty) { error make {msg: ($failed | str join "\n")} }
+    # running gtk3 apps reread the exported theme only on a theme name change, so flip it away and back
+    let theme = ^gsettings get $INTERFACE gtk-theme | complete | get stdout | str trim | str trim --char "'"
+    if ($theme | is-empty) { return }
+    ^gsettings set $INTERFACE gtk-theme "" | complete | ignore
+    ^gsettings set $INTERFACE gtk-theme $theme | complete | ignore
 }

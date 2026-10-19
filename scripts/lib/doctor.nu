@@ -1,5 +1,3 @@
-# read-only, no sudo: what only root can see is read from what root leaves readable
-
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
 use platform.nu [platform-load]
@@ -17,11 +15,8 @@ const SYNCTHING_CONFIG = ".local/state/syncthing/config.xml"
 const WITNESS = path self ../../secrets/pgp_privatekey.asc
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const TIMESHIFT_LOGS = "/var/log/timeshift"
-# what the system layer copies, as the root copy holds it
 const SYSTEM_PATHS = [configs platforms profiles scripts]
-# a month without an install is a month of security fixes not taken
 const SNAPSHOT_MAX_DAYS = 30
-# timeshift-check takes one weekly; two missed weeks is no longer a hiccup
 const TIMESHIFT_MAX_DAYS = 14
 const SHOWN_MAX = 8
 
@@ -40,7 +35,7 @@ def mtime [file: path]: nothing -> datetime { ls $file | get 0.modified }
 
 def failures []: nothing -> list<record> {
     let files = glob ($REPO | path join "FAILURES.*") | where { (ls $in | get 0.size) > 0B }
-    if ($files | is-empty) { return [(report ok failures "no FAILURES.* left by dot install or dot apply")] }
+    if ($files | is-empty) { return [(report ok failures "no FAILURES.* left by dot apply")] }
     $files | each {|f|
         let entries = open --raw $f | lines | where ($it | str trim) != ""
             | each { str replace --regex '.*/configs/' '' }
@@ -55,7 +50,6 @@ def hashes [dir: path, files: list<string>]: nothing -> list<string> {
     $files | str join "\u{0}" | ^xargs -0 sha256sum | lines
 }
 
-# tracked and untracked files, as an apply would pack them
 def config-pending []: nothing -> list<record> {
     if not ($SYSTEM_REPO | path exists) { return [] }
     let head = ^git -C $REPO rev-parse HEAD | str trim
@@ -87,7 +81,6 @@ def reboot []: nothing -> list<record> {
     }
 }
 
-# shell probes, shared with the vm test
 def invariants []: nothing -> list<record> {
     open --raw $INVARIANTS | lines | where $it != "" and not ($it | str starts-with "#")
     | parse --regex '^(?<key>\S+)\s+(?<want>\S+)\s+(?<where>\S+)\s+(?<probe>.*)$' | where where == live
@@ -127,7 +120,7 @@ def apparmor []: nothing -> list<record> {
 def snapshot []: nothing -> list<record> {
     let entry = with-env {DOT_LAYER: system} { ledger-get snapshot } | get --optional 0 | default "" | split row " "
     if ($entry | length) < 2 {
-        return [(report note snapshot "no lsck0 snapshot in the machine ledger yet (dot install)")]
+        return [(report note snapshot "no lsck0 snapshot in the machine ledger yet (dot apply --packages)")]
     }
     let pin = $entry.0
     let day = $entry.1 | split row T | first
@@ -139,7 +132,6 @@ def snapshot []: nothing -> list<record> {
     }
 }
 
-# declared but missing is a pending install, by hand is only worth knowing
 def drift []: nothing -> list<record> {
     let text = try { drift-report } catch {
         return [(report note drift "no drift report (no machine ledger or platform file)")]
@@ -152,7 +144,7 @@ def drift []: nothing -> list<record> {
     let units = do $names unit-hand | each { str replace " " ":" }
     [
         (if ($missing | is-not-empty) {
-            report FAIL drift $"dot install pending, declared but not installed: (shown $missing)"
+            report FAIL drift $"dot apply --packages pending, declared but not installed: (shown $missing)"
         })
         (if ($hand | is-not-empty) { report note drift $"($hand | length) packages installed by hand: (shown $hand)" })
         (if ($units | is-not-empty) { report note drift $"($units | length) units enabled by hand: (shown $units)" })
@@ -162,7 +154,6 @@ def drift []: nothing -> list<record> {
 
 def succeeds [argv: list<string>]: nothing -> bool { (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0 }
 
-# lockdown is the resting state, inbound at home
 def firewall []: nothing -> list<record> {
     if (which nft | is-empty) or (platform-load $REPO).form_factor == "wsl" { return [] }
     let egress_enabled = succeeds [systemctl -q is-enabled fw-egress.service]
@@ -272,20 +263,27 @@ def preserved []: nothing -> list<record> {
     }
 }
 
-# --brief: only FAIL lines as "<check>: <text>", doctor-check reads these
-export def doctor-run [--brief]: nothing -> nothing {
-    let checks = [
-        failures config-pending reboot invariants apparmor snapshot drift firewall units borg timeshift secrets
-        preserved
-    ]
+const CHECKS = [
+    failures config-pending reboot invariants apparmor snapshot drift firewall units borg timeshift secrets preserved
+]
+
+def check-run [check: string]: nothing -> list<record> {
+    match $check {
+        failures => (failures), config-pending => (config-pending), reboot => (reboot), invariants => (invariants)
+        apparmor => (apparmor), snapshot => (snapshot), drift => (drift), firewall => (firewall), units => (units)
+        borg => (borg), timeshift => (timeshift), secrets => (secrets), preserved => (preserved)
+    }
+}
+
+export def doctor-checks []: nothing -> list<record> {
+    $CHECKS | each { check-run $in } | flatten
+}
+
+# --brief: only FAIL lines as "<check>: <text>", doctor-check reads these; true when a check failed
+export def doctor-run [--brief]: nothing -> bool {
     mut failed = false
-    for check in $checks {
-        let found = match $check {
-            failures => (failures), config-pending => (config-pending), reboot => (reboot), invariants => (invariants)
-            apparmor => (apparmor), snapshot => (snapshot), drift => (drift), firewall => (firewall), units => (units)
-            borg => (borg), timeshift => (timeshift), secrets => (secrets), preserved => (preserved)
-        }
-        for r in $found {
+    for check in $CHECKS {
+        for r in (check-run $check) {
             if $r.level == "FAIL" { $failed = true }
             if not $brief {
                 print $"($r.level | fill --width 4)  ($r.check | fill --width 10) ($r.text)"
@@ -294,5 +292,5 @@ export def doctor-run [--brief]: nothing -> nothing {
             }
         }
     }
-    if $failed { exit 1 }
+    $failed
 }

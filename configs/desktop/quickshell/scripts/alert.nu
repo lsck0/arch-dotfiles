@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# hand-dismissed alert card, a notification when the shell cannot show it; kind: reminder (snooze) or pomodoro (stop)
+# hand-dismissed alert card, a notification when the shell cannot show it; kind: reminder (snooze)
 
 const SOUND_DIR = "sounds"
 const SOUND_FALLBACK = "reminder"
@@ -13,10 +13,10 @@ def main [title = "Reminder", body = "", glyph = $GLYPH_BELL, kind = "", snooze_
     let summoned = ^timeout $TIMEOUT quickshell ipc -p ($nu.home-dir | path join .config quickshell) call shell summon panel.alert $payload
         | complete
     if not ($summoned.stdout =~ ok) {
-        # never drop the alert
         try { ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body }
     }
     # foreground: the systemd unit kills background children on exit
+    # a notification passes the app loopbacks (configs/desktop/pipewire): own level, heard while listening to obs
     let cue = $nu.home-dir | path join .config quickshell $SOUND_DIR $"(if $kind == "" { $SOUND_FALLBACK } else { $kind }).oga"
-    if ($cue | path exists) { ^timeout $SOUND_TIMEOUT pw-play $cue | complete | ignore }
+    if ($cue | path exists) { ^timeout $SOUND_TIMEOUT pw-play --media-role Notification $cue | complete | ignore }
 }

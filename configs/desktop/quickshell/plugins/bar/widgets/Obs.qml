@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -31,11 +32,8 @@ BarWidget {
     property int encoderTotal: 0
     property string scene: ""
     property var scenes: []
-    // labels map to obs inputs via MUTE_SOURCES in obs-status.nu
-    readonly property var muteSources: ["Mic", "Desktop", "Game"]
     property var mutes: ({
     })
-    // obs reports cumulative bytes, so rates are derived here
     property real prevStreamBytes: -1
     property real prevRecordBytes: -1
     property real prevSampleMs: 0
@@ -104,6 +102,9 @@ BarWidget {
             clearSession();
             return ;
         }
+        if (!ObsProcess.connected)
+            Quickshell.execDetached([ObsProcess.listenScript, "reconcile"]);
+
         ObsProcess.connected = true;
         streaming = payload.streaming === true;
         streamReconnecting = payload.streamReconnecting === true;
@@ -138,7 +139,6 @@ BarWidget {
         var rBytes = Number(payload.recordBytes) || 0;
         var nowMs = Date.now();
         var deltaS = prevSampleMs > 0 ? (nowMs - prevSampleMs) / 1000 : 0;
-        // a reset counter means a new session
         function rate(now, prev) {
             if (prev < 0 || now < prev || deltaS <= 0.2)
                 return -1;
@@ -169,7 +169,6 @@ BarWidget {
         dropHist = Util.historyPush(dropHist, dropPct);
     }
 
-    // stdin is the command channel into obs
     function send(command) {
         if (!statusProc.running)
             return ;
@@ -189,7 +188,6 @@ BarWidget {
         }
     }
 
-    // the audio mixer routes its obs commands through the shared singleton
     Connections {
         function onCommandRequested(command) {
             root.send(command);
@@ -198,10 +196,18 @@ BarWidget {
         target: ObsProcess
     }
 
+    Timer {
+        id: statusRestart
+
+        interval: 2000
+        onTriggered: statusProc.running = Qt.binding(() => root.obsSeen)
+    }
+
     Process {
         id: statusProc
 
         running: root.obsSeen
+        onRunningChanged: if (!running && root.obsSeen) statusRestart.restart()
         stdinEnabled: true
         command: [Paths.barWidget("obs-status.nu")]
 
@@ -258,7 +264,6 @@ BarWidget {
             color: root.stateColor
             layer.enabled: Style.fx.glow > 0 && root.active
 
-            // static: a pulse would repaint the bar for the whole recording
             layer.effect: Glow {
                 shadowColor: root.stateColor
             }
@@ -351,7 +356,6 @@ BarWidget {
                 implicitHeight: Math.max(obsHero.implicitHeight, obsMeta.implicitHeight)
                 height: implicitHeight
 
-                // live rate: outline, never a glow layer
                 Hero {
                     id: obsHero
 
@@ -415,7 +419,7 @@ BarWidget {
                 height: faultText.implicitHeight + Style.spacing.xs * 2
                 radius: Style.shape.data
                 visible: root.errorText !== ""
-                color: Util.alpha(Colors.semantic.warn, 0.16)
+                color: Util.alpha(Colors.semantic.warn, Style.tintFillAlpha)
 
                 Text {
                     id: faultText
@@ -524,42 +528,6 @@ BarWidget {
                 opacity: Style.emphasis.disabled
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
-            }
-
-            PanelSeparator {
-                visible: root.connected
-            }
-
-            PanelSectionHeader {
-                text: "AUDIO"
-                visible: root.connected
-            }
-
-            Flow {
-                width: parent.width
-                spacing: Style.spacing.xs
-                visible: root.connected
-
-                Repeater {
-                    model: root.muteSources.filter((s) => {
-                        return root.mutes[s] !== undefined;
-                    })
-
-                    delegate: Chip {
-                        required property string modelData
-                        readonly property bool muted: root.mutes[modelData] === true
-
-                        text: modelData
-                        selected: !muted
-                        opacity: muted ? Style.emphasis.dim : 1
-                        onClicked: root.send({
-                            "cmd": "toggleMute",
-                            "source": modelData
-                        })
-                    }
-
-                }
-
             }
 
             PanelSeparator {

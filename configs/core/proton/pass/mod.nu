@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [pass pass-otp]}, inputs: [~/sync/password-store/.gpg-id]}
 
-# the store lives in ~/sync, the only backed-up place outside git; anyone without an identity inits their own by hand
 export def link [cfg: record] {
     if not (profile-has identity) { return [] }
     let store = $nu.home-dir | path join .password-store

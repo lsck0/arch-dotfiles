@@ -1,4 +1,6 @@
 config-file=?~/.cache/wal/ghostty.conf
+# background-opacity from palette.nu, written by the module
+config-file=?~/.config/dotfiles/ghostty-style.conf
 # toggle-powermode.nu fills it while saver is on, a dangling link otherwise
 config-file=?~/.cache/ghostty-powersave.conf
 # the module writes it: GDK_SCALE for what runs in a tab, so java apps started from a shell scale like launched ones
@@ -9,7 +11,6 @@ confirm-close-surface = false
 # resident systemd instance, +new-window skips the ~2s cold start
 quit-after-last-window-closed = false
 
-background-opacity = 0.85
 background-opacity-cells = false
 
 cursor-style = block

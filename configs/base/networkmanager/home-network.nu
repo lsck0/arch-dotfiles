@@ -41,7 +41,6 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
     # a home link that vanished (usb unplug) still counts on its down
     if not (physical $iface) and $iface not-in (home-links) { return }
-    # no gateways file (guest, locked secrets) leaves every link foreign
     let gateways = if ($GATEWAYS | path exists) { open --raw $GATEWAYS | lines | str lowercase } else { [] }
     let home = if ($gateways | is-empty) { [] } else {
         glob /sys/class/net/* | path basename
@@ -50,7 +49,6 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if ($home | is-empty) {
         rm --force $HOME_NETWORK
     } else {
-        # readers poll it, so swap it in whole
         let next = $"($HOME_NETWORK).new"
         $home | each { $"($in)\n" } | str join | save --force $next
         ^chmod 644 $next

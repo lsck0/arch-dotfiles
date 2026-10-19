@@ -1,5 +1,3 @@
-# user layer only; no profile is a guest
-
 const PROFILE_KEYS = [capabilities name email gpg_fingerprint]
 export const PROFILE_CAPABILITIES = [secrets identity homelab work]
 

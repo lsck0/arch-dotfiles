@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# systemctl in the plan sandbox, which has no bus: changes are noted, queries answer from the snapshot taken outside
 
 const ENABLED_STATES = [enabled enabled-runtime static alias indirect generated transient]
 const CHANGE_VERBS = [

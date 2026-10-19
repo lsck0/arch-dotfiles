@@ -1,7 +1,7 @@
 # managed by arch-dotfiles/apparmor
 # the blender-mcp relay (configs/creating/blender): a uv-tool python process claude starts over stdio that forwards
 # each tool call to the mcp add-on in a running blender over a loopback socket. the add-on runs arbitrary python in
-# blender with no sandbox (the link.sh SECURITY note), so the relay is the half that can be confined on disk: it reads
+# blender with no sandbox (the SECURITY note in its mod.nu), so the relay is the half that can be confined on disk: it reads
 # only its own pinned tool venv and the uv-managed interpreter, speaks the loopback socket, and is refused the home
 # secrets and every shell and other interpreter. the venv script runs under its uv python, which apparmor resolves
 # through the ~/.local/bin symlink, so the profile attaches to the real path under the tool store
@@ -37,6 +37,8 @@ profile blender-mcp @{exec_path} flags=(attach_disconnected) {
   @{uv_tools}/blender-mcp/**.so{,.*} mr,
   @{uv_python}/{,**} r,
   @{uv_python}/**.so{,.*} mr,
+  # the venv stays read-only: python's bytecode cache is optional, and every start would log a denial per package
+  deny @{uv_tools}/blender-mcp/**/__pycache__/{,**} w,
 
   # python sizes its thread and io pools from the cgroup cpu quota, reading its own cgroup and the cpu.max up the slice
   owner @{PROC}/@{pid}/cgroup r,

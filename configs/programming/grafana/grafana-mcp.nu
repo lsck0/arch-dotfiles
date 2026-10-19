@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# mcp-grafana over stdio against the homelab grafana, read only
 
 const REPO = path self | path expand | path dirname --num-levels 4
 

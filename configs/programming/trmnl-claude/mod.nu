@@ -12,7 +12,6 @@ export const options = {
 
 export def link [cfg: record] {
     let secret = $env.DOTFILES | path join secrets trmnl-claude.env
-    # without the plugin UUID the timer would fail every 15 minutes for nothing
     if not $cfg.poster or not (secret-is-plaintext $secret) { return [] }
     [
         (file-render trmnl-claude.service (unit-dir | path join trmnl-claude.service) {DIR: ($env.PWD)})

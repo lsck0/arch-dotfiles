@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# claude code usage for the bar: the payload, {} where the widget does not apply, or {"error": why}
 
 const USAGE_USER = "luca"
 const SCRIPT_RELATIVE = "configs/programming/trmnl-claude/trmnl-claude.nu"

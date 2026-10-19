@@ -1,20 +1,17 @@
 .pragma library
 
-// the sidebar entry of the toggles; ':' never occurs in a module name
 const togglesId = ":toggles"
 const togglesLabel = "Quick toggles"
-// an enum with at most this many choices is a chip row, a longer one a list that opens on enter
 const segmentedMax = 4
-// an open list shows its choices a page at a time, so thousands (font families) stay one screen
 const choicePageSize = 30
-// what an apply needs after the write, weakest first
 const applyOrder = ["live", "relink", "relogin", "reboot"]
+const filesizeUnits = { "": 1, b: 1, kb: 1e3, mb: 1e6, gb: 1e9, tb: 1e12, kib: 1024, mib: 1048576, gib: 1073741824, tib: 1099511627776 }
+const filesizeShown = [["TiB", 1099511627776], ["GiB", 1073741824], ["MiB", 1048576], ["KiB", 1024]]
 
-// choices make an enum, a list of scalars a list of entries, anything structured is edited as json
 function typeOf(option) {
   var type = String(option.type || "").replace(/\?$/, "")
   if ((option.choices || []).length > 0) return "enum"
-  if (["bool", "int", "float", "path", "string"].indexOf(type) >= 0) return type
+  if (["bool", "int", "float", "path", "string", "filesize"].indexOf(type) >= 0) return type
   if (/^list<(string|path|int|float)>$/.test(type)) return "list"
   return "json"
 }
@@ -25,10 +22,8 @@ function moduleNormalize(module) {
   })
 }
 
-// only a value this window wrote can be dropped: the profile's for a user option, the platform's for a machine one
 function resettable(option) { return option.source === (option.scope === "machine" ? "platform" : "profile") }
 
-// the `note:` lines of a dot run's output, what it asks of the person (a relogin, a pending system part);
 // log-record writes them to stderr as "<tag>: note: <text>"
 function notes(text) {
   return String(text || "").split("\n").filter(function (l) { return /(^|: )note: /.test(l) })
@@ -59,7 +54,6 @@ function toggleOptionMatches(needle, toggle, option) {
   return contains(needle, [option.label, option.key, option.doc, toggle.name, togglesLabel])
 }
 
-// [{id, label, count}]; count is the match count while searching, else the entry size
 function sections(modules, toggles, query) {
   var needle = query.trim().toLowerCase()
   var out = [{
@@ -83,9 +77,10 @@ function optionRow(module, option) {
   return { kind: "option", id: optionId(module, option), option: option }
 }
 
+function toggleCycles(toggle) { return toggle.setting || (toggle.cycles !== undefined ? toggle.cycles : /: /.test(toggle.label)) }
+
 function toggleRow(toggle) { return { kind: "toggle", id: togglesId + "." + toggle.name, toggle: toggle } }
 
-// set through the toggle's own verb (option.set) instead of `dot set`, and always live
 function toggleOptionRow(toggle, option) {
   return {
     kind: "option",
@@ -94,7 +89,6 @@ function toggleOptionRow(toggle, option) {
   }
 }
 
-// plain toggles first: one with options becomes a header over its option rows, and a header claims every row below it
 function toggleEntries(toggles, needle) {
   var plain = []
   var grouped = []
@@ -111,7 +105,6 @@ function toggleEntries(toggles, needle) {
   return plain.concat(grouped)
 }
 
-// headers interleaved with option and toggle rows: one entry's groups, or every match grouped by entry while searching
 function rows(modules, toggles, sectionId, query) {
   var needle = query.trim().toLowerCase()
   var out = []
@@ -147,7 +140,6 @@ function rows(modules, toggles, sectionId, query) {
   return out
 }
 
-// the nearest selectable row from index in direction (1 or -1), index itself included; -1 if none
 function selectable(list, index, direction) {
   for (let i = index; i >= 0 && i < list.length; i += direction)
     if (list[i].kind !== "header") return i
@@ -159,7 +151,6 @@ function decimals(option) {
   return step >= 1 ? 0 : Math.min(6, Math.ceil(-Math.log10(step) - 1e-9))
 }
 
-// clamped to min/max and rounded to the step's precision
 function snap(option, n) {
   if (option.min !== undefined && option.min !== null) n = Math.max(Number(option.min), n)
   if (option.max !== undefined && option.max !== null) n = Math.min(Number(option.max), n)
@@ -168,7 +159,12 @@ function snap(option, n) {
 
 function step(option) { return Number(option.step) || (option.type === "int" ? 1 : 0.01) }
 
-// the value one Left (-1) or Right (1) away, undefined for a type that does not step
+function bounded(value) { return value !== undefined && value !== null }
+
+function sliderable(option) {
+  return (option.type === "int" || option.type === "float") && bounded(option.min) && bounded(option.max)
+}
+
 function adjusted(option, value, direction) {
   if (option.type === "bool") return direction > 0
   if (option.type === "int" || option.type === "float") return snap(option, Number(value) + direction * step(option))
@@ -181,28 +177,47 @@ function adjusted(option, value, direction) {
   return undefined
 }
 
+function filesizeText(bytes) {
+  var n = Number(bytes)
+  for (let i = 0; i < filesizeShown.length; i++)
+    if (n >= filesizeShown[i][1] && n % filesizeShown[i][1] === 0) return n / filesizeShown[i][1] + filesizeShown[i][0]
+  return n + "B"
+}
+
+function filesizeParse(text) {
+  var m = String(text).trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*([kmgt]i?b|b)?$/)
+  return m ? Math.round(Number(m[1]) * filesizeUnits[m[2] || ""]) : undefined
+}
+
 function toText(option, value) {
   if (value === undefined || value === null) return ""
   if (option.type === "int" || option.type === "float") return Number(value).toFixed(decimals(option))
+  if (option.type === "filesize") return filesizeText(value)
   if (option.type === "list") return ""
   if (option.type === "json") return JSON.stringify(value)
   return String(value)
 }
 
-// the typed value of a text field, undefined when it does not parse
 function fromText(option, text) {
+  if (/\?$/.test(option.nuType || "") && String(text).trim() === "") return null
   if (option.type === "int" || option.type === "float") {
     let n = Number(String(text).trim())
     return String(text).trim() === "" || !isFinite(n) ? undefined : snap(option, n)
   }
+  if (option.type === "filesize") return filesizeParse(text)
   if (option.type === "json") {
     try { return JSON.parse(text) } catch (e) { return undefined }
   }
   return String(text)
 }
 
-// the value argument of `set`: lists as JSON, everything else as its plain text
+// `dot set` parses its value as nuon: json keeps "1.0" or "de:nodeadkeys" a string, the bytes suffix makes a filesize
 function encode(option, value) {
+  if (option.type === "filesize") return Number(value) + "b"
+  return JSON.stringify(value === undefined ? null : value)
+}
+
+function toggleArgument(option, value) {
   if (option.type === "list" || option.type === "json") return JSON.stringify(value === undefined ? null : value)
   if (option.type === "bool") return value ? "true" : "false"
   return String(value)
@@ -217,7 +232,6 @@ function choicesMatching(option, filter) {
 
 function choicePageStart(cursor) { return Math.max(0, Math.floor(cursor / choicePageSize) * choicePageSize) }
 
-// the strongest need of a set of options, "" when all are live
 function strongestApply(options) {
   var at = 0
   for (let i = 0; i < options.length; i++) at = Math.max(at, applyOrder.indexOf(options[i].apply))

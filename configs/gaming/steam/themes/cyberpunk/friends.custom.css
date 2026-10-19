@@ -2,7 +2,6 @@
 @import url("shared.css");
 @import url("colors.css");
 
-/* message entry */
 [class*="chatentry"],
 [class*="ChatEntry"],
 [class*="MessageEntry"],
@@ -20,7 +19,6 @@
         0 0 8px -2px var(--cp-accent) !important;
 }
 
-/* friend and group chat rows */
 .friend:hover,
 .friendListItem:hover,
 .ChatRoomListGroupItem:hover,
@@ -28,7 +26,6 @@
     background-color: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
 }
 
-/* status dot */
 [class*="online"],
 [class*="Online"],
 [class*="ingame"],
@@ -38,7 +35,6 @@
     border-color: var(--cp-accent) !important;
 }
 
-/* selected chat */
 [class*="chatroom"][class*="selected"],
 [class*="ChatRoom"][class*="Selected"],
 [class*="friend"][class*="selected"],
@@ -47,7 +43,6 @@
     box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
 }
 
-/* own messages */
 [class*="mine"] [class*="bubble"],
 [class*="Mine"] [class*="Bubble"],
 [class*="selfMessage"],

@@ -15,7 +15,7 @@ export def link [cfg: record] {
     step resource-db
 }
 
-# built in a scratch home and moved in, so an interrupted build never leaves a half db; offscreen for a tty install
+# built aside and moved in, so an interrupted build never leaves a half db
 export def resource-db []: nothing -> nothing {
     let tmp = mktemp --directory
     let scratch = {XDG_DATA_HOME: ($tmp | path join data), XDG_CONFIG_HOME: ($tmp | path join config)}
@@ -27,7 +27,6 @@ export def resource-db []: nothing -> nothing {
         error make {msg: "krita: kritarunner built no resource db"}
     }
     mkdir (data-dir)
-    # no-clobber: a data dir that only lost its db keeps everything else a person put there
     ^cp -an $"($built)/." (data-dir)
     rm --recursive $tmp
 }

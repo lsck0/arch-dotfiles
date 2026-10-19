@@ -8,7 +8,6 @@ def data-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
 }
 
-# a ~60 GB engine is a desktop workload
 export def link [cfg: record] {
     if $env.FORM_FACTOR? != "desktop" { return [] }
     let mime = data-dir | path join mime

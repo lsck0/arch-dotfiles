@@ -17,7 +17,6 @@ Text {
   font.capitalization: Font.AllUppercase
   font.letterSpacing: Style.headerTracking
 
-  // glyphs overshoot the ascent, keep them from clipping
   topPadding: Math.ceil(fontSize * 0.15)
   leftPadding: prefix.implicitWidth
 

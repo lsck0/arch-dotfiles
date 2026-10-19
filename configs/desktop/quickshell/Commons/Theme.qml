@@ -7,9 +7,7 @@ QtObject {
     id: root
 
     readonly property string path: Quickshell.shellDir + "/theme.json"
-    // ui/body family only, icons are pinned in Style
     property string fontFamily: "Kode Mono"
-    // base px, the whole scale derives from it
     property int fontSize: 12
     property real backgroundValueMin: 0.08
     property real backgroundValueMax: 0.26
@@ -22,10 +20,8 @@ QtObject {
     property real urgentMinSaturation: 0.55
     property real urgentMinValue: 0.55
     property real urgentContrast: 3
-    // floor only, muted must stay dim
     property real mutedContrast: 1.9
     property int paletteTransitionMs: 600
-    // 0 disables each fx
     property real glowStrength: 0.55
     property real scanlineOpacity: 0.06
     property int scanlineSpacing: 3
@@ -34,19 +30,26 @@ QtObject {
     property real crtFlicker: 0.02
     property real matrixRain: 0.5
     property int revision: 0
+    // toggle-font.nu saves in place (truncate, then write): a read between the two sees an empty or partial file
+    readonly property int reloadDelayMs: 80
     property FileView file
+    property Timer reloadTimer
 
     file: FileView {
         path: root.path
         watchChanges: true
-        // missing file is fine, defaults apply
         printErrors: false
-        // rearm: toggle-font.nu and editors replace the file atomically
+        // rearm: editors replace the file atomically
         onLoaded: {
             root.apply(text());
             Util.rearmWatch(this);
         }
-        onFileChanged: reload()
+        onFileChanged: root.reloadTimer.restart()
+    }
+
+    reloadTimer: Timer {
+        interval: root.reloadDelayMs
+        onTriggered: root.file.reload()
     }
 
     function _num(value, fallback, min, max) {
@@ -58,6 +61,9 @@ QtObject {
     }
 
     function apply(raw) {
+        if (!String(raw || "").trim())
+            return ;
+
         var parsed;
         try {
             parsed = JSON.parse(raw || "{}");
@@ -79,7 +85,6 @@ QtObject {
 
         var p = parsed.palette || {
         };
-        // floor first so a lone max still yields a valid band
         backgroundValueMin = _num(p.backgroundValueMin, backgroundValueMin, 0, 1);
         backgroundValueMax = Math.max(backgroundValueMin, _num(p.backgroundValueMax, backgroundValueMax, 0, 1));
         lightLuminance = _num(p.lightLuminance, lightLuminance, 0, 1);

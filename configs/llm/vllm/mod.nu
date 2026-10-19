@@ -50,7 +50,6 @@ def rocm-gpu []: nothing -> bool {
     $info.exit_code == 0 and ($info.stdout =~ '(?m)^Agent \d+') and ($info.stdout =~ 'gfx[0-9a-f]{3,}')
 }
 
-# nothing without a usable amd gpu
 export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
@@ -66,7 +65,6 @@ export def system [cfg: record] {
     ]
 }
 
-# root-owned: the service runs this venv, so no user may write into it
 export def venv []: nothing -> nothing {
     mkdir $PREFIX
     if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }

@@ -2,17 +2,15 @@ use module.nu *
 
 export const meta = {packages: {pacman: [waydroid]}}
 
-# waydroid's own ota images (ota.waydro.id VANILLA/MAINLINE.json), lineageos without gapps; bump all four together
+# waydroid's ota images (ota.waydro.id); bump all four together
 const SYSTEM_URL = "https://sourceforge.net/projects/waydroid/files/images/system/lineage/waydroid_x86_64/lineage-20.0-20260927-VANILLA-waydroid_x86_64-system.zip/download"
 const SYSTEM_SHA256 = "053552725bf4ae25e2d3f7e6f1947203294aa9d73dc17fe1f3abe646e5d3bd8a"
 const VENDOR_URL = "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip/download"
 const VENDOR_SHA256 = "d911b8353f6c807b94790b1c41c67e863a9f3dcd1cf3ec0232351398235afd7a"
-# a preinstalled images dir: init takes the images from here and never downloads, upgrades come only from the pins
 const IMAGES = "/etc/waydroid-extra/images"
 const CONFIG = "/var/lib/waydroid/waydroid.cfg"
-# in [properties] they reach every base prop file waydroid writes; `waydroid prop set` needs a session and reaches one
+# not `waydroid prop set`: it needs a session and reaches one prop file
 const PROPS = {properties: {persist.waydroid.multi_windows: "true", persist.waydroid.cursor_on_subsurface: "true"}}
-# android's own freeform settings, in the session user's binary xml, reachable only through a booted session's shell
 const FREEFORM = [
     development_settings_enabled enable_freeform_support force_resizable_activities enable_sizecompat_freeform
 ]
@@ -30,7 +28,6 @@ def session-up []: nothing -> bool {
     status | lines | any { $in =~ '^Session:.*RUNNING' }
 }
 
-# wsl has no binder and no gpu for the container
 export def system [cfg: record] {
     if (which waydroid | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let current = try { open --raw ($IMAGES | path join .pins) | str trim } catch { "" }
@@ -49,14 +46,11 @@ export def system [cfg: record] {
         (if (status | str contains "not initialized") {
             exec waydroid-init [waydroid init] --creates $CONFIG
         } else { [] })
-        # merging before init has ever run would plan against a config that doesn't exist yet, then clobber
-        # whatever init just wrote with that stale (sectionless) content once the exec above creates it in the
-        # same pass; waiting for init's own pass to land first keeps init's [waydroid] section intact
+        # a merge planned before init would overwrite init's [waydroid] section with sectionless content
         (if ($CONFIG | path exists) {
-            # a changed prop reaches the base props through an offline upgrade
             [(ini-merge $CONFIG $PROPS --then [waydroid upgrade --offline])]
         } else { [] })
-        # a session chmods render nodes and cameras to 0777 and never restores them; the rule pins the groups' 0660
+        # a session chmods render nodes and cameras to 0777 and never restores them
         (file-copy 99-waydroid-devperm.rules $DEVPERM_RULES --then [udevadm control --reload-rules])
         (if $up { [] } else { step devperm-tighten })
         (unit-enable waydroid-container.service --now)
@@ -68,11 +62,9 @@ export def images-swap []: nothing -> nothing {
     pins | save --force $"($IMAGES).new/.pins"
     rm --recursive --force $IMAGES
     mv $"($IMAGES).new" $IMAGES
-    # an initialized one keeps its data and props, only the overlay over the old images goes
     if not (status | str contains "not initialized") { ^waydroid upgrade --offline }
 }
 
-# fail-safe: a failed chmod leaves a node as waydroid set it, never more open
 export def devperm-tighten []: nothing -> nothing {
     glob /dev/dri/renderD* | append (glob /dev/video*) | each {|node| ^chmod o-rwx $node | complete } | ignore
 }

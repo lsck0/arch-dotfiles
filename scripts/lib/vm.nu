@@ -1,5 +1,3 @@
-# no guest agent: input via qemu sendkey, state back as beacons to a host server at the guest's 10.0.2.2
-
 const REPO = path self ../..
 const VM_DIR = path self vm
 const REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
@@ -7,24 +5,22 @@ const REPO_URL = "https://github.com/lsck0/arch-dotfiles.git"
 const CONNECT = "qemu:///system"
 const POOL = "default"
 const POOL_DIR = "/var/lib/libvirt/images"
-# the serial port's file; bootstrap tees its output there
 const CONSOLE_DIR = "/var/log/libvirt/qemu"
 const ISO_VOLUME = "vm-test-archlinux.iso"
 export const USER = "luca"
-# BOOTSTRAP_PASSWORD, LUKS and user alike
 const PASSWORD = "admin"
 export const PLATFORM = "test-vm"
+const BOOTSTRAP_PASSTHROUGH = [BOOTSTRAP_SERVER BOOTSTRAP_SECURE_BOOT BOOTSTRAP_HOSTNAME BOOTSTRAP_GROUPS BOOTSTRAP_SSH_KEY]
 const DISK = "/dev/vda"
 const PORT = 8765
 const HOST = "10.0.2.2:8765"
 const POLL = 15sec
 const DISK_GIB = 200
 const BOOTSTRAP_TIMEOUT = 1hr
-# dot install plus dot apply, longer when the mirror is down and everything compiles
 const CHAIN_TIMEOUT = 12hr
 export const BOOT_TIMEOUT = 5min
 const LOGIN_ATTEMPTS = 3
-# tty1 carries the chain's console, ly sits on tty2
+# tty1 carries the chain's console; ly takes it only once the chain is done (desktop/ly stage.conf)
 const LOGIN_TTY = 3
 const SNAPSHOT_REF = "refs/vm-test/snapshot"
 const KEY_HOLD_MS = 10
@@ -37,7 +33,6 @@ const DRILL_STEP_TIMEOUT = 1hr
 const DRILL_SETTLE = 30sec
 const DRILL_VALUE = '^[A-Za-z0-9._:+-]+$'
 const UPLOAD_TIMEOUT = 5min
-# the iso console is us, the installed system de-latin1
 const KEYS_US = {
     " ": spc "-": minus ".": dot "/": slash ":": shift-semicolon ";": semicolon "$": shift-4 "(": shift-9 ")": shift-0
     "*": shift-8 "_": shift-minus "=": equal ">": shift-dot "<": shift-comma "'": apostrophe "\"": shift-apostrophe
@@ -216,7 +211,6 @@ def pool-iso [iso: path]: nothing -> string {
     virsh vol-path --pool $POOL $ISO_VOLUME | str trim
 }
 
-# the shared iso volume stays for the next run
 export def vm-destroy [name: string]: nothing -> nothing {
     virsh destroy $name | ignore
     virsh undefine $name --nvram --storage vda | ignore
@@ -238,6 +232,20 @@ def snapshot-bundle [name: string]: nothing -> path {
     $bundle
 }
 
+# lfs objects the snapshot points at but GitHub may not have yet (a rebuilt firmware, a new image), else lfs pull fails
+def snapshot-lfs [name: string]: nothing -> any {
+    let oids = {|ref| ^git -C $REPO lfs ls-files --long $ref | lines | each {|l| $l | split row " " | first } }
+    let git_dir = ^git -C $REPO rev-parse --absolute-git-dir | str trim
+    let objects = do $oids $SNAPSHOT_REF | where $it not-in (do $oids origin/master) | uniq
+        | each {|oid| ["lfs" "objects" ($oid | str substring 0..1) ($oid | str substring 2..3) $oid] | path join }
+        | where {|p| $git_dir | path join $p | path exists }
+    let tar = cache-dir $name | path join snapshot-lfs.tar
+    rm --force $tar
+    if ($objects | is-empty) { return null }
+    ^tar -cf $tar -C $git_dir ...$objects
+    $tar
+}
+
 def bootstrap [name: string, iso: path, host: record, bundle: any, platform: string, user: string]: nothing -> nothing {
     vm-destroy $name
     let console = $CONSOLE_DIR | path join $"($name)-serial.log"
@@ -246,22 +254,29 @@ def bootstrap [name: string, iso: path, host: record, bundle: any, platform: str
         --osinfo archlinux --network user,model=virtio --graphics spice --video virtio --noautoconsole
         --features smm.state=on
         --boot "uefi,firmware.feature0.name=secure-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled-keys,firmware.feature1.enabled=no")
-    # --pid ends the tail with this run, an interrupted one included
     let follow = ^bash -c $"sudo -n tail --pid=($nu.pid) -n +1 -F '($console)' >&2 2>/dev/null & echo $!" | str trim
     wait-screen $name [root@archiso] $BOOT_TIMEOUT | ignore
     let checkout = if $bundle == null { "" } else {
         ^ln -sf $bundle ($host.dir | path join file snapshot.bundle)
-        $" && curl -so /tmp/snapshot.bundle ($HOST)/file/snapshot.bundle && git fetch -q /tmp/snapshot.bundle ($SNAPSHOT_REF) && git checkout -q FETCH_HEAD"
+        let lfs = snapshot-lfs $name
+        let objects = if $lfs == null { "" } else {
+            ^ln -sf $lfs ($host.dir | path join file snapshot-lfs.tar)
+            $" && curl -s ($HOST)/file/snapshot-lfs.tar | tar -xC .git"
+        }
+        $" && curl -so /tmp/snapshot.bundle ($HOST)/file/snapshot.bundle && git fetch -q /tmp/snapshot.bundle ($SNAPSHOT_REF) && git checkout -q FETCH_HEAD($objects)"
     }
     let log = cache-dir $name | path join bootstrap.log
     host-upload-to $host $log
+    let answers = $BOOTSTRAP_PASSTHROUGH | where {|n| $env | get --optional $n | is-not-empty } | each {|n|
+        $"($n)='($env | get $n | str replace --all "'" "'\\''")' "
+    } | str join
     # virt-install turns this first boot's reboot into a power off
     run-step $name $host bootstrap ([
         "set -o pipefail"
         "exec > >(tee /dev/ttyS0) 2>&1"
         "pacman -Sy --noconfirm --needed git"
         $"cd /tmp && git clone ($REPO_URL) && cd arch-dotfiles($checkout) \\"
-        $"    && BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
+        $"    && ($answers)BOOTSTRAP_DISK=($DISK) BOOTSTRAP_PASSWORD=($PASSWORD) BOOTSTRAP_USERNAME=($user) BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh ($platform) 2>&1 \\"
         "    | tee /tmp/bootstrap.log \\"
         $"    || { curl -sT /tmp/bootstrap.log ($HOST)/bootstrap.log; (beacon-cmd bootstrap-fail); }"
     ] | str join "\n" | $"($in)\n") us
@@ -321,13 +336,17 @@ export def pull-logs [name: string, host: record]: nothing -> path {
     rm --force $tgz
     host-upload-to $host $tgz
     clear-line $name
-    let probes = invariants | each {|i| $'    printf "%s=%s\n" ($i.key) "$(($i.probe | str replace --all "@PASSWORD@" $PASSWORD | str replace --all "@DISK@" $DISK))"' } | str join "\n"
+    # string concatenation, not interpolation: in $'..' the probe's own "$(" would lose its paren to nu
+    let probes = invariants | each {|i|
+        let probe = $i.probe | str replace --all "@PASSWORD@" $PASSWORD | str replace --all "@DISK@" $DISK
+        '    printf "%s=%s\n" ' + $i.key + ' "$(' + $probe + ')"'
+    } | str join "\n"
     run-step $name $host logs ([
         "cd ~/projects/arch-dotfiles"
         "sudo -k"
         "{"
         $probes
-        '    echo "backup_roundtrip=$(nu --no-config-file scripts/dot.nu backup --roundtrip > backup-roundtrip.log 2>&1 && echo ok || echo fail)"'
+        '    echo "backup_roundtrip=$(nu --no-config-file scripts/dot.nu internal backup --roundtrip > backup-roundtrip.log 2>&1 && echo ok || echo fail)"'
         "} > verify.log"
         "cp /var/lib/dotfiles-stage/log stage.log"
         $"echo ($PASSWORD) | sudo -S journalctl -u dotfiles-stage.service --no-pager -o short-iso > stage-journal.log"
@@ -369,13 +388,12 @@ export def vm-run [name: string, iso: path, platform: string, user: string, mast
     host-stop $host
     print $"dot test: logs in ($logs)"
     let problems = verify $logs
-    virsh qemu-monitor-command $name --hmp "sendkey ctrl-alt-f2" | ignore
+    virsh qemu-monitor-command $name --hmp "sendkey ctrl-alt-f1" | ignore
     sleep 5sec
     print (screenshot $name)
     if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
     print "dot test: chain succeeded, the screenshot shows the login manager"
 }
-
 
 def unlock [name: string, timeout: duration]: nothing -> bool {
     let deadline = (date now) + $timeout
@@ -507,13 +525,16 @@ export def vm-drill [name: string, drill: string, user: string]: nothing -> noth
     print $"dot test: drill ($drill) passed, its logs are (cache-dir $name)/drill-*.log"
 }
 
-export def vm-logs [name: string]: nothing -> nothing {
+export def vm-logs [name: string, user: string]: nothing -> nothing {
     sudo-keepalive
     let host = host-start $name (cache-dir $name | path join logs.tgz)
+    # a finished run leaves the console on ly's tty1, where pull-logs would type into the password field
+    login-tty $name $host $user
     let logs = pull-logs $name $host
     host-stop $host
     print $logs
-    print (verify $logs | str join "\n")
+    let problems = verify $logs
+    print (if ($problems | is-empty) { "dot test: verify found no problems" } else { $problems | str join "\n" })
 }
 
 export def vm-type [name: string, text: string, layout: string]: nothing -> nothing {

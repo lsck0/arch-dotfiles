@@ -11,7 +11,6 @@ BarWidget {
   moduleName: "keyboard-layout"
 
   property string layoutFull: ""
-  // switch target, and the keyboard activelayout named
   property string keyboardName: ""
   property string typedKeyboardName: ""
   property bool keyboardUnresolved: false
@@ -19,7 +18,6 @@ BarWidget {
   property var layoutBriefs: ({})
   readonly property string layoutLabel: KeyboardLayoutModel.shortLabel(layoutFull, layoutBriefs)
 
-  // an in-flight query may predate this event
   property bool refreshPending: false
 
   function refresh() {
@@ -49,13 +47,11 @@ BarWidget {
     function onRawEvent(event) {
       if (!event || !event.name) return
       var name = String(event.name)
-      // activelayout names the keyboard being typed on, hyprland also sends it for a hotplugged device
       if (name === "activelayout") {
         const named = KeyboardLayoutModel.eventKeyboardName(event)
         if (named) root.typedKeyboardName = named
       }
 
-      // reloads can add a layout without an activelayout event
       if (name.indexOf("activelayout") !== -1 || name === "configreloaded") root.refresh()
     }
   }
@@ -82,14 +78,12 @@ BarWidget {
           return
         }
 
-        // a killed query yields no output
         if (!Array.isArray(listed)) return
 
         const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
         // main flag is unreliable, fcitx5 steals it
         const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
         if (!kb || !kb.active_keymap) {
-          // unplugged, or no keyboard reports a keymap
           root.keyboardUnresolved = true
           if (typed.length === 0) {
             root.layoutFull = ""
@@ -106,7 +100,6 @@ BarWidget {
     }
   }
 
-  // xkb table only changes on upgrade
   Process {
     id: briefsProc
     command: ["xkbcli", "list", "--load-exotic"]

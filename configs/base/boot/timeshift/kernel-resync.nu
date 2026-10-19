@@ -16,7 +16,6 @@ def main []: nothing -> nothing {
         ^install -Dm644 $"($k.dir)/vmlinuz" $image
         ^mkinitcpio -p $k.pkgbase
     }
-    # the next boot finds the kernel in step, so this reboots at most once
     let running = ^uname -r | str trim
     let chroot = (^systemd-detect-virt -q --chroot | complete).exit_code == 0
     if ($stale | is-not-empty) and not ($"/usr/lib/modules/($running)" | path exists) and not $chroot {

@@ -3,17 +3,14 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// claude code usage, same payload as the trmnl display
 BarWidget {
   id: root
   moduleName: "agents"
 
   property bool received: false
   property var usage: ({})
-  // agent-usage.nu's {"error": why}; the last good usage stays up
   property string errorText: ""
   property real updatedMs: 0
-  // two missed background polls
   readonly property int staleAfterMs: 2 * 45 * 60 * 1000
 
   readonly property int sessionPct: Number(usage.u_session) || 0
@@ -32,13 +29,11 @@ BarWidget {
 
   property var pctHist: []
 
-  // {} means the widget does not apply here (guest); a failure still shows, as x ERR
   visible: hasUsage || errorText !== ""
 
   implicitWidth: trigger.implicitWidth + Style.bar.itemPaddingX * 2
   implicitHeight: barSize
 
-  // each poll costs an api request: slow in the background, fresh when the panel opens
   JsonProcess {
     id: usageProc
     command: [Paths.barWidget("agent-usage.nu")]
@@ -110,7 +105,6 @@ BarWidget {
     property string label: ""
     property string value: ""
     property string note: ""
-    // -1 draws no bar
     property int pct: -1
     property bool alert: false
     width: parent.width
@@ -123,7 +117,7 @@ BarWidget {
       height: parent.height
       width: parent.width * Math.max(0, Math.min(100, barRow.pct)) / 100
       radius: Style.shape.data
-      color: barRow.alert ? Util.alpha(Colors.urgent, 0.18) : Util.alpha(Colors.accent, 0.15)
+      color: barRow.alert ? Util.alpha(Colors.urgent, Style.tintFillAlpha) : Util.alpha(Colors.accent, Style.tintFillAlpha)
     }
     Text {
       anchors.left: parent.left
@@ -250,7 +244,6 @@ BarWidget {
           alert: root.weekPct >= 80
         }
         BarRow {
-          // only present when the tui was scraped
           visible: root.usage.u_sonnet !== undefined && root.usage.u_sonnet !== "\u2014"
           label: root.usage.u_model || "Model"
           value: root.usage.u_sonnet + "%"

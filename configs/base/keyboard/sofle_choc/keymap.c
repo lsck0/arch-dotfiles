@@ -30,6 +30,7 @@
 #define DE_COLN LSFT(KC_DOT)  // :
 #define DE_SCLN LSFT(KC_COMM) // ;
 #define DE_UNDS LSFT(DE_MINS) // _
+#define DE_ASTR LSFT(DE_PLUS) // *
 
 // altgr characters
 #define DE_LCBR ALGR(KC_7)    // {
@@ -100,7 +101,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
  * |   ~  |   !  |   "  |   §  |   $  |   %  |                    |   &  |   /  |   (  |   )  |   =  |   `  |
  * |------+------+------+------+------+------|                    |------+------+------+------+------+------|
- * |      |   @  |   €  |      |      |      |-------.    ,-------|   {  |   [  |   ]  |   }  |   \  |   #  |
+ * |      |   @  |   €  |   *  |   +  |      |-------.    ,-------|   {  |   [  |   ]  |   }  |   \  |   #  |
  * |------+------+------+------+------+------|       |    |       |------+------+------+------+------+------|
  * |      |   |  |      |      |      |      |-------|    |-------|      |      |   ;  |   :  |   _  |   '  |
  * `-----------------------------------------/       /     \      \-----------------------------------------'
@@ -111,7 +112,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 [_UPPER] = LAYOUT(
     KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,    KC_NO,                 KC_NO,     KC_NO,     KC_NO,     KC_NO,     KC_NO,     KC_DEL,
     DE_TILD,  DE_EXLM,  DE_DQOT,  DE_PARA,  DE_DLR,   DE_PERC,               DE_AMPR,   DE_SLSH,   DE_LPRN,   DE_RPRN,   DE_EQL,    DE_GRV,
-    KC_NO,    DE_AT,    DE_EURO,  KC_NO,    KC_NO,    KC_NO,                 DE_LCBR,   DE_LBRC,   DE_RBRC,   DE_RCBR,   DE_BSLS,   DE_HASH,
+    KC_NO,    DE_AT,    DE_EURO,  DE_ASTR,  DE_PLUS,  KC_NO,                 DE_LCBR,   DE_LBRC,   DE_RBRC,   DE_RCBR,   DE_BSLS,   DE_HASH,
     KC_NO,    DE_PIPE,  KC_NO,    KC_NO,    KC_NO,    KC_NO,   KC_NO, KC_NO,  KC_NO,     KC_NO,     DE_SCLN,   DE_COLN,   DE_UNDS,   DE_QUOT,
                         KC_NO,    KC_NO,    KC_NO,    KC_NO,   KC_NO, KC_NO,  KC_NO,     KC_NO,     KC_NO,     KC_NO
 ),

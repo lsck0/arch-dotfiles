@@ -1,5 +1,3 @@
-# the bash libraries' state paths, so both engines share one state
-
 export const SYSTEM_REPO = "/var/lib/dotfiles/repo"
 export const SYSTEM_STATE = "/var/lib/dotfiles"
 export const LIB_DIR = path self .

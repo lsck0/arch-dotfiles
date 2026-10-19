@@ -38,7 +38,6 @@ def guard-hooks [guard: path]: nothing -> record {
     }
 }
 
-# only the guard's own entries are replaced, other hooks stay; a removed guard takes its stale ones along
 def hooks-merge [current: record, guard: path]: nothing -> record {
     let own = {|entry| $entry.hooks? | default [] | any {|h| $h.command? | default "" | str contains agent-guard } }
     let kept = $current | items {|event, entries| {event: $event, entries: ($entries | where {|e| not (do $own $e) })} }
@@ -55,7 +54,7 @@ export def link [cfg: record] {
     let token = $env.DOTFILES | path join secrets claude-oauth-token
     # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
     [
-        (files-into (home .claude) CLAUDE.md RTK.md)
+        (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
         (json-merge $settings [
             (json-set [remoteControlAtStartup] true)
             (json-set [model] $cfg.model)
@@ -72,21 +71,18 @@ export def link [cfg: record] {
                 (json-merge (home .claude.json) (open (backup-dir | path join account.json) | items {|k, v| json-set [$k] $v }))
             ]
         } else { [] })
-        # session-wide so gui launches get it too; it wins over credentials.json
         (if (secret-is-plaintext $token) {
             file-text (home .config $TOKEN_CONF) $"CLAUDE_CODE_OAUTH_TOKEN=(open --raw $token | str trim)\n" --mode $PRIVATE
         } else { [] })
     ]
 }
 
-# the ansi themes draw diffs from the terminal's palette, which the theme switch already sets
 export def theme [cfg: record, wallpaper: string] {
     let p = palette-load
     if $p == null { return [] }
     json-merge (home .claude settings.json) [(json-set [theme] (if $p.light == "1" { "light-ansi" } else { "dark-ansi" }))]
 }
 
-# the login into secrets/claude, which link seeds a fresh home with; only the account half of ~/.claude.json
 export def backup [cfg: record]: nothing -> nothing {
     let creds = home .claude .credentials.json
     if not ($creds | path exists) {

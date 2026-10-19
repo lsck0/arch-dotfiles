@@ -1,5 +1,4 @@
 ---@meta
--- type stub for the global hyprland api
 ---@alias HlDispatcher any
 
 ---@class HlWindowDispatchers

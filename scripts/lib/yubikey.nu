@@ -1,5 +1,3 @@
-# the yubikey around secrets/, always optional; --identity unlock is the paper key path (RECOVERY.md)
-
 use profile.nu [profile-load]
 use secrets.nu [secret-is-plaintext]
 
@@ -11,7 +9,6 @@ const WITNESS = path self ../../secrets/pgp_privatekey.asc
 const PAM_ORIGIN = "pam://lsck0"
 const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"
-# the chain reaches unlock hours after bootstrap, so it keeps asking for a touch for a while before giving up
 const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "60"
 const TOUCH_RETRY = 2sec
@@ -87,7 +84,6 @@ def card-has-pgp []: nothing -> bool {
 # a copy onto the card from a throwaway keyring, the file in secrets stays the backup
 def pgp-to-card []: nothing -> nothing {
     let home = mktemp --directory
-    # through pcscd, which already holds the card for ykman
     "disable-ccid\npcsc-shared\n" | save ($home | path join scdaemon.conf)
     try {
         ^gpg --homedir $home --import ($SECRETS | path join pgp_privatekey.asc)
@@ -186,12 +182,10 @@ def unlock-identity [identity: path]: nothing -> nothing {
 export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if $identity != null { return (unlock-identity $identity) }
     let pulled = $SECRETS | path join .git | path exists
-    # ykman reaches the card through pcscd, whose socket, polkit and udev rules are configs/base/yubikey's system verb
     if not (present) {
         if (do { ^lsusb -d 1050: } | complete).exit_code == 0 {
             print "yubikey: plugged in but ykman can not reach it, check pcscd and its polkit rule"
         }
-        # no yubikey: the pgp key (git-crypt's gpg user) can still unlock an already-pulled worktree
         if $pulled and not (secret-is-plaintext $WITNESS) {
             if (do { ^git -C $SECRETS crypt unlock } | complete).exit_code == 0 {
                 secrets-lock-0600

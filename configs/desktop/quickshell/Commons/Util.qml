@@ -15,7 +15,6 @@ QtObject {
     return clamp(value, 0, 1)
   }
 
-  // percent-encode segments so odd paths survive Image.source
   function fileUrl(path) {
     if (!path) return ""
     return "file://" + String(path).split("/").map(encodeURIComponent).join("/")
@@ -60,7 +59,6 @@ QtObject {
     return h > 0 ? h + ":" + String(m).padStart(2, "0") + ":" + ss : m + ":" + ss
   }
 
-  // days only past two so "36h" stays exact
   function span(minutes) {
     var m = Math.max(0, Math.round(Number(minutes) || 0))
     if (m < 60) return m + "m"
@@ -70,7 +68,6 @@ QtObject {
 
   function ago(minutes) { return span(minutes) + " ago" }
 
-  // dates drop the year, a clock or a recent stamp never needs it
   readonly property string timeFormat: Qt.locale().timeFormat(Locale.ShortFormat)
   readonly property string dayFormat: Qt.locale().dateFormat(Locale.ShortFormat).replace(/\W*y+\W*/, "")
 
@@ -83,7 +80,6 @@ QtObject {
     return Number(v.toPrecision(3)) + " " + byteUnits[i]
   }
 
-  // thresholds ascending [warn, high, critical]
   function level(value, thresholds) {
     var stops = Colors.rampStops
     if (value >= thresholds[2]) return Colors.ramp(stops[3])
@@ -98,6 +94,37 @@ QtObject {
     if (value.indexOf("file://") === 0 || value.indexOf("image://") === 0) return value
     if (value.charAt(0) === "/") return fileUrl(value)
     return Quickshell.iconPath(value, true)
+  }
+
+  function isWordDelete(key, modifiers) {
+    return (modifiers & Qt.ControlModifier) !== 0 && (key === Qt.Key_W || key === Qt.Key_Backspace)
+  }
+
+  function wordStart(text, position) {
+    var s = String(text || "")
+    var i = Math.max(0, Math.min(position, s.length))
+    while (i > 0 && /\s/.test(s.charAt(i - 1))) i--
+    var word = i > 0 && /\w/.test(s.charAt(i - 1))
+    while (i > 0 && !/\s/.test(s.charAt(i - 1)) && /\w/.test(s.charAt(i - 1)) === word) i--
+    return i
+  }
+
+  function wordDelete(text) {
+    var s = String(text || "")
+    return s.slice(0, wordStart(s, s.length))
+  }
+
+  function completion(prefix, candidates) {
+    var hits = (candidates || []).filter(function (c) { return String(c).indexOf(prefix) === 0 })
+    if (hits.length === 0) return prefix
+    var out = String(hits[0])
+    for (let i = 1; i < hits.length; i++) {
+      let c = String(hits[i])
+      let n = 0
+      while (n < out.length && n < c.length && out.charAt(n) === c.charAt(n)) n++
+      out = out.slice(0, n)
+    }
+    return out
   }
 
   readonly property int historyCountMax: 60

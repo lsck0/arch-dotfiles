@@ -1,9 +1,7 @@
 data.location=~/.task
 include ~/.config/bugwarrior/uda.taskrc
-# sync.* for the homelab's taskchampion server, from the secrets (link.sh); empty without them
+# sync.* for the homelab's taskchampion server, from the secrets; empty without them
 include ~/.config/task/sync.taskrc
-
-# --- reporting -------------------------------------------------------------
 
 default.command=next
 report.next.columns=id,start.age,entry.age,depends.indicator,priority,project,tags,recur.indicator,scheduled.countdown,due.relative,until.remaining,description.count,urgency
@@ -16,7 +14,7 @@ date.iso=yes
 weekstart=Monday
 journal.info=off
 
-# --- human reports (agent dbs use their own .taskrc) ------------------------
+# agent dbs use their own .taskrc
 
 report.dash.description=Human overview, urgency first
 report.dash.columns=id,start.age,project,tags,scheduled.countdown,due.relative,urgency,description.count
@@ -30,15 +28,10 @@ report.aging.labels=ID,Age,Project,Tag,Due,Description
 report.aging.filter=status:pending
 report.aging.sort=entry+
 
-# --- urgency ---------------------------------------------------------------
-
 urgency.user.tag.inbox.coefficient=-2.0
 urgency.user.tag.github.coefficient=-1.0
 urgency.user.tag.involved.coefficient=-1.5
 
-# --- theme -----------------------------------------------------------------
-
 color=on
 rule.precedence.color=deleted,completed,active,keyword.,tag.,project.,overdue,scheduled,due.today,due,blocked,blocking,recurring,tagged,uda.
-# palette-driven colour rules in terminal-colour slots, so they follow every wallpaper switch
-include ~/.taskrc.wal.theme
+include ~/.config/task/wal.theme

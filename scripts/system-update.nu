@@ -3,7 +3,6 @@
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
 
-# dot install's failures that were logged, not an abort
 const INSTALL_LOGGED_FAILURE = 1
 const NVIM_TREESITTER_TIMEOUT_MS = 600000
 const EMACS_UPGRADE = "(progn (require 'package)
@@ -26,7 +25,7 @@ def main []: nothing -> nothing {
         exit 1
     }
     let dot = $SCRIPTS | path join dot.nu
-    try { ^nu --no-config-file $dot install } catch {|err| if $err.exit_code? != $INSTALL_LOGGED_FAILURE { exit 1 } }
+    try { ^nu --no-config-file $dot apply --packages } catch {|err| if $err.exit_code? != $INSTALL_LOGGED_FAILURE { exit 1 } }
     try { ^nu --no-config-file $dot apply } catch { print --stderr "system-update: dot apply finished with failures, see FAILURES.config" }
     if (has flatpak) { ^flatpak update --assumeyes }
     if (has rustup) { ^rustup update }

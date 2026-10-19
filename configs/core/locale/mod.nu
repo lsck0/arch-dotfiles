@@ -61,7 +61,6 @@ const VCONSOLE = "/etc/vconsole.conf"
 const REGDOM = "/etc/conf.d/wireless-regdom"
 const ZONES = "/usr/share/zoneinfo/zone1970.tab"
 const XKB_MODEL = "pc105"
-# besides lang and formats: what tools without a translation fall back to
 const LOCALE_BASE = "en_US.UTF-8"
 const FORMAT_CATEGORIES = [LC_TIME LC_NUMERIC LC_MONETARY LC_PAPER LC_MEASUREMENT LC_ADDRESS LC_TELEPHONE LC_NAME]
 
@@ -105,7 +104,6 @@ export def system [cfg: record] {
     [
         (file-text /etc/locale.gen ($locales | each { $"($in) (charmap $in)\n" } | str join) --generated --then [locale-gen])
         (if ($conf | is-empty) { [] } else { file-text $LOCALE_CONF ($conf | str join "\n" | $"($in)\n") --generated })
-        # localectl also converts it to the nearest console keymap; wsl has neither
         (if $cfg.keyboard_layout == null or $env.FORM_FACTOR? == "wsl" or $keyboard == $current { [] } else {
             exec keymap ([localectl set-x11-keymap $cfg.keyboard_layout $XKB_MODEL] ++ ($keyboard | skip 1))
         })

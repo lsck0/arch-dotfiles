@@ -20,22 +20,22 @@ BarWidget {
     property real memUsedGb: 0
     property real memTotalGb: 0
     readonly property real memPct: memTotalGb > 0 ? memUsedGb / memTotalGb * 100 : 0
+    readonly property bool hasVram: gpuVendor !== "intel" && vramTotalMb !== null && vramTotalMb > 0
+    readonly property real vramPct: hasVram ? vramUsedMb / vramTotalMb * 100 : 0
     property string memType: ""
     property int memSpeedMts: 0
     property int memChannels: 0
     property int gpuPct: 0
     property int gpuFreqMhz: 0
+    property var gpuTempC: null
     property var powerW: null
     property var cpuPowerW: null
     property var gpuPowerW: null
     property real energyKwh: 0
-    // assumed flat tariff, eur per kwh
     readonly property real pricePerKwh: 0.35
     property var vramUsedMb: null
     property var vramTotalMb: null
-    // null hides the alerts, the helper stays silent without a running, readable ossec
     property var ossec: null
-    // {cpu:[{name,pct}], mem:[{name,pct}]}, null until the first sample
     property var topProc: null
     property var cpuHist: []
     property var gpuHist: []
@@ -43,7 +43,6 @@ BarWidget {
     property var tempHist: []
     readonly property var loadThresholds: [60, 80, 92]
     readonly property var tempThresholds: [60, 75, 85]
-    // ossec levels run 0 to 15
     readonly property var ossecThresholds: [7, 10, 12]
     readonly property var batteryDevice: UPower.displayDevice
     readonly property bool batteryPresent: batteryDevice && batteryDevice.isPresent === true
@@ -107,7 +106,6 @@ BarWidget {
         onTriggered: statsProc.running = true
     }
 
-    // long-lived, the script streams on its own interval
     Process {
         id: statsProc
 
@@ -142,6 +140,7 @@ BarWidget {
                     root.memChannels = s.memChannels || 0;
                     root.gpuPct = s.gpuPct || 0;
                     root.gpuFreqMhz = s.gpuFreqMhz || 0;
+                    root.gpuTempC = (s.gpuTempC === undefined) ? null : s.gpuTempC;
                     root.powerW = (s.powerW === undefined) ? null : s.powerW;
                     root.cpuPowerW = (s.cpuPowerW === undefined) ? null : s.cpuPowerW;
                     root.gpuPowerW = (s.gpuPowerW === undefined) ? null : s.gpuPowerW;
@@ -175,7 +174,6 @@ BarWidget {
         anchors.centerIn: parent
         spacing: Style.spacing.sm
 
-        // too wide for a vertical bar
         Sparkline {
             visible: !root.vertical
             pulsing: false
@@ -196,6 +194,12 @@ BarWidget {
         }
 
         Stat {
+            glyph: "\u{f050f}"
+            widest: "100\u00b0C"
+            value: root.tempC + "\u00b0C"
+        }
+
+        Stat {
             glyph: "\u{efc5}"
             widest: root.memTotalGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
             value: root.memUsedGb.toFixed(1) + "/" + root.memTotalGb.toFixed(0) + "G"
@@ -207,19 +211,11 @@ BarWidget {
             value: root.gpuPct + "%"
         }
 
-        // an igpu has no dedicated vram
         Stat {
-            visible: root.gpuVendor !== "intel" && root.vramTotalMb !== null
+            visible: root.hasVram
             glyph: "\u{f061a}"
             widest: (root.vramTotalMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
             value: (root.vramUsedMb / 1024).toFixed(1) + "/" + (root.vramTotalMb / 1024).toFixed(1) + "G"
-        }
-
-        // unit spelled out so it does not read as a percentage
-        Stat {
-            glyph: "\u{f050f}"
-            widest: "100\u00b0C"
-            value: root.tempC + "\u00b0C"
         }
 
         Stat {
@@ -295,6 +291,13 @@ BarWidget {
                     }
 
                     Meter {
+                        label: "TMP"
+                        fraction: root.tempC / 100
+                        fill: root.critTemp(root.tempC)
+                        value: root.tempC + "\u00b0C"
+                    }
+
+                    Meter {
                         label: "MEM"
                         fraction: root.memPct / 100
                         fill: root.critLoad(root.memPct)
@@ -307,13 +310,16 @@ BarWidget {
                         fraction: root.gpuPct / 100
                         fill: root.critLoad(root.gpuPct)
                         value: root.gpuPct + "%"
+                        secondary: (root.gpuFreqMhz / 1000).toFixed(1) + "GHz"
                     }
 
                     Meter {
-                        label: "TMP"
-                        fraction: root.tempC / 100
-                        fill: root.critTemp(root.tempC)
-                        value: root.tempC + "\u00b0C"
+                        visible: root.hasVram
+                        label: "VRAM"
+                        fraction: root.vramPct / 100
+                        fill: root.critLoad(root.vramPct)
+                        value: Math.round(root.vramPct) + "%"
+                        secondary: (root.vramUsedMb / 1024).toFixed(0) + "/" + (root.vramTotalMb / 1024).toFixed(0) + "G"
                     }
 
                 }
@@ -343,6 +349,12 @@ BarWidget {
 
                         FluxLabel {
                             height: flux.height / 4
+                            text: "TMP"
+                            tint: root.critTemp(root.tempC)
+                        }
+
+                        FluxLabel {
+                            height: flux.height / 4
                             text: "MEM"
                             tint: root.critLoad(root.memPct)
                         }
@@ -351,12 +363,6 @@ BarWidget {
                             height: flux.height / 4
                             text: "GPU"
                             tint: root.critLoad(root.gpuPct)
-                        }
-
-                        FluxLabel {
-                            height: flux.height / 4
-                            text: "TMP"
-                            tint: root.critTemp(root.tempC)
                         }
 
                     }
@@ -371,13 +377,13 @@ BarWidget {
                             "values": root.cpuHist,
                             "max": 100
                         }, {
+                            "values": root.tempHist,
+                            "max": 100
+                        }, {
                             "values": root.memHist,
                             "max": 100
                         }, {
                             "values": root.gpuHist,
-                            "max": 100
-                        }, {
-                            "values": root.tempHist,
                             "max": 100
                         }]
                     }
@@ -448,9 +454,46 @@ BarWidget {
                     }
 
                     HudStat {
-                        label: "PKG TEMP"
+                        label: "GPU CLK"
+                        value: root.gpuFreqMhz + " MHz"
+                    }
+
+                    HudStat {
+                        label: "CPU TEMP"
                         value: root.tempC + " \u00b0C"
                         tint: root.critTemp(root.tempC)
+                    }
+
+                    HudStat {
+                        label: "GPU TEMP"
+                        value: root.gpuTempC !== null ? root.gpuTempC + " \u00b0C" : "--"
+                        tint: root.gpuTempC !== null ? root.critTemp(root.gpuTempC) : Colors.menu.text
+                    }
+
+                    HudStat {
+                        visible: root.cpuPowerW !== null || root.gpuPowerW !== null
+                        label: "CPU PWR"
+                        value: root.cpuPowerW !== null ? Math.round(root.cpuPowerW) + " W" : "--"
+                    }
+
+                    HudStat {
+                        visible: root.cpuPowerW !== null || root.gpuPowerW !== null
+                        label: "GPU PWR"
+                        value: root.gpuPowerW !== null ? Math.round(root.gpuPowerW) + " W" : "--"
+                    }
+
+                    HudStat {
+                        label: "MEMORY"
+                        value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + "G"
+                        note: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : "", root.memChannels > 0 ? root.memChannels + "-CH" : ""].filter(function(v) {
+                            return v;
+                        }).join(" :: ")
+                    }
+
+                    HudStat {
+                        label: "VRAM"
+                        value: root.hasVram ? (root.vramUsedMb / 1024).toFixed(1) + " / " + (root.vramTotalMb / 1024).toFixed(1) + "G" : (root.gpuVendor === "intel" ? "shared" : "--")
+                        note: root.hasVram ? Math.round(root.vramPct) + "%" : ""
                     }
 
                     HudStat {
@@ -465,49 +508,6 @@ BarWidget {
                         label: "SINCE LOGIN"
                         value: root.energyKwh.toFixed(3) + " kWh"
                         note: (root.energyKwh * root.pricePerKwh).toFixed(2) + " \u20ac"
-                    }
-
-                    HudStat {
-                        visible: root.cpuPowerW !== null
-                        label: "CPU PWR"
-                        value: Math.round(root.cpuPowerW) + " W"
-                    }
-
-                    HudStat {
-                        visible: root.gpuPowerW !== null
-                        label: "GPU PWR"
-                        value: Math.round(root.gpuPowerW) + " W"
-                    }
-
-                    HudStat {
-                        label: "MEMORY"
-                        value: root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + "G"
-                    }
-
-                    HudStat {
-                        visible: root.memType !== "" || root.memSpeedMts > 0
-                        label: "MEM TYPE"
-                        value: [root.memType, root.memSpeedMts > 0 ? root.memSpeedMts + " MT/s" : ""].filter(function(v) {
-                            return v;
-                        }).join(" :: ")
-                    }
-
-                    HudStat {
-                        visible: root.memChannels > 0
-                        label: "CHANNELS"
-                        value: root.memChannels + "-CH"
-                    }
-
-                    HudStat {
-                        label: "GPU CLK"
-                        value: root.gpuFreqMhz + " MHz"
-                    }
-
-                    HudStat {
-                        visible: root.gpuVendor !== "intel"
-                        label: "VRAM"
-                        value: root.vramTotalMb !== null ? Math.round(root.vramUsedMb) + " / " + Math.round(root.vramTotalMb) + " MB" : "N/A"
-                        tint: root.vramTotalMb === null ? Colors.menu.text : Colors.foreground
                     }
 
                     HudStat {
@@ -589,7 +589,7 @@ BarWidget {
                                             id: procPct
 
                                             width: Style.space(44)
-                                            text: procRow.modelData.pct.toFixed(1) + "%"
+                                            text: (procRow.modelData.pct >= 100 ? Math.round(procRow.modelData.pct) : procRow.modelData.pct.toFixed(1)) + "%"
                                             horizontalAlignment: Text.AlignRight
                                             color: Colors.menu.text
                                             opacity: Style.emphasis.dim
@@ -708,7 +708,6 @@ BarWidget {
                     text: "POWER MODE"
                 }
 
-                // overrides are session-only by design
                 PowerModeSelector {
                     width: parent.width
                     active: panel.visible
@@ -739,7 +738,6 @@ BarWidget {
 
     }
 
-    // fixed-width slot per stat so the bar does not jitter
     component Stat: Row {
         id: stat
         property string glyph: ""
@@ -771,9 +769,6 @@ BarWidget {
             font.family: root.bar ? root.bar.fontFamily : Style.font.family
             font.pixelSize: Style.font.body
             font.letterSpacing: Style.displayTracking
-            // an outline, not a glow layer: this text changes every sample
-            style: Style.fx.glow > 0 && !(root.bar && root.bar.quiet) ? Text.Outline : Text.Normal
-            styleColor: Util.alpha(Colors.accent, 0.35)
 
             Text {
                 id: sizer
@@ -903,7 +898,6 @@ BarWidget {
             font.letterSpacing: Style.labelTracking
         }
 
-        // fixed width so numerals align across rows
         Item {
             id: meterValue
 
@@ -926,8 +920,6 @@ BarWidget {
                 font.features: {
                     "tnum": 1
                 }
-                style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
-                styleColor: Util.alpha(Colors.accent, 0.35)
             }
 
             Text {
@@ -974,7 +966,6 @@ BarWidget {
                     }
 
                 }
-                // live value: no glow, it would re-render on every sample
 
                 Behavior on color {
                     ColorAnimation {

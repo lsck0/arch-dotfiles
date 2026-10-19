@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [audacity]}}
 
-# young, so pinned, and its floating deps frozen at a date; bump both together
+# deps frozen at a date; bump both together
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
 const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
@@ -24,7 +24,6 @@ export def link [cfg: record] {
                 env: {HF_HUB_DISABLE_TELEMETRY: "1"}
             })
         ])
-        # cached now, so claude's first start is not a large download racing its startup timeout
         (if (cache-stamp $pkg | path exists) { [] } else { step mcp-cache $pkg })
     ]
 }

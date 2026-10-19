@@ -1,23 +1,18 @@
-# scoped socks anonymiser: a private tor port pool, each port verified to exit through tor
-
 const CONFIG = ".config/anonymous-socks/config"
 # ports clear of a system tor's 9050/9051; MAX_CIRCUIT_DIRTINESS is tor's default
 const DEFAULTS = {
     PORT: 9061, RATE: 0, TOR_BIN: tor, POOL_SIZE: 10, CONTROL_PORT: 9161, MAX_CIRCUIT_DIRTINESS: 600, PERSONA: 1
     PERSONA_OS: windows, TOR_CHECK_URL: "https://check.torproject.org/api/ip"
 }
-# tor runs as its own user unit, so its cgroup scopes the persona to exactly the proxied traffic
 const TOR_UNIT = "anonymous-socks-tor.service"
 const SLICE = "anonsocks.slice"
 const ISOLATION = "IsolateSOCKSAuth IsolateDestAddr IsolateDestPort"
-# the root half: configs/core/toggles' toggle-root, which polkit lets the bar call unprompted
 const TOGGLE_ROOT = "/usr/local/bin/toggle-root"
 const PERSONA_TTL = {windows: 128, macos: 64, ios: 64, linux: 64, android: 64}
 const PC_READ_TIMEOUT_MS = 15000
 const PC_CONNECT_TIMEOUT_MS = 8000
 const CHECK_TIMEOUT_S = "15"
 const CONTROL_TIMEOUT_S = "5"
-# tor builds a circuit before the first request can exit
 const BOOTSTRAP_TIMEOUT = 60sec
 const BOOTSTRAP_POLL = 2sec
 
@@ -141,7 +136,6 @@ def start [s: record]: nothing -> nothing {
     } catch { error make {msg: "egress guard failed, not starting"} }
     mkdir $s.DATADIR
     chmod 700 $s.DATADIR
-    # a SessionGroup per port plus Isolate* flags: independent per-destination circuits
     let socks = pool-ports $s | enumerate
         | each { [--SocksPort $"127.0.0.1:($in.item) ($ISOLATION) SessionGroup=($in.index)"] }
         | flatten
@@ -174,7 +168,6 @@ export def anonymous-socks-up []: nothing -> nothing {
         anonymous-socks-down
     }
     rm --force $s.VERIFIED
-    # any failure before the verify tears it all down, so nothing stays up unverified
     try { start $s } catch {|e| anonymous-socks-down; error make {msg: $e.msg} }
     print $"anonymous-socks up: ($s.POOL_SIZE) ports, round-robin config at ($s.PC_CONF)"
 }
@@ -194,7 +187,6 @@ export def anonymous-socks-newnym []: nothing -> nothing {
     let replies = $"AUTHENTICATE ($hex)\r\nSIGNAL NEWNYM\r\nQUIT\r\n"
         | do { ^curl -sS --max-time $CONTROL_TIMEOUT_S $"telnet://127.0.0.1:($s.CONTROL_PORT)" } | complete
     if $replies.exit_code != 0 { error make {msg: $"no control port on :($s.CONTROL_PORT)"} }
-    # one reply per command: AUTHENTICATE, then SIGNAL
     let lines = $replies.stdout | lines
     if ($lines | first 2 | length) == 2 and ($lines | first 2 | all { str starts-with "250" }) {
         print "newnym: fresh circuits requested"

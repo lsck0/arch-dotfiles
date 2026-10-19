@@ -17,7 +17,6 @@ Item {
   property bool clearConfirmOpen: false
   property var history: []
 
-  // capture.nu keeps its images beside it
   readonly property string historyPath: Paths.runtime + "/clipboard-history.json"
   readonly property int historyLimit: 500
 
@@ -240,7 +239,6 @@ Item {
     onFileChanged: reload()
   }
 
-  // reap watchers left by a previous shell
   Process {
     id: initProc
     command: ["pkill", "-f", "wl-paste .*--watch .*/quickshell/plugins/clipboard/capture\\.nu"]
@@ -495,7 +493,7 @@ Item {
               Text {
                 text: "\u{f014c}"
                 color: root.selectedText
-                opacity: 0.8
+                opacity: Style.emphasis.dim
                 font.family: Style.font.iconFamily
                 font.pixelSize: Style.font.displayLarge
                 horizontalAlignment: Text.AlignHCenter
@@ -506,7 +504,7 @@ Item {
                 textFormat: Text.PlainText
                 text: "> NOTHING HERE"
                 color: root.foreground
-                opacity: 0.7
+                opacity: Style.emphasis.dim
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
                 horizontalAlignment: Text.AlignHCenter

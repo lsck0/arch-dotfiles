@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# per-app apparmor modes in manual.conf drop-ins, which config runs never touch
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
@@ -39,7 +38,6 @@ def mode-set [profile: string, mode: string]: nothing -> nothing {
     open --raw $FLAGS | lines | where (first-word $it) != $profile | append $"($profile) ($mode)($extra)"
     | str join "\n" | $"($in)\n" | sudo-save $FLAGS
     let file = $ETC | path join $profile
-    # an own profile carries its mode in the header, config renders it from the same manual.conf
     if ($file | path exists) and (open --raw $file | lines | any { $in == $OWN_MARKER }) {
         let flag = if $mode == "enforce" { "" } else { $"($mode)," }
         open --raw $file | lines | each {|l|

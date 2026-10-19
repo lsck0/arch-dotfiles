@@ -10,8 +10,6 @@ screen.y = Window.GetY();
 accent.r = 0.224; accent.g = 0.729; accent.b = 0.902;
 dim.r = 0.761; dim.g = 0.765; dim.b = 0.773;
 
-# prompt line
-
 mode = Plymouth.GetMode();
 prompt_text = "> booting archlinux";
 if (mode == "shutdown") prompt_text = "> shutting down archlinux";
@@ -28,8 +26,6 @@ caret.sprite = Sprite(caret.image);
 caret.x = prompt.x + prompt.image.GetWidth() + 6;
 caret.y = prompt.y + prompt.image.GetHeight() / 2 - caret.image.GetHeight() / 2;
 caret.sprite.SetPosition(caret.x, caret.y, 5);
-
-# progress bar
 
 # the pngs are 1 px stripes scaled to the screen: a fixed 360x2 bar vanished on a hidpi panel
 bar.width = Math.Int(screen.width * 0.25);
@@ -60,8 +56,6 @@ fun progress_callback(duration, progress)
 
 Plymouth.SetBootProgressFunction(progress_callback);
 
-# caret blink
-
 tick = 0;
 
 fun refresh_callback()
@@ -75,8 +69,6 @@ fun refresh_callback()
   }
 
 Plymouth.SetRefreshFunction(refresh_callback);
-
-# status message
 
 message.sprite = Sprite();
 
@@ -96,8 +88,6 @@ fun hide_message_callback(text)
 
 Plymouth.SetDisplayMessageFunction(display_message_callback);
 Plymouth.SetHideMessageFunction(hide_message_callback);
-
-# password prompt
 
 fun display_password_callback(prompt_text, bullets)
   {

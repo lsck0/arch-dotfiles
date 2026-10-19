@@ -38,7 +38,7 @@ pane_scrollbars = false
 prefix = "ctrl+q"
 split_horizontal = "prefix+s" # tmux: bind s split-window -v (stacked)
 split_vertical = "prefix+v"   # tmux: bind v split-window -h (side by side)
-edit_scrollback = "prefix+e"  # tmux: bind e copy-mode (scrollback/copy)
+edit_scrollback = "prefix+e"
 settings = ""                 # cleared: prefix+s is split_horizontal, not settings
 toggle_sidebar = ""           # cleared: prefix+b is the wtree popup, not sidebar
 close_pane = "prefix+q"
@@ -59,6 +59,7 @@ next_workspace = "prefix+]"
 previous_workspace = "prefix+["
 next_agent = "alt+n"
 previous_agent = "alt+p"
+open_notification_target = ""    # prefix+o is herdr-fingers, as in tmux
 
 [[keys.command]]
 key = "prefix+w"
@@ -66,6 +67,13 @@ type = "popup"
 command = "hms"
 width = "90%"
 height = "90%"
+
+[[keys.command]]
+key = "prefix+o"
+type = "popup"
+command = "herdr-fingers"
+width = "60%"
+height = "60%"
 
 [[keys.command]]
 key = "prefix+shift+c"

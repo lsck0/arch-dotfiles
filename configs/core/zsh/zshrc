@@ -1,7 +1,7 @@
 # session env (telemetry opt-outs, XDG app-home vars) comes from .zshenv, which sources every environment.d drop-in
 [ -f ~/.cache/wal/colors.sh ] && source ~/.cache/wal/colors.sh
 
-fpath=(~/.zsh/completions $fpath)
+fpath=(${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions $fpath)
 export ZSH_DISABLE_COMPFIX=true
 export ZSH_COMPDUMP="$HOME/.zcompdump"
 
@@ -170,7 +170,6 @@ claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
 
-# greet on every interactive terminal
 [[ -t 1 && $TERM != dumb ]] && fastfetch
 
 zsh_init_cache starship init zsh --print-full-init && source $REPLY

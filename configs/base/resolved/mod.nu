@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [systemd-resolvconf]}}
 
-# DoT to Quad9, split-DNS kept; wsl uses the host's resolver
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     [

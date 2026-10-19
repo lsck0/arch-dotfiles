@@ -14,7 +14,6 @@ def profile-exists [ssid: string]: nothing -> bool {
 def main [ssid: string] {
     let typed = $in | default "" | lines | get 0? | default ""
     let secrets_wifi = [($env.QS_DOTFILES_DIR? | default $env.DOTFILES? | default ($env.HOME | path join projects/arch-dotfiles)) secrets/wifi] | path join
-    # a saved NM profile wins over the secrets map, which may be stale
     let saved = if $typed == "" and ($secrets_wifi | path exists) and not (profile-exists $ssid) {
         try { open --raw $secrets_wifi | decode utf-8 | lines | parse "{ssid}\t{password}" | where ssid == $ssid and password != "" | get password.0? } catch { null }
     }

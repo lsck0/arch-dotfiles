@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: table 100 on the physical gateway plus a fwmark rule for the games group's packets, past proton0;
-# fail safe: without a gateway no table and no rule, a packet follows the main table onto the vpn
+# fail safe: without a gateway no table and no rule, so game packets stay on the vpn
 
 # the skb mark games-bypass.nft sets and fw-egress' game_mark lets out; kept in sync with both
 const GAME_MARK = "0x6761"
@@ -18,7 +17,7 @@ def --wrapped attempt [...argv: string]: nothing -> nothing {
     if $r.exit_code != 0 { print --stderr --no-newline $r.stderr }
 }
 
-# nmcli has the link's own gateway even under proton0, ip route is the fallback at first up; -g escapes ipv6 colons
+# nmcli has the link's own gateway even under proton0; -g escapes ipv6 colons
 def gateway [iface: string, family: string]: nothing -> string {
     let field = if $family == "-4" { "IP4.GATEWAY" } else { "IP6.GATEWAY" }
     let listed = out nmcli -g $field device show $iface | lines | get --optional 0 | default "" | str replace --all '\' ''
@@ -29,7 +28,6 @@ def gateway [iface: string, family: string]: nothing -> string {
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up dhcp4-change down] { return }
-    # physical wifi/ethernet only; never a tunnel or virtual device
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
 
     if $action == down {

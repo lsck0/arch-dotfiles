@@ -42,7 +42,6 @@ def main [nft_file: path, phase: string] {
         exit 1
     }
     $PROBE_TABLE | ^nft -f -
-    # stands in for what the start-post fills in from getent and /run/home-network
     ^nft add element inet portmaster_bypass gids '{ @MEMBER_GID@ }'
     if $phase == home { ^nft add element inet portmaster_bypass home_ifaces '{ "home0" }' }
     for probe in ($PROBES | from nuon | where phase == $phase) {

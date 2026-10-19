@@ -8,14 +8,14 @@ Singleton {
 
   // the eq name comes from configs/desktop/pipewire/mod.nu
   readonly property string eqName: "eq"
-  // node.name of our own PwNodePeakMonitor streams
   readonly property string peakMonitorName: "quickshell"
+  // the per-app loopbacks from configs/desktop/pipewire/app-loopback.lua: app.<key> sink, app.<key>.out stream
+  readonly property string loopbackPrefix: "app."
+  readonly property string loopbackOutSuffix: ".out"
   // obs names pulse captures after the app and pipewire captures "OBS: <source>"
   readonly property var obsNamePattern: /^OBS(:|$)/
 
-  // meters bottom out here, quieter is silence for a mixer
   readonly property real floorDb: -60
-  // one wheel notch, 20 to cross the range
   readonly property real volumeStep: 0.05
 
   // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
@@ -25,10 +25,24 @@ Singleton {
   function isChain(node) { return !!node && (node.name === eqName || node.name === eqName + ".out") }
   function isObs(node) { return !!node && obsNamePattern.test(node.name) }
   function isPeakMonitor(node) { return !!node && node.name === peakMonitorName }
+  function isLoopback(node) { return !!node && node.name.startsWith(loopbackPrefix) }
+  function isLoopbackSink(node) { return isLoopback(node) && !node.isStream }
 
-  readonly property var sinks: nodes.filter(n => n.audio && n.isSink && !n.isStream && !isChain(n))
+  readonly property var sinks: nodes.filter(n => n.audio && n.isSink && !n.isStream && !isChain(n) && !isLoopback(n))
   readonly property var sources: nodes.filter(n => n.audio && !n.isSink && !n.isStream)
-  readonly property var appStreams: nodes.filter(n => n.audio && n.isSink && n.isStream && !isChain(n))
+  readonly property var loopbackOuts: nodes.filter(n => n.audio && n.isStream && isLoopback(n))
+  // streams of one app share its loopback and so its system fader: one row per loopback
+  readonly property var appStreams: {
+    var seen = []
+    return nodes.filter(n => {
+      if (!n.audio || !n.isSink || !n.isStream || isChain(n) || isLoopback(n)) return false
+      var out = loopbackOutOf(n)
+      if (!out) return true
+      if (seen.indexOf(out) >= 0) return false
+      seen.push(out)
+      return true
+    })
+  }
   readonly property var eq: nodes.find(n => n.name === eqName) || null
   readonly property var eqOut: nodes.find(n => n.name === eqName + ".out") || null
 
@@ -39,11 +53,24 @@ Singleton {
     return out
   }
 
-  // seen through the eq, null while unlinked
+  function loopbackOutOf(stream) {
+    var sink = targetsOf(stream).find(t => isLoopbackSink(t))
+    if (!sink) return null
+    var name = sink.name + loopbackOutSuffix
+    return loopbackOuts.find(n => n.name === name) || null
+  }
+
+  // the node whose volume is what the user hears of a stream: its loopback, else the stream itself
+  function levelOf(stream) { return loopbackOutOf(stream) || stream }
+
   function sinkOf(node) {
     var targets = targetsOf(node)
-    for (let i = 0; i < targets.length; i++)
-      if (!targets[i].isStream) return targets[i] === eq ? sinkOf(eqOut) : targets[i]
+    for (let i = 0; i < targets.length; i++) {
+      if (targets[i].isStream) continue
+      if (targets[i] === eq) return sinkOf(eqOut)
+      if (isLoopbackSink(targets[i])) return sinkOf(loopbackOutOf(node))
+      return targets[i]
+    }
     return null
   }
 
@@ -51,7 +78,6 @@ Singleton {
     return targetsOf(node).some(t => isObs(t))
   }
 
-  // the tap node is named "OBS: <input>", and that input name is the key obs-websocket uses
   function obsInputOf(node) {
     var tap = targetsOf(node).find(t => isObs(t))
     return tap ? tap.name.replace(/^OBS:\s*/, "") : ""
@@ -98,7 +124,6 @@ Singleton {
     return Quickshell.iconPath(name, "audio-x-generic")
   }
 
-  // devices carry long alsa names, the panel wants the product
   function deviceName(node) {
     if (!node) return "--"
     return (node.nickname || node.description || node.name).replace(/ (Analog|Digital) (Stereo|Mono|Surround.*)$/, "")
@@ -126,10 +151,15 @@ Singleton {
     node.audio.volume = Math.max(0, Math.min(1, node.audio.volume + (delta > 0 ? volumeStep : -volumeStep)))
   }
 
-  // null hands the stream back to the default sink
+  // a looped back app is routed by its loopback, so the app stream keeps playing into it.
+  // by object.serial: state-stream saves a route only when the value is a serial, a name would be lost on restart
   function route(stream, target) {
     if (!stream) return
-    if (target) Quickshell.execDetached(["pw-metadata", String(stream.id), "target.object", target.name])
-    else Quickshell.execDetached(["pw-metadata", "-d", String(stream.id), "target.object"])
+    var node = levelOf(stream)
+    var serial = target && target.properties ? target.properties["object.serial"] : undefined
+    if (target && serial !== undefined)
+      Quickshell.execDetached(["pw-metadata", String(node.id), "target.object", String(serial), "Spa:Id"])
+    else if (target) Quickshell.execDetached(["pw-metadata", String(node.id), "target.object", target.name])
+    else Quickshell.execDetached(["pw-metadata", "-d", String(node.id), "target.object"])
   }
 }

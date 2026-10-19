@@ -4,7 +4,7 @@ Telegram cannot load a palette from disk or hot-reload one (tdesktop#31183),
 so importing is a manual step, repeated after each wallpaper switch.
 
 Wallust renders `../../core/wallust/templates/wal/colors-telegram.tdesktop-palette` to
-`~/.cache/wal/`; `link.sh` symlinks it to
+`~/.cache/wal/`; the module's `link` verb links it to
 `~/.local/share/TelegramDesktop/pywal-cyberpunk.tdesktop-palette`.
 
 ## Import

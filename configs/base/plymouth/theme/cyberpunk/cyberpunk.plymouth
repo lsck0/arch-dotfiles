@@ -1,6 +1,6 @@
 [Plymouth Theme]
 Name=Cyberpunk
-Description=Dark terminal boot splash matching the quickshell rice.
+Description=Dark terminal boot splash in the quickshell style
 ModuleName=script
 
 [script]

@@ -1,4 +1,3 @@
--- power saver (toggle-powermode.nu: forced, or auto on battery): drop every gpu-busy effect
 local runtime = os.getenv("XDG_RUNTIME_DIR")
 if not runtime then
     return

@@ -1,4 +1,3 @@
-
 $env.config = {
     show_banner: false
     edit_mode: emacs
@@ -90,7 +89,6 @@ $env.config = {
 
 $env.config.buffer_editor = "nvim"
 
-
 alias b = bat
 alias cat = bat
 alias convert = magick
@@ -115,7 +113,6 @@ alias sshnb = sshk luca@192.168.178.73
 alias sshpc = sshk luca@192.168.178.138
 alias toroff = sudo systemctl stop tor-router.service
 alias toron = sudo systemctl start tor-router.service
-
 
 # no git config covers submodules on the initial clone
 def --wrapped git [...rest] {
@@ -144,8 +141,7 @@ def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-
-# configs/core/nushell writes the init scripts, wallust the colours; a missing one is skipped (source null)
+# a missing init script is skipped (source null)
 const STARSHIP_INIT = $nu.home-dir | path join .cache nushell starship.nu
 const ZOXIDE_INIT = $nu.home-dir | path join .cache nushell zoxide.nu
 const WAL_COLORS = $nu.home-dir | path join .cache wal colors-nushell.nu

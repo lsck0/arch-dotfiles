@@ -1,6 +1,5 @@
 use module.nu *
 
-# TryExec drops an entry whose app this machine lacks
 export const meta = {
     packages: {
         pacman: [
@@ -37,7 +36,6 @@ export def link [cfg: record] {
     | append ($HIDDEN | each {|id|
         desktop-override $"($id).desktop" { str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true" }
     })
-    # a vr overlay, not a TUI; without a vr runtime it exits at once, the notification says why
     | append (desktop-override wayvr.desktop {
         str replace --regex '(?m)^Terminal=true$' 'Terminal=false' | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($run) --notify -- wayvr"
     })

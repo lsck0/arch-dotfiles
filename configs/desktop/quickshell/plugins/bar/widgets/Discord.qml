@@ -10,7 +10,6 @@ BarWidget {
   id: root
   moduleName: "discord"
 
-  // written by the betterdiscord plugin
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string statePath:
     runtimeDir ? runtimeDir + "/quickshell-discord-voice.json" : ""
@@ -106,7 +105,6 @@ BarWidget {
   Row {
     id: trigger
     anchors.centerIn: parent
-    // rings sit outside each chip
     spacing: Style.spacing.sm
 
     Repeater {
@@ -171,21 +169,19 @@ BarWidget {
             visible: !avatarImage.visible
             text: String(chip.modelData.name || "?").charAt(0).toUpperCase()
             color: Colors.menu.text
-            opacity: 0.8
+            opacity: Style.emphasis.dim
             font.family: Style.font.family
             font.pixelSize: Math.round(root.avatarSize * 0.5)
             font.bold: true
           }
         }
 
-        // one badge only: deafened outranks muted
         Rectangle {
           visible: parent.silenced
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.rightMargin: -root.ringWidth
           anchors.bottomMargin: -root.ringWidth
-          // even, so the centre lands on a whole pixel
           width: 2 * Math.round(root.avatarSize * 0.58 / 2)
           height: width
           radius: width / 2

@@ -8,7 +8,6 @@ export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     [
         (file-copy fwupd.conf /etc/fwupd/fwupd.conf --mode 640 --then [systemctl try-restart fwupd.service])
-        # metadata only, updates stay manual
         (unit-enable fwupd-refresh.timer --now)
     ] ++ (if ($EFI | path exists) { [(step sign)] } else { [] })
 }

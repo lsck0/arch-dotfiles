@@ -1,18 +1,13 @@
 /**
  * @name Custom WAL Theme
  * @author lsck0
- * @description Self-contained wal palette theme: no remote imports, every colour
- *              derives from the palette vars the theme verb patches live.
+ * @description wal palette, recolored by the theme verb, no remote imports
  * @version 2.0
  * @source https://github.com/lsck0/arch-dotfiles
  * @website https://github.com/lsck0/arch-dotfiles
 */
 
-/* ----------------------------------------------------------------------------
- * palette inputs. the theme verb rewrites each of these lines on a theme
- * switch (and so does nothing until one happens, hence the literal fallbacks);
- * keep the "--name: r, g, b;" shape or the sed stops matching.
- * -------------------------------------------------------------------------- */
+/* the theme verb rewrites these lines in place: keep the "--name: r, g, b;" shape */
 :root {
     --accentcolor: 57, 186, 230;
     --accentcolor2: 57, 186, 230;
@@ -27,14 +22,22 @@
     --textdark: 140, 140, 140;
     --font: "Kode Mono";
     --font-scale: 1.1;
+    --radius: 2px;
 }
 
-/* ----------------------------------------------------------------------------
- * derived tiers. these are NOT patched by the theme verb, so they are
- * expressed from the patched inputs above and recolour with the palette instead
- * of being frozen to one theme. status hues stay fixed: they carry meaning
- * (success/warning/danger) rather than following the accent.
- * -------------------------------------------------------------------------- */
+/* discord's own corner tokens, so panels round like the hyprland window frame */
+:root,
+.theme-dark,
+.theme-light,
+.visual-refresh {
+    --radius-xs: var(--radius) !important;
+    --radius-sm: var(--radius) !important;
+    --radius-md: var(--radius) !important;
+    --radius-lg: var(--radius) !important;
+    --radius-xl: var(--radius) !important;
+}
+
+/* not patched, so derived from the inputs above; status hues stay fixed because they carry meaning */
 :root {
     --linkcolor: var(--accentcolor);
     --mentioncolor: var(--accentcolor);
@@ -48,12 +51,8 @@
     --dangercolor: 237, 66, 69;
 }
 
-/* ----------------------------------------------------------------------------
- * map the palette onto discord's own css variables. covers the current
- * ("visual refresh") token set plus the classic names still read in places;
- * anything unmapped falls back to discord's stock dark theme, never to a broken
- * layout, because every override here is colour-only.
- * -------------------------------------------------------------------------- */
+/* the visual refresh tokens plus the classic names still read in places; colour only, so an unmapped token
+   falls back to the stock dark theme */
 :root,
 .theme-dark,
 .theme-light,
@@ -65,7 +64,6 @@
 .visual-refresh.theme-dark,
 .visual-refresh.theme-light,
 .visual-refresh.theme-amoled {
-    /* surfaces */
     --background-base-low: rgb(var(--backgroundprimary)) !important;
     --background-base-lower: rgb(var(--backgroundsecondary)) !important;
     --background-base-lowest: rgb(var(--backgroundtertiary)) !important;
@@ -92,7 +90,6 @@
     --deprecated-card-bg: rgba(var(--backgroundtertiary), 0.6) !important;
     --deprecated-store-bg: rgb(var(--backgroundprimary)) !important;
 
-    /* elevation modifiers + dividers */
     --background-modifier-hover: rgba(var(--backgroundaccent), 0.3) !important;
     --background-modifier-active: rgba(var(--backgroundaccent), 0.4) !important;
     --background-modifier-selected: rgba(var(--backgroundaccent), 0.6) !important;
@@ -108,7 +105,6 @@
     --divider-subtle: rgba(var(--backgroundaccent), 0.5) !important;
     --divider-strong: rgba(var(--backgroundaccent), 0.7) !important;
 
-    /* text */
     --text-strong: rgb(var(--textbrightest)) !important;
     --text-default: rgb(var(--textbrighter)) !important;
     --text-normal: rgb(var(--textbrighter)) !important;
@@ -134,7 +130,6 @@
     --icon-subtle: rgb(var(--textbright)) !important;
     --icon-muted: rgb(var(--textdarker)) !important;
 
-    /* accent / brand: the blurple becomes the wal accent everywhere */
     --brand-360: rgb(var(--accentcolor)) !important;
     --brand-400: rgb(var(--accentcolor)) !important;
     --brand-500: rgb(var(--accentcolor)) !important;
@@ -157,7 +152,6 @@
     --control-brand-foreground: rgb(var(--accentcolor)) !important;
     --control-brand-foreground-new: rgb(var(--accentcolor)) !important;
 
-    /* primary (brand-filled) buttons */
     --button-filled-brand-background: rgb(var(--accentcolor)) !important;
     --button-filled-brand-background-hover: color-mix(in srgb, rgb(var(--accentcolor)) 88%, white) !important;
     --button-filled-brand-background-active: color-mix(in srgb, rgb(var(--accentcolor)) 82%, black) !important;
@@ -174,7 +168,6 @@
     --button-secondary-background-hover: color-mix(in srgb, rgb(var(--backgroundaccent)) 85%, white) !important;
     --button-secondary-background-active: color-mix(in srgb, rgb(var(--backgroundaccent)) 75%, white) !important;
 
-    /* checkboxes, focus rings, input borders track the accent */
     --checkbox-background-checked: rgb(var(--accentcolor)) !important;
     --checkbox-border-checked: rgb(var(--accentcolor)) !important;
     --input-focused-border: rgb(var(--accentcolor)) !important;
@@ -182,24 +175,20 @@
     --border-focus: rgb(var(--accentcolor)) !important;
     --focus-primary: rgb(var(--linkcolor)) !important;
 
-    /* links */
     --text-link: rgb(var(--linkcolor)) !important;
     --text-link-low-saturation: rgb(var(--linkcolor)) !important;
     --icon-link: rgb(var(--linkcolor)) !important;
 
-    /* inputs + chat box */
     --input-background: rgb(var(--backgroundtertiary)) !important;
     --channeltextarea-background: rgba(var(--backgroundaccent), 0.6) !important;
     --channel-text-area-placeholder: rgb(var(--textdarker)) !important;
 
-    /* mentions */
     --mention-background: rgba(var(--mentioncolor), 0.3) !important;
     --mention-foreground: rgb(var(--textbrightest)) !important;
     --background-mentioned: rgba(var(--mentioncolor), 0.08) !important;
     --background-mentioned-hover: rgba(var(--mentioncolor), 0.12) !important;
     --message-highlight-background-default: rgba(var(--mentioncolor), 0.15) !important;
 
-    /* status */
     --text-positive: rgb(var(--successcolor)) !important;
     --text-warning: rgb(var(--warningcolor)) !important;
     --text-danger: rgb(var(--dangercolor)) !important;
@@ -207,7 +196,6 @@
     --status-warning: rgb(var(--warningcolor)) !important;
     --status-danger: rgb(var(--dangercolor)) !important;
 
-    /* scrollbars */
     --scrollbar-thin-thumb: rgb(var(--backgroundtertiary)) !important;
     --scrollbar-thin-track: transparent !important;
     --scrollbar-auto-thumb: rgb(var(--backgroundtertiary)) !important;
@@ -244,7 +232,7 @@ html {
 }
 ::-webkit-scrollbar-thumb {
     background: rgba(var(--accentcolor), 0.5);
-    border-radius: 2px;
+    border-radius: var(--radius);
 }
 ::-webkit-scrollbar-thumb:hover {
     background: rgb(var(--accentcolor));
@@ -256,7 +244,7 @@ button[class*="button"],
 [class*="textArea"],
 [class*="searchBar"],
 [class*="modal"] {
-    border-radius: 2px !important;
+    border-radius: var(--radius) !important;
 }
 
 button[class*="button"]:hover {
@@ -264,13 +252,11 @@ button[class*="button"]:hover {
     border: 1px solid rgba(var(--accentcolor), 0.5);
 }
 
-/* server icons */
 [class*="listItem"]:hover [class*="wrapper"],
 [class*="listItemWrapper"]:hover {
     box-shadow: 0 0 8px rgba(var(--accentcolor), 0.2);
 }
 
-/* selected channel */
 [class*="modeSelected"] {
     box-shadow: 0 0 6px rgba(var(--accentcolor), 0.2);
 }
@@ -286,12 +272,10 @@ li[class*="messageListItem"]:hover {
     box-shadow: inset 0 0 8px rgba(var(--accentcolor), 0.2);
 }
 
-/* chat input */
 [class*="channelTextArea"] [class*="scrollableContainer"]:focus-within {
     box-shadow: 0 0 8px rgba(var(--accentcolor), 0.18);
 }
 
-/* hud corner brackets */
 [class*="userPopout"] {
     position: relative;
 }

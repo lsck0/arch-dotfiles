@@ -96,7 +96,6 @@ function fuzzyScore(entry, query) {
   return 4000 - name.length
 }
 
-// rankCallback(entry) >= 0 (frecency) breaks score ties, and orders the empty query
 function sortedEntries(values, query, hiddenCallback, rankCallback) {
   var q = String(query || "").trim()
   var rows = []
@@ -128,7 +127,6 @@ function sortedEntries(values, query, hiddenCallback, rankCallback) {
   return out
 }
 
-// weight per age bucket, ms
 var FRECENCY_BUCKETS = [[86400000, 4], [604800000, 2], [2592000000, 1]]
 var FRECENCY_STALE_WEIGHT = 0.5
 var FRECENCY_MAX_ENTRIES = 200
@@ -158,7 +156,6 @@ function escapeHtml(value) {
   return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
-// indices of query chars in text: the substring when present, else a greedy subsequence, else []
 function matchIndices(text, query) {
   var t = String(text || "").toLowerCase()
   var q = String(query || "").toLowerCase().replace(/\s+/g, "")

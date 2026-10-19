@@ -1,0 +1,28 @@
+{
+  "wallpaper": "alena-aenami-a-quiet-mind.jpg",
+  "pair": "solarized-dark",
+  "font": "Kode Mono",
+  "special": {
+    "background": "#eee8d5",
+    "foreground": "#566c73",
+    "cursor": "#268bd2"
+  },
+  "colors": {
+    "color0": "#073642",
+    "color1": "#dc322f",
+    "color2": "#7b8d00",
+    "color3": "#a77e00",
+    "color4": "#1e6da5",
+    "color5": "#d33682",
+    "color6": "#269289",
+    "color7": "#eee8d5",
+    "color8": "#768688",
+    "color9": "#cb4b16",
+    "color10": "#586e75",
+    "color11": "#657b83",
+    "color12": "#5d696a",
+    "color13": "#6c71c4",
+    "color14": "#7b8686",
+    "color15": "#fdf6e3"
+  }
+}

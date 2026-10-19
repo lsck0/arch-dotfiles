@@ -44,7 +44,6 @@ Text {
   // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
-  // stale may flip on its own, so the clock runs while there is data that can age
   Timer {
     interval: root.minuteMs
     repeat: true

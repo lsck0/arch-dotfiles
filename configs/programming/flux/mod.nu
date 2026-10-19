@@ -7,7 +7,6 @@ export const meta = {
     inputs: [/usr/lib/flux/rust-toolchain.toml]
 }
 
-# flux-rs (mirror/pkgbuilds) ships the sysroot; flux runs on the nightly it was built against
 const SYSROOT = "/usr/lib/flux"
 const COMPONENTS = "rust-src,rustc-dev,llvm-tools"
 

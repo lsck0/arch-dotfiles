@@ -5,7 +5,7 @@ def main [key: string]: string -> nothing {
     let files = $in | lines | where $it != ""
     match $key {
         "d" => { $files | each {|f| ^trash $f } | ignore }
-        "w" => { ^($nu.home-dir | path join .local bin dot) theme set ($files | first | path expand) }
+        "w" => { ^($nu.home-dir | path join .local bin dot) theme ($files | first | path expand) }
         _ => {}
     }
 }

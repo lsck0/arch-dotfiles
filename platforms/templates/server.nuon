@@ -1,0 +1,6 @@
+# a headless server: bootstrap's "server" answer copies it to /etc/dotfiles/platform.nuon with the hostname asked.
+# base is the hardened system (firewall, apparmor, ssh behind the knock, fail2ban, ossec), docker the one workload
+{
+    form_factor: server
+    groups: [base programming/docker]
+}

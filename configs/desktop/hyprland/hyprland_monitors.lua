@@ -13,7 +13,6 @@ for _, monitor in ipairs(platform.monitors) do
     hl.monitor(monitor)
 end
 
--- an output the options do not name (a newly plugged one) gets its native mode and an auto fractional scale
 hl.monitor({
     output = "",
     mode = "preferred",

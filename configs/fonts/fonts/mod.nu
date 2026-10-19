@@ -31,7 +31,6 @@ export const meta = {
     }
 }
 
-# vendored OFL fonts with no arch package
 const FONTS = [KodeMono.ttf Tektur.ttf Vollkorn.ttf Vollkorn-Italic.ttf]
 
 export def link [cfg: record] {

@@ -15,7 +15,6 @@ QtObject {
   signal parsed(var data)
   signal failed(string error)
 
-  // a refresh during a run is dropped, the run in flight answers it
   function run() {
     if (proc.running) return
     lastRunMs = Date.now()

@@ -1,7 +1,5 @@
 # per-repo identity from identity-init; must exit 0 or direnv keeps personal credentials loaded
 
-# constants
-
 # source_env runs this file from inside .identity/
 identity_dir=$(expand_path "$(dirname "${BASH_SOURCE[0]}")")
 repo_dir=${identity_dir%/*}
@@ -25,8 +23,6 @@ COPILOT_SHARED_ITEMS=(copilot-instructions.md settings.json mcp-config.json lsp-
 HERMES_SHARED_ITEMS=(SOUL.md config.yaml bin hooks lsp plugins skins context_length_cache.yaml models_dev_cache.etag
   models_dev_cache.json ollama_cloud_models_cache.json provider_models_cache.json tui-theme-boot.json .update_check)
 PRIVATE_DIRS=(bin ssh gnupg gh aws stackit jj rtk state terraform docker kube helm claude copilot hermes)
-
-# functions
 
 # prints the names of the links in $2 that point into $1
 home_links_get() {
@@ -72,8 +68,6 @@ bin_wrapper_create() {
 bin_wrapper_destroy() {
   rm -f "$identity_dir/bin/$1"
 }
-
-# credentials
 
 mkdir -p "${PRIVATE_DIRS[@]/#/$identity_dir/}"
 chmod 700 "$identity_dir" "${PRIVATE_DIRS[@]/#/$identity_dir/}"
@@ -154,8 +148,6 @@ export KUBECONFIG=$identity_dir/kube/config
 export HELM_CONFIG_HOME=$identity_dir/helm
 export NPM_CONFIG_USERCONFIG=$identity_dir/npmrc
 
-# history
-
 export DIRENV_HISTFILE=$identity_dir/zsh_history
 [[ -e $DIRENV_HISTFILE ]] || install -m 600 /dev/null "$DIRENV_HISTFILE"
 
@@ -170,12 +162,10 @@ export RTK_DB_PATH=$identity_dir/rtk/history.db RTK_RECALL=0 RTK_TEE=0
 bin_wrapper_create chromium "exec \"\$real\" --user-data-dir=$(printf %q "$identity_dir/chromium") \"\$@\"" &&
   export BROWSER=$identity_dir/bin/chromium
 
-# agents
-
 export CLAUDE_CONFIG_DIR=$identity_dir/claude
 home_links_set "$HOME/.claude" "$CLAUDE_CONFIG_DIR" "${CLAUDE_SHARED_ITEMS[@]}"
 # the identity claude is manual: with a placed claude-token it uses that, otherwise unset so the identity never inherits
-# the global token (claude/link.sh's environment.d) — an identity without its own token is logged out, not the main one
+# the global token (programming/claude's environment.d): an identity without its own token is logged out, not the main one
 if [[ -s $identity_dir/claude-token ]]; then
   export CLAUDE_CODE_OAUTH_TOKEN="$(<"$identity_dir/claude-token")"
 else

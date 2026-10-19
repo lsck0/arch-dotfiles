@@ -28,10 +28,8 @@ runs), never the baseline. `aa` alone shows loaded profiles and modes.
    ```bash
    journalctl -k -b --no-pager -g 'apparmor="DENIED"' | tail
    ```
-   Note `profile=`, `operation=`, `name=`, `requested_mask=`. When an agent launches the confined app only to
-   trigger the denial (not because the user is watching it), put its window on a headless output the user never
-   sees (`hyprctl output create headless` -> HEADLESS-N, launch/move it there, then `hyprctl output remove
-   HEADLESS-N`), not a visible workspace (AGENTS.md gotchas).
+   Note `profile=`, `operation=`, `name=`, `requested_mask=`. An app launched only to trigger the denial goes on
+   the agent's own headless output (skill `l-dotfiles-gui-testing`).
 2. Add the narrowest rule to `local/<profile>` (or `profiles/<profile>`), with a one-line why-comment above it.
    Prefer an existing abstraction (`include <abstractions/dotfiles/viewer-read>`).
 3. Compile check without root:
@@ -39,8 +37,9 @@ runs), never the baseline. `aa` alone shows loaded profiles and modes.
    configs/base/apparmor/apparmor.test.nu
    ```
    Exit 0 is clean; the "Failed to create cache" warnings are expected.
-4. Load it on this machine: `dot system` (the module's `system` verb installs and reloads, then fails if any profile
-   is not in its expected mode). For a quick loop on a `local/` rule the user can run
+4. Load it on this machine: `dot apply --system` (the module's `system` verb installs and reloads, then fails if any
+   profile is not in its expected mode). For a quick loop on a `local/` rule the user can run
    `sudo install -m644 configs/base/apparmor/local/<p> /etc/apparmor.d/local/<p> && sudo apparmor_parser -r /etc/apparmor.d/<p>`
-   (`<p>.apparmor.d` where apparmor.d replaced a stock profile); `dot system` must still be run so it is reproducible.
+   (`<p>.apparmor.d` where apparmor.d replaced a stock profile); `dot apply --system` must still be run so it is
+   reproducible.
 5. Retry the app and recheck the log. `dot test lint` runs the same test.

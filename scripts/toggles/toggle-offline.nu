@@ -6,16 +6,14 @@ const NM_ONLINE_TIMEOUT_S = 30
 
 def radios []: nothing -> table { ^rfkill -rno ID,SOFT | lines | parse "{id} {soft}" }
 
-# offline means both halves are down
 def offline []: nothing -> bool {
     (^nmcli networking | complete).stdout == "disabled\n" and (try { radios } catch { [] } | all { $in.soft != unblocked })
 }
 
 def main [action: string = "toggle"] {
-    # tmpfs, since rfkill ids are renumbered on boot
     let saved_radios = state-file offline-rfkill --volatile
     switch-run {
-        label: "Offline Mode"
+        label: "Offline mode"
         is-on: {|| offline }
         on: {||
             let up = $TUNNELS | where {|name| (try { toggle-run $name get | str trim }) == on }
@@ -47,7 +45,7 @@ def main [action: string = "toggle"] {
             rm --force $saved_radios (state-file offline-tunnels --volatile)
             # the network stays up, a wifi to pick or a captive portal would otherwise keep every way back offline
             if ($failed | is-not-empty) {
-                notify "Offline Mode" $"Back online, but ($failed | str join ', ') did not come back: traffic is not tunnelled" --critical
+                notify "Offline mode" $"Back online, but ($failed | str join ', ') did not come back: traffic is not tunnelled" --critical
             }
         }
     } $action

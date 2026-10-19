@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# keep the system timezone matching the machine's location
 
 const TOGGLES = path self | path expand | path dirname | path join .. .. .. scripts toggles | path expand
 const TUNNELS = [vpn protonvpn tor]
@@ -30,7 +29,6 @@ def tunnel-up []: nothing -> any {
     null
 }
 
-# home only: elsewhere it leaks our ip or geolocates the tunnel exit; no home rule (wsl) means no untrusted links
 def off-home []: nothing -> bool {
     ($HOME_DISPATCHER | path exists) and not (($HOME_NETWORK | path exists) and (open --raw $HOME_NETWORK | is-not-empty))
 }
@@ -40,11 +38,9 @@ def tz-valid [tz: string]: nothing -> bool {
 }
 
 def lookup []: nothing -> any {
-    # offline: the nm dispatcher retries on the next link
     try { http get --full --allow-errors --max-time $LOOKUP_TIMEOUT $LOOKUP_URL } catch { null }
 }
 
-# null when offline; an answer without a timezone fails loudly so failure-notify reports it
 def tz-detect []: nothing -> any {
     let first = lookup
     let response = if $first != null and ($first.status == 429 or $first.status >= 500) {

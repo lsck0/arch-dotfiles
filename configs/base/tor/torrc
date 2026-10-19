@@ -1,4 +1,3 @@
-# torrc, see man tor
 User tor
 Log notice syslog
 DataDirectory /var/lib/tor

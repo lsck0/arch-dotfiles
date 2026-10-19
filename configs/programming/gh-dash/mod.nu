@@ -3,7 +3,6 @@ use module.nu *
 export const meta = {packages: {pacman: [gh-dash gh-enhance-bin]}}
 
 const CONFIG = ".config/gh-dash/config.yml"
-# the selected row: bg mixed this far toward the accent
 const SELECTED_MIX = 0.12
 
 def mix [a: string, b: string, t: float]: nothing -> string {

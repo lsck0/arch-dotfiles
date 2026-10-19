@@ -8,7 +8,6 @@ const ORCHESTRATOR = "profiles/orchestrator"
 const PYTHON = "/opt/hermes-agent/venv/bin/python"
 const GUARD = ".config/idle-guards/agent-guard.nu"
 const SKIN = "wallust"
-# never the local llm group, it is for chat only
 const SETTINGS = {
     display.interface: tui
     model.default: claude-sonnet-5
@@ -21,7 +20,6 @@ const SETTINGS = {
     ]
 }
 const ORCHESTRATOR_SETTINGS = {compression.threshold_tokens: 500000}
-# pre/post_llm_call bracket each turn (post after its tool loop); on_session_end covers an aborted one
 const GUARD_EVENTS = {
     pre_llm_call: turn-start
     post_llm_call: turn-end
@@ -35,7 +33,6 @@ def homes []: nothing -> record {
     {default: $default, orchestrator: ($default | path join $ORCHESTRATOR)}
 }
 
-# skipped while config.yaml already holds every value, so an apply converges
 def configure [home: path, settings: record]: nothing -> list<record> {
     let guard = $nu.home-dir | path join $GUARD
     let hooks = if ($guard | path exists) { $GUARD_EVENTS | items {|event, action| {$event: $"($guard) ($action)"} } | into record } else { {} }
@@ -55,14 +52,12 @@ export def link [cfg: record] {
     [
         (exec orchestrator-create [hermes profile create orchestrator --clone --description "Orchestrator. Not for interactive chat."] --creates $h.orchestrator)
         (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
-        # whole skill trees, read live like the root skills module's links
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
         (configure $h.default $SETTINGS)
         (configure $h.orchestrator ($SETTINGS | merge $ORCHESTRATOR_SETTINGS))
     ]
 }
 
-# the hermes skin for the wallpaper palette; null without a readable one
 def skin []: nothing -> any {
     let slot = wal-load "hermes skin"
     if $slot == null { return null }
@@ -90,7 +85,6 @@ def skin []: nothing -> any {
         [ui_accent (do $on $bg $accent 4.5)] [ui_label (do $on $bg $alt 4.5)] [ui_ok (do $on $bg $good 4.5)]
         [ui_error (do $on $bg $urgent 4.5)] [ui_warn (do $on $bg $warn 4.5)] [ui_tool (do $on $bg $accent 4.5)]
         [ui_thinking (do $hex $dim)]
-        # the word colours sit on the pale diff fill, not on bg
         [diff_added (do $hex $added)] [diff_removed (do $hex $removed)]
         [diff_added_word (do $on $added $good 4.5)] [diff_removed_word (do $on $removed $urgent 4.5)]
         [syntax_string (do $on $bg $good 4.5)] [syntax_number (do $on $bg $cool 4.5)]

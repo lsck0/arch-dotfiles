@@ -17,7 +17,6 @@ PopupWindow {
   property bool open: false
 
   readonly property bool docked: bar !== null && (bar.position === "top" || bar.position === "bottom")
-  // the neck flare widens the window, contentWidth stays the card's own width
   readonly property real neckWidth: docked ? Style.shape.neck * 2 : 0
 
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
@@ -34,7 +33,6 @@ PopupWindow {
     : 0
   readonly property real verticalContentInset: (padding + Style.surface.borderWidth) * 2
 
-  // only docked popups slide; beside-the-bar ones just fade
   readonly property real slideDistance: Style.space(14)
   readonly property real revealSlide: !docked ? 0
     : (root.bar && root.bar.position === "bottom" ? 1 : -1) * (1 - boot.progress) * slideDistance
@@ -103,7 +101,6 @@ PopupWindow {
       }
 
       var point = window.contentItem.mapFromItem(target, localX, localY) // qmllint disable missing-property
-      // flush with the bar window edge so the neck meets the accent rule
       if (root.bar.position === "top") point.y = window.height // qmllint disable missing-property
       else if (root.bar.position === "bottom") point.y = -popupHeight
 

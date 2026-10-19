@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# writes live here, not in quickshell, so the menu and keybinds work with the shell down
 use lib.nu [switch-run]
 
 def main [action: string = "toggle"] {

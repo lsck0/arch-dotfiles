@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# stage 1, from the Arch ISO or a fresh WSL distro's root shell: nushell and a verified checkout, then `dot bootstrap`.
 # nothing runs from a clone unless its HEAD is signed by SIGNING_KEY_FINGERPRINT (BOOTSTRAP_INSECURE=1 skips that)
 set -euo pipefail
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
@@ -7,6 +6,15 @@ CLONE_DIR=/tmp/arch-dotfiles
 SIGNING_KEY_FINGERPRINT=E7501F533316E9AFC6AAE907122F2CB527D1EFE3
 SIGNING_KEY_FILE=configs/core/gnupg/luca-sandrock.pub.asc
 COW_MIN_MIB=1024
+
+if [[ -d /run/archiso ]] && grep -q 'archisobasedir=' /proc/cmdline; then
+    :
+elif grep -qi microsoft /proc/sys/kernel/osrelease; then
+    :
+else
+    echo "bootstrap: runs only from the Arch ISO or inside WSL" >&2
+    exit 1
+fi
 
 [[ -z "${BOOTSTRAP_KEYMAP:-}" ]] || loadkeys "$BOOTSTRAP_KEYMAP"
 if [[ -d /run/archiso ]]; then
@@ -34,5 +42,5 @@ if [[ ! -f "$repo/scripts/dot.nu" ]]; then
     fi
 fi
 # the prompts read the console; piped over ssh without -t there is none, and BOOTSTRAP_ASSUME_YES needs none
-if { : < /dev/tty; } 2> /dev/null; then exec nu --no-config-file "$repo/scripts/dot.nu" bootstrap "$@" < /dev/tty; fi
-exec nu --no-config-file "$repo/scripts/dot.nu" bootstrap "$@" < /dev/null
+if { : < /dev/tty; } 2> /dev/null; then exec nu --no-config-file "$repo/scripts/dot.nu" internal bootstrap "$@" < /dev/tty; fi
+exec nu --no-config-file "$repo/scripts/dot.nu" internal bootstrap "$@" < /dev/null

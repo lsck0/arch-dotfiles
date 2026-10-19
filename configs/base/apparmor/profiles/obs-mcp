@@ -28,7 +28,7 @@ profile obs-mcp @{exec_path} flags=(attach_disconnected) {
   @{bin}/env ix,
   @{bin}/node ix,
 
-  # its own tree, installed by link.sh from the committed lockfile
+  # its own tree, installed by its mod.nu from the committed lockfile
   @{obs_mcp}/{,**} r,
 
   # v8 and libuv size the heap and thread pool from memory, the cpu count and the session's cgroup limits

@@ -4,8 +4,8 @@ export const meta = {packages: {pacman: [emacs hunspell-en_us]}}
 
 const CONFIG_DIR = ".config/emacs"
 const THEME = ".cache/wal/doom-pywal-theme.el"
+const FRAME = ".cache/wal/emacs-frame.el"
 const GRAMMAR_DIRS = [tree-sitter /usr/lib]
-# the personal formatter configs lang.el passes where a project has none
 const FORMATTING = [chktexrc clang-format latexindent.yaml prettierrc.json ruff.toml rustfmt.toml stylua.toml]
 
 def config-dir []: nothing -> path { $nu.home-dir | path join $CONFIG_DIR }
@@ -15,7 +15,6 @@ def emacs-batch [...eval: string]: nothing -> list<string> {
     [emacs --batch --init-directory $dir -l ($dir | path join early-init.el) -l ($dir | path join init.el)] ++ ($eval | each {|e| [--eval $e] } | flatten)
 }
 
-# grammars my/treesit-install-langs builds that are neither built here nor shipped by pacman
 def grammars-missing []: nothing -> list<string> {
     open --raw lang.el | parse --regex "(?s)defconst my/treesit-langs\\s+.\\((?<langs>[^)]*)\\)" | get 0.langs
     | split row --regex "\\s+" | where $it != ""
@@ -40,15 +39,29 @@ export def theme [cfg: record, wallpaper: string] {
     if $p == null { return [] }
     let theme = $nu.home-dir | path join $THEME
     let shade = if $p.light == "1" { {mode: light, darken: lighten, lighten: darken} } else { {mode: dark, darken: darken, lighten: lighten} }
+    let frame = [[background-color $p.bg_conditioned] [foreground-color $p.fg]]
+        | each { $"\(push '\(($in.0) . \"($in.1)\"\) default-frame-alist\)" } | str join "\n"
     [
         (file-render doom-pywal-theme.el.in $theme ($p | merge $shade | rename --block { str uppercase }) | file-text $theme $in.content --generated)
+        (file-text ($nu.home-dir | path join $FRAME) $"($frame)\n" --generated)
         (step theme-push)
     ]
 }
 
-# a running emacs reapplies through the entry point its own startup uses (ui.el)
+# toggle-font rewrites these in the repo's early-init.el
+def font-get []: nothing -> record {
+    let text = open --raw early-init.el
+    {
+        family: ($text | parse --regex '\(defvar my/font-family "(?<v>[^"]*)"\)' | get 0.v)
+        size: ($text | parse --regex '\(defvar my/font-size (?<v>[0-9]+)\)' | get 0.v)
+    }
+}
+
 export def theme-push []: nothing -> nothing {
     if (which emacsclient | is-empty) { return }
-    # no server running is the common case
-    try { ^timeout 5 emacsclient --eval "(my/apply-system-theme)" o+e>| ignore }
+    let font = font-get
+    # default-frame-alist's font wins over the faces on every frame made later
+    let faces = "(dolist (face '(default fixed-pitch variable-pitch)) (set-face-attribute face nil :family my/font-family :height (* 10 my/font-size))) (setf (alist-get 'font default-frame-alist) (format \"%s-%d\" my/font-family my/font-size))"
+    let eval = $"\(progn \(setq my/font-family ($font.family | to json) my/font-size ($font.size)\) ($faces) \(my/apply-system-theme\)\)"
+    try { ^timeout 5 emacsclient --eval $eval o+e>| ignore }
 }

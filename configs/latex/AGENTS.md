@@ -6,7 +6,9 @@ Extends the root `AGENTS.md`. The LaTeX authoring stack.
 
 - `latex`: the texlive toolchain and build config.
 - `sioyek`: the pdf reader for papers, with SyncTeX forward/inverse search; command on PATH, invoked bare by nvim/viewers.
-- `zotero`: the reference manager, profile created headless on first run.
+- `zotero`: the reference manager, profile created headless on first run. Better BibTeX (pinned xpi in the profile)
+  auto-exports the whole library to `~/.local/share/zotero/library.bib`, the file nvim's citation picker (`<leader>fC`)
+  and completion read beside the project's own `.bib` files.
 
 ## Conventions
 

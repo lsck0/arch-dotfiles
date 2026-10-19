@@ -1,6 +1,9 @@
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM="wayland;xcb"
 export QT_QPA_PLATFORMTHEME=kde
+# qt's file dialogs through the FileChooser portal: in-process, a confined app (telegram, zapzap, okular) would browse
+# mounts, udev and the places file under its own profile and get denied
+export PLASMA_INTEGRATION_USE_PORTAL=1
 export SDL_VIDEO_DRIVER=wayland,x11
 # user scripts (scripts/link.sh) for hyprland binds, units and editors, not only interactive zsh; prepended as in
 # zshrc, so wrappers there (core/yt-dlp's fail-closed yt-dlp) shadow the /usr/bin command of the same name

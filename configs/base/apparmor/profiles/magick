@@ -19,6 +19,8 @@ profile magick @{exec_path} flags=(attach_disconnected) {
   # delegates.xml runs through the shell; network fetchers (curl, wget) stay out
   @{sh_path} rix,
   @{bin}/{gs,ffmpeg,ffprobe,rsvg-convert,potrace,dcraw} rix,
+  # the svg coder probes inkscape before its built-in librsvg on every read; quiet, the render stays rsvg's
+  deny @{bin}/inkscape x,
 
   include if exists <local/magick>
 }

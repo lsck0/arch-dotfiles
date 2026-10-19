@@ -1,9 +1,8 @@
--- GitHub Projects V2 board driven by the project's saved views; org + number from OCTO_DEFAULT_ORG/PROJECT.
 local M = {}
 
-local COL_WIDTH = 30 -- board column display width
+local COL_WIDTH = 30
 local LIST_WIDTH = 70 -- list-view title truncation
-local TITLE_WIDTH = 46 -- table title column
+local TITLE_WIDTH = 46
 local FIELD_WIDTH_MAX = 24 -- other table columns shrink to their widest value
 local LEFT = "  " -- left margin on grid lines
 local SEP = " │ " -- between board columns
@@ -27,7 +26,6 @@ local cur_org = nil
 local board_buf = nil
 local views_warned = {} -- ["org/num"] = true once a failed views fetch was reported
 
--- survives restarts and spares gh rate limits
 local CACHE_DIR = vim.fn.stdpath("cache") .. "/ghproject"
 local CACHE_VERSION = 3 -- bump when the disk format changes
 local TTL = 300 -- seconds; a cache younger than this skips the background refresh
@@ -65,7 +63,6 @@ local function err(msg)
     vim.notify("ghproject: " .. msg, vim.log.levels.ERROR)
 end
 
--- run gh with the inherited identity env; cb(ok, decoded_json_or_stderr)
 local function gh_json(args, cb)
     vim.system({ "gh", unpack(args) }, { text = true, cwd = vim.fn.getcwd() }, function(res)
         vim.schedule(function()
@@ -83,7 +80,6 @@ local function gh_json(args, cb)
     end)
 end
 
--- resolve a highlight group, falling back to a builtin when the ftplugin has not defined it
 local function grp(name, fallback)
     return vim.fn.hlexists(name) == 1 and name or fallback
 end
@@ -96,7 +92,6 @@ local function header_group(i)
     return grp("GhProjectHeader", "Title")
 end
 
--- display width: wide glyphs count as 2
 local function truncate(s, n)
     s = tostring(s or ""):gsub("[\r\n]", " ")
     if vim.fn.strdisplaywidth(s) <= n then
@@ -130,7 +125,6 @@ local function join(cells)
     return table.concat(cells, SEP)
 end
 
--- byte ranges {start, stop} of each cell inside `base .. cells joined by a seplen-byte sep`
 local function ranges(cells, base, seplen)
     local r, pos = {}, base
     for i, c in ipairs(cells) do
@@ -195,7 +189,6 @@ local function raw_key(name)
     return name:sub(1, 1):lower() .. name:sub(2)
 end
 
--- a card's value for a field as lowercase strings, one per list entry
 local function card_values(card, field_name)
     local lname = field_name:lower()
     if lname == "title" then
@@ -274,7 +267,6 @@ local function tokenize(s)
     return out
 end
 
--- comma-separated values as {text, quoted}; quoted values match literally
 local function split_values(s)
     local out, cur, quoted, was_quoted = {}, {}, false, false
     for ch in s:gmatch(".") do
@@ -331,7 +323,6 @@ local function value_matcher(spec)
     end
 end
 
--- @current/@next/@previous as an iteration title, from the iteration dates the cards carry
 local function iteration_title(s, field, which)
     local its, seen = {}, {}
     for _, card in ipairs(s.cards) do
@@ -354,7 +345,6 @@ local function iteration_title(s, field, which)
     return it and tostring(it.title):lower() or nil
 end
 
--- one filter token as a card predicate, nil when this client cannot evaluate it
 local function compile_token(s, token)
     local neg = token:sub(1, 1) == "-"
     local body = neg and token:sub(2) or token
@@ -434,7 +424,6 @@ local function compile_token(s, token)
     return pred
 end
 
--- tokens AND together; returns the predicate and the tokens it had to ignore
 local function compile_filter(s, filter)
     local preds, ignored = {}, {}
     for _, token in ipairs(tokenize(filter or "")) do
@@ -528,7 +517,6 @@ local function invalidate()
     state.vis, state.vc, state.rows = nil, nil, nil
 end
 
--- option position for single selects, number when numeric, else the lowercase text
 local function sort_key(card, field)
     local v = card_values(card, field.name)[1]
     if v == nil then
@@ -542,7 +530,6 @@ local function sort_key(card, field)
     return tonumber(v) or v
 end
 
--- cards the view and search show, in view sort order (project position when unsorted)
 local function visible()
     if state.vis then
         return state.vis
@@ -585,7 +572,6 @@ local function visible()
     return out
 end
 
--- "No <field>" first (dropped when empty), then options in order or values as first seen
 local function group_by(cards, field)
     local none = { name = "No " .. field.name, cards = {} }
     local groups, by_name = { none }, {}
@@ -618,7 +604,6 @@ local function vcols()
     return state.vc
 end
 
--- table/list rows as groups; one unnamed group for an ungrouped table
 local function row_groups()
     if state.rows then
         return state.rows
@@ -1014,7 +999,6 @@ local function reorder_selected(dir)
     if target < 1 or target > #col_v.cards then
         return
     end
-    -- afterId: the visible item the card should follow at its new slot (nil = top)
     local after = dir > 0 and col_v.cards[target] or col_v.cards[target - 1]
     local args = {
         "api",
@@ -1301,7 +1285,6 @@ local function parse_views(data)
     return views, d.viewer and d.viewer.login
 end
 
--- the gh calls run in parallel, then assemble; renders only if this project is still current
 local function fetch(org, num, buf, key, title, idx)
     local got, pending, dead = {}, 4, false
     local function assemble()
@@ -1387,7 +1370,6 @@ local function fetch(org, num, buf, key, title, idx)
     one("views", views_args(org, num), true)
 end
 
--- render the project at `idx` from memory, then disk, then a background refresh unless the cache is fresh
 load_board = function(idx, force)
     proj_idx = idx
     local p = projects[idx]
@@ -1425,7 +1407,6 @@ load_board = function(idx, force)
     fetch(cur_org, num, board_buf, key, title, idx)
 end
 
--- set proj_idx to the default project's position (prepending it if absent), then cb()
 local function pick_project_index(default_num, cb)
     local idx
     for i, p in ipairs(projects) do
@@ -1442,7 +1423,6 @@ local function pick_project_index(default_num, cb)
     cb()
 end
 
--- fetch the org's project list once (disk cache serves it offline), pick the default, then cb()
 local function ensure_projects(default_num, cb)
     if projects and projects_org == cur_org then
         cb()

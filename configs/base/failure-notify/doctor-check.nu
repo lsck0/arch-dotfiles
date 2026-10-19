@@ -7,9 +7,9 @@ const SHOWN_WIDTH = 160
 def main []: nothing -> nothing {
     let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join doctor
     mkdir $state
-    let run = ^nu --no-config-file $DOT doctor --brief | complete
+    let run = ^nu --no-config-file $DOT status --brief | complete
     print --stderr --no-newline $run.stderr
-    # 1 is "found something", anything else is doctor failing, which OnFailure= reports
+    # 1 is "found something", anything else is status failing, which OnFailure= reports
     if $run.exit_code > 1 { exit $run.exit_code }
     $run.stdout | save --force ($state | path join findings)
     let findings = $run.stdout | lines
@@ -18,7 +18,7 @@ def main []: nothing -> nothing {
     let notified = $state | path join notified
     if $digest == (try { open --raw $notified | str trim } catch { "" }) { return }
     if ($findings | is-not-empty) {
-        let body = $findings | first $SHOWN_LINES | str substring 0..<$SHOWN_WIDTH | append "dot doctor shows them all"
+        let body = $findings | first $SHOWN_LINES | str substring 0..<$SHOWN_WIDTH | append "dot status shows them all"
         # no notification daemon yet: not recorded, the next run tries again
         let title = $"Doctor: ($findings | length) findings"
         if (^notify-send -a doctor -u normal $title ($body | str join "\n") | complete).exit_code != 0 { return }

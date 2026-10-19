@@ -1,4 +1,4 @@
-;; tempel templates, mirroring nvim's lua/snippets.lua and lua/latex_snippets.lua
+;; tempel templates, mirroring nvim's snippets/<filetype>.lua
 
 c-mode c-ts-mode c++-mode c++-ts-mode js-mode js-ts-mode typescript-ts-mode tsx-ts-mode
 

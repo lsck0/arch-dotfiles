@@ -6,12 +6,10 @@ const USAGE = "usage: desktop-run [options] -- <command...>"
 const EXIT_USAGE = 2
 # left with ctrl+c, on purpose
 const EXIT_INTERRUPTED = 130
-# polled, a server takes from a second (mitmweb) to a minute (a cold jvm) to listen
 const OPEN_TRIES = 120
 const NOTIFY_EARLY = 5sec
 const NOTIFY_LINES = 5
 
-# null when cancelled: a cancelled pick or an empty answer cancels the launch, not an error
 def --wrapped zenity-ask [...args: string]: nothing -> any {
     let out = ^zenity ...$args | complete
     if $out.exit_code != 0 { null } else { $out.stdout | str trim --right --char "\n" }

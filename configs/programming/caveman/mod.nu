@@ -6,7 +6,6 @@ const COMMIT = "6571943370f7c9d4de1946481177ee7b306cd8e8"
 const SKILLS_CLI = "skills@1.7.0"
 # the claude cli writes failed telemetry events under ~/.claude on every call otherwise
 const CLAUDE = [env DISABLE_TELEMETRY=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude]
-# a copied skill matching the checkout's is that agent already at the pin
 const PROBE = "skills/caveman/SKILL.md"
 
 def has [cmd: string]: nothing -> bool {
@@ -27,7 +26,6 @@ def claude-steps [dir: path]: nothing -> list<record> {
         | default [] | any { $in.gitCommitSha? == $COMMIT }
     let market = json-or ($plugins | path join known_marketplaces.json) {} | get --optional caveman
     if $installed and $market.installLocation? == $dir { return [] }
-    # the marketplace is the checkout itself; an older one by the same name points at github
     let stale = $market != null and $market.installLocation? != $dir
     let add = $market.installLocation? != $dir
     (if $stale { [(exec "caveman marketplace drop" [...$CLAUDE plugin marketplace remove caveman])] } else { [] })

@@ -3,7 +3,6 @@
 const SPEC_KEYS = [type default doc label group choices min max step apply scope env toggle]
 const SPEC_REQUIRED = [type default doc]
 export const OPTION_APPLY = [live relink relogin reboot]
-# user scope: the profile may override the machine's value
 export const OPTION_SCOPE = [machine user]
 const OPTION_APPLY_DEFAULT = "relink"
 const OPTION_SCOPE_DEFAULT = "user"
@@ -21,7 +20,6 @@ export def option-type-ok [type: string, value: any]: nothing -> bool {
     }
     match [$wanted $base] {
         ["float" "int"] | ["path" "string"] => true
-        # nu describes a list of records as a table
         [$w "table"] if ($w == "list" or ($w | str starts-with "list<record") or ($w | str starts-with "table")) => true
         _ => (($wanted | str starts-with "list<") and $actual == "list<any>")
     }
@@ -120,7 +118,7 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
 }
 
 const EVENTS_FILE = "dot/events.jsonl"
-# the events file lives in tmpfs; past this it starts over (dot watch follows the truncation)
+# the events file lives in tmpfs; past this it starts over (dot internal watch follows the truncation)
 const EVENTS_MAX_BYTES = 1048576
 
 export def options-events-file []: nothing -> path {

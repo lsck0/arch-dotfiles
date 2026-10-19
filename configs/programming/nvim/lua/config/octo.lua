@@ -1,6 +1,5 @@
 local M = {}
 
--- from the private per-repo identity, never hardcoded
 local function org()
     local o = vim.env.OCTO_DEFAULT_ORG
     if not o or o == "" then

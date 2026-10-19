@@ -42,7 +42,6 @@ def main [interface?: string, --meta] {
     if $security == "WPA" and $password == "" { fail "Could not read the Wi-Fi password" }
     let hidden = if ($fields.3? | default no) == "yes" { "H:true;" } else { "" }
 
-    # ssid last since it may contain tabs
     if $meta { print $"meta\t($interface)\t($security)\t($ssid)" }
     # stdin, never an argv visible in /proc; two ascii chars per module
     $"WIFI:T:($security);S:($ssid | qr-escape);P:($password | qr-escape);($hidden);"

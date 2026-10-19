@@ -69,23 +69,25 @@ export def apply [cfg: record] {
   ...}`, `exec <name> [argv] [--creates path]`.
 - Facts: `platform-has homelab` (machine), `profile-has secrets` (user, link only), `$env.FORM_FACTOR`. A per-module
   setting is an option, set with `dot set <group/module>.<key> <value> [--machine]`.
-- A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot adopt <file>` (copies it back
-  into the module) or `dot link --force` (preserves it aside).
+- A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot module adopt <file>` (copies it
+  back into the module) or `dot apply --force <group>/<module>` (preserves it aside).
 - A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` with `up` (and `down`).
+- A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
+  carries the live file back into the repo or `secrets/`; `dot sync` runs it.
 
 ## Run it alone
 
 ```bash
-dot plan <group>/<module>          # actions, touching nothing
-dot link <group>/<module>          # apply; a second run is a no-op
-dot unlink <group>/<module>        # reverse it; link again restores it
+dot plan <group>/<module>          # actions, touching nothing; again after the apply, it should be empty
+dot apply <group>/<module>         # its user layer; a second run is a no-op
+dot module unlink <group>/<module> # reverse it; apply again restores it
 dot plan --system <group>/<module> # the system verb, planned as the user
 dot test lint && dot test check  # layer rules per verb, nu parse gate
 ```
 
 `dot log --trace` shows where the time went, `dot explain <path>` which module and run wrote a file.
 
-Agents and tests run with `DOT_SYSTEM=skip` (or `--no-system` on `dot set`, `dot unset`, `dot apply`): nothing reaches
-sudo or pkexec, a machine option's system part is only recorded as pending (exit 3). A root prompt on Luca's screen
-asks for his YubiKey: polkit's PAM stack (and sudo's) tries pam_u2f first, a touch without a PIN, then an enrolled
-finger, then the password.
+Agents and tests run with `DOT_SYSTEM=skip` (or `--no-system` on `dot set`, `dot apply`, `dot sync`): nothing reaches
+sudo or pkexec, a machine option's system part is only recorded as pending (exit 3). A root prompt on Luca's screen asks
+for his YubiKey: polkit's PAM stack (and sudo's) tries pam_u2f first, a touch without a PIN, then an enrolled finger,
+then the password.

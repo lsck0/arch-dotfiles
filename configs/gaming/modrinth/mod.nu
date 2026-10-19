@@ -21,7 +21,7 @@ def unlinked [p: record]: nothing -> list<path> {
 export def link [cfg: record] {
     if (which modrinth-app | is-empty) { return [] }
     let p = paths
-    # launcher state (accounts, auth tokens, instances), seeded once; modrinth rewrites app.db in place with its -wal
+    # seeded once: modrinth rewrites app.db in place
     let seed = if (secret-is-plaintext $p.saved) and not ($p.db | path exists) { step seed } else { [] }
     # only into a saves dir syncthing made: one made here first collides with the real one it delivers
     let busy = ps | where name in [java modrinth-app] | is-not-empty
@@ -36,7 +36,6 @@ export def seed []: nothing -> nothing {
     touch ($p.data | path join .from-secrets)
 }
 
-# one world on two machines at once becomes a syncthing conflict copy
 export def relocate []: nothing -> nothing {
     let p = paths
     for profile in (unlinked $p) {
@@ -44,7 +43,7 @@ export def relocate []: nothing -> nothing {
         let live = $profile | path join saves
         let synced = $p.saves | path join $pack
         if ($live | path exists) and ($synced | path exists) {
-            # both hold worlds: add the ones the synced tree lacks, never overwrite or delete a synced copy
+            # -n: never overwrite a synced copy
             ^cp -rn $"($live)/." $"($synced)/"
             mv $live $"($live).pre-sync.(date now | format date '%s')"
             print $"note: modrinth: merged ($pack) worlds into ($synced), the old copy kept as saves.pre-sync.*"
@@ -55,7 +54,6 @@ export def relocate []: nothing -> nothing {
     }
 }
 
-# .backup checkpoints app.db's -wal into one consistent file
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }

@@ -41,7 +41,6 @@ export def queues []: nothing -> nothing {
     }
     # cups-pdf does not create its queue; not the default, a real printer takes that (printers-sync)
     if not (queue-pdf) { ^lpadmin -p $PDF_QUEUE -v cups-pdf:/ -m CUPS-PDF_opt.ppd -E }
-    # off home avahi is masked and nothing is found; the next home connect catches up
     try { ^$SYNC } catch { log-warn "printing: some printers found over mdns got no queue, see above" }
     if (^lpstat -v | complete | get stdout) !~ ' dnssd://' {
         log-info "printing: no driverless printer queue yet, the next home connect that finds a printer adds one"

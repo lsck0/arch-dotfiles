@@ -12,8 +12,8 @@ BarIndicator {
   active: false
   activeText: "\u{f0176}"
   inactiveText: "\u{f0176}"
-  activeTooltipText: "Allow Idle Lock & Screensaver"
-  inactiveTooltipText: "Keep Awake"
+  activeTooltipText: "Allow idle lock"
+  inactiveTooltipText: "Keep awake"
 
   function refresh() {
     if (!checkProc.running) checkProc.running = true
@@ -31,7 +31,6 @@ BarIndicator {
 
   Component.onCompleted: refresh()
 
-  // keybinds and the toggles menu change it too
   Connections {
     target: ToggleEvents
     function onChanged(script) { if (script === "toggle-keep-awake.nu") root.refresh() }

@@ -29,6 +29,8 @@ EV_SIZE = struct.calcsize(EV_FMT)
 EV_ABS, ABS_X, ABS_Y = 3, 0, 1
 EVIOCGNAME = 0x81004506
 BINS = 16
+EVENT_PREFIX = "/dev/input/event"
+DRIVER_NAME = "SDD Tablet T1161"
 
 
 def ioctl_name(fd):
@@ -45,10 +47,26 @@ def abs_range(fd, axis):
 
 
 def find_pen():
-    """The pen is the evdev node with X/Y and a plausible physical size."""
+    """The pen is the evdev node with X/Y and a plausible physical size, the driver's own one first.
+
+    The kernel's raw nodes of the same tablet (ignored by libinput) also pass the size test and sort first, but
+    report the firmware's squeezed X; a laptop touchpad passes it too.
+    """
     override = os.environ.get("TABLET_NODE")
-    candidates = [override] if override else sorted(glob.glob("/dev/input/event*"))
+    candidates = (
+        [override]
+        if override
+        else sorted(glob.glob(EVENT_PREFIX + "*"), key=lambda p: int(p.removeprefix(EVENT_PREFIX)))
+    )
+    driver = []
     for path in candidates:
+        try:
+            with open(f"/sys/class/input/{os.path.basename(path)}/device/name") as fh:
+                if fh.read().strip() == DRIVER_NAME:
+                    driver.append(path)
+        except OSError:
+            pass
+    for path in driver + [c for c in candidates if c not in driver]:
         try:
             fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
         except OSError:
@@ -74,10 +92,11 @@ def hypr_socket():
     runtime = os.environ.get("XDG_RUNTIME_DIR", "/run/user/%d" % os.getuid())
     sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
     if not sig:
-        cands = [c for c in sorted(glob.glob(os.path.join(runtime, "hypr", "*"))) if os.path.isdir(c)]
+        cands = [c for c in glob.glob(os.path.join(runtime, "hypr", "*")) if os.path.isdir(c)]
         if not cands:
             return None
-        sig = os.path.basename(cands[-1])
+        # the signature starts with the build's commit hash, so by name a stale instance can sort last
+        sig = os.path.basename(max(cands, key=os.path.getmtime))
     return os.path.join(runtime, "hypr", sig, ".socket.sock")
 
 

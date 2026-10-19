@@ -1,7 +1,5 @@
 use module.nu *
 
-# the tunnel config is the admin's secret, a wireguard .conf from account.protonvpn.com
-
 export const meta = {volatile: true}
 
 const CONF = "/etc/wireguard/protonvpn-netns.conf"

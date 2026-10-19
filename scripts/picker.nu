@@ -2,7 +2,6 @@
 
 const GHOSTTY_CONFIG = path self | path expand | path dirname --num-levels 2 | path join configs desktop ghostty config
 const WAL_COLORS = "wal/colors"
-# before wallust or ghostty ran once
 const DEFAULTS = {bg: "#101010", fg: "#d0d0d0", accent: "#5f87af", font: monospace, size: "14"}
 
 # bemenu styled from the wallust palette and ghostty's font; arguments go to bemenu.

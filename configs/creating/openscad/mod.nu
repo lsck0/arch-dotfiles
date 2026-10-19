@@ -13,7 +13,6 @@ export def link [cfg: record] {
         (json-merge ($nu.home-dir | path join .claude.json) [
             (json-set [mcpServers openscad] {
                 type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]
-                # update checks against pypi and opentelemetry spans
                 env: {
                     FASTMCP_CHECK_FOR_UPDATES: "off", FASTMCP_SHOW_SERVER_BANNER: "false", FASTMCP_TELEMETRY_MODE: "off"
                 }

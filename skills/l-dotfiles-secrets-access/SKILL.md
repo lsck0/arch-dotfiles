@@ -38,5 +38,5 @@ ask, do not wait in a loop.
 1. Unlock, then put the file under `secrets/` (subdirs are fine); git-crypt encrypts it on commit.
 2. A system module needs it: add its path to `SYSTEM_SECRETS` in `scripts/lib/system.nu`.
 3. `dot sync` commits and pushes the submodule, then the main repo. Agents never do.
-4. Writing into `secrets/` while locked would stage plaintext into blob paths; `secret_require_unlocked` guards
-   scripts that write there.
+4. Writing into `secrets/` while locked would stage plaintext into blob paths: a script that writes there first
+   checks `secret-is-plaintext` on a witness file (`pgp_privatekey.asc`) and stops when it is locked.

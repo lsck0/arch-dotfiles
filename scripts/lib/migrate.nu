@@ -1,5 +1,3 @@
-# a fresh install marks them run without running them: they describe history, not setup
-
 use log.nu *
 use state.nu [LIB_DIR nu-bin]
 use ledger.nu [ledger-get ledger-set]

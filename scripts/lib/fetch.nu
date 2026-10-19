@@ -1,5 +1,3 @@
-# third-party code pinned by content: a moved tag or a compromised upstream fails here instead of running
-
 use state.nu [state-dir path-kind]
 
 def fetch-cache []: nothing -> path {

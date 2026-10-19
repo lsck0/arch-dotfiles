@@ -13,14 +13,12 @@ def state-file []: nothing -> path { $env.XDG_RUNTIME_DIR | path join screen-dim
 def backlight []: nothing -> bool { glob /sys/class/backlight/* | is-not-empty }
 
 def buses []: nothing -> list<string> {
-    # the bus map from monitor-brightness.nu skips a slow detect
     let mapped = try { open --raw ($nu.home-dir | path join $DDC_BUS_MAP) | lines | each { split row "\t" | get 1 } } catch { [] }
     if ($mapped | is-not-empty) { return $mapped }
     ^ddcutil detect --terse | complete | get stdout | parse --regex '/dev/i2c-(?<bus>\d+)' | get bus
 }
 
 def dim []: nothing -> nothing {
-    # already dimmed: do not overwrite the saved baseline with the dimmed level
     if (state-file | path exists) { return }
     if (backlight) {
         ^brightnessctl -s set $BACKLIGHT_LOW | ignore

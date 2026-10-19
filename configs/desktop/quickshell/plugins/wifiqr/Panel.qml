@@ -28,14 +28,12 @@ Item {
 
   readonly property bool showingQr: qrSize > 0 && !loading && error === ""
 
-  // text on the overlay card; the code itself keeps its own white quiet zone
   readonly property color onScrim: Colors.menu.text
   readonly property color onScrimDim: Util.alpha(Colors.menu.text, Style.emphasis.dim)
   readonly property color onScrimUrgent: Colors.urgent
   readonly property string fontFamily: Style.font.family
 
   function open(payload) {
-    // the generator's meta line overwrites this ssid
     root.ssid = payload.ssid !== undefined ? String(payload.ssid) : ""
     generate(String(payload.iface || ""))
     root.opened = true
@@ -63,7 +61,6 @@ Item {
     root.iface = ""
     root.ssid = ""
     root.secured = false
-    // the password only lives in memory while the card is up
     root.password = ""
     root.passwordVisible = false
     root.passwordError = ""
@@ -71,7 +68,6 @@ Item {
 
   function generate(requestedIface) {
     if (qrProc.running) {
-      // latest request wins: queue it and stop the old process
       pendingShow = true
       pendingIface = requestedIface
       if (!expectedStop) {
@@ -85,7 +81,6 @@ Item {
     error = ""
     loading = true
     expectedStop = false
-    // a re-summon may share a different connection; drop the old password
     iface = ""
     secured = false
     password = ""
@@ -117,7 +112,6 @@ Item {
     if (password !== "") { passwordVisible = true; return }
     if (pwProc.running || !iface) return
     passwordError = ""
-    // only a deliberate lookup lowers the canceled-fetch guard
     pwExpectedStop = false
     pwProc.command = [Paths.script("network-password.nu"), iface]
     pwProc.running = true
@@ -171,7 +165,6 @@ Item {
     name: "network-qr"
     title: root.ssid || "wi-fi"
     hints: [["ESC", "close"]]
-    // scanlines would cross the code and hurt the scan
     scanlines: false
     cardWidth: Math.max(qrContent.implicitWidth, Style.space(280)) + chromeWidth
     cardHeight: qrContent.implicitHeight + chromeHeight

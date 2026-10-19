@@ -251,7 +251,6 @@ module.exports = class QuickshellVoiceStatus {
     }
   }
 
-  // speaking flips many times a second in a call
   _schedulePublish() {
     if (this._publishTimer) return;
     this._publishTimer = setTimeout(() => {
@@ -298,7 +297,6 @@ module.exports = class QuickshellVoiceStatus {
       if (this._commandPath && this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
     } catch (e) {}
 
-    // slow poll only covers a dead watcher
     try {
       this._commandWatcher = this._fs.watch(this._runtimeDir, (event, name) => {
         if (name === "quickshell-discord-cmd") this._pollCommands();

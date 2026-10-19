@@ -6,7 +6,6 @@ const CONF = "/etc/wireguard/protonvpn-netns.conf"
 const RUN = "/usr/local/lib/protonvpn-netns/run"
 const NS = "protonvpn"
 const BYPASS = "/tmp/egress.bypass"
-# qemu's user-net host, the peer's endpoint
 const QEMU_HOST = "10.0.2.2"
 const BEACON_TIMEOUT_S = 5
 const CURL_TIMEOUT_S = 8

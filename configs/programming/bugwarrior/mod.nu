@@ -1,12 +1,11 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [bugwarrior]}, inputs: [/usr/bin/bugwarrior]}
+export const meta = {deps: [programming/task], packages: {pacman: [bugwarrior]}, inputs: [/usr/bin/bugwarrior]}
 
 const CONFIG_DIR = ".config/bugwarrior"
-# bugwarrior.toml's log_file
 const LOG_DIR = ".local/state/bugwarrior"
+const TASKRC = ($nu.home-dir | path join .config task taskrc)
 
-# pulls the owner's own issue trackers
 export def link [cfg: record] {
     if not (profile-has identity) { return [] }
     let dir = $nu.home-dir | path join $CONFIG_DIR
@@ -14,11 +13,8 @@ export def link [cfg: record] {
     [
         (file-copy bugwarrior.toml ($dir | path join bugwarrior.toml))
         (exec bugwarrior-log-dir [mkdir -p $log] --creates $log)
-        # taskwarrior rejects bugwarrior's udas unless declared (programming/task includes them). `bugwarrior uda`
-        # opens bugwarrior.toml's log_file eagerly, right here during planning, before the mkdir above has ever
-        # run: on a fresh install $log doesn't exist yet and the whole module eval crashes before any decl applies.
-        # Skip it this pass; the mkdir's own --creates still triggers a re-eval pass once $log exists.
-        (if (which bugwarrior | is-empty) or not ($log | path exists) { [] } else {
+        # `bugwarrior uda` opens the log file and the taskrc while planning, so it waits until both exist
+        (if (which bugwarrior | is-empty) or not ($log | path exists) or not ($TASKRC | path exists) { [] } else {
             file-text ($dir | path join uda.taskrc) $"(with-env {BUGWARRIORRC: ($env.PWD | path join bugwarrior.toml)} { ^bugwarrior uda })\n"
         })
     ]

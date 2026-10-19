@@ -81,7 +81,6 @@ return {
             dap.listeners.before.event_terminated["dapui_config"] = close_ui
             dap.listeners.before.event_exited["dapui_config"] = close_ui
 
-            -- buffers without dap configs list every filetype's configs
             dap.providers.configs["fallback"] = function(bufnr)
                 if dap.configurations[vim.bo[bufnr].filetype] then
                     return {}
@@ -235,7 +234,6 @@ return {
                 },
             }
 
-            -- jdtls loads the java-debug bundle and hands out the adapter port
             local function jdtls_command(command, arguments)
                 local client = vim.lsp.get_clients({ name = "jdtls" })[1]
                 assert(client, "jdtls not running, open a .java file first")
@@ -293,7 +291,6 @@ return {
                 },
             }
 
-            -- node >= 23 runs .ts directly
             local js_debug_server = vim.fn.stdpath("data")
                 .. "/mason/packages/js-debug-adapter/js-debug/src/dapDebugServer.js"
             dap.adapters["pwa-node"] = {

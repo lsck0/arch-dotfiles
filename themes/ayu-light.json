@@ -1,0 +1,28 @@
+{
+  "wallpaper": "alena-aenami-avalanches.jpg",
+  "pair": "ayu-dark",
+  "font": "Kode Mono",
+  "special": {
+    "background": "#fafafa",
+    "foreground": "#575f66",
+    "cursor": "#ff9940"
+  },
+  "colors": {
+    "color0": "#e7e8e9",
+    "color1": "#e26a71",
+    "color2": "#749b00",
+    "color3": "#ba8638",
+    "color4": "#297ba4",
+    "color5": "#a37acc",
+    "color6": "#3f9f80",
+    "color7": "#575f66",
+    "color8": "#8b9095",
+    "color9": "#e26a71",
+    "color10": "#749b00",
+    "color11": "#ba8638",
+    "color12": "#297ba4",
+    "color13": "#a37acc",
+    "color14": "#3f9f80",
+    "color15": "#575f66"
+  }
+}

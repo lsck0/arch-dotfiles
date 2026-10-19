@@ -53,10 +53,11 @@ profile zotero @{exec_path} flags=(attach_disconnected,mediate_deleted) {
   # an attachment or link opened in an external app leaves through the confined opener, as from the other viewers
   @{open_path} rPx -> child-open,
 
-  # the gecko profile (MOZ_LEGACY_PROFILES keeps it in ~/.zotero), the startup and cache2 trees in the cache dir, and
-  # the data library (storage holds the pdfs and web snapshots); user-read-strict already reads the content dirs an
-  # attachment is linked from
+  # the gecko profile (MOZ_LEGACY_PROFILES keeps it in ~/.zotero, a link into the data dir), the startup and cache2
+  # trees in the cache dir, and the data library (storage holds the pdfs and web snapshots); user-read-strict already
+  # reads the content dirs an attachment is linked from
   owner @{HOME}/.zotero/{,**} rwkl,
+  owner @{user_share_dirs}/zotero/{,**} rwkl,
   owner @{HOME}/Zotero/{,**} rwkl,
   owner @{user_cache_dirs}/zotero/{,**} rwkl,
 

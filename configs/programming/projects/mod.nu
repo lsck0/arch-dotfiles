@@ -1,7 +1,6 @@
 use module.nu *
 
 export const meta = {
-    # gh's login authenticates the https clones
     deps: [core/gh]
     inputs: [~/projects ~/.config/tms/config.toml secrets/repositories]
 }
@@ -9,7 +8,6 @@ export const meta = {
 const PROJECTS = "projects"
 # <spec> [path] [secret] per line: what to clone and where
 const REPOSITORIES = "secrets/repositories"
-# empty bare repos for throwaway work, worktrees go inside them (configs/core/git/wtree.nu)
 const BARE = [probe]
 const ICON = "folder-development"
 # a push to github alone must not reach root here through git-sync and dot apply
@@ -39,11 +37,9 @@ def clone [root: path, line: string]: nothing -> list<record> {
         # the empty helper first drops gh's, which logs in as another account
         [-c credential.helper= -c $"credential.helper=(credential-helper $token)"]
     }
-    # a private repo without credentials fails instead of waiting for a password
     [(exec $"clone ($dest | path basename)" [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest] --creates $dest)]
 }
 
-# a dir of repos (plain clones, or a bare `.bare` + worktrees) is a project too: tms lists only repos and bookmarks
 def collections [root: path]: nothing -> list<path> {
     ls $root | where type == dir | get name | where {|dir|
         let repo = ($dir | path join .git | path exists) or ($dir | path join HEAD | path exists)
@@ -59,7 +55,6 @@ def icon-set [root: path]: nothing -> bool {
     (^gio info -a metadata::custom-icon-name $root | complete | get stdout) =~ $"custom-icon-name: ($ICON)"
 }
 
-# the owner's own repos
 export def link [cfg: record] {
     if not (profile-has identity) { return [] }
     let root = $nu.home-dir | path join $PROJECTS
@@ -71,7 +66,6 @@ export def link [cfg: record] {
     let marked = bookmarks
     [
         (exec projects-dir [mkdir -p $root] --creates $root)
-        # folder icon: .directory for dolphin, gio for nemo
         (file-text ($root | path join .directory) $"[Desktop Entry]\nIcon=($ICON)\n")
         (if (which gio | is-empty) or (($root | path exists) and (icon-set $root)) { [] } else {
             [(exec projects-icon [gio set $root metadata::custom-icon-name $ICON])]

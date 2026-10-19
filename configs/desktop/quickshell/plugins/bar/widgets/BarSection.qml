@@ -24,10 +24,8 @@ Repeater {
       console.warn("BarSection[" + root.section + "] failed " + modelData + ": " + detail)
     }
 
-    // duck-typed: bar and settings exist only where a widget declares them
     readonly property var widget: item
 
-    // widgets may hide themselves; size follows widget.visible
     visible: true
     Layout.minimumWidth: 0
     Layout.preferredWidth: widget && widget.visible ? widget.implicitWidth : 0

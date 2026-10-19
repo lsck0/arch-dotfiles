@@ -1,12 +1,11 @@
 use module.nu *
 
-# every line of links.txt becomes a command in ~/.local/bin that opens the url, plus collection/links.js for the
-# browser start pages. a line is `<url>` (named after the host without its last label: amazon.de -> amazon) or
-# `<url> as <name>`. collection/ is generated and gitignored
+# a links.txt line is `<url>` (named after the host minus its last label) or `<url> as <name>`
 const NAME_PATTERN = '^[A-Za-z0-9_-]+$'
 
 def parse-links []: nothing -> table {
-    open links.txt | lines | each { str trim } | where $it != "" | each {|line|
+    # a comment starts the line or follows whitespace, so a url's #fragment stays
+    open links.txt | lines | each { str replace --regex '(^|\s)#.*$' '' | str trim } | where $it != "" | each {|line|
         let parts = $line | split row --regex '\s+'
         let url = $parts | first
         if not ($url starts-with "http://" or $url starts-with "https://") {

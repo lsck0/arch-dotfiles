@@ -51,10 +51,9 @@ Then revoke the lost key: drop its `age-<serial>.identity`, `ssh-<serial>*` and 
 
 ## Test it
 
-Once a year, and after every reseal: in a scratch clone, `./scripts/dot.nu secrets unlock --identity <paper key>`
-must turn `secrets/pgp_privatekey.asc` into plaintext. A paper key that fails here is no backup. After a passing
-test run `dot audit drilled`: it records the date, and the monthly `recovery-drill.timer` reminds you once a year
-is up.
+Once a year, and after every reseal: in a scratch clone, `./scripts/dot.nu secrets unlock --identity <paper key>` must
+turn `secrets/pgp_privatekey.asc` into plaintext. A paper key that fails here is no backup. After a passing test run
+`dot secrets audit drilled`: it records the date, and the monthly `recovery-drill.timer` reminds you once a year is up.
 
 ## LUKS header
 

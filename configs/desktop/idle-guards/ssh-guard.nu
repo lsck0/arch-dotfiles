@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # a sleep inhibitor while an ssh login session is open; locking still happens
 
-# a recheck this often catches a session that went to closing without a signal of its own
 const RECHECK = 60sec
 const ENDED = "ended"
 const TIMEOUT = "timeout"

@@ -1,0 +1,15 @@
+{
+    "base/fprintd": {enable: false}
+    "base/i2c": {enable: false}
+    "base/lact": {enable: false}
+    "base/plymouth": {enable: false}
+    "base/portmaster": {enable: false}
+    "base/protonvpn": {enable: false}
+    "base/protonvpn-netns": {enable: false}
+    "base/tablet": {enable: false}
+    "base/tlp": {enable: false}
+    "base/v4l-utils": {enable: false}
+    "base/v4l2loopback": {enable: false}
+    # the hardware mac on ethernet: a random one per connection breaks dhcp reservations
+    "base/networkmanager": {home_wired: true}
+}

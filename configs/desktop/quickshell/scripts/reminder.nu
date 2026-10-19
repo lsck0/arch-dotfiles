@@ -46,7 +46,6 @@ def reminder-json []: nothing -> record {
     {count: $count, active: ($count > 0), tooltip: $tooltip, reminders: $reminders}
 }
 
-# atomic so TimerState's watcher never reads a partial write
 def index-write []: nothing -> nothing {
     mkdir (reminder-dir)
     let index = reminder-dir | path join index.json
@@ -66,19 +65,20 @@ def main [
     if $minutes == null or $minutes <= 0 { error make {msg: "minutes must be a positive integer, see --help"} }
     let message = $message | str join " "
     let unit_label = if $minutes == 1 { "1 minute" } else { $"($minutes) minutes" }
-    let unit = $"($unit_prefix)($minutes)m-(date now | into int | $in // 1_000_000_000)"
+    # nanoseconds: two reminders of the same length set in one second would share a unit
+    let unit = $"($unit_prefix)($minutes)m-(date now | into int)"
     mkdir (reminder-dir)
     if $message != "" { $message | save -f (reminder-dir | path join $"($unit).message") }
     systemd-run --user --quiet --collect $"--on-active=($minutes)m" $"--unit=($unit)" ($env.CURRENT_FILE | path expand) _fire $unit
     index-write
     let title = if $message != "" { $"($message) in ($unit_label)" } else { $"Reminder set for ($unit_label)" }
-    notify $bell_glyph $title $"You'll be reminded at (date now | $in + ($minutes * 1min) | format date '%H:%M')"
+    notify $bell_glyph $title $"Due at (date now | $in + ($minutes * 1min) | format date '%H:%M')"
 }
 
 def "main show" [--json (-j)]: nothing -> nothing {
     if $json { print (reminder-json | to json -r); return }
     let lines = reminder-list | each { $"($in.label) in ($in.remaining) \(($in.atTime)\)" }
-    notify $list_glyph "Upcoming reminders" (if ($lines | is-empty) { "No outstanding reminders" } else { $lines | str join "\n" })
+    notify $list_glyph "Upcoming reminders" (if ($lines | is-empty) { "None" } else { $lines | str join "\n" })
 }
 
 def "main list" [--json (-j)]: nothing -> nothing { main show --json=$json }
@@ -87,7 +87,6 @@ def "main cancel" [target: string]: nothing -> nothing {
     let unit = $target | str replace -r '\.(timer|service)$' ''
     # never stop arbitrary caller-supplied units
     if not ($unit starts-with $unit_prefix) { error make {msg: $"refusing to cancel non-reminder unit '($target)'"} }
-    # an elapsed reminder's units are already gone
     systemctl --user stop $"($unit).timer" $"($unit).service" | complete | ignore
     rm -f (reminder-dir | path join $"($unit).message")
     index-write
@@ -95,12 +94,23 @@ def "main cancel" [target: string]: nothing -> nothing {
 
 def "main delete" [target: string]: nothing -> nothing { main cancel $target }
 
+# name a pending reminder, or with no name drop it back to "<n>-min reminder"
+def "main rename" [target: string, ...name: string]: nothing -> nothing {
+    let unit = $target | str replace -r '\.(timer|service)$' ''
+    if not ($unit starts-with $unit_prefix) { error make {msg: $"refusing to rename non-reminder unit '($target)'"} }
+    if $unit not-in (reminder-list | get unit) { error make {msg: $"no pending reminder ($unit)"} }
+    let name = $name | str join " " | str trim
+    let message_path = reminder-dir | path join $"($unit).message"
+    if $name == "" { rm -f $message_path } else { $name | save -f $message_path }
+    index-write
+}
+
 def "main clear" []: nothing -> nothing {
     let units = systemctl --user list-timers --all --output=json $"($unit_prefix)*.timer" | from json
     if ($units | is-not-empty) { systemctl --user stop ...($units | each { [$in.unit $in.activates] } | flatten) }
     rm -f ...(glob (reminder-dir | path join $"($unit_prefix)*.message"))
     index-write
-    notify $list_glyph "All reminders have been cleared"
+    notify $list_glyph "Reminders cleared"
 }
 
 # the timer's own command: alert.nu so an elapsed reminder does not auto-expire, then drop it from the index

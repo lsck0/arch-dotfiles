@@ -1,30 +1,21 @@
-/* translucent chrome here, a window rule would dim web content too */
+/* translucent chrome over hyprland's blur here, a window rule would dim web content too */
+
+/* --rtk-radius and --appshell-opacity, written by the module from palette.nu */
+@import url("dotfiles-style.css");
 
 :root {
-    /* matches global_opacity in configs/desktop/hyprland/hyprland_windowrules.lua */
-    --appshell-opacity: 95%;
+    --appshell-field-opacity: 55%;
 }
 
-/* window needs alpha or nothing shows through */
+/* the window needs alpha or nothing shows through; since firefox 150 the body paints it too (bug 2048355) */
 :root,
-#main-window {
+#main-window,
+body {
     background-color: transparent !important;
 }
 
 #navigator-toolbox,
-#titlebar,
-#TabsToolbar,
-#nav-bar,
-#PersonalToolbar {
-    background-color: color-mix(
-        in srgb,
-        var(--lwt-accent-color, var(--toolbar-bgcolor, Canvas)) var(--appshell-opacity),
-        transparent
-    ) !important;
-}
-
 #sidebar-box,
-#sidebar-header,
 #sidebar-main {
     background-color: color-mix(
         in srgb,
@@ -33,17 +24,44 @@
     ) !important;
 }
 
-/* stacked bar fills would compound the alpha away */
+/* one fill on the toolbox: stacked bar fills would compound the alpha away */
 #navigator-toolbox > *,
+#titlebar,
+#TabsToolbar,
 #nav-bar,
-#PersonalToolbar {
+#PersonalToolbar,
+#sidebar-header {
+    background-color: transparent !important;
     background-image: none !important;
+}
+
+#urlbar-background,
+#searchbar {
+    background-color: color-mix(
+        in srgb,
+        var(--toolbar-field-background-color, Field) var(--appshell-field-opacity),
+        transparent
+    ) !important;
+}
+
+#urlbar[open] > #urlbar-background {
+    background-color: var(--toolbar-field-focus-background-color, Field) !important;
 }
 
 :root {
     --rtk-chrome-font: "Kode Mono", "JetBrainsMono Nerd Font", monospace, sans-serif;
     --rtk-chrome-font-size: 11pt;
     --rtk-accent: var(--lwt-accent-color, var(--toolbar-bgcolor, AccentColor));
+    --tab-border-radius: var(--rtk-radius) !important;
+    --toolbarbutton-border-radius: var(--rtk-radius) !important;
+    --arrowpanel-border-radius: var(--rtk-radius) !important;
+    --button-border-radius: var(--rtk-radius) !important;
+    --urlbar-border-radius: var(--rtk-radius) !important;
+    --border-radius-xsmall: var(--rtk-radius) !important;
+    --border-radius-small: var(--rtk-radius) !important;
+    --border-radius-medium: var(--rtk-radius) !important;
+    --border-radius-large: var(--rtk-radius) !important;
+    --border-radius-xlarge: var(--rtk-radius) !important;
 }
 
 #navigator-toolbox,
@@ -67,7 +85,7 @@ panel,
 #urlbar-background,
 .toolbarbutton-1 > .toolbarbutton-icon,
 .toolbarbutton-1 > .toolbarbutton-badge-stack {
-    border-radius: 2px !important;
+    border-radius: var(--rtk-radius) !important;
 }
 
 .tabbrowser-tab[selected] .tab-background {

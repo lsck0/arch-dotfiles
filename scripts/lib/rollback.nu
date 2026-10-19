@@ -1,5 +1,3 @@
-# refuses a dirty tree so uncommitted work is never touched; secrets/ stays at its own commit
-
 use log.nu [log-info log-warn]
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use ledger.nu [ledger-get]
@@ -88,8 +86,11 @@ def nix-stale [rev: string]: nothing -> list<string> {
 
 # before the nu generations, install.sh and config.sh's sudo resets the env: the pin goes on root's command line
 def drivers [sha: string, pin: string]: nothing -> record {
-    if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
-        let dot = [nu --no-config-file scripts/dot.nu]
+    let dot = [nu --no-config-file scripts/dot.nu]
+    # since internal.nu, install is apply --packages
+    if (git-ok cat-file -e $"($sha):scripts/lib/internal.nu") {
+        {root: ($dot ++ [apply --packages]), user: ($dot ++ [apply --packages --user]), apply: ($dot ++ [apply]), nu: true}
+    } else if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
         {root: ($dot ++ [install]), user: ($dot ++ [install --user]), apply: ($dot ++ [apply]), nu: true}
     } else {
         let unattended = ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin)
@@ -123,7 +124,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     let short = $sha | str substring 0..11
     let label = describe-commit $sha
     let admin = ^id -nG | split row " " | any { $in == wheel }
-    # tracked changes and untracked files would ride into the root copy or block the checkout
     let dirty = git-out status --porcelain --ignore-submodules=all | lines
     log-info $"target ($short) \(($label)\)"
     log-info $"from   (git-out rev-parse HEAD | str substring 0..11) \((describe-commit HEAD)\)"
@@ -187,7 +187,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
         log-info $"dry run, a clean tree would run: ($steps | str join ' -> ')"
         return
     }
-    # secrets/ history is never moved by a rollback
     ^git -C $REPO -c submodule.recurse=false checkout --quiet --detach $sha
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO
@@ -202,5 +201,5 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
             log-warn "skipping apply: an install step failed, rollback is incomplete"
         }
     }
-    log-info $"at ($short) \(($label)\); to return: git switch ($BRANCH) && dot install && dot apply"
+    log-info $"at ($short) \(($label)\); to return: git switch ($BRANCH) && dot apply --packages && dot apply"
 }

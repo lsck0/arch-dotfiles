@@ -11,10 +11,10 @@ BarWidget {
   id: root
   moduleName: "notifications"
 
-  // untyped: resolved at runtime through the shell's plugin table
   readonly property var service: root.bar && root.bar.shellHost
     ? root.bar.shellHost.plugin("service.notifications") : null
   readonly property string historyDir: service ? service.historyDir : ""
+  readonly property string popupDir: service ? service.popupStateDir : ""
 
   readonly property bool dndOn: service ? service.doNotDisturb : false
   property var history: []
@@ -22,12 +22,16 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: barSize
 
+  property bool historyStale: false
+
   function refreshHistory() {
-    if (root.historyDir && !historyProc.running) historyProc.running = true
+    if (!root.historyDir) return
+    if (historyProc.running) root.historyStale = true
+    else historyProc.running = true
   }
 
-  // the bell reads the live history, not only while the panel is open
-  onServiceChanged: refreshHistory()
+  onHistoryDirChanged: refreshHistory()
+  Component.onCompleted: refreshHistory()
   Connections {
     target: root.service
     enabled: root.service !== null
@@ -52,7 +56,6 @@ BarWidget {
 
   function openEntry(entry) {
     if (!entry) return
-    // history replays the sender's hint, so the same allowlist as the popup
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) {
       // uwsm-app: a browser started here must not join quickshell.service
@@ -60,7 +63,6 @@ BarWidget {
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
     }
-    // app_name is a display name, so heuristicLookup usually matches
     var candidates = [entry.appIcon, entry.app]
     for (let i = 0; i < candidates.length; i++) {
       let id = String(candidates[i] || "").trim()
@@ -79,16 +81,31 @@ BarWidget {
     if (root.service) root.service.setDoNotDisturb(!root.service.doNotDisturb)
   }
 
+  // the deletes are queued, a re-read now could resurrect the rows
   function clearHistory() {
     if (!root.service) return
     root.service.clearHistory()
-    // the delete is queued, a re-read now could resurrect the rows
     root.history = []
+  }
+
+  function removeEntry(entry) {
+    if (!root.service) return
+    root.service.removeEntry(entry.originalId || 0, entry.timestamp || 0)
+    root.history = root.history.filter(function(e) { return e !== entry })
   }
 
   Process {
     id: historyProc
-    command: ["bash", "-c", "awk 1 \"$1\"/*.json 2>/dev/null | jq -s -c 'sort_by(-.timestamp)'", "--", root.historyDir]
+    // the service writes while this reads, so a half-written line is skipped, not the whole list
+    command: ["bash", "-c",
+      "shopt -s nullglob; files=(\"$1\"/*.json \"$2\"/*.json); " +
+      "{ (( ${#files[@]} )) && awk 1 \"${files[@]}\"; } | " +
+      "jq -R -n -c '[inputs | fromjson? | objects] | unique_by([.timestamp, .originalId]) | sort_by(-.timestamp)'",
+      "--", root.popupDir, root.historyDir]
+    onExited: if (root.historyStale) {
+      root.historyStale = false
+      Qt.callLater(root.refreshHistory)
+    }
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -101,9 +118,12 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.dndOn ? "\u{f1f6}" : "\u{f0f3}"
-    active: root.history.length > 0 && !root.dndOn
-    tooltipText: root.dndOn ? "Do Not Disturb (on)" : root.history.length + " recent notifications"
+    // codicons bell, bell-dot, bell-slash, bell-slash-dot
+    text: root.dndOn
+      ? (root.history.length > 0 ? "\u{ec09}" : "\u{ec08}")
+      : (root.history.length > 0 ? "\u{eb9a}" : "\u{eaa2}")
+    useActiveColor: false
+    tooltipText: (root.dndOn ? "Do not disturb :: " : "") + root.history.length + " recent notifications"
     onPressed: function(b) {
       if (b === Qt.MiddleButton) root.toggleDnd()
     }
@@ -118,7 +138,7 @@ BarWidget {
     anchorWidget: root
     title: "NOTIFICATIONS"
     implicitWidth: Style.panelWidth.normal
-    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset)
+    implicitHeight: Math.min(Style.space(400), content.implicitHeight + padding * 2 + titleInset + Style.fx.bracketWidth)
 
     onOpened: root.refreshHistory()
 
@@ -141,7 +161,6 @@ BarWidget {
     Flickable {
       id: historyFlick
       anchors.fill: parent
-      // without contentWidth a horizontal drag slides the list
       contentWidth: width
       contentHeight: content.implicitHeight
       flickableDirection: Flickable.VerticalFlick
@@ -182,7 +201,7 @@ BarWidget {
 
         Toggle {
           width: parent.width
-          label: "Do Not Disturb"
+          label: "Do not disturb"
           description: "Silence new notification popups"
           checked: root.dndOn
           onClicked: root.toggleDnd()
@@ -193,6 +212,7 @@ BarWidget {
 
         Text {
           visible: root.history.length === 0
+          bottomPadding: Style.spacing.md
           text: "> NOTHING RECENT"
           color: Colors.menu.text
           opacity: Style.emphasis.dim
@@ -219,8 +239,7 @@ BarWidget {
             timestamp: modelData.timestamp || 0
 
             onCardClicked: root.openEntry(modelData)
-            // the daemon owns history, so clear all
-            onCloseRequested: root.clearHistory()
+            onCloseRequested: root.removeEntry(modelData)
           }
         }
       }

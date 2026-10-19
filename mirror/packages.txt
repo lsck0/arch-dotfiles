@@ -167,6 +167,7 @@ emscripten
 endlessh-git
 enola
 entr
+espeak-ng
 ethtool
 expect
 exploitdb
@@ -311,6 +312,7 @@ jrnl
 jujutsu
 jupyterlab
 just
+k6-bin
 k9s
 kani
 katana-bin
@@ -405,6 +407,7 @@ lutris
 ly
 lynis
 lynx
+lyx
 macchanger
 make
 man-db
@@ -441,6 +444,7 @@ mpg123
 mpv
 mpv-mpris
 mtools
+namcap
 nasm
 ncurses
 nemo
@@ -622,6 +626,7 @@ quickshell
 qutebrowser
 r
 r2modman-bin
+raddebugger
 rar
 rawtherapee
 raylib
@@ -682,6 +687,7 @@ sof-firmware
 sops
 sowon-git
 sox
+speech-dispatcher
 speedscope
 spicetify-cli
 spirv-tools

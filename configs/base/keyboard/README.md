@@ -1,12 +1,12 @@
-# Keyboard Software
+# keyboard
 
-## Building:
+## Build
 
 ```bash
 ./build.nu
 ```
 
-## Flashing:
+## Flash
 
 1. disconnect the two halves
 2. plug in left side

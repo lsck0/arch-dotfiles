@@ -24,7 +24,6 @@ local installed = {
     "jinja-lsp",
     "js-debug-adapter",
     "json-lsp",
-    -- kulala-fmt comes from the system package, see conform below
     "latexindent",
     "lean-language-server",
     "lemminx",
@@ -39,7 +38,7 @@ local installed = {
     "stylua",
     "gofumpt",
     "goimports",
-    "tailwindcss-language-server", -- shfmt is a pacman package (programming/packages.txt)
+    "tailwindcss-language-server", -- shfmt is a pacman package (programming/formatting)
     "taplo",
     "terraform-ls",
     "texlab",
@@ -125,7 +124,6 @@ return {
             require("mason").setup()
             require("mason-tool-installer").setup({
                 ensure_installed = installed,
-                -- auto_update off: upgrades stay in scripts/system-update.nu
                 run_on_start = true,
             })
             vim.lsp.config("clangd", {
@@ -147,7 +145,6 @@ return {
                 vim.lsp.enable("cobol_ls")
             end
 
-            -- -I so `use module.nu` in the dotfiles resolves
             vim.lsp.config("nushell", {
                 cmd = { "nu", "--no-config-file", "-I", (os.getenv("DOTFILES") or "") .. "/scripts/lib", "--lsp" },
             })
@@ -168,7 +165,6 @@ return {
 
             local rust_analyzer_before_init = vim.lsp.config.rust_analyzer.before_init
             vim.lsp.config("rust_analyzer", {
-                -- per client root, so kani and plain crates can share one nvim
                 before_init = function(params, config)
                     local settings = config.settings["rust-analyzer"]
                     local env = rust_extra_env(config.root_dir)
@@ -205,7 +201,6 @@ return {
                 init_options = { config = vim.fn.expand("~/.config/typos/typos.toml") },
             })
 
-            -- vue_ls forwards script blocks to ts_ls, which needs the vue plugin for that
             local vue_plugin = vim.fn.stdpath("data")
                 .. "/mason/packages/vue-language-server/node_modules/@vue/language-server"
             vim.lsp.config("ts_ls", {
@@ -236,7 +231,6 @@ return {
                 },
             })
 
-            -- jupytext buffers: drop undefined-var noise for ipython builtins
             local ipython_builtins = {
                 display = true,
                 get_ipython = true,
@@ -245,7 +239,6 @@ return {
                 exit = true,
                 quit = true,
             }
-            -- project venv, so pyright sees poetry-installed packages
             local function project_python(root)
                 -- a json-null rootPath is vim.NIL, which is truthy
                 if type(root) ~= "string" or root == "" then
@@ -259,7 +252,6 @@ return {
                     return root .. "/.venv/bin/python"
                 end
                 if vim.fn.filereadable(root .. "/pyproject.toml") == 1 and vim.fn.executable("poetry") == 1 then
-                    -- timeout so a slow poetry cannot block LSP init
                     local out = vim.trim(vim.fn.system({ "timeout", "2", "poetry", "-C", root, "env", "info", "-e" }))
                     if vim.v.shell_error == 0 and out ~= "" then
                         return out
@@ -309,13 +301,23 @@ return {
                     texlab = {
                         build = { onSave = false, forwardSearchAfter = false },
                         chktex = { onOpenAndSave = false, onEdit = false },
-                        latexindent = { modifyLineBreaks = false },
+                        latexindent = { modifyLineBreaks = true },
                         diagnosticsDelay = 300,
+                        diagnostics = { ignoredPatterns = { "^Unused entry" } },
                     },
                 },
             })
 
-            -- godot ships a GDScript server over TCP :6005, no mason package to auto-enable
+            vim.lsp.config("bashls_pkgbuild", {
+                cmd = { "bash-language-server", "start" },
+                filetypes = { "pkgbuild" },
+                root_markers = { "PKGBUILD" },
+                settings = {
+                    bashIde = { shellcheckArguments = { "--exclude=SC2034,SC2154,SC2164" } },
+                },
+            })
+            vim.lsp.enable("bashls_pkgbuild")
+
             vim.lsp.enable("gdscript")
 
             -- cobol_ls excluded: mason's config would clobber the custom jar cmd
@@ -337,8 +339,8 @@ return {
                 prepend_args = { "-i", "4", "-ci", "-bn" },
             }
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
+            require("conform").formatters.latexindent = { prepend_args = { "-m", "-g", "/dev/null" } }
 
-            -- personal style only where the project has no config of its own
             local formatting = vim.fs.dirname(vim.uv.fs_realpath(vim.fn.stdpath("config"))) .. "/formatting/"
             local function personal(names, flag, file)
                 return function(_, ctx)
@@ -387,7 +389,6 @@ return {
                 if name == "ruff.toml" or name == ".ruff.toml" then
                     return true
                 end
-                -- ruff itself skips a pyproject.toml without [tool.ruff]
                 return name == "pyproject.toml"
                     and vim.fn.readblob(path .. "/" .. name):find("[tool.ruff", 1, true) ~= nil
             end, "--config=", "ruff.toml")
@@ -413,7 +414,6 @@ return {
                 plaintex = { "latexindent" },
                 python = { "ruff_organize_imports", "ruff_format" }, -- width from configs/programming/formatting/ruff.toml
                 rest = { "kulala-fmt" },
-                -- leptosfmt only in leptos projects, else it errors on plain Rust
                 rust = function(bufnr)
                     local fmts = { "rustfmt", "sortderives" }
                     local root = vim.fs.root(bufnr, { "Cargo.toml" })
@@ -431,6 +431,7 @@ return {
                 lua = { "stylua" },
                 sh = { "shfmt" },
                 bash = { "shfmt" },
+                pkgbuild = { "shfmt" },
                 go = { "goimports", "gofumpt" },
                 nix = { "nixfmt" },
                 ruby = { "rubocop" },

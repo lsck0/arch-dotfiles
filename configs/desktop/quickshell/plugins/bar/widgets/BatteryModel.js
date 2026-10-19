@@ -43,7 +43,6 @@ function modeLabel(device, onBattery, states) {
   return "Charging"
 }
 
-// seconds -> "Xh Ym"
 function formatDuration(seconds) {
   var total = Math.max(0, Math.round(Number(seconds) || 0))
   var hours = Math.floor(total / 3600)

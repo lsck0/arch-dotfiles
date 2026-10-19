@@ -1,7 +1,5 @@
-# arch-dotfiles yt-dlp defaults. yt-dlp always runs inside the protonvpn network namespace, whose only route is a
-# proton wireguard tunnel (base/protonvpn-netns, /usr/local/bin/yt-dlp; yt-dlp.nu refuses where it is missing), so a
-# dead tunnel means no download. Its 127.0.0.1 is the namespace's own, so the host's tor and socks proxies are out of
-# reach from here.
+# runs only inside the protonvpn namespace (base/protonvpn-netns): a dead tunnel means no download, and its 127.0.0.1
+# is the namespace's own, so the host's tor and socks proxies are out of reach
 
 # quoted: yt-dlp splits config lines shell-style, so the space would turn the tail into a stray url
 -o "~/downloads/yt-dlp/%(uploader)s/%(title)s [%(id)s].%(ext)s"
@@ -13,7 +11,7 @@
 --retries 10
 --fragment-retries 10
 
-# best video+audio, remuxed to a widely-playable container
+# remuxed to mp4, which every player takes
 -f bv*+ba/b
 --merge-output-format mp4
 
@@ -23,8 +21,6 @@
 --embed-subs
 --sub-langs en.*,de.*
 
-# skip sponsor/intro segments on youtube
 --sponsorblock-mark all
 
-# keep a per-user archive so re-runs don't re-download
 --download-archive ~/downloads/yt-dlp/.archive

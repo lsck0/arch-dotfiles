@@ -1,9 +1,9 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import qs.Commons
 
-// keys once focused (click or hyprland on-demand focus); a focused text input pins it open
 PanelWindow {
   id: root
 
@@ -12,7 +12,6 @@ PanelWindow {
   property string moduleName: ""
   property real padding: Style.surface.padding
   property string title: ""
-  // callers add this to implicitHeight
   readonly property real titleInset: titleBar.visible ? titleBar.height + Style.spacing.sm : 0
   default property alias body: inner.data
 
@@ -34,13 +33,15 @@ PanelWindow {
 
   signal opened()
 
-  // window stays mapped until the drawer has folded back
   readonly property bool shown: bar !== null && bar.activePanel === moduleName
   readonly property alias boot: bootIn
 
   visible: shown || bootIn.progress > 0
   onShownChanged: {
+    root.clicked = false
     if (!shown) return
+    // a hover open passes through Bar.hoverOpen, which leaves the pending id behind; ipc and keybinds do not
+    root.hoverOpened = !!bar && bar.pendingPanel === moduleName
     if (anchorWidget && anchorWidget.refreshBarX) anchorWidget.refreshBarX()
     keys.forceActiveFocus()
     opened()
@@ -49,7 +50,6 @@ PanelWindow {
   screen: bar && bar.screen ? bar.screen : null
   color: "transparent"
 
-  // layer-shell has no free x, offset from one anchored edge
   anchors {
     top: true
     left: root.anchored
@@ -57,7 +57,6 @@ PanelWindow {
   }
   // quickshell's qmltypes stub Margins as opaque, so qmllint cannot see its edges
   margins {
-    // the exclusive zone already starts below the bar rule
     top: 0 // qmllint disable missing-property
     left: root.anchored ? root.anchoredLeft : 0 // qmllint disable missing-property
     right: root.anchored ? 0 : Style.spacing.sm // qmllint disable missing-property
@@ -66,7 +65,6 @@ PanelWindow {
   // hyprland_windowrules.lua blurs quickshell-panel-*
   WlrLayershell.namespace: "quickshell-panel-" + (moduleName || "panel")
   WlrLayershell.layer: WlrLayer.Overlay
-  // on-demand: never steals the keyboard, takes it when the pointer clicks in
   property bool acceptsKeyboard: true
   property bool pinned: false
   readonly property bool textFocused: {
@@ -78,6 +76,16 @@ PanelWindow {
   WlrLayershell.keyboardFocus: root.acceptsKeyboard && root.shown
     ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
+  property bool hoverOpened: false
+  property bool clicked: false
+
+  // the grab keeps the pointer on the bar and this drawer, so a hover-out no longer reaches it: only outside clicks close
+  HyprlandFocusGrab {
+    active: root.shown && (root.held || root.clicked || !root.hoverOpened)
+    windows: root.bar ? [root, root.bar] : [root]
+    onCleared: if (root.bar) root.bar.closePanel(root.moduleName)
+  }
+
   HoverHandler {
     id: hover
     onHoveredChanged: {
@@ -87,7 +95,6 @@ PanelWindow {
     }
   }
 
-  // walks the window's tab chain, which only holds this drawer's controls
   function walkFocus(forward) {
     var from = keys.Window.activeFocusItem || keys
     var next = from.nextItemInFocusChain(forward)
@@ -97,13 +104,11 @@ PanelWindow {
   BootIn {
     id: bootIn
     active: root.shown
-    // snaps so a switch reads as one drawer moving, not a close-reopen
     instant: root.bar !== null && root.bar.panelSwitching
     title: root.title
     span: Math.min(card.width, card.height) / 2
   }
 
-  // ancestor of every control: sees only the keys they leave unaccepted
   PanelKeyCatcher {
     id: keys
     anchors.fill: parent
@@ -112,7 +117,6 @@ PanelWindow {
     onTabRequested: function(direction) { root.walkFocus(direction > 0) }
     onMoveRequested: function(dx, dy) { root.walkFocus(dx + dy > 0) }
 
-    // the clip grows on boot.progress, the card never resizes
     Item {
       id: reveal
       width: parent.width
@@ -137,7 +141,6 @@ PanelWindow {
         readonly property real contentBottomInset: strokeWidth + root.padding
       }
 
-      // brackets frame the body, not the neck flare
       Item {
         x: card.sideInset
         y: card.y
@@ -170,8 +173,17 @@ PanelWindow {
         blinking: visible && root.shown
       }
 
-      // sized to the drawer, not the growing clip, so it paints once
       Scanlines { anchors.fill: card; shown: root.shown; flicker: true }
+    }
+
+    // a focus grab that starts mid-press cancels the press (and a slider drag), so the grab waits for the release
+    Item {
+      anchors.fill: parent
+      z: 1000
+      PointHandler {
+        acceptedButtons: Qt.AllButtons
+        onActiveChanged: if (!active) root.clicked = true
+      }
     }
   }
 }

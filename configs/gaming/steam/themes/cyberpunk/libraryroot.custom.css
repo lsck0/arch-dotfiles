@@ -2,7 +2,6 @@
 @import url("shared.css");
 @import url("colors.css");
 
-/* game list rows */
 [class*="gameslistrow"]:hover,
 [class*="GameListItem"]:hover,
 [class*="_LibraryRow"]:hover,
@@ -17,7 +16,6 @@
     box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
 }
 
-/* app header */
 [class*="Hero"],
 [class*="_HeaderTop"],
 [class*="appdetailsheader"],
@@ -26,7 +24,6 @@
     background-color: var(--cp-bg) !important;
 }
 
-/* sidebar search */
 [class*="search"] input:focus,
 [class*="Search"] input:focus,
 [class*="filter"] input:focus,
@@ -36,7 +33,6 @@
         0 0 6px -2px var(--cp-accent) !important;
 }
 
-/* store capsules */
 [class*="Capsule"]:hover,
 [class*="StoreItem"]:hover,
 [class*="AppCapsule"]:hover,
@@ -46,14 +42,12 @@
         0 0 10px -3px var(--cp-accent) !important;
 }
 
-/* shelf headers */
 [class*="CollectionsHeader"],
 [class*="ShelfName"],
 [class*="_ShelfHeader"] {
     box-shadow: inset 0 -1px 0 0 color-mix(in srgb, var(--cp-accent) 40%, transparent) !important;
 }
 
-/* download rows */
 [class*="download"][class*="active"],
 [class*="Download"][class*="Active"],
 [class*="downloadrow"]:hover,
@@ -61,8 +55,6 @@
     background-color: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
     box-shadow: inset 2px 0 0 0 var(--cp-accent) !important;
 }
-
-/* app details page */
 
 [class*="AppActionButton"],
 [class*="appactionbutton"],
@@ -76,7 +68,6 @@
     box-shadow: 0 0 12px -3px var(--cp-accent) !important;
 }
 
-/* detail tabs */
 [class*="AppDetailsTab"],
 [class*="appdetailstab"],
 [class*="_NavTab"] {
@@ -90,7 +81,6 @@
     color: var(--cp-fg) !important;
 }
 
-/* achievement progress */
 [class*="chievement"] [class*="Fill"],
 [class*="chievement"] [class*="fill"],
 [class*="ProgressBar"] div,
@@ -102,7 +92,6 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--cp-accent) 30%, transparent) !important;
 }
 
-/* scrollbars */
 [class*="ScrollbarThumb"],
 [class*="scrollbar"] [class*="thumb"] {
     background-color: color-mix(in srgb, var(--cp-accent) 55%, transparent) !important;

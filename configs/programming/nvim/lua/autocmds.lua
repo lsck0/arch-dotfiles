@@ -9,13 +9,15 @@ autocmd("TextYankPost", {
     end,
 })
 
+local PROSE = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" }
+
 autocmd("FileType", {
     desc = "Prose: hard-wrap at textwidth, spell-check the natural-language filetypes",
     group = group("prose", { clear = true }),
-    pattern = { "markdown", "text", "gitcommit", "tex", "plaintex", "rst", "org", "typst" },
+    pattern = PROSE,
     callback = function(args)
-        vim.opt_local.textwidth = 100
-        vim.opt_local.formatoptions:append("t")
+        vim.opt_local.textwidth = 120
+        vim.opt_local.formatoptions:append("tn")
         local spell = { markdown = true, gitcommit = true, text = true, tex = true, plaintex = true, org = true }
         if spell[vim.bo[args.buf].filetype] then
             vim.opt_local.spell = true
@@ -90,7 +92,7 @@ autocmd("FileType", {
             return
         end
         -- keep the runtime indent script (make's recipe tabs)
-        if vim.treesitter.query.get(lang, "indents") then
+        if vim.treesitter.query.get(lang, "indents") and not vim.tbl_contains(PROSE, ft) then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
         end
     end,
@@ -166,7 +168,6 @@ autocmd({ "BufWinEnter", "WinEnter" }, {
     end,
 })
 
--- read by the pyright handler in plugins/lsp.lua
 autocmd("FileType", {
     desc = "Detect jupytext notebook buffers",
     group = group("jupytext-detect", { clear = true }),
@@ -205,23 +206,6 @@ autocmd("BufReadPost", {
             if line:match("^```+gpg%s*$") then
                 return no_secret_history()
             end
-        end
-    end,
-})
-
--- reapplied after every theme switch
-autocmd({ "ColorScheme", "VimEnter" }, {
-    desc = "Transparent separators and bars",
-    group = group("transparent-bars", { clear = true }),
-    callback = function()
-        -- the theme's own dim shade, not a fixed color
-        local dim = vim.api.nvim_get_hl(0, { name = "NonText", link = false }).fg
-        local sep = vim.api.nvim_get_hl(0, { name = "WinSeparator", link = false }).fg
-        vim.api.nvim_set_hl(0, "WinSeparator", { fg = dim or sep, ctermfg = 8 })
-        for _, name in ipairs({ "BufferCurrent", "BufferOffset", "BufferVisible", "StatusLine" }) do
-            local hl = vim.api.nvim_get_hl(0, { name = name, link = false })
-            hl.fg, hl.bg, hl.ctermfg, hl.ctermbg = nil, nil, nil, nil
-            vim.api.nvim_set_hl(0, name, hl)
         end
     end,
 })

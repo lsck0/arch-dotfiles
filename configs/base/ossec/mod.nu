@@ -7,12 +7,10 @@ const MARKER = "<!-- appended by the dotfiles (configs/base/ossec)"
 const JOURNAL_LOG = "/run/ossec-journal.log"
 const TMPFILES = "/etc/tmpfiles.d/ossec-alerts.conf"
 
-# the quickshell system panel reads the alert log (group membership needs a re-login)
 export def system [cfg: record] {
     if not ("/var/lib/ossec-hids" | path exists) { return [] }
     [
         (group-admins ossec-alerts)
-        # arch logs only to journald; this unit writes the auth journal as a syslog file
         (unit-file ossec-journal.service)
         (unit-enable ossec-server.target)
         (unit-enable ossec-journal.service)

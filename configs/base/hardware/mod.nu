@@ -1,4 +1,3 @@
-# wsl skips it, windows owns the hardware there
 use module.nu *
 export use ../boot/boot.nu [cmdline-set]
 use ../boot/boot.nu [hooks-read hooks-write]
@@ -27,7 +26,6 @@ export const options = {
 const NVIDIA_TURING = 0x1e00
 const NVIDIA_MAXWELL = 0x1340
 const NVIDIA_KEPLER = 0x0fc0
-# dkms, so linux and linux-lts both get the module
 const NVIDIA_PACKAGES = {
     open: [nvidia-open-dkms nvidia-utils lib32-nvidia-utils]
     580xx: [nvidia-580xx-dkms nvidia-580xx-utils lib32-nvidia-580xx-utils]

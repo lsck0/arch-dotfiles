@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# jai + jails from the newest ~/sync/vendor beta zip; a no-op unless the zip is new
 
 const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 const JAILS_URL = "https://github.com/SogoCZE/Jails.git"
@@ -35,11 +34,10 @@ def main []: nothing -> nothing {
     }
     rm --recursive --force $dir
     mkdir $dir
-    # the zip holds a single top-level jai/ dir
     ^unzip -q $zip -d $dir
     ls ($dir | path join jai) | each { mv $in.name $dir } | ignore
     rm ($dir | path join jai)
-    ^$DOT fetch git $JAILS_URL $JAILS_COMMIT ($dir | path join jails)
+    ^$DOT internal fetch git $JAILS_URL $JAILS_COMMIT ($dir | path join jails)
     do { cd ($dir | path join jails); ^($dir | path join bin jai-linux) build.jai }
     bins-link $dir
     $"($name)\n" | save --force $stamp

@@ -9,8 +9,8 @@ Everything that should reach the admin as a desktop notification instead of only
   `lynis-audit` (`mod.nu` system); a unit failing over and over shows at most hourly
 - `update-check`, daily: once per new package set, how many updates the lsck0 snapshot has and which installed
   packages have an arch security advisory with a fix
-- `doctor-check`, hourly: `dot doctor --brief` into `~/.local/state/doctor/findings`, which the bar's doctor
+- `doctor-check`, hourly: `dot status --brief` into `~/.local/state/doctor/findings`, which the bar's doctor
   indicator shows while it is not empty; a notification only when the findings become a set not notified before
-  (ages and counts ignored). It also publishes this machine's drift report for `dot drift`
+  (ages and counts ignored). It also publishes this machine's drift report for `dot status`
 - `recovery-drill`, monthly for a `secrets` profile: a reminder once the paper-key drill (RECOVERY.md, "Test it") is
-  a year old or was never recorded; `dot audit drilled` records it
+  a year old or was never recorded; `dot secrets audit drilled` records it

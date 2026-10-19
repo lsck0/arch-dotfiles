@@ -3,9 +3,8 @@
     hostname: luca-notebook
     form_factor: laptop
     groups: [base core fonts desktop socials creating latex programming pentesting]
-    # board-specific: the synaptics 06cb:009a fingerprint reader; vulkan-intel is the ICD for the UHD 620, without it
-    # mpv's vo=gpu-next finds no device and crashes instead of falling back; the last four are for remote unlock
-    # (initramfs ssh, configs/base/boot/remote-unlock)
+    # the synaptics 06cb:009a fingerprint reader; without vulkan-intel mpv's vo=gpu-next finds no device and crashes;
+    # the last four are for remote unlock (configs/base/boot/remote-unlock)
     extra_packages: [python-validity-git vulkan-intel mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox]
     facts: {
         homelab: true

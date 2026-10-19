@@ -48,6 +48,16 @@ profile zapzap @{exec_path} flags=(attach_disconnected,mediate_deleted) {
 
   owner /tmp/zapzap* rw,
 
+  # saving where the save dialog points, beside downloads
+  owner @{user_documents_dirs}/{,**} rwl,
+  owner @{user_music_dirs}/{,**} rwl,
+  owner @{user_pictures_dirs}/{,**} rwl,
+  owner @{user_videos_dirs}/{,**} rwl,
+  owner @{user_sync_dirs}/{,**} rwl,
+  # qtwebengine's spellcheck dictionaries
+  /usr/share/qt6/qtwebengine_dictionaries/{,**} r,
+  include <abstractions/dotfiles/nssdb>
+
   # qt opens the controlling terminal only to decide whether its log goes to stderr or the journal; a chat client of
   # other people's messages gets no read of the terminal's input, quietly, the journal it is
   deny /dev/tty r,

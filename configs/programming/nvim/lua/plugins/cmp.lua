@@ -28,6 +28,18 @@ return {
                 "L3MON4D3/LuaSnip",
                 version = "v2.*",
                 build = "make install_jsregexp",
+                config = function()
+                    local ls = require("luasnip")
+                    ls.setup({ enable_autosnippets = true })
+                    require("luasnip.loaders.from_lua").lazy_load({
+                        paths = { vim.fn.stdpath("config") .. "/snippets" },
+                    })
+                    ls.filetype_extend("cpp", { "c" })
+                    ls.filetype_extend("plaintex", { "tex" })
+                    for _, ft in ipairs({ "typescript", "javascriptreact", "typescriptreact" }) do
+                        ls.filetype_extend(ft, { "javascript" })
+                    end
+                end,
             },
 
             { "onsails/lspkind.nvim" },
@@ -65,7 +77,6 @@ return {
                 list = { selection = { preselect = true, auto_insert = false } },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 menu = {
-                    winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,Search:None,CursorLine:MyCursorLine",
                     draw = {
                         components = {
                             kind_icon = {
@@ -80,18 +91,20 @@ return {
             },
 
             sources = {
-                default = {
-                    "lsp",
-                    "path",
-                    "snippets",
-                    "buffer",
-                    "commits",
-                    "conventionalcommits",
-                    "calc",
+                default = { "lsp", "path", "snippets", "buffer", "calc" },
+                -- cmp-commit lists the whole cwd recursively on every { [ *, which froze tex buffers
+                per_filetype = {
+                    gitcommit = { inherit_defaults = true, "commits", "conventionalcommits" },
+                    tex = { inherit_defaults = true, "citations" },
+                    plaintex = { inherit_defaults = true, "citations" },
+                    markdown = { inherit_defaults = true, "citations" },
                 },
                 providers = {
+                    citations = {
+                        name = "Cite",
+                        module = "lib.citation_source",
+                    },
                     commits = {
-                        -- cmp-commit registers itself as "commit"
                         name = "commit",
                         module = "blink.compat.source",
                     },
@@ -106,9 +119,5 @@ return {
                 },
             },
         },
-        config = function(_, opts)
-            vim.api.nvim_set_hl(0, "MyCursorLine", { link = "PmenuSel" })
-            require("blink.cmp").setup(opts)
-        end,
     },
 }

@@ -4,6 +4,7 @@
 
 const SELF = path self
 const GROUP = "games"
+const LAUNCH_OPTIONS = path self steam-launch-options.nu
 
 # the games group egresses on the real link past proton0 (gaming/vpn-bypass): the vpn slows frontends and risks an
 # anticheat ip flag; fail open, without the group steam uses the vpn
@@ -12,6 +13,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
     if (^id -gn | str trim) != $GROUP and $member and (do { ^sudo -n -g $GROUP true } | complete).exit_code == 0 {
         exec sudo -E -g $GROUP -- $SELF ...$args
     }
+    do { ^$nu.current-exe --no-config-file $LAUNCH_OPTIONS } | complete | ignore
     $env.MANGOHUD = "1"
     $env.OBS_VKCAPTURE = "1"
     exec /usr/bin/steam ...$args

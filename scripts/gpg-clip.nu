@@ -13,7 +13,6 @@ def clip-get []: nothing -> string {
         notify "Clipboard is empty"
         exit 1
     }
-    # as a shell's $(...): trailing newlines go, gpg gets exactly one
     $clip.stdout | str trim --right --char "\n"
 }
 

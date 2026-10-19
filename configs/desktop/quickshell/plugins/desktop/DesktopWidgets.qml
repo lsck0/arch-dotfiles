@@ -6,14 +6,12 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// ambient cards on the bottom layer: click-through, main screen only, nothing the bar already shows
 Item {
     id: root
 
     property string mainScreenName: ""
     readonly property int taskMax: 4
     readonly property int reminderMax: 4
-    // in ~/sync, so desktop and laptop share the pad
     readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
     property string notesText: ""
     readonly property int cardWidth: Style.space(300)
@@ -67,7 +65,6 @@ Item {
                 left: true
             }
 
-            // hyprland leaves stale layer position after a monitor moves
             ScreenMoveRemap {
                 id: screenGuard
 
@@ -84,7 +81,6 @@ Item {
                 spacing: Style.spacing.md
                 visible: !screenGuard.remapping
 
-                // read-only, the bar carries the controls
                 Card {
                     heading: "Pomodoro"
                     visible: TimerState.pomoRunning
@@ -173,7 +169,6 @@ Item {
 
                 }
 
-                // SUPER+SHIFT+n edits the same file when a window covers this card or the pad is empty
                 Card {
                     id: notesCard
 
@@ -192,7 +187,6 @@ Item {
                         persistentSelection: true
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
-                        // external edits re-seed only while unfocused, never clobbering a live edit
                         Component.onCompleted: text = root.notesText
                         onTextChanged: if (activeFocus)
                             saveTimer.restart()

@@ -9,7 +9,6 @@ QtObject {
   property var values: ({})
   property string error: ""
   readonly property alias running: proc.running
-  // between start() and stop(), so a stopped run's exit is not an error
   property bool wanted: false
   property bool queued: false
 

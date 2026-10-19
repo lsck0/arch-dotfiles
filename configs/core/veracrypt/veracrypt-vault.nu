@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# a veracrypt container that syncs via ~/sync, mounted outside it
 
 const SIZE_DEFAULT = "1G"
 

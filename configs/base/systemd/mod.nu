@@ -27,10 +27,11 @@ export def system [cfg: record] {
             file-link /usr/lib/systemd/system/avahi-daemon.service $AVAHI_ALIAS
         })
         (if-present bluetooth.service { unit-enable bluetooth.service })
+        # the adapter stays off at every boot until toggle-bluetooth powers it; bluetoothd reads it on its next start
+        (if-present bluetooth.service { ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: "false"}} })
         (if-present cups.socket { unit-enable cups.socket })
         (if-present paccache.timer { unit-enable paccache.timer --now })
         (if-present fstrim.timer { unit-enable fstrim.timer })
-        # intel only, on amd it starts and exits
         (if (open --raw /proc/cpuinfo | str contains GenuineIntel) {
             if-present thermald.service { unit-enable thermald.service }
         } else { [] })
@@ -43,6 +44,7 @@ export def system [cfg: record] {
             step cmdline-set rd.systemd.mask=systemd-tpm2-setup-early.service
         })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf } else { [] })
+        (file-copy user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
     ] | decls-flatten
 }
 

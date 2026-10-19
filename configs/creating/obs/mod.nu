@@ -22,15 +22,22 @@ export const options = {
     canvas: {
         type: string?
         default: null
-        doc: "Base and output canvas of every profile and the Fullscreen collection, WxH"
+        doc: "Base and output canvas of every profile and the repo collections (Bare, VirtualCam), WxH"
         label: "Canvas"
         scope: machine
     }
     mic: {
         type: string?
         default: null
-        doc: "The pipewire source node the Fullscreen collection's Mic/Aux captures"
+        doc: "The pipewire source node the repo collections' Mic/Aux captures"
         label: "Microphone"
+        scope: machine
+    }
+    webcam: {
+        type: string?
+        default: null
+        doc: "The v4l2 device the VirtualCam collection's Camera captures, by-id so it survives replugging"
+        label: "Webcam"
         scope: machine
     }
     monitor_device: {
@@ -64,16 +71,20 @@ const HERE = path self | path dirname
 const OBS = ".config/obs-studio"
 const MCP_PREFIX = ".local/share/obs-mcp"
 const WEBSOCKET_PORT = 4455
-# the scene collection without the portal RestoreToken obs writes per machine, as the backup stores it
 const CANVAS_FALLBACK = "1920x1080"
+# the virtual camera sends the output raw (YUYV): 4k at 30 fps is ~500 MB/s that discord and browsers scale per frame
+const VIRTUALCAM_HEIGHT = 720
+# twitch ingests at most 1080p60 (6000 kbps): the stream encoder scales down, the canvas and recording keep full size
+const STREAM_HEIGHT = 1080
+# the scene collection without the portal RestoreToken obs writes per machine, as the backup stores it
 const PORTAL_TOKEN = "RestoreToken"
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
 # since obs 31 the selection lives in user.ini [Basic]; without it obs opens an empty Untitled profile and collection
 const SELECTION = {
     Basic: {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
 }
-# cef flags of the launcher: gpu acceleration for browser sources only; cam and mic come through obs's own sources
-const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan"
+# obs never shows chromium's local network access prompt, so an https overlay could not reach discord's rpc
+const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks"
 
 # before the install pass, or as root with no session, there is no vainfo or pulse server: nothing to report
 def vaapi-encodes [node: string, profile: string]: nothing -> bool {
@@ -98,6 +109,8 @@ export def detect [cfg: record]: nothing -> record {
         vaapi_render_node: $gpu.by_path?
         canvas: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })
         mic: (pactl-read get-default-source)
+        # index0 is a camera's capture node, index1 its metadata; the v4l2loopback virtual camera has no by-id link
+        webcam: (glob /dev/v4l/by-id/*-video-index0 | sort | get --optional 0)
         monitor_device: (pactl-read get-default-sink)
         record_encoder: (if (do $vaapi AV1) { "av1_ffmpeg_vaapi_tex" } else { $h264 })
         stream_encoder: $h264
@@ -123,11 +136,18 @@ def sink-name [node: string]: nothing -> string {
 # the profiles' ini keep this user's dirs and the machine's devices and encoders as @KEY@ placeholders
 def profile-values [cfg: record]: nothing -> record {
     let size = canvas-size $cfg
+    # same aspect as the canvas, capped in height, the width even as the encoders want it
+    let fit = {|cap| let h = [$cap $size.h] | math min; {w: (($h * $size.w / $size.h / 2 | math round) * 2), h: $h} }
+    let virtualcam = do $fit $VIRTUALCAM_HEIGHT
+    let stream = do $fit $STREAM_HEIGHT
     {
         HOME: $nu.home-dir
         XDG_VIDEOS: (videos-dir)
         CANVAS_W: $size.w
         CANVAS_H: $size.h
+        VIRTUALCAM_W: $virtualcam.w
+        VIRTUALCAM_H: $virtualcam.h
+        STREAM_RES: $"($stream.w)x($stream.h)"
         MONITOR_DEVICE: ($cfg.monitor_device | default default)
         MONITOR_NAME: (if $cfg.monitor_device == null { "Default" } else { sink-name $cfg.monitor_device })
         RECORD_ENCODER: $cfg.record_encoder
@@ -144,25 +164,40 @@ def strip-token []: record -> record {
     }
 }
 
-def scene-render [cfg: record, src: path, --machine]: nothing -> string {
-    let scene = open $src
-    if not $machine { return $"($scene | to json --indent 2)\n" }
-    let size = canvas-size $cfg
-    let sized = if $cfg.canvas == null { $scene } else {
-        $scene | update resolution {x: $size.w, y: $size.h} | update sources {|s|
-            $s.sources | each {|src|
-                if $src.id != "scene" { return $src }
-                let bounds = {x: ($size.w | into float), y: ($size.h | into float)}
-                $src | update settings.items {|i|
-                    $i.settings.items | each {|item|
-                        if $item.name == "Screen Capture" { $item | update bounds $bounds } else { $item }
-                    }
+# a collection is laid out in its own resolution; on another canvas each item's position and bounds scale to it, and
+# the canvas-relative copies obs prefers on load go, so obs derives them from the absolute ones
+def scene-fit [size: record]: record -> record {
+    let scene = $in
+    let from = $scene.resolution
+    if $from.x == $size.w and $from.y == $size.h { return $scene }
+    let scale = {|v| {x: ($v.x * $size.w / $from.x), y: ($v.y * $size.h / $from.y)} }
+    $scene | update resolution {x: $size.w, y: $size.h} | update sources {
+        each {|src|
+            if $src.id != "scene" { return $src }
+            $src | update settings.items {
+                each {|item|
+                    $item | update pos (do $scale $item.pos) | update bounds (do $scale $item.bounds)
+                    | reject --optional pos_rel scale_rel scale_ref bounds_rel
                 }
             }
         }
     }
-    let miked = if $cfg.mic == null { $sized } else { $sized | update AuxAudioDevice1.settings.device_id $cfg.mic }
-    $"($miked | to json --indent 2)\n"
+}
+
+def scene-render [cfg: record, src: path, --machine]: nothing -> string {
+    let scene = open $src
+    if not $machine { return $"($scene | to json --indent 2)\n" }
+    # the profiles' canvas, so the layout fills it
+    let sized = $scene | scene-fit (canvas-size $cfg)
+    let miked = if $cfg.mic == null or $sized.AuxAudioDevice1? == null { $sized } else {
+        $sized | update AuxAudioDevice1.settings.device_id $cfg.mic
+    }
+    let cammed = if $cfg.webcam == null { $miked } else {
+        $miked | update sources {
+            each {|src| if $src.id == "v4l2_input" { $src | upsert settings.device_id $cfg.webcam } else { $src } }
+        }
+    }
+    $"($cammed | to json --indent 2)\n"
 }
 
 # obs saves by renaming to .bak and writing anew, so a copy; one differing only in its portal token is kept
@@ -188,6 +223,10 @@ def vaapi-encoder [cfg: record, src: path]: nothing -> string {
     $"($json | to json --indent 2)\n"
 }
 
+def repo-scenes []: nothing -> list<path> {
+    glob ($HERE | path join scenes *.json) | sort
+}
+
 def secret [name: string]: nothing -> path {
     $env.DOTFILES | path join secrets $name
 }
@@ -209,9 +248,10 @@ export def link [cfg: record] {
         (do $scene ($basic | path join scenes Streaming.json) (scene-render $cfg $streaming) "600")
         | append (file-text ($basic | path join scenes .from-secrets) "")
     } else { [] }
-    # no tokens, so in the repo
-    let fullscreen = scene-render $cfg ($HERE | path join scenes Fullscreen.json) --machine
-    let scenes = $secret_scene ++ (do $scene ($basic | path join scenes Fullscreen.json) $fullscreen "644")
+    # no tokens, so in the repo: Bare, VirtualCam
+    let scenes = $secret_scene ++ (repo-scenes | each {|src|
+        do $scene ($basic | path join scenes ($src | path basename)) (scene-render $cfg $src --machine) "644"
+    })
     let profiles = glob ($HERE | path join profiles * *) | each {|src|
         let dest = $basic | path join ($src | path relative-to $HERE)
         match ($src | path basename) {
@@ -267,7 +307,7 @@ def scene-back [cfg: record, live: path, repo: path, --machine]: nothing -> noth
     if not ($live | path exists) { return }
     let applied = applied-file $live
     if ($applied | path exists) and (open --raw $applied) != (scene-render $cfg $repo --machine=$machine | scene-hash) {
-        log-warn $"($repo) has edits obs has not loaded, kept it; close obs and dot link creating/obs"
+        log-warn $"($repo) has edits obs has not loaded, kept it; close obs and dot apply --user creating/obs"
         return
     }
     if $machine {
@@ -310,7 +350,7 @@ export def backup [cfg: record]: nothing -> nothing {
         secret-seed-guard ($basic | path join scenes .from-secrets) (secret obs-Streaming.json) $streaming
     }
     scene-back $cfg $streaming (secret obs-Streaming.json)
-    scene-back $cfg ($basic | path join scenes Fullscreen.json) ($HERE | path join scenes Fullscreen.json) --machine
+    for repo in (repo-scenes) { scene-back $cfg ($basic | path join scenes ($repo | path basename)) $repo --machine }
     let service = $basic | path join profiles Streaming service.json
     if ($service | path exists) { cp --force $service (secret obs-service.json) }
     let recorded = recorded-hashes

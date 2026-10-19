@@ -23,10 +23,8 @@ export const options = {
 
 const DIR = path self .
 const CONFIG = ".config"
-# plasma's machine state: applet positions per resolution and the screen mapping, rendered, carried back by backup
 const TEMPLATES = [plasma-org.kde.plasma.desktop-appletsrc plasmarc kscreenlockerrc]
 const OUTPUTS = "kwinoutputconfig.json"
-# both written by the theme verb from the palette
 const THEMED = ["kdeglobals" "color-schemes/pywal.colors"]
 const CONFIG_DIRS = [KDE kdedefaults plasma-workspace]
 const APPLETSRC = "plasma-org.kde.plasma.desktop-appletsrc"
@@ -35,7 +33,12 @@ const KACTIVITIES_DB = ".local/share/kactivitymanagerd/resources/database"
 const DOLPHIN_STATE = ".local/state/dolphinstaterc"
 const DRM = "/sys/class/drm"
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
-# fixed on purpose, not from the palette
+# the keys toggle-font.nu sets; smallestReadableFont sits this far below the body font
+const KDE_FONT_KEYS = [
+    [group key];
+    [General font] [General fixed] [General menuFont] [General smallestReadableFont] [General toolBarFont] [WM activeFont]
+]
+const KDE_SMALLEST_OFFSET = 2
 const STATUS_COLORS = {ForegroundNegative: "218,68,83", ForegroundNeutral: "246,116,0", ForegroundPositive: "39,174,96"}
 
 def config-path [name: string]: nothing -> path {
@@ -72,6 +75,7 @@ export def link [cfg: record] {
     [
         (files-into ($nu.home-dir | path join .local share applications) ...(glob ($DIR | path join applications "*.desktop")))
         (files-into ($nu.home-dir | path join .local share dolphin view_properties global) dolphin/view_properties/global/.directory)
+        (files-into ($nu.home-dir | path join .local share dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
         # someone else's formats follow the locale bootstrap.sh set, not luca's
@@ -128,14 +132,30 @@ def kde-colors [p: record]: nothing -> record {
 def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     let applets = config-path $APPLETSRC
     if $wallpaper == "" or not ($applets | path exists) { return [] }
-    # one containment per screen and activity
     let sections = open --raw $applets | lines | parse --regex '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$' | get s
     let image = {Image: $"file://($wallpaper)"}
-    let running = ps | where name == plasmashell | is-not-empty
+    let running = (^pgrep -x plasmashell | complete).exit_code == 0
     [
         (ini-merge $applets ($sections | reduce --fold {} {|s, acc| $acc | insert $s $image }))
         (if $running { exec plasma-wallpaper [plasma-apply-wallpaperimage $wallpaper] } else { [] })
     ]
+}
+
+# the qt font string's family and size fields over the template's, so a switch keeps what toggle-font set
+def kde-fonts [template: string]: nothing -> record {
+    let toggle = $env.DOTFILES | path join scripts toggles toggle-font.nu
+    let family = ^$toggle get | complete | get stdout | str trim
+    let size = ^$toggle ui-size | complete | get stdout | str trim
+    if ($family | is-empty) or $size !~ '^[0-9]+$' { return {} }
+    let size = $size | into int
+    let current = $template | lines
+    $KDE_FONT_KEYS | reduce --fold {} {|k, acc|
+        let line = $current | where ($it | str starts-with $"($k.key)=") | get --optional 0
+        if $line == null { return $acc }
+        let fields = $line | str replace $"($k.key)=" "" | split row ","
+        let pt = if $k.key == smallestReadableFont { $size - $KDE_SMALLEST_OFFSET } else { $size }
+        $acc | upsert $k.group {|r| $r | get --optional $k.group | default {} | insert $k.key ($fields | update 0 $family | update 1 ($pt | into string) | str join ",") }
+    }
 }
 
 export def theme [cfg: record, wallpaper: string] {
@@ -144,7 +164,7 @@ export def theme [cfg: record, wallpaper: string] {
     let themed = $THEMED | each {|f|
         let dest = if $f == "kdeglobals" { config-path $f } else { $nu.home-dir | path join .local share $f }
         if $colors == null { return (file-copy $f $dest) }
-        let colors = if $f == "kdeglobals" { $colors } else { $colors | upsert General.Name pywal }
+        let colors = if $f == "kdeglobals" { $colors | merge deep (kde-fonts (open --raw $f)) } else { $colors | upsert General.Name pywal }
         file-text $dest (open --raw $f | ini-apply $colors false) --generated
     }
     $themed ++ (wallpaper-set $wallpaper)

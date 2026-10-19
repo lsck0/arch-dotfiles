@@ -26,12 +26,10 @@ function sanitizeBody(body, app, appIcon) {
     .replace(/^\s*(?:https?:\/\/|www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:\/\S*)?\s+/i, "")
 }
 
-// one glyph (a surrogate pair counts as one) followed by at least two spaces
 function summaryStartsWithGlyph(summary) {
   return /^\s*(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|\S) {2}/.test(String(summary || ""))
 }
 
-// app name the reminders, pomodoro and alerts send with: shown through dnd, never kept in history
 var ACTION_APP = "quickshell-action"
 
 function shouldBypassDnd(notification) {
@@ -70,13 +68,13 @@ function nonNegative(value) {
   return isFinite(n) && n > 0 ? n : 0
 }
 
-function snapshotOf(notification, timestamp) {
+function snapshotOf(notification, timestamp, entryName) {
   var n = notification || {}
   var id = n.id || 0
   return {
     id: id,
     originalId: id,
-    app: n.appName || "",
+    app: n.appName || entryName || n.desktopEntry || "",
     appIcon: n.appIcon || "",
     summary: String(n.summary || ""),
     body: n.body || "",
@@ -89,15 +87,21 @@ function snapshotOf(notification, timestamp) {
   }
 }
 
+var HIDDEN_ACTION_IDS = ["mail-mark-read", "mark", "mark-read", "mark_read"]
+
+function isHiddenAction(identifier, text) {
+  var id = String(identifier || "").toLowerCase()
+  return HIDDEN_ACTION_IDS.indexOf(id) >= 0 || /^\s*mark (?:as )?read\s*$/i.test(String(text || ""))
+}
+
 var POPUP_ROLES = ["app", "appIcon", "summary", "body", "image", "glyph", "execArgv", "urgency", "expireTimeout"]
 
 function popupRowChanged(row, updated) {
   return POPUP_ROLES.some(function(role) { return row[role] !== updated[role] })
 }
 
-// replaces_id keeps the original file name identity
-function replacementSnapshot(notification, originalId, timestamp) {
-  var updated = snapshotOf(notification, timestamp)
+function replacementSnapshot(notification, originalId, timestamp, entryName) {
+  var updated = snapshotOf(notification, timestamp, entryName)
   updated.id = originalId
   updated.originalId = originalId
   return updated
@@ -138,7 +142,6 @@ function popupFileName(entry) {
   return imageStem(entry) + ".json"
 }
 
-// images are copied since senders delete them on close
 var PERSISTED_IMAGE_ROLES = ["appIcon", "image"]
 
 function localImageFile(value) {
@@ -182,7 +185,6 @@ function parsePopupFiles(raw) {
       var value = JSON.parse(line)
       if (value && typeof value === "object") entries.push(popupEntry(value))
     } catch (e) {
-      // torn write, skip the line
     }
   })
   return entries.sort(function(a, b) { return b.timestamp - a.timestamp })
@@ -193,7 +195,6 @@ function popupExpired(entry, duration, now) {
   return duration > 0 && now - entry.timestamp >= duration
 }
 
-// live rows win over their own files, newest first
 function historyRows(raw, liveRows, limit) {
   var out = []
   var seen = {}

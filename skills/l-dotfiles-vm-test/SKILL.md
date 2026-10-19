@@ -6,8 +6,8 @@ description: "The end-to-end test, dot test run: bootstrap from the Arch ISO in 
 # vm-test
 
 `dot test run` creates a system libvirt VM (`qemu:///system`, Secure Boot in Setup Mode, 200 GiB disk), types
-`bootstrap.sh` into the ISO console, waits for `dot stage` to run `install.sh` and `config.sh` on their own boots,
-logs in on tty3, pulls logs and checks the end state. Install plus config can take up to 12 h.
+`bootstrap.sh` into the ISO console, waits for `dot internal stage` to run `dot apply --packages` and `dot apply` on
+their own boots, logs in on tty3, pulls logs and checks the end state. Install plus config can take up to 12 h.
 
 ## Before
 
@@ -32,7 +32,7 @@ Run it in the background; it prints progress and exits 1 with the problems.
 
 ```bash
 dot test shot      # ~/.cache/vm-test/<name>/screen.png, read it to see the console
-dot test logs      # stage logs, FAILURES.*, every *.log into ~/.cache/vm-test/<name>/logs, plus the verdict
+dot test logs      # logs in on tty3 again, pulls stage logs, FAILURES.*, every *.log into ~/.cache/vm-test/<name>/logs, plus the verdict
 dot test type 'text\n'                    # type on the console (de layout, --layout us on the ISO)
 dot test destroy   # delete the VM and its disk, the ISO volume stays
 dot test drill egress    # on the VM a passed run left: portmaster bypass marks and the protonvpn netns kill switch
@@ -42,7 +42,6 @@ dot test drill rollback  # kernel downgrade, timeshift snapshot, upgrade, restor
 Pass: `dot test: chain succeeded`. Otherwise read `logs/FAILURES.*`, `logs/stage.log` and the failing module's
 `*.log`. The verdict wants stage armed no, passwordless sudo no, no keyfile, one LUKS keyslot, Secure Boot on, the PDF print queue present.
 
-`dot test shot` reads the VM framebuffer into a PNG with no window, so an agent watches the run through it. If you
-do open a graphical viewer (virt-viewer) to inspect the VM while only verifying it, put it on a headless output the
-user never sees (`hyprctl output create headless` -> HEADLESS-N, launch it there, `grim -o HEADLESS-N`, then
-`hyprctl output remove HEADLESS-N`), not the physical monitors (AGENTS.md gotchas).
+`dot test shot` reads the VM framebuffer into a PNG with no window, so an agent watches the run through it. A
+graphical viewer (virt-viewer) opened only to verify goes on the agent's own headless output (skill
+`l-dotfiles-gui-testing`).

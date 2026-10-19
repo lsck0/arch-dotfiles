@@ -20,7 +20,6 @@ Item {
     { label: "Reboot", hotkey: "R", icon: "\u{f0709}", cmd: ["systemctl", "reboot"], confirm: true },
     { label: "Firmware", hotkey: "F", icon: "\u{f0493}", cmd: ["systemctl", "reboot", "--firmware-setup"], confirm: true }
   ]
-  // index awaiting [Y/n], -1 when none
   property int pendingIndex: -1
   readonly property var pendingAction: pendingIndex >= 0 ? actions[pendingIndex] : null
 
@@ -86,7 +85,6 @@ Item {
       focus: true
       Keys.priority: Keys.BeforeItem
       Keys.onPressed: function(event) {
-        // any other key cancels; the key is swallowed either way
         if (root.pendingAction) {
           if (event.key === Qt.Key_Y || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
             root.activate(root.pendingIndex)

@@ -1,4 +1,3 @@
--- compile_commands.json from the engine's UnrealBuildTool, regenerated when a *.Build.cs/*.Target.cs/.uproject is newer
 local M = {}
 
 local done = {}
@@ -61,7 +60,6 @@ local function stale(root)
     return false
 end
 
--- generated files stay out of the project's git without touching its .gitignore
 local function git_exclude(root)
     local res = vim.system({ "git", "-C", root, "rev-parse", "--git-path", "info/exclude" }, { text = true }):wait()
     if res.code ~= 0 then
@@ -133,7 +131,6 @@ function M.build(root)
     end)
 end
 
--- the launcher (configs/programming/unreal) also starts the editor's mcp server for claude
 function M.editor(root)
     if vim.fn.executable("unreal-editor") == 0 then
         vim.notify("unreal: no unreal-editor launcher", vim.log.levels.ERROR)
@@ -162,7 +159,6 @@ local function attach(path)
     map("<leader>Ub", M.build, "Unreal: build editor target")
     map("<leader>Ue", M.editor, "Unreal: open editor")
     map("<leader>Ug", M.clangdb, "Unreal: regenerate compile_commands.json")
-    -- buffer-local group, so <leader>U is labelled only where it exists
     pcall(function()
         require("which-key").add({ { "<leader>U", group = "unreal", buffer = buf } })
     end)

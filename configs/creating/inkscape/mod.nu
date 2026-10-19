@@ -13,7 +13,6 @@ export def link [cfg: record] {
             type: stdio
             command: uvx
             args: [--exclude-newer $MCP_RELEASED --from $"inkscape-mcp==($MCP_VERSION)" inkscape-mcp --mode stdio]
-            # fastmcp asks pypi for updates whenever it prints its banner, which this server always does
             env: {FASTMCP_CHECK_FOR_UPDATES: "off"}
         })
     ]

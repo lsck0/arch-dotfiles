@@ -7,6 +7,7 @@ const SESSIONS = "/etc/ly/sessions"
 const SAVE = "/etc/ly/save.txt"
 const LANG_STOCK = "/etc/ly/lang/en.ini"
 const HYPRLAND = "Hyprland"
+const TTY = "tty1"
 # login.defs' human uid range; build users (nixbld) in it have no login shell
 const UID_MIN = 1000
 const UID_MAX = 59999
@@ -28,7 +29,6 @@ def lang-render []: nothing -> string {
     } | str join "\n" | $"($in)\n"
 }
 
-# setvtrgb's format: one line each of the reds, greens and blues
 def vtrgb-render []: nothing -> string {
     [0 2 4] | each {|at| $PALETTE | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," } | str join "\n" | $"($in)\n"
 }
@@ -40,15 +40,17 @@ export def system [cfg: record] {
     [
         (file-copy config.ini ($ETC | path join config.ini))
         (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) } else { [] })
-        # only Hyprland (uwsm) and Plasma show, next to ly's built-in shell
         (if ($foreign | is-empty) { [] } else { exec "foreign sessions" [rm --force ...$foreign] })
         (files-into $SESSIONS ...$sessions)
         (step save-defaults)
         (file-text ($ETC | path join vtrgb) (vtrgb-render))
         (dropin ly@.service palette.conf)
         (dropin ly@.service cursor.conf)
-        (unit-enable ly@tty2.service)
-        (unit-disable getty@tty2.service)
+        (dropin ly@.service stage.conf)
+        # on tty1, where plymouth hands over: no getty prompt flashes between the splash and the greeter
+        (unit-enable $"ly@($TTY).service")
+        (unit-disable $"getty@($TTY).service")
+        (unit-disable ly@tty2.service)
     ]
 }
 

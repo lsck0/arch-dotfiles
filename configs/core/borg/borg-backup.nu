@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# daily borg backup of $HOME into the syncthing folder borg-<host>, which ships it to the NAS
 
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
@@ -13,7 +12,6 @@ const NM_METERED = [
     org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Metered
 ]
 const METERED = ["1" "3"]
-# reproducible or already elsewhere: caches, toolchains, game and vm data, models, ~/sync (on the NAS itself)
 const EXCLUDES = [
     sync downloads Downloads .cache .local/share/Trash .local/share/baloo ".var/app/*/cache"
     .steam .local/share/Steam .local/share/flatpak .local/share/containers
@@ -37,7 +35,6 @@ def stamp-older [name: string, days: int]: nothing -> bool {
     not ($stamp | path exists) or (ls $stamp | get 0.modified) < ((date now) - ($days * 1day))
 }
 
-# quiet while a recent backup exists, a failure once the last good one is too old
 def skip-run [why: string]: nothing -> nothing {
     print --stderr $"borg: ($why), skipping"
     if (stamp-older last-success $STALE_DAYS) {
@@ -58,7 +55,6 @@ def --wrapped succeeds [...argv: string]: nothing -> bool {
     (do { ^$argv.0 ...($argv | skip 1) } | complete).exit_code == 0
 }
 
-# a lock left by a suspended run waits instead of failing
 def --wrapped borg [...args: string] {
     ^borg --lock-wait $LOCK_WAIT_S ...$args
 }
@@ -83,8 +79,7 @@ def archive [folder: path, secrets: path, canary: path]: nothing -> int {
         chmod 600 $key
         $text | save --force $key
     }
-    # app state the restore needs in the repo checkout (secrets, plasma), the same run dot sync commits it with
-    ^nu --no-config-file ($env.DOTFILES | path join scripts dot.nu) backup
+    ^nu --no-config-file ($env.DOTFILES | path join scripts dot.nu) internal backup
     let excludes = $EXCLUDES | each {|p| $nu.home-dir | path join $p } | prepend $folder | each { $"--exclude=($in)" }
     let rc = try {
         (borg create --stats --compression auto,zstd,3 --exclude-caches --one-file-system --exclude-if-present .nobackup
@@ -143,7 +138,7 @@ def main []: nothing -> nothing {
         random binary $CANARY_BYTES | save --force $canary
     }
 
-    # syncthing must not ship a half-written transaction: the folder pauses for the run, unpausing rescans it
+    # syncthing must not ship a half-written transaction
     let paused = if (succeeds systemctl --user -q is-active syncthing.service) {
         let folders = do { ^syncthing cli config folders list } | complete
         if $folders.exit_code != 0 { fail "syncthing runs but its api does not answer, not writing under it" }

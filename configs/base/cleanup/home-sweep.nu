@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# log accretion in $HOME no size cap or tmpfiles rule reaches; skips an app whose process is up
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 const SPOTIFY_DIR = ".cache/spotify-player"

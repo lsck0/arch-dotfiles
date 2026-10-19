@@ -1,9 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# backward search into whichever editor already has the file open, set in the viewers' config to work however launched
 
 const ASK_TIMEOUT_S = "2"
 const OPEN_TIMEOUT_S = "5"
-# the app name quickshell shows through dnd and keeps out of the history
 const NOTIFY_APP = "quickshell-action"
 
 def --wrapped ask [...argv: string]: nothing -> record {
@@ -17,7 +15,6 @@ def nvim-try [file: string, line: int, column: int]: nothing -> bool {
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let listed = if ($log | path exists) { open --raw $log | lines } else { [] }
     let sockets = $listed ++ (glob ($runtime | path join "nvim.*"))
-    # the path goes through vim's own quoting
     let expr = $"vimtex#view#inverse_search\(($line), '($file | str replace --all "'" "''")', ($column)\)"
     $sockets | uniq | where ($it | path type) == socket | any {|sock|
         let answer = ask timeout $ASK_TIMEOUT_S nvim --server $sock --remote-expr $expr
@@ -42,7 +39,6 @@ def main [file: string, line: int, column: int = 0]: nothing -> nothing {
     # the viewer hands out the path synctex recorded, relative to the build dir for an out-of-tree build
     let file = $file | path expand
     if (nvim-try $file $line $column) or (emacs-try $file $line $column) { return }
-    # nothing had it open: say so rather than guessing which editor to start
     let message = $"($file | path basename):($line) is not open in nvim or emacs"
     if (ask notify-send -a $NOTIFY_APP -u low synctex $message).exit_code != 0 {
         print --stderr $"synctex-edit: ($file):($line) is not open in any running nvim or emacs"

@@ -346,13 +346,9 @@ name). The model comes from the ticket's `model:`/`provider:` annotation
 durable file under `tasks/context/` or `tasks/agents/<uuid8>-<slug>/`, not
 to pane/chat text; after it settles, read the file directly.
 
-A worker that launches an app, game or editor only to screenshot or verify
-it (not because the user is watching that task) keeps it off the physical
-screen. On Luca's Hyprland desktop that is the headless-output pattern in
-the dotfiles AGENTS.md gotchas: `hyprctl output create headless` ->
-HEADLESS-N, move the window there, `grim -o HEADLESS-N`, then `hyprctl
-output remove HEADLESS-N`. Each worker makes and removes its own, so many
-verify at once without taking over the monitors; say so in its prompt.
+A worker that launches an app only to screenshot or verify it keeps it
+off the physical screen on its own headless output (skill
+`l-dotfiles-gui-testing`); say so in its prompt.
 
 | operation | HERDR_ENV=1 (Hermes panes) | Claude Code (Agent tool) |
 |---|---|---|

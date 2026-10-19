@@ -1,4 +1,3 @@
--- no mason package for jails, so start it per buffer
 if vim.fn.executable("jails") == 1 then
     vim.lsp.start({
         name = "jails",

@@ -7,7 +7,6 @@ const DNS_PORT = 6669
 # protonvpn's and wg-quick's fwmarks on their own udp, as in base/nftables/fw-egress.nft
 const TUNNEL_MARKS = "0x0ea13b2c, 0x0000ca6c"
 const HOME_NETWORK = "/run/home-network"
-# on a homelab machine only
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
 const RULESET = r#'add table inet @TABLE@
 delete table inet @TABLE@
@@ -97,7 +96,7 @@ def home-fill []: nothing -> nothing {
 
 def "main start" []: nothing -> nothing {
     if (^systemctl is-active tor.service | complete).exit_code != 0 {
-        print "The tor service is not active, please start the tor service before running the script."
+        print --stderr "tor-router: tor.service is not active, start it first"
         exit 1
     }
     let lab = homelab
@@ -128,5 +127,5 @@ def "main restart" []: nothing -> nothing {
 
 # Transparent tor routing: start, stop, restart, or home (refill the lan bypass for the current home links).
 def main []: nothing -> nothing {
-    print "Usage: tor-router {start|stop|restart|home}"
+    print "usage: tor-router {start|stop|restart|home}"
 }

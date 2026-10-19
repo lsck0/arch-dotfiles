@@ -20,7 +20,6 @@ def root-mount [field: string]: nothing -> string {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let fstype = root-mount FSTYPE
-    # btrfs mode needs root on a named subvolume such as @
     if $fstype != "btrfs" or (root-mount OPTIONS) =~ 'subvolid=5\b' or (root-mount FSROOT) in ["/" ""] {
         return []
     }

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# a 4000K whitepoint in the display ctm, composed with the grading preset by color-grading.py
 use lib.nu [switch-run]
 
 const GRADING = path self ../../configs/desktop/color-grading/color-grading.py

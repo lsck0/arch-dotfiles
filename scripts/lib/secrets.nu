@@ -10,7 +10,7 @@ export def secret-is-plaintext [file: path]: nothing -> bool {
 export def secret-seed-guard [marker: path, witness: path, label: string]: nothing -> nothing {
     if ($marker | path exists) { return }
     if ($witness | path exists) {
-        error make {msg: $"($label) was not seeded from secrets; dot link it, or touch ($marker) to keep the live state"}
+        error make {msg: $"($label) was not seeded from secrets; dot apply --user it, or touch ($marker) to keep the live state"}
     }
     mkdir ($marker | path dirname)
     touch $marker

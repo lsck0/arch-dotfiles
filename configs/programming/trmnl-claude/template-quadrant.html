@@ -1,6 +1,5 @@
     <div class="layout layout--col layout--top py--1 px--3.5 lg:py--4 lg:px--7">
 
-      <!-- Header -->
       <table class="w--full" style="border-collapse:collapse;">
         <tr>
           <td class="title title--small lg:title--large" style="letter-spacing:1px;"><b>CLAUDE CODE</b></td>
@@ -27,7 +26,6 @@
       </table>
       {% endif %}
 
-      <!-- Today -->
       <table class="w--full mt--0.5" style="border-collapse:collapse;">
         <tr>
           <td class="title title--small lg:title--large">Today {% if trend == "up" %}&#8599;{% elsif trend == "down" %}&#8600;{% endif %}</td>
@@ -38,7 +36,6 @@
         </tr>
       </table>
 
-      <!-- Week -->
       <table class="w--full mt--0.5" style="border-collapse:collapse;">
         <tr>
           <td class="title title--small lg:title--large">Week: <b>{{ w_tokens }}</b> · ~{{ w_cost }}</td>

@@ -7,7 +7,7 @@ def tunnel-up []: nothing -> bool { "/sys/class/net/proton0" | path exists }
 
 # portmaster comes back only if the firewall toggle wants it; polkit, so auto-vpn works unattended
 def portmaster-restore []: nothing -> nothing {
-    if (toggle-run firewall get | str trim) != off { ^systemctl --no-ask-password start portmaster.service }
+    if (toggle-run firewall get | str trim) != permissive { ^systemctl --no-ask-password start portmaster.service }
 }
 
 def main [action: string = "toggle"] {

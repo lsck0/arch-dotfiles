@@ -9,7 +9,8 @@ Extends the root `AGENTS.md`. Editors, language toolchains, debuggers, agent CLI
 - Language toolchains: `cargo` (Rust), `ghcup` (Haskell), `opam` (OCaml), `elan` (Lean), `jai` (owner's beta from
   `~/sync/vendor`), `nix`, `flux` (flux-rs on its pinned nightly), `kani` (Rust model checker), `asm-lsp` (assembly).
 - Debuggers/profilers: `gdb`, `cgdb`, `nnd`, `renderdoc`.
-- Git/VCS: `lazygit`, `gh-dash`, `direnv` (devenv environments), `identity` (per-repo git identity via a `.identity/` dir).
+- Git/VCS: `lazygit`, `gh-dash`, `direnv` (devenv environments), `identity` (not a module: the `.identity/envrc`
+  that `identity-init` gives a repo for its own git identity).
 - Agent CLIs: `claude`, `copilot`, `gemini-cli`, `caveman`, `hermes`, `herdr` (see `core/herdr`).
 - MCP servers for Claude: `docker`, `kubernetes`, `grafana` (homelab, read-only), `postgres`, `playwright`, plus the
   creative and pentesting MCPs in their own groups.
@@ -30,5 +31,5 @@ Extends the root `AGENTS.md`. Editors, language toolchains, debuggers, agent CLI
 - Formatter configs (clang-format, stylua, prettier, rustfmt, ruff) are not linked: nvim `conform` and emacs
   `apheleia` pass them. One source, `programming/formatting`.
 - Telemetry off for every agent/editor that phones home (gemini-cli, bruno, zed, vscode, copilot).
-- Identity-gated modules (`identity`, `bugwarrior`, `projects`, `jai`) read `profile-has`, never a username.
+- Identity-gated modules (`bugwarrior`, `jai`, `projects`, `task`) read `profile-has identity`, never a username.
 - Module order can matter: `projects` runs after `core/gh` (`meta.deps`).

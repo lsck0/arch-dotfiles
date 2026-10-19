@@ -7,7 +7,6 @@ def ghostty-answers []: nothing -> bool {
         --method org.gtk.Actions.List | complete).exit_code == 0
 }
 
-# ghostty's options as kitty's, up to -e; what follows -e is the command
 def kitty-args [args: list<string>]: nothing -> list<string> {
     let split = $args | enumerate | where item == "-e" | get --optional 0.index
     let options = if $split == null { $args } else { $args | first $split }

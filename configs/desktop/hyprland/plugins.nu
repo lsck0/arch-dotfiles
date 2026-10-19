@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# hyprpm sudoes every call until its store exists, and the login FIDO2 prompt cannot be answered, so the store is
-# changed only from a terminal; loading an already built store is safe at login
+# hyprpm sudoes every call until its store exists, a FIDO2 prompt nobody answers at login: build only from a terminal
 
 const STORE = "/var/cache/hyprpm"
 const PLUGIN = "dynamic-cursors"

@@ -9,7 +9,6 @@ export const meta = {
 const UKI_DIR = "/boot/EFI/Linux"
 const PRESETS = "/etc/mkinitcpio.d"
 
-# the ukis are rebuilt and signed at the boot barrier (boot.nu boot-commit)
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" or not (esp-supported) { return [] }
     [

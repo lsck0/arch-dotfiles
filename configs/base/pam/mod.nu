@@ -43,9 +43,7 @@ def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
     if $at == null { $lines } else { ($lines | first $at) ++ [$line] ++ ($lines | skip $at) }
 }
 
-# yubikey and fingerprint on sudo, yubikey on polkit, additive to the password; login takes the password only
 export def system [cfg: record] {
-    # windows owns sign-in hardware under wsl
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let line = u2f-line $cfg.fido_origin
     let u2f = $U2F_MODULE | path exists
@@ -55,7 +53,6 @@ export def system [cfg: record] {
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
         (if ($U2F_KEYS | path exists) { file-copy $U2F_KEYS /etc/u2f_mappings } else { [] })
         (step sudo-stack ($u2f | into string) $line)
-        # rebuilt from the vendor stack, so a polkit update reaches it
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let text = auth-insert (open --raw $POLKIT_VENDOR | lines) $line | str join "\n" | $"($in)\n"
             file-text /etc/pam.d/polkit-1 $text
@@ -63,7 +60,6 @@ export def system [cfg: record] {
     ]
 }
 
-# a validity/synaptics sensor uses python-validity + open-fprintd, other readers fprintd once anyone enrolled a finger
 def has-fprint []: nothing -> bool {
     let unit = ^systemctl list-unit-files --no-legend python3-validity.service | complete | get stdout | str trim
     let validity = ($unit | is-not-empty) and ([138a: 06cb:] | any {|id| (^lsusb -d $id | complete).exit_code == 0 })

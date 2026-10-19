@@ -9,13 +9,11 @@ const PUBLIC_DIR = $REPO | path join wallpapers
 const SECRET_DIR = $REPO | path join secrets wallpapers
 const SECRETS_PROBE = $REPO | path join secrets age.txt
 const IMAGE_SUFFIXES = [jpg jpeg png webp]
-# small enough to ignore crop and compression differences, large enough to tell artworks apart
 const FINGERPRINT_SIZE = "32x18!"
 # mean absolute grey difference per pixel (0-255) below which two images are the same artwork
 const MATCH_DISTANCE_MAX = 12
 # grey level (of 255) under which a border row or column counts as letterbox padding
 const LETTERBOX_FUZZ = "6.3%"
-# trimming works on a small copy, full 4k pixels add nothing but time
 const THUMBNAIL_SIZE = "1024x1024>"
 
 # letterboxed low-res copies would never match their unpadded originals, so padding is trimmed first

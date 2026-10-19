@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# spicetify apply once spotify is logged in and the user's copy is unpatched; /opt/spotify stays root's
 
 const UNMAP = path self | path expand | path dirname --num-levels 2 | path join spicetify-unmap-classes.nu
+const RELOAD = path self | path expand | path dirname --num-levels 2 | path join spotify-reload.nu
 const SPOTIFY_SYSTEM = "/opt/spotify"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_WAIT_S = 300
@@ -19,7 +19,7 @@ def main []: nothing -> nothing {
         print -e $"spicetify-apply: pacman still busy after ($PACMAN_WAIT_S)s"
         exit 1
     }
-    # the path unit, the login and dot link can fire together
+    # the path unit, the login and dot apply can fire together
     let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join spicetify-apply.lock
     ^flock $lock $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }
@@ -44,4 +44,5 @@ def "main locked" []: nothing -> nothing {
     try { ^spicetify -n apply } catch { ^spicetify -n backup apply }
     ^spicetify -n enable-devtools
     ^$UNMAP ($apps | path join xpui)
+    ^$RELOAD --page
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the editor with epic's mcp server enabled for this launch only, nothing lands in the .uproject or the engine
 
 # 8766, not 8765 (dot test's beacon) nor 8000 (vllm's socket)
 const MCP_PORT = 8766

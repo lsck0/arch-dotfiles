@@ -9,7 +9,6 @@ const URL = $"https://github.com/pgEdge/pgedge-postgres-mcp/releases/download/v(
 const BINARY = "pgedge-postgres-mcp"
 const DATA = "/var/lib/postgres/data"
 
-# a dev cluster started on demand, never at boot; each admin's own role and database let peer auth in
 export def system [cfg: record] {
     let admins = open /etc/group | lines | parse "{name}:{x}:{gid}:{members}" | where name == wheel
         | get --optional 0.members | default "" | split row "," | where $it =~ '^[a-z_][a-z0-9_-]*$'
@@ -20,7 +19,6 @@ export def system [cfg: record] {
     ]
 }
 
-# through the running server, else postgres' single-user mode on the stopped cluster; a probe answers `yes`
 def sql [query: string]: nothing -> string {
     # postgres can not read the module dir
     cd /

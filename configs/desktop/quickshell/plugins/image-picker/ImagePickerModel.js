@@ -13,7 +13,6 @@ function labelForPath(path) {
   return titleCase(nameForPath(path))
 }
 
-// themes mode labels by theme name, not wallpaper file
 function labelForImage(image) {
   if (image && image.displayName) return titleCase(image.displayName)
   return labelForPath(image ? image.filePath : "")
@@ -73,7 +72,6 @@ function saturation(c) {
   return max <= 0 ? 0 : (max - min) / max
 }
 
-// hue in degrees, 0 for greys
 function hueOf(c) {
   var max = Math.max(c.r, c.g, c.b), min = Math.min(c.r, c.g, c.b), d = max - min
   if (d <= 0) return 0

@@ -4,7 +4,6 @@ export const meta = {packages: {pacman: [playerctl]}}
 
 const GUARDS = [agent-guard.nu media-guard.nu ssh-guard.nu]
 
-# the units, hypridle and the agents' hooks run the guards from here
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join .config idle-guards
     [

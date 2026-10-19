@@ -9,12 +9,6 @@
     border-bottom: 1px solid alpha(@theme_selected_bg_color, 0.5);
 }
 
-.nemo-window .toolbar button,
-.nemo-window .path-bar button,
-.nemo-window headerbar button {
-    border-radius: 2px;
-}
-
 .nemo-window .path-bar,
 .nemo-window .toolbar entry,
 .nemo-window entry.search {
@@ -26,7 +20,6 @@
     border: none;
     min-width: 6px;
     min-height: 6px;
-    border-radius: 2px;
 }
 
 .nemo-window scrollbar slider:hover {
@@ -99,9 +92,8 @@
     border-top: 1px solid alpha(@borders, 0.8);
 }
 
-/* The oomox gtk3 export never maps the palette onto the sidebar_* colors, so they stay at the light
-   adwaita defaults (#ebebed) while the rest of the theme is dark: every places sidebar in a gtk3 file
-   chooser comes up white. The gtk-4.0 export gets this right (#1B1F27), so this is gtk3 only. */
+/* oomox's gtk3 export leaves sidebar_* at adwaita's light defaults, so every gtk3 file chooser sidebar comes up
+   white; the gtk4 export maps them */
 @define-color sidebar_bg_color @theme_bg_color;
 @define-color sidebar_fg_color @theme_fg_color;
 @define-color sidebar_backdrop_color @theme_bg_color;

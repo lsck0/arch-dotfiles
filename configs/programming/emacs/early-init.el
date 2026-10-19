@@ -16,6 +16,8 @@
         (horizontal-scroll-bars . nil)
         (internal-border-width . 8)
         (font . ,(format "%s-%d" my/font-family my/font-size))))
+;; the theme loads late in init.el; without the palette's colours here the first frame paints white until then
+(load (expand-file-name "wal/emacs-frame" (or (getenv "XDG_CACHE_HOME") "~/.cache")) t t)
 (setq tool-bar-mode nil
       menu-bar-mode nil
       scroll-bar-mode nil

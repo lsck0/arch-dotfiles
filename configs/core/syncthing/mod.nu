@@ -12,10 +12,10 @@ const NAS_NAME = "vm-104-nas"
 const API_WAIT_SECONDS = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
-# repos under ~/sync carry a per-machine .identity/ (browser profiles, agent state, creds, caches): never replicated
+# per-machine state with credentials: never replicated
 const STIGNORE_LINE = "**/.identity"
 const VERSIONS_MAX_AGE = 2592000
-# borg's repo folder; configs/core/borg/borg-backup.nu has the same path and id
+# configs/core/borg/borg-backup.nu has the same path and id
 const BORG_FOLDER = ".local/share/borg-repo"
 
 def secret-dir []: nothing -> path {
@@ -30,7 +30,6 @@ def st [...args: string]: nothing -> string {
     ^syncthing cli ...$args | str trim
 }
 
-# everything after this keeps the device private, so a daemon that never answers is a failure
 def api-wait []: nothing -> nothing {
     let up = 1..$API_WAIT_SECONDS | each { $in } | any {|_|
         if (^syncthing cli show system | complete).exit_code == 0 { true } else { sleep 1sec; false }
@@ -79,7 +78,6 @@ def gui-login [user: string, password: string]: nothing -> nothing {
     if not $set { error make {msg: "syncthing: the gui login did not stick, the gui is open to every local user"} }
 }
 
-# the only peer is static: no discovery, relays or port mapping, nothing phones home
 export def api-config [paired: string]: nothing -> nothing {
     api-wait
     for option in [local-ann-enabled global-ann-enabled relays-enabled natenabled crenabled] {
@@ -88,13 +86,11 @@ export def api-config [paired: string]: nothing -> nothing {
     ^syncthing cli config options uraccepted set -- -1
     gui-login (^id -un | str trim) (gui-password)
     let sync = $nu.home-dir | path join sync
-    # no secrets: a fresh identity, paired by hand in the ui
     if $paired != "true" and "sync" not-in (st config folders list | lines) {
         let folder = {id: sync, label: sync, path: $sync, type: sendreceive, fsWatcherEnabled: true, ignorePerms: true}
         ^syncthing cli config folders add-json ($folder | to json --raw)
     }
     if "sync" in (st config folders list | lines) {
-        # a delete or overwrite from another device keeps the old copy in .stversions for 30 days
         ^syncthing cli config folders sync versioning type set staggered
         ^syncthing cli config folders sync versioning params set maxAge ($VERSIONS_MAX_AGE | into string)
         if (st config folders sync versioning type get) != "staggered" {
@@ -131,7 +127,6 @@ export def link [cfg: record] {
     let state = $nu.home-dir | path join $STATE
     let secrets = secret-dir
     let paired = ["config.xml" "key.pem"] | all {|f| secret-is-plaintext ($secrets | path join $f) }
-    # only a new or changed identity is installed, a matching one keeps its live config and transfers
     let differs = {|f| not ($state | path join $f | path exists) or (open --raw ($secrets | path join $f)) != (open --raw ($state | path join $f)) }
     let changed = $paired and (not ($state | path join config.xml | path exists) or ([cert.pem key.pem] | any $differs))
     [

@@ -1,6 +1,5 @@
 use module.nu *
 
-# i/o schedulers by device class; the cpu side is tlp's epp (base/tlp)
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let reload = "udevadm control --reload; udevadm trigger --subsystem-match=block; true"

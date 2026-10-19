@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# wake the homelab desktop through the router's `wol-pc`, then ssh in once it is up
 
-# rendered by mod.nu
 const ROUTER = "@ROUTER@"
 const PC = "@HOST@"
 const KNOCK = [9003 7001 8002]

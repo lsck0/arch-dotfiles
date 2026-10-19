@@ -4,10 +4,8 @@ use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
 const SELF = path self
 
 export const VERBS = [link unlink system theme apply backup restore check]
-# exports the engine calls that are not run as a layer's verb
 const HOOKS = [detect packages]
 const MARKER = "mod.nu"
-# repo-root dirs that link like modules, after every configs module
 const ROOT_MODULES = [scripts skills weblinks]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
@@ -21,8 +19,7 @@ def native-script [mods: list<record>, body: string]: nothing -> string {
     $uses | append $body | str join "\n"
 }
 
-# a child's own log lines keep their level and are in the run log already; any other stderr (a deprecation, a module's
-# print -e) is a warning, never part of its answer
+# a child's log lines are in the run log already; other stderr (a deprecation, print -e) is a warning, not its answer
 def child-warnings [stderr: string]: nothing -> nothing {
     let tag = $"($env.LOG_TAG? | default dotfiles): "
     let lines = $stderr | lines | where ($it | str trim) != ""
@@ -44,7 +41,6 @@ def native-read [dirs: list<path>]: nothing -> list<record> {
     let read = if $found.exit_code == 0 { open --raw $out_file | from nuon } else { null }
     rm --force $out_file
     if $read != null { return $read }
-    # one broken mod.nu must not hide every other: it is reported and left out of this run
     let broken = $dirs | each {|dir| {dir: $dir, check: (^(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($dir | to nuon)" | complete)} }
         | where check.exit_code != 0
     if ($broken | is-empty) { error make {msg: $"reading the modules failed: ($found.stderr)"} }
@@ -92,7 +88,7 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
         }
         $scanned
     }
-    $found | insert selected {|m| $m.group == "" or $m.group in $groups }
+    $found | insert selected {|m| $m.group == "" or $m.group in $groups or $m.id in $groups }
 }
 
 # byte-wise id order breaks ties, so an undeclared order is the sorted one
@@ -152,7 +148,6 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
     }
     $result
 }
-
 
 export def modules-packages [repo: path, modules: table, platform: record]: nothing -> record {
     let wsl = $platform.form_factor == "wsl"

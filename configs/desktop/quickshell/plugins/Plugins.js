@@ -12,7 +12,6 @@ const shell = {
     "service.notifications": "notifications/Service.qml"
 };
 
-// bar widgets by file name in bar/widgets, the rest of that dir is unplaced
 const bar = {
     left:   ["AppMenu", "Workspaces"],
     center: ["Clock", "Weather", "Media", "Obs", "Discord"],
@@ -20,5 +19,4 @@ const bar = {
              "Display", "AudioIO", "Notifications", "KeyboardLayout", "Indicators", "Exit"]
 };
 
-// non-main screens
 const barSecondary = { left: ["AppMenu", "Workspaces"], center: [], right: [] };

@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 
-// fixed width so rows do not shift
 Item {
   id: root
 

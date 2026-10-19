@@ -14,11 +14,9 @@ BorderSurface {
   property string body: ""
   property string image: ""
   property string glyph: ""
-  // 0 low, 1 normal, 2 critical
   property int urgency: 1
   property double timestamp: 0
 
-  // "toast" or "row"
   property string variant: "toast"
   readonly property bool isRow: variant === "row"
 
@@ -26,15 +24,11 @@ BorderSurface {
 
   property double now: 0
 
-  // [{ id, text }], toasts only
   property var actions: []
-  // consecutive toasts of this app folded under this one
   property int groupCount: 1
-  // 0 hides the gauge (sticky toasts)
   property int segmentsLeft: 0
   readonly property int gaugeSegments: 4
 
-  // seconds timestamps are scaled up to ms
   function formatTime(ts, ref) {
     if (!ts) return ""
     var when = new Date(ts * (ts < 1e12 ? 1000 : 1))
@@ -177,7 +171,6 @@ BorderSurface {
           visible: root.app.length > 0 || root.timeLabel.length > 0
 
           readonly property bool showDot: root.app.length > 0 && root.timeLabel.length > 0
-          // dot gets its own slot so both gaps match
           readonly property real dotSlotWidth: showDot ? dotText.implicitWidth + spacing : 0
 
           Caption {
@@ -243,7 +236,6 @@ BorderSurface {
       }
     }
 
-    // stepped by the expiry timer, never animated per frame
     Item {
       id: gauge
       Layout.fillWidth: true

@@ -1,0 +1,6 @@
+# ksplashrc's Engine=none starts no splash, yet startplasma still calls org.kde.KSplash; the stock activation waits a
+# minute for a name nobody claims and fails its unit. a unit that does not exist fails the call at once instead
+[D-BUS Service]
+Name=org.kde.KSplash
+Exec=/usr/bin/false
+SystemdService=dbus-org.kde.KSplash.service

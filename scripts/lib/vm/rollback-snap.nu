@@ -6,7 +6,6 @@ const MARKER_AFTER = "/etc/drill-rollback-after"
 let kver = ^uname -r | str trim
 say kver_old $kver
 say booted_old ($kver != "@KVER_NEW@" and ($"/usr/lib/modules/($kver)" | path type) == dir | yesno)
-# a marker in @ the snapshot keeps; its twin made after must be gone once restored
 touch $MARKER_BEFORE
 let tag = $"drill-rollback-(date now | format date '%s')"
 do --ignore-errors { ^timeshift --create --scripted --comments $tag }

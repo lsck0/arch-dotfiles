@@ -1,16 +1,14 @@
 #!/usr/bin/env -S nu --no-config-file
-# runs on every module change, so the injected check comes first; no betterdiscordctl: it hardcodes
-# discord_desktop_core-1, discord ships -2 and up
+# no betterdiscordctl: it hardcodes discord_desktop_core-1, discord ships -2 and up
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
-# runs inside discord with the account token, so a pinned release; bump both together
+# runs inside discord with the account token, so pinned; bump both together
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.1/betterdiscord.asar"
 const ASAR_SHA256 = "8595fffc8a8339f01cdf80b4a34c641cb96cf567732c5227f5c4c6779edff6f6"
 
 def main []: nothing -> nothing {
     let asar = $nu.home-dir | path join .config BetterDiscord data betterdiscord.asar
     let host = $nu.home-dir | path join .config discord Discord
-    # the path unit watches this: it follows the host the updater switches to, whose modules dir gets each core update
     let modules_link = $nu.home-dir | path join .local state betterdiscord-modules
     if not ($host | path exists) { return }
     let modules = $host | path expand | path dirname | path join modules
@@ -21,7 +19,6 @@ def main []: nothing -> nothing {
     if $core == null or not ($index | path exists) { return }
     let current = ($asar | path exists) and (open --raw $asar | hash sha256) == $ASAR_SHA256
     if $current and (open --raw $index | str contains betterdiscord) { return }
-    if not $current { ^nu --no-config-file ($REPO | path join scripts dot.nu) fetch file $ASAR_URL $ASAR_SHA256 $asar }
-    # the same two lines the official installer writes
+    if not $current { ^nu --no-config-file ($REPO | path join scripts dot.nu) internal fetch file $ASAR_URL $ASAR_SHA256 $asar }
     $"require\(\"($asar)\"\);\nmodule.exports = require\(\"./core.asar\"\);\n" | save --force $index
 }

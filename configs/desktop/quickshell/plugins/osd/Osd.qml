@@ -25,7 +25,6 @@ Item {
   readonly property int typeStepMs: 12
   readonly property int logDurationMs: 2400
 
-  // the sticky "Launching X..." osd enters with the wallpaper-switch glitch
   signal launchGlitch()
   readonly property bool launching: !hasProgress && duration === 0 && message !== "" && !logMode
 
@@ -141,7 +140,6 @@ Item {
 
   TextMetrics {
     id: iconMetrics
-    // drawn texts reuse this font via iconMetrics.font
     font.family: Style.font.iconFamily
     font.pixelSize: Style.font.displayLarge
     text: root.icon
@@ -175,7 +173,6 @@ Item {
       readonly property bool onFocusedMonitor: {
         var mine = Hyprland.monitorFor(modelData)
         var focused = Hyprland.focusedMonitor
-        // no focused monitor yet: show rather than swallow
         if (!mine || !focused) return true
         return mine.name === focused.name
       }
@@ -259,11 +256,9 @@ Item {
             color: Colors.popups.text
             elide: Text.ElideRight
             maximumLineCount: 1
-            // changes on every key repeat: outline, never a MultiEffect
             style: Style.fx.glow > 0 ? Text.Outline : Text.Normal
             styleColor: Util.alpha(Colors.accent, 0.35)
           }
-          // a live cursor until the launched toplevel appears
           BlinkCaret {
             visible: !root.hasProgress && root.duration === 0 && root.message !== ""
             anchors.verticalCenter: parent.verticalCenter

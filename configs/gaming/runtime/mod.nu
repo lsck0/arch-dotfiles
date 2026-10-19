@@ -1,4 +1,3 @@
-# what games run on beside steam's own runtime: cachyos proton, d3d12 for system wine, gamescope, the vulkan tooling
 export const meta = {
     packages: {
         pacman: [

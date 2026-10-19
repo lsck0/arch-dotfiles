@@ -12,7 +12,6 @@ export def system [cfg: record] {
     let vendor = open /proc/cpuinfo | lines | parse --regex '^vendor_id\s*:\s*(?<v>\S+)' | get --optional 0.v
     let module = $NESTED | get --optional ($vendor | default "")
     [
-        # autostart only fires while libvirtd runs, and root's qemu:///system never autostarts a daemon
         (unit-enable libvirtd.service --now)
         (step network)
         # no libvirt group: its polkit rule is a silent root for every member's process
@@ -28,7 +27,7 @@ export def network []: nothing -> nothing {
     if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }
     let taken = ^ip -j -4 route | from json | where dst == $DEFAULT_SUBNET and dev != $DEFAULT_BRIDGE | get --optional 0.dev
     if $taken != null {
-        print $"note: libvirt: ($DEFAULT_SUBNET) is already this machine's network on ($taken), the default network stays off"
+        log-note $"libvirt: ($DEFAULT_SUBNET) is already this machine's network on ($taken), the default network stays off"
         return
     }
     ^virsh -q -c qemu:///system net-start default

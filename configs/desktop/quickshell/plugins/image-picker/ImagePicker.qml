@@ -45,16 +45,13 @@ Item {
     property int expandedHeight: Style.space(475)
     property int sliceWidth: Style.space(108)
     property int sliceHeight: Style.space(432)
-    // slices overlap by their skew
     property int sliceSpacing: -Style.space(30)
     property int skewOffset: Style.space(28)
-    // laid out either side of the preview
     readonly property int sliceCount: 13
     readonly property int nearbyRange: 16
     readonly property bool showPalette: mode === 0
     readonly property int paletteHeight: showPalette ? Style.space(40) : 0
     property int bottomChromeHeight: paletteHeight + (showLabels ? (filterable ? Style.space(104) : Style.space(74)) : (filterable ? Style.space(60) : Style.space(30)))
-    // the selected wallpaper quantized, conditioned like Colors.qml would
     property var preview: null
     readonly property int quantizeDepth: 3
     readonly property int quantizeSize: 64
@@ -363,7 +360,6 @@ Item {
         }
     }
 
-    // only the selected item is quantized, once the selection rests
     Timer {
         id: quantizeDelay
 
@@ -374,7 +370,6 @@ Item {
         }
     }
 
-    // batches streamed rows instead of one rebuild per line
     Timer {
         id: streamFlush
 
@@ -474,7 +469,6 @@ Item {
         }
 
         Item {
-            // the layout resets on close, so the exit fades what was last shown
             visible: root.imagesLoaded && root.imageArray.length > 0 && (root.opened ? root.layoutSettled : boot.progress > 0)
             opacity: boot.progress
             width: Math.min(parent.width - Style.space(80), root.expandedWidth + root.sliceCount * (root.sliceWidth + root.sliceSpacing) + Style.space(40))
@@ -632,7 +626,6 @@ Item {
                                 sourceSize.width: Math.ceil(root.expandedWidth * Screen.devicePixelRatio)
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
-                                // only one full-res image shows at a time
                                 cache: false
                                 smooth: true
                                 opacity: status === Image.Ready ? 1 : 0
@@ -708,7 +701,6 @@ Item {
                             onClicked: item.selected ? root.applySelected() : root.select(item.index)
                         }
 
-                        // off until the first layout, so opening does not fly in
                         Behavior on x {
                             enabled: root.layoutSettled
 
@@ -811,7 +803,6 @@ Item {
 
             }
 
-            // a view of the filter, not a focus target: the carousel owns the keys
             BorderSurface {
                 id: searchChip
 

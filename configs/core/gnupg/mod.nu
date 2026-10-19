@@ -11,12 +11,10 @@ def --wrapped gpg-ok [...args: string]: nothing -> bool {
     (^gpg --batch ...$args | complete).exit_code == 0
 }
 
-# the public key files shipped here whose primary fingerprint is the identity's
 def public-key [fpr: string]: nothing -> list<path> {
     glob ($env.PWD | path join *.pub.asc) | where {|f| ^gpg --show-keys --with-colons $f | lines | any { $in == $"fpr:::::::::($fpr):" } }
 }
 
-# the identity's key: the public half shipped here, the private one from unlocked secrets, card stubs from a yubikey
 def identity [fpr: string]: nothing -> list<record> {
     let private = $env.DOTFILES | path join $PRIVATE_KEY
     let has_secret = gpg-ok --list-secret-keys $fpr
@@ -33,7 +31,6 @@ export def gpg-trust [fpr: string]: nothing -> nothing {
     $"($fpr):6:\n" | ^gpg --import-ownertrust
 }
 
-# no yubikey plugged in is fine, the next apply writes the stubs
 export def gpg-card-stubs []: nothing -> nothing {
     try { ^gpg --card-status o+e>| ignore }
 }
@@ -47,7 +44,6 @@ export def link [cfg: record] {
         # reload keeps cached keys; scdaemon reads its config only at start
         (file-copy gpg-agent.conf ($dir | path join gpg-agent.conf) --then [gpgconf --reload gpg-agent])
         (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
-        # the identity's key signs and encrypts to self by default, a user without one has none
         (file-text ($dir | path join gpg.conf) $"(open --raw gpg.conf)($default_key)" --mode 600)
         (if $fpr == "" { [] } else { identity $fpr })
     ]

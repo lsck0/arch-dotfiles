@@ -11,7 +11,7 @@ def inhibitor-pid []: nothing -> any {
 
 def main [action: string = "toggle"] {
     switch-run {
-        label: "Keep Awake"
+        label: "Keep awake"
         is-on: {|| inhibitor-pid | is-not-empty }
         # nu cannot leave a child running past its own exit, sh's & can and hands back the pid
         on: {|| ^sh -c '"$@" > /dev/null 2>&1 & echo $!' sh ...$INHIBIT | str trim | save --force (state-file keep-awake.pid --volatile) }

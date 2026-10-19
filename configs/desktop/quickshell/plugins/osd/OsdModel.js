@@ -4,7 +4,6 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
-// widest glyph, keeps the icon column from jittering
 var widestIcon = "\u{f028}"
 
 function iconFor(name) {

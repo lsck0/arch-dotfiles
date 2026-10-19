@@ -10,7 +10,6 @@ const MOBILE_TYPES = [gsm bt]
 const HOME_WAIT = 3sec
 const RETRY_FIRST = 15sec
 const RETRY_MAX = 5min
-# then it waits for the next network change; tor keeps carrying
 const RETRY_ATTEMPTS = 6
 const MONITOR_END = "eof"
 
@@ -18,7 +17,6 @@ def vpn-on []: nothing -> bool {
     (do { ^$TOGGLE get } | complete | get stdout | str trim) == "on"
 }
 
-# last: the active connection paths (new on every activation) or home
 def decide [state: record]: nothing -> record {
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
     let links = do { ^nmcli -t -f TYPE,STATE,CON-PATH,DEVICE device } | complete | get stdout | lines
@@ -36,7 +34,6 @@ def decide [state: record]: nothing -> record {
     let state = if $state.last != $net { {last: $net, attempts: 0, retry_at: ((date now) + $HOME_WAIT)} } else { $state }
     let due = $state.retry_at == null or (date now) >= $state.retry_at
     if $state.attempts >= $RETRY_ATTEMPTS or not $due { return $state }
-    # a failed connect is notified by the toggle itself
     if (vpn-on) or (try { ^$TOGGLE on; true } catch { false }) {
         return ($state | merge {attempts: $RETRY_ATTEMPTS, retry_at: null})
     }

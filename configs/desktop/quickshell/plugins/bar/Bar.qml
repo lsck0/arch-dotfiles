@@ -17,7 +17,6 @@ PanelWindow {
 
   // injected by shell.qml, not `shell`: shell.qml's `id: shell` would shadow it
   property QtObject shellHost: null
-  // empty: every bar renders the full layout
   property string mainScreenName: ""
 
   readonly property bool isMainScreen: mainScreenName === ""
@@ -42,11 +41,9 @@ PanelWindow {
   visible: !screenGuard.remapping
 
   readonly property bool vertical: false
-  // read by HoverPanel and PopupCard, the bar is always on top
   readonly property string position: "top"
   readonly property int barSize: Style.bar.sizeHorizontal
   readonly property string fontFamily: Style.resolvedFontFamily
-  // glyph widgets must use this, not fontFamily
   readonly property string iconFontFamily: Style.font.iconFamily
   readonly property bool foregroundAnimationEnabled: true
   readonly property color barForeground: Colors.bar.text
@@ -73,14 +70,12 @@ PanelWindow {
 
   Timer {
     id: hoverCloseTimer
-    // grace for the pointer to reach the drawer
     interval: 350
     onTriggered: {
       if (!root.triggerHovered && !root.panelHovered) root.activePanel = ""
     }
   }
 
-  // drawers snap on a handoff, so a switch reads as one surface, not a close-reopen
   property bool panelSwitching: false
   Timer {
     id: switchSettle
@@ -88,7 +83,6 @@ PanelWindow {
     onTriggered: root.panelSwitching = false
   }
 
-  // brushing across a widget edge must not thrash open<->open
   property string pendingPanel: ""
   Timer {
     id: switchIntent
@@ -203,7 +197,6 @@ PanelWindow {
 
   Scanlines { shown: !root.quiet }
 
-  // centre anchored to the screen, not split between sides
   Item {
     anchors.fill: parent
 
@@ -216,7 +209,6 @@ PanelWindow {
       anchors.verticalCenter: parent.verticalCenter
       height: parent.height
       clip: true
-      // reserved before center, which centres itself in whatever gap remains
       width: Math.max(0, Math.min(leftSection.implicitWidth, parent.width - parent.keepClear))
 
       RowLayout {
@@ -231,9 +223,6 @@ PanelWindow {
       }
     }
 
-    // right reserves its natural width first (it is the crowded side with many
-    // icons plus media); left and center then share whatever remains, so a wide
-    // right section never gets clipped behind a dead-centered clock/weather
     Item {
       id: rightHolder
       anchors.right: parent.right
@@ -245,7 +234,6 @@ PanelWindow {
 
       RowLayout {
         id: rightSection
-        // right-anchored so the leftmost icons clip first
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.bar.itemGap
@@ -256,9 +244,6 @@ PanelWindow {
       }
     }
 
-    // centred in the gap between the side holders, not the raw screen centre,
-    // so it slides out of the way (and clips itself) before it ever forces
-    // rightHolder to clip a widget like Media
     Item {
       id: centerHolder
       readonly property real gapLeft: leftHolder.x + leftHolder.width + parent.keepClear
@@ -282,7 +267,6 @@ PanelWindow {
     }
   }
 
-  // a popup: the bar window is barSize tall and would clip it
   PopupWindow {
     id: tooltipWindow
     visible: root.tooltipShown && root.tooltipItem !== null && root.visible

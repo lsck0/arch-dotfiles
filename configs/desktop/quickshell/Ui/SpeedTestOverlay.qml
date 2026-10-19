@@ -16,7 +16,6 @@ OverlayCard {
   property bool rightLive: false
   property string error: ""
   property string statusText: ""
-  // smallest first
   property var scaleStops: [100, 250, 500, 1000, 2500, 5000, 10000]
   property real fullScale: scaleStops[0]
 
@@ -61,7 +60,6 @@ OverlayCard {
   cardHeight: inner.implicitHeight + chromeHeight
   onDismissed: root.closeRequested()
 
-  // refocus and ignite once actually mapped
   onOpenChanged: {
     if (open) Qt.callLater(function() {
       if (!root.open) return
@@ -160,7 +158,6 @@ OverlayCard {
     readonly property bool engaged: live || value > 0
 
     property real shown: 0
-    // the sweep drives the fill, not the numeral
     readonly property real reading: ignition.running ? value : shown
     readonly property real fullScale: root.fullScale
     readonly property real fraction: fullScale > 0 ? Math.max(0, Math.min(1, shown / fullScale)) : 0
@@ -200,7 +197,6 @@ OverlayCard {
       text: g.label
     }
 
-    // the reading sweeps many times a second: outline, not glow
     Hero {
       value: g.reading < 10
         ? g.reading.toLocaleString(Qt.locale(), 'f', 1)

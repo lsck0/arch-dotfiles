@@ -1,7 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# focus herdr workspace <label>, or create it for <dir> as nvim, claude, zsh tabs (or by the dir's .herdr-create)
 
-# anchored to end-of-line so a stray mid-output glyph does not match early
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
 # covers a cold devenv build (nix), which a first session hits
 const PROMPT_TIMEOUT_MS = 600000
@@ -33,7 +31,6 @@ def main [dir: path, label?: string]: nothing -> nothing {
         let tab = ^herdr tab create --workspace $created.workspace.workspace_id --cwd $dir --no-focus
             | from json | get result
         ^herdr tab rename $tab.tab.tab_id $app | ignore
-        # zsh is the tab's default shell already
         if $app == claude { pane-run $tab.root_pane.pane_id claude }
     }
     ^herdr tab focus $first_tab | ignore

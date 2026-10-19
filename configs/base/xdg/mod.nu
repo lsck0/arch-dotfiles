@@ -22,13 +22,12 @@ const DIRS = [desktop documents downloads music pictures videos sync vault]
 # xdg-user-dirs-update's old defaults; rmdir keeps any with content
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
-# move: the tool reads an app-dirs.conf var; link (a dir) and link-file: it hardcodes ~/<name>. an existing target wins,
-# the source stays
+# move: the tool reads an app-dirs.conf var; link, link-file: it hardcodes ~/<name>
 const RECLAIM = [
     [name target mode];
     [.dotnet .local/share/dotnet move] [.omnisharp .config/omnisharp move] [.ipython .config/ipython move]
     [.jupyter .config/jupyter move] [.parallel .config/parallel move] [.w3m .local/state/w3m move]
-    [.sage .local/share/sage move] [.minikube .local/share/minikube move]
+    [.sage .local/share/sage move] [.minikube .local/share/minikube/.minikube move] [.npm .cache/npm move]
     [.cargo .local/share/cargo link] [.rustup .local/share/rustup link] [.elan .local/share/elan link]
     [.ghcup .local/share/ghcup link] [.opam .local/share/opam link] [.jai .local/share/jai link]
     [.go .local/share/go link] [.kani .local/share/kani link] [.nuget .local/share/nuget link]
@@ -57,13 +56,13 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-# authoritative and in order; dolphin keeps its own Devices and Network sections apart
-def places [nas: bool]: nothing -> string {
+def places [nas: bool, projects: bool]: nothing -> string {
     let h = $"file://($nu.home-dir)"
     let rows = [
         [$h Home user-home] [$"($h)/desktop" Desktop user-desktop] [$"($h)/documents" Documents folder-documents]
         [$"($h)/downloads" Downloads folder-downloads] [$"($h)/music" Music folder-music]
         [$"($h)/pictures" Pictures folder-pictures] [$"($h)/videos" Videos folder-videos]
+    ] ++ (if $projects { [[$"($h)/projects" Projects folder-development]] } else { [] }) ++ [
         [$"($h)/vault" Vault folder-locked] [$"($h)/sync" Sync folder-sync]
     ] ++ (if $nas { [[$"($h)/nas" NAS folder-network]] } else { [] }) ++ [[trash:/ Trash user-trash]]
     let marks = $rows | each {|r|
@@ -81,20 +80,19 @@ def autostart-hidden []: nothing -> list<string> {
 export def link [cfg: record] {
     let config = home .config
     let nas = profile-has homelab
+    let projects = home projects | path exists
     let portals = $config | path join xdg-desktop-portal
-    let bookmarks = [[vault Vault] [sync Sync]] ++ (if $nas { [[nas NAS]] } else { [] })
+    let bookmarks = (if $projects { [[projects Projects]] } else { [] }) ++ [[vault Vault] [sync Sync]] ++ (if $nas { [[nas NAS]] } else { [] })
         | each { $"file://(home $in.0) ($in.1)" }
     [
         (step home-dirs)
         (files-into $config mimeapps.list user-dirs.conf user-dirs.dirs)
         (files-into ($config | path join environment.d) app-dirs.conf)
-        # a source still a real dir or file is moved and linked by home-dirs
         ($RECLAIM | where mode != move and ((home $it.name | path type) not-in [dir file]) | each {|r| file-link (home $r.target) (home $r.name) })
         # nemo also claims FileManager1 and sorts first; the user dir wins
         (file-copy dolphin.FileManager1.service
             (home .local share dbus-1 services org.freedesktop.FileManager1.service))
         (file-copy home.hidden (home .hidden))
-        # a user entry with Hidden=true shadows the system one of the same id
         (autostart-hidden | each {|id|
             let entry = $"[Desktop Entry]\nType=Application\nName=($id)\nHidden=true\n"
             file-text ($config | path join autostart $"($id).desktop") $entry
@@ -102,9 +100,8 @@ export def link [cfg: record] {
         # a user kde-portals.conf replaces plasma's whole file, so it repeats plasma's lines
         (if (which Hyprland | is-not-empty) { files-into $portals hyprland-portals.conf } else { [] })
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
-        # gtk renders Home, the xdg dirs and Trash itself
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
-        (file-text (home .local share user-places.xbel) (places $nas) --generated)
+        (file-text (home .local share user-places.xbel) (places $nas $projects) --generated)
         # a fresh user has no applications dir yet, and update-desktop-database fails on a missing one
         (if (which update-desktop-database | is-not-empty) {
             exec "desktop database" [update-desktop-database (home .local share applications)]

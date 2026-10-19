@@ -66,7 +66,6 @@ export def notify [summary: string, body: string, --critical]: nothing -> nothin
     ^timeout $IPC_TIMEOUT_S notify-send -a Toggles ...$urgency $summary $body | complete | ignore
 }
 
-# the element after current, wrapping around; the first when current is absent
 export def cycle-next [current: any]: list -> any {
     let list = $in
     let index = $list | enumerate | where item == $current | get index.0? | default (-1)

@@ -1,10 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# `live` and `layout` are runtime only: a reload restores the option and `reapply` puts them back
 use lib.nu [notify state-set state-file]
 
 const DOT = path self ../dot.nu
 const HYPRLAND = "desktop/hyprland"
-# `toggle`, the menu's enter, cycles the label's monitor through these as the font toggle cycles its shortlist
 const SCALES = ["1" "1.25" "1.5" "2"]
 const SCALE_TOLERANCE = 0.01
 # long enough for hyprland to settle a fractional scale before it is read back
@@ -14,7 +12,6 @@ const REFRESH_DECIMALS = 5
 
 def instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
 
-# every output, disabled ones included
 def monitors []: nothing -> table { ^hyprctl -j monitors all | from json }
 
 def monitor-find [name: string]: nothing -> any { monitors | where name == $name | get 0? }
@@ -27,9 +24,8 @@ def mode-of [monitor: record]: nothing -> string {
     $"($monitor.width)x($monitor.height)@($monitor.refreshRate | into string --decimals $REFRESH_DECIMALS)"
 }
 
-# the monitors the option resolves to, detected ones included
 def monitors-persisted []: nothing -> list<record> {
-    ^$DOT options $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
+    ^$DOT set $HYPRLAND --json | from json | get modules.0.options | where key == monitors | get 0.value | default []
 }
 
 def persisted-get [name: string, key: string, fallback: string]: nothing -> string {

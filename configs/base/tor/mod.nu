@@ -4,7 +4,6 @@ export const meta = {packages: {native: [tor]}}
 
 const ROUTER = "/usr/local/bin/tor-router"
 
-# real files in /etc, tor runs as its own user and must not depend on /home
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     [

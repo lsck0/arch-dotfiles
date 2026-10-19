@@ -2,6 +2,10 @@
 Description=vLLM server
 After=network-online.target
 Wants=network-online.target
+# a start that cannot succeed (a broken venv, a bad model) stops after three tries instead of reloading the weights
+# every minute; vllm-wait-ready then gives up at once
+StartLimitIntervalSec=10min
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -11,11 +15,13 @@ StateDirectory=vllm
 CacheDirectory=vllm
 Environment=HOME=%S/vllm
 Environment=XDG_CACHE_HOME=%C/vllm
+# systemd id-maps a dynamic user's state and cache dirs noexec; triton and inductor dlopen the launchers they build there
+ExecPaths=%S/private/vllm %C/private/vllm
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 NoNewPrivileges=yes
-# extra sandboxing (safe for ROCm compute: no syscall/addr-family filter, no MemoryDenyWriteExecute — JIT needs W^X)
+# no syscall or address-family filter, no MemoryDenyWriteExecute: rocm's jit maps writable code
 ProtectKernelTunables=yes
 ProtectKernelLogs=yes
 ProtectKernelModules=yes

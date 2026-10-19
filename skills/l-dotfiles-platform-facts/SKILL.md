@@ -18,11 +18,13 @@ description: Machine facts in platforms/<host>.nuon versus user capabilities in 
 
 ## Platform file
 
-`platform-load` (`scripts/lib/platform.nu`) picks, first match: `/etc/dotfiles/platform.nuon` or `.sh` (a generic
+`platform-load` (`scripts/lib/platform.nu`) picks, first match: `/etc/dotfiles/platform.nuon` (a generic
 machine's answers from `bootstrap.sh`), `platforms/local.nuon`, `platforms/<hostname>.nuon`. Keys:
-`hostname`, `form_factor` (desktop, laptop, vm, wsl; probed when unset), `groups` (all when unset),
-`extra_packages` (also in `mirror/packages.txt` after `dot gen`), `facts`, `packages_keep` (hand-installed packages to
-keep). Unknown keys or facts fail the load.
+`hostname`, `form_factor` (desktop, laptop, server, vm, wsl; probed when unset), `groups` (all when unset; an entry is
+a group, or `group/module` for that one module),
+`extra_packages` (also in `mirror/packages.txt` after `dot internal gen`), `facts`, `packages_keep` (hand-installed
+packages to keep). Unknown keys or facts fail the load. `platforms/templates/<kind>.nuon` (and its `.options.nuon`) is the
+starting point for a new machine of that kind, which bootstrap copies to `/etc/dotfiles` (the server).
 
 ## Add a fact
 
@@ -35,6 +37,5 @@ Hyprland reads the form factor at runtime from `~/.config/dotfiles/form-factor`,
 
 ## Add a capability
 
-Add it to `PROFILE_CAPABILITIES` in `scripts/lib/profile.nu` (and `profile_has`'s comment in `profile.sh` while bash
-modules read it) and to `profiles/<user>.nuon`, then `dot gen`. The live copy is `~/.config/dotfiles/profile.sh`
-(copied once by `bootstrap.sh` or `adduser-dotfiles`), or `profile.nuon` beside it, which wins.
+Add it to `PROFILE_CAPABILITIES` in `scripts/lib/profile.nu` and to `profiles/<user>.nuon`. The live copy is
+`~/.config/dotfiles/profile.nuon` (copied once by `bootstrap.sh` or `adduser-dotfiles`).

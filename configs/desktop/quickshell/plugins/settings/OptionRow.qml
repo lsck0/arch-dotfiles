@@ -4,7 +4,6 @@ import qs.Commons
 import qs.Ui
 import "Schema.js" as Schema
 
-// state lives in Settings.qml, changes go back as signals
 Item {
   id: row
 
@@ -15,7 +14,6 @@ Item {
   property bool hasCursor: false
   property bool expanded: false
   property int choiceCursor: -1
-  // the open list's choices after its filter
   property var listed: []
   property string choiceFilter: ""
   property bool editing: false
@@ -32,7 +30,9 @@ Item {
 
   readonly property string type: String(option.type || "")
   readonly property bool numeric: type === "int" || type === "float"
-  readonly property var choices: (option.choices || []).map(function (c) { return { value: c, label: Schema.choiceLabel(c) } })
+  readonly property bool segmented: Schema.segmented(option)
+  readonly property bool typed: numeric || ["string", "path", "list", "json", "filesize"].indexOf(type) >= 0
+  readonly property var choices: segmented ? option.choices.map(function (c) { return { value: c, label: Schema.choiceLabel(c) } }) : []
   readonly property int pageStart: Schema.choicePageStart(choiceCursor)
   readonly property var page: listed.slice(pageStart, pageStart + Schema.choicePageSize)
     .map(function (c) { return { value: c, label: Schema.choiceLabel(c) } })
@@ -48,21 +48,23 @@ Item {
 
   implicitHeight: body.implicitHeight + Style.spacing.sm * 2
 
+  readonly property TextField field: fieldLoader.item as TextField
+
   function syncField() {
+    if (!row.field) return
     var text = row.editing ? row.draft : Schema.toText(row.option, row.value)
-    if (field.text !== text) field.text = text
+    if (row.field.text !== text) row.field.text = text
   }
 
   onValueChanged: syncField()
   onDraftChanged: syncField()
   onEditingChanged: {
     syncField()
-    if (row.editing) {
-      field.forceActiveFocus()
-      field.selectAll()
+    if (row.editing && row.field) {
+      row.field.forceActiveFocus()
+      row.field.selectAll()
     }
   }
-  Component.onCompleted: syncField()
 
   Rectangle {
     anchors.fill: parent
@@ -145,34 +147,40 @@ Item {
         width: Style.space(280)
         height: parent.height
 
-        ToggleSwitch {
-          visible: row.type === "bool"
+        Loader {
+          active: row.type === "bool"
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          checked: row.value === true
-          interactive: false
-          hasCursor: row.hasCursor
 
-          MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: row.changeRequested(!row.value)
+          sourceComponent: ToggleSwitch {
+            checked: row.value === true
+            interactive: false
+            hasCursor: row.hasCursor
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: Qt.PointingHandCursor
+              onClicked: row.changeRequested(!row.value)
+            }
           }
         }
 
-        ButtonGroup {
-          visible: row.type === "enum" && Schema.segmented(row.option)
+        Loader {
+          active: row.type === "enum" && row.segmented
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
-          options: row.choices
-          value: String(row.value)
-          focusable: false
-          fontSize: Style.font.caption
-          onChanged: function (picked) { row.changeRequested(picked) }
+
+          sourceComponent: ButtonGroup {
+            options: row.choices
+            value: String(row.value)
+            focusable: false
+            fontSize: Style.font.caption
+            onChanged: function (picked) { row.changeRequested(picked) }
+          }
         }
 
         Text {
-          visible: row.type === "enum" && !Schema.segmented(row.option)
+          visible: row.type === "enum" && !row.segmented
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           textFormat: Text.PlainText
@@ -188,45 +196,53 @@ Item {
           }
         }
 
-        Slider {
-          visible: row.numeric
+        Loader {
+          active: Schema.sliderable(row.option)
           anchors.left: parent.left
-          anchors.right: field.left
+          anchors.right: fieldLoader.left
           anchors.rightMargin: Style.spacing.md
           anchors.verticalCenter: parent.verticalCenter
-          activeFocusOnTab: false
-          value: Number(row.value) || 0
-          minimum: Number(row.option.min !== undefined ? row.option.min : 0)
-          maximum: Number(row.option.max !== undefined ? row.option.max : 100)
-          step: Schema.step(row.option)
-          integer: row.type === "int"
-          onReleased: function (picked) { row.changeRequested(Schema.snap(row.option, picked)) }
+
+          sourceComponent: Slider {
+            activeFocusOnTab: false
+            value: Number(row.value) || 0
+            minimum: Number(row.option.min)
+            maximum: Number(row.option.max)
+            step: Schema.step(row.option)
+            integer: row.type === "int"
+            onReleased: function (picked) { row.changeRequested(Schema.snap(row.option, picked)) }
+          }
         }
 
-        TextField {
-          id: field
-          visible: row.numeric || ["string", "path", "list", "json"].indexOf(row.type) >= 0
+        Loader {
+          id: fieldLoader
+          active: row.typed
           anchors.right: browse.visible ? browse.left : parent.right
           anchors.rightMargin: browse.visible ? Style.spacing.sm : 0
           anchors.verticalCenter: parent.verticalCenter
-          width: row.numeric ? Style.space(72) : parent.width - (browse.visible ? browse.width + Style.spacing.sm : 0)
-          verticalPadding: Style.spacing.xs
-          activeFocusOnTab: false
-          hasCursor: row.hasCursor && !row.editing
-          horizontalAlignment: row.numeric ? TextInput.AlignRight : TextInput.AlignLeft
-          placeholderText: row.type === "list" ? "add an entry" : ""
+          width: row.numeric || row.type === "filesize" ? Style.space(96) : parent.width - (browse.visible ? browse.width + Style.spacing.sm : 0)
+          onLoaded: row.syncField()
 
-          onTextEdited: row.draftEdited(text)
-          onActiveFocusChanged: if (activeFocus && !row.editing) row.editRequested()
+          sourceComponent: TextField {
+            verticalPadding: Style.spacing.xs
+            activeFocusOnTab: false
+            hasCursor: row.hasCursor && !row.editing
+            horizontalAlignment: row.numeric || row.type === "filesize" ? TextInput.AlignRight : TextInput.AlignLeft
+            placeholderText: row.type === "list" ? "add an entry" : ""
 
-          Keys.onPressed: function (event) {
-            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-              row.submitted()
-              event.accepted = true
-            } else if (event.key === Qt.Key_Backspace && row.type === "list" && text === "") {
-              const list = row.value || []
-              if (list.length > 0) row.changeRequested(list.slice(0, -1))
-              event.accepted = true
+            onTextEdited: row.draftEdited(text)
+            onActiveFocusChanged: if (activeFocus && !row.editing) row.editRequested()
+
+            Keys.onPressed: function (event) {
+              if (event.accepted) return
+              if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                row.submitted()
+                event.accepted = true
+              } else if (event.key === Qt.Key_Backspace && row.type === "list" && text === "") {
+                const list = row.value || []
+                if (list.length > 0) row.changeRequested(list.slice(0, -1))
+                event.accepted = true
+              }
             }
           }
         }

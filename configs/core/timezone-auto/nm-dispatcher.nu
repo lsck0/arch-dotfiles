@@ -1,5 +1,4 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: only a network change can move the timezone, so re-check on one instead of polling
 
 const HOME_NETWORK = "/run/home-network"
 # UNKNOWN when the connectivity check is off (75-connectivity-check, at home)

@@ -6,11 +6,9 @@ export const meta = {
     }
 }
 
-# card and fido access for every admin, whether or not anyone enrolled a key yet
 export def system [cfg: record] {
     [
         (file-copy pcsc.rules /etc/polkit-1/rules.d/50-pcsc-wheel.rules)
-        # a replug applies it otherwise
         (file-copy 70-yubikey-hidraw.rules /etc/udev/rules.d/70-yubikey-hidraw.rules
             --then [sh -c "udevadm control --reload && udevadm trigger --action=change --subsystem-match=hidraw"])
         (unit-enable pcscd.socket --now)

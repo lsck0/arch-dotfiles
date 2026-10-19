@@ -16,7 +16,6 @@ def main []: nothing -> nothing {
     load-env {
         PGHOST: $HOST, PGPORT: ($PORT | into string), PGUSER: $env.USER, PGDATABASE: $env.USER, PGSSLMODE: disable
     }
-    # one line per host, port, database and user; never touches another
     let entries = if ($pgpass | path exists) { open --raw $pgpass | lines } else { [] }
     if not ($entries | any { str starts-with $prefix }) {
         if not ($pgpass | path exists) { touch $pgpass; ^chmod 600 $pgpass }

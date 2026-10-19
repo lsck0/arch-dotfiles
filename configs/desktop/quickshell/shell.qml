@@ -34,7 +34,6 @@ ShellRoot {
     return Util.isPlainObject(entry) ? entry : ({})
   }
 
-  // returns true only if something changed
   function setWidgetSettings(widgetId, settings) {
     var key = String(widgetId)
     var next = {}
@@ -171,7 +170,6 @@ ShellRoot {
     return true
   }
 
-  // reached from hyprland_keybindings.lua
   IpcHandler {
     target: "discord"
 
@@ -183,7 +181,6 @@ ShellRoot {
   IpcHandler {
     target: "shell"
 
-    // for toggle-shader.nu and anything themed after the shell
     function palette(): string {
       function rgb(c) { return [c.r, c.g, c.b] }
       return JSON.stringify({
@@ -202,7 +199,6 @@ ShellRoot {
       })
     }
 
-    // called by toggle-powermode.nu after saver flips
     function reloadPowerMode(): void {
       Power.reload()
     }

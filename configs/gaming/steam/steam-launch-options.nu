@@ -1,8 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
-# fills an absent launch option with gamemoderun mangohud: preloading into the client breaks the webhelper websocket,
-# MANGOHUD=1 is vulkan-only
+# per game, not on the client: preloading into it breaks the webhelper websocket, MANGOHUD=1 is vulkan-only
 
 const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
+# PNGTuber Plus is opengl under proton: only obs-gamecapture's gl preload is captured, and mangohud's shim bypasses it
+const LAUNCH_OPTIONS_APPS = {"2596880": "gamemoderun obs-gamecapture %command%"}
+const LAUNCH_OPTIONS_OURS = [$LAUNCH_OPTIONS_DEFAULT "gamemoderun mangohud obs-gamecapture %command%"]
 const APPS_PATH = [UserLocalConfigStore Software Valve Steam apps]
 # steam holds localconfig.vdf open and overwrites it on exit
 const STEAM_PROCESSES = [steam steamwebhelper]
@@ -76,11 +78,13 @@ def apps-fill [installed: list<string>]: list -> list {
     each {|app|
         if $app.k not-in $installed or ($app.v | describe) == string { return $app }
         let existing = vdf-get $app.v LaunchOptions
-        # a user customization wins; only an absent or empty option is filled
-        if $existing != null and ($existing | str trim) != "" { return $app }
+        let wanted = $LAUNCH_OPTIONS_APPS | get --optional $app.k | default $LAUNCH_OPTIONS_DEFAULT
+        # a user customization wins; an absent or empty option, or one this script wrote, is filled
+        let ours = $existing == null or ($existing | str trim) == "" or $existing in $LAUNCH_OPTIONS_OURS
+        if not $ours or $existing == $wanted { return $app }
         let options = if ($app.v | any { $in.k == LaunchOptions }) {
-            $app.v | each { if $in.k == LaunchOptions { $in | update v $LAUNCH_OPTIONS_DEFAULT } else { $in } }
-        } else { $app.v | append {k: LaunchOptions, v: $LAUNCH_OPTIONS_DEFAULT} }
+            $app.v | each { if $in.k == LaunchOptions { $in | update v $wanted } else { $in } }
+        } else { $app.v | append {k: LaunchOptions, v: $wanted} }
         $app | update v $options
     }
 }
@@ -98,7 +102,7 @@ def localconfig-process [file: path, installed: list<string>]: nothing -> bool {
     let tmp = $"($file).($nu.pid).tmp"
     vdf-dump $filled | save --force $tmp
     mv --force $tmp $file
-    print $"steam-launch-options: set '($LAUNCH_OPTIONS_DEFAULT)' on new games in ($file)"
+    print $"steam-launch-options: filled the launch options in ($file)"
     true
 }
 

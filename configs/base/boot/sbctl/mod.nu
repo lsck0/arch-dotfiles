@@ -24,7 +24,6 @@ def enabled [field: string]: nothing -> bool {
     ^sbctl status | lines | any { $in =~ ($field + ':\s+(\S+\s+)?Enabled') }
 }
 
-# the plain kernels stay unsigned: a type #1 entry on the unverified esp could boot a signed one with any cmdline
 def sign-unsigned []: nothing -> nothing {
     let listed = ^sbctl verify | lines | parse --regex '^[^/]*(?<path>/.*) is not signed$' | get path
         | where {|p| not ($p | str starts-with /boot/vmlinuz-) }

@@ -11,11 +11,10 @@ plugin_config("dynamic_cursors", {
     shake = {
         enabled = true,
 
-        -- default 6.0, lower so a short flick triggers
         threshold = 4,
 
         base = 4.0,
-        speed = 4.0, -- per second of shaking
+        speed = 4.0,
         limit = 0.0, -- no ceiling
 
         timeout = 500,

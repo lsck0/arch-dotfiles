@@ -42,7 +42,6 @@ def rank [mode: string]: nothing -> bool {
     (^timeout $RANK_TIMEOUT_S /usr/local/bin/mirrorlist-update $mode | complete).exit_code == 0
 }
 
-# ranks a fresh or linked mirrorlist; the committed ranking only replaces a link or an empty list
 export def place []: nothing -> nothing {
     let linked = ($MIRRORLIST | path type) == "symlink"
     if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "# lastsync" }) {

@@ -73,7 +73,6 @@ def sync-one [dir: path, bare: bool]: nothing -> list<string> {
             "PULLED"
         }
     }
-    # non-force, so a diverged branch just reports PUSH FAILED
     let pushed = if (do $ahead) { if (remote-git $dir push --quiet).exit_code == 0 { "PUSHED" } else { "PUSH FAILED" } }
     $local
     | append (if $unpushed { if $pushed == "PUSHED" { "PUSHED" } else { "UNPUSHED COMMITS" } })

@@ -1,5 +1,4 @@
 #!/usr/bin/nu --no-config-file
-# root's one entry, run only from the root-owned copy; apply is the single command sudo or polkit allows
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
@@ -10,7 +9,7 @@ use written.nu [tty-confirm written-begin written-prune written-end preserve-pru
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
 
-# dot stage retries an abort, moves on from a run that only recorded failures
+# dot internal stage retries an abort, moves on from a run that only recorded failures
 const EXIT_FAILURES = 1
 const EXIT_ABORTED = 2
 const OFFLINE_WAIT_S = 120
@@ -112,15 +111,16 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
     ^pacman -Syy --noconfirm
-    # nothing is built here: what the mirror lacks is reported
     let missing = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines | parse "error: target not found: {p}" | get p
-    $missing | each { fail $"not on the mirror: ($in)" } | ignore
+    $missing | each { fail $"not on the mirror: ($in) \(a name new since the last nightly build arrives with the next one\)" } | ignore
     let available = $declared.pacman | where $it not-in $missing
     let wanted = packages-wanted $available
     log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($missing | length) not on the mirror"
-    # -uu moves pacstrap's packages onto the snapshot, --ask 4 replaces the old lsck0-* names
+    # -uu moves pacstrap's packages onto the snapshot and a pin back onto an older one; anywhere else a mirror behind
+    # the last run would downgrade the machine. --ask 4 replaces the old lsck0-* names
+    let upgrade = if $unattended or ($ctx.platform.facts.lsck0_snapshot | is-not-empty) { "-Suu" } else { "-Su" }
     mut try = 1
-    while not (try { ^pacman -Suu --needed --noconfirm --ask 4 ...$wanted; true } catch { false }) {
+    while not (try { ^pacman $upgrade --needed --noconfirm --ask 4 ...$wanted; true } catch { false }) {
         if $try >= $DOWNLOAD_TRIES { fail "pacman: the install pass failed"; exit $EXIT_ABORTED }
         log-warn $"transaction failed, try ($try)/($DOWNLOAD_TRIES), again in ($DOWNLOAD_BACKOFF)"
         sleep $DOWNLOAD_BACKOFF
@@ -189,10 +189,8 @@ def "main snapshot" []: nothing -> nothing {
         log-info $"no pre-apply snapshot: / is ($fstype), not btrfs"
         return
     }
-    # the first install pass is the one that brings timeshift
     if (which timeshift | is-empty) { return }
     let sha = open --raw ($repo | path join .source) | str trim | str substring 0..11
-    # timeshift narrates every step and tries a desktop notification, which root has no session for
     let made = ^timeshift --create --scripted --tags O --comments $"($PRE_APPLY_COMMENT) ($sha)" | complete
     if $made.exit_code != 0 { error make {msg: $"timeshift --create: ($made.stdout)($made.stderr)"} }
     log-info $"pre-apply snapshot of ($sha)"
@@ -250,7 +248,6 @@ def "main adduser" [name: string]: nothing -> nothing {
         error make {msg: $"($name) is a system account, not a login to add"}
     }
     if $existing.exit_code != 0 { ^useradd -m -s /usr/bin/zsh $name }
-    # a rerun after a skipped passwd asks again
     if (^passwd -S $name | split row " " | get 1) != "P" { ^passwd $name }
     let home = ^getent passwd $name | split row ":" | get 5
     let checkout = $home | path join projects arch-dotfiles
@@ -268,7 +265,6 @@ def "main adduser" [name: string]: nothing -> nothing {
     let template = $checkout | path join profiles $"($name).nuon"
     let profile = $home | path join .config dotfiles profile.nuon
     if ($template | path exists) and not ($profile | path exists) { ^runuser -u $name -- install -Dm644 $template $profile }
-    # a login session, so user units and the bus work like after a real login
-    ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu install --user
-    ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu link
+    ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --packages --user
+    ^systemd-run --quiet --wait --pipe --collect $"--uid=($name)" -p PAMName=login -p $"WorkingDirectory=($checkout)" nu --no-config-file scripts/dot.nu apply --user
 }

@@ -1,5 +1,5 @@
 [Unit]
-Description=Execute ghostmirror sorting
+Description=Sort the pacman mirrorlist with ghostmirror
 
 [Service]
 Type=oneshot

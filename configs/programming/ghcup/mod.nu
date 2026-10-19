@@ -3,7 +3,6 @@ use module.nu *
 export const meta = {packages: {pacman: [ghcup-hs-bin]}}
 
 const GHCUP = "/usr/bin/ghcup"
-# each tool and the binary its install puts in ghcup's bin dir
 const TOOLS = {ghc: ghc, cabal: cabal, hls: haskell-language-server-wrapper, stack: stack}
 
 export def link [cfg: record] {

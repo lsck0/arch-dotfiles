@@ -15,7 +15,6 @@ export const options = {
 
 const DPI_BASE = 96
 
-# hyprland's focused monitor; outside a session the form factor's usual panel (4k at 1.666667 on a desktop)
 export def detect [cfg: record]: nothing -> record {
     let scale = try { ^hyprctl -j monitors | from json | sort-by focused --reverse | first | get scale } catch {
         if $env.FORM_FACTOR? == "laptop" { 1 } else { 1.666667 }

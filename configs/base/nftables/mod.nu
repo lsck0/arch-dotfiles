@@ -17,7 +17,6 @@ export def system [cfg: record] {
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft")
         (file-render fw-egress.nft $"($DIR)/fw-egress.nft" {TOR_UID: $tor_uid})
         ($UNITS | each { unit-file $in } | decls-flatten)
-        # lockdown is the resting state until a home up or toggle-firewall.nu lifts it
         (unit-disable fw-inbound.service)
         (unit-enable fw-lockdown.service)
         # a vm guest leaves through its host, whose fw_egress forward chain already holds it

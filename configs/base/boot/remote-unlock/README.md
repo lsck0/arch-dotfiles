@@ -28,7 +28,7 @@ wireless interface the driver brings up. It uses the card's own mac, as NetworkM
 
 - `systemctl enable initrd-network.service initrd-tinysshd.service` (the enable symlinks are what the install hook scans;
   the units' condition keeps them initramfs-only).
-- Installs the wired-NIC DHCP `.network` (`Name=en*`), the tinyssh port drop-in (**port 2223**), and `openssh_key_convert=false`.
+- Installs the DHCP `.network` (`Name=en* wl*`), the tinyssh port drop-in (**port 2223**), and `openssh_key_convert=false`.
 - Installs the dedicated initramfs host key to `/etc/tinyssh/sshkeydir` and the authorized key (`secrets/ssh_publickey.asc`)
   to `/etc/mkinitcpio-systemd-tool/config/authorized_keys`, which `initrd-shell.service` copies to the image's
   `/root/.ssh/authorized_keys`; the real root gets no key. The image's `/root/.profile` is upstream's `initrd-shell.sh`,
@@ -41,8 +41,8 @@ wireless interface the driver brings up. It uses the card's own mac, as NetworkM
 Both are in `SYSTEM_SECRETS` (`scripts/lib/system.nu`): `dot apply` streams them to the root step as data, the root copy
 carries no `secrets/`.
 
-- `secrets/ssh_publickey.asc` — already present; the key allowed to log in to the initramfs sshd.
-- `secrets/initramfs-ssh/<host>/sshkeydir/` — the dedicated initramfs tinyssh host key. If absent, the first `dot apply`
+- `secrets/ssh_publickey.asc`: already present, the key allowed to log in to the initramfs sshd.
+- `secrets/initramfs-ssh/<host>/sshkeydir/`: the dedicated initramfs tinyssh host key. If absent, the first `dot apply`
   generates one at `/etc/tinyssh/sshkeydir` and prints the backup command; commit it so reinstalls keep the same host key:
 
   ```
@@ -59,18 +59,18 @@ wake-pc                      # or: ssh root@192.168.178.29 wol-pc
 # ~15-30 s later the box is at the LUKS prompt in the initramfs:
 ssh -p 2223 root@<pc-ip>     # new known_hosts entry (distinct host key); the agent prompts, type the passphrase
 # boot continues; once up:
-ssh luca@<pc-ip>
+sshk luca@<pc-ip>             # the real sshd, knocked open on 2222
 ```
 
 `Ctrl-C` at the prompt opens `initrd-shell.sh`'s menu; `journalctl -b -t shell` shows its log after boot.
 
-## FIRST BOOT — verify with physical access available
+## First boot: verify at the machine
 
 This touches the initramfs; test the first reboot **at the machine**, with the console reachable, so the passphrase
 fallback is right there if anything is off:
 
 1. `dot apply` (rebuilds the UKI), then reboot.
-2. At the console you still get the normal passphrase/YubiKey prompt — confirm it still unlocks locally. (Fallback intact.)
+2. The console still shows the normal passphrase/YubiKey prompt; confirm it still unlocks locally.
 3. From another host on the LAN (or over WireGuard): `ssh -p 2223 root@<pc-ip>`, enter the passphrase, confirm boot continues.
 4. Confirm the host key is the committed one (`secrets/initramfs-ssh/<host>/sshkeydir/ed25519.pk`, via `tinysshd-printkey`).
 

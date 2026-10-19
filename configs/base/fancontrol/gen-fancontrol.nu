@@ -7,10 +7,12 @@ const BOARD_NAME_FILE = $"($SYS)/class/dmi/id/board_name"
 const CONFIG = "/etc/fancontrol"
 const BOARD = "X870E AORUS ELITE WIFI7"
 const FORCE_ID = "0x8622"
-const INTERVAL_S = 10
-# ryzen Tctl idles ~45C and boosts to ~85C under load
-const TEMP_MIN_C = 60
-const TEMP_MAX_C = 85
+const INTERVAL_S = 5
+# Tctl jumps 15C within seconds on any burst; fancontrol averages these many readings (20 s) so fans do not chase it
+const AVERAGE = 4
+# ryzen Tctl sits at 50-60C on a desktop and boosts to ~85C under load; full speed well before the 95C limit
+const TEMP_MIN_C = 65
+const TEMP_MAX_C = 88
 # 16%: near-silent, still spins every fan so a mis-identified channel never stalls
 const PWM_FLOOR = 40
 const PWM_START = 90
@@ -35,14 +37,11 @@ def main []: nothing -> nothing {
     if $it87 == null { return (bios "it87 did not load (check dmesg for the force_id)") }
     let k10 = hwmon-find '^k10temp$'
     if $k10 == null { return (bios "no k10temp sensor") }
-    # temp1 when unlabeled
     let tctl = glob $"($HWMON)/($k10)/temp*_label" | where { (read $in) == "Tctl" }
         | each { path basename | str replace "_label" "_input" } | get --optional 0 | default temp1_input
     let pwms = glob $"($HWMON)/($it87)/pwm[0-9]" | path basename | sort
     if ($pwms | is-empty) { return (bios "it87 exposes no pwm channels") }
     let every = {|value| $pwms | each { $"($it87)/($in)=($value)" } | str join " " }
-    let fans = $pwms | each {|p| {pwm: $p, fan: ($p | str replace pwm fan | $"($in)_input")} }
-        | where { $"($HWMON)/($it87)/($in.fan)" | path exists } | each { $"($it87)/($in.pwm)=($it87)/($in.fan)" }
     let devpath = {|h| $"($HWMON)/($h)/device" | path expand | str replace $"($SYS)/" "" }
     let original = $"($CONFIG).pre-dotfiles"
     if ($CONFIG | path exists) and not ($original | path exists) { ^cp -a $CONFIG $original }
@@ -52,15 +51,16 @@ def main []: nothing -> nothing {
         $"DEVPATH=($it87)=(do $devpath $it87) ($k10)=(do $devpath $k10)"
         $"DEVNAME=($it87)=(read $'($HWMON)/($it87)/name') ($k10)=(read $'($HWMON)/($k10)/name')"
         $"FCTEMPS=(do $every $'($k10)/($tctl)')"
-        $"FCFANS=($fans | str join ' ')"
+        # no FCFANS: the forced it87 reads 0 or 10000 rpm at random, and fancontrol kicks a fan it reads as 0 to MINSTART
         $"MINTEMP=(do $every $TEMP_MIN_C)"
         $"MAXTEMP=(do $every $TEMP_MAX_C)"
         $"MINSTART=(do $every $PWM_START)"
         $"MINSTOP=(do $every $PWM_FLOOR)"
         $"MINPWM=(do $every $PWM_FLOOR)"
         $"MAXPWM=(do $every $PWM_MAX)"
+        $"AVERAGE=(do $every $AVERAGE)"
     ] | str join "\n" | $"($in)\n" | save --force $CONFIG
     # no systemctl here: fancontrol.service must not be touched while it starts
-    let curve = $"($PWM_FLOOR)/($PWM_MAX) floor, full by ($TEMP_MAX_C)C"
+    let curve = $"($PWM_FLOOR)/($PWM_MAX) floor to ($TEMP_MIN_C)C, full by ($TEMP_MAX_C)C"
     print --stderr $"fancontrol: ($pwms | length) fan channel\(s\) on ($it87) now follow Tctl \(($curve)\)"
 }

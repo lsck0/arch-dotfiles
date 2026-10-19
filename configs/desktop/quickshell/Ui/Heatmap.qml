@@ -1,11 +1,9 @@
 import QtQuick
 import qs.Commons
 
-// repaints only on new rows or resize, so it scrolls one column per sample
 Item {
   id: root
 
-  // [{ values: [newest last], max }]
   property var rows: []
   property int cols: 60
   property bool active: true

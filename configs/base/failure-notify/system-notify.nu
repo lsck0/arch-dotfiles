@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
 
-# a unit failing over and over (an unreachable mount) shows at most hourly
 const COOLDOWN = 1hr
 const PRIORITY_ERR = 3
 # trusted fields only: journald sets _PID and _UID, a client cannot forge them

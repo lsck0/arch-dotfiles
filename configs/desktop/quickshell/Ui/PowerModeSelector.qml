@@ -24,7 +24,6 @@ Item {
     if (!getProcess.running) getProcess.running = true
   }
 
-  // the script announces the change over ToggleEvents, which re-reads
   function apply(mode) {
     Quickshell.execDetached([root.script, String(mode)])
   }
@@ -61,7 +60,6 @@ Item {
     fill: true
     spacing: Style.spacing.xs
     options: root.modeOptions
-    // "" means no override, shown as auto
     value: internal.mode === "" ? "auto" : internal.mode
     foreground: root.foreground
     fontSize: root.fontSize

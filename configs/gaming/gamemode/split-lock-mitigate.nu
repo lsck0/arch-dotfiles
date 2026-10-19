@@ -1,10 +1,7 @@
 #!/usr/bin/nu --no-config-file
-# split lock mitigation sleeps the offending thread, and games and anticheat under proton trip it constantly
-
 const KNOB = "/proc/sys/kernel/split_lock_mitigate"
 
 def set-knob [value: string]: nothing -> nothing {
-    # only cpus with split lock detection have the knob
     if ($KNOB | path exists) { $value | save --force $KNOB }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# branch/worktree picker; a new worktree goes where nvim's lua/lib/worktree.lua puts it
+# a new worktree goes where nvim's lua/lib/worktree.lua puts it
 
 const WORKTREES_DIR = ".worktrees"
 const BARE_DIR = ".bare"
@@ -22,7 +22,6 @@ def worktrees-parse []: string -> table {
     }
 }
 
-# ties go to the shallower dir, so one stray nested worktree never becomes the convention
 def parent-shared [linked: table]: nothing -> any {
     if ($linked | is-empty) { return null }
     let counts = $linked.path | path dirname | uniq --count
@@ -39,12 +38,11 @@ def main []: nothing -> nothing {
         exit 1
     }
     let trees = $listed.stdout | worktrees-parse
-    # the first entry is the main checkout or the bare repo itself
     let main = $trees.0
     let root = if ($main.path | path basename) == $BARE_DIR { $main.path | path dirname } else { $main.path }
     let repo = $root | path basename
 
-    # local and origin branches; typing a new name in fzf creates that branch (fzf exits 1 then)
+    # typing a new name in fzf creates that branch (fzf exits 1 then)
     let branches = ^git for-each-ref '--format=%(refname)' refs/heads refs/remotes/origin | lines
         | each { str replace --regex '^refs/(heads|remotes/origin)/' "" } | where $it != HEAD | uniq
     let picked = $branches | str join "\n" | ^fzf "--prompt=worktree branch> " --print-query --height=100% | complete
@@ -84,7 +82,6 @@ def main []: nothing -> nothing {
         $wt
     }
 
-    # no slashes in a session/workspace label
     let label = $"($repo)-($branch | str replace --all '/' '-')"
     if ($env.HERDR_SESSION? | default "") + ($env.HERDR_ENV? | default "") != "" {
         ^herdr-open $wt $label
@@ -92,7 +89,6 @@ def main []: nothing -> nothing {
         if not ((do { ^tmux has-session -t $"=($label)" } | complete).exit_code == 0) {
             ^tmux new-session -d -s $label -c $wt
         }
-        # the session-created hook lays out the windows
         ^tmux switch-client -t $"=($label)"
     } else {
         cd $wt

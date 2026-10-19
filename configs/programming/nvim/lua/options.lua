@@ -2,7 +2,6 @@ local set = vim.opt
 
 set.clipboard = "unnamedplus"
 
--- zg/zw persist into the dotfiles repo
 set.spellfile = vim.fn.stdpath("config") .. "/spell/en.utf-8.add"
 set.spellcapcheck = ""
 -- GitHub is checked as Git + Hub; not noplainbuffer: .txt has no syntax, so it would never be checked at all
@@ -72,7 +71,6 @@ set.winborder = "rounded"
 set.wrap = false
 set.modeline = false -- security: no option execution from opened files
 
--- unused providers: skip the startup rplugin scan
 vim.g.loaded_node_provider = 0
 vim.g.loaded_perl_provider = 0
 vim.g.loaded_ruby_provider = 0

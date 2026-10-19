@@ -1,7 +1,5 @@
 local M = {}
 
---- Open a telescope picker over ITEMS. Confirming calls ON_SELECT with the selected value, or with nil and the typed
---- query when nothing matches, so a picker can treat a new name as "create this".
 ---@param title string
 ---@param items { display: string, value: any }[]
 ---@param on_select fun(value: any?, query: string)

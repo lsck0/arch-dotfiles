@@ -7,7 +7,6 @@ const VERSION = "2.0.2"
 const SHA256 = "624e997b78bcadf236f82f8086827890ba77b6dfdc6fd6446f7c48dfd9e586f0"
 const URL = $"https://github.com/grafana/mcp-grafana/releases/download/v($VERSION)/mcp-grafana_Linux_x86_64.tar.gz"
 
-# the launcher reads url and token at each start, so neither lands in ~/.claude.json
 export def link [cfg: record] {
     let claude = $nu.home-dir | path join .claude.json
     let token = $env.DOTFILES | path join secrets grafana-mcp-token

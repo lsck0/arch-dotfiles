@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the coordinates the weather widget queries with: a pinned manual location, else the first automatic source
 use lib.nu [switch-run state-file notify]
 
 # every weather script resolves and each geoclue lookup wakes the daemon for a wifi scan, so one answer is shared
@@ -53,7 +52,6 @@ def ipgeo-coords []: nothing -> any {
     if $reply.latitude? != null and $reply.longitude? != null { coords-format $reply.latitude $reply.longitude }
 }
 
-# "<source> <lat>,<lon>": the widget shows how the location was determined
 def resolve []: nothing -> string {
     if (manual-coords) != null { return $"manual (manual-coords)" }
     let cache = state-file weather-location.auto --volatile
@@ -63,7 +61,6 @@ def resolve []: nothing -> string {
     for source in [geoclue timezone ipgeo] {
         let coords = match $source { geoclue => (geoclue-coords), timezone => (timezone-coords), ipgeo => (ipgeo-coords) }
         if $coords != null {
-            # a miss is not cached, the next caller retries
             $"($source) ($coords)" | save --force $cache
             return $"($source) ($coords)"
         }
@@ -83,13 +80,13 @@ def --wrapped "main set" [...coords: string] {
     }
     let coords = coords-format $lat $lon
     $coords | save --force (manual-file)
-    notify "Weather Location" "Set manually"
+    notify "Weather location" "Set manually"
     $coords
 }
 
 def "main clear" [] {
     rm --force (manual-file)
-    notify "Weather Location" "Back to automatic"
+    notify "Weather location" "Back to automatic"
 }
 
 def "main resolve" [] { resolve }
@@ -98,9 +95,8 @@ def "main source" [] { resolve | split row " " | get 0 }
 
 def main [action: string = "toggle"] {
     switch-run {
-        label: "Weather Location (manual)"
+        label: "Weather location (manual)"
         is-on: {|| manual-coords | is-not-empty }
-        # pins whatever location is in use right now
         on: {||
             if (manual-coords) != null { return }
             let coords = resolve | split row " " | get 1?

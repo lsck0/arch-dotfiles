@@ -10,7 +10,6 @@ Item {
 
   property var shell: null
 
-  // list: two reminders can elapse in the same minute
   property var alerts: []
 
   property string fontFamily: Style.font.family
@@ -47,11 +46,6 @@ Item {
     dismissAt(index)
   }
 
-  function stopPomodoroAt(index) {
-    Quickshell.execDetached([Paths.script("pomodoro.nu"), "stop"])
-    dismissAt(index)
-  }
-
   readonly property var mainScreen: {
     var screens = Quickshell.screens
     var name = root.shell ? root.shell.mainScreenName : ""
@@ -60,7 +54,6 @@ Item {
     return screens.length > 0 ? screens[0] : null
   }
 
-  // the stack fades out before the list empties
   property bool closing: false
 
   function close() {
@@ -77,7 +70,6 @@ Item {
     }
   }
 
-
   PanelWindow {
     id: win
     visible: root.alerts.length > 0
@@ -90,11 +82,9 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "quickshell-alert"
     WlrLayershell.layer: WlrLayer.Overlay
-    // an alert must not steal keystrokes
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     exclusionMode: ExclusionMode.Ignore
 
-    // keys cannot attach to a PanelWindow
     PanelKeyCatcher {
       anchors.fill: parent
       onCloseRequested: root.close()
@@ -232,11 +222,6 @@ Item {
                   visible: card.modelData.kind === "reminder"
                   text: "Snooze 15 min"
                   onClicked: root.snoozeAt(card.index, 15)
-                }
-                Chip {
-                  visible: card.modelData.kind === "pomodoro"
-                  text: "Stop pomodoro"
-                  onClicked: root.stopPomodoroAt(card.index)
                 }
                 Chip {
                   text: "Dismiss"

@@ -1,5 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# forwards ntfy topics from the homelab to desktop notifications
 
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
@@ -11,7 +10,6 @@ const IDLE_S = 90
 const NO_TOPICS_WAIT = 5min
 const BACKOFF_MIN_S = 2
 const BACKOFF_MAX_S = 60
-# a connection that lived this long was healthy, so the backoff starts over
 const HEALTHY = 2min
 const ALERT_LINES_MAX = 5
 const GLYPH_HOMELAB = "\u{f048d}"
@@ -34,14 +32,12 @@ def state-dir []: nothing -> path {
     $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join ntfy-notify
 }
 
-# {server, topics} the desktop token reads, or null
 def subscription []: nothing -> any {
     let lab = try { open (lab-json) } catch { null }
     if ($lab | describe) !~ '^record' or $lab.schema? != $LAB_SCHEMA or ($lab.ntfy.desktop | is-empty) { return null }
     {server: $lab.ntfy.url, topics: $lab.ntfy.desktop}
 }
 
-# "" while the secret is missing or git-crypt locked
 def token-read []: nothing -> string {
     if not (secret-is-plaintext (token-file)) { return "" }
     open --raw (token-file) | decode utf-8 | str trim
@@ -69,7 +65,6 @@ def alert-summary [payload: record]: nothing -> record {
     }
 }
 
-# one alert group's identity across its firing and resolved posts
 def group-key [payload: record]: nothing -> string {
     let key = $payload.groupKey?
     if ($key | describe) == string and $key != "" { return $key }
@@ -83,13 +78,11 @@ def file-replace [file: path, text: string]: nothing -> nothing {
     mv --force $"($file).tmp" $file
 }
 
-# alert group key -> notification id on screen
 def alerts-open-read []: nothing -> record {
     let opened = try { open (state-dir | path join open-alerts.json) } catch { {} }
     if ($opened | describe) =~ '^record' { $opened } else { {} }
 }
 
-# the notification's id, or 0 when the server gave none
 def notify-send [
     app: string, glyph: string, urgency: string, title: string, body: string, click: string, replaces: int = 0
 ]: nothing -> int {
@@ -114,7 +107,6 @@ def notify [msg: record]: nothing -> nothing {
         let opened = $opened | reject --optional $key
         # no expiry on purpose, critical alerts must not scroll away
         let opened = if $payload.status? == "firing" {
-            # a re-firing group replaces its card instead of stacking
             let id = notify-send Homelab $GLYPH_HOMELAB $s.urgency $s.title $s.body $s.click $previous
             if $id != 0 { $opened | insert $key $id } else { $opened }
         } else {
@@ -147,9 +139,7 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
         let msg = try { $line | from json } catch { null }
         if ($msg | describe) !~ '^record' { continue }
         if $msg.event? != "message" {
-            # a quiet hour is not downtime
             if ($last_id | path exists) { touch $last_id }
-            # reconnect when the homelab topics change
             if (subscription) != $sub { return }
             continue
         }
@@ -162,10 +152,8 @@ def main []: nothing -> nothing {
     mut delay_s = $BACKOFF_MIN_S
     loop {
         let started = date now
-        # re-read each connect so a rotated token needs no restart
         let token = token-read
         if $token == "" {
-            # every subscribe would 403, stop instead of retrying
             print --stderr $"ntfy-notify: no token in (token-file)"
             return
         }

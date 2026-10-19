@@ -4,7 +4,6 @@ import os
 
 config.load_autoconfig()
 
-# live wal palette, ayu fallback for a fresh machine
 _fb = {
     "special": {"background": "#1f2430", "foreground": "#cbccc6"},
     "colors": {"color0": "#232834", "color1": "#ff3333", "color2": "#bae67e", "color4": "#73d0ff", "color8": "#5c6773"},
@@ -16,6 +15,10 @@ try:
 except (OSError, ValueError):
     pass
 
+# palette.nu's shared constants, written by core/wallust's link before this module's
+with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
+    _style = json.load(_f)
+
 
 def _c(section, key):
     return _wal.get(section, {}).get(key) or _fb[section][key]
@@ -26,13 +29,18 @@ bg_alt = _c("colors", "color0")
 fg = _c("special", "foreground")
 
 
-def _is_light(hex_color):
+def _luminance(hex_color):
     h = hex_color.lstrip("#")
     try:
-        r, g, b = (int(h[i : i + 2], 16) / 255 for i in (0, 2, 4))
+        channels = [int(h[i : i + 2], 16) / 255 for i in (0, 2, 4)]
     except (ValueError, IndexError):
-        return False
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5
+        return 0.0
+    r, g, b = (x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in channels)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _is_light(hex_color):
+    return _luminance(hex_color) >= _style["light_luminance"]
 
 
 accent = _c("colors", "color4")
@@ -85,6 +93,7 @@ c.colors.hints.bg = accent
 c.colors.hints.fg = bg
 c.colors.hints.match.fg = red
 c.hints.border = "0px"
+c.hints.radius = _style["radius_px"]
 
 c.colors.messages.error.bg = red
 c.colors.messages.warning.bg = accent
@@ -108,7 +117,6 @@ c.url.default_page = _startpage
 # its search form posts from file:// to google, blocked by default
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
-# the default comes from the search_url option, searxng only on a homelab machine
 _search = "https://duckduckgo.com/?q={}"
 try:
     with open(os.path.expanduser("~/.config/qutebrowser/search-url")) as _f:
@@ -131,7 +139,6 @@ c.url.searchengines = {
 
 # no ua override: the default is a plain chrome one with the real version, a pinned one ages into a fingerprint
 
-# adblock lists arrive with :adblock-update, which the module runs once
 c.content.webrtc_ip_handling_policy = "default-public-interface-only"
 c.content.cookies.accept = "no-3rdparty"
 c.content.blocking.method = "both"

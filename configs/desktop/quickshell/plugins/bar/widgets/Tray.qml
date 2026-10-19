@@ -218,7 +218,7 @@ BarWidget {
           Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.trayItemGap
-            // no layer: it ate clicks meant for the delegates
+            // no layer: one eats clicks meant for the delegates
 
             Repeater {
               model: root.drawerItems
@@ -265,7 +265,6 @@ BarWidget {
         height: root.drawerExtent
         visible: root.allItems.length > 0
 
-        // declared first so it sits under the icons
         MouseArea {
           anchors.fill: parent
           acceptedButtons: Qt.RightButton
@@ -342,7 +341,7 @@ BarWidget {
 
       Text {
         visible: root.allItems.length === 0
-        text: "No tray items reporting."
+        text: "No tray items"
         color: root.foreground
         opacity: Style.emphasis.faint
         font.family: root.fontFamily
@@ -688,9 +687,7 @@ BarWidget {
       fillMode: Image.PreserveAspectFit
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
-      // quickshell already resolves this to an image:// url
       source: String(trayIconRoot.icon || "")
-      // texture source for the MultiEffect only
       visible: false
       layer.enabled: Style.fx.glow > 0
     }

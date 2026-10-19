@@ -4,7 +4,7 @@ export const meta = {packages: {pacman: [bruno-bin bruno-cli]}}
 
 const PREFERENCES = ".config/bruno/preferences.json"
 
-# bruno validates telemetry as an object; a bare boolean fails every save. the theme is window state, not a preference
+# bruno validates telemetry as an object; a bare boolean fails every save
 export def link [cfg: record] {
     let file = $nu.home-dir | path join $PREFERENCES
     let current = try { open $file } catch { {} }

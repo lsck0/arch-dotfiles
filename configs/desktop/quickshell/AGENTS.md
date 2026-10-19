@@ -27,12 +27,10 @@ lock, notifications, OSD and overlays. QML.
   after the shell) and `reloadPowerMode()`.
 - `discord` target: `toggleMute`, `toggleDeafen`, `disconnect` (reached from hyprland keybinds).
 - `mod.nu` copies the tree into `~/.config/quickshell` (only `theme.json` stays a link, edited live); quickshell
-  reloads on `dot link desktop/quickshell`, never while the lock is held. `restart.nu` restarts the unit
+  reloads on `dot apply desktop/quickshell`, never while the lock is held. `restart.nu` restarts the unit
   (`quickshell.service`). See the `l-dotfiles-quickshell-dev` skill for logs and screenshots.
 
 ## Palette
 
-- Colors come from wallust/themes (`core/wallust`, `core/themes`) into `Colors.qml`/`Theme.qml`; widgets read the
+- Colors come from wallust/themes (`core/wallust`, `themes/`) into `Colors.qml`/`Theme.qml`; widgets read the
   tokens, never hardcode a color. A theme switch recolors the shell through these.
-
-Note: other agents may be editing this module concurrently. This file is the only addition made here.

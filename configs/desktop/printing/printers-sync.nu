@@ -21,7 +21,6 @@ def main []: nothing -> nothing {
     mut created = ""
     mut failed = false
     for svc in $SERVICES {
-        # the service's mdns name only, never an address
         let pattern = '^dnssd://(?<instance>[^/?]+)\._' + $svc + '\._tcp\.local/(\?uuid=(?<uuid>[0-9A-Za-z-]+))?$'
         for line in $discovered {
             let uri = $line | split row --number 2 " " | get --optional 1 | default "" | str trim
@@ -47,7 +46,6 @@ def main []: nothing -> nothing {
             }
         }
     }
-    # only where none is set: a chosen default stays
     if ($created | is-not-empty) and not ((^lpstat -d | complete | get stdout) | str contains $DEFAULT_SET) {
         if (^lpadmin -d $created | complete).exit_code != 0 { $failed = true }
     }

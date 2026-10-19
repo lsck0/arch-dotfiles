@@ -98,7 +98,6 @@ PanelWindow {
     height: Math.min(root.cardHeight, root.height - Style.gapsOut * 2)
     opacity: bootIn.progress
 
-    // swallow clicks so only the scrim dismisses
     MouseArea { anchors.fill: parent }
 
     DockShape {
@@ -153,7 +152,6 @@ PanelWindow {
 
           Text {
             textFormat: Text.PlainText
-            // hug the text so the caret follows it
             width: Math.min(implicitWidth, promptRow.width - promptGlyph.width - caret.width - promptRow.spacing * 2)
             text: root.query || root.placeholder
             color: Colors.menu.text

@@ -8,7 +8,6 @@ def rank [level: string]: nothing -> int {
     $LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
 }
 
-# the runner's own, whichever layer it plans
 export def runs-dir []: nothing -> path {
     if (is-admin) { $SYSTEM_STATE | path join runs } else { with-env {DOT_LAYER: user} { state-dir | path join runs } }
 }
@@ -37,7 +36,6 @@ export def log-warn [message: string, fields: record = {}]: nothing -> nothing {
 export def log-note [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $"note: ($message)" ($fields | merge {kind: note}) }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# each line shows live on stderr as "<tag> | <line>", so parallel runs stay apart; a command that never started rethrows.
 # setsid, no stdin: under dot's pty a background command that touches the terminal (claude's cli) is stopped for good
 export def command-stream [tag: string, argv: list]: nothing -> record {
     let log = mktemp --tmpdir

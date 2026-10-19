@@ -14,7 +14,6 @@ def main [--watch]: nothing -> nothing {
     let entr = job spawn {
         $conf | ^entr -np tmux -S $socket source-file $conf ";" display-message "tmux.conf reloaded"
     }
-    # pidfd wait, no polling: returns once the server is gone, whether it exited or was killed
     try { ^waitpid ($env.TMUX | split row "," | get 1) }
     job kill $entr
 }

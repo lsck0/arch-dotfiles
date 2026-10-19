@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [flat-remix-gtk gtk3 gtk4 nwg-look obsidian-icon-theme xdg-user-dirs-gtk]}}
+export const meta = {deps: [desktop/oomox], packages: {pacman: [flat-remix-gtk gtk3 gtk4 nwg-look obsidian-icon-theme xdg-user-dirs-gtk]}}
 
 const GTK_THEME = "oomox-colors-oomox"
 const INTERFACE = "org.gnome.desktop.interface"
@@ -34,8 +34,7 @@ export def theme [cfg: record, wallpaper: string] {
     } | append [
         (do $set gtk-scheme color-scheme $scheme)
         (if $font == null { [] } else { do $set gtk-font font-name $font })
-        # running gtk3 apps reload only on a theme name change, so flip it away and back
-        (do $set gtk-theme-clear gtk-theme "")
+        # oomox's export flips it again once the theme files are new, which a running gtk3 app needs to reread them
         (do $set gtk-theme gtk-theme $GTK_THEME)
     ]
 }

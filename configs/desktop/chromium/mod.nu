@@ -19,11 +19,9 @@ export def link [cfg: record] {
     } else { [] }
     profile-style ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join chromium)
     | append $work
-    # native wayland, so the pipewire screencast portal works
     | append (desktop-override chromium.desktop { str replace --all --regex '(?m)^Exec=chromium' 'Exec=chromium --ozone-platform-hint=auto' })
 }
 
-# the homelab's searxng, unreachable elsewhere, where duckduckgo replaces it rather than google
 export def system [cfg: record] {
     let policy = if (platform-has homelab) {
         file-copy policy.json $POLICY

@@ -3,11 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// single owner: the bar, the desktop agenda and the tasks panel read this one export
 Singleton {
   id: root
 
-  // opening the panel and every mutation refresh at once
   readonly property int refreshMs: 3 * 60 * 1000
   readonly property int dueSoonMs: 15 * 60 * 1000
   // a deleted recurring task asks about its siblings; confirmation=off does not cover that prompt
@@ -15,10 +13,8 @@ Singleton {
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
   readonly property string glyph: "\u{f0756}" // md-format-list-checks
 
-  // shared so the bar, the desktop card and ipc toggle one overlay
   property bool panelOpen: false
 
-  // sorted rows: {uuid, desc, project, tags, due, dueMs, overdue, active, urgency}
   property var tasks: []
   property bool loaded: false
   property string errorText: ""
@@ -30,7 +26,6 @@ Singleton {
   }
   readonly property bool busy: exportProc.running || mutateProc.running
 
-  // "uuid@due" -> ms it was announced; pruned to tasks still pending at that due
   property var notified: ({})
   property bool notifiedReady: false
   property var queue: []
@@ -54,7 +49,6 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
-  // undated tasks sink below dated ones
   function buildTasks(data) {
     // a qml sequence across the var signal, not an Array, so copy by length
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
@@ -98,7 +92,6 @@ Singleton {
     exportProc.run()
   }
 
-  // queued so two quick keypresses never race
   function run(args) {
     root.queue = root.queue.concat([root.taskArgv.concat(args)])
     runNext()

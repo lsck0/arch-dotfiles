@@ -10,7 +10,6 @@ const UKI_DIR = "/boot/EFI/Linux"
 # bootctl installs systemd-bootx64.efi.signed instead when it exists
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
-# everything mkinitcpio reads, remote-unlock's initramfs ssh included
 const BOOT_INPUTS = [
     /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d /etc/mkinitcpio.d /etc/kernel/cmdline /etc/crypttab.initramfs
     /etc/plymouth /usr/share/plymouth/themes /etc/mkinitcpio-systemd-tool /etc/tinyssh
@@ -44,7 +43,6 @@ def key-of [token: string]: nothing -> string {
     $token | split row "=" | first
 }
 
-# each token replaces the tokens of its key; a machine off the esp layout is left alone
 export def cmdline-set [...tokens: string]: nothing -> nothing {
     if not (esp-supported) { return }
     cmdline-save ($tokens | reduce --fold (cmdline-words) {|t, words|
@@ -82,7 +80,6 @@ def boot-inputs-hash []: nothing -> string {
     | each {|f| $"(ls --long $f | get 0.mode) ($f) (open --raw $f | hash sha256)" } | str join "\n" | hash sha256
 }
 
-# before configs/base/boot/sbctl ran there is nothing to sign with
 def sbctl-ready []: nothing -> bool {
     (which sbctl | is-not-empty) and (^sbctl status | str contains "Owner GUID")
 }
@@ -93,7 +90,6 @@ def sbctl-sign [...files: path]: nothing -> nothing {
 
 # the boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed
 export def boot-commit []: nothing -> nothing {
-    # wsl: windows boots its own kernel
     if (which mkinitcpio | is-empty) { return }
     let stamp = $SYSTEM_STATE | path join boot-inputs
     let inputs = boot-inputs-hash

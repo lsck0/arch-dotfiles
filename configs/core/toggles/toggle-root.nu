@@ -17,7 +17,6 @@ def usage []: nothing -> nothing {
     exit 1
 }
 
-# the caller's uid from pkexec; run directly as root there is no caller to scope to
 def caller-uid []: nothing -> string {
     let uid = $env.PKEXEC_UID? | default ""
     if $uid !~ '^[0-9]+$' {
@@ -104,7 +103,6 @@ def --wrapped main [...args: string] {
             if $mode in $TLP_MODES {
                 ^tlp $mode
             } else if $mode == start {
-                # un-force: back to tlp's own ac/bat auto-detect
                 ^tlp start o> /dev/null
             } else {
                 usage
@@ -121,7 +119,6 @@ def --wrapped main [...args: string] {
             # the persona's tor hands over to the full tunnel and back; NM may not dispatch a link wg-quick made
             if ($PERSONA_DISPATCHER | path exists) { try { ^$PERSONA_DISPATCHER $WG_INTERFACE $direction } }
         }
-        # enable, not just start: on means the socket listens across reboots too
         [2, "vllm"] => {
             match $args.1 {
                 on => { ^systemctl enable --now vllm.socket }

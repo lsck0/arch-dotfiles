@@ -2,7 +2,6 @@
 @import url("shared.css");
 @import url("colors.css");
 
-/* gamepad focus ring */
 [class*="gpfocus"],
 [class*="GpFocus"],
 [class*="focusRing"],
@@ -15,7 +14,6 @@
     background-color: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
 }
 
-/* active top nav */
 [class*="tabbar"] [class*="active"],
 [class*="TabBar"] [class*="Active"],
 [class*="rootmenu"] [class*="selected"],

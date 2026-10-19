@@ -99,7 +99,6 @@ return {
                 end,
                 desc = "Search GitHub",
             },
-            -- org via the private per-repo identity, never hardcoded
             {
                 "<leader>oR",
                 function()

@@ -3,7 +3,7 @@ Description=sched_ext scheduler (scx_lavd)
 Documentation=https://github.com/sched-ext/scx
 ConditionPathIsDirectory=/sys/kernel/sched_ext
 # before the greeter, so a session never switches scheduler mid-login
-Before=display-manager.service ly@tty2.service
+Before=display-manager.service ly@tty1.service
 # eevdf takes over on exit; stop retrying a scheduler that cannot attach
 StartLimitIntervalSec=60
 StartLimitBurst=3

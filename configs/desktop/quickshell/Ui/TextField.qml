@@ -26,6 +26,15 @@ TextField {
   selectedTextColor: foreground
   placeholderTextColor: Qt.darker(foreground, 1.6)
 
+  // remove() emits no textEdited, so listeners that track typing get it by hand
+  Keys.onPressed: function (event) {
+    if (root.readOnly || !Util.isWordDelete(event.key, event.modifiers)) return
+    if (root.selectedText !== "") root.remove(root.selectionStart, root.selectionEnd)
+    else root.remove(root.echoMode !== TextInput.Normal ? 0 : Util.wordStart(root.text, root.cursorPosition), root.cursorPosition)
+    root.textEdited()
+    event.accepted = true
+  }
+
   leftPadding: horizontalPadding + Border.width(_borderSpec)
   rightPadding: horizontalPadding + Border.width(_borderSpec)
   topPadding: verticalPadding + Border.width(_borderSpec)

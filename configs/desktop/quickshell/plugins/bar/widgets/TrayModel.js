@@ -11,8 +11,7 @@ function itemNamed(item, name) {
     || text(item.tooltipTitle).indexOf(name) !== -1
 }
 
-// localsend's tray item adds nothing over share > receive; discord's is a speaker that reacts to voice activity,
-// repainting constantly and erroring on every IconName read
+// localsend's adds nothing over share > receive; discord's repaints constantly and errors on every IconName read
 function hiddenByDefault(item) {
   return itemNamed(item, "localsend") || itemNamed(item, "discord")
 }

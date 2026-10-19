@@ -1,14 +1,15 @@
 use module.nu *
 use ../../core/wallust/palette.nu *
 
-export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player]}}
+export const meta = {packages: {pacman: [spicetify-cli spotify spotify-player websocat]}}
 
 const THEMES_URL = "https://github.com/spicetify/spicetify-themes.git"
 const THEMES_COMMIT = "33a08ea009687f5a42ff678015c28797fe142a7c"
-# nothing levels playback downstream, so spotify normalizes itself: -14 lufs, no limiter
+# environment 1: -14 lufs, no limiter
 const LOUDNESS = {"": {audio.normalize_v2: "true", audio.loudness.environment: "1"}}
 
 const THEME_INI = "Themes/wal/color.ini"
+const THEME_CSS = "Themes/wal/user.css"
 
 def spicetify-dir []: nothing -> path {
     $nu.home-dir | path join .config spicetify
@@ -18,12 +19,12 @@ export def link [cfg: record] {
     let themes = spicetify-dir | path join Themes
     let base = [
         (fetch-git $THEMES_URL $THEMES_COMMIT $themes)
-        (file-copy user.css ($themes | path join wal user.css))
+        # spotify's slider is its stream's channel volume; a restored stream volume under it caps max volume
+        (file-copy wireplumber.conf ($nu.home-dir | path join .config wireplumber wireplumber.conf.d spotify.conf))
     ] | decls-flatten
     if (^pacman -Q spotify | complete).exit_code != 0 { return $base }
     let prefs = $nu.home-dir | path join .config spotify prefs
-    # spotify rewrites its prefs on exit
-    let running = ps | where name == spotify | is-not-empty
+    let running = (^pgrep -x spotify | complete).exit_code == 0
     [
         $base
         (if $running { [] } else {
@@ -54,7 +55,6 @@ export def configure []: nothing -> nothing {
     }
 }
 
-# spicetify's colour keys over the conditioned palette, discord's theme takes the same ones
 export def spicetify-colors []: nothing -> any {
     let slot = wal-load "spotify theme"
     if $slot == null { return null }
@@ -75,16 +75,16 @@ export def spicetify-colors []: nothing -> any {
     ] | each { {key: $in.0, hex: ($in.1 | rgb-to-hex)} }
 }
 
-# the theme lands on a running spotify too: refresh reloads it, which briefly interrupts playback
 export def theme [cfg: record, wallpaper: string] {
     let ini = spicetify-dir | path join $THEME_INI
+    let css = spicetify-dir | path join $THEME_CSS
     let colors = spicetify-colors
-    if $colors == null or not ($ini | path dirname | path exists) { return [] }
+    if $colors == null or not ($ini | path dirname --num-levels 2 | path exists) { return [] }
     let width = $colors.key | str length | math max
     let body = $colors | each { $"($in.key | fill --width $width) = ($in.hex)\n" } | str join
-    # best-effort: before the first `spicetify backup apply` (hook/spicetify-apply.nu, gated on spotify login)
-    # refresh has nothing patched to reload yet and errors "you haven't backed up"; the next real apply picks up
-    # today's colors anyway, so a failed refresh here must not fail the whole theme pass
-    let refresh = if (which spicetify | is-empty) { [] } else { [sh -c "spicetify refresh || true"] }
-    file-text $ini $"[pywal]\n($body)" --generated --then $refresh
+    [
+        (file-text $ini $"[pywal]\n($body)" --generated)
+        (file-text $css (open --raw user.css | str replace --regex --multiline '^(\s*--radius:) .*$' $"${1} ($RADIUS_PX)px;") --generated)
+        (exec spotify-reload [./spotify-reload.nu])
+    ]
 }

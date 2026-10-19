@@ -12,23 +12,26 @@ def paths []: nothing -> record {
     }
 }
 
-# seeded once from secrets, then the game's: it rewrites these files in place of a link or a managed copy
+# seeded once: the game rewrites these files in place
 export def link [cfg: record] {
     let p = paths
+    let launcher = desktop-override XIVLauncher.desktop {
+        $in | str replace --all --regex '(?m)^Exec=' 'Exec=env MANGOHUD=1 '
+    }
     let unlocked = secret-is-plaintext ($p.saved | path join launcher.ini)
-    if (which xivlauncher-core | is-empty) or not $unlocked { return [] }
+    if (which xivlauncher-core | is-empty) or not $unlocked { return $launcher }
     # the launcher's free-space check throws DriveNotFoundException while GamePath is missing (before an install)
     let game = if ($p.launcher | path exists) {
         open --raw $p.launcher | lines | parse "GamePath={path}" | get --optional 0.path
     } else { null }
     [
+        $launcher
         (if ($p.config | path join FFXIV.cfg | path exists) { [] } else { step seed })
         (exec ffxiv-launcher [cp -n ($p.saved | path join launcher.ini) $p.launcher] --creates $p.launcher)
         (if ($game | is-empty) { [] } else { exec ffxiv-game-path [mkdir -p $game] --creates $game })
     ]
 }
 
-# no-clobber: keybinds or character data already there stay
 export def seed []: nothing -> nothing {
     let p = paths
     mkdir $p.config
@@ -36,7 +39,6 @@ export def seed []: nothing -> nothing {
     touch ($p.config | path join .from-secrets)
 }
 
-# chat logs, game backups, screenshots, .old rotations and the square enix login stay out
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path join FFXIV.cfg | path exists) { error make {msg: $"no ($p.config)/FFXIV.cfg"} }

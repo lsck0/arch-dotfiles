@@ -26,7 +26,6 @@ return {
         -- checking out its kulala-fmt submodule from a newer clone fails; kulala-fmt is a system package
         submodules = false,
         ft = { "http", "rest" },
-        -- the global ones, so they load kulala from any buffer
         keys = {
             {
                 "<leader>rb",
@@ -70,7 +69,6 @@ return {
             global_keymaps = true,
             global_keymaps_prefix = "<leader>r",
             kulala_keymaps_prefix = "",
-            -- its bundled kulala_http parser installs through nvim-treesitter (tree-sitter-cli in programming/packages.txt)
         },
     },
 

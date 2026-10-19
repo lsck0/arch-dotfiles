@@ -40,7 +40,6 @@ Item {
   readonly property int typeStepMs: 12
   readonly property int staggerMs: 15
   readonly property int staggerCap: 8
-  // nominal boot length, the stagger is laid out on it even when power saver zeroes the token
   readonly property int timelineMs: 220
 
   readonly property string typedTitle: title.substring(0, typed)

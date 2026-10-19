@@ -3,7 +3,6 @@
 
 const CSS_MAP = "/opt/spicetify-cli/css-map.json"
 const SKIP = [user.css colors.css]
-# a selector or at-rule prelude: what follows the text start, a `}` or a `;`, up to its `{`; gap is what lies before
 const PRELUDE = '(?s)(?<gap>.*?)(?<sep>^|[};])(?<sel>[^{};]+)\{'
 
 def preludes [text: string]: nothing -> record {
@@ -12,7 +11,6 @@ def preludes [text: string]: nothing -> record {
     {rows: $rows, tail: ($text | str substring $used..)}
 }
 
-# every class name of the map, whole words only, through `names` (a name it lacks stays)
 def rename [sel: string, map: record, names: record]: nothing -> string {
     $sel | parse --regex '(?<word>[-\w]+)|(?<other>[^-\w]+)' | each {|t|
         if $t.word == null { $t.other } else if ($map | get --optional $t.word) == null { $t.word } else {
@@ -46,7 +44,6 @@ def main [xpui?: path]: nothing -> nothing {
         let name = $css | path basename
         let source = $pristine | where name == $name | get --optional 0.text
         if $name in $SKIP or $source == null { continue }
-        # patched selector -> original selector, the first one wins
         let original = (preludes $source).rows | where not ($it.sel | str trim --left | str starts-with "@")
             | each {|p| {patched: (rename $p.sel $map $map), wanted: (rename $p.sel $map $keep)} }
             | uniq-by patched | reduce --fold {} {|r, acc| $acc | upsert $r.patched $r.wanted }

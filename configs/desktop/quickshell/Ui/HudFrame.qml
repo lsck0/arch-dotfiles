@@ -15,14 +15,11 @@ Item {
   property int len: Style.fx.bracketLen
   property int thick: Style.fx.bracketWidth
   property real strength: 0.9
-  // negative pushes the brackets outward, off the content
   property real margin: 0
   property real inset: 0
-  // DockShape.chamfer, 0 for a square card
   property real chamfer: 0
   property int chamferCorner: Qt.TopRightCorner
 
-  // keep opposite arms from meeting on small surfaces
   readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))
   readonly property int vlen: Math.max(0, Math.min(len, Math.floor(height / 2) - thick))
 
@@ -32,7 +29,6 @@ Item {
   readonly property bool _cutTop: _c > 0 && chamferCorner === Qt.TopRightCorner
   readonly property bool _cutBottom: _c > 0 && chamferCorner === Qt.BottomRightCorner
 
-  // the cut stroke sits half a width inside the edges like the arms
   readonly property real _ch: thick / 2
   readonly property real _cr: width - _ch
   readonly property real _k: _c - thick * (1 - Math.SQRT1_2)

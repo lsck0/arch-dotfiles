@@ -2,7 +2,6 @@ use module.nu *
 
 const UNIT = "color-grading.service"
 
-# wlr-gamma-control is a wlroots/hyprland protocol
 export def link [cfg: record] {
     [
         (file-render $UNIT (unit-dir | path join $UNIT) {DOTFILES: $env.DOTFILES})

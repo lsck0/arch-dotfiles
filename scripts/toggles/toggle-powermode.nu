@@ -1,12 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# tlp's own forced modes (not power-profiles-daemon, which would conflict); no forced mode is tlp's ac/bat auto-detect
 use lib.nu [notify root-run state-get state-set state-clear state-file quickshell-call cycle-next toggle-run]
 use ../lib/platform.nu [platform-load]
 
 const MODES = {
-    balanced: {icon: "⚖", label: "Balanced"}
-    performance: {icon: "⚡", label: "Performance"}
-    power-saver: {icon: "🔋", label: "Power Saver"}
+    balanced: {label: "Balanced"}
+    performance: {label: "Performance"}
+    power-saver: {label: "Power saver"}
 }
 const REPO = path self ../..
 const GHOSTTY_TIMEOUT_S = 3
@@ -46,7 +45,7 @@ def apply [mode: string]: nothing -> nothing {
     root-run tlp $mode
     state-set powermode $mode --volatile
     saver-sync
-    notify "Power Mode" ($MODES | get $mode | get label)
+    notify "Power mode" ($MODES | get $mode | get label)
 }
 
 # empty means no forced mode
@@ -54,8 +53,8 @@ def "main get" [] { current | default "" }
 
 def "main label" [] {
     match (current) {
-        null => "○ ⚙ Power: Auto (default)"
-        $mode => $"● ($MODES | get $mode | get icon) Power: ($MODES | get $mode | get label)"
+        null => "○ Power: Auto"
+        $mode => $"● Power: ($MODES | get $mode | get label)"
     }
 }
 
@@ -69,7 +68,7 @@ def auto []: nothing -> nothing {
     root-run tlp start
     state-clear powermode --volatile
     saver-sync
-    notify "Power Mode" "Auto (default)"
+    notify "Power mode" "Auto"
 }
 
 def "main set" [mode: string] {

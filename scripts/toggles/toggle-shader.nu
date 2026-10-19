@@ -2,7 +2,6 @@
 # shaders/<name>.frag carry `// @label|@variants|@animated|@themed` header lines; any one costs direct scanout
 use lib.nu [notify state-get state-set quickshell-call]
 
-# hyprland's damage_tracking: full is its default, none redraws every frame for time-driven shaders
 const DAMAGE_FULL = 2
 const DAMAGE_NONE = 0
 
@@ -28,7 +27,6 @@ def entries [shaders: table]: nothing -> list<string> {
         | flatten
 }
 
-# an entry of the discovered set; a bare name with variants means its first variant
 def entry-parse [entry: string, shaders: table]: nothing -> string {
     let first = $shaders | where name == $entry | get variants.0?.0?
     let entry = if $first == null { $entry } else { $"($entry):($first)" }
@@ -134,7 +132,6 @@ def "main off" [] { apply off (shaders) }
 
 def "main reapply" [] {
     let saved = state-get shader --volatile | split row " "
-    # power saver clears the shader on purpose
     if $saved.0 != (instance) or ($saved | length) < 2 or (state-get powersaver --volatile) == on {
         return
     }

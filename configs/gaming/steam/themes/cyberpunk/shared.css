@@ -8,8 +8,7 @@
     --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
 }
 
-/* derived borders, palette-driven off --cp-accent; muted so popups and button
-   rows read as surfaces, not a grid of loud blue outlines */
+/* muted, so popups and button rows read as surfaces, not a grid of outlines */
 :root {
     --cp-border-faint: color-mix(in srgb, var(--cp-accent) 14%, transparent);
     --cp-border: color-mix(in srgb, var(--cp-accent) 26%, transparent);
@@ -46,7 +45,6 @@ select {
     --color-progress-bar-foreground: var(--cp-accent) !important;
 }
 
-/* scrollbars */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--cp-accent) transparent;
@@ -70,7 +68,6 @@ select {
     color: var(--cp-bg) !important;
 }
 
-/* focus glow */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
@@ -79,7 +76,6 @@ input:focus-visible,
     box-shadow: 0 0 6px -1px var(--cp-accent) !important;
 }
 
-/* text fields */
 input,
 textarea {
     background-color: var(--cp-bg-alt) !important;
@@ -93,8 +89,6 @@ textarea:focus {
 }
 
 /* inset shadows as borders, no reflow */
-
-/* buttons: faint resting edge, a crisp (but glowless) accent on interaction */
 button,
 [class*="DialogButton"] {
     box-shadow: inset 0 0 0 1px var(--cp-border-faint) !important;
@@ -108,13 +102,11 @@ button:active,
     box-shadow: inset 0 0 0 1px var(--cp-accent) !important;
 }
 
-/* secondary buttons */
 [class*="Secondary"]:hover,
 [class*="secondary"]:hover {
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cp-accent-2) 45%, transparent) !important;
 }
 
-/* green install/play buttons */
 [class*="Green"],
 [class*="appactionbutton"],
 [class*="AppActionButton"] {
@@ -131,7 +123,6 @@ button:active,
         0 0 10px -2px var(--cp-accent) !important;
 }
 
-/* active tab */
 [class*="tab"][class*="active"],
 [class*="Tab"][class*="Active"],
 [class*="Tab"][class*="Selected"],
@@ -140,7 +131,6 @@ button:active,
     color: var(--cp-fg) !important;
 }
 
-/* tooltips and context menus: one soft container edge, no loud per-popup glow */
 [class*="tooltip"],
 [class*="Tooltip"],
 [class*="_hint"],
@@ -151,8 +141,7 @@ button:active,
     box-shadow: inset 0 0 0 1px var(--cp-border) !important;
 }
 
-/* buttons inside a popup menu must not each carry their own outline; the one
-   container edge above plus the hover fill below are the whole frame */
+/* the menu's own edge is the frame, an outline per item would nest boxes */
 [class*="contextMenu"] button,
 [class*="ContextMenu"] button,
 [class*="contextMenu"] [class*="DialogButton"],
@@ -160,7 +149,6 @@ button:active,
     box-shadow: none !important;
 }
 
-/* hovered menu item */
 [class*="contextMenuItem"]:hover,
 [class*="ContextMenuItem"]:hover,
 [class*="_menuitem"]:hover,
@@ -183,13 +171,10 @@ button:active,
         0 0 18px -9px var(--cp-accent) !important;
 }
 
-/* settings and form controls */
-
 html {
     accent-color: var(--cp-accent);
 }
 
-/* toggles */
 [class*="DialogToggle"][class*="On"],
 [class*="Toggle_On"],
 [class*="toggle_On"] {
@@ -197,7 +182,6 @@ html {
     box-shadow: 0 0 8px -2px var(--cp-accent) !important;
 }
 
-/* dropdowns */
 [class*="DialogDropDown"],
 [class*="_DropDown"],
 [class*="dropDown"] {
@@ -211,7 +195,6 @@ html {
     box-shadow: inset 0 0 0 1px var(--cp-border-strong) !important;
 }
 
-/* settings nav */
 [class*="PageListItem"][class*="Active"],
 [class*="pagedsettings"][class*="Active"],
 [class*="SettingsPage"][class*="active"] {
@@ -220,7 +203,6 @@ html {
     color: var(--cp-fg) !important;
 }
 
-/* progress bars */
 .DialogProgressBar_Value {
     background: var(--cp-accent) !important;
 }
@@ -234,7 +216,6 @@ html {
     background-color: var(--cp-bg) !important;
 }
 
-/* toasts */
 [class*="notificationgroup"],
 [class*="Notification"],
 [class*="_Toast"],
@@ -246,7 +227,6 @@ html {
         0 0 14px -8px var(--cp-accent) !important;
 }
 
-/* badges */
 [class*="_Badge"],
 [class*="unreadcount"],
 [class*="UnreadCount"] {

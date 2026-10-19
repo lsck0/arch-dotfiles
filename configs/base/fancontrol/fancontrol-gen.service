@@ -1,6 +1,6 @@
 [Unit]
 Description=Regenerate /etc/fancontrol for the live hwmon numbering
-After=lm_sensors.service
+After=systemd-modules-load.service
 Before=fancontrol.service
 
 [Service]

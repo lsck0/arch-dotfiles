@@ -5,7 +5,6 @@ export const meta = {packages: {pacman: [elan-lean lean-tui]}}
 const ELAN = "/usr/bin/elan"
 const CHANNEL = "nightly"
 
-# installed now, so the first lean, lake or LSP start neither blocks on a download nor fails offline
 export def link [cfg: record] {
     if not ($ELAN | path exists) { return [] }
     let home = $env.ELAN_HOME? | default ($nu.home-dir | path join .elan)

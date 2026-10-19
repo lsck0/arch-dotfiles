@@ -11,22 +11,24 @@ owner @{user_share_dirs}/capgemini/chromium/WidevineCdm/*/_platform_specific/lin
 # security keys (webauthn, the capgemini pingid one): apparmor.d's devices-u2f opens /dev/hidraw*, but chromium's hid
 # discovery first reads the hid parent's udev record and skips the key without it
 @{run}/udev/data/+hid:* r,
-# the nss cert store, moved to XDG state by base/xdg; apparmor.d's chromium abstraction only covers the ~/.pki default,
-# so client certs and the cert db are unwritable at the new path without this
-owner @{user_state_dirs}/pki/nssdb/ rw,
-owner @{user_state_dirs}/pki/nssdb/** rwk,
+include <abstractions/dotfiles/nssdb>
 # chromium probes its own cgroup cpu.max to size its thread pools and falls back to sysconf when it cannot; deny it
 # quietly so the probe does not flood the audit log
 deny @{sys}/fs/cgroup/**/cpu.max r,
 # puppeteer's headless browser (mermaid-cli's mmdc, nvim's diagram previews) runs on a fresh --user-data-dir in temp
 owner /tmp/puppeteer_dev_chrome_profile-*/ rw,
 owner /tmp/puppeteer_dev_chrome_profile-*/** rwk,
+# headless chromium without --user-data-dir (agents' screenshots, scripts) keeps its throwaway profile here
+owner /tmp/.org.chromium.Chromium.*/ rw,
+owner /tmp/.org.chromium.Chromium.*/** rwk,
 # claude's browser mcp servers (programming/playwright): playwright-mcp's throwaway profile in temp, and
 # chrome-devtools-mcp's lasting one in the cache
 owner /tmp/playwright_chromiumdev_profile-*/ rw,
 owner /tmp/playwright_chromiumdev_profile-*/** rwk,
 owner @{user_cache_dirs}/chrome-devtools-mcp/ rw,
 owner @{user_cache_dirs}/chrome-devtools-mcp/** rwk,
+# web speech: libspeechd talks to the socket-activated user speech-dispatcher (desktop/firefox)
+owner @{run}/user/@{uid}/speech-dispatcher/speechd.sock rw,
 # a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
 deny @{user_config_dirs}/mimeapps.list* w,
 deny @{user_share_dirs}/applications/{,**} w,
