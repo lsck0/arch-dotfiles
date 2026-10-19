@@ -31,6 +31,10 @@ table inet portmaster_bypass {
         ct mark != 0 return
 
         oifname "lo" meta l4proto { tcp, udp } th dport != { 53, 853 } ct mark set 1710
+        # resolved's stub is the system resolver: a wire query to it (firefox's HTTPS RR, dig, go) must get the
+        # split-horizon view nss-resolve gets, not portmaster's public one (lab A with cloudflare's ECH -> traefik's
+        # default cert); resolved's own upstream queries are still portmaster's
+        oifname "lo" ip daddr { 127.0.0.53, 127.0.0.54 } meta l4proto { tcp, udp } th dport 53 ct mark set 1710
         oifname @home_ifaces ip daddr @lab_dns meta l4proto { tcp, udp } th dport 53 ct mark set 1710
         oifname $lab_ifaces ip daddr $lab_v4 ct mark set 1710
         oifname $lab_ifaces ip6 daddr $lab_v6 ct mark set 1710

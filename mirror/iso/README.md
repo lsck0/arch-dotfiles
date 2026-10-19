@@ -35,11 +35,12 @@ invalid file stops with one line before anything is written. The installer looks
 3. `lsck0.<key>=<value>` on the kernel command line, one key each (`lsck0.wifi.ssid`, `lsck0.wifi.psk` for one
    network), overriding the file.
 
-Keys map onto the bootstrap's `BOOTSTRAP_*` variables (`scripts/lib/bootstrap.nu`'s header): `profile`, `platform`,
-`username`, `hostname`, `disk`, `keymap`, `timezone`, `locale`, `groups`, `ssh_key`, `encrypt`, `server`,
-`home_network`, `secure_boot`, `password`, `user_password`, `root_password`; `unattended: true` is
-`BOOTSTRAP_ASSUME_YES` (no summary, no erase confirmation). `wifi` is a list of `{ssid, psk, hidden}` tried in order
-before the picker. `source` (`{bundle, lfs}`) installs an unpublished tree, unverified: the vm test uses it.
+Keys map onto the bootstrap's `BOOTSTRAP_*` variables (`scripts/lib/bootstrap/questions.nuon`, which the installer
+also checks the file against): `profile`, `platform`, `username`, `hostname`, `disk`, `keymap`, `timezone`, `locale`,
+`groups`, `ssh_key`, `encrypt`, `server`, `home_network`, `secure_boot`, `password`, `user_password`, `root_password`;
+`unattended: true` is `BOOTSTRAP_ASSUME_YES` (no summary, no erase confirmation). `wifi` is a list of `{ssid, psk,
+hidden}` tried in order before the picker. `source` (`{bundle, lfs}`) installs an unpublished tree, unverified: the vm
+test uses it.
 
 ## Build
 

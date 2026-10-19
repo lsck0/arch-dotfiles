@@ -1,0 +1,363 @@
+# The install's questions, in the order `dot internal bootstrap` asks them, and every text the install shows.
+# Wording, order, options and defaults are edited here; scripts/lib/bootstrap.nu only walks this list. The lsck0 iso's
+# installer reads it too: the answer file's keys and types come from `questions` and `answers`, its Wi-Fi texts from `iso`.
+#
+# questions: asked top to bottom, each a record:
+#   id        the answer-file key (lsck0.nuon); later `when`s and {placeholders} use the answer by this name
+#   kind      text      one line, `pattern` (a regex) must match
+#             password  hidden and typed twice
+#             flag      yes or no; the env var takes 0 or 1
+#             menu      one of `options`
+#             keymap    `options`, or `other` to type a name; loaded at once
+#             profile   profiles/*.nuon (labelled by `file_label`), then `options`
+#             platform  the platforms/*.nuon of this kind of host (labelled by `form_factors`, minus `hidden`),
+#                       then `options`; their values server and custom are the two machines asked for below
+#             groups    a checklist of configs/ groups described by `options`, `required` always in; Enter or
+#                       unattended takes all, a server takes its template's
+#             disk      a menu of whole disks (none when there is one), then `confirm` to type its name
+#   title     the dialog's title, also the plain prompt's label
+#   text      the dialog's text
+#   options   [{value, label, when?}]
+#   default   the answer on Enter and unattended; null: required unattended; a record picks it by machine
+#   empty_ok  an empty answer is fine (text, password)
+#   env       the BOOTSTRAP_* variable that answers it without asking
+#   when      asked only when every field holds: an earlier answer by id (platform, encrypt), or host_wsl (running
+#             in WSL), machine_wsl (the machine picked is a WSL one), password_given (BOOTSTRAP_PASSWORD is set);
+#             a list means any of them. Not asked: its default, or what the machine's file sets.
+#   invalid   the error for a bad answer, with {value} and {choices}; hostname, timezone, locale and keymap
+#             also get a check in code (not a machine's name, a zoneinfo file, in locale.gen, loadkeys takes it)
+# A record with `step` runs that part of bootstrap.nu at this point instead; it needs the answers above it.
+# {name} in any text is filled in: an answer by id ({username}, {keymap}, {disk}), {value}, {choices}, {pattern},
+# {platforms} (the machines' names).
+{
+    questions: [
+        {
+            id: keymap
+            kind: keymap
+            env: BOOTSTRAP_KEYMAP
+            when: {host_wsl: false}
+            default: "de-latin1"
+            title: "keyboard"
+            text: "Keyboard layout:"
+            # the ones systemd's kbd-model-map turns into an x11 layout, so the desktop follows
+            options: [
+                {value: "de-latin1", label: "German"}
+                {value: "us", label: "English (US)"}
+                {value: "uk", label: "English (UK)"}
+                {value: "fr-latin1", label: "French"}
+                {value: "es", label: "Spanish"}
+                {value: "it", label: "Italian"}
+                {value: "pl2", label: "Polish"}
+                {value: "sv-latin1", label: "Swedish"}
+                {value: "dk", label: "Danish"}
+                {value: "no", label: "Norwegian"}
+                {value: "fi", label: "Finnish"}
+                {value: "pt-latin1", label: "Portuguese"}
+                {value: "br-abnt2", label: "Brazilian"}
+                {value: "be-latin1", label: "Belgian"}
+                {value: "sg-latin1", label: "Swiss German"}
+                {value: "dvorak", label: "US Dvorak"}
+            ]
+            other: {value: "other", label: "type one in", title: "keymap", text: "Keymap name, e.g. cz, hu, ru:"}
+            pattern: '^[A-Za-z0-9_-]+$'
+            invalid: "unknown keymap '{value}'"
+        }
+        {
+            id: username
+            kind: text
+            env: BOOTSTRAP_USERNAME
+            default: null
+            title: "login name"
+            text: "Login name:"
+            pattern: '^[a-z_][a-z0-9_-]{0,31}$'
+            invalid: "invalid login name '{value}', expected {pattern}"
+        }
+        {
+            id: profile
+            kind: profile
+            env: BOOTSTRAP_PROFILE
+            default: "custom"
+            title: "profile"
+            text: "Profile:"
+            file_label: "{name}: {capabilities}"
+            options: [{value: "custom", label: "nothing personal: no secrets, accounts or homelab"}]
+            invalid: "unknown profile '{value}', one of: {choices}"
+        }
+        {
+            id: platform
+            kind: platform
+            env: BOOTSTRAP_PLATFORM
+            default: "custom"
+            title: "machine"
+            text: "Machine:"
+            form_factors: {desktop: "PC", laptop: "notebook", wsl: "WSL", vm: "VM", server: "server"}
+            # the vm test passes it by argument
+            hidden: [test-vm]
+            options: [
+                {value: "server", label: "no desktop, just ssh and docker", when: {host_wsl: false}}
+                {value: "custom", label: "any other machine, you pick hostname and groups"}
+            ]
+            invalid: "unknown machine '{value}', one of: {choices}"
+            invalid_wsl: "server is not for WSL, pick custom"
+        }
+        {
+            id: home_network
+            kind: flag
+            env: BOOTSTRAP_HOME_NETWORK
+            when: {host_wsl: false}
+            default: false
+            title: "home network"
+            text: "Are you on your home network right now?\n\nYes lets this machine find printers and other devices here. Other networks stay locked down."
+        }
+        {step: home-network, when: {host_wsl: false}}
+        {step: platform-load}
+        {
+            id: hostname
+            kind: text
+            env: BOOTSTRAP_HOSTNAME
+            when: {platform: [server custom]}
+            default: {server: "server", custom: "archlinux"}
+            title: "hostname"
+            text: "Hostname (letters, digits, dashes):"
+            pattern: '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$'
+            invalid: "invalid hostname '{value}': letters, digits and dashes, and none of {platforms}"
+        }
+        {
+            id: ssh_key
+            kind: text
+            env: BOOTSTRAP_SSH_KEY
+            when: {platform: server}
+            default: ""
+            empty_ok: true
+            title: "ssh key"
+            text: "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nThe server only takes key logins. Empty leaves just the console."
+            pattern: '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
+            invalid: "BOOTSTRAP_SSH_KEY is not one ssh public key line"
+        }
+        {
+            id: timezone
+            kind: text
+            env: BOOTSTRAP_TIMEZONE
+            when: {platform: [server custom], host_wsl: false}
+            default: "Europe/Berlin"
+            title: "timezone"
+            text: "Timezone, e.g. Europe/London:"
+            pattern: '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$'
+            invalid: "unknown timezone '{value}'"
+        }
+        {
+            id: locale
+            kind: text
+            env: BOOTSTRAP_LOCALE
+            when: {platform: [server custom], host_wsl: false}
+            default: "en_US.UTF-8"
+            title: "locale"
+            text: "Locale, e.g. en_US.UTF-8 or de_DE.UTF-8:"
+            invalid: "unknown locale '{value}'"
+        }
+        {
+            id: groups
+            kind: groups
+            env: BOOTSTRAP_GROUPS
+            when: {platform: [server custom]}
+            required: "base"
+            title: "groups"
+            text: "Package groups. Space toggles, Enter accepts. {required} is always in."
+            plain: "package groups ({required} is always in):"
+            plain_prompt: "numbers to leave out, Enter for none: "
+            options: [
+                {value: "base", label: "kernel, boot, drivers, firewall, security and system services"}
+                {value: "core", label: "shell, cli tools, diagnostics, git, gpg, theming"}
+                {value: "creating", label: "image, audio, video and 3d editors, obs"}
+                {value: "desktop", label: "hyprland and plasma, browsers, terminals, audio, printing, apps"}
+                {value: "fonts", label: "noto, nerd and cjk fonts"}
+                {value: "gaming", label: "steam, lutris, heroic, proton and game tooling"}
+                {value: "latex", label: "tex engine, pdf viewer, zotero"}
+                {value: "llm", label: "local language models with ollama"}
+                {value: "pentesting", label: "security auditing and pentest tools"}
+                {value: "programming", label: "compilers, editors, language servers, docker"}
+                {value: "qemu", label: "virtual machines, waydroid, distrobox"}
+                {value: "rocm", label: "amd gpu compute (ollama, pytorch), amd only"}
+                {value: "socials", label: "discord, signal, telegram, spotify"}
+            ]
+            invalid: "unknown package group '{value}', one of: {choices}"
+        }
+        {
+            id: secure_boot
+            kind: menu
+            env: BOOTSTRAP_SECURE_BOOT
+            when: {platform: [server custom], host_wsl: false}
+            default: "microsoft"
+            title: "secure boot"
+            text: "Secure Boot:"
+            options: [
+                {value: "own", label: "own keys only, Windows will not boot"}
+                {value: "microsoft", label: "own keys plus Microsoft's, Windows still boots"}
+                {value: "off", label: "no Secure Boot"}
+            ]
+            invalid: "BOOTSTRAP_SECURE_BOOT is '{value}', expected one of {choices}"
+        }
+        {step: install-checks, when: {machine_wsl: false}}
+        {
+            id: disk
+            kind: disk
+            env: BOOTSTRAP_DISK
+            when: {machine_wsl: false}
+            title: "disk"
+            text: "Install to which disk? It gets erased."
+            plain: "disk ({choices}): "
+            confirm: {title: "erase", text: "Everything on {disk} will be erased. Type {disk} to confirm:"}
+            none: "no disk found (set BOOTSTRAP_DISK)"
+            invalid: "{value} is not a block device"
+            invalid_part: "{value} is not a whole disk"
+        }
+        {
+            id: encrypt
+            kind: flag
+            env: BOOTSTRAP_ENCRYPT
+            when: {machine_wsl: false}
+            default: true
+            title: "encryption"
+            text: "Encrypt the disk? You type its password at every boot.\n\nWithout it, anyone who gets the disk can read it."
+        }
+        {
+            id: password
+            kind: password
+            env: BOOTSTRAP_PASSWORD
+            when: {machine_wsl: false, encrypt: true}
+            title: "disk password"
+            text: "Disk password, typed at every boot ({keymap} layout):"
+        }
+        {
+            id: user_password
+            kind: password
+            env: BOOTSTRAP_USER_PASSWORD
+            when: {machine_wsl: false, password_given: false, encrypt: true}
+            empty_ok: true
+            title: "{username} password"
+            text: "Password for login and sudo. Empty uses the disk password:"
+        }
+        {
+            id: user_password
+            kind: password
+            env: BOOTSTRAP_USER_PASSWORD
+            when: {machine_wsl: false, password_given: false, encrypt: false}
+            title: "{username} password"
+            text: "Password for login and sudo:"
+        }
+        {
+            id: root_password
+            kind: password
+            env: BOOTSTRAP_ROOT_PASSWORD
+            when: {machine_wsl: false, password_given: false}
+            empty_ok: true
+            title: "root password"
+            text: "Root password. Empty keeps root locked:"
+        }
+        # WSL: login and sudo only, no disk
+        {
+            id: user_password
+            kind: password
+            env: BOOTSTRAP_USER_PASSWORD
+            when: {machine_wsl: true}
+            title: "{username} password"
+            text: "Password for login and sudo:"
+        }
+    ]
+
+    # answer-file keys that are no question: type and the BOOTSTRAP_* variable; `keys` a record's own
+    answers: [
+        {id: server, type: bool, env: BOOTSTRAP_SERVER}
+        {id: unattended, type: bool, env: BOOTSTRAP_ASSUME_YES}
+        {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool}}
+        {id: source, type: record, keys: {bundle: string, lfs: string}}
+    ]
+
+    messages: {
+        welcome: {
+            title: "welcome"
+            text: "Installs Arch Linux. Nothing changes until you confirm at the end.\nThen the disk is erased and the install runs on its own over a few reboots. That can take hours.\n\nEsc quits."
+            text_wsl: "Sets up this WSL distro: a user with sudo, the dotfiles and wsl.conf.\n\nEsc quits."
+        }
+        aborted: "aborted"
+        not_valid: "'{value}' is not valid."
+        required: "{env} is required unattended"
+        flag_invalid: "{env} is '{value}', expected 0 or 1"
+        password_required: "{title} is required unattended, set it in the environment"
+        password_empty: "It can't be empty."
+        password_empty_plain: "empty {title}"
+        password_again: "Again:"
+        password_again_plain: "again: "
+        password_mismatch: "They did not match."
+        password_mismatch_plain: "the passwords did not match"
+        root: "run as root"
+        host: "run this from the Arch ISO or inside WSL"
+        wsl_machine: "{platform} is a WSL machine, run this in the distro's root shell"
+        no_router: "no router found, every network counts as foreign"
+        not_iso: "not running from the Arch ISO"
+        not_uefi: "not booted in UEFI mode"
+        offline: "no network"
+        setup_mode: {title: "secure boot", text: "The firmware is not in Setup Mode, so Secure Boot keys can't be enrolled.\n\nContinue without Secure Boot?"}
+        setup_mode_stop: "put the firmware in Secure Boot Setup Mode, then run this again"
+        wsl_password_empty: "empty password"
+        password_missing: "{username} password is required unattended, set BOOTSTRAP_PASSWORD or BOOTSTRAP_USER_PASSWORD"
+        wsl_done: "done. in windows run: wsl --terminate archlinux, open it again, then: cd ~/projects/arch-dotfiles && dot sync --no-push"
+        done: "done. rebooting in {delay}, remove the ISO; the install goes on by itself"
+    }
+
+    # the last screen before anything is written; rows in this order, the ssh key only for a server
+    summary: {
+        title: "summary"
+        question: "Install now? This erases {disk}."
+        install: "install"
+        quit: "quit"
+        rows: {
+            login: "login"
+            profile: "profile"
+            machine: "machine"
+            hostname: "hostname"
+            keyboard: "keyboard"
+            timezone: "timezone"
+            locale: "locale"
+            groups: "groups"
+            home_network: "home network"
+            disk: "disk"
+            secure_boot: "secure boot"
+            root: "root"
+            ssh_key: "ssh key"
+        }
+        profile_none: "nothing personal"
+        home_none: "no"
+        home_router: "router {router}"
+        home_router_none: "not found"
+        home_wifi: ", wifi {ssid}"
+        disk: "{disk} {model}, erased, {encryption}"
+        encrypted: "encrypted"
+        unencrypted: "not encrypted"
+        secure_boot_off: "off"
+        secure_boot_no_setup_mode: "off, firmware not in Setup Mode"
+        root_locked: "locked"
+        root_set: "password set"
+        ssh_key_none: "none, console only"
+    }
+
+    # the lsck0 iso's own screens before the bootstrap starts (mirror/iso/airootfs/usr/local/bin/lsck0-install)
+    iso: {
+        keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
+        wifi: {
+            title: "Wi-Fi"
+            text: "{missing}\n\nPick a network:"
+            rescan: "scan again"
+            hidden: "a hidden network"
+            shell: "a shell, no install"
+            name: "Network name:"
+            password: "Password for {ssid}, empty if open:"
+            failed: "did not connect"
+        }
+        connecting: "install: connecting to {ssid}"
+        waiting: "install: {missing}; checking again in {wait}, Ctrl+C for a shell"
+        no_link: "no network: plug in a cable or pick a Wi-Fi network"
+        no_address: "{devices} is up but has no address yet"
+        no_answer: "{host} does not answer over https"
+    }
+}

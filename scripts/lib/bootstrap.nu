@@ -1,7 +1,6 @@
-# unattended env: BOOTSTRAP_{USERNAME,PROFILE,PLATFORM,DISK,PASSWORD,USER_PASSWORD,ROOT_PASSWORD,KEYMAP,HOME_NETWORK,
-# ENCRYPT} and for a server or custom machine BOOTSTRAP_{HOSTNAME,SSH_KEY,GROUPS,TIMEZONE,LOCALE,SECURE_BOOT}. PROFILE is
-# a profiles/ name or custom (the default), PLATFORM a platforms/ name, server or custom (the default; the argument wins);
-# ENCRYPT is 0 or 1 (default 1), SECURE_BOOT own, microsoft (the default) or off. BOOTSTRAP_SERVER=1 still means server
+# the questions, their texts, defaults, env vars and answer-file keys: bootstrap/questions.nuon, walked in order.
+# unattended (no tty or BOOTSTRAP_ASSUME_YES=1) every answer comes from its BOOTSTRAP_* variable or its default;
+# BOOTSTRAP_SERVER=1 still turns custom into server
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
@@ -20,10 +19,7 @@ const GEO_TIMEOUT_S = 3
 const HOMELAB_MIRROR = 'http://10.100.0.104:8090/archlinux/$repo/os/$arch'
 const HOMELAB_MIRROR_PROBE = "http://10.100.0.104:8090/archlinux/core/os/x86_64/core.db"
 
-const KEYMAP_DEFAULT = "de-latin1"
 const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
-const TIMEZONE_DEFAULT = "Europe/Berlin"
-const LOCALE_DEFAULT = "en_US.UTF-8"
 const ESP_SIZE_MIB = 1024
 const LUKS_NAME = "root"
 # gpt type codes: linux luks, linux x86-64 root
@@ -56,23 +52,9 @@ const PLATFORM_NEW = "custom"
 const PLATFORM_TEMPLATES = "platforms/templates"
 const SERVER = "server"
 const PROFILE_CUSTOM = "custom"
-# menu labels by a platform file's form_factor
-const FORM_FACTOR_LABELS = {desktop: PC, laptop: notebook, wsl: WSL, vm: VM, server: server}
 const SBCTL_MODULE = "base/boot/sbctl"
-const SECURE_BOOT_DEFAULT = "microsoft"
-const SECURE_BOOT_CHOICES = {
-    own: "own keys only, Windows will not boot"
-    microsoft: "own keys plus Microsoft's, Windows still boots"
-    off: "no Secure Boot"
-}
-const SSH_KEY_PATTERN = '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
-const PLATFORMS_HIDDEN = [test-vm]
 const LOGIN_SHELL = "/usr/bin/zsh"
 const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
-const USERNAME_PATTERN = '^[a-z_][a-z0-9_-]{0,31}$'
-const HOSTNAME_PATTERN = '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$'
-const KEYMAP_PATTERN = '^[A-Za-z0-9_-]+$'
-const TIMEZONE_PATTERN = '^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+){0,2}$'
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 const TUI_WIDTH = 72
 # frame and buttons, plus an inputbox's field; dialog's own auto height drops wrapped text
@@ -80,28 +62,7 @@ const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
 const TUI_TEXT_MARGIN = 6
 const TUI_BACKTITLE = "arch-dotfiles bootstrap"
-# keymaps systemd's kbd-model-map turns into an x11 layout, so the desktop follows
-const COMMON_KEYMAPS = [
-    de-latin1 German us "English (US)" uk "English (UK)" fr-latin1 French es Spanish it Italian pl2 Polish
-    sv-latin1 Swedish dk Danish no Norwegian fi Finnish pt-latin1 Portuguese br-abnt2 Brazilian be-latin1 Belgian
-    sg-latin1 "Swiss German" dvorak "US Dvorak"
-]
-const REQUIRED_GROUP = "base"
-const GROUP_DESCRIPTIONS = {
-    base: "kernel, boot, drivers, firewall, security and system services"
-    core: "shell, cli tools, diagnostics, git, gpg, theming"
-    creating: "image, audio, video and 3d editors, obs"
-    desktop: "hyprland and plasma, browsers, terminals, audio, printing, apps"
-    fonts: "noto, nerd and cjk fonts"
-    gaming: "steam, lutris, heroic, proton and game tooling"
-    latex: "tex engine, pdf viewer, zotero"
-    llm: "local language models with ollama"
-    pentesting: "security auditing and pentest tools"
-    programming: "compilers, editors, language servers, docker"
-    qemu: "virtual machines, waydroid, distrobox"
-    rocm: "amd gpu compute (ollama, pytorch), amd only"
-    socials: "discord, signal, telegram, spotify"
-}
+const QUESTIONS = path self bootstrap/questions.nuon
 
 def assume []: nothing -> bool { $env.BOOTSTRAP_ASSUME_YES? == "1" }
 def tui []: nothing -> bool { $env.BOOTSTRAP_TUI? == "1" }
@@ -116,6 +77,31 @@ def one-line [value: string, label: string]: nothing -> string {
 def die [message: string] {
     if (tui) { ^clear }
     error make {msg: $message}
+}
+
+def questions-load []: nothing -> record { open $QUESTIONS }
+
+# {name} in a questions.nuon text, from the answers and the values given; a list joins with spaces
+def text-fill [text: string, values: record]: nothing -> string {
+    $values | items {|name, value| {name: $name, value: $value} } | reduce --fold $text {|v, acc|
+        let tag = $"{($v.name)}"
+        if not ($acc | str contains $tag) { return $acc }
+        let shown = if ($v.value | describe | str starts-with "list") { $v.value | str join " " } else { $v.value | default "" | into string }
+        $acc | str replace --all $tag $shown
+    }
+}
+
+# a question's `when`: every field equals its value, or one of a list's
+def when-holds [when: any, c: record]: nothing -> bool {
+    $when | default {} | items {|field, want|
+        if $field not-in $c { error make {msg: $"($QUESTIONS): `when` names ($field), no answer or fact by that name"} }
+        let have = $c | get $field
+        if ($want | describe | str starts-with "list") { $have in $want } else { $have == $want }
+    } | all {|held| $held }
+}
+
+def options-items [e: record, c: record]: nothing -> list<string> {
+    $e.options | where {|o| when-holds $o.when? $c } | each {|o| [$o.value $o.label] } | flatten
 }
 
 def online []: nothing -> bool {
@@ -133,7 +119,7 @@ def --env tui-init []: nothing -> nothing {
 
 def --wrapped dlg [...args: string]: nothing -> string {
     # collected inside the try: a msgbox's empty stream piped out of it raises nu's "internal error"
-    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die aborted }
+    try { ^dialog --backtitle $TUI_BACKTITLE --cr-wrap --stdout ...$args | collect } catch { die (questions-load).messages.aborted }
 }
 
 def height [text: string, rows: int]: nothing -> string {
@@ -146,13 +132,13 @@ def screen [title: string, kind: string, text: string, ...init: string]: nothing
     dlg --title $title --no-collapse ...$extra $"--($kind)" $text (height $text $rows) ($TUI_WIDTH | into string) ...$init
 }
 
-def ask [check: closure, label: string, text: string, default: string]: nothing -> any {
+def ask [m: record, check: closure, label: string, text: string, default: string]: nothing -> any {
     if (assume) { return $default }
     mut note = ""
     loop {
         let answer = if (tui) { screen $label inputbox $"($note)($text)" $default } else { input $"($label) [($default)]: " | if ($in | is-empty) { $default } else { $in } }
         if (do $check $answer) { return $answer }
-        $note = $"'($answer)' is not valid.\n\n"
+        $note = $"(text-fill $m.not_valid {value: $answer})\n\n"
         if not (tui) { log-warn $note }
     }
 }
@@ -172,7 +158,7 @@ def yes [title: string, text: string, --default-yes]: nothing -> bool {
         let default = if $default_yes { [] } else { [--defaultno] }
         # --stdout: else dialog draws into complete's pipe and the next enter answers a box never shown
         let status = (^dialog --backtitle $TUI_BACKTITLE --stdout --cr-wrap --title $title ...$default --yesno $text (height $text $TUI_BOX_ROWS) ($TUI_WIDTH | into string) | complete).exit_code
-        if $status > 1 { die aborted }
+        if $status > 1 { die (questions-load).messages.aborted }
         $status == 0
     } else if $default_yes {
         (input $"($text) [Y/n] " | str lowercase) != "n"
@@ -181,44 +167,25 @@ def yes [title: string, text: string, --default-yes]: nothing -> bool {
     }
 }
 
-def ask-flag [name: string, default: bool, title: string, text: string]: nothing -> bool {
-    let value = env-or $name | if ($in | is-not-empty) { $in } else if (assume) { if $default { "1" } else { "0" } } else {
-        if (yes $title $text --default-yes=$default) { "1" } else { "0" }
-    }
-    if $value not-in ["0" "1"] { die $"($name) is '($value)', expected 0 or 1" }
-    $value == "1"
-}
-
-def keymap-load [keymap: string]: nothing -> bool {
-    $keymap =~ $KEYMAP_PATTERN and (^loadkeys $keymap | complete).exit_code == 0
-}
-
-def ask-keymap []: nothing -> string {
-    if not (tui) { return (ask {|k| keymap-load $k } keymap "" $KEYMAP_DEFAULT) }
-    let picked = menu keyboard "Keyboard layout:" $KEYMAP_DEFAULT ($COMMON_KEYMAPS ++ [other "type one in"])
-    if $picked != "other" { return $picked }
-    ask {|k| keymap-load $k } keymap "Keymap name, e.g. cz, hu, ru:" ""
-}
-
-def ask-password [label: string, hint: string, empty_ok: bool]: nothing -> any {
+def ask-password [m: record, label: string, hint: string, empty_ok: bool]: nothing -> any {
     if (assume) {
         if $empty_ok { return "" }
-        die $"($label) is required unattended, set it in the environment"
+        die (text-fill $m.password_required {title: $label})
     }
     mut note = ""
     loop {
         let first = if (tui) { screen $label passwordbox $"($note)($hint)" } else { print -e $hint; input -s $"($label): " }
         if ($first | is-empty) {
             if $empty_ok { return "" }
-            $note = "It can't be empty.\n\n"
-            if not (tui) { die $"empty ($label)" }
+            $note = $"($m.password_empty)\n\n"
+            if not (tui) { die (text-fill $m.password_empty_plain {title: $label}) }
             continue
         }
-        let second = if (tui) { screen $label passwordbox "Again:" } else { print -e ""; input -s "again: " }
+        let second = if (tui) { screen $label passwordbox $m.password_again } else { print -e ""; input -s $m.password_again_plain }
         if not (tui) { print -e "" }
         if $first == $second { return $first }
-        if not (tui) { die "the passwords did not match" }
-        $note = "They did not match.\n\n"
+        if not (tui) { die $m.password_mismatch_plain }
+        $note = $"($m.password_mismatch)\n\n"
     }
 }
 
@@ -455,235 +422,322 @@ def platform-names [repo: path]: nothing -> list<string> {
     glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem } | sort
 }
 
-# the menu's tag and text pairs: the platform files for this kind of host, then server and custom
-def platform-items [repo: path, wsl: bool]: nothing -> list<string> {
-    let fixed = platform-names $repo | where $it not-in $PLATFORMS_HIDDEN | each {|p|
-        {name: $p, form_factor: (open ($repo | path join platforms $"($p).nuon") | get --optional form_factor | default "")}
-    } | where {|p| ($p.form_factor == "wsl") == $wsl } | each {|p|
-        [$p.name ($FORM_FACTOR_LABELS | get --optional $p.form_factor | default $p.form_factor)]
+# the menu's tag and text pairs: the platform files for this kind of host, then the question's options
+def platform-items [e: record, c: record]: nothing -> list<string> {
+    let fixed = platform-names $c.repo | where $it not-in $e.hidden | each {|p|
+        {name: $p, form_factor: (open ($c.repo | path join platforms $"($p).nuon") | get --optional form_factor | default "")}
+    } | where {|p| ($p.form_factor == "wsl") == $c.host_wsl } | each {|p|
+        [$p.name ($e.form_factors | get --optional $p.form_factor | default $p.form_factor)]
     } | flatten
-    let server = if $wsl { [] } else { [$SERVER "no desktop, just ssh and docker"] }
-    $fixed ++ $server ++ [$PLATFORM_NEW "any other machine, you pick hostname and groups"]
+    $fixed ++ (options-items $e $c)
 }
 
 # the profiles/ name and its capabilities; custom has none and copies no file
-export def bootstrap-profile-resolve [repo: path, picked: string]: nothing -> record {
-    if $picked == $PROFILE_CUSTOM { return {name: $PROFILE_CUSTOM, file: "", capabilities: []} }
+export def bootstrap-profile-resolve [repo: path, e: record, picked: string]: nothing -> record {
+    if $picked == $PROFILE_CUSTOM { return {profile: $PROFILE_CUSTOM, profile_file: "", capabilities: []} }
     let names = glob ($repo | path join profiles *.nuon) | each { path parse | get stem } | sort
-    if $picked not-in $names { die $"unknown profile '($picked)', one of: ($names | append $PROFILE_CUSTOM | str join ' ')" }
+    if $picked not-in $names { die (text-fill $e.invalid {value: $picked, choices: ($names ++ $e.options.value)}) }
     let file = $repo | path join profiles $"($picked).nuon"
-    {name: $picked, file: $file, capabilities: (open $file | get --optional capabilities | default [])}
+    {profile: $picked, profile_file: $file, capabilities: (open $file | get --optional capabilities | default [])}
 }
 
 # a platforms/ file, or server and custom: the two that ask for the machine and write /etc/dotfiles/platform.nuon
-export def bootstrap-platform-resolve [repo: path, picked: string, wsl: bool]: nothing -> record {
+export def bootstrap-platform-resolve [repo: path, e: record, picked: string, wsl: bool]: nothing -> record {
     let server_flag = env-or BOOTSTRAP_SERVER
-    if $server_flag not-in ["" "0" "1"] { die $"BOOTSTRAP_SERVER is '($server_flag)', expected 0 or 1" }
+    if $server_flag not-in ["" "0" "1"] { die (text-fill (questions-load).messages.flag_invalid {env: BOOTSTRAP_SERVER, value: $server_flag}) }
     let name = if $picked == $PLATFORM_NEW and $server_flag == "1" { $SERVER } else { $picked }
-    if $name == $SERVER and $wsl { die "server is not for WSL, pick custom" }
-    if $name in [$PLATFORM_NEW $SERVER] { return {name: $name, generic: true, server: ($name == $SERVER)} }
+    if $name == $SERVER and $wsl { die $e.invalid_wsl }
+    if $name in [$PLATFORM_NEW $SERVER] { return {platform: $name, generic: true, server: ($name == $SERVER)} }
     let names = platform-names $repo
-    if $name not-in $names { die $"unknown machine '($name)', one of: ($names | where $it not-in $PLATFORMS_HIDDEN | append [$SERVER $PLATFORM_NEW] | str join ' ')" }
-    {name: $name, generic: false, server: false}
+    if $name not-in $names { die (text-fill $e.invalid {value: $name, choices: (($names | where $it not-in $e.hidden) ++ $e.options.value)}) }
+    {platform: $name, generic: false, server: false}
 }
 
-export def bootstrap-profile-choose [repo: path]: nothing -> record {
-    let given = env-or BOOTSTRAP_PROFILE
-    let picked = if ($given | is-not-empty) { $given } else if (assume) { $PROFILE_CUSTOM } else {
-        let named = glob ($repo | path join profiles *.nuon) | sort | each {|f|
+def answer-valid [e: record, value: string, c: record]: nothing -> bool {
+    if ($value | is-empty) and ($e.empty_ok? | default false) { return true }
+    if $e.pattern? != null and $value !~ $e.pattern { return false }
+    match $e.id {
+        "hostname" => ($value not-in $c.platforms)
+        "timezone" => ($"/usr/share/zoneinfo/($value)" | path exists)
+        "locale" => ($value in (open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }))
+        "keymap" => ((^loadkeys $value | complete).exit_code == 0)
+        _ => true
+    }
+}
+
+def answer-invalid [e: record, value: string, c: record, choices: list<string> = []]: nothing -> nothing {
+    die (text-fill $e.invalid ($c | merge {value: $value, choices: $choices, pattern: ($e.pattern? | default "")}))
+}
+
+def answer-text [m: record, e: record, c: record]: nothing -> string {
+    let default = if ($e.default? | describe | str starts-with "record") { $e.default | get --optional $c.platform } else { $e.default? }
+    let given = env-or $e.env
+    let value = if ($given | is-not-empty) { $given } else if (assume) {
+        if $default == null { die (text-fill $m.required $e) }
+        $default
+    } else {
+        ask $m {|v| answer-valid $e $v $c } (text-fill $e.title $c) (text-fill $e.text $c) ($default | default "")
+    }
+    if not (answer-valid $e $value $c) { answer-invalid $e $value $c }
+    $value
+}
+
+def answer-flag [m: record, e: record, c: record]: nothing -> bool {
+    let value = env-or $e.env | if ($in | is-not-empty) { $in } else if (assume) { if $e.default { "1" } else { "0" } } else {
+        if (yes (text-fill $e.title $c) (text-fill $e.text $c) --default-yes=$e.default) { "1" } else { "0" }
+    }
+    if $value not-in ["0" "1"] { die (text-fill $m.flag_invalid {env: $e.env, value: $value}) }
+    $value == "1"
+}
+
+def answer-menu [e: record, c: record]: nothing -> string {
+    let items = options-items $e $c
+    let value = env-or $e.env | if ($in | is-not-empty) or (assume) { $in | default --empty $e.default } else if (tui) {
+        menu (text-fill $e.title $c) (text-fill $e.text $c) $e.default $items
+    } else {
+        menu-plain (text-fill $e.title $c) $e.default $items
+    }
+    let values = $e.options.value
+    if $value not-in $values { die (text-fill $e.invalid {value: $value, choices: ($values | str join ", ")}) }
+    $value
+}
+
+def answer-keymap [m: record, e: record, c: record]: nothing -> string {
+    let valid = {|k| answer-valid $e $k $c }
+    let given = env-or $e.env
+    # not `env-or | if`: a let inside that else block hands back a closure (nu 0.116)
+    let keymap = if ($given | is-not-empty) { $given } else if not (tui) { ask $m $valid $e.other.title "" $e.default } else {
+        let picked = menu $e.title $e.text $e.default ((options-items $e $c) ++ [$e.other.value $e.other.label])
+        if $picked != $e.other.value { $picked } else { ask $m $valid $e.other.title $e.other.text "" }
+    }
+    if not (do $valid $keymap) { answer-invalid $e $keymap $c }
+    $keymap
+}
+
+def answer-password [m: record, e: record, c: record]: nothing -> string {
+    env-or $e.env | if ($in | is-not-empty) { $in } else {
+        ask-password $m (text-fill $e.title $c) (text-fill $e.text $c) ($e.empty_ok? | default false)
+    }
+}
+
+def answer-profile [e: record, c: record]: nothing -> record {
+    let given = env-or $e.env
+    let picked = if ($given | is-not-empty) { $given } else if (assume) { $e.default } else {
+        let named = glob ($c.repo | path join profiles *.nuon) | sort | each {|f|
             let p = open $f
-            let caps = $p.capabilities? | default [] | str join ", "
-            [($f | path parse | get stem) $"($p.name? | default ($f | path parse | get stem)): ($caps)"]
+            let stem = $f | path parse | get stem
+            [$stem (text-fill $e.file_label {name: ($p.name? | default $stem), capabilities: ($p.capabilities? | default [] | str join ", ")})]
         } | flatten
-        let items = $named ++ [$PROFILE_CUSTOM "nothing personal: no secrets, accounts or homelab"]
-        if (tui) { menu profile "Profile:" $PROFILE_CUSTOM $items } else { menu-plain profile $PROFILE_CUSTOM $items }
+        let items = $named ++ (options-items $e $c)
+        if (tui) { menu $e.title $e.text $e.default $items } else { menu-plain $e.title $e.default $items }
     }
-    bootstrap-profile-resolve $repo $picked
+    bootstrap-profile-resolve $c.repo $e $picked
 }
 
-export def bootstrap-platform-choose [repo: path, platform_arg: string, wsl: bool]: nothing -> record {
-    let given = [$platform_arg (env-or BOOTSTRAP_PLATFORM)] | where $it != "" | get --optional 0
-    let picked = if $given != null { $given } else if (assume) { $PLATFORM_NEW } else {
-        let items = platform-items $repo $wsl
-        if (tui) { menu machine "Machine:" $PLATFORM_NEW $items } else { menu-plain machine $PLATFORM_NEW $items }
+def answer-platform [e: record, c: record]: nothing -> record {
+    let given = [$c.platform_arg (env-or $e.env)] | where $it != "" | get --optional 0
+    let picked = if $given != null { $given } else if (assume) { $e.default } else {
+        let items = platform-items $e $c
+        if (tui) { menu $e.title $e.text $e.default $items } else { menu-plain $e.title $e.default $items }
     }
-    bootstrap-platform-resolve $repo $picked $wsl
+    bootstrap-platform-resolve $c.repo $e $picked $c.host_wsl
+}
+
+def answer-groups [e: record, c: record]: nothing -> list<string> {
+    let universe = ls ($c.repo | path join configs) | where type == dir | get name | path basename | sort
+    let required = {required: $e.required}
+    let chosen = if $c.server { $c.groups } else if (env-or $e.env | is-not-empty) {
+        env-or $e.env | split row --regex '\s+' | where $it != ""
+    } else if (assume) { $universe } else if (tui) {
+        let items = $universe | where $it != $e.required | each {|g| [$g ($e.options | where value == $g | get --optional 0.label | default "") on] } | flatten
+        dlg --title $e.title --separate-output --checklist (text-fill $e.text $required) "0" ($TUI_WIDTH | into string) "0" ...$items | lines
+    } else {
+        print -e (text-fill $e.plain $required)
+        $universe | enumerate | each { print -e $"  ($in.index + 1)  ($in.item)" } | ignore
+        let excludes = input $e.plain_prompt | split row " " | where $it != ""
+        $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
+    }
+    let groups = [$e.required] ++ ($chosen | where $it != $e.required)
+    let unknown = $groups | where {|g| ($g | path split | first) not-in $universe }
+    if ($unknown | is-not-empty) { answer-invalid $e ($unknown | first) $c $universe }
+    $groups
+}
+
+def disk-model [disk: string]: nothing -> string {
+    ^lsblk -dno SIZE,MODEL $disk | str trim | str replace --all --regex '\s+' ' '
+}
+
+def answer-disk [m: record, e: record, c: record]: nothing -> record {
+    let disks = ^lsblk -J -dnpo NAME,TYPE,RM | from json | get blockdevices | where type == disk and rm == false and not ($it.name =~ 'zram|loop') | get name
+    let disk = env-or $e.env | if ($in | is-not-empty) { $in } else if ($disks | is-empty) {
+        die $e.none
+    } else if ($disks | length) == 1 { $disks.0 } else if (tui) {
+        menu $e.title $e.text $disks.0 ($disks | each {|d| [$d (disk-model $d)] } | flatten)
+    } else {
+        ^lsblk -dpo NAME,SIZE,MODEL ...$disks
+        input (text-fill $e.plain {choices: $disks})
+    }
+    if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die (text-fill $e.invalid {value: $disk}) }
+    # BOOTSTRAP_DISK skips the menu's filter, and a partition or dm device would be zapped before the parts check
+    if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die (text-fill $e.invalid_part {value: $disk}) }
+    let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
+    let erase = text-fill $e.confirm.text {disk: $disk}
+    let typed = if (assume) { $disk } else if (tui) { screen $e.confirm.title inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
+    if $typed != $disk { die $m.aborted }
+    {disk: $disk, disk_model: (disk-model $disk)}
+}
+
+# one question's answer, as the fields it sets
+def question-ask [q: record, e: record, c: record]: nothing -> record {
+    let m = $q.messages
+    let one = {|value| {} | insert $e.id $value }
+    match $e.kind {
+        "text" => (do $one (answer-text $m $e $c))
+        "password" => (do $one (answer-password $m $e $c))
+        "flag" => (do $one (answer-flag $m $e $c))
+        "menu" => (do $one (answer-menu $e $c))
+        "keymap" => (do $one (answer-keymap $m $e $c))
+        "groups" => (do $one (answer-groups $e $c))
+        "profile" => (answer-profile $e $c)
+        "platform" => (answer-platform $e $c)
+        "disk" => (answer-disk $m $e $c)
+        _ => (error make {msg: $"($QUESTIONS): ($e.id) has kind ($e.kind), not one bootstrap.nu asks"})
+    }
+}
+
+def step-home-network [q: record, c: record]: nothing -> record {
+    let gateway = if $c.home_network { home-gateway-mac } else { null }
+    if $c.home_network and $gateway == null { log-warn $q.messages.no_router }
+    $c | merge {home_gateway: $gateway, home_ssid: (if $c.home_network { home-ssid } else { "" })}
+}
+
+# what the machine picked brings: a platforms/ file's facts, the server template, or WSL's form factor
+def step-platform-load [q: record, c: record]: nothing -> record {
+    let c = if not $c.generic {
+        let file = $c.repo | path join platforms $"($c.platform).nuon"
+        let p = open $file
+        if ($p.hostname? | is-empty) { die $"($file) sets no hostname" }
+        let all = ls ($c.repo | path join configs) | where type == dir | get name | path basename
+        let options = $c.repo | path join platforms $"($c.platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
+        let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
+        $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
+    } else if $c.server {
+        let template = $c.repo | path join $PLATFORM_TEMPLATES $"($SERVER).nuon"
+        let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
+        $c | merge {form_factor: $SERVER, groups: (open $template | get groups), options: (if ($options | path exists) { open $options } else { {} })}
+    } else if $c.host_wsl { $c | merge {form_factor: "wsl"} } else { $c }
+    let machine_wsl = $c.form_factor == "wsl"
+    if $machine_wsl and not $c.host_wsl { die (text-fill $q.messages.wsl_machine $c) }
+    $c | merge {machine_wsl: $machine_wsl}
+}
+
+def step-install-checks [q: record, c: record]: nothing -> record {
+    let m = $q.messages
+    if not (on-archiso) { die $m.not_iso }
+    if not ("/sys/firmware/efi" | path exists) { die $m.not_uefi }
+    if not (online) { die $m.offline }
+    let setup_mode = (try { open --raw $SETUP_MODE_VAR | into binary | last 1 | into int } catch { 0 }) == 1
+    if $c.secure_boot != "off" and not $setup_mode and not (assume) and not (yes $m.setup_mode.title $m.setup_mode.text) {
+        die $m.setup_mode_stop
+    }
+    $c | merge {setup_mode: $setup_mode}
+}
+
+def step-run [q: record, step: string, c: record]: nothing -> record {
+    match $step {
+        "home-network" => (step-home-network $q $c)
+        "platform-load" => (step-platform-load $q $c)
+        "install-checks" => (step-install-checks $q $c)
+        _ => (error make {msg: $"($QUESTIONS): no step ($step) in bootstrap.nu"})
+    }
+}
+
+# every question and step in questions.nuon order; one whose `when` fails keeps the value it has
+def questions-walk [q: record, c: record]: nothing -> record {
+    $q.questions | reduce --fold $c {|e, c|
+        if not (when-holds $e.when? $c) { $c } else if $e.step? != null { step-run $q $e.step $c } else { $c | merge (question-ask $q $e $c) }
+    }
+}
+
+# a question's default where it is one value; a record default depends on the machine and is filled when asked
+def question-defaults [q: record]: nothing -> record {
+    $q.questions | where {|e| $e.id? != null and $e.default? != null and not ($e.default | describe | str starts-with "record") }
+    | reduce --fold {} {|e, acc| $acc | upsert $e.id $e.default }
+}
+
+def summary-render [q: record, c: record]: nothing -> string {
+    let s = $q.summary
+    let width = ($s.rows | values | each { str length } | math max) + 1
+    $s.rows | items {|row, label|
+        let value = match $row {
+            "login" => $c.username
+            "profile" => $"($c.profile) \((if ($c.capabilities | is-empty) { $s.profile_none } else { $c.capabilities | str join ' ' })\)"
+            "machine" => $c.platform
+            "hostname" => $c.hostname
+            "keyboard" => $c.keymap
+            "timezone" => $c.timezone
+            "locale" => $c.locale
+            "groups" => ($c.groups | str join " ")
+            "home_network" => (if $c.home_gateway == null and ($c.home_ssid | is-empty) { $s.home_none } else {
+                let wifi = if ($c.home_ssid | is-empty) { "" } else { text-fill $s.home_wifi {ssid: $c.home_ssid} }
+                $"(text-fill $s.home_router {router: ($c.home_gateway | default $s.home_router_none)})($wifi)"
+            })
+            "disk" => (text-fill $s.disk {disk: $c.disk, model: $c.disk_model, encryption: (if $c.encrypt { $s.encrypted } else { $s.unencrypted })})
+            "secure_boot" => (if $c.secure_boot == "off" { $s.secure_boot_off } else if $c.setup_mode { $c.secure_boot } else { $s.secure_boot_no_setup_mode })
+            "root" => (if ($c.root_password | is-empty) { $s.root_locked } else { $s.root_set })
+            "ssh_key" => (if not $c.server { null } else if ($c.ssh_key | is-empty) { $s.ssh_key_none } else { $c.ssh_key | split row " " | first })
+            _ => (error make {msg: $"($QUESTIONS): summary row ($row), not one bootstrap.nu fills"})
+        }
+        if $value == null { null } else { $"($label | fill --width $width)($value)" }
+    } | compact | str join "\n"
+}
+
+def wsl-install [q: record, c: record]: nothing -> nothing {
+    if ($c.user_password | is-empty) { die $q.messages.wsl_password_empty }
+    if (tui) { ^clear }
+    pacman-init
+    user-setup ($c | merge {target_root: ""})
+    $"($c.hostname)\n" | save --force /etc/hostname
+    open --raw ($c.repo | path join configs base wsl wsl.conf) | str replace --all "@USER@" $c.username | str replace --all "@HOSTNAME@" $c.hostname | save --force /etc/wsl.conf
+    log-info $q.messages.wsl_done
 }
 
 export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing {
-    if not (is-admin) { die "run as root" }
-    if not (on-archiso) and not (on-wsl) { die "run this from the Arch ISO or inside WSL" }
+    let q = questions-load
+    let m = $q.messages
+    if not (is-admin) { die $m.root }
+    if not (on-archiso) and not (on-wsl) { die $m.host }
     $env.LOG_TAG = "bootstrap"
     let wsl = on-wsl
     mirrors-rank
     tui-init
-    let welcome = if $wsl {
-        "Sets up this WSL distro: a user with sudo, the dotfiles and wsl.conf.\n\nEsc quits."
-    } else {
-        "Installs Arch Linux. Nothing changes until you confirm at the end.\nThen the disk is erased and the install runs on its own over a few reboots. That can take hours.\n\nEsc quits."
-    }
-    if (tui) { screen welcome msgbox $welcome | ignore }
+    if (tui) { screen $m.welcome.title msgbox (if $wsl { $m.welcome.text_wsl } else { $m.welcome.text }) | ignore }
 
-    let keymap = if $wsl { $KEYMAP_DEFAULT } else { env-or BOOTSTRAP_KEYMAP | if ($in | is-empty) { ask-keymap } else { $in } }
-    if not $wsl and not (keymap-load $keymap) { die $"unknown keymap '($keymap)'" }
-
-    let username = env-or BOOTSTRAP_USERNAME | if ($in | is-empty) {
-        if (assume) { die "BOOTSTRAP_USERNAME is required unattended" }
-        ask {|u| $u =~ $USERNAME_PATTERN } "login name" "Login name:" ""
-    } else { $in }
-    if $username !~ $USERNAME_PATTERN { die $"invalid login name '($username)', expected ($USERNAME_PATTERN)" }
-    let profile = bootstrap-profile-choose $repo
-    let capabilities = $profile.capabilities
-    let platform = bootstrap-platform-choose $repo $platform_arg $wsl
-    let platforms = platform-names $repo
-
-    mut c = {
-        repo: $repo username: $username platform: $platform.name generic: $platform.generic keymap: $keymap
-        timezone: $TIMEZONE_DEFAULT locale: $LOCALE_DEFAULT hostname: "" groups: [] form_factor: "" homelab: false
-        home_gateway: null home_ssid: "" target_root: $MOUNT profile_file: $profile.file user_password: ""
-        root_password: "" encrypt: true secure_boot: $SECURE_BOOT_DEFAULT options: {} ssh_key: ""
+    # the passwords are read even when not asked: BOOTSTRAP_PASSWORD stands in for an empty one
+    let start = {
+        repo: $repo platform_arg: $platform_arg host_wsl: $wsl machine_wsl: false platforms: (platform-names $repo)
+        password_given: (env-or BOOTSTRAP_PASSWORD | is-not-empty) username: "" profile: $PROFILE_CUSTOM profile_file: ""
+        capabilities: [] platform: "" generic: false server: false hostname: "" groups: [] form_factor: "" homelab: false
+        home_network: false home_gateway: null home_ssid: "" target_root: $MOUNT password: ""
+        user_password: (env-or BOOTSTRAP_USER_PASSWORD) root_password: (env-or BOOTSTRAP_ROOT_PASSWORD) options: {}
+        ssh_key: "" disk: "" disk_model: "" setup_mode: false
     }
-    if not $wsl {
-        let home = ask-flag BOOTSTRAP_HOME_NETWORK false "home network" "Are you on your home network right now?\n\nYes lets this machine find printers and other devices here. Other networks stay locked down."
-        let gateway = if $home { home-gateway-mac } else { null }
-        if $home and $gateway == null { log-warn "no router found, every network counts as foreign" }
-        $c = $c | merge {home_gateway: $gateway, home_ssid: (if $home { home-ssid } else { "" })}
-    }
-    if not $platform.generic {
-        let file = $repo | path join platforms $"($platform.name).nuon"
-        let p = open $file
-        if ($p.hostname? | is-empty) { die $"($file) sets no hostname" }
-        let all = ls ($repo | path join configs) | where type == dir | get name | path basename
-        let options = $repo | path join platforms $"($platform.name).options.nuon" | if ($in | path exists) { open $in } else { {} }
-        let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
-        $c = $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
-    } else {
-        if $wsl { $c.form_factor = "wsl" }
-        let valid = {|h| $h =~ $HOSTNAME_PATTERN and $h not-in $platforms }
-        let hostname = env-or BOOTSTRAP_HOSTNAME | if ($in | is-empty) {
-            ask $valid hostname "Hostname (letters, digits, dashes):" (if $platform.server { $SERVER } else { "archlinux" })
-        } else { $in }
-        if not (do $valid $hostname) { die $"invalid hostname '($hostname)': letters, digits and dashes, and none of ($platforms | str join ' ')" }
-        $c.hostname = $hostname
-        if $platform.server {
-            let template = $repo | path join $PLATFORM_TEMPLATES $"($SERVER).nuon"
-            let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
-            $c = $c | merge {form_factor: $SERVER, groups: (open $template | get groups), options: (if ($options | path exists) { open $options } else { {} })}
-            let key = env-or BOOTSTRAP_SSH_KEY | if ($in | is-not-empty) or (assume) { $in } else {
-                ask {|k| ($k | is-empty) or $k =~ $SSH_KEY_PATTERN } "ssh key" "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nThe server only takes key logins. Empty leaves just the console." ""
-            }
-            if ($key | is-not-empty) and $key !~ $SSH_KEY_PATTERN { die "BOOTSTRAP_SSH_KEY is not one ssh public key line" }
-            $c.ssh_key = $key
-        }
-        if not $wsl {
-            let timezone = env-or BOOTSTRAP_TIMEZONE | if ($in | is-empty) {
-                ask {|z| $z =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($z)" | path exists) } timezone "Timezone, e.g. Europe/London:" $TIMEZONE_DEFAULT
-            } else { $in }
-            if not ($timezone =~ $TIMEZONE_PATTERN and ($"/usr/share/zoneinfo/($timezone)" | path exists)) { die $"unknown timezone '($timezone)'" }
-            let known = open --raw /etc/locale.gen | lines | each { str replace --regex '^#' '' | split row " " | first }
-            let locale = env-or BOOTSTRAP_LOCALE | if ($in | is-empty) {
-                ask {|l| $l in $known } locale "Locale, e.g. en_US.UTF-8 or de_DE.UTF-8:" $LOCALE_DEFAULT
-            } else { $in }
-            if $locale not-in $known { die $"unknown locale '($locale)'" }
-            $c = $c | merge {timezone: $timezone, locale: $locale}
-        }
-        let universe = ls ($repo | path join configs) | where type == dir | get name | path basename | sort
-        let chosen = if $platform.server { $c.groups } else if (env-or BOOTSTRAP_GROUPS | is-not-empty) {
-            env-or BOOTSTRAP_GROUPS | split row --regex '\s+' | where $it != ""
-        } else if (assume) { $universe } else if (tui) {
-            let items = $universe | where $it != $REQUIRED_GROUP | each {|g| [$g ($GROUP_DESCRIPTIONS | get --optional $g | default "") on] } | flatten
-            dlg --title groups --separate-output --checklist $"Package groups. Space toggles, Enter accepts. ($REQUIRED_GROUP) is always in." "0" ($TUI_WIDTH | into string) "0" ...$items | lines
-        } else {
-            print -e $"package groups \(($REQUIRED_GROUP) is always in\):"
-            $universe | enumerate | each { print -e $"  ($in.index + 1)  ($in.item)" } | ignore
-            let excludes = input "numbers to leave out, Enter for none: " | split row " " | where $it != ""
-            $universe | enumerate | where {|g| ($g.index + 1 | into string) not-in $excludes } | get item
-        }
-        let groups = [$REQUIRED_GROUP] ++ ($chosen | where $it != $REQUIRED_GROUP)
-        let unknown = $groups | where {|g| ($g | path split | first) not-in $universe }
-        if ($unknown | is-not-empty) { die $"unknown package group '($unknown | first)', one of: ($universe | str join ' ')" }
-        $c.groups = $groups
-        if not $wsl {
-            let modes = $SECURE_BOOT_CHOICES | columns
-            let secure_boot = env-or BOOTSTRAP_SECURE_BOOT | if ($in | is-not-empty) or (assume) { $in | default --empty $SECURE_BOOT_DEFAULT } else if (tui) {
-                menu "secure boot" "Secure Boot:" $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
-            } else {
-                menu-plain "secure boot" $SECURE_BOOT_DEFAULT ($SECURE_BOOT_CHOICES | items {|mode, text| [$mode $text] } | flatten)
-            }
-            if $secure_boot not-in $modes { die $"BOOTSTRAP_SECURE_BOOT is '($secure_boot)', expected one of ($modes | str join ', ')" }
-            $c.secure_boot = $secure_boot
-        }
-    }
-
-    if $c.form_factor == "wsl" {
-        if not $wsl { die $"($platform.name) is a WSL machine, run this in the distro's root shell" }
-        let password = env-or BOOTSTRAP_USER_PASSWORD | if ($in | is-empty) { ask-password $"($username) password" "Password for login and sudo:" false } else { $in }
-        if ($password | is-empty) { die "empty password" }
-        if (tui) { ^clear }
-        pacman-init
-        user-setup ($c | merge {target_root: "", user_password: $password, root_password: (env-or BOOTSTRAP_ROOT_PASSWORD)})
-        $"($c.hostname)\n" | save --force /etc/hostname
-        open --raw ($repo | path join configs base wsl wsl.conf) | str replace --all "@USER@" $username | str replace --all "@HOSTNAME@" $c.hostname | save --force /etc/wsl.conf
-        log-info "done. in windows run: wsl --terminate archlinux, open it again, then: cd ~/projects/arch-dotfiles && dot sync --no-push"
+    mut c = questions-walk $q ($start | merge (question-defaults $q))
+    if $c.machine_wsl {
+        wsl-install $q $c
         return
     }
 
-    if not (on-archiso) { die "not running from the Arch ISO" }
-    if not ("/sys/firmware/efi" | path exists) { die "not booted in UEFI mode" }
-    if not (online) { die "no network" }
-    let setup_mode = (try { open --raw $SETUP_MODE_VAR | into binary | last 1 | into int } catch { 0 }) == 1
-    if $c.secure_boot != "off" and not $setup_mode and not (assume) and not (yes "secure boot" "The firmware is not in Setup Mode, so Secure Boot keys can't be enrolled.\n\nContinue without Secure Boot?") {
-        die "put the firmware in Secure Boot Setup Mode, then run this again"
-    }
-
-    let disks = ^lsblk -J -dnpo NAME,TYPE,RM | from json | get blockdevices | where type == disk and rm == false and not ($it.name =~ 'zram|loop') | get name
-    let label = {|d| ^lsblk -dno SIZE,MODEL $d | str trim | str replace --all --regex '\s+' ' ' }
-    let disk = env-or BOOTSTRAP_DISK | if ($in | is-not-empty) { $in } else if ($disks | is-empty) {
-        die "no disk found (set BOOTSTRAP_DISK)"
-    } else if ($disks | length) == 1 { $disks.0 } else if (tui) {
-        menu disk "Install to which disk? It gets erased." $disks.0 ($disks | each {|d| [$d (do $label $d)] } | flatten)
-    } else {
-        ^lsblk -dpo NAME,SIZE,MODEL ...$disks
-        input $"disk \(($disks | str join ' ')\): "
-    }
-    if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die $"($disk) is not a block device" }
-    # BOOTSTRAP_DISK skips the menu's filter, and a partition or dm device would be zapped before the parts check
-    if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die $"($disk) is not a whole disk" }
-    let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
-    let erase = $"Everything on ($disk) will be erased. Type ($disk) to confirm:"
-    let typed = if (assume) { $disk } else if (tui) { screen erase inputbox $"($layout)\n\n($erase)" } else { print $layout; input $"($erase) " }
-    if $typed != $disk { die aborted }
-
-    $c.encrypt = ask-flag BOOTSTRAP_ENCRYPT true encryption "Encrypt the disk? You type its password at every boot.\n\nWithout it, anyone who gets the disk can read it."
-
     let password = one-line (env-or BOOTSTRAP_PASSWORD) "password"
-    mut luks = if $c.encrypt { $password } else { "" }
-    $c.user_password = env-or BOOTSTRAP_USER_PASSWORD
-    $c.root_password = env-or BOOTSTRAP_ROOT_PASSWORD
-    if ($password | is-empty) {
-        if $c.encrypt {
-            $luks = ask-password "disk password" $"Disk password, typed at every boot \(($keymap) layout\):" false
-            if ($c.user_password | is-empty) { $c.user_password = ask-password $"($username) password" "Password for login and sudo. Empty uses the disk password:" true }
-        } else if ($c.user_password | is-empty) {
-            $c.user_password = ask-password $"($username) password" "Password for login and sudo:" false
-        }
-        if ($c.root_password | is-empty) { $c.root_password = ask-password "root password" "Root password. Empty keeps root locked:" true }
-    }
+    let luks = if $c.encrypt { $c.password } else { "" }
     if ($c.user_password | is-empty) { $c.user_password = if $c.encrypt { $luks } else { $password } }
-    if ($c.user_password | is-empty) { die $"($username) password is required unattended, set BOOTSTRAP_PASSWORD or BOOTSTRAP_USER_PASSWORD" }
+    if ($c.user_password | is-empty) { die (text-fill $m.password_missing $c) }
 
-    let summary = [
-        $"login        ($username)"
-        $"profile      ($profile.name) \((if ($capabilities | is-empty) { 'nothing personal' } else { $capabilities | str join ' ' })\)"
-        $"machine      ($platform.name)" $"hostname     ($c.hostname)" $"keyboard     ($keymap)" $"timezone     ($c.timezone)"
-        $"locale       ($c.locale)" $"groups       ($c.groups | str join ' ')"
-        $"home network (if $c.home_gateway == null and ($c.home_ssid | is-empty) { 'no' } else { $'router ($c.home_gateway | default "not found")(if ($c.home_ssid | is-empty) { "" } else { $", wifi ($c.home_ssid)" })' })"
-        $"disk         ($disk) (do $label $disk), erased, (if $c.encrypt { 'encrypted' } else { 'not encrypted' })"
-        $"secure boot  (if $c.secure_boot == 'off' { 'off' } else if $setup_mode { $c.secure_boot } else { 'off, firmware not in Setup Mode' })"
-        $"root         (if ($c.root_password | is-empty) { 'locked' } else { 'password set' })"
-    ] | append (if $platform.server { [$"ssh key      (if ($c.ssh_key | is-empty) { 'none, console only' } else { $c.ssh_key | split row ' ' | first })"] } else { [] }) | str join "\n"
+    let summary = summary-render $q $c
+    let disk = $c.disk
+    let capabilities = $c.capabilities
     if (tui) {
-        dlg --title summary --no-collapse --yes-label install --no-label quit --yesno $"($summary)\n\nInstall now? This erases ($disk)." (height $summary ($TUI_BOX_ROWS + 2)) ($TUI_WIDTH | into string) | ignore
+        dlg --title $q.summary.title --no-collapse --yes-label $q.summary.install --no-label $q.summary.quit --yesno $"($summary)\n\n(text-fill $q.summary.question $c)" (height $summary ($TUI_BOX_ROWS + 2)) ($TUI_WIDTH | into string) | ignore
         ^clear
     } else { print $summary }
     $env.BOOTSTRAP_TUI = "0"
@@ -772,7 +826,7 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     stage-arm $c $parts.uuid
     ^umount -R $MOUNT
     if $c.encrypt { ^cryptsetup close $LUKS_NAME }
-    log-info $"done. rebooting in ($REBOOT_DELAY), remove the ISO; the install goes on by itself"
+    log-info (text-fill $m.done {delay: $REBOOT_DELAY})
     sleep $REBOOT_DELAY
     ^reboot
 }

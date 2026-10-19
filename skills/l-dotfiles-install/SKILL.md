@@ -27,7 +27,12 @@ Build the iso with `dot internal iso` (needs root for mkarchiso, `mirror/iso/REA
 - `bootstrap.sh` (under 50 lines of bash, the iso has no nu) runs only on the Arch ISO or in WSL, installs nushell
   (growing the iso's overlay when it is too small), clones master and refuses to run anything unless HEAD is signed by
   `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (dot test run) it skips the clone.
-- Questions in order: keyboard, login name, profile, machine, home network, then per machine, disk, encryption,
+- Questions live in `scripts/lib/bootstrap/questions.nuon`, in the order they are asked: id (the answer-file key),
+  kind, title, text, options, default, `BOOTSTRAP_*` env var and `when`; its header explains the fields. Its
+  `messages`, `summary` and `iso` hold every other text (welcome, errors, summary rows, the lsck0 iso's Wi-Fi
+  screens), and the iso's answer-file check takes its keys and types from it. Wording, order or a new question is an
+  edit there; `bootstrap.nu` only walks the list (code steps like `platform-load` and `install-checks` are entries
+  with `step`). Order: keyboard, login name, profile, machine, home network, then per machine, disk, encryption,
   passwords, summary. Nothing is written before the summary's `install`.
 - Login name, profile and machine are three separate choices; nothing is derived from the login name.
 - Profile: a `profiles/<name>.nuon` (luca) or `custom` (the default: no file, no capabilities, so no secrets, identity,
@@ -36,7 +41,7 @@ Build the iso with `dot internal iso` (needs root for mkarchiso, `mirror/iso/REA
   luca-notebook; on WSL only WSL luca-wsl), then `server` and `custom`. Both ask hostname, timezone, locale and secure
   boot and write the root-owned `/etc/dotfiles/platform.nuon`; `server` takes `platforms/templates/server.nuon` (base
   plus docker, no desktop) and an ssh public key, `custom` the package groups. `test-vm` is left out
-  (`PLATFORMS_HIDDEN`), the vm test passes it by argument.
+  (the platform question's `hidden`), the vm test passes it by argument.
 - Every machine asks whether to encrypt the disk (LUKS2, default yes); server and custom also ask for secure boot:
   `own` keys, `microsoft` (own keys plus Microsoft's, the default) or `off`.
 - Prompt texts stay short: one question, the options, at most one line of context for a risky choice.
@@ -54,7 +59,7 @@ the username has no default), `BOOTSTRAP_PROFILE=<name>|custom` (default custom)
 custom` (default custom; the argument to `bootstrap.sh` wins), `BOOTSTRAP_HOME_NETWORK=0|1` and `BOOTSTRAP_ENCRYPT=0|1`
 (default 1); for server or custom also `BOOTSTRAP_{HOSTNAME,GROUPS,TIMEZONE,LOCALE,SSH_KEY}` and
 `BOOTSTRAP_SECURE_BOOT=own|microsoft|off` (default microsoft). The old `BOOTSTRAP_SERVER=1` still turns custom into
-server. The header of `scripts/lib/bootstrap.nu` is the reference. `dot test run` drives exactly this, passes
+server. Each question's `env` and `default` in `scripts/lib/bootstrap/questions.nuon` is the reference. `dot test run` drives exactly this, passes
 `--profile` (default luca) as `BOOTSTRAP_PROFILE` and `BOOTSTRAP_{SERVER,SECURE_BOOT,HOSTNAME,GROUPS,SSH_KEY}` from the
 host into the guest (skill `l-dotfiles-vm-test`).
 
