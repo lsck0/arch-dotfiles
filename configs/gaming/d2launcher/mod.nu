@@ -129,10 +129,17 @@ def render-size [cfg: record]: nothing -> record {
     {w: ($h // 3 * 4), h: $h}
 }
 
+# gamescope paces at 60 unless told the monitor's rate; outside a session (install stage) 60 stays
+def refresh-rate []: nothing -> int {
+    try {
+        ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-' | get refreshRate | math max | math round
+    } catch { 60 }
+}
+
 def gamescope-values [cfg: record]: nothing -> record {
     let size = render-size $cfg
     {
-        game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS
+        game: (game-dir), prefix: (prefix-dir), width: $size.w, height: $size.h, args: $D2_ARGS, refresh: (refresh-rate)
         wine: (wine-bin | path dirname), exe: (game-dir | path join $D2_EXE)
     }
 }
@@ -140,7 +147,7 @@ def gamescope-values [cfg: record]: nothing -> record {
 # d2gl's window fills gamescope's nested screen
 def d2gl-window-keys [cfg: record]: nothing -> record {
     let size = render-size $cfg
-    {Screen: {window_width: ($size.w | into string), window_height: ($size.h | into string), centered_window: "true"}}
+    {Screen: {window_width: ($size.w | into string), window_height: ($size.h | into string), centered_window: "true", vsync: "false"}}
 }
 
 def d2gl-window-decl [cfg: record]: nothing -> list<record> {
@@ -159,7 +166,8 @@ def d2gl-window-decl [cfg: record]: nothing -> list<record> {
 
 export def d2gl-window [width: string, height: string]: nothing -> nothing {
     let ini = game-dir | path join d2gl.ini
-    let keys = {Screen: {window_width: $width, window_height: $height, centered_window: true}}
+    # gamescope paces the frames; d2gl's own vsync on top adds frames of cursor lag
+    let keys = {Screen: {window_width: $width, window_height: $height, centered_window: true, vsync: false}}
     let text = if ($ini | path exists) { open --raw $ini } else { "" }
     $text | ini-apply $keys false | save -f $ini
 }

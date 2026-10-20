@@ -129,7 +129,9 @@ hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "w
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
 
-hl.bind(mod .. " + Q", hl.dsp.window.close(), { description = "close the window" })
+hl.bind(mod .. " + Q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
+    description = "close the window (a gamescope game is killed)",
+})
 hl.bind(mod .. " + space", hl.dsp.window.float({ action = "toggle" }), { description = "float or tile the window" })
 hl.bind(mod .. " + s", hl.dsp.focus({ last = true }), { description = "focus the previous window" })
 hl.bind(

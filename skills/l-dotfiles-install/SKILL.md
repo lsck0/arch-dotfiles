@@ -19,9 +19,10 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
    (`lsck0.nuon` on a FAT32 partition labelled `LSCK0` and other places, keys in `mirror/iso/lsck0.example.nuon`)
    and `lsck0.*` boot parameters as `BOOTSTRAP_*`, then `dot internal bootstrap`. An answered key is not asked;
    `unattended: true` skips the summary too.
-   Frozen on the stick: only the stub (network, clone, signature check, hand-over) and the trust anchor. Questions,
+   Frozen on the stick: only the stub's network, clone and signature check, and the trust anchor; a newer stub on
+   master replaces the stick's once verified. Questions,
    answer-file keys and validation, the env mapping and everything after come from master at install time, so a
-   change there needs no reburn; a change to the stub, the repo url or the signing key does (README "Frozen in the
+   change there needs no reburn; a change to how the stub gets online or clones, the repo url or the signing key does (README "Frozen in the
    iso").
 2. Alternative, from the official Arch ISO:
 

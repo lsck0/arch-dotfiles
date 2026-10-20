@@ -7,6 +7,7 @@
 const TRUST = "/usr/share/lsck0/trust.nuon"
 const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const CLONE_DIR = "/tmp/arch-dotfiles"
+const STUB_IN_REPO = "mirror/iso/airootfs/usr/local/bin/lsck0-install"
 const ANSWERS_NAME = "lsck0.nuon"
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
@@ -255,11 +256,20 @@ def main [] {
     print "install: online"
     # bootstrap.sh's pacman -Sy needs the iso's keyring, which pacman-init.service may still be filling
     ^systemctl start pacman-init.service
-    let repo = try {
-        let repo = checkout-master
-        if $early.source != null { checkout-bundle $repo $early.source }
-        $repo
-    } catch {|e| print $"install: ($e.msg)"; null }
+    let reuse = $env.LSCK0_CHECKOUT? | default ""
+    let repo = if ($reuse | is-not-empty) { $reuse } else {
+        try {
+            let repo = checkout-master
+            if $early.source != null { checkout-bundle $repo $early.source }
+            $repo
+        } catch {|e| print $"install: ($e.msg)"; null }
+    }
+    # the stick's copy of this script runs only until master is fetched: a newer one there takes over, once
+    let newer = if $repo == null { "" } else { $repo | path join $STUB_IN_REPO }
+    if ($env.LSCK0_STUB_UPDATED? | is-empty) and ($newer | path exists) and (open --raw $newer) != (open --raw $env.CURRENT_FILE) {
+        print "install: master has a newer installer, switching to it"
+        with-env {LSCK0_STUB_UPDATED: "1", LSCK0_CHECKOUT: $repo} { exec nu --no-config-file $newer }
+    }
     let handover = {LSCK0_INSTALL: "1"} | merge (if $found == null { {} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} })
     let status = if $repo == null { 1 } else {
         with-env $handover { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }

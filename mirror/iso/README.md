@@ -11,24 +11,24 @@ Download: https://mirror.lsck0.dev/iso/ (`archlinux-lsck0-latest-x86_64.iso`, or
 
 ## Frozen in the iso, pulled at install time
 
-The stick only needs a rewrite when the stub changes. Frozen at burn time:
+The stub updates itself: once master is cloned and verified, a stub there that differs from the stick's runs in its
+place (once, reusing the clone). Frozen at burn time:
 
-- the stub `airootfs/usr/local/bin/lsck0-install`: the answer-file search for Wi-Fi, the network checks, the Wi-Fi
-  picker and its texts, the clone and signature check, the hand-over (`LSCK0_INSTALL=1`, `LSCK0_ANSWERS` with the
-  stub's copy of the answer file, `LSCK0_ANSWERS_ORIGIN` where it was found);
+- the stub's first half, up to that switch: the answer-file search for Wi-Fi, the network checks, the Wi-Fi picker
+  and its texts, the clone and signature check;
 - the trust anchor: the repo url, the signing key (`/usr/share/lsck0/signing-key.asc`) and its fingerprint
   (`/usr/share/lsck0/trust.nuon`), all taken from `bootstrap.sh` by the build;
 - the packages (nushell, git, dialog, the YubiKey tools) and the `[lsck0]` repo and key; `bootstrap.sh` upgrades
   nushell from the mirror anyway, so an old stick still runs a newer master.
 
-Pulled from master on every install: `bootstrap.sh`, the answer file's validation, keys and types
+Pulled from master on every install: the stub's hand-over (`LSCK0_INSTALL=1`, `LSCK0_ANSWERS`, `LSCK0_ANSWERS_ORIGIN`), `bootstrap.sh`, the answer file's validation, keys and types
 (`scripts/lib/bootstrap/questions.nuon`), its search when the stub found none, `lsck0.answers=` and the other
 `lsck0.<key>=` boot parameters, the mapping to `BOOTSTRAP_*` (`scripts/lib/iso-install.nu`), every question and
 everything after.
 
-A rewrite is needed for: a new signing key or repo url, a change to how the stub gets online or what it hands over,
+A rewrite is needed for: a new signing key or repo url, a change to how the stub gets online or clones,
 a stale releng (kernel too old for new hardware, an expired archlinux-keyring the mirror cannot fix), and once to get
-from the old full installer to this stub.
+to a stick whose stub can update itself.
 
 ## What is in it
 
