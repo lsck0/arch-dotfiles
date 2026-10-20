@@ -97,7 +97,11 @@ export def packages [cfg: record]: nothing -> record {
   back into the module) or `dot apply --force <group>/<module>` (preserves it aside).
 - A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` with `up` (and `down`).
 - A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
-  carries the live file back into the repo or `secrets/`; `dot sync` runs it.
+  carries the live file back into the repo or `secrets/`; `dot sync` runs it. State that differs per machine
+  (resolution, devices, layout, logins) goes to `host-file <dir> <file>` (`<dir>/<host>/<file>`), so machines never
+  overwrite each other's; the restore reads `host-seed <dir> <file>` (this machine's copy, else the shared seed
+  `<dir>/<file>`), a credential only `host-file` (no seed: a new machine logs in itself). Theme output is no state:
+  strip it in the backup instead.
 
 ## Run it alone
 

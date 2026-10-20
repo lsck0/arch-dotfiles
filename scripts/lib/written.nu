@@ -107,7 +107,8 @@ export def tty-confirm [question: string]: nothing -> bool {
         log-warn "unattended, nothing done"
         return false
     }
-    let asked = ^bash -c 'read -rp "$1 [y/N] " a < /dev/tty 2>/dev/null && printf %s "$a"' confirm $question | complete
+    # question and answer both on the terminal itself: stderr is captured under sync, a prompt there never showed
+    let asked = ^bash -c 'exec 3<>/dev/tty 2>/dev/null || exit 1; printf "%s [y/N] " "$1" >&3; read -r a <&3 && printf %s "$a"' confirm $question | complete
     # no terminal (a run from an agent's shell or a unit): the answer is no, said once instead of a bash error
     if $asked.exit_code != 0 { log-warn $"($question) no terminal to ask on, nothing done" }
     ($asked.stdout | str trim) == "y"

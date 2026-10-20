@@ -1,5 +1,5 @@
 use module.nu *
-use ini.nu [ini-apply]
+use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex]
 
 export const meta = {
@@ -68,7 +68,7 @@ export def link [cfg: record] {
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
     let fresh = not ($nu.home-dir | path join $KACTIVITIES_DB | path exists)
-    let applets = file-render $APPLETSRC ($config | path join $APPLETSRC) $values
+    let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $values
         | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
         | each {|f| file-copy $f ($config | path join ($f | path relative-to $DIR)) }
@@ -170,17 +170,44 @@ export def theme [cfg: record, wallpaper: string] {
     $themed ++ (wallpaper-set $wallpaper)
 }
 
-# the live state back into the module: the rc files and dirs as they are, the templates with their placeholders
+# the keys theme writes into kdeglobals, as section/key
+def themed-keys []: nothing -> list<string> {
+    let grey = [bg fg c0 c4 c5 c6 c8] | reduce --fold {} {|slot, acc| $acc | insert $slot "#808080" }
+    let colors = kde-colors $grey | items {|section, keys| $keys | columns | each {|k| $"($section)/($k)" } } | flatten
+    # plasma hashes the applied scheme next to it
+    $colors ++ ($KDE_FONT_KEYS | each { $"($in.group)/($in.key)" }) ++ ["General/ColorSchemeHash"]
+}
+
+# the live kdeglobals with the theme's keys as the module's has them: they are wallpaper output (light on one machine,
+# dark on another) that theme regenerates, so only a real settings edit reaches the backup
+def kdeglobals-back [live: string, template: string]: nothing -> string {
+    let themed = themed-keys
+    let own = {|r| $r.key != null and $"($r.section)/($r.key)" in $themed }
+    let kept = ini-rows $template | where {|r| do $own $r }
+    ini-rows $live | each {|r|
+        if not (do $own $r) { return $r.line }
+        $kept | where section == $r.section and key == $r.key | get --optional 0.line
+    } | compact | str join "\n" | $"($in)\n"
+}
+
+# the live state back into the module: the rc files and dirs as they are, the templates with their placeholders; the
+# applet layout (screens, panels, wallpaper) is this machine's
 export def backup [cfg: record]: nothing -> nothing {
     let cfg = detected $cfg
-    let files = rc-files | append $THEMED.0 | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })
+    let files = rc-files | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })
     for f in $files {
         if (config-path $f | path exists) { cp --force (config-path $f) ($DIR | path join $f) }
     }
+    let globals = config-path $THEMED.0
+    if ($globals | path exists) {
+        kdeglobals-back (open --raw $globals) (open --raw ($DIR | path join $THEMED.0)) | save --force ($DIR | path join $THEMED.0)
+    }
     for f in $TEMPLATES {
         if not (config-path $f | path exists) { continue }
+        let dest = if $f == $APPLETSRC { host-file $DIR $f } else { $DIR | path join $f }
+        mkdir ($dest | path dirname)
         open --raw (config-path $f) | str replace --all $env.DOTFILES "@DOTFILES@" | str replace --all $nu.home-dir "@HOME@"
-        | str replace "favoritesPortedToKAstats=false" $KICKOFF_FAVORITES | save --force ($DIR | path join $f)
+        | str replace "favoritesPortedToKAstats=false" $KICKOFF_FAVORITES | save --force $dest
     }
     for d in $CONFIG_DIRS {
         if not (config-path $d | path exists) { continue }

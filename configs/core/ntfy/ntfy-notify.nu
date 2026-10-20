@@ -133,8 +133,9 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
     let query = if $since == "" { "" } else { $"?({since: $since} | url build-query)" }
     let url = $"($sub.server)/($sub.topics | each { url encode } | str join ',')/json($query)"
     let last_id = state-dir | path join last-id
-    let stream = (^curl --silent --show-error --fail --no-buffer --speed-limit 1 --speed-time $IDLE_S
-        --header "User-Agent: ntfy-notify" --header $"Authorization: Bearer ($token)" $url)
+    # the token reaches curl on stdin (-H @-): on the command line every local user could read it with ps
+    let stream = ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
+        --speed-time $IDLE_S --header "User-Agent: ntfy-notify" --header @- $url)
     for line in ($stream | lines) {
         let msg = try { $line | from json } catch { null }
         if ($msg | describe) !~ '^record' { continue }

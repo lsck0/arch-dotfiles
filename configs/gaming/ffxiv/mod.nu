@@ -6,9 +6,12 @@ const XLCORE = ".xlcore"
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
+    let saved = $env.DOTFILES | path join secrets ffxiv
+    # resolution, graphics, GamePath and the characters' UI layout are this machine's; a new one seeds from the shared copy
     {
         xl: $xl, config: ($xl | path join ffxivConfig), launcher: ($xl | path join launcher.ini)
-        saved: ($env.DOTFILES | path join secrets ffxiv)
+        seed: {config: (host-seed $saved ffxivConfig), launcher: (host-seed $saved launcher.ini)}
+        saved: (host-file $saved)
     }
 }
 
@@ -18,7 +21,7 @@ export def link [cfg: record] {
     let launcher = desktop-override XIVLauncher.desktop {
         $in | str replace --all --regex '(?m)^Exec=' 'Exec=env MANGOHUD=1 '
     }
-    let unlocked = secret-is-plaintext ($p.saved | path join launcher.ini)
+    let unlocked = secret-is-plaintext $p.seed.launcher
     if (which xivlauncher-core | is-empty) or not $unlocked { return $launcher }
     # the launcher's free-space check throws DriveNotFoundException while GamePath is missing (before an install)
     let game = if ($p.launcher | path exists) {
@@ -27,7 +30,7 @@ export def link [cfg: record] {
     [
         $launcher
         (if ($p.config | path join FFXIV.cfg | path exists) { [] } else { step seed })
-        (exec ffxiv-launcher [cp -n ($p.saved | path join launcher.ini) $p.launcher] --creates $p.launcher)
+        (exec ffxiv-launcher [cp -n $p.seed.launcher $p.launcher] --creates $p.launcher)
         (if ($game | is-empty) { [] } else { exec ffxiv-game-path [mkdir -p $game] --creates $game })
     ]
 }
@@ -35,14 +38,14 @@ export def link [cfg: record] {
 export def seed []: nothing -> nothing {
     let p = paths
     mkdir $p.config
-    ^cp -rnT ($p.saved | path join ffxivConfig) $p.config
+    ^cp -rnT $p.seed.config $p.config
     touch ($p.config | path join .from-secrets)
 }
 
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path join FFXIV.cfg | path exists) { error make {msg: $"no ($p.config)/FFXIV.cfg"} }
-    secret-seed-guard ($p.config | path join .from-secrets) ($p.saved | path join ffxivConfig) $p.config
+    secret-seed-guard ($p.config | path join .from-secrets) $p.seed.config $p.config
     mkdir $p.saved
     (^rsync -a --delete --prune-empty-dirs --include 'FFXIV*.cfg' --include 'FFXIV_CHR*/' --include 'FFXIV_CHR*/*.DAT'
         --exclude '*' $"($p.config)/" ($p.saved | path join ffxivConfig))

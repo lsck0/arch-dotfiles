@@ -2,12 +2,12 @@ use module.nu *
 
 export const meta = {backup: {secrets: true}, inputs: [~/.config/gh/hosts.yml ~/.gitconfig]}
 
-const TOKEN = "secrets/github"
 const TOKEN_SHAPE = '^gh[a-z]_'
 const HOSTS = ".config/gh/hosts.yml"
 
+# this machine's own token: no seed, a new machine runs gh auth login itself
 def token-file []: nothing -> path {
-    $env.DOTFILES | path join $TOKEN
+    host-file ($env.DOTFILES | path join secrets gh) token
 }
 
 export def link [cfg: record] {
@@ -33,5 +33,6 @@ export def backup [cfg: record]: nothing -> nothing {
     if $token !~ $TOKEN_SHAPE {
         error make {msg: "gh auth token returned no token, run gh auth login first"}
     }
+    mkdir (token-file | path dirname)
     $"($token)\n" | save --force (token-file)
 }

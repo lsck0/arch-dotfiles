@@ -6,19 +6,26 @@ const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathD
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join .xlcore
+    let shared = $env.DOTFILES | path join secrets dalamud
+    # the plugin set (manifests) is shared; the config, UI and plugin configs are this machine's, a new one seeds from
+    # the shared copy
     {
         xl: $xl, config: ($xl | path join dalamudConfig.json), plugins: ($xl | path join installedPlugins)
-        saved: ($env.DOTFILES | path join secrets dalamud)
+        manifests: ($shared | path join manifests), saved: (host-file $shared)
+        seed: {
+            config: (host-seed $shared dalamudConfig.json), ui: (host-seed $shared dalamudUI.ini)
+            plugin_configs: (host-seed $shared pluginConfigs)
+        }
     }
 }
 
 # seeded once: dalamud rewrites these files in place
 export def link [cfg: record] {
     let p = paths
-    let unlocked = secret-is-plaintext ($p.saved | path join dalamudConfig.json)
+    let unlocked = secret-is-plaintext $p.seed.config
     if (which xivlauncher-core | is-empty) or not $unlocked { return [] }
     let delisted = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dalamud-restore
-    let manifests = glob ($p.saved | path join manifests *.json)
+    let manifests = glob ($p.manifests | path join *.json)
         | where {|m| not ($delisted | path join $"($m | path parse | get stem).delisted" | path exists) }
     [
         (if ($p.config | path exists) { [] } else { step seed })
@@ -32,16 +39,17 @@ export def link [cfg: record] {
 export def seed []: nothing -> nothing {
     let p = paths
     mkdir ($p.xl | path join pluginConfigs)
-    ^cp -n ($p.saved | path join dalamudConfig.json) ($p.saved | path join dalamudUI.ini) $p.xl
-    ^cp -rnT ($p.saved | path join pluginConfigs) ($p.xl | path join pluginConfigs)
+    ^cp -n $p.seed.config ($p.xl | path join dalamudConfig.json)
+    ^cp -n $p.seed.ui ($p.xl | path join dalamudUI.ini)
+    ^cp -rnT $p.seed.plugin_configs ($p.xl | path join pluginConfigs)
     touch ($p.xl | path join .dalamud-from-secrets)
 }
 
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if not ($p.config | path exists) { error make {msg: $"no ($p.config)"} }
-    secret-seed-guard ($p.xl | path join .dalamud-from-secrets) ($p.saved | path join dalamudConfig.json) $p.xl
-    mkdir ($p.saved | path join manifests)
+    secret-seed-guard ($p.xl | path join .dalamud-from-secrets) $p.seed.config $p.xl
+    mkdir $p.manifests $p.saved
     cp --force $p.config ($p.xl | path join dalamudUI.ini) $p.saved
     let excludes = $BACKUP_EXCLUDES | each {|e| [--exclude $e] } | flatten
     ^rsync -a --delete ...$excludes $"($p.xl | path join pluginConfigs)/" ($p.saved | path join pluginConfigs)
@@ -51,6 +59,6 @@ export def backup [cfg: record]: nothing -> nothing {
         let newest = glob ($dir | path join *) --no-file | sort --natural | last
         if $newest == null { continue }
         let manifest = $newest | path join $"($name).json"
-        if ($manifest | path exists) { cp --force $manifest ($p.saved | path join manifests) }
+        if ($manifest | path exists) { cp --force $manifest $p.manifests }
     }
 }

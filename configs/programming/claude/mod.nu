@@ -22,8 +22,9 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
+# credentials, so this machine's own: no seed, a new machine logs in itself
 def backup-dir []: nothing -> path {
-    $env.DOTFILES | path join secrets claude
+    host-file ($env.DOTFILES | path join secrets claude)
 }
 
 # a granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard

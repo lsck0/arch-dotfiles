@@ -171,6 +171,19 @@ export def palette-load []: nothing -> any {
     $PALETTE_SLOTS | zip (palette-slots) | reduce --fold {} {|p, acc| $acc | insert $p.0 $p.1 }
 }
 
+# per-machine app state lives at <dir>/<host>/<file>, so machines backing up into one repo never overwrite each other's;
+# a backup writes here, a credential is read only from here (a new machine logs in itself)
+export def host-file [dir: path, ...file: string]: nothing -> path {
+    $dir | path join (sys host | get hostname) ...$file
+}
+
+# what a restore reads: this machine's copy, else the shared seed <dir>/<file> a new machine starts from; its first
+# backup then writes its own copy, so the seed is read only until then
+export def host-seed [dir: path, ...file: string]: nothing -> path {
+    let own = host-file $dir ...$file
+    if ($own | path exists) { $own } else { $dir | path join ...$file }
+}
+
 export def decls-flatten []: any -> list<record> {
     let value = $in
     let nested = {|v| ($v | describe) =~ '^(list|table)' }

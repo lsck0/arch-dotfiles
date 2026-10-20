@@ -12,7 +12,7 @@ const SEALED_HEADER_BYTES = 4096
 const CLASSES = [
     [glob class];
     ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
-    ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] [github api] [googleapi api] [sdd_github api] [de-arrow-key api]
+    ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
     [ntfy-desktop-token api] [trmnl-claude.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
     [borg-passphrase password] [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]

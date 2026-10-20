@@ -224,8 +224,17 @@ def vaapi-encoder [cfg: record, src: path]: nothing -> string {
     $"($json | to json --indent 2)\n"
 }
 
+# the shared seeds; each is laid out for one machine's canvas, mic and webcam, so a machine keeps its own copy
 def repo-scenes []: nothing -> list<path> {
     glob ($HERE | path join scenes *.json) | sort
+}
+
+def scene-seed [seed: path]: nothing -> path {
+    host-seed ($seed | path dirname) ($seed | path basename)
+}
+
+def scene-own [seed: path]: nothing -> path {
+    host-file ($seed | path dirname) ($seed | path basename)
 }
 
 def secret [name: string]: nothing -> path {
@@ -250,8 +259,8 @@ export def link [cfg: record] {
         | append (file-text ($basic | path join scenes .from-secrets) "")
     } else { [] }
     # no tokens, so in the repo: Bare, VirtualCam
-    let scenes = $secret_scene ++ (repo-scenes | each {|src|
-        do $scene ($basic | path join scenes ($src | path basename)) (scene-render $cfg $src --machine) "644"
+    let scenes = $secret_scene ++ (repo-scenes | each {|seed|
+        do $scene ($basic | path join scenes ($seed | path basename)) (scene-render $cfg (scene-seed $seed) --machine) "644"
     })
     let profiles = glob ($HERE | path join profiles * *) | each {|src|
         let dest = $basic | path join ($src | path relative-to $HERE)
@@ -303,19 +312,17 @@ export def websocket-init [file: path]: nothing -> nothing {
     chmod 600 $file
 }
 
-# unless the repo's copy changed since link: obs has not loaded that edit and would save its old state over it
-def scene-back [cfg: record, live: path, repo: path, --machine]: nothing -> nothing {
+# unless the repo's copy (src, what link installed from) changed since link: obs has not loaded that edit and would
+# save its old state over it; the portal token is this machine's, so never stored
+def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: nothing -> nothing {
     if not ($live | path exists) { return }
     let applied = applied-file $live
-    if ($applied | path exists) and (open --raw $applied) != (scene-render $cfg $repo --machine=$machine | scene-hash) {
-        log-warn $"($repo) has edits obs has not loaded, kept it; close obs and dot apply --user creating/obs"
+    if ($applied | path exists) and (open --raw $applied) != (scene-render $cfg $src --machine=$machine | scene-hash) {
+        log-warn $"($src) has edits obs has not loaded, kept it; close obs and dot apply --user creating/obs"
         return
     }
-    if $machine {
-        $"(open $live | strip-token | to json --indent 2)\n" | save --force $repo
-    } else {
-        cp --force $live $repo
-    }
+    mkdir ($dest | path dirname)
+    $"(open $live | strip-token | to json --indent 2)\n" | save --force $dest
 }
 
 # placeholder lines stay placeholders, a path under this user's dirs becomes one again (videos first, it is under home)
@@ -350,8 +357,10 @@ export def backup [cfg: record]: nothing -> nothing {
     if ($streaming | path exists) {
         secret-seed-guard ($basic | path join scenes .from-secrets) (secret obs-Streaming.json) $streaming
     }
-    scene-back $cfg $streaming (secret obs-Streaming.json)
-    for repo in (repo-scenes) { scene-back $cfg ($basic | path join scenes ($repo | path basename)) $repo --machine }
+    scene-back $cfg $streaming (secret obs-Streaming.json) (secret obs-Streaming.json)
+    for seed in (repo-scenes) {
+        scene-back $cfg ($basic | path join scenes ($seed | path basename)) (scene-seed $seed) (scene-own $seed) --machine
+    }
     let service = $basic | path join profiles Streaming service.json
     if ($service | path exists) { cp --force $service (secret obs-service.json) }
     let recorded = recorded-hashes

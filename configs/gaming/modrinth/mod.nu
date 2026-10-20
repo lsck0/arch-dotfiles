@@ -4,8 +4,10 @@ export const meta = {packages: {pacman: [modrinth-app]}, backup: {secrets: true}
 
 def paths []: nothing -> record {
     let data = $nu.home-dir | path join .local share ModrinthApp
+    let saved = $env.DOTFILES | path join secrets modrinth
+    # instances, java paths and window state are this machine's; a new one seeds from the shared copy
     {
-        data: $data, db: ($data | path join app.db), saved: ($env.DOTFILES | path join secrets modrinth app.db)
+        data: $data, db: ($data | path join app.db), seed: (host-seed $saved app.db), saved: (host-file $saved app.db)
         saves: ($nu.home-dir | path join sync games mc saves)
     }
 }
@@ -22,7 +24,7 @@ export def link [cfg: record] {
     if (which modrinth-app | is-empty) { return [] }
     let p = paths
     # seeded once: modrinth rewrites app.db in place
-    let seed = if (secret-is-plaintext $p.saved) and not ($p.db | path exists) { step seed } else { [] }
+    let seed = if (secret-is-plaintext $p.seed) and not ($p.db | path exists) { step seed } else { [] }
     # only into a saves dir syncthing made: one made here first collides with the real one it delivers
     let busy = ps | where name in [java modrinth-app] | is-not-empty
     let relocate = (profile-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
@@ -32,7 +34,7 @@ export def link [cfg: record] {
 export def seed []: nothing -> nothing {
     let p = paths
     mkdir $p.data
-    ^cp -n $p.saved $p.db
+    ^cp -n $p.seed $p.db
     touch ($p.data | path join .from-secrets)
 }
 
@@ -57,7 +59,7 @@ export def relocate []: nothing -> nothing {
 export def backup [cfg: record]: nothing -> nothing {
     let p = paths
     if (which modrinth-app | is-empty) or not ($p.db | path exists) { return }
-    secret-seed-guard ($p.data | path join .from-secrets) $p.saved $p.data
+    secret-seed-guard ($p.data | path join .from-secrets) $p.seed $p.data
     mkdir ($p.saved | path dirname)
     rm --force $p.saved
     ^sqlite3 $p.db $".backup '($p.saved)'"
