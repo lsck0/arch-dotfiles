@@ -2,6 +2,8 @@
 
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
+# own copies that replace apparmor.d's of the same name on purpose (their header says why); aa-install skips them
+const OVERRIDES = [thunderbird libreoffice]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero
@@ -39,7 +41,8 @@ def own-check [rows: table]: nothing -> list<string> {
         [
             (if $name not-in $rows.name { $"profiles/($name) is not in profiles.conf" })
             (if ($lines | first) != $MARKER { $"profiles/($name) lacks the marker line" })
-            (if not ($lines | any { str starts-with $"profile ($name) @{exec_path} flags=\(" }) {
+            # any attachment: 7z spells its paths out, apparmor 4.1.8 never attaches its @{bin}/@{lib} expansion
+            (if not ($lines | any {|l| ($l | str starts-with $"profile ($name) ") and ($l | str contains " flags=(") }) {
                 $"profiles/($name) has no 'profile ($name) ... flags=\(' line"
             })
         ]
@@ -63,7 +66,7 @@ def compile-check [rows: table, source: path, etc: path]: nothing -> list<string
     let own = basenames profiles
     let names = $rows | get name | each {|n|
         if $n in $own {
-            if $n in $upstream { $"apparmor.d now ships ($n), drop profiles/($n)" }
+            if $n in $upstream and $n not-in $OVERRIDES { $"apparmor.d now ships ($n), drop profiles/($n)" }
         } else if $n not-in $upstream { $"apparmor.d has no profile named ($n)" }
     } | compact
     let work = mktemp -d

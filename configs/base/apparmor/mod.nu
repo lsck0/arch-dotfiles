@@ -61,7 +61,10 @@ export def system [cfg: record] {
         (file-copy modes /etc/apparmor/modes)
         (file-text /etc/apparmor/flags.d/dotfiles.conf (do $lines ($upstream | each { $"($in.name) ($in.flags)" })))
         (file-text /etc/apparmor/include.d/dotfiles.conf (do $lines $upstream.name))
+        # an own profile replaces apparmor.d's of the same name (thunderbird, libreoffice): aa-install must not build its own
+        (file-text /etc/apparmor/ignore.d/dotfiles.conf (do $lines (own)))
         (file-text $"($ETC)/tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles" (xdg-tunables))
+        (step build)
     ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) {
         # the rest would not compile without apparmor.d's variables and abstractions
         []
@@ -79,7 +82,9 @@ export def system [cfg: record] {
     }) ++ [(step load)]
 }
 
-export def load []: nothing -> nothing {
+# before the own profiles are written: aa-install removes what it built earlier, and apparmor.d's libreoffice sat at the
+# very path the own one takes
+export def build []: nothing -> nothing {
     mkdir $EARLY_POLICY
     let have = open --raw $PARSER_CONF | lines
     let missing = $PARSER_LINES | where $it not-in $have
@@ -87,6 +92,14 @@ export def load []: nothing -> nothing {
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
+    # an own profile is the only source of its name: apparmor.d's earlier build of it, and the disable/ link it made for
+    # the stock profile the own one now overwrites, would load a second thunderbird or keep the own one unloaded
+    for name in (own) {
+        rm --force ($ETC | path join $"($name).apparmor.d") ($ETC | path join disable $name)
+    }
+}
+
+export def load []: nothing -> nothing {
     if (try { open --raw /sys/module/apparmor/parameters/enabled | str trim } catch { "" }) != "Y" {
         print "apparmor: not active in this kernel yet, the profiles load on the next boot"
         return

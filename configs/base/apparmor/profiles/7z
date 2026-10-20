@@ -9,7 +9,9 @@ include <tunables/global>
 @{att} = ""
 
 @{exec_path} = @{bin}/7z{,a,r} @{lib}/7zip/7z{,a,r}
-profile 7z @{exec_path} flags=(attach_disconnected) {
+# attached by literal /usr paths: @{bin}/@{lib} expand to /{,usr/}... inside an alternation, which apparmor 4.1.8 loads
+# but never attaches (every 7z ran unconfined); usr is merged, so the kernel only ever sees the /usr paths
+profile 7z /usr/{bin,lib/7zip}/7z{,a,r} flags=(attach_disconnected) {
   include <abstractions/dotfiles/file-tool>
 
   @{exec_path} mrix,

@@ -1,0 +1,118 @@
+# managed by arch-dotfiles/apparmor
+# apparmor.d's thunderbird profile, built, with one change: its attachment. apparmor 4.1.8 loads apparmor.d's
+# /{{,usr/}...{,x}...} form but never attaches it (it ran unconfined); usr is merged, so plain /usr paths match
+# every launch. aa-install skips its own copy (ignore.d, mod.nu); refresh this file from
+# /usr/share/apparmor.d when apparmor.d changes the profile
+
+# apparmor.d - Full set of apparmor profiles
+# Copyright (C) 2015-2021 Mikhail Morfikov
+# Copyright (C) 2021-2024 Alexandre Pujol <alexandre@pujol.io>
+# SPDX-License-Identifier: GPL-2.0-only
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+@{name} = thunderbird{,-bin}
+@{lib_dirs} = @{lib}/@{name}
+@{config_dirs} = @{HOME}/.@{name}/
+@{cache_dirs} = @{user_cache_dirs}/@{name}/
+
+@{exec_path} = @{bin}/@{name} @{lib_dirs}/@{name}
+@{att} = /att/thunderbird/
+profile thunderbird /usr/{bin/thunderbird,lib/thunderbird/thunderbird} flags=(attach_disconnected,attach_disconnected.path=@{att}) {
+  include <abstractions/attached/base>
+  include <abstractions/app/firefox>
+  include <abstractions/user-download-strict>
+  include <abstractions/user-read-strict>
+
+  #aa/dbus own bus=session name=org.mozilla.thunderbird
+  include <abstractions/bus/session/own>
+  dbus bind bus=session name=org.mozilla.thunderbird{,.*},
+  dbus receive bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.mozilla.thunderbird{,.*}
+       peer=(name="@{busname}"),
+  dbus send bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.mozilla.thunderbird{,.*}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+  # DBus.Properties: reply to properties request from anyone
+  dbus (send receive) bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.freedesktop.DBus.Properties
+       member={Get,GetAll,Set,PropertiesChanged}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+  # DBus.Introspectable: allow clients to introspect the service
+  dbus receive bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.freedesktop.DBus.Introspectable
+       member=Introspect
+       peer=(name="@{busname}"),
+  # DBus.ObjectManager: allow clients to enumerate sources
+  dbus receive bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.freedesktop.DBus.ObjectManager
+       member=GetManagedObjects
+       peer=(name="{@{busname},org.mozilla.thunderbird{,.*}}"),
+  dbus send bus=session path=/org/mozilla/thunderbird{,/**}
+       interface=org.freedesktop.DBus.ObjectManager
+       member={InterfacesAdded,InterfacesRemoved}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+
+
+  @{exec_path} mrix,
+
+  @{lib_dirs}/glxtest    rpx -> thunderbird//&thunderbird-glxtest,
+  @{lib_dirs}/vaapitest  rpx -> thunderbird//&thunderbird-vaapitest,
+
+
+  # glycin-loaders sandboxed profile stack
+  include <abstractions/app/bwrap-glycin>
+  signal (send receive) set=kill peer=glycin//&thunderbird,
+  @{bin}/bwrap                          px -> thunderbird//&glycin,
+  @{lib}/glycin-loaders/@{d}+/glycin-*  px -> thunderbird//&glycin//&glycin//loaders,
+
+  @{lib}/@{multiarch}/qt5/plugins/kf5/org.kde.kwindowsystem.platforms/KF5WindowSystemKWaylandPlugin.so mr,
+  @{lib}/@{multiarch}/qt5/plugins/kf5/org.kde.kwindowsystem.platforms/KF5WindowSystemX11Plugin.so mr,
+
+  # GPG integration
+  @{bin}/gpg{,2}     rpx,
+  @{bin}/gpgconf     rpx,
+  @{bin}/gpgsm       rpx,
+
+  # Desktop integration
+  @{open_path}       rpx -> child-open,
+
+  # Extensions
+  @{bin}/SysTray-X   rpux,
+
+  /usr/share/lightning/{,**} r,
+
+  owner /var/mail/** rwk,
+
+  owner @{user_mail_dirs}/ rw,
+  owner @{user_mail_dirs}/** rwl -> @{user_mail_dirs}/**,
+
+  owner @{user_config_dirs}/gtk-{3,4}.0/assets/*.svg r,
+  owner @{user_config_dirs}/ibus/bus/ r,
+  owner @{user_config_dirs}/ibus/bus/@{hex32}-unix-{,wayland-}@{int} r,
+  owner @{user_config_dirs}/kioslaverc r,
+  owner @{user_config_dirs}/mimeapps.list{,.@{rand6}} rw,
+
+  owner @{tmp}/MozillaMailnews/ rw,
+  owner @{tmp}/MozillaMailnews/*.msf rw,
+  owner @{tmp}/ns* rw,
+  owner @{tmp}/org.mozilla.thunderbird/ w,
+  owner @{tmp}/org.mozilla.thunderbird/.parentlock wk,
+  owner @{tmp}/org.mozilla.thunderbird/lock w,
+  owner @{tmp}/pid-@{pid}/{,**} w,
+
+  /dev/urandom w,
+
+  # Silencer
+  deny capability sys_ptrace,
+  deny @{lib_dirs}/** w,
+  deny @{lib_dirs}/crashreporter x,
+  deny @{lib_dirs}/minidump-analyzer x,
+  deny @{HOME}/.mozilla/** mrwkl,
+
+  include if exists <local/thunderbird>
+}
+
+# vim:syntax=apparmor
