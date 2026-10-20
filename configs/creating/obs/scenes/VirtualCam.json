@@ -1,5 +1,61 @@
 {
   "name": "VirtualCam",
+  "groups": [],
+  "scene_order": [
+    {
+      "name": "Cam bottom right"
+    },
+    {
+      "name": "Cam bottom left"
+    },
+    {
+      "name": "Cam top right"
+    },
+    {
+      "name": "Cam top left"
+    },
+    {
+      "name": "Desktop"
+    },
+    {
+      "name": "Webcam"
+    }
+  ],
+  "current_scene": "Cam bottom right",
+  "current_program_scene": "Cam bottom right",
+  "canvases": [],
+  "current_transition": "Fade",
+  "transition_duration": 300,
+  "transitions": [],
+  "quick_transitions": [],
+  "saved_projectors": [],
+  "preview_locked": false,
+  "scaling_enabled": false,
+  "scaling_level": -7,
+  "scaling_off_x": 0.0,
+  "scaling_off_y": 0.0,
+  "virtual-camera": {
+    "type2": 3
+  },
+  "modules": {
+    "scripts-tool": [],
+    "output-timer": {
+      "streamTimerHours": 0,
+      "streamTimerMinutes": 0,
+      "streamTimerSeconds": 0,
+      "recordTimerHours": 0,
+      "recordTimerMinutes": 0,
+      "recordTimerSeconds": 0,
+      "autoStartStreamTimer": false,
+      "autoStartRecordTimer": false,
+      "pauseRecordTimer": false
+    }
+  },
+  "resolution": {
+    "x": 1920,
+    "y": 1080
+  },
+  "version": 2,
   "sources": [
     {
       "prev_ver": 537001986,
@@ -32,7 +88,7 @@
       "id": "v4l2_input",
       "versioned_id": "v4l2_input",
       "settings": {
-        "device_id": "/dev/v4l/by-id/usb-SHENZHEN_EMEET_TECHNOLOGY_CO._LTD._eMeet_Nova_Ucamera001-video-index0",
+        "device_id": "/dev/v4l/by-id/usb-Chicony_Electronics_Co._Ltd._Integrated_Camera_0001-video-index0",
         "pixelformat": 1196444237,
         "resolution": 8246337209400,
         "framerate": 4294967326
@@ -70,10 +126,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 2,
             "bounds_align": 0,
@@ -88,25 +140,13 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
-            "bounds_rel": {
-              "x": 3.555555582046509,
-              "y": 2.0
+              "x": 1920.0,
+              "y": 1080.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -159,10 +199,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 2,
             "bounds_align": 0,
@@ -177,25 +213,13 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
-            "bounds_rel": {
-              "x": 3.555555582046509,
-              "y": 2.0
+              "x": 1920.0,
+              "y": 1080.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -248,10 +272,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -266,23 +286,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -303,10 +311,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 10,
             "bounds_type": 2,
             "bounds_align": 10,
@@ -318,28 +322,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 3800.0,
-              "y": 2120.0
-            },
-            "pos_rel": {
-              "x": 1.7407407760620117,
-              "y": 0.9629629850387573
+              "x": 1900.0,
+              "y": 1060.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 960.0,
-              "y": 540.0
-            },
-            "bounds_rel": {
-              "x": 0.8888888955116272,
-              "y": 0.5
+              "x": 480.0,
+              "y": 270.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -394,10 +386,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -412,23 +400,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -449,10 +425,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 9,
             "bounds_type": 2,
             "bounds_align": 9,
@@ -464,28 +436,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 40.0,
-              "y": 2120.0
-            },
-            "pos_rel": {
-              "x": -1.7407407760620117,
-              "y": 0.9629629850387573
+              "x": 20.0,
+              "y": 1060.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 960.0,
-              "y": 540.0
-            },
-            "bounds_rel": {
-              "x": 0.8888888955116272,
-              "y": 0.5
+              "x": 480.0,
+              "y": 270.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -540,10 +500,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -558,23 +514,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -595,10 +539,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 6,
             "bounds_type": 2,
             "bounds_align": 6,
@@ -610,28 +550,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 3800.0,
-              "y": 40.0
-            },
-            "pos_rel": {
-              "x": 1.7407407760620117,
-              "y": -0.9629629850387573
+              "x": 1900.0,
+              "y": 20.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 960.0,
-              "y": 540.0
-            },
-            "bounds_rel": {
-              "x": 0.8888888955116272,
-              "y": 0.5
+              "x": 480.0,
+              "y": 270.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -686,10 +614,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -704,23 +628,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -741,10 +653,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 2,
             "bounds_align": 5,
@@ -756,28 +664,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 40.0,
-              "y": 40.0
-            },
-            "pos_rel": {
-              "x": -1.7407407760620117,
-              "y": -0.9629629850387573
+              "x": 20.0,
+              "y": 20.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 960.0,
-              "y": 540.0
-            },
-            "bounds_rel": {
-              "x": 0.8888888955116272,
-              "y": 0.5
+              "x": 480.0,
+              "y": 270.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -816,61 +712,5 @@
       "canvas_uuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
       "private_settings": {}
     }
-  ],
-  "groups": [],
-  "scene_order": [
-    {
-      "name": "Cam bottom right"
-    },
-    {
-      "name": "Cam bottom left"
-    },
-    {
-      "name": "Cam top right"
-    },
-    {
-      "name": "Cam top left"
-    },
-    {
-      "name": "Desktop"
-    },
-    {
-      "name": "Webcam"
-    }
-  ],
-  "current_scene": "Cam bottom right",
-  "current_program_scene": "Cam bottom right",
-  "canvases": [],
-  "current_transition": "Fade",
-  "transition_duration": 300,
-  "transitions": [],
-  "quick_transitions": [],
-  "saved_projectors": [],
-  "preview_locked": false,
-  "scaling_enabled": false,
-  "scaling_level": -7,
-  "scaling_off_x": 0.0,
-  "scaling_off_y": 0.0,
-  "virtual-camera": {
-    "type2": 3
-  },
-  "modules": {
-    "scripts-tool": [],
-    "output-timer": {
-      "streamTimerHours": 0,
-      "streamTimerMinutes": 0,
-      "streamTimerSeconds": 0,
-      "recordTimerHours": 0,
-      "recordTimerMinutes": 0,
-      "recordTimerSeconds": 0,
-      "autoStartStreamTimer": false,
-      "autoStartRecordTimer": false,
-      "pauseRecordTimer": false
-    }
-  },
-  "resolution": {
-    "x": 3840,
-    "y": 2160
-  },
-  "version": 2
+  ]
 }

@@ -7,7 +7,7 @@
     "id": "pulse_input_capture",
     "versioned_id": "pulse_input_capture",
     "settings": {
-      "device_id": "alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback"
+      "device_id": "alsa_input.pci-0000_00_1f.3.analog-stereo"
     },
     "mixers": 11,
     "sync": 0,
@@ -246,10 +246,6 @@
             "visible": true,
             "locked": false,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 2,
             "bounds_align": 0,
@@ -264,25 +260,13 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
-            "bounds_rel": {
-              "x": 3.555555582046509,
-              "y": 2.0
+              "x": 1920.0,
+              "y": 1080.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -301,10 +285,6 @@
             "visible": true,
             "locked": true,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -319,23 +299,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -356,10 +324,6 @@
             "visible": true,
             "locked": true,
             "rot": 0.0,
-            "scale_ref": {
-              "x": 3840.0,
-              "y": 2160.0
-            },
             "align": 5,
             "bounds_type": 0,
             "bounds_align": 0,
@@ -374,23 +338,11 @@
               "x": 0.0,
               "y": 0.0
             },
-            "pos_rel": {
-              "x": -1.7777777910232544,
-              "y": -1.0
-            },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
-            "scale_rel": {
-              "x": 1.0,
-              "y": 1.0
-            },
             "bounds": {
-              "x": 0.0,
-              "y": 0.0
-            },
-            "bounds_rel": {
               "x": 0.0,
               "y": 0.0
             },
@@ -479,8 +431,8 @@
     }
   },
   "resolution": {
-    "x": 3840,
-    "y": 2160
+    "x": 1920,
+    "y": 1080
   },
   "version": 2
 }
