@@ -394,8 +394,8 @@ def wifi-carry [c: record]: nothing -> nothing {
         let bytes = $ssid | encode utf-8 | chunks 1 | each {|b| $"($b | into int);" } | str join
         let file = $"($MOUNT)/etc/NetworkManager/system-connections/($name).nmconnection"
         mkdir ($file | path dirname)
-        ["[connection]" $"id=(keyfile-escape $ssid)" "type=wifi" "" "[wifi]" $"ssid=($bytes)"] ++ $mac ++ $hidden ++ $security
-        ++ ["" "[ipv4]" "method=auto" "" "[ipv6]" "method=auto"]
+        (["[connection]" $"id=(keyfile-escape $ssid)" "type=wifi" "" "[wifi]" $"ssid=($bytes)"] ++ $mac ++ $hidden ++ $security
+            ++ ["" "[ipv4]" "method=auto" "" "[ipv6]" "method=auto"])
         | str join "\n" | $"($in)\n" | save --force $file
         ^chmod 600 $file
     }
