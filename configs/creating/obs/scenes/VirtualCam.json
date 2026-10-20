@@ -52,8 +52,8 @@
     }
   },
   "resolution": {
-    "x": 1920,
-    "y": 1080
+    "x": 3840,
+    "y": 2160
   },
   "version": 2,
   "sources": [
@@ -88,7 +88,7 @@
       "id": "v4l2_input",
       "versioned_id": "v4l2_input",
       "settings": {
-        "device_id": "/dev/v4l/by-id/usb-Chicony_Electronics_Co._Ltd._Integrated_Camera_0001-video-index0",
+        "device_id": "/dev/v4l/by-id/usb-SHENZHEN_EMEET_TECHNOLOGY_CO._LTD._eMeet_Nova_Ucamera001-video-index0",
         "pixelformat": 1196444237,
         "resolution": 8246337209400,
         "framerate": 4294967326
@@ -145,8 +145,8 @@
               "y": 1.0
             },
             "bounds": {
-              "x": 1920.0,
-              "y": 1080.0
+              "x": 3840.0,
+              "y": 2160.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -218,8 +218,8 @@
               "y": 1.0
             },
             "bounds": {
-              "x": 1920.0,
-              "y": 1080.0
+              "x": 3840.0,
+              "y": 2160.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -322,16 +322,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 1900.0,
-              "y": 1060.0
+              "x": 3800.0,
+              "y": 2120.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
             "bounds": {
-              "x": 480.0,
-              "y": 270.0
+              "x": 960.0,
+              "y": 540.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -436,16 +436,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 20.0,
-              "y": 1060.0
+              "x": 40.0,
+              "y": 2120.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
             "bounds": {
-              "x": 480.0,
-              "y": 270.0
+              "x": 960.0,
+              "y": 540.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -550,16 +550,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 1900.0,
-              "y": 20.0
+              "x": 3800.0,
+              "y": 40.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
             "bounds": {
-              "x": 480.0,
-              "y": 270.0
+              "x": 960.0,
+              "y": 540.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -664,16 +664,16 @@
             "id": 2,
             "group_item_backup": false,
             "pos": {
-              "x": 20.0,
-              "y": 20.0
+              "x": 40.0,
+              "y": 40.0
             },
             "scale": {
               "x": 1.0,
               "y": 1.0
             },
             "bounds": {
-              "x": 480.0,
-              "y": 270.0
+              "x": 960.0,
+              "y": 540.0
             },
             "scale_filter": "disable",
             "blend_method": "default",

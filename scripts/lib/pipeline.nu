@@ -107,8 +107,11 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     ] | str join "\n"
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
-        let outside = $prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir) | get source
-        let input = [$global (stamp $m.dir) ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo $outside)] | str join "\n" | hash sha256
+        let outside = $prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir)
+        # a copy depends on its source's content, a link only on its source being there: base/xdg links live app
+        # dirs (~/.local/state/task) whose mtime moves all day, which re-ran it on every apply
+        let links = $outside | where kind == link | get source | each {|s| $"($s) ($s | path exists)" } | str join "\n"
+        let input = [$global (stamp $m.dir) ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }

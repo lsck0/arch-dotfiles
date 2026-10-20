@@ -22,12 +22,13 @@ Item {
   readonly property bool panelPinnable: panelPinOnClick && bar !== null
     && bar.panelNames.indexOf(moduleName) !== -1
 
-  // above the widget's own MouseArea: a passive tap grab lets the press through to it
+  // above the widget's own MouseArea: a passive tap grab lets the press through to it. No HoverHandler here: it
+  // takes the hover, so the MouseArea below never gets onEntered and no panel opens on hover (blocking: false does
+  // not help); each widget's MouseArea sets the pointing cursor itself
   Item {
     anchors.fill: parent
     z: 1000
     enabled: root.panelPinnable
-    HoverHandler { cursorShape: Qt.PointingHandCursor }
     TapHandler {
       acceptedButtons: Qt.LeftButton
       onTapped: root.bar.panelClick(root.moduleName)

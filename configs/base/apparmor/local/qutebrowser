@@ -29,3 +29,8 @@ include <abstractions/devices-u2f>
 @{sys}/bus/*/devices/ r,
 @{sys}/class/*/ r,
 @{sys}/devices/**/uevent r,
+# config.py reads the shared bar style (radius, font) from the dotfiles state dir; denied, the config load fails
+owner @{user_config_dirs}/dotfiles/style.json r,
+# pulse client config, its runtime dir and event sounds; denied, sites play with a fallback client and no event sounds
+include <abstractions/audio-client>
+owner @{user_cache_dirs}/event-sound-cache.tdb.* rwk,

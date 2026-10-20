@@ -12,6 +12,7 @@ const KNOCK_TRIES = 5
 
 # Knock, then ssh to [user@]<host> on the hidden port; the remaining arguments go to ssh.
 def --wrapped main [target: string, ...args: string]: nothing -> nothing {
+    if $target in ["-h" "--help"] { print "usage: sshk [user@]<host> [ssh args...]: knock, then ssh to the hidden port 2222"; return }
     let host = $target | split row "@" | last
     for _ in 1..$KNOCK_TRIES {
         ^knock $host ...($KNOCK | each { into string })

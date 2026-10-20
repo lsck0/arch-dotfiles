@@ -6,6 +6,7 @@ const SERVER = "hollywood"
 const SHIM = "#!/bin/sh\nexec /usr/bin/tmux -L hollywood -f /dev/null \"$@\"\n"
 
 def --wrapped main [...args: string]: nothing -> nothing {
+    if ($args | get --optional 0) in ["-h" "--help"] { print "usage: hollywood-run [args...]: hollywood on a private tmux server"; return }
     let bin = $env.XDG_RUNTIME_DIR? | default /tmp | path join hollywood-run
     mkdir $bin
     $SHIM | save --force ($bin | path join tmux)

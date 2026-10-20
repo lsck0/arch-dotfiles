@@ -45,6 +45,14 @@ export def system [cfg: record] {
         })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf } else { [] })
         (file-copy user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
+        # systemd's user preset enables these, but nothing applies user presets on arch: every login gets its
+        # ~/.config/user-tmpfiles.d (herdr's session reset) and the cleanup, what `systemctl --global enable` links
+        (if-present systemd-tmpfiles-setup.service {
+            file-link /usr/lib/systemd/user/systemd-tmpfiles-setup.service /etc/systemd/user/basic.target.wants/systemd-tmpfiles-setup.service
+        })
+        (if-present systemd-tmpfiles-clean.timer {
+            file-link /usr/lib/systemd/user/systemd-tmpfiles-clean.timer /etc/systemd/user/timers.target.wants/systemd-tmpfiles-clean.timer
+        })
     ] | decls-flatten
 }
 

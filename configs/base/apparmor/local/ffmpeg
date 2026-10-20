@@ -5,3 +5,5 @@
 # the terminal come with apparmor.d's consoles abstraction
 include <abstractions/dotfiles/file-tool>
 owner @{MOUNTS}/** rwk,
+# webcam capture (ffmpeg -f v4l2 -i /dev/video0): the device node and its sysfs description
+include <abstractions/video>

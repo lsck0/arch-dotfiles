@@ -10,6 +10,7 @@ const PROPERTIES = [
 
 # Run a GUI app hardened, e.g. `confine -- discord`.
 def --wrapped main [...command: string]: nothing -> nothing {
+    if ($command | get --optional 0) in ["-h" "--help"] { print "usage: confine [--] <command...>: run a GUI app hardened"; return }
     let command = if $command.0? == "--" { $command | skip 1 } else { $command }
     if ($command | is-empty) {
         print --stderr "usage: confine [--] <command...>"

@@ -45,8 +45,8 @@ export def link [cfg: record] {
     [
         (config)
         (link-commands herdr-open.nu herdr-fingers.nu)
+        # applied at login by systemd-tmpfiles-setup.service, enabled for every user by base/systemd
         (file-copy herdr.tmpfiles.conf ($nu.home-dir | path join $TMPFILES))
-        (unit-enable systemd-tmpfiles-setup.service)
     ]
 }
 

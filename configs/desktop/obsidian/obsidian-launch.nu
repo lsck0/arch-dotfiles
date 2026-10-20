@@ -16,6 +16,7 @@ def restrict-state []: nothing -> string {
 }
 
 def --wrapped main [...args: string]: nothing -> nothing {
+    if ($args | get --optional 0) in ["-h" "--help"] { print "usage: obsidian-launch [args...]: start obsidian with its plugins restricted"; return }
     let app = job spawn { ^$OBSIDIAN ...$args }
     mut state = ""
     for _ in 1..$WAIT_TRIES {

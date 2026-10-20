@@ -245,6 +245,7 @@ BarWidget {
     id: hoverArea
     anchors.fill: parent
     hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
     onEntered: if (root.bar) root.bar.hoverOpen(root.moduleName)
     onExited: if (root.bar) root.bar.hoverTriggerExit(root.moduleName)
   }

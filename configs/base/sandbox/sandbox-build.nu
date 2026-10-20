@@ -10,6 +10,7 @@ def --wrapped main [
     --work (-w): path  # the writable dir, $PWD without it
     ...command: string
 ]: nothing -> nothing {
+    if ($command | get --optional 0) in ["-h" "--help"] { print "usage: sandbox-build [-w writable-dir] [--] <command...>: run it offline in the work dir"; return }
     let command = if $command.0? == "--" { $command | skip 1 } else { $command }
     if ($command | is-empty) {
         print --stderr "usage: sandbox-build [-w writable-dir] [--] <command...>"

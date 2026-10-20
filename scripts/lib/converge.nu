@@ -277,7 +277,14 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     {output: (if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" })}
                 }
-                "enable" | "disable" | "mask" => {
+                "disable" => {
+                    ^systemctl $"--($scope)" disable $a.target
+                    # the stop is best effort: a stock unit with RefuseManualStop= (systemd-tmpfiles-setup) refuses it,
+                    # and the disable that matters already happened
+                    if ($a.decl.now? | default false) { do { ^systemctl $"--($scope)" stop $a.target } | complete | ignore }
+                    {}
+                }
+                "enable" | "mask" => {
                     let now = if ($a.decl.now? | default false) { [--now] } else { [] }
                     ^systemctl $"--($scope)" $a.kind ...$now $a.target
                     {}

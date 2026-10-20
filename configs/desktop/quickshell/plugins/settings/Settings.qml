@@ -62,9 +62,10 @@ Item {
 
   onExpandedIdChanged: root.choiceQuery = ""
 
-  function open() {
-    var focused = Hyprland.focusedMonitor
-    panel.screen = Array.from(Quickshell.screens).find(function (s) { return focused && s.name === focused.name }) || null
+  // on the named output, else the focused one
+  function open(output) {
+    var name = output || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
+    panel.screen = Array.from(Quickshell.screens).find(function (s) { return s.name === name }) || null
     root.opened = true
     root.expandedId = ""
     root.editingId = ""
@@ -98,9 +99,15 @@ Item {
     root.selectRow(Schema.selectable(root.rows, 0, 1))
   }
 
-  function selectSection(index) {
+  // headers in the list are skipped in the direction of travel
+  function selectSection(index, direction) {
     if (root.sections.length === 0) return
-    root.sectionIndex = Math.max(0, Math.min(index, root.sections.length - 1))
+    var dir = direction || 1
+    var start = Math.max(0, Math.min(index, root.sections.length - 1))
+    var next = Schema.selectable(root.sections, start, dir)
+    if (next < 0) next = Schema.selectable(root.sections, start, -dir)
+    if (next < 0) return
+    root.sectionIndex = next
     root.expandedId = ""
     root.selectRow(Schema.selectable(root.rows, 0, 1))
     sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
@@ -179,7 +186,7 @@ Item {
     var horizontal = key === Qt.Key_Left ? -1 : key === Qt.Key_Right ? 1 : 0
 
     if (root.pane === "sections") {
-      if (vertical !== 0) root.selectSection(root.sectionIndex + vertical)
+      if (vertical !== 0) root.selectSection(root.sectionIndex + vertical, vertical > 0 ? 1 : -1)
       else if (key === Qt.Key_Right || key === Qt.Key_Return || key === Qt.Key_Enter) root.enterSection(root.sectionIndex)
       else return root.typeKey(key, text)
       return true
@@ -409,7 +416,9 @@ Item {
       root.modules = data.modules.map(Schema.moduleNormalize)
       if (root.rowIndex < 0 || root.rowIndex >= root.rows.length) root.selectRow(Schema.selectable(root.rows, 0, 1))
       else root.selectRow(root.rowIndex)
-      sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
+      var at = root.sections[root.sectionIndex]
+      if (at && at.kind === "header") root.selectSection(root.sectionIndex)
+      else sectionList.positionViewAtIndex(root.sectionIndex, ListView.Contain)
     }
   }
 
@@ -475,7 +484,9 @@ Item {
   IpcHandler {
     target: "settings"
     function toggle(): string { root.toggle(); return "ok" }
-    function open(): string { root.open(); return "ok" }
+    function open(): string { root.open(""); return "ok" }
+    // a given output, focused or not: the agents' headless output, or another monitor
+    function openOn(output: string): string { root.open(output); return "ok" }
     function close(): string { root.close(); return "ok" }
   }
 
@@ -518,35 +529,43 @@ Item {
           required property var modelData
           required property int index
 
-          readonly property bool current: index === root.sectionIndex && !root.query
+          // a group's name above its modules, never selectable
+          readonly property bool header: modelData.kind === "header"
+          readonly property bool current: !header && index === root.sectionIndex && !root.query
           readonly property bool hasCursor: current && root.pane === "sections"
           readonly property bool hasPending: Object.keys(root.pending).some(function (id) {
             return id.indexOf(sectionRow.modelData.id + ".") === 0
           })
 
           width: ListView.view.width
-          height: Style.row.list
+          height: header ? Style.row.list * 0.8 + (index > 1 ? Style.spacing.sm : 0) : Style.row.list
           radius: Style.shape.data
-          opacity: root.query && modelData.count === 0 ? Style.emphasis.disabled : 1
-          color: hasCursor ? Colors.menu.selectedBackground : current || sectionMouse.containsMouse ? Style.hoverFill : "transparent"
+          opacity: root.query && !header && modelData.count === 0 ? Style.emphasis.disabled : 1
+          color: header ? "transparent" : hasCursor ? Colors.menu.selectedBackground
+            : current || sectionMouse.containsMouse ? Style.hoverFill : "transparent"
 
           Text {
             anchors.left: parent.left
             anchors.leftMargin: Style.spacing.md
             anchors.right: count.left
             anchors.rightMargin: Style.spacing.sm
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.verticalCenter: sectionRow.header ? undefined : parent.verticalCenter
+            anchors.bottom: sectionRow.header ? parent.bottom : undefined
             textFormat: Text.PlainText
-            text: (sectionRow.hasCursor ? "> " : "") + sectionRow.modelData.label + (sectionRow.hasPending ? " *" : "")
-            color: sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
+            text: sectionRow.header ? sectionRow.modelData.label.toUpperCase()
+              : (sectionRow.hasCursor ? "> " : "") + sectionRow.modelData.label + (sectionRow.hasPending ? " *" : "")
+            color: sectionRow.header ? Colors.accent : sectionRow.current ? Colors.menu.selectedText : Colors.menu.text
+            opacity: sectionRow.header ? Style.emphasis.faint : 1
             font.family: Style.font.family
-            font.pixelSize: Style.font.body
-            font.bold: sectionRow.current
+            font.pixelSize: sectionRow.header ? Style.font.caption : Style.font.body
+            font.bold: sectionRow.current || sectionRow.header
+            font.letterSpacing: sectionRow.header ? Style.space(1) : 0
             elide: Text.ElideRight
           }
 
           Text {
             id: count
+            visible: !sectionRow.header
             anchors.right: parent.right
             anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
@@ -561,6 +580,7 @@ Item {
           MouseArea {
             id: sectionMouse
             anchors.fill: parent
+            enabled: !sectionRow.header
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.enterSection(sectionRow.index)
@@ -643,6 +663,10 @@ Item {
               Rectangle {
                 readonly property var toggle: slot.modelData.toggle
                 readonly property bool busy: root.busyToggles[toggle.name] === true
+                // a cycling toggle's label is "<name>: <state>": the name on the left, the state as its badge
+                readonly property int split: Schema.toggleCycles(toggle) ? toggle.label.indexOf(": ") : -1
+                readonly property string name: split > 0 ? toggle.label.slice(0, split) : toggle.label
+                readonly property string stateText: split > 0 ? toggle.label.slice(split + 2) : "next"
 
                 implicitHeight: Style.row.list
                 radius: Style.shape.data
@@ -655,7 +679,7 @@ Item {
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
-                  text: (slot.hasCursor ? "> " : "  ") + parent.toggle.label
+                  text: (slot.hasCursor ? "> " : "  ") + parent.name
                   color: slot.hasCursor ? Colors.menu.selectedText : Colors.menu.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.body
@@ -679,7 +703,7 @@ Item {
                   anchors.rightMargin: Style.spacing.md
                   anchors.verticalCenter: parent.verticalCenter
                   textFormat: Text.PlainText
-                  text: parent.busy ? "..." : "[next]"
+                  text: parent.busy ? "..." : "[" + parent.stateText + "]"
                   color: Colors.accent
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption

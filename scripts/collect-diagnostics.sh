@@ -5,6 +5,12 @@
 # no-errexit: a failing probe is a finding to record, the rest must still be collected
 set -uo pipefail
 
+case "${1:-}" in
+    -h | --help)
+        echo "usage: collect-diagnostics [dest]: logs, journals, network and dot state into dest/diag-<host>-<time>/"
+        exit 0
+        ;;
+esac
 self=$(dirname "$(realpath "$0")")
 if [[ -n "${1:-}" ]]; then
     dest=$1

@@ -54,19 +54,35 @@ function toggleOptionMatches(needle, toggle, option) {
   return contains(needle, [option.label, option.key, option.doc, toggle.name, togglesLabel])
 }
 
+// a module "<group>/<rest>" lists under a header for its group, by <rest>: a flat list of ~100 full ids reads as noise
+function moduleGroup(module) { var i = module.name.indexOf("/"); return i < 0 ? "" : module.name.slice(0, i) }
+
+function sectionLabel(module) {
+  if (module.label && module.label !== module.name) return module.label
+  var group = moduleGroup(module)
+  return group ? module.name.slice(group.length + 1) : module.name
+}
+
 function sections(modules, toggles, query) {
   var needle = query.trim().toLowerCase()
   var out = [{
+    kind: "section",
     id: togglesId,
     label: togglesLabel,
     count: toggleEntries(toggles, needle).filter(function (r) { return r.kind !== "header" }).length
   }]
-  for (let m = 0; m < modules.length; m++) {
-    let module = modules[m]
+  var group = null
+  // grouped headers need each group's modules together
+  var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
+  for (let m = 0; m < sorted.length; m++) {
+    let module = sorted[m]
     let options = module.options || []
+    let g = moduleGroup(module)
+    if (g !== group) { out.push({ kind: "header", id: "#" + g, label: g }); group = g }
     out.push({
+      kind: "section",
       id: module.name,
-      label: moduleLabel(module),
+      label: sectionLabel(module),
       count: needle ? options.filter(function (o) { return optionMatches(needle, module, o) }).length : options.length
     })
   }

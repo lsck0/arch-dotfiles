@@ -18,3 +18,6 @@ profile lpr {
   /etc/cups/lpoptions r,
   owner @{tmp}/okular_@{rand6}.{ps,pdf} rw,
 }
+
+# KDE's mount-point lookup for the opened file; denied it only logs, the lookup falls back
+@{run}/mount/utab r,

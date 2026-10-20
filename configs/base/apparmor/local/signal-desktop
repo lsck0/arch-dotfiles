@@ -3,3 +3,5 @@
 include <abstractions/dotfiles/gtk-theme>
 # Chromium sizes its heap and threads by its cgroup's memory and cpu limits
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
+# base/xdg moves chromium's nss store from ~/.pki to the state dir; denied, client certs and custom CA trust are gone
+include <abstractions/dotfiles/nssdb>
