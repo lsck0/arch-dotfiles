@@ -738,7 +738,10 @@ def --env update-run [yes: bool]: nothing -> record {
     migrations-run $REPO user | ignore
     let install = install-run false $yes true
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
-    if (system-allowed) { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } else if (admin) { system-skipped "system migrations" false }
+    # a refused sudo (no key, no terminal) is a recorded failure like the install's, never a panic
+    if (system-allowed) {
+        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch { fail "system layer: migrations" }
+    } else if (admin) { system-skipped "system migrations" false }
     {install: $install, results: (apply-run true true false)}
 }
 

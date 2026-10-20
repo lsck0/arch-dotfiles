@@ -39,7 +39,16 @@ def secrets-follow [repo: path]: nothing -> nothing {
     }
     if (^git -C $secrets merge-base --is-ancestor $recorded $current | complete).exit_code == 0 { return }
     if (^git -C $secrets merge-base --is-ancestor $current $recorded | complete).exit_code != 0 {
-        error make {msg: $"secrets: ($current) and the pulled ($recorded) diverged, merge them in ($secrets)"}
+        # this machine's backup commit that never got pushed (an interrupted sync) beside another machine's: per-host
+        # paths keep them apart, so replay it on top; only a file both changed stops here
+        if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
+            error make {msg: $"secrets: ($current) and the pulled ($recorded) diverged and ($secrets) has uncommitted edits"}
+        }
+        if (^git -C $secrets rebase --quiet $recorded | complete).exit_code != 0 {
+            ^git -C $secrets rebase --abort
+            error make {msg: $"secrets: ($current) and the pulled ($recorded) changed the same file, merge them in ($secrets)"}
+        }
+        return
     }
     try { ^git -C $secrets checkout --quiet $recorded } catch {
         error make {msg: $"secrets: local edits conflict with the pulled revision ($recorded), commit or move them in ($secrets)"}
