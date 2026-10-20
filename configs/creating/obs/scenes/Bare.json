@@ -7,7 +7,7 @@
     "id": "pulse_input_capture",
     "versioned_id": "pulse_input_capture",
     "settings": {
-      "device_id": "alsa_input.usb-MV-SILICON_fifine_Microphone_20190808-00.mono-fallback"
+      "device_id": "alsa_input.pci-0000_00_1f.3.analog-stereo"
     },
     "mixers": 11,
     "sync": 0,
@@ -265,8 +265,8 @@
               "y": 1.0
             },
             "bounds": {
-              "x": 3840.0,
-              "y": 2160.0
+              "x": 1920.0,
+              "y": 1080.0
             },
             "scale_filter": "disable",
             "blend_method": "default",
@@ -431,8 +431,8 @@
     }
   },
   "resolution": {
-    "x": 3840,
-    "y": 2160
+    "x": 1920,
+    "y": 1080
   },
   "version": 2
 }
