@@ -37,6 +37,24 @@ qs ipc -p ~/.config/quickshell call bar list                 # panel names (each
 keyboard (`WlrKeyboardFocus.Exclusive`) and focuses its first control; hjkl/arrows walk the controls, Tab jumps
 per `PanelSectionHeader`, Esc or q closes. Hover opens after 140 ms; a click on the bar item pins the panel.
 
+Targets (`show` lists the live ones with signatures):
+
+| target | functions |
+|---|---|
+| `shell` | `palette`, `rgb <c>`, `reloadPowerMode`, `summon <id> <json>` |
+| `bar`, `bar-<output>` | `open <panel>`, `close`, `toggle <panel>`, `state`, `list` |
+| `settings` | `toggle`, `open`, `close`, `openOn <output>` |
+| `appsearch`, `powermenu`, `tasks` | `toggle`, `open`, `close` |
+| `clipboard` | `toggle`, `open`, `close`, `forget <hash>` |
+| `overview` | `toggle`, `open`, `close`, `next`, `prev`, `commit` |
+| `notifications` | `dndState`, `toggleDnd`, `setDnd <value>`, `isDnd`, `showHistory`, `clear`, `dismissAll`, `dismissOne`, `invokeLast`, `dismiss <summary>`, `ping` |
+| `osd` | `present <json>`, `close`, `state`, `ping` |
+| `lock` | `lock`, `isLocked` |
+| `background` | `refresh`, `set <path>`, `setInstant <path>` |
+| `discord` | `toggleMute`, `toggleDeafen`, `disconnect` |
+| `obs` | `toggleListen`, `listen <bool>`, `listening` |
+| `toggles` | `changed <script>` (`scripts/toggles/lib.nu` after a flip) |
+
 An `IpcHandler { target: "<name>" }` in any QML file adds a target. Keybinds call these from
 `configs/desktop/hyprland/hyprland_keybindings.lua` (`quickshell_call(target, fn)`).
 

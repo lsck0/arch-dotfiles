@@ -1,6 +1,7 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [rtk]}}
+# after claude: rtk init rewrites ~/.claude/settings.json whole, outside the engine's json lock
+export const meta = {deps: [programming/claude], packages: {pacman: [rtk]}}
 
 const CLAUDE_HOOK = "rtk hook claude"
 

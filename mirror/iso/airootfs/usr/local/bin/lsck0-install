@@ -32,6 +32,7 @@ const PICK_RESCAN = "rescan"
 const PICK_HIDDEN = "hidden"
 const PICK_SHELL = "shell"
 const SOURCE_PATH_KEYS = [bundle lfs]
+const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
 const TEXT = {
     keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
     wifi: {
@@ -43,6 +44,10 @@ const TEXT = {
         name: "Network name:"
         password: "Password for {ssid}, empty if open:"
         failed: "did not connect"
+    }
+    source: {
+        title: "unverified source"
+        text: "The answer file {origin} brings its own tree (source). It is not signed, replaces the verified master and runs as root.\n\nInstall from it?"
     }
     connecting: "install: connecting to {ssid}"
     waiting: "install: {missing}; checking again in {wait}, Ctrl+C for a shell"
@@ -232,6 +237,15 @@ def checkout-master []: nothing -> path {
     $CLONE_DIR
 }
 
+# an answer file on any medium could swap the verified master: only with lsck0.insecure=1, in a vm (its media are
+# its host's, which owns the guest anyway), or once someone at the console says yes
+def source-allowed [origin: string]: nothing -> bool {
+    if (open --raw /proc/cmdline) =~ $INSECURE_PARAM { return true }
+    if (^systemd-detect-virt --vm --quiet | complete).exit_code == 0 { return true }
+    let text = text-fill $TEXT.source.text {origin: $origin}
+    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" ($TUI_WIDTH | into string) | complete).exit_code == 0
+}
+
 # an unpublished tree (the vm test's snapshot) on top of master; nothing verifies it
 def checkout-bundle [repo: path, source: record]: nothing -> nothing {
     let local = {|p|
@@ -260,7 +274,9 @@ def main [] {
     let repo = if ($reuse | is-not-empty) { $reuse } else {
         try {
             let repo = checkout-master
-            if $early.source != null { checkout-bundle $repo $early.source }
+            if $early.source != null {
+                if (source-allowed $found.origin) { checkout-bundle $repo $early.source } else { print "install: the answers' source is not used, installing the verified master" }
+            }
             $repo
         } catch {|e| print $"install: ($e.msg)"; null }
     }

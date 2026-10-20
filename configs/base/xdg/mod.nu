@@ -32,6 +32,7 @@ const RECLAIM = [
     [.ghcup .local/share/ghcup link] [.opam .local/share/opam link] [.jai .local/share/jai link]
     [.go .local/share/go link] [.kani .local/share/kani link] [.nuget .local/share/nuget link]
     [.mono .local/state/mono link] [.subversion .config/subversion link] [.cgdb .config/cgdb link]
+    [.android .local/share/android link]
     [.mitmproxy .config/mitmproxy link] [.proxychains .config/proxychains link] [.msf4 .local/share/msf4 link]
     [.sliver .local/share/sliver link] [.sliver-client .local/share/sliver-client link] [.john .local/state/john link]
     [.tlaplus .local/share/tlaplus link] [.Macaulay2 .local/share/Macaulay2 link] [.logseq .config/logseq link]

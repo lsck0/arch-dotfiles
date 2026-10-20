@@ -1,6 +1,9 @@
 use module.nu *
 use ../wallust/palette.nu [palette-slots hex-to-rgb rgb-to-hex tone-map mix]
 
+# after wallust: the config is rendered with the palette a fresh install has only after wallust ran
+export const meta = {deps: [core/wallust]}
+
 const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
 # herdr wants a lighter dark floor than the clamp band

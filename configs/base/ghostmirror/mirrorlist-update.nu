@@ -20,9 +20,11 @@ def rank [mode: string, out: path]: nothing -> list<string> {
     } else {
         let countries = try { open --raw $COUNTRIES_FILE | str trim } catch { "" }
             | if $in == "" { $COUNTRIES } else { $in }
-        ^ghostmirror -l $out -c $countries -L $MIRRORS_MAX -S state,outofdate,morerecent,ping
+        ^ghostmirror -l $out -c $countries -L $MIRRORS_MAX -T https -S state,outofdate,morerecent,ping
     }
-    open --raw $out | lines
+    # https only: core and extra databases are unsigned, a plain-http mirror on a foreign network could replay a stale
+    # one and hold security updates back
+    open --raw $out | lines | where {|l| not ($l | str starts-with "Server=http://") }
 }
 
 def main [mode: string]: nothing -> nothing {

@@ -12,6 +12,8 @@ table inet fw {
         ct state invalid drop
         # hoplimit 255: on-link only, so ndp cannot come from beyond the router
         icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, nd-router-advert } ip6 hoplimit 255 accept
+        # dhcpv6 replies come from the server's link-local address to the solicit's multicast: conntrack never matches them
+        ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
         iifname $trusted_ifaces accept
     }
 

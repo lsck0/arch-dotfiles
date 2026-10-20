@@ -542,7 +542,7 @@ Item {
                             horizontalAlignment: TextInput.AlignHCenter
                             verticalAlignment: TextInput.AlignVCenter
                             placeholderText: root.authError ? "  ACCESS DENIED" : "> AUTH REQUIRED"
-                            placeholderTextColor: root.authError ? Colors.urgent : Qt.darker(Colors.foreground, 1.6)
+                            placeholderTextColor: root.authError ? Colors.urgent : Util.alpha(Colors.foreground, Style.emphasis.faint)
                             background: null
                             onTextEdited: {
                                 root.authError = false;

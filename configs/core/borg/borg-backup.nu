@@ -23,6 +23,7 @@ const EXCLUDES = [
     .local/share/cargo/registry .local/share/cargo/git .local/share/dotnet .local/share/nuget
     .local/share/go/pkg go/pkg .npm .local/share/opam .local/share/mise .local/share/zinit
     .local/share/nvim/lazy .local/share/nvim/mason .local/share/torbrowser .local/share/llm-jailbreaks
+    .local/share/android-sdk .local/share/android/avd
     "**/node_modules" "**/target" "**/.venv"
 ]
 

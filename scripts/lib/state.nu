@@ -24,6 +24,15 @@ export def state-locked [lock: path, op: string, args: record]: nothing -> nothi
     $args | to json --raw | ^flock $lock (nu-bin) --no-config-file --stdin -I $LIB_DIR $LOCKED_SCRIPT $op
 }
 
+# a temp of this process's own, then a rename: a concurrent writer or a reader never sees half a file
+export def save-atomic [file: path]: string -> nothing {
+    # a link stays a link: the rename goes to the file behind it
+    let file = if (path-kind $file) == "symlink" { ^readlink -f $file | str trim } else { $file }
+    let tmp = $"($file).($nu.pid)-(random chars --length 6).new"
+    $in | save --force --raw $tmp
+    mv --force $tmp $file
+}
+
 # path type fails on a missing path instead of answering nothing
 export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }

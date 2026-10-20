@@ -16,7 +16,16 @@ def monitors []: nothing -> table { ^hyprctl -j monitors all | from json }
 
 def monitor-find [name: string]: nothing -> any { monitors | where name == $name | get 0? }
 
-def monitor-default []: nothing -> string { ^hyprctl -j monitors | from json | get name.0 }
+# the focused one, the monitor a keybind or the menu was used on
+def monitor-default []: nothing -> string {
+    let active = ^hyprctl -j monitors | from json
+    $active | where focused | get name.0? | default ($active | get name.0)
+}
+
+def eval-checked [expr: string, what: string]: nothing -> nothing {
+    let reply = ^hyprctl eval $expr | complete
+    if $reply.stdout !~ ok { error make {msg: $"hyprctl rejected the ($what): ($reply.stdout)($reply.stderr)"} }
+}
 
 def scale-get [name: string]: nothing -> string { monitor-find $name | get scale | into string }
 
@@ -70,8 +79,7 @@ def scale-apply [name: string, scale: string]: nothing -> nothing {
     if $monitor == null { error make {msg: $"unknown monitor: ($name)"} }
     let position = $"($monitor.x)x($monitor.y)"
     let expr = lua-monitor {output: $name, mode: (mode-of $monitor), position: $position, scale: ($scale | into float)}
-    let reply = ^hyprctl eval $expr | complete
-    if $reply.stdout !~ ok { error make {msg: $"hyprctl rejected the scale: ($reply.stdout)($reply.stderr)"} }
+    eval-checked $expr scale
     record $name scale $expr
 }
 
@@ -115,7 +123,7 @@ def layout-set [name: string, action: string, source: string]: nothing -> nothin
         _ => { error make {msg: "layout action is one of extend, off, mirror"} }
     }
     let expr = lua-monitor ({output: $name} | merge $fields)
-    ^hyprctl eval $expr
+    eval-checked $expr layout
     record $name layout $expr
 }
 

@@ -34,7 +34,8 @@ Item {
         watchChanges: true
         printErrors: false
         onLoaded: {
-            root.notesText = String(text() || "").trim();
+            // untrimmed: the edit writes back what it shows, a trim would eat the file's own whitespace
+            root.notesText = String(text() || "");
             Util.rearmWatch(this);
         }
         onLoadFailed: root.notesText = ""
@@ -173,7 +174,7 @@ Item {
                     id: notesCard
 
                     heading: "Notes"
-                    visible: root.notesText.length > 0 || notesEdit.text.length > 0
+                    visible: root.notesText.trim().length > 0 || notesEdit.text.length > 0
 
                     TextEdit {
                         id: notesEdit
@@ -187,11 +188,25 @@ Item {
                         persistentSelection: true
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
+                        // only a typed change is written: an unedited focus-out would rewrite a file syncthing shares
+                        property bool edited: false
+
+                        function save() {
+                            saveTimer.stop();
+                            if (!edited)
+                                return ;
+
+                            edited = false;
+                            notesFile.setText(text);
+                        }
+
                         Component.onCompleted: text = root.notesText
-                        onTextChanged: if (activeFocus)
-                            saveTimer.restart()
+                        onTextChanged: if (activeFocus) {
+                            edited = true;
+                            saveTimer.restart();
+                        }
                         onActiveFocusChanged: if (!activeFocus)
-                            notesFile.setText(text)
+                            save()
                         // a click on the bare desktop passes through the mask and never takes focus back
                         Keys.onEscapePressed: notesEdit.focus = false
 
@@ -199,7 +214,7 @@ Item {
                             id: saveTimer
 
                             interval: 600
-                            onTriggered: notesFile.setText(notesEdit.text)
+                            onTriggered: notesEdit.save()
                         }
 
                     }

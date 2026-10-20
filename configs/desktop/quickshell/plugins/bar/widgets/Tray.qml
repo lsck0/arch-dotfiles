@@ -167,15 +167,30 @@ BarWidget {
     persistTrayState(p, h)
   }
 
-  visible: pinnedItems.length > 0 || drawerCount > 0
+  // every item hidden: a handle stays, else nothing reaches the manage popup to unhide them
+  readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
+
+  visible: allItems.length > 0
   clip: false
-  implicitWidth: root.vertical ? root.barSize : trayContent.implicitWidth
-  implicitHeight: root.vertical ? trayContent.implicitHeight : root.barSize
+  implicitWidth: root.vertical ? root.barSize : (allHidden ? hiddenHandle.implicitWidth : trayContent.implicitWidth)
+  implicitHeight: root.vertical ? (allHidden ? hiddenHandle.implicitHeight : trayContent.implicitHeight) : root.barSize
 
   Loader {
     id: trayContent
     anchors.fill: parent
+    active: !root.allHidden
     sourceComponent: root.vertical ? verticalTray : horizontalTray
+  }
+
+  BarIconButton {
+    id: hiddenHandle
+    anchors.fill: parent
+    visible: root.allHidden
+    bar: root.bar
+    // fa-eye_slash
+    text: "\u{f070}"
+    tooltipText: "Tray icons (all hidden)"
+    onPressed: root.managePopupOpen = !root.managePopupOpen
   }
 
   Component {
@@ -330,7 +345,7 @@ BarWidget {
       }
 
       Text {
-        text: "Pinned icons stay visible. Hidden icons never show."
+        text: "Pinned icons stay visible. Hidden icons never show. Shift+right-click an icon opens this."
         color: root.foreground
         opacity: Style.emphasis.dim
         font.family: root.fontFamily
@@ -729,7 +744,11 @@ BarWidget {
       onEntered: if (root.bar) root.bar.showTooltip(trayItemRoot, root.trayTooltip(trayItemRoot.modelData))
       onExited: if (root.bar) root.bar.hideTooltip(trayItemRoot)
       onPressed: function(mouse) {
-        if (mouse.button === Qt.RightButton) {
+        // shift+right-click: the pin/hide popup, reachable from every icon (the gaps are too thin to aim at)
+        if (mouse.button === Qt.RightButton && (mouse.modifiers & Qt.ShiftModifier)) {
+          root.managePopupOpen = !root.managePopupOpen
+          mouse.accepted = true
+        } else if (mouse.button === Qt.RightButton) {
           trayItemRoot.displayMenu(mouse)
           mouse.accepted = true
         }

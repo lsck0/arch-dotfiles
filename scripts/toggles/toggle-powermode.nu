@@ -58,7 +58,11 @@ def "main label" [] {
     }
 }
 
-def "main toggle" [] { apply ($MODES | columns | cycle-next (current)) }
+# auto is a stop of its own: else the first press leaves it for good
+def "main toggle" [] {
+    let next = [auto] | append ($MODES | columns) | cycle-next (current | default auto)
+    if $next == auto { auto } else { apply $next }
+}
 def "main performance" [] { apply performance }
 def "main balanced" [] { apply balanced }
 def "main power-saver" [] { apply power-saver }

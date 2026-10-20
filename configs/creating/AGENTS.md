@@ -1,6 +1,6 @@
 # creating
 
-Extends the root `AGENTS.md`. Content-creation apps, each paired with an agent MCP server.
+Extends the root `AGENTS.md`. Content-creation apps, most paired with an agent MCP server (gimp and krita have none).
 
 ## Modules
 
@@ -18,7 +18,7 @@ Extends the root `AGENTS.md`. Content-creation apps, each paired with an agent M
 
 ## Conventions
 
-- Each app ships a Claude MCP server wired in its `mod.nu` via `json-merge` on `~/.claude.json`, present only when the
+- An app with an MCP server wires it in its `mod.nu` via `json-merge` on `~/.claude.json`, present only when the
   app is installed, and pinned where it is third-party (checkout/release/content hash), never upstream head.
 - The MCPs are local: stdio over the app's own scripting pipe or a loopback bridge, no public port. The blender-mcp
   relay and obs-mcp are AppArmor-confined (`base/apparmor profiles/{blender-mcp,obs-mcp}`); the blender add-on's

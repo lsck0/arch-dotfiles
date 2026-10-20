@@ -1,6 +1,7 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [btop]}}
+# after wallust: its theme verb needs the palette, which a fresh install has only after wallust ran
+export const meta = {deps: [core/wallust], packages: {pacman: [btop]}}
 
 export const options = {
     accent: {

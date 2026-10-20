@@ -8,7 +8,6 @@ amass-bin
 amd-ucode
 amdgpu_top
 android-ndk
-android-sdk
 angryoxide
 ani-cli-git
 apalache-bin
@@ -303,6 +302,7 @@ ipython
 irust
 it87-dkms-git
 jdk-openjdk
+jdk21-openjdk
 jdownloader2
 jetbrains-toolbox
 jless

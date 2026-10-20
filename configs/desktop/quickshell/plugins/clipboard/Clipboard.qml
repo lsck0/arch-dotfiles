@@ -126,6 +126,7 @@ Item {
       displayModel.append({
         entryType: row.entryType,
         fullText: row.fullText,
+        paneText: row.paneText,
         previewText: row.previewText,
         previewImage: row.previewImage ? Util.fileUrl(row.previewImage) : "",
         path: row.path,
@@ -543,7 +544,7 @@ Item {
             anchors.fill: parent
             anchors.leftMargin: root.contentMargin
             anchors.topMargin: previewLabel.height + Style.spacing.xs
-            text: parent.activeRow ? parent.activeRow.fullText : ""
+            text: parent.activeRow ? parent.activeRow.paneText : ""
             color: root.foreground
             font.family: root.fontFamily
             font.pixelSize: Style.font.body

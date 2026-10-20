@@ -1,5 +1,8 @@
 use module.nu *
 
+# uv builds and runs the venv in /opt/vllm
+export const meta = {packages: {pacman: [uv]}}
+
 export const options = {
     model: {
         type: string

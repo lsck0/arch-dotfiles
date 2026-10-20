@@ -6,7 +6,7 @@ use ($LIB | path join log.nu) *
 use ($LIB | path join cli.nu) [concat jobs build guarded]
 use ($LIB | path join usage.nu) [die]
 use ($LIB | path join complete.nu) [command-table module-ids option-keys option-values theme-names run-ids]
-use ($LIB | path join state.nu) [SYSTEM_REPO SYSTEM_STATE state-dir]
+use ($LIB | path join state.nu) [SYSTEM_REPO SYSTEM_STATE state-dir save-atomic]
 use ($LIB | path join platform.nu) [platform-load platform-env]
 use ($LIB | path join profile.nu) [profile-has]
 use ($LIB | path join options.nu) [OPTION_ENABLE options-schema option-value-errors options-notify options-to-nuon]
@@ -96,7 +96,8 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
     let wallpaper = $nu.home-dir | path join .cache wal wallpaper
     let themed = if ($wallpaper | path exists) {
-        let ids = $planned | where native | get id
+        # a mod.nu that does not parse has a link row only: asked by name, the theme plan would throw on it
+        let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
         pipeline-plan $ctx theme $ids false [(^readlink -f $wallpaper | str trim)] | where native | pipeline-apply $ctx $in theme (jobs) [(^readlink -f $wallpaper | str trim)]
     } else { [] }
     if $full {
@@ -104,7 +105,7 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
         for dir in [$nu.home-dir ($nu.home-dir | path join .local bin)] {
             ls -a $dir | where type == symlink | where {|l| not ($l.name | path exists) and ((^readlink $l.name) | str starts-with $"($REPO)/") } | each { rm $in.name } | ignore
         }
-        let units = ledger-units $REPO $ctx.platform.groups user
+        let units = ledger-units $REPO ($ctx.modules | where cfg.enable | get dir) user
         $units.by_hand | each { log-info $"enabled by hand, not managed: ($in)" } | ignore
         theme-init
     }
@@ -118,7 +119,9 @@ def owned-targets []: nothing -> list<string> {
 
 def theme-init []: nothing -> nothing {
     # over the worktree, not ls-files -s: an index stamp never changes on an uncommitted theming edit
-    let files = ^git -C $REPO ls-files ...$THEME_STAMP_PATHS | lines | where $it != "" | each {|f| $REPO | path join $f }
+    # untracked too, and only what exists: a moved template is deleted-but-tracked and its new path untracked until sync
+    let files = ^git -C $REPO ls-files --cached --others --exclude-standard ...$THEME_STAMP_PATHS | lines | where $it != ""
+        | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
     let stamp = ^sha1sum ...$files | ^sha1sum | str trim
     let cache = $nu.home-dir | path join .cache wal
     let current = try { open --raw ($cache | path join .theme-stamp) | str trim } catch { "" }
@@ -323,6 +326,18 @@ def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     if $user { link-run [] $force false } else { [] }
 }
 
+# one user-layer run at a time: pomodoro's or the settings window's dot set waits for a running apply instead of racing
+# its state, options and temp files. Like system-apply.nu's locked: the whole command again under flock, with the argv
+# the kernel has (a typed dot set value survives as given); --close keeps a daemon an apply starts off the lock
+def user-locked []: nothing -> nothing {
+    if ($env.DOT_USER_LOCKED? | is-not-empty) { return }
+    let lock = state-dir | path join run.lock
+    mkdir (state-dir)
+    if (^flock --nonblock $lock true | complete).exit_code != 0 { print -e "dot: another dot run holds the user layer, waiting for it" }
+    let argv = open --raw $"/proc/($nu.pid)/cmdline" | into binary | decode utf-8 | split row (char nul) | drop 1
+    exec flock --close $lock env DOT_USER_LOCKED=1 ...$argv
+}
+
 def flag [name: string, on: bool]: nothing -> list<string> {
     if $on { [$"--($name)"] } else { [] }
 }
@@ -338,20 +353,26 @@ def "main apply" [
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> nothing {
     if $no_system { $env.DOT_SYSTEM = "skip" }
+    user-locked
     let one = if $user and $system { "" } else if $user or ($mods | is-not-empty) { "user" } else if $system { "system" } else { "" }
     if ($mods | is-not-empty) and $system { die --misuse "apply: modules converge their user layer, --system takes none" }
     if $packages {
         if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
         if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
-        pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes))
-        guarded apply {
+        pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
+        # a skipped root part still lets the convergence below run; the exit says it after
+        let pending = guarded apply {
             let status = install-run ($one == "user") $yes true
             if $status != 0 { exit $status }
-            pending-exit
+            $env.DOT_SYSTEM_PENDING? == true
         }
+        if $pending { $env.DOT_SYSTEM_PENDING = true }
     }
     match $one {
-        "user" => { guarded apply { link-run $mods $force false | finish $in } }
+        "user" => {
+            guarded apply { link-run $mods $force false | finish $in }
+            pending-exit
+        }
         "system" => {
             pty-log config ([apply --system] ++ (flag force $force))
             guarded apply {
@@ -375,6 +396,7 @@ def "main module" []: nothing -> nothing { help main module }
 
 # reverse a native module's last apply; files changed since stay, originals come back
 def "main module unlink" [mod: string@module-ids]: nothing -> nothing {
+    user-locked
     guarded unlink { unlink-run $mod | finish $in }
 }
 
@@ -405,6 +427,7 @@ def --env unlink-run [mod: string]: nothing -> table {
 
 # unlink a module, turn it off (--machine: for the machine), offer its packages for removal
 def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> nothing {
+    user-locked
     guarded remove {
         let ctx = pipeline-load $REPO user
         let m = $ctx.modules | where id == $mod | get --optional 0
@@ -413,6 +436,8 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         if ($dependents | is-not-empty) { error make {msg: $"($dependents | str join ', ') depend on ($mod), remove those first"} }
         if ($m.native | is-not-empty) { unlink-run $mod | ignore }
         option-write $mod enable false $machine | ignore
+        # the system run plans a module turned off with nothing declared, so what it installed goes too
+        if $machine and "system" in $m.verbs and (admin) { system-part $"($mod).enable" }
         let others = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform | get pacman
         let only = $m.meta.packages.pacman | where $it not-in $others
         if ($only | is-not-empty) {
@@ -507,7 +532,9 @@ def --env install-run [user: bool, yes: bool, snapshot: bool]: nothing -> int {
     }
     let ctx = pipeline-load $REPO user
     install-user (modules-packages $REPO $ctx.modules $ctx.platform)
-    if $system { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) }
+    if $system {
+        try { ^sudo ($SYSTEM_REPO | path join $ENTRY) packages --unattended=($env.DOTFILES_UNATTENDED? == "1") ...(if $yes { [--yes] } else { [] }) } catch { fail "system layer: removing undeclared packages" }
+    }
     let failed = open --raw $env.FAILURES_FILE | str trim
     hide-env FAILURES_FILE
     if ($failed | is-empty) { rm --force ($REPO | path join $FAILURES_INSTALL); return 0 }
@@ -568,9 +595,9 @@ def option-write [mod: string, key: string, value: any, machine: bool]: nothing 
     let cell = [$mod $key] | into cell-path
     let updated = if $value == null { $current | reject --optional $cell } else { $current | upsert $cell $value }
     $updated | items {|id, opts| {id: $id, opts: $opts} } | where ($it.opts | is-not-empty) | reduce --fold {} {|e, acc| $acc | insert $e.id $e.opts }
-    | options-to-nuon | $"($in)\n" | save --force $file
+    | options-to-nuon | $"($in)\n" | save-atomic $file
     let resolved = pipeline-load $REPO user | get modules | where id == $mod | first
-    {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key)}
+    {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
 }
 
 # the value is stored either way; a failed apply is reported to the settings window and exits 1
@@ -599,8 +626,9 @@ def option-apply [target: string, set: record]: nothing -> nothing {
                 $results = unlink-run $set.module.id
                 print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
             } else if "link" in $set.module.verbs { $results = link-run [$set.module.id] false false }
-            # machine options reach the system verb only through the root-owned copy
-            if $set.spec.scope == "machine" and "system" in $set.module.verbs and (admin) { system-part $target }
+            # machine options reach the system verb only through the root-owned copy; a module turned off --machine
+            # has its system part undone there
+            if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) { system-part $target }
             if $apply != "relink" {
                 log-note $"($target) takes effect after a ($apply)"
             }
@@ -638,6 +666,8 @@ def "main set" [
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> any {
     if $no_system { $env.DOT_SYSTEM = "skip" }
+    # only a write: listing and --json stay free while an apply runs
+    if $target != null and ($default or ($value | is-not-empty)) { user-locked }
     guarded set {
         # a rest, so a given null (reset, as the settings window sends it) differs from none
         if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
@@ -720,6 +750,7 @@ def "main sync" [
     --no-verify  # commit without the formatter, linter and gitleaks gates
 ]: nothing -> nothing {
     if $no_system { $env.DOT_SYSTEM = "skip" }
+    user-locked
     guarded sync {
         let run = update-run $yes
         let clean = failures-publish $run.results

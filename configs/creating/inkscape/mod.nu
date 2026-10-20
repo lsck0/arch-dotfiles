@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [inkscape]}}
+export const meta = {packages: {pacman: [inkscape uv]}}
 
 # its deps resolve as of its release date; bump both together
 const MCP_VERSION = "1.3.1"

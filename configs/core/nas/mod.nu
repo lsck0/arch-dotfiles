@@ -30,5 +30,6 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    if (profile-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
+    # the mount exists only where the machine has the share; the link would dangle anywhere else
+    if (profile-has homelab) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
 }

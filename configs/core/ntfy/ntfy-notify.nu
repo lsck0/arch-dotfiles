@@ -153,9 +153,11 @@ def main []: nothing -> nothing {
     loop {
         let started = date now
         let token = token-read
+        # locked secrets: wait for the unlock instead of exiting, which Restart=on-failure would never undo
         if $token == "" {
-            print --stderr $"ntfy-notify: no token in (token-file)"
-            return
+            print --stderr $"ntfy-notify: no token in (token-file), waiting"
+            sleep $NO_TOPICS_WAIT
+            continue
         }
         let sub = subscription
         if $sub == null {

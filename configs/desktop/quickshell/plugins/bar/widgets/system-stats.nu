@@ -19,8 +19,10 @@ const UW_PER_W = 1_000_000
 const KIB_PER_GIB = 1048576
 const BYTES_PER_MIB = 1048576
 
+# unreadable reads as missing: intel-rapl energy_uj is root-only, and a throw here respawns the script forever
 def line-read [path?: string]: nothing -> string {
-    if $path != null and ($path | path exists) { open --raw $path | lines | get 0? | default "" } else { "" }
+    if $path == null { return "" }
+    try { open --raw $path | lines | get 0? | default "" } catch { "" }
 }
 
 def int-read [path?: string]: nothing -> int {
@@ -117,6 +119,8 @@ def main [interval_s: number = 10] {
     let amd = $hw.static.gpuVendor == amd
     let device = $"($hw.gpu_card)/device"
     let rc6_path = $"($hw.gpu_card)/gt/gt0/rc6_residency_ms"
+    # without rc6 the busy share would read 100%: null, and the bar hides it
+    let has_rc6 = (line-read $rc6_path) != ""
     let energy_file = [($env.XDG_RUNTIME_DIR? | default /tmp) quickshell-energy-wh] | path join
 
     let tck = ^getconf CLK_TCK | into int
@@ -142,13 +146,13 @@ def main [interval_s: number = 10] {
         let total = ($stat | math sum) - ($prev.stat | math sum)
         let idle = $stat.3 - $prev.stat.3
         let gpu_pct = if $amd {
-            int-read $"($device)/gpu_busy_percent"
-        } else if $dt_ms > 0 {
+            number-or-null (line-read $"($device)/gpu_busy_percent") 1
+        } else if $has_rc6 and $dt_ms > 0 {
             100 - ($rc6 - $prev.rc6) * 100 / $dt_ms | [$in 0] | math max | [$in 100] | math min
-        } else { 0 }
+        }
         let gpu_freq = if $amd {
             # the active level is starred: "1: 700Mhz *"
-            open --raw $"($device)/pp_dpm_sclk" | parse -r '(?<mhz>\d+)Mhz \*' | get mhz.0? | default 0 | into int
+            try { open --raw $"($device)/pp_dpm_sclk" } catch { "" } | parse -r '(?<mhz>\d+)Mhz \*' | get mhz.0? | default 0 | into int
         } else { int-read $"($hw.gpu_card)/gt_act_freq_mhz" }
         let gpu_w = if $amd { number-or-null (line-read $hw.gpu_power) $UW_PER_W }
         let gpu_temp_c = number-or-null (line-read $hw.gpu_temp) 1000 | if $in != null { math round }
@@ -173,7 +177,7 @@ def main [interval_s: number = 10] {
             tempC: $temp_c
             memUsedGb: (($hw.mem_total_kb - $mem_available_kb) / $KIB_PER_GIB | math round -p 2)
             memTotalGb: ($hw.mem_total_kb / $KIB_PER_GIB | math round -p 2)
-            gpuPct: ($gpu_pct | math round)
+            gpuPct: ($gpu_pct | if $in != null { math round })
             gpuFreqMhz: $gpu_freq
             gpuTempC: $gpu_temp_c
             powerW: ($power_w | round-or-null 1)

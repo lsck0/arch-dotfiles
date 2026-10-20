@@ -12,7 +12,9 @@ Never print, copy out or commit a secret's value. Locations only.
 - `secrets/`: submodule `github.com/lsck0/secrets`, every file git-crypt encrypted. Locked, each file starts with
   `\0GITCRYPT`. Owner-only: needs the `secrets` profile capability.
 - `configs/base/yubikey/`: the sealed git-crypt key `secrets.key.age`, one `age-<serial>.identity` and
-  `ssh-<serial>` stub per enrolled YubiKey, `recipients.txt` (offline recovery key), `RECOVERY.md`.
+  `ssh-<serial>` stub per enrolled YubiKey, `recipients.txt` (offline recovery key), `RECOVERY.md`; `u2f_keys` the
+  FIDO keys `base/pam` maps in `/etc/u2f_mappings` to each login in root's `/var/lib/dotfiles/owners` (the logins
+  installed with an `identity` profile: bootstrap, `adduser-dotfiles --profile`, `migrations/0003-u2f-owners.nu`).
 
 ## Unlock and check
 
@@ -30,8 +32,9 @@ ask, do not wait in a loop.
 
 - `link` verb: read `$env.DOTFILES/secrets/<file>` and guard with `secret-is-plaintext`, skipping with a message when locked (see `configs/core/ntfy/mod.nu`).
 - `system` verb: never reads `secrets/`. `dot apply` streams the files named in `SYSTEM_SECRETS`
-  (`scripts/lib/system.nu`, plus the platform's `wireguard`) in its archive to `system-apply.nu`, which unpacks them to a
-  tmpfs `$DOTFILES_SECRETS` and deletes everything not on that list. Read `$DOTFILES_SECRETS/<file>`.
+  (`scripts/lib/system.nu`, plus this host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk` and the platform's
+  `wireguard`; `system-secrets`) in its archive to `system-apply.nu`, which unpacks them to a tmpfs
+  `$DOTFILES_SECRETS` and deletes everything not on that list. Read `$DOTFILES_SECRETS/<file>`.
 
 ## Add a secret
 

@@ -30,8 +30,10 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 
 ## Commands
 
-- `dot test lint`: static checks (module refs, layer rules, `~/sync` writes) plus every `*.test.nu` under `configs/`
-  and `themes/`; about 12 s, no root. `dot test run` is the multi-hour VM test.
+- `dot test lint`: static checks (module refs, layer rules, `~/sync` writes, stray files outside the repo layout,
+  platform facts and options, nu pitfalls, exec bits, the palette clamps, `dot internal gen --check`, system-apply's
+  locked flags) plus every `*.test.nu`/`*.test.sh` under `configs/`, `themes/` and `scripts/`; about a minute, no root.
+  `dot test run` is the multi-hour VM test.
 - `configs/base/apparmor/apparmor.test.nu`: profiles.conf policy and a compile of every own profile and `local/`
   drop-in; the "Failed to create cache" warnings are expected without root.
 - `dot sync`: the one command a person runs: pull (secrets submodule included), snapshot, migrate, install, apply
@@ -50,12 +52,14 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `dot internal <cmd>`: what scripts, units and completion run, kept out of `dot --help` (`scripts/lib/internal.nu`):
   `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `iso [--out] [--work] [--mirror]
   [--sign] [--keep]` builds the install iso (`mirror/iso/README.md`; root for mkarchiso), `packages`, `migrate`, `fetch`,
-  `stage`, `bootstrap`, `backup`, `watch`, `prune`, `theme get|list|apply`, `drift publish`, `audit remind`,
-  `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values, themes; `base/dot`
-  installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
+  `stage`, `bootstrap`, `iso-install`, `backup`, `watch`, `prune`, `theme get|list|apply`, `drift report|publish`,
+  `audit remind`, `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values,
+  themes; `base/dot` installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
 - Agents never reach root: run `dot` with `DOT_SYSTEM=skip` (or `--no-system` on sync, apply, set); a system part is
   then recorded as pending (exit 3). A sudo or pkexec prompt goes through pam_u2f first: a YubiKey touch (or an
   enrolled finger) on Luca's side, the password as the fallback.
+- `collect-diagnostics [dest]` (`scripts/collect-diagnostics.sh`): bash only, so it also runs from a USB stick on any
+  Linux; hardware, boot, network, journals, failed units, dot state and run logs into `dest/diag-<host>-<time>/`.
 - `dot sync` is the user's only commit path; agents never commit, push or run it, `--no-push` included (it pulls).
 
 ## Layout

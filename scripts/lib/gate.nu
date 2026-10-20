@@ -91,6 +91,27 @@ def lint-sync []: nothing -> list<string> {
     } | flatten
 }
 
+# dot sync commits with `git add .` into a public repo: a file some tool dropped in the checkout (a server run from
+# the repo dir once left configs/credential-encryption.key and a --version file) must stop it, not ride along
+const ROOT_FILES = [
+    .editorconfig .gitattributes .gitignore .gitleaks.toml .gitmodules .ruff.toml .shellcheckrc AGENTS.md FEATURES.md
+    LICENSE.md README.md bootstrap.sh
+]
+const ROOT_DIRS = [configs migrations mirror platforms profiles scripts secrets showcase skills themes wallpapers weblinks]
+const GROUP_FILES = [AGENTS.md dependencies.txt]
+
+def lint-stray []: nothing -> list<string> {
+    let files = ^git -C $REPO ls-files --cached --others --exclude-standard -z | split row (char nul) | where $it != ""
+    $files | each {|f|
+        let parts = $f | split row "/"
+        let stray = match ($parts | length) {
+            1 => ($f not-in $ROOT_FILES and $f not-in $ROOT_DIRS)
+            _ => (($parts.0 not-in $ROOT_DIRS) or ($parts.0 == configs and (($parts | length) == 2 or (($parts | length) == 3 and $parts.2 not-in $GROUP_FILES))))
+        }
+        if $stray { $"($f): not a file of the repo's layout, a tool's leftover? remove it or add it where it belongs" }
+    } | compact
+}
+
 def lint-platform-facts []: nothing -> list<string> {
     glob ($REPO | path join platforms '{*,templates/*}.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
         open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
@@ -168,14 +189,15 @@ def lint-generated []: nothing -> list<string> {
 }
 
 def unit-tests []: nothing -> list<string> {
-    glob $"($REPO)/{configs,themes}/**/*.test.{sh,nu}" | sort | each {|t|
+    # scripts/ too: an engine test beside its library must not be skipped without a word
+    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" | sort | each {|t|
         let run = if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact
 }
 
 export def gate-lint []: nothing -> list<string> {
-    [(lint-modules) (lint-layers) (lint-sync) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
+    [(lint-modules) (lint-layers) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
 }
 
 def shell-script [path: path]: nothing -> bool {

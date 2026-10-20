@@ -60,11 +60,17 @@ The stub reads only `keymap`, `wifi` and `source` (and `lsck0.keymap`, `lsck0.wi
 what it cannot read; master's second stage reads the whole file and reports any problem. Keys map onto the bootstrap's
 `BOOTSTRAP_*` variables (`scripts/lib/bootstrap/questions.nuon`, which the second stage also checks the file against):
 `profile`, `platform`, `username`, `hostname`, `disk`, `keymap`, `timezone`, `locale`, `groups`, `ssh_key`, `encrypt`,
-`server`, `home_network`, `secure_boot`, `password`, `user_password`, `root_password`; `unattended: true` is
-`BOOTSTRAP_ASSUME_YES` (no summary, no erase confirmation) and logs the bootstrap to `/tmp/lsck0-install.log`. `wifi`
+`server`, `home_network`, `secure_boot`, `password`, `user_password`, `root_password`, `reinstall`; a key the
+chosen machine never asks (a platforms/ file's hostname, say) is ignored with a warning. `unattended: true` is
+`BOOTSTRAP_ASSUME_YES` (no summary, no erase confirmation; a password `"ask"` is typed once on the console before it
+starts) and logs the bootstrap to `/tmp/lsck0-install.log`, copied to the new system's `/var/log/lsck0-install.log`.
+Unattended, it needs `disk` when there are several, and it refuses a disk whose ESP marks an install chain still
+running (a stick left in and booted first); `lsck0.reinstall=1` for that one boot erases it anyway. Before the reboot
+the bootstrap points the firmware's BootNext at the new system's entry, and every stage reboot does the same. `wifi`
 is a list of `{ssid, psk, hidden}` tried in order before the picker. `source` (`{bundle, lfs}`, paths relative to the
 answer file) is a git bundle the stub applies on top of the verified master, unverified, before the hand-over, so the
-second stage comes from that tree: the vm test uses it.
+second stage comes from that tree: the vm test uses it. It is honoured only with `lsck0.insecure=1` on the kernel
+command line, in a VM, or after a yes on the console; frozen in the stub, so a stick burnt before this rule ignores it.
 
 ## Build
 

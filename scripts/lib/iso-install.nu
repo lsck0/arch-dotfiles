@@ -19,6 +19,7 @@ const FETCH_TIMEOUT_S = 5
 const PASSWORD_ASK = "ask"
 const PASSWORD_HASH = '^\$(1|2[aby]|5|6|y|gy|7)\$'
 const LOG = "/tmp/lsck0-install.log"
+const PLATFORM_DEFAULT = "custom"
 # a question's kind as the answer file's type
 const KIND_TYPES = {
     text: string password: string flag: bool menu: string keymap: string profile: string platform: string
@@ -152,6 +153,52 @@ export def answers-env [spec: record, a: record]: nothing -> record {
     } | compact | reduce --fold {} {|it, acc| $acc | merge $it }
 }
 
+# a question's `when` against what the answers settle up front; a field they do not settle counts as holding
+def when-holds [when: any, c: record]: nothing -> bool {
+    $when | default {} | items {|field, want|
+        if $field not-in $c { return true }
+        let have = $c | get $field
+        if ($want | describe | str starts-with "list") { $have in $want } else { $have == $want }
+    } | all {|held| $held }
+}
+
+# answered keys whose every question is skipped for this machine: the bootstrap never reads them.
+# Passwords are left out, the bootstrap reads those whether it asks or not
+export def answers-unused [questions: record, a: record]: nothing -> list<string> {
+    let platform = $a.platform? | default $PLATFORM_DEFAULT | if $in == $PLATFORM_DEFAULT and ($a.server? | default false) { "server" } else { $in }
+    let c = $a | merge {
+        platform: $platform, encrypt: ($a.encrypt? | default true), host_wsl: false, machine_wsl: false
+        password_given: ($a.password? | default "" | is-not-empty)
+    }
+    let asked = $questions.questions | where {|e| $e.id? != null and $e.kind != "password" }
+    $a | columns | where {|k| $k in $asked.id } | where {|k| not ($asked | where id == $k | any {|e| when-holds $e.when? $c }) }
+}
+
+# "ask" passwords, unattended: typed once on the console now, so the run goes on alone after
+def answers-ask [questions: record, a: record]: nothing -> record {
+    let asks = $questions.questions | where {|e| $e.kind? == "password" } | get id | uniq | where {|k| ($a | get --optional $k) == $PASSWORD_ASK }
+    if ($asks | is-empty) { return $a }
+    if (^test -t 0 | complete).exit_code != 0 { error make {msg: $"answers: ($asks | str join ', ') \"($PASSWORD_ASK)\" with unattended, and no console to ask on"} }
+    $asks | reduce --fold $a {|k, acc|
+        let entries = $questions.questions | where {|e| $e.id? == $k }
+        let e = $entries | first
+        let title = $e.title | str replace --all "{username}" ($acc.username? | default "user")
+        let empty_ok = $entries | any {|e| $e.empty_ok? | default false }
+        mut typed = ""
+        loop {
+            print -e $e.text
+            let first = input -s $"($title): "
+            print -e ""
+            if ($first | is-empty) and not $empty_ok { print -e $questions.messages.password_empty; continue }
+            let second = input -s $questions.messages.password_again_plain
+            print -e ""
+            if $first == $second { $typed = $first; break }
+            print -e $questions.messages.password_mismatch
+        }
+        $acc | upsert $k $typed
+    }
+}
+
 def answers-or-die [spec: record, a: record]: nothing -> record {
     let problems = answers-problems $spec $a
     if ($problems | is-not-empty) { error make {msg: $"answers: ($problems | str join '; '), nothing installed"} }
@@ -164,15 +211,20 @@ def answers-or-die [spec: record, a: record]: nothing -> record {
 
 export def iso-install-run []: nothing -> nothing {
     $env.LOG_TAG = "install"
-    let spec = answers-spec (open $QUESTIONS)
+    let questions = open $QUESTIONS
+    let spec = answers-spec $questions
     let cmdline = answers-cmdline $spec (open --raw /proc/cmdline)
     let media = answers-media
     let fetched = if $cmdline.answers == null { {} } else { answers-fetch $cmdline.answers }
     let answers = answers-or-die $spec (($media | default {} | reject --optional origin) | merge deep $fetched | merge deep $cmdline.overrides)
     let origins = [$media.origin? $cmdline.answers] | compact
     log-info $"second stage from (^git -C ($DOT | path dirname | path dirname) rev-parse --short HEAD | str trim), answers from (if ($origins | is-empty) { 'nowhere, every question is asked' } else { $origins | str join ' and ' })"
+    for k in (answers-unused $questions $answers) {
+        log-warn $"answers: ($k) is not asked for this platform, its value is ignored"
+    }
     let unattended = $answers.unattended? | default false
-    let status = with-env (answers-env $spec $answers) {
+    let answers = if $unattended { answers-ask $questions $answers } else { $answers }
+    let status = with-env (answers-env $spec $answers | insert LSCK0_LOG (if $unattended { $LOG } else { "" })) {
         let argv = [$nu.current-exe --no-config-file $DOT internal bootstrap]
         # unattended runs keep a log; the dialog screens of an interactive one would garble it
         try {

@@ -1,7 +1,8 @@
 /* literal braces are doubled for wallust */
+/* alt bg mixes from bg/fg: color0 is dark on a light theme, text on it unreadable */
 :root {{
   --cp-bg: {background};
-  --cp-bg-alt: {color0};
+  --cp-bg-alt: color-mix(in srgb, {foreground} 8%, {background});
   --cp-fg: {foreground};
   --cp-accent: {color4};
   --cp-accent-2: {color5};

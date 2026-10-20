@@ -50,12 +50,13 @@ def monitor-disable [socket: int]: nothing -> nothing {
     state-clear $STATE_INPUTS
 }
 
+# the key and state first: with obs closed the monitors are set by reconcile once the bar connects
 def listen-on []: nothing -> nothing {
-    let socket = obs-connect
-    monitor-enable $socket
-    job kill $socket
     ^pw-metadata 0 $LISTEN_KEY 1 | ignore
     state-set $STATE on
+    let socket = try { obs-connect } catch { return }
+    monitor-enable $socket
+    job kill $socket
 }
 
 # obs saves its monitor types on exit, so with obs closed they are put back at its next start (reconcile)

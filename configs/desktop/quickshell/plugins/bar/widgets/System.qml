@@ -26,6 +26,8 @@ BarWidget {
     property int memSpeedMts: 0
     property int memChannels: 0
     property int gpuPct: 0
+    // null from system-stats.nu without a busy counter (no amdgpu gpu_busy_percent, no i915 rc6)
+    property bool hasGpuPct: false
     property int gpuFreqMhz: 0
     property var gpuTempC: null
     property var powerW: null
@@ -138,6 +140,7 @@ BarWidget {
                     root.memType = s.memType || "";
                     root.memSpeedMts = s.memSpeedMts || 0;
                     root.memChannels = s.memChannels || 0;
+                    root.hasGpuPct = s.gpuPct !== null && s.gpuPct !== undefined;
                     root.gpuPct = s.gpuPct || 0;
                     root.gpuFreqMhz = s.gpuFreqMhz || 0;
                     root.gpuTempC = (s.gpuTempC === undefined) ? null : s.gpuTempC;
@@ -206,6 +209,7 @@ BarWidget {
         }
 
         Stat {
+            visible: root.hasGpuPct
             glyph: "\u{f08ae}"
             widest: "100%"
             value: root.gpuPct + "%"
@@ -306,6 +310,7 @@ BarWidget {
                     }
 
                     Meter {
+                        visible: root.hasGpuPct
                         label: "GPU"
                         fraction: root.gpuPct / 100
                         fill: root.critLoad(root.gpuPct)

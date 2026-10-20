@@ -11,6 +11,8 @@ const HASH_STAMP = '%P %s %T@\n'
 # an exec creates what the verb only sees when evaluated again (a profile dir, an npm stamp); more passes are a loop
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
+# the verbs whose recorded outputs a module turned off gives back; theme files and restored app state stay
+const REVERT_VERBS = [link system]
 
 def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
@@ -75,7 +77,11 @@ def scope-of [layer: string]: nothing -> string {
 }
 
 def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record, force: bool]: nothing -> table {
-    let evaluated = span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $mods $verb ($mods | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) $args } }
+    # a module turned off declares nothing, never evaluated: its recorded outputs plan as removals and disables
+    let on = $mods | where cfg.enable
+    let off = $mods | where not $it.cfg.enable | each {|m| {id: $m.id, ok: true, decls: [], error: null} }
+    let evaluated = if ($on | is-empty) { [] } else { span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $on $verb ($on | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) $args } } }
+        | append $off
         | each {|e| if not $e.ok { $e } else { try { decls-check $e.id $e.decls; $e } catch {|err| $e | merge {ok: false, decls: [], error: $err.msg} } } }
     let decls = $evaluated | reduce --fold [] {|e, acc| $acc ++ $e.decls }
     let olds = $prev | values | reduce --fold [] {|p, acc| $acc ++ $p }
@@ -83,9 +89,12 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     let units = $decls | where kind == unit | get --optional target | default [] | append ($olds | where kind == unit | get --optional target | default [])
     let seen = span observe {} { observe $paths $units (scope-of $ctx.layer) }
     let recorded = recorded-hashes
+    # a source gone or a target unreadable fails that module, never the whole layer before finish and FAILURES
     $evaluated | each {|r|
-        let actions = if $r.ok { plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force } else { [] }
-        {id: $r.id, actions: $actions, error: $r.error}
+        if not $r.ok { return {id: $r.id, actions: [], error: $r.error} }
+        try {
+            {id: $r.id, actions: (plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force), error: null}
+        } catch {|err| {id: $r.id, actions: [], error: $"plan: ($err.msg)"} }
     }
 }
 
@@ -100,7 +109,12 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}
     }
     let active = $ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable and (($ids | is-empty) or $m.id in $ids) }
-    let graph = span graph {} { modules-graph $ctx.repo $active }
+    # turned off (enable false, its group gone from the platform) after an apply: what it installed is undone, a
+    # sudoers drop-in or an enabled unit would otherwise outlive it
+    let retired = if $verb not-in $REVERT_VERBS { [] } else {
+        $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
+    }
+    let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
     let global = [
         (stamp $LIB_DIR) ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
         (secret-is-plaintext ($ctx.repo | path join secrets pgp_privatekey.asc)) $verb ($args | to nuon)
@@ -116,7 +130,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     }
     let prev_targets = $natives | reduce --fold [] {|n, acc| $acc ++ $n.prev.outputs }
     let before = span observe {} { observe ($prev_targets | where kind not-in [unit exec] | get --optional target | default []) ($prev_targets | where kind == unit | get --optional target | default []) (scope-of $ctx.layer) }
-    let fresh = $natives | where {|n| not $force and not $n.volatile and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
+    let fresh = $natives | where {|n| not $force and not $n.volatile and $n.id not-in $retired.id and $n.input == $n.prev.input and (outputs-clean $n.prev.outputs $before) } | get id
     let to_eval = $graph | where {|m| $verb in $m.native and $m.id not-in $fresh }
     let prev = $natives | reduce --fold {} {|n, acc| $acc | insert $n.id $n.prev.outputs }
     let planned = eval-plan $ctx $to_eval $verb $args $prev $force

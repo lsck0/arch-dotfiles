@@ -6,6 +6,7 @@ export const meta = {
         pacman: [
             lib32-obs-vkcapture obs-audio-wave-bin obs-pipewire-audio-capture obs-plugin-waveform-bin obs-studio
             obs-studio-plugin-browser obs-vkcapture websocat
+            npm
         ]
     }
     backup: {secrets: true}

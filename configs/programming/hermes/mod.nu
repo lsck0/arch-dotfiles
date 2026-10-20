@@ -1,7 +1,8 @@
 use module.nu *
 use ../../core/wallust/palette.nu *
 
-export const meta = {packages: {pacman: [herdr-bin hermes-agent]}}
+# after caveman and rtk: the orchestrator profile is a one-time clone of ~/.hermes, which they fill with skills
+export const meta = {deps: [programming/caveman programming/rtk], packages: {pacman: [herdr-bin hermes-agent]}}
 
 const HOME = ".hermes"
 const ORCHESTRATOR = "profiles/orchestrator"

@@ -68,7 +68,7 @@ BorderSurface {
         textFormat: Text.PlainText
         visible: root.description !== ""
         text: root.description
-        color: Qt.darker(root.foreground, 1.5)
+        color: Util.alpha(root.foreground, Style.emphasis.dim)
         font.family: root.fontFamily
         font.pixelSize: root.descriptionSize
         wrapMode: Text.WordWrap

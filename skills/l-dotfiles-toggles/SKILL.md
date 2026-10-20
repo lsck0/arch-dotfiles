@@ -7,7 +7,11 @@ description: Adding an on/off or n-state switch as scripts/toggles/toggle-<name>
 
 Every `scripts/toggles/toggle-*.nu` answers `get` and `label`; an on/off one also `on | off | toggle` through
 `switch-run` in `lib.nu`, an n-state one (firewall, powermode, shader, color-grading, font, monitor-scale) has its
-states as a const record and `set <value>` plus `toggle` (cycles with `cycle-next`). `status.nu` runs every `label`
+states as a const record and `set <value>` plus `toggle` (cycles with `cycle-next`). Patterns worth copying:
+`toggle-focus.nu` (on/off over other toggles through `toggle-run`, restoring their states), `toggle-weather-location.nu`
+(on/off plus `set <lat> <lon>`, `clear` and query verbs), `toggle-theme-mode.nu` (two states without `switch-run`:
+its own `get`, `set light|dark`, `light`, `dark`, `toggle`), `toggle-obs-listen.nu` (an app's live state over its
+websocket). `status.nu` runs every `label`
 (JSON `{name, on, setting, label}`), `menu.nu` is the picker on `SUPER+t`. A new script appears in both without
 registration. `get` stays cheap and side-effect free: `dot set` and the settings window read it.
 A script that also answers `options` (JSON rows shaped like `dot set --json`, each with the `set` verb that

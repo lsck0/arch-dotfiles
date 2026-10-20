@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [audacity]}}
+export const meta = {packages: {pacman: [audacity uv]}}
 
 # deps frozen at a date; bump both together
 const MCP_VERSION = "0.1.23"

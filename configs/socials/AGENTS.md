@@ -4,13 +4,14 @@ Extends the root `AGENTS.md`. Chat, voice and music clients.
 
 ## Modules
 
-- `desktop`: the "desktop" tms project bookmark (a session scaffold run by `.tms-create`), not a UI app.
+- `desktop`: the "desktop" tms project bookmark, not a UI app; its session scaffold is `.tms-create` for tms and
+  `.herdr-create` for `herdr-open`.
 - `discord`: the Discord client; first run downloads the app (~150 MB), done here so the first launch opens clean;
   betterdiscord with content-pinned plugins and a theme generated from spotify's palette.
 - `element`: the Matrix client, native Wayland on arch's electron.
 - `spotify`: Spotify with spicetify theming (needs the client installed).
 - `teamspeak`: TeamSpeak 6 (a CEF app) forced off XWayland to render at native scale.
-- `telegram`: the Telegram client (binary in `/usr/sbin`).
+- `telegram`: the Telegram client (`/usr/bin/Telegram`), its wallust palette linked into `TelegramDesktop`.
 - `apps`: the other chat and mail clients (packages only).
 
 ## Conventions

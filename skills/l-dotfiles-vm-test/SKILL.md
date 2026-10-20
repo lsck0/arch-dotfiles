@@ -12,13 +12,14 @@ their own boots, logs in on tty3, pulls logs and checks the end state. Install p
 ## Before
 
 - `dot test lint` (also run first by `run`).
-- Needs sudo (asked once, kept alive), `virt-install`, `virsh`, `tesseract`, `magick`, `socat` (the beacon server), and the ISO at
+- Needs sudo (asked once, kept alive), `virt-install`, `virsh`, `tesseract`, `magick`, `socat` (the beacon server),
+  `xorriso` (the answers cd), `blkid`, and the ISO at
   `~/downloads/archlinux-x86_64.iso` (`--iso PATH` otherwise).
 - `--iso` with an Arch Linux-LSCK0 iso (`dot internal iso`, told apart by its `ARCH_LSCK0_` volume label) types
   nothing: the answers, the snapshot bundle and its lfs objects go on a second cd labelled `LSCK0` (`lsck0.nuon`,
   `unattended: true`); the iso's stub fetches and verifies GitHub master, applies the bundle on top (so the second
   stage `dot internal iso-install` and everything after come from the local tree), and its `install: failed` line on
-  tty1 fails the run (the bootstrap's log is the guest's `/tmp/lsck0-install.log`). Also needs `xorriso` (archiso pulls it in).
+  tty1 fails the run (the bootstrap's log is the guest's `/tmp/lsck0-install.log`).
 - It tests the local working tree, untracked files included, as a bundle on top of `origin/master`; `--master`
   tests GitHub master instead.
 
@@ -46,7 +47,10 @@ dot test drill rollback  # kernel downgrade, timeshift snapshot, upgrade, restor
 ```
 
 Pass: `dot test: chain succeeded`. Otherwise read `logs/FAILURES.*`, `logs/stage.log` and the failing module's
-`*.log`. The verdict wants stage armed no, passwordless sudo no, no keyfile, one LUKS keyslot, Secure Boot on, the PDF print queue present.
+`*.log`. The verdict (`scripts/lib/invariants.txt`, into `logs/verify.log`) wants `stage_armed=no`,
+`sudo_passwordless=no`, `keyfile_present=no`, `luks_keyslots=1`, `secure_boot=1`, `setup_mode=0` (the keys enrolled),
+`kernel_modules=yes` (the running kernel's modules dir), `pdf_queue=yes` and `backup_roundtrip=ok` (`dot internal
+backup --roundtrip`), and both stages `ok` in `stage.log`.
 
 `dot test shot` reads the VM framebuffer into a PNG with no window, so an agent watches the run through it. A
 graphical viewer (virt-viewer) opened only to verify goes on the agent's own headless output (skill

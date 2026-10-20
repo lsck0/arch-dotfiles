@@ -1,5 +1,5 @@
 use log.nu *
-use state.nu [state-dir state-locked path-kind nu-bin LIB_DIR]
+use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR]
 use written.nu [sync-guard preserve-aside written-file written-record written-forget]
 use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
@@ -124,6 +124,12 @@ export def output-file-state [output: record, obs: record, repo: string]: nothin
     match $c.kind { "drift" => "changed", "create" => "missing", _ => null }
 }
 
+# a merge target behind a link (a dotfile kept in another repo) is the file it points to, never an empty one
+def merge-read [obs: record, target: string]: nothing -> string {
+    if $obs.type? not-in [file symlink] { return "" }
+    try { open --raw $target } catch { "" }
+}
+
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -155,13 +161,16 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 }
             }
             "json" => {
-                let raw = if $obs.type == file { open --raw $d.target } else { "" }
-                let current = if ($raw | str trim | is-empty) { {} } else { $raw | from json }
+                let raw = merge-read $obs $d.target
+                # an app mid-write (~/.claude.json) is no reason to stop the layer: the apply reads it again under
+                # the lock and fails this action alone if it still does not parse
+                let current = if ($raw | str trim | is-empty) { {} } else { try { $raw | from json } catch { null } }
+                if $current == null { return (action $id merge $d.target "not valid json now, read again at apply" $d $obs.hash? null) }
                 let merged = $current | json-edits-apply $d.edits
                 if $merged == $current and ($raw | is-not-empty) { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" $d $obs.hash null }
             }
             "ini" => {
-                let raw = if $obs.type == file { open --raw $d.target } else { "" }
+                let raw = merge-read $obs $d.target
                 let merged = $d.edits | reduce --fold $raw {|e, text| $text | ini-apply $e.values $e.missing_only }
                 if $merged == $raw { action $id skip $d.target "" $d null null } else { action $id merge $d.target "keys differ" ($d | update content $merged) $obs.hash null }
             }
@@ -213,7 +222,8 @@ def prune-parents [start: path]: nothing -> nothing {
 def write-file [a: record]: nothing -> nothing {
     let d = $a.decl
     mkdir ($d.target | path dirname)
-    let tmp = $"($d.target).dot-new"
+    # this process's own name: a second run writing the same target must not take over a half-written temp
+    let tmp = $"($d.target).dot-new.($nu.pid)"
     if (path-kind $tmp) == "symlink" { rm $tmp }
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
     ^chmod $d.mode $tmp
@@ -233,6 +243,23 @@ def run-step [a: record, dir: path]: nothing -> string {
         error make {msg: $"step ($a.target) exited ($out.exit_code): ($out.tail)"}
     }
     $out.output
+}
+
+# a sibling module's daemon-reload running at the same moment fails a unit verb once (core/herdr, 2026-10-20)
+def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
+    if (do { ^systemctl $"--($scope)" ...$args } | complete).exit_code != 0 {
+        sleep 1sec
+        ^systemctl $"--($scope)" ...$args
+    }
+}
+
+# a failed --then forgets the file, so the next apply records it again and that record runs the --then once more
+def run-then [a: record, dir: path]: nothing -> string {
+    if ($a.decl.then | is-empty) { return "" }
+    try { run-exec ($a | update decl.argv $a.decl.then) $dir } catch {|e|
+        if $a.decl.kind == "file" { written-forget $a.target }
+        error make {msg: $e.msg}
+    }
 }
 
 def run-exec [a: record, dir: path]: nothing -> string {
@@ -260,25 +287,25 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                     }
                     # a --then (a restart) and every later step must see the new unit file or drop-in
                     if ($a.target | str starts-with (unit-dir)) { ^systemctl $"--($scope)" daemon-reload }
-                    let output = if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" }
-                    {aside: $aside, output: $output}
+                    {aside: $aside, output: (run-then $a $dir)}
                 }
-                "record" => { written-record $a.target; {} }
+                "record" => { written-record $a.target; {output: (run-then $a $dir)} }
                 "merge" => {
                     sync-guard $a.target
                     mkdir ($a.target | path dirname)
-                    if $a.decl.kind == "ini" {
-                        # the same inode, so an app holding the file open keeps working
-                        $a.decl.content | save --force $a.target
+                    # read again under the lock: the plan's view may be stale, and an app may have written since
+                    let out = if $a.decl.kind == "ini" {
+                        state-locked $"(state-dir)/json.lock" ini-update {file: $a.target, edits: $a.decl.edits} | complete
                     } else {
                         let recorded = recorded-hashes | get --optional $a.target | default ""
-                        let out = state-locked $"(state-dir)/json.lock" json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: $recorded} | complete
-                        if ($out.stdout | str contains owned) { written-record $a.target }
+                        state-locked $"(state-dir)/json.lock" json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: $recorded} | complete
                     }
+                    if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
+                    if ($out.stdout | str contains owned) { written-record $a.target }
                     {output: (if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" })}
                 }
                 "disable" => {
-                    ^systemctl $"--($scope)" disable $a.target
+                    systemctl-retry $scope disable $a.target
                     # the stop is best effort: a stock unit with RefuseManualStop= (systemd-tmpfiles-setup) refuses it,
                     # and the disable that matters already happened
                     if ($a.decl.now? | default false) { do { ^systemctl $"--($scope)" stop $a.target } | complete | ignore }
@@ -286,10 +313,10 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 }
                 "enable" | "mask" => {
                     let now = if ($a.decl.now? | default false) { [--now] } else { [] }
-                    ^systemctl $"--($scope)" $a.kind ...$now $a.target
+                    systemctl-retry $scope $a.kind ...$now $a.target
                     {}
                 }
-                "unmask" => { ^systemctl $"--($scope)" unmask $a.target; {} }
+                "unmask" => { systemctl-retry $scope unmask $a.target; {} }
                 "step" => { {output: (run-step $a $dir)} }
                 "remove" => {
                     rm --force $a.target
@@ -340,5 +367,5 @@ export def state-write [id: string, verb: string, input: string, actions: list<r
         run: ($env.DOT_RUN_ID? | default "")
         time: (date now | format date "%+")
         outputs: ($owned ++ ($prev | where target in $failed and target not-in $owned.target))
-    } | save --force $file
+    } | to nuon | save-atomic $file
 }

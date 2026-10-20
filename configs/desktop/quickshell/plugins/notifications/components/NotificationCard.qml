@@ -55,7 +55,9 @@ BorderSurface {
   readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  readonly property color bodyColor: Qt.darker(Colors.notifications.text, 1.15)
+  // alpha toward the card, not Qt.darker: darker is no dimmer for the dark text of a light theme
+  readonly property real bodyEmphasis: 0.87
+  readonly property color bodyColor: Util.alpha(Colors.notifications.text, bodyEmphasis)
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth
   readonly property color strokeColor: urgency === 2 ? Colors.urgent : Util.alpha(Colors.notifications.border, Style.surface.ruleAlpha)
 
@@ -279,7 +281,7 @@ BorderSurface {
       anchors.centerIn: parent
       textFormat: Text.PlainText
       text: "x"
-      color: closeArea.containsMouse ? Colors.notifications.text : Qt.darker(Colors.notifications.text, 1.4)
+      color: closeArea.containsMouse ? Colors.notifications.text : Util.alpha(Colors.notifications.text, Style.emphasis.dim)
       font.family: root.fontFamily
       font.pixelSize: Style.font.heading
     }

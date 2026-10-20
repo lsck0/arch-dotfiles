@@ -176,7 +176,9 @@ function displayRows(history, query, limit) {
   var rows = []
 
   for (var i = 0; i < values.length; i++) {
-    var entry = cappedEntry(normalizeEntry(values[i]))
+    // the cap is for search and preview only: a re-copy takes the whole text
+    var whole = normalizeEntry(values[i])
+    var entry = cappedEntry(whole)
     if (!entry) continue
     if (needle && searchableText(entry).toLowerCase().indexOf(needle) < 0) continue
 
@@ -186,7 +188,8 @@ function displayRows(history, query, limit) {
     var previewPath = isImage ? String(entry.path || "") : (isFile && paths.length === 1 && isImagePath(paths[0]) ? paths[0] : "")
     rows.push({
       entryType: isFile ? "file" : entry.type,
-      fullText: isImage ? "" : fullText(entry),
+      fullText: isImage ? "" : fullText(whole),
+      paneText: isImage ? "" : fullText(entry),
       previewText: previewText(entry),
       previewImage: previewPath,
       path: isImage ? String(entry.path || "") : (isFile && paths.length === 1 ? paths[0] : ""),

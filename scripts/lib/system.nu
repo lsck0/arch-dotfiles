@@ -4,7 +4,8 @@ use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
 use secrets.nu [secret-is-plaintext]
 
-const SYSTEM_PATHS = [configs platforms profiles scripts]
+# migrations: root runs the system-layer ones (`export const layer = "system"`) from this copy
+const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 
@@ -24,10 +25,18 @@ export def system-pack [checkout: path, --rollback]: nothing -> binary {
         if $back { log-warn $"($SYSTEM_REPO) steps back from ($old) to ($head), an explicit rollback" }
     }
     # links stay out (one could point into /home), a deleted tracked file has nothing to pack
-    let files = ^git -C $checkout ls-files -z --cached --others --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
-        | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
-    if $ENTRY not-in $files { error make {msg: $"($checkout) lists no ($ENTRY), not packing"} }
-    $files | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf -
+    let list = {|which| ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
+        | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" } }
+    let tracked = do $list "--cached"
+    # untracked new modules apply before their commit; their mode as is, so a 600 file never turns world-readable
+    let untracked = do $list "--others" | where $it not-in $tracked
+    if $ENTRY not-in $tracked and $ENTRY not-in $untracked { error make {msg: $"($checkout) lists no ($ENTRY), not packing"} }
+    let tar = mktemp --tmpdir dot-pack.XXXXXX
+    $tracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf $tar
+    if ($untracked | is-not-empty) { $untracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go-w -rf $tar }
+    let out = open --raw $tar | into binary
+    rm --force $tar
+    $out
 }
 
 # extracted beside <copy> and swapped in only when complete, so a run never sees a half-written copy

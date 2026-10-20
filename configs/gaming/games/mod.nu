@@ -35,5 +35,7 @@ export def relocate []: nothing -> nothing {
     } else if ($p.pob | path exists) {
         mv $p.pob $p.pob_synced
     }
+    # pobfrontend's data dir does not exist until it has run once
+    mkdir ($p.pob | path dirname)
     ^ln -s $p.pob_synced $p.pob
 }

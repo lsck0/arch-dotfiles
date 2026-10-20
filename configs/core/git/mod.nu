@@ -1,6 +1,7 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
+# deps core/wallust: the theme verb needs the palette a fresh install has only after wallust ran
+export const meta = {deps: [core/wallust], packages: {pacman: [git git-delta]}, inputs: [/usr/bin/mergiraf /usr/bin/jj /usr/bin/git-lfs /usr/bin/gh]}
 
 const CONFIG_DIR = ".config/git"
 const DELTA_THEME = ".cache/wal/delta.gitconfig"

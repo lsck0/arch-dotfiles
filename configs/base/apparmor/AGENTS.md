@@ -5,16 +5,18 @@ how strictly.
 
 ## Layout
 
-- `profiles.conf`: the authoritative mode table. Column one is apparmor.d's own profiles (loaded through include.d by
-  `aa-install`), the rest are this module's own. `<mode>,<flag>` adds profile flags (e.g. `telegram-desktop enforce,mediate_deleted`).
+- `profiles.conf`: the authoritative mode table, one `<name> <mode>[,flags]` row per profile (e.g.
+  `telegram-desktop enforce,mediate_deleted`), apparmor.d's own (loaded through include.d by `aa-install`) and this
+  module's alike; a row whose name is in `profiles/` is an own profile.
 - `profiles/`: this module's own profiles, for programs apparmor.d does not cover (feh, nsxiv, sioyek, bookokrat,
   zapzap, zotero, obsidian, the archive/image tools, `handbrake`, `blender-mcp`, `obs-mcp`, `localsend-app`). Each
   carries its mode in its header.
 - `local/`: drop-ins layered onto apparmor.d's profiles (firefox, chromium, qutebrowser, discord, telegram, mpv,
-  thunderbird, zathura, libreoffice, spotify, signal, ffmpeg, ffprobe). This is where a confined app's child-exec and
-  file access are narrowed.
-- `abstractions/`: shared rule fragments (`deny-sensitive-home`, `child-open`, `xdg-open`, `synctex-edit`, `qtwebengine`,
-  `viewer-read`, `gpg-client`, ...).
+  thunderbird, zathura, libreoffice, spotify, signal, ffmpeg, ffprobe, ...), plus the opener children `child-open`,
+  `child-open-any`, `child-open-browsers`, `child-open-strict`. This is where a confined app's child-exec and file
+  access are narrowed.
+- `abstractions/`: shared rule fragments (`deny-sensitive-home`, `xdg-open`, `synctex-edit`, `qtwebengine`,
+  `viewer-read`, `gpg-client`, `file-tool`, `config-links`, `gtk-theme`, `nssdb`).
 - `modes`, `sysctl-apparmor.conf`, `aa.nu` (the `aa` command), `mod.nu`, `apparmor.test.nu`.
 
 ## Policy

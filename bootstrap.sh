@@ -23,11 +23,14 @@ if [[ -d /run/archiso ]]; then
         mount -o "remount,size=${COW_MIN_MIB}M" /run/archiso/cowspace
     # pacman needs the iso's keyring, which pacman-init.service may still be filling
     systemctl start pacman-init.service
+    # keys first: an older iso's keyring may not know the packagers who signed today's packages
+    pacman -Sy --noconfirm --needed archlinux-keyring
     # no -u on the iso, so glibc comes along explicitly: today's nushell needs a newer one than an older iso ships
-    pacman -Sy --noconfirm --needed glibc nushell git gnupg
+    pacman -S --noconfirm --needed glibc nushell git gnupg
 else
     pacman-key --init && pacman-key --populate archlinux
-    pacman -Syu --noconfirm --needed nushell git gnupg sudo zsh
+    pacman -Sy --noconfirm --needed archlinux-keyring
+    pacman -Su --noconfirm --needed nushell git gnupg sudo zsh
 fi
 
 repo=$(dirname "$(readlink -f "${BASH_SOURCE[0]:-/}")")

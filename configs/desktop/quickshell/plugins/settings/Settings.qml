@@ -393,7 +393,8 @@ Item {
   function runToggle(toggle) {
     if (toggleProc.running) return
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
-    toggleProc.command = [Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
+    // its own scope, as StayAwake: what a toggle leaves running must outlive a quickshell.service restart
+    toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
     toggleProc.running = true
   }
 

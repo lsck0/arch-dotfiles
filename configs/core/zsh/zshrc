@@ -3,7 +3,9 @@
 
 fpath=(${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions $fpath)
 export ZSH_DISABLE_COMPFIX=true
-export ZSH_COMPDUMP="$HOME/.zcompdump"
+# cache and state out of $HOME (migrations/0002-zsh-xdg-history.nu moved the old ones)
+export ZSH_COMPDUMP="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+[[ -d ${ZSH_COMPDUMP:h} ]] || mkdir -p "${ZSH_COMPDUMP:h}"
 
 zmodload -F zsh/stat b:zstat
 # REPLY = cached output of `<tool> <args>`, rerun only when the tool was installed after the cache was written
@@ -25,14 +27,14 @@ autoload -Uz compinit
 () {
   setopt local_options extended_glob
   # full check at most daily; touch since compinit keeps an unchanged dump's mtime
-  if [[ -n $HOME/.zcompdump(#qN.mh+24) ]]; then
-    compinit -d "$HOME/.zcompdump"
-    touch "$HOME/.zcompdump"
+  if [[ -n $ZSH_COMPDUMP(#qN.mh+24) ]]; then
+    compinit -d "$ZSH_COMPDUMP"
+    touch "$ZSH_COMPDUMP"
   else
-    compinit -C -d "$HOME/.zcompdump"
+    compinit -C -d "$ZSH_COMPDUMP"
   fi
   # source picks up a newer .zwc on its own, bytecode loads faster than parsing the dump
-  [[ $HOME/.zcompdump.zwc -nt $HOME/.zcompdump ]] || zcompile "$HOME/.zcompdump"
+  [[ $ZSH_COMPDUMP.zwc -nt $ZSH_COMPDUMP ]] || zcompile "$ZSH_COMPDUMP"
 }
 
 # starship draws the prompt, so omz's async git prompt has nothing to register in precmd
@@ -63,7 +65,8 @@ zle -N edit-command-line
 bindkey ' ' magic-space
 
 HISTSIZE=5000
-HISTFILE=~/.zsh_history
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+[[ -d ${HISTFILE:h} ]] || mkdir -p "${HISTFILE:h}"
 SAVEHIST=$HISTSIZE
 setopt appendhistory
 setopt extended_history

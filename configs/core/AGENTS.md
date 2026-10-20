@@ -14,11 +14,13 @@ version control, backups, theming and the toggle framework. Each module is a `mo
 - `gnupg`: gpg config and the shipped public key, imported for the matching identity.
 - `herdr`: the herdr multiplexer config (palette rendered in), `herdr-open` and `herdr-fingers` on PATH, a clean
   session at every login (user tmpfiles).
-- `locale`: language, LC_TIME, keyboard layout and Wi-Fi country (options, detected from what bootstrap set).
+- `locale`: language, formats (every LC_ but messages and collation), keyboard layout and Wi-Fi country (options,
+  detected from what bootstrap set).
 - `nas`: the NAS mount (system verb) and a homelab user's `~/nas` shortcut.
 - `ntfy`: notification forwarder to the homelab ntfy (homelab users with a token only).
 - `nushell`: nushell config sourcing vendor init scripts.
-- `proton/pass`: the `pass` password store, linked into `~/sync`; Proton auth is manual (README.md), no credentials in the repo.
+- `proton/pass`: the `pass` password store, linked into `~/sync` (identity users only); Proton auth is manual
+  (README.md), no credentials in the repo.
 - `starship`: shell prompt.
 - `syncthing`: the `~/sync` syncing daemon and folders (primary home for live shared data; see root).
 - `timezone-auto`: network-based timezone updates.
@@ -35,4 +37,5 @@ version control, backups, theming and the toggle framework. Each module is a `mo
 
 - Theming flows through `wallust` and `themes/*.json`; a themed program ships a template here, not a hardcoded palette.
 - A toggle is `scripts/toggles/toggle-*.nu` with a root half and quickshell/menu wiring. See the `l-dotfiles-toggles` skill.
-- Identity-gated modules (`gnupg`, `nas`, `ntfy`, `borg`, `syncthing`) read `profile-has`, never a username.
+- Identity-gated modules (`gnupg`, `nas`, `ntfy`, `borg`, `syncthing`, `proton/pass`) read `profile-has`, never a
+  username.

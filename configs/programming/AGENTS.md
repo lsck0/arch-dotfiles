@@ -7,7 +7,10 @@ Extends the root `AGENTS.md`. Editors, language toolchains, debuggers, agent CLI
 - Editors/IDEs: `nvim` (primary, plugins/LSP/parsers installed eagerly), `emacs` (offline fallback), `zed`, `vscode`
   (vim mode), `jetbrains` (toolbox), `godot` (editor plus a pinned godot-mcp addon), `unreal` (~60 GB, desktop only).
 - Language toolchains: `cargo` (Rust), `ghcup` (Haskell), `opam` (OCaml), `elan` (Lean), `jai` (owner's beta from
-  `~/sync/vendor`), `nix`, `flux` (flux-rs on its pinned nightly), `kani` (Rust model checker), `asm-lsp` (assembly).
+  `~/sync/vendor`), `nix`, `flux` (flux-rs on its pinned nightly), `kani` (Rust model checker), `asm-lsp` (assembly),
+  `android` (android-ndk and jdk21 from pacman; a user-writable SDK in `~/.local/share/android-sdk` from the pinned
+  cmdline-tools' sdkmanager: platform-tools, build-tools 35.0.1, android-35, the emulator and its google_apis x86_64
+  image, an AVD named by option `avd`; Google's SDK license accepted with the owner's approval).
 - Debuggers/profilers: `gdb`, `cgdb`, `nnd`, `renderdoc`.
 - Git/VCS: `lazygit`, `gh-dash`, `direnv` (devenv environments), `identity` (not a module: the `.identity/envrc`
   that `identity-init` gives a repo for its own git identity).

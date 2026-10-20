@@ -47,7 +47,8 @@ def failures []: nothing -> list<record> {
 def hashes [dir: path, files: list<string>]: nothing -> list<string> {
     if ($files | is-empty) { return [] }
     cd $dir
-    $files | str join "\u{0}" | ^xargs -0 sha256sum | lines
+    # a root copy file kept 600 (an untracked one packed as is) is unreadable here and counts as differing
+    $files | str join "\u{0}" | ^xargs -0 sha256sum | complete | get stdout | lines
 }
 
 def config-pending []: nothing -> list<record> {

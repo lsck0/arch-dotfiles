@@ -33,7 +33,8 @@ starting point for a new machine of that kind, which bootstrap copies to `/etc/d
 3. Read it: `platform-has my_fact`. A module that acts on a fact also undoes its work when the fact is unset.
 4. `dot test lint`.
 
-Hyprland reads the form factor at runtime from `~/.config/dotfiles/form-factor`, written by every user-layer run.
+Hyprland reads the form factor from `~/.config/hypr/platform.lua` (`form_factor`, `laptop`), which
+`desktop/hyprland`'s link verb generates from `$env.FORM_FACTOR` and its options on every run.
 
 ## Add a capability
 

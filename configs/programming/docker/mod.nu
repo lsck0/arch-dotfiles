@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy]}}
+export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy uv]}}
 
 const MCP = {type: stdio, command: uvx, args: ["mcp-server-docker==0.3.0"]}
 

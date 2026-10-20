@@ -18,7 +18,13 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
    `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`): the answer file
    (`lsck0.nuon` on a FAT32 partition labelled `LSCK0` and other places, keys in `mirror/iso/lsck0.example.nuon`)
    and `lsck0.*` boot parameters as `BOOTSTRAP_*`, then `dot internal bootstrap`. An answered key is not asked;
-   `unattended: true` skips the summary too.
+   `unattended: true` skips the summary too, asks each `"ask"` password once on the console before it starts, and
+   tees the run to `/tmp/lsck0-install.log`, copied to the new system's `/var/log/lsck0-install.log`. Unattended, a
+   disk whose ESP holds `/boot/dotfiles-stage-in-progress` (its chain still running: a stick left in and booted first)
+   is refused unless `reinstall: true` (`BOOTSTRAP_REINSTALL=1`, best the one-boot `lsck0.reinstall=1`). Before the
+   reboot `efibootmgr --bootnext` points the firmware at the new ESP's entry, and each stage reboot sets BootNext to
+   the entry it booted from. The answer file's `source` (an unverified tree on top of master, the vm test's) is used
+   only with `lsck0.insecure=1`, inside a VM, or after a yes on the console (the stub's `source-allowed`).
    Frozen on the stick: only the stub's network, clone and signature check, and the trust anchor; a newer stub on
    master replaces the stick's once verified. Questions,
    answer-file keys and validation, the env mapping and everything after come from master at install time, so a
@@ -47,8 +53,9 @@ Build the iso with `dot internal iso` (needs root for mkarchiso, `mirror/iso/REA
   homelab or work). The picked file is copied to `~/.config/dotfiles/profile.nuon`.
 - Machine: the `platforms/<host>.nuon` for this kind of host, labelled by form factor (PC luca-pc, notebook
   luca-notebook; on WSL only WSL luca-wsl), then `server` and `custom`. Both ask hostname, timezone, locale and secure
-  boot and write the root-owned `/etc/dotfiles/platform.nuon`; `server` takes `platforms/templates/server.nuon` (base
-  plus docker, no desktop) and an ssh public key, `custom` the package groups. `test-vm` is left out
+  boot and write the root-owned `/etc/dotfiles/platform.nuon`, and both ask an ssh public key for
+  `~/.ssh/authorized_keys` (empty: console only, sshd takes no passwords); `server` takes
+  `platforms/templates/server.nuon` (base plus docker, no desktop), `custom` the package groups. `test-vm` is left out
   (the platform question's `hidden`), the vm test passes it by argument.
 - Every machine asks whether to encrypt the disk (LUKS2, default yes); server and custom also ask for secure boot:
   `own` keys, `microsoft` (own keys plus Microsoft's, the default) or `off`.
@@ -67,14 +74,15 @@ the username has no default), `BOOTSTRAP_PROFILE=<name>|custom` (default custom)
 custom` (default custom; the argument to `bootstrap.sh` wins), `BOOTSTRAP_HOME_NETWORK=0|1` and `BOOTSTRAP_ENCRYPT=0|1`
 (default 1); for server or custom also `BOOTSTRAP_{HOSTNAME,GROUPS,TIMEZONE,LOCALE,SSH_KEY}` and
 `BOOTSTRAP_SECURE_BOOT=own|microsoft|off` (default microsoft). The old `BOOTSTRAP_SERVER=1` still turns custom into
-server. Each question's `env` and `default` in `scripts/lib/bootstrap/questions.nuon` is the reference. `dot test run` drives exactly this, passes
+server. `BOOTSTRAP_REINSTALL=1` lets it erase a disk still in its install chain. Each question's `env` and `default` in `scripts/lib/bootstrap/questions.nuon` is the reference. `dot test run` drives exactly this, passes
 `--profile` (default luca) as `BOOTSTRAP_PROFILE` and `BOOTSTRAP_{SERVER,SECURE_BOOT,HOSTNAME,GROUPS,SSH_KEY}` from the
 host into the guest (skill `l-dotfiles-vm-test`).
 
 ## Check the chain
 
 1. `/var/lib/dotfiles-stage/log`: one `<stage>: ok` line per stage.
-2. `install.log`, `config.log`, `FAILURES.install`, `FAILURES.config` in the checkout.
+2. `install.log`, `config.log`, `FAILURES.install`, `FAILURES.config` in the checkout; an unattended lsck0 install's
+   first part is `/var/log/lsck0-install.log`.
 3. An aborted `dot apply --packages` (exit 2) is retried on the next boot, up to 3 times; after that the chain moves
    on to config and `dot apply --packages` is rerun by hand.
 
@@ -86,4 +94,6 @@ adduser-dotfiles <name> [--profile luca|custom]
 
 Root-owned `/usr/local/bin/adduser-dotfiles` (linked by `system-apply.nu`): creates the user (never wheel), its own
 checkout, profile and user layer. Without `--profile` it asks on a tty and takes `custom` otherwise. Rerun-safe; an
-existing `profile.nuon` is kept.
+existing `profile.nuon` is kept. A profile with the `identity` capability adds the login to root's owner registry
+`/var/lib/dotfiles/owners` (the bootstrap does the same for the first login; `migrations/0003-u2f-owners.nu` seeded it
+on installed machines), from which `base/pam` maps the owner's YubiKey in `/etc/u2f_mappings` on the next system run.

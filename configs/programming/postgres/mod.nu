@@ -15,6 +15,8 @@ export def system [cfg: record] {
     let init = $"cd / && install -d -o postgres -g postgres -m 700 ($DATA) && runuser -u postgres -- initdb -D ($DATA) --encoding=UTF8 --locale=C.UTF-8 --auth-local=peer --auth-host=scram-sha-256 > /dev/null"
     [
         (exec initdb [sh -c $init] --creates ($DATA | path join PG_VERSION))
+        # the postgres MCP connects to it: initdb alone leaves the server off on every machine
+        (unit-enable postgresql.service --now)
         ($admins | each {|admin| step role-ensure $admin })
     ]
 }

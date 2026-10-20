@@ -56,17 +56,41 @@ export def theme [cfg: record, wallpaper: string] {
 export def apply [cfg: record] {
     theme $cfg ""
 }
+
+# hook: values for options left null by platform and profile (hardware, live state), run before resolving
+export def detect [cfg: record]: nothing -> record {
+    {accent: (if (gpu-list | is-empty) { c2 } else { null })}
+}
+
+# hook: packages that depend on an option, merged into meta.packages
+export def packages [cfg: record]: nothing -> record {
+    {pacman: (if $cfg.accent == c4 { [btop-extra] } else { [] })}
+}
 ```
 
 - Verbs: `link`, `system`, `theme`, `apply`, `unlink` (only for what the declarations cannot reverse; returns `exec`
   steps), `backup`, `restore`, `check`. Each takes the resolved options record (`enable` is always there) and
-  returns a declaration or a list of them.
+  returns a declaration or a list of them (`decls-flatten` flattens nested lists). A module turned off (`enable`
+  false, its group gone from the platform) is planned with nothing declared on the next full `link` or `system` run,
+  so its recorded files, links and units are removed and disabled; what a `step` or `exec` did is not recorded and
+  stays, so declare anything that must go with the module.
+- Hooks (`HOOKS` in `scripts/lib/modules.nu`), not verbs: `detect` returns a record of option values, used where
+  platform and profile leave an option null (a failure only warns, the options stay unset); `packages` returns a
+  `{pacman, native, flatpak, nix}` part appended to `meta.packages` for packages that follow an option.
 - Declarations (`scripts/lib/module.nu`): `file-copy <src> <dest>` (a real copy, hash recorded; `--then` runs when it
-  changed), `files-into <dir> <src...>`, `file-text <dest> <text> [--generated]`, `file-render <src> <dest>
-  {KEY: value}` (`@KEY@`), `file-link <src> <dest>` (only where the app must read the repo live),
-  `link-commands <file...>`, `json-merge <file> [(json-set [k k] v) (json-delete [k])]`, `unit-file <src>
-  [--enable --now]`, `unit-enable <name> [--now]`, `dropin <unit> <src> [--name]`, `desktop-override <id> {|text|
-  ...}`, `exec <name> [argv] [--creates path]`.
+  changed), `files-into <dir> <src...>`, `file-text <dest> <text> [--generated] [--in-place]`, `file-render <src>
+  <dest> {KEY: value}` (`@KEY@`), `file-link <src> <dest>` (only where the app must read the repo live),
+  `link-commands <file...>`, `json-merge <file> [(json-set [k k] v) (json-delete [k])]`, `ini-merge <file> {section:
+  {key: v}} [--missing-only]` (only those keys), `unit-file <src> [--enable --now]`, `unit-enable|unit-disable|
+  unit-mask <name> [--now]`, `unit-restart <name> [--reload]` (a `--then` that skips a unit not installed yet),
+  `dropin <unit> <src> [--name]`, `desktop-override <id> {|text| ...}`, `exec <name> [argv] [--creates path]`, `step
+  <command> [args]` (one of the module's own exported commands, run at apply time on live state), `fetch-file <url>
+  <sha256> <dest> [--extract <member>]` and `fetch-git <url> <commit> <dir>` (pinned downloads and checkouts),
+  `group-admins <group>` (a system group every wheel member is in), `user-hook <name> <script> --watch [paths]`
+  (a path unit that runs the script on a change), `palette-load` (the current palette or null, for `theme`).
+- Option keys: `type`, `default`, `doc` (required); `label`, `group`, `choices`, `min`/`max`/`step`, `apply`
+  (default relink), `scope` (default user), `toggle` (a live option set through `scripts/toggles/toggle-<name>.nu`:
+  `on`/`off` for a bool, else `set <value>`; its `get` is the live value the settings window shows).
 - Facts: `platform-has homelab` (machine), `profile-has secrets` (user, link only), `$env.FORM_FACTOR`. A per-module
   setting is an option, set with `dot set <group/module>.<key> <value> [--machine]`.
 - A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot module adopt <file>` (copies it
@@ -82,7 +106,8 @@ dot plan <group>/<module>          # actions, touching nothing; again after the 
 dot apply <group>/<module>         # its user layer; a second run is a no-op
 dot module unlink <group>/<module> # reverse it; apply again restores it
 dot plan --system <group>/<module> # the system verb, planned as the user
-dot test lint && dot test check  # layer rules per verb, nu parse gate
+dot test lint                      # module refs, layer rules per verb, the module's *.test.nu
+dot test check                     # formatters and linters, the nu parse gate
 ```
 
 `dot log --trace` shows where the time went, `dot explain <path>` which module and run wrote a file.

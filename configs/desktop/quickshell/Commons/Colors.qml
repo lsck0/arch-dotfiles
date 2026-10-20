@@ -19,9 +19,10 @@ QtObject {
     readonly property color surface: surfaceOf(background, surfaceLift)
     readonly property real surfaceLift: 0.04
     readonly property real semanticTint: 0.15
-    readonly property color warn: Qt.tint(warnBase, Util.alpha(accent, semanticTint))
-    readonly property color ok: Qt.tint(okBase, Util.alpha(accent, semanticTint))
-    readonly property color severe: Qt.tint(severeBase, Util.alpha(accent, semanticTint))
+    // conditioned as urgent is: a fixed yellow or green is unreadable on a light background
+    readonly property color warn: readable(Qt.tint(warnBase, Util.alpha(accent, semanticTint)))
+    readonly property color ok: readable(Qt.tint(okBase, Util.alpha(accent, semanticTint)))
+    readonly property color severe: readable(Qt.tint(severeBase, Util.alpha(accent, semanticTint)))
     readonly property color warnBase: "#e8c317"
     readonly property color okBase: "#23a55a"
     readonly property color severeBase: "#e67e22"
@@ -144,6 +145,11 @@ QtObject {
             }
         }
         return urgent;
+    }
+
+    function readable(c) {
+        var out = Palette.readableOn([background.r, background.g, background.b], [c.r, c.g, c.b], Theme.urgentContrast);
+        return Qt.rgba(out[0], out[1], out[2], 1);
     }
 
     function surfaceOf(bg, amount) {

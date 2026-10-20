@@ -123,7 +123,10 @@ Item {
     var originalId = snapshot.originalId
     liveRefs[originalId] = notification
     notification.closed.connect(function() {
-      if (service.liveRefs[originalId] === notification) delete service.liveRefs[originalId]
+      if (service.liveRefs[originalId] !== notification) return
+      delete service.liveRefs[originalId]
+      // the sender closed it (CloseNotification): its popup goes too, the history keeps it
+      Qt.callLater(function() { service.closePopupsByOriginalId(originalId) })
     })
 
     if (service.doNotDisturb && !NotificationLogic.shouldBypassDnd(notification)) {
@@ -135,6 +138,11 @@ Item {
     persistPopupFile(snapshot)
     watchForUpdates(notification, snapshot)
     Qt.callLater(function() {
+      // closed before its row went in
+      if (service.liveRefs[originalId] !== notification) {
+        service.archivePopupFileFor(snapshot)
+        return
+      }
       removePopupsByOriginalId(originalId, NotificationLogic.popupFileName(snapshot))
       popupModel.insert(0, snapshot)
       service.refreshPopup(notification, originalId, snapshot.timestamp)
@@ -223,6 +231,17 @@ Item {
     }
   }
 
+  function closePopupsByOriginalId(originalId) {
+    if (service.liveRefs[originalId]) return
+    for (let i = popupModel.count - 1; i >= 0; i--) {
+      let row = popupModel.get(i)
+      if (!row || row.originalId !== originalId || isRestoredRow(row)) continue
+      archivePopupFileFor(row)
+      popupModel.remove(i)
+    }
+  }
+
+  // reason "replay": the row leaves the screen only, the notification stays open for its sender
   function removePopup(index, reason) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
@@ -232,7 +251,7 @@ Item {
     if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
     popupModel.remove(index)
     try {
-      if (ref && ref.tracked) {
+      if (ref && ref.tracked && reason !== "replay") {
         if (reason === "expire" && typeof ref.expire === "function") ref.expire()
         else ref.dismiss()
       }
@@ -240,8 +259,8 @@ Item {
     }
   }
 
-  function clearPopups() {
-    while (popupModel.count > 0) removePopup(0)
+  function clearPopups(reason) {
+    while (popupModel.count > 0) removePopup(0, reason)
   }
 
   function invokeDefaultAction(entry) {
@@ -525,7 +544,8 @@ Item {
       return
     }
 
-    clearPopups()
+    // live notifications ride along in the history rows (liveRowsForReplay), still open for their senders
+    clearPopups("replay")
     for (let i = 0; i < rows.length; i++) {
       service.restoredPopups[NotificationLogic.popupFileName(rows[i])] = true
       popupModel.append(rows[i])

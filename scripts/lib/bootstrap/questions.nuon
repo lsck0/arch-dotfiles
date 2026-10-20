@@ -127,11 +127,11 @@
             id: ssh_key
             kind: text
             env: BOOTSTRAP_SSH_KEY
-            when: {platform: server}
+            when: {platform: [server custom]}
             default: ""
             empty_ok: true
             title: "ssh key"
-            text: "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nThe server only takes key logins. Empty leaves just the console."
+            text: "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nssh only takes key logins. Empty leaves just the console."
             pattern: '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
             invalid: "BOOTSTRAP_SSH_KEY is not one ssh public key line"
         }
@@ -209,6 +209,8 @@
             plain: "disk ({choices}): "
             confirm: {title: "erase", text: "Everything on {disk} will be erased. Type {disk} to confirm:"}
             none: "no disk found (set BOOTSTRAP_DISK)"
+            several: "several disks ({choices}), set BOOTSTRAP_DISK (the answer file's disk) to the one to erase"
+            in_progress: "{disk} is still in its install chain: remove the stick and reboot to let it finish, or set BOOTSTRAP_REINSTALL=1 (boot parameter lsck0.reinstall=1) to erase it"
             invalid: "{value} is not a block device"
             invalid_part: "{value} is not a whole disk"
         }
@@ -270,6 +272,8 @@
     answers: [
         {id: server, type: bool, env: BOOTSTRAP_SERVER}
         {id: unattended, type: bool, env: BOOTSTRAP_ASSUME_YES}
+        # unattended erases a disk still in its install chain; best as the one-boot lsck0.reinstall=1
+        {id: reinstall, type: bool, env: BOOTSTRAP_REINSTALL}
         {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool}}
         {id: source, type: record, keys: {bundle: string, lfs: string}}
     ]
@@ -306,7 +310,7 @@
         done: "done. rebooting in {delay}, remove the ISO; the install goes on by itself"
     }
 
-    # the last screen before anything is written; rows in this order, the ssh key only for a server
+    # the last screen before anything is written; rows in this order, the ssh key for a server or when one is given
     summary: {
         title: "summary"
         question: "Install now? This erases {disk}."

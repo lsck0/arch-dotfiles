@@ -51,14 +51,15 @@ the tree itself; this file says what they do.
   the failures alone, for the login notice and the bar; `--json` all of it.
 - `dot set`: every option off its default with value and source (default, platform, profile, detected); a module or
   `<module>.<option>` shows those; a value sets one, validated, stored in the profile (or `--machine` in the platform),
-  applied as the option says (live, relink, reapply, reboot); `--default` resets it; `--json` is the schema, values
+  applied as the option says (live, relink, relogin, reboot); `--default` resets it; `--json` is the schema, values
   and live state for a frontend (the settings window).
 - `dot module adopt <file>`: carries a live edit of a managed copy back into the module's source, so the next apply
   keeps it. `unlink <module>` reverses a module's last apply (unchanged files, links and units go, originals come
   back); `remove <module>` also turns it off (`--machine` for the machine) and offers its packages for removal;
   `restore <module>` runs its restore verb.
-- `dot rollback`: back to an earlier generation, undoing newer migrations; `--snapshot` lists the pre-apply btrfs
-  snapshots and how to restore one.
+- `dot rollback`: back to an earlier generation, undoing newer migrations; `--full` also takes the packages back (the
+  `[lsck0]` snapshot and nixpkgs pin of that commit); `--dry-run` only reports what it would do; `--snapshot` lists
+  the pre-apply btrfs snapshots and how to restore one.
 - `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
 - `dot secrets unlock|lock|init|seal`: the git-crypt `secrets/` worktree behind the YubiKey; `--identity <age file>`
   without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording it.
@@ -67,10 +68,12 @@ the tree itself; this file says what they do.
 - `dot internal`: the plumbing other code runs, out of `dot --help`: `migrate` (`--system`, `--baseline`), `backup`
   (`--roundtrip` backs up, restores into an empty home and fails on any difference), `fetch file|git` (pinned
   downloads and checkouts), `prune <days>`, `gen` (`mirror/packages.txt`), `packages`, `watch` (every option and live
-  state change as JSON lines), `theme get|list|apply`, `drift publish` (hourly), `audit remind`, `completions zsh|nu`
+  state change as JSON lines), `theme get|list|apply`, `drift report|publish` (hourly), `audit remind`, `bootstrap`,
+  `iso-install`, `stage` (the install chain), `iso` (the install iso), `complete <words>` and `completions zsh|nu`
   (installed by `base/dot`).
-- `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, platform facts, generated files, every
-  `*.test.sh`/`*.test.nu`); `dot test check`: every formatter and linter (the sync gate); `dot test fmt` applies them.
+- `dot test lint`: static rules (module refs, layer rules, `~/sync` writes, stray files, platform facts and options,
+  nu pitfalls, exec bits, palette clamps, generated files, locked flags, every `*.test.sh`/`*.test.nu`); `dot test
+  check`: every formatter and linter (the sync gate); `dot test fmt` applies them.
 - `dot test run`: the end-to-end VM test: a libvirt VM with secure boot in setup mode boots the ISO, `bootstrap.sh` is
   typed in, the chain installs on its own boots; `dot test drill egress|rollback`, `logs`, `shot`, `type`, `destroy`.
 - A pkexec-only polkit action (`base/dot`) lets `dot set` from the settings window apply the system layer, asking the
@@ -217,7 +220,8 @@ the tree itself; this file says what they do.
   `yay-cache-clean.timer`.
 - smartd: nightly short and weekly long self-tests on every disk.
 - fwupd metadata refresh only; updates stay manual.
-- `$HOME` stays clean: XDG env vars in `app-dirs.conf`, about 50 dot dirs reclaimed as symlinks, lowercase user dirs.
+- `$HOME` stays clean: XDG env vars in `app-dirs.conf`, 56 dot dirs and files reclaimed as symlinks and 9 moved under
+  XDG, lowercase user dirs.
 
 ## Hardware handling and detection
 
@@ -301,7 +305,7 @@ One quickshell process draws the bar, panels, launcher, notifications, OSD, lock
 - Clipboard (`SUPER+v`): text and image history (500 entries, runtime dir only), skips password manager entries;
   copy, open, forget, clear.
 - OSD: volume, mic, brightness, keyboard backlight and app launch on the focused output.
-- Notifications: toasts fold per app, hover pauses, critical stays; history of 10; DND persists and turns on while OBS
+- Notifications: toasts fold per app, hover pauses, critical stays; history of 30; DND persists and turns on while OBS
   runs.
 - Overview (`SUPER+Tab`): live window previews per workspace and monitor, alt-tab style cycling.
 - Power menu (`SUPER+SHIFT+e`): lock, exit, suspend, shutdown, reboot, firmware setup; the last three ask first.
@@ -331,11 +335,13 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 - `keep-awake`: a sleep and idle inhibitor.
 - `monitor-scale`: steps the scale and stores it with `dot set --machine`; `live`, `layout extend|off|mirror`.
 - `nightlight`: 4000K white point.
+- `obs-listen`: hear the OBS stream mix instead of the system audio (stream inputs monitored, per-app paths muted).
 - `offline`: networking and radios off, tunnels down; off restores them.
 - `powermode`: auto, balanced, performance or power saver through TLP, and power saver in Hyprland, ghostty and
   quickshell.
 - `protonvpn`: connect with the kill switch, Portmaster paused meanwhile.
 - `shader`: a Hyprland screen shader or off; `set`, `list`.
+- `theme-mode`: flips the theme to its light or dark pair; `light`, `dark`, `set`.
 - `vpn`: homelab WireGuard `wg0`.
 - `weather-location`: pin the current coordinates or go back to automatic.
 
@@ -417,7 +423,11 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 - Claude Code: model and effort options (`programming/claude.model`, `effort`), agent-guard hooks, rtk output
   condensing, caveman plugin, skills linked; Copilot CLI, Gemini CLI and Hermes agents with the same skills.
 - Toolchains: gcc, clang, zig, odin, go, rust (35 cargo tools, mold linker), node, bun, deno, dotnet, java, haskell
-  (ghcup), ocaml (opam), lean (elan nightly), jai, typst, emscripten, android ndk.
+  (ghcup), ocaml (opam), lean (elan nightly), jai, typst, emscripten.
+- Android (`programming/android`): android-ndk and jdk21 from pacman, a user-writable SDK in
+  `~/.local/share/android-sdk` from the pinned cmdline-tools (platform-tools, build-tools 35.0.1, android-35, the
+  emulator and its google_apis x86_64 image), an emulator AVD (`programming/android.avd`); state kept out of
+  `~/.android`.
 - Debugging and profiling: gdb with pwndbg and debuginfod, cgdb, lldb, rr, nnd, bpftrace, heaptrack, hotspot, samply,
   tracy, valgrind, renderdoc.
 - Verification: kani, flux, apalache, cbmc, tla+, z3; math: sage, gap, macaulay2, R.
@@ -434,8 +444,9 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 ## LLMs
 
 - ollama on 127.0.0.1:11434, socket activated, idle exit after 30 min, pinned models (`ollama-ensure-models`).
-- vllm on ROCm (`llm/vllm.model`, `model_revision`, `gpu_memory_utilization`), socket activated on 127.0.0.1:8000,
-  tool calls through the gemma4 parser.
+- vllm on ROCm (`llm/vllm.model`, `model_revision`, `gpu_memory_utilization`), socket activated on 127.0.0.1:8000:
+  Josiefied-Qwen3-8B-abliterated as 4-bit AWQ, tool calls through the hermes parser and thinking split out by the
+  qwen3 reasoning parser (`tool_call_parser`, `reasoning_parser`).
 - Alpaca seeded with both local backends; llmfit, heretic-llm.
 - gamemode stops vllm and ollama during a game and brings them back.
 
@@ -448,6 +459,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 - gamemode: renice, core pinning, GPU performance level, split-lock mitigation off during a game.
 - MangoHud hidden at start, `Shift_R+F12` toggles; vkBasalt CAS and SMAA, `Home` toggles.
 - FFXIV through XIVLauncher with Dalamud plugins restored from backups; Lutris with wine DPI from the monitor scale.
+- Diablo II with Median XL through d2launcher (pinned), seeded from a lutris install, rendered 4:3 in gamescope
+  (`gaming/d2launcher.*`).
 - Modrinth with saves in `~/sync/minecraft`; Heroic, CurseForge, r2modman, Path of Building, emulators, nethack.
 - VR: WiVRn, OpenComposite, WayVR.
 
@@ -553,10 +566,12 @@ the value comes from the hardware or system when the platform and profile leave 
 |---|---|---|---|
 | `base/boot/hardening.allow_smt` | `bool` | `false` | Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads |
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
+| `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (secrets/wifi) in the initramfs; their keys are written into the image |
 | `base/ghostmirror.homelab_mirror` | `string?` | unset | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine |
 | `base/hardware.nvidia_driver` | `string?` | unset | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
 | `base/networkmanager.untrusted_policy` | `string` | `"firewall-only"` | Off the home network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as home |
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network: it keeps the hardware MAC and wake-on-lan (a desktop); null detects it from the form factor |
+| `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
 | `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's secrets/home-gateways |
 | `base/networkmanager.homelab_dns` | `string?` | unset | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines) |
 | `base/networkmanager.homelab_domain` | `string?` | unset | The homelab's DNS zone |
@@ -571,7 +586,7 @@ the value comes from the hardware or system when the platform and profile leave 
 | `base/v4l2loopback.video_nr` | `int?` | detected | /dev/video<n> of the OBS virtual camera; null: a loaded one's, else the first free from 10, past webcams |
 | `core/btop.accent` | `string` | `"c4"` | Palette slot for titles, highlights and the selection |
 | `core/locale.lang` | `string?` | detected | LANG in /etc/locale.conf; detected: the one bootstrap set |
-| `core/locale.time` | `string?` | unset | LC_TIME (dates, weekdays, 24h clock); unset follows the language |
+| `core/locale.formats` | `string?` | detected | Locale for dates, numbers, money, units, paper and addresses (every LC_ but messages and collation); detected: the LC_TIME bootstrap set, unset follows the language |
 | `core/locale.keyboard_layout` | `string?` | detected | xkb layout of the console, X11 and the compositor; detected: the one bootstrap set |
 | `core/locale.keyboard_variant` | `string?` | unset | xkb variant, e.g. nodeadkeys |
 | `core/locale.keyboard_options` | `list<string>?` | unset | xkb options, e.g. ctrl:nocaps |
@@ -600,6 +615,7 @@ the value comes from the hardware or system when the platform and profile leave 
 | `desktop/hyprland.idle_dim_saver_s` | `int` | `300` | Idle seconds until the screens dim in power saver (a laptop on battery) |
 | `desktop/hyprland.idle_lock_saver_s` | `int` | `600` | Idle seconds until the session locks in power saver |
 | `desktop/hyprland.idle_suspend_saver_s` | `int` | `1800` | Idle seconds until suspend in power saver |
+| `desktop/pipewire.app_loopbacks` | `bool` | `true` | Every app plays through a loopback of its own that carries its system volume, so a capture of the app (obs) stays at full level |
 | `desktop/pipewire.eq_target` | `string?` | unset | node.name of the headset sink the eq attaches to as a smart filter; unset, no eq chain |
 | `desktop/pipewire.eq_preset` | `string` | `"pro-x-2.txt"` | AutoEq ParametricEQ preset for that headset, a file in this module or an absolute path |
 | `desktop/plasma.kwin_outputs` | `bool?` | detected | Ship the committed kwin output layout; detected: on when a connected monitor's EDID is one it describes |
@@ -608,12 +624,18 @@ the value comes from the hardware or system when the platform and profile leave 
 | `desktop/quickshell.pomodoro_long_break_min` | `int` | `15` | Minutes of the long break after the last focus block of a round |
 | `desktop/quickshell.pomodoro_cycles` | `int` | `4` | Focus blocks before a long break |
 | `desktop/qutebrowser.search_url` | `string` | `"https://duckduckgo.com/?q={}"` | The default search engine, {} is the query; the homelab's searxng is reachable only on a homelab machine |
+| `gaming/d2launcher.base_dir` | `string?` | detected | A Diablo II: Lord of Destruction install the game dir is seeded from; detected in the lutris prefixes |
+| `gaming/d2launcher.resolution` | `string?` | detected | The monitor the render size derives from, WxH; detected from the focused monitor |
+| `gaming/d2launcher.render_size` | `string?` | unset | The 4:3 size the game renders at inside gamescope, WxH; the monitor's full height by default |
 | `gaming/gamemode.gpu_device` | `int?` | unset | The /dev/dri/cardN gamemode tunes while a game runs; none leaves the gpu alone |
 | `gaming/gamemode.amd_performance_level` | `string?` | unset | The amdgpu power_dpm_force_performance_level during a game; high holds the clocks up, wasteful on battery |
 | `gaming/lutris.dpi` | `int?` | unset | Logical dpi wine apps draw at under xwayland (LogPixels), 96 times the main monitor's scale |
-| `llm/vllm.model` | `string` | `"mattbucci/gemma-4-12B-AWQ"` | The hugging face repo vllm serves; its tool calls go through the gemma4 parser |
-| `llm/vllm.model_revision` | `string` | `"c4a82eea03b40ecaeb4ef265b3fd27461c8a87ed"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
+| `llm/vllm.model` | `string` | `"RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"` | The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1 |
+| `llm/vllm.model_revision` | `string` | `"0244c2514cc272a603368c0440ff3002143b2336"` | The model repo's commit, weights and tokenizer alike; bump from https://huggingface.co/api/models/<model>/revision/main |
+| `llm/vllm.tool_call_parser` | `string` | `"hermes"` | vllm's tool call parser for the model's chat format (hermes for qwen3, gemma4 for gemma 4) |
+| `llm/vllm.reasoning_parser` | `string` | `"qwen3"` | vllm's reasoning parser, which moves the model's thinking out of the reply into reasoning_content |
 | `llm/vllm.gpu_memory_utilization` | `float?` | unset | The share of vram vllm takes; the rest stays for the desktop rendering on the same card |
+| `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
 | `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of secrets/taskwarrior-*; none: no sync |

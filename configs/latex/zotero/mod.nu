@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [zotero-bin]}}
+export const meta = {packages: {pacman: [zotero-bin uv]}}
 
 const ZOTERO_HOME = ".zotero/zotero"
 # the aur zotero-mcp-server needs python packages the aur lacks, so uvx runs the pinned pypi release

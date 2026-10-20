@@ -1,5 +1,8 @@
 use module.nu *
 
+# after claude: `claude plugin` rewrites ~/.claude.json whole, outside the engine's json lock
+export const meta = {deps: [programming/claude]}
+
 # every agent installs from one pinned checkout, never upstream's head; bump both together
 const URL = "https://github.com/JuliusBrussee/caveman.git"
 const COMMIT = "6571943370f7c9d4de1946481177ee7b306cd8e8"

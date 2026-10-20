@@ -1,5 +1,5 @@
 use log.nu *
-use state.nu [state-dir]
+use state.nu [state-dir save-atomic]
 use written.nu [tty-confirm]
 use converge.nu [unit-states]
 
@@ -20,12 +20,12 @@ export def ledger-set [kind: string, names: list<string>]: nothing -> nothing {
     let file = ledger-file
     mkdir ($file | path dirname)
     let kept = if ($file | path exists) { open --raw $file | lines | where not ($it | str starts-with $"($kind) ") } else { [] }
-    $kept | append ($names | where $it != "" | each { $"($kind) ($in)" }) | uniq | sort | str join "\n" | $"($in)\n" | save --force $"($file).new"
-    mv --force $"($file).new" $file
+    $kept | append ($names | where $it != "" | each { $"($kind) ($in)" }) | uniq | sort | str join "\n" | $"($in)\n" | save-atomic $file
 }
 
-export def ledger-units [repo: path, groups: list<string>, scope: string, --plan]: nothing -> record {
-    let paths = $groups | each { $"configs/($in)" } | append [scripts] | each {|p| $repo | path join $p } | where ($it | path exists)
+# declared: named by an enabled module's dir or scripts/; a module turned off no longer keeps its units on
+export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: nothing -> record {
+    let paths = $dirs | append ($repo | path join scripts) | where ($it | path exists)
     let declared = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines | uniq
     let owned_before = ledger-get unit | where ($it | str starts-with $"($scope) ") | each { str substring (($scope | str length) + 1).. }
     let names = $declared | append $owned_before | uniq | sort
@@ -80,6 +80,5 @@ export def ledger-packages [declared: list<string>]: nothing -> nothing {
 export def ledger-generation [file: path, sha: string, snapshot: string]: nothing -> nothing {
     if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"ledger-generation: ($sha) is not a commit sha"} }
     let kept = if ($file | path exists) { open --raw $file | lines | where {|l| ($l | split row " " | first) != $sha } } else { [] }
-    $kept | append $"($sha) ($snapshot)" | str join "\n" | $"($in)\n" | save --force $"($file).new"
-    mv --force $"($file).new" $file
+    $kept | append $"($sha) ($snapshot)" | str join "\n" | $"($in)\n" | save-atomic $file
 }

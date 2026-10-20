@@ -27,9 +27,12 @@ table inet fw {
         ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-reply } accept
         ip protocol icmp drop
 
+        # dhcpv6 replies come from the server's link-local address to the solicit's multicast: conntrack never matches them
+        ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+
         iifname $trusted_ifaces accept
-        # tun0 is the hostile pentest vpn: listener ports only
-        iifname "tun0" tcp dport { 4444-4460, 8000-8099, 9001, 9443 } accept
+        # tun0 is the hostile pentest vpn: listener ports only; 4455 is not one, obs-websocket binds every interface
+        iifname "tun0" tcp dport { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } accept
 
         # sshd on 2222 opens only after knocking 9003, 7001, 8002; out of order so an ascending port sweep cannot open it
         ip saddr @ssh_allowed tcp dport 2222 ct state new accept
@@ -52,6 +55,6 @@ table inet fw {
         iifname $trusted_ifaces accept
         # published docker/libvirt ports: the home lan, and tun0 only on the listener ports
         iifname @home_ifaces ct status dnat accept
-        iifname "tun0" meta l4proto tcp ct original proto-dst { 4444-4460, 8000-8099, 9001, 9443 } ct status dnat accept
+        iifname "tun0" meta l4proto tcp ct original proto-dst { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } ct status dnat accept
     }
 }

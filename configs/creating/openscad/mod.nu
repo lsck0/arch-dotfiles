@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [openscad]}}
+export const meta = {packages: {pacman: [openscad uv]}}
 
 # deps frozen at a date so a later fastmcp never slips in under the pin; bump both together
 const MCP_VERSION = "0.6.1"

@@ -1,7 +1,8 @@
 use json.nu [json-edits-apply]
+use ini.nu [ini-apply]
 
 def main [] {
-    error make {msg: "locked.nu <written-record|written-forget|json-update|units-set>"}
+    error make {msg: "locked.nu <written-record|written-forget|json-update|ini-update|units-set>"}
 }
 
 def records-read [file: path]: nothing -> table<path: string, sum: string> {
@@ -41,6 +42,17 @@ def "main json-update" []: string -> nothing {
     # the same inode, so an app holding the file open or a link to it keeps working
     $merged | to json --indent 2 | $"($in)\n" | save --force $args.file
     print (if $owned { "changed owned" } else { "changed" })
+}
+
+# a link is followed (save writes through it), so the file it points to keeps every key the module does not set
+def "main ini-update" []: string -> nothing {
+    let args = $in | from json
+    let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }
+    let merged = $args.edits | reduce --fold $raw {|e, text| $text | ini-apply $e.values $e.missing_only }
+    if $merged == $raw { return }
+    # the same inode, so an app holding the file open keeps working
+    $merged | save --force --raw $args.file
+    print changed
 }
 
 # the plan sandbox's unit snapshot: <unit> <state> lines, one unit's state replaced

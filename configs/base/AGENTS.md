@@ -12,7 +12,8 @@ one of the module's own exported commands, run at apply time.
 - `cleanup`: journald size cap and periodic pacman cache/orphan cleanup.
 - `coredump`: systemd-coredump storage, age and size limits.
 - `dot`: dot's own wiring: the zsh and nushell completions (`dot internal completions`) and the polkit action
-  `system-apply.nu` runs under (`dev.lsck0.dotfiles.policy`, auth_admin every time).
+  `system-apply.nu` runs under (`dev.lsck0.dotfiles.system-apply` in `dev.lsck0.dotfiles.policy`, auth_admin every
+  time).
 - `endlessh`: ssh tarpit holding scanners on a decoy port.
 - `essentials`: the base system and the shared libraries and tools no one module owns (packages only).
 - `fail2ban`: ban hosts after repeated auth failures.
@@ -27,12 +28,15 @@ one of the module's own exported commands, run at apply time.
 - `keyboard`: the sofle choc qmk keymap and its build (not a module).
 - `lact`: AMD GPU control daemon.
 - `networkmanager`: NM config, the dispatchers (home rule, homelab routes, the untrusted-network persona); options
-  `untrusted_policy`, `home_wired`, `home_gateways`, `homelab_*` (written to `/etc/NetworkManager/homelab.env`).
+  `untrusted_policy`, `home_wired`, `wifi_radio` (the radio's state at first boot), `home_gateways`, `homelab_*`
+  (written to `/etc/NetworkManager/homelab.env`).
 - `nftables`: the egress firewall.
 - `oomd`: systemd-oomd plus the oom-notify hook.
 - `ossec`: host IDS; its alert log feeds the quickshell system panel.
 - `pacman`: pacman.conf, makepkg.conf, root hooks, the `[lsck0]` mirror and key.
-- `pam`: fingerprint and YubiKey auth on sudo and polkit, additive to the password.
+- `pam`: fingerprint and YubiKey auth on sudo and polkit, additive to the password. `/etc/u2f_mappings` maps the
+  owner's keys (`yubikey/u2f_keys`) to the logins in root's `/var/lib/dotfiles/owners` (written by the bootstrap and
+  `adduser-dotfiles --profile` for a profile with `identity`, seeded by `migrations/0003-u2f-owners.nu`), never by name.
 - `perf`: I/O scheduler tuning and perf_event access.
 - `plymouth`: boot splash.
 - `portmaster`: the application firewall; global rules and the per-connection/dns bypass (see `pentesting`, `gaming`).
@@ -52,7 +56,7 @@ one of the module's own exported commands, run at apply time.
 - `v4l-utils`: video4linux utilities.
 - `v4l2loopback`: virtual camera kernel module.
 - `wireguard`: wireguard tooling; the tunnel config lives in the admin's secrets, brought up by `toggle-vpn.nu`.
-- `wsl`: the wsl.conf bootstrap.sh writes (not a module).
+- `wsl`: the `wsl.conf` template `scripts/lib/bootstrap.nu` renders to `/etc/wsl.conf` (not a module).
 - `xdg`: XDG base dirs, `app-dirs.conf`, `home.hidden`, `RECLAIM` in `mod.nu` (the `$HOME`-clean machinery; see root).
 - `yubikey`: card and FIDO access for every admin.
 - `zram`: compressed swap sized so a build cannot evict the desktop's hot pages before oomd reacts.

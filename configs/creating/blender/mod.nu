@@ -1,6 +1,6 @@
 use module.nu *
 
-export const meta = {packages: {pacman: [blender]}}
+export const meta = {packages: {pacman: [blender uv]}}
 
 # bump the commit and constraints.txt (uv pip freeze of the tool env) together
 # SECURITY: the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts

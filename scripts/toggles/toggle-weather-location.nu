@@ -101,8 +101,7 @@ def main [action: string = "toggle"] {
             if (manual-coords) != null { return }
             let coords = resolve | split row " " | get 1?
             if $coords == null {
-                print -e "no location could be resolved to pin; use: toggle-weather-location.nu set <lat> <lon>"
-                return
+                error make {msg: "no location could be resolved to pin; use: toggle-weather-location.nu set <lat> <lon>"}
             }
             $coords | save --force (manual-file)
         }

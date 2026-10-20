@@ -24,7 +24,8 @@ TextField {
   color: foreground
   selectionColor: selectionTint
   selectedTextColor: foreground
-  placeholderTextColor: Qt.darker(foreground, 1.6)
+  // alpha, not Qt.darker: darker is no dimmer for the dark text of a light theme
+  placeholderTextColor: Util.alpha(foreground, Style.emphasis.faint)
 
   // remove() emits no textEdited, so listeners that track typing get it by hand
   Keys.onPressed: function (event) {
