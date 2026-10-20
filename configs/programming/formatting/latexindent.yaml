@@ -4,6 +4,17 @@ maxNumberOfBackUps: 1
 removeTrailingWhitespace:
     beforeProcessing: 1
     afterProcessing: 1
+# the align family keeps & where it was typed: aligning it hangs a nested cases or matrix under its \begin, far right
+lookForAlignDelims:
+    align: 0
+    align*: 0
+    alignat: 0
+    alignat*: 0
+    aligned: 0
+    alignedat: 0
+    flalign: 0
+    flalign*: 0
+    split: 0
 # applied with -m: paragraphs reflow at 120, a block ends at every environment, display math, item and row break
 modifyLineBreaks:
     preserveBlankLines: 1

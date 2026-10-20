@@ -23,8 +23,8 @@ color15='{color15}'
 
 export FZF_DEFAULT_OPTS="
     $FZF_DEFAULT_OPTS
-    --color fg:7,bg:0,hl:1,fg+:232,bg+:1,hl+:255
-    --color info:7,prompt:2,spinner:1,pointer:232,marker:1
+    --color fg:-1,bg:-1,hl:12,fg+:0,bg+:12,hl+:0,gutter:-1
+    --color info:8,prompt:10,spinner:12,pointer:0,marker:10,header:11,border:8,separator:8,scrollbar:8
 "
 
 export LS_COLORS="${{LS_COLORS}}:su=30;41:ow=30;42:st=30;44:"

@@ -107,7 +107,47 @@ run network ping -c 3 -W 2 1.1.1.1
 run network ping -c 3 -W 2 archlinux.org
 run network curl -sS -m 10 -o /dev/null -w '%{http_code} %{time_total}s %{speed_download}B/s\n' https://mirror.lsck0.dev/
 root network nft list ruleset
+root network iptables-save
 root network ss -tunap
+run network systemctl status sshd portmaster --no-pager
+
+# per link: the mac it uses against its permanent one (a randomized mac is a "foreign" network to some setups), its
+# gateway and that gateway's mac, and the NM profile behind it with its mac policy
+for dev in /sys/class/net/*; do
+    link=${dev##*/}
+    [[ $link == lo ]] && continue
+    run links echo "== $link: $(cat "$dev/operstate" 2> /dev/null), mac $(cat "$dev/address" 2> /dev/null)"
+    run links ethtool -P "$link"
+    gateway=$(ip -4 route show default dev "$link" 2> /dev/null | awk '{print $3; exit}')
+    [[ -n $gateway ]] && run links ip neigh show "$gateway" dev "$link"
+    profile=$(nmcli -g GENERAL.CONNECTION device show "$link" 2> /dev/null)
+    [[ -n $profile ]] && run links nmcli -f connection.id,connection.type,802-11-wireless.ssid,802-11-wireless.cloned-mac-address,802-3-ethernet.cloned-mac-address,ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv6.method connection show "$profile"
+done
+run links nmcli -f GENERAL.DEVICE,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,IP6.DNS device show
+# arch-dotfiles' home detection, where present
+grab /run/home-network /etc/NetworkManager/home-gateways /etc/NetworkManager/homelab.env
+root_grab /etc/NetworkManager/dispatcher.d
+
+# dns: the resolver path end to end, then every configured server asked directly, plain and over tls
+for name in archlinux.org example.com; do
+    run dns getent ahosts "$name"
+    run dns resolvectl query "$name"
+done
+run dns resolvectl statistics
+run dns resolvectl dns
+servers=$( (
+    resolvectl dns 2> /dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'
+    nmcli -g IP4.DNS device show 2> /dev/null | tr '|' '\n'
+    grep -oE '^nameserver +\S+' /etc/resolv.conf | awk '{print $2}'
+    # two public ones as the reference: they answer when the network itself lets dns out
+    printf '%s\n' 1.1.1.1 9.9.9.9
+) | grep -vE '^127\.|^$' | sort -u)
+for server in $servers; do
+    run dns dig +time=3 +tries=1 archlinux.org "@$server"
+    run dns dig +time=3 +tries=1 +tcp archlinux.org "@$server"
+    run dns dig +time=3 +tries=1 +tls archlinux.org "@$server"
+done
+run dns journalctl -b -u systemd-resolved -u portmaster --no-pager -n 300
 
 run packages pacman -Qkq
 run packages pacman -Qdtq
