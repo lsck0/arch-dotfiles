@@ -9,3 +9,7 @@ if [[ -d $_envd ]]; then
   set +a
 fi
 unset _envd _f
+# the dotfiles' commands for every zsh too: an `ssh host dot status` otherwise runs graphviz's /usr/bin/dot.
+# zshrc prepends it again after its own path additions; -U keeps the one entry
+typeset -U path
+path=("$HOME/.local/bin" $path)

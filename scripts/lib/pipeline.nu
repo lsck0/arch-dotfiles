@@ -51,10 +51,11 @@ def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
+# a path that cannot be read (core/nas' link source while the nas is down: EHOSTDOWN) counts as missing, never a crash
 def stat [repo: path, paths: list<string>]: nothing -> string {
-    let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| glob $p } | flatten | uniq
+    let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| try { glob $p } catch { [] } } | flatten | uniq
     if ($found | is-empty) { return "" }
-    ls --directory --full-paths ...$found | select name size modified | to nuon
+    $found | each {|f| try { ls --directory --full-paths $f | get 0 | select name size modified } catch { {name: $f} } } | to nuon
 }
 
 def outputs-clean [outputs: list<record>, seen: record]: nothing -> bool {
