@@ -58,9 +58,9 @@ Layout and format:
 
 ## AGENTS.md
 
-`AGENTS.md` is read by opencode, Codex and Hermes. Claude Code reads
-`CLAUDE.md`, so a project with `AGENTS.md` also has a one-line `CLAUDE.md`
-containing `@AGENTS.md`. If the repo already uses only `CLAUDE.md`, edit
+`AGENTS.md` is read by opencode, Codex, Hermes and Claude Code (which
+loads it wherever a directory has no `CLAUDE.md`), so there is no
+`CLAUDE.md` beside it. If the repo already uses only `CLAUDE.md`, edit
 that instead. One source of truth either way.
 
 It holds:
@@ -88,8 +88,7 @@ It holds:
 
 ## When to write
 
-- Starting in a repo with no `AGENTS.md`: create it, the `CLAUDE.md`
-  import, `skills/` and the `.claude/skills` symlink from what you
+- Starting in a repo with no `AGENTS.md`: create it, `skills/` and the `.claude/skills` symlink from what you
   discover: the real commands (from CI and manifests, not guesses), the
   layout, the stack.
 - You performed a workflow that took more than one obvious command, or

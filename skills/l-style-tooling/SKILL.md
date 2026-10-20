@@ -31,7 +31,7 @@ holds the conventional-commit rules).
   examples/<name>/      one self-contained example each, all run in CI
   assets/  vendor/  packaging/  docs/  specs/  tasks/
   skills/<name>/        project-specific agent workflows, indexed in AGENTS.md (`l-auto-memory`)
-  devenv.nix  devenv.lock  .envrc  AGENTS.md  CLAUDE.md  README.md
+  devenv.nix  devenv.lock  .envrc  AGENTS.md  README.md
   ```
 - Optional heavy dependencies are optional features behind a build option, off by default, with the cost in a table: what it links, what it needs installed, what it adds to the binary.
 

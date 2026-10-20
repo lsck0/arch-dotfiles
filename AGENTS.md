@@ -63,7 +63,9 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/<group>/<module>/`: one tool or task; `mod.nu` (meta incl. packages, options, verbs; skill
   `l-dotfiles-add-module`); optional `*.test.{nu,sh}`. Groups: base, core, fonts, desktop, socials, latex, qemu,
   creating, gaming, programming, llm, rocm, pentesting. `dependencies.txt` names the groups a group reaches into.
-  Before editing under `configs/<group>/`, read its `AGENTS.md` (and the module's own where present).
+  Before editing under `configs/<group>/`, read its `AGENTS.md` (and the module's own where present). `AGENTS.md` is
+  the one instruction file per directory, with no `CLAUDE.md` beside it: Claude Code loads `AGENTS.md` where no
+  `CLAUDE.md` exists. `configs/programming/claude/CLAUDE.md` is the global `~/.claude` file, not a project one.
 - `platforms/<host>.nuon`: machine facts and groups; `<host>.options.nuon` its option values. `profiles/<name>.nuon`:
   user capabilities, copied to `~/.config/dotfiles/profile.nuon` when bootstrap or `adduser-dotfiles --profile` picks
   it (`custom` picks none). A platform's `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.

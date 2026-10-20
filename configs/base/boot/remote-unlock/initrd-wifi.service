@@ -18,6 +18,10 @@ WantedBy=sysinit.target
 
 InitrdBinary=/usr/bin/wpa_supplicant
 
+# autodetect takes iwlwifi from the card's modalias but not the op mode it requests at runtime: without one in the
+# image the card binds with no interface and never retries after switch-root, so wifi stays gone on the real system too
+InitrdCall=add_module iwlmvm?; add_module iwldvm?; add_module iwlmld?
+
 # written by mod.nu from the NetworkManager profile of the ssid the platform names; root only
 InitrdPath=/etc/wpa_supplicant/initrd.conf source=/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf
 

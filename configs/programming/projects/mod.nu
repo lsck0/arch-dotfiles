@@ -37,7 +37,9 @@ def clone [root: path, line: string]: nothing -> list<record> {
         # the empty helper first drops gh's, which logs in as another account
         [-c credential.helper= -c $"credential.helper=(credential-helper $token)"]
     }
-    [(exec $"clone ($dest | path basename)" [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest] --creates $dest)]
+    # core/ntfy clones the homelab too, after this plan was made: a checkout that appeared since counts as done
+    let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest]
+    [(exec $"clone ($dest | path basename)" [sh -c 'test -e "$0/.git" || exec "$@"' $dest ...$git] --creates $dest)]
 }
 
 def collections [root: path]: nothing -> list<path> {

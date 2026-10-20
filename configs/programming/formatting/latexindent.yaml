@@ -14,3 +14,9 @@ modifyLineBreaks:
             other: '\\\]|\\item(?:\h|\[)|\\begin\{[^}]*\}(?:\[[^\]]*\])?(?:\\label\{[^}]*\})?|\\end\{[^}]*\}|\\\\(?:\[[^\]]*\])?'
         blocksEndBefore:
             other: '\\begin\{|\\\[|\\end\{'
+        # a table row is no paragraph: wrapped after alignment, its padding collapses to single spaces. A block starts
+        # at a letter with no unescaped & left on its line (and not at latexindent's own LTXIN-TK- tokens)
+        blocksBeginWith:
+            A-Z: 0
+            a-z: 0
+            other: '(?!LTXIN-TK-)[A-Za-z](?![^\n]*?(?<!\\)&)'

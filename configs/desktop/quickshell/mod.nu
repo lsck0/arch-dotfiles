@@ -13,7 +13,7 @@ export const options = {
 }
 
 const CONFIG_DIR = ".config/quickshell"
-const SKIP = [mod.nu AGENTS.md CLAUDE.md theme.json quickshell.service .qmllint.ini .gitignore]
+const SKIP = [mod.nu AGENTS.md theme.json quickshell.service .qmllint.ini .gitignore]
 const SKIP_PATTERN = '(__pycache__|\.log$|\.qsb$|\.test\.(nu|sh)$)'
 
 def pomodoro-config [cfg: record]: nothing -> record {
