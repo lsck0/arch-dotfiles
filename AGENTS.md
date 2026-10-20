@@ -76,7 +76,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
 - `secrets/`: git-crypt submodule. `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
   `mirror/iso/` the install iso (Arch Linux-LSCK0, served at https://mirror.lsck0.dev/iso/): releng plus an overlay,
-  its installer `airootfs/usr/local/bin/lsck0-install` (answer file, network, then `bootstrap.sh`).
+  its stub `airootfs/usr/local/bin/lsck0-install` (network, verified master, then that checkout's `bootstrap.sh`
+  and second stage `scripts/lib/iso-install.nu`); only the stub is frozen on the stick.
 - `bootstrap.sh` (from the ISO: nushell and a verified checkout, then `dot internal bootstrap`), `dot internal stage`
   (one unattended stage per boot), `dot test` (lint, check, the VM test).
 

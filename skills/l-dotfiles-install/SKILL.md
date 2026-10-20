@@ -12,10 +12,17 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
 ## Install
 
 1. Easy: Arch Linux-LSCK0, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (verify with its `.sha256`
-   and `.sig`, `mirror/iso/README.md`), written raw to a stick. It autologins on tty1, reads an optional answer file
-   (`lsck0.nuon` on a FAT32 partition labelled `LSCK0` and other places, keys in `mirror/iso/lsck0.example.nuon`),
-   waits for internet (cable automatic, else a Wi-Fi picker; it never starts offline), then runs the same
-   `bootstrap.sh` as below. An answered key is not asked; `unattended: true` skips the summary too.
+   and `.sig`, `mirror/iso/README.md`), written raw to a stick. Its stub autologins on tty1, waits for internet
+   (cable automatic, else the answer file's `wifi` or a picker; it never starts offline), clones the newest master,
+   checks HEAD against the signing key baked into the iso and runs that checkout's `bootstrap.sh` with
+   `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`): the answer file
+   (`lsck0.nuon` on a FAT32 partition labelled `LSCK0` and other places, keys in `mirror/iso/lsck0.example.nuon`)
+   and `lsck0.*` boot parameters as `BOOTSTRAP_*`, then `dot internal bootstrap`. An answered key is not asked;
+   `unattended: true` skips the summary too.
+   Frozen on the stick: only the stub (network, clone, signature check, hand-over) and the trust anchor. Questions,
+   answer-file keys and validation, the env mapping and everything after come from master at install time, so a
+   change there needs no reburn; a change to the stub, the repo url or the signing key does (README "Frozen in the
+   iso").
 2. Alternative, from the official Arch ISO:
 
    ```bash
@@ -24,13 +31,13 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
 
 Build the iso with `dot internal iso` (needs root for mkarchiso, `mirror/iso/README.md`).
 
-- `bootstrap.sh` (under 50 lines of bash, the iso has no nu) runs only on the Arch ISO or in WSL, installs nushell
+- `bootstrap.sh` (about 50 lines of bash, the official iso has no nu) runs only on the Arch ISO or in WSL, installs nushell
   (growing the iso's overlay when it is too small), clones master and refuses to run anything unless HEAD is signed by
-  `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (dot test run) it skips the clone.
+  `SIGNING_KEY_FINGERPRINT` (`BOOTSTRAP_INSECURE=1` skips that). From an existing checkout (dot test run, the lsck0 stub's verified clone) it skips the clone.
 - Questions live in `scripts/lib/bootstrap/questions.nuon`, in the order they are asked: id (the answer-file key),
   kind, title, text, options, default, `BOOTSTRAP_*` env var and `when`; its header explains the fields. Its
-  `messages`, `summary` and `iso` hold every other text (welcome, errors, summary rows, the lsck0 iso's Wi-Fi
-  screens), and the iso's answer-file check takes its keys and types from it. Wording, order or a new question is an
+  `messages` and `summary` hold every other text (welcome, errors, summary rows), and the lsck0 iso's second stage
+  takes the answer file's keys and types from it (the iso's Wi-Fi screens are frozen in its stub). Wording, order or a new question is an
   edit there; `bootstrap.nu` only walks the list (code steps like `platform-load` and `install-checks` are entries
   with `step`). Order: keyboard, login name, profile, machine, home network, then per machine, disk, encryption,
   passwords, summary. Nothing is written before the summary's `install`.

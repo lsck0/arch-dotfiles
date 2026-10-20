@@ -19,6 +19,7 @@ use ($LIB | path join audit.nu) [audit-remind]
 use ($LIB | path join drift.nu) [drift-report drift-publish]
 use ($LIB | path join wallpaper.nu) [wallpaper-get wallpaper-list]
 use ($LIB | path join iso.nu) [iso-build]
+use ($LIB | path join iso-install.nu) [iso-install-run]
 
 const DOT = $REPO | path join scripts dot.nu
 const MIRROR_LIST = "mirror/packages.txt"
@@ -56,6 +57,11 @@ def "main fetch git" [url: string, commit: string, dir: path]: nothing -> nothin
 # install a machine from the Arch ISO or set up a fresh WSL distro
 def "main bootstrap" [platform: string = ""]: nothing -> nothing {
     guarded bootstrap { bootstrap-run $REPO $platform }
+}
+
+# the lsck0 iso's second stage: its answer file and lsck0.* boot parameters as BOOTSTRAP_*, then the bootstrap
+def "main iso-install" []: nothing -> nothing {
+    guarded iso-install { iso-install-run }
 }
 
 # one stage of the unattended install chain (dotfiles-stage.service)

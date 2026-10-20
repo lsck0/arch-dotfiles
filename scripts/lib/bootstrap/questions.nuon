@@ -1,6 +1,7 @@
 # The install's questions, in the order `dot internal bootstrap` asks them, and every text the install shows.
 # Wording, order, options and defaults are edited here; scripts/lib/bootstrap.nu only walks this list. The lsck0 iso's
-# installer reads it too: the answer file's keys and types come from `questions` and `answers`, its Wi-Fi texts from `iso`.
+# second stage (scripts/lib/iso-install.nu) reads it too: the answer file's keys and types come from `questions` and
+# `answers`. The iso's own Wi-Fi screens are frozen in its stub (mirror/iso/airootfs/usr/local/bin/lsck0-install).
 #
 # questions: asked top to bottom, each a record:
 #   id        the answer-file key (lsck0.nuon); later `when`s and {placeholders} use the answer by this name
@@ -339,25 +340,5 @@
         root_locked: "locked"
         root_set: "password set"
         ssh_key_none: "none, console only"
-    }
-
-    # the lsck0 iso's own screens before the bootstrap starts (mirror/iso/airootfs/usr/local/bin/lsck0-install)
-    iso: {
-        keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
-        wifi: {
-            title: "Wi-Fi"
-            text: "{missing}\n\nPick a network:"
-            rescan: "scan again"
-            hidden: "a hidden network"
-            shell: "a shell, no install"
-            name: "Network name:"
-            password: "Password for {ssid}, empty if open:"
-            failed: "did not connect"
-        }
-        connecting: "install: connecting to {ssid}"
-        waiting: "install: {missing}; checking again in {wait}, Ctrl+C for a shell"
-        no_link: "no network: plug in a cable or pick a Wi-Fi network"
-        no_address: "{devices} is up but has no address yet"
-        no_answer: "{host} does not answer over https"
     }
 }

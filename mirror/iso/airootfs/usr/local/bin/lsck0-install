@@ -1,11 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# the lsck0 iso's installer on tty1: answers (lsck0.nuon, lsck0.* boot parameters), internet (cable or wi-fi), then
-# the repo's own bootstrap.sh, which clones the newest signed master; the baked checkout only launches it
+# the lsck0 iso's installer on tty1 and the one part of the install frozen at burn time: online (cable, the answer
+# file's wifi, else a picker), the newest master, its HEAD checked against the baked signing key, then that checkout's
+# own bootstrap.sh with LSCK0_INSTALL=1, whose second stage (dot internal iso-install) reads the answers and runs
+# the bootstrap. Of lsck0.nuon this reads keymap, wifi and source only, and an unreadable file is left to master.
 
-const LAUNCHER = "/usr/share/lsck0/arch-dotfiles"
-# the bootstrap's questions: the answer file's keys and types, and this script's texts
-const QUESTIONS = "scripts/lib/bootstrap/questions.nuon"
-const DOTFILES_URL = "https://github.com/lsck0/arch-dotfiles.git"
+const TRUST = "/usr/share/lsck0/trust.nuon"
+const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const CLONE_DIR = "/tmp/arch-dotfiles"
 const ANSWERS_NAME = "lsck0.nuon"
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
@@ -13,7 +13,7 @@ const BOOT_MEDIUM = "/run/archiso/bootmnt"
 const STAGE_DIR = "/run/lsck0"
 const ISO_GLOB = "archlinux-lsck0*.iso"
 const ISO_SEARCH_DEPTH = 2
-const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>[^\s=]+)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
+const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
 const MEDIA_FSTYPES = [vfat exfat iso9660 udf ntfs ntfs3]
 # the two hosts an install needs first: the [lsck0] packages and the repo
 const PROBES = [https://mirror.lsck0.dev https://github.com]
@@ -24,132 +24,68 @@ const ONLINE_POLL = 1sec
 const CABLE_POLL = 5sec
 const WIFI_SCAN_WAIT = 3sec
 const KEYMAP_DEFAULT = "de-latin1"
-const PASSWORD_ASK = "ask"
-const PASSWORD_HASH = '^\$(1|2[aby]|5|6|y|gy|7)\$'
-const LOG = "/tmp/lsck0-install.log"
 const TUI_BACKTITLE = "Arch Linux install"
 const TUI_WIDTH = 72
 const TUI_MENU_ROWS = 12
 const PICK_RESCAN = "rescan"
 const PICK_HIDDEN = "hidden"
 const PICK_SHELL = "shell"
-# a question's kind as the answer file's type
-const KIND_TYPES = {
-    text: string password: string flag: bool menu: string keymap: string profile: string platform: string
-    groups: "list<string>" disk: string
-}
 const SOURCE_PATH_KEYS = [bundle lfs]
+const TEXT = {
+    keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
+    wifi: {
+        title: "Wi-Fi"
+        text: "{missing}\n\nPick a network:"
+        rescan: "scan again"
+        hidden: "a hidden network"
+        shell: "a shell, no install"
+        name: "Network name:"
+        password: "Password for {ssid}, empty if open:"
+        failed: "did not connect"
+    }
+    connecting: "install: connecting to {ssid}"
+    waiting: "install: {missing}; checking again in {wait}, Ctrl+C for a shell"
+    no_link: "no network: plug in a cable or pick a Wi-Fi network"
+    no_address: "{devices} is up but has no address yet"
+    no_answer: "{host} does not answer over https"
+}
 
-# -----------------------------------------------------------------------------
-# answers
-# -----------------------------------------------------------------------------
-
-export def questions-load [repo: path]: nothing -> record { open ($repo | path join $QUESTIONS) }
-
-# {name} in a questions.nuon text
 def text-fill [text: string, values: record]: nothing -> string {
     $values | items {|name, value| {name: $name, value: $value} } | reduce --fold $text {|v, acc| $acc | str replace --all $"{($v.name)}" ($v.value | into string) }
 }
 
-# answer-file key: {type, env (the BOOTSTRAP_* it sets), keys (a record's own), password}
-export def answers-spec [questions: record]: nothing -> record {
-    let asked = $questions.questions | where {|e| $e.id? != null } | each {|e|
-        {id: $e.id, type: ($KIND_TYPES | get $e.kind), env: $e.env, keys: null, password: ($e.kind == "password")}
-    }
-    let own = $questions.answers | each {|a| {id: $a.id, type: $a.type, env: ($a.env? | default ""), keys: $a.keys?, password: false} }
-    $asked ++ $own | uniq-by id | reduce --fold {} {|k, acc| $acc | insert $k.id ($k | reject id) }
-}
-
-def type-of [value: any]: nothing -> string {
-    let t = $value | describe
-    if ($t | str starts-with "record") { return record }
-    if ($t | str starts-with "list") or ($t | str starts-with "table") {
-        if ($value | all {|v| ($v | describe) == "string" }) { return "list<string>" }
-        if ($value | all {|v| ($v | describe) | str starts-with "record" }) { return "list<record>" }
-    }
-    $t
-}
-
-def record-problems [r: record, spec: record, prefix: string]: nothing -> list<string> {
-    $r | items {|k, v|
-        if $k not-in $spec {
-            $"($prefix)($k): unknown key, one of ($spec | columns | str join ' ')"
-        } else if (type-of $v) != ($spec | get $k) and not (($spec | get $k) == "list<string>" and ($v | is-empty)) {
-            $"($prefix)($k): expected ($spec | get $k), got (type-of $v)"
-        }
-    } | compact
-}
-
-export def answers-problems [spec: record, a: record]: nothing -> list<string> {
-    let top = record-problems $a ($spec | items {|k, v| {k: $k, type: $v.type} } | reduce --fold {} {|it, acc| $acc | insert $it.k $it.type }) ""
-    if ($top | is-not-empty) { return $top }
-    let wifi = $a.wifi? | default [] | enumerate | each {|w|
-        let p = record-problems $w.item $spec.wifi.keys $"wifi.($w.index)."
-        if ($w.item.ssid? | is-empty) { $p | append $"wifi.($w.index).ssid: missing" } else { $p }
-    } | flatten
-    let source = if $a.source? == null { [] } else {
-        let p = record-problems $a.source $spec.source.keys "source."
-        if ($a.source.bundle? | is-empty) { $p | append "source.bundle: missing" } else { $p }
-    }
-    let hashed = $spec | items {|k, v| if $v.password { $k } } | compact | where {|k| ($a | get --optional $k | default "") =~ $PASSWORD_HASH }
-        | each {|k| $"($k): a crypt hash, the bootstrap takes the password itself or \"ask\"" }
-    $wifi ++ $source ++ $hashed
-}
-
-def cmdline-value [spec: record, key: string, raw: string]: nothing -> any {
-    let leaf = $key | split row "." | last
-    let type = if ($key | str starts-with "wifi.") { $spec.wifi.keys | get --optional $leaf } else if ($key | str starts-with "source.") { $spec.source.keys | get --optional $leaf } else { $spec | get --optional $key | get --optional type }
-    match $type {
-        "bool" => (match ($raw | str lowercase) { "1" | "true" | "yes" => true, "0" | "false" | "no" => false, _ => $raw })
-        "list<string>" => ($raw | split row "," | where $it != "")
-        _ => $raw
-    }
-}
-
-# lsck0.answers=<url or path>, lsck0.<key>=<value>; wifi.ssid/wifi.psk set the first network
-export def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
-    $cmdline | parse --regex $CMDLINE_PARAM | reduce --fold {answers: null, overrides: {}} {|p, acc|
-        let raw = if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain }
-        if $p.key == "answers" { return ($acc | update answers $raw) }
-        let path = if ($p.key | str starts-with "wifi.") { $p.key | str replace "wifi." "wifi.0." } else { $p.key }
-        let cells = $path | split row "." | each {|c| if $c =~ '^\d+$' { $c | into int } else { $c } } | into cell-path
-        let overrides = if ($p.key | str starts-with "wifi.") and ($acc.overrides.wifi? == null) { $acc.overrides | insert wifi [{}] } else { $acc.overrides }
-        $acc | update overrides ($overrides | upsert $cells (cmdline-value $spec $p.key $raw))
-    }
-}
-
-def answers-parse [text: string, origin: string]: nothing -> record {
-    let a = try { $text | from nuon } catch {|e| error make {msg: $"($origin): not nuon: ($e.msg)"} }
-    if ($a | describe | str starts-with "record") { $a } else { error make {msg: $"($origin): expected a record"} }
-}
-
-# source paths are relative to the answer file; copied out, so its medium can be unmounted (it may be the target disk)
-def answers-stage [a: record, dir: path]: nothing -> record {
-    if $a.source? == null { return $a }
-    mkdir $STAGE_DIR
-    $SOURCE_PATH_KEYS | reduce --fold $a {|k, acc|
-        let p = $acc.source | get --optional $k
-        if $p == null or ($p =~ '^https?://') { return $acc }
-        let from = if ($p | str starts-with "/") { $p } else { $dir | path join $p }
-        let to = $STAGE_DIR | path join ($from | path basename)
-        cp $from $to
-        $acc | update source ($acc.source | upsert $k $to)
-    }
-}
+# -----------------------------------------------------------------------------
+# answers: the few keys this stage needs, the rest is master's
+# -----------------------------------------------------------------------------
 
 def answers-in [dir: path]: nothing -> list<path> {
     let beside = glob --depth $ISO_SEARCH_DEPTH ($dir | path join "**" $ISO_GLOB) | each { path dirname | path join $ANSWERS_NAME }
     [($dir | path join $ANSWERS_NAME)] ++ $beside | uniq | where { path exists }
 }
 
-# the LSCK0 partition first, then the boot medium, then every other medium; a ventoy stick has the file beside the iso
-def answers-media []: nothing -> any {
-    let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices
-        | where fstype in $MEDIA_FSTYPES
+# a copy outside its medium (it may be the target disk), with source paths staged beside it
+def answers-stage [file: path]: nothing -> path {
+    mkdir $STAGE_DIR
+    let copy = $STAGE_DIR | path join $ANSWERS_NAME
+    cp $file $copy
+    let source = try { open --raw $file | from nuon | get --optional source } catch { null }
+    if ($source | describe | str starts-with "record") {
+        for k in $SOURCE_PATH_KEYS {
+            let p = $source | get --optional $k
+            if $p == null or ($p =~ '^https?://') { continue }
+            let from = if ($p | str starts-with "/") { $p } else { $file | path dirname | path join $p }
+            try { cp $from ($STAGE_DIR | path join ($p | path basename)) }
+        }
+    }
+    $copy
+}
+
+# the boot medium, then the LSCK0 partition, then every other medium; a ventoy stick has the file beside the iso
+def answers-find []: nothing -> any {
+    for f in (answers-in $BOOT_MEDIUM) { return {file: (answers-stage $f), origin: $f} }
+    let devices = ^lsblk -J -l -pno NAME,FSTYPE,MOUNTPOINT | from json | get blockdevices | where fstype in $MEDIA_FSTYPES
     let label = if ($ANSWERS_LABEL | path exists) { $ANSWERS_LABEL | path expand } else { "" }
-    let ordered = ($devices | where name == $label) ++ ($devices | where name != $label)
-    for f in (answers-in $BOOT_MEDIUM) { return {file: $f, dir: ($f | path dirname)} }
-    for d in $ordered {
+    for d in (($devices | where name == $label) ++ ($devices | where name != $label)) {
         let mounted = $d.mountpoint | is-not-empty
         let dir = if $mounted { $d.mountpoint } else { $STAGE_DIR | path join mnt ($d.name | path basename) }
         if not $mounted {
@@ -157,40 +93,26 @@ def answers-media []: nothing -> any {
             if (^mount -o ro $d.name $dir | complete).exit_code != 0 { continue }
         }
         let found = answers-in $dir | get --optional 0
-        let a = if $found == null { null } else {
-            let parsed = try { answers-parse (open --raw $found) $"($d.name):($found | path relative-to $dir)" } catch {|e| {error: $e.msg} }
-            if $parsed.error? != null { $parsed } else { answers-stage $parsed ($found | path dirname) | insert origin $"($d.name):($found | path relative-to $dir)" }
-        }
+        let staged = if $found == null { null } else { {file: (answers-stage $found), origin: $"($d.name):($found | path relative-to $dir)"} }
         if not $mounted { ^umount $dir | complete | ignore }
-        if $a != null { return $a }
+        if $staged != null { return $staged }
     }
     null
 }
 
-def answers-fetch [where: string]: nothing -> record {
-    if $where =~ '^https?://' {
-        let r = ^curl -fsS -m $PROBE_TIMEOUT_S $where | complete
-        if $r.exit_code != 0 { error make {msg: $"($where): ($r.stderr | str trim)"} }
-        return (answers-parse $r.stdout $where)
-    }
-    let file = if ($where | str starts-with "/") { $where } else { $BOOT_MEDIUM | path join $where }
-    if not ($file | path exists) { error make {msg: $"($where): no such file"} }
-    answers-stage (answers-parse (open --raw $file) $where) ($file | path dirname)
-}
-
-export def answers-env [spec: record, a: record]: nothing -> record {
-    $a | items {|k, v|
-        let key = $spec | get --optional $k | default {env: "", password: false}
-        if $key.env == "" or ($key.password and $v == $PASSWORD_ASK) { return null }
-        let text = match (type-of $v) { "bool" => (if $v { "1" } else { "0" }), "list<string>" => ($v | str join " "), _ => $v }
-        {$key.env: $text}
-    } | compact | reduce --fold {} {|it, acc| $acc | merge $it }
-}
-
-def answers-or-die [spec: record, a: record]: nothing -> record {
-    let problems = answers-problems $spec ($a | reject --optional origin)
-    if ($problems | is-not-empty) { error make {msg: $"answers: ($problems | str join '; ')"} }
-    $a | reject --optional origin
+# keymap, wifi and source when they read as such; anything malformed is skipped here and reported by master
+def answers-early [file: any]: nothing -> record {
+    let a = if $file == null { {} } else { try { open --raw $file | from nuon } catch { {} } }
+    let a = if ($a | describe | str starts-with "record") { $a } else { {} }
+    let wifi = $a.wifi? | default [] | if ($in | describe | str starts-with "list") or ($in | describe | str starts-with "table") { $in } else { [] }
+        | where {|w| ($w | describe | str starts-with "record") and (($w.ssid? | describe) == "string") }
+    let params = open --raw /proc/cmdline | parse --regex $CMDLINE_PARAM
+        | each {|p| {key: $p.key, value: (if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain })} }
+    let param = {|k| $params | where key == $k | get --optional 0.value }
+    let wifi = if (do $param wifi.ssid) == null { $wifi } else { [{ssid: (do $param wifi.ssid), psk: (do $param wifi.psk | default "")}] ++ $wifi }
+    let keymap = do $param keymap | default ($a.keymap? | if ($in | describe) == "string" { $in } else { "" })
+    let source = $a.source? | if ($in | describe | str starts-with "record") and (($in.bundle? | describe) == "string") { $in } else { null }
+    {keymap: $keymap, wifi: $wifi, source: $source}
 }
 
 # -----------------------------------------------------------------------------
@@ -198,23 +120,23 @@ def answers-or-die [spec: record, a: record]: nothing -> record {
 # -----------------------------------------------------------------------------
 
 # empty when online, else what is missing in a few words
-def network-missing [t: record]: nothing -> string {
+def network-missing []: nothing -> string {
     let up = ls /sys/class/net | get name | path basename | where $it != "lo" | where {|i| (open --raw $"/sys/class/net/($i)/operstate" | str trim) == "up" }
-    if ($up | is-empty) { return $t.no_link }
-    if (^ip -j route show default | from json | is-empty) { return (text-fill $t.no_address {devices: ($up | str join ' ')}) }
+    if ($up | is-empty) { return $TEXT.no_link }
+    if (^ip -j route show default | from json | is-empty) { return (text-fill $TEXT.no_address {devices: ($up | str join ' ')}) }
     for url in $PROBES {
         let code = ^curl -s -o /dev/null -m $PROBE_TIMEOUT_S -w "%{http_code}" $url | complete | get stdout
-        if $code in ["" "000"] { return (text-fill $t.no_answer {host: ($url | url parse | get host)}) }
+        if $code in ["" "000"] { return (text-fill $TEXT.no_answer {host: ($url | url parse | get host)}) }
     }
     ""
 }
 
-def network-wait [t: record, timeout: duration]: nothing -> string {
+def network-wait [timeout: duration]: nothing -> string {
     let deadline = (date now) + $timeout
-    mut missing = network-missing $t
+    mut missing = network-missing
     while $missing != "" and (date now) < $deadline {
         sleep $ONLINE_POLL
-        $missing = network-missing $t
+        $missing = network-missing
     }
     $missing
 }
@@ -230,12 +152,13 @@ def wifi-scan [device: string]: nothing -> table {
     | parse --regex '^\s*>?\s+(?<ssid>\S.*?)\s{2,}(?<security>\S+)\s+(?<signal>\*+)\s*$'
 }
 
-def wifi-connect [t: record, device: string, network: record]: nothing -> string {
-    let verb = if ($network.hidden? | default false) { "connect-hidden" } else { "connect" }
-    let secret = if ($network.psk? | is-empty) { [] } else { [--passphrase $network.psk] }
+def wifi-connect [device: string, network: record]: nothing -> string {
+    let verb = if ($network.hidden? | default false) == true { "connect-hidden" } else { "connect" }
+    let psk = $network.psk? | default "" | into string
+    let secret = if ($psk | is-empty) { [] } else { [--passphrase $psk] }
     let r = ^iwctl ...$secret station $device $verb $network.ssid | complete
-    if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $t.wifi.failed)" }
-    network-wait $t $ONLINE_WAIT
+    if $r.exit_code != 0 { return $"($network.ssid): ($r.stdout | ansi strip | str trim | default --empty $TEXT.wifi.failed)" }
+    network-wait $ONLINE_WAIT
 }
 
 def --wrapped dlg [...args: string]: nothing -> any {
@@ -244,106 +167,102 @@ def --wrapped dlg [...args: string]: nothing -> any {
 }
 
 # a passphrase is typed in the console's layout, so the bootstrap's keymap is settled before it
-def --env keymap-ensure [t: record]: nothing -> nothing {
+def --env keymap-ensure []: nothing -> nothing {
     if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) { return }
-    let keymap = dlg --title $t.keymap.title --inputbox $t.keymap.text "8" ($TUI_WIDTH | into string) $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
+    let keymap = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text "8" ($TUI_WIDTH | into string) $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
     if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $keymap }
 }
 
 # loops until both probes answer: the iso installs nothing offline
-def --env network-step [t: record, networks: list]: nothing -> bool {
-    mut missing = network-wait $t $ONLINE_WAIT
+def --env network-step [networks: list]: nothing -> bool {
+    mut missing = network-wait $ONLINE_WAIT
     let device = wifi-device
     if $missing != "" and $device != null {
         ^rfkill unblock wifi | complete | ignore
         for n in $networks {
-            print (text-fill $t.connecting {ssid: $n.ssid})
-            $missing = wifi-connect $t $device $n
+            print (text-fill $TEXT.connecting {ssid: $n.ssid})
+            $missing = wifi-connect $device $n
             if $missing == "" { break }
             print $"install: ($missing)"
         }
     }
     while $missing != "" {
         if $device == null {
-            print (text-fill $t.waiting {missing: $missing, wait: $CABLE_POLL})
+            print (text-fill $TEXT.waiting {missing: $missing, wait: $CABLE_POLL})
             sleep $CABLE_POLL
-            $missing = network-missing $t
+            $missing = network-missing
             continue
         }
         let found = wifi-scan $device
         let items = $found | each {|n| [$n.ssid $"($n.security) ($n.signal)"] } | flatten
-        let extra = [$PICK_RESCAN $t.wifi.rescan $PICK_HIDDEN $t.wifi.hidden $PICK_SHELL $t.wifi.shell]
-        let pick = dlg --title $t.wifi.title --menu (text-fill $t.wifi.text {missing: $missing}) "0" ($TUI_WIDTH | into string) ($TUI_MENU_ROWS | into string) ...$items ...$extra
+        let extra = [$PICK_RESCAN $TEXT.wifi.rescan $PICK_HIDDEN $TEXT.wifi.hidden $PICK_SHELL $TEXT.wifi.shell]
+        let pick = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" ($TUI_WIDTH | into string) ($TUI_MENU_ROWS | into string) ...$items ...$extra
         if $pick == null or $pick == $PICK_SHELL { return false }
-        if $pick == $PICK_RESCAN { $missing = network-missing $t; continue }
+        if $pick == $PICK_RESCAN { $missing = network-missing; continue }
         let hidden = $pick == $PICK_HIDDEN
-        let ssid = if $hidden { dlg --title $t.wifi.title --inputbox $t.wifi.name "8" ($TUI_WIDTH | into string) | default "" } else { $pick }
+        let ssid = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name "8" ($TUI_WIDTH | into string) | default "" } else { $pick }
         if $ssid == "" { continue }
         let open = not $hidden and ($found | where ssid == $ssid | get --optional 0.security) == "open"
-        if not $open { keymap-ensure $t }
-        let psk = if $open { "" } else { dlg --title $t.wifi.title --insecure --passwordbox (text-fill $t.wifi.password {ssid: $ssid}) "8" ($TUI_WIDTH | into string) | default "" }
-        $missing = wifi-connect $t $device {ssid: $ssid, psk: $psk, hidden: $hidden}
+        if not $open { keymap-ensure }
+        let psk = if $open { "" } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) "8" ($TUI_WIDTH | into string) | default "" }
+        $missing = wifi-connect $device {ssid: $ssid, psk: $psk, hidden: $hidden}
     }
     true
 }
 
 # -----------------------------------------------------------------------------
-# install
+# checkout
 # -----------------------------------------------------------------------------
 
-# an unpublished tree (the vm test's snapshot) on top of master; nothing verifies it
-def checkout-from-bundle [source: record]: nothing -> path {
-    let local = {|p| if $p =~ '^https?://' { let to = $"/tmp/(random uuid)"; ^curl -fsSo $to $p; $to } else { $p } }
+# the newest master, refused unless its HEAD is signed by the baked key's fingerprint
+def checkout-master []: nothing -> path {
+    let trust = open $TRUST
     rm --recursive --force $CLONE_DIR
-    ^git clone -q $DOTFILES_URL $CLONE_DIR
-    let bundle = do $local $source.bundle
-    let ref = ^git bundle list-heads $bundle | lines | first | split row " " | last
-    ^git -C $CLONE_DIR fetch -q $bundle $ref
-    ^git -C $CLONE_DIR checkout -q FETCH_HEAD
-    if ($source.lfs? | is-not-empty) { ^tar -xf (do $local $source.lfs) -C ($CLONE_DIR | path join .git) }
+    ^git clone -q $trust.url $CLONE_DIR
+    let gnupg = mktemp --directory
+    ^gpg --homedir $gnupg --batch -q --import $SIGNING_KEY
+    let r = with-env {GNUPGHOME: $gnupg} { ^git -C $CLONE_DIR verify-commit --raw HEAD | complete }
+    rm --recursive --force $gnupg
+    let head = ^git -C $CLONE_DIR rev-parse --short HEAD | str trim
+    if not ($r.stderr | lines | any {|l| $l =~ $'^\[GNUPG:\] VALIDSIG .* ($trust.fingerprint)$' }) {
+        error make {msg: $"($trust.url) HEAD ($head) is not signed by ($trust.fingerprint)"}
+    }
+    print $"install: master ($head), signed by ($trust.fingerprint)"
     $CLONE_DIR
 }
 
-# unattended runs keep a log; the dialog screens of an interactive one would garble it
-def run-logged [unattended: bool, argv: list<string>]: nothing -> nothing {
-    if $unattended { ^bash -o pipefail -c $'"$@" 2>&1 | tee ($LOG)' run-logged ...$argv } else { run-external ...$argv }
+# an unpublished tree (the vm test's snapshot) on top of master; nothing verifies it
+def checkout-bundle [repo: path, source: record]: nothing -> nothing {
+    let local = {|p|
+        if $p =~ '^https?://' { let to = $STAGE_DIR | path join (random uuid); ^curl -fsSo $to $p; $to } else { $STAGE_DIR | path join ($p | path basename) }
+    }
+    let bundle = do $local $source.bundle
+    let ref = ^git bundle list-heads $bundle | lines | first | split row " " | last
+    ^git -C $repo fetch -q $bundle $ref
+    ^git -C $repo checkout -q FETCH_HEAD
+    if ($source.lfs? | describe) == "string" { ^tar -xf (do $local $source.lfs) -C ($repo | path join .git) }
+    print $"install: an unverified tree from the answers' source, (^git -C $repo rev-parse --short HEAD | str trim)"
 }
 
 def main [] {
-    let questions = questions-load $LAUNCHER
-    let spec = answers-spec $questions
     print "install: looking for an answer file"
-    let cmdline = answers-cmdline $spec (open --raw /proc/cmdline)
-    let media = try { answers-media } catch {|e| {error: $e.msg} }
-    if $media.error? != null { print $"install: ($media.error), nothing installed"; return }
-    if $media != null { print $"install: answers from ($media.origin)" }
-    let early = try { answers-or-die $spec (($media | default {}) | merge deep $cmdline.overrides) } catch {|e| print $"install: ($e.msg), nothing installed"; return }
-    if ($early.keymap? | is-not-empty) { ^loadkeys $early.keymap | complete | ignore }
-    $env.BOOTSTRAP_KEYMAP = $early.keymap? | default ""
+    let found = try { answers-find } catch { null }
+    if $found != null { print $"install: answers from ($found.origin)" }
+    let early = answers-early $found.file?
+    if ($early.keymap | is-not-empty) and (^loadkeys $early.keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $early.keymap }
 
-    if not (network-step $questions.iso ($early.wifi? | default [])) { print "install: stopped; run lsck0-install to start over"; return }
+    if not (network-step $early.wifi) { print "install: stopped; run lsck0-install to start over"; return }
     print "install: online"
-    let answers = if $cmdline.answers == null { $early } else {
-        try {
-            answers-or-die $spec (($media | default {}) | merge deep (answers-fetch $cmdline.answers) | merge deep $cmdline.overrides)
-        } catch {|e| print $"install: ($e.msg), nothing installed"; return }
-    }
-    let env_answers = answers-env $spec $answers | merge (if $env.BOOTSTRAP_KEYMAP == "" { {} } else { {BOOTSTRAP_KEYMAP: $env.BOOTSTRAP_KEYMAP} })
-
     # bootstrap.sh's pacman -Sy needs the iso's keyring, which pacman-init.service may still be filling
     ^systemctl start pacman-init.service
-    let unattended = $answers.unattended? | default false
-    let status = with-env $env_answers {
-        let argv = if $answers.source? != null {
-            print "install: an unverified tree from the answers' source"
-            [bash ((checkout-from-bundle $answers.source) | path join bootstrap.sh)]
-        } else {
-            # as `bash -c`, with no file behind it, bootstrap.sh clones the newest master and checks its signature
-            [bash -c (open --raw ($LAUNCHER | path join bootstrap.sh)) lsck0-install]
-        }
-        try { run-logged $unattended $argv; 0 } catch { $env.LAST_EXIT_CODE }
+    let repo = try {
+        let repo = checkout-master
+        if $early.source != null { checkout-bundle $repo $early.source }
+        $repo
+    } catch {|e| print $"install: ($e.msg)"; null }
+    let handover = {LSCK0_INSTALL: "1"} | merge (if $found == null { {} } else { {LSCK0_ANSWERS: $found.file, LSCK0_ANSWERS_ORIGIN: $found.origin} })
+    let status = if $repo == null { 1 } else {
+        with-env $handover { try { ^bash ($repo | path join bootstrap.sh); 0 } catch { $env.LAST_EXIT_CODE } }
     }
-    if $status != 0 {
-        print $"install: failed \(exit ($status)\)(if $unattended { $', log in ($LOG)' } else { '' }); run lsck0-install to start over"
-    }
+    if $status != 0 { print $"install: failed \(exit ($status)\); run lsck0-install to start over" }
 }

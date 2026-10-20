@@ -16,8 +16,9 @@ their own boots, logs in on tty3, pulls logs and checks the end state. Install p
   `~/downloads/archlinux-x86_64.iso` (`--iso PATH` otherwise).
 - `--iso` with an Arch Linux-LSCK0 iso (`dot internal iso`, told apart by its `ARCH_LSCK0_` volume label) types
   nothing: the answers, the snapshot bundle and its lfs objects go on a second cd labelled `LSCK0` (`lsck0.nuon`,
-  `unattended: true`), the iso's own installer runs them, and its `install: failed` line on tty1 fails the run
-  (the log is the guest's `/tmp/lsck0-install.log`). Also needs `xorriso` (archiso pulls it in).
+  `unattended: true`); the iso's stub fetches and verifies GitHub master, applies the bundle on top (so the second
+  stage `dot internal iso-install` and everything after come from the local tree), and its `install: failed` line on
+  tty1 fails the run (the bootstrap's log is the guest's `/tmp/lsck0-install.log`). Also needs `xorriso` (archiso pulls it in).
 - It tests the local working tree, untracked files included, as a bundle on top of `origin/master`; `--master`
   tests GitHub master instead.
 

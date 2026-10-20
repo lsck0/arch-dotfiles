@@ -1,6 +1,7 @@
 # the lsck0 install iso: archiso's releng profile plus mirror/iso (packages, airootfs overlay, profiledef), the [lsck0]
-# repo and key from configs/base/pacman, and a verified shallow checkout of this repo as the installer's launcher.
-# network: the arch mirrors (or --mirror) for the packages; nothing else, the checkout comes from the local repo
+# repo and key from configs/base/pacman, and the stub's trust anchor from bootstrap.sh: the repo url, the signing key
+# and its fingerprint. No checkout: the stub fetches and verifies master at install time.
+# network: the arch mirrors (or --mirror) for the packages; nothing else
 
 use log.nu *
 
@@ -12,7 +13,7 @@ const PACMAN_CONF = "configs/base/pacman/pacman.conf"
 const LSCK0_KEY = "configs/base/pacman/archrepo.asc"
 const LSCK0_SECTION = "[lsck0]"
 const KEYRING_DIR = "usr/share/pacman/keyrings"
-const LAUNCHER_DIR = "usr/share/lsck0/arch-dotfiles"
+const TRUST_DIR = "usr/share/lsck0"
 const BOOTSTRAP = "bootstrap.sh"
 const ISO_NAME = "archlinux-lsck0"
 const ISO_ARCH = "x86_64"
@@ -28,16 +29,11 @@ def bootstrap-const [name: string]: nothing -> string {
     open --raw ($REPO | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>\S+)$') | get 0.v
 }
 
-# the same check bootstrap.sh runs on its clone, here on the commit the iso bakes
-def checkout-verify [dir: path]: nothing -> nothing {
-    let fingerprint = bootstrap-const SIGNING_KEY_FINGERPRINT
-    let gnupg = mktemp --directory
-    ^gpg --homedir $gnupg --batch -q --import ($dir | path join (bootstrap-const SIGNING_KEY_FILE))
-    let r = with-env {GNUPGHOME: $gnupg} { ^git -C $dir verify-commit --raw HEAD | complete }
-    rm --recursive --force $gnupg
-    if not ($r.stderr | lines | any {|l| $l =~ $'^\[GNUPG:\] VALIDSIG .* ($fingerprint)$' }) {
-        error make {msg: $"iso: HEAD (^git -C $dir rev-parse --short HEAD | str trim) is not signed by ($fingerprint), the iso bakes only a signed commit"}
-    }
+# what the stub needs to fetch and verify master, taken from bootstrap.sh so the two never disagree
+def trust-write [dir: path]: nothing -> nothing {
+    mkdir $dir
+    cp ($REPO | path join (bootstrap-const SIGNING_KEY_FILE)) ($dir | path join signing-key.asc)
+    {url: (bootstrap-const DOTFILES_URL), fingerprint: (bootstrap-const SIGNING_KEY_FINGERPRINT)} | to nuon | save --force ($dir | path join trust.nuon)
 }
 
 def keyring-write [dir: path]: nothing -> nothing {
@@ -59,7 +55,7 @@ def pacman-live [releng_conf: path]: nothing -> string {
     $"(open --raw $releng_conf | str trim --right)\n\n($section | str trim --right)\n"
 }
 
-def profile-write [profile: path, launcher: path, mirror: any]: nothing -> nothing {
+def profile-write [profile: path, mirror: any]: nothing -> nothing {
     let overlay = $REPO | path join $OVERLAY
     rm --recursive --force $profile
     cp --recursive $RELENG $profile
@@ -81,22 +77,12 @@ def profile-write [profile: path, launcher: path, mirror: any]: nothing -> nothi
     }
     pacman-live ($profile | path join pacman.conf) | save --force ($root | path join etc pacman.conf)
     keyring-write ($root | path join $KEYRING_DIR)
-    mkdir ($root | path join $LAUNCHER_DIR | path dirname)
-    mv $launcher ($root | path join $LAUNCHER_DIR)
+    trust-write ($root | path join $TRUST_DIR)
     if $mirror != null {
         let list = $profile | path join mirrorlist
         $"Server = ($mirror)\n" | save --force $list
         open --raw ($profile | path join pacman.conf) | str replace --all "/etc/pacman.d/mirrorlist" $list | save --force ($profile | path join pacman.conf)
     }
-}
-
-def launcher-clone [dest: path]: nothing -> nothing {
-    rm --recursive --force $dest
-    # no submodules, no lfs objects: the installer needs only bootstrap.sh and the key, the bootstrap clones master
-    with-env {GIT_LFS_SKIP_SMUDGE: "1"} {
-        ^git -c submodule.recurse=false clone -q --depth 1 --no-recurse-submodules --no-tags $"file://($REPO)" $dest
-    }
-    checkout-verify $dest
 }
 
 def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> list<path> {
@@ -126,9 +112,7 @@ export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: n
     let build = $work | path join build
     let staging = $work | path join staging
     mkdir $work
-    log-info $"iso: baking a verified checkout of (^git -C $REPO rev-parse --short HEAD | str trim)"
-    launcher-clone ($work | path join launcher)
-    profile-write $profile ($work | path join launcher) $mirror
+    profile-write $profile $mirror
     # mkarchiso resumes from its markers, so a stale build dir would ship the last run's root
     as-root rm --recursive --force $build $staging
     log-info "iso: mkarchiso (several minutes)"

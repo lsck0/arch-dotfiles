@@ -224,7 +224,8 @@ def iso-is-lsck0 [iso: path]: nothing -> bool {
 
 def answers-volume [name: string]: nothing -> string { $"vm-test-($name)-answers.iso" }
 
-# the same answers the typed path passes as env, as the lsck0 iso's answer file on a second cd
+# the same answers the typed path passes as env, as the lsck0 iso's answer file on a second cd; its stub applies
+# `source` on top of the verified master before the hand-over, so the second stage runs from the snapshot too
 def answers-iso [name: string, bundle: any, platform: string, user: string, profile: string]: nothing -> path {
     let dir = cache-dir $name | path join answers
     rm --recursive --force $dir
