@@ -1,38 +1,34 @@
 #!/usr/bin/env -S nu --no-config-file
-# the lsck0 iso's installer on tty1 and the one part of the install frozen at burn time: online (cable, the answer
-# file's wifi, else a picker), the newest master, its HEAD checked against the baked signing key, then that checkout's
-# own bootstrap.sh with LSCK0_INSTALL=1, whose second stage (dot internal iso-install) reads the answers and runs
-# the bootstrap. Of lsck0.nuon this reads keymap, wifi and source only, and an unreadable file is left to master.
 
-const TRUST = "/usr/share/lsck0/trust.nuon"
-const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
-const CLONE_DIR = "/tmp/arch-dotfiles"
-const STUB_IN_REPO = "mirror/iso/airootfs/usr/local/bin/lsck0-install"
-const ANSWERS_NAME = "lsck0.nuon"
 const ANSWERS_LABEL = "/dev/disk/by-label/LSCK0"
+const ANSWERS_NAME = "lsck0.nuon"
 const BOOT_MEDIUM = "/run/archiso/bootmnt"
-const STAGE_DIR = "/run/lsck0"
+const CABLE_POLL = 5sec
+const CLONE_DIR = "/tmp/arch-dotfiles"
+const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
+const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
 const ISO_GLOB = "archlinux-lsck0*.iso"
 const ISO_SEARCH_DEPTH = 2
-const CMDLINE_PARAM = '(?:^|\s)lsck0\.(?<key>keymap|wifi\.ssid|wifi\.psk)=(?:"(?<quoted>[^"]*)"|(?<plain>\S*))'
+const KEYMAP_DEFAULT = "de-latin1"
 const MEDIA_FSTYPES = [vfat exfat iso9660 udf ntfs ntfs3]
-# the two hosts an install needs first: the [lsck0] packages and the repo
+const ONLINE_POLL = 1sec
+const ONLINE_WAIT = 20sec
+const PICK_HIDDEN = "hidden"
+const PICK_RESCAN = "rescan"
+const PICK_SHELL = "shell"
 const PROBES = [https://mirror.lsck0.dev https://github.com]
 const PROBE_TIMEOUT_S = 5
-# dhcp on a cable lands well within this
-const ONLINE_WAIT = 20sec
-const ONLINE_POLL = 1sec
-const CABLE_POLL = 5sec
-const WIFI_SCAN_WAIT = 3sec
-const KEYMAP_DEFAULT = "de-latin1"
-const TUI_BACKTITLE = "Arch Linux install"
-const TUI_WIDTH = 72
-const TUI_MENU_ROWS = 12
-const PICK_RESCAN = "rescan"
-const PICK_HIDDEN = "hidden"
-const PICK_SHELL = "shell"
+const SIGNING_KEY = "/usr/share/lsck0/signing-key.asc"
 const SOURCE_PATH_KEYS = [bundle lfs]
-const INSECURE_PARAM = '(?:^|\s)lsck0\.insecure=1(?:\s|$)'
+const STAGE_DIR = "/run/lsck0"
+const STUB_IN_REPO = "mirror/iso/airootfs/usr/local/bin/lsck0-install"
+const TRUST = "/usr/share/lsck0/trust.nuon"
+const TUI_BACKTITLE = "Arch Linux install"
+const TUI_BOX_ROWS = "8"
+const TUI_MENU_ROWS = "12"
+const TUI_WIDTH = "72"
+const WIFI_SCAN_WAIT = 3sec
+
 const TEXT = {
     keymap: {title: "keyboard", text: "Keyboard layout, used for the Wi-Fi password and the install:"}
     wifi: {
@@ -57,7 +53,12 @@ const TEXT = {
 }
 
 def text-fill [text: string, values: record]: nothing -> string {
-    $values | items {|name, value| {name: $name, value: $value} } | reduce --fold $text {|v, acc| $acc | str replace --all $"{($v.name)}" ($v.value | into string) }
+    $values | transpose name value | reduce --fold $text {|v, acc| $acc | str replace --all $"{($v.name)}" ($v.value | into string) }
+}
+
+# the answer file is anyone's: every value is checked for its shape before use
+def is-a [kind: string]: any -> bool {
+    ($in | describe) =~ $'^($kind)\b'
 }
 
 # -----------------------------------------------------------------------------
@@ -75,7 +76,7 @@ def answers-stage [file: path]: nothing -> path {
     let copy = $STAGE_DIR | path join $ANSWERS_NAME
     cp $file $copy
     let source = try { open --raw $file | from nuon | get --optional source } catch { null }
-    if ($source | describe | str starts-with "record") {
+    if ($source | is-a record) {
         for k in $SOURCE_PATH_KEYS {
             let p = $source | get --optional $k
             if $p == null or ($p =~ '^https?://') { continue }
@@ -109,15 +110,15 @@ def answers-find []: nothing -> any {
 # keymap, wifi and source when they read as such; anything malformed is skipped here and reported by master
 def answers-early [file: any]: nothing -> record {
     let a = if $file == null { {} } else { try { open --raw $file | from nuon } catch { {} } }
-    let a = if ($a | describe | str starts-with "record") { $a } else { {} }
-    let wifi = $a.wifi? | default [] | if ($in | describe | str starts-with "list") or ($in | describe | str starts-with "table") { $in } else { [] }
-        | where {|w| ($w | describe | str starts-with "record") and (($w.ssid? | describe) == "string") }
+    let a = if ($a | is-a record) { $a } else { {} }
+    let wifi = $a.wifi? | default [] | if ($in | is-a list) or ($in | is-a table) { $in } else { [] }
+        | where {|w| ($w | is-a record) and ($w.ssid? | is-a string) }
     let params = open --raw /proc/cmdline | parse --regex $CMDLINE_PARAM
         | each {|p| {key: $p.key, value: (if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain })} }
     let param = {|k| $params | where key == $k | get --optional 0.value }
     let wifi = if (do $param wifi.ssid) == null { $wifi } else { [{ssid: (do $param wifi.ssid), psk: (do $param wifi.psk | default "")}] ++ $wifi }
-    let keymap = do $param keymap | default ($a.keymap? | if ($in | describe) == "string" { $in } else { "" })
-    let source = $a.source? | if ($in | describe | str starts-with "record") and (($in.bundle? | describe) == "string") { $in } else { null }
+    let keymap = do $param keymap | default ($a.keymap? | if ($in | is-a string) { $in } else { "" })
+    let source = $a.source? | if ($in | is-a record) and ($in.bundle? | is-a string) { $in } else { null }
     {keymap: $keymap, wifi: $wifi, source: $source}
 }
 
@@ -175,7 +176,7 @@ def --wrapped dlg [...args: string]: nothing -> any {
 # a passphrase is typed in the console's layout, so the bootstrap's keymap is settled before it
 def --env keymap-ensure []: nothing -> nothing {
     if ($env.BOOTSTRAP_KEYMAP? | is-not-empty) { return }
-    let keymap = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text "8" ($TUI_WIDTH | into string) $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
+    let keymap = dlg --title $TEXT.keymap.title --inputbox $TEXT.keymap.text $TUI_BOX_ROWS $TUI_WIDTH $KEYMAP_DEFAULT | default $KEYMAP_DEFAULT | str trim
     if (^loadkeys $keymap | complete).exit_code == 0 { $env.BOOTSTRAP_KEYMAP = $keymap }
 }
 
@@ -202,15 +203,15 @@ def --env network-step [networks: list]: nothing -> bool {
         let found = wifi-scan $device
         let items = $found | each {|n| [$n.ssid $"($n.security) ($n.signal)"] } | flatten
         let extra = [$PICK_RESCAN $TEXT.wifi.rescan $PICK_HIDDEN $TEXT.wifi.hidden $PICK_SHELL $TEXT.wifi.shell]
-        let pick = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" ($TUI_WIDTH | into string) ($TUI_MENU_ROWS | into string) ...$items ...$extra
+        let pick = dlg --title $TEXT.wifi.title --menu (text-fill $TEXT.wifi.text {missing: $missing}) "0" $TUI_WIDTH $TUI_MENU_ROWS ...$items ...$extra
         if $pick == null or $pick == $PICK_SHELL { return false }
         if $pick == $PICK_RESCAN { $missing = network-missing; continue }
         let hidden = $pick == $PICK_HIDDEN
-        let ssid = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name "8" ($TUI_WIDTH | into string) | default "" } else { $pick }
+        let ssid = if $hidden { dlg --title $TEXT.wifi.title --inputbox $TEXT.wifi.name $TUI_BOX_ROWS $TUI_WIDTH | default "" } else { $pick }
         if $ssid == "" { continue }
         let open = not $hidden and ($found | where ssid == $ssid | get --optional 0.security) == "open"
         if not $open { keymap-ensure }
-        let psk = if $open { "" } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) "8" ($TUI_WIDTH | into string) | default "" }
+        let psk = if $open { "" } else { dlg --title $TEXT.wifi.title --insecure --passwordbox (text-fill $TEXT.wifi.password {ssid: $ssid}) $TUI_BOX_ROWS $TUI_WIDTH | default "" }
         $missing = wifi-connect $device {ssid: $ssid, psk: $psk, hidden: $hidden}
     }
     true
@@ -226,8 +227,10 @@ def checkout-master []: nothing -> path {
     rm --recursive --force $CLONE_DIR
     ^git clone -q $trust.url $CLONE_DIR
     let gnupg = mktemp --directory
-    ^gpg --homedir $gnupg --batch -q --import $SIGNING_KEY
-    let r = with-env {GNUPGHOME: $gnupg} { ^git -C $CLONE_DIR verify-commit --raw HEAD | complete }
+    let r = try {
+        ^gpg --homedir $gnupg --batch -q --import $SIGNING_KEY
+        with-env {GNUPGHOME: $gnupg} { ^git -C $CLONE_DIR verify-commit --raw HEAD | complete }
+    } catch {|e| rm --recursive --force $gnupg; error make {msg: $"signing key: ($e.msg)"} }
     rm --recursive --force $gnupg
     let head = ^git -C $CLONE_DIR rev-parse --short HEAD | str trim
     if not ($r.stderr | lines | any {|l| $l =~ $'^\[GNUPG:\] VALIDSIG .* ($trust.fingerprint)$' }) {
@@ -243,7 +246,7 @@ def source-allowed [origin: string]: nothing -> bool {
     if (open --raw /proc/cmdline) =~ $INSECURE_PARAM { return true }
     if (^systemd-detect-virt --vm --quiet | complete).exit_code == 0 { return true }
     let text = text-fill $TEXT.source.text {origin: $origin}
-    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" ($TUI_WIDTH | into string) | complete).exit_code == 0
+    (^dialog --backtitle $TUI_BACKTITLE --stdout --defaultno --title $TEXT.source.title --yesno $text "10" $TUI_WIDTH | complete).exit_code == 0
 }
 
 # an unpublished tree (the vm test's snapshot) on top of master; nothing verifies it
@@ -255,7 +258,7 @@ def checkout-bundle [repo: path, source: record]: nothing -> nothing {
     let ref = ^git bundle list-heads $bundle | lines | first | split row " " | last
     ^git -C $repo fetch -q $bundle $ref
     ^git -C $repo checkout -q FETCH_HEAD
-    if ($source.lfs? | describe) == "string" { ^tar -xf (do $local $source.lfs) -C ($repo | path join .git) }
+    if ($source.lfs? | is-a string) { ^tar -xf (do $local $source.lfs) -C ($repo | path join .git) }
     print $"install: an unverified tree from the answers' source, (^git -C $repo rev-parse --short HEAD | str trim)"
 }
 

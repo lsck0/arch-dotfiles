@@ -1,4 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: not in the repos
+
 pkgname=idspoof
 pkgver=r0
 pkgrel=1

@@ -1,8 +1,5 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# fork of the aur theharvester-git recipe; exists only to build against arch's flit-core 4: upstream's pyproject still
-# pins flit_core <4 though nothing it uses changed. drop this recipe once upstream lifts the bound
-# Contributor: envolution
-# Contributor: éclairevoyant
+# Reason for custom package: allow flit-core 4
 
 pkgname=theharvester-git
 pkgver=4.11.1.r467.g49a38f8d
@@ -32,20 +29,20 @@ depends=(
     python-uvloop
 )
 makedepends=(git python-build python-installer python-wheel python-flit-core)
-optdepends=('python-httpx: alternative to aiohttp')
+optdepends=("python-httpx: alternative to aiohttp")
 install=theHarvester.install
 source=("$pkgname::git+$url.git")
-b2sums=('SKIP')
-
-pkgver() {
-    cd "$pkgname"
-    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
-}
+b2sums=(SKIP)
 
 prepare() {
     cd "$pkgname"
     sed -i 's/"flit_core >=3.11,<4"/"flit_core >=3.11"/' pyproject.toml
     grep -q '"flit_core >=3.11"' pyproject.toml
+}
+
+pkgver() {
+    cd "$pkgname"
+    git describe --long --tags | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
 build() {

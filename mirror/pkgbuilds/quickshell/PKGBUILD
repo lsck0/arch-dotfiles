@@ -1,66 +1,65 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# fork of the official extra/quickshell recipe; exists only to carry the pipewire UNK-channel peak patch.
-# on every quickshell update: refresh pkgver/sha256 and the cmake flags from the official PKGBUILD, rebase the patch, keep pkgrel one above official so [lsck0] supersedes extra.
+# Reason for custom package: fix pipewire meter peaks
+
 pkgname=quickshell
 pkgver=0.3.2
 pkgrel=2
-pkgdesc='Flexible toolkit for making desktop shells with QtQuick'
+pkgdesc="Flexible toolkit for making desktop shells with QtQuick"
 arch=(x86_64 aarch64)
 url="https://git.outfoxxed.me/$pkgname/$pkgname"
 license=(LGPL-3.0-only)
-depends=(cpptrace libcpptrace.so
-         glibc # libc.so libm.so
-         hicolor-icon-theme
-         jemalloc libjemalloc.so
-         libdrm # libdrm.so
-         libgcc libgcc_s.so
-         libglvnd libEGL.so libOpenGL.so
-         libpipewire libpipewire-0.3.so
-         libstdc++ libstdc++.so
-         libxcb # libxcb.so
-         mesa # libgbm.so
-         pam libpam.so
-         polkit
-         qt6-base # libQt6Core.so libQt6DBus.so libQt6Gui.so libQt6Network.so libQt6Widgets.so
-         qt6-declarative # libQt6Qml.so libQt6Quick.so
-         qt6-svg
-         qt6-wayland # libQt6WaylandClient.so
-         wayland libwayland-client.so)
-makedepends=(cli11
-             cmake
-             ninja
-             qt6-shadertools
-             spirv-tools
-             vulkan-headers
-             wayland-protocols)
+depends=(
+    cpptrace libcpptrace.so
+    glibc
+    hicolor-icon-theme
+    jemalloc libjemalloc.so
+    libdrm
+    libgcc libgcc_s.so
+    libglvnd libEGL.so libOpenGL.so
+    libpipewire libpipewire-0.3.so
+    libstdc++ libstdc++.so
+    libxcb
+    mesa
+    pam libpam.so
+    polkit
+    qt6-base
+    qt6-declarative
+    qt6-svg
+    qt6-wayland
+    wayland libwayland-client.so
+)
+makedepends=(cli11 cmake ninja qt6-shadertools spirv-tools vulkan-headers wayland-protocols)
 _archive="$pkgname-$pkgver"
-source=("$_archive.tar.gz::$url/archive/v$pkgver.tar.gz"
-        0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch)
-sha256sums=('f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad'
-            'd429f1c37bea32efc2f7484dbdb990f6065c4e4456d8e273e5c04000f569ab94')
+source=(
+    "$_archive.tar.gz::$url/archive/v$pkgver.tar.gz"
+    0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch
+)
+sha256sums=(
+    f14115a73c9fff6aa6399f924b632e88c3ce2cead2657f814a7825341f35baad
+    d429f1c37bea32efc2f7484dbdb990f6065c4e4456d8e273e5c04000f569ab94
+)
 
 prepare() {
-	cd "$pkgname"
-	# meter peaks for native clients (spotify) that negotiate unpositioned UNK channels
-	patch -Np1 < "$srcdir/0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch"
+    cd "$pkgname"
+    patch -Np1 < "$srcdir/0001-fix-pipewire-meter-peaks-for-nodes-with-unpositioned.patch"
 }
 
 build() {
-	cd "$pkgname"
-	local cmake_options=(
-		-D CMAKE_BUILD_TYPE=RelWithDebInfo
-		-D DISTRIBUTOR='Arch Linux'
-		-D DISTRIBUTOR_DEBUGINFO_AVAILABLE=Yes
-		-D CRASH_REPORTER=Off
-		-D CMAKE_INSTALL_PREFIX=/usr
-		-D INSTALL_QML_PREFIX=lib/qt6/qml
-	)
-	cmake -G Ninja -B build -W no-dev "${cmake_options[@]}"
-	cmake --build build
+    cd "$pkgname"
+    local cmake_options=(
+        -D CMAKE_BUILD_TYPE=RelWithDebInfo
+        -D DISTRIBUTOR='Arch Linux'
+        -D DISTRIBUTOR_DEBUGINFO_AVAILABLE=Yes
+        -D CRASH_REPORTER=Off
+        -D CMAKE_INSTALL_PREFIX=/usr
+        -D INSTALL_QML_PREFIX=lib/qt6/qml
+    )
+    cmake -G Ninja -B build -W no-dev "${cmake_options[@]}"
+    cmake --build build
 }
 
 package() {
-	cd "$pkgname"
-	DESTDIR="$pkgdir" cmake --install build
-	install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
+    cd "$pkgname"
+    DESTDIR="$pkgdir" cmake --install build
+    install -Dm0644 -t "$pkgdir/usr/share/licenses/$pkgname/" LICENSE
 }

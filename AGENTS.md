@@ -51,7 +51,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   `dot log [--trace]`, `dot secrets audit`.
 - `dot internal <cmd>`: what scripts, units and completion run, kept out of `dot --help` (`scripts/lib/internal.nu`):
   `gen` regenerates `mirror/packages.txt` (`dot test lint` fails when it drifts), `iso [--out] [--work] [--mirror]
-  [--sign] [--keep]` builds the install iso (`mirror/iso/README.md`; root for mkarchiso), `packages`, `migrate`, `fetch`,
+  [--sign] [--keep]` builds the install iso (root for mkarchiso), `packages`, `migrate`, `fetch`,
   `stage`, `bootstrap`, `iso-install`, `backup`, `watch`, `prune`, `theme get|list|apply`, `drift report|publish`,
   `audit remind`, `complete <words>` / `completions zsh|nu` (subcommands, flags, module ids, option keys and values,
   themes; `base/dot` installs `_dot` and the nushell externs under `$XDG_DATA_HOME`).
@@ -73,7 +73,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `platforms/<host>.nuon`: machine facts and groups; `<host>.options.nuon` its option values. `profiles/<name>.nuon`:
   user capabilities, copied to `~/.config/dotfiles/profile.nuon` when bootstrap or `adduser-dotfiles --profile` picks
   it (`custom` picks none). A platform's `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.
-- `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`, `down`), run once per machine by `dot sync`.
+- `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`, `down`), run once per machine by `dot sync`; a fresh
+  install marks every existing one as run. `0000-sample.nu` is the empty template to copy.
 - `scripts/`: commands linked into `~/.local/bin`; `scripts/lib/*.nu` the engine (`module.nu` the module API,
   `pipeline.nu` the run, `converge.nu` plan and apply, `system-apply.nu` root's one entry, `system.nu` the root copy).
 - `scripts/toggles/`: on/off switches, `status.nu` (JSON of all), `menu.nu`.

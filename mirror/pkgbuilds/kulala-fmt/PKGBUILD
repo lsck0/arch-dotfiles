@@ -1,12 +1,11 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# Formatter/converter for Kulala .http/.rest files; conform in configs/programming/nvim/lua/plugins/lsp.lua
-# calls `kulala-fmt` from PATH.
-# pinned to 2.11.0, the last release that parses with its own tree-sitter grammar: 3.x and later hand parsing to a
-# downloaded kulala-core binary (github repo gone, now behind a license token on core.kulala.app) and fail every file
-# with "Error parsing file". epoch so the downgrade from 4.6.1 wins
+# Reason for custom package: pin last working release
+
 pkgname=kulala-fmt
+# the last release with its own tree-sitter grammar: 3.x+ hands parsing to a token-gated kulala-core binary
 pkgver=2.11.0
 pkgrel=1
+# so the downgrade from 4.6.1 wins
 epoch=1
 pkgdesc="Formatter and converter for Kulala HTTP (.http/.rest) files"
 arch=(x86_64)
@@ -23,7 +22,7 @@ package() {
     npm install -g --prefix "$pkgdir/usr" --allow-scripts=@mistweaverco/tree-sitter-kulala,tree-sitter \
         "$srcdir/$pkgname-$pkgver.tgz"
 
-    # standard npm-package cleanup: keep only the built addon (the rest of build/ embeds $srcdir paths), normalise perms
+    # standard npm package cleanup: keep only the built addon (the rest of build/ embeds $srcdir paths), normalise perms
     local mod="$pkgdir/usr/lib/node_modules/@mistweaverco/kulala-fmt"
     local grammar="$mod/node_modules/@mistweaverco/tree-sitter-kulala/build"
     find "$grammar" -mindepth 1 -maxdepth 1 ! -name Release -exec rm -rf {} +
@@ -31,5 +30,5 @@ package() {
     # tree-sitter itself ships prebuilds for every platform, strip chokes on the foreign ones
     find "$mod/node_modules/tree-sitter/prebuilds" -mindepth 1 -maxdepth 1 ! -name linux-x64 -exec rm -rf {} +
     find "$pkgdir/usr" -type d -exec chmod 755 {} +
-    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+    install -Dm644 "$mod/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2> /dev/null || true
 }

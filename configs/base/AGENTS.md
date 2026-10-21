@@ -37,7 +37,7 @@ one of the module's own exported commands, run at apply time.
 - `pam`: fingerprint and YubiKey auth on sudo and polkit, additive to the password, against `/etc/u2f_mappings`.
   The owner's module `configs/secrets/yubikey` writes that file: its `u2f_keys` mapped to the logins in root's
   `/var/lib/dotfiles/owners` (written by the bootstrap and `adduser-dotfiles --profile` for a profile with
-  `identity`, seeded by `migrations/0003-u2f-owners.nu`), never by name. Without it, the password.
+  `identity`), never by name. Without it, the password.
 - `perf`: I/O scheduler tuning and perf_event access.
 - `plymouth`: boot splash.
 - `portmaster`: the application firewall; global rules and the per-connection/dns bypass (see `pentesting`, `gaming`).

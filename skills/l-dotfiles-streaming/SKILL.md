@@ -17,7 +17,7 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
     latter a quarter of the canvas wide in that corner. Switching scene moves the cam, `Desktop` is the one without it.
     No audio sources: the virtual camera carries none.
   - `Bare` (profile Recording): `scenes/Bare.json`, scene `Desktop`, the screen capture with Desktop Audio, Game
-    Audio and Mic/Aux. It was `Fullscreen` until `migrations/0001-obs-bare-collection.nu` renamed it.
+    Audio and Mic/Aux.
 - Every `scenes/*.json` in the module is a collection; `scene-render --machine` fits it to this machine: the items'
   absolute pos and bounds scale from its `resolution` to the canvas (the `*_rel` copies obs prefers then go), the
   mic and webcam options fill `AuxAudioDevice1` and every `v4l2_input`. `scene-back` carries them back without the

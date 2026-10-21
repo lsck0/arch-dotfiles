@@ -1,4 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: patched for pari 2.17
+
 pkgname=ecgen
 pkgver=r0
 pkgrel=1
@@ -11,15 +13,15 @@ makedepends=(git)
 source=("git+$url.git")
 sha256sums=(SKIP)
 
-pkgver() {
-    cd ecgen
-    git describe --long --abbrev=7 | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
-}
-
 prepare() {
     cd ecgen
     # pari 2.17 dropped the in-place addiiz
     sed -i 's/addiiz(j, gen_1, j);/affii(addii(j, gen_1), j);/' src/cm/p1363.c
+}
+
+pkgver() {
+    cd ecgen
+    git describe --long --abbrev=7 | sed 's/\([^-]*-g\)/r\1/;s/-/./g'
 }
 
 build() {

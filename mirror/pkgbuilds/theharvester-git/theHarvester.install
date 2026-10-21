@@ -1,8 +1,6 @@
 post_install() {
     printf '%s\n\n' "IMPORTANT: The location of API keys has changed to /etc/theHarvester/api-keys.yml"
     printf '%s\n' "APIs requiring keys:"
-    printf '\t- %s\n' "bing" "github" "hunter" \
-                      "intelx" "pentesttools"  \
-                      "projecdiscovery" "securityTrails" \
-                      "shodan" "spyse"
+    printf '\t- %s\n' "bing" "github" "hunter" "intelx" "pentesttools" \
+        "projecdiscovery" "securityTrails" "shodan" "spyse"
 }

@@ -335,9 +335,6 @@ return {
                 command = vim.fn.expand("~/.local/bin/sort-derives-stdout"),
                 stdin = true,
             }
-            require("conform").formatters.shfmt = {
-                prepend_args = { "-i", "4", "-ci", "-bn" },
-            }
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
             require("conform").formatters.latexindent = { prepend_args = { "-m", "-g", "/dev/null" } }
 

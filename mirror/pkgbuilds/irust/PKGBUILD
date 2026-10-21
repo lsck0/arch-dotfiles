@@ -1,4 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: not in the repos
+
 pkgname=irust
 pkgver=1.77.0
 pkgrel=1
@@ -13,15 +15,15 @@ source=("$pkgname-$pkgver.tar.gz::https://static.crates.io/crates/$pkgname/$pkgn
 sha256sums=(ed5a5dae07ea76b2b8fdc36dba500580b0e9485a3b5d14a5897bec5cb749db47)
 
 prepare() {
-    cd $pkgname-$pkgver
+    cd "$pkgname-$pkgver"
     cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
 
 build() {
-    cd $pkgname-$pkgver
+    cd "$pkgname-$pkgver"
     cargo build --frozen --release
 }
 
 package() {
-    install -Dm755 $pkgname-$pkgver/target/release/$pkgname "$pkgdir/usr/bin/$pkgname"
+    install -Dm755 "$pkgname-$pkgver/target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
 }

@@ -1,4 +1,3 @@
-# added to releng's list: the installer (nushell, git, dialog) and the bootstrap's yubikey step, so neither downloads
 age
 age-plugin-yubikey
 ccid

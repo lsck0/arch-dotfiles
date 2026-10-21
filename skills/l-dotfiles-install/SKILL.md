@@ -12,7 +12,7 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
 ## Install
 
 1. Easy: Arch Linux-LSCK0, https://mirror.lsck0.dev/iso/archlinux-lsck0-latest-x86_64.iso (verify with its `.sha256`
-   and `.sig`, `mirror/iso/README.md`), written raw to a stick. Its stub autologins on tty1, waits for internet
+   and `.sig`), written raw to a stick. Its stub autologins on tty1, waits for internet
    (cable automatic, else the answer file's `wifi` or a picker; it never starts offline), clones the newest master,
    checks HEAD against the signing key baked into the iso and runs that checkout's `bootstrap.sh` with
    `LSCK0_INSTALL=1`, which starts `dot internal iso-install` (`scripts/lib/iso-install.nu`): the answer file
@@ -36,7 +36,7 @@ and `dot apply` on their own boots, unattended, and retires itself and its sudo 
    curl -fsSL https://install-linux.lsck0.dev | sh
    ```
 
-Build the iso with `dot internal iso` (needs root for mkarchiso, `mirror/iso/README.md`).
+Build the iso with `dot internal iso` (needs root for mkarchiso).
 
 - `bootstrap.sh` (about 50 lines of bash, the official iso has no nu) runs only on the Arch ISO or in WSL, installs nushell
   (growing the iso's overlay when it is too small), clones master and refuses to run anything unless HEAD is signed by
@@ -95,6 +95,6 @@ adduser-dotfiles <name> [--profile luca|custom]
 Root-owned `/usr/local/bin/adduser-dotfiles` (linked by `system-apply.nu`): creates the user (never wheel), its own
 checkout, profile and user layer. Without `--profile` it asks on a tty and takes `custom` otherwise. Rerun-safe; an
 existing `profile.nuon` is kept. A profile with the `identity` capability adds the login to root's owner registry
-`/var/lib/dotfiles/owners` (the bootstrap does the same for the first login; `migrations/0003-u2f-owners.nu` seeded it
-on installed machines), from which the owner's module `configs/secrets/yubikey` maps their YubiKey in `/etc/u2f_mappings`
-on the next system run (`base/pam` reads it; without the submodule there is no mapping and sudo takes the password).
+`/var/lib/dotfiles/owners` (the bootstrap does the same for the first login), from which the owner's module
+`configs/secrets/yubikey` maps their YubiKey in `/etc/u2f_mappings` on the next system run (`base/pam` reads it;
+without the submodule there is no mapping and sudo takes the password).

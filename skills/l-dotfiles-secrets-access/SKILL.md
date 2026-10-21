@@ -18,8 +18,7 @@ Never print, copy out or commit a secret's value. Locations only.
   `secrets.key.age`, one `age-<serial>.identity` and `ssh-<serial>` stub per enrolled YubiKey.
 - `configs/secrets/yubikey/`: `recipients.txt` (offline recovery key), `RECOVERY.md`, and `u2f_keys`, the FIDO keys it
   maps in `/etc/u2f_mappings` to each login in root's `/var/lib/dotfiles/owners` (the logins installed with an
-  `identity` profile: bootstrap, `adduser-dotfiles --profile`, `migrations/0003-u2f-owners.nu`); `base/pam` reads that
-  file.
+  `identity` profile: bootstrap, `adduser-dotfiles --profile`); `base/pam` reads that file.
 
 ## Unlock and check
 

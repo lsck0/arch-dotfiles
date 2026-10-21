@@ -1,7 +1,3 @@
-# lsck0.nuon: answers for the lsck0 iso's installer. Every key is optional; the bootstrap asks for the ones left out.
-# Put it on a FAT partition labelled LSCK0 (or any medium's root, or beside the iso on a Ventoy stick), or point
-# lsck0.answers=<url or path> at it on the kernel command line; lsck0.<key>=<value> there overrides one key.
-# An unknown key or a wrong type stops the installer with one line before anything is written.
 {
     profile: "luca"                   # profiles/<name>, or "custom"
     platform: "luca-pc"               # platforms/<name> (luca-pc, luca-notebook), "server" or "custom"

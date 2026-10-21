@@ -1,5 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# runs on its pinned nightly via rustup; configs/flux/link.sh installs that toolchain and links ~/.flux
+# Reason for custom package: not in the repos
+
 pkgname=flux-rs
 pkgver=r0
 pkgrel=1
@@ -34,5 +35,6 @@ package() {
     install -Dm755 -t "$pkgdir/usr/bin" "$srcdir"/cargo/bin/*
     install -dm755 "$pkgdir/usr/lib/flux"
     cp -a "$srcdir/home/.flux/." "$pkgdir/usr/lib/flux/"
+    # flux runs on this pinned nightly; configs/flux/link.sh installs it and links ~/.flux
     install -Dm644 flux/rust-toolchain.toml "$pkgdir/usr/lib/flux/rust-toolchain.toml"
 }

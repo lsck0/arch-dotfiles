@@ -1,79 +1,67 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# fork of the aur bloodyad recipe; exists only to stop vendoring cryptography into /opt/bloodyad. the vendored
-# dnspython pulls in the system aioquic/service_identity, which needs cryptography's hazmat.asn1 (>=45); the pinned
-# vendored cryptography==44.0.2 shadowed the system one on PYTHONPATH and broke every invocation at import. use the
-# system python-cryptography instead. drop this recipe once upstream unpins cryptography.
+# Reason for custom package: unvendor cryptography
 
 pkgname=bloodyad
 pkgver=2.5.4
 pkgrel=2
 pkgdesc="Active Directory privilege escalation swiss army knife"
-arch=('x86_64')
+arch=(x86_64)
 url="https://github.com/CravateRouge/bloodyAD"
-license=('MIT')
-
-depends=('python' 'python-cryptography')
-makedepends=('python-build' 'python-pip' 'python-hatchling')
-
-optdepends=('krb5: For Kerberos authentication')
-
-provides=('bloodyad')
-conflicts=('bloodyad')
-
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/CravateRouge/bloodyAD/archive/v${pkgver}.tar.gz")
-sha256sums=('2c04f013963a616ef21bee964b7c5c641b0d2c3ae51be6d65a7485bc4b5e4513')
+license=(MIT)
+depends=(python python-cryptography)
+makedepends=(python-build python-pip python-hatchling)
+optdepends=("krb5: For Kerberos authentication")
+provides=(bloodyad)
+conflicts=(bloodyad)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/CravateRouge/bloodyAD/archive/v$pkgver.tar.gz")
+sha256sums=(2c04f013963a616ef21bee964b7c5c641b0d2c3ae51be6d65a7485bc4b5e4513)
 
 _pyver=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 _pkgroot="/opt/bloodyad"
-_pylib="${_pkgroot}/lib/python${_pyver}/site-packages"
-
-# Explicit dependency list from pyproject.toml, minus cryptography: the system python-cryptography (a hard depend)
-# supplies it, so the vendored copy no longer shadows what aioquic/service_identity need.
+_pylib="$_pkgroot/lib/python$_pyver/site-packages"
+# pyproject's dependencies minus cryptography: a vendored copy shadows the system one (hazmat.asn1, >=45) that
+# aioquic/service_identity need. drop the recipe once upstream unpins it
 _deps=(
-  "badldap>=0.7.5"
-  "winacl==0.1.9"
-  "asn1crypto==1.5.1"
-  "kerbad>=0.5.10"
+    "badldap>=0.7.5"
+    "winacl==0.1.9"
+    "asn1crypto==1.5.1"
+    "kerbad>=0.5.10"
 )
 
 build() {
-    cd "${srcdir}/bloodyAD-${pkgver}"
+    cd "$srcdir/bloodyAD-$pkgver"
     python -m build --wheel --no-isolation
 }
 
 package() {
-    cd "${srcdir}/bloodyAD-${pkgver}"
+    cd "$srcdir/bloodyAD-$pkgver"
+    install -d "$pkgdir$_pylib"
 
-    install -d "${pkgdir}${_pylib}"
-
-    # Install dependencies first
+    # the dependencies first, then the built wheel on top without resolving them again
     python -m pip install \
-        --target="${pkgdir}${_pylib}" \
+        --target="$pkgdir$_pylib" \
         --no-compile \
         "${_deps[@]}"
-
-    # Install the built wheel (no deps)
     python -m pip install \
-        --target="${pkgdir}${_pylib}" \
+        --target="$pkgdir$_pylib" \
         --no-deps \
         --no-compile \
         dist/*.whl
 
-    # Wrapper using real entrypoint
-    install -Dm755 /dev/stdin "${pkgdir}/usr/bin/bloodyad" << EOF
+    # both spellings of the command wrap the real entrypoint
+    install -Dm755 /dev/stdin "$pkgdir/usr/bin/bloodyad" << EOF
 #!/bin/bash
-export PYTHONPATH="${_pylib}:\$PYTHONPATH"
+export PYTHONPATH="$_pylib:\$PYTHONPATH"
+export PYTHONWARNINGS="ignore::SyntaxWarning"
+exec python -c "from bloodyAD.main import main; main()" "\$@"
+EOF
+    install -Dm755 /dev/stdin "$pkgdir/usr/bin/bloodyAD" << EOF
+#!/bin/bash
+export PYTHONPATH="$_pylib:\$PYTHONPATH"
 export PYTHONWARNINGS="ignore::SyntaxWarning"
 exec python -c "from bloodyAD.main import main; main()" "\$@"
 EOF
 
-    install -Dm755 /dev/stdin "${pkgdir}/usr/bin/bloodyAD" << EOF
-#!/bin/bash
-export PYTHONPATH="${_pylib}:\$PYTHONPATH"
-export PYTHONWARNINGS="ignore::SyntaxWarning"
-exec python -c "from bloodyAD.main import main; main()" "\$@"
-EOF
-
-    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
-    install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
 }

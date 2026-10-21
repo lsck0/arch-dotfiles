@@ -1,8 +1,7 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
-# pytubefix (mov-cli's youtube plugin) imports nodejs_wheel only for ROOT_DIR/bin/node. the aur recipe compiles a
-# second node from source; this is upstream's python api pointed at arch's nodejs and npm under /usr instead
+# Reason for custom package: use system node
+
 pkgname=python-nodejs-wheel-binaries
-_name=nodejs-wheel
 pkgver=24.19.0
 pkgrel=1
 pkgdesc="Python API of the nodejs-wheel binaries, backed by the system node"
@@ -10,11 +9,13 @@ arch=(any)
 url="https://github.com/njzjz/nodejs-wheel"
 license=(MIT)
 depends=(python nodejs npm)
+_name=nodejs-wheel
 source=("$_name-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=(8a39a4b57aeb765a6c7b6e30014f46c8cbf22fc322b913b8dd4a70a6f1f042dc)
 
 prepare() {
     cd "$_name-$pkgver"
+    # pytubefix imports nodejs_wheel only for ROOT_DIR/bin/node: point it at the system node under /usr
     sed -i 's|^ROOT_DIR = os.path.dirname(__file__)$|ROOT_DIR = "/usr"|' nodejs_wheel/executable.py
     grep -qx 'ROOT_DIR = "/usr"' nodejs_wheel/executable.py
 }

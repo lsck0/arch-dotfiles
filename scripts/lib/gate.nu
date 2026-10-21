@@ -15,7 +15,8 @@ const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|cur
 const DOCS_DIFF_LINES = 40
 const FMT_DIR = path self ../../configs/programming/formatting
 const FMT_EXCLUDE = "configs/core/wallust/templates/"
-const SHFMT_FLAGS = [-i 4 -ci -sr]
+# the style itself is in .editorconfig, which shfmt reads only when no formatting flag is given
+const SHFMT_FLAGS = []
 const QMLLINT = "/usr/lib/qt6/bin/qmllint"
 const PALETTE_NU = "configs/core/wallust/palette.nu"
 const PALETTE_JS = "configs/desktop/quickshell/Commons/Palette.js"
@@ -208,9 +209,14 @@ export def gate-lint []: nothing -> list<string> {
     [(lint-modules) (lint-layers) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
 }
 
+# a PKGBUILD and its .install script are bash too, with neither extension nor shebang
+def pkgbuild [path: path]: nothing -> bool {
+    ($path | path basename) == "PKGBUILD" or (($path | str starts-with ($REPO | path join mirror pkgbuilds)) and ($path | str ends-with ".install"))
+}
+
 def shell-script [path: path]: nothing -> bool {
     let ext = $path | path parse | get extension
-    $ext == "sh" or ($ext == "" and (try { open --raw $path | into binary | first 128 | decode utf-8 } catch { "" }) =~ '^#!.*\b(ba)?sh\b')
+    $ext == "sh" or (pkgbuild $path) or ($ext == "" and (try { open --raw $path | into binary | first 128 | decode utf-8 } catch { "" }) =~ '^#!.*\b(ba)?sh\b')
 }
 
 def nonzero [label: string, run: record, --stdout]: nothing -> list<string> {
@@ -247,7 +253,8 @@ export def gate-tools [apply: bool]: nothing -> record {
     let paths = walk
     let pick = {|exts| $paths | where { ($in | path parse | get extension) in $exts } | each { rel $in } | sort }
     let sh = $paths | where { shell-script $in } | each { rel $in } | sort
-    let sets = {shfmt: $sh, shellcheck: $sh, ruff: (do $pick [py]), stylua: (do $pick [lua]), prettier: (do $pick [css scss yaml yml]), taplo: (do $pick [toml]), $QMLLINT: (do $pick [qml]), nu: (do $pick [nu])}
+    let recipes = $paths | where { pkgbuild $in } | each { rel $in } | sort
+    let sets = {shfmt: $sh, shellcheck: ($sh | where $it not-in $recipes), ruff: (do $pick [py]), stylua: (do $pick [lua]), prettier: (do $pick [css scss yaml yml]), taplo: (do $pick [toml]), $QMLLINT: (do $pick [qml]), nu: (do $pick [nu])}
     let present = $sets | items {|t, files| {tool: $t, files: $files, have: (($files | is-not-empty) and (which $t | is-not-empty))} }
     let notes = $present | where {|t| ($t.files | is-not-empty) and not $t.have } | each { $"($in.tool): not installed, ($in.files | length) file\(s\) left untouched" }
     let on = {|t| $present | where tool == $t | get 0 | if $in.have { $in.files } else { [] } }
@@ -272,6 +279,10 @@ export def gate-tools [apply: bool]: nothing -> record {
             ($shfmt_run.stdout | lines | where $it != "" | each { $"shfmt would reformat ($in)" }) ++ (if $shfmt_run.exit_code != 0 and ($shfmt_run.stderr | str trim | is-not-empty) { [$"shfmt: ($shfmt_run.stderr | str trim)"] } else { [] })
         })
         (if ($shellcheck | is-empty) { [] } else { tool shellcheck -f gcc ...$shellcheck | get stdout | lines | where ($it | str trim | is-not-empty) })
+        # makepkg sets srcdir and pkgdir, reads the metadata variables, and runs each function from a dir it made
+        (if ($recipes | is-empty) or (which shellcheck | is-empty) { [] } else {
+            tool shellcheck -f gcc -s bash -e SC2034,SC2154,SC2164 ...$recipes | get stdout | lines | where ($it | str trim | is-not-empty)
+        })
         ($sh | where {|f| ($f | str starts-with "scripts/") and (^test -x ($REPO | path join $f) | complete).exit_code == 0 }
             | where {|f| let t = open --raw ($REPO | path join $f); not ($t =~ '(?m)^set -euo pipefail\b' or $t =~ '(?m)^# no-errexit: \S') }
             | each { $"($in): executable without 'set -euo pipefail' \(or a '# no-errexit: <reason>' line\)" })

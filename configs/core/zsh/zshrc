@@ -3,7 +3,7 @@
 
 fpath=(${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions $fpath)
 export ZSH_DISABLE_COMPFIX=true
-# cache and state out of $HOME (migrations/0002-zsh-xdg-history.nu moved the old ones)
+# cache and state out of $HOME
 export ZSH_COMPDUMP="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 [[ -d ${ZSH_COMPDUMP:h} ]] || mkdir -p "${ZSH_COMPDUMP:h}"
 

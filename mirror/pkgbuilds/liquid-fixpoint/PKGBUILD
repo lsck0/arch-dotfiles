@@ -1,4 +1,6 @@
 # Maintainer: Luca Sandrock <luca.sandrock@proton.me>
+# Reason for custom package: needs newer stack
+
 pkgname=liquid-fixpoint
 pkgver=r0
 pkgrel=1
@@ -11,10 +13,14 @@ makedepends=(git)
 options=(!strip)
 # arch's stack (2.11) builds no setup shim against the ghc 9.10 cabal: initialBuildSteps is gone
 _stackver=3.11.1
-source=("git+$url.git"
-        "stack-$_stackver::https://github.com/commercialhaskell/stack/releases/download/v$_stackver/stack-$_stackver-linux-x86_64-bin")
-sha256sums=(SKIP
-            67c66e918801c41ae4d286b1c91f9124f691c1c7d56071b53889cf4a5c667550)
+source=(
+    "git+$url.git"
+    "stack-$_stackver::https://github.com/commercialhaskell/stack/releases/download/v$_stackver/stack-$_stackver-linux-x86_64-bin"
+)
+sha256sums=(
+    SKIP
+    67c66e918801c41ae4d286b1c91f9124f691c1c7d56071b53889cf4a5c667550
+)
 
 pkgver() {
     cd liquid-fixpoint
