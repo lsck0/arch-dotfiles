@@ -64,7 +64,8 @@ def config-pending []: nothing -> list<record> {
     let a = hashes $REPO $ours
     let b = hashes $SYSTEM_REPO $theirs
     let changed = ($a | where $it not-in $b) ++ ($b | where $it not-in $a) | each { str substring 66.. } | uniq | length
-    if $source != $head or $changed > 0 {
+    # dot sync applies, then commits: its copy names the commit before the generation with the same files
+    if $changed > 0 {
         let at = $"the root copy is at ($source | str substring 0..6), the checkout at ($head | str substring 0..6)"
         [(report FAIL config $"dot apply pending: ($at) with ($changed) files differing")]
     } else {
