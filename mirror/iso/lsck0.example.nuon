@@ -1,35 +1,17 @@
 {
     profile: "luca"                   # profiles/<name>, or "custom"
-    platform: "luca-pc"               # platforms/<name> (luca-pc, luca-notebook), "server" or "custom"
+    platform: "pc"                    # platforms/<name> (pc, notebook), "server" or "custom"
     username: "luca"
     keymap: "de-latin1"               # also used for the Wi-Fi password
     disk: "/dev/disk/by-id/nvme-Samsung_SSD_980_1TB_S64ANS0T000000X"  # erased; a by-id path, /dev/sdX can change between boots
     encrypt: true
     password: "ask"                   # disk and login password; "ask" or left out asks, a crypt hash is refused
-    # user_password: "ask"            # login only, when it differs from the disk's
-    # root_password: "ask"            # left out: root stays locked
     home_network: false
 
-    # a custom or server machine only; a platforms/ file brings its own
-    # hostname: "archlinux"
-    # timezone: "Europe/Berlin"
-    # locale: "en_US.UTF-8"
-    # groups: [base core desktop fonts programming]
-    # secure_boot: "microsoft"        # own, microsoft or off
-    # server: false
-    # ssh_key: "ssh-ed25519 AAAA... luca"   # server or custom; ssh takes only keys
-
-    # tried in order when no cable is online; a failing one falls through to the picker
     wifi: [
         {ssid: "home", psk: "passphrase"}
-        # {ssid: "hidden-net", psk: "passphrase", hidden: true}
     ]
 
     unattended: false                 # true: no summary and no erase confirmation, missing keys take their defaults;
-                                      # "ask" passwords are typed once up front. Never erases a disk still in its
-                                      # install chain, unless lsck0.reinstall=1 is on the kernel command line
 
-    # the vm test's unpublished tree, applied on top of master and run unverified; paths are relative to this file.
-    # Used only with lsck0.insecure=1 on the kernel command line, in a VM, or after a yes on the console
-    # source: {bundle: "snapshot.bundle", lfs: "snapshot-lfs.tar"}
 }

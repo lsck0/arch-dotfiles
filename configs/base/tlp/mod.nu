@@ -26,7 +26,6 @@ export const options = {
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     if $cfg.charge_start >= $cfg.charge_stop { error make {msg: "tlp: charge_start must be below charge_stop"} }
-    # a copy: tlp.service has ProtectHome
     let conf = if $env.FORM_FACTOR? == "laptop" {
         let thresholds = {START: $cfg.charge_start, STOP: $cfg.charge_stop}
         file-render bat.tlp.conf /etc/tlp.conf $thresholds --then [systemctl restart tlp.service]

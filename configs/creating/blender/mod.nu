@@ -2,10 +2,9 @@ use module.nu *
 
 export const meta = {packages: {pacman: [blender uv]}}
 
-# bump the commit and constraints.txt (uv pip freeze of the tool env) together
-# SECURITY: the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
+# the add-on runs any python the server sends, unsandboxed, so the bridge never auto-starts
 const MCP_URL = "https://projects.blender.org/lab/blender_mcp.git"
-# v1.0.3
+# v1.0.3; bump with constraints.txt (uv pip freeze of the tool env)
 const MCP_COMMIT = "2cea8d566dde07fbac28a61d698909d69724e853"
 const MCP_PORT = "9876"
 # apparmor's blender-mcp profile keeps the venv read-only, so python cannot write __pycache__ at runtime

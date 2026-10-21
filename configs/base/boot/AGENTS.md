@@ -18,7 +18,6 @@ Root only.
 - `remote-unlock/`: an initramfs tinyssh server to unlock luks over the network at boot (host key, authorized key,
   network and port drop-in, all in `BOOT_INPUTS`).
 - `hardening/`: boot-path hardening.
-- `timeshift/`: btrfs snapshots.
 
 ## Conventions
 

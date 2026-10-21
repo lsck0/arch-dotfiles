@@ -6,7 +6,7 @@ const POLICY = "/etc/chromium/policies/managed/policy.json"
 const CHROMIUM_LIB = "/usr/lib/chromium"
 const SEARCH_OFF_HOMELAB = {name: DuckDuckGo, url: "https://duckduckgo.com/?q={searchTerms}"}
 
-# older profiles keep classic, so system_theme is forced; chromium rewrites Preferences on exit, so only while closed
+# Forces system_theme, older profiles keep classic; only while chromium is closed, it rewrites Preferences on exit.
 def profile-style [dir: path]: nothing -> list<record> {
     let prefs = $dir | path join Default Preferences
     if not ($prefs | path exists) { return [] }
@@ -14,13 +14,8 @@ def profile-style [dir: path]: nothing -> list<record> {
 }
 
 export def link [cfg: record] {
-    let work = if (profile-has work) {
-        profile-style ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join capgemini chromium)
-    } else { [] }
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
     profile-style ($config | path join chromium)
-    | append $work
-    # a new profile opens on an "additional terms of service" dialog no policy turns off; arch's launcher reads this
     | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n")
     | append (desktop-override chromium.desktop { str replace --all --regex '(?m)^Exec=chromium' 'Exec=chromium --ozone-platform-hint=auto' })
 }
@@ -34,6 +29,5 @@ export def system [cfg: record] {
             | to json --indent 2
         file-text $POLICY $"($text)\n"
     }
-    # chromium picks the gtk theme by itself only on gnome-likes; next to the real binary, a file the package does not own
     [$policy] | append (if ($CHROMIUM_LIB | path exists) { [(file-copy initial_preferences ($CHROMIUM_LIB | path join initial_preferences))] } else { [] })
 }

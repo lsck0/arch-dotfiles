@@ -1,3 +1,6 @@
+# `dot secrets audit`: every credential under configs/secrets/keys classed with a maximum age, checked against
+# its last rotation (rotation.txt, else git history), plus the recovery drill.
+
 use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const SECRETS = path self ../../configs/secrets/keys
@@ -9,19 +12,16 @@ const DRILL = "recovery-drill"
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
 const SEALED_HEADER_BYTES = 4096
-# first match wins; - is no credential; an unmatched file is reported so a new secret gets a class
 const CLASSES = [
     [glob class];
     ["wg0.*.conf" wireguard] ["wg0.*.png" -] [ssh_privatekey.asc ssh] [ssh_passphrase ssh]
     ["initramfs-ssh/*/sshkeydir/.ed25519.sk" ssh] ["gh/*/token" api] [googleapi api] [sdd_github api] [de-arrow-key api]
     [ntfy-desktop-token api] [trmnl-claude.env api] [protonvpn-netns.conf api] ["taskwarrior-*" api]
-    [borg-passphrase password] [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
+    [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
-    ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["borg-key-*" -]
-    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [repositories -] [diablo2/cd-keys -] [firefox/noscript.json -]
-    ["drift/*" -]
-    ["claude/*" -] ["caido/*" -] ["dalamud/*" -] ["ffxiv/*" -] ["modrinth/*" -] ["obs-*.json" -] ["wallpapers/*" -]
-    ["todeletewallpapers/*" -]
+    ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["borg-*" -]
+    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [diablo2/cd-keys -]
+    ["claude/*" -] ["caido/*" -] ["modrinth/*" -] ["obs-*.json" -]
 ]
 const MAX_DAYS = {wireguard: 365, api: 365, ssh: 730, password: 730, identity: 1825, recovery-drill: 365}
 
@@ -39,8 +39,6 @@ def rotation-recorded [path: string]: nothing -> string {
     | get --optional date | last | default ""
 }
 
-# the file's own time last: not committed yet, sync commits it. A pure rename (the move into keys/) is no rotation,
-# so --follow past it to the last add or change
 def rotation-date [path: string]: nothing -> string {
     let recorded = rotation-recorded $path
     if $recorded != "" { return $recorded }
@@ -84,7 +82,6 @@ def recovery []: nothing -> list<record> {
         open --raw $sealed | first $SEALED_HEADER_BYTES | decode utf-8 | lines
         | where ($it | str starts-with "-> X25519 ") | length
     } else { 0 }
-    let borg = (do { ^systemctl --user -q is-enabled borg-backup.timer } | complete).exit_code == 0
     let luks = ^lsblk -nro FSTYPE | lines | any { $in == crypto_LUKS }
     let drilled = rotation-recorded $DRILL
     [
@@ -94,9 +91,6 @@ def recovery []: nothing -> list<record> {
         } else if $stanzas < $recipients {
             let sealed = $"sealed to ($stanzas) of ($recipients) recipients.txt keys"
             finding fail $"secrets.key.age is ($sealed), reseal: dot secrets seal"
-        })
-        (if $borg and (glob ($SECRETS | path join $"borg-key-($host)-*") | is-empty) {
-            finding fail $"no configs/secrets/keys/borg-key-($host)-*, the next borg-backup run exports it"
         })
         (if $luks and not ($SECRETS | path join $"luks-header-($host).img" | path exists) {
             finding fail $"no configs/secrets/keys/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
@@ -112,6 +106,7 @@ def recovery []: nothing -> list<record> {
     ] | compact
 }
 
+# Findings {level: ok|note|fail, text}; one note when secrets are not pulled or locked.
 export def audit-findings []: nothing -> list<record<level: string, text: string>> {
     if not (secrets-wanted) { return [(finding note "this profile has no secrets capability, nothing audited")] }
     if not (secret-is-plaintext $WITNESS) {
@@ -120,7 +115,7 @@ export def audit-findings []: nothing -> list<record<level: string, text: string
     (credentials) ++ (recovery)
 }
 
-# --brief only the findings as "fail|note <text>"
+# Prints the findings (--brief: only "fail|note <text>"); exits 1 on a fail.
 export def audit-run [--brief]: nothing -> nothing {
     let found = audit-findings
     let shown = if $brief { $found | where level != ok } else { $found }
@@ -129,6 +124,7 @@ export def audit-run [--brief]: nothing -> nothing {
     if ($found | any { $in.level == fail }) { exit 1 }
 }
 
+# Records paths under configs/secrets/keys as rotated today in rotation.txt.
 export def audit-rotated [...paths: string]: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
     if ($paths | is-empty) { error make {msg: "rotated <path under configs/secrets/keys/...>"} }
@@ -145,7 +141,7 @@ export def audit-rotated [...paths: string]: nothing -> nothing {
 
 export def audit-drilled []: nothing -> nothing { audit-rotated $DRILL }
 
-# never the drill itself, it needs the paper key
+# A notification when the recovery drill is due, at most every REMIND_EVERY; unrecorded if none was shown.
 export def audit-remind []: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { return }
     let drilled = rotation-recorded $DRILL
@@ -154,7 +150,6 @@ export def audit-remind []: nothing -> nothing {
     if ($state | path exists) and (ls $state | get 0.modified) > ((date now) - $REMIND_EVERY) { return }
     let how = 'RECOVERY.md "Test it": unlock a scratch clone with the paper key, then dot secrets audit drilled'
     let body = $"last: ($drilled | default --empty never). ($how)"
-    # not shown (no notification daemon yet): not recorded, the next run tries again
     if (do { ^notify-send -a secrets -u normal "Recovery drill due" $body } | complete).exit_code != 0 { return }
     mkdir ($state | path dirname)
     touch $state

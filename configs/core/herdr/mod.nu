@@ -1,12 +1,10 @@
 use module.nu *
 use ../wallust/palette.nu [palette-slots hex-to-rgb rgb-to-hex tone-map mix]
 
-# after wallust: the config is rendered with the palette a fresh install has only after wallust ran
 export const meta = {deps: [core/wallust]}
 
 const CONFIG = ".config/herdr/config.toml"
 const BLOCK = '(?s)(# BEGIN PYWAL THEME\n).*?(# END PYWAL THEME)'
-# herdr wants a lighter dark floor than the clamp band
 const DARK_FLOOR = 0.16
 const BLENDS = {
     active_row_bg: 0.06, selection_bg: 0.11, surface_dim: 0.0, surface0: 0.08, surface1: 0.14, overlay0: 0.22
@@ -16,7 +14,6 @@ const SLOTS = [bg fg c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 c14 c15 light
 const WAL_COLORS = ".cache/wal/colors.json"
 const TMPFILES = ".config/user-tmpfiles.d/herdr.conf"
 
-# rendered whole, so a theme switch never touches the repo
 def config-text []: nothing -> string {
     let source = open --raw config.toml
     if not ($nu.home-dir | path join $WAL_COLORS | path exists) { return $source }
@@ -48,7 +45,6 @@ export def link [cfg: record] {
     [
         (config)
         (link-commands herdr-open.nu herdr-fingers.nu)
-        # applied at login by systemd-tmpfiles-setup.service, enabled for every user by base/systemd
         (file-copy herdr.tmpfiles.conf ($nu.home-dir | path join $TMPFILES))
     ]
 }

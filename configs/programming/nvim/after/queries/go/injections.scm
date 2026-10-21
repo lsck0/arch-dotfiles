@@ -1,6 +1,5 @@
 ; extends
 
-; database/sql Query/Exec/Prepare family with a string-literal SQL argument
 (call_expression
   function: (selector_expression
     operand: (identifier)

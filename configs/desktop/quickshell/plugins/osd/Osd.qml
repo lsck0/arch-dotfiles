@@ -153,7 +153,6 @@ Item {
 
   IpcHandler {
     target: "osd"
-    // not show: qs ipc parses show as its own subcommand
     function present(payloadJson: string): string {
       root.open(payloadJson)
       return "ok"

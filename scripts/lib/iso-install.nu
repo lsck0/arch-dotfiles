@@ -1,7 +1,5 @@
-# the lsck0 iso's second stage, run from the verified checkout its stub fetched (mirror/iso/.../lsck0-install hands
-# over through bootstrap.sh with LSCK0_INSTALL=1, online already): the answer file and the lsck0.* boot parameters,
-# checked against bootstrap/questions.nuon, become the bootstrap's BOOTSTRAP_* env, then dot internal bootstrap runs.
-# The stub reads wifi, keymap and source itself; here they are only validated.
+# The lsck0 iso's second stage, run from the checkout its stub verified: the answer file and lsck0.* boot
+# parameters, checked against bootstrap/questions.nuon, become BOOTSTRAP_* for dot internal bootstrap.
 
 use log.nu *
 
@@ -20,17 +18,12 @@ const PASSWORD_ASK = "ask"
 const PASSWORD_HASH = '^\$(1|2[aby]|5|6|y|gy|7)\$'
 const LOG = "/tmp/lsck0-install.log"
 const PLATFORM_DEFAULT = "custom"
-# a question's kind as the answer file's type
 const KIND_TYPES = {
     text: string password: string flag: bool menu: string keymap: string profile: string platform: string
     groups: "list<string>" disk: string
 }
 
-# -----------------------------------------------------------------------------
-# answers
-# -----------------------------------------------------------------------------
-
-# answer-file key: {type, env (the BOOTSTRAP_* it sets), keys (a record's own), password}
+# Answer-file keys from the questions: {type, env (the BOOTSTRAP_* it sets), keys (a record's own), password}.
 export def answers-spec [questions: record]: nothing -> record {
     let asked = $questions.questions | where {|e| $e.id? != null } | each {|e|
         {id: $e.id, type: ($KIND_TYPES | get $e.kind), env: $e.env, keys: null, password: ($e.kind == "password")}
@@ -59,6 +52,7 @@ def record-problems [r: record, spec: record, prefix: string]: nothing -> list<s
     } | compact
 }
 
+# Type errors in answers a against spec, plus missing wifi ssids and source bundles and crypt-hashed passwords.
 export def answers-problems [spec: record, a: record]: nothing -> list<string> {
     let top = record-problems $a ($spec | items {|k, v| {k: $k, type: $v.type} } | reduce --fold {} {|it, acc| $acc | insert $it.k $it.type }) ""
     if ($top | is-not-empty) { return $top }
@@ -85,7 +79,7 @@ def cmdline-value [spec: record, key: string, raw: string]: nothing -> any {
     }
 }
 
-# lsck0.answers=<url or path>, lsck0.<key>=<value>; wifi.ssid/wifi.psk set the first network
+# The lsck0.* kernel parameters: lsck0.answers=<url or path> and overrides, wifi.* setting the first network.
 export def answers-cmdline [spec: record, cmdline: string]: nothing -> record {
     $cmdline | parse --regex $CMDLINE_PARAM | reduce --fold {answers: null, overrides: {}} {|p, acc|
         let raw = if ($p.quoted | is-not-empty) { $p.quoted } else { $p.plain }
@@ -107,7 +101,6 @@ def answers-in [dir: path]: nothing -> list<path> {
     [($dir | path join $ANSWERS_NAME)] ++ $beside | uniq | where { path exists }
 }
 
-# the stub's copy when it found one; else the boot medium, the LSCK0 partition, then every other medium
 def answers-media []: nothing -> any {
     let handed = $env.LSCK0_ANSWERS? | default ""
     if $handed != "" { return (answers-parse (open --raw $handed) ($env.LSCK0_ANSWERS_ORIGIN? | default $handed) | insert origin ($env.LSCK0_ANSWERS_ORIGIN? | default $handed)) }
@@ -144,6 +137,7 @@ def answers-fetch [where: string]: nothing -> record {
     answers-parse (open --raw $file) $where
 }
 
+# The answers as BOOTSTRAP_* variables; an "ask" password is left for the bootstrap to prompt.
 export def answers-env [spec: record, a: record]: nothing -> record {
     $a | items {|k, v|
         let key = $spec | get --optional $k | default {env: "", password: false}
@@ -153,7 +147,6 @@ export def answers-env [spec: record, a: record]: nothing -> record {
     } | compact | reduce --fold {} {|it, acc| $acc | merge $it }
 }
 
-# a question's `when` against what the answers settle up front; a field they do not settle counts as holding
 def when-holds [when: any, c: record]: nothing -> bool {
     $when | default {} | items {|field, want|
         if $field not-in $c { return true }
@@ -162,8 +155,7 @@ def when-holds [when: any, c: record]: nothing -> bool {
     } | all {|held| $held }
 }
 
-# answered keys whose every question is skipped for this machine: the bootstrap never reads them.
-# Passwords are left out, the bootstrap reads those whether it asks or not
+# Answered keys whose every question is skipped for this machine; passwords are left out, always read.
 export def answers-unused [questions: record, a: record]: nothing -> list<string> {
     let platform = $a.platform? | default $PLATFORM_DEFAULT | if $in == $PLATFORM_DEFAULT and ($a.server? | default false) { "server" } else { $in }
     let c = $a | merge {
@@ -174,7 +166,6 @@ export def answers-unused [questions: record, a: record]: nothing -> list<string
     $a | columns | where {|k| $k in $asked.id } | where {|k| not ($asked | where id == $k | any {|e| when-holds $e.when? $c }) }
 }
 
-# "ask" passwords, unattended: typed once on the console now, so the run goes on alone after
 def answers-ask [questions: record, a: record]: nothing -> record {
     let asks = $questions.questions | where {|e| $e.kind? == "password" } | get id | uniq | where {|k| ($a | get --optional $k) == $PASSWORD_ASK }
     if ($asks | is-empty) { return $a }
@@ -205,10 +196,6 @@ def answers-or-die [spec: record, a: record]: nothing -> record {
     $a
 }
 
-# -----------------------------------------------------------------------------
-# install
-# -----------------------------------------------------------------------------
-
 export def iso-install-run []: nothing -> nothing {
     $env.LOG_TAG = "install"
     let questions = open $QUESTIONS
@@ -226,7 +213,6 @@ export def iso-install-run []: nothing -> nothing {
     let answers = if $unattended { answers-ask $questions $answers } else { $answers }
     let status = with-env (answers-env $spec $answers | insert LSCK0_LOG (if $unattended { $LOG } else { "" })) {
         let argv = [$nu.current-exe --no-config-file $DOT internal bootstrap]
-        # unattended runs keep a log; the dialog screens of an interactive one would garble it
         try {
             if $unattended { ^bash -o pipefail -c $'"$@" 2>&1 | tee ($LOG)' iso-install ...$argv } else { run-external ...$argv }
             0

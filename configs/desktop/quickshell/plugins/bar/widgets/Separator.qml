@@ -37,7 +37,6 @@ BarWidget {
     return before && after
   }
 
-  // deferred: layout signals fire before sibling geometry settles
   Timer {
     id: settle
     interval: 32

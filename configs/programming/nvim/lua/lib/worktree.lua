@@ -1,8 +1,7 @@
--- `:G worktree add <path>` nested new worktrees inside the current one; add follows the layout instead:
---   <repo>/.bare + <repo>/branches/<slug>   bare layout of clones-sdd-repos.sh
---   <bare>/<slug>                            worktrees inside a plain bare repo (~/projects/probe)
---   ~/.worktrees/<repo>/<slug>               normal checkout, as configs/core/git/wtree.nu does
--- Once linked worktrees exist, the dir most of them share wins over all of the above.
+-- Worktree add that follows the layout, where `:G worktree add` nests inside the current worktree: a .bare clone's
+-- branches/<slug>, a plain bare repo's <bare>/<slug>, else ~/.worktrees/<repo>/<slug> (as wtree.nu); once linked
+-- worktrees exist, the dir most of them share wins.
+
 local M = {}
 
 local WORKTREE_HOME = vim.fs.normalize("~/.worktrees")

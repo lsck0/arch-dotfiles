@@ -4,7 +4,6 @@ use ini.nu [ini-apply]
 # no wine: gaming/runtime's wine-staging conflicts with it
 export const meta = {packages: {pacman: [curl gamescope jq libnotify unzip wmctrl zenity zip]}}
 
-# no aur package and releases without assets
 const URL = "https://github.com/murkl/d2launcher.git"
 const COMMIT = "73d6d145f1b8fd228fe7ac1263c4f4230d37ebea" # 4.1.3
 
@@ -12,7 +11,7 @@ def install-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join d2launcher
 }
 
-# SCRIPT_HOME_DIR is hardcoded in the script
+# SCRIPT_HOME_DIR is hardcoded in the script.
 def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
 
 def vendor-dir []: nothing -> path { $nu.home-dir | path join sync vendor d2launcher }
@@ -24,7 +23,6 @@ const PATCH_VERSION = "d2launcher-patch.version"
 const D2_EXE = "Diablo II.exe"
 const D2_ARGS = "-3dfx"
 const MXL_MANIFEST = "https://launcher.median-xl.com/mxl/release/public/manifest"
-# the game runs in gamescope (gamescope.sh): the window scales freely, so the old fixed-size wine virtual desktop goes
 const OLD_DESKTOP_NAME = "Diablo II"
 const RESOLUTION_FALLBACK = {desktop: "3840x2160", laptop: "1920x1080"}
 
@@ -84,7 +82,6 @@ export def link [cfg: record] {
         })
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
         (if ($seedable and not $seeded) or $game_empty { step game-seed $base } else { [] })
-        # -3dfx needs the glide3x.dll only a median xl patch brings
         (if ($seedable or $seeded) and not ($game | path join $PATCH_VERSION | path exists) {
             step mxl-install
         } else { [] })
@@ -97,7 +94,7 @@ export def link [cfg: record] {
     ]
 }
 
-# every key, or the script appends the missing ones
+# Every key, or the script appends the missing ones.
 def config []: nothing -> string {
     [
         $'d2_exe="($D2_EXE)"'
@@ -120,7 +117,7 @@ def resolution [cfg: record]: nothing -> record {
     $text | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)}
 }
 
-# a multiple of 12 keeps both sides of 4:3 whole and even
+# A multiple of 12 keeps both sides of 4:3 whole and even.
 def render-size [cfg: record]: nothing -> record {
     if $cfg.render_size != null {
         return ($cfg.render_size | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)})
@@ -129,7 +126,7 @@ def render-size [cfg: record]: nothing -> record {
     {w: ($h // 3 * 4), h: $h}
 }
 
-# gamescope paces at 60 unless told the monitor's rate; outside a session (install stage) 60 stays
+# Gamescope paces at 60 unless told the monitor's rate; outside a session (install stage) 60 stays.
 def refresh-rate []: nothing -> int {
     try {
         ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-' | get refreshRate | math max | math round
@@ -144,7 +141,6 @@ def gamescope-values [cfg: record]: nothing -> record {
     }
 }
 
-# d2gl's window fills gamescope's nested screen
 def d2gl-window-keys [cfg: record]: nothing -> record {
     let size = render-size $cfg
     {Screen: {window_width: ($size.w | into string), window_height: ($size.h | into string), centered_window: "true", vsync: "false"}}
@@ -188,7 +184,7 @@ def wine-desktop-decl []: nothing -> list<record> {
     [(step wine-desktop-remove)]
 }
 
-# the launcher's own wine: the system's would upgrade the prefix
+# Uses the launcher's own wine: the system's would upgrade the prefix.
 export def wine-desktop-remove []: nothing -> nothing {
     let env_vars = {WINEPREFIX: (prefix-dir), DISPLAY: "", WAYLAND_DISPLAY: "", WINEDEBUG: "-all"}
     with-env $env_vars {
@@ -212,7 +208,7 @@ def desktop [dir: path]: nothing -> string {
     ] | str join "\n" | $"($in)\n"
 }
 
-# the launcher asks for the game dir only while bin/diablo2 is missing, so an empty one cannot start
+# The launcher asks for the game dir only while bin/diablo2 is missing, so an empty one cannot start.
 export def game-seed [base: string]: nothing -> nothing {
     let game = game-dir
     if $base != "" and ($base | path join $BASE_MARKER | path exists) {

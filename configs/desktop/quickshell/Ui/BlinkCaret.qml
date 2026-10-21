@@ -1,23 +1,6 @@
 import QtQuick
 import qs.Commons
 
-/**
- * BlinkCaret: the terminal "_" after hud titles and prompt lines, one blink for the whole shell.
- *
- * The only endless animation the shell allows, and only on a focused prompt: a title caret blinks for
- * titleBlinkMs after running turns true, then sits solid. Power saver keeps it solid.
- *
- * Properties:
- *   running  blinks while true, sits solid while false (bind to the owner's open state)
- *   prompt   true for a focused text prompt, which blinks for as long as running
- *   size     font pixel size
- *   block    a filled cell instead of "_" (the lock's password prompt)
- *   color    inherited from Text, accent by default
- *
- * Usage:
- *   BlinkCaret { size: Style.font.title; running: root.opened }
- *   BlinkCaret { prompt: true; running: root.opened && input.activeFocus }
- */
 Text {
   id: root
 
@@ -33,7 +16,6 @@ Text {
   readonly property bool blinking: running && !expired && !Power.saver
 
   textFormat: Text.PlainText
-  // a space keeps the cell one advance wide for the block
   text: block ? " " : "_"
   color: Colors.accent
   font.family: Style.font.family

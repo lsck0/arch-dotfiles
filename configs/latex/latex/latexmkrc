@@ -1,4 +1,3 @@
-# per-project overrides go in a local .latexmkrc
 $pdf_mode        = 1;   # pdflatex
 $postscript_mode = 0;
 $dvi_mode        = 0;
@@ -9,7 +8,6 @@ $xelatex  = "xelatex -synctex=1 -interaction=nonstopmode -file-line-error %O %S"
 $biber    = "biber --input-encoding=utf8 --output-encoding=utf8 %O %S";
 $bibtex_use = 2;
 
-# sioyek is the latex layer's viewer, with two-way SyncTeX (configs/latex/sioyek); zathura lives in other layers
 $pdf_previewer = "start sioyek %O %S";
 
 $clean_ext = "synctex.gz synctex.gz(busy) run.xml bbl bcf fdb_latexmk fls nav snm tdo";

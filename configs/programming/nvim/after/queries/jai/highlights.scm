@@ -1,17 +1,10 @@
-; tree-sitter-jai queries/highlights.scm at the pinned revision, its pre-0.10 capture names renamed to the current
-; standard ones so any colorscheme styles them; (ERROR) @error dropped like the bundled queries do
-
-; Includes
-
 [
   (import)
   (load)
 ] @keyword.import
 
 
-; Keywords
 [
-  ; from modules/Jai_Lexer
   "if"
   "xx"
 
@@ -38,25 +31,18 @@
   "inline"
   "remove"
 
-  ; "size_of"
   "type_of"
-  ; "code_of"
-  ; "context"
 
   "continue"
   "operator"
 
-  ; "type_info"
   "no_inline"
   "interface"
 
   "enum_flags"
 
-  ; "is_constant"
-
   "push_context"
 
-  ; "initializer_of"
 ] @keyword
 
 [
@@ -78,17 +64,12 @@
   ] @keyword.conditional.ternary)
   (#set! "priority" 105))
 
-; Repeats
-
 [
   "for"
   "while"
   "continue"
 ] @keyword.repeat
 
-; Variables
-
-; (identifier) @variable
 name: (identifier) @variable
 argument: (identifier) @variable
 named_argument: (identifier) @variable
@@ -98,24 +79,13 @@ named_argument: (identifier) @variable
 ((identifier) @variable.builtin
   (#any-of? @variable.builtin "context"))
 
-; Namespaces
-
 (import (identifier) @module)
-
-; Parameters
 
 (parameter (identifier) @variable.parameter ":" "="? (identifier)? @constant)
 
-; (call_expression argument: (identifier) @variable.parameter "=")
-
-; Functions
-
-; (procedure_declaration (identifier) @function (procedure (block)))
 (procedure_declaration (identifier) @function (block))
 
 (call_expression function: (identifier) @function.call)
-
-; Types
 
 type: (types) @type
 type: (identifier) @type
@@ -135,16 +105,10 @@ keyword: (identifier) @keyword
 
 (enum_declaration (identifier) @type ":" ":")
 
-; (const_declaration (identifier) @type ":" ":" [(array_type) (pointer_type)])
-
-; Fields
-
 (member_expression "." (identifier) @variable.member)
 
 (assignment_statement (identifier) @variable.member "="?)
 (update_statement (identifier) @variable.member)
-
-; Constants
 
 ((identifier) @constant
   (#lua-match? @constant "^_*[A-Z][A-Z0-9_]*$")
@@ -154,14 +118,10 @@ keyword: (identifier) @keyword
 
 (enum_field (identifier) @constant)
 
-; Literals
-
 (integer) @number
 (float) @number
 
 (string) @string
-
-;(character) @character
 
 (string_contents (escape_sequence) @string.escape)
 
@@ -171,8 +131,6 @@ keyword: (identifier) @keyword
   (uninitialized)
   (null)
 ] @constant.builtin
-
-; Operators
 
 [
   ":"
@@ -216,8 +174,6 @@ keyword: (identifier) @keyword
   "&&="
 ] @operator
 
-; Punctuation
-
 [ "{" "}" ] @punctuation.bracket
 
 [ "(" ")" ] @punctuation.bracket
@@ -233,8 +189,6 @@ keyword: (identifier) @keyword
   ";"
 ] @punctuation.delimiter
 
-; Comments
-
 [
   (block_comment)
   (comment)
@@ -244,8 +198,6 @@ keyword: (identifier) @keyword
   (block_comment)
   (comment)
 ] @comment 
-
-; Tagged unions
 
 (tagged_union_kind name: (identifier) @keyword)
 

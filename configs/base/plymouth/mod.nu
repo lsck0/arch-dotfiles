@@ -23,8 +23,6 @@ export def splash []: nothing -> nothing {
     }
     hooks-write $placed
     ^plymouth-set-default-theme $THEME
-    # ly shares tty1 with the console; loglevel=3 keeps kernel and unit status lines off its password field
     cmdline-set quiet splash loglevel=3 rd.udev.log_level=3 systemd.show_status=false
-    # the cursor is hidden on ly's tty only, a global one would hide it on recovery ttys too
     cmdline-unset vt.global_cursor_default
 }

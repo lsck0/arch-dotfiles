@@ -3,10 +3,10 @@ use ../../core/wallust/palette.nu [OPACITY_SURFACE]
 
 export const meta = {packages: {pacman: [kitty]}}
 
-# a link: toggle-font rewrites the repo file and kitty rereads it on SIGUSR1
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join .config kitty
     [
+        # a link: toggle-font rewrites the repo file
         (file-link kitty.conf ($dir | path join kitty.conf))
         (file-text ($dir | path join dotfiles-style.conf) $"background_opacity ($OPACITY_SURFACE)\n" --generated)
     ]

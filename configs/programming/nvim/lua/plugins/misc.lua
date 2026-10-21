@@ -133,7 +133,7 @@ return {
     {
         "dijeferson/gpg.nvim",
         opts = {
-            use_armor = true, -- .asc output, pasteable
+            use_armor = true,
             allow_clipboard = true,
             show_progress = "toast",
         },
@@ -159,7 +159,6 @@ return {
             context_key = "<leader>Tc",
             view_key = "<leader>Tv",
             report_key = "<leader>Tr",
-            -- the error hint hardcodes <leader>tF
             feedback = { feedback_key = "<leader>TF", hint_on_error = false },
         },
     },

@@ -1,13 +1,10 @@
 use module.nu *
 
-# uv builds and runs the venv in /opt/vllm
 export const meta = {packages: {pacman: [uv]}}
 
 export const options = {
     model: {
         type: string
-        # https://huggingface.co/Goekdeniz-Guelmez/Josiefied-Qwen3-8B-abliterated-v1 (qwen3 8b, abliterated and tuned
-        # uncensored) as autoawq 4-bit gemm: 5.7 GiB of weights, 27k of context in the 0.70 share of a 16 GiB card
         default: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
         doc: "The hugging face repo vllm serves; an uncensored 4-bit AWQ build of Josiefied-Qwen3-8B-abliterated-v1"
         label: "Model"
@@ -53,7 +50,6 @@ const WHEELS_URL = "https://wheels.vllm.ai/rocm/0.30.0/rocm723/"
 # rocm wheels are cp312 only
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
-# left for the desktop on the same card, else ttm evicts its buffers
 const DESKTOP_VRAM = 4.5GiB
 const SHARE_STEP = 0.05
 
@@ -98,7 +94,7 @@ export def venv []: nothing -> nothing {
             $"vllm-omni==($OMNI_VERSION)")
         ^uv pip uninstall --python $venv -r uv-excludes.txt
     }
-    # the rocm torch wheels link openmpi 4's libmpi_cxx, arch has 5; torch's RUNPATH is $ORIGIN, the stub goes beside it
+    # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it
     let platlib = ^($venv | path join bin python) -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
     let build = mktemp --directory
     let stub = $build | path join libmpi_cxx.so.40

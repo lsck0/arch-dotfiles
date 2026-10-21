@@ -1,6 +1,5 @@
 import QtQuick
 
-// ignores hover churn from delegates moving under a still pointer
 QtObject {
   id: root
 

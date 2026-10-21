@@ -1,15 +1,6 @@
--- every app's playback runs through a loopback of its own: app -> app.<key> (Audio/Sink) -> app.<key>.out -> device.
--- the app stream stays at full level, so a capture tapping the app's ports (obs) never follows what the user hears;
--- app.<key>.out carries the system volume, mute and route, which wireplumber's state-stream keeps per app.
--- run by wpexec (app-loopback.service), outside wireplumber, so changing it restarts no session manager.
--- loopbacks live as long as this process: a stream of an app seen before finds its loopback at node-added, so
--- state-stream's restored target wins over the default route before the first sample plays.
--- a level found on a stream (its old system volume, a mixer that set it) becomes its loopback's level and the stream
--- goes to full; the service's stop ({ release = true }) hands each loopback's level back to its streams, so they keep
--- it on the device meanwhile. both set the level outright: an app's streams share one loopback, a product would
--- compound per stream on every restart.
--- listening to obs (scripts/toggles/toggle-obs-listen.nu sets dot.obs-listen on the default metadata) mutes every
--- loopback while obs runs, so only obs's monitored mix reaches the device; the mutes are undone when it ends.
+-- every app's playback runs through a loopback of its own: app -> app.<key> (Audio/Sink) -> app.<key>.out -> device,
+-- so a capture of the app's ports (obs) keeps full level while .out carries the system volume, mute and route.
+-- run by wpexec (app-loopback.service) outside wireplumber; listening to obs (dot.obs-listen) mutes every loopback.
 
 PREFIX = "app."
 OUT_SUFFIX = ".out"
@@ -38,8 +29,7 @@ clients_om = ObjectManager({
     Interest({ type = "client", Constraint({ "application.process.binary", "=", OBS_BINARY, type = "pw" }) }),
 })
 
--- a stream with a target of its own (obs monitoring, pw-play --target), a notification, or any filter or loopback
--- (they carry node.link-group) keeps its route
+-- The loopback key of a stream, nil for one that keeps its route: its own target, a notification, a filter or loopback.
 function stream_key(props)
     if props["node.link-group"] or props["stream.monitor"] == "true" then
         return nil
@@ -88,7 +78,7 @@ function loopback_create(key, name)
             ["media.class"] = "Audio/Sink",
             ["audio.position"] = channels,
         }),
-        -- passive, like the eq's output: an idle loopback lets the device suspend
+        -- passive like the eq's output, so an idle loopback lets the device suspend
         ["playback.props"] = Json.Object({
             ["node.name"] = PREFIX .. key .. OUT_SUFFIX,
             ["media.name"] = PREFIX .. key .. OUT_SUFFIX,
@@ -112,7 +102,7 @@ function node_get(id)
     return nodes_om:lookup({ Constraint({ "bound-id", "=", id, type = "gobject" }) })
 end
 
--- a target.object value, an object.serial or a node.name, as the node it names: nil for a node gone since
+-- A target.object value, an object.serial or a node.name, as the node it names; nil for a node gone since.
 function target_node(value)
     if not value or value == "-1" then
         return nil
@@ -136,7 +126,7 @@ function retry(fn, retries)
     end
 end
 
--- a node's Props as { levels = per channel volume times the master volume, mute = bool }
+-- A node's Props as { levels = per channel volume times the master volume, mute = bool }.
 function level_get(node, fn)
     node:enum_params("Props", function(it, err)
         if err then
@@ -201,7 +191,7 @@ function mute_set(node, mute)
     node:set_param("Props", Pod.Object({ "Spa:Pod:Object:Param:Props", "Props", mute = mute }))
 end
 
--- only once the stream plays into the loopback: raised while still on the device, it would blast at full level
+-- Moves the stream to full only once it plays into the loopback: raised while still on the device, it would blast.
 function level_take(stream_id, sink_id, out_id, retries)
     local stream, out = node_get(stream_id), node_get(out_id)
     if not (stream and out) then
@@ -227,7 +217,6 @@ function level_take(stream_id, sink_id, out_id, retries)
 end
 
 function stream_attach(id, retries)
-    -- the stream may have closed while settling
     local stream = node_get(id)
     if not stream then
         return
@@ -248,8 +237,6 @@ function stream_attach(id, retries)
     local serial = sink.properties["object.serial"]
     local current = metadata:find(id, "target.object")
     if current ~= serial and current ~= sink.properties["node.name"] then
-        -- a device the stream was sent to (its route from before the loopbacks, a mixer moving the app) now routes
-        -- the loopback; the serial of a loopback gone with the last run, or another app's loopback, is no route
         local target = target_node(current)
         local target_name = target and target.properties["node.name"] or ""
         if target and target_name:sub(1, #PREFIX) ~= PREFIX then
@@ -265,7 +252,7 @@ function listen_active()
     return metadata ~= nil and metadata:find(0, LISTEN_KEY) ~= nil and clients_om:lookup() ~= nil
 end
 
--- a loopback the user muted himself stays muted when listening ends: only the ones muted here are recorded
+-- Mutes every loopback while obs listens; only the ones muted here are recorded, so a user's own mute stays.
 function listen_apply()
     local active = listen_active()
     for node in nodes_om:iterate({ Constraint({ "node.name", "matches", PREFIX .. "*" .. OUT_SUFFIX }) }) do
@@ -286,9 +273,7 @@ function listen_apply()
     end
 end
 
--- the stop: every looped stream takes its loopback's level and mute (a listen mute stays behind), the loopback goes
--- to full, which state-stream keeps for the next start to take back; a loopback no stream plays into keeps its level,
--- which state-stream restores with it
+-- The stop: every looped stream takes its loopback's level and mute, the loopback goes to full for the next start.
 function release_all()
     local pending = 0
     local function done()
@@ -342,7 +327,6 @@ if release then
     nodes_om:connect("installed", function()
         Core.sync(release_all)
     end)
-    -- a stop never hangs on a node that went away mid-release
     Core.timeout_add(RELEASE_TIMEOUT_MS, function()
         Core.quit()
         return false
@@ -358,8 +342,6 @@ metadata_om:connect("object-added", function(_, metadata)
             listen_apply()
             return
         end
-        -- a mixer moving a looped app (pavucontrol, wiremix) would take it past its loopback at full level: the move
-        -- routes the loopback instead
         if key ~= "target.object" or not installed then
             return
         end
@@ -387,7 +369,6 @@ nodes_om:connect("object-added", function(_, node)
     end
     loopback_create(key, name)
     local id = node["bound-id"]
-    -- a stream already playing at start (the service restarted) moves at once
     if not installed then
         stream_attach(id, 0)
         return
@@ -403,7 +384,6 @@ nodes_om:connect("installed", function()
     listen_apply()
 end)
 
--- app keys hold no dot, the listen. marks do
 for key, name in pairs(known) do
     if not key:find(".", 1, true) then
         loopback_create(key, name)

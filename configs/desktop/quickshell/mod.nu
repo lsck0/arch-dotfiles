@@ -27,10 +27,10 @@ export def link [cfg: record] {
         | where {|f| ($f.name | path basename) not-in $SKIP and $f.name !~ $SKIP_PATTERN }
     [
         ($files | each {|f| file-copy $f.name ($dir | path join $f.name) --mode (if ($f.mode | str substring 2..2) == "x" { "755" } else { "644" }) })
-        # live-watched and saved by hand or by toggle-font, which edits the repo copy
+        # a link: quickshell watches it live and toggle-font edits the repo copy
         (file-link theme.json ($dir | path join theme.json))
         (link-commands ...(glob 'scripts/*.{nu,sh}'))
-        # not enabled, hyprland_autostart.lua starts it
+        # not enabled: hyprland_autostart.lua starts it
         (unit-file quickshell.service)
         (pomodoro-config $cfg)
     ]

@@ -2,7 +2,6 @@
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 const SPOTIFY_DIR = ".cache/spotify-player"
-# spotify_player writes one .log and one .backtrace per launch
 const SPOTIFY_KEEP = 3
 const LOG_AGE_MAX = 14day
 const LOG_EXTENSIONS = [log backtrace txt]
@@ -41,6 +40,5 @@ def main []: nothing -> nothing {
         | save --force $"($install_log).new"
         mv --force $"($install_log).new" $install_log
     }
-    # claude-*, run-p* and app-*-transient scopes leave failed entries behind
     ^systemctl --user reset-failed | complete | ignore
 }

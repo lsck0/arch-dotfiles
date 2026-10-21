@@ -4,7 +4,6 @@ maxNumberOfBackUps: 1
 removeTrailingWhitespace:
     beforeProcessing: 1
     afterProcessing: 1
-# the align family keeps & where it was typed: aligning it hangs a nested cases or matrix under its \begin, far right
 lookForAlignDelims:
     align: 0
     align*: 0
@@ -15,7 +14,6 @@ lookForAlignDelims:
     flalign: 0
     flalign*: 0
     split: 0
-# applied with -m: paragraphs reflow at 120, a block ends at every environment, display math, item and row break
 modifyLineBreaks:
     preserveBlankLines: 1
     textWrapOptions:
@@ -25,8 +23,6 @@ modifyLineBreaks:
             other: '\\\]|\\item(?:\h|\[)|\\begin\{[^}]*\}(?:\[[^\]]*\])?(?:\\label\{[^}]*\})?|\\end\{[^}]*\}|\\\\(?:\[[^\]]*\])?'
         blocksEndBefore:
             other: '\\begin\{|\\\[|\\end\{'
-        # a table row is no paragraph: wrapped after alignment, its padding collapses to single spaces. A block starts
-        # at a letter with no unescaped & left on its line (and not at latexindent's own LTXIN-TK- tokens)
         blocksBeginWith:
             A-Z: 0
             a-z: 0

@@ -38,7 +38,7 @@ def "main umount" []: nothing -> nothing {
 
 def "main dismount" []: nothing -> nothing { main umount }
 
-# nothing mounted is a state, not a failure: veracrypt reports it as an error with exit 1
+# List the mounted volumes; nothing mounted is a state, not the error veracrypt exits 1 with.
 def "main status" []: nothing -> nothing {
     let listed = do { ^veracrypt --text --list } | complete
     let out = $listed.stdout + $listed.stderr | str trim

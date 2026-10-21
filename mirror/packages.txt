@@ -55,7 +55,6 @@ bluez
 bluez-obex
 bluez-utils
 bookokrat-bin
-borg
 bpftop
 bpftrace
 brightnessctl
@@ -64,7 +63,6 @@ browserpass-chromium
 bruno-bin
 bruno-cli
 btop
-btrfs-progs
 bubblewrap
 bugwarrior
 bun
@@ -745,8 +743,6 @@ thermald
 thunderbird
 tig
 tiled
-timeshift
-timeshift-autosnap
 timew
 tinymist
 tinyssh

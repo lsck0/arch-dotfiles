@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# ghostty-window [--title=<title>] [--working-directory=<dir>] [-e <command...>]: xdg-terminal-exec's terminal
+# xdg-terminal-exec's terminal: ghostty-window [--title=<t>] [--working-directory=<dir>] [-e <command...>]
 # a hung ghostty still answers a d-bus ping while every action times out after 25s, so kitty takes over
 
 def ghostty-answers []: nothing -> bool {

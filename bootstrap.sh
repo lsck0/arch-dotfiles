@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# nothing runs from a clone unless its HEAD is signed by SIGNING_KEY_FINGERPRINT (BOOTSTRAP_INSECURE=1 skips that)
 set -euo pipefail
 DOTFILES_URL=https://github.com/lsck0/arch-dotfiles.git
 CLONE_DIR=/tmp/arch-dotfiles
@@ -18,14 +17,10 @@ fi
 
 [[ -z "${BOOTSTRAP_KEYMAP:-}" ]] || loadkeys "$BOOTSTRAP_KEYMAP"
 if [[ -d /run/archiso ]]; then
-    # nushell alone outgrows the iso's default 256 MiB overlay
     (($(df --output=size -BM /run/archiso/cowspace | tail -1 | tr -dc 0-9) >= COW_MIN_MIB)) ||
         mount -o "remount,size=${COW_MIN_MIB}M" /run/archiso/cowspace
-    # pacman needs the iso's keyring, which pacman-init.service may still be filling
     systemctl start pacman-init.service
-    # keys first: an older iso's keyring may not know the packagers who signed today's packages
     pacman -Sy --noconfirm --needed archlinux-keyring
-    # no -u on the iso, so glibc comes along explicitly: today's nushell needs a newer one than an older iso ships
     pacman -S --noconfirm --needed glibc nushell git gnupg
 else
     pacman-key --init && pacman-key --populate archlinux
@@ -46,8 +41,6 @@ if [[ ! -f "$repo/scripts/dot.nu" ]]; then
         fi
     fi
 fi
-# LSCK0_INSTALL=1 from the lsck0 iso's stub, which verified this clone: its answer file comes before the bootstrap
 entry=bootstrap && [[ "${LSCK0_INSTALL:-0}" != 1 ]] || entry=iso-install
-# the prompts read the console; piped over ssh without -t there is none, and BOOTSTRAP_ASSUME_YES needs none
 if { : < /dev/tty; } 2> /dev/null; then exec nu --no-config-file "$repo/scripts/dot.nu" internal "$entry" "$@" < /dev/tty; fi
 exec nu --no-config-file "$repo/scripts/dot.nu" internal "$entry" "$@" < /dev/null

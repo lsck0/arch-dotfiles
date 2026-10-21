@@ -1,18 +1,16 @@
 use module.nu *
 
-# fig2dev and optipng: the xfig import and optimized png export extensions need them
 export const meta = {packages: {pacman: [fig2dev inkscape optipng uv]}}
 
-# its deps resolve as of its release date; bump both together
+# MCP_RELEASED freezes its deps at the release date; bump both together
 const MCP_VERSION = "1.3.1"
 const MCP_RELEASED = "2026-09-01"
-# inkex pins lxml 5.4.0, which has no wheel for and fails to build on python 3.14; uv fetches this one
+# inkex pins lxml 5.4.0, which has no wheel for and fails to build on python 3.14
 const MCP_PYTHON = "3.12"
 const PREFERENCES = ".config/inkscape/preferences.xml"
-# inkscape merges its own preferences over its built-in ones by group id, so a file with this group alone is complete
+# inkscape merges its preferences over the built-in ones by group id, so this group alone is a complete file
 const START_SCREEN_OFF = '<group id="boot" enabled="0" />'
 
-# the start screen (quick setup, then the welcome tabs) on every launch until its checkbox is cleared
 def start-screen-set [file: path]: nothing -> bool {
     ($file | path exists) and (open --raw $file) =~ 'id="boot"[^>]*\benabled='
 }

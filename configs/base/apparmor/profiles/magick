@@ -1,11 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# imagemagick (convert and friends link to magick): its coders and delegates run inside the same confinement
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
 @{att} = ""
 
 @{exec_path} = @{bin}/magick
@@ -16,10 +14,8 @@ profile magick @{exec_path} flags=(attach_disconnected) {
   @{exec_path} mr,
   @{lib}/ImageMagick-@{int}*/{,**} mr,
 
-  # delegates.xml runs through the shell; network fetchers (curl, wget) stay out
   @{sh_path} rix,
   @{bin}/{gs,ffmpeg,ffprobe,rsvg-convert,potrace,dcraw} rix,
-  # the svg coder probes inkscape before its built-in librsvg on every read; quiet, the render stays rsvg's
   deny @{bin}/inkscape x,
 
   include if exists <local/magick>

@@ -7,7 +7,6 @@ import qs.Commons
 PanelWindow {
   id: root
 
-  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property string moduleName: ""
   property real padding: Style.surface.padding
@@ -20,7 +19,6 @@ PanelWindow {
 
   readonly property real edgeMargin: Style.spacing.sm
 
-  // quickshell's qmltypes stub the screen type as opaque, so qmllint cannot see its height
   readonly property real maxBodyHeight: Math.max(Style.space(120),
     (screen ? screen.height : Style.space(1080)) - Style.bar.sizeHorizontal - Style.gapsOut * 2 - padding * 2 - titleInset) // qmllint disable missing-property
 
@@ -34,7 +32,6 @@ PanelWindow {
   signal opened()
 
   readonly property bool shown: bar !== null && bar.activePanel === moduleName
-  // opened by a keybind (Bar.keyboardPanel): takes the keyboard and focuses its first control
   readonly property bool keyboardOpened: shown && bar.keyboardPanel
   readonly property bool barPinned: shown && bar.pinnedPanel === moduleName
 
@@ -54,7 +51,6 @@ PanelWindow {
     opened()
   }
 
-  // the focus chain is empty until the compositor hands the surface the keyboard
   readonly property bool windowActive: keys.Window.active
   onWindowActiveChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
   onKeyboardOpenedChanged: if (windowActive && keyboardOpened && keys.focus) walkFocus(true)
@@ -67,14 +63,12 @@ PanelWindow {
     left: root.anchored
     right: !root.anchored
   }
-  // quickshell's qmltypes stub Margins as opaque, so qmllint cannot see its edges
   margins {
     top: 0 // qmllint disable missing-property
     left: root.anchored ? root.anchoredLeft : 0 // qmllint disable missing-property
     right: root.anchored ? 0 : Style.spacing.sm // qmllint disable missing-property
   }
 
-  // hyprland_windowrules.lua blurs quickshell-panel-*
   WlrLayershell.namespace: "quickshell-panel-" + (moduleName || "panel")
   WlrLayershell.layer: WlrLayer.Overlay
   property bool acceptsKeyboard: true
@@ -85,13 +79,11 @@ PanelWindow {
   }
   readonly property bool held: pinned || barPinned || textFocused
   onHeldChanged: if (!held && !hover.hovered && bar) bar.hoverPanelExit(moduleName)
-  // OnDemand would leave the keys with the focused window until a click lands in the panel
   WlrLayershell.keyboardFocus: !root.acceptsKeyboard || !root.shown ? WlrKeyboardFocus.None
     : root.keyboardOpened ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
 
   property bool clicked: false
 
-  // the grab keeps the pointer on the bar and this drawer, so a hover-out no longer reaches it: only outside clicks close
   HyprlandFocusGrab {
     active: root.shown && (root.held || root.clicked)
     windows: root.bar ? [root, root.bar] : [root]
@@ -142,7 +134,6 @@ PanelWindow {
     return ys
   }
 
-  // Tab jumps to the first control below the next PanelSectionHeader, wrapping; no headers: the next control
   function sectionJump(forward) {
     const headers = sectionHeaderYs(inner, []).sort(function(a, b) { return a - b })
     const items = focusChainItems()
@@ -243,7 +234,6 @@ PanelWindow {
       Scanlines { anchors.fill: card; shown: root.shown; flicker: true }
     }
 
-    // a focus grab that starts mid-press cancels the press (and a slider drag), so the grab waits for the release
     Item {
       anchors.fill: parent
       z: 1000

@@ -6,9 +6,7 @@ const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathD
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join .xlcore
-    let shared = $env.DOTFILES | path join configs secrets keys dalamud
-    # the plugin set (manifests) is shared; the config, UI and plugin configs are this machine's, a new one seeds from
-    # the shared copy
+    let shared = $env.DOTFILES | path join configs secrets state dalamud
     {
         xl: $xl, config: ($xl | path join dalamudConfig.json), plugins: ($xl | path join installedPlugins)
         manifests: ($shared | path join manifests), saved: (host-file $shared)
@@ -19,7 +17,7 @@ def paths []: nothing -> record {
     }
 }
 
-# seeded once: dalamud rewrites these files in place
+# Seeded once: dalamud rewrites these files in place.
 export def link [cfg: record] {
     let p = paths
     let unlocked = secret-is-plaintext $p.seed.config
@@ -55,7 +53,6 @@ export def backup [cfg: record]: nothing -> nothing {
     ^rsync -a --delete ...$excludes $"($p.xl | path join pluginConfigs)/" ($p.saved | path join pluginConfigs)
     for dir in (glob ($p.plugins | path join *) --no-file) {
         let name = $dir | path basename
-        # an uninstall or an interrupted plugin-restore.nu leaves the plugin dir without a version dir
         let newest = glob ($dir | path join *) --no-file | sort --natural | last
         if $newest == null { continue }
         let manifest = $newest | path join $"($name).json"

@@ -11,14 +11,12 @@ Item {
   property var configuredHiddenEntryIds: ({})
   property var desktopHiddenEntryIds: ({})
 
-  // fallback for icons installed after qt cached its theme
   property var iconIndex: ({})
   property var pendingIconIndex: ({})
 
   property int launchSerial: 0
   property int launchToplevelCount: 0
   property var launchActiveToplevel: null
-  // a launcher overlay holds the keyboard, so the active toplevel is null at launch and refocus must not count as the app appearing
   property var lastActiveToplevel: null
   property bool launchOsdOpen: false
   property string launchOsdMessage: ""
@@ -69,8 +67,6 @@ Item {
     onLoadFailed: root.frecency = ({})
   }
 
-  // an app's own icon from the scan first; a device name (network-wireless) through the icon theme, the scan's
-  // first hit for one is breeze's 16px symbolic, dark on the dark launcher
   function iconSource(icon) {
     var found = root.iconIndex[String(icon || "")]
     if (found && found.indexOf("/devices/") < 0) return Util.fileUrl(found)
@@ -86,7 +82,6 @@ Item {
     if (!id) return
     root.recordLaunch(id)
     root.beginLaunchFeedback(name)
-    // uwsm-app so apps do not inherit wayland-wm@.service
     Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", id + ".desktop"])
   }
 

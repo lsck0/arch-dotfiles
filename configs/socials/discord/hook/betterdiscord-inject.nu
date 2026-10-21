@@ -2,7 +2,6 @@
 # no betterdiscordctl: it hardcodes discord_desktop_core-1, discord ships -2 and up
 
 const REPO = path self | path dirname | path join ../../../.. | path expand
-# runs inside discord with the account token, so pinned; bump both together
 const ASAR_URL = "https://github.com/BetterDiscord/BetterDiscord/releases/download/v1.14.1/betterdiscord.asar"
 const ASAR_SHA256 = "8595fffc8a8339f01cdf80b4a34c641cb96cf567732c5227f5c4c6779edff6f6"
 const FRESH_SECONDS = 60
@@ -26,8 +25,7 @@ def main []: nothing -> nothing {
     relaunch-fresh
 }
 
-# a host update starts the new Discord before its modules exist, so it already loaded the bare core: one restart picks
-# up the injection. Only a client younger than FRESH_SECONDS, never a session the user is in
+# Restarts a Discord younger than FRESH_SECONDS: a host update starts it on the bare core, before its modules exist.
 def relaunch-fresh []: nothing -> nothing {
     let main = ^pgrep -o -x Discord | complete | get stdout | str trim
     if ($main | is-empty) or ((^ps -o etimes= -p $main | str trim | into int) >= $FRESH_SECONDS) { return }

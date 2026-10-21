@@ -37,7 +37,6 @@ def main []: nothing -> nothing {
         ^ghcup upgrade
         [cabal ghc hls stack] | each { ^ghcup install $in latest } | ignore
     }
-    # interactive: plugins.nu sudo's, which only a terminal can answer on a FIDO2-sudo box
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-not-empty) and (has hyprpm) {
         ^./configs/desktop/hyprland/plugins.nu
     }

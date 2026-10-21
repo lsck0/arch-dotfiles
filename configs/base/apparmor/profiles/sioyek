@@ -1,11 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# sioyek, the latex pdf viewer: no network (paper downloads stay off), writes only its own databases
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
 @{att} = ""
 
 @{exec_path} = @{bin}/sioyek
@@ -20,7 +18,6 @@ profile sioyek @{exec_path} flags=(attach_disconnected,mediate_deleted) {
   include <abstractions/qt-shader-cache>
   include <abstractions/user-read-strict>
 
-  # the single-instance socket
   unix (bind, listen) type=stream,
 
   @{exec_path} mr,
@@ -33,23 +30,15 @@ profile sioyek @{exec_path} flags=(attach_disconnected,mediate_deleted) {
 
   owner @{user_config_dirs}/sioyek/{,**} r,
   owner @{user_share_dirs}/sioyek/{,**} rwk,
-  # l: qt's shader cache writes an O_TMPFILE and links it into place; the tmpfile is a deleted entry, mediate_deleted
-  # lets this rule name it (#<inode>) instead of refusing the link, and every start would recompile the shaders
   owner @{user_cache_dirs}/sioyek/{,**} rwkl,
   owner @{user_cache_dirs}/wal/colors-sioyek r,
 
   owner /tmp/sioyek* rw,
-  # SingleApplication: qt's sysv semaphore and shared memory key files, and the instance socket named after the base64
-  # sha256 of the app (44 chars, one trailing =); denied, sioyek takes itself for a secondary instance and quits
   owner /tmp/qipc_{systemsem,sharedmemory}_* rwk,
   owner /tmp/*= rw,
-  # QLocalServer binds that socket in a private temp dir (/tmp/.XXXXXX/s) and renames it out; denied, listen fails and
-  # a second sioyek (synctex forward search) cannot hand its file to the open window
   owner /tmp/.??????/ rw,
   owner /tmp/.??????/s rw,
 
-  # qt opens the controlling terminal only to decide whether its log goes to stderr or the journal; a viewer of other
-  # people's pdfs gets no read of the terminal's input, quietly, the journal it is
   deny /dev/tty r,
 
   include if exists <local/sioyek>

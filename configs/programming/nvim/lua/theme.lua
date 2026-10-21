@@ -28,7 +28,6 @@ local COLORSCHEMES = {
 }
 local FALLBACK = "wal"
 
--- upstream ayu LineNr is ~1.2:1 against bg, nearly invisible
 local AYU_LINENR = {
     ["ayu-dark"] = "#636A72",
     ["ayu-light"] = "#8A9199",
@@ -123,7 +122,6 @@ local function selection_apply()
         text = luminance(accent) >= style.white_text_luminance_max and 0x000000 or 0xffffff
     end
     vim.api.nvim_set_hl(0, "PmenuSel", { fg = text, bg = accent, bold = true })
-    -- ayu and catppuccin set blink's selection to a shade barely off the menu
     vim.api.nvim_set_hl(0, "BlinkCmpMenuSelection", { link = "PmenuSel" })
 end
 
@@ -140,7 +138,7 @@ local function background_clear(hl, name)
     vim.api.nvim_set_hl(0, name, hl)
 end
 
--- runs after every ColorScheme handler, plugins (barbar, lualine) redefine their groups in theirs
+-- Runs after every ColorScheme handler: plugins (barbar, lualine) redefine their groups in theirs.
 local function transparency_apply()
     if vim.g.neovide then
         return

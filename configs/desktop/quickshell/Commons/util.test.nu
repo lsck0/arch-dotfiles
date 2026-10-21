@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# Util.qml's text helpers under qmltestrunner, Util alone in a module so the service singletons stay unloaded;
-# the Quickshell import only loads inside quickshell and no tested helper reaches it
+# Util.qml's text helpers under qmltestrunner, Util alone in a module so the service singletons stay unloaded
 
 const UTIL = path self | path dirname | path join Util.qml
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"

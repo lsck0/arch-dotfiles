@@ -1,5 +1,4 @@
 -- [0][0] is :setlocal, so other buffers in this window keep theirs
-
 vim.wo[0][0].number = false
 vim.wo[0][0].relativenumber = false
 vim.wo[0][0].signcolumn = "no"

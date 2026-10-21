@@ -67,7 +67,6 @@ export def link [cfg: record] {
         (file-copy $VOICE_PLUGIN ($plugins | path join ($VOICE_PLUGIN | path basename)))
         ($fetched | each {|p| fetch-file $p.url $p.sha256 $p.dest } | flatten)
         (json-merge ($data | path join plugins.json) ($managed | each {|f| json-set [(addon-name $f)] true }))
-        # read receipts stay unread on the phone, usage profiling throws on saving a favourite gif
         (json-merge ($plugins | path join Incognito.config.json) [
             (json-set [settings blockReadReceipts] false)
             (json-set [settings blockUsageProfiling] false)

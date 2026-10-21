@@ -1,16 +1,8 @@
 # managed by arch-dotfiles/apparmor
-# its data dir (bookmarks.sqlite) must be creatable; the upstream profile only grants read, so a fresh install
-# where the dir does not exist yet cannot mkdir it
 owner @{user_share_dirs}/zathura/ rw,
 owner @{user_share_dirs}/zathura/** rwk,
-# synctex inverse search (desktop/zathura/zathurarc) through the editor bridge child
 include <abstractions/dotfiles/synctex-edit>
-# links in a pdf open through the strict opener child
 @{open_path} rPx -> child-open-strict,
-# pywal palette that zathurarc includes
 owner @{user_cache_dirs}/wal/colors-zathura r,
-# the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
-# gtk4 (zathura 2026) renders through gsk's vulkan or gl backend, which looks up the icd, layer and egl vendor files;
-# without them it falls back to cairo and floods the log with denials
 include <abstractions/graphics>

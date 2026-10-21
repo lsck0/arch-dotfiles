@@ -1,4 +1,3 @@
-# without online access the add-on refuses to open its socket
 import addon_utils
 import bpy
 

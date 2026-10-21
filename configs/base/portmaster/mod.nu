@@ -7,7 +7,6 @@ export def system [cfg: record] {
     let reload = unit-restart portmaster-bypass.service --reload
     [
         (dropin portmaster.service dotfiles.conf)
-        # a copy: ProtectHome=read-only
         (file-copy config.json /var/lib/portmaster/config.json --then [systemctl try-restart portmaster.service])
         (file-copy portmaster-bypass.nft /etc/nftables.d/portmaster-bypass.nft --then $reload)
         (unit-file portmaster-bypass.service --enable --then $reload)

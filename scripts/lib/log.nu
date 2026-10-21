@@ -1,7 +1,9 @@
+# Logging: lines to stderr at DOT_LOG's level and every record as json into the run's file
+# <runs>/<id>.jsonl, with spans for dot log --trace.
+
 use state.nu [state-dir SYSTEM_STATE]
 
 const LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
-# a read-only run (status, plan, a listing) keeps its own budget: a burst of them never evicts an apply's log
 const RUNS_KEEP = 50
 const RUNS_READ_ONLY_KEEP = 20
 const RUN_READ_ONLY_MARK = '"read_only":true'
@@ -15,6 +17,7 @@ export def runs-dir []: nothing -> path {
     if (is-admin) { $SYSTEM_STATE | path join runs } else { with-env {DOT_LAYER: user} { state-dir | path join runs } }
 }
 
+# Prints message at or above DOT_LOG and appends it with fields to the run file, if a run is open.
 export def log-record [level: string, message: string, fields: record = {}]: nothing -> nothing {
     if (rank $level) >= (rank ($env.DOT_LOG? | default INFO)) {
         let prefix = if $level == "INFO" { "" } else { $"($level | str lowercase): " }
@@ -35,11 +38,12 @@ export def log-record [level: string, message: string, fields: record = {}]: not
 export def log-debug [message: string, fields: record = {}]: nothing -> nothing { log-record DEBUG $message $fields }
 export def log-info [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $message $fields }
 export def log-warn [message: string, fields: record = {}]: nothing -> nothing { log-record WARN $message $fields }
-# something the person has to do, not a fault
+# Something the person has to do, not a fault.
 export def log-note [message: string, fields: record = {}]: nothing -> nothing { log-record INFO $"note: ($message)" ($fields | merge {kind: note}) }
 export def log-err [message: string, fields: record = {}]: nothing -> nothing { log-record ERROR $message $fields }
 
-# setsid, no stdin: under dot's pty a background command that touches the terminal (claude's cli) is stopped for good
+# Runs argv with its output streamed under tag and kept; setsid and no stdin, since under dot's pty a
+# background command touching the terminal is stopped for good.
 export def command-stream [tag: string, argv: list]: nothing -> record {
     let log = mktemp --tmpdir
     let code = try {
@@ -51,24 +55,25 @@ export def command-stream [tag: string, argv: list]: nothing -> record {
     {exit_code: $code, output: $output, tail: ($output | lines | last $STREAM_TAIL_LINES | str join "\n")}
 }
 
+# Logs message as a failure and appends it to FAILURES_FILE.
 export def fail [message: string]: nothing -> nothing {
     log-err $message {kind: failure}
     $"($message)\n" | save --append $env.FAILURES_FILE
 }
 
-# the run files, oldest first, and which of them a read-only run wrote: its first record carries the mark
 def runs-list []: nothing -> record {
     let files = glob (runs-dir | path join "*.jsonl") | sort
     let read_only = if ($files | is-empty) { [] } else { ^grep --files-with-matches --fixed-strings $RUN_READ_ONLY_MARK ...$files | complete | get stdout | lines }
     {files: $files, read_only: $read_only}
 }
 
-# the newest run that could change something, null without one
+# The newest run file that could change something, null without one.
 export def run-last-changed []: nothing -> any {
     let runs = runs-list
     $runs.files | where $it not-in $runs.read_only | last
 }
 
+# Opens a run file and prunes old ones, keeping RUNS_KEEP changing and RUNS_READ_ONLY_KEEP read-only runs.
 export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     $env.DOT_RUN_ID = $"(date now | format date '%Y%m%dT%H%M%S')-(random chars --length 4 | str lowercase)"
     $env.DOT_RUN_FILE = runs-dir | path join $"($env.DOT_RUN_ID).jsonl"
@@ -80,7 +85,7 @@ export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}
 }
 
-# child processes inherit the open span; an error still closes it
+# Runs body as a traced span; child processes inherit it, and an error still closes it before rethrowing.
 export def span [name: string, fields: record, body: closure]: nothing -> any {
     let id = random chars --length 8 | str lowercase
     let start = date now
@@ -98,7 +103,7 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
 const ERROR_AT = '\[(?<file>[^\]\s]+):(?<line>\d+):\d+\]'
 const ERROR_MARK = '^(x|×) '
 
-# one line from a rendered nushell error: the first file:line it points at, then its message
+# One line from a rendered nushell error: the first file:line it points at, then its message.
 export def error-brief [rendered: string, --root: path]: nothing -> string {
     let rows = $rendered | lines | str trim | where $it != ""
     let message = $rows | where $it =~ $ERROR_MARK | get --optional 0 | default ($rows | get --optional 0 | default "unknown error") | str replace --regex $ERROR_MARK "" | str trim --right --char "."
@@ -108,6 +113,7 @@ export def error-brief [rendered: string, --root: path]: nothing -> string {
     $"($file):($at.line): ($message)"
 }
 
+# Sends the run's records at INFO and above to the journal as SYSLOG_IDENTIFIER=dot.
 export def run-journal []: nothing -> nothing {
     if ($env.DOT_RUN_FILE? | is-empty) or not ($env.DOT_RUN_FILE | path exists) { return }
     open --raw $env.DOT_RUN_FILE | lines | each { from json } | where {|r| (rank $r.level) >= (rank INFO) } | each {|r|

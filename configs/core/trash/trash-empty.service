@@ -3,7 +3,6 @@ Description=Empty user trash
 
 [Service]
 Type=oneshot
-# one day only, so a secret removed through the rm=trash alias does not linger
 Environment=RETENTION_DAYS=1
 ExecStart=/usr/bin/trash-empty -f --trash-dir %h/.local/share/Trash ${RETENTION_DAYS}
 ExecStart=/usr/bin/find /tmp/.Trash-%U -mindepth 1 -delete

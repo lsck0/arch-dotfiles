@@ -2,7 +2,6 @@
 
 const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 const JAILS_URL = "https://github.com/SogoCZE/Jails.git"
-# built and run as luca, so a pinned commit; bump by hand
 const JAILS_COMMIT = "42fa76c816ad34c9f24a4bde586d145c992dc860"
 
 export def jai-zip []: nothing -> any {
@@ -11,7 +10,7 @@ export def jai-zip []: nothing -> any {
     $zips | str join "\n" | ^sort -V | lines | last
 }
 
-# the plain names on PATH: `jai` as the compiler's docs and jails' own fallback call it (the beta ships only jai-linux)
+# The plain names on PATH: `jai` as the compiler's docs and jails call it (the beta ships only jai-linux).
 def bins-link [dir: path]: nothing -> nothing {
     ^ln -sfn jai-linux ($dir | path join bin jai)
     ^ln -sfn ($dir | path join jails bin jails) ($dir | path join bin jails)
@@ -20,7 +19,7 @@ def bins-link [dir: path]: nothing -> nothing {
 def main []: nothing -> nothing {
     let zip = jai-zip
     if $zip == null { return }
-    # ~/.jai is a link into the data dir (base/xdg): work in its target, never replace the link
+    # ~/.jai links into the data dir (base/xdg): work in its target, never replace the link
     let dir = $nu.home-dir | path join .jai | path expand
     let stamp = $dir | path join .installed-from
     let name = $zip | path basename

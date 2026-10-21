@@ -1,5 +1,3 @@
-# the predictable ifname differs per machine; the wired nic or the wifi initrd-wifi.service joined, a dhcp reservation
-# keeps the address stable
 [Match]
 Name=en* wl*
 

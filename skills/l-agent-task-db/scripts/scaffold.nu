@@ -1,11 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# Scaffolds a per-project taskwarrior + timewarrior db and tasks/context/. Safe to re-run.
-
 const HOOK_SRC = "/usr/share/doc/timew/ext/on-modify.timewarrior"
 const MARKER_BEGIN = "    # >>> l-agent-task-db taskwarrior env (managed block) >>>"
 const MARKER_END = "    # <<< l-agent-task-db taskwarrior env (managed block) <<<"
 const ENTER_SHELL = "enterShell = ''"
-# plain nix '' string: no ${...} and no doubled single quotes in here
 const ENTER_BLOCK = r#'    # >>> l-agent-task-db taskwarrior env (managed block) >>>
     mkdir -p "$DEVENV_ROOT/tasks/.task/hooks" "$DEVENV_ROOT/tasks/.timewarrior"
     printf 'data.location=%s\nhooks.location=%s\n' \
@@ -63,7 +60,6 @@ def main [target: path = "."]: nothing -> nothing {
     let envrc = $target | path join .envrc
 
     if ($task_data | path exists) { print $"note: ($task_data) already exists; reusing it." }
-    # a fresh repo gets one commit of exactly what this script wrote, never `git add -A`
     let repo_new = not (in-repo $target)
     if $repo_new {
         ^git init -q $target
@@ -75,10 +71,8 @@ def main [target: path = "."]: nothing -> nothing {
     mkdir ($task_data | path join hooks) $timew_data
     for dir in $CONTEXT_DIRS {
         mkdir ($context | path join $dir)
-        # git drops empty dirs; keep the context/ subfolders visible
         touch ($context | path join $dir .gitkeep)
     }
-    # local and gitignored: devenv's enterShell rewrites it from $DEVENV_ROOT on every entry
     $"data.location=($task_data)\nhooks.location=($task_data | path join hooks)\n" | save --force $taskrc
     if not ($hook | path exists) {
         if ($HOOK_SRC | path exists) {
@@ -89,7 +83,6 @@ def main [target: path = "."]: nothing -> nothing {
     }
     devenv-patch $devenv
 
-    # first line: identity-init appends to .envrc and must stay last
     let rest = if ($envrc | path exists) { open --raw $envrc | lines } else { [] }
     if "use devenv" not-in $rest { ["use devenv"] ++ $rest | str join "\n" | $"($in)\n" | save --force $envrc }
 
@@ -104,7 +97,6 @@ def main [target: path = "."]: nothing -> nothing {
         }
     }
 
-    # only for a repo this script just created, committed as the user's own git identity
     if $repo_new {
         ^git -C $target add devenv.nix .envrc .gitignore tasks
         let identity = [user.email user.name] | all {|k| (^git -C $target config $k | complete).exit_code == 0 }

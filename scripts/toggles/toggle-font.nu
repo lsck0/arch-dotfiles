@@ -26,7 +26,6 @@ const KDE_FONT_KEYS = [
     [General font] [General fixed] [General menuFont] [General smallestReadableFont] [General toolBarFont] [WM activeFont]
 ]
 const KDE_SMALLEST_OFFSET = 2
-# a desktop asking qt for a 2pt smallestReadableFont makes the settings ui unusable
 const UI_SIZE_MIN = 6
 const UI_SIZE_DEFAULT = 10
 const SIZE_MIN = 1
@@ -42,7 +41,6 @@ def ghostty-get [key: string]: nothing -> string {
     open --raw $GHOSTTY | parse --regex ('(?m)^' + $key + ' = (?<value>.*)$') | get value.0
 }
 
-# quickshell's theme, since ghostty may hold the mono cut
 def family-get []: nothing -> string { try { open $QUICKSHELL_THEME | get font.family } catch { ghostty-get font-family } }
 
 def size-get []: nothing -> int { ghostty-get font-size | into int }
@@ -69,12 +67,10 @@ def files-edit [edits: table]: nothing -> nothing {
     }
 }
 
-# quickshell live-watches theme.json, so no restart and no edit of a .qml source
 def quickshell-theme-set [key: string, value: any]: nothing -> nothing {
     open $QUICKSHELL_THEME | upsert ([font $key] | into cell-path) $value | $"($in | to json --indent 2)\n" | save --force $QUICKSHELL_THEME
 }
 
-# a marker lua/options.lua reads at startup, so no edit lands in the tracked nvim config
 def nvim-guifont-set [family: any, size: any]: nothing -> nothing {
     let current = try { open --raw (state-file nvim-guifont) | str trim } catch { $NVIM_GUIFONT_DEFAULT } | parse "{family}:h{size}" | first
     state-set nvim-guifont $"($family | default $current.family):h($size | default $current.size)"
@@ -97,7 +93,6 @@ def gtk-font-set [family: any, size: any]: nothing -> nothing {
     ^gsettings set org.gnome.desktop.interface font-name $"($family) ($size | default (ui-size-get))" | complete | ignore
 }
 
-# each kdeglobals font is a comma-separated qt string (family,size,...): fields 1 and 2 are set, the rest kept
 def kde-font-set [family: any, size: any]: nothing -> nothing {
     if (which kwriteconfig6 | is-empty) { return }
     for entry in $KDE_FONT_KEYS {
@@ -150,7 +145,6 @@ def size-apply [size: int]: nothing -> nothing {
     quickshell-theme-set size $size
 }
 
-# discord and spotify size in rem off a 16px root, which the default ui size stands for
 def ui-size-apply [size: int]: nothing -> nothing {
     let scale = $size / $UI_SIZE_DEFAULT | math round --precision 2
     files-edit [
@@ -165,7 +159,6 @@ def ui-size-apply [size: int]: nothing -> nothing {
     kde-font-set null $size
 }
 
-# detached: the theme verbs take seconds and the caller (the settings window, a keybind) must not wait
 def live-apply []: nothing -> nothing {
     let wallpaper = ^readlink -f ($nu.home-dir | path join .cache wal wallpaper) | complete | get stdout | str trim
     let dot = $"^nu --no-config-file ($DOT | to nuon)"

@@ -1,15 +1,5 @@
-// shared color math, pasted into a shader by toggle-shader.nu where it says #include "color.glsl"
-//
-// sRGB transfer: IEC 61966-2-1 piecewise curve, the exact inverse pair rather than a 2.2 power.
-// OKLab: Bjoern Ottosson, "A perceptual color space for image processing" (2020), matrices as published
-// for linear sRGB input; L is perceived lightness in [0, 1], a/b the opponent axes, chroma = length(ab).
-// CVD: Machado, Oliveira, Fernandes, "A Physiologically-based Model for Simulation of Color Vision
-// Deficiency" (IEEE TVCG 2009), severity 1.0 matrices, defined on linear RGB.
-// GLSL mat3 takes columns: every matrix below is written row by row and applied as `v * M`, which is R v.
-
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); // ITU-R BT.709 luma weights
 
-// variant order shared by every @variants line that uses machado_cvd
 const int CVD_DEUTERANOPIA = 0;
 const int CVD_PROTANOPIA = 1;
 const int CVD_TRITANOPIA = 2;
@@ -24,11 +14,9 @@ vec3 linear_to_srgb(vec3 c) {
 }
 
 vec3 linear_to_oklab(vec3 c) {
-    // linear sRGB to cone response, rows
     const mat3 LMS = mat3(0.4122214708, 0.5363325363, 0.0514459929,
                           0.2119034982, 0.6806995451, 0.1073969566,
                           0.0883024619, 0.2817188376, 0.6299787005);
-    // nonlinear cone response to Lab, rows
     const mat3 LAB = mat3(0.2104542553, 0.7936177850, -0.0040720468,
                           1.9779984951, -2.4285922050, 0.4505937099,
                           0.0259040371, 0.7827717662, -0.8086757660);
@@ -37,11 +25,9 @@ vec3 linear_to_oklab(vec3 c) {
 }
 
 vec3 oklab_to_linear(vec3 lab) {
-    // Lab to nonlinear cone response, rows
     const mat3 LMS_ = mat3(1.0, 0.3963377774, 0.2158037573,
                            1.0, -0.1055613458, -0.0638541728,
                            1.0, -0.0894841775, -1.2914855480);
-    // cone response to linear sRGB, rows
     const mat3 RGB = mat3(4.0767416621, -3.3077115913, 0.2309699292,
                           -1.2684380046, 2.6097574011, -0.3413193965,
                           -0.0041960863, -0.7034186147, 1.7076147010);

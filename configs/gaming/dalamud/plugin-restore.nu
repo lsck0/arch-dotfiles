@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # installed as dalamud's installer would: dalamud never installs a collection's plugins by itself
 
-# InstalledFromUrl is "OFFICIAL" for dalamud's own repo
 const MAIN_REPO_URL = "https://kamori.goats.dev/Plugin/PluginMaster"
 const KEPT = [
     Disabled Testing InstalledFromUrl WorkingPluginId IsThirdParty IsHide DownloadLinkInstall DownloadLinkTesting
@@ -22,7 +21,7 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     }
     let entry = open $cache | where InternalName == $name | get --optional 0
     if $entry == null {
-        print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from configs/secrets/keys/dalamud/manifests"
+        print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from configs/secrets/state/dalamud/manifests"
         touch ($cache | path dirname | path join $"($name).delisted")
         return
     }

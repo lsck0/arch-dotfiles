@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # hyprpm runs every write to its root-owned store through sudo, a FIDO2 prompt nobody answers at login: build only
-# from a terminal, or with --build where sudo asks nothing (the install chain's config stage, mod.nu plugins-build)
+# from a terminal, or with --build where sudo asks nothing (the install chain's config stage)
 
 const STORE = "/var/cache/hyprpm"
 const PLUGIN = "dynamic-cursors"

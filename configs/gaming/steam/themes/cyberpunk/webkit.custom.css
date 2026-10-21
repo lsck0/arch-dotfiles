@@ -1,8 +1,6 @@
-/* store and community pages; colors.css last so it wins */
 @import url("shared.css");
 @import url("colors.css");
 
-/* page ground; background-color only, so seasonal art images still show */
 body,
 .responsive_page_frame,
 .responsive_page_content,
@@ -11,7 +9,6 @@ body,
     background-color: var(--cp-bg) !important;
 }
 
-/* tinted section bands and tab lists */
 .home_tab_bg_ctn,
 .home_discount_games_ctn,
 ._2-rKQdmSx7Khacm27tXK0K,
@@ -35,7 +32,6 @@ body,
     background: color-mix(in srgb, var(--cp-accent) 18%, var(--cp-bg-alt)) !important;
 }
 
-/* store nav, search and white buttons */
 ._2Cp17yynz2h_StEQZcNnqB,
 ._1KU9eASfov1GnFQRbyLIdR,
 .btnv6_white_transparent {
@@ -52,7 +48,6 @@ body,
     background: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;
 }
 
-/* store header: recommendation rows and feature cards */
 ._3Z1skIYVoqLbYiP2wy46Ce,
 ._16jZ3HEbtaJTl80pQINN2Y {
     background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;

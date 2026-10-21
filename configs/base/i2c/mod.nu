@@ -1,6 +1,7 @@
+# ddc monitor control: identical monitors without an edid serial confuse powerdevil, so ddc goes over i2c-dev
+
 use module.nu *
 
-# ddc monitor control: identical monitors without an edid serial confuse powerdevil, so ddc directly
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let load = "modprobe i2c-dev && udevadm trigger --subsystem-match=i2c-dev"

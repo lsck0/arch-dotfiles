@@ -1,10 +1,7 @@
-;;; core.el --- editor defaults -*- lexical-binding: t; -*-
-
 (set-language-environment "UTF-8")
 (prefer-coding-system 'utf-8)
 (setq shell-file-name "/usr/bin/zsh")
 
-;; fallbacks: emacs --batch never reads early-init.el, which holds the real values
 (defvar my/font-family "monospace")
 (defvar my/font-size 16)
 
@@ -80,7 +77,6 @@
                    (display-line-numbers-mode -1)
                    (display-fill-column-indicator-mode -1))))
 
-;; pixel scrolling lags on 4k with a big font
 (setq select-enable-clipboard t
       mouse-wheel-progressive-speed nil
       mouse-wheel-follow-mouse t
@@ -90,7 +86,6 @@
       ring-bell-function 'ignore)
 (setopt use-short-answers t)
 
-;; vertico/consult assume these
 (setq enable-recursive-minibuffers t
       read-extended-command-predicate #'command-completion-default-include-p
       minibuffer-prompt-properties
@@ -105,7 +100,6 @@
       bidi-inhibit-bpa t)
 (global-so-long-mode 1)
 
-;; synctex backward search and the theme verb reach emacs over emacsclient
 (require 'server)
 (unless (or noninteractive (server-running-p))
   (server-start))
@@ -151,8 +145,6 @@ That is how bare-repo layouts show up, while submodules and the bare layout's ow
     (pcase-dolist (`(,root . ,depth) (my/projects-search-dirs))
       (setq root (file-name-as-directory (expand-file-name root)))
       (when (file-directory-p root)
-        ;; --type f too: a worktree has a .git file
-        ;; tms counts project dirs, the .git entry sits one level below them (mirrors scripts/hms.nu)
         (dolist (git (apply #'process-lines-ignore-status
                             "fd" "--hidden" "--no-ignore" "--type" "d" "--type" "f"
                             "--max-depth" (number-to-string (1+ depth))
@@ -184,4 +176,3 @@ Mirrors lib/projects.lua: no file picker, just the scratch buffer with the explo
     (my/project-open (cdr (assoc pick items)))))
 
 (provide 'core)
-;;; core.el ends here

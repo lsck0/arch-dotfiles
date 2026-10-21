@@ -3,9 +3,7 @@
 
 const SELF = path self
 const HOME_NETWORK = "/run/home-network"
-# set by fw-lockdown.service: a lockdown of ours, which home lifts; toggle-firewall.nu clears it
 const MARKER = "/run/persona-lockdown"
-# a tor the user started is never stopped here
 const TOR_MARKER = "/run/persona-tor"
 const TOR_ROUTER = "/usr/local/bin/tor-router"
 const VM_GUEST = "/etc/NetworkManager/vm-guest"
@@ -41,7 +39,7 @@ def lab-nets []: nothing -> list<string> {
     | default "" | str trim --char '"' | split row " " | where $it != ""
 }
 
-# NM's state, not operstate: a cable without a profile is up, a modem's link reads unknown
+# Whether any link is not home, by NM's state (not operstate: a cable without a profile is up, a modem reads unknown).
 def foreign [policy: string]: nothing -> bool {
     if $policy == off { return false }
     # DEVICE last: a bluetooth one is an address, its escaped colons stay in the remainder
@@ -55,13 +53,12 @@ def foreign [policy: string]: nothing -> bool {
     ($physical | is-empty) or ($physical | any { $in not-in $home })
 }
 
-# gone names the tunnel going down, its link may linger until NM deletes it
+# Switches to tor; gone names the tunnel going down, whose link may linger until NM deletes it.
 def tor-on [policy: string, gone: string = ""]: nothing -> nothing {
     if $policy != lockdown-tor or not ($TOR_ROUTER | path exists) or ($VM_GUEST | path exists) { return }
     if ([$VPN_IFACE $WG_IFACE] | any {|t| $t != $gone and (ok ip link show $t) }) { return }
     if (ok systemctl is-active -q tor-router.service) { return }
     touch $TOR_MARKER
-    # tor takes seconds to start, the dispatcher must not wait on it; fw-egress drops what it cannot carry yet
     ok systemctl start --no-block tor-router.service | ignore
 }
 
@@ -71,7 +68,7 @@ def tor-off []: nothing -> nothing {
     ok systemctl stop --no-block tor-router.service | ignore
 }
 
-# never over a live protonvpn tunnel, it clobbers the wg fwmark
+# Never over a live protonvpn tunnel, it clobbers the wg fwmark.
 def portmaster-on []: nothing -> nothing {
     if (ok systemctl is-active -q fw-inbound.service fw-lockdown.service) and not (ok ip link show $VPN_IFACE) {
         ok systemctl start portmaster.service | ignore
@@ -110,11 +107,10 @@ def wg-event [policy: string, action: string]: nothing -> nothing {
     }
 }
 
-# portal pages live on the foreign network: tor would carry them away, strict dot cannot reach its resolver
+# Captive portal mode: its pages live on the foreign network, out of reach of tor and strict dot.
 def portal [iface: string]: nothing -> nothing {
     if $iface in (home-links) or (ok nft get element inet fw_egress portal $"{ ($iface) }") { return }
     if not (ok nft add element inet fw_egress portal $"{ ($iface) timeout ($PORTAL_S)s }") { exit 1 }
-    # "Link 3 (wlan0): a.example ~b.example", ifnames carry no colon
     let domains = out resolvectl domain $iface | split row ":" | skip 1 | str join ":" | split row --regex '\s+'
         | where $it != ""
     let back = [--quiet --collect $"--unit=($PORTAL_UNIT)" $"--on-active=($PORTAL_S)s" $SELF $iface portal-end]
@@ -134,14 +130,12 @@ def portal-end [policy: string, iface: string, domains: list<string>]: nothing -
     ok resolvectl domain $iface ...(if ($domains | is-empty) { [""] } else { $domains }) | ignore
     if (foreign $policy) { tor-on $policy }
     portmaster-on
-    # plain while portmaster runs (portmaster/dotfiles.conf), else opportunistic
     let tls = if (ok systemctl is-active -q portmaster.service) { "no" } else { "opportunistic" }
     ok resolvectl dnsovertls $iface $tls | ignore
 }
 
 def link-event [policy: string, iface: string, action: string]: nothing -> nothing {
     let uuid = $env.CONNECTION_UUID? | default ""
-    # the kill switch: a stop by hand lasts until the next network event
     if $policy != lockdown-tor {
         ok systemctl stop fw-egress.service | ignore
     } else if not ($VM_GUEST | path exists) {
@@ -156,19 +150,15 @@ def link-event [policy: string, iface: string, action: string]: nothing -> nothi
         ok systemctl unmask --runtime avahi-daemon.socket avahi-daemon.service | ignore
         ok systemctl start avahi-daemon.socket | ignore
         ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=0" | ignore
-        # undo a disable from a home connect that was not recognised in time
         ok nmcli connection modify $uuid ipv6.method auto | ignore
     } else {
-        # a no-op on a running lockdown, so one the user chose keeps no marker and survives home
         ok systemctl start fw-lockdown.service | ignore
         # a stop alone is undone by dbus activation through the dbus-org.freedesktop.Avahi alias
         ok systemctl mask --runtime --now avahi-daemon.socket avahi-daemon.service | ignore
         if $action == up and $policy == lockdown-tor {
             ok sysctl -wq $"net.ipv6.conf.($iface).disable_ipv6=1" | ignore
-            # mod.nu sets home profiles back to auto
             if $iface not-in (home-links) { ok nmcli connection modify $uuid ipv6.method disabled | ignore }
         }
-        # never mounted to whatever answers the homelab address off home
         if (home-links | is-empty) and not ($"/sys/class/net/($WG_IFACE)" | path exists) {
             ok systemctl stop --no-block mnt-homelab.mount | ignore
         }
@@ -183,7 +173,6 @@ def main [iface: string = "", action: string = "", ...domains: string]: nothing 
     if $iface == $WG_IFACE { return (wg-event $policy $action) }
     if $action == portal-end { return (portal-end $policy $iface $domains) }
     if $action not-in [up down portal] or not ($iface =~ $IFNAME) { return }
-    # 70-home-network already dropped a vanished link from every home list
     if not ($"/sys/class/net/($iface)/device" | path exists) { return }
     if $action == portal { portal $iface } else { link-event $policy $iface $action }
 }

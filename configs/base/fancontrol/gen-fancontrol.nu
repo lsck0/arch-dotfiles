@@ -8,12 +8,11 @@ const CONFIG = "/etc/fancontrol"
 const BOARD = "X870E AORUS ELITE WIFI7"
 const FORCE_ID = "0x8622"
 const INTERVAL_S = 5
-# Tctl jumps 15C within seconds on any burst; fancontrol averages these many readings (20 s) so fans do not chase it
+# Tctl jumps 15C within seconds on any burst; averaging 4 readings (20 s) keeps the fans from chasing it
 const AVERAGE = 4
-# ryzen Tctl sits at 50-60C on a desktop and boosts to ~85C under load; full speed well before the 95C limit
 const TEMP_MIN_C = 65
 const TEMP_MAX_C = 88
-# 16%: near-silent, still spins every fan so a mis-identified channel never stalls
+# 16%: near-silent, but every fan spins, so a mis-identified channel never stalls
 const PWM_FLOOR = 40
 const PWM_START = 90
 const PWM_MAX = 255
@@ -51,7 +50,7 @@ def main []: nothing -> nothing {
         $"DEVPATH=($it87)=(do $devpath $it87) ($k10)=(do $devpath $k10)"
         $"DEVNAME=($it87)=(read $'($HWMON)/($it87)/name') ($k10)=(read $'($HWMON)/($k10)/name')"
         $"FCTEMPS=(do $every $'($k10)/($tctl)')"
-        # no FCFANS: the forced it87 reads 0 or 10000 rpm at random, and fancontrol kicks a fan it reads as 0 to MINSTART
+        # no FCFANS: the forced it87 reads 0 or 10000 rpm at random, and fancontrol kicks a 0 rpm fan to MINSTART
         $"MINTEMP=(do $every $TEMP_MIN_C)"
         $"MAXTEMP=(do $every $TEMP_MAX_C)"
         $"MINSTART=(do $every $PWM_START)"

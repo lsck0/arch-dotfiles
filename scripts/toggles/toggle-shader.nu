@@ -1,5 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# shaders/<name>.frag carry `// @label|@variants|@animated|@themed` header lines; any one costs direct scanout
+# Cycles the hyprland screen shaders in ~/.config/hypr/shaders; each <name>.frag carries `// @label`, `@variants`,
+# `@animated` and `@themed` header lines. Any shader costs direct scanout.
+
 use lib.nu [notify state-get state-set quickshell-call]
 
 const DAMAGE_FULL = 2
@@ -53,7 +55,6 @@ def entry-label [entry: string, shaders: table]: nothing -> string {
     if ($parts | length) == 1 { $label } else { $"($label): ($parts.1 | str capitalize)" }
 }
 
-# the shell palette's THEME constants by declaration; none (the template defaults) without a usable palette
 def theme-constants []: nothing -> record {
     try {
         let palette = quickshell-call shell palette | from json
@@ -90,7 +91,6 @@ def render [entry: string, shader: record]: nothing -> path {
     $out
 }
 
-# hyprctl keyword rejects lua configs
 def load [damage: int, shader: string]: nothing -> nothing {
     ^hyprctl eval 'hl.config({ decoration = { screen_shader = "" } })' o> /dev/null
     ^hyprctl eval $"hl.config\({ debug = { damage_tracking = ($damage) } }\)" o> /dev/null
@@ -102,7 +102,6 @@ def entry-load [entry: string, shaders: table]: nothing -> nothing {
     load (if $shader.animated { $DAMAGE_NONE } else { $DAMAGE_FULL }) (render $entry $shader)
 }
 
-# a config reload drops the shader, so `reapply` restores it, keyed to the compositor instance
 def apply [entry: string, shaders: table]: nothing -> nothing {
     if $entry == off {
         load $DAMAGE_FULL ""

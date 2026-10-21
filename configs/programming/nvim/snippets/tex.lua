@@ -12,7 +12,6 @@ end
 local function not_math()
     return not in_math()
 end
--- typing \sum, \oint, \sqrt must not expand the trigger inside the command name
 local function math_not_command(line_to_cursor, trigger)
     return in_math() and not line_to_cursor:sub(1, -#trigger - 1):match("\\%a*$")
 end
@@ -23,7 +22,7 @@ local function cap(n)
     end)
 end
 
--- header.sty's autolabels option derives the same label from the title, a written one would be defined twice
+-- Header.sty's autolabels option derives the label from the title, so a written one would be defined twice.
 local function autolabels()
     local main = vim.fs.find("main.tex", { path = vim.fn.expand("%:p:h"), upward = true })[1]
     local fd = main and io.open(main, "r")
@@ -54,7 +53,7 @@ local TRANSLIT = {
     z = "žźżŽ",
 }
 
--- the slug header.sty's autolabels makes: commands drop to their argument, accents to the base letter
+-- The slug header.sty's autolabels makes: commands drop to their argument, accents to the base letter.
 local function slug(title)
     title = title:gsub("[$]", ""):gsub("\\%a+%*?", " ")
     for base, chars in pairs(TRANSLIT) do
@@ -65,7 +64,7 @@ local function slug(title)
     return (title:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", ""))
 end
 
--- cleveref namespace: the kind written out, then a kebab-case slug of the title
+-- A cleveref-namespaced label: the kind written out, then a kebab-case slug of the title.
 local function label(kind)
     return function(args)
         if autolabels() then
@@ -86,7 +85,7 @@ local function statement(trigger, env)
     }, { condition = line_begin })
 end
 
--- the proof is the last block inside its statement
+-- The statement with its proof as the last block inside it.
 local function proved(trigger, env)
     return s({ trig = trigger, desc = env .. " with proof" }, {
         t("\\begin{" .. env .. "}["),

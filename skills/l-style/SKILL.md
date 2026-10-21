@@ -70,31 +70,20 @@ Nyangine style everywhere, adapted to each language's casing but not to its habi
 ## Code Style
 
 - Code reads like natural language. Names describe purpose; nobody should need the body to know what a function does.
-- Banner comments, in the language's comment syntax, separate sections, and lower-level functions come before the higher-level ones using them.
-
-```c
-/*
- * -----------------------------------------------------------------------------
- * SECTION NAME
- * -----------------------------------------------------------------------------
- */
-```
-
-Usual sections, lowest level first: `CONSTANTS`, `TYPES`, `INTERNAL`, `LIFETIME`, `FUNCTIONS`.
-
-- No comment is the default. A name, a type or an assert says it better, and a comment nobody needs is noise that rots. A comment exists only for a reason in the why-list below. Never a comment that restates the code, narrates the steps, labels what a banner already labels, or tells the story of the change (that is the commit message).
-- Inline comments minimal, informative, lowercase, one line maximally. A why that needs a paragraph is in-code documentation (below) if it must stay visible, otherwise the commit message; never a stack of comment lines.
-- Doc comments use the language's own documentation format, the one its generator reads: Doxygen `/** */` in C and C++, `///` and `//!` rustdoc in Rust, Javadoc `/** */` in Java, TSDoc/JSDoc `/** */` in TypeScript and JavaScript, docstrings in Python. They are prose and keep normal capitalization. They go on the public API, and on an internal declaration only when its contract isn't obvious from the signature. A doc comment that repeats the name ("Gets the user") is deleted.
-- In-code documentation is not a comment: API docs, the file/module header block described in `l-style-architecture` (API Design), the note on a workaround for a dependency bug, the derivation of a named constant, and a rejected alternative that still constrains the code (in the module header block). It documents the contract or the constraint, not the debugging history, and stays as short as that allows: one to three lines per prose block is the norm.
+- A file reads bottom-up: constants, types, internal helpers, lifetime, then the functions using them, lower-level
+  before higher-level. The order shows the sections; no banner comments.
+- Comments are three kinds, nothing else:
+  - A header comment at the top of a file or module, where its purpose or contract isn't obvious from the name.
+  - Doc comments in the language's own documentation format, the one its generator reads (Doxygen `/** */` in C and
+    C++, `///` and `//!` rustdoc in Rust, Javadoc in Java, TSDoc/JSDoc in TypeScript and JavaScript, docstrings in
+    Python, `#` above a `def` in nushell, which is its `--help`), on the public API and on an internal declaration whose
+    contract isn't obvious from the signature. Prose with normal capitalization; one that repeats the name is deleted.
+  - Otherwise only where it is exceptionally unclear why the code exists: a workaround for someone else's bug, an
+    ordering that breaks when moved, a check that looks removable and isn't. One line, lowercase, naming the reason.
+- Never a comment that restates the code, narrates the steps, labels a section, or tells the story of the change (that
+  is the commit message). No stacks of comment lines. When its reason expires, delete the comment with the code.
 - Use only ASCII symbols in code. No Unicode box-drawing, block, or geometric glyphs as decoration (`# _ | [ ] < > / \ + - = : . * o x` instead of box-drawing lines, shade blocks, filled squares, circles, crosses and triangles). Real content (a UI's own icon font glyphs, a language's operators, test data that must contain the character) is exempt; the rule is about decoration.
-- Comment the why, never the what. Anything that looks wrong, arbitrary or removable, and isn't, carries its reason next to it:
-  - Workarounds for bugs in a dependency, the compiler, the OS or the hardware. Name the thing, the version range, the issue link, what happens without the workaround, and what would let it be deleted; this is documentation, so it takes the lines it needs.
-  - Edge cases the code exists to handle, with the input that produces them. "the seventh crate in a tick got no sound" beats "handle edge case".
-  - Ordering and timing constraints: why this call comes before that one, what breaks if it moves.
-  - Rejected alternatives: a one-line pointer at the point they'd be reintroduced, the reasoning in the module header block, so nobody spends an afternoon rediscovering why the obvious version doesn't work.
-  - Deliberate deviations from the rules in this document.
-- A why-comment is load-bearing. When its reason expires, delete the comment and the code it justified in the same commit.
-- No magic numbers, no magic strings. Every literal that isn't `0`, `1` or an obvious index is a named constant, defined once next to what it governs, with its derivation as in-code documentation: what it was measured against, what it trades off, what breaks above and below it.
+- No magic numbers, no magic strings. Every literal that isn't `0`, `1` or an obvious index is a named constant, defined once next to what it governs; its name says what it is, and a comment gives its derivation only where that is exceptionally unclear.
   - The same number in two places is one constant used twice: a limit, its buffer size and its assert all read from one definition. Units follow the units rule; in C the constant carries them in its name, `TIMEOUT_MS`, `SIZE_BYTES`, `COUNT_MAX`.
   - Same for strings: paths, keys, routes, env names, file magic, so a rename is one edit.
   - Nothing up my sleeve. Every constant is derivable from something, especially in security code: seeds, IVs and table constants come with where they came from. A number nobody can account for is either a bug or a backdoor.
@@ -105,7 +94,7 @@ Usual sections, lowest level first: `CONSTANTS`, `TYPES`, `INTERNAL`, `LIFETIME`
 
 Everything in my name reads like a careful human wrote it. The test for every line, in code and prose alike: would someone who cared, and had to type it by hand, have written this? If not, delete it.
 
-- No restating, narrating or summarizing comments, no comment essays, no "Step 1:" walkthroughs, no section banners around three lines of code.
+- No restating, narrating or summarizing comments, no comment essays, no "Step 1:" walkthroughs, no section banners.
 - No dead or defensive code nobody asked for: checks that cannot trigger, fallbacks for states that cannot exist, unused parameters, options and flags no caller passes, wrappers that only forward.
 - No duplicated helpers. Before writing a function, find the existing one; one implementation per concern.
 - No generic names (`data`, `result`, `info`, `helper`, `manager`, `utils`, `handle_stuff`) and no names that inflate (`ultimate`, `enhanced`, `smart`, `advanced`).

@@ -10,7 +10,6 @@ def --wrapped ask [...argv: string]: nothing -> record {
 
 def nvim-try [file: string, line: int, column: int]: nothing -> bool {
     if (which nvim | is-empty) { return false }
-    # vimtex keeps its own list, which outlives $XDG_RUNTIME_DIR entries from a crashed instance
     let log = $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join vimtex nvim_servernames.log
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
     let listed = if ($log | path exists) { open --raw $log | lines } else { [] }
@@ -35,8 +34,8 @@ def emacs-try [file: string, line: int, column: int]: nothing -> bool {
     true
 }
 
+# Sioyek's inverse search: move the nvim or emacs that has <file> open to <line>.
 def main [file: string, line: int, column: int = 0]: nothing -> nothing {
-    # the viewer hands out the path synctex recorded, relative to the build dir for an out-of-tree build
     let file = $file | path expand
     if (nvim-try $file $line $column) or (emacs-try $file $line $column) { return }
     let message = $"($file | path basename):($line) is not open in nvim or emacs"

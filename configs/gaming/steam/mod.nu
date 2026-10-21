@@ -24,19 +24,15 @@ export def link [cfg: record] {
         (if ($palette | path exists) and not ($colors | path exists) {
             exec steam-palette [cp $palette $colors] --creates $colors
         } else { [] })
-        # steam overwrites it on exit; before the first run millennium fills its defaults in around it
         (json-merge ($nu.home-dir | path join .config millennium config.json) [
             (json-set [themes activeTheme] cyberpunk)
         ])
-        # skipped while steam is open, it rewrites localconfig.vdf on exit
         (link-commands steam-launch-options.nu)
         (exec steam-launch-options [nu --no-config-file steam-launch-options.nu])
-        # steam writes the watched file once, after a bootstrap or client update finished extracting
         (if $linked { [] } else {
             let installed = "%h/.local/share/Steam/package/steam_client_ubuntu12.installed"
             user-hook steam-bootstrap hook/steam-bootstrap.nu --no-brake --watch [$installed]
         })
-        # idempotent: also clears a shortcut a bootstrap left while the hook was not armed
         (exec steam-bootstrap [nu --no-config-file hook/steam-bootstrap.nu])
     ]
 }

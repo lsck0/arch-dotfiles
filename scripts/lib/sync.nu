@@ -1,3 +1,6 @@
+# The git half of dot sync: pull with the secrets submodule following, then the signed `Generation: <n>` commit
+# and push, retried on top when another machine pushed first.
+
 use log.nu *
 use secrets.nu [secret-is-plaintext secrets-wanted]
 
@@ -5,15 +8,14 @@ const BRANCH = "master"
 const PUSH_TRIES = 3
 const FINGERPRINT_LINE = '(?m)^SIGNING_KEY_FINGERPRINT=(?<fpr>[0-9A-F]{40})$'
 
-# a rollback leaves a detached HEAD at an old generation; a commit there is off master and the push fails
+# Fails unless HEAD is on master: a rollback's detached HEAD would commit off it and the push would fail.
 export def sync-branch-check [repo: path]: nothing -> nothing {
     if (try { ^git -C $repo symbolic-ref -q --short HEAD | str trim } catch { "" }) != $BRANCH {
         error make {msg: $"HEAD is not on ($BRANCH), go back with: git switch ($BRANCH)"}
     }
 }
 
-# local edits ride along; one that conflicts with the pulled generation stops the run before anything applies;
-# without the secrets capability no submodule is fetched, so the private secrets remote is never asked
+# Fast-forwards with local edits autostashed; conflicts stop the run, the submodule is skipped without secrets.
 export def sync-pull [repo: path]: nothing -> nothing {
     sync-branch-check $repo
     let recurse = if (secrets-wanted) { [] } else { [--no-recurse-submodules] }
@@ -27,7 +29,6 @@ export def sync-pull [repo: path]: nothing -> nothing {
     secrets-follow $repo
 }
 
-# the pulled generation may name a newer secrets revision; the commit's `git add .` would record the old checkout back
 def secrets-follow [repo: path]: nothing -> nothing {
     let secrets = $repo | path join configs secrets
     if not (secrets-wanted) or not ($secrets | path join .git | path exists) { return }
@@ -39,8 +40,6 @@ def secrets-follow [repo: path]: nothing -> nothing {
     }
     if (^git -C $secrets merge-base --is-ancestor $recorded $current | complete).exit_code == 0 { return }
     if (^git -C $secrets merge-base --is-ancestor $current $recorded | complete).exit_code != 0 {
-        # this machine's backup commit that never got pushed (an interrupted sync) beside another machine's: per-host
-        # paths keep them apart, so replay it on top; only a file both changed stops here
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
             error make {msg: $"secrets: ($current) and the pulled ($recorded) diverged and ($secrets) has uncommitted edits"}
         }
@@ -61,25 +60,25 @@ def fingerprint [repo: path]: nothing -> string {
     $fpr.0
 }
 
+# Whether gpg holds the secret key bootstrap.sh's SIGNING_KEY_FINGERPRINT names.
 export def sync-can-sign [repo: path]: nothing -> bool {
     (^gpg --batch --list-secret-keys (fingerprint $repo) | complete).exit_code == 0
 }
 
-# only keys/ is git-crypt (configs/secrets/.gitattributes): a file outside it would be committed in plaintext. A module dir
-# (configs/secrets/<module>/mod.nu) is code and may change; anything else, a backup that wrote beside keys/, stops the commit
 def secrets-plaintext-guard [secrets: path]: nothing -> nothing {
     let stray = ^git -C $secrets ls-files -z --others --modified --exclude-standard | split row (char nul)
         | where {|f| $f != "" and ($secrets | path join $f | path exists) }
         | where {|f|
             let parts = $f | path split
             let module = ($parts | length) > 1 and ($secrets | path join $parts.0 mod.nu | path exists)
-            $parts.0 not-in [keys .git-crypt] and $f != .gitattributes and not $module
+            $parts.0 not-in [keys state .git-crypt] and $f != .gitattributes and not $module
         }
     if ($stray | is-not-empty) {
-        error make {msg: $"secrets: ($stray | str join ' ') would be committed unencrypted: move it under configs/secrets/keys/, or into a module dir"}
+        error make {msg: $"secrets: ($stray | str join ' ') would be committed unencrypted: move it under configs/secrets/keys/ (a credential) or state/"}
     }
 }
 
+# Commits secrets, then the signed generation, and pushes both; --no-verify skips dot test check and gitleaks.
 export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     sync-branch-check $repo
     let fpr = fingerprint $repo
@@ -88,7 +87,6 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     }
 
     ^nu --no-config-file ($repo | path join scripts lib internal.nu) backup
-    # secrets first, so the generation commit records its new revision
     let secrets = $repo | path join configs secrets
     if (secrets-wanted) and (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
@@ -96,8 +94,6 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
             ^git -C $secrets add -A
             ^git -C $secrets commit -m "chore(sync): back up live app state"
         }
-        # submodule update leaves a detached HEAD, so push it to the branch explicitly; another machine's backup may
-        # have landed since the pull: rebase onto it (only a blob both changed conflicts) and try again
         mut tries = 0
         while (^git -C $secrets push origin $"HEAD:($BRANCH)" | complete).exit_code != 0 {
             $tries += 1
@@ -110,23 +106,19 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
         }
     }
 
-    # the apply took minutes: take what another machine pushed meanwhile, so the generation number follows it
     sync-catch-up $repo
     ^git -C $repo add .
     if (^git -C $repo diff --cached --quiet | complete).exit_code == 0 {
         log-info "sync: nothing changed, no new generation"
     } else {
-        # bootstrap.sh and the lsck0 builder consume master directly: a script that does not parse never becomes a generation
         let broken = ^git -C $repo ls-files -z '*.sh' | split row (char nul) | where $it != "" | par-each {|f| if (^bash -n ($repo | path join $f) | complete).exit_code != 0 { $f } } | compact
         if ($broken | is-not-empty) { error make {msg: $"does not parse, nothing committed: ($broken | str join ' ')"} }
-        # master is public: a credential in any tracked file must never get there; configs/secrets/ is encrypted and allowlisted
         if not $no_verify {
             try { ^nu --no-config-file ($repo | path join scripts dot.nu) test check } catch { error make {msg: "dot test check found a problem, nothing committed (dot sync --no-verify overrides)"} }
             try { do { cd $repo; ^gitleaks git --staged --redact --no-banner } } catch { error make {msg: "gitleaks found a secret in the staged tree, nothing committed (dot sync --no-verify overrides)"} }
         }
         generation-commit $repo $fpr
     }
-    # a push lost to another machine by seconds: undo the local generation, catch up, commit it again on top
     mut tries = 0
     while (^git -C $repo push --no-recurse-submodules | complete).exit_code != 0 {
         $tries += 1
@@ -145,7 +137,6 @@ def generation-commit [repo: path, fpr: string]: nothing -> nothing {
     ^git -C $repo -c gpg.format=openpgp commit $"-S($fpr)" -m $"Generation: ($last + 1)"
 }
 
-# fast-forward to origin; local edits are only in the worktree at this point, never a local commit
 def sync-catch-up [repo: path]: nothing -> nothing {
     ^git -C $repo fetch --quiet --no-recurse-submodules origin
     if (^git -C $repo merge --ff-only --autostash $"origin/($BRANCH)" | complete).exit_code != 0 {

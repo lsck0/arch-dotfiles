@@ -43,7 +43,6 @@ QtObject {
     })
   }
 
-  // copy-on-write so property var maps notify
   function mapSet(map, key, value) {
     var next = ({})
     for (let k in map) next[k] = map[k]

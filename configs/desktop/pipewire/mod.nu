@@ -70,7 +70,6 @@ context.modules = [
 }
 
 def chain-file [conf: path, chain: string, body: string]: nothing -> record {
-    # restarting drops the chain's streams for a moment, so only a changed config does
     file-text ($conf | path join $"($chain).conf") (chain-render $body) --generated --then [systemctl --user try-restart $"pipewire-chain@($chain).service"]
 }
 
@@ -88,7 +87,6 @@ def eq-link [cfg: record]: nothing -> list<record> {
 
 def loopback-link [cfg: record]: nothing -> list<record> {
     if not $cfg.app_loopbacks { return [] }
-    # a restart drops every loopback for a moment: the apps play on the device at full level until it is back
     let restart = unit-restart $LOOPBACK_UNIT
     [
         (file-copy $LOOPBACK_SCRIPT ($nu.home-dir | path join $SCRIPT_DIR $LOOPBACK_SCRIPT) --then $restart)

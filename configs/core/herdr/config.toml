@@ -1,7 +1,6 @@
 onboarding = false
 
 [theme]
-# BEGIN PYWAL THEME
 [theme.custom]
 sidebar_bg = "reset"
 panel_bg = "reset"
@@ -22,7 +21,6 @@ blue = "#39BAE6"
 mauve = "#D2A6FF"
 teal = "#95E6CB"
 peach = "#E6B450"
-# END PYWAL THEME
 
 [ui]
 sidebar_width = 20
@@ -31,20 +29,18 @@ sidebar_max_width = 30
 agent_panel_sort = "spaces"
 prompt_new_tab_name = false
 pane_outer_borders = false
-# wheel/keys still scroll
 pane_scrollbars = false
 
 [keys]
 prefix = "ctrl+q"
-split_horizontal = "prefix+s" # tmux: bind s split-window -v (stacked)
-split_vertical = "prefix+v"   # tmux: bind v split-window -h (side by side)
+split_horizontal = "prefix+s"    # tmux: bind s split-window -v (stacked)
+split_vertical = "prefix+v"      # tmux: bind v split-window -h (side by side)
 edit_scrollback = "prefix+e"
-settings = ""                 # cleared: prefix+s is split_horizontal, not settings
-toggle_sidebar = ""           # cleared: prefix+b is the wtree popup, not sidebar
+settings = ""                    # cleared: prefix+s is split_horizontal, not settings
+toggle_sidebar = ""              # cleared: prefix+b is the wtree popup, not sidebar
 close_pane = "prefix+q"
 close_tab = "prefix+x"
 detach = ""
-# tmux: alt+shift+hjkl select-pane, plain alt+hjkl stays with nvim
 focus_pane_left = "alt+shift+h"
 focus_pane_down = "alt+shift+j"
 focus_pane_up = "alt+shift+k"

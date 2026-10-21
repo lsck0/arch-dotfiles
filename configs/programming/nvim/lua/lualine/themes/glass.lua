@@ -1,4 +1,5 @@
 -- lualine's auto theme with only the mode section filled, so the terminal shows through the rest
+
 local theme = require("lualine.utils.loader").load_theme("auto")
 for _, mode in pairs(theme) do
     local accent = mode.a and mode.a.bg

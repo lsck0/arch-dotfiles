@@ -8,7 +8,6 @@ Singleton {
 
   readonly property int refreshMs: 3 * 60 * 1000
   readonly property int dueSoonMs: 15 * 60 * 1000
-  // a deleted recurring task asks about its siblings; confirmation=off does not cover that prompt
   readonly property var taskArgv: ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.recurrence.confirmation=off"]
   readonly property string notifiedPath: Paths.state + "/task-due-notified.json"
   readonly property string glyph: "\u{f0756}" // md-format-list-checks
@@ -30,7 +29,6 @@ Singleton {
   property bool notifiedReady: false
   property var queue: []
 
-  // "20260101T120000Z" -> Date, taskwarrior's basic iso
   function twDate(value) {
     var m = String(value || "").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/)
     if (!m) return null
@@ -50,7 +48,6 @@ Singleton {
   }
 
   function buildTasks(data) {
-    // a qml sequence across the var signal, not an Array, so copy by length
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
     var out = []
     for (let i = 0; i < list.length; i++) {
@@ -78,7 +75,6 @@ Singleton {
     return out
   }
 
-  // a run already in flight may have read the db before a mutation landed, so ask for one more after it
   property bool exportAgain: false
 
   function refresh() {
@@ -105,7 +101,6 @@ Singleton {
     mutateProc.running = true
   }
 
-  // one argv word per whitespace run, so attributes parse and nothing passes through a shell
   function add(text) {
     var words = String(text || "").trim().split(/\s+/).filter(function (w) { return w.length > 0 })
     if (words.length === 0) return

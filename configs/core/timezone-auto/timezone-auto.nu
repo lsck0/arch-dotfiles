@@ -2,7 +2,7 @@
 
 const TOGGLES = path self | path expand | path dirname | path join .. .. .. scripts toggles | path expand
 const TUNNELS = [vpn protonvpn tor]
-# one https provider, the lookup leaks our ip; not ipapi.co: it 429ed about every second keyless request
+# not ipapi.co: it 429ed about every second keyless request
 const LOOKUP_URL = "https://ipinfo.io/json"
 const LOOKUP_TIMEOUT = 8sec
 const RETRY_DELAY = 5sec
@@ -19,7 +19,7 @@ def tz-current []: nothing -> string {
     do { ^timedatectl show -p Timezone --value } | complete | get stdout | str trim
 }
 
-# the tunnel carrying traffic, null for none; fail closed: an unknown tunnel state never geolocates through an exit
+# The tunnel carrying traffic, null for none; an unknown state counts as up, so nothing geolocates through an exit.
 def tunnel-up []: nothing -> any {
     for t in $TUNNELS {
         let toggle = $TOGGLES | path join $"toggle-($t).nu"
@@ -58,7 +58,6 @@ def apply [dry_run: bool]: nothing -> nothing {
     let current = tz-current
     let want = tz-detect
     if $want == null or not (tz-valid $want) or $want == $current or $dry_run { return }
-    # the machine's clock is an admin's to set (49-timezone-auto.rules); a background unit never asks anyone else
     if "wheel" not-in (^id -nG | str trim | split row " ") { return }
     ^timedatectl --no-ask-password set-timezone $want
     if (which notify-send | is-not-empty) {

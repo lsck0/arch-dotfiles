@@ -1,5 +1,3 @@
-;;; latex.el --- AUCTeX + texlab -*- lexical-binding: t; -*-
-
 (use-package auctex
   :defer t
   :config
@@ -7,7 +5,6 @@
         TeX-parse-self t
         TeX-source-correlate-start-server t
         TeX-view-program-selection '((output-pdf "Sioyek"))
-        ;; the builtin entry's --inverse-search overrides prefs_user.config's synctex-edit
         TeX-view-program-list '(("Sioyek" ("sioyek --nofocus %o" (mode-io-correlate " --forward-search-file \"%b\" --forward-search-line %n"))
                                  "sioyek"))
         TeX-clean-confirm nil))
@@ -41,7 +38,6 @@
   (let ((case-fold-search nil))
     (cl-loop for (trigger . template) in my/latex-auto-snippets
              when (and (looking-back (regexp-quote trigger) (- (point) (length trigger)))
-                       ;; typing \sum, \sqrt, \int must not expand inside the command name
                        (not (and (string-match-p "\\`[[:alpha:]]" trigger)
                                  (looking-back (concat "\\\\[[:alpha:]]*" trigger) (line-beginning-position))))
                        (texmathp))
@@ -74,4 +70,3 @@
 (add-hook 'LaTeX-mode-hook #'my/latex-keys)
 
 (provide 'latex)
-;;; latex.el ends here

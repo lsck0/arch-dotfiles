@@ -2,19 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-/**
- * Hero: the one big number per surface, value plus a dim unit on its baseline.
- *
- * Properties:
- *   value  the number, already formatted
- *   unit   trailing unit ("%", "KBPS"), "" hides it
- *   color  number and unit
- *   live   true when the value changes more than once a minute: outline instead of a glow layer
- *   size   font pixel size, Style.font.hero by default (the lock clock doubles it)
- *
- * Usage:
- *   Hero { value: String(root.pct); unit: "%"; color: Util.level(root.pct, [70, 85, 95]) }
- */
 Row {
   id: root
 

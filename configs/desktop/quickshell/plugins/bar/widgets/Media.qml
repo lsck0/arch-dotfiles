@@ -19,11 +19,9 @@ BarWidget {
       + (p.trackArtUrl ? 4 : 0) + (p.lengthSupported && p.length > 0 ? 2 : 0) + (p.trackTitle ? 1 : 0)
   }
 
-  // mpris can duplicate players during d-bus reconnects
   readonly property var players: {
     var unique = []
     var seen = ({})
-    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     for (let i = 0; i < values.length; i++) {
       let bus = String(values[i].dbusName || "")
@@ -77,7 +75,6 @@ BarWidget {
   }
 
   readonly property string playbackKey: {
-    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
     var values = Mpris.players ? Mpris.players.values : [] // qmllint disable missing-property
     var key = ""
     for (let i = 0; i < values.length; i++)
@@ -111,14 +108,12 @@ BarWidget {
     return m ? "https://i.ytimg.com/vi/" + m[1] + "/mqdefault.jpg" : ""
   }
 
-  // qt in-process tls crashes, so remote art is fetched by curl
   readonly property bool artRemote: /^https?:\/\//i.test(root.artUrl)
   readonly property string runtimeDir: Quickshell.env("XDG_RUNTIME_DIR") || ""
   readonly property string artCacheDir: runtimeDir ? runtimeDir + "/quickshell-mediaart" : ""
   readonly property string artCacheFile:
     root.artRemote && root.artCacheDir ? (root.artCacheDir + "/" + Qt.md5(root.artUrl)) : ""
   readonly property int artCacheKeep: 50
-  // a remote fetch tells the art host what is playing, so only at home with no vpn or tor up
   readonly property string artFetchCheck: "[ -e /run/home-network ]"
     + " && ! ip link show proton0 >/dev/null 2>&1 && ! ip link show wg0 >/dev/null 2>&1"
     + " && ! systemctl -q is-active tor-router.service && ! systemctl --user -q is-active anonymous-socks-tor.service"
@@ -167,10 +162,8 @@ BarWidget {
     }
   }
 
-  // prefer mpris volume, spotify resets stream volume per track
   readonly property var playerStreams: {
     var entry = String(player ? (player.desktopEntry || "") : "").toLowerCase()
-    // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
     var nodes = Pipewire.nodes ? Pipewire.nodes.values : [] // qmllint disable missing-property
     var out = []
     if (!entry) return out
@@ -181,7 +174,6 @@ BarWidget {
     return out
   }
   readonly property var volumeStream: playerStreams.length > 0 ? playerStreams[0] : null
-  // plasma-browser-integration always reports 0
   readonly property bool mprisVolume: player !== null && player.volumeSupported && player.canControl
     && String(player.dbusName).indexOf("plasma-browser-integration") === -1
   readonly property bool volumeAvailable: mprisVolume || volumeStream !== null
@@ -329,7 +321,6 @@ BarWidget {
       sourceComponent: CavaRef {}
     }
 
-    // position does not tick on its own
     Timer {
       interval: 1000
       repeat: true

@@ -4,8 +4,8 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
 
 ## Modules
 
-- `dalamud`: the FFXIV plugin runtime; plugin manifests in `configs/secrets/keys/dalamud/manifests`, config and plugin
-  configs per machine in `configs/secrets/keys/dalamud/<host>` (its `backup` verb), plugins reinstalled from their repos
+- `dalamud`: the FFXIV plugin runtime; plugin manifests in `configs/secrets/state/dalamud/manifests`, config and plugin
+  configs per machine in `configs/secrets/state/dalamud/<host>` (its `backup` verb), plugins reinstalled from their repos
   by `plugin-restore.nu`.
 - `d2launcher`: the Diablo II / Median XL launcher, a pinned upstream checkout (it has no aur package) plus its config
   and desktop entry; its bulk downloads (the game, the proton build, median xl patches, save backups and the wine
@@ -13,7 +13,7 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
   `~/.d2launcher/{bin,patches,backup}`. `bin/diablo2` is seeded from a Lord of Destruction install (`base_dir`, detected
   in the lutris prefixes). The game runs inside gamescope (`gamescope.sh`, the launcher's `custom_command`) at a 4:3
   `render_size`, so its window resizes freely; its stream is named "Diablo II" through `PIPEWIRE_ALSA`.
-- `ffxiv`: the FFXIV client and launcher config, seeded once from `configs/secrets/keys/ffxiv/<host>` (its `backup`
+- `ffxiv`: the FFXIV client and launcher config, seeded once from `configs/secrets/state/ffxiv/<host>` (its `backup`
   verb).
 - `gamemode`: feral gamemode (`gamemode.ini`, its `[gpu]` from the detected card), engaged per game through a launch
   option.
@@ -40,4 +40,4 @@ Extends the root `AGENTS.md`. Game launchers, performance tooling and the game n
   opposite way, bound to the tunnel (`desktop/qbittorrent`).
 - Game saves and launcher state have one home each: live saves and worlds to `~/sync`, launcher/account state
   restored by the module's `link` from `configs/secrets/` or `~/sync`. Game installs are re-downloadable and
-  excluded from borg (see root backup model).
+  not backed up.

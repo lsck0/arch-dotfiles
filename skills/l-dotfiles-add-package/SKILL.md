@@ -13,8 +13,10 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
   ```
   `native` is the hardware-only half, skipped on WSL. A flatpak is pinned to a commit (installed `--user` at it and
   masked; bump with `flatpak remote-info --log flathub <app>`), nix by `NIXPKGS` in `scripts/dot.nu`.
-- One machine only: `extra_packages` in `platforms/<host>.nuon`.
-- `dot internal packages [pacman|flatpak|nix]` prints what this machine declares; `dot internal gen` rewrites
+- One machine only: `extra_packages` in `platforms/<name>.nuon` (pc, notebook, wsl, server, vm; this machine's name
+  is in `/etc/dotfiles/platform`). Every platform's `extra_packages` also land in `mirror/packages.txt`.
+- `dot internal packages [pacman|flatpak|nix] [--groups g,g --form-factor f]` prints what this machine (or the given
+  groups and form factor) declares; `dot internal gen` rewrites
   `mirror/packages.txt`, the list the homelab mirror builds (`dot test lint` fails when it is stale).
 
 ## Steps
@@ -33,7 +35,8 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 
 Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicitly
 installed package no module declares (minus `packages_keep` in the platform file and the boot/unlock deny list), each
-after a yes at the tty; `dot plan` lists them.
+after a yes at the tty (`--yes` skips the question; the deny list is `PACKAGES_DENY` in `scripts/lib/ledger.nu`);
+`dot plan` lists them.
 
 ## Supply chain
 

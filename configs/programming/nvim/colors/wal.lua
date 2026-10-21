@@ -1,5 +1,4 @@
--- pywal.nvim only sets its own groups: without the clear and the name, a switch kept the last theme's
--- remaining groups and lualine kept loading that theme
+-- pywal.nvim sets only its own groups: without the clear and the name a switch kept the last theme's rest
 vim.cmd.highlight("clear")
 if vim.g.syntax_on then
     vim.cmd.syntax("reset")

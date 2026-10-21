@@ -8,5 +8,4 @@ ExecStart=/usr/bin/docker image prune -af --filter until=168h
 ExecStart=/usr/bin/docker builder prune -af --filter until=168h
 
 [Install]
-# on every docker start instead of a daily cron that socket-activated dockerd until reboot
 WantedBy=docker.service

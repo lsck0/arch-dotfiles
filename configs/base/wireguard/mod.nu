@@ -16,7 +16,7 @@ export def system [cfg: record] {
     step tunnel $name
 }
 
-# removes only a config dot placed: a run without secrets never undoes one, a hand-made wg0.conf stays
+# Writes or removes the wg config dot placed; a run without secrets never undoes one, a hand-made wg0.conf stays.
 export def tunnel [name: string]: nothing -> nothing {
     let ours = ($CONF | path exists) and (open --raw $CONF | hash sha256) == (recorded-hashes | get --optional $CONF)
     if $name == "" {

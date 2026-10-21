@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# `dot internal`: what scripts, units and completion run, kept out of dot --help.
 
 const REPO = path self | path expand | path dirname | path dirname | path dirname
 const LIB = $REPO | path join scripts lib
@@ -23,7 +24,7 @@ use ($LIB | path join iso-install.nu) [iso-install-run]
 
 const DOT = $REPO | path join scripts dot.nu
 const MIRROR_LIST = "mirror/packages.txt"
-# what a switch waits for, in order: discord recolours from spotify's palette
+# in order: discord recolours from spotify's palette
 const THEME_FOREGROUND = [socials/spotify socials/discord]
 
 # dot internal <command> --help for each
@@ -74,12 +75,13 @@ def "main stage" []: nothing -> nothing {
 
 def mirror-list []: nothing -> string {
     let ctx = pipeline-load $REPO system
-    # the public list never names the private modules' packages, and must not change with the submodule pulled or not;
-    # one they need from the mirror goes in the platform's extra_packages
     let all = $ctx.modules | where group != $SECRETS_GROUP | update selected true | update cfg { upsert enable true }
     let extras = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { open $in | get --optional extra_packages | default [] } | flatten
     let variants = $all | where {|m| "packages" in $m.native } | each {|m|
-        $m.options | items {|name, spec| $spec.choices? | default [] | each {|c| {m: $m, cfg: ($m.cfg | upsert $name $c)} } } | flatten
+        $m.options | items {|name, spec|
+            let values = $spec.choices? | default (if $spec.type == bool { [true false] } else { [] })
+            $values | each {|c| {m: $m, cfg: ($m.cfg | upsert $name $c)} }
+        } | flatten
     } | flatten
     let candidates = $variants | each {|v| modules-eval [$v.m] packages {$v.m.id: $v.cfg} [] | get 0.decls | get --optional 0 | default {} | select --optional pacman native | values | flatten } | flatten
     let platform = $ctx.platform | update form_factor desktop | update extra_packages ($extras ++ $candidates)
@@ -141,7 +143,7 @@ def "main drift" []: nothing -> nothing { help main drift }
 
 # this machine's drift report
 def "main drift report" []: nothing -> nothing { guarded drift --read-only { drift-report | print -n } }
-# publish this machine's report into configs/secrets/keys/drift/<host> when it changed
+# publish this machine's report into configs/secrets/state/drift/<host> when it changed
 def "main drift publish" []: nothing -> nothing { guarded drift { drift-publish } }
 
 # secret rotation and recovery drill reminders

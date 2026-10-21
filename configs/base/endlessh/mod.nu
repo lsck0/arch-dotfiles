@@ -8,7 +8,6 @@ export def system [cfg: record] {
         (file-copy config /etc/endlessh/config)
         (dropin endlessh.service override.conf)
     ] ++ (if (^sshd -T o+e>| complete | get stdout | lines | any { ($in | str lowercase) == "port 22" }) {
-        # sshd moves off 22 only once authorized_keys exists
         []
     } else { [(unit-enable endlessh.service --now)] })
 }

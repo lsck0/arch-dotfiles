@@ -116,7 +116,6 @@ BarWidget {
     monitorsSettle.restart()
   }
 
-  // hyprland needs a moment before readback is current
   Timer {
     id: monitorsSettle
     interval: 800
@@ -128,7 +127,6 @@ BarWidget {
     monitorsSettle.restart()
   }
 
-  // one process per get so concurrent monitors don't clash
   Component {
     id: brightnessGetComponent
     Process {
@@ -319,7 +317,6 @@ BarWidget {
               Chip {
                 focusable: true
                 required property real modelData
-                // hyprland reports 1.666667 as 1.6666666
                 selected: Math.abs(Number(monitorRow.modelData.scale) - modelData) < 0.01
                 text: (Math.round(modelData * 100) / 100) + "x"
                 onClicked: root.setMonitorScale(monitorRow.modelData.name, modelData)

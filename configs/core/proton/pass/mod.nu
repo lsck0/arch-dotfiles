@@ -3,11 +3,10 @@ use module.nu *
 export const meta = {packages: {pacman: [pass pass-otp]}, inputs: [~/sync/password-store/.gpg-id]}
 
 export def link [cfg: record] {
-    if not (profile-has identity) { return [] }
+    if not (profile-has secrets) { return [] }
     let store = $nu.home-dir | path join .password-store
     let synced = $nu.home-dir | path join sync password-store
     let fpr = (profile-load).gpg_fingerprint
-    # made only by syncthing or a first `pass init`, never here before syncthing delivers the real one
     if not ($synced | path exists) {
         log-info $"pass: no ($synced) yet; it arrives with syncthing, or start one with: pass init ($fpr)"
     }

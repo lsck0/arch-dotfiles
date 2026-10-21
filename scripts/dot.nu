@@ -32,20 +32,16 @@ const INTERNAL = $LIB | path join internal.nu
 const FAILURES = "FAILURES.config"
 const EXIT_SYSTEM_PENDING = 3
 const FAILURES_INSTALL = "FAILURES.install"
-# dot internal stage retries an abort, moves on from a run that only recorded failures
 const EXIT_ABORTED = 2
 const NIXPKGS = "github:NixOS/nixpkgs/b6c8664de9b6cc07fe5666a29f91884ba81197c4"
 const FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
-# core/git's lfs filter, which a first apply pulls before it exists; without it lfs pull skips the checkout
 const LFS_FILTER = [
     -c "filter.lfs.clean=git-lfs clean -- %f" -c "filter.lfs.smudge=git-lfs smudge -- %f"
     -c "filter.lfs.process=git-lfs filter-process" -c filter.lfs.required=true
 ]
-# flatpak's profile.d puts its exports on the session's data dirs; without them each install prints a note
 const FLATPAK_SYSTEM_EXPORTS = "/var/lib/flatpak/exports/share"
 const FLATPAK_USER_EXPORTS = ".local/share/flatpak/exports/share"
 const DATA_DIRS_DEFAULT = "/usr/local/share:/usr/share"
-# seeds a root copy that predates the nu entry: a fixed script, no repo code as root
 const SYSTEM_SEED = 'set -e; umask 022; copy=$1; mkdir -p "${copy%/*}"; exec 9>"${copy%/*}/lock"; flock 9; rm -rf "$copy.new"; mkdir "$copy.new"; tar -x --no-same-owner --no-same-permissions -C "$copy.new" -f -; printf "%s\n" "$2" > "$copy.new/.source"; rm -rf "$copy"; mv "$copy.new" "$copy"'
 const THEME_STAMP_PATHS = [configs/core/wallust themes 'configs/*/*/mod.nu' scripts/lib/wallpaper.nu]
 const THEME_DEFAULT_WALLPAPER = "alena-aenami-cover-art-007-3.jpg"
@@ -60,7 +56,6 @@ def summary [results: table]: nothing -> nothing {
     log-debug $"slowest: ($slow)"
 }
 
-# <mods> the ones asked for: each that has no row here gets its reason
 def plan-print [planned: table, verb: string, modules: table = [], mods: list<string> = []]: nothing -> nothing {
     let busy = $planned | where {|m| $m.error != null or ($m.actions | any { $in.kind != skip }) }
     for m in $busy {
@@ -82,7 +77,6 @@ def plan-print [planned: table, verb: string, modules: table = [], mods: list<st
 
 def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> table {
     let ctx = pipeline-load $REPO user
-    # zshrc sets it only interactively; mason's go would create ~/go
     $env.GOPATH = $nu.home-dir | path join .go
     let planned = pipeline-plan $ctx link $mods $force
     if $plan {
@@ -96,7 +90,6 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     let results = with-env (platform-env $ctx.platform) { pipeline-apply $ctx $planned link (jobs) }
     let wallpaper = $nu.home-dir | path join .cache wal wallpaper
     let themed = if ($wallpaper | path exists) {
-        # a mod.nu that does not parse has a link row only: asked by name, the theme plan would throw on it
         let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
         pipeline-plan $ctx theme $ids false [(^readlink -f $wallpaper | str trim)] | where native | pipeline-apply $ctx $in theme (jobs) [(^readlink -f $wallpaper | str trim)]
     } else { [] }
@@ -118,8 +111,6 @@ def owned-targets []: nothing -> list<string> {
 }
 
 def theme-init []: nothing -> nothing {
-    # over the worktree, not ls-files -s: an index stamp never changes on an uncommitted theming edit
-    # untracked too, and only what exists: a moved template is deleted-but-tracked and its new path untracked until sync
     let files = ^git -C $REPO ls-files --cached --others --exclude-standard ...$THEME_STAMP_PATHS | lines | where $it != ""
         | each {|f| $REPO | path join $f } | where ($it | path exists) | uniq
     let stamp = ^sha1sum ...$files | ^sha1sum | str trim
@@ -128,14 +119,12 @@ def theme-init []: nothing -> nothing {
     if ($cache | path join wallpaper | path exists) and $current == $stamp {
         return
     }
-    # readlink -f prints a missing path too, so a fresh home has to be told apart first
     let link = $cache | path join wallpaper
     let wallpaper = if ($link | path exists) { ^readlink -f $link | str trim } else { $THEME_DEFAULT_WALLPAPER }
     wallpaper-set $wallpaper --sync
     $"($stamp)\n" | save --force ($cache | path join .theme-stamp)
 }
 
-# per-run failures published by one rename, so concurrent runs never clobber each other's
 def --env failures-open []: nothing -> nothing {
     if ($env.FAILURES_FILE? | is-empty) {
         $env.FAILURES_FILE = $env.DOT_RUN_FILE | str replace ".jsonl" ".failures"
@@ -143,7 +132,6 @@ def --env failures-open []: nothing -> nothing {
     }
 }
 
-# false when the run left a failure; FAILURES.config always holds the last full run's
 def failures-publish [results: table]: nothing -> bool {
     let owned = $env.DOT_FAILURES_OWNED? == true
     let failures = if $owned and ($env.FAILURES_FILE | path exists) { open --raw $env.FAILURES_FILE | str trim } else { "" }
@@ -172,7 +160,7 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
     --user | --system             one layer
     --packages                    declared packages, flatpak and nix instead, removals after a yes
   plan [mod...]                   what an apply would do; --order the run order, --modules every module
-  status [--brief]                generation, pending work, failures, drift, secrets, backups
+  status [--brief]                generation, pending work, failures, drift, secrets
   set [mod[.key] [value]]         options: every set one, a module's, one; a value sets it, --default resets it
   theme [name|random]             wallpaper and theme, fzf without a name
   module adopt|unlink|remove|restore
@@ -184,7 +172,6 @@ const USAGE = "dot: this machine as code. `dot sync` brings it to what the repo 
   --no-system on sync, apply, set: only the user part, same as DOT_SYSTEM=skip
   dot <command> --help for its flags"
 
-# retired names, so an unknown command can point at its successor
 const COMMANDS_MOVED = {
     update: sync, link: "apply --user", system: "apply --system", install: "apply --packages", gen: "internal gen"
     options: set, unlink: "module unlink", remove: "module remove", adopt: "module adopt", restore: "module restore"
@@ -264,15 +251,12 @@ def admin []: nothing -> bool {
     ^id -nG | split row " " | any { $in == wheel }
 }
 
-# DOT_SYSTEM=skip: tests and agents must never put a root prompt on the screen
 def system-allowed []: nothing -> bool {
     $env.DOT_SYSTEM? != "skip" and (admin)
 }
 
-# pacman draws its bars only on a terminal, so rerun under script to keep and log them
 def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
     if ($env.DOT_PTY_LOG? | is-not-empty) { return }
-    # before the re-exec: its pty stdin would look like a person even under dot internal stage's </dev/null
     if not (is-terminal --stdin) { $env.DOTFILES_UNATTENDED = "1" }
     if (is-terminal --stdout) and (which script | is-not-empty) {
         let cmd = [nu --no-config-file ($REPO | path join scripts dot.nu) ...$args] | each {|w| $"'($w | str replace --all "'" "'\\''")'" } | str join " "
@@ -280,7 +264,7 @@ def --env pty-log [name: string, args: list<string>]: nothing -> nothing {
     }
 }
 
-def system-run [stage: string, --snapshot, --force]: nothing -> int {
+def system-run [stage: string, --force]: nothing -> int {
     let runner = $env.DOTFILES_ROOT_RUNNER? | default sudo
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let entry = $SYSTEM_REPO | path join $ENTRY
@@ -291,12 +275,11 @@ def system-run [stage: string, --snapshot, --force]: nothing -> int {
     }
     let pin = $env.LSCK0_SNAPSHOT? | default "" | if ($in | is-empty) { [] } else { [--pin $in] }
     let forced = if $force { [--force] } else { [] }
-    let flags = [--snapshot=($snapshot) --unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $pin ++ $forced
+    let flags = [--unattended=($env.DOTFILES_UNATTENDED? == "1")] ++ $pin ++ $forced
     let archive = system-archive $REPO (platform-load $REPO).facts.wireguard? --rollback=$rollback
     try { $archive | ^$runner $entry apply $head $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
 }
 
-# a skipped root part is work left, not success: recorded for dot plan and status, the run exits 3
 def --env system-skipped [what: string, pending: bool]: nothing -> nothing {
     if $pending { $"($what)\n" | save --append (pending-file) }
     log-note $"system part pending \(DOT_SYSTEM=skip\): ($what)"
@@ -313,22 +296,18 @@ def system-failed [stage: string]: nothing -> nothing {
     if ($root | path exists) { open --raw $root | save --append $env.FAILURES_FILE }
 }
 
-# secrets and lfs first: the root copy and the links take the working tree as it is
 def --env apply-run [system: bool, user: bool, force: bool]: nothing -> table {
     failures-open
     if (profile-has secrets) { try { yubikey-unlock } catch {|e| fail $"dot secrets unlock: ($e.msg)" } }
     if (which git-lfs | is-not-empty) { try { ^git -C $REPO ...$LFS_FILTER lfs pull } catch { fail "git lfs pull" } }
     if $system and (system-allowed) {
-        if (system-run config --snapshot --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
+        if (system-run config --force=$force) == 0 { rm --force (pending-file) } else { system-failed config }
     } else if $system and (admin) {
         system-skipped "system layer" true
     }
     if $user { link-run [] $force false } else { [] }
 }
 
-# one user-layer run at a time: pomodoro's or the settings window's dot set waits for a running apply instead of racing
-# its state, options and temp files. Like system-apply.nu's locked: the whole command again under flock, with the argv
-# the kernel has (a typed dot set value survives as given); --close keeps a daemon an apply starts off the lock
 def user-locked []: nothing -> nothing {
     if ($env.DOT_USER_LOCKED? | is-not-empty) { return }
     let lock = state-dir | path join run.lock
@@ -347,7 +326,7 @@ def "main apply" [
     ...mods: string@module-ids
     --user       # the user layer alone
     --system     # the system layer alone
-    --packages   # every declared package, flatpak and nix after a snapshot, then removals after a yes
+    --packages   # every declared package, flatpak and nix, then removals after a yes
     --force      # overwrite drift, the live copy preserved aside
     --yes        # with --packages: remove packages no module declares without asking
     --no-system  # only the user part, same as DOT_SYSTEM=skip
@@ -360,9 +339,8 @@ def "main apply" [
         if ($mods | is-not-empty) { die --misuse "apply --packages takes no modules" }
         if $one == "system" { die --misuse "apply --packages: both layers, or --user alone" }
         pty-log install ([apply --packages] ++ (flag user ($one == "user")) ++ (flag yes $yes) ++ (flag force $force))
-        # a skipped root part still lets the convergence below run; the exit says it after
         let pending = guarded apply {
-            let status = install-run ($one == "user") $yes true
+            let status = install-run ($one == "user") $yes
             if $status != 0 { exit $status }
             $env.DOT_SYSTEM_PENDING? == true
         }
@@ -436,7 +414,6 @@ def "main module remove" [mod: string@module-ids, --machine, --yes]: nothing -> 
         if ($dependents | is-not-empty) { error make {msg: $"($dependents | str join ', ') depend on ($mod), remove those first"} }
         if ($m.native | is-not-empty) { unlink-run $mod | ignore }
         option-write $mod enable false $machine | ignore
-        # the system run plans a module turned off with nothing declared, so what it installed goes too
         if $machine and "system" in $m.verbs and (admin) { system-part $"($mod).enable" }
         let others = modules-packages $REPO ($ctx.modules | where id != $mod) $ctx.platform | get pacman
         let only = $m.meta.packages.pacman | where $it not-in $others
@@ -476,7 +453,6 @@ def "main module restore" [mod: string@module-ids]: nothing -> nothing {
     }
 }
 
-# flatpak in user scope: a system deploy needs a polkit agent the unattended chain lacks
 def install-user [declared: record]: nothing -> nothing {
     if (which rustup | is-not-empty) { try { ^rustup default stable } catch { fail "rustup default stable" } }
     let apps = $declared.flatpak | transpose app commit
@@ -492,7 +468,6 @@ def install-user [declared: record]: nothing -> nothing {
                     if not ($a.commit =~ '^[0-9a-f]{64}$') { fail $"flatpak ($a.app): no pinned commit"; continue }
                     let now = do $deployed $a.app
                     if $now != $a.commit {
-                        # a mask also holds back an explicit update
                         if $a.app in (^flatpak mask --user | lines | str trim) { ^flatpak mask --user --remove $a.app }
                         if $now == "" and (try { ^flatpak install --user --noninteractive flathub $a.app; false } catch { true }) { fail $"flatpak install --user ($a.app)"; continue }
                         try { ^flatpak update --user --noninteractive $"--commit=($a.commit)" $a.app } catch { fail $"flatpak update --user --commit=($a.commit) ($a.app)" }
@@ -505,7 +480,6 @@ def install-user [declared: record]: nothing -> nothing {
     }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
         let nix = [--extra-experimental-features "nix-command flakes"]
-        # nix profile add stacks a duplicate on every rerun
         let missing = $declared.nix | where $it not-in (^nix ...$nix profile list --json | from json | get elements | columns)
         if ($missing | is-not-empty) {
             try { ^nix ...$nix profile add ...($missing | each { $"($NIXPKGS)#($in)" }) } catch { fail $"nix profile add ($missing | str join ' ')" }
@@ -513,17 +487,15 @@ def install-user [declared: record]: nothing -> nothing {
     }
 }
 
-def --env install-run [user: bool, yes: bool, snapshot: bool]: nothing -> int {
+def --env install-run [user: bool, yes: bool]: nothing -> int {
     let system = not $user and (system-allowed)
-    # packages are no apply's work, so nothing goes to the pending file; the exit says it
     if not $user and not $system and (admin) { system-skipped "packages" false }
     $env.FAILURES_FILE = $env.DOT_RUN_FILE | str replace ".jsonl" ".install-failures"
     "" | save --force $env.FAILURES_FILE
     if $system {
-        let status = system-run install --snapshot=$snapshot
+        let status = system-run install
         if $status == $EXIT_ABORTED {
             fail "system layer: install aborted"
-            # the chain may give up after this, so the reason has to outlive the run file
             $"(open --raw $env.FAILURES_FILE | str trim)\n" | save --force ($REPO | path join $FAILURES_INSTALL)
             hide-env FAILURES_FILE
             return $EXIT_ABORTED
@@ -579,7 +551,6 @@ def option-target [target: string]: nothing -> record {
     $parts
 }
 
-# a null value removes the key, so the layer below applies
 def option-write [mod: string, key: string, value: any, machine: bool]: nothing -> record {
     let ctx = pipeline-load $REPO user
     let m = $ctx.modules | where id == $mod | get --optional 0
@@ -600,7 +571,6 @@ def option-write [mod: string, key: string, value: any, machine: bool]: nothing 
     {module: $m, spec: $spec, value: ($resolved.cfg | get $key), source: ($resolved.sources | get $key), machine: $machine}
 }
 
-# the value is stored either way; a failed apply is reported to the settings window and exits 1
 def option-apply [target: string, set: record]: nothing -> nothing {
     mut results = []
     mut toggle_error = ""
@@ -621,13 +591,10 @@ def option-apply [target: string, set: record]: nothing -> nothing {
             }
         }
         $apply => {
-            # a disabled module is skipped by link, so turning it off has to undo it here
             if ($target | str ends-with $".($OPTION_ENABLE)") and $set.value == false and ($set.module.native | is-not-empty) {
                 $results = unlink-run $set.module.id
                 print $"note: ($set.module.id) unlinked; dot module remove ($set.module.id) also drops its packages"
             } else if "link" in $set.module.verbs { $results = link-run [$set.module.id] false false }
-            # machine options reach the system verb only through the root-owned copy; a module turned off --machine
-            # has its system part undone there
             if ($set.spec.scope == "machine" or $set.machine) and "system" in $set.module.verbs and (admin) { system-part $target }
             if $apply != "relink" {
                 log-note $"($target) takes effect after a ($apply)"
@@ -666,11 +633,9 @@ def "main set" [
     --no-system  # only the user part, same as DOT_SYSTEM=skip
 ]: nothing -> any {
     if $no_system { $env.DOT_SYSTEM = "skip" }
-    # only a write: listing and --json stay free while an apply runs
     let write = $target != null and ($default or ($value | is-not-empty))
     if $write { user-locked }
     guarded set --read-only=(not $write) {
-        # a rest, so a given null (reset, as the settings window sends it) differs from none
         if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
         let given = $value | is-not-empty
         let value = $value | get --optional 0
@@ -691,13 +656,11 @@ def "main set" [
             if $row == null { error make {msg: $"no option ($target); dot set lists them"} }
             return $row
         }
-        # nu passes true, 3 or [a b] typed; a string may still be nuon or json (the settings window)
         let parsed = if ($value | describe) != "string" { $value } else { try { $value | from nuon } catch { try { $value | from json } catch { $value } } }
         option-apply $target (option-write $t.mod $t.key $parsed $machine)
     }
 }
 
-# every recorded output that no longer holds; pending: the next apply puts it back without being told to
 def managed-drift []: nothing -> table {
     let written = recorded-hashes
     glob (state-dir | path join modules **/*.nuon) | each {|f|
@@ -738,16 +701,15 @@ def "main theme" [
 def --env update-run [yes: bool]: nothing -> record {
     sync-pull $REPO
     migrations-run $REPO user | ignore
-    let install = install-run false $yes true
+    let install = install-run false $yes
     if $install == $EXIT_ABORTED { exit $EXIT_ABORTED }
-    # a refused sudo (no key, no terminal) is a recorded failure like the install's, never a panic
     if (system-allowed) {
         try { ^sudo ($SYSTEM_REPO | path join $ENTRY) migrate } catch { fail "system layer: migrations" }
     } else if (admin) { system-skipped "system migrations" false }
     {install: $install, results: (apply-run true true false)}
 }
 
-# the one command: pull, snapshot, migrate, install, apply, back up app state, commit the signed generation, push
+# the one command: pull, migrate, install, apply, back up app state, commit the signed generation, push
 def "main sync" [
     --no-push    # stop after the apply: no backup, commit or push; a machine that does not sign always stops there
     --yes        # remove packages no module declares without asking
@@ -771,21 +733,14 @@ def "main sync" [
     }
 }
 
-# back to an earlier generation, undoing newer migrations; --snapshot lists pre-apply snapshots
-def "main rollback" [target?: string, --snapshot, --full, --dry-run]: nothing -> nothing {
+# back to an earlier generation, undoing newer migrations
+def "main rollback" [target: string, --full, --dry-run]: nothing -> nothing {
     guarded rollback {
-        if $snapshot {
-            ^sudo timeshift --list
-            print "restore one with: sudo timeshift --restore --snapshot '<name>' (then reboot; kernel-resync fixes the esp)"
-            return
-        }
-        if $target == null { error make {msg: "dot rollback <generation|commit> or --snapshot"} }
         rollback-run $target --full=$full --dry-run=$dry_run
     }
 }
 
 def status-head []: nothing -> record {
-    # this status run is read-only, so the last that could change something is the one before it
     let last = run-last-changed
     let records = if $last == null { [] } else { open --raw $last | lines | each { from json } }
     {
@@ -833,7 +788,6 @@ def "main status" [
 # a run's records (default the last) by module and level; --trace the span tree with timings
 def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@[TRACE DEBUG INFO WARN ERROR PANIC] = "INFO", --trace]: nothing -> any {
     if ($level | str uppercase) not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
-    # the last run that could change something: a status or plan since says nothing
     let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
     if $file == null or not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
     let records = open --raw $file | lines | each { from json }
@@ -910,8 +864,8 @@ def "main test run" [--iso: path, --platform: string, --user: string, --profile:
 # pull the stage logs, FAILURES.* and every *.log of the test vm to ~/.cache/vm-test/<name>/logs
 def "main test logs" [--user: string, --name: string = $VM_NAME]: nothing -> nothing { guarded test { vm-logs $name ($user | default $USER) } }
 
-# a drill on a passed run's vm: egress or rollback; both change the vm
-def "main test drill" [drill: string@[egress rollback], --user: string, --name: string = $VM_NAME]: nothing -> nothing {
+# the egress drill on a passed run's vm; it changes the vm
+def "main test drill" [drill: string@[egress], --user: string, --name: string = $VM_NAME]: nothing -> nothing {
     guarded test { vm-drill $name $drill ($user | default $USER) }
 }
 

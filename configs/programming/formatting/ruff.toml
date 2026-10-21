@@ -1,6 +1,4 @@
-# not user-level: the editors pass it only to projects without their own
 line-length = 120
 
 [lint]
-# black-compatible import sorting, conform runs it as ruff_organize_imports
 extend-select = ["I"]

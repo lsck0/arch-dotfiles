@@ -2,24 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-/**
- * HudTitle: the "> TITLE _ suffix ... [- o x]" header over every panel, overlay and splash, with its accent rule.
- *
- * Without a width it is as wide as its row, so it centres like a Text; give it a width for decor to sit at the right edge.
- *
- * Properties:
- *   text      title, drawn uppercase
- *   suffix    faint text after the caret, "" hides it; counts are spelled "[" + n + "]"
- *   decor     Style.decor at the right edge
- *   rule      accent rule under the row, counted in implicitHeight
- *   blinking  caret blinks while true (bind to the owner's open state)
- *   color     prompt, title and caret
- *   size      font pixel size of the row
- *   typed     characters of text shown, -1 for all (BootIn.typed types it in)
- *
- * Usage:
- *   HudTitle { width: parent.width; text: "session"; suffix: "@" + root.userName; decor: true; rule: true; blinking: root.opened }
- */
 Item {
   id: root
 

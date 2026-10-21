@@ -12,14 +12,12 @@ Singleton {
 
   property bool saver: false
 
-  // toggle-powermode.nu owns the saver rule and pings back here when saver flips
   readonly property bool onBattery: UPower.onBattery === true
   onOnBatteryChanged: sync()
   Component.onCompleted: sync()
 
   function sync() { Quickshell.execDetached([Paths.toggle("toggle-powermode.nu"), "sync"]) }
 
-  // the toggle pings over ipc, the file may not exist yet to watch
   function reload() { file.reload() }
 
   FileView {

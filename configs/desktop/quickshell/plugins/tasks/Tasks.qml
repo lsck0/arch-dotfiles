@@ -18,7 +18,6 @@ Item {
   readonly property string notesPath: Paths.home + "/sync/notes/notes.md"
   property string notesDisk: ""
   property bool notesLoaded: false
-  // only a typed pad may save, so one merely shown never overwrites an edit made elsewhere
   property bool notesEdited: false
   readonly property int notesSaveDelayMs: 600
 
@@ -49,12 +48,6 @@ Item {
     : [["J/K", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
        ["TAB", "notes"], ["ESC", "close"]]
 
-  /*
-   * ---------------------------------------------------------------------------
-   * OPEN AND CLOSE
-   * ---------------------------------------------------------------------------
-   */
-
   function open(payload) {
     TaskState.panelOpen = true
   }
@@ -77,7 +70,6 @@ Item {
       root.focusView()
     } else {
       root.saveNotes()
-      // a closed pad must not hold focus, or seedNotes would keep skipping later edits from disk
       keyCatcher.forceActiveFocus()
     }
   }
@@ -96,12 +88,6 @@ Item {
     if (name === "notes") root.seedNotes()
     root.focusView()
   }
-
-  /*
-   * ---------------------------------------------------------------------------
-   * TASK LIST
-   * ---------------------------------------------------------------------------
-   */
 
   onFilteredChanged: {
     if (root.selectedUuid) {
@@ -225,12 +211,6 @@ Item {
     return parts.join(" ")
   }
 
-  /*
-   * ---------------------------------------------------------------------------
-   * NOTES
-   * ---------------------------------------------------------------------------
-   */
-
   function seedNotes() {
     if (notesEdit.activeFocus || !root.notesLoaded) return
     if (notesEdit.text !== root.notesDisk) notesEdit.text = root.notesDisk
@@ -277,12 +257,6 @@ Item {
     function open(): string { root.open(null); return "ok" }
     function close(): string { root.close(); return "ok" }
   }
-
-  /*
-   * ---------------------------------------------------------------------------
-   * SURFACE
-   * ---------------------------------------------------------------------------
-   */
 
   OverlayCard {
     id: panel

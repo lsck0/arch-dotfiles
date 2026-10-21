@@ -16,7 +16,6 @@ def main [interface: string] {
     let fields = ^nmcli --show-secrets --escape no --get-values $FIELDS connection show uuid $uuid | lines
     let key_management = $fields.0? | default ""
     if ($key_management =~ "eap|ieee8021x") { fail "Enterprise Wi-Fi has no shareable password" }
-    # nm models wep as key-mgmt none plus a wep-key
     let wep = $key_management in ["" "none"]
     let password = $fields | get -o (if $wep { 2 } else { 1 }) | default ""
     if $password == "" { fail (if $wep { "This network has no password" } else { "Could not read the Wi-Fi password" }) }

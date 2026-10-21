@@ -19,7 +19,7 @@ def millennium-link []: nothing -> nothing {
     for l in $LINKS { ^ln -sfn ($LIB | path join $l.lib) ($steam | path join $l.target) }
 }
 
-# only steam's own copy goes, a launcher the user put there stays
+# Only steam's own copy goes, a launcher the user put there stays.
 def shortcut-remove []: nothing -> nothing {
     if not ($SHORTCUT_SOURCE | path exists) { return }
     let desktop = try { ^xdg-user-dir DESKTOP | str trim } catch { "" }

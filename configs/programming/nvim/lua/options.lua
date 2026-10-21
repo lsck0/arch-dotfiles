@@ -4,9 +4,8 @@ set.clipboard = "unnamedplus"
 
 set.spellfile = vim.fn.stdpath("config") .. "/spell/en.utf-8.add"
 set.spellcapcheck = ""
--- GitHub is checked as Git + Hub; not noplainbuffer: .txt has no syntax, so it would never be checked at all
+-- GitHub is checked as Git + Hub; not noplainbuffer: .txt has no syntax, so it would never be checked
 set.spelloptions = "camel"
--- the .spl is gitignored: rebuild it when a pulled wordlist is newer, else the synced words stay flagged
 do
     local add = vim.uv.fs_stat(vim.o.spellfile)
     local spl = vim.uv.fs_stat(vim.o.spellfile .. ".spl")
@@ -31,7 +30,6 @@ set.colorcolumn = "120"
 set.cursorline = true
 set.expandtab = true
 set.fillchars = { eob = " " }
--- scripts/toggles/toggle-font.nu writes the font here, not into this tracked file
 do
     local f = io.open((vim.env.XDG_STATE_HOME or vim.env.HOME .. "/.local/state") .. "/toggles/nvim-guifont")
     set.guifont = f and f:read("*l") or "Kode Mono:h16"

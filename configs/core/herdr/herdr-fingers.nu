@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-# tmux-fingers' builtin patterns, most specific first: a later match inside an earlier one is dropped
+# most specific first: a later match inside an earlier one is dropped
 const PATTERNS = [
     r#'(?:https?://|git@|git://|ssh://|ftp://|file:///)[^\s()"'<>]+'#
     '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -16,6 +16,7 @@ const FZF_ARGS = [
     --bind "ctrl-o:execute-silent(setsid -f xdg-open {} >/dev/null 2>&1)+abort"
 ]
 
+# Pick a url, uuid, ip, path, hash or number from the visible herdr pane onto the clipboard, like tmux-fingers.
 def main []: nothing -> nothing {
     let pane = $env.HERDR_ACTIVE_PANE_ID? | default ""
     if $pane == "" { error make {msg: "HERDR_ACTIVE_PANE_ID unset: run from a herdr key command"} }

@@ -24,13 +24,12 @@ QtObject {
     return base.replace(/\/+$/, "") + "/quickshell"
   }
 
-  // tmpfs: what must never reach the disk or a backup
   readonly property string runtime: {
     return String(Quickshell.env("XDG_RUNTIME_DIR") || "").trim().replace(/\/+$/, "") + "/quickshell"
   }
 
   readonly property string toggles: dotfiles + "/scripts/toggles"
-  readonly property string wallpaperList: dotfiles + "/scripts/wallpaper-list.nu"
+  readonly property string wallpaperList: dotfiles + "/scripts/lib/wallpaper-list.nu"
   readonly property string themes: dotfiles + "/themes"
 
   function toggle(name) { return toggles + "/" + name }

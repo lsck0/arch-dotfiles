@@ -1,6 +1,5 @@
 .pragma library
 
-// NotificationUrgency values, the enum is not reachable from a .pragma library
 var URGENCY_NORMAL = 1
 var URGENCY_CRITICAL = 2
 
@@ -8,7 +7,6 @@ function isChromiumDerived(app, appIcon) {
   return /chrom|brave|vivaldi|microsoft-edge|opera/.test((String(app || "") + "\n" + String(appIcon || "")).toLowerCase())
 }
 
-// qt reads the first alnum run after "<" as the tag name and closes an unterminated trailing tag itself
 function stripImageTags(text) {
   return text.replace(/<[^A-Za-z0-9>]*img(?![A-Za-z0-9])[^>]*(?:>|$)/gi, "")
 }
@@ -50,7 +48,6 @@ function stringHint(hints, name) {
   return ""
 }
 
-// any d-bus client sets this hint: only ntfy-notify.nu's shape (xdg-open on an https link) runs
 function parseExecArgv(value) {
   var parsed
   try {
@@ -68,14 +65,21 @@ function nonNegative(value) {
   return isFinite(n) && n > 0 ? n : 0
 }
 
-function snapshotOf(notification, timestamp, entryName) {
+var DEFAULT_APP_NAMES = ["notify-send"]
+
+function legacyIcon(icon) {
+  return String(icon || "").replace(/^gtk-dialog-(info|warning|error|question)$/, "dialog-$1")
+}
+
+function snapshotOf(notification, timestamp, entryName, entryIcon) {
   var n = notification || {}
   var id = n.id || 0
+  var named = n.appName && DEFAULT_APP_NAMES.indexOf(n.appName) < 0 ? n.appName : ""
   return {
     id: id,
     originalId: id,
-    app: n.appName || entryName || n.desktopEntry || "",
-    appIcon: n.appIcon || "",
+    app: named || entryName || n.desktopEntry || n.appName || "",
+    appIcon: legacyIcon(n.appIcon) || entryIcon || "",
     summary: String(n.summary || ""),
     body: n.body || "",
     image: n.image || "",
@@ -100,8 +104,8 @@ function popupRowChanged(row, updated) {
   return POPUP_ROLES.some(function(role) { return row[role] !== updated[role] })
 }
 
-function replacementSnapshot(notification, originalId, timestamp, entryName) {
-  var updated = snapshotOf(notification, timestamp, entryName)
+function replacementSnapshot(notification, originalId, timestamp, entryName, entryIcon) {
+  var updated = snapshotOf(notification, timestamp, entryName, entryIcon)
   updated.id = originalId
   updated.originalId = originalId
   return updated
@@ -172,7 +176,6 @@ function persistablePopup(entry, imagesDir) {
   return { entry: out, copies: copies }
 }
 
-// single line: restore parses files line by line
 function serializePopup(entry) {
   return JSON.stringify(popupEntry(entry))
 }

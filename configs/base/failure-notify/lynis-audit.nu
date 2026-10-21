@@ -8,7 +8,6 @@ def main []: nothing -> nothing {
     let report = open --raw $REPORT | lines
     let index = $report | where ($it | str starts-with "hardening_index=") | str replace "hardening_index=" ""
         | str join
-    # warning[]=<test>|<text>|<details>|<solution>|
     let warnings = $report | where ($it | str starts-with "warning[]=") | str replace "warning[]=" ""
         | each { split row "|" | first 2 | str join " " }
     let shown = $warnings | first $WARNINGS_SHOWN | each { $"($in); " } | str join

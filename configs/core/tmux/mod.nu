@@ -10,7 +10,6 @@ export def link [cfg: record] {
     let dir = $nu.home-dir | path join $CONFIG_DIR
     let projects = $nu.home-dir | path join projects
     let tms = $nu.home-dir | path join $TMS_CONFIG
-    # tms owns its config (bookmarks land there too), so only the projects entry is kept as wanted
     let wanted = {path: $projects, depth: $PROJECTS_DEPTH}
     let searched = if ($tms | path exists) { open $tms | get --optional search_dirs | default [] } else { [] }
     [

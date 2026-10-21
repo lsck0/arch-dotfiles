@@ -13,7 +13,6 @@ Singleton {
 
   property var peaks: zeroed()
 
-  // cava runs with little noise reduction so a hit lands on the next frame; the fall is smoothed here instead
   readonly property real releaseKeep: 0.72
   readonly property int peakHoldFrames: Math.round(framerate * 0.2)
   readonly property real peakFallPerFrame: 100 / (framerate * 0.6)
@@ -23,13 +22,11 @@ Singleton {
 
   property int refCount: 0
 
-  // own config, never the user's ~/.config/cava; no /tmp fallback, the write would follow a planted symlink
   readonly property string confPath:
     Quickshell.env("XDG_RUNTIME_DIR") ? Quickshell.env("XDG_RUNTIME_DIR") + "/quickshell-cava.conf" : ""
 
   property string source: ""
 
-  // cava reads its config once, so restart on change
   onSourceChanged: restart()
 
   function restart() {
@@ -88,7 +85,6 @@ Singleton {
     id: cavaProc
     running: root.available && root.confPath !== "" && root.refCount > 0 && !Power.saver
 
-    // config via argv so the shell never interprets it
     command: ["sh", "-c",
       "printf '%s' \"$1\" > \"$2\" && exec cava -p \"$2\"",
       "sh", root.configText, root.confPath]

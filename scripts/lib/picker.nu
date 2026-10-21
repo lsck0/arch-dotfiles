@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const GHOSTTY_CONFIG = path self | path expand | path dirname --num-levels 2 | path join configs desktop ghostty config
+const GHOSTTY_CONFIG = path self | path expand | path dirname --num-levels 3 | path join configs desktop ghostty config
 const WAL_COLORS = "wal/colors"
 const DEFAULTS = {bg: "#101010", fg: "#d0d0d0", accent: "#5f87af", font: monospace, size: "14"}
 

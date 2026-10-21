@@ -1,8 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# popup.nu [-e] [sudo] <tool> [args...]: tmux popup runner, -e loads the pane dir's direnv env
-
 const NOT_FOUND = 127
 
+# Run [sudo] <tool> [args...] in a tmux popup, -e with the pane dir's direnv env; a missing tool waits for a key.
 def --wrapped main [...argv: string]: nothing -> nothing {
     let direnv = $argv.0? == "-e"
     if $direnv {

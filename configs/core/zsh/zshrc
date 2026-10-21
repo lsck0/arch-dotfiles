@@ -1,47 +1,37 @@
-# session env (telemetry opt-outs, XDG app-home vars) comes from .zshenv, which sources every environment.d drop-in
 [ -f ~/.cache/wal/colors.sh ] && source ~/.cache/wal/colors.sh
 
 fpath=(${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions $fpath)
 export ZSH_DISABLE_COMPFIX=true
-# cache and state out of $HOME
 export ZSH_COMPDUMP="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 [[ -d ${ZSH_COMPDUMP:h} ]] || mkdir -p "${ZSH_COMPDUMP:h}"
 
 zmodload -F zsh/stat b:zstat
-# REPLY = cached output of `<tool> <args>`, rerun only when the tool was installed after the cache was written
 zsh_init_cache() {
   (( $+commands[$1] )) || return 1
   REPLY=${XDG_CACHE_HOME:-$HOME/.cache}/zsh/init-$1.zsh
   local -a ctime_s
-  # ctime, since pacman keeps the package build time as the binary's mtime
   zstat -A ctime_s +ctime -- $commands[$1] $REPLY 2>/dev/null && (( ctime_s[2] > ctime_s[1] )) && return 0
   [[ -d ${REPLY:h} ]] || mkdir -p ${REPLY:h}
   "$@" >| $REPLY.$$ && mv -f $REPLY.$$ $REPLY
 }
 
-# plain sourcing from packages (oh-my-zsh-git, fzf-tab-git, zsh-autosuggestions, zsh-syntax-highlighting): no plugin manager
 ZSH=/usr/share/oh-my-zsh
 export ZSH_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/oh-my-zsh"
 
 autoload -Uz compinit
 () {
   setopt local_options extended_glob
-  # full check at most daily; touch since compinit keeps an unchanged dump's mtime
   if [[ -n $ZSH_COMPDUMP(#qN.mh+24) ]]; then
     compinit -d "$ZSH_COMPDUMP"
     touch "$ZSH_COMPDUMP"
   else
     compinit -C -d "$ZSH_COMPDUMP"
   fi
-  # source picks up a newer .zwc on its own, bytecode loads faster than parsing the dump
   [[ $ZSH_COMPDUMP.zwc -nt $ZSH_COMPDUMP ]] || zcompile "$ZSH_COMPDUMP"
 }
 
-# starship draws the prompt, so omz's async git prompt has nothing to register in precmd
 zstyle ':omz:alpha:lib:git' async-prompt no
-# starship's aws module shows the profile, the omz one would add a second right prompt
 SHOW_AWS_PROMPT=false
-# after compinit, libs and plugins call compdef
 for file in $ZSH/lib/{functions,key-bindings,completion,misc,directories,grep,git,clipboard}.zsh \
   $ZSH/plugins/{aws,docker-compose,git,nmap,node,npm,sudo,terraform}/*.plugin.zsh; do
   source $file
@@ -50,17 +40,14 @@ unset file
 
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'
 zsh_init_cache fzf --zsh && source $REPLY
-# fzf-tab wraps the completion widget, syntax highlighting wraps every widget so it comes last
 source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-# only once kubectl's own completion is registered, else compinit has not loaded it yet (fresh shell)
 (( $+_comps[kubectl] )) && compdef kubecolor=kubectl
 
 autoload zmv
 autoload -Uz edit-command-line
 zle -N edit-command-line
-# konsole only runs as dolphin's terminal panel, which clears the line with ^E^U before each cd; ^E opening the editor there would swallow the cd
 [[ -n $KONSOLE_VERSION ]] || bindkey '^e' edit-command-line
 bindkey ' ' magic-space
 
@@ -83,29 +70,21 @@ path+=("$HOME/.cargo/bin")
 path+=("$HOME/.ghcup/bin")
 path+=("$HOME/.go/bin")
 path+=("$HOME/.jai/bin")
-# prepended: wrappers in ~/.local/bin (yt-dlp) shadow the /usr/bin command of the same name
 path=("$HOME/.local/bin" $path)
-# opam's default switch and its installs ahead of the system ocaml; opam init --no-setup leaves no rc
-# hook, and variables.sh is the static env opam rewrites on every switch change, so sourcing it forks nothing
 [[ -r ~/.opam/opam-init/variables.sh ]] && source ~/.opam/opam-init/variables.sh
 
 export PATH
 export GOPATH="$HOME/.go"
 export DOTFILES="$HOME/projects/arch-dotfiles"
 export EDITOR=nvim
-# ansi: bat paints syntax from the 16 terminal colours, so it tracks every wallpaper switch and follows light/dark
 export BAT_THEME=ansi
-# man pages through bat pick up the same palette; -c keeps the control chars col strips back to escapes bat reads
 export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 export MANROFF_OPT=-c
-# absolute: pkexec rejects a SHELL that is not listed in /etc/shells
 export SHELL=/usr/bin/zsh
-# pinentry asks on this terminal rather than the desktop, which over ssh or on wsl is out of reach
 export GPG_TTY=$TTY
 [[ -n $SSH_CONNECTION ]] && gpg-connect-agent updatestartuptty /bye >/dev/null
 
 alias cat="bat"
-# not in konsole: dolphin's panel follows the view with a cd, and zoxide would treat the path as keywords
 [[ -n $KONSOLE_VERSION ]] || alias cd="z"
 alias convert="magick"
 alias cp="cp -v"
@@ -130,8 +109,6 @@ alias sshpc="sshk luca@192.168.178.138"
 alias toroff="sudo systemctl stop tor-router.service"
 alias toron="sudo systemctl start tor-router.service"
 
-# sudo only for what changes the system: queries, searches, file lookups and -Sp stay unprivileged (no fido touch);
-# `function` so an old shell's pacman alias is not expanded into the name on a re-source
 function pacman {
   local arg ops=
   for arg; do
@@ -151,15 +128,12 @@ function pacman {
   fi
 }
 
-# in anonsocks.slice, whose egress guard from `toggle-anonymous-socks.nu on` rejects what proxychains misses (static binaries, raw sockets, udp)
 anonymous-socks-proxychains() {
   local rt=${XDG_RUNTIME_DIR:-/run/user/$UID}
-  # status, not the marker alone: it also checks every pool port is still our tor's, not a listener another user put there
   [[ "$("$DOTFILES/scripts/toggles/toggle-anonymous-socks.nu" get 2>/dev/null)" == on ]] || { echo "anonymous-socks-proxychains: run scripts/toggles/toggle-anonymous-socks.nu on first" >&2; return 1; }
   systemd-run --user --scope --quiet --slice=anonsocks.slice -- proxychains4 -q -f "${ANONYMOUS_SOCKS_PROXYCHAINS_CONF:-$rt/anonymous-socks-proxychains.conf}" "$@"
 }
 
-# no git config covers submodules on the initial clone
 git() {
   if [[ "$1" == clone ]]; then
     command git clone --recurse-submodules "${@:2}"
@@ -168,7 +142,6 @@ git() {
   fi
 }
 
-# remote control needs feature flags, which DO_NOT_TRACK disables
 claude() {
   env -u DO_NOT_TRACK claude "$@"
 }
@@ -176,7 +149,6 @@ claude() {
 [[ -t 1 && $TERM != dumb ]] && fastfetch
 
 zsh_init_cache starship init zsh --print-full-init && source $REPLY
-# no right_format in starship.toml, so the right prompt would fork starship per prompt for nothing
 RPROMPT=
 zsh_init_cache direnv hook zsh && source $REPLY
 
@@ -191,7 +163,6 @@ history_file_pop() {
   history_file_pushed=
 }
 
-# sharehistory ignores a changed HISTFILE; must run after direnv's hook
 history_file_follow_direnv() {
   [[ ${DIRENV_HISTFILE-} == ${history_file_pushed-} ]] && return
   history_file_pop

@@ -6,7 +6,6 @@ import qs.Commons
 Repeater {
   id: root
 
-  // untyped: Bar.qml instantiates this file, so it cannot import Bar back
   required property var bar
   required property string section
 
@@ -18,7 +17,6 @@ Repeater {
 
     source: Util.fileUrl(Paths.barWidget(modelData + ".qml"))
 
-    // errorString is a Component method, not a Loader one
     onStatusChanged: if (status === Loader.Error) {
       var detail = sourceComponent ? sourceComponent.errorString() : "(no detail)"
       console.warn("BarSection[" + root.section + "] failed " + modelData + ": " + detail)

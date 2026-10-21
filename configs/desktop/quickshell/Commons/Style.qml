@@ -13,7 +13,6 @@ QtObject {
   function space(px) { return Math.max(0, Math.round(px * scale)) }
   function spaceReal(px) { return Math.max(0, px * scale) }
 
-  // unscaled, the same radius as hyprland's window frame at every font size
   readonly property int cornerRadius: Palette.RADIUS_PX
   property int gapsOut: 5
 
@@ -137,7 +136,6 @@ QtObject {
   }
   readonly property SurfaceTokens surface: SurfaceTokens {}
 
-  // fills over hyprland layer blur (hyprland_windowrules.lua); saver drops blur, so near opaque
   component TranslucencyTokens: QtObject {
     readonly property real saver: 0.96
     readonly property real bar: Power.saver ? saver : Palette.OPACITY_BAR
@@ -172,7 +170,6 @@ QtObject {
 
   component FontTokens: QtObject {
     readonly property string family: root.resolvedFontFamily
-    // glyphs must use this, never family
     readonly property string iconFamily: root.resolvedIconFontFamily
 
     readonly property int micro: Math.max(1, root.baseSize - 2)
@@ -211,7 +208,6 @@ QtObject {
   }
   readonly property BarTokens bar: BarTokens {}
 
-  // half of hyprland general:gaps_out
   property Process gapsOutProc: Process {
     command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
     stdout: StdioCollector {
@@ -258,7 +254,6 @@ QtObject {
     }
   }
 
-  // restart explicitly, a bound command would not rerun
   function resolveUiFont() {
     fcMatchUiProc.running = false
     fcMatchUiProc.command = ["fc-match", "-f", "%{family[0]}", root.fontFamily]

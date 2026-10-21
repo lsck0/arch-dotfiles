@@ -26,7 +26,6 @@ BarWidget {
   property var participants: []
   readonly property int avatarCountMax: 5
 
-  // discord can die without the plugin clearing the file
   readonly property int staleAfterMs: 50000
   property bool stale: false
   readonly property bool live: inVoice && !stale
@@ -88,7 +87,6 @@ BarWidget {
     printErrors: false
     onLoaded: {
       root.apply(text())
-      // rename replaces the watched inode
       Util.rearmWatch(this)
     }
     onLoadFailed: root.inVoice = false
@@ -108,7 +106,6 @@ BarWidget {
     spacing: Style.spacing.sm
 
     Repeater {
-      // not sliced: a new array rebuilds every avatar
       model: root.participants
 
       delegate: Item {
@@ -287,7 +284,6 @@ BarWidget {
 
         ActionButton {
           width: (parent.width - Style.spacing.xs * 2) / 3
-          // md-microphone_off / md-microphone
           glyph: root.selfMute ? "\u{f036d}" : "\u{f036c}"
           label: root.selfMute ? "Unmute" : "Mute"
           danger: root.selfMute
@@ -296,7 +292,6 @@ BarWidget {
         }
         ActionButton {
           width: (parent.width - Style.spacing.xs * 2) / 3
-          // md-volume_off / md-headphones
           glyph: root.selfDeaf ? "\u{f0581}" : "\u{f02cb}"
           label: root.selfDeaf ? "Undeafen" : "Deafen"
           danger: root.selfDeaf

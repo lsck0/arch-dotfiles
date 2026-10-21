@@ -15,7 +15,6 @@ sha256sums=(SKIP)
 
 prepare() {
     cd ecgen
-    # pari 2.17 dropped the in-place addiiz
     sed -i 's/addiiz(j, gen_1, j);/affii(addii(j, gen_1), j);/' src/cm/p1363.c
 }
 

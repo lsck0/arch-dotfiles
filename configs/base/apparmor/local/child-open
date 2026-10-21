@@ -1,5 +1,3 @@
 # managed by arch-dotfiles/apparmor
-# the viewers base/xdg/mimeapps.list and the latex modules open files with, all confined themselves
 @{bin}/{feh,nsxiv,okular,zathura,sioyek,onlyoffice-desktopeditors,desktopeditors} Px,
-# xdg-open's helpers on hyprland
 include <abstractions/dotfiles/xdg-open>

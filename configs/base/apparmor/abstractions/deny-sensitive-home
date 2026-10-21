@@ -1,11 +1,4 @@
 # managed by arch-dotfiles/apparmor
-# the credentials and keys a tool that parses untrusted files must never read or write: ssh and gpg keys, the
-# password store, age/rage identities, cloud and pki material, the login keyrings, and this repo's git-crypt keys
-# and locked secrets. apparmor.d's own deny-sensitive-home also refuses every directory named Private at any depth
-# (@{XDG_PRIVATE_DIR}), which a deny makes final: a normal archive with a Source/Private or Shaders/Private tree
-# (unreal engine) then can never unpack. this list drops that directory-name rule and keeps only the real secrets,
-# so archives extract and keys stay unreadable. apparmor resolves symlinks before it matches, so the store is denied
-# at its real path (~/.password-store -> ~/sync/password-store), not the link
 
   abi <abi/4.0>,
 
@@ -23,14 +16,12 @@
   deny @{HOME}/.*pki*{,/{,**}}            mrwkl,
   deny @{HOME}/.*cert*{,/{,**}}           mrwkl,
 
-  # the login keyrings (gnome-keyring over its run socket, kwallet)
   deny @{run}/user/@{uid}/keyring**       mrwkl,
   deny @{HOME}/.gnome2/keyrings/{,**}     mrwkl,
   deny @{HOME}/.local/share/keyrings/{,**} mrwkl,
   deny @{user_share_dirs}/kwalletd/{,**}  mrwkl,
   deny @{HOME}/.kde{,4}/share/apps/kwallet/{,**} mrwkl,
 
-  # this repo's secrets: the git-crypt symmetric keys and the locked secrets submodule
   deny @{HOME}/projects/arch-dotfiles/.git/git-crypt/{,**} mrwkl,
   deny @{HOME}/projects/arch-dotfiles/.git/modules/configs/secrets/git-crypt/{,**} mrwkl,
   deny @{HOME}/projects/arch-dotfiles/configs/secrets/{,**} mrwkl,

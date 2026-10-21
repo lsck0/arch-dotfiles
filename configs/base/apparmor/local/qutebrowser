@@ -1,38 +1,21 @@
 # managed by arch-dotfiles/apparmor
-# config.py links into the dotfiles checkout and reads the pywal palette, the start page its stylesheet
 owner @{HOME}/projects/arch-dotfiles/configs/desktop/qutebrowser/config.py r,
 owner @{user_cache_dirs}/wal/{colors.json,colors-qutebrowser.css} r,
-# the start page's bookmarks, and the wallpaper ~/.cache/wal/wallpaper links to
 owner @{user_share_dirs}/weblinks/links.js r,
-owner @{HOME}/projects/arch-dotfiles/{,configs/secrets/keys/}wallpapers/** r,
-# QtWebEngine looks for chromium's widevine beside its own profile; qutebrowser plays no drm content
+owner @{HOME}/projects/arch-dotfiles/{,configs/secrets/state/}wallpapers/** r,
 deny @{user_config_dirs}/chromium/{,**} r,
-# opening downloads and external links
 @{open_path} rPx -> child-open-strict,
-# qt's shader cache is written to a tmpfile and linked into place; denied, every start recompiles its shaders
 owner @{user_cache_dirs}/qutebrowser/{,**} l,
-# the homelab share and html files or attachments other apps hand over through temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
-# --temp-basedir: a throwaway basedir in a python mkdtemp dir, after tempfile's probe for a writable temp dir (a file
-# of 8 chars of [0-9a-z_])
 owner /tmp/[0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_] rw,
-# l: QSaveFile writes its files (quickmarks, state) as an O_TMPFILE linked into place
 owner /tmp/qutebrowser-basedir-*/{,**} rwkl,
-# :open-download saves into a qutebrowser-downloads-* dir and hands the file to the opener, which reads /tmp; the
-# editor, external file picker and userscripts would want temp files too, but the profile execs none of them
 owner /tmp/qutebrowser-downloads-*/{,**} rw,
-# security keys (webauthn): apparmor.d's qutebrowser has none of the browsers' u2f access. chromium's hid discovery walks
-# every bus and class through udev and reads the hid parent's record before it opens the hidraw node; without any of it
-# the key is skipped. the listings and uevents app/chromium grants too, no device node besides hidraw
 include <abstractions/devices-u2f>
 @{run}/udev/data/+hid:* r,
 @{sys}/bus/*/devices/ r,
 @{sys}/class/*/ r,
 @{sys}/devices/**/uevent r,
-# config.py reads the shared bar style (radius, font) from the dotfiles state dir; denied, the config load fails
 owner @{user_config_dirs}/dotfiles/style.json r,
-# pulse client config, its runtime dir and event sounds; denied, sites play with a fallback client and no event sounds
 include <abstractions/audio-client>
 owner @{user_cache_dirs}/event-sound-cache.tdb.* rwk,
-# python probes the terminal it never has under the launcher
 deny /dev/tty r,

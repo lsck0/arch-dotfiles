@@ -7,7 +7,6 @@ def current []: nothing -> string {
     if (unit-active fw-lockdown.service) { "restrictive" } else if (unit-active fw-inbound.service) { "default" } else { "permissive" }
 }
 
-# portmaster's connmark restore clobbers protonvpn's wireguard fwmark, so toggle-protonvpn owns it while proton0 is up
 def portmaster-start []: nothing -> nothing {
     if not ("/sys/class/net/proton0" | path exists) { ^systemctl --no-ask-password start portmaster.service }
 }
@@ -15,7 +14,6 @@ def portmaster-start []: nothing -> nothing {
 def apply [state: string]: nothing -> nothing {
     try {
         match $state {
-            # conflicts with fw-lockdown, which systemd stops first; from restrictive that lowers it, so polkit asks
             default => { systemctl-guarded start fw-inbound.service; portmaster-start }
             restrictive => { ^systemctl --no-ask-password start fw-lockdown.service; portmaster-start }
             permissive => { systemctl-guarded stop fw-inbound.service fw-lockdown.service portmaster.service }
@@ -44,7 +42,14 @@ def "main label" [] {
     $"(if $state == permissive { '○' } else { '●' }) Firewall: ($STATES | get $state)($suffix)"
 }
 
-def "main toggle" [] { apply ($STATES | columns | cycle-next (current)) }
+# a press while a switch waits on its authentication is dropped, not queued behind it
+def "main toggle" [] {
+    let lock = $env.XDG_RUNTIME_DIR | path join toggle-firewall.lock
+    let run = ^flock --nonblock --conflict-exit-code 75 $lock nu --no-config-file $env.CURRENT_FILE _toggle | complete
+    if $run.exit_code not-in [0 75] { exit $run.exit_code }
+}
+
+def "main _toggle" [] { apply ($STATES | columns | cycle-next (current)) }
 def "main set" [state: string] {
     if $state not-in $STATES { error make {msg: $"firewall state is one of ($STATES | columns | str join ', ')"} }
     apply $state

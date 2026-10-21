@@ -1,15 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# localsend, the lan file transfer app: it accepts files other devices push over the home network and saves them to
-# the download dir, so it is confined like the other receivers of other people's content. apparmor.d ships a localsend
-# profile, but it attaches to /bin/localsend while arch runs the resolved /usr/lib/localsend/localsend_app, so this
-# own profile keys on the real binary (named localsend-app, since the localsend name is apparmor.d's). modelled on
-# apparmor.d's own localsend rule set, a flutter and gtk app
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
 @{att} = ""
 
 @{exec_path} = /usr/lib/localsend/localsend_app
@@ -34,15 +28,12 @@ profile localsend-app @{exec_path} flags=(attach_disconnected) {
   @{exec_path} mr,
   /usr/lib/localsend/{,**} r,
   /usr/lib/localsend/**.so{,.*} mr,
-  # the dart runtime stats files it is about to receive or send through the coreutil
   @{bin}/stat rix,
 
-  # flutter reads its own process metadata and sizes its thread pool from the session's cgroup cpu quota
   owner @{PROC}/@{pid}/cgroup r,
   owner @{PROC}/@{pid}/mountinfo r,
   @{sys}/fs/cgroup/**/cpu.max r,
 
-  # its own settings and transfer history; received files land in the download dir (user-download-strict)
   owner @{user_share_dirs}/org.localsend.localsend_app/{,**} rwk,
   owner @{user_config_dirs}/localsend/{,**} rwk,
 

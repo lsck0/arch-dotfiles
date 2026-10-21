@@ -4,7 +4,6 @@ import qs.Commons
 Item {
   id: root
 
-  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property real value: 0
   property real minimum: 0
@@ -128,7 +127,6 @@ Item {
     }
     onReleased: function(mouse) {
       if (mouse.button !== Qt.LeftButton) return
-      // capture first, clearing dragging resets liveValue
       var target = root.liveValue
       root.dragging = false
       root.released(target)

@@ -22,7 +22,6 @@ export const options = {
     }
 }
 
-# pci device ids where each branch's chips begin: Turing (TU102), Maxwell (GM107), Kepler (GK104)
 const NVIDIA_TURING = 0x1e00
 const NVIDIA_MAXWELL = 0x1340
 const NVIDIA_KEPLER = 0x0fc0
@@ -55,7 +54,7 @@ export def system [cfg: record] {
     [(step cmdline-set nvidia_drm.modeset=1) (step kms-drop)]
 }
 
-# kms would put nouveau in the initramfs, which then claims the gpu before the nvidia modules load
+# Drops kms from the hooks: it would put nouveau in the initramfs, claiming the gpu before nvidia loads.
 export def kms-drop []: nothing -> nothing {
     hooks-write (hooks-read | where $it != kms)
 }

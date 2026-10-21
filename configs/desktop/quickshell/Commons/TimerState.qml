@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// countdowns tick in qml off the absolute end time, never a per-second script fork
 Singleton {
   id: root
 
@@ -15,7 +14,6 @@ Singleton {
   readonly property string pomoScript: Paths.script("pomodoro.nu")
   readonly property string reminderScript: Paths.script("reminder.nu")
 
-  // mirrors pomodoro.nu config_default, until the module first writes the file
   readonly property var pomoConfigDefault: ({ focus: 25, break: 5, long: 15, cycles: 4 })
   property var pomoConfig: pomoConfigDefault
 
@@ -26,12 +24,10 @@ Singleton {
 
   property double nowSec: Math.floor(Date.now() / 1000)
 
-  // the scripts write asynchronously and a fresh file may be missed by the watch, so ping a reload on every action
   function reload() { reloadTimer.restart() }
   function runPomo(args) { Quickshell.execDetached([root.pomoScript].concat(args)); reload() }
   function runReminder(args) { Quickshell.execDetached([root.reminderScript].concat(args)); reload() }
 
-  // dot set takes seconds and its first write may be missed by the watch, so re-read once it exited
   property var pomoSetQueued: ({})
   readonly property bool pomoSaving: pomoSetProc.running
   function setPomoConfig(changes) {
@@ -65,7 +61,6 @@ Singleton {
     root.nowSec = Math.floor(Date.now() / 1000)
   }
 
-  // matches reminder.nu remaining-format
   function remainingText(seconds) {
     var s = Math.max(0, Math.floor(seconds))
     var m = Math.floor(s / 60)

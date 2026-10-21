@@ -26,7 +26,6 @@ BarWidget {
     property int memSpeedMts: 0
     property int memChannels: 0
     property int gpuPct: 0
-    // null from system-stats.nu without a busy counter (no amdgpu gpu_busy_percent, no i915 rc6)
     property bool hasGpuPct: false
     property int gpuFreqMhz: 0
     property var gpuTempC: null
@@ -80,7 +79,6 @@ BarWidget {
     moduleName: "system"
     implicitWidth: label.implicitWidth + Style.bar.itemPaddingX * 2
     implicitHeight: barSize
-    // a bound command does not rerun a live process; arm the timer here too, at startup this fires before the spawn
     onStatsIntervalSChanged: {
         statsProc.running = false;
         statsRestart.restart();
@@ -114,7 +112,6 @@ BarWidget {
         running: true
         command: [Paths.barWidget("system-stats.nu"), String(root.statsIntervalS)]
         onExited: statsRestart.restart()
-        // quickshell does not reap helpers on reload, stop on teardown
         Component.onDestruction: {
             statsRestart.stop();
             running = false;
@@ -189,7 +186,6 @@ BarWidget {
             color: Colors.accent
         }
 
-        // md-memory, the cpu package glyph
         Stat {
             glyph: "\u{f035b}"
             widest: "100%"

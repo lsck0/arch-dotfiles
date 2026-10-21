@@ -25,7 +25,6 @@ def "main up" []: nothing -> nothing {
     for address in $addresses { ^ip -n $NS addr add $address dev $IFACE }
     ^ip -n $NS link set $IFACE mtu $MTU up
     ^ip -n $NS route add default dev $IFACE
-    # with no ipv6 address in the tunnel it is off, so nothing waits on a v6 route that cannot exist
     if ($addresses | any { $in | str contains ":" }) {
         ^ip -n $NS -6 route add default dev $IFACE
     } else {

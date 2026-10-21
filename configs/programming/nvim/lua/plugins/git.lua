@@ -1,7 +1,6 @@
 return {
     {
         "tpope/vim-fugitive",
-        -- every command it defines, so none is missing until another one loaded it
         cmd = {
             "G",
             "Git",

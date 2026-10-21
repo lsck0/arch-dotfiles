@@ -8,22 +8,14 @@ export const meta = {
 const STATE = ".local/state/syncthing"
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
 const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
-const NAS_NAME = "vm-104-nas"
 const API_WAIT_SECONDS = 30
 const GUI_TRIES = 3
 const PASSWORD_SHAPE = '^[A-Za-z0-9+/=._~-]+$'
-# per-machine state with credentials: never replicated
 const STIGNORE_LINE = "**/.identity"
 const VERSIONS_MAX_AGE = 2592000
-# configs/core/borg/borg-backup.nu has the same path and id
-const BORG_FOLDER = ".local/share/borg-repo"
 
 def secret-dir []: nothing -> path {
     $env.DOTFILES | path join configs secrets keys syncthing (sys host | get hostname)
-}
-
-def borg-id []: nothing -> string {
-    $"borg-(sys host | get hostname)"
 }
 
 def st [...args: string]: nothing -> string {
@@ -37,14 +29,14 @@ def api-wait []: nothing -> nothing {
     if not $up { error make {msg: $"syncthing: the api did not answer in ($API_WAIT_SECONDS)s, settings not applied"} }
 }
 
-# .stignore is the one file in ~/sync the dotfiles touch (syncthing never syncs it): the line is added, edits kept
+# Adds the line to ~/sync/.stignore, keeping edits: the one file in ~/sync the dotfiles touch (it never syncs).
 export def stignore []: nothing -> nothing {
     let file = $nu.home-dir | path join sync .stignore
     let lines = if ($file | path exists) { open --raw $file | lines } else { [] }
     if $STIGNORE_LINE not-in $lines { $lines | append $STIGNORE_LINE | str join "\n" | $"($in)\n" | save --force $file }
 }
 
-# before the daemon starts, so it comes up paired
+# Installs the device identity before the daemon starts, so it comes up paired.
 export def identity-install []: nothing -> nothing {
     let state = $nu.home-dir | path join $STATE
     ^systemctl --user stop syncthing.service
@@ -62,7 +54,7 @@ def gui-password []: nothing -> string {
     open --raw $generated | str trim
 }
 
-# any local login could open the gui on 127.0.0.1 and read the api key from it; the password goes over stdin
+# Locks the gui, from which any local login could read the api key; the password goes over stdin.
 def gui-login [user: string, password: string]: nothing -> nothing {
     if $password !~ $PASSWORD_SHAPE { error make {msg: "syncthing: the gui password may only hold base64 characters"} }
     # one call per setting, read back: a gui change restarts the listener and `cli -` silently loses the next line
@@ -97,33 +89,10 @@ export def api-config [paired: string]: nothing -> nothing {
             error make {msg: "syncthing: staggered versioning on sync did not stick"}
         }
     }
-    borg-folder
-}
-
-# no versioning: it would keep every replaced segment twice; no watcher: borg-backup's unpause rescans it
-def borg-folder []: nothing -> nothing {
-    let id = borg-id
-    if $id not-in (st config folders list | lines) {
-        let nas = st config devices list | lines | where {|d| (st config devices $d name get) == $NAS_NAME } | get --optional 0
-        if $nas == null {
-            log-warn $"syncthing: no device ($NAS_NAME) yet, ($id) not shared; borg backs up locally until it is"
-            return
-        }
-        let me = st show system | from json | get myID
-        let folder = {
-            id: $id, label: $id, path: ($nu.home-dir | path join $BORG_FOLDER), type: sendonly, fsWatcherEnabled: false
-            devices: [{deviceID: $me} {deviceID: $nas}]
-        }
-        ^syncthing cli config folders add-json ($folder | to json --raw)
-        log-warn $"syncthing: shared ($id) with ($NAS_NAME), accept it there as receive-only without versioning"
-    }
-    ^syncthing cli config folders $id type set sendonly
-    ^syncthing cli config folders $id fswatcher-enabled set false
-    ^syncthing cli config folders $id versioning type set ''
 }
 
 export def link [cfg: record] {
-    if not (profile-has homelab) { return [] }
+    if not (profile-has secrets) or not (platform-has homelab) { return [] }
     let state = $nu.home-dir | path join $STATE
     let secrets = secret-dir
     let paired = ["config.xml" "key.pem"] | all {|f| secret-is-plaintext ($secrets | path join $f) }
@@ -134,7 +103,6 @@ export def link [cfg: record] {
         (if $changed { step identity-install } else { [] })
         (dropin syncthing.service 10-background.conf --then [systemctl --user try-restart syncthing.service])
         (unit-enable syncthing.service --now)
-        (file-text ($nu.home-dir | path join $BORG_FOLDER .stignore) "lock.exclusive\nlock.roster\n")
         (step api-config ($paired | into string))
     ]
 }

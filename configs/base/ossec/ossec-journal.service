@@ -1,26 +1,19 @@
-# ossec 3.8's own journald reader never reads (its loop is gated on an uninitialized ret)
 [Unit]
 Description=Journal auth log for OSSEC logcollector
 PartOf=ossec-server.target
-# logcollector gives up on a file missing at its start; Type=exec counts as started once the output is open
 Before=ossec-logcollector.service
 
 [Service]
 Type=exec
-# syslog month names, whatever the system locale
 Environment=LC_ALL=C
 StateDirectory=ossec-journal
-# /run is ram: a daily restart moves the log aside (logcollector follows the new inode and finishes the old one),
-# so at most two days stay. never truncated: logcollector keeps its offset past a shrunk file and reads nothing more
 ExecStartPre=-/usr/bin/mv -f /run/ossec-journal.log /run/ossec-journal.log.1
 ExecStart=/usr/bin/journalctl --follow --output=short --facility=auth,authpriv --cursor-file=${STATE_DIRECTORY}/cursor
 StandardOutput=append:/run/ossec-journal.log
-# root only, like the auth journal it copies
 UMask=0077
 RuntimeMaxSec=1d
 Restart=always
 RestartSec=1s
-# the daily runtime limit ends in result 'timeout'; direct skips the failed state, so it is no failure
 RestartMode=direct
 
 [Install]

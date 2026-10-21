@@ -1,3 +1,6 @@
+# plasma's rc files and applet layout, rendered from templates per machine; theme writes the wallpaper's colors and
+# fonts into kdeglobals, backup carries live settings edits back without them
+
 use module.nu *
 use ini.nu [ini-apply ini-rows]
 use ../../core/wallust/palette.nu [hex-to-rgb readable-on rgb-to-hex]
@@ -36,7 +39,6 @@ const WAL_WALLPAPER = ".cache/wal/wallpaper"
 const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$'
 const DRM = "/sys/class/drm"
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
-# the keys toggle-font.nu sets; smallestReadableFont sits this far below the body font
 const KDE_FONT_KEYS = [
     [group key];
     [General font] [General fixed] [General menuFont] [General smallestReadableFont] [General toolBarFont] [WM activeFont]
@@ -60,26 +62,25 @@ export def detect [cfg: record]: nothing -> record {
     {kwin_outputs: ($connected | any { $in in $ours })}
 }
 
-# every image wallpaper section of an applets file, set to <wallpaper>
 def wallpaper-values [applets: string, wallpaper: string]: nothing -> record {
     let image = {Image: $"file://($wallpaper)"}
     $applets | lines | parse --regex $WALLPAPER_SECTION | get s | reduce --fold {} {|s, acc| $acc | insert $s $image }
 }
 
-# the wallpaper the last theme switch applied, "" before the first
+# The wallpaper the last theme switch applied, "" before the first.
 def wallpaper-current []: nothing -> string {
     let link = $nu.home-dir | path join $WAL_WALLPAPER
     if ($link | path exists) { $link | path expand } else { "" }
 }
 
-# dolphin rewrites its view properties (a timestamp, every view change): the module's keys seed it, dolphin owns it
+# Seeds dolphin's view properties only: dolphin rewrites them on every view change.
 def dolphin-view [dest: path]: nothing -> list<record> {
     let values = ini-rows (open --raw $DOLPHIN_VIEW) | where key != null
         | reduce --fold {} {|r, acc| $acc | upsert $r.section {|v| $v | get --optional $r.section | default {} | insert $r.key $r.value } }
     if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
 }
 
-# until dot runs detect itself (modules.nu VERBS lacks it)
+# Options at their default take the detected values, until dot runs detect itself (modules.nu VERBS lacks it).
 def detected [cfg: record]: nothing -> record {
     if $cfg.kwin_outputs == null { $cfg | merge (detect $cfg) } else { $cfg }
 }
@@ -90,7 +91,7 @@ export def link [cfg: record] {
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
     let fresh = not ($nu.home-dir | path join $KACTIVITIES_DB | path exists)
-    # the wallpaper the theme verb merges is rendered in too, else every apply would take it back and theme set it again
+    # rendered in too, else every apply would take back what theme set
     let wallpaper = wallpaper-current
     let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $values
         | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
@@ -103,8 +104,7 @@ export def link [cfg: record] {
         (files-into ($nu.home-dir | path join .local share dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
-        # without identity the formats follow the locale bootstrap.sh set, not the owner's
-        (rc-files | where {|f| $f != plasma-localerc or (profile-has identity) } | each {|f| file-copy $f ($config | path join $f) })
+        (rc-files | where {|f| $f != plasma-localerc or (profile-has secrets) } | each {|f| file-copy $f ($config | path join $f) })
         $applets
         (file-render plasmarc ($config | path join plasmarc) $values)
         (file-render kscreenlockerrc ($config | path join kscreenlockerrc) $values)
@@ -121,7 +121,7 @@ def rgb [hex: string]: nothing -> string {
     $hex | str trim --left --char "#" | split chars | chunks 2 | each { str join | into int --radix 16 } | str join ","
 }
 
-# c6/c5 links nearly vanish on the selection accent: readable-on walks them toward black or white
+# c6/c5 links nearly vanish on the selection accent, so readable-on walks them toward black or white.
 def selection [p: record]: nothing -> list<string> {
     let accent = $p.c4 | hex-to-rgb
     [$p.bg $p.c6 $p.c5] | each { hex-to-rgb | readable-on $accent | rgb-to-hex --prefix "#" }
@@ -164,7 +164,7 @@ def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     ]
 }
 
-# the qt font string's family and size fields over the template's, so a switch keeps what toggle-font set
+# The qt font strings' family and size over the template's, so a switch keeps what toggle-font set.
 def kde-fonts [template: string]: nothing -> record {
     let toggle = $env.DOTFILES | path join scripts toggles toggle-font.nu
     let family = ^$toggle get | complete | get stdout | str trim
@@ -193,16 +193,14 @@ export def theme [cfg: record, wallpaper: string] {
     $themed ++ (wallpaper-set $wallpaper)
 }
 
-# the keys theme writes into kdeglobals, as section/key
 def themed-keys []: nothing -> list<string> {
     let grey = [bg fg c0 c4 c5 c6 c8] | reduce --fold {} {|slot, acc| $acc | insert $slot "#808080" }
     let colors = kde-colors $grey | items {|section, keys| $keys | columns | each {|k| $"($section)/($k)" } } | flatten
-    # plasma hashes the applied scheme next to it
     $colors ++ ($KDE_FONT_KEYS | each { $"($in.group)/($in.key)" }) ++ ["General/ColorSchemeHash"]
 }
 
-# the live kdeglobals with the theme's keys as the module's has them: they are wallpaper output (light on one machine,
-# dark on another) that theme regenerates, so only a real settings edit reaches the backup
+# The live kdeglobals with the themed keys as the module has them: those are wallpaper output, so only a real
+# settings edit reaches the backup.
 def kdeglobals-back [live: string, template: string]: nothing -> string {
     let themed = themed-keys
     let own = {|r| $r.key != null and $"($r.section)/($r.key)" in $themed }
@@ -213,8 +211,6 @@ def kdeglobals-back [live: string, template: string]: nothing -> string {
     } | compact | str join "\n" | $"($in)\n"
 }
 
-# the live state back into the module: the rc files and dirs as they are, the templates with their placeholders; the
-# applet layout (screens, panels, wallpaper) is this machine's
 export def backup [cfg: record]: nothing -> nothing {
     let cfg = detected $cfg
     let files = rc-files | append (if $cfg.kwin_outputs == true { [$OUTPUTS] } else { [] })

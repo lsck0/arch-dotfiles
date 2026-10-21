@@ -1,3 +1,6 @@
+# Plan and apply for native modules: observes each declared target, classifies it against what dot last
+# wrote (create, update, skip, drift, merge, remove), applies the actions and records the outputs per verb.
+
 use log.nu *
 use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR]
 use written.nu [sync-guard preserve-aside written-file written-record written-forget]
@@ -7,6 +10,7 @@ use ini.nu [ini-apply]
 
 const OWN_LINK_PREFIXES = ["/var/lib/dotfiles/"]
 
+# The record of what a module's verb owns: <state>/modules/<id>/<verb>.nuon.
 export def state-path [id: string, verb: string]: nothing -> path {
     state-dir | path join modules $id $"($verb).nuon"
 }
@@ -22,7 +26,8 @@ export def assert-shape [value: record, keys: list<string>, what: string]: nothi
     }
 }
 
-# before anything observes a target: a nested list or a list target would fail the whole layer, not this module
+# Fails on anything not a declaration before any target is observed, so a malformed one fails this module
+# and not the whole layer.
 export def decls-check [id: string, decls: list]: nothing -> nothing {
     for decl in $decls {
         if ($decl | describe) !~ '^record' { error make {msg: $"($id) declares ($decl | to nuon), not one declaration"} }
@@ -36,13 +41,14 @@ def sha [text: any]: nothing -> string {
     $text | hash sha256
 }
 
-# a unit systemd does not know answers on stderr only, so the batch falls back to asking each
 export def unit-states [scope: string, units: list<string>]: nothing -> list<string> {
+    # a unit systemd does not know answers on stderr only, so the batch falls back to asking each
     let batch = ^systemctl $"--($scope)" is-enabled ...$units | complete | get stdout | lines
     if ($batch | length) == ($units | length) { return $batch }
     $units | each {|u| ^systemctl $"--($scope)" is-enabled $u | complete | get stdout | str trim | if ($in | is-empty) { "not-found" } else { $in } }
 }
 
+# What is on disk now for each target (type, hash, link) and each unit's enablement state.
 export def observe [targets: list<string>, units: list<string>, scope: string]: nothing -> record {
     let paths = $targets | uniq | each {|t|
         let type = path-kind $t
@@ -63,6 +69,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string]: 
     }
 }
 
+# The hash dot last wrote per path, from the written file.
 export def recorded-hashes []: nothing -> record {
     let file = written-file
     if not ($file | path exists) { return {} }
@@ -78,7 +85,7 @@ def action [module: string, kind: string, target: string, reason: string, decl: 
     {module: $module, kind: $kind, target: $target, reason: $reason, decl: $decl, before: $before, after: $after}
 }
 
-# two merge decls on one file would each plan against the file on disk and the last apply would win
+# Folds merge decls on one file into one, else each would plan against the file on disk and the last wins.
 def fold-merges [decls: list<record>]: nothing -> list<record> {
     let dup = $decls | where kind in [json ini] | group-by target | items {|t, g| if ($g | length) > 1 { $t } } | compact
     if ($dup | is-empty) { return $decls }
@@ -92,12 +99,11 @@ def fold-merges [decls: list<record>]: nothing -> list<record> {
     } | compact
 }
 
-# a link where a copy belongs: the old linked form of this module, or one that points nowhere
 def link-stale [obs: record, target: string, repo: string]: nothing -> bool {
     $obs.type == symlink and ((own-link $obs.link $repo) or not ($target | path exists))
 }
 
-# what an apply does to a declared file: <obs> on disk, <want> the content's hash, <recorded> the hash it last wrote
+# What an apply does to a declared file: obs on disk, want the content's hash, recorded the hash it last wrote.
 export def file-classify [obs: record, want: string, recorded: any, generated: bool, stale_link: bool, force: bool]: nothing -> record {
     let c = {|kind, reason, preserve| {kind: $kind, reason: $reason, preserve: $preserve} }
     if $obs.type == "" {
@@ -117,21 +123,21 @@ export def file-classify [obs: record, want: string, recorded: any, generated: b
     }
 }
 
-# a recorded file output as the next apply sees it, without evaluating its module: drift, missing or null (holds,
-# or the apply rewrites it on its own: generated, the old linked form). <written> the hash dot last wrote there: a
-# merge of another verb (a theme's wallpaper key) onto a module's own copy is no drift
+# A recorded output as the next apply sees it, without evaluating its module: changed, missing or null;
+# written is the hash dot last wrote there, so another verb's merge onto it is no drift.
 export def output-file-state [output: record, obs: record, repo: string, written: any = null]: nothing -> any {
     if $written != null and $obs.hash? == $written { return null }
     let c = file-classify $obs $output.hash $output.hash ($output.generated? | default false) (link-stale $obs $output.target $repo) false
     match $c.kind { "drift" => "changed", "create" => "missing", _ => null }
 }
 
-# a merge target behind a link (a dotfile kept in another repo) is the file it points to, never an empty one
 def merge-read [obs: record, target: string]: nothing -> string {
     if $obs.type? not-in [file symlink] { return "" }
     try { open --raw $target } catch { "" }
 }
 
+# The actions for one module: its declarations against what is on disk, then its orphaned outputs
+# (removals and disables, sorted first).
 export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
@@ -139,7 +145,6 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
         match $d.kind {
             "file" => {
                 let want = if $d.content != null { sha $d.content } else { open --raw $d.source | sha $in }
-                # what dot last wrote there, a merge of another verb included, is as much the module's as its own record
                 let written = $recorded | get --optional $d.target
                 let rec = if $written != null and $obs.hash? == $written { $written } else {
                     $prev | where target == $d.target | get --optional 0.hash | default $written
@@ -156,7 +161,6 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 } else if $obs.type == file and ($d.source | path exists) and $obs.hash == (open --raw $d.source | sha $in) {
                     action $id update $d.target "a copy of the source" $d $obs.hash $d.source
                 } else if $obs.type == file and ($prev | where target == $d.target | get --optional 0.hash) == $obs.hash {
-                    # a file-copy turned file-link: the module's own unchanged copy, not drift
                     action $id update $d.target "a copy the dotfiles wrote" ($d | insert preserve true) $obs.hash $d.source
                 } else if $obs.type == file and $d.target not-in $prev.target {
                     action $id update $d.target "not the dotfiles' own yet: preserved aside" ($d | insert preserve true) $obs.hash $d.source
@@ -168,8 +172,6 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
             }
             "json" => {
                 let raw = merge-read $obs $d.target
-                # an app mid-write (~/.claude.json) is no reason to stop the layer: the apply reads it again under
-                # the lock and fails this action alone if it still does not parse
                 let current = if ($raw | str trim | is-empty) { {} } else { try { $raw | from json } catch { null } }
                 if $current == null { return (action $id merge $d.target "not valid json now, read again at apply" $d $obs.hash? null) }
                 let merged = $current | json-edits-apply $d.edits
@@ -215,7 +217,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     $wanted ++ ($orphans | sort-by {|a| if $a.kind in [disable unmask] { 0 } else { 1 } })
 }
 
-# stops at a non-empty dir, a link, home or a dir a package owns; never fails the removal
+# Removes emptied parent dirs; stops at a non-empty dir, a link, home or a dir a package owns.
 def prune-parents [start: path]: nothing -> nothing {
     mut dir = $start
     while $dir != $nu.home-dir and $dir != "/" and (path-kind $dir) == "dir" and (try { ls --all $dir | is-empty } catch { false }) {
@@ -228,7 +230,7 @@ def prune-parents [start: path]: nothing -> nothing {
 def write-file [a: record]: nothing -> nothing {
     let d = $a.decl
     mkdir ($d.target | path dirname)
-    # this process's own name: a second run writing the same target must not take over a half-written temp
+    # the pid in the name: a second run writing the same target must not take over a half-written temp
     let tmp = $"($d.target).dot-new.($nu.pid)"
     if (path-kind $tmp) == "symlink" { rm $tmp }
     if $d.content != null { $d.content | save --force --raw $tmp } else { ^cp $d.source $tmp }
@@ -251,7 +253,7 @@ def run-step [a: record, dir: path]: nothing -> string {
     $out.output
 }
 
-# a sibling module's daemon-reload running at the same moment fails a unit verb once (core/herdr, 2026-10-20)
+# a sibling module's daemon-reload running at the same moment fails a unit verb once
 def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
     if (do { ^systemctl $"--($scope)" ...$args } | complete).exit_code != 0 {
         sleep 1sec
@@ -259,7 +261,7 @@ def systemctl-retry [scope: string, ...args: string]: nothing -> nothing {
     }
 }
 
-# a failed --then forgets the file, so the next apply records it again and that record runs the --then once more
+# A failed --then forgets the file, so the next apply records it again and runs the --then once more.
 def run-then [a: record, dir: path]: nothing -> string {
     if ($a.decl.then | is-empty) { return "" }
     try { run-exec ($a | update decl.argv $a.decl.then) $dir } catch {|e|
@@ -276,6 +278,7 @@ def run-exec [a: record, dir: path]: nothing -> string {
     $out.output
 }
 
+# Runs a module's planned actions; one outcome per action, a failure confined to that action.
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
     let outcomes = $actions | where kind not-in [skip drift unreadable] | each {|a|
         let start = date now
@@ -299,7 +302,6 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 "merge" => {
                     sync-guard $a.target
                     mkdir ($a.target | path dirname)
-                    # read again under the lock: the plan's view may be stale, and an app may have written since
                     let out = if $a.decl.kind == "ini" {
                         state-locked $"(state-dir)/json.lock" ini-update {file: $a.target, edits: $a.decl.edits} | complete
                     } else {
@@ -307,15 +309,13 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                         state-locked $"(state-dir)/json.lock" json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: $recorded} | complete
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
-                    # an ini merge onto the file as dot last wrote it keeps it dot's, as json-update's owned says
                     let owned = $a.decl.kind == "ini" and $a.before != null and $a.before == (recorded-hashes | get --optional $a.target)
                     if ($out.stdout | str contains owned) or ($owned and ($out.stdout | str contains changed)) { written-record $a.target }
                     {output: (if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" })}
                 }
                 "disable" => {
                     systemctl-retry $scope disable $a.target
-                    # the stop is best effort: a stock unit with RefuseManualStop= (systemd-tmpfiles-setup) refuses it,
-                    # and the disable that matters already happened
+                    # best effort: a stock unit with RefuseManualStop= refuses it, and the disable already happened
                     if ($a.decl.now? | default false) { do { ^systemctl $"--($scope)" stop $a.target } | complete | ignore }
                     {}
                 }
@@ -349,6 +349,8 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     $outcomes
 }
 
+# Records what the module now owns; a failed action keeps its previous output and clears the input hash
+# so the next run plans it again.
 export def state-write [id: string, verb: string, input: string, actions: list<record>, outcomes: list<record>, prev: list<record>]: nothing -> nothing {
     let done = $outcomes | where ok | reduce --fold {} {|o, acc| $acc | upsert $o.target $o }
     let failed = $outcomes | where not ok | get target

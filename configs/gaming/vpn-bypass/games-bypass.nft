@@ -1,24 +1,14 @@
 #!/usr/sbin/nft -f
-# owns only table inet games_bypass. games should egress on the real link even while proton0 is up: the vpn slows game
-# frontends and a shared exit ip risks an anticheat flag, and a game already reveals who is playing, so it gains no
-# privacy from the tunnel. sockets of the games group (games-bypass.service fills the gid, entered through
-# steam-launch.nu's `sudo -g games`) are marked here; the mark sends them out the physical gateway through table 100
-# (games-route.nu) and past the kill switch (configs/base/nftables/fw-egress.nft game_mark). nothing else is ever marked,
-# so no other traffic leaves the tunnel. the route hook reroutes the packet after the mark is set so ip rule picks it up.
-
-# the skb mark that fw-egress' game_mark and games-route.nu's ip rule both key on; kept in sync with them
 define game_mark = 0x6761
 
 add table inet games_bypass
 delete table inet games_bypass
 table inet games_bypass {
-    # the games group's gid, filled by games-bypass.service at load (nft cannot resolve a name)
     set gids {
         type gid
     }
 
     chain output {
-        # route, not filter: changing the mark here triggers a reroute so ip rule fwmark lookup 100 takes effect
         type route hook output priority mangle; policy accept;
         meta skgid @gids meta mark set $game_mark
     }

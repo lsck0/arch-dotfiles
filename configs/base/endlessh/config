@@ -1,4 +1,3 @@
-# decoy tarpit, real sshd is port-knocked on 2222
 Port 22
 Delay 10000
 MaxLineLength 32

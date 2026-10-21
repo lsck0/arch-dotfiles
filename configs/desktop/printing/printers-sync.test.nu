@@ -1,10 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# printers-sync.nu against canned lpinfo output and a stubbed cups, no root
-
 const SYNC = path self | path dirname | path join printers-sync.nu
 const WANT_NAME = "HP_ENVY_5640_series_B8A730"
 const WANT_URI = "dnssd://HP%20ENVY%205640%20series%20%5BB8A730%5D._ipp._tcp.local/?uuid=1c852a4d-b800-1f08-abcd-b8a730000001"
-# the same printer over ipp and ipps, an lpd-only printer, and an address that must never become a queue
 const LPINFO = [
     $"network ($WANT_URI)"
     "network dnssd://HP%20ENVY%205640%20series%20%5BB8A730%5D._ipps._tcp.local/?uuid=1c852a4d-b800-1f08-abcd-b8a730000001"
@@ -13,7 +10,6 @@ const LPINFO = [
     "network ipp://192.168.178.20/ipp/print"
 ]
 const SHEBANG = "#!/usr/bin/env -S nu --no-config-file"
-# queues: "<name> <uri>" lines; default: the default queue's name
 const STUBS = {
     lpinfo: 'def --wrapped main [...args] { print --raw (open --raw ($env.STUB_STATE | path join lpinfo.out)) }'
     lpstat: '

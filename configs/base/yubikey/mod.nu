@@ -20,7 +20,7 @@ export def link [cfg: record] {
     # ssh tries id_ed25519_sk by default, after the agent's keys; a copy, ssh rejects a key file others can read
     let stub = glob ssh-* | where not ($it | str ends-with .pub) | get --optional 0
     [
-        (if (profile-has identity) and $stub != null {
+        (if (profile-has secrets) and $stub != null {
             [
                 (file-copy $stub ($ssh | path join id_ed25519_sk) --mode 600)
                 (file-copy $"($stub).pub" ($ssh | path join id_ed25519_sk.pub))

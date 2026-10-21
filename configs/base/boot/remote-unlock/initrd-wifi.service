@@ -7,8 +7,6 @@ Before=cryptsetup-pre.target
 
 [Service]
 Type=simple
-# the driver and its firmware load after udev starts, so the interface appears seconds into boot; after 30 s the console
-# prompt stays the unlock. $$ and %% are systemd's escapes for the shell's $ and %
 ExecStart=/bin/sh -c 'for try in $$(seq 30); do for d in /sys/class/net/*/wireless; do [ -e "$$d" ] || continue; i=$${d%%/wireless}; exec /usr/bin/wpa_supplicant -i "$${i##*/}" -c /etc/wpa_supplicant/initrd.conf; done; sleep 1; done; echo "initrd-wifi: no wireless interface"; exit 1'
 
 [Install]
@@ -18,16 +16,11 @@ WantedBy=sysinit.target
 
 InitrdBinary=/usr/bin/wpa_supplicant
 
-# autodetect takes iwlwifi from the card's modalias but not the op mode it requests at runtime: without one in the
-# image the card binds with no interface and never retries after switch-root, so wifi stays gone on the real system too.
-# One call each: the hook runs the line as a plain argv, not through a shell, so a ';' would be part of the name
 InitrdCall=add_module iwlmvm?
 InitrdCall=add_module iwldvm?
 InitrdCall=add_module iwlmld?
 
-# written by mod.nu from the NetworkManager profile of the ssid the platform names; root only
 InitrdPath=/etc/wpa_supplicant/initrd.conf source=/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf
 
-# the regulatory database cfg80211 asks for; without it the card stays on the world domain, which still connects
 InitrdPath=/usr/lib/firmware/regulatory.db optional=yes
 InitrdPath=/usr/lib/firmware/regulatory.db.p7s optional=yes

@@ -5,10 +5,7 @@ style = "dark"
 
 [templates]
 wal = { template = 'wal/', target = '~/.cache/wal/', pywal = true }
-# millennium only loads files inside the theme dir, no symlinks out
 steam = { template = 'wal/colors-steam.css', target = '~/.local/share/Steam/millennium/themes/cyberpunk/colors.css', pywal = true }
-# the xdph share picker re-reads this on a content change, so a theme switch retints it live
 omarchy = { template = 'wal/omarchy-colors.toml', target = '~/.local/state/omarchy/current/theme/colors.toml' }
-# jinja, not pywal: these mix bg_alt from the background, which wal/'s pywal syntax cannot
 telegram = { template = 'colors-telegram.tdesktop-palette', target = '~/.cache/wal/colors-telegram.tdesktop-palette' }
 yazi = { template = 'colors-yazi.toml', target = '~/.cache/wal/colors-yazi.toml' }

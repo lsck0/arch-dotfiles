@@ -1,35 +1,3 @@
-# The install's questions, in the order `dot internal bootstrap` asks them, and every text the install shows.
-# Wording, order, options and defaults are edited here; scripts/lib/bootstrap.nu only walks this list. The lsck0 iso's
-# second stage (scripts/lib/iso-install.nu) reads it too: the answer file's keys and types come from `questions` and
-# `answers`. The iso's own Wi-Fi screens are frozen in its stub (mirror/iso/airootfs/usr/local/bin/lsck0-install).
-#
-# questions: asked top to bottom, each a record:
-#   id        the answer-file key (lsck0.nuon); later `when`s and {placeholders} use the answer by this name
-#   kind      text      one line, `pattern` (a regex) must match
-#             password  hidden and typed twice
-#             flag      yes or no; the env var takes 0 or 1
-#             menu      one of `options`
-#             keymap    `options`, or `other` to type a name; loaded at once
-#             profile   profiles/*.nuon (labelled by `file_label`), then `options`
-#             platform  the platforms/*.nuon of this kind of host (labelled by `form_factors`, minus `hidden`),
-#                       then `options`; their values server and custom are the two machines asked for below
-#             groups    a checklist of configs/ groups described by `options`, `required` always in; Enter or
-#                       unattended takes all, a server takes its template's
-#             disk      a menu of whole disks (none when there is one), then `confirm` to type its name
-#   title     the dialog's title, also the plain prompt's label
-#   text      the dialog's text
-#   options   [{value, label, when?}]
-#   default   the answer on Enter and unattended; null: required unattended; a record picks it by machine
-#   empty_ok  an empty answer is fine (text, password)
-#   env       the BOOTSTRAP_* variable that answers it without asking
-#   when      asked only when every field holds: an earlier answer by id (platform, encrypt), or host_wsl (running
-#             in WSL), machine_wsl (the machine picked is a WSL one), password_given (BOOTSTRAP_PASSWORD is set);
-#             a list means any of them. Not asked: its default, or what the machine's file sets.
-#   invalid   the error for a bad answer, with {value} and {choices}; hostname, timezone, locale and keymap
-#             also get a check in code (not a machine's name, a zoneinfo file, in locale.gen, loadkeys takes it)
-# A record with `step` runs that part of bootstrap.nu at this point instead; it needs the answers above it.
-# {name} in any text is filled in: an answer by id ({username}, {keymap}, {disk}), {value}, {choices}, {pattern},
-# {platforms} (the machines' names).
 {
     questions: [
         {
@@ -40,7 +8,6 @@
             default: "de-latin1"
             title: "keyboard"
             text: "Keyboard layout:"
-            # the ones systemd's kbd-model-map turns into an x11 layout, so the desktop follows
             options: [
                 {value: "de-latin1", label: "German"}
                 {value: "us", label: "English (US)"}
@@ -81,7 +48,7 @@
             title: "profile"
             text: "Profile:"
             file_label: "{name}: {capabilities}"
-            options: [{value: "custom", label: "nothing personal: no secrets, accounts or homelab"}]
+            options: [{value: "custom", label: "nothing personal: no secrets"}]
             invalid: "unknown profile '{value}', one of: {choices}"
         }
         {
@@ -92,8 +59,7 @@
             title: "machine"
             text: "Machine:"
             form_factors: {desktop: "PC", laptop: "notebook", wsl: "WSL", vm: "VM", server: "server"}
-            # the vm test passes it by argument
-            hidden: [test-vm]
+            hidden: [vm server]
             options: [
                 {value: "server", label: "no desktop, just ssh and docker", when: {host_wsl: false}}
                 {value: "custom", label: "any other machine, you pick hostname and groups"}
@@ -257,7 +223,6 @@
             title: "root password"
             text: "Root password. Empty keeps root locked:"
         }
-        # WSL: login and sudo only, no disk
         {
             id: user_password
             kind: password
@@ -268,11 +233,9 @@
         }
     ]
 
-    # answer-file keys that are no question: type and the BOOTSTRAP_* variable; `keys` a record's own
     answers: [
         {id: server, type: bool, env: BOOTSTRAP_SERVER}
         {id: unattended, type: bool, env: BOOTSTRAP_ASSUME_YES}
-        # unattended erases a disk still in its install chain; best as the one-boot lsck0.reinstall=1
         {id: reinstall, type: bool, env: BOOTSTRAP_REINSTALL}
         {id: wifi, type: "list<record>", keys: {ssid: string, psk: string, hidden: bool}}
         {id: source, type: record, keys: {bundle: string, lfs: string}}
@@ -310,7 +273,6 @@
         done: "done. rebooting in {delay}, remove the ISO; the install goes on by itself"
     }
 
-    # the last screen before anything is written; rows in this order, the ssh key for a server or when one is given
     summary: {
         title: "summary"
         question: "Install now? This erases {disk}."

@@ -41,7 +41,7 @@ Targets (`show` lists the live ones with signatures):
 
 | target | functions |
 |---|---|
-| `shell` | `palette`, `rgb <c>`, `reloadPowerMode`, `summon <id> <json>` |
+| `shell` | `palette`, `reloadPowerMode`, `summon <id> <json>` |
 | `bar`, `bar-<output>` | `open <panel>`, `close`, `toggle <panel>`, `state`, `list` |
 | `settings` | `toggle`, `open`, `close`, `openOn <output>` |
 | `appsearch`, `powermenu`, `tasks` | `toggle`, `open`, `close` |
@@ -82,6 +82,7 @@ session lock is compositor-wide, so a test lock locks the real screen. Test the 
 - `~/.config/quickshell` is copies: an edit in the repo does nothing until `dot apply desktop/quickshell`.
 - Hot reload sometimes misses: check `journalctl --user -u quickshell` for a fresh `Configuration Loaded`, else run
   `configs/desktop/quickshell/restart.nu`.
-- Widget helper processes (`obs-status.nu`, cava, pomodoro) keep their old code until the shell restarts.
+- Widget helper processes keep their old code: cava and pomodoro until the shell restarts; `obs-status.nu` runs only
+  while OBS runs, so restart the shell or OBS. The obs keybinds run the repo's `obs-status.nu` directly.
 - Never `pkill -f`: the pattern matches the agent's own shell. Kill by PID.
 - The bar's IPC target is `bar` on the main screen (else the first) and `bar-<output>` on the others (`plugins/bar/Bar.qml`).

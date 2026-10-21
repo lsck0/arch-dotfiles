@@ -1,6 +1,4 @@
 # managed by arch-dotfiles/apparmor
-# synctex inverse search for a pdf viewer: configs/latex/sioyek/synctex-edit.nu in its own child, which may only ask
-# a running nvim or emacs to jump to a line and post a notification, never take the viewer's rights or run unconfined
 
   abi <abi/4.0>,
 
@@ -20,7 +18,6 @@
     @{bin}/{emacsclient,notify-send,nvim} rix,
 
     @{HOME}/projects/arch-dotfiles/configs/latex/sioyek/synctex-edit.nu r,
-    # nu looks for its config even with --no-config-file, and rust's runtime reads its own maps
     owner @{user_config_dirs}/nushell/ r,
     owner @{PROC}/@{pid}/maps r,
 
@@ -28,7 +25,6 @@
     /usr/lib/nvim/{,**} mr,
 
     owner @{user_cache_dirs}/vimtex/nvim_servernames.log r,
-    # nvim --server keeps its log in the state dir, and falls back to creating one in the cwd when it can not
     owner @{user_state_dirs}/nvim/ r,
     owner @{user_state_dirs}/nvim/nvim.log rw,
     owner @{run}/user/@{uid}/ r,
@@ -37,11 +33,8 @@
     owner /tmp/emacs@{uid}/server rw,
 
     owner @{PROC}/@{pid}/fd/ r,
-    # notify-send names its own cgroup; nu probes the controlling terminal at startup and has none here
     owner @{PROC}/@{pid}/cgroup r,
     deny /dev/tty rw,
-    # the viewer's open pdf comes along as an inherited fd, and a server lookup lists the runtime dir; neither is
-    # needed, both stay denied without the log noise
     deny @{HOME}/**.pdf r,
     deny @{run}/user/@{uid}/*/ r,
   }

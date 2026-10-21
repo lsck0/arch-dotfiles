@@ -1,10 +1,6 @@
-# hyprland never reparents; without it awt/swing apps on xwayland can map blank or misplace their windows
 export _JAVA_AWT_WM_NONREPARENTING=1
 export GTK_IM_MODULE=simple
-# hyprland draws no server-side decorations, so qt would add its own; kwin (plasma sources env, not this) draws breeze ones
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-# aquamarine opens only the firmware's display gpu when every connected output hangs off it, so an output-less igpu
-# stays closed; outputs on two gpus keep both. cardN since it splits on ':' (by-path has them)
 boot_card=""
 other_card=""
 for status in /sys/class/drm/card[0-9]*-*/status; do

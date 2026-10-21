@@ -6,7 +6,6 @@ export def link [cfg: record] {
     file-render zathurarc ($nu.home-dir | path join .config zathura zathurarc) {HOME: $nu.home-dir}
 }
 
-# a running zathura rereads its config, the included palette with it, only when told over d-bus
 export def theme [cfg: record, wallpaper: string] {
     step config-source
 }

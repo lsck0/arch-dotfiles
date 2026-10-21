@@ -1,8 +1,3 @@
-# the declared end state, one fact per line, asserted by dot test run's verify inside the VM (every row) and by
-# dot status on the live machine (the live rows). one definition, so both check the same facts.
-# <key> <want> <where> <probe>: where is live (both) or vm (the test only: it needs the install password, or root
-# would be needed to see a real answer). the probe runs in bash as the admin, read-only, and prints the value; n/a is a
-# fact this platform does not have (no efi under wsl, no cups), skipped live and a mismatch in the VM.
 # @PASSWORD@ and @DISK@ are filled in by dot test.
 stage_armed       no   live  test -e /var/lib/dotfiles-stage/next && echo yes || echo no
 sudo_passwordless no   vm    sudo -n true 2>/dev/null && echo yes || echo no

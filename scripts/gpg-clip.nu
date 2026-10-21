@@ -1,6 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const PICKER = path self | path expand | path dirname | path join picker.nu
+const PICKER = path self | path expand | path dirname | path join lib picker.nu
 const APP = "gpg-clip"
 const FORGET_TIMEOUT_S = "3"
 const DONE = "DONE"
@@ -16,7 +16,6 @@ def clip-get []: nothing -> string {
     $clip.stdout | str trim --right --char "\n"
 }
 
-# hashed from the clipboard as the history holds it, trailing newlines included
 def clip-hash []: nothing -> string { ^wl-paste --type text --no-newline | hash md5 }
 
 def clip-put [text: string, hash: string]: nothing -> nothing {
@@ -25,12 +24,10 @@ def clip-put [text: string, hash: string]: nothing -> nothing {
     do { ^timeout $FORGET_TIMEOUT_S quickshell ipc -p $shell call clipboard forget $hash } | complete | ignore
 }
 
-# the status lines, not GOODSIG alone: good means a valid signature by a fully or ultimately trusted key
 def sig-report [status: list<string>]: nothing -> bool {
     let has = {|pattern| $status | any { $in =~ $'^\[GNUPG:\] ($pattern)' } }
     let signer = $status | parse --regex '^\[GNUPG:\] (?:GOOD|EXP|EXPKEY|REVKEY|BAD)SIG [0-9A-F]* (?<who>.*)$'
         | get --optional 0.who | default ""
-    # the primary key's fingerprint when gpg gives it, else the signing subkey's; ERRSIG has only the key id
     let fpr = $status | each { split row --regex '\s+' } | where { $in.1? in [VALIDSIG ERRSIG] } | get --optional 0
         | if $in == null { "" } else if $in.1 == ERRSIG or ($in.11? | default "") == "" { $in.2 } else { $in.11 }
     if (do $has BADSIG) {
@@ -76,7 +73,6 @@ def uid-of [fpr: string]: nothing -> string {
     ^gpg --list-keys --with-colons $fpr | lines | where { $in starts-with "uid:" } | first | split row ":" | get 9
 }
 
-# gpg.conf's default-key comes first, so enter signs with it; the only secret key signs without asking
 def signer-pick []: nothing -> string {
     let keys = key-list S --secret
     if ($keys | is-empty) {
@@ -90,7 +86,6 @@ def signer-pick []: nothing -> string {
     pick "sign as" ($first ++ ($keys | where $it not-in $first))
 }
 
-# bemenu picks one line, so recipients are picked one at a time until done
 def recipients-pick []: nothing -> list<string> {
     let keys = key-list E
     mut chosen = []
@@ -126,7 +121,6 @@ def "main decrypt" []: nothing -> nothing {
         rm --force $out
         return
     }
-    # the viewer unlinks it as soon as it holds it open
     try {
         ^ghostty $"--title=($APP)" -e sh -c 'exec 3<"$1"; rm -f -- "$1"; less /dev/fd/3' _ $out
     } catch { rm --force $out }
@@ -140,7 +134,6 @@ def "main encrypt" []: nothing -> nothing {
     if ($recipients | is-empty) { return }
     let signer = signer-pick
     if $signer == "" { return }
-    # the signer is a recipient too, so the sent message stays readable here
     let to = $recipients | append $signer | each { [--recipient $in] } | flatten
     let armored = $"($text)\n" | do { ^gpg --armor --local-user $signer --sign --encrypt ...$to } | complete
     if $armored.exit_code != 0 {

@@ -1,15 +1,13 @@
-# the questions, their texts, defaults, env vars and answer-file keys: bootstrap/questions.nuon, walked in order.
-# unattended (no tty or BOOTSTRAP_ASSUME_YES=1) every answer comes from its BOOTSTRAP_* variable or its default;
-# BOOTSTRAP_SERVER=1 still turns custom into server
+# Install a machine from the Arch ISO or set up a fresh WSL distro: walks bootstrap/questions.nuon in order;
+# unattended (no tty or BOOTSTRAP_ASSUME_YES=1) every answer comes from its BOOTSTRAP_* variable or its default.
 
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
-use platform.nu [platform-groups-all]
+use platform.nu [platform-groups-all PLATFORM_NAME_FILE]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
-# ranking takes longer than a slow mirror costs, so only a few recent ones are timed
 const MIRROR_CANDIDATES = 5
 const MIRROR_KEEP = 5
 const MIRROR_RANKED_MIN = 3
@@ -23,12 +21,10 @@ const HOMELAB_MIRROR_PROBE = "http://10.100.0.104:8090/archlinux/core/os/x86_64/
 const KBD_MODEL_MAP = "/usr/share/systemd/kbd-model-map"
 const ESP_SIZE_MIB = 1024
 const LUKS_NAME = "root"
-# gpt type codes: linux luks, linux x86-64 root
 const PART_TYPE_LUKS = "8309"
 const PART_TYPE_ROOT = "8304"
 const MOUNT = "/mnt"
 const BTRFS_OPTS = "noatime,compress=zstd"
-# out of @: a timeshift snapshot would pin them and a rollback revert them
 const SUBVOLS = [
     [name mount]; ["@" "/"] ["@home" "/home"] ["@log" "/var/log"] ["@pkg" "/var/cache/pacman/pkg"]
     ["@libvirt" "/var/lib/libvirt/images"] ["@ollama" "/var/lib/ollama"] ["@docker" "/var/lib/docker"]
@@ -42,7 +38,6 @@ const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 y
 const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
 const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const STAGE_KEY_BYTES = 64
-# on the ESP, readable without the disk password; dot internal stage removes it when the chain is done
 const STAGE_ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 const ISO_LOG_TARGET = "/var/log/lsck0-install.log"
 const SETUP_MODE_VAR = "/sys/firmware/efi/efivars/SetupMode-8be4df61-93ca-11d2-aa0d-00e098032b8c"
@@ -55,7 +50,6 @@ const PING_TIMEOUT_S = 2
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
 const PLATFORM_LOCAL_OPTIONS = "/etc/dotfiles/platform.options.nuon"
 const PLATFORM_NEW = "custom"
-const PLATFORM_TEMPLATES = "platforms/templates"
 const SERVER = "server"
 const PROFILE_CUSTOM = "custom"
 const SBCTL_MODULE = "base/boot/sbctl"
@@ -63,7 +57,6 @@ const LOGIN_SHELL = "/usr/bin/zsh"
 const HOME_GATEWAYS = "/etc/NetworkManager/home-gateways"
 const MAC_PATTERN = '^([0-9a-f]{2}:){5}[0-9a-f]{2}$'
 const TUI_WIDTH = 72
-# frame and buttons, plus an inputbox's field; dialog's own auto height drops wrapped text
 const TUI_BOX_ROWS = 4
 const TUI_INPUT_ROWS = 7
 const TUI_TEXT_MARGIN = 6
@@ -74,7 +67,6 @@ def assume []: nothing -> bool { $env.BOOTSTRAP_ASSUME_YES? == "1" }
 def tui []: nothing -> bool { $env.BOOTSTRAP_TUI? == "1" }
 def env-or [name: string]: nothing -> string { $env | get --optional $name | default "" }
 
-# chpasswd and cryptsetup read one line, so a newline would inject a second account or key
 def one-line [value: string, label: string]: nothing -> string {
     if $value =~ '[\n\r]' { die $"($label) must not contain a newline" }
     $value
@@ -87,7 +79,6 @@ def die [message: string] {
 
 def questions-load []: nothing -> record { open $QUESTIONS }
 
-# {name} in a questions.nuon text, from the answers and the values given; a list joins with spaces
 def text-fill [text: string, values: record]: nothing -> string {
     $values | items {|name, value| {name: $name, value: $value} } | reduce --fold $text {|v, acc|
         let tag = $"{($v.name)}"
@@ -97,7 +88,6 @@ def text-fill [text: string, values: record]: nothing -> string {
     }
 }
 
-# a question's `when`: every field equals its value, or one of a list's
 def when-holds [when: any, c: record]: nothing -> bool {
     $when | default {} | items {|field, want|
         if $field not-in $c { error make {msg: $"($QUESTIONS): `when` names ($field), no answer or fact by that name"} }
@@ -110,7 +100,6 @@ def options-items [e: record, c: record]: nothing -> list<string> {
     $e.options | where {|o| when-holds $o.when? $c } | each {|o| [$o.value $o.label] } | flatten
 }
 
-# the first mirror pacstrap uses and GitHub, the two an install needs; a few tries ride out a link still coming up
 def online []: nothing -> bool {
     let mirror = if ($MIRRORLIST | path exists) {
         open --raw $MIRRORLIST | lines | parse --regex '^\s*Server\s*=\s*(?<url>\S+)' | get --optional 0.url
@@ -162,7 +151,6 @@ def menu [title: string, text: string, default: string, items: list<string>]: no
     dlg --title $title --default-item $default --menu $text "0" ($TUI_WIDTH | into string) "0" ...$items
 }
 
-# a menu without dialog: the tags with their text, then the tag typed
 def menu-plain [label: string, default: string, items: list<string>]: nothing -> string {
     $items | chunks 2 | each {|i| print -e $"  ($i.0 | fill --width 16)($i.1)" } | ignore
     input $"($label) [($default)]: " | default --empty $default
@@ -220,7 +208,6 @@ def default-route []: nothing -> record {
 def home-gateway-mac []: nothing -> any {
     let route = default-route
     if ($route.gateway? | is-empty) or ($route.dev? | is-empty) { return null }
-    # the neighbour cache may not hold the router yet
     ^ping -c 1 -W $PING_TIMEOUT_S -I $route.dev $route.gateway | complete | ignore
     let mac = ^ip -j neigh show $route.gateway dev $route.dev | from json | get --optional 0.lladdr | default "" | str lowercase
     if $mac =~ $MAC_PATTERN { $mac } else { null }
@@ -232,10 +219,8 @@ def home-ssid []: nothing -> string {
     ^iw dev $dev link | complete | get stdout | lines | parse --regex '^\s*SSID: (?<ssid>.*)$' | get --optional 0.ssid | default ""
 }
 
-# the iso's mirror is a cdn that can crawl, older isos only rate a worldwide --latest 20
 def mirrors-rank []: nothing -> nothing {
     if not ("/run/archiso" | path exists) or (which reflector | is-empty) { return }
-    # older isos run reflector.service with Restart=on-failure: let it finish, then stop retries
     for _ in 1..$REFLECTOR_WAIT_S {
         if (^systemctl show -p ActiveState --value reflector.service | complete | get stdout | str trim) != "activating" { break }
         sleep 1sec
@@ -249,7 +234,6 @@ def mirrors-rank []: nothing -> nothing {
         let where = if $scope == "worldwide" { [] } else { [--country $scope] }
         let run = command-stream reflector [reflector --verbose --protocol https --age $MIRROR_AGE_H --latest $MIRROR_CANDIDATES --fastest $MIRROR_KEEP --connection-timeout $GEO_TIMEOUT_S --download-timeout $MIRROR_DOWNLOAD_TIMEOUT_S ...$where --save ($tmp | path join list)]
         if $run.exit_code != 0 { continue }
-        # --verbose logs a failed rate as 0.00
         let rates = $run.output | lines | parse --regex '(?<url>\S+)\s+(?<rate>[\d.]+) KiB/s' | where {|r| ($r.rate | into float) > 0 }
         let servers = open --raw ($tmp | path join list) | lines | where ($it | str starts-with "Server") | each {|line|
             let url = $line | split row " " | last | str replace '$repo/os/$arch' ""
@@ -312,18 +296,19 @@ def user-setup [c: record]: nothing -> nothing {
             let kept = if ($local_options | path exists) { open $local_options } else { {} }
             $kept | merge deep $options | to nuon --indent 4 | save --force $local_options
         }
+        rm --force $"($root)($PLATFORM_NAME_FILE)"
     } else {
         rm --force $local
+        mkdir ($"($root)($PLATFORM_NAME_FILE)" | path dirname)
+        $"($c.platform)\n" | save --force $"($root)($PLATFORM_NAME_FILE)"
     }
     let profile = $home | path join .config dotfiles profile.nuon
     if ($c.profile_file | is-not-empty) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
-    # root's record of the owner's logins: secrets/yubikey maps the owner's yubikey to exactly these
-    if ($c.profile_file | is-not-empty) and ("identity" in (open $c.profile_file | get --optional capabilities | default [])) {
+    if ($c.profile_file | is-not-empty) and ("secrets" in (open $c.profile_file | get --optional capabilities | default [])) {
         let owners = $"($root)/var/lib/dotfiles/owners"
         mkdir ($owners | path dirname)
         $"($c.username)\n" | save --append $owners
     }
-    # password logins are off in sshd (base/ssh), so a headless machine is reachable only with this key
     if ($c.ssh_key | is-not-empty) {
         let keys = $home | path join .ssh authorized_keys
         mkdir ($keys | path dirname)
@@ -347,12 +332,10 @@ def --wrapped in-target-input [root: string, ...cmd: string]: string -> nothing 
 def pacman-init []: nothing -> nothing {
     ^pacman-key --init
     ^pacman-key --populate archlinux
-    # keys first: an older image's keyring may not know the packagers who signed today's packages
     ^pacman -Sy --noconfirm --needed archlinux-keyring
     ^pacman -Su --noconfirm --needed git gnupg sudo zsh nushell
 }
 
-# one key of an iwd network file's [section]
 def iwd-get [text: string, section: string, key: string]: nothing -> string {
     $text | lines | reduce --fold {in: false, value: ""} {|l, acc|
         if ($l | str starts-with "[") { $acc | update in (($l | str trim) == $"[($section)]") } else if $acc.in and ($l | str starts-with $"($key)=") {
@@ -361,7 +344,6 @@ def iwd-get [text: string, section: string, key: string]: nothing -> string {
     } | get value
 }
 
-# ssids in the last scan that offer SAE and no PSK: WPA3-only, which a wpa-psk profile cannot join
 def wifi-sae-only []: nothing -> list<string> {
     if (which iw | is-empty) { return [] }
     ls /sys/class/net | get name | where { path join wireless | path exists } | path basename | each {|dev|
@@ -373,16 +355,13 @@ def wifi-sae-only []: nothing -> list<string> {
     } | flatten | uniq
 }
 
-# the iwd wifi the ISO knows (psk and open), as NetworkManager keyfiles, so the chained boots come up online
 def wifi-carry [c: record]: nothing -> nothing {
     let sae_only = wifi-sae-only
     for f in (glob /var/lib/iwd/*.{psk,open}) {
         let name = $f | path parse | get stem
         let open = ($f | path parse | get extension) == "open"
-        # iwd names an ssid that is not path-safe =<hex>
         let ssid = if ($name | str starts-with "=") { $name | str substring 1.. | decode hex | decode utf-8 } else { $name }
         let text = open --raw $f
-        # iwd keeps the derived 64-hex key, NetworkManager takes it as psk too
         let psk = iwd-get $text Security Passphrase | default --empty (iwd-get $text Security PreSharedKey)
         if not $open and ($psk | is-empty) { continue }
         let security = if $open { [] } else {
@@ -390,7 +369,6 @@ def wifi-carry [c: record]: nothing -> nothing {
             ["" "[wifi-security]" $"key-mgmt=($mgmt)" $"psk=(keyfile-escape $psk)"]
         }
         let hidden = if (iwd-get $text Settings Hidden) == "true" { ["hidden=true"] } else { [] }
-        # the home rule needs the hardware mac there, every other wifi gets NetworkManager.conf's random one
         let mac = if $c.home_gateway != null and $ssid == $c.home_ssid { ["cloned-mac-address=permanent"] } else { [] }
         let bytes = $ssid | encode utf-8 | chunks 1 | each {|b| $"($b | into int);" } | str join
         let file = $"($MOUNT)/etc/NetworkManager/system-connections/($name).nmconnection"
@@ -402,7 +380,6 @@ def wifi-carry [c: record]: nothing -> nothing {
     }
 }
 
-# KEYMAP alone leaves x11 and the compositor on us: core/locale detects the layout from XKBLAYOUT
 def xkb-vars [keymap: string]: nothing -> list<string> {
     let row = if ($KBD_MODEL_MAP | path exists) {
         open --raw $KBD_MODEL_MAP | lines | parse --regex '^(?<console>\S+)\s+(?<layout>\S+)\s+\S+\s+(?<variant>\S+)'
@@ -436,16 +413,13 @@ def target-system [c: record, root_uuid: string]: nothing -> nothing {
     mkdir (do $t /boot/EFI/Linux)
     in-target $MOUNT mkinitcpio -P
     in-target $MOUNT systemctl enable NetworkManager.service NetworkManager-wait-online.service systemd-timesyncd.service
-    # unsigned until config signs; --variables=yes: in a chroot bootctl may skip the firmware's boot order
     in-target $MOUNT bootctl install --esp-path=/boot --variables=yes
     ^install -Dm644 ($c.repo | path join configs base zram zram-generator.conf) (do $t /etc/systemd/zram-generator.conf)
 }
 
-# the next boot is the entry bootctl just made on this ESP: a stick left in, booted first, would rerun its install
 def boot-next-installed [esp: string]: nothing -> nothing {
     if (which efibootmgr | is-empty) { return }
     let partuuid = ^lsblk -dno PARTUUID $esp | str trim | str lowercase
-    # the entry's device path names the ESP's partition uuid; another disk's Linux Boot Manager is not this one
     let entry = ^efibootmgr -v | complete | get stdout | lines
         | parse --regex '^Boot(?<num>[0-9A-Fa-f]{4})\*?\s+Linux Boot Manager\s(?<path>.*)$'
         | where {|b| ($partuuid | is-not-empty) and ($b.path | str lowercase | str contains $partuuid) } | get --optional 0.num
@@ -458,14 +432,10 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     mkdir $state
     "install\n" | save --force ($state | path join next)
     if $c.encrypt { $"/dev/disk/by-uuid/($root_uuid)\n" | save --force ($state | path join luks-device) }
-    # all of sudo, not a narrowed list: dot apply's system layer runs whatever root commands its modules declare.
-    # verifypw=any: with %wheel still asking, `sudo -v` would want a password despite the NOPASSWD rule
     $"($c.username) ALL=\(ALL:ALL\) NOPASSWD: ALL\nDefaults:($c.username) verifypw=any\n" | save --force $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     ^chmod 440 $"($MOUNT)/etc/sudoers.d/zz-dotfiles-stage"
     "a dotfiles install chain runs from this disk; the lsck0 iso will not erase it unattended\n" | save --force $"($MOUNT)($STAGE_ESP_MARKER)"
     let checkout = $"/home/($c.username)/projects/arch-dotfiles"
-    # PAMName: a logind session; not oneshot: a link restarting tlp would deadlock multi-user.target.
-    # base/systemd masks NetworkManager-wait-online after the first boot, so network-online.target no longer waits
     [
         "[Unit]" "Description=arch-dotfiles install chain (dot internal stage)" "Wants=network-online.target"
         "After=network-online.target" $"ConditionPathExists=($STAGE_STATE_DIR)/next" "" "[Service]" "Type=exec"
@@ -476,7 +446,6 @@ def stage-arm [c: record, root_uuid: string]: nothing -> nothing {
     in-target $MOUNT systemctl enable dotfiles-stage.service
 }
 
-# the live iso: archiso's runtime dir and its boot parameter; a running install has neither
 def on-archiso []: nothing -> bool {
     ("/run/archiso" | path exists) and (open --raw /proc/cmdline | str contains "archisobasedir=")
 }
@@ -489,7 +458,6 @@ def platform-names [repo: path]: nothing -> list<string> {
     glob ($repo | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { path parse | get stem } | sort
 }
 
-# the menu's tag and text pairs: the platform files for this kind of host, then the question's options
 def platform-items [e: record, c: record]: nothing -> list<string> {
     let fixed = platform-names $c.repo | where $it not-in $e.hidden | each {|p|
         {name: $p, form_factor: (open ($c.repo | path join platforms $"($p).nuon") | get --optional form_factor | default "")}
@@ -499,7 +467,7 @@ def platform-items [e: record, c: record]: nothing -> list<string> {
     $fixed ++ (options-items $e $c)
 }
 
-# the profiles/ name and its capabilities; custom has none and copies no file
+# The profiles/<picked> name and its capabilities; custom has none and copies no file.
 export def bootstrap-profile-resolve [repo: path, e: record, picked: string]: nothing -> record {
     if $picked == $PROFILE_CUSTOM { return {profile: $PROFILE_CUSTOM, profile_file: "", capabilities: []} }
     let names = glob ($repo | path join profiles *.nuon) | each { path parse | get stem } | sort
@@ -508,7 +476,7 @@ export def bootstrap-profile-resolve [repo: path, e: record, picked: string]: no
     {profile: $picked, profile_file: $file, capabilities: (open $file | get --optional capabilities | default [])}
 }
 
-# a platforms/ file, or server and custom: the two that ask for the machine and write /etc/dotfiles/platform.nuon
+# The picked platform; custom with BOOTSTRAP_SERVER=1 becomes server, both generic (no platforms/ file).
 export def bootstrap-platform-resolve [repo: path, e: record, picked: string, wsl: bool]: nothing -> record {
     let server_flag = env-or BOOTSTRAP_SERVER
     if $server_flag not-in ["" "0" "1"] { die (text-fill (questions-load).messages.flag_invalid {env: BOOTSTRAP_SERVER, value: $server_flag}) }
@@ -572,7 +540,6 @@ def answer-menu [e: record, c: record]: nothing -> string {
 def answer-keymap [m: record, e: record, c: record]: nothing -> string {
     let valid = {|k| answer-valid $e $k $c }
     let given = env-or $e.env
-    # not `env-or | if`: a let inside that else block hands back a closure (nu 0.116)
     let keymap = if ($given | is-not-empty) { $given } else if not (tui) { ask $m $valid $e.other.title "" $e.default } else {
         let picked = menu $e.title $e.text $e.default ((options-items $e $c) ++ [$e.other.value $e.other.label])
         if $picked != $e.other.value { $picked } else { ask $m $valid $e.other.title $e.other.text "" }
@@ -630,7 +597,6 @@ def answer-groups [e: record, c: record]: nothing -> list<string> {
     $groups
 }
 
-# an ESP on the disk carries the stage chain's marker
 def stage-in-progress [disk: string]: nothing -> bool {
     let esps = ^lsblk -J -lnpo NAME,TYPE,FSTYPE $disk | from json | get blockdevices | where type == part and fstype == vfat | get name
     let dir = mktemp --directory
@@ -644,7 +610,6 @@ def stage-in-progress [disk: string]: nothing -> bool {
     $found
 }
 
-# a previous system's swap, lvm, raid or luks on the disk holds its partitions, so wipefs and sgdisk would fail
 def disk-release [disk: string]: nothing -> nothing {
     let devs = ^lsblk -J -lnpo NAME,TYPE,MOUNTPOINTS $disk | from json | get blockdevices
     $devs | where {|d| "[SWAP]" in ($d.mountpoints | compact) } | each { ^swapoff $in.name | complete } | ignore
@@ -652,7 +617,6 @@ def disk-release [disk: string]: nothing -> nothing {
         ^pvs --noheadings -o pv_name,vg_name | lines | parse --regex '^\s*(?<pv>\S+)\s+(?<vg>\S+)' | where pv in $devs.name
         | get vg | uniq | each { ^vgchange -an $in | complete } | ignore
     }
-    # lsblk lists a holder after what it sits on, so the reverse closes from the top down
     $devs | reverse | each {|d|
         if $d.type == "crypt" { ^cryptsetup close $d.name | complete } else if ($d.type | str starts-with "raid") { ^mdadm --stop $d.name | complete }
     } | ignore
@@ -675,9 +639,7 @@ def answer-disk [m: record, e: record, c: record]: nothing -> record {
         input (text-fill $e.plain {choices: $disks})
     }
     if (path-kind $disk) == "" or (^test -b $disk | complete).exit_code != 0 { die (text-fill $e.invalid {value: $disk}) }
-    # BOOTSTRAP_DISK skips the menu's filter, and a partition or dm device would be zapped before the parts check
     if (^lsblk -dno TYPE $disk | complete | get stdout | str trim) != "disk" { die (text-fill $e.invalid_part {value: $disk}) }
-    # a stick left in and booted first would erase the machine it is still installing, every reboot
     if (assume) and (env-or BOOTSTRAP_REINSTALL) != "1" and (stage-in-progress $disk) { die (text-fill $e.in_progress {disk: $disk}) }
     let layout = ^lsblk -o NAME,SIZE,MODEL,FSTYPE,LABEL $disk
     let erase = text-fill $e.confirm.text {disk: $disk}
@@ -686,7 +648,6 @@ def answer-disk [m: record, e: record, c: record]: nothing -> record {
     {disk: $disk, disk_model: (disk-model $disk)}
 }
 
-# one question's answer, as the fields it sets
 def question-ask [q: record, e: record, c: record]: nothing -> record {
     let m = $q.messages
     let one = {|value| {} | insert $e.id $value }
@@ -710,7 +671,6 @@ def step-home-network [q: record, c: record]: nothing -> record {
     $c | merge {home_gateway: $gateway, home_ssid: (if $c.home_network { home-ssid } else { "" })}
 }
 
-# what the machine picked brings: a platforms/ file's facts, the server template, or WSL's form factor
 def step-platform-load [q: record, c: record]: nothing -> record {
     let c = if not $c.generic {
         let file = $c.repo | path join platforms $"($c.platform).nuon"
@@ -721,7 +681,7 @@ def step-platform-load [q: record, c: record]: nothing -> record {
         let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
         $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}
     } else if $c.server {
-        let template = $c.repo | path join $PLATFORM_TEMPLATES $"($SERVER).nuon"
+        let template = $c.repo | path join platforms $"($SERVER).nuon"
         let options = $template | path parse | $"($in.parent)/($in.stem).options.nuon"
         $c | merge {form_factor: $SERVER, groups: (open $template | get groups), options: (if ($options | path exists) { open $options } else { {} })}
     } else if $c.host_wsl { $c | merge {form_factor: "wsl"} } else { $c }
@@ -751,14 +711,12 @@ def step-run [q: record, step: string, c: record]: nothing -> record {
     }
 }
 
-# every question and step in questions.nuon order; one whose `when` fails keeps the value it has
 def questions-walk [q: record, c: record]: nothing -> record {
     $q.questions | reduce --fold $c {|e, c|
         if not (when-holds $e.when? $c) { $c } else if $e.step? != null { step-run $q $e.step $c } else { $c | merge (question-ask $q $e $c) }
     }
 }
 
-# a question's default where it is one value; a record default depends on the machine and is filled when asked
 def question-defaults [q: record]: nothing -> record {
     $q.questions | where {|e| $e.id? != null and $e.default? != null and not ($e.default | describe | str starts-with "record") }
     | reduce --fold {} {|e, acc| $acc | upsert $e.id $e.default }
@@ -801,6 +759,7 @@ def wsl-install [q: record, c: record]: nothing -> nothing {
     log-info $q.messages.wsl_done
 }
 
+# Asks or reads every answer, then partitions, installs and arms the stage chain (or sets up WSL); root only.
 export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing {
     let q = questions-load
     let m = $q.messages
@@ -812,7 +771,6 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     tui-init
     if (tui) { screen $m.welcome.title msgbox (if $wsl { $m.welcome.text_wsl } else { $m.welcome.text }) | ignore }
 
-    # the passwords are read even when not asked: BOOTSTRAP_PASSWORD stands in for an empty one
     let start = {
         repo: $repo platform_arg: $platform_arg host_wsl: $wsl machine_wsl: false platforms: (platform-names $repo)
         password_given: (env-or BOOTSTRAP_PASSWORD | is-not-empty) username: "" profile: $PROFILE_CUSTOM profile_file: ""
@@ -850,15 +808,12 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         ^umount -R $MOUNT | complete | ignore
         ^cryptsetup close $LUKS_NAME | complete | ignore
         disk-release $disk
-        # after the unmounts above: anything still held is not this install's to erase (the live medium, a raid member)
         let held = ^lsblk -lno MOUNTPOINTS $disk | lines | each { str trim } | where $it != ""
         if ($held | is-not-empty) { die $"($disk) is in use, mounted at ($held | str join ' ')" }
-        # the new partitions start where the old ones did: their raid or luks signatures would be found again
         ^lsblk -J -lnpo NAME,TYPE $disk | from json | get blockdevices | where type == part | each { ^wipefs -af $in.name } | ignore
         ^wipefs -af $disk
         ^sgdisk --zap-all $disk
         ^sgdisk -n $"1:0:+($ESP_SIZE_MIB)M" -t 1:ef00 -c 1:ESP $disk
-        # LUKS with 4096-byte sectors needs the partition size in whole 4 KiB, the free space rarely is
         let per_4k = 4096 // (^blockdev --getss $disk | into int)
         let first = ^sgdisk -F $disk | into int
         let last = ^sgdisk -E $disk | into int
@@ -885,15 +840,12 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         }
         mkdir $"($MOUNT)/boot"
         ^mount -o umask=0077 $parts.0 $"($MOUNT)/boot"
-        # the luks header's uuid, or the filesystem's on a plain root; -p skips blkid's cache, a rerun's old fs may be in it
         {esp: $parts.0, root: $parts.1, uuid: (if $c.encrypt { ^cryptsetup luksUUID $parts.1 } else { ^blkid -p -s UUID -o value $parts.1 } | str trim)}
     }
 
     span pacstrap {} {
-        # pacstrap verifies signatures: needs a synced clock and the iso's keyring refresh to have finished
         for _ in 1..$SYNC_WAIT_S {
             let synced = (^timedatectl show -p NTPSynchronized --value | str trim) == "yes"
-            # is-active is false while a oneshot is still activating
             if $synced and (^systemctl show -p ActiveState --value archlinux-keyring-wkd-sync.service | complete | get stdout | str trim) != "activating" { break }
             sleep 1sec
         }
@@ -902,19 +854,16 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
         if $c.homelab and not (open --raw $MIRRORLIST | str contains $base) and (^curl -fs -m $PING_TIMEOUT_S -r 0-0 -o /dev/null $HOMELAB_MIRROR_PROBE | complete).exit_code == 0 {
             $"Server = ($HOMELAB_MIRROR)\n(open --raw $MIRRORLIST)" | save --force $MIRRORLIST
         }
-        # keys first: an older iso's keyring may not know the packagers who signed today's packages
         ^pacman -Sy --noconfirm --needed archlinux-keyring
         ^pacstrap -K $MOUNT ...$PACSTRAP $ucode
         if ($MIRROR_COUNTRIES | path exists) { ^install -Dm644 $MIRROR_COUNTRIES $"($MOUNT)($MIRROR_COUNTRIES)" }
         ^genfstab -U $MOUNT | save --append $"($MOUNT)/etc/fstab"
         if $c.encrypt {
-            # plaintext in the esp's initramfs for the chain's hours; stage trims the esp and reencrypts the volume key
             let key = $"($MOUNT)($STAGE_KEY_FILE)"
             mkdir ($key | path dirname)
             ^chmod 700 ($key | path dirname)
             ^head -c $STAGE_KEY_BYTES /dev/urandom | save --force --raw $key
             ^chmod 600 $key
-            # a random key needs no slow kdf, argon2id would only delay every chained boot
             $luks_pw | ^cryptsetup luksAddKey --key-file - --pbkdf pbkdf2 --pbkdf-force-iterations 1000 $parts.root $key
             $"FILES+=\(($STAGE_KEY_FILE)\)\n" | save --force $"($MOUNT)/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
         }
@@ -933,7 +882,6 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
     user-setup $c
     stage-arm $c $parts.uuid
     boot-next-installed $parts.esp
-    # the iso's log of this run (iso-install's unattended tee) up to here, kept on the machine it built
     let log = env-or LSCK0_LOG
     if ($log | is-not-empty) and ($log | path exists) {
         ^install -Dm600 $log $"($MOUNT)($ISO_LOG_TARGET)"

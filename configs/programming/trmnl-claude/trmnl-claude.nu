@@ -15,7 +15,6 @@ const MODEL_SLOTS = 3
 const NONE = "\u{2014}"
 const PROJECT_MARKERS = [github gitlab bitbucket repos projects]
 
-# api-equivalent $/MTok; a cache write costs a multiple of the input price by the ttl it asked for
 const PRICING = {
     claude-fable-5-1: {input: 10.0, output: 50.0, cache_read: 0.25}
     claude-fable-5: {input: 10.0, output: 50.0, cache_read: 1.00}
@@ -86,7 +85,7 @@ def project-name [encoded: string]: nothing -> string {
     if $marker != null { $segments | skip ($marker + 1) | str join "-" } else { $segments | last 2 | str join "-" }
 }
 
-# each content block's line repeats the reply's usage and resumed sessions copy history: dedupe by message + request id
+# Rows deduped by message and request id: every content block repeats its reply's usage, resumed sessions copy history.
 def usage-rows [since: datetime]: nothing -> table {
     let bases = [(claude-dir | path join projects) ($nu.home-dir | path join .config claude projects)] | uniq
         | where ($it | path exists)
@@ -255,7 +254,7 @@ def payload-sample []: nothing -> record {
     }
 }
 
-# the uuid is the plugin's write credential: it stays in this process, never in an argv
+# The uuid is the plugin's write credential: it stays in this process, never in an argv.
 def plugin-post [payload: record]: nothing -> nothing {
     let from_file = if ($ENV_FILE | path exists) { open --raw $ENV_FILE | lines | parse "{key}={value}" } else { [] }
     let uuid = $env.TRMNL_PLUGIN_UUID? | default ($from_file | where key == TRMNL_PLUGIN_UUID | get 0?.value)

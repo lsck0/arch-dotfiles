@@ -8,12 +8,12 @@ const alert = ($shell_config | path join scripts alert.nu)
 
 def reminder-dir []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-reminders }
 
-# the app name the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP)
+# Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [glyph: string, title: string, body: string = ""]: nothing -> nothing {
     ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
 }
 
-# TimerState.qml remainingText mirrors it
+# TimerState.qml's remainingText mirrors it.
 def remaining-format [seconds: int]: nothing -> string {
     let minutes = $seconds // 60
     let rest = $seconds mod 60
@@ -85,7 +85,6 @@ def "main list" [--json (-j)]: nothing -> nothing { main show --json=$json }
 
 def "main cancel" [target: string]: nothing -> nothing {
     let unit = $target | str replace -r '\.(timer|service)$' ''
-    # never stop arbitrary caller-supplied units
     if not ($unit starts-with $unit_prefix) { error make {msg: $"refusing to cancel non-reminder unit '($target)'"} }
     systemctl --user stop $"($unit).timer" $"($unit).service" | complete | ignore
     rm -f (reminder-dir | path join $"($unit).message")

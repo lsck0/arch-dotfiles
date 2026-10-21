@@ -7,7 +7,6 @@ export const CMDLINE = "/etc/kernel/cmdline"
 export const MKINITCPIO = "/etc/mkinitcpio.conf"
 const BACKUP = ".arch-dotfiles-backup"
 const UKI_DIR = "/boot/EFI/Linux"
-# bootctl installs systemd-bootx64.efi.signed instead when it exists
 const SDBOOT_EFI = "/usr/lib/systemd/boot/efi/systemd-bootx64.efi"
 const SDBOOT_ESP_FILES = ["/boot/EFI/systemd/systemd-bootx64.efi" "/boot/EFI/BOOT/BOOTX64.EFI"]
 const BOOT_INPUTS = [
@@ -62,7 +61,7 @@ export def hooks-read []: nothing -> list<string> {
     $line | parse --regex '^HOOKS=\((?<h>.*)\)' | get 0.h | split row " " | where $it != ""
 }
 
-# only the live line: the stock file's commented HOOKS=( examples stay
+# Rewrites only the live HOOKS= line; the stock file's commented examples stay.
 export def hooks-write [hooks: list<string>]: nothing -> nothing {
     if $hooks == (hooks-read) { return }
     backup-once $MKINITCPIO
@@ -89,7 +88,7 @@ def sbctl-sign [...files: path]: nothing -> nothing {
     for f in ($files | where ($it | path type) == file) { ^sbctl sign -s $f }
 }
 
-# the boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed
+# The boot barrier, last in a system run: one uki rebuild for the whole run, then every boot file signed.
 export def boot-commit []: nothing -> nothing {
     if (which mkinitcpio | is-empty) { return }
     let stamp = $SYSTEM_STATE | path join boot-inputs
@@ -100,9 +99,8 @@ export def boot-commit []: nothing -> nothing {
         $inputs | save --force $stamp
     }
     if not (sbctl-ready) { return }
-    # sign -s lists each uki in sbctl's database, so sbctl's pacman hook re-signs it after every kernel upgrade
+    # -s lists each uki in sbctl's database, so its pacman hook re-signs it after every kernel upgrade
     sbctl-sign ...(glob /etc/mkinitcpio.d/*.preset | each { $"($UKI_DIR)/arch-($in | path parse | get stem).efi" })
-    # bootctl and systemd-boot-update.service copy the .signed loader onto the esp, re-signed by the same hook
     ^sbctl sign -s -o $"($SDBOOT_EFI).signed" $SDBOOT_EFI
     sbctl-sign ...$SDBOOT_ESP_FILES
     ^sbctl sign-all

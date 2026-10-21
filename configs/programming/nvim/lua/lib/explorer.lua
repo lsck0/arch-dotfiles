@@ -1,4 +1,5 @@
--- tcd, then open without cwd: differing cwd forms stacked duplicate roots
+-- the explorer opens after a tcd and without a cwd: differing cwd forms stacked duplicate roots
+
 local M = {}
 
 ---@return snacks.Picker|nil

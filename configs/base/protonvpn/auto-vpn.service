@@ -3,7 +3,6 @@ Description=Auto ProtonVPN on untrusted networks
 
 [Service]
 ExecStart=%h/.local/bin/auto-vpn
-# no NetworkManager ordering: a user unit cannot wait on a system one
 Restart=always
 RestartSec=5
 

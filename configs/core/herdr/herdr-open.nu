@@ -1,15 +1,15 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const PROMPT = '(λ|❯|[$%#])[[:space:]]*$'
-# covers a cold devenv build (nix), which a first session hits
 const PROMPT_TIMEOUT_MS = 600000
 
-# herdr pane run drops keystrokes typed before direnv/devenv is ready, so a command waits for the prompt
+# Runs argv once the pane shows a prompt: herdr pane run drops keystrokes typed before direnv/devenv is ready.
 def pane-run [pane: string, ...argv: string]: nothing -> nothing {
     let ready = do { ^herdr pane wait-output --regex $PROMPT --timeout $PROMPT_TIMEOUT_MS $pane } | complete
     if $ready.exit_code == 0 { ^herdr pane run $pane ...$argv | ignore }
 }
 
+# Focus the herdr workspace for <dir>, or create it with nvim, claude and zsh tabs (or run its .herdr-create).
 def main [dir: path, label?: string]: nothing -> nothing {
     let label = $label | default ($dir | path basename)
     let listed = do { ^herdr workspace list } | complete

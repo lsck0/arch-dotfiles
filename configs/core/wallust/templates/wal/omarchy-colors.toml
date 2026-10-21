@@ -1,4 +1,3 @@
-# the xdph screen-share picker's palette, re-read on every change; flat keys only (upstream src/theme.rs)
 mode = "dark"
 background = "{{background}}"
 foreground = "{{foreground}}"

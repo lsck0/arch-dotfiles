@@ -1,3 +1,6 @@
+# The egress drill, as root on the guest: portmaster-bypass deployed and live, then the protonvpn namespace on a
+# throwaway config whose peer never answers, so any beacon reaching the host from inside it leaked.
+
 use prelude.nu *
 
 const REPO = "/var/lib/dotfiles/repo"
@@ -22,7 +25,6 @@ def refused [command: closure]: nothing -> string {
 
 def beacon [tag: string]: nothing -> string { $"http://($HOST)/beacon/($tag)" }
 
-# the host must see this one, or a leak beacon that never came proves nothing
 ^curl -s -m $BEACON_TIMEOUT_S (beacon drill-control) | ignore
 
 ^curl -so $BYPASS $"http://($HOST)/step/egress.bypass" | ignore

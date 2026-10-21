@@ -1,6 +1,5 @@
 use module.nu *
 
-# a journald restart rotates the journal, so only on change
 export def system [cfg: record] {
     (
         file-copy journald-size.conf /etc/systemd/journald.conf.d/00-size.conf

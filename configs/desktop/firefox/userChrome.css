@@ -1,13 +1,9 @@
-/* translucent chrome over hyprland's blur here, a window rule would dim web content too */
-
-/* --rtk-radius and --appshell-opacity, written by the module from palette.nu */
 @import url("dotfiles-style.css");
 
 :root {
     --appshell-field-opacity: 55%;
 }
 
-/* the window needs alpha or nothing shows through; since firefox 150 the body paints it too (bug 2048355) */
 :root,
 #main-window,
 body {
@@ -24,7 +20,6 @@ body {
     ) !important;
 }
 
-/* one fill on the toolbox: stacked bar fills would compound the alpha away */
 #navigator-toolbox > *,
 #titlebar,
 #TabsToolbar,

@@ -1,9 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
-# the homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix)
 const LAB_RELATIVE = "src/generated/lab.json"
 const LAB_SCHEMA = 1
-# the scrape sweeps whole /24s, so only recently seen targets count
 const SEEN = "6h"
 const CLIENT_WINDOW = "24h"
 const CLIENT_ROWS = 8
@@ -117,7 +115,6 @@ def clients [src: record]: nothing -> record {
         do $instant $expr | each {|r| {name: ($r.metric | get -o $label | default -e $fallback), count: ($r.value.1 | into float)} }
         | sort-by count --reverse | first $CLIENT_ROWS | bars
     }
-    # no cf-ipcountry means it bypassed cloudflare
     let countries = do $ranked $"topk\(($CLIENT_ROWS), sum by \(country) \(count_over_time\(($stream)[($CLIENT_WINDOW)])))" country direct
     let agents = (do $ranked
         $"topk\(($CLIENT_ROWS), sum by \(agent) \(count_over_time\(($stream) | json ua=`[\"request_User-Agent\"]` | label_format agent=`($AGENT_FAMILY)` [($CLIENT_WINDOW)])))"
@@ -132,7 +129,6 @@ def clients [src: record]: nothing -> record {
         {class: (if $code =~ '^\d' { $"($code | str substring 0..0)xx" } else { "?" }), count: ($r.value.1 | into float)}
     } | group-by class | transpose class rows | each {|g| [$g.class ($g.rows.count | math sum)] } | into record
     let total = $by_status | values | append 0.0 | math sum
-    # traefik trusts cloudflare ranges, so ClientHost is the visitor
     let visitors = do $instant $"count\(count by \(ip) \(count_over_time\(($stream) | json ip=\"ClientHost\" [($CLIENT_WINDOW)])))" | get 0?.value.1 | default 0 | into float
     let traffic = [[name count]; [requests $total] [visitors $visitors]]
     | append ($STATUS_CLASSES | each {|c| {name: $c, count: ($by_status | get -o $c | default 0.0)} })

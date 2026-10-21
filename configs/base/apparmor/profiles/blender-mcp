@@ -1,16 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# the blender-mcp relay (configs/creating/blender): a uv-tool python process claude starts over stdio that forwards
-# each tool call to the mcp add-on in a running blender over a loopback socket. the add-on runs arbitrary python in
-# blender with no sandbox (the SECURITY note in its mod.nu), so the relay is the half that can be confined on disk: it reads
-# only its own pinned tool venv and the uv-managed interpreter, speaks the loopback socket, and is refused the home
-# secrets and every shell and other interpreter. the venv script runs under its uv python, which apparmor resolves
-# through the ~/.local/bin symlink, so the profile attaches to the real path under the tool store
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, this profile sets it empty
 @{att} = ""
 
 @{uv_tools} = @{HOME}/.local/share/uv/tools
@@ -22,29 +15,23 @@ profile blender-mcp @{exec_path} flags=(attach_disconnected) {
   include <abstractions/nameservice-strict>
   include <abstractions/dotfiles/deny-sensitive-home>
 
-  # the loopback socket to the add-on in a running blender (127.0.0.1:9876, pinned by the wiring)
   network inet stream,
   network inet6 stream,
   network netlink raw,
 
-  # the entry script and its interpreter (venv python links into the uv-managed cpython), run in this profile
   @{exec_path} r,
   @{uv_tools}/blender-mcp/bin/python{,@{int},@{int}.@{int}} mrix,
   @{uv_python}/bin/python@{int}.@{int} mrix,
 
-  # its own pinned trees only: the tool's venv and site-packages, and the uv-managed stdlib and shared objects
   @{uv_tools}/blender-mcp/{,**} r,
   @{uv_tools}/blender-mcp/**.so{,.*} mr,
   @{uv_python}/{,**} r,
   @{uv_python}/**.so{,.*} mr,
-  # the venv stays read-only: python's bytecode cache is optional, and every start would log a denial per package
   deny @{uv_tools}/blender-mcp/**/__pycache__/{,**} w,
 
-  # python sizes its thread and io pools from the cgroup cpu quota, reading its own cgroup and the cpu.max up the slice
   owner @{PROC}/@{pid}/cgroup r,
   @{sys}/fs/cgroup/**/cpu.max r,
 
-  # a relay that forwards tool calls never spawns a shell or another language runtime
   deny @{shells_path} x,
   deny @{bin}/{env,node,nodejs,deno,bun,perl,ruby,lua*,php*} x,
 

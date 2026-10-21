@@ -1,5 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# root half of scripts/toggles via pkexec; every argument is checked here, the unprompted polkit rule grants only this
+# root half of scripts/toggles via pkexec: the unprompted polkit rule grants only this, so it checks every argument
 
 const PERSONA_LOCKDOWN = "/run/persona-lockdown"
 const WG_INTERFACE = "wg0"
@@ -28,7 +28,7 @@ def caller-uid []: nothing -> string {
 
 def persona-off []: nothing -> nothing {
     for ipt in [iptables ip6tables] {
-        # the cgroup is gone once tor stops, so find the jump by chain name; the checked --path holds no space
+        # the cgroup is gone once tor stops, so the jump is found by its chain
         let jumps = ^$ipt -t mangle -S POSTROUTING | complete | get stdout | lines | where ($it | str contains $"-j ($PERSONA_CHAIN)")
         for rule in $jumps {
             let rule_args = $rule | str replace "-A" "-D" | split row " " | str trim --char '"'
@@ -41,7 +41,6 @@ def persona-off []: nothing -> nothing {
 
 def anonsocks [args: list<string>]: nothing -> nothing {
     match [($args | length) ($args.0? | default "")] {
-        # <base port> <pool size> <new connections/sec>
         [4, "rate-on"] => {
             if ($args | skip 1 | any { $in !~ '^[0-9]{1,6}$' }) { usage }
             let port = $args.1 | into int
@@ -58,7 +57,6 @@ def anonsocks [args: list<string>]: nothing -> nothing {
 " | ^nft -f -
         }
         [1, "egress-on"] => {
-            # the caller's own anonsocks.slice, never a path it names
             let uid = caller-uid
             let slice = $"user.slice/user-($uid).slice/user@($uid).service/anonsocks.slice"
             $"table inet ($NFT_TABLE) {
@@ -72,7 +70,6 @@ def anonsocks [args: list<string>]: nothing -> nothing {
 " | ^nft -f -
         }
         [1, "nft-off"] => { ^nft delete table inet $NFT_TABLE | complete | ignore }
-        # <ttl> <tor unit cgroup>; the cgroup has to sit inside the caller's own user manager
         [3, "persona-on"] => {
             let ttl = $args.1
             let cgroup = $args.2
@@ -116,7 +113,7 @@ def --wrapped main [...args: string] {
             let direction = $args.1
             if $direction not-in [up down] { usage }
             ^wg-quick $direction $WG_INTERFACE
-            # the persona's tor hands over to the full tunnel and back; NM may not dispatch a link wg-quick made
+            # NetworkManager may not dispatch a link wg-quick made
             if ($PERSONA_DISPATCHER | path exists) { try { ^$PERSONA_DISPATCHER $WG_INTERFACE $direction } }
         }
         [2, "vllm"] => {
@@ -129,7 +126,6 @@ def --wrapped main [...args: string] {
                 _ => { usage }
             }
         }
-        # a state picked in the toggle is the user's, the persona dispatcher lifts only a lockdown that still has the marker
         [1, "firewall-chosen"] => { rm --force $PERSONA_LOCKDOWN }
         [_, "anonsocks"] => { anonsocks ($args | skip 1) }
         _ => { usage }

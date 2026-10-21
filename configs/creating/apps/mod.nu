@@ -9,11 +9,9 @@ export const meta = {
     }
 }
 
-# famistudio's settings format; a file without it is a fresh install to famistudio, which resets every key on start
+# without it famistudio takes the file for a fresh install and resets every key
 const FAMISTUDIO_SETTINGS_VERSION = 11
 
-# first-run dialogs answered once: kdenlive's welcome screen, famistudio's tutorial, rawtherapee's release notes (shown
-# while its options name an older version) and lmms asking to create its working directory
 export def link [cfg: record] {
     let config = $nu.home-dir | path join .config
     [
@@ -26,14 +24,13 @@ export def link [cfg: record] {
                 (ini-merge $ini {General: {Version: $FAMISTUDIO_SETTINGS_VERSION}} --missing-only)
                 (ini-merge $ini {General: {ShowTutorial: "False"}})
             ] ++ (
-                # upstream's entry has Version=2.2.0 and the main category Audio without AudioVideo
                 desktop-override famistudio.desktop {
                     str replace --regex '(?m)^Version=.*$' "Version=1.5" | str replace --regex '(?m)^Categories=.*$' "Categories=AudioVideo;Audio;"
                 }
             )
         })
         (if (which rawtherapee-cli | is-empty) { [] } else {
-            # -v prints the version and exits 255
+            # -v exits 255
             let version = ^rawtherapee-cli -v | complete | get stdout | parse --regex 'version (?<v>[^,]+),' | get 0.v
             ini-merge ($config | path join RawTherapee options) {General: {Version: $version}}
         })

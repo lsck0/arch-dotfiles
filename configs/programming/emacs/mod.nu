@@ -21,7 +21,6 @@ def grammars-missing []: nothing -> list<string> {
     | where {|lang| $GRAMMAR_DIRS | all {|d| not ((config-dir) | path join $d $"libtree-sitter-($lang).so" | path exists) } }
 }
 
-# the fallback editor must work offline on first start; the stamp only after a full load, so an offline run retries
 export def link [cfg: record] {
     let dir = config-dir
     let stamp = $dir | path join elpa .dotfiles-prefetched
@@ -48,7 +47,7 @@ export def theme [cfg: record, wallpaper: string] {
     ]
 }
 
-# toggle-font rewrites these in the repo's early-init.el
+# The font toggle-font writes into the repo's early-init.el.
 def font-get []: nothing -> record {
     let text = open --raw early-init.el
     {

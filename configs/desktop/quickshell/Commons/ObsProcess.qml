@@ -4,14 +4,12 @@ import Quickshell.Io
 import Quickshell.Wayland
 pragma Singleton
 
-// the obs widget owns the websocket helper and mirrors its state here for the audio mixer
 Singleton {
     id: root
 
     property bool running: false
     property bool probed: false
     property bool connected: false
-    // hearing obs's stream mix instead of the system audio (scripts/toggles/toggle-obs-listen.nu)
     property bool listening: false
     readonly property string listenScript: Paths.toggle("toggle-obs-listen.nu")
     property var inputVolumes: ({
@@ -91,7 +89,6 @@ Singleton {
     Process {
         id: proc
 
-        // -x, pgrep -f would match its own command line
         command: ["pgrep", "-x", "obs"]
         onExited: function(exitCode) {
             root.running = exitCode === 0;
@@ -107,7 +104,6 @@ Singleton {
         target: ToplevelManager.toplevels
     }
 
-    // a tray quit closes no window, so poll while obs runs
     Timer {
         interval: 60000
         running: root.running

@@ -1,9 +1,11 @@
+# `dot secrets unlock|lock|seal` and yubikey init: the git-crypt key sealed to every enrolled yubikey's age
+# recipient, plus pgp, ssh and u2f enrollment, one touch per step.
+
 use profile.nu [profile-load]
 use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const REPO = path self ../..
 const KEY_DIR = path self ../../configs/base/yubikey
-# the owner's half (configs/secrets/yubikey/mod.nu): enrolled FIDO keys and the paper recipients, read with the secrets pulled
 const OWNER_DIR = path self ../../configs/secrets/yubikey
 const SECRETS = path self ../../configs/secrets
 const SEALED_KEY = path self ../../configs/base/yubikey/secrets.key.age
@@ -16,7 +18,6 @@ const TOUCH_ATTEMPT_S = "60"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
 
-# a profile without the secrets capability never pulls or unlocks the private submodule
 def unwanted []: nothing -> bool {
     if (secrets-wanted) { return false }
     print "secrets: this profile has no secrets capability, configs/secrets/ is not pulled or unlocked"
@@ -37,8 +38,6 @@ def recipient [identity: path]: nothing -> string {
     open --raw $identity | lines | parse --regex '^#\s*Recipient: (?<r>.*)$' | get 0.r
 }
 
-# git-crypt checks every secret out 0644; only the public halves stay world-readable. keys/ alone: the module dirs
-# beside it are plaintext code, their linked commands keep the exec bit
 def secrets-lock-0600 []: nothing -> nothing {
     ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
@@ -52,7 +51,6 @@ def with-touch [argv: list<string>]: nothing -> bool {
     true
 }
 
-# the plaintext git-crypt key lives on tmpfs only for the closure, shredded however it ends
 def with-key-file [body: closure]: nothing -> nothing {
     let key = mktemp --tmpdir
     let failed = try { do $body $key; null } catch {|e| $e.msg }
@@ -72,7 +70,7 @@ def fingerprint []: nothing -> string {
     $profile.gpg_fingerprint
 }
 
-# every enrolled key's age recipient plus recipients.txt, so any of them opens the sealed git-crypt key
+# Reseals the git-crypt key to every enrolled key's age recipient plus recipients.txt.
 export def yubikey-seal []: nothing -> nothing {
     let identities = glob ($KEY_DIR | path join "age-*.identity") | each { [-r (recipient $in)] } | flatten
     let file = $OWNER_DIR | path join recipients.txt
@@ -91,7 +89,6 @@ def card-has-pgp []: nothing -> bool {
     (^ykman openpgp info | str replace --all " " "") | str contains $"Fingerprint:(fingerprint)"
 }
 
-# a copy onto the card from a throwaway keyring, the file in secrets stays the backup
 def pgp-to-card []: nothing -> nothing {
     let home = mktemp --directory
     "disable-ccid\npcsc-shared\n" | save ($home | path join scdaemon.conf)
@@ -148,7 +145,6 @@ def init-step [step: string, sn: string]: nothing -> nothing {
         }
         age => {
             heading "age identity, touch without PIN, for sops and the sealed git-crypt key"
-            # the plugin only drives a PIN-protected TDES management key, firmware 5.7+ ships an AES one
             if not (^ykman piv info | str contains "protected by PIN") {
                 print "management key: press enter for the default, then give the PIV PIN"
                 ^ykman piv access change-management-key -a TDES --protect
@@ -161,6 +157,7 @@ def init-step [step: string, sn: string]: nothing -> nothing {
     }
 }
 
+# Enrolls the plugged-in key, the given steps or all of pins, pgp, ssh, u2f and age.
 export def yubikey-init [...steps: string]: nothing -> nothing {
     if not (present) { error make {msg: "yubikey: no YubiKey detected"} }
     if not (secret-is-plaintext $WITNESS) { error make {msg: "yubikey: secrets are locked, unlock them first"} }
@@ -171,7 +168,6 @@ export def yubikey-init [...steps: string]: nothing -> nothing {
     heading $"done: commit configs/base/yubikey; homelab .sops.yaml needs ($r)"
 }
 
-# every yubikey lost: the submodule comes over https then, a personal access token as the password
 def unlock-identity [identity: path]: nothing -> nothing {
     if not ($identity | path exists) { error make {msg: $"yubikey: no identity file '($identity)'"} }
     if not ($SEALED_KEY | path exists) { error make {msg: $"yubikey: no sealed key ($SEALED_KEY)"} }
@@ -188,7 +184,7 @@ def unlock-identity [identity: path]: nothing -> nothing {
     }
 }
 
-# each step is one touch; no key, no enrollment or no touch just skips
+# Unlocks configs/secrets/ with a yubikey touch (gpg when no key is present), or with the age identity --identity.
 export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if (unwanted) { return }
     if $identity != null { return (unlock-identity $identity) }
@@ -216,7 +212,6 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         return
     }
     if not $pulled {
-        # ssh rejects a key file other users can read, git checks the stub out 0644
         let key_file = mktemp --tmpdir
         ^install -m600 $stub $key_file
         print ">>> touch the YubiKey to pull the secrets"

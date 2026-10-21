@@ -1,7 +1,6 @@
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX]
 
-# config.py reads the style.json core/wallust writes, also in the first link's lists-fetch
 export const meta = {deps: [core/wallust], packages: {pacman: [qutebrowser python-adblock]}}
 
 const SEARCH_DEFAULT = "https://duckduckgo.com/?q={}"
@@ -18,7 +17,6 @@ export const options = {
 
 const CONFIG_DIR = ".config/qutebrowser"
 const LISTS = [adblock-cache.dat blocked-hosts]
-# :adblock-update downloads in the background, the windowless instance quits once both lists had time to land
 const FETCH_QUIT_MS = "60000"
 const FETCH_TIMEOUT = "90"
 
@@ -32,14 +30,12 @@ def lists-ready []: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    # until the engine merges detect itself: a value still at its default takes the detected one
     let search = if $cfg.search_url == $SEARCH_DEFAULT { (detect $cfg).search_url } else { $cfg.search_url }
     let dir = $nu.home-dir | path join $CONFIG_DIR
     [
         # a link: toggle-font rewrites the repo file
         (file-link config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($search)\n")
-        # a per-user copy: the page needs absolute paths into this home; toggle-font edits this copy and the repo's
         (file-render startpage.html ($dir | path join startpage.html) {
             HOME: $nu.home-dir
             DATA: ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
@@ -50,7 +46,7 @@ export def link [cfg: record] {
 
 def qutebrowser-running []: nothing -> bool { (^pgrep -x qutebrowser | complete).exit_code == 0 }
 
-# never while one runs: the commands would reach it over ipc, the quit included
+# Fetches the adblock lists in a windowless instance, never beside a running one: the quit would reach it over ipc.
 export def lists-fetch [] {
     if (qutebrowser-running) { return }
     with-env {QT_QPA_PLATFORM: offscreen} {
@@ -59,8 +55,8 @@ export def lists-fetch [] {
     if not (lists-ready) { log-warn "qutebrowser: block lists not fetched, dot apply --user --force desktop/qutebrowser retries" }
 }
 
-# config.py reads the palette when sourced; without a running instance the command would start one
 export def theme [cfg: record, wallpaper: string] {
+    # without a running instance the command would start one
     if not (qutebrowser-running) { return [] }
     exec qutebrowser-config-source [qutebrowser :config-source]
 }

@@ -1,7 +1,5 @@
-# the lsck0 install iso: archiso's releng profile plus mirror/iso (packages, airootfs overlay, profiledef), the [lsck0]
-# repo and key from configs/base/pacman, and the stub's trust anchor from bootstrap.sh: the repo url, the signing key
-# and its fingerprint. No checkout: the stub fetches and verifies master at install time.
-# network: the arch mirrors (or --mirror) for the packages; nothing else
+# The lsck0 install iso: archiso's releng plus mirror/iso, the [lsck0] repo and key, and the stub's trust anchor
+# taken from bootstrap.sh; no checkout on it, the stub fetches and verifies master at install time.
 
 use log.nu *
 
@@ -29,7 +27,6 @@ def bootstrap-const [name: string]: nothing -> string {
     open --raw ($REPO | path join $BOOTSTRAP) | parse --regex ('(?m)^' + $name + '=(?<v>\S+)$') | get 0.v
 }
 
-# what the stub needs to fetch and verify master, taken from bootstrap.sh so the two never disagree
 def trust-write [dir: path]: nothing -> nothing {
     mkdir $dir
     cp ($REPO | path join (bootstrap-const SIGNING_KEY_FILE)) ($dir | path join signing-key.asc)
@@ -46,7 +43,6 @@ def keyring-write [dir: path]: nothing -> nothing {
     $"($fingerprint):4:\n" | save --force ($dir | path join lsck0-trusted)
 }
 
-# last, unlike the installed system's: pacstrap reads the live pacman.conf, and core and extra must win there
 def pacman-live [releng_conf: path]: nothing -> string {
     let section = open --raw ($REPO | path join $PACMAN_CONF) | lines | reduce --fold {inside: false, out: []} {|l, acc|
         let inside = if ($l | str starts-with "[") { $l == $LSCK0_SECTION } else { $acc.inside }
@@ -104,6 +100,7 @@ def outputs-publish [built: path, out: path, keep: int, sign: any]: nothing -> l
     [$iso $"($iso).sha256" $latest] ++ $signed
 }
 
+# Builds the iso into out (default <work>/out), keeping the newest keep; sign is a gpg key or null.
 export def iso-build [out: any, work: any, mirror: any, sign: any, keep: int]: nothing -> nothing {
     if (which mkarchiso | is-empty) { error make {msg: "iso: mkarchiso missing (pacman -S archiso, declared by qemu/libvirt)"} }
     let work = $work | default $env.DOT_ISO_WORK? | default ($nu.home-dir | path join $WORK_DEFAULT) | path expand

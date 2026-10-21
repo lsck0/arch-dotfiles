@@ -14,7 +14,6 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // linux-archlinux
     text: "\u{f303}"
     tooltipText: "Applications"
     onPressed: Quickshell.execDetached(Paths.ipcCall("appsearch", "toggle"))

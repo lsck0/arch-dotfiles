@@ -1,35 +1,21 @@
 # managed by arch-dotfiles/apparmor
-# the launcher execs its update bootstrap before the app; without this it aborts with "Permission denied"
 /usr/share/discord/updater_bootstrap rix,
-# on first launch the bootstrap downloads the app (~150 MB) into ~/.config/discord behind a zenity progress dialog,
-# runs getconf; with both denied it downloads for minutes with no window, so discord looks dead
 @{bin}/zenity rix,
 @{bin}/getconf rix,
-# then unpacks it through a tempfile dir (/tmp/.tmpXXXXXX); denied, it fails after the download and discord never opens
 owner /tmp/.tmp*/{,**} rwkl,
-# the installed app runs from ~/.config/discord/app-<version>, its native modules (updater.node) are mapped from there
 owner @{user_config_dirs}/discord/app-*/{,**} mr,
-# the voice module's hardware encoder for screen share runs as a helper from there
 owner @{user_config_dirs}/discord/app-*/modules/discord_voice-*/discord_voice/gpu_encoder_helper ix,
-# watching a stream decodes h264 with cisco's openh264, which it downloads there; denied, every stream ends in error 2012
 owner @{user_config_dirs}/discord/discord_asset_cache/openh264/libopenh264-*.so mr,
-# uploads from anywhere in the user dirs and ~; the base profile reads only pictures and videos
 include <abstractions/user-read-strict>
-# saving an attachment: the base profile grants only pictures and videos
 owner @{user_download_dirs}/{,**} rwl,
 owner @{user_sync_dirs}/{,**} rwl,
 include <abstractions/dotfiles/nssdb>
-# its updater reads both on start
 @{PROC}/uptime r,
 /etc/arch-release r,
-# betterdiscord (socials/discord): the injected core requires its asar, plugins and themes keep their data beside it
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,
-# the voice status plugin's files the quickshell bar reads and writes
 owner @{run}/user/@{uid}/quickshell-discord-voice.json{,.tmp} rw,
 owner @{run}/user/@{uid}/quickshell-discord-cmd rw,
-# Chromium sizes its heap and threads by its cgroup's memory and cpu limits
 @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/{memory.max,memory.high,cpu.max} r,
-# it probes the distro, X11 window props and a dbus call on every start; all optional, kept denied without the log noise
 deny @{bin}/lsb_release x,
 deny @{bin}/xprop rx,
 deny @{bin}/dbus-send rx,

@@ -4,7 +4,6 @@ export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}}
 
 const SNAPSHOT = '^(\d{4}-\d{2}-\d{2})?$'
 
-# lsck0_snapshot pins [lsck0] to a dated snapshot; an unreachable one fails the sync instead of mixing sonames
 export def system [cfg: record] {
     let snapshot = $env.LSCK0_SNAPSHOT? | default ""
     if not ($snapshot =~ $SNAPSHOT) { error make {msg: $"pacman: lsck0_snapshot '($snapshot)' is not YYYY-MM-DD"} }
@@ -21,7 +20,7 @@ export def system [cfg: record] {
     ]
 }
 
-# a throwaway keyring, so no /root/.gnupg stays behind
+# Locally signs archrepo.asc's key, read in a throwaway gpg home so no /root/.gnupg stays behind.
 export def trust []: nothing -> nothing {
     let home = mktemp --directory
     let fingerprint = ^gpg --homedir $home --show-keys --with-colons archrepo.asc | lines | parse "fpr:{rest}"

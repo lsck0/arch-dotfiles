@@ -1,15 +1,6 @@
 import QtQuick
 import qs.Commons
 
-/**
- * KeyHints: the key hint footer, `[ESC] close  [ENTER] run`.
- *
- * Properties:
- *   hints  list of [key, action] pairs, in reading order
- *
- * Usage:
- *   KeyHints { hints: [["ESC", "close"], ["ENTER", "run"]] }
- */
 Row {
   id: root
 

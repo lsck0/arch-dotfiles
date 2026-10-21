@@ -3,11 +3,10 @@ use module.nu *
 # after claude: `claude plugin` rewrites ~/.claude.json whole, outside the engine's json lock
 export const meta = {deps: [programming/claude]}
 
-# every agent installs from one pinned checkout, never upstream's head; bump both together
 const URL = "https://github.com/JuliusBrussee/caveman.git"
 const COMMIT = "6571943370f7c9d4de1946481177ee7b306cd8e8"
 const SKILLS_CLI = "skills@1.7.0"
-# the claude cli writes failed telemetry events under ~/.claude on every call otherwise
+# else the claude cli writes failed telemetry events under ~/.claude on every call
 const CLAUDE = [env DISABLE_TELEMETRY=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude]
 const PROBE = "skills/caveman/SKILL.md"
 

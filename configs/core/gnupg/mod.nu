@@ -37,7 +37,7 @@ export def gpg-card-stubs []: nothing -> nothing {
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join .gnupg
-    let fpr = if (profile-has identity) { (profile-load).gpg_fingerprint } else { "" }
+    let fpr = if (profile-has secrets) { (profile-load).gpg_fingerprint } else { "" }
     let default_key = if $fpr == "" { "" } else { $"default-key ($fpr)\n" }
     [
         (exec gnupg-dir [install -d -m 700 $dir] --creates $dir)

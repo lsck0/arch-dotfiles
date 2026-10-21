@@ -1,30 +1,21 @@
 #!/usr/sbin/nft -f
-# own table, so the kill switch holds across the fw-inbound/fw-lockdown swap and the firewall toggle
-
 define inner_ifaces = { "lo", "proton0", "wg*", "tun*", "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*" }
-# protonvpn's (proton.vpn.connection.FWMARK_VALUE) and wg-quick's 51820; kept in sync with tor-router
 define tunnel_marks = { 0x0ea13b2c, 0x0000ca6c }
-# rendered by mod.nu; (uid_t)-1 without tor
 define tor_uid = @TOR_UID@
-# configs/gaming/vpn-bypass's mark for games on the real link; kept in sync with games-bypass.nft and games-route.nu
 define game_mark = 0x6761
 
 add table inet fw_egress
 delete table inet fw_egress
 table inet fw_egress {
-    # filled by 70-home-network
     set home_ifaces { type ifname; }
-    # by hand only, the persona dispatcher's portal verb
     set portal { type ifname; flags timeout; }
 
-    # after tor-router's dstnat redirect, so what it carries is already on lo here
     chain output {
         type filter hook output priority 0; policy drop;
         oifname $inner_ifaces accept
         oifname @home_ifaces accept
 
         udp sport 68 udp dport 67 accept
-        # hoplimit 255: on-link only
         icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
         meta l4proto udp meta mark $tunnel_marks accept
         meta skuid $tor_uid accept
@@ -32,7 +23,6 @@ table inet fw_egress {
         oifname @portal tcp dport { 80, 443 } accept
         oifname @portal meta l4proto { tcp, udp } th dport 53 accept
 
-        # fail fast instead of hanging; the reject only reaches the local socket
         meta l4proto tcp reject with tcp reset
         reject
     }

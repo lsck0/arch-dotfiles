@@ -37,7 +37,6 @@ def main [desktops: string = ""] {
         }
         | flatten
         | uniq-by id
-        # one unreadable file (a dangling link, bad utf-8) must not drop the whole list
         | par-each -k {|e| if (try { entry-hidden $e.file $wanted } catch { false }) { $e.id } }
         | each { print } | ignore
 }

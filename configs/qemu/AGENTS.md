@@ -10,5 +10,5 @@ Extends the root `AGENTS.md`. Virtualization and Android emulation.
 
 ## Conventions
 
-- Guest storage and images are re-downloadable or rebuildable and excluded from borg (see root backup model).
+- Guest storage and images are re-downloadable or rebuildable and not backed up.
 - The VM test harness (`dot test run`) drives libvirt end to end; see the `l-dotfiles-vm-test` skill, not this group.

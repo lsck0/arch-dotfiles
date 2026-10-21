@@ -24,9 +24,7 @@ def decide [state: record]: nothing -> record {
         | where type in $LINK_TYPES and state == connected
     if ($links | is-empty) { return ($state | update retry_at null) }
     let home_links = if ($HOME_NETWORK | path exists) { open --raw $HOME_NETWORK | lines } else { [] }
-    # mobile data is never home
     if ($links | all { $in.type not-in $MOBILE_TYPES and $in.dev in $home_links }) {
-        # transitions only: a vpn toggled by hand stays as it is until the network changes
         if $state.last != home and (vpn-on) { try { ^$TOGGLE off } }
         return {last: home, attempts: $state.attempts, retry_at: null}
     }

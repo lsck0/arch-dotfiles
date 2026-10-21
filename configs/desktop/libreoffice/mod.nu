@@ -3,10 +3,8 @@ use module.nu *
 export const meta = {packages: {pacman: [libreoffice-fresh]}}
 
 const XCU = ".config/libreoffice/4/user/registrymodifications.xcu"
-# a stored appearance or libreoffice theme paints its dialogs in its own light palette instead of the gtk (oomox) one
+# a stored appearance or theme paints the dialogs in its own light palette instead of the gtk one
 const OVERRIDE = 'oor:path="/org.openoffice.Office.Common/Appearance"><prop oor:name="(ApplicationAppearance|LibreOfficeTheme)"'
-# the welcome dialog opens on a start with no last version stored (first run, what's new), its tip of the day tab
-# on every other; both only seeded, a later choice in the dialog stays
 const TIPS_KEY = 'oor:name="ShowTipOfTheDay"'
 const TIPS = '<item oor:path="/org.openoffice.Office.Common/Misc"><prop oor:name="ShowTipOfTheDay" oor:op="fuse"><value>false</value></prop></item>'
 const VERSION_KEY = 'oor:name="ooSetupLastVersion"'
@@ -16,7 +14,6 @@ const XCU_HEAD = [
 ]
 const XCU_TAIL = "</oor:items>"
 
-# "libreoffice-fresh 26.8.1-2": the major.minor the registry keeps
 def version-installed []: nothing -> string {
     let installed = ^pacman -Q libreoffice-fresh | complete
     if $installed.exit_code != 0 { return "" }
@@ -31,7 +28,6 @@ export def link [cfg: record] {
 }
 
 export def xcu-update [xcu: path] {
-    # libreoffice rewrites the file on exit, an edit under a running instance would be lost
     if (ps | where name == soffice.bin | is-not-empty) {
         log-warn "libreoffice: running, registry update skipped"
         return

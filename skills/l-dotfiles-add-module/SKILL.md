@@ -10,10 +10,10 @@ folder, its verbs (the commands it exports), its options and its packages.
 
 A module only the owner wants (an employer's setup, their bookmarks, their own keys' wiring) goes in the private
 submodule instead: `configs/secrets/<module>/mod.nu`, id `secrets/<module>`, group `secrets`. Same contract; it runs
-after every other group, on every machine that pulled the submodule (gate it with `profile-has` or a platform fact
-inside), its code is plaintext (only `configs/secrets/keys/` is git-crypt), and its packages stay out of
-`mirror/packages.txt`, so one it needs from the mirror goes in the platform's `extra_packages`. `dot test lint`
-checks its layer rules like any other.
+after every other group, on every machine that pulled the submodule (gate it inside: `profile-has` in `link`, a platform
+fact such as `$env.FORM_FACTOR` in `system`), its code is plaintext (only `configs/secrets/keys/` is git-crypt), and its
+packages stay out of `mirror/packages.txt`, so one it needs from the mirror goes in the platform's `extra_packages`.
+`dot test lint` checks its layer rules like any other.
 
 ## The contract
 
@@ -24,7 +24,7 @@ export const meta = {
     deps: [core/gh]                                   # modules that apply first, any group
     packages: {pacman: [btop], native: [], flatpak: {}, nix: []}
     serial: false                                     # true: runs alone (rustup, a package manager)
-    inputs: [configs/secrets/keys/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
+    inputs: [configs/secrets/state/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
     volatile: false                                   # true: always evaluated (reads machine state)
 }
 
@@ -98,11 +98,14 @@ export def packages [cfg: record]: nothing -> record {
 - Option keys: `type`, `default`, `doc` (required); `label`, `group`, `choices`, `min`/`max`/`step`, `apply`
   (default relink), `scope` (default user), `toggle` (a live option set through `scripts/toggles/toggle-<name>.nu`:
   `on`/`off` for a bool, else `set <value>`; its `get` is the live value the settings window shows).
-- Facts: `platform-has homelab` (machine), `profile-has secrets` (user, link only), `$env.FORM_FACTOR`. A per-module
-  setting is an option, set with `dot set <group/module>.<key> <value> [--machine]`.
+- Facts: `platform-has homelab|wireguard|secure_boot_own_keys|lsck0_snapshot` (machine; `PLATFORM_FACTS` in
+  `scripts/lib/platform.nu`), `$env.FORM_FACTOR` (`desktop laptop server vm wsl`, not the platform file's name),
+  `profile-has secrets` (user, link only). A per-module setting is an option, set with `dot set <group/module>.<key>
+  <value> [--machine]`.
 - A file the app later edits is drift: `dot plan` shows it, apply keeps it until `dot module adopt <file>` (copies it
   back into the module) or `dot apply --force <group>/<module>` (preserves it aside).
-- A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` with `up` (and `down`).
+- A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` copied from `0000-sample.nu`;
+  `export const layer = "system"` runs it as root.
 - A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
   carries the live file back into the repo or `configs/secrets/`; `dot sync` runs it. State that differs per machine
   (resolution, devices, layout, logins) goes to `host-file <dir> <file>` (`<dir>/<host>/<file>`), so machines never

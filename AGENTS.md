@@ -36,7 +36,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   `dot test run` is the multi-hour VM test.
 - `configs/base/apparmor/apparmor.test.nu`: profiles.conf policy and a compile of every own profile and `local/`
   drop-in; the "Failed to create cache" warnings are expected without root.
-- `dot sync`: the one command a person runs: pull (secrets submodule included), snapshot, migrate, install, apply
+- `dot sync`: the one command a person runs: pull (secrets submodule included), migrate, install, apply
   (system, then user layer), back up live app state, the signed `Generation: <n>` commit, push. `--no-push` (and a
   machine that does not sign) stops after the apply. `dot --help` lists the rest.
 - `dot apply [mod...] [--user|--system] [--packages] [--force]`: converge now, no git. No flag: the system layer for a
@@ -70,7 +70,7 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   Before editing under `configs/<group>/`, read its `AGENTS.md` (and the module's own where present). `AGENTS.md` is
   the one instruction file per directory, with no `CLAUDE.md` beside it: Claude Code loads `AGENTS.md` where no
   `CLAUDE.md` exists. `configs/programming/claude/CLAUDE.md` is the global `~/.claude` file, not a project one.
-- `platforms/<host>.nuon`: machine facts and groups; `<host>.options.nuon` its option values. `profiles/<name>.nuon`:
+- `platforms/<name>.nuon`: machine facts and groups; `<name>.options.nuon` its option values. `profiles/<name>.nuon`:
   user capabilities, copied to `~/.config/dotfiles/profile.nuon` when bootstrap or `adduser-dotfiles --profile` picks
   it (`custom` picks none). A platform's `extra_packages` also land in `mirror/packages.txt`, the mirror's build list.
 - `migrations/<NNNN>-<slug>.nu`: one-time structural changes (`up`, `down`), run once per machine by `dot sync`; a fresh
@@ -82,8 +82,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
   each module themes its own program in its `theme` verb, run by `dot internal theme apply`.
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
 - `configs/secrets/`: the group `secrets`, a private submodule pulled only for a profile with `secrets`. `keys/` in
-  it holds every credential and backed-up app state, git-crypt encrypted (nothing else is). Beside it, the owner's
-  own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
+  it holds every credential, git-crypt encrypted (nothing else is); `state/` the plaintext app state that is no
+  credential (game and plugin configs, the bought wallpapers, the drift reports). Beside them, the owner's own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
   submodule is pulled, never a platform's choice; applied after every other group; their packages kept out of
   `mirror/packages.txt`.
 - `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
@@ -103,8 +103,8 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - The system layer runs from the root-owned copy `/var/lib/dotfiles/repo`: `dot apply` packs tracked and
   untracked files with the system secrets into one archive for `system-apply.nu apply` (the one command sudo or the
   polkit action runs); root never executes the user's checkout.
-- Machine facts live in the platform file (`platform-has`), user capabilities in the profile (`profile-has
-  secrets|identity|homelab|work`), per-module settings in typed options. Never gate on a username: profile and
+- Machine facts live in the platform file (`platform-has`), the one user capability in the profile (`profile-has
+  secrets`: the owner, with the private submodule, accounts, keys and homelab), per-module settings in typed options. Never gate on a username: profile and
   machine are explicit choices at install, independent of the login name.
 - A module declares what it wants (`scripts/lib/module.nu`: `file-copy`, `files-into`, `file-text`, `file-render`,
   `file-link`, `link-commands`, `json-merge`, `unit-file`, `unit-enable`, `dropin`, `desktop-override`, `exec`); the
@@ -133,15 +133,13 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 
 ## Backup model
 
-Each kind of data has one home; borg is the last resort, never the first.
+Each kind of data has one home, and there is no catch-all backup: data that fits none of these is not backed up.
 
-- Config and reproducible settings: this repo (git), app state as git-crypt `configs/secrets/keys/<app>/` restored by a
-  module's `link` or `restore` verb.
+- Config and reproducible settings: this repo (git), app state in the private submodule restored by a module's `link`
+  or `restore` verb: `configs/secrets/keys/<app>/` (git-crypt) when it holds a login or token,
+  `configs/secrets/state/<app>/` (plaintext, so it diffs and deltas) otherwise.
 - Anything meant to sync across devices or to the NAS: `~/sync` (syncthing). Primary for live, shared data.
-- borg (`configs/core/borg`): the worst-case fallback for `$HOME` data that is NOT already covered, e.g. local work
-  under `~/projects` not yet pushed, app state not in `configs/secrets/` or `~/sync`. It excludes everything already
-  safe elsewhere: `~/sync` (on the NAS), caches, toolchains, models, re-downloadable game/VM data. When a new backup is
-  added, route the data to sync or git-crypt first and keep borg's excludes in step so nothing is stored twice.
+- Work under `~/projects`: its own git remotes; push it.
 
 ## Gotchas
 

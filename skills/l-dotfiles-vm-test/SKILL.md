@@ -26,10 +26,10 @@ their own boots, logs in on tty3, pulls logs and checks the end state. Install p
 ## Run
 
 ```bash
-dot test run                              # platforms/test-vm.nuon, login luca, profile luca
-dot test run --platform luca-notebook     # another platform file
+dot test run                              # platforms/vm.nuon, login luca, profile luca
+dot test run --platform notebook          # another platform file
 dot test run --profile custom             # no profile: nothing personal
-dot test run --platform server            # the server path (hostname, groups, ssh key from BOOTSTRAP_*)
+dot test run --platform server            # the server path: groups from platforms/server.nuon, rest BOOTSTRAP_*
 dot test run --name other-vm              # a second VM beside the default archlinux-test
 ```
 
@@ -41,13 +41,13 @@ Run it in the background; it prints progress and exits 1 with the problems.
 dot test shot      # ~/.cache/vm-test/<name>/screen.png, read it to see the console
 dot test logs      # logs in on tty3 again, pulls stage logs, FAILURES.*, every *.log into ~/.cache/vm-test/<name>/logs, plus the verdict
 dot test type 'text\n'                    # type on the console (de layout, --layout us on the ISO)
-dot test destroy   # delete the VM and its disk, the ISO volume stays
+dot test destroy   # delete the VM, its disk and its answers volume, the ISO volume stays
 dot test drill egress    # on the VM a passed run left: portmaster bypass marks and the protonvpn netns kill switch
-dot test drill rollback  # kernel downgrade, timeshift snapshot, upgrade, restore; kernel-resync must bring the ESP back
 ```
 
 Pass: `dot test: chain succeeded`. Otherwise read `logs/FAILURES.*`, `logs/stage.log` and the failing module's
-`*.log`. The verdict (`scripts/lib/invariants.txt`, into `logs/verify.log`) wants `stage_armed=no`,
+`*.log`. The verdict (the probes in `scripts/lib/invariants.txt` plus `vm.nu`'s
+`backup_roundtrip`, into `logs/verify.log`) wants `stage_armed=no`,
 `sudo_passwordless=no`, `keyfile_present=no`, `luks_keyslots=1`, `secure_boot=1`, `setup_mode=0` (the keys enrolled),
 `kernel_modules=yes` (the running kernel's modules dir), `pdf_queue=yes` and `backup_roundtrip=ok` (`dot internal
 backup --roundtrip`), and both stages `ok` in `stage.log`.

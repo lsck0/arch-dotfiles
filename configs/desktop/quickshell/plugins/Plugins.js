@@ -1,6 +1,5 @@
 .pragma library
 
-// loaded once at start; `quickshell ipc call shell summon <id> [json]` hands the parsed payload to open()
 const shell = {
     "panel.alert":           "alert/Alert.qml",
     "panel.disk-speedtest":  "disk-speedtest/Panel.qml",

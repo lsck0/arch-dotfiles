@@ -11,7 +11,7 @@ def mix [a: string, b: string, t: float]: nothing -> string {
     | str join | $"#($in | str lowercase)"
 }
 
-# the theme verb and link render the same file, so neither sees the other's write as drift
+# The theme verb and link render the same file, so neither sees the other's write as drift.
 def config [] {
     let p = palette-load
     let base = open config.yml

@@ -8,7 +8,6 @@ export def link [cfg: record] {
     link-commands ollama-ensure-models.nu
 }
 
-# copies, not links: pid1 loads units and drop-ins before /home mounts
 export def system [cfg: record] {
     [
         (unit-file ollama-proxy.service)

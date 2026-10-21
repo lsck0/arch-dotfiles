@@ -1,18 +1,11 @@
 # managed by arch-dotfiles/apparmor
-# pywal palette desktop/thunderbird links into the profile's chrome dir
 owner @{user_cache_dirs}/wal/colors-thunderbird.css r,
-# the profile root thunderbird creates on a fresh home, beside apparmor.d's ~/.thunderbird
 owner @{user_config_dirs}/{,.}thunderbird/ rw,
 owner @{user_config_dirs}/{,.}thunderbird/** rwk,
-# the homelab share and .eml files or attachments other apps hand over through temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
 
-# thunderbird 157 probes the gpu with one gfxtest, which apparmor.d (glxtest, vaapitest) has no rule for: denied, it
-# runs without the probe's result. a child like apparmor.d's firefox-gfxtest
 @{lib_dirs}/gfxtest rCx -> gfxtest,
 
-# external gnupg (desktop/thunderbird/user.js, the yubikey): gpgme's gpg and gpgconf in a child instead of apparmor.d's
-# gpg profiles, which would confine gpg everywhere. priority beats the upstream px
 priority=1 @{bin}/gpg{,2} rCx -> gpg,
 priority=1 @{bin}/gpgconf rCx -> gpg,
 priority=1 @{bin}/gpgsm   rCx -> gpg,
@@ -31,7 +24,6 @@ profile gfxtest flags=(attach_disconnected) {
 
   / r,
 
-  # the profile locks it inherits open from thunderbird
   owner @{HOME}/.thunderbird/**/.parentlock rw,
   owner @{user_config_dirs}/{,.}thunderbird/**/.parentlock rw,
   owner @{tmp}/org.mozilla.thunderbird/.parentlock rw,

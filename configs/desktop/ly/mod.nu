@@ -8,11 +8,10 @@ const SAVE = "/etc/ly/save.txt"
 const LANG_STOCK = "/etc/ly/lang/en.ini"
 const HYPRLAND = "Hyprland"
 const TTY = "tty1"
-# login.defs' human uid range; build users (nixbld) in it have no login shell
 const UID_MIN = 1000
 const UID_MAX = 59999
 const NO_LOGIN = '(nologin|false)$'
-# ly puts one space between key hints; trailing no-break spaces (the ini parser trims plain ones) widen the gap
+# ly puts one space between key hints; no-break spaces widen the gap, the ini parser trims plain ones
 const HINT_GAP = "\u{a0}\u{a0}\u{a0}"
 const HINT_KEYS = '^(shutdown|restart|sleep|hibernate|toggle_password|brightness_down|brightness_up) = '
 # config.ini's exact hex; the console maps ly's 24-bit colours to these 16 slots
@@ -21,7 +20,7 @@ const PALETTE = [
     "565b66" f07178 aad94c e6b450 "39bae6" d2a6ff "39bae6" bfbdb6
 ]
 
-# the stock en lang with F4's hint renamed to reboot-to-firmware, so a ly update keeps the rest in step
+# The stock en lang with F4's hint renamed to reboot-to-firmware, so a ly update keeps the rest in step.
 def lang-render []: nothing -> string {
     open --raw $LANG_STOCK | lines | each {|line|
         let line = if ($line | str starts-with "hibernate = ") { "hibernate = reboot to firmware" } else { $line }
@@ -33,11 +32,11 @@ def vtrgb-render []: nothing -> string {
     [0 2 4] | each {|at| $PALETTE | each { $"0x($in | str substring $at..($at + 1))" | into int } | str join "," } | str join "\n" | $"($in)\n"
 }
 
-# ly runs at boot before /home is mounted, so every file is a real one in /etc
 export def system [cfg: record] {
     let sessions = [sessions/hyprland.desktop sessions/plasma.desktop]
     let foreign = if ($SESSIONS | path exists) { ls $SESSIONS | get name | where ($it | path basename) not-in ($sessions | path basename) } else { [] }
     [
+        # ly starts before /home is mounted, so every file is a real one in /etc
         (file-copy config.ini ($ETC | path join config.ini))
         (if ($LANG_STOCK | path exists) { file-text ($ETC | path join lang lsck0.ini) (lang-render) } else { [] })
         (if ($foreign | is-empty) { [] } else { exec "foreign sessions" [rm --force ...$foreign] })
@@ -47,16 +46,15 @@ export def system [cfg: record] {
         (dropin ly@.service palette.conf)
         (dropin ly@.service cursor.conf)
         (dropin ly@.service stage.conf)
-        # on tty1, where plymouth hands over: no getty prompt flashes between the splash and the greeter
         (unit-enable $"ly@($TTY).service")
         (unit-disable $"getty@($TTY).service")
         (unit-disable ly@tty2.service)
     ]
 }
 
-# ly keeps known rows current (save=true); a user it has not seen yet defaults to Hyprland
+# Seeds Hyprland for users ly has not seen yet; ly keeps the known rows current itself (save=true).
 export def save-defaults []: nothing -> nothing {
-    # ly 1.4.1 lists its shell at 0, then crawls the sessions in readdir order (no sort), so -U as ly will
+    # ly 1.4.1 lists its shell at 0, then the sessions in readdir order (no sort), so -U as ly does
     let names = ^ls -U $SESSIONS | lines
     let index = $names | enumerate | where {|s| open --raw ($SESSIONS | path join $s.item) | lines | any { $in == $"Name=($HYPRLAND)" } }
         | get --optional 0.index | default 0 | $in + 1

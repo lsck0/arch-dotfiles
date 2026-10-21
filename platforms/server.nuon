@@ -1,0 +1,4 @@
+{
+    form_factor: server
+    groups: [base programming/docker]
+}

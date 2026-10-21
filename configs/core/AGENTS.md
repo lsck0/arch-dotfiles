@@ -5,7 +5,6 @@ version control, backups, theming and the toggle framework. Each module is a `mo
 
 ## Modules
 
-- `borg`: scheduled `$HOME` backup into the syncthing folder the NAS receives (homelab users only). See root backup model.
 - `btop`: resource monitor, themed by wallust.
 - `cli`: the command-line tools with no config of their own (packages only).
 - `fastfetch`: system summary.
@@ -37,5 +36,5 @@ version control, backups, theming and the toggle framework. Each module is a `mo
 
 - Theming flows through `wallust` and `themes/*.json`; a themed program ships a template here, not a hardcoded palette.
 - A toggle is `scripts/toggles/toggle-*.nu` with a root half and quickshell/menu wiring. See the `l-dotfiles-toggles` skill.
-- Identity-gated modules (`gnupg`, `nas`, `ntfy`, `borg`, `syncthing`, `proton/pass`) read `profile-has`, never a
+- Owner-only modules (`gnupg`, `nas`, `ntfy`, `syncthing`, `proton/pass`) read `profile-has secrets`, never a
   username.

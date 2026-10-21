@@ -1,5 +1,3 @@
-// the sine envelope is zero at both ends, so the effect never leaves a frame behind
-// qt6 ShaderEffect reads only baked .qsb: restart.nu runs qsb (qt6-shadertools) when it is stale, else the glitch is skipped
 #version 440
 
 layout(location = 0) in vec2 qt_TexCoord0;

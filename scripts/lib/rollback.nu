@@ -1,12 +1,14 @@
+# `dot rollback`: check out an older generation of master and converge to it, undoing later migrations first;
+# --full also reinstalls packages from the target's [lsck0] snapshot and nixpkgs pin.
+
 use log.nu [log-info log-warn]
 use state.nu [SYSTEM_REPO SYSTEM_STATE]
+use platform.nu [PLATFORM_NAME_FILE]
 use ledger.nu [ledger-get]
 use migrate.nu [migrations-list migration-run]
 
 const REPO = path self ../..
-# a target must lie on it, so root only ever runs a commit of this history
 const BRANCH = "master"
-# the first generations with the root copy; an older one ran its system layer from the checkout as root
 const FLOOR_FILES = [scripts/lib/system-apply.sh scripts/lib/system-apply.nu]
 const PACMAN_CONF = "configs/base/pacman/pacman.conf"
 const PLATFORM_LOCAL = "/etc/dotfiles/platform.nuon"
@@ -20,6 +22,7 @@ def --wrapped git-ok [...args: string]: nothing -> bool { (do { ^git -C $REPO ..
 
 def describe-commit [rev: string]: nothing -> string { git-out log -1 "--format=%s, %ci" $rev }
 
+# The commit of a generation number or revision, refused unless on master and new enough to have the root copy.
 export def rollback-resolve [target: string]: nothing -> string {
     let sha = if $target =~ '^\d+$' {
         let matches = ^git -C $REPO log --format=%H%x09%s $BRANCH | lines | parse "{sha}\t{subject}"
@@ -43,16 +46,14 @@ export def rollback-resolve [target: string]: nothing -> string {
     $sha
 }
 
-# the machine's own platform file wins, as at load
 def platform-pin [sha: string]: nothing -> string {
-    let host = sys host | get hostname
-    let text = if ($PLATFORM_LOCAL | path exists) { open --raw $PLATFORM_LOCAL } else {
-        do { ^git -C $REPO show $"($sha):platforms/($host).nuon" } | complete | get stdout
-    }
+    let name = try { open --raw $PLATFORM_NAME_FILE | str trim } catch { "" }
+    let text = if ($PLATFORM_LOCAL | path exists) { open --raw $PLATFORM_LOCAL } else if $name != "" {
+        do { ^git -C $REPO show $"($sha):platforms/($name).nuon" } | complete | get stdout
+    } else { "" }
     try { $text | from nuon | get facts.lsck0_snapshot? | default "" } catch { "" }
 }
 
-# nothing when the mirror no longer keeps a snapshot that old
 def mirror-snapshot [sha: string]: nothing -> string {
     let arch = ^uname -m | str trim
     let conf = git-out show $"($sha):($PACMAN_CONF)" | lines
@@ -77,7 +78,6 @@ def nixpkgs-pin [rev: string]: nothing -> string {
     | get stdout | lines | get --optional 0 | default "" | str replace --regex '^[^g]*' ''
 }
 
-# one installed by hand from the flake registry is `flake:nixpkgs`, never matched
 def nix-stale [rev: string]: nothing -> list<string> {
     if (which nix | is-empty) { return [] }
     ^$NIX.0 ...($NIX | skip 1) profile list --json | from json | get elements
@@ -85,10 +85,8 @@ def nix-stale [rev: string]: nothing -> list<string> {
     | where { ($in.url | default "" | str starts-with $NIXPKGS_PREFIX) and $in.url != $rev } | get name | sort
 }
 
-# before the nu generations, install.sh and config.sh's sudo resets the env: the pin goes on root's command line
 def drivers [sha: string, pin: string]: nothing -> record {
     let dot = [nu --no-config-file scripts/dot.nu]
-    # since internal.nu, install is apply --packages
     if (git-ok cat-file -e $"($sha):scripts/lib/internal.nu") {
         {root: ($dot ++ [apply --packages]), user: ($dot ++ [apply --packages --user]), apply: ($dot ++ [apply]), nu: true}
     } else if (git-ok cat-file -e $"($sha):scripts/lib/system-apply.nu") {
@@ -123,7 +121,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     if ($env.DIRENV_DIR? | is-not-empty) { error make {msg: "run outside a direnv directory"} }
     let sha = rollback-resolve $target
     let short = $sha | str substring 0..11
-    # applied here, absent at the target: undone newest first, the last step before the checkout
     let later = migrations-list $REPO | where id in (ledger-get migration) | where {|m| not (git-ok cat-file -e $"($sha):($m.file | path relative-to $REPO)") }
     let stuck = $later | where not reversible
     if ($stuck | is-not-empty) { error make {msg: $"($target) predates migration ($stuck.id | str join ', '), which has no down"} }
@@ -198,7 +195,6 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     log-info $"checkout detached at ($short); return with: git switch ($BRANCH)"
     cd $REPO
     if $admin and not $drive.nu { copy-rollback }
-    # install adds only what the profile lacks, so a stale one leaves first
     if ($stale | is-not-empty) { ^$NIX.0 ...($NIX | skip 1) profile remove ...$stale }
     with-env {LSCK0_SNAPSHOT: $pin, DOT_ROLLBACK: "1"} {
         let installs_ok = $installs | each { driver-run $in install } | all { $in }

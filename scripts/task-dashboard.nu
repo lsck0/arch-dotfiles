@@ -31,7 +31,6 @@ const SCREEN_LEAVE = "\e[?25h\e[?1049l"
 
 def has [command: string]: nothing -> bool { which $command | is-not-empty }
 
-# stdout without trailing newlines, empty when the command fails, so a broken subsystem never takes the page down
 def --wrapped capture [...argv: string]: nothing -> string {
     do { ^$argv.0 ...($argv | skip 1) } | complete | get stdout | str trim --right --char "\n"
 }
@@ -529,7 +528,6 @@ def main [
     --print # print one page instead of the TUI (default off a tty)
     --page (-p) # print one page through less
 ]: nothing -> nothing {
-    # an agent shell may export its own TASKRC, the dashboard always reads the human db
     $env.TASKRC = $nu.home-dir | path join $HUMAN_TASKRC
     hide-env --ignore-errors TASKDATA TIMEWARRIORDB
     let tty = (is-terminal --stdout)

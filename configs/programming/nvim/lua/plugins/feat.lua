@@ -23,7 +23,7 @@ return {
         "dont-be-evil-company/kulala.nvim",
         -- last pure-lua release: later ones need a kulala-core binary behind a license token
         tag = "v5.3.4",
-        -- checking out its kulala-fmt submodule from a newer clone fails; kulala-fmt is a system package
+        -- its kulala-fmt submodule fails to check out from a newer clone; kulala-fmt is a system package
         submodules = false,
         ft = { "http", "rest" },
         keys = {

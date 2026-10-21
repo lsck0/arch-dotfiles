@@ -24,7 +24,6 @@ function moduleNormalize(module) {
 
 function resettable(option) { return option.source === (option.scope === "machine" ? "platform" : "profile") }
 
-// log-record writes them to stderr as "<tag>: note: <text>"
 function notes(text) {
   return String(text || "").split("\n").filter(function (l) { return /(^|: )note: /.test(l) })
     .map(function (l) { return l.slice(l.indexOf("note:") + "note:".length).trim() })
@@ -54,7 +53,6 @@ function toggleOptionMatches(needle, toggle, option) {
   return contains(needle, [option.label, option.key, option.doc, toggle.name, togglesLabel])
 }
 
-// a module "<group>/<rest>" lists under a header for its group, by <rest>: a flat list of ~100 full ids reads as noise
 function moduleGroup(module) { var i = module.name.indexOf("/"); return i < 0 ? "" : module.name.slice(0, i) }
 
 function sectionLabel(module) {
@@ -72,7 +70,6 @@ function sections(modules, toggles, query) {
     count: toggleEntries(toggles, needle).filter(function (r) { return r.kind !== "header" }).length
   }]
   var group = null
-  // grouped headers need each group's modules together
   var sorted = modules.slice().sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0 })
   for (let m = 0; m < sorted.length; m++) {
     let module = sorted[m]
@@ -227,7 +224,6 @@ function fromText(option, text) {
   return String(text)
 }
 
-// `dot set` parses its value as nuon: json keeps "1.0" or "de:nodeadkeys" a string, the bytes suffix makes a filesize
 function encode(option, value) {
   if (option.type === "filesize") return Number(value) + "b"
   return JSON.stringify(value === undefined ? null : value)

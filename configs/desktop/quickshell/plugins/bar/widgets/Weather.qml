@@ -467,7 +467,6 @@ BarWidget {
             value: root.current ? root.n0(root.current.cloud) + "%" : "--"
           }
 
-          // arrow points where the wind goes, text says where it comes from
           Stat {
             glyph: "\u{f0390}"; glyphRotation: root.current ? Number(root.current.windDir) + 180 : 0
             caption: "WIND"
@@ -500,7 +499,6 @@ BarWidget {
           visible: root.hourly.length > 0
           color: Colors.menu.text
           glow: true
-          // the 0..1 defaults would push temps off-canvas
           minValue: root.hourlyTempMin - 1
           maxValue: root.hourlyTempMax + 1
           values: root.hourlyTemps
@@ -688,7 +686,6 @@ BarWidget {
 
             readonly property var cells: root.fieldCells
             readonly property var rings: root.radarRingsKm
-            // quoted, canvas drops unquoted families with spaces; canvas text is no binding, so a change repaints
             readonly property string labelFont: Style.font.caption + 'px "' + Style.font.family + '"'
             onCellsChanged: requestPaint()
             onRingsChanged: requestPaint()
@@ -851,7 +848,6 @@ BarWidget {
               for (let r = 0; r < rings.length; r++) {
                 let km = rings[r]
                 let rad = S / 2 * (Number(km) / Math.max(1, reachKm))
-                // ctx.arc refuses a non-finite or negative radius
                 if (!isFinite(rad) || rad <= 0) continue
                 ctx.strokeStyle = Colors.menu.text
                 ctx.globalAlpha = r === 0 ? 0.26 : 0.15

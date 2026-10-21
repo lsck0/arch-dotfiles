@@ -35,7 +35,6 @@ Item {
   readonly property bool multiMonitor: Quickshell.screens.length > 1
 
   function open() {
-    // window geometry lives in lastIpcObject, stale until refreshed
     Hyprland.refreshToplevels()
     var focused = Hyprland.focusedMonitor
     panel.screen = root.screenFor(focused)
@@ -45,7 +44,6 @@ Item {
     panel.lastPointer = Qt.point(NaN, NaN)
     root.opened = true
     Qt.callLater(function () { keyCatcher.forceActiveFocus() })
-    // hyprland's binds beat the overlay's keyboard focus: the submap turns held-mod tab/return into cycle and go
     Hyprland.dispatch("hl.dsp.submap(\"overview\")")
   }
 
@@ -73,7 +71,6 @@ Item {
     if (root.workspaces.length > 0) root.focusAndClose(root.workspaces[root.selectedIndex].id)
   }
 
-  // release the overlay first: its focus release refocuses the old window, which would drag the switch back
   property string pendingWorkspace: ""
 
   function focusAndClose(id) {
@@ -84,7 +81,6 @@ Item {
 
   Timer {
     id: switchDelay
-    // past the layer's keyboard release, which lands on its next commit
     interval: 80
     onTriggered: {
       if (root.pendingWorkspace !== "") Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + root.pendingWorkspace + "\" })")
@@ -278,7 +274,6 @@ Item {
             z: 6
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            // real motion only, else a tile under a resting cursor steals the keyboard's selection
             onPositionChanged: function (mouse) {
               var p = mapToGlobal(mouse.x, mouse.y)
               var moved = !isNaN(panel.lastPointer.x)

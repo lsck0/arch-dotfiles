@@ -4,17 +4,15 @@ export const meta = {packages: {pacman: [bruno-bin bruno-cli]}}
 
 const PREFERENCES = ".config/bruno/preferences.json"
 
-# bruno validates telemetry as an object; a bare boolean fails every save
 export def link [cfg: record] {
     let file = $nu.home-dir | path join $PREFERENCES
     let current = try { open $file } catch { {} }
+    # bruno validates telemetry as an object; a bare boolean fails every save
     let telemetry = if ($current.preferences?.telemetry? | describe) =~ "^record" {
         json-set [preferences telemetry enabled] false
     } else {
         json-set [preferences telemetry] {enabled: false}
     }
-    # the first launch imports a sample collection into ~/documents/bruno, a later one without a seen version opens
-    # the changelog; the version is seeded once, so an upgrade still shows what changed
     let installed = ^pacman -Q bruno-bin | complete | get stdout | parse --regex ' (?<v>\d+\.\d+\.\d+)' | get --optional 0.v
     let seen = if $installed == null or $current.preferences?.onboarding?.lastSeenVersion? != null { [] } else {
         [(json-set [preferences onboarding lastSeenVersion] $installed)]

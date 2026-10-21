@@ -1,7 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# tms types this into the first pane of a new "desktop" session. window social: browser left, discord and spotify
-# stacked right; window dev: nvim alone; window shell: a zsh. every app runs from $HOME and drops to a zsh when quit
-
 def main []: nothing -> nothing {
     let home = $nu.home-dir
     let browser = $env.TMUX_PANE
@@ -12,7 +9,5 @@ def main []: nothing -> nothing {
     let dev = ^tmux new-window -a -d -n dev -c $home -t $window -P -F '#{window_id}' 'nvim; exec zsh'
     ^tmux new-window -a -d -n shell -c $home -t $dev
     ^tmux select-pane -t $browser
-    # last: the respawn replaces this pane's shell, and this script with it
-    # no images: inside tmux chawan draws them as sixel, which ghostty does not show
     ^tmux respawn-pane -k -c $home -t $browser 'cha https://lite.duckduckgo.com/lite/; exec zsh'
 }

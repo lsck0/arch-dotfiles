@@ -12,13 +12,16 @@ Never print, copy out or commit a secret's value. Locations only.
 - `configs/secrets/`: private submodule `github.com/lsck0/secrets`. Owner-only: needs the `secrets` profile capability.
 - `configs/secrets/keys/`: every secret, the only git-crypt path (`configs/secrets/.gitattributes`). Locked, each
   file starts with `\0GITCRYPT`.
-- `configs/secrets/<module>/`: the owner's modules (group `secrets`, plaintext code), e.g. `capgemini`, `weblinks`.
-  `dot sync` refuses a new file outside `keys/` that is in no module dir, since it would be committed unencrypted.
+- `configs/secrets/state/`: private app state that is no credential (dalamud, ffxiv, wallpapers, drift reports,
+  firefox's noscript list, repositories), plaintext so backups diff and delta; readable locked.
+- `configs/secrets/<module>/`: the owner's modules (group `secrets`, plaintext code): `yubikey`, `capgemini`,
+  `weblinks`. `dot sync` refuses to commit any new or changed file outside `keys/`, `state/` and the module dirs.
 - `configs/base/yubikey/`: what a fresh install reads before the submodule exists: the sealed git-crypt key
   `secrets.key.age`, one `age-<serial>.identity` and `ssh-<serial>` stub per enrolled YubiKey.
 - `configs/secrets/yubikey/`: `recipients.txt` (offline recovery key), `RECOVERY.md`, and `u2f_keys`, the FIDO keys it
   maps in `/etc/u2f_mappings` to each login in root's `/var/lib/dotfiles/owners` (the logins installed with an
-  `identity` profile: bootstrap, `adduser-dotfiles --profile`); `base/pam` reads that file.
+  `secrets` profile: bootstrap, `adduser-dotfiles --profile`); `base/pam` reads that file. Its `link` merges
+  `keys/age.txt` and the enrolled identities into `~/.config/sops/age/keys.txt`.
 
 ## Unlock and check
 
@@ -40,13 +43,16 @@ ask, do not wait in a loop.
   copy like `configs/`). `dot apply` streams the files named in `SYSTEM_SECRETS`
   (`scripts/lib/system.nu`, plus this host's `initramfs-ssh/<hostname>/sshkeydir/.ed25519.sk` and the platform's
   `wireguard`; `system-secrets`) in its archive to `system-apply.nu`, which unpacks them to a tmpfs
-  `$DOTFILES_SECRETS` and deletes everything not on that list. Read `$DOTFILES_SECRETS/<file>` (flat: the archive
-  packs from `configs/secrets/keys/`).
+  `$DOTFILES_SECRETS` and deletes everything not on that list. Read `$DOTFILES_SECRETS/<path>` (relative to
+  `configs/secrets/keys/`, subdirs kept; a locked file is left out).
+- State restored from `state/` or `keys/` that a `backup` verb carries back: guard the backup with
+  `secret-seed-guard <marker> <witness> <label>`, which fails when live state exists that the repo never seeded (see
+  `configs/gaming/dalamud/mod.nu`).
 
 ## Add a secret
 
 1. Unlock, then put the file under `configs/secrets/keys/` (subdirs are fine); git-crypt encrypts it on commit.
-   Anywhere else in `configs/secrets/` it would be committed in plaintext.
+   Anywhere else in `configs/secrets/` it would be committed in plaintext: `state/` is for what may be.
 2. A system module needs it: add its path to `SYSTEM_SECRETS` in `scripts/lib/system.nu`.
 3. `dot sync` commits and pushes the submodule, then the main repo. Agents never do.
 4. Writing into `configs/secrets/` while locked would stage plaintext into blob paths: a script that writes there first

@@ -21,7 +21,6 @@ pkgver() {
 
 build() {
     cd flux
-    # xtask install writes the sysroot to ~/.flux and the binaries to $CARGO_HOME/bin
     export HOME="$srcdir/home" CARGO_HOME="$srcdir/cargo"
     mkdir -p "$HOME"
     local channel
@@ -35,6 +34,5 @@ package() {
     install -Dm755 -t "$pkgdir/usr/bin" "$srcdir"/cargo/bin/*
     install -dm755 "$pkgdir/usr/lib/flux"
     cp -a "$srcdir/home/.flux/." "$pkgdir/usr/lib/flux/"
-    # flux runs on this pinned nightly; configs/flux/link.sh installs it and links ~/.flux
     install -Dm644 flux/rust-toolchain.toml "$pkgdir/usr/lib/flux/rust-toolchain.toml"
 }

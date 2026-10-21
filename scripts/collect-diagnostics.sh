@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# one folder of everything needed to diagnose a machine from elsewhere: hardware, boot, network, firewall, journals,
-# failed units, dot's state and run logs. Bash and coreutils only, so it runs where nushell, dot or the network do not.
-# collect-diagnostics [dest]: dest defaults to the script's own dir (a stick), or $PWD when run as the linked command
 # no-errexit: a failing probe is a finding to record, the rest must still be collected
 set -uo pipefail
 
@@ -22,7 +19,6 @@ fi
 out="$dest/diag-$(cat /etc/hostname 2> /dev/null || uname -n)-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$out" || exit 1
 
-# root's half (nft, sbctl, the system journal's AppArmor lines) needs one prompt up front; without it that half is skipped
 if ((EUID == 0)); then
     as_root=()
 elif sudo -n true 2> /dev/null || sudo -v; then
@@ -32,7 +28,6 @@ else
     echo "collect-diagnostics: no sudo, root-only commands are skipped" >&2
 fi
 
-# run <file> <cmd...>: output and errors into one file, headed by the command; a missing tool is noted, never fatal
 run() {
     local file=$1
     shift
@@ -51,7 +46,6 @@ grab() {
     local f
     for f in "$@"; do [[ -r "$f" ]] && cp -rL "$f" "$out/files/" 2> /dev/null; done
 }
-# root_grab <dir|file...>: root-only paths, copied and handed back to the caller
 root_grab() {
     if ((EUID == 0)) || ((${#as_root[@]})); then
         "${as_root[@]}" cp -rL --no-preserve=mode,ownership "$@" "$out/files/" 2> /dev/null
@@ -117,8 +111,6 @@ root network iptables-save
 root network ss -tunap
 run network systemctl status sshd portmaster --no-pager
 
-# per link: the mac it uses against its permanent one (a randomized mac is a "foreign" network to some setups), its
-# gateway and that gateway's mac, and the NM profile behind it with its mac policy
 for dev in /sys/class/net/*; do
     link=${dev##*/}
     [[ $link == lo ]] && continue
@@ -130,11 +122,9 @@ for dev in /sys/class/net/*; do
     [[ -n $profile ]] && run links nmcli -f connection.id,connection.type,802-11-wireless.ssid,802-11-wireless.cloned-mac-address,802-3-ethernet.cloned-mac-address,ipv4.method,ipv4.dns,ipv4.ignore-auto-dns,ipv6.method connection show "$profile"
 done
 run links nmcli -f GENERAL.DEVICE,IP4.ADDRESS,IP4.GATEWAY,IP4.DNS,IP6.DNS device show
-# arch-dotfiles' home detection, where present
 grab /run/home-network /etc/NetworkManager/home-gateways /etc/NetworkManager/homelab.env
 root_grab /etc/NetworkManager/dispatcher.d
 
-# dns: the resolver path end to end, then every configured server asked directly, plain and over tls
 for name in archlinux.org example.com; do
     run dns getent ahosts "$name"
     run dns resolvectl query "$name"
@@ -145,7 +135,6 @@ servers=$( (
     resolvectl dns 2> /dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}'
     nmcli -g IP4.DNS device show 2> /dev/null | tr '|' '\n'
     grep -oE '^nameserver +\S+' /etc/resolv.conf | awk '{print $2}'
-    # two public ones as the reference: they answer when the network itself lets dns out
     printf '%s\n' 1.1.1.1 9.9.9.9
 ) | grep -vE '^127\.|^$' | sort -u)
 for server in $servers; do
@@ -171,7 +160,6 @@ run journal_full journalctl -b --no-pager -o short-monotonic
 run journal_prev journalctl -b -1 --no-pager -o short-monotonic
 run journal_user_full journalctl --user -b --no-pager -o short-monotonic
 run coredumps coredumpctl list --no-pager
-# every failed unit, system and user: its status and this boot's journal
 for unit in $(systemctl --failed --plain --no-legend 2> /dev/null | awk '{print $1}'); do
     run "failed_$unit" systemctl status "$unit" --no-pager -l
     run "failed_$unit" journalctl -b -u "$unit" --no-pager
@@ -180,8 +168,6 @@ for unit in $(systemctl --user --failed --plain --no-legend 2> /dev/null | awk '
     run "failed_user_$unit" systemctl --user status "$unit" --no-pager -l
     run "failed_user_$unit" journalctl --user -b -u "$unit" --no-pager
 done
-# the last five boots whole in export format, zstd so they fit the LSCK0 partition; read back with
-# `zstd -dc <f> | /usr/lib/systemd/systemd-journal-remote -o x.journal -` then `journalctl --file x.journal`
 if command -v zstd > /dev/null; then
     for boot in 0 -1 -2 -3 -4; do
         "${as_root[@]}" journalctl -b "$boot" -o export 2> /dev/null | zstd -q -T0 > "$out/journal-boot$boot.export.zst"
@@ -192,7 +178,6 @@ grab /var/log/Xorg.0.log
 root_grab /etc/NetworkManager/NetworkManager.conf /etc/NetworkManager/conf.d /etc/iwd/main.conf /etc/nftables.conf \
     /etc/systemd/network /etc/modprobe.d /etc/mkinitcpio.conf /etc/kernel/cmdline /etc/fstab /etc/crypttab
 
-# dot: the checkout the linked command points at, else root's copy; FAILURES and the run logs live at its root
 repo=$(dirname "$(dirname "$(realpath "$HOME/.local/bin/dot" 2> /dev/null)")" 2> /dev/null)
 [[ -f "$repo/scripts/dot.nu" ]] || repo=/var/lib/dotfiles/repo
 run dot git -C "$repo" log -3 --format='%h %ad %s'
@@ -205,7 +190,6 @@ grab "$HOME/.local/state/dotfiles/crash.json" "$HOME/.config/dotfiles/profile.nu
 grab "$HOME/.local/state/dotfiles/runs" "$HOME/.local/state/dotfiles/ledger"
 root dot cat /var/lib/dotfiles/crash.json
 root dot ls -la /etc/sudoers.d
-# the install chain: stage state and its log (/var/lib/dotfiles-stage), root's runs
 root_grab /var/lib/dotfiles-stage /var/lib/dotfiles/runs
 
 run session wpctl status
@@ -214,11 +198,9 @@ run session sensors
 run session loginctl list-sessions
 run session env
 
-# the desktop: hyprland's and quickshell's own logs, newest instance each
 run desktop hyprctl version
 run desktop hyprctl monitors
 run desktop journalctl --user -u quickshell -b --no-pager -o cat
-# newest <dir>/*/<file>: the live instance's log
 newest() {
     local f best=
     for f in "$1"/*/"$2"; do [[ -e "$f" && (-z "$best" || "$f" -nt "$best") ]] && best=$f; done

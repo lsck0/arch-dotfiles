@@ -21,15 +21,12 @@ BarWidget {
     Repeater {
       model: ["StayAwake.qml"]
 
-      // Loader implicit size is read-only, do not assign it
       Loader {
         id: slot
         required property string modelData
         source: "../indicators/" + modelData
-        // not item.visible: false while this loader is hidden, so it would never come back
         visible: item ? !(item as BarIndicator).concealed : true
 
-        // bound, not assigned: these load before BarSection hands this widget its bar
         Binding {
           target: slot.item
           property: "bar"

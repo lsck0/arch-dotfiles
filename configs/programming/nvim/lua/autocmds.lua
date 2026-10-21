@@ -83,7 +83,7 @@ autocmd("FileType", {
     callback = function(args)
         local buf = args.buf
         local ft = vim.bo[buf].filetype
-        -- tex keeps vim syntax: vimtex mathzone detection needs it
+        -- tex keeps vim syntax: vimtex's mathzone detection needs it
         if ft == "tex" or ft == "plaintex" or ft == "bib" then
             return
         end
@@ -91,14 +91,13 @@ autocmd("FileType", {
         if not pcall(vim.treesitter.start, buf, lang) then
             return
         end
-        -- keep the runtime indent script (make's recipe tabs)
+        -- prose keeps the runtime indent script (make's recipe tabs)
         if vim.treesitter.query.get(lang, "indents") and not vim.tbl_contains(PROSE, ft) then
             vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
         end
     end,
 })
 
--- keep focus on the main window: the picker grabs it async
 local function open_explorer_keep_focus()
     local main = vim.api.nvim_get_current_win()
     require("lib.explorer").open()
@@ -183,7 +182,7 @@ autocmd("FileType", {
     end,
 })
 
--- undofile and shada registers would persist secret plaintext; shada is global, so only registers go
+-- Undofile and shada registers would persist secret plaintext; shada is global, so only registers go.
 local function no_secret_history()
     vim.opt_local.undofile = false
     vim.opt_local.swapfile = false
@@ -196,7 +195,7 @@ autocmd({ "BufReadPre", "BufNewFile" }, {
     pattern = { "*/secrets/*", "*.sops.*", "*.env", "*.env.*", ".envrc", "*.gpg", "*.age", "*.asc" },
     callback = no_secret_history,
 })
--- privymd decrypts ```gpg fences in place on read (scheduled, so this sees them first); it has no event of its own
+-- privymd decrypts ```gpg fences in place on read (scheduled, so this sees them first) and has no event of its own
 autocmd("BufReadPost", {
     desc = "No undo/shada registers for markdown with privymd blocks",
     group = secret_history,

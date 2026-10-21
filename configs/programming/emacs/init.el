@@ -1,5 +1,3 @@
-;;; init.el --- vim-first Emacs, from scratch -*- lexical-binding: t; -*-
-
 (require 'package)
 (setq package-archives
       '(("gnu"    . "https://elpa.gnu.org/packages/")
@@ -16,7 +14,6 @@
 (when (file-exists-p custom-file)
   (load custom-file nil t))
 
-;; keys last: it binds what the others define
 (dolist (m '("core"
              "ui"
              "evil-setup"
@@ -33,5 +30,3 @@
           (lambda ()
             (setq gc-cons-threshold (* 64 1024 1024)
                   gc-cons-percentage 0.1)))
-
-;;; init.el ends here

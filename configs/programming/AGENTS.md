@@ -35,5 +35,5 @@ Extends the root `AGENTS.md`. Editors, language toolchains, debuggers, agent CLI
 - Formatter configs (clang-format, stylua, prettier, rustfmt, ruff) are not linked: nvim `conform` and emacs
   `apheleia` pass them. One source, `programming/formatting`.
 - Telemetry off for every agent/editor that phones home (gemini-cli, bruno, zed, vscode, copilot).
-- Identity-gated modules (`bugwarrior`, `jai`, `projects`, `task`) read `profile-has identity`, never a username.
+- Owner-only modules (`bugwarrior`, `jai`, `projects`, `task`) read `profile-has secrets`, never a username.
 - Module order can matter: `projects` runs after `core/gh` (`meta.deps`).

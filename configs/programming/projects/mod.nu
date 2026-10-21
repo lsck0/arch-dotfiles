@@ -2,12 +2,11 @@ use module.nu *
 
 export const meta = {
     deps: [core/gh]
-    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/keys/repositories]
+    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/state/repositories]
 }
 
 const PROJECTS = "projects"
-# <spec> [path] [secret] per line: what to clone and where
-const REPOSITORIES = "configs/secrets/keys/repositories"
+const REPOSITORIES = "configs/secrets/state/repositories"
 const BARE = [probe]
 const ICON = "folder-development"
 # a push to github alone must not reach root here through git-sync and dot apply
@@ -17,7 +16,7 @@ def repository-url [spec: string]: nothing -> string {
     if ($spec =~ '://' or ($spec | str starts-with "git@")) { $spec } else { $"https://github.com/($spec | str replace --regex '\.git$' '').git" }
 }
 
-# a token login read by the helper itself, so the token never lands in the url, the remote config or an argv
+# A helper that reads the token itself, so it never lands in the url, the remote config or an argv.
 def credential-helper [token: path]: nothing -> string {
     $"!f\(\) { test \"$1\" != get || { echo username=x-access-token; sed -n \"1s/^/password=/p\" '($token)'; }; }; f"
 }
@@ -37,7 +36,7 @@ def clone [root: path, line: string]: nothing -> list<record> {
         # the empty helper first drops gh's, which logs in as another account
         [-c credential.helper= -c $"credential.helper=(credential-helper $token)"]
     }
-    # core/ntfy clones the homelab too, after this plan was made: a checkout that appeared since counts as done
+    # core/ntfy may have cloned the homelab since this plan was made
     let git = [env GIT_TERMINAL_PROMPT=0 git ...$auth clone --quiet --recurse-submodules $url $dest]
     [(exec $"clone ($dest | path basename)" [sh -c 'test -e "$0/.git" || exec "$@"' $dest ...$git] --creates $dest)]
 }
@@ -58,7 +57,7 @@ def icon-set [root: path]: nothing -> bool {
 }
 
 export def link [cfg: record] {
-    if not (profile-has identity) { return [] }
+    if not (profile-has secrets) { return [] }
     let root = $nu.home-dir | path join $PROJECTS
     let repositories = $env.DOTFILES | path join $REPOSITORIES
     let lines = if (secret-is-plaintext $repositories) {

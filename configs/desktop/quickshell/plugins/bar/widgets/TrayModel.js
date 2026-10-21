@@ -11,7 +11,6 @@ function itemNamed(item, name) {
     || text(item.tooltipTitle).indexOf(name) !== -1
 }
 
-// localsend's adds nothing over share > receive; discord's repaints constantly and errors on every IconName read
 function hiddenByDefault(item) {
   return itemNamed(item, "localsend") || itemNamed(item, "discord")
 }

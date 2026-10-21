@@ -1,3 +1,2 @@
 # managed by arch-dotfiles/apparmor
-# base/xdg moves chromium's nss store from ~/.pki to the state dir; denied, client certs and custom CA trust are gone
 include <abstractions/dotfiles/nssdb>

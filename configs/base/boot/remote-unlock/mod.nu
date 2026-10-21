@@ -1,3 +1,5 @@
+# Remote LUKS unlock: tinyssh in a mkinitcpio-systemd-tool initramfs, reached over ethernet or the home wifi.
+
 use module.nu *
 use ../boot.nu [cmdline-set cmdline-unset hooks-read hooks-write hooks-insert MKINITCPIO]
 
@@ -20,19 +22,22 @@ export const options = {
     }
 }
 
-# packages are the platform's extra_packages, here they would land on every machine
 export const meta = {volatile: true}
+
+const PACKAGES = [busybox mkinitcpio-systemd-tool tinyssh tinyssh-convert]
+
+export def packages [cfg: record]: nothing -> record {
+    {native: (if $cfg.ssh_unlock { $PACKAGES } else { [] })}
+}
 
 const HOOK = "systemd-tool"
 const TOOL_DIR = "/etc/mkinitcpio-systemd-tool"
-# never a key on the real root
 const AUTHORIZED_KEYS = "/etc/mkinitcpio-systemd-tool/config/authorized_keys"
 const KEYDIR = "/etc/tinyssh/sshkeydir"
 const UNITS = [initrd-network.service initrd-tinysshd.service]
 const HOOK_INSTALL = "/usr/lib/initcpio/install/systemd-tool"
 const ED25519_SK_BYTES = 64
 const WIFI_UNIT = "initrd-wifi.service"
-# the image sits unencrypted on the esp: whoever holds the disk holds the wifi key (README, Security)
 const WIFI_CONF = "/etc/mkinitcpio-systemd-tool/config/initrd-wifi.conf"
 
 export def system [cfg: record] {
@@ -61,8 +66,6 @@ def wifi [enabled: bool]: nothing -> list<record> {
     if not $enabled {
         return [(unit-disable $WIFI_UNIT) (step wifi-teardown)]
     }
-    # the unit requires the conf, else every mkinitcpio build fails; wifi-conf writes it this run when configs/secrets/keys/wifi is
-    # readable, so the first apply already ships the unit, else the next apply enables it once secrets are readable
     [
         (step wifi-conf)
     ] ++ (if ($WIFI_CONF | path exists) or (wifi-secret | path exists) {
@@ -70,7 +73,7 @@ def wifi [enabled: bool]: nothing -> list<record> {
     } else { [(unit-disable $WIFI_UNIT)] })
 }
 
-# configs/secrets/keys/wifi lines are ssid, a tab, the passphrase; a run without DOTFILES_SECRETS keeps what is there
+# The initrd wifi config from configs/secrets/keys/wifi (ssid, tab, passphrase); without secrets, what is there stays.
 def wifi-secret []: nothing -> path {
     $env.DOTFILES_SECRETS? | default "/nonexistent" | path join wifi
 }
@@ -123,7 +126,7 @@ export def keys []: nothing -> nothing {
     }
 }
 
-# after sd-encrypt, so the cryptsetup machinery it feeds is in place
+# Runs after sd-encrypt is placed, so the cryptsetup machinery it feeds is in place.
 export def wire []: nothing -> nothing {
     if not ($AUTHORIZED_KEYS | path exists) {
         unwire

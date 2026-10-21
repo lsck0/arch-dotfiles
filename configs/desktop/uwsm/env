@@ -1,19 +1,11 @@
 export MOZ_ENABLE_WAYLAND=1
 export QT_QPA_PLATFORM="wayland;xcb"
 export QT_QPA_PLATFORMTHEME=kde
-# qt's file dialogs through the FileChooser portal: in-process, a confined app (telegram, zapzap, okular) would browse
-# mounts, udev and the places file under its own profile and get denied
 export PLASMA_INTEGRATION_USE_PORTAL=1
 export SDL_VIDEO_DRIVER=wayland,x11
-# user scripts (scripts/link.sh) for hyprland binds, units and editors, not only interactive zsh; prepended as in
-# zshrc, so wrappers there (core/yt-dlp's fail-closed yt-dlp) shadow the /usr/bin command of the same name
 export PATH="$HOME/.local/bin:$PATH"
-# programming/jai's compiler and jails, so nvim, neovide and emacs started from the launcher find the lsp as from zsh
 export PATH="$PATH:$HOME/.jai/bin"
 export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket"
-# ssh's "confirm user presence" popup for the yubikey's sk key; no ssh-askpass ships at its /usr/lib/ssh default.
-# a terminal's passphrase prompts stay on the tty
 export SSH_ASKPASS=/usr/bin/ksshaskpass
-# pinentry hides "save in password manager" under kde unless set; the secret service is gnome-keyring either way
 export PINENTRY_KDE_USE_WALLET=1
 export DOTFILES="@DOTFILES@"

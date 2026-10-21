@@ -19,10 +19,8 @@ export def pam-env []: nothing -> nothing {
 }
 
 const DIRS = [desktop documents downloads music pictures videos sync vault]
-# xdg-user-dirs-update's old defaults; rmdir keeps any with content
 const CAPITALIZED = [Desktop Documents Downloads Music Pictures Projects Public Templates Videos]
 
-# move: the tool reads an app-dirs.conf var; link, link-file: it hardcodes ~/<name>
 const RECLAIM = [
     [name target mode];
     [.dotnet .local/share/dotnet move] [.omnisharp .config/omnisharp move] [.ipython .config/ipython move]
@@ -76,8 +74,7 @@ def places [nas: bool, projects: bool]: nothing -> list<record> {
     }
 }
 
-# kio rewrites the places file on every change (ids, devices, the person's own places): the live one with any of
-# these missing added, so an apply only writes when one is gone
+# The live places file (kio rewrites it on every change) plus any missing mark, so an apply writes only if one is gone.
 def places-xbel [marks: list<record>]: nothing -> string {
     let file = home .local share user-places.xbel
     let live = if ($file | path exists) { open --raw $file } else { "" }
@@ -95,7 +92,7 @@ def autostart-hidden []: nothing -> list<string> {
 
 export def link [cfg: record] {
     let config = home .config
-    let nas = profile-has homelab
+    let nas = (profile-has secrets) and (platform-has homelab)
     let projects = home projects | path exists
     let portals = $config | path join xdg-desktop-portal
     let bookmarks = (if $projects { [[projects Projects]] } else { [] }) ++ [[vault Vault] [sync Sync]] ++ (if $nas { [[nas NAS]] } else { [] })
@@ -118,7 +115,6 @@ export def link [cfg: record] {
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
         (file-text (home .local share user-places.xbel) (places-xbel (places $nas $projects)) --generated)
-        # a fresh user has no applications dir yet, and update-desktop-database fails on a missing one
         (if (which update-desktop-database | is-not-empty) {
             exec "desktop database" [update-desktop-database (home .local share applications)]
         } else { [] })
@@ -141,7 +137,7 @@ export def home-dirs []: nothing -> nothing {
             if $r.mode != move { ^ln -s $target $src }
             print $"xdg: moved ($src) -> ($target)"
         }
-        # a link to nothing fails every mkdir through it: a tool's own, and the parent of a file a module writes there
+        # a link to nothing fails every mkdir through it: a tool's own, and that of a file a module writes there
         match $r.mode { "link" => { mkdir $target }, "link-file" => { mkdir ($target | path dirname) }, _ => {} }
     }
 }

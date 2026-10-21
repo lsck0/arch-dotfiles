@@ -3,7 +3,6 @@ use written.nu [preserve-aside]
 
 export const meta = {packages: {pacman: [gimp]}}
 
-# a tag can be re-uploaded, so pinned by content; bump both together
 const PHOTOGIMP_VERSION = "3.1"
 const PHOTOGIMP_SHA256 = "bf0e1279870d40152beb3e702cf3e4e01a6892031a1ace5bc4a9b858894b584e"
 const PHOTOGIMP_URL = $"https://github.com/Diolinux/PhotoGIMP/releases/download/($PHOTOGIMP_VERSION)/PhotoGIMP-linux.zip"
@@ -20,8 +19,6 @@ def stale [dir: path]: nothing -> bool {
     | any {|f| let text = open --raw $f; $RENAMES | columns | any {|old| $text | str contains $'"($old)"' } }
 }
 
-# gimp opens its welcome dialog on every start unless told not to, and once more while gimprc's config-version is
-# older than itself (photogimp's says 3.0.0); it records its own version only on a clean exit
 const WELCOME_OFF = "(show-welcome-dialog no)"
 
 def welcome-seen-done [config: path, release: string]: nothing -> bool {
@@ -31,7 +28,6 @@ def welcome-seen-done [config: path, release: string]: nothing -> bool {
     ($text | str contains $WELCOME_OFF) and ($text | str contains $"\(config-version \"($release)\"\)")
 }
 
-# 3.2 migrates 3.0's dir only while its own is missing, so the 3.0 tree goes into the installed version
 export def link [cfg: record] {
     if (which gimp | is-empty) { return [] }
     let release = ^gimp --version | parse --regex '(?<v>\d+\.\d+\.\d+)' | get 0.v

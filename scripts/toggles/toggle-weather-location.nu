@@ -1,7 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
+# The one location every weather script shares: a manual pin, else geoclue, the timezone's coordinate, then ip geo.
+
 use lib.nu [switch-run state-file notify]
 
-# every weather script resolves and each geoclue lookup wakes the daemon for a wifi scan, so one answer is shared
 const AUTO_CACHE_MAX_AGE = 30min
 const GEOCLUE_DEMO = "/usr/lib/geoclue-2.0/demos/where-am-i"
 const GEOCLUE_AGENT = "/usr/lib/geoclue-2.0/demos/agent"
@@ -19,7 +20,6 @@ def coords-format [lat: float, lon: float]: nothing -> string {
     $"($lat | into string --decimals $COORD_DECIMALS),($lon | into string --decimals $COORD_DECIMALS)"
 }
 
-# started per lookup, not autostarted (configs/base/xdg/hidden-autostart.list); without an agent the demo blocks
 def geoclue-coords []: nothing -> any {
     if not ($GEOCLUE_DEMO | path exists) or not ($GEOCLUE_AGENT | path exists) { return null }
     let agent = job spawn { ^$GEOCLUE_AGENT o+e> /dev/null }
@@ -29,14 +29,12 @@ def geoclue-coords []: nothing -> any {
     if $found != null { coords-format ($found.lat | into float) ($found.lon | into float) }
 }
 
-# zone1970.tab ships a coordinate for every zone: a file lookup, no network, the same with or without a tunnel
 def timezone-coords []: nothing -> any {
     let zone = ^timedatectl show -p Timezone --value | complete | get stdout | str trim
     let coord = $ZONE_TABS | where ($it | path exists) | each {|tab|
         open --raw $tab | lines | where not ($it starts-with "#") | split column "\t" code coord zones
             | where ($it.zones | split row "," | any { $in == $zone }) | get coord.0?
     } | compact | get 0?
-    # ISO 6709: +DDMM[SS]+DDDMM[SS]
     let parts = $coord | default "" | parse --regex '^(?<lat>[+-]\d{2})(?<lat_min>\d{2})(?<lat_sec>\d{2})?(?<lon>[+-]\d{3})(?<lon_min>\d{2})(?<lon_sec>\d{2})?$' | get 0?
     if $parts == null { return null }
     let degrees = {|deg, min, sec|
@@ -46,7 +44,6 @@ def timezone-coords []: nothing -> any {
     coords-format (do $degrees $parts.lat $parts.lat_min $parts.lat_sec) (do $degrees $parts.lon $parts.lon_min $parts.lon_sec)
 }
 
-# last resort: tells a third party the public ip, and behind a tunnel answers with the exit node's city
 def ipgeo-coords []: nothing -> any {
     let reply = try { http get --max-time $IPGEO_TIMEOUT $IPGEO_URL } catch { {} }
     if $reply.latitude? != null and $reply.longitude? != null { coords-format $reply.latitude $reply.longitude }

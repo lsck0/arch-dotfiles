@@ -46,13 +46,12 @@ def configure [home: path, settings: record]: nothing -> list<record> {
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }
 
-# hermes' own wrapper for a profile is named after it; the skills call the orchestrator hermes-orchestrator
+# Hermes names a profile's wrapper after it; the skills call the orchestrator hermes-orchestrator.
 def bare-alias []: nothing -> bool {
     let wrapper = $nu.home-dir | path join .local bin orchestrator
     ($wrapper | path exists) and (open --raw $wrapper | str contains "hermes -p orchestrator")
 }
 
-# --clone snapshots the default profile once, so both are configured
 export def link [cfg: record] {
     let h = homes
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir

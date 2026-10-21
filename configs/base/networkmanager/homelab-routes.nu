@@ -43,7 +43,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
     }
     if not ($HOME_NETWORK | path exists) or $iface not-in (open --raw $HOME_NETWORK | lines) { return }
 
-    # through NM, which re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip
+    # NM re-pushes the link's resolved config on every ip change; the reapply re-enters here, so skip it
     let dns = out nmcli -g IP4.DNS,IP6.DNS device show $iface | lines | where $it != ""
     if $dns != [$lab.HOMELAB_DNS] {
         (
@@ -51,7 +51,7 @@ def main [iface: string = "", action: string = ""]: nothing -> nothing {
                 ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes
         ) | ignore
     }
-    # NM's push right behind the reapply's own can still carry the router's yes; it never computes yes again
+    # NM's push right behind the reapply's own can still carry the router's yes
     out resolvectl default-route $iface no | ignore
 
     let gateway = out ip -4 route show default dev $iface | lines | get --optional 0 | default "" | split row " "

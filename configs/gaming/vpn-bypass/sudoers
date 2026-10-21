@@ -1,6 +1,2 @@
 # managed by arch-dotfiles/gaming/vpn-bypass
-# the games group runs a command as itself with only its primary group switched to games; its sockets are then marked
-# (games-bypass.nft) and egress on the real link past the vpn kill switch (configs/base/nftables/fw-egress.nft). no
-# password: a game leaving the tunnel is the intended behavior and the group grants no access of its own, so steam-launch.nu
-# switches into it without friction. -E keeps the graphical session env, so SETENV is allowed
 %games ALL=(:games) NOPASSWD: SETENV: ALL

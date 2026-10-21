@@ -1,9 +1,6 @@
 # managed by arch-dotfiles/apparmor
-# the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
 
-# printing: okular renders a pdf to a temp file and hands it to lpr, which deletes it once cups has it; a postscript
-# document goes as is, so lpr reads what okular reads
 @{bin}/lpr rCx -> lpr,
 
 profile lpr {
@@ -19,5 +16,4 @@ profile lpr {
   owner @{tmp}/okular_@{rand6}.{ps,pdf} rw,
 }
 
-# KDE's mount-point lookup for the opened file; denied it only logs, the lookup falls back
 @{run}/mount/utab r,

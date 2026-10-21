@@ -1,6 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# yt-dlp only through the protonvpn namespace's shim, else a refusal, never the bare route
-
 const SHIM = "/usr/local/bin/yt-dlp"
 
 def --wrapped main [...args: string]: nothing -> nothing {

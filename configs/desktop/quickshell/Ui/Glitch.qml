@@ -2,25 +2,6 @@ import QtQuick
 import Quickshell.Io
 import qs.Commons
 
-/**
- * Glitch: one-shot rgb split + row offset over a sibling item (signature B), then fully off.
- *
- * Only for lock, unlock and wallpaper change. While playing it hides the source and draws it through
- * shaders/glitch.frag.qsb for durationMs; idle it is invisible and holds no texture. When the baked
- * shader is missing (no qsb, see restart.nu), it failed to load, or motion is off, play() finishes
- * at once without touching the source.
- *
- * Properties:
- *   source  the item to glitch; must not be an ancestor of the Glitch
- *
- * Signals:
- *   finished()  after the run, or at once when skipped
- *
- * Usage:
- *   Item { id: content; anchors.fill: parent }
- *   Glitch { id: glitch; anchors.fill: content; source: content }
- *   glitch.play()
- */
 Item {
   id: root
 
@@ -47,7 +28,6 @@ Item {
 
   visible: playing
 
-  // presence check only, synchronous so a lock surface created this instant can already play
   FileView {
     path: root.shaderPath
     blockLoading: true

@@ -1,5 +1,4 @@
 .pragma library
-// adapted from omarchy-shell
 
 function normalizeEntry(value) {
   if (typeof value === "string")
@@ -176,7 +175,6 @@ function displayRows(history, query, limit) {
   var rows = []
 
   for (var i = 0; i < values.length; i++) {
-    // the cap is for search and preview only: a re-copy takes the whole text
     var whole = normalizeEntry(values[i])
     var entry = cappedEntry(whole)
     if (!entry) continue

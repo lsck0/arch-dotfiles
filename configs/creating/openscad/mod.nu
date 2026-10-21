@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {packages: {pacman: [openscad uv]}}
 
-# deps frozen at a date so a later fastmcp never slips in under the pin; bump both together
+# MCP_FROZEN keeps a later fastmcp from slipping in under the pin; bump both together
 const MCP_VERSION = "0.6.1"
 const MCP_FROZEN = "2026-09-30"
 
@@ -10,7 +10,6 @@ export def link [cfg: record] {
     if (which openscad uvx | length) < 2 { return [] }
     let pkg = $"openscad-mcp==($MCP_VERSION)"
     [
-        # the welcome launcher (new, open, examples) instead of an empty editor on every start
         (ini-merge ($nu.home-dir | path join .config OpenSCAD OpenSCAD.conf) {launcher: {showOnStartup: "false"}})
         (json-merge ($nu.home-dir | path join .claude.json) [
             (json-set [mcpServers openscad] {

@@ -15,25 +15,23 @@ export const options = {
 
 const U2F_MODULE = "/usr/lib/security/pam_u2f.so"
 const FPRINT_MODULE = "/usr/lib/security/pam_fprintd.so"
-# polkit ships its stack in /usr/lib/pam.d, an /etc one of the same name replaces it
 const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
 const FPRINT_LINE = "auth       sufficient pam_fprintd.so"
-# login.defs' range for people: the users whose enrolled fingers count
 const HUMAN_UIDS = 1000..59999
 
 export def detect [cfg: record]: nothing -> record {
     {fido_origin: $"pam://(open --raw /etc/hostname | str trim)"}
 }
 
-# /etc/u2f_mappings is the owner's, root-owned (configs/secrets/yubikey writes it); touch alone, no pin
-# no nouserok: a user without a key, or a machine without the file, falls through to the password include
+# The pam_u2f line against the owner's /etc/u2f_mappings, touch alone, no pin; no nouserok: a user without a key
+# falls through to the password include.
 def u2f-line [origin: string]: nothing -> string {
     let options = $"cue pinverification=0 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
     $"auth       sufficient pam_u2f.so ($options)"
 }
 
-# before the first system-auth include
+# Inserts line before the first system-auth include.
 def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
     let at = $lines | enumerate
         | where {|l| $l.item =~ '^auth\s' and $l.item =~ 'include' and $l.item =~ 'system-auth' }
@@ -66,7 +64,7 @@ def has-fprint []: nothing -> bool {
     | any {|u| ^fprintd-list $u.name | complete | get stdout | str contains "Fingerprints for user" }
 }
 
-# the yubikey line stays highest (the habit), so a changed one also drops the fprintd line, reinserted under it
+# The yubikey line stays highest, so a changed one also drops the fprintd line, reinserted under it.
 export def sudo-stack [u2f: string, line: string]: nothing -> nothing {
     if not ($SUDO | path exists) { return }
     let before = open --raw $SUDO | lines

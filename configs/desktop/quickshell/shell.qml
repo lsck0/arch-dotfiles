@@ -19,10 +19,8 @@ import "services"
 ShellRoot {
   id: shell
 
-  // a reload under the lock destroys it without unlocking, which hyprland treats as a crashed locker
   settings.watchFiles: !lockScreen.locked
 
-  // one instance here: relative-path imports do not share singleton state
   property AppLibrary appLibrary: AppLibrary { }
 
   readonly property string widgetSettingsPath: Paths.state + "/widget-settings.json"
@@ -68,7 +66,6 @@ ShellRoot {
     printErrors: false
     onLoaded: {
       shell.applyWidgetSettings()
-      // atomic writes replace the watched inode
       Util.rearmWatch(this)
     }
     onLoadFailed: shell.widgetSettings = ({})
@@ -77,7 +74,6 @@ ShellRoot {
 
   readonly property string mainScreenName: {
     var screens = Quickshell.screens
-    // a workspace rule may name the other machine's monitor
     function connected(name) {
       for (let s = 0; s < screens.length; s++) if (String(screens[s].name) === name) return true
       return false
@@ -85,7 +81,6 @@ ShellRoot {
     var workspaces = Hyprland.workspaces.values
     for (let w = 0; w < workspaces.length; w++)
       if (workspaces[w].id === 1 && workspaces[w].monitor) return String(workspaces[w].monitor.name)
-    // workspace 1 only exists while it has windows
     if (workspaceOneRuleMonitor && connected(workspaceOneRuleMonitor)) return workspaceOneRuleMonitor
     for (let i = 0; i < screens.length; i++)
       if (screens[i].x === 0 && screens[i].y === 0) return String(screens[i].name)
@@ -129,7 +124,6 @@ ShellRoot {
 
     Bar {
       shellHost: shell
-      // compared inside Bar: redeclaring modelData here breaks Variants
       mainScreenName: shell.mainScreenName
     }
   }

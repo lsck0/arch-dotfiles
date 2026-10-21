@@ -21,13 +21,11 @@ def if-present [unit: string, decl: closure]: nothing -> any {
 export def system [cfg: record] {
     [
         (if-present proton.VPN.service { unit-disable proton.VPN.service })
-        # on demand, not at boot: the socket serves nss-mdns, the alias serves dbus activation
         (if-present avahi-daemon.socket { unit-enable avahi-daemon.socket })
         (if-present avahi-daemon.service {
             file-link /usr/lib/systemd/system/avahi-daemon.service $AVAHI_ALIAS
         })
         (if-present bluetooth.service { unit-enable bluetooth.service })
-        # the adapter stays off at every boot until toggle-bluetooth powers it; bluetoothd reads it on its next start
         (if-present bluetooth.service { ini-merge /etc/bluetooth/main.conf {Policy: {AutoEnable: "false"}} })
         (if-present cups.socket { unit-enable cups.socket })
         (if-present paccache.timer { unit-enable paccache.timer --now })
@@ -36,7 +34,6 @@ export def system [cfg: record] {
             if-present thermald.service { unit-enable thermald.service }
         } else { [] })
         (if-present NetworkManager-wait-online.service { unit-mask NetworkManager-wait-online.service })
-        # wine's is the only binfmt rule and nothing execs .exe directly; its automount held sysinit.target ~1 s
         (if-present systemd-binfmt.service { unit-mask systemd-binfmt.service })
         ($TPM_UNUSED | each {|u| if-present $u { unit-mask $u } })
         # the initrd copies the unit from /usr/lib without the /etc mask, so mask it there too
@@ -45,8 +42,7 @@ export def system [cfg: record] {
         })
         (if $env.FORM_FACTOR? == "laptop" { dropin $KBD_DROPIN kbd-backlight.conf } else { [] })
         (file-copy user-stop-timeout.conf /etc/systemd/user.conf.d/10-stop-timeout.conf)
-        # systemd's user preset enables these, but nothing applies user presets on arch: every login gets its
-        # ~/.config/user-tmpfiles.d (herdr's session reset) and the cleanup, what `systemctl --global enable` links
+        # the user preset enables these but arch never applies user presets, so they are linked as --global enable would
         (if-present systemd-tmpfiles-setup.service {
             file-link /usr/lib/systemd/user/systemd-tmpfiles-setup.service /etc/systemd/user/basic.target.wants/systemd-tmpfiles-setup.service
         })
@@ -59,7 +55,6 @@ export def system [cfg: record] {
 export def link [cfg: record] {
     let keyring = present gnome-keyring-daemon.service
     [
-        # ly's pam stack already starts and unlocks the keyring; the socket runs from first login until stopped
         ([gnome-keyring-daemon.service gnome-keyring-daemon.socket] | each {|u| if-present $u { unit-mask $u --now } })
         # its secrets component waits for --start, which gnome's OnlyShowIn=GNOME autostart entry would send
         (if $keyring { unit-file keyring-secrets.service --enable } else { [] })

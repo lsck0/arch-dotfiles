@@ -19,7 +19,6 @@ def main []: nothing -> nothing {
         print -e $"spicetify-apply: pacman still busy after ($PACMAN_WAIT_S)s"
         exit 1
     }
-    # the path unit, the login and dot apply can fire together
     let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join spicetify-apply.lock
     ^flock $lock $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }

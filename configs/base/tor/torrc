@@ -3,12 +3,10 @@ Log notice syslog
 DataDirectory /var/lib/tor
 IPv6Exit 1
 
-# transparent proxy for tor-router
 VirtualAddrNetworkIPv4 127.192.0.0/10
 VirtualAddrNetworkIPv6 [FC00::]/7
 AutomapHostsOnResolve 1
 TransPort 127.0.0.1:9040
-# v6 listener for tor-router's ipv6 redirect
 TransPort [::1]:9040
 DNSPort 127.0.0.1:6669
 DNSPort [::1]:6669

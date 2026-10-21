@@ -1,12 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# hear obs: the stream mix instead of the system audio. obs has no monitor of its program mix, so every input on
-# the stream track monitors to the profile's monitoring device, and app-loopback.lua (configs/desktop/pipewire)
-# mutes the per-app system paths while dot.obs-listen is set and obs runs.
+# Hear obs: the stream mix instead of the system audio. Every input on the stream track monitors to the profile's
+# monitoring device; app-loopback.lua (configs/desktop/pipewire) mutes the per-app paths while dot.obs-listen is set.
+
 use lib.nu [switch-run state-get state-set state-clear state-file]
 use ../../configs/desktop/quickshell/plugins/bar/widgets/obs-status.nu [config-read socket-open socket-identify request]
 
 const STATE = "obs-listen"
-# the inputs switched to monitoring, so turning it off leaves a monitor set in obs alone
 const STATE_INPUTS = "obs-listen-inputs"
 const LISTEN_KEY = "dot.obs-listen"
 const STREAM_TRACK = "1"
@@ -34,7 +33,6 @@ def monitor-set [socket: int, names: list<string>, type: string]: nothing -> not
     }
 }
 
-# every input on the stream track that monitors nothing yet; a non-audio input rejects the requests and drops out
 def monitor-enable [socket: int]: nothing -> nothing {
     let names = request $socket GetInputList | get -o inputs | default [] | get inputName | where {|name|
         let tracks = request $socket GetInputAudioTracks {inputName: $name} | get -o inputAudioTracks
@@ -50,7 +48,6 @@ def monitor-disable [socket: int]: nothing -> nothing {
     state-clear $STATE_INPUTS
 }
 
-# the key and state first: with obs closed the monitors are set by reconcile once the bar connects
 def listen-on []: nothing -> nothing {
     ^pw-metadata 0 $LISTEN_KEY 1 | ignore
     state-set $STATE on
@@ -59,7 +56,6 @@ def listen-on []: nothing -> nothing {
     job kill $socket
 }
 
-# obs saves its monitor types on exit, so with obs closed they are put back at its next start (reconcile)
 def listen-off []: nothing -> nothing {
     ^pw-metadata -d 0 $LISTEN_KEY | ignore
     state-clear $STATE
@@ -68,7 +64,7 @@ def listen-off []: nothing -> nothing {
     job kill $socket
 }
 
-# run by the bar when it connects to obs: monitors and the metadata key follow the toggle state
+# Puts obs's monitors and the metadata key in line with the state; the bar runs it when it connects to obs.
 def reconcile []: nothing -> nothing {
     let on = (state-get $STATE) == on
     if not $on and (inputs-get | is-empty) { return }

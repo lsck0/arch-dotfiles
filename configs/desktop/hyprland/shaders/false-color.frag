@@ -1,9 +1,6 @@
 #version 300 es
 // @label False color
 
-// Luma of the encoded signal (what a waveform shows) through Google's Turbo colormap: dark blue
-// shadows, green mids, red highlights. Zebra stripes mark <= 2% (crushed) and >= 98% (clipped).
-
 precision highp float;
 in vec2 v_texcoord;
 uniform sampler2D tex;
@@ -14,10 +11,8 @@ out vec4 fragColor;
 const float CRUSHED = 0.02;
 const float CLIPPED = 0.98;
 const float ZEBRA_PERIOD_PX = 12.0;
-// share of the original image kept under the heatmap, so text stays readable
 const float DETAIL = 0.25;
 
-// Turbo, Anton Mikhailov (Google AI, 2019), his published polynomial fit
 vec3 turbo(float x) {
     const vec4 R4 = vec4(0.13572138, 4.61539260, -42.66032258, 132.13108234);
     const vec4 G4 = vec4(0.09140261, 2.19418839, 4.84296658, -14.18503333);

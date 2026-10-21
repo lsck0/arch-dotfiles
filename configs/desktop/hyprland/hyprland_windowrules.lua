@@ -62,7 +62,6 @@ for _, class in ipairs({
     "^io.missioncenter.MissionCenter$",
     "^org.pulseaudio.pavucontrol$",
 }) do
-    -- 1080x720, shrunk to 80% of a smaller output; centered, else they map at the monitor's origin
     hl.window_rule({
         match = { class = class },
         float = true,
@@ -108,8 +107,6 @@ hl.window_rule({
     float = true,
 })
 
--- median xl inside gamescope (gaming/d2launcher): floats at a 4:3 size, 80% of the monitor's height; the game
--- scales with every resize, bars fill the rest
 hl.window_rule({
     match = {
         class = "^gamescope$",

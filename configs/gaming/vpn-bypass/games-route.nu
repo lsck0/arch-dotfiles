@@ -17,7 +17,7 @@ def --wrapped attempt [...argv: string]: nothing -> nothing {
     if $r.exit_code != 0 { print --stderr --no-newline $r.stderr }
 }
 
-# nmcli has the link's own gateway even under proton0; -g escapes ipv6 colons
+# Nmcli has the link's own gateway even under proton0; -g escapes ipv6 colons.
 def gateway [iface: string, family: string]: nothing -> string {
     let field = if $family == "-4" { "IP4.GATEWAY" } else { "IP6.GATEWAY" }
     let listed = out nmcli -g $field device show $iface | lines | get --optional 0 | default "" | str replace --all '\' ''

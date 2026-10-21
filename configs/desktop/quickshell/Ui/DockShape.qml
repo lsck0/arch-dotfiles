@@ -2,27 +2,6 @@ import QtQuick
 import QtQuick.Shapes
 import qs.Commons
 
-/**
- * DockShape: the outline and fill of every floating surface, one Shape.
- *
- * Docked, the edge toward the bar stays open and flares into the bar's accent rule through two
- * inverted corners (the neck), so the drawer reads as bent out of that rule; the far outer corner is
- * chamfered. Free, it is a closed card with the chamfer on the top-right corner. The geometry is
- * static and cached in a layer: animate a clipping parent, never this item's size.
- *
- * Properties:
- *   docked       open top edge with neck (bar above)
- *   flipped      mirror vertically, for a bar below
- *   fillColor    surface fill, translucent over layer blur
- *   strokeColor  outline, the bar rule's accent by default
- *   strokeWidth  outline width
- *
- * Content insets: sideInset (neck) + strokeWidth + padding left and right.
- * A HudFrame over it follows the cut: HudFrame { chamfer: card.cut; chamferCorner: card.cutCorner }
- *
- * Usage:
- *   DockShape { anchors.fill: parent; docked: true; fillColor: Colors.menu.background }
- */
 Item {
   id: root
 

@@ -17,9 +17,10 @@ Second pair of eyes. Critical, not a rubber stamp.
   phase rules: system still runs, revert path stated.
 - Missing asserts, unbounded loops or queues, or a path the spec's
   Observability section names without its trace or log is a FAIL.
-- Comment noise is a finding: a comment that restates the code, narrates
-  steps, or tells the change's story; a doc comment outside the
-  language's own doc format or repeating the name.
+- Comment noise is a finding: any comment that is not a needed header,
+  a doc comment, or the reason for code whose existence is exceptionally
+  unclear; a banner; a doc comment outside the language's own doc format
+  or repeating the name.
 - Reviewing research: every claim names what was read; the questions the
   ask raises are answered or listed as open; nothing is guessed.
 - Reviewing a spec: every `SPEC.md` section is present and goes deep

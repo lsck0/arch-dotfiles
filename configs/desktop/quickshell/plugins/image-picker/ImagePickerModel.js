@@ -1,6 +1,5 @@
 .pragma library
 
-// adapted from omarchy-shell
 function nameForPath(path) {
   return String(path || "").split("/").pop().replace(/\.[^/.]+$/, "")
 }
@@ -84,12 +83,6 @@ function redDistance(c) {
   return Math.min(h, 360 - h)
 }
 
-/**
- * Quantized wallpaper colours ({r, g, b} in 0..1) to a wallust-shaped colors.json object for
- * Colors.conditionPalette: darkest is background, lightest foreground, the most saturated colour4
- * (accent), the reddest colour1 (urgent), a mid grey colour8 (muted), the rest colour2-6.
- * A preview only: wallust's own pick can differ. Fewer than 3 colours gives {}.
- */
 function rawFromSwatches(swatches) {
   var list = []
   for (var i = 0; i < (swatches || []).length; i++) {

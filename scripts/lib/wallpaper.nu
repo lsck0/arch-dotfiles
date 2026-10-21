@@ -1,9 +1,12 @@
+# Wallpaper switching for `dot theme` and the bar: link the image, recolor with wallust (a themes/*.json naming the
+# wallpaper wins), then run every module's theme verb.
+
 use state.nu [LIB_DIR]
 
 const REPO = path self ../..
 const INTERNAL = path self internal.nu
-const LIST = path self ../wallpaper-list.nu
-const PICK = path self ../wallpaper-pick.nu
+const LIST = path self wallpaper-list.nu
+const PICK = path self wallpaper-pick.nu
 const FONT = path self ../toggles/toggle-font.nu
 const THEMES = path self ../../themes
 const WAL = ".cache/wal"
@@ -13,7 +16,7 @@ const IPC_TIMEOUT_S = "3"
 
 def wal [...parts: string]: nothing -> path { $nu.home-dir | path join $WAL ...$parts }
 
-# background verbs run detached outside the lock so a hung one never blocks later switches; foreground ones would race
+# Background verbs run detached outside the lock, so a hung one never blocks later switches.
 def theme-run [file: path, sync: bool]: nothing -> nothing {
     let background = [nu --no-config-file $INTERNAL theme apply $file --only background]
     if $sync {
@@ -24,10 +27,10 @@ def theme-run [file: path, sync: bool]: nothing -> nothing {
     ^nu --no-config-file $INTERNAL theme apply $file --only foreground | ignore
 }
 
+# Switches to `file` unlocked; callers go through wallpaper-set, which single-flights it.
 export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
     if not ($file | path exists) { error make {msg: $"wallpaper not found: ($file)"} }
     let file = $file | path expand
-    # Background.qml refreshes over IPC only, it does not watch the link
     ^ln -sfn $file (wal wallpaper)
     $"($file)\n" | save --force (wal wallpaper_path)
     let shell = $nu.home-dir | path join .config quickshell
@@ -40,7 +43,6 @@ export def wallpaper-apply [file: path, sync: bool]: nothing -> nothing {
         if ($theme.spec.font? | default "" | is-not-empty) { do { ^$FONT set $theme.spec.font } | complete | ignore }
         $theme.name
     } else {
-        # -s skips the escape sequences wallust would write to every open tty
         ^wallust run -s $file
         "pywal"
     }
@@ -52,7 +54,7 @@ export def wallpaper-get []: nothing -> string {
     try { ^readlink -f (wal wallpaper) | str trim } catch { "" }
 }
 
-# physical pixels of the largest monitor; rotation swaps the axes
+# Wallpapers fitting the largest monitor in physical pixels, rotation swapping the axes.
 export def wallpaper-list []: nothing -> list<string> {
     let monitors = if (which hyprctl | is-empty) { [] } else { try { ^hyprctl monitors -j | from json } catch { [] } }
     let screen = $monitors
@@ -61,7 +63,7 @@ export def wallpaper-list []: nothing -> list<string> {
     ^$LIST ...(if $screen == null { [] } else { [--screen $"($screen.0)x($screen.1)"] }) | lines
 }
 
-# single-flighted, so get and list still answer while one runs
+# Switches to a path or a wallpaper name; a switch while another runs is skipped.
 export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
     let file = if ($wallpaper | str contains "/") { $wallpaper } else {
         let found = do { ^$LIST --resolve $wallpaper } | complete

@@ -5,7 +5,6 @@ export const meta = {packages: {pacman: [modrinth-app]}, backup: {secrets: true}
 def paths []: nothing -> record {
     let data = $nu.home-dir | path join .local share ModrinthApp
     let saved = $env.DOTFILES | path join configs secrets keys modrinth
-    # instances, java paths and window state are this machine's; a new one seeds from the shared copy
     {
         data: $data, db: ($data | path join app.db), seed: (host-seed $saved app.db), saved: (host-file $saved app.db)
         saves: ($nu.home-dir | path join sync games mc saves)
@@ -27,7 +26,7 @@ export def link [cfg: record] {
     let seed = if (secret-is-plaintext $p.seed) and not ($p.db | path exists) { step seed } else { [] }
     # only into a saves dir syncthing made: one made here first collides with the real one it delivers
     let busy = ps | where name in [java modrinth-app] | is-not-empty
-    let relocate = (profile-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
+    let relocate = (profile-has secrets) and (platform-has homelab) and ($p.saves | path exists) and not $busy and (unlinked $p | is-not-empty)
     [$seed (if $relocate { step relocate } else { [] })]
 }
 
@@ -45,7 +44,6 @@ export def relocate []: nothing -> nothing {
         let live = $profile | path join saves
         let synced = $p.saves | path join $pack
         if ($live | path exists) and ($synced | path exists) {
-            # -n: never overwrite a synced copy
             ^cp -rn $"($live)/." $"($synced)/"
             mv $live $"($live).pre-sync.(date now | format date '%s')"
             print $"note: modrinth: merged ($pack) worlds into ($synced), the old copy kept as saves.pre-sync.*"

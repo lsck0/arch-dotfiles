@@ -1,8 +1,4 @@
 # managed by arch-dotfiles/apparmor
-# the two config files still links into the checkout (toggle-font rewrites them there): gtk.css and firefox's
-# userChrome.css. apparmor checks a link's target, so a confined app reading them is refused there and falls back to
-# the default theme; every other config is a real copy now
-# installed into the desktop, fonts, qt and kde abstractions' .d hooks, so every gui profile gets it
 
   abi <abi/4.0>,
 

@@ -25,8 +25,6 @@ Item {
   onHeightChanged: cv.requestPaint()
   onColorChanged: cv.requestPaint()
 
-  // items keep visible: true inside a hidden window, endless animations would tick unseen
-  // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   property bool pulsing: true

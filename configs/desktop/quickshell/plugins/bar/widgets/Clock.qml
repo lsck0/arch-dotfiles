@@ -31,10 +31,7 @@ BarWidget {
   readonly property date travelledNow: new Date(now.getTime() + travelMs)
   readonly property date travelledPrecise: new Date(nowPrecise.getTime() + travelMs)
 
-  // Qt.DayOfWeek counts Sunday as 7, Date.getDay() as 0
   readonly property int firstWeekday: Qt.locale().firstDayOfWeek % 7
-  // Locale.dayName() names days in the formats locale; Qt.formatDate() in the language, like every other date here.
-  // 2000-01-02 was a Sunday.
   readonly property var weekdayLetters: [0, 1, 2, 3, 4, 5, 6].map(i => Qt.formatDate(new Date(2000, 0, 2 + (firstWeekday + i) % 7), "ddd").charAt(0))
   readonly property string preciseFormat: Qt.locale().timeFormat(Locale.LongFormat).replace("ss", "ss.zzz").replace(/t+/, "t")
 
@@ -79,7 +76,6 @@ BarWidget {
     if (!offsetsProc.running) offsetsProc.running = true
   }
 
-  // on 2000-01-01, a day no zone switches dst, so qt's local-time formatting cannot move the wall clock an hour
   function timeInZone(spans) {
     var travelled = root.travelledNow
     var list = spans || []

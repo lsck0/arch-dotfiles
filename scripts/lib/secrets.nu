@@ -2,19 +2,18 @@ use profile.nu [profile-has]
 
 const GITCRYPT_MAGIC = 0x[00 47 49 54 43 52 59 50 54]
 
-# a locked git-crypt file starts with "\0GITCRYPT"
+# True when the file exists and is not a locked git-crypt blob (those start with "\0GITCRYPT").
 export def secret-is-plaintext [file: path]: nothing -> bool {
     if not ($file | path exists) { return false }
     (open --raw $file | first 9 | into binary) != $GITCRYPT_MAGIC
 }
 
-# configs/secrets/ is fetched, pulled and unlocked only for a profile with the secrets capability; root reads no profile,
-# so there the caller decided (bootstrap runs unlock only for a profile that has it)
+# Whether configs/secrets/ is fetched and unlocked: a profile with secrets; as root the caller decided.
 export def secrets-wanted []: nothing -> bool {
     (is-admin) or (profile-has secrets)
 }
 
-# before a backup pulls live state into secrets: live state the repo never seeded would overwrite the repo's
+# Before a backup: live state at witness that the repo never seeded (no marker) would overwrite the repo's, so fail.
 export def secret-seed-guard [marker: path, witness: path, label: string]: nothing -> nothing {
     if ($marker | path exists) { return }
     if ($witness | path exists) {

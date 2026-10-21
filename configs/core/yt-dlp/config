@@ -1,7 +1,3 @@
-# runs only inside the protonvpn namespace (base/protonvpn-netns): a dead tunnel means no download, and its 127.0.0.1
-# is the namespace's own, so the host's tor and socks proxies are out of reach
-
-# quoted: yt-dlp splits config lines shell-style, so the space would turn the tail into a stray url
 -o "~/downloads/yt-dlp/%(uploader)s/%(title)s [%(id)s].%(ext)s"
 --restrict-filenames
 --continue
@@ -11,7 +7,6 @@
 --retries 10
 --fragment-retries 10
 
-# remuxed to mp4, which every player takes
 -f bv*+ba/b
 --merge-output-format mp4
 

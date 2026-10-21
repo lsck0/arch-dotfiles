@@ -6,8 +6,7 @@ const XLCORE = ".xlcore"
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
-    let saved = $env.DOTFILES | path join configs secrets keys ffxiv
-    # resolution, graphics, GamePath and the characters' UI layout are this machine's; a new one seeds from the shared copy
+    let saved = $env.DOTFILES | path join configs secrets state ffxiv
     {
         xl: $xl, config: ($xl | path join ffxivConfig), launcher: ($xl | path join launcher.ini)
         seed: {config: (host-seed $saved ffxivConfig), launcher: (host-seed $saved launcher.ini)}
@@ -15,7 +14,7 @@ def paths []: nothing -> record {
     }
 }
 
-# seeded once: the game rewrites these files in place
+# Seeded once: the game rewrites these files in place.
 export def link [cfg: record] {
     let p = paths
     let launcher = desktop-override XIVLauncher.desktop {

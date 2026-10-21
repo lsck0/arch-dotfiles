@@ -15,7 +15,6 @@ PanelWindow {
   screen: modelData
   required property var modelData
 
-  // injected by shell.qml, not `shell`: shell.qml's `id: shell` would shadow it
   property QtObject shellHost: null
   property string mainScreenName: ""
 
@@ -31,12 +30,10 @@ PanelWindow {
     right: true
   }
   exclusiveZone: Style.bar.sizeHorizontal
-  // hyprland_windowrules.lua blurs it by this name
   WlrLayershell.namespace: "quickshell-bar"
   implicitHeight: Style.bar.sizeHorizontal
   color: "transparent"
 
-  // hyprland leaves stale layer position after monitor moves
   ScreenMoveRemap { id: screenGuard; window: root }
   visible: !screenGuard.remapping
 
@@ -56,9 +53,7 @@ PanelWindow {
   readonly property bool quiet: Power.saver || fullscreenBelow
 
   property string activePanel: ""
-  // opened by a click or a keybind: hover no longer closes or switches it, only a toggle, Esc or an outside click
   property string pinnedPanel: ""
-  // opened by a keybind: the panel takes the keyboard
   property bool keyboardPanel: false
   property var panelNames: []
 
@@ -73,7 +68,6 @@ PanelWindow {
   function panelShow(id, pinned, keyboard) {
     hoverCloseTimer.stop()
     switchIntent.stop()
-    // set before activePanel: HoverPanel reads both when it turns shown
     pinnedPanel = pinned ? id : ""
     keyboardPanel = keyboard
     if (activePanel === id) return
@@ -101,7 +95,6 @@ PanelWindow {
     if (activePanel === id) panelHide()
   }
 
-  // a click on the trigger pins a hover-opened panel, a second click closes it
   function panelClick(id) {
     if (panelNames.indexOf(id) === -1) return
     if (activePanel === id && pinnedPanel === id) panelHide()
@@ -127,7 +120,6 @@ PanelWindow {
     onTriggered: root.panelSwitching = false
   }
 
-  // passing over the bar opens nothing; once one panel is open, moving to the next switches faster
   readonly property int hoverOpenDelayMs: 140
   readonly property int hoverSwitchDelayMs: 70
 
@@ -138,7 +130,6 @@ PanelWindow {
     onTriggered: root.applyHoverOpen(root.pendingPanel)
   }
 
-  // a pin only keeps its panel open when the pointer leaves; hovering another trigger still switches to it
   function hoverOpen(id) {
     if (root.pinnedPanel === id) {
       root.triggerHovered = true
@@ -193,7 +184,6 @@ PanelWindow {
     return "unknown panel " + panel + ", panels: " + panelNames.join(" ")
   }
 
-  // keybinds in hyprland_keybindings.lua (the panels submap) call toggle
   IpcHandler {
     target: root.ipcTarget
     function open(panel: string): string {
@@ -250,9 +240,7 @@ PanelWindow {
     anchors.bottom: parent.bottom
     height: Math.max(1, Style.fx.bracketWidth)
     color: Colors.accent
-    // over the widgets: a hover fill must not cover the rule the drawer neck joins
     z: 1
-    // Ui/DockShape.qml repeats this alpha
     opacity: Style.surface.ruleAlpha
     layer.enabled: Style.fx.glow > 0 && !root.quiet
     layer.effect: Glow { shadowColor: Colors.accent }
@@ -336,7 +324,6 @@ PanelWindow {
     color: "transparent"
     implicitWidth: tooltipSurface.width
     implicitHeight: tooltipSurface.height
-    // quickshell's qmltypes stub PopupAnchor as opaque, so qmllint cannot see window or rect
     anchor.window: root // qmllint disable missing-property
     anchor.rect.x: { // qmllint disable unqualified unresolved-type
       if (!root.tooltipItem) return 0

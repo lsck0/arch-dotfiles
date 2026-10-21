@@ -1,10 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # location privacy: every reply is checked against LEAK_KEYS before it is cached or printed
 
-# -----------------------------------------------------------------------------
-# CONSTANTS
-# -----------------------------------------------------------------------------
-
 const LOCATION_TOGGLE = "scripts/toggles/toggle-weather-location.nu"
 const LEAK_KEYS = [
     latitude longitude lat lon coords elevation timezone timezone_abbreviation sunrise sunset daylight_duration
@@ -39,7 +35,6 @@ const WINDY_KMH = 39.0
 
 const RADAR_ZOOM = 7
 const RADAR_SIZE_PX = 512
-# universal blue palette, smoothed, snow separate
 const RADAR_COLOUR = "4"
 const RADAR_OPTIONS = "1_1"
 const RADAR_HISTORY_MIN = 240
@@ -97,10 +92,6 @@ const ALERT_LEVEL_MIN = 2
 const ALERTS_COUNT_MAX = 6
 const ALERT_EVENT_LENGTH_MAX = 80
 const REASON_LENGTH_MAX = 120
-
-# -----------------------------------------------------------------------------
-# INTERNAL
-# -----------------------------------------------------------------------------
 
 def failure [error: string]: nothing -> record { {ok: false, error: $error} }
 
@@ -165,7 +156,7 @@ def series-pick [source: record, variables: record, index: int]: nothing -> reco
     $variables | items {|key, variable| {$key: ($source | get -o $variable | get -o $index | default 0)} } | into record
 }
 
-# relative so it cannot hint the timezone
+# Relative, so it cannot hint the timezone.
 def iso-to-minutes [value: any]: nothing -> any {
     try { ($value | into datetime) - (date now) | $in / 1min | math round } catch { null }
 }
@@ -173,10 +164,6 @@ def iso-to-minutes [value: any]: nothing -> any {
 def radar-span-km [lat: float]: nothing -> int {
     $RADAR_SIZE_PX * $MERCATOR_Z0_M_PER_PX * ($lat | math cos -d) / (2 ** $RADAR_ZOOM) / 1000 | math round
 }
-
-# -----------------------------------------------------------------------------
-# FORECAST
-# -----------------------------------------------------------------------------
 
 def forecast-fallback [error: string]: nothing -> record {
     let cache = cache-path weather.json
@@ -197,7 +184,6 @@ def forecast-get []: nothing -> record {
         return (forecast-fallback ($reason | str substring ..<$REASON_LENGTH_MAX))
     }
     let hourly = $d.hourly? | default {}
-    # hour only, never the full timestamp
     let hours = $hourly.time? | default [] | enumerate | each {|it|
         {h: ($it.item | str substring 11..12)} | merge (series-pick $hourly $FORECAST_HOURLY $it.index)
     }
@@ -215,7 +201,6 @@ def forecast-get []: nothing -> record {
     let units = $d.current_units? | default {}
     reply-publish {
         ok: true
-        # how the location was found, not where
         source: $location.source
         stale: false
         current: ($current | update isDay ($d.current.is_day? | default 1))
@@ -228,10 +213,6 @@ def forecast-get []: nothing -> record {
         daily: $days
     } (cache-path weather.json)
 }
-
-# -----------------------------------------------------------------------------
-# RADAR
-# -----------------------------------------------------------------------------
 
 def radar-plan-dwd [lat: float, lon: float]: nothing -> table {
     let x = $lon * $RADIANS_PER_DEGREE * $EARTH_RADIUS_M
@@ -368,10 +349,6 @@ def field-get []: nothing -> record {
     reply-publish $out $cache
 }
 
-# -----------------------------------------------------------------------------
-# ALERTS
-# -----------------------------------------------------------------------------
-
 def area-tokens-map [texts: list<string>]: nothing -> record {
     let texts = $texts | uniq
     let folded = $texts | str replace -ar '[\r\n]' " " | str join "\n" | ^uconv -x $AREA_FOLD_RULES | lines
@@ -399,7 +376,7 @@ def polygon-contains [polygon: any, lat: float, lon: float]: nothing -> bool {
     }
 }
 
-# parameter values look like "2; yellow; Moderate"
+# Parameter values look like "2; yellow; Moderate".
 def alert-awareness [info: record]: nothing -> record {
     $info.parameter? | default [] | reduce -f {level: 0, colour: "", kind: ""} {|parameter, acc|
         let value = $parameter.value? | default "" | into string
@@ -475,7 +452,6 @@ def alerts-get []: nothing -> record {
     } | compact
     let alerts = $candidates | where scope != ""
     | insert key {|c| [($c.info.event? | default "" | into string) $c.level $c.scope] } | uniq-by key | each {|c|
-        # no free text, event is a short controlled phrase
         {
             event: ([$c.info.event? $c.kind "Weather warning"] | compact -e | first | into string
                 | str substring ..<$ALERT_EVENT_LENGTH_MAX)
@@ -499,10 +475,6 @@ def alerts-get []: nothing -> record {
         countryOthers: ($candidates | where scope == "" | length)
     } $cache
 }
-
-# -----------------------------------------------------------------------------
-# MAIN
-# -----------------------------------------------------------------------------
 
 def main [command?: string] {
     let reply = match $command {

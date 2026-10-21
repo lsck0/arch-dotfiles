@@ -34,7 +34,6 @@ Item {
         watchChanges: true
         printErrors: false
         onLoaded: {
-            // untrimmed: the edit writes back what it shows, a trim would eat the file's own whitespace
             root.notesText = String(text() || "");
             Util.rearmWatch(this);
         }
@@ -55,7 +54,6 @@ Item {
             color: "transparent"
             WlrLayershell.namespace: "quickshell-desktop-widgets"
             WlrLayershell.layer: WlrLayer.Bottom
-            // not none: a click on the notes card grabs the keyboard, the mask keeps the rest click-through
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
             exclusionMode: ExclusionMode.Ignore
 
@@ -188,7 +186,6 @@ Item {
                         persistentSelection: true
                         font.family: Style.font.family
                         font.pixelSize: Style.font.body
-                        // only a typed change is written: an unedited focus-out would rewrite a file syncthing shares
                         property bool edited: false
 
                         function save() {
@@ -207,7 +204,6 @@ Item {
                         }
                         onActiveFocusChanged: if (!activeFocus)
                             save()
-                        // a click on the bare desktop passes through the mask and never takes focus back
                         Keys.onEscapePressed: notesEdit.focus = false
 
                         Timer {

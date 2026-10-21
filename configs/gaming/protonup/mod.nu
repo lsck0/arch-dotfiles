@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [protonup-git]}}
 
-# pinned by a repo-held sha256, not the release's own checksum; bump both together
 const PROTON_GE_VERSION = "GE-Proton11-7"
 const PROTON_GE_SHA256 = "c5448b76a230384e2d7bc6beb5ccb97bafb7e2c3b6c527cb03a1a546bbcb00a0"
 const OVERLAY_URL = "https://github.com/thaylorz/proton-ge-custom/releases/download/proton-layered-overlay-v1/Proton-LayeredOverlay.tar.gz"
@@ -13,7 +12,7 @@ def steam-data []: nothing -> path {
     $nu.home-dir | path join .local share Steam
 }
 
-# ~/.steam/root is a link steam.sh makes on first launch; a real dir there blocks it, so the tools go to the data dir
+# Not ~/.steam/root, a link steam.sh makes on first launch: a real dir there blocks it, so the tools go to the data dir.
 export def link [cfg: record] {
     let compat = steam-data | path join compatibilitytools.d
     let ge = $"($PROTON_GE_VERSION)-x86_64"

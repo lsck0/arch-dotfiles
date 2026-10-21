@@ -18,7 +18,7 @@ def volume-osd []: nothing -> nothing {
     if (pactl get-sink-mute @DEFAULT_SINK@) =~ yes { osd volume-muted message Muted } else { osd volume value (sink-volume) }
 }
 
-# -c backlight: without a backlight brightnessctl falls back to the first led (the numlock led on a desktop)
+# Uses -c backlight: without a backlight brightnessctl falls back to the first led (numlock on a desktop).
 def backlight-percent []: nothing -> int {
     let max = brightnessctl -c backlight -m max | into int
     if $max > 0 { (brightnessctl -c backlight -m get | into int) * 100 // $max } else { 0 }

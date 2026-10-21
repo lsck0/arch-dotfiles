@@ -23,7 +23,6 @@ Item {
   readonly property int hlen: Math.max(0, Math.min(len, Math.floor(width / 2) - thick))
   readonly property int vlen: Math.max(0, Math.min(len, Math.floor(height / 2) - thick))
 
-  // margin + inset shorten the parallel cut by (2 - sqrt2) each
   readonly property real _c: Math.max(0, Math.min(chamfer - (margin + inset) * (2 - Math.SQRT2),
                                                   width / 2, height / 2))
   readonly property bool _cutTop: _c > 0 && chamferCorner === Qt.TopRightCorner

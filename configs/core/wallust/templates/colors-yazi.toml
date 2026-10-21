@@ -1,6 +1,3 @@
-#:schema https://yazi-rs.github.io/schemas/theme.json
-# jinja, not pywal syntax: its own wallust.toml entry. color0 is dark on a light theme: text on an accent takes the
-# background, panels bg_alt (a step toward the foreground), dim text a mix toward the background
 {% set bg_alt = background | blend(foreground) | blend(background) | blend(background) -%}
 {% set fg_dim = foreground | blend(background) | blend(foreground) -%}
 

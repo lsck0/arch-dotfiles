@@ -1,6 +1,3 @@
-# terminal colour slots only, which a theme switch repaints; foreground only, so every rule stays readable on the
-# terminal background without a per-theme contrast pass
-
 color.active=color2
 color.due=color3
 color.due.today=color1

@@ -2,7 +2,6 @@
 # prints "<image>\t<thumbnail or image>" per wallpaper eligible for the largest screen, or with `themes`
 # "<image>\t<thumbnail or image>\t<theme>" per theme wallpaper; thumbnails are made afterwards, detached
 
-# a copy under ~/.config/quickshell, not the repo: the repo's wallpaper-list.nu comes in as an argument
 const SELF = path self
 
 const THUMB_SIZE = "800x800"

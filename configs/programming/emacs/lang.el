@@ -1,5 +1,3 @@
-;;; lang.el --- treesitter, LSP, diagnostics, formatting -*- lexical-binding: t; -*-
-
 (setq treesit-font-lock-level 4)
 
 (use-package treesit-auto
@@ -16,7 +14,6 @@
 (defun my/treesit-install-langs ()
   "Build the missing grammars of `my/treesit-langs' at treesit-auto's pinned revisions, without asking.
 Signals when one failed, after trying the rest."
-  ;; js-ts-mode also wants jsdoc, which treesit-auto has no recipe for
   (require 'js)
   (let ((treesit-language-source-alist (append (treesit-auto--build-treesit-source-alist)
                                                treesit-language-source-alist))
@@ -30,7 +27,6 @@ Signals when one failed, after trying the rest."
     (when failed
       (error "tree-sitter: building %s failed" (nreverse failed)))))
 
-;; mason's bin dir is on PATH only inside nvim; ahead of /usr/bin so rust-analyzer is not the rustup proxy
 (let ((mason-bin (expand-file-name "nvim/mason/bin" (or (getenv "XDG_DATA_HOME") "~/.local/share"))))
   (when (file-directory-p mason-bin)
     (add-to-list 'exec-path mason-bin)
@@ -65,13 +61,11 @@ Signals when one failed, after trying the rest."
   (setq eglot-autoshutdown t
         eglot-events-buffer-size 0
         eglot-extend-to-xref t
-        ;; pyright exits when a watch is refused, /usr/lib/python3.x alone is ~14k dirs
         eglot-max-file-watches 50000)
 
   (add-hook 'eglot-managed-mode-hook
             (lambda () (when (eglot-managed-p) (eglot-inlay-hints-mode 1))))
 
-  ;; builtin eglot has no texlab entry
   (add-to-list 'eglot-server-programs
                '((latex-mode tex-mode bibtex-mode LaTeX-mode)
                  . ("texlab")))
@@ -86,7 +80,6 @@ Signals when one failed, after trying the rest."
   (add-to-list 'eglot-server-programs '((markdown-mode gfm-mode) . ("marksman")))
   (add-to-list 'eglot-server-programs '(typst-ts-mode . ("tinymist")))
 
-  ;; eglot binds default-directory to the project root before calling this
   (setq-default eglot-workspace-configuration #'my/eglot-workspace-configuration))
 
 (use-package consult-eglot
@@ -121,7 +114,6 @@ Signals when one failed, after trying the rest."
 
 (add-hook 'prog-mode-hook #'hs-minor-mode)
 
-;; personal style only where the project has no config of its own
 (defun my/formatting-args (names flag file)
   "FLAG joined to the personal FILE (configs/programming/formatting, copied beside init.el), nil when a project config is found.
 NAMES is a list of file names, or a predicate on a directory, searched upward from `default-directory'."
@@ -143,7 +135,6 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
 (use-package apheleia
   :init (apheleia-global-mode 1)
   :config
-  ;; args go past the apheleia-npx wrapper; apheleia drops a nil
   (pcase-dolist (`(,formatter . ,form)
                  '((clang-format . (my/formatting-args '(".clang-format" "_clang-format") "--style=file:" "clang-format"))
                    (stylua . (my/formatting-args '("stylua.toml" ".stylua.toml") "--config-path=" "stylua.toml"))
@@ -152,7 +143,6 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
                                   ".prettierrc.toml" ".prettierrc.js" ".prettierrc.cjs" ".prettierrc.mjs" ".prettierrc.ts"
                                   "prettier.config.js" "prettier.config.cjs" "prettier.config.mjs" "prettier.config.ts")
                                 "--config=" "prettierrc.json"))
-                   ;; the personal rustfmt.toml sets nightly-only options, which stable rustfmt ignores
                    (rustfmt . (let ((arg (my/formatting-args '("rustfmt.toml" ".rustfmt.toml") "--config-path=" "rustfmt.toml")))
                                 (and arg (list "+nightly" arg))))
                    (ruff . (my/formatting-args #'my/ruff-config-p "--config=" "ruff.toml"))
@@ -167,10 +157,10 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   (dolist (m '(c-mode c-ts-mode c++-mode c++-ts-mode))
     (setf (alist-get m apheleia-mode-alist) 'clang-format))
   (setf (alist-get 'leptosfmt   apheleia-formatters) '("leptosfmt" "--stdin" "--rustfmt")
-        (alist-get 'sortderives apheleia-formatters) '("sort-derives-stdout"))
+        (alist-get 'sortderives apheleia-formatters)
+        (list (expand-file-name "scripts/lib/sort-derives-stdout.nu" (getenv "DOTFILES"))))
   (dolist (m '(rust-mode rust-ts-mode))
     (setf (alist-get m apheleia-mode-alist) '(rustfmt sortderives)))
-  ;; leptosfmt errors on plain rust
   (dolist (hook '(rust-mode-hook rust-ts-mode-hook))
     (add-hook hook (lambda ()
                      (when (my/cargo-toml-mentions-p "leptos")
@@ -212,7 +202,6 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
   :mode "\\.jai\\'"
   :hook (jai-mode . eglot-ensure))
 
-;; nvim's spellfile, so zg in either editor feeds one list
 (defconst my/spell-words (expand-file-name "~/.config/nvim/spell/en.utf-8.add"))
 (defconst my/spell-dictionary "en_US")
 
@@ -231,7 +220,6 @@ NAMES is a list of file names, or a predicate on a directory, searched upward fr
     (setq my/spell-available
           (and (executable-find ispell-program-name)
                (progn (require 'ispell)
-                      ;; signals when hunspell has no dictionary at all
                       (ignore-errors (ispell-find-hunspell-dictionaries))
                       (assoc my/spell-dictionary ispell-hunspell-dict-paths-alist))
                t))
@@ -284,4 +272,3 @@ Like nvim's spelloptions=camel, GitHub or LaTeX is never flagged; whole identifi
   :hook ((python-mode python-ts-mode markdown-mode) . code-cells-mode-maybe))
 
 (provide 'lang)
-;;; lang.el ends here

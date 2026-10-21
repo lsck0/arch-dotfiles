@@ -13,7 +13,6 @@ Item {
   readonly property real tightWidth: Math.max(1, glyphMetrics.tightBoundingRect.width)
   readonly property real tightHeight: Math.max(1, glyphMetrics.tightBoundingRect.height)
 
-  // bounding rects are relative to the baseline, not the item top
   readonly property real paintedCenterInItemX:
     glyphMetrics.tightBoundingRect.x + tightWidth / 2 - glyphMetrics.boundingRect.x
   readonly property real paintedCenterInItemY:

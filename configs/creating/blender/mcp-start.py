@@ -1,4 +1,3 @@
-# from a timer: add-on operators and the window exist only once startup is done
 import bpy
 
 

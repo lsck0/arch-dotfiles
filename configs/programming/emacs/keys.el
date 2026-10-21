@@ -1,12 +1,9 @@
-;;; keys.el --- every keybinding -*- lexical-binding: t; -*-
-
 (use-package general
   :config (general-evil-setup t))
 
 (defun my/find-files ()
   "telescope find_files: project files, else fd from the project root."
   (interactive)
-  ;; a bare repo's container has no work tree, so git ls-files fails
   (condition-case nil
       (if (project-current)
           (project-find-file)
@@ -68,7 +65,6 @@
   "Window resize command calling FN with N, quiet when there is nothing to resize."
   (lambda () (interactive) (ignore-errors (funcall fn n))))
 
-;; named commands: which-key shows a lambda as "??"
 (dotimes (i 5)
   (let ((n (1+ i)))
     (defalias (intern (format "my/tab-%d" n))
@@ -133,7 +129,6 @@
 (defun my/claude-toggle ()
   "nvim SPC c c: toggle the Claude window, starting it if none exists."
   (interactive)
-  ;; deferred behind eat, load before calling its private fn
   (require 'claude-code)
   (if (claude-code--find-all-claude-buffers)
       (claude-code-toggle)
@@ -297,9 +292,7 @@
   "C-t"   #'flymake-goto-next-error
   "C-S-t" #'flymake-goto-prev-error)
 
-;; M-x replays a macro as in nvim, SPC : is M-x
 (general-nmap "M-x" #'my/run-macro)
-;; override map: mode maps such as prog-mode's M-q must not shadow the tab keys
 (general-define-key
   :states '(normal insert visual motion emacs)
   :keymaps 'override
@@ -313,14 +306,12 @@
   "M-4" #'my/tab-4
   "M-5" #'my/tab-5)
 
-;; <tab>, not TAB, so C-i still jumps forward
 (general-nmap
   :predicate '(not (derived-mode-p 'org-mode 'markdown-mode 'dired-mode))
   "<tab>"     #'next-buffer
   "<backtab>" #'previous-buffer)
 (setq switch-to-prev-buffer-skip-regexp "\\`[ *]")   ; skip special buffers
 
-;; mode maps such as dired's `m` still win
 (general-nmap "m" #'compile)
 
 (general-def '(normal visual) "s" #'evil-avy-goto-char-timer)
@@ -413,7 +404,6 @@
   "ss" '(project-query-replace-regexp :which-key "Search/replace (grug-far)")
   "sw" '(my/replace-symbol :which-key "Search/replace word under cursor")
 
-  ;; no accept/deny diff: claude-code.el has no mcp diff protocol
   "c"  '(:ignore t :which-key "claude")
   "cc" '(my/claude-toggle :which-key "Toggle Claude Code")
   "cf" '(my/claude-focus :which-key "Focus Claude")
@@ -473,11 +463,9 @@
   "ma" '(org-agenda :which-key "org agenda")
   "mc" '(org-capture :which-key "org capture"))
 
-;; without these which-key shows the raw key until the package loads
 (which-key-add-key-based-replacements
   "C-q" "tmux"        "gs" "surround")
 
-;; an `e` prefix would kill the end-of-word motion
 (with-eval-after-load 'evil-surround
   (evil-define-key '(normal visual) evil-surround-mode-map "gsa" #'evil-surround-region)
   (evil-define-key 'normal evil-surround-mode-map
@@ -548,4 +536,3 @@
   (general-def eat-char-mode-map      "C-e" #'eat-emacs-mode))
 
 (provide 'keys)
-;;; keys.el ends here

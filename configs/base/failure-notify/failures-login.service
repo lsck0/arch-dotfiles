@@ -5,7 +5,6 @@ ConditionPathExistsGlob=@DOTFILES@/FAILURES.*
 
 [Service]
 Type=oneshot
-# at login quickshell may not own the notification name yet
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 ExecStart=/usr/bin/sh -c 'cd @DOTFILES@ && exec notify-send -u critical -a dotfiles "Dotfiles run failed" "$$(tail -vn +1 FAILURES.*)"'
 TimeoutStartSec=1min

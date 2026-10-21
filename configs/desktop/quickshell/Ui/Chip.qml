@@ -7,9 +7,7 @@ Rectangle {
   property string text: ""
   property bool selected: false
   property bool hasCursor: false
-  // the keyboard cursor of a focused ButtonGroup, or this chip focused on its own: ringed even when selected
   property bool focused: activeFocus
-  // a standalone chip in a panel; inside a ButtonGroup the group takes the keys
   property bool focusable: false
   activeFocusOnTab: focusable
   Keys.onReturnPressed: root.clicked()

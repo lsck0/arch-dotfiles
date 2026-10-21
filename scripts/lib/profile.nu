@@ -1,5 +1,7 @@
+# User capabilities and identity from ~/.config/dotfiles/profile.nuon; the system layer never reads them.
+
 const PROFILE_KEYS = [capabilities name email gpg_fingerprint]
-export const PROFILE_CAPABILITIES = [secrets identity homelab work]
+export const PROFILE_CAPABILITIES = [secrets]
 
 def profile-dir []: nothing -> path {
     $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join dotfiles
@@ -15,6 +17,7 @@ def profile-guard []: nothing -> nothing {
     }
 }
 
+# The profile (PROFILE_FILE first) with its option values; unknown keys or capabilities and root are errors.
 export def profile-load []: nothing -> record {
     profile-guard
     let file = [($env.PROFILE_FILE? | default "") (profile-dir | path join profile.nuon)]
@@ -41,6 +44,7 @@ export def profile-load []: nothing -> record {
     }
 }
 
+# Whether the profile grants capability; an unknown capability is an error.
 export def profile-has [capability: string]: nothing -> bool {
     if $capability not-in $PROFILE_CAPABILITIES {
         error make {msg: $"profile-has: unknown capability ($capability)"}

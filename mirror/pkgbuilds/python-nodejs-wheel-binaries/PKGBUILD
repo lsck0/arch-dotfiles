@@ -15,7 +15,6 @@ sha256sums=(8a39a4b57aeb765a6c7b6e30014f46c8cbf22fc322b913b8dd4a70a6f1f042dc)
 
 prepare() {
     cd "$_name-$pkgver"
-    # pytubefix imports nodejs_wheel only for ROOT_DIR/bin/node: point it at the system node under /usr
     sed -i 's|^ROOT_DIR = os.path.dirname(__file__)$|ROOT_DIR = "/usr"|' nodejs_wheel/executable.py
     grep -qx 'ROOT_DIR = "/usr"' nodejs_wheel/executable.py
 }
@@ -25,7 +24,6 @@ package() {
     local site
     site="$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')"
     install -Dm644 -t "$pkgdir$site/nodejs_wheel" nodejs_wheel/{__init__,__main__,executable}.py nodejs_wheel/py.typed
-    # the dist-info importlib.metadata and pip check look up for pytubefix's nodejs-wheel-binaries requirement
     local dist="$pkgdir$site/nodejs_wheel_binaries-$pkgver.dist-info"
     install -d "$dist"
     printf 'Metadata-Version: 2.1\nName: nodejs-wheel-binaries\nVersion: %s\n' "$pkgver" > "$dist/METADATA"

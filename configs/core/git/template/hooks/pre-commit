@@ -1,6 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# block commits that introduce secrets; copied into new repos via git's init.templateDir (configs/core/git), and into an
-# existing one by running `git init` in it once
+# blocks commits that introduce secrets; reaches new repos through init.templateDir, an existing one by `git init`
 
 def main []: nothing -> nothing {
     if (which gitleaks | is-empty) { return }

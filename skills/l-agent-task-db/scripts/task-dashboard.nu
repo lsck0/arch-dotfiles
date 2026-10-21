@@ -1,8 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# Human-facing view of an l-agent-task-db taskwarrior instance: exactly what's queued, what stage every ticket is in,
-# and what needs the human's input right now. Read-only: never modifies the db.
-# The taskrc: <project-dir>/tasks/.taskrc if a project-dir is given, else $TASKRC if set, else ./tasks/.taskrc.
-
 const RECENT_COMPLETED_LIMIT = 10
 const DESC_MAX_CHARS = 50
 const WIDTH_FALLBACK = 100
@@ -26,7 +22,6 @@ def taskrc-find [project?: path]: nothing -> path {
     die "error: no tasks/.taskrc found (pass a project-dir, or cd into one with direnv/devenv active)."
 }
 
-# a cap that ends in the ellipsis, so a long or multi-line description never breaks the aligned layout
 def clip [width: int]: string -> string {
     if ($in | str length -g) <= $width { return $in }
     ($in | str substring -g ..<([($width - ($ELLIPSIS | str length)) 0] | math max) | str trim --right) + $ELLIPSIS
@@ -58,7 +53,6 @@ def question-file [root: path]: record -> any {
     let task = $in
     let noted = $task | annotations | where { str contains $QUESTIONS } | get --optional 0
     if $noted != null { return ($noted | split row "context: " | last) }
-    # unannotated: the <uuid8>-<slug> file name
     glob ($root | path join tasks context questions $"($task.uuid | str substring ..<8)-*.md") | sort
         | get --optional 0 | if $in == null { null } else { $in | path relative-to $root }
 }

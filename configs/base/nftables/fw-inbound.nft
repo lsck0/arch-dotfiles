@@ -1,17 +1,12 @@
 #!/usr/sbin/nft -f
-# owns only table inet fw: portmaster, docker, fail2ban, wg-quick and tor-router keep their own tables
-
-# tun0 (pentest vpn) and engagement wg tunnels are deliberately not trusted
 define trusted_ifaces = { "docker*", "br-*", "veth*", "virbr*", "waydroid*", "lxc*", "wg0" }
 
 add table inet fw
 delete table inet fw
 table inet fw {
-    # knock state resets on reload
     set knock1 { type ipv4_addr; flags timeout; timeout 10s; }
     set knock2 { type ipv4_addr; flags timeout; timeout 10s; }
     set ssh_allowed { type ipv4_addr; flags timeout; timeout 1h; }
-    # filled by 70-home-network
     set home_ifaces { type ifname; }
 
     chain input {
@@ -21,40 +16,31 @@ table inet fw {
         ct state established,related accept
         ct state invalid drop
 
-        # ndp needs icmpv6; timestamp/address-mask leak host info
         ip6 nexthdr ipv6-icmp accept
         ip protocol icmp icmp type echo-request limit rate 5/second accept
         ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-reply } accept
         ip protocol icmp drop
 
-        # dhcpv6 replies come from the server's link-local address to the solicit's multicast: conntrack never matches them
         ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
 
         iifname $trusted_ifaces accept
-        # tun0 is the hostile pentest vpn: listener ports only; 4455 is not one, obs-websocket binds every interface
         iifname "tun0" tcp dport { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } accept
 
-        # sshd on 2222 opens only after knocking 9003, 7001, 8002; out of order so an ascending port sweep cannot open it
         ip saddr @ssh_allowed tcp dport 2222 ct state new accept
-        # highest stage first so one packet advances one step
         tcp dport 8002 ip saddr @knock2 update @ssh_allowed { ip saddr }
         tcp dport 7001 ip saddr @knock1 update @knock2 { ip saddr }
         tcp dport 9003 update @knock1 { ip saddr }
 
-        # endlessh 22, kde connect 1716, payloads 1739-1764, mdns 5353, wivrn 9757, syncthing 22000 (tcp, quic),
-        # localsend 53317
         iifname @home_ifaces tcp dport { 22, 1716, 1739-1764, 9757, 22000, 53317 } accept
         iifname @home_ifaces udp dport { 1716, 5353, 9757, 22000, 53317 } accept
     }
 
-    # docker, libvirt and waydroid turn ip_forward on, the lan and tun0 could route through this host
     chain forward {
         type filter hook forward priority 0; policy drop;
 
         ct state established,related accept
         ct state invalid drop
         iifname $trusted_ifaces accept
-        # published docker/libvirt ports: the home lan, and tun0 only on the listener ports
         iifname @home_ifaces ct status dnat accept
         iifname "tun0" meta l4proto tcp ct original proto-dst { 4444-4454, 4456-4460, 8000-8099, 9001, 9443 } ct status dnat accept
     }

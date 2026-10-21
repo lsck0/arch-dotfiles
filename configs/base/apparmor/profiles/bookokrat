@@ -1,11 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# bookokrat, the terminal epub and pdf reader: no network, and no synctex editor (desktop/bookokrat's runs a terminal)
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
 @{att} = ""
 
 @{exec_path} = @{bin}/bookokrat
@@ -22,9 +20,6 @@ profile bookokrat @{exec_path} flags=(attach_disconnected) {
 
   @{open_path} rPx -> child-open-strict,
   @{bin}/wl-copy rix,
-  # inside tmux it polls `tmux display-message` every second for the pane's position and sets allow-passthrough
-  # (core/tmux sets it globally). a tmux client may send any command to the server, unconfined, so it stays denied,
-  # quietly: the audited denials flooded the kernel log's ratelimit and hid every other profile's
   deny @{bin}/tmux x,
 
   owner @{user_config_dirs}/bookokrat/{,**} rw,
@@ -33,10 +28,8 @@ profile bookokrat @{exec_path} flags=(attach_disconnected) {
   owner @{user_state_dirs}/bookokrat/{,**} rwk,
   owner @{HOME}/.bookokrat_settings.yaml{,.bak} rw,
 
-  # kitty graphics over shared memory, and the probe that picks it over chunked transfer
   owner /dev/shm/bookokrat_* rw,
   owner /dev/shm/probev2-* rw,
-  # the synctex socket an editor's forward search writes to, one per open pdf; denied, sync with the editor is lost
   owner /tmp/bookokrat-stx-*.sock rw,
 
   include if exists <local/bookokrat>

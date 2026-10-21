@@ -146,7 +146,6 @@ module.exports = class QuickshellVoiceStatus {
     };
   }
 
-  // bd fs shim has no async api; _schedulePublish throttles writes
   _write(payload) {
     if (!this._fs || !this._statePath) return;
     const text = JSON.stringify(payload);
@@ -187,7 +186,6 @@ module.exports = class QuickshellVoiceStatus {
     this._publish();
   }
 
-  // fallback: a VOICE_CHANNEL_SELECT with no channel also disconnects
   _disconnect() {
     const W = BdApi.Webpack;
     const isActions = (m) =>
@@ -228,7 +226,6 @@ module.exports = class QuickshellVoiceStatus {
     } catch (e) {
       return;
     }
-    // unlink first so a throwing command is never replayed
     try {
       this._fs.unlinkSync(this._commandPath);
     } catch (e) {}
@@ -292,7 +289,6 @@ module.exports = class QuickshellVoiceStatus {
     for (const key of ["voice", "speaking", "media", "selected"])
       this._subscribe(this._stores[key]);
 
-    // a command written while discord was closed is stale, a keybind mute must never fire on launch
     try {
       if (this._commandPath && this._fs.existsSync(this._commandPath)) this._fs.unlinkSync(this._commandPath);
     } catch (e) {}

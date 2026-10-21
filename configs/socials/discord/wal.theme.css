@@ -7,7 +7,6 @@
  * @website https://github.com/lsck0/arch-dotfiles
 */
 
-/* the theme verb rewrites these lines in place: keep the "--name: r, g, b;" shape */
 :root {
     --accentcolor: 57, 186, 230;
     --accentcolor2: 57, 186, 230;
@@ -25,7 +24,6 @@
     --radius: 2px;
 }
 
-/* discord's own corner tokens, so panels round like the hyprland window frame */
 :root,
 .theme-dark,
 .theme-light,
@@ -37,7 +35,6 @@
     --radius-xl: var(--radius) !important;
 }
 
-/* not patched, so derived from the inputs above; status hues stay fixed because they carry meaning */
 :root {
     --linkcolor: var(--accentcolor);
     --mentioncolor: var(--accentcolor);
@@ -51,8 +48,6 @@
     --dangercolor: 237, 66, 69;
 }
 
-/* the visual refresh tokens plus the classic names still read in places; colour only, so an unmapped token
-   falls back to the stock dark theme */
 :root,
 .theme-dark,
 .theme-light,
@@ -163,7 +158,6 @@
     --control-background-primary-hover: color-mix(in srgb, rgb(var(--accentcolor)) 88%, white) !important;
     --control-background-primary-active: color-mix(in srgb, rgb(var(--accentcolor)) 82%, black) !important;
 
-    /* secondary buttons: a neutral surface, not the accent */
     --button-secondary-background: rgb(var(--backgroundaccent)) !important;
     --button-secondary-background-hover: color-mix(in srgb, rgb(var(--backgroundaccent)) 85%, white) !important;
     --button-secondary-background-active: color-mix(in srgb, rgb(var(--backgroundaccent)) 75%, white) !important;
@@ -206,7 +200,6 @@ html {
     color: rgb(var(--textbrighter));
 }
 
-/* discord ignores --font, so override its own font vars */
 :root {
     --font-primary: var(--font), sans-serif;
     --font-display: var(--font), sans-serif;

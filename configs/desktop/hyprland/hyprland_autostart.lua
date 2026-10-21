@@ -2,13 +2,12 @@ hl.on("hyprland.start", function()
     -- the hl.env scales too, so quickshell.service and every app it launches see what the compositor's children see
     hl.exec_cmd("uwsm finalize GDK_SCALE QT_AUTO_SCREEN_SCALE_FACTOR")
 
-    -- session.slice is protected, never an oomd pick; quickshell's unit waits for the finalize above
+    -- quickshell's unit waits for the finalize above
     hl.exec_cmd("systemctl --user start quickshell.service")
     hl.exec_cmd("uwsm app -s s -- /usr/lib/polkit-kde-authentication-agent-1")
     hl.exec_cmd("uwsm app -s s -- hypridle")
 
-    -- the shell expands $DOTFILES: concatenating an unset getenv would abort this hook
-    -- no hyprpm reload here: it raced plugins.nu's own and unloaded plugins
+    -- the shell expands $DOTFILES (an unset getenv would abort this hook); no hyprpm reload here, it races plugins.nu's
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/shimoji/packs.nu")
 

@@ -50,8 +50,8 @@ def ssh-dir []: nothing -> path {
 }
 
 export def link [cfg: record] {
-    let homelab = profile-has homelab
-    let identity = profile-has identity
+    let owner = profile-has secrets
+    let homelab = $owner and (platform-has homelab)
     let hosts = if $homelab and ($cfg.homelab_hosts | is-not-empty) {
         [
             $"Host ($cfg.homelab_hosts | str join ' ')" "    User root"
@@ -61,9 +61,9 @@ export def link [cfg: record] {
     [
         (unit-file ssh-agent.service --enable)
         (file-render ssh-add.service (unit-dir | path join ssh-add.service) {DOTFILES: $env.DOTFILES})
-        (if $identity { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
+        (if $owner { unit-enable ssh-add.service } else { unit-disable ssh-add.service })
         (if $hosts != null { file-text (ssh-dir | path join config) $hosts --mode 600 } else { [] })
-        (if $identity { step authorize } else { [] })
+        (if $owner { step authorize } else { [] })
         (link-commands sshk.nu)
         (if $homelab and $cfg.wake_router != null and $cfg.wake_host != null {
             let values = {ROUTER: $cfg.wake_router, HOST: $cfg.wake_host}
@@ -72,7 +72,7 @@ export def link [cfg: record] {
     ]
 }
 
-# git-crypt checks the secrets key out 0644, which ssh refuses
+# Installs the secrets' authorized_keys; git-crypt checks it out 0644, which ssh refuses.
 export def authorize []: nothing -> nothing {
     let secrets = $env.DOTFILES | path join configs secrets keys
     let key = $secrets | path join ssh_privatekey.asc

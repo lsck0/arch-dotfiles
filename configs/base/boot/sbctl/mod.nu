@@ -5,7 +5,6 @@ export const meta = {packages: {native: [sbctl]}, volatile: true}
 const PK_VAR = "/sys/firmware/efi/efivars/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c"
 const PK_CERT = "/var/lib/sbctl/keys/PK/PK.pem"
 const EVENT_LOG = "/sys/kernel/security/tpm0/binary_bios_measurements"
-# sbctl verify only walks the esp
 const BOOT_FILES = [
     /boot/EFI/BOOT/BOOTX64.EFI /boot/EFI/systemd/systemd-bootx64.efi
     /boot/efi/EFI/BOOT/BOOTX64.EFI /boot/efi/EFI/systemd/systemd-bootx64.efi
@@ -37,7 +36,7 @@ def sign-unsigned []: nothing -> nothing {
     ^sbctl sign-all
 }
 
-# some firmware (ami) clears SetupMode only at the next reset: our PK certificate inside the PK variable is the proof
+# Whether our PK is enrolled: some firmware (ami) clears SetupMode only at the next reset, the PK variable is proof.
 def pk-enrolled []: nothing -> bool {
     if not ($PK_VAR | path exists) { return false }
     let cert = ^openssl x509 -in $PK_CERT -outform DER | into binary | encode hex
@@ -55,7 +54,6 @@ def enroll [keys: string]: nothing -> nothing {
         }
     } else {
         if $keys == "own" {
-            # without an event log, dropping microsoft's ca could brick a machine whose option rom needs it
             print ("note: sbctl: own keys wanted but no TPM event log to read option rom hashes from, "
                 + "Microsoft's CA stays in db")
         }

@@ -5,9 +5,7 @@ const DOT = path self ../dot.nu
 const HYPRLAND = "desktop/hyprland"
 const SCALES = ["1" "1.25" "1.5" "2"]
 const SCALE_TOLERANCE = 0.01
-# long enough for hyprland to settle a fractional scale before it is read back
 const SCALE_SETTLE = 400ms
-# hyprctl prints refreshRate as %.5f, and the mode string keeps that form
 const REFRESH_DECIMALS = 5
 
 def instance []: nothing -> string { $env.HYPRLAND_INSTANCE_SIGNATURE? | default "" }
@@ -16,7 +14,6 @@ def monitors []: nothing -> table { ^hyprctl -j monitors all | from json }
 
 def monitor-find [name: string]: nothing -> any { monitors | where name == $name | get 0? }
 
-# the focused one, the monitor a keybind or the menu was used on
 def monitor-default []: nothing -> string {
     let active = ^hyprctl -j monitors | from json
     $active | where focused | get name.0? | default ($active | get name.0)
@@ -41,7 +38,6 @@ def persisted-get [name: string, key: string, fallback: string]: nothing -> stri
     monitors-persisted | where output == $name | get --optional 0 | get --optional $key | default $fallback | into string
 }
 
-# the option's relink rewrites the config, and hyprland's reload step puts the runtime layout and shader back
 def persisted-scale-set [name: string, scale: string]: nothing -> nothing {
     let monitors = monitors-persisted
     let current = monitor-find $name
@@ -51,12 +47,10 @@ def persisted-scale-set [name: string, scale: string]: nothing -> nothing {
     ^$DOT set --machine $"($HYPRLAND).monitors" ($updated | to json --raw)
 }
 
-# replayed by `reapply`; keyed to the compositor instance so a new session never inherits it
 def record [name: string, kind: string, expr: string]: nothing -> nothing {
     state-set $"monitor-($name)-($kind)" $"(instance) ($expr)" --volatile
 }
 
-# a reload resets every output to the file; layouts first, a later live scale merges onto them
 def reapply []: nothing -> nothing {
     for kind in [layout scale] {
         for file in (glob (state-file $"monitor-*-($kind)" --volatile)) {
@@ -66,7 +60,6 @@ def reapply []: nothing -> nothing {
     }
 }
 
-# hl.monitor({ key = value, ... }): strings quoted, numbers and bools bare
 def lua-monitor [fields: record]: nothing -> string {
     let body = $fields | items {|key, value|
         $"($key) = (if ($value | describe) == string { $'"($value)"' } else { $value | into string })"
@@ -104,7 +97,6 @@ def layout-set [name: string, action: string, source: string]: nothing -> nothin
     let scale = if $monitor.scale > 0 { $monitor.scale | into string } else { "auto" }
     let active = $all | where (not $it.disabled) and $it.mirrorOf == "none"
     let fields = match $action {
-        # hl.monitor merges, so disabled and mirror are cleared explicitly
         extend => {
             let position = persisted-get $name position auto
             {mode: (persisted-get $name mode highrr), position: $position, scale: $scale, disabled: false, mirror: ""}

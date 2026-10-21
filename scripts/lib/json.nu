@@ -1,3 +1,5 @@
+# JSON edits as data, for json-merge: json-set and json-delete records applied in order by json-edits-apply.
+
 export def json-set [path: list<string>, value: any]: nothing -> record {
     {path: $path, value: $value}
 }

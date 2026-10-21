@@ -30,7 +30,6 @@ BarWidget {
     queryProc.running = true
   }
 
-  // switchxkblayout is not a dispatcher
   function cycleLayout() {
     if (!root.keyboardName) return
     Quickshell.execDetached(["hyprctl", "switchxkblayout", root.keyboardName, "next"])
@@ -81,7 +80,6 @@ BarWidget {
         if (!Array.isArray(listed)) return
 
         const typed = listed.filter(k => KeyboardLayoutModel.isTypedKeyboard(k.name))
-        // main flag is unreliable, fcitx5 steals it
         const kb = KeyboardLayoutModel.selectKeyboard(typed, root.typedKeyboardName)
         if (!kb || !kb.active_keymap) {
           root.keyboardUnresolved = true
@@ -115,7 +113,6 @@ BarWidget {
     onTriggered: root.refresh()
   }
 
-  // watchdog: a running Process cannot be re-run
   Timer {
     id: stallTimer
     interval: 5000

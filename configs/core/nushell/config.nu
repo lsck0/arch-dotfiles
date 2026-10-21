@@ -35,7 +35,6 @@ $env.config = {
     }
 
     hooks: {
-        # only fork direnv when PWD changed or an .envrc is here
         pre_prompt: [{ ||
             if (which direnv | is-empty) { return }
             let changed = (($env.DIRENV_LAST_PWD? | default "") != $env.PWD)
@@ -47,7 +46,7 @@ $env.config = {
             let pairs = ($vars | transpose key value)
             for name in ($pairs | where value == null | get key) { hide-env -i $name }
             let set = ($pairs | where value != null)
-            # load-env on an empty record errors, so only load when something is set
+            # load-env errors on an empty record
             if ($set | is-not-empty) { $set | transpose -r -d | load-env }
         }]
     }
@@ -114,7 +113,7 @@ alias sshpc = sshk luca@192.168.178.138
 alias toroff = sudo systemctl stop tor-router.service
 alias toron = sudo systemctl start tor-router.service
 
-# no git config covers submodules on the initial clone
+# Git, with clone recursing into submodules: no git config covers them on the initial clone.
 def --wrapped git [...rest] {
     if (($rest | length) > 0) and (($rest | first) == "clone") {
         ^git clone --recurse-submodules ...($rest | skip 1)
@@ -123,7 +122,7 @@ def --wrapped git [...rest] {
     }
 }
 
-# sudo only for what changes the system, so queries need no fido touch; same op letters as zsh's pacman function
+# Pacman under sudo only for what changes the system, so queries need no fido touch; same letters as zsh's pacman.
 def --wrapped pacman [...rest] {
     let long = {
         --query: Q --deptest: T --version: V --help: h --sync: S --files: F --search: s --info: i --groups: g
@@ -136,12 +135,11 @@ def --wrapped pacman [...rest] {
     if $unprivileged { ^pacman ...$rest } else { ^sudo pacman ...$rest }
 }
 
-# remote control breaks under DO_NOT_TRACK
+# Claude without DO_NOT_TRACK, under which remote control breaks.
 def --wrapped claude [...rest] {
     ^env -u DO_NOT_TRACK claude ...$rest
 }
 
-# a missing init script is skipped (source null)
 const STARSHIP_INIT = $nu.home-dir | path join .cache nushell starship.nu
 const ZOXIDE_INIT = $nu.home-dir | path join .cache nushell zoxide.nu
 const WAL_COLORS = $nu.home-dir | path join .cache wal colors-nushell.nu
@@ -154,7 +152,7 @@ alias cd = z
 alias cdi = zi
 source $WAL
 
-# config.nu also loads for `nu -l -c`, whose stdout a caller reads; like zshrc, only an interactive shell on a tty
+# config.nu also loads for `nu -l -c`, whose stdout a caller reads
 let fetch = $nu.is-interactive and (is-terminal --stdout) and ("TERM" in $env) and $env.TERM != "dumb"
 if $fetch and (which fastfetch | is-not-empty) {
     fastfetch

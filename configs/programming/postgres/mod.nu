@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [lazysql postgresql postgresql-libs sqlite sqlitebrowser]}}
 
-# no package in arch or the aur; bump both from the release's checksums.txt
 const VERSION = "1.1.0"
 const SHA256 = "ca79e3054455b5505d3ac4ed4bc5d4cd074a57f108b8fe9ddcd3e24d16c5452a"
 const URL = $"https://github.com/pgEdge/pgedge-postgres-mcp/releases/download/v($VERSION)/pgedge-postgres-mcp-server_($VERSION)_linux_x86_64.tar.gz"
@@ -15,7 +14,6 @@ export def system [cfg: record] {
     let init = $"cd / && install -d -o postgres -g postgres -m 700 ($DATA) && runuser -u postgres -- initdb -D ($DATA) --encoding=UTF8 --locale=C.UTF-8 --auth-local=peer --auth-host=scram-sha-256 > /dev/null"
     [
         (exec initdb [sh -c $init] --creates ($DATA | path join PG_VERSION))
-        # the postgres MCP connects to it: initdb alone leaves the server off on every machine
         (unit-enable postgresql.service --now)
         ($admins | each {|admin| step role-ensure $admin })
     ]

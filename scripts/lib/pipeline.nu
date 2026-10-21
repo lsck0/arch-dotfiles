@@ -1,3 +1,6 @@
+# One layer's run: load platform, profile, modules and options, plan every module (skipping those whose
+# inputs and outputs are unchanged), then apply them in dependency order as parallel jobs.
+
 use log.nu *
 use state.nu [LIB_DIR]
 use platform.nu [platform-load platform-env]
@@ -8,10 +11,8 @@ use converge.nu [state-read observe recorded-hashes decls-check plan-module appl
 use secrets.nu [secret-is-plaintext]
 
 const HASH_STAMP = '%P %s %T@\n'
-# an exec creates what the verb only sees when evaluated again (a profile dir, an npm stamp); more passes are a loop
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
-# the verbs whose recorded outputs a module turned off gives back; theme files and restored app state stay
 const REVERT_VERBS = [link system]
 
 def eval-env [ctx: record]: nothing -> record {
@@ -28,6 +29,7 @@ def detect [ctx: record, modules: table]: nothing -> record {
     } | reduce --fold {} {|r, acc| $acc | insert $r.id $r.values }
 }
 
+# The run context for a layer: repo, platform, profile and every discovered module with its resolved options.
 export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     $env.DOT_LAYER = $layer
     let platform = span platform {} { platform-load $repo }
@@ -52,7 +54,7 @@ def stamp [dir: path]: nothing -> string {
     ^find $dir -type f -not -name '*.log' -printf $HASH_STAMP | lines | sort | str join "\n"
 }
 
-# a path that cannot be read (core/nas' link source while the nas is down: EHOSTDOWN) counts as missing, never a crash
+# A path that cannot be read (a nas link while the nas is down) counts as missing, never a crash.
 def stat [repo: path, paths: list<string>]: nothing -> string {
     let found = $paths | each {|p| if ($p | str starts-with "/") or ($p | str starts-with "~") { $p | path expand } else { $repo | path join $p } } | each {|p| try { glob $p } catch { [] } } | flatten | uniq
     if ($found | is-empty) { return "" }
@@ -76,7 +78,6 @@ def scope-of [layer: string]: nothing -> string {
 }
 
 def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record, force: bool]: nothing -> table {
-    # a module turned off declares nothing, never evaluated: its recorded outputs plan as removals and disables
     let on = $mods | where cfg.enable
     let off = $mods | where not $it.cfg.enable | each {|m| {id: $m.id, ok: true, decls: [], error: null} }
     let evaluated = if ($on | is-empty) { [] } else { span eval {verb: $verb} { with-env (eval-env $ctx) { modules-eval $on $verb ($on | reduce --fold {} {|m, acc| $acc | insert $m.id $m.cfg }) $args } } }
@@ -88,7 +89,6 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     let units = $decls | where kind == unit | get --optional target | default [] | append ($olds | where kind == unit | get --optional target | default [])
     let seen = span observe {} { observe $paths $units (scope-of $ctx.layer) }
     let recorded = recorded-hashes
-    # a source gone or a target unreadable fails that module, never the whole layer before finish and FAILURES
     $evaluated | each {|r|
         if not $r.ok { return {id: $r.id, actions: [], error: $r.error} }
         try {
@@ -97,7 +97,8 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     }
 }
 
-# unchanged inputs (files, options, facts, profile, lock state, library) and outputs: not even evaluated
+# One row per module in run order with its planned actions; a module with unchanged inputs and clean
+# outputs is skipped unevaluated, a module turned off plans the removal of what it installed.
 export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: bool, args: list = []]: nothing -> table {
     let unknown = $ids | where $it not-in $ctx.modules.id
     if ($unknown | is-not-empty) {
@@ -108,8 +109,6 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
         error make {msg: $"($broken.id | str join ', '): mod.nu does not parse"}
     }
     let active = $ctx.modules | where {|m| $verb in $m.verbs and $m.cfg.enable and (($ids | is-empty) or $m.id in $ids) }
-    # turned off (enable false, its group gone from the platform) after an apply: what it installed is undone, a
-    # sudoers drop-in or an enabled unit would otherwise outlive it
     let retired = if $verb not-in $REVERT_VERBS { [] } else {
         $ctx.modules | where {|m| not $m.cfg.enable and not $m.broken and $verb in $m.native and (($ids | is-empty) or $m.id in $ids) and ((state-read $m.id $verb).outputs | is-not-empty) }
     }
@@ -121,8 +120,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
         let outside = $prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir)
-        # a copy depends on its source's content, a link only on its source being there: base/xdg links live app
-        # dirs (~/.local/state/task) whose mtime moves all day, which re-ran it on every apply
+        # a link depends only on its source being there: a linked live app dir's mtime moves all day
         let links = $outside | where kind == link | get source | each {|s| $"($s) ($s | path exists)" } | str join "\n"
         let input = [$global (stamp $m.dir) ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
@@ -150,6 +148,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     })
 }
 
+# Applies a module's actions, evaluating it again after an exec created something, up to EXEC_PASSES_MAX passes.
 def native-run [ctx: record, m: record, verb: string, args: list]: nothing -> record {
     mut actions = $m.actions
     mut prev = $m.prev
@@ -201,6 +200,7 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     $result | insert id $m.id | insert notes $notes | insert ms ((date now) - $start | into int | $in // 1_000_000)
 }
 
+# Runs the planned modules as jobs, each once its after list finished, at most jobs at once, a serial one alone.
 export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int, args: list = []]: nothing -> table {
     mut done = {}
     mut running = {}

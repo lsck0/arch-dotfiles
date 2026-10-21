@@ -12,7 +12,7 @@ def locked []: nothing -> bool {
     try { ^hyprctl -j locked | from json | get locked } catch { false }
 }
 
-# as a before_sleep_cmd barrier this keeps the freeze from racing the lock handshake, which aborts quickshell
+# As a before_sleep_cmd barrier: keeps the freeze from racing the lock handshake, which aborts quickshell.
 def granted []: nothing -> bool {
     1..$LOCK_POLL_TRIES | each { $in } | any {|_| if (locked) { true } else { sleep $LOCK_POLL_INTERVAL; false } }
 }

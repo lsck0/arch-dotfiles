@@ -1,6 +1,5 @@
 import QtQuick
 
-// hyprland keeps layer surfaces at the old spot when a monitor moves, so remap
 Item {
   id: root
 
@@ -17,7 +16,6 @@ Item {
     onTriggered: root.remapping = true
   }
 
-  // unmap long enough that the compositor does not coalesce it
   Timer {
     interval: 50
     running: root.remapping

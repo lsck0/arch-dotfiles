@@ -1,15 +1,9 @@
 # managed by arch-dotfiles/apparmor
-# the homelab share and attachments in temp dirs, as for every viewer
 include <abstractions/dotfiles/viewer-read>
-# --input-ipc-server for scripted control (desktop/mpv/mpv.conf lists the paths): a socket named after mpv in the
-# runtime dir or /tmp (the man page's /tmp/mpvsocket), or anything in a runtime mpv/ dir. any path would also let it
-# connect to every other socket there, ydotool's input injection among them
 owner @{run}/user/@{uid}/*mpv*.sock rw,
 owner @{run}/user/@{uid}/mpv/{,**} rw,
 owner /tmp/*mpv* rw,
 
-# streaming (desktop/mpv/mpv.conf): ytdl_hook's yt-dlp in a child with the network but none of mpv's files, instead of
-# apparmor.d's yt-dlp profile, which would confine every download. priority beats the upstream px
 priority=1 @{bin}/yt-dlp rCx -> yt-dlp,
 signal (send) set=(term, kill) peer=mpv//yt-dlp,
 
@@ -26,28 +20,21 @@ profile yt-dlp flags=(attach_disconnected) {
   network netlink raw,
 
   signal (receive) set=(term, kill) peer=mpv,
-  # what mpv holds open and passes on stays with it, yt-dlp does not read it: the terminal for its key input
   deny /dev/tty rw,
 
   @{bin}/yt-dlp r,
   @{bin}/uname rix,
-  # the format probes and youtube's challenge solver (yt-dlp-ejs), confined with it
   @{bin}/{ffmpeg,ffprobe} rix,
   @{bin}/deno rix,
 
   owner @{user_cache_dirs}/yt-dlp/{,**} rwk,
-  # read only: deno runs fine without its cache, and one written here would reach the user's own deno code
   owner @{user_cache_dirs}/deno/{,**} r,
   owner @{tmp}/yt_dlp*/ rw,
   owner @{tmp}/yt_dlp*/** rwk,
-  # python's tempfile: gettempdir() probes a random name in each candidate dir and NamedTemporaryFile (the js
-  # challenge solver's script) makes tmp*; flat files in the temp dir only, without them it falls through to cwd
   owner @{tmp}/[a-z0-9_]* rw,
-  # ctypes.util.find_library's helpers, refused without a log line: it returns None and yt-dlp carries on
   deny @{bin}/{file,ldconfig,gcc,cc,ld} x,
 
   owner @{PROC}/@{pid}/fd/ r,
-  # deno sizes its heap and threads by the cgroup's memory and cpu limits
   owner @{PROC}/@{pid}/{mounts,cgroup} r,
   @{sys}/fs/cgroup/{,**/}cpu.max r,
 }

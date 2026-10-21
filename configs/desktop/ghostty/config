@@ -1,14 +1,10 @@
 config-file=?~/.cache/wal/ghostty.conf
-# background-opacity from palette.nu, written by the module
 config-file=?~/.config/dotfiles/ghostty-style.conf
-# toggle-powermode.nu fills it while saver is on, a dangling link otherwise
 config-file=?~/.cache/ghostty-powersave.conf
-# the module writes it: GDK_SCALE for what runs in a tab, so java apps started from a shell scale like launched ones
 config-file=?~/.config/dotfiles/ghostty-env.conf
 
 app-notifications = false
 confirm-close-surface = false
-# resident systemd instance, +new-window skips the ~2s cold start
 quit-after-last-window-closed = false
 
 background-opacity-cells = false
@@ -26,11 +22,9 @@ window-height = 35
 
 mouse-scroll-multiplier = precision:1.5,discrete:1.5
 
-# no gap under the tmux status bar
 window-padding-y = 0,0
 window-padding-balance = true
 
-# frees these for nvim
 keybind = alt+1=unbind
 keybind = alt+2=unbind
 keybind = alt+3=unbind
@@ -39,6 +33,5 @@ keybind = alt+5=unbind
 keybind = ctrl+shift+n=unbind
 keybind = ctrl+shift+t=unbind
 
-# osc 52, so remote yanks over ssh reach the local clipboard
 clipboard-write = allow
 clipboard-read = allow

@@ -38,7 +38,6 @@
             {
                 output: DP-2
                 mode: "3840x2160@144"
-                # explicit: auto puts it right of the rightmost output, an agent's headless one included
                 position: "2304x0"
                 scale: 1.666667
             }

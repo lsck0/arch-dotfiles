@@ -7,5 +7,4 @@ Target = kismet
 [Action]
 Description = Dropping setuid root from kismet_cap_rz_killerbee, the kismet group would be root through it
 When = PostTransaction
-# every upgrade ships it 4750 again; chmod keeps its file caps, so only the rzusbstick capture needs sudo
 Exec = /usr/bin/sh -c 'if [ -u /usr/bin/kismet_cap_rz_killerbee ]; then chmod u-s /usr/bin/kismet_cap_rz_killerbee; fi'

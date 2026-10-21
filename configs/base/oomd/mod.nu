@@ -23,13 +23,12 @@ export def detect [cfg: record]: nothing -> record {
     {session_memory_low: ([$SESSION_LOW_MAX ((sys mem).total * $SESSION_LOW_PERCENT / 100)] | math min)}
 }
 
-# protection reaches session.slice only through every ancestor slice
 export def system [cfg: record] {
     if not ($OOMD | path exists) { return [] }
     [
-        # enabled once; a stop from the oom-protection toggle stays a stop
         (unit-enable systemd-oomd.service --now)
         (file-copy oomd.conf /etc/systemd/oomd.conf.d/10-oomd.conf --then [systemctl try-restart systemd-oomd.service])
+        # protection reaches session.slice only through every ancestor slice
         (dropin user.slice user-protect.slice.conf --name 10-protect.conf)
         (dropin user-.slice user-protect.slice.conf --name 10-protect.conf)
         (dropin user@.service user-protect.service.conf --name 10-protect.conf)

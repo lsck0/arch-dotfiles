@@ -2,16 +2,12 @@
 Description=On-demand ollama starter
 Requires=ollama.socket
 After=ollama.socket
-# a stopped ollama (gamemode, toggles) takes the proxy with it, the socket restarts both on the next client
 BindsTo=ollama.service
 After=ollama.service
 
 [Service]
 Type=simple
 Sockets=ollama.socket
-# ollama listens a moment after its start, a connection forwarded earlier would be refused
 ExecStartPre=/bin/sh -c 'for i in $$(seq 60); do curl -sf -o /dev/null http://127.0.0.1:11435/api/version && exit 0; sleep 0.5; done; exit 1'
-# keep-alive.conf already frees the vram after 30 idle minutes, this also frees the daemon's ram
 ExecStart=/usr/lib/systemd/systemd-socket-proxyd --exit-idle-time=30min 127.0.0.1:11435
-# no-block: a stop that came through BindsTo already holds the ollama stop job, waiting on it would deadlock
 ExecStopPost=/usr/bin/systemctl --no-block stop ollama.service

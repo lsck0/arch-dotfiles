@@ -17,7 +17,6 @@ token = "@oracle:eval:gh auth token"
 include_user_repos = true
 include_user_issues = true
 involved_issues = false
-# prs live in gh-dash
 exclude_pull_requests = true
 import_labels_as_tags = true
 label_template = "gh_{{label|replace(' ', '_')}}"

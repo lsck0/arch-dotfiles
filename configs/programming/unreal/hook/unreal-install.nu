@@ -14,7 +14,7 @@ def zip-newest []: nothing -> any {
     glob ($nu.home-dir | path join sync vendor $ZIP_GLOB) | sort --natural | last
 }
 
-# rewritten on every run, not only on an install, so a fix here reaches an engine that is already in
+# Rewritten on every run, not only on an install, so a fix here reaches an installed engine.
 def desktop-write [version: string]: nothing -> nothing {
     let file = data-dir | path join applications unreal-engine.desktop
     let icon = engine-dir | path join $ICON
@@ -39,7 +39,7 @@ def fail [message: string]: nothing -> nothing {
 def main []: nothing -> nothing {
     if (zip-newest) == null { return }
     mkdir (data-dir)
-    # dot apply and the path unit both run this: the second waits, then finds the stamp the first wrote
+    # dot apply and the path unit both run this: the second waits, then finds the first's stamp
     ^flock $"(engine-dir).lock" $nu.current-exe --no-config-file $env.CURRENT_FILE locked
 }
 
@@ -54,11 +54,11 @@ def "main locked" []: nothing -> nothing {
         desktop-write $version
         return
     }
-    # next to the engine, not in /tmp: ~60 GB and /tmp is tmpfs; the old engine goes only once the new one is whole
+    # not /tmp: ~60 GB and /tmp is tmpfs; the old engine goes only once the new one is whole
     let staging = $"($engine).new"
     rm --recursive --force $staging
     mkdir $staging
-    # unzip fails only after tens of GB, and apparmor's deny-sensitive-home refuses every Private dir: probe one first
+    # unzip fails only after tens of GB, and apparmor's deny-sensitive-home refuses every Private dir
     let canary = ^zipinfo -1 $zip | lines | where $it =~ $CANARY | get --optional 0
     if $canary != null {
         if (^unzip -q $zip $canary -d $staging | complete).exit_code != 0 {

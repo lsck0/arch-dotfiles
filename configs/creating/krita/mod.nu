@@ -9,13 +9,12 @@ def data-dir []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join krita
 }
 
-# krita's first start builds its font previews under the splash for minutes, long enough to look hung
 export def link [cfg: record] {
     if (which kritarunner | is-empty) or (data-dir | path join resourcecache.sqlite | path exists) { return [] }
     step resource-db
 }
 
-# built aside and moved in, so an interrupted build never leaves a half db
+# Prebuilds the resource db krita's first start builds for minutes under its splash; built aside, then moved in.
 export def resource-db []: nothing -> nothing {
     let tmp = mktemp --directory
     let scratch = {XDG_DATA_HOME: ($tmp | path join data), XDG_CONFIG_HOME: ($tmp | path join config)}

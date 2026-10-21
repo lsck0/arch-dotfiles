@@ -1,9 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# no_warps while mapping: the monitor-0 window rule would yank the cursor
+# wayland-boomer over every monitor; no_warps while mapping, else the monitor-0 window rule yanks the cursor
 
 const MAP_TRIES = 60
 const MAP_POLL = 50ms
-# focus settles a frame after the map
 const FOCUS_SETTLE = 100ms
 
 def warps-set [value: bool]: nothing -> nothing {

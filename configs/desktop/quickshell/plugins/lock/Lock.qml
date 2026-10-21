@@ -10,23 +10,19 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
-// session lock is fail-secure; no unlock ipc on purpose (auth bypass)
 Item {
     id: root
 
     property bool locked: false
     property bool authError: false
     property string primaryScreenName: ""
-    // in-flight pam response; the field enter was pressed in is the source of truth
     property string _pw: ""
     property var activeField: null
     property real lockedAtMs: 0
-    // own pam service and field content, so the password and the pin never cross
     property bool keyMode: false
     property string _pin: ""
     property string keyDevice: ""
     property int pinRetries: -1
-    // ctap2's floor until the key reports its own; a shorter pin could only cost an attempt
     property int pinLengthMin: 4
     property string keyCue: ""
     property string keyNote: ""
@@ -46,12 +42,10 @@ Item {
     }
     property string statsText: ""
     readonly property int ambientMs: 30000
-    // notification dock: app and time only, summaries and bodies never reach the lock screen
     readonly property string notesDir: Paths.state + "/notifications"
     readonly property int notesShown: 3
     property var notes: []
     readonly property var player: {
-        // quickshell's qmltypes stub the Mpris ObjectModel
         var list = Mpris.players.values; // qmllint disable missing-property
         var fallback = null;
         for (let i = 0; i < list.length; i++) {
@@ -72,17 +66,14 @@ Item {
     signal glitchOut()
 
     function lock() {
-        // a lock during the unlock glitch cancels the unlock
         if (unlockDelay.running) {
             unlockDelay.stop();
             return ;
         }
         if (root.locked) {
-            // held or still pending: an unlock before the compositor confirms is a protocol error that kills quickshell
             if (sessionLock.locked)
                 return ;
 
-            // the compositor refused or dropped the lock: re-arm it rather than stay unlocked behind locked == true
             root.locked = false;
         }
         root.lockedAtMs = Date.now();
@@ -94,7 +85,6 @@ Item {
         root.locked = true;
     }
 
-    // only a successful pam result may call this; the glitch plays out first, then the lock drops
     function unlock() {
         root.authError = false;
         root._pw = "";
@@ -143,7 +133,6 @@ Item {
     }
 
     function submitPin() {
-        // the info query holds the device; pam_u2f would fail to open it
         if (!root.locked || !root.keyMode || pamU2f.active || retriesProc.running)
             return ;
 
@@ -171,7 +160,6 @@ Item {
 
     }
 
-    // a quickshell restarted under the lock relocks at start; allow_session_lock_restore hands it the lock
     readonly property string lockMarker: Paths.runtime + "/locked"
 
     onLockedChanged: {
@@ -206,7 +194,6 @@ Item {
     Timer {
         id: unlockDelay
 
-        // Glitch.durationMs
         interval: Style.motion.enabled ? 180 : 0
         onTriggered: root.locked = false
     }
@@ -217,7 +204,6 @@ Item {
             return "ok";
         }
 
-        // granted, not requested: the launcher falls back to hyprlock on false; a pending unlock reads false so its lock cancels it
         function isLocked() : string {
             return sessionLock.secure && !unlockDelay.running ? "true" : "false";
         }
@@ -259,7 +245,6 @@ Item {
                     root.keyCue = message;
                 return ;
             }
-            // one pin per start: a second prompt (another key, a retry) would spend another attempt on the same pin
             if (root._pin === "") {
                 root.keyFail("security key asked twice");
                 return ;
@@ -321,7 +306,6 @@ Item {
 
     }
 
-    // getInfo and getPinRetries: no pin, no touch, no attempt spent
     Process {
         id: retriesProc
 
@@ -402,11 +386,9 @@ Item {
 
         locked: root.locked
 
-        // projection and the auth hud on every screen: hyprland gives the keyboard to the surface under the cursor
         WlSessionLockSurface {
             id: surface
 
-            // quickshell's qmltypes stub QuickshellScreenInfo
             readonly property bool isPrimary: root.primaryScreenName === "" || (screen && String(screen.name) === root.primaryScreenName) // qmllint disable missing-property
 
             color: Colors.background
@@ -437,7 +419,6 @@ Item {
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: {
-                        // quickshell's qmltypes stub QuickshellScreenInfo
                         const dpr = surface.screen && surface.screen.devicePixelRatio ? surface.screen.devicePixelRatio : 1; // qmllint disable missing-property
                         return Qt.size(surface.width * dpr, surface.height * dpr);
                     }
@@ -523,7 +504,6 @@ Item {
                         border.width: root.authError ? 2 : 1
                         border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
                         radius: Style.shape.data
-                        // opacity, not visible: it keeps focus, so the first key still lands in the field
                         opacity: (pwField.text.length > 0 || root.authError || pamPw.active || root.keyMode) ? 1 : 0
 
                         TextField {

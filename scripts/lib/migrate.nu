@@ -1,3 +1,6 @@
+# Migrations: migrations/<NNNN>-<slug>.nu run once per machine and layer, recorded in the ledger;
+# a file with `export const layer = "system"` is root's.
+
 use log.nu *
 use state.nu [LIB_DIR nu-bin]
 use ledger.nu [ledger-get ledger-set]
@@ -24,6 +27,7 @@ export def migrations-pending [repo: path, layer: string]: nothing -> table {
     migrations-list $repo | where layer == $layer and id not-in $applied
 }
 
+# Runs a migration's up or down and records it applied or not.
 export def migration-run [m: record, direction: string]: nothing -> nothing {
     log-info $"migration ($m.id) ($direction)" {kind: migration, target: $m.id}
     ^(nu-bin) --no-config-file -I $LIB_DIR -c $"use ($m.file | to nuon) [($direction)]; ($direction)"
@@ -31,6 +35,7 @@ export def migration-run [m: record, direction: string]: nothing -> nothing {
     ledger-set migration (if $direction == "up" { $applied | append $m.id } else { $applied | where $it != $m.id })
 }
 
+# Runs every pending migration of layer up; --baseline only records them as applied.
 export def migrations-run [repo: path, layer: string, --baseline]: nothing -> list<string> {
     let pending = migrations-pending $repo $layer
     if $baseline {

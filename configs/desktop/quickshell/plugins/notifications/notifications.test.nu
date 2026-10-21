@@ -23,6 +23,10 @@ TestCase {
     compare(NotificationLogic.snapshotOf({ id: 1, appName: "Telegram Desktop" }, 5, "Telegram").app, "Telegram Desktop")
     compare(NotificationLogic.snapshotOf({ id: 1, appName: "", desktopEntry: "org.telegram.desktop" }, 5, "Telegram").app, "Telegram")
     compare(NotificationLogic.snapshotOf({ id: 1, appName: "", desktopEntry: "org.telegram.desktop" }, 5, "").app, "org.telegram.desktop")
+    compare(NotificationLogic.snapshotOf({ id: 1, appName: "notify-send", desktopEntry: "timeshift" }, 5, "Timeshift").app, "Timeshift")
+    compare(NotificationLogic.snapshotOf({ id: 1, appName: "notify-send" }, 5, "").app, "notify-send")
+    compare(NotificationLogic.snapshotOf({ id: 1, appIcon: "gtk-dialog-info" }, 5, "", "").appIcon, "dialog-info")
+    compare(NotificationLogic.snapshotOf({ id: 1, appIcon: "" }, 5, "", "timeshift").appIcon, "timeshift")
     compare(NotificationLogic.replacementSnapshot({ id: 9, appName: "" }, 3, 5, "ZapZap").app, "ZapZap")
   }
 }

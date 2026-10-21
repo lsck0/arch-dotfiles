@@ -27,20 +27,16 @@ HID_ID = f"0003:{VENDOR:08X}:{PRODUCT:08X}"
 PEN_REPORT_ID = 9
 PEN_REPORT_LEN = 10
 
-# the pen in sleep mode, on interface 2; a usb reset on resume from suspend drops the pad back into it
 SLEEP_PEN_REPORT_ID = 5
 
-# no kernel driver decodes it; payload `01 80 <in range> 00 <mask4> <mask5> 00 00`
 BUTTON_REPORT_ID = 1
 BUTTON_REPORT_LEN = 8
 
-# the barrel and eraser bits in pen report 9 are never set by this device
 PEN_BUTTON_BITS = {
     (5, 0x20): "BTN_STYLUS",  # lower
     (5, 0x10): "BTN_STYLUS2",  # upper
 }
 
-# F13..F24: keycodes no keyboard emits; bit order, not physical order
 EXPRESS_KEY_BITS = [
     (4, 0x01),
     (4, 0x02),
@@ -62,31 +58,24 @@ BARREL_BIT = 0x02
 ERASER_BIT = 0x04
 IN_RANGE_BIT = 0x40
 
-# the pad rarely signals a lift (1 of 7470 reports); at ~300 Hz, 200 ms of silence is one
 PROXIMITY_TIMEOUT_S = 0.2
 
-# ~300 Hz, a fraction of a second; MAX_RETOGGLES stops a pad that speaks neither format toggling forever
 WRONG_MODE_LIMIT = 100
 MAX_RETOGGLES = 6
 
-# raw axis limits, measured on the wire
 RAW_MAX = 32767
 PRESSURE_MAX = 16383
 
-# raw pressure cannot tell hover (29) from a light touch (11), so the tip switch decides
 TIP_FLOOR = 1638  # 10% of PRESSURE_MAX, above libinput's 5% tip threshold
 
-# from the interface-2 descriptor
 AREA_W_MM = 205.0
 AREA_H_MM = 137.0
 
 OUT_MAX = 32767
 
-# the firmware's usable x window; `--calibrate` measures the real one into CALIB_PATH
 DEFAULT_CALIB = {"x_min": 16384, "x_max": 32767, "y_min": 0, "y_max": 32767}
 CALIB_PATH = "/var/lib/tablet-driver/calibration.json"
 
-# feature reports, the hidraw equivalent of the windows driver's SET_REPORT(0x0308); byte 0 is the report id
 UNLOCK_COMMANDS = [
     bytes([0x08, 0x03, 0xFC, 0x03, 0x87, 0x00, 0xFF, 0xF0]),
     bytes([0x08, 0x07, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF]),
@@ -128,7 +117,6 @@ def wait_for_hidraw(interface: str, timeout: float) -> str | None:
 
 
 def hidiocsfeature(length: int) -> int:
-    # _IOC(_IOC_READ|_IOC_WRITE, 'H', 0x06, length)
     return (3 << 30) | (length << 16) | (ord("H") << 8) | 0x06
 
 
@@ -201,7 +189,6 @@ def make_uinput(calib: dict):
         bustype=0x03,  # BUS_USB, so udev classifies it like a real tablet
         input_props=[e.INPUT_PROP_DIRECT],
     )
-    # ui.device races udev creating the node; only a label, not worth waiting for
     node = getattr(getattr(ui, "device", None), "path", None) or "pending"
     log(f"uinput: created {ui.name} at {node}")
     log("uinput: X raw {x_min}..{x_max} -> 0..{m}, Y raw {y_min}..{y_max} -> 0..{m}".format(m=OUT_MAX, **calib))
@@ -339,7 +326,6 @@ def run(node: str, calib: dict) -> int:
     fd = os.open(node, os.O_RDONLY | os.O_NONBLOCK)
     log(f"driver: reading pen on {node}")
 
-    # losing the buttons never costs the pen, so never fatal
     btn_node = find_hidraw("02")
     btn_fd = -1
     if btn_node:
@@ -436,7 +422,6 @@ def run(node: str, calib: dict) -> int:
                 try:
                     data = os.read(btn_fd, 64)
                     if not data:
-                        # select() keeps reporting EOF readable forever
                         log("driver: button node reached end of file; buttons disabled")
                         release_keys()
                         os.close(btn_fd)
@@ -471,7 +456,6 @@ def run(node: str, calib: dict) -> int:
                     leave_proximity()
                 return 0
             if not data:
-                # select() keeps reporting EOF readable, so continuing would spin
                 log("driver: pen node reached end of file")
                 if in_proximity:
                     leave_proximity()
@@ -479,7 +463,6 @@ def run(node: str, calib: dict) -> int:
             if len(data) < PEN_REPORT_LEN:
                 continue
             if data[0] != PEN_REPORT_ID:
-                # the handshake toggled one step too far (see unlock()); hidraw nodes survive another
                 retoggle(f"interface 1 is sending report id {data[0]}, not {PEN_REPORT_ID}")
                 continue
 
@@ -544,7 +527,6 @@ def main() -> int:
             log("no tablet on USB interface 2; is it plugged in?")
             return 1
         unlock(iface2)
-        # the pen only moves to interface 1 once the handshake lands
         time.sleep(0.3)
 
     iface1 = wait_for_hidraw("01", args.wait)

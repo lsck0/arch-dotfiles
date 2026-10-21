@@ -1,9 +1,9 @@
 local M = {}
 
 local COL_WIDTH = 30
-local LIST_WIDTH = 70 -- list-view title truncation
+local LIST_WIDTH = 70
 local TITLE_WIDTH = 46
-local FIELD_WIDTH_MAX = 24 -- other table columns shrink to their widest value
+local FIELD_WIDTH_MAX = 24
 local LEFT = "  " -- left margin on grid lines
 local SEP = " │ " -- between board columns
 local GAP = "  " -- between table columns
@@ -17,14 +17,14 @@ local DEFAULT_VIEW = { name = "Board", layout = "BOARD_LAYOUT", filter = "", fie
 local KEY_ALIASES = { assignee = "assignees", label = "labels", reviewer = "reviewers", repo = "repository" }
 local IS_TYPES = { issue = "Issue", pr = "PullRequest", ["pull-request"] = "PullRequest", draft = "DraftIssue" }
 
-local state = nil -- current board, see fetch() for its fields
-local cache = {} -- ["org/num"] = state, so reopening renders before the refresh lands
-local projects = nil -- [{number, title}] for the org, fetched once
+local state = nil
+local cache = {}
+local projects = nil
 local projects_org = nil
 local proj_idx = 1
 local cur_org = nil
 local board_buf = nil
-local views_warned = {} -- ["org/num"] = true once a failed views fetch was reported
+local views_warned = {}
 
 local CACHE_DIR = vim.fn.stdpath("cache") .. "/ghproject"
 local CACHE_VERSION = 3 -- bump when the disk format changes
@@ -158,7 +158,7 @@ local function rule_line(columns)
     return table.concat(segs, "─┼─")
 end
 
--- filter keys compare lowercased with spaces as hyphens ("target-date")
+-- Filter keys compare lowercased with spaces as hyphens ("target-date").
 local function norm(name)
     return (tostring(name or ""):lower():gsub("%s+", "-"))
 end
@@ -184,7 +184,7 @@ local function field_by_key(fields, key)
     end
 end
 
--- gh keys item json with its own camelCase: only the first character is lowered
+-- gh keys item json in its own camelCase: only the first character is lowered.
 local function raw_key(name)
     return name:sub(1, 1):lower() .. name:sub(2)
 end
@@ -470,7 +470,7 @@ local function compile_view(s, raw)
     }
 end
 
--- the api ignores tab order, so OCTO_DEFAULT_VIEWS ("18,1,4") lists view numbers first for the default project
+-- The api ignores tab order, so OCTO_DEFAULT_VIEWS ("18,1,4") lists the default project's view numbers in order.
 local function ordered_views(s)
     if #s.views == 0 then
         return { DEFAULT_VIEW }
@@ -981,7 +981,7 @@ local function edit_field()
     end)
 end
 
--- gh has no reorder command, so drive the GraphQL mutation directly; board only
+-- gh has no reorder command, so this drives the GraphQL mutation directly; board only.
 local function reorder_selected(dir)
     if state.layout ~= "board" then
         return
@@ -1261,7 +1261,6 @@ local function parse_views(data)
     local views = {}
     for _, v in ipairs(nodes) do
         local fields, sort = {}, {}
-        -- configuration keeps the view's column order, plain fields come back in project order
         local visible_fields = v.configuration and v.configuration.visibleFields or v.fields or {}
         for _, f in ipairs(visible_fields.nodes or {}) do
             fields[#fields + 1] = f.name
@@ -1442,7 +1441,7 @@ local function ensure_projects(default_num, cb)
             end
             disk_write(pkey, { projects = projects, ts = os.time() })
         elseif disk and disk.projects then
-            projects = disk.projects -- gh failed (rate limit/offline): fall back to the cache
+            projects = disk.projects
         else
             projects = { { number = default_num, title = "Project " .. default_num } }
         end

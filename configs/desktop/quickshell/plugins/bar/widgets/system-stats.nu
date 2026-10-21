@@ -11,7 +11,6 @@ const CPU_TEMP_LABEL = '^(Tctl|Tdie|Package.*|CPU Temperature)$'
 const CPU_FREQ = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"
 const GPU_CLASSES = '^\S+ (0300|0302): '
 const TOP_COUNT = 2
-# utime and stime after the comm field of /proc/<pid>/stat
 const PROC_STAT = '(?m)^(?<pid>\d+) \((?<name>.*)\) \S+(?: \S+){10} (?<utime>\d+) (?<stime>\d+) '
 const GPU_TEMP_LABEL = "edge"
 const MS_PER_HOUR = 3_600_000
@@ -19,7 +18,7 @@ const UW_PER_W = 1_000_000
 const KIB_PER_GIB = 1048576
 const BYTES_PER_MIB = 1048576
 
-# unreadable reads as missing: intel-rapl energy_uj is root-only, and a throw here respawns the script forever
+# Unreadable reads as missing: intel-rapl energy_uj is root-only, and a throw here respawns the script forever.
 def line-read [path?: string]: nothing -> string {
     if $path == null { return "" }
     try { open --raw $path | lines | get 0? | default "" } catch { "" }
@@ -53,7 +52,7 @@ def proc-ticks []: nothing -> table {
         | each {|p| {pid: $p.pid, name: $p.name, ticks: (($p.utime | into int) + ($p.stime | into int))} }
 }
 
-# ps %cpu is the lifetime average, this is the share of one core since the last sample, like top
+# A share of one core since the last sample, like top; ps %cpu is the lifetime average.
 def top-cpu [now: table, before: table, dt_ms: number, tck: int]: nothing -> list {
     if $dt_ms <= 0 { return [] }
     $now | join --left $before pid | each {|p|
@@ -119,7 +118,6 @@ def main [interval_s: number = 10] {
     let amd = $hw.static.gpuVendor == amd
     let device = $"($hw.gpu_card)/device"
     let rc6_path = $"($hw.gpu_card)/gt/gt0/rc6_residency_ms"
-    # without rc6 the busy share would read 100%: null, and the bar hides it
     let has_rc6 = (line-read $rc6_path) != ""
     let energy_file = [($env.XDG_RUNTIME_DIR? | default /tmp) quickshell-energy-wh] | path join
 
@@ -151,7 +149,6 @@ def main [interval_s: number = 10] {
             100 - ($rc6 - $prev.rc6) * 100 / $dt_ms | [$in 0] | math max | [$in 100] | math min
         }
         let gpu_freq = if $amd {
-            # the active level is starred: "1: 700Mhz *"
             try { open --raw $"($device)/pp_dpm_sclk" } catch { "" } | parse -r '(?<mhz>\d+)Mhz \*' | get mhz.0? | default 0 | into int
         } else { int-read $"($hw.gpu_card)/gt_act_freq_mhz" }
         let gpu_w = if $amd { number-or-null (line-read $hw.gpu_power) $UW_PER_W }

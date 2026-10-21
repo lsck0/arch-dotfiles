@@ -6,7 +6,6 @@ export const meta = {
 }
 
 const APP = "com.jeffser.Alpaca"
-# alpaca's own schema, so the backends can be seeded before its first launch
 const SCHEMA = "CREATE TABLE IF NOT EXISTS instance (id TEXT NOT NULL PRIMARY KEY, pinned INTEGER NOT NULL,
     type TEXT NOT NULL, properties TEXT NOT NULL);"
 
@@ -26,7 +25,6 @@ export def seed [vllm_model: string]: nothing -> nothing {
     let rows = [["dotfiles-ollama" ollama $ollama] ["dotfiles-vllm" "openai:generic" $vllm]]
         | where {|r| $r.0 != "dotfiles-vllm" or $vllm_model != "" }
         | each {|r| $"\('($r.0)', 1, '($r.1)', json\('($r.2 | to json --raw)'\)\)" } | str join ", "
-    # vllm serves the one model of its module, so the seeded backend follows a model change; the rest stays alpaca's
     let follow = if $vllm_model == "" { "" } else {
         $" UPDATE instance SET properties = json_set\(properties, '$.default_model', '($vllm_model)', '$.title_model', '($vllm_model)'\) WHERE id = 'dotfiles-vllm';"
     }

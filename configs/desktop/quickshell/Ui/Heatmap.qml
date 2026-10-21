@@ -27,7 +27,6 @@ Item {
   Canvas {
     id: cv
     anchors.fill: parent
-    // requestPaint is dropped until the canvas is available
     onAvailableChanged: if (available) requestPaint()
     Component.onCompleted: requestPaint()
 

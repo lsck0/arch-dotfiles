@@ -3,7 +3,6 @@
 
 const SCHEMA = path self | path dirname | path join Schema.js
 const RUNNER = "/usr/lib/qt6/bin/qmltestrunner"
-# a typed option value and the nuon `dot set` must end up storing
 const CASES = [
     [type nu value want];
     [string string "de" '"de"']
@@ -22,7 +21,6 @@ const CASES = [
     [json record {"1": "DP-2"} '{"1": "DP-2"}']
     [filesize filesize 2147483648 "2147483648b"]
 ]
-# dot.nu's `main set` signature and parse, so the arguments meet the same reader
 const READER = '
 def main [] {}
 def "main set" [target?: string, ...value: any, --default, --machine, --json, --no-system] {

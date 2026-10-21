@@ -612,7 +612,6 @@ Item {
                             Image {
                                 anchors.fill: parent
                                 source: !item.sourceActivated ? "" : Util.fileUrl(item.thumbnailPath || item.filePath)
-                                // decode at draw width: every delegate stays alive
                                 sourceSize.width: Math.ceil((item.selected ? root.expandedWidth : root.sliceWidth) * Screen.devicePixelRatio)
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true

@@ -2,21 +2,17 @@
 
 const SCRIPTS = path self | path expand | path dirname
 use ($SCRIPTS | path join lib usage.nu) [die]
-use ($SCRIPTS | path join lib secrets.nu) [secret-is-plaintext]
 
 const REPO = $SCRIPTS | path dirname
 const PUBLIC_DIR = $REPO | path join wallpapers
-const SECRET_DIR = $REPO | path join configs secrets keys wallpapers
-const SECRETS_PROBE = $REPO | path join configs secrets keys age.txt
+const SECRET_DIR = $REPO | path join configs secrets state wallpapers
+const SUBMODULE = $REPO | path join configs secrets
 const IMAGE_SUFFIXES = [jpg jpeg png webp]
 const FINGERPRINT_SIZE = "32x18!"
-# mean absolute grey difference per pixel (0-255) below which two images are the same artwork
 const MATCH_DISTANCE_MAX = 12
-# grey level (of 255) under which a border row or column counts as letterbox padding
 const LETTERBOX_FUZZ = "6.3%"
 const THUMBNAIL_SIZE = "1024x1024>"
 
-# letterboxed low-res copies would never match their unpadded originals, so padding is trimmed first
 def fingerprint-of [file: path]: nothing -> list<int> {
     (^magick $"($file)[0]" -grayscale Rec601Luma -thumbnail $THUMBNAIL_SIZE
         -bordercolor black -border 1 -fuzz $LETTERBOX_FUZZ -trim +repage
@@ -28,12 +24,10 @@ def is-image [file: path]: nothing -> bool {
     ($file | path parse | get extension | str lowercase) in $IMAGE_SUFFIXES
 }
 
-# Import high-res wallpapers (files, dirs, zips) into configs/secrets/keys/wallpapers/, shadowing matching low-res ones.
+# Import high-res wallpapers (files, dirs, zips) into configs/secrets/state/wallpapers/, shadowing matching low-res ones.
 def main [...sources: path]: nothing -> nothing {
     if ($sources | is-empty) { die --misuse "the following arguments are required: file|dir|zip" }
-    if not (($SECRETS_PROBE | path exists) and (secret-is-plaintext $SECRETS_PROBE)) {
-        die "configs/secrets/ is locked, unlock it first"
-    }
+    if not ($SUBMODULE | path join .git | path exists) { die "configs/secrets/ is not pulled: dot secrets unlock" }
     let public = ls $PUBLIC_DIR | get name | where { is-image $in }
         | par-each --keep-order { {name: ($in | path basename), fingerprint: (fingerprint-of $in)} }
     let unzipped = mktemp --directory --tmpdir
@@ -65,7 +59,7 @@ def main [...sources: path]: nothing -> nothing {
         let size = ^magick identify -format "%wx%h" $"($image)[0]"
         let how = if $target == $best.name { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
         let distance = $best.distance | into string --decimals 1
-        print $"($name)  ($size)  -> configs/secrets/keys/wallpapers/($target)  \(($how), distance ($distance)\)"
+        print $"($name)  ($size)  -> configs/secrets/state/wallpapers/($target)  \(($how), distance ($distance)\)"
     } | ignore
     rm --recursive --force $unzipped
 }

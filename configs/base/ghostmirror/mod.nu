@@ -46,7 +46,6 @@ export def place []: nothing -> nothing {
     let linked = ($MIRRORLIST | path type) == "symlink"
     if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "# lastsync" }) {
         if (rank rebuild) {
-            # rebuild orders by ping; sort downloads from each
             rank sort | ignore
         } else if $linked or not (open --raw $MIRRORLIST | lines | any { str starts-with "Server" }) {
             mirrorlist-swap (open --raw mirrorlist | lines)
@@ -59,7 +58,6 @@ export def place []: nothing -> nothing {
             | each { [$in.index ($in.index + 1)] } | flatten
         if ($drop | is-not-empty) { mirrorlist-swap ($current | enumerate | where index not-in $drop | get item) }
     } else if $homelab not-in $current {
-        # added only once it answers; a present line stays when away, wireguard reaches it
         let probe = $homelab | str replace "Server=" "" | str replace '$repo' core | str replace '$arch' x86_64
             | $"($in)/core.db"
         if (^curl -fs -m $PROBE_TIMEOUT_S -r 0-0 -o /dev/null $probe | complete).exit_code == 0 {

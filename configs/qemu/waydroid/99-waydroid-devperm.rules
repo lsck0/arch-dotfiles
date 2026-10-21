@@ -1,3 +1,2 @@
-# from arch-dotfiles qemu/waydroid: a waydroid session chmods render nodes and cameras to 0777 and never restores them
 SUBSYSTEM=="drm", KERNEL=="renderD*", GROUP="render", MODE="0660"
 SUBSYSTEM=="video4linux", KERNEL=="video*", GROUP="video", MODE="0660"

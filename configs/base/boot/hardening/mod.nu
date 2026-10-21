@@ -12,18 +12,14 @@ export const options = {
     }
 }
 
-# not set: lockdown (unsigned it87-dkms, bpf for pwndbg/bpftrace), debugfs=off (bpftrace), module.sig_enforce (dkms)
-# intel_iommu=on: arch's kernel leaves the intel iommu off (no INTEL_IOMMU_DEFAULT_ON), so thunderbolt and pcie
-# devices could dma anywhere; amd ignores it, its iommu is on by default. iommu.strict=1: unmaps flush the iotlb at
-# once, not in lazy batches that leave a device a window on freed pages. vfio passthrough works with both; iommu=pt
-# would leave the host's own devices unprotected
+# not set: lockdown (unsigned it87-dkms, bpf), debugfs=off (bpftrace), module.sig_enforce (dkms), iommu=pt
 const TOKENS = [
     slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1
     intel_iommu=on iommu.strict=1
 ]
 const VULNS = [/sys/devices/system/cpu/vulnerabilities/mds /sys/devices/system/cpu/vulnerabilities/mmio_stale_data]
 
-# by hardware, not the current smt state, which nosmt itself turns off and would flap the check
+# Whether the cpu leaks across smt siblings, by hardware, not the smt state that nosmt itself turns off.
 def smt-leaks []: nothing -> bool {
     let control = try { open --raw /sys/devices/system/cpu/smt/control | str trim } catch { "notsupported" }
     (

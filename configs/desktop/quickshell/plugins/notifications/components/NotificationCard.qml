@@ -55,7 +55,6 @@ BorderSurface {
   readonly property string sanitizedBody: NotificationLogic.sanitizeBody(body, app, appIcon)
   readonly property string styledBody: NotificationLogic.styledBody(body, app, appIcon)
 
-  // alpha toward the card, not Qt.darker: darker is no dimmer for the dark text of a light theme
   readonly property real bodyEmphasis: 0.87
   readonly property color bodyColor: Util.alpha(Colors.notifications.text, bodyEmphasis)
   readonly property real edge: isRow ? 0 : Style.surface.borderWidth

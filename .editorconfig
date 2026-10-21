@@ -9,7 +9,6 @@ indent_style = space
 indent_size = 4
 max_line_length = 120
 
-# shfmt reads these when given no formatting flags: the editor (nvim's conform) and dot test check format alike
 [{*.sh,*.bash,PKGBUILD,*.install}]
 shell_variant = bash
 switch_case_indent = true

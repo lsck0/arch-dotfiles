@@ -1,5 +1,3 @@
-/* literal braces are doubled for wallust */
-/* alt bg and dim text mix from bg/fg: color0 and color7 are dark and light on a light theme, unreadable as either */
 :root {{
   --wal-bg: {background};
   --wal-bg-alt: color-mix(in srgb, {foreground} 8%, {background});

@@ -1,10 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# every translucent quickshell surface is blurred by hyprland_windowrules.lua's quickshell-blur rule: one missing from
-# its namespace list (settings was) shows the windows behind it unblurred through a 0.92 fill
+# every translucent quickshell surface must be in the namespace list of hyprland_windowrules.lua's quickshell-blur rule
 
 const HERE = path self | path dirname
 const RULES = path self | path dirname | path join ../hyprland/hyprland_windowrules.lua
-# full-screen or invisible layers, never blurred
 const UNBLURRED = [background desktop-widgets notification-image-grab]
 
 def main [] {

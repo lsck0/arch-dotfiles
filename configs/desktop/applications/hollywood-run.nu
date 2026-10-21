@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# its own tmux server with no config: tmux.conf's base-index 1 misses its 0-based pane targets
+# its own tmux server with no config: tmux.conf's base-index 1 misses hollywood's 0-based pane targets
 
 const SERVER = "hollywood"
-# hollywood calls tmux (and byobu) by name for every call, so both resolve to the private server
+# hollywood calls tmux and byobu by name, so both resolve to the private server
 const SHIM = "#!/bin/sh\nexec /usr/bin/tmux -L hollywood -f /dev/null \"$@\"\n"
 
 def --wrapped main [...args: string]: nothing -> nothing {

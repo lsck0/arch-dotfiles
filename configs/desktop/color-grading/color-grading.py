@@ -65,10 +65,6 @@ import struct
 import subprocess
 import sys
 
-# -----------------------------------------------------------------------------
-# TYPES
-# -----------------------------------------------------------------------------
-
 Matrix = tuple[float, float, float, float, float, float, float, float, float]
 
 
@@ -88,7 +84,6 @@ class Preset:
     name: str
     label: str
     curve: Curve
-    # row-major, applied to the encoded rgb before the whitepoint
     matrix: Matrix
     kelvin: int | None
 
@@ -131,13 +126,8 @@ class ProtocolError(Exception):
     """The compositor sent something this client cannot continue from."""
 
 
-# -----------------------------------------------------------------------------
-# CONSTANTS
-# -----------------------------------------------------------------------------
-
 MID_GREY = 0.5
 IDENTITY: Matrix = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-# ITU-R BT.709 luma weights, the primaries sRGB shares
 LUMA = (0.2126, 0.7152, 0.0722)
 CURVE_IDENTITY = Curve(contrast=1.0, blackpoint=0.0, gamma=1.0, floor=0.0, ceiling=1.0)
 CURVE_DEFAULT = Curve(contrast=1.05, blackpoint=0.010, gamma=1.07, floor=0.0, ceiling=1.0)
@@ -158,15 +148,12 @@ PRESETS: dict[str, Preset] = {
     )
 }
 PRESET_DEFAULT = PRESETS["default"]
-# the CTM protocol only takes entries >= 0, which is why no preset can raise saturation
 assert all(v >= 0 and math.isfinite(v) for p in PRESETS.values() for v in p.matrix)
 assert all(0 <= p.curve.floor < p.curve.ceiling <= 1 and p.curve.contrast > 0 for p in PRESETS.values())
 
-# 4000K matches the former nightlight.frag whitepoint
 NIGHT_KELVIN = 4000
 KELVIN_MIN, KELVIN_MAX = 1000, 20000
 BRIGHTNESS_PERCENT_DEFAULT = 100
-# hyprsunset's --gamma_max 150 this replaces; above 100 the CTM clips highlights
 BRIGHTNESS_PERCENT_MAX = 150
 
 STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "color-grading")
@@ -177,13 +164,10 @@ BRIGHTNESS_PATH = os.path.join(RUNTIME_DIR, "brightness")
 UNIT = "color-grading.service"
 
 RAMP_VALUE_MAX = 0xFFFF
-# KMS reports GAMMA_LUT_SIZE (amdgpu 4096, i915 up to 1024); the bound only rejects nonsense
 GAMMA_SIZE_MAX = 1 << 16
-# wl_fixed is signed 24.8
 FIXED_ONE = 256
 
 WL_DISPLAY_ID = 1
-# libwayland's server-side ids start here, a client id must stay below
 CLIENT_ID_MAX = 0xFEFFFFFF
 HEADER_SIZE_BYTES = 8
 RECV_SIZE_BYTES = 4096
@@ -208,16 +192,11 @@ GAMMA_CONTROL_EVENT_FAILED = 1
 CTM_MANAGER_SET_CTM_FOR_OUTPUT = 0
 CTM_MANAGER_COMMIT = 1
 CTM_MANAGER_EVENT_BLOCKED = 0
-# version 2 adds the blocked event
 CTM_MANAGER_VERSION = 2
 
 WL_OUTPUT = "wl_output"
 GAMMA_MANAGER = "zwlr_gamma_control_manager_v1"
 CTM_MANAGER = "hyprland_ctm_control_manager_v1"
-
-# -----------------------------------------------------------------------------
-# INTERNAL
-# -----------------------------------------------------------------------------
 
 
 def log(message: str) -> None:
@@ -275,7 +254,6 @@ def matrix_scale(s: float) -> Matrix:
 
 
 def client_id_allocate(client: Client) -> int:
-    # ids are never reused: outputs come and go a handful of times per session
     object_id = client.id_next
     assert object_id < CLIENT_ID_MAX
     client.id_next += 1
@@ -298,11 +276,6 @@ def client_bind(client: Client, global_name: int, interface: str, version: int) 
     payload = wire_uint(global_name) + wire_string(interface) + wire_uint(version) + wire_uint(object_id)
     client_request(client, client.registry_id, WL_REGISTRY_BIND, payload)
     return object_id
-
-
-# -----------------------------------------------------------------------------
-# FUNCTIONS
-# -----------------------------------------------------------------------------
 
 
 def curve_apply(x: float, curve: Curve) -> float:
@@ -510,7 +483,6 @@ def event_dispatch(client: Client, object_id: int, opcode: int, payload: bytes) 
     elif object_id == client.ctm_manager_id:
         if opcode != CTM_MANAGER_EVENT_BLOCKED:
             raise ProtocolError(f"unknown {CTM_MANAGER} event {opcode}")
-        # set requests from a blocked manager are dropped silently, so stop sending them
         client.ctm_blocked = True
         log("another client owns the CTM (hyprsunset still running?), no matrix, whitepoint or brightness")
     elif object_id in client.objects:
@@ -530,7 +502,6 @@ def event_dispatch(client: Client, object_id: int, opcode: int, payload: bytes) 
             output_lut_upload(client, output)
             log(f"{output.name}: graded ({size} entries)")
         elif opcode == GAMMA_CONTROL_EVENT_FAILED:
-            # another gamma client owns this output, it has no LUT, or it is being unplugged
             log(f"{output.name}: gamma control refused")
             output_control_destroy(client, output)
         else:
@@ -550,7 +521,6 @@ def client_connect(settings: Settings) -> Client:
     except OSError as error:
         sock.close()
         raise ProtocolError(f"cannot connect to {path}: {error.strerror}") from error
-    # the first two client ids, handed out in request order
     client = Client(
         sock=sock,
         registry_id=WL_DISPLAY_ID + 1,
@@ -596,7 +566,6 @@ def daemon_run(client: Client, wake: socket.socket) -> None:
 
 
 def command_run() -> int:
-    # handler before anything slow: an early reload must not hit SIGHUP's default action, which kills
     wake, wake_write = socket.socketpair()
     wake_write.setblocking(False)
     signal.set_wakeup_fd(wake_write.fileno())

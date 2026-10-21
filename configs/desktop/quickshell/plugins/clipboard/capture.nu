@@ -7,7 +7,7 @@ const PASS_SLEEPER = "^password store sleep on display"
 const PASS_SLEEPER_SETTLE = 200ms
 const PASS_SLEEPER_AGE_MAX_S = 1
 const IMAGE_FETCH_TIMEOUT = "2s"
-# heuristic utf-16 without a bom: at least three quarters of the units carry a nul byte, all on one side
+# utf-16 without a bom: at least three quarters of the units carry a nul byte, all on one side
 const NUL_SHARE_MIN = 0.75
 const NUL_SHARE_OTHER_MAX = 0.25
 const CONTROL_CHARS = '[\x00-\x08\x0E-\x1A\x1C-\x1F]'

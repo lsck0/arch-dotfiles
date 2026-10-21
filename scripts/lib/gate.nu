@@ -1,3 +1,6 @@
+# The static gates: gate-lint behind dot test lint (repo rules and every *.test.nu/sh), gate-tools behind
+# dot test check and fmt (formatters and linters), gate-palette (palette.nu against Palette.js).
+
 use ../../configs/core/wallust/palette.nu
 use platform.nu [PLATFORM_FACTS]
 
@@ -7,15 +10,14 @@ const NU_VERB = '(?ms)^export def (?<verb>link|unlink|system|theme|apply|backup|
 const NU_USER_FACT = '(profile-has|profile-load|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
 const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
 const ROOT_MODULES = [scripts skills]
-# the private submodule's git-crypt dir: blobs while locked, no code (its modules beside it are linted like any other)
-const SECRETS_KEYS = "secrets/keys/**"
-# the folder root itself (syncthing needs it) and .stignore (per device, never synced) are not writes into it
+const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
+# the folder root itself (syncthing needs it) and .stignore (per device) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
 const DOCS_DIFF_LINES = 40
 const FMT_DIR = path self ../../configs/programming/formatting
 const FMT_EXCLUDE = "configs/core/wallust/templates/"
-# the style itself is in .editorconfig, which shfmt reads only when no formatting flag is given
+# empty on purpose: shfmt reads .editorconfig only when no formatting flag is given
 const SHFMT_FLAGS = []
 const QMLLINT = "/usr/lib/qt6/bin/qmllint"
 const PALETTE_NU = "configs/core/wallust/palette.nu"
@@ -47,7 +49,7 @@ def lint-modules []: nothing -> list<string> {
     let groups = ls $configs | where type == dir | get name | path basename
     let deps = $groups | where {|g| $configs | path join $g dependencies.txt | path exists } | reduce --fold {} {|g, acc| $acc | insert $g (names-read ($configs | path join $g dependencies.txt)) }
     let bad_deps = $deps | items {|g, ds| $ds | where $it not-in $groups | each { $"configs/($g)/dependencies.txt: '($in)' is not a module" } } | flatten
-    let platforms = glob ($REPO | path join platforms '{*,templates/*}.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
+    let platforms = glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | each {|f|
         open $f | get --optional groups | default [] | where {|g| $g not-in $groups and not ($configs | path join $g mod.nu | path exists) }
         | each { $"(rel $f): groups has '($in)', not a group or module" }
     } | flatten
@@ -64,7 +66,7 @@ def lint-modules []: nothing -> list<string> {
 
 def lint-layers []: nothing -> list<string> {
     let configs = $REPO | path join configs
-    let mods = glob $"($configs)/**/mod.nu" --exclude [$SECRETS_KEYS]
+    let mods = glob $"($configs)/**/mod.nu" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
     let verbs = $mods | each {|f|
         let text = open --raw $f
@@ -83,9 +85,8 @@ def lint-layers []: nothing -> list<string> {
     $verbs ++ $personal
 }
 
-# a write into a syncthing folder collides with what syncthing delivers from other machines
 def lint-sync []: nothing -> list<string> {
-    let files = glob $"($REPO)/configs/**/*.{sh,nu,py}" --exclude [$SECRETS_KEYS] | append (glob $"($REPO)/scripts/**/*.{sh,nu}")
+    let files = glob $"($REPO)/configs/**/*.{sh,nu,py}" --exclude $SECRETS_DATA | append (glob $"($REPO)/scripts/**/*.{sh,nu}")
         | append [($REPO | path join bootstrap.sh)]
     $files | where ($it | path exists) | each {|f|
         code-lines $f | each {|l|
@@ -96,8 +97,6 @@ def lint-sync []: nothing -> list<string> {
     } | flatten
 }
 
-# dot sync commits with `git add .` into a public repo: a file some tool dropped in the checkout (a server run from
-# the repo dir once left configs/credential-encryption.key and a --version file) must stop it, not ride along
 const ROOT_FILES = [
     .editorconfig .gitattributes .gitignore .gitleaks.toml .gitmodules .ruff.toml .shellcheckrc AGENTS.md FEATURES.md
     LICENSE.md README.md bootstrap.sh
@@ -106,15 +105,14 @@ const ROOT_DIRS = [configs migrations mirror platforms profiles scripts showcase
 const GROUP_FILES = [AGENTS.md dependencies.txt]
 const SUBMODULE = "configs/secrets"
 
+# dot sync commits with `git add .`: a file some tool dropped in the checkout must stop it, not ride along.
 def lint-stray []: nothing -> list<string> {
-    # a tracked file deleted in the worktree is no leftover, dot sync's `git add .` stages its removal
     let files = ^git -C $REPO ls-files --cached --others --exclude-standard -z | split row (char nul)
         | where {|f| $f != "" and ($REPO | path join $f | path exists) }
     $files | each {|f|
         let parts = $f | split row "/"
         let stray = match ($parts | length) {
             1 => ($f not-in $ROOT_FILES and $f not-in $ROOT_DIRS)
-            # configs/secrets is the private submodule, one gitlink here
             _ => (($parts.0 not-in $ROOT_DIRS) or ($parts.0 == configs and $f != $SUBMODULE and (($parts | length) == 2 or (($parts | length) == 3 and $parts.2 not-in $GROUP_FILES))))
         }
         if $stray { $"($f): not a file of the repo's layout, a tool's leftover? remove it or add it where it belongs" }
@@ -122,7 +120,7 @@ def lint-stray []: nothing -> list<string> {
 }
 
 def lint-platform-facts []: nothing -> list<string> {
-    glob ($REPO | path join platforms '{*,templates/*}.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
+    glob ($REPO | path join platforms '*.nuon') | where not ($it | str ends-with ".options.nuon") | sort | each {|f|
         open $f | get --optional facts | default {} | columns | where $it not-in $PLATFORM_FACTS
         | each { $"(rel $f): fact '($in)' is not in PLATFORM_FACTS; add it there so modules see it, or it is set for nothing" }
     } | flatten
@@ -142,7 +140,7 @@ def lint-palette []: nothing -> list<string> {
 
 const SYSTEM_APPLY = "scripts/lib/system-apply.nu"
 
-# root re-execs each command under flock with the flags it spells out; a flag it leaves out is dropped silently
+# root re-execs each command under flock with the flags it spells out; a flag it leaves out is dropped silently.
 def lint-locked-flags []: nothing -> list<string> {
     open --raw ($REPO | path join $SYSTEM_APPLY)
     | parse --regex '(?ms)^def "main (?<cmd>[a-z-]+)" \[(?<sig>[^\]]*)\][^\n]*\n(?<body>.*?)^\}'
@@ -154,7 +152,6 @@ def lint-locked-flags []: nothing -> list<string> {
     } | flatten
 }
 
-# nu-check passes these, the run fails
 const NU_PITFALLS = [
     [pattern why];
     ['\bexec \^' "exec takes the bare name, the caret becomes part of it"]
@@ -171,18 +168,18 @@ def lint-nu-pitfalls []: nothing -> list<string> {
     } | flatten
 }
 
-# a script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git
+# A script with a shebang is run directly (link-commands, unit Exec=), so it needs its executable bit in git.
 def lint-exec-bits []: nothing -> list<string> {
     ^git -C $REPO ls-files -s | lines | parse "{mode} {hash} {stage}\t{path}" | where mode == "100644"
     | where {|f| ($REPO | path join $f.path | path exists) and (open --raw ($REPO | path join $f.path) | into binary | bytes at 0..1) == 0x[2321] }
     | each { $"($in.path): has a shebang but is not executable, chmod +x it" }
 }
 
-# a renamed or dropped option breaks only the machines whose options file still sets it, at their next install
+# A renamed or dropped option breaks only the machines whose options file still sets it, at their next install.
 def lint-platform-options []: nothing -> list<string> {
     let script = "use pipeline.nu *; pipeline-load $env.DOT_REPO user | get modules | each {|m| {id: $m.id, keys: ($m.options | columns | append enable)} } | to nuon"
     let known = with-env {DOT_REPO: $REPO} { ^nu --no-config-file -I ($REPO | path join scripts lib) -c $script | from nuon }
-    glob ($REPO | path join platforms '{*,templates/*}.options.nuon') | sort | each {|f|
+    glob ($REPO | path join platforms '*.options.nuon') | sort | each {|f|
         open $f | items {|id, values|
             let module = $known | where id == $id | get --optional 0
             if $module == null { [$"(rel $f): ($id) is no module"] } else {
@@ -198,22 +195,22 @@ def lint-generated []: nothing -> list<string> {
 }
 
 def unit-tests []: nothing -> list<string> {
-    # scripts/ too: an engine test beside its library must not be skipped without a word
-    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude [$"configs/($SECRETS_KEYS)"] | sort | each {|t|
+    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude ($SECRETS_DATA | each { $"configs/($in)" }) | sort | each {|t|
         let run = if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact
 }
 
+# Every lint finding, one line each; empty when the repo passes.
 export def gate-lint []: nothing -> list<string> {
     [(lint-modules) (lint-layers) (lint-sync) (lint-stray) (lint-platform-facts) (lint-nu-pitfalls) (lint-exec-bits) (lint-platform-options) (lint-palette) (lint-generated) (lint-locked-flags) (unit-tests)] | flatten
 }
 
-# a PKGBUILD and its .install script are bash too, with neither extension nor shebang
 def pkgbuild [path: path]: nothing -> bool {
     ($path | path basename) == "PKGBUILD" or (($path | str starts-with ($REPO | path join mirror pkgbuilds)) and ($path | str ends-with ".install"))
 }
 
+# A PKGBUILD and its .install script are bash too, with neither extension nor shebang.
 def shell-script [path: path]: nothing -> bool {
     let ext = $path | path parse | get extension
     $ext == "sh" or (pkgbuild $path) or ($ext == "" and (try { open --raw $path | into binary | first 128 | decode utf-8 } catch { "" }) =~ '^#!.*\b(ba)?sh\b')
@@ -248,7 +245,8 @@ def --wrapped tool [...cmd: string]: nothing -> record {
     do { cd $REPO; ^($cmd | first) ...($cmd | skip 1) } | complete
 }
 
-# findings fail check, notes (a missing optional tool) only warn
+# Runs every installed formatter and linter, applying fixes first when apply; findings fail check, notes
+# (a missing optional tool) only warn.
 export def gate-tools [apply: bool]: nothing -> record {
     let paths = walk
     let pick = {|exts| $paths | where { ($in | path parse | get extension) in $exts } | each { rel $in } | sort }
@@ -279,7 +277,6 @@ export def gate-tools [apply: bool]: nothing -> record {
             ($shfmt_run.stdout | lines | where $it != "" | each { $"shfmt would reformat ($in)" }) ++ (if $shfmt_run.exit_code != 0 and ($shfmt_run.stderr | str trim | is-not-empty) { [$"shfmt: ($shfmt_run.stderr | str trim)"] } else { [] })
         })
         (if ($shellcheck | is-empty) { [] } else { tool shellcheck -f gcc ...$shellcheck | get stdout | lines | where ($it | str trim | is-not-empty) })
-        # makepkg sets srcdir and pkgdir, reads the metadata variables, and runs each function from a dir it made
         (if ($recipes | is-empty) or (which shellcheck | is-empty) { [] } else {
             tool shellcheck -f gcc -s bash -e SC2034,SC2154,SC2164 ...$recipes | get stdout | lines | where ($it | str trim | is-not-empty)
         })
@@ -345,7 +342,7 @@ QtObject {
 }
 '
 
-# runs in qml6, the engine quickshell uses, so its rounding differences show up here
+# Compares palette.nu with Palette.js run in qml6, the engine quickshell uses, so rounding differences show.
 export def gate-palette []: nothing -> record {
     let themes = $PALETTE_THEMES | each {|t| $REPO | path join themes $"($t).json" }
     let py = {synced: (palette palette-js-sync), light: $palette.LIGHT_LUMINANCE, expected: ($themes | each { palette-expect $in })}

@@ -22,10 +22,9 @@ export def detect [cfg: record]: nothing -> record {
     {dpi: ($DPI_BASE * $scale | math round | into int)}
 }
 
-# lutris writes both LogPixels keys from a game's own wine options; battle.net's cef renders blank when they differ
+# Lutris writes both LogPixels keys from a game's own wine options; battle.net's cef renders blank when they differ.
 export def link [cfg: record] {
     if (which lutris | is-empty) { return [] }
-    # lutris reads ~/.config/lutris only when it exists
     let config = $nu.home-dir | path join .config lutris
     let dir = if ($config | path exists) { $config } else { $nu.home-dir | path join .local share lutris }
     let file = $dir | path join runners wine.yml

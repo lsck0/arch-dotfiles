@@ -1,9 +1,11 @@
+# dot plan --sandbox: a real apply under bubblewrap with overlays on the writable roots, no network and a fake
+# systemctl, then the write set read from the overlays' upper dirs and the decisions modules noted.
+
 use log.nu *
 use state.nu [LIB_DIR path-kind]
 
 const PLAN_AREA_MAX = 10
 const PLAN_AREA_DEPTH = 3
-# disk filesystems an overlay may cover below a writable root; anything else (network, fuse, autofs) stays hidden
 const PLAN_DISK_FS = [btrfs ext2 ext3 ext4 xfs f2fs vfat exfat]
 const PLAN_BIN = "/run/dotfiles-plan/bin"
 const PLAN_SYSTEMCTL = path self plan-systemctl.nu
@@ -13,6 +15,7 @@ export def plan-active []: nothing -> bool {
     ($env.DOTFILES_PLAN? | is-not-empty) and ($env.DOTFILES_PLAN_DIR? | is-not-empty)
 }
 
+# Records a decision (preserve, forget) for the plan report; nothing outside a plan.
 export def plan-note [action: string, path: string, detail: string = ""]: nothing -> nothing {
     if not (plan-active) {
         return
@@ -21,6 +24,7 @@ export def plan-note [action: string, path: string, detail: string = ""]: nothin
     $"($module)\t($action)\t($path)\t($detail)\n" | save --append ($env.DOTFILES_PLAN_DIR | path join notes)
 }
 
+# Snapshots unit-file states and active units for the fake systemctl (plan-systemctl.nu) to answer from.
 export def plan-snapshot-units [dir: path, scope: string]: nothing -> nothing {
     ^systemctl $"--($scope)" list-unit-files --no-legend --no-pager
     | lines | where $it != "" | each { split row --regex '\s+' | take 2 | str join " " } | str join "\n"
@@ -30,6 +34,7 @@ export def plan-snapshot-units [dir: path, scope: string]: nothing -> nothing {
     | $"($in)\n" | save --force ($dir | path join $"active.($scope)")
 }
 
+# Runs command in the sandbox with an overlay per root under dir; its exit code.
 export def plan-sandbox [dir: path, roots: list<path>, command: list<string>]: nothing -> int {
     if (which bwrap | is-empty) {
         error make {msg: "plan mode needs bwrap (bubblewrap)"}
@@ -80,6 +85,7 @@ export def plan-end [dir: path]: nothing -> nothing {
     }
 }
 
+# The decisions, any early stop and the write set, an area with more than PLAN_AREA_MAX paths folded to counts.
 export def plan-report [dir: path, failures: path]: nothing -> string {
     let notes_file = $dir | path join notes
     let decisions = if ($notes_file | path exists) {

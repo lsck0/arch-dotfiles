@@ -3,7 +3,6 @@
 
 export const DEVTOOLS_PORT = 9233
 const PAGE = '^https://xpui\.app\.spotify\.com/'
-# re-fetching spicetify's two stylesheets recolours in place, without a reload that would drop the open view
 const CSS_RELOAD = "document.querySelectorAll('link.userCSS').forEach(l => l.href = l.href.split('?')[0] + '?' + Date.now())"
 const PAGE_RELOAD = "location.reload()"
 
@@ -15,13 +14,12 @@ def devtools-eval [expression: string]: nothing -> nothing {
     | ^websocat --one-message --no-close $page.webSocketDebuggerUrl | complete | ignore
 }
 
-# --page after a patch, whose js only a reload runs
+# Recolours a running spotify in place; --page reloads it, for a patch whose js only a reload runs.
 def main [--page]: nothing -> nothing {
     if $page {
         devtools-eval $PAGE_RELOAD
         return
     }
-    # before the first patch there is nothing to refresh; the patch itself picks up the theme
     if (which spicetify | is-empty) { return }
     let refreshed = do { ^spicetify -n -q refresh } | complete
     if $refreshed.exit_code == 0 { devtools-eval $CSS_RELOAD }

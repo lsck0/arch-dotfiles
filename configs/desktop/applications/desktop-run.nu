@@ -1,10 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# desktop-run [--file|--files|--dir|--ask <p>] [--in-dir] [--cd <dir>] [--open <url>] [--group <g>] [--hold] [--notify] -- <cmd...>
-# a launcher entry's command: a pick appended, sudo unless in <group>, a failure held in a terminal or notified from a gui
-
 const USAGE = "usage: desktop-run [options] -- <command...>"
 const EXIT_USAGE = 2
-# left with ctrl+c, on purpose
 const EXIT_INTERRUPTED = 130
 const OPEN_TRIES = 120
 const NOTIFY_EARLY = 5sec
@@ -45,9 +41,9 @@ def open-when-up [url: string]: nothing -> nothing {
     } | ignore
 }
 
-# typed `any`: nu parses a bare true or 3 in the command as a bool or number, a string type would reject it
+# Runs a launcher entry's command: a pick appended, sudo unless in --group, a failure held in a terminal or notified.
 def main [
-    ...command: any
+    ...command: any  # any: nu parses a bare true or 3 as a bool or number, a string type would reject it
     --file, --files, --dir
     --ask: string
     --in-dir

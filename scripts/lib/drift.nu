@@ -1,22 +1,22 @@
-# reports live in git-crypt so a machine's package set stays out of the public repo; no time in them, so no diff when unchanged
+# Per-machine drift reports: what this machine runs that no module declares, kept in git-crypt so a machine's
+# package set stays out of the public repo; no timestamp, so an unchanged report makes no diff.
 
 use pipeline.nu [pipeline-load]
 use modules.nu [modules-packages]
 use platform.nu [platform-groups-all]
 use ledger.nu [ledger-get PACKAGES_DENY]
-use secrets.nu [secret-is-plaintext secrets-wanted]
+use secrets.nu [secrets-wanted]
 use state.nu [SYSTEM_STATE]
 
 const REPO = path self ../..
-const REPORTS = path self ../../configs/secrets/keys/drift
-const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
+const REPORTS = path self ../../configs/secrets/state/drift
+const SUBMODULE = path self ../../configs/secrets
 const SHOWN_MAX = 12
 
 def ledger [layer: string, kind: string]: nothing -> list<string> {
     with-env {DOT_LAYER: $layer} { ledger-get $kind }
 }
 
-# the units named by Also= in these, and in theirs: libvirtd's pulls virtlogd's, which pulls virtlogd-admin.socket
 def also-closure [scope: string, units: list<string>]: nothing -> list<string> {
     mut seen = []
     mut next = $units
@@ -31,7 +31,6 @@ def also-closure [scope: string, units: list<string>]: nothing -> list<string> {
     $seen | where $it not-in $units
 }
 
-# a unit pulled in by an owned unit's Also= is not by hand; the ledger's unit report follows the same rule
 def units-by-hand [scope: string, layer: string]: nothing -> list<string> {
     let owned = ledger $layer unit | parse "{scope} {name}" | where scope == $scope | get name
     let also = also-closure $scope $owned
@@ -40,13 +39,13 @@ def units-by-hand [scope: string, layer: string]: nothing -> list<string> {
     | get name | where $it not-in $owned | sort
 }
 
-# a provided name or a group with an installed member counts as present
 def packages-missing [names: list<string>]: nothing -> list<string> {
     with-env {LC_ALL: C} { do { ^pacman -Qq ...$names } | complete }
     | get stderr | lines | parse "error: package '{name}' was not found" | get name
     | where {|n| (do { ^pacman -Qqg $n } | complete).exit_code != 0 }
 }
 
+# This machine's report as text: missing and hand-installed packages, units enabled by hand, the ledger.
 export def drift-report []: nothing -> string {
     let ctx = pipeline-load $REPO system
     if $ctx.platform.file == null { error make {msg: $"drift: no platform file for (sys host | get hostname)"} }
@@ -70,10 +69,9 @@ export def drift-report []: nothing -> string {
     ] | str join "\n" | $"($in)\n"
 }
 
-# a timer runs it on every machine; without the secrets capability there is nowhere to publish
+# Writes the report to configs/secrets/state/drift/<host> when it changed; nothing without secrets pulled.
 export def drift-publish []: nothing -> nothing {
-    if not (secrets-wanted) { return }
-    if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
+    if not (secrets-wanted) or not ($SUBMODULE | path join .git | path exists) { return }
     let dest = $REPORTS | path join (sys host | get hostname)
     let report = drift-report
     if ($dest | path exists) and (open --raw $dest) == $report { return }
@@ -102,25 +100,25 @@ def snapshot-of [report: path]: nothing -> string {
 }
 
 export def drift-view []: nothing -> nothing {
-    if not (secret-is-plaintext $WITNESS) { error make {msg: "drift: configs/secrets/ is locked: dot secrets unlock"} }
     let reports = glob ($REPORTS | path join "*") --no-dir | where not ($it | str ends-with ".new") | sort
     if ($reports | is-empty) {
-        error make {msg: "drift: nothing published in configs/secrets/keys/drift yet: dot internal drift publish on each machine, dot sync"}
+        error make {msg: "drift: nothing published in configs/secrets/state/drift yet: dot internal drift publish on each machine, dot sync"}
     }
     for report in $reports {
         let host = $report | path basename
         let age = ^git -C ($REPORTS | path dirname) log -1 --follow --diff-filter=AM --format=%cs -- $"drift/($host)" | str trim
             | if $in == "" { ls $report | get 0.modified | format date "%F" } else { $in }
         print $"($host) \(report of ($age)\)"
-        let platform = $REPO | path join platforms $"($host).nuon"
-        if ($platform | path exists) {
+        let platform = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon")
+            | where { (open $in | get --optional hostname) == $host } | get --optional 0
+        if $platform != null {
             let published = names groups $report | each { split row " " } | flatten | uniq
             let declared = open $platform | get groups? | default []
                 | if ($in | is-empty) { platform-groups-all $REPO } else { $in }
             line "groups to add (config)" ($declared | where $it not-in $published | sort)
             line "groups to drop (config)" ($published | where $it not-in $declared | sort)
         } else {
-            print $"  no platforms/($host).nuon, its groups are not declared in the repo"
+            print $"  no platform has hostname ($host), its groups are not declared in the repo"
         }
         line "declared, not installed" (names missing $report)
         line "installed by hand" (names hand $report)

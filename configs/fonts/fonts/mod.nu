@@ -38,7 +38,7 @@ export def link [cfg: record] {
     let fonts = $nu.home-dir | path join .local share fonts
     [
         ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
-        # a drop-in, not fonts.conf: that one is the desktop's (plasma's font settings rewrite it)
+        # a drop-in, not fonts.conf: plasma's font settings rewrite that one
         (file-copy fonts.conf ($config | path join fontconfig conf.d 50-dotfiles.conf))
     ]
 }

@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell.Io
 
-// start() during a stop in flight queues one restart, so an old process never answers for a new run
 QtObject {
   id: root
 
@@ -27,7 +26,6 @@ QtObject {
     proc.running = false
   }
 
-  // exit and stderr eof race; prefer the specific message
   property StdioCollector errors: StdioCollector {
     waitForEnd: true
     onStreamFinished: if (root.error === "" && text.trim() !== "") root.error = text.trim()

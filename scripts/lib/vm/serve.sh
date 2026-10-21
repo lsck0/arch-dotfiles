@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# bash: the request must be read byte-exact from the socket, which a nu read cannot do
 set -euo pipefail
 dir=$1
 read -r method path _

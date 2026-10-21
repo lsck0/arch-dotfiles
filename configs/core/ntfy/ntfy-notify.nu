@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# forwards the homelab's ntfy topics to desktop notifications; lab.json names the topics
 
 const REPO = path self | path expand | path dirname | path join .. .. ..
 use ($REPO | path join scripts lib secrets.nu) [secret-is-plaintext]
@@ -19,7 +20,7 @@ const NOTIFICATIONS = [
     --method org.freedesktop.Notifications.CloseNotification
 ]
 
-# the homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix)
+# The homelab's interface for desktop clients, written by its sync.sh (homelab src/modules/lab-export.nix).
 def lab-json []: nothing -> path {
     $env.HOMELAB_DIR? | default ($nu.home-dir | path join projects homelab) | path join src generated lab.json
 }
@@ -43,7 +44,7 @@ def token-read []: nothing -> string {
     open --raw (token-file) | decode utf-8 | str trim
 }
 
-# it reaches xdg-open, so only a plain https link with a host: no file:, custom scheme or option
+# The url when it is a plain https link, else empty: it reaches xdg-open, so no file:, custom scheme or option.
 def https [url: any]: nothing -> string {
     if ($url | describe) != string or not ($url starts-with "https://") or $url =~ '[\s\x00-\x1f]' { return "" }
     let host = try { $url | url parse | get host } catch { "" }
@@ -105,7 +106,6 @@ def notify [msg: record]: nothing -> nothing {
         let opened = alerts-open-read
         let previous = $opened | get --optional $key | default 0
         let opened = $opened | reject --optional $key
-        # no expiry on purpose, critical alerts must not scroll away
         let opened = if $payload.status? == "firing" {
             let id = notify-send Homelab $GLYPH_HOMELAB $s.urgency $s.title $s.body $s.click $previous
             if $id != 0 { $opened | insert $key $id } else { $opened }
@@ -133,7 +133,7 @@ def subscribe [sub: record, since: string, token: string]: nothing -> nothing {
     let query = if $since == "" { "" } else { $"?({since: $since} | url build-query)" }
     let url = $"($sub.server)/($sub.topics | each { url encode } | str join ',')/json($query)"
     let last_id = state-dir | path join last-id
-    # the token reaches curl on stdin (-H @-): on the command line every local user could read it with ps
+    # the token goes to curl on stdin: on the command line every local user could read it with ps
     let stream = ($"Authorization: Bearer ($token)\n" | ^curl --silent --show-error --fail --no-buffer --speed-limit 1
         --speed-time $IDLE_S --header "User-Agent: ntfy-notify" --header @- $url)
     for line in ($stream | lines) {
@@ -154,7 +154,6 @@ def main []: nothing -> nothing {
     loop {
         let started = date now
         let token = token-read
-        # locked secrets: wait for the unlock instead of exiting, which Restart=on-failure would never undo
         if $token == "" {
             print --stderr $"ntfy-notify: no token in (token-file), waiting"
             sleep $NO_TOPICS_WAIT

@@ -42,7 +42,7 @@ def crypttab-write [root: any]: nothing -> nothing {
     print $"luks: crypttab configured, ($entries | length) non-root LUKS volume\(s\)"
 }
 
-# rd.luks.options=fido2-device=auto is read by systemd-cryptsetup alone: sd-encrypt in a systemd initramfs
+# Places sd-encrypt (encrypt without systemd); only systemd-cryptsetup reads rd.luks.options=fido2-device=auto.
 def hook-place []: nothing -> nothing {
     let hooks = hooks-read
     let hook = if "systemd" in $hooks { "sd-encrypt" } else { "encrypt" }
@@ -58,7 +58,7 @@ def hook-place []: nothing -> nothing {
     hooks-write (hooks-insert $hooks $hook ($hooks | enumerate | where item == filesystems | get 0.index))
 }
 
-# a seal bound to PCR 15's initial zero never opens after another volume was unlocked (a swapped-in fake root)
+# Enrolls the root's tpm seal bound to PCR 15's initial zero, so it never opens after another volume was unlocked.
 def root-unlock [part: string]: nothing -> nothing {
     let header = ^cryptsetup luksDump $"/dev/($part)"
     # with tpm2-measure-pcr, fido2-device=auto and no enrolled token fail the unlock without asking the passphrase

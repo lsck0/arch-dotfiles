@@ -1,2 +1,1 @@
-# wheel only: world-readable rapl is the platypus side channel (CVE-2020-8694)
 SUBSYSTEM=="powercap", ACTION=="add", RUN+="/bin/sh -c 'chgrp -R wheel /sys/devices/virtual/powercap && chmod -R g+r,o-r /sys/devices/virtual/powercap'"

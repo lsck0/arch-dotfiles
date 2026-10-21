@@ -8,7 +8,6 @@ return {
             "nvim-neotest/neotest-python",
             "rouge8/neotest-rust",
         },
-        -- full specs so which-key shows them before neotest loads
         keys = {
             {
                 "<leader>nr",

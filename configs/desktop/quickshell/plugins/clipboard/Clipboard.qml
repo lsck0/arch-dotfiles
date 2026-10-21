@@ -108,7 +108,6 @@ Item {
     root.rebuildDisplay()
   }
 
-  // gpg-clip passes the md5 of the plaintext it encrypted, so the text itself never crosses argv
   function forgetTextHash(hash) {
     var next = root.history.filter(function(entry) { return entry.type !== "text" || Qt.md5(entry.text) !== hash })
     if (next.length === root.history.length) return
@@ -198,7 +197,6 @@ Item {
     if (row.entryType === "image") {
       Quickshell.execDetached(["bash", "-c", "wl-copy --type " + Util.shellQuote(row.mime) + " < " + Util.shellQuote(row.path)])
     } else if (row.fullText && !copyTextProc.running) {
-      // argv caps at 128 KiB and is readable in /proc; closing stdin lets wl-copy fork off
       copyTextProc.stdinEnabled = true
       copyTextProc.running = true
       copyTextProc.write(row.fullText)

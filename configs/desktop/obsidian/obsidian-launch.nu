@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# a cli call with no app running starts one in the foreground, so wait for the app first
+# a cli call with no app running starts one in the foreground, so the app is started and waited for first
 
 const OBSIDIAN = "/usr/bin/obsidian"
 const WAIT_TRIES = 60

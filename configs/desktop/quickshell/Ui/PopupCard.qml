@@ -7,7 +7,6 @@ PopupWindow {
   id: root
 
   required property Item anchorItem
-  // untyped: Ui cannot import plugins/bar back
   required property var bar
   property var owner: null
   property int margin: Style.gapsOut
@@ -69,7 +68,6 @@ PopupWindow {
     onCleared: root.close()
   }
 
-  // quickshell's qmltypes stub PopupAnchor as opaque, so qmllint cannot see its members
   anchor {
     window: root.anchorWindow // qmllint disable missing-property
     adjustment: PopupAdjustment.Slide // qmllint disable missing-property
@@ -82,7 +80,6 @@ PopupWindow {
       if (!root.anchorItem || !root.bar) return
 
       var target = root.anchorItem
-      // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
       var window = target.QsWindow.window
       if (!window) return
       var popupWidth = root.implicitWidth

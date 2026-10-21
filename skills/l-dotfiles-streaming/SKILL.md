@@ -21,13 +21,15 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 - Every `scenes/*.json` in the module is a collection; `scene-render --machine` fits it to this machine: the items'
   absolute pos and bounds scale from its `resolution` to the canvas (the `*_rel` copies obs prefers then go), the
   mic and webcam options fill `AuxAudioDevice1` and every `v4l2_input`. `scene-back` carries them back without the
-  portal `RestoreToken`. A new collection is a new file there and nothing else.
+  portal `RestoreToken`. A new collection is a new file there and nothing else. A machine's own copy is
+  `scenes/<hostname>/<name>.json` (`host-seed`, by hostname, not platform name): apply prefers it, and the backup
+  writes live edits there. Edit the shared file for every machine, the host one for one machine.
 - Profiles `Streaming`, `Recording`, `VirtualCam` live in `configs/creating/obs/profiles/`; `basic.ini` keeps
   `@KEY@` placeholders. VirtualCam is capped at 720p (`VIRTUALCAM_HEIGHT`): the raw YUYV feed at 4k is ~500 MB/s.
   Streaming keeps the full canvas as output (its parallel recording stays 4k) and scales only the stream encoder to
   `STREAM_RES` (canvas aspect, at most 1080 high; `AdvOut RescaleFilter=4` lanczos, `0` disables it): Twitch ingests
-  1080p60 at 6000 kbps CBR, keyint 2 (`streamEncoder.json`). Recording: full canvas, AV1 CQP 18, hybrid mp4,
-  replay buffer 60 s.
+  1080p60 at 6000 kbps CBR, keyint 2 (`streamEncoder.json`). Recording: full canvas, the `record_encoder` option
+  (AV1 where vaapi encodes it, else h264 through vaapi, nvenc or x264) at CQP 18, hybrid mp4, replay buffer 60 s.
 - Audio tracks (a source's `mixers` bitmask): 1 the full mix (stream), 2 the mic alone, 3 the apps without mic, 4 the
   Twitch VOD track (all but Spotify). Recordings take tracks 1 to 3 (`RecTracks=7`).
 - OBS writes its loaded collection and profile over the live copies on exit, so `dot apply --user creating/obs`
@@ -40,12 +42,12 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 
 ## Hearing the stream
 
-The mixer's HEAR switch (System / OBS output), `qs ipc call obs toggleListen` and
-`scripts/toggles/toggle-obs-listen.nu` set every input on track 1 to monitor-and-output (restoring each one's
-previous type when off) and set `dot.obs-listen` on the default metadata, which mutes the per-app loopbacks
-(`configs/desktop/pipewire`) while obs runs. OBS keeps monitor types in the collection on exit, so the bar runs the
-toggle's `reconcile` when it connects. App captures tap the app's own stream, which plays at full level: the system
-faders never change what OBS hears.
+The mixer's HEAR switch (System / OBS output), `qs ipc -p ~/.config/quickshell call obs toggleListen` and
+`scripts/toggles/toggle-obs-listen.nu` switch every track-1 input without monitoring to monitor-and-output, remember
+which (`obs-listen-inputs` state) and set only those back to none when off, and set `dot.obs-listen` on the default
+metadata, which mutes the per-app loopbacks (`configs/desktop/pipewire`) while obs runs. OBS keeps monitor types in the
+collection on exit, so the bar runs the toggle's `reconcile` when it connects. App captures tap the app's own stream,
+which plays at full level: the system faders never change what OBS hears.
 
 ## Inspect a running OBS
 
@@ -55,9 +57,10 @@ obs-websocket v5 on `ws://127.0.0.1:4455`, password `server_password` in
 `obs-mcp.nu` reads the password at start) does this for you; `plugins/bar/widgets/obs-status.nu` is a working
 websocat client to copy from.
 
-The bar's obs widget runs `obs-status.nu` as a long-lived helper: it finds per-app audio inputs by their input name,
-so a renamed input breaks it, and an edit to it takes effect only after the shell restarts
-(`configs/desktop/quickshell/restart.nu`).
+The bar's obs widget runs `obs-status.nu` (the `~/.config/quickshell` copy) as a long-lived helper, only while OBS
+runs. It finds the per-app captures by input kind and the mute sources `Mic/Aux`, `Desktop Audio`, `Game Audio` by
+name, so renaming one breaks it. An edit takes `dot apply desktop/quickshell`, then an OBS restart or
+`configs/desktop/quickshell/restart.nu`; the obs keybinds run the repo copy.
 
 ## Spotify
 

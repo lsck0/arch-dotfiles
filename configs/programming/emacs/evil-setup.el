@@ -1,5 +1,3 @@
-;;; evil-setup.el --- vim emulation -*- lexical-binding: t; -*-
-
 (use-package evil
   :init
   (setq evil-want-keybinding nil          ; required by evil-collection
@@ -37,4 +35,3 @@
   :commands (evil-multiedit-match-symbol-and-next evil-multiedit-match-and-next))
 
 (provide 'evil-setup)
-;;; evil-setup.el ends here

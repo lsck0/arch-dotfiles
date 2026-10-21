@@ -1,0 +1,11 @@
+{
+    hostname: luca-notebook
+    form_factor: laptop
+    groups: [base core fonts desktop socials creating latex programming pentesting]
+    extra_packages: [python-validity-git]
+    facts: {
+        homelab: true
+        wireguard: wg0.laptop.conf
+        secure_boot_own_keys: true
+    }
+}

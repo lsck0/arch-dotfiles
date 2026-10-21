@@ -6,9 +6,7 @@ const CONF = "/etc/wireguard/protonvpn-netns.conf"
 const LIB = "/usr/local/lib/protonvpn-netns"
 const NS_ETC = "/etc/netns/protonvpn"
 const UNIT = "protonvpn-netns.service"
-# ahead of /usr/bin in every PATH; mpv-stream is mpv with its ytdl hook, which plain mpv leaves off
 const SHIMS = [ani-cli yt-dlp mpv-stream]
-# shimmed only when installed; qbittorrent binds proton0 itself
 const VPN_FORCED = [gallery-dl spotdl nicotine]
 const DNS_DEFAULT = "10.2.0.1"
 const PRIVATE_KEY = '^\s*PrivateKey\s*=\s*[A-Za-z0-9+/]{43}=\s*$'
@@ -39,7 +37,7 @@ export def system [cfg: record] {
     ]
 }
 
-# data only: hooks would run as root, and a key masked on download (*****) never makes a tunnel
+# Writes the tunnel config as data only: hooks would run as root, and a key masked on download (*****) never connects.
 export def tunnel []: nothing -> nothing {
     if not (secret | path exists) { return }
     let text = open --raw (secret)

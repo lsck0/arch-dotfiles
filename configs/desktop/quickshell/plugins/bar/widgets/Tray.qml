@@ -36,7 +36,6 @@ BarWidget {
     ? submenuStack[submenuDepth - 1].opener.children
     : trayMenuOpener.children
 
-  // swallows the click that lands on the rebuilt level
   property bool menuLevelSettling: false
 
   Component {
@@ -58,9 +57,7 @@ BarWidget {
   function resetTrayMenu() {
     menuLevelSettling = false
     menuLevelSettleTimer.stop()
-    // flickable keeps its offset across a model swap
     trayMenuFlick.contentY = 0
-    // clear the stack before destroying, so no binding reads a dead opener
     var openers = submenuStack
     submenuStack = []
     for (let i = openers.length - 1; i >= 0; i--) openers[i].opener.destroy()
@@ -98,7 +95,6 @@ BarWidget {
       return
     }
 
-    // reset first: a new item invalidates the old children at once
     resetTrayMenu()
     activeTrayItem = item
     activeTrayAnchor = anchorItem
@@ -122,7 +118,6 @@ BarWidget {
   }
 
   function bucket(category) {
-    // quickshell's qmltypes ship ObjectModel as an opaque stub, so qmllint cannot see .values
     var values = SystemTray.items.values // qmllint disable missing-property
     var result = []
     for (let i = 0; i < values.length; i++) {
@@ -167,7 +162,6 @@ BarWidget {
     persistTrayState(p, h)
   }
 
-  // every item hidden: a handle stays, else nothing reaches the manage popup to unhide them
   readonly property bool allHidden: allItems.length > 0 && pinnedItems.length === 0 && drawerCount === 0
 
   visible: allItems.length > 0
@@ -187,7 +181,6 @@ BarWidget {
     anchors.fill: parent
     visible: root.allHidden
     bar: root.bar
-    // fa-eye_slash
     text: "\u{f070}"
     tooltipText: "Tray icons (all hidden)"
     onPressed: root.managePopupOpen = !root.managePopupOpen
@@ -233,7 +226,6 @@ BarWidget {
           Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.trayItemGap
-            // no layer: one eats clicks meant for the delegates
 
             Repeater {
               model: root.drawerItems
@@ -453,12 +445,10 @@ BarWidget {
     bar: root.bar
     open: root.trayMenuOpen
     padding: Style.spacing.xs
-    // on visible, not open: resetting mid-fade flashes the root menu
     onVisibleChanged: if (!visible) root.resetTrayMenu()
     contentWidth: trayMenuPopup.fittedContentWidth(Style.space(232))
     contentHeight: trayMenuPopup.fittedContentHeight(menuHeaderHeight + trayMenuColumn.implicitHeight, Style.space(420))
 
-    // Column still reports hidden children's height
     readonly property int menuHeaderHeight: menuHeader.visible ? menuHeader.implicitHeight : 0
     readonly property var menuEntries: root.currentChildren ? root.currentChildren.values : []
     readonly property bool hasCheckColumn: menuEntries.some(e => !e.isSeparator && e.buttonType !== QsMenuButtonType.None)
@@ -675,7 +665,6 @@ BarWidget {
                 onClicked: {
                   if (root.menuLevelSettling) return
                   if (menuRow.modelData.hasChildren) {
-                    // before the swap: it destroys this delegate
                     trayMenuFlick.contentY = 0
                     root.enterSubmenu(menuRow.modelData, menuRow.rowText)
                   } else {
@@ -744,7 +733,6 @@ BarWidget {
       onEntered: if (root.bar) root.bar.showTooltip(trayItemRoot, root.trayTooltip(trayItemRoot.modelData))
       onExited: if (root.bar) root.bar.hideTooltip(trayItemRoot)
       onPressed: function(mouse) {
-        // shift+right-click: the pin/hide popup, reachable from every icon (the gaps are too thin to aim at)
         if (mouse.button === Qt.RightButton && (mouse.modifiers & Qt.ShiftModifier)) {
           root.managePopupOpen = !root.managePopupOpen
           mouse.accepted = true

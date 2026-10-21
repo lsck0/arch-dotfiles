@@ -23,7 +23,6 @@ Item {
   readonly property int barClearance: Style.bar.sizeHorizontal + Style.gapsOut
   readonly property int toastWidth: Style.space(420)
 
-  // kept out of the model: stale qobject roles segfault
   property var liveRefs: ({})
 
   FileView {
@@ -34,7 +33,6 @@ Item {
     printErrors: false
     onAdapterUpdated: writeAdapter()
 
-    // quickshell's qmltypes stub FileViewAdapter
     JsonAdapter { // qmllint disable unresolved-type
       id: settings
       property bool dnd: false
@@ -51,7 +49,6 @@ Item {
   readonly property alias doNotDisturb: settings.dnd
 
   function setDoNotDisturb(value) {
-    // settings sits in FileView's opaque adapter slot
     settings.dndByObs = false // qmllint disable unqualified
     settings.dnd = !!value // qmllint disable unqualified
   }
@@ -107,25 +104,35 @@ Item {
     return transient || NotificationLogic.isEphemeralApp(String(notification.appName || ""))
   }
 
-  function entryNameOf(notification) {
+  function entryOf(notification) {
     var id = String(notification.desktopEntry || "")
-    var entry = id ? DesktopEntries.byId(id) : null
+    return id ? DesktopEntries.byId(id) : null
+  }
+
+  function entryNameOf(notification) {
+    var entry = entryOf(notification)
     return entry ? String(entry.name || "") : ""
   }
 
+  function entryIconOf(notification) {
+    var entry = entryOf(notification)
+    var own = NotificationLogic.legacyIcon(notification.appIcon)
+    if (own.length > 0 && Util.iconSource(own).length > 0) return ""
+    return entry ? String(entry.icon || "") : ""
+  }
+
   function snapshotOf(notification, originalId, timestamp) {
-    return NotificationLogic.replacementSnapshot(notification, originalId, timestamp, entryNameOf(notification))
+    return NotificationLogic.replacementSnapshot(notification, originalId, timestamp, entryNameOf(notification), entryIconOf(notification))
   }
 
   function handleNotification(notification) {
     notification.tracked = true
-    var snapshot = NotificationLogic.snapshotOf(notification, Date.now(), entryNameOf(notification))
+    var snapshot = NotificationLogic.snapshotOf(notification, Date.now(), entryNameOf(notification), entryIconOf(notification))
     var originalId = snapshot.originalId
     liveRefs[originalId] = notification
     notification.closed.connect(function() {
       if (service.liveRefs[originalId] !== notification) return
       delete service.liveRefs[originalId]
-      // the sender closed it (CloseNotification): its popup goes too, the history keeps it
       Qt.callLater(function() { service.closePopupsByOriginalId(originalId) })
     })
 
@@ -138,7 +145,6 @@ Item {
     persistPopupFile(snapshot)
     watchForUpdates(notification, snapshot)
     Qt.callLater(function() {
-      // closed before its row went in
       if (service.liveRefs[originalId] !== notification) {
         service.archivePopupFileFor(snapshot)
         return
@@ -152,14 +158,12 @@ Item {
   function writeSilenced(notification, written) {
     service.materializeImage(written, function(resolved) {
       service.writeEntryFile(resolved, service.historyDir, function() {
-        // a sender's CloseNotification while the write was queued leaves a destroyed object that reads as empty
         if (service.liveRefs[resolved.originalId] !== notification) return
         var updated = null
         try {
           updated = service.snapshotOf(notification, resolved.originalId, resolved.timestamp)
         } catch (e) {
         }
-        // compare unresolved input, else the png re-encodes forever
         if (updated && NotificationLogic.popupRowChanged(written, updated)) {
           service.writeSilenced(notification, updated)
           return
@@ -241,7 +245,6 @@ Item {
     }
   }
 
-  // reason "replay": the row leaves the screen only, the notification stays open for its sender
   function removePopup(index, reason) {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
@@ -283,7 +286,6 @@ Item {
     if (index < 0 || index >= popupModel.count) return
     var entry = popupModel.get(index)
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
-    // a browser started here must not join quickshell.service
     if (argv) Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
     else if (!invokeDefaultAction(entry)) focusApp(entry)
     removePopup(index)
@@ -484,7 +486,6 @@ Item {
     enqueueFileJob(["bash", "-c", "dir=\"$1\" keep=0 imgs=\"$2\"\n" + trimScript, "--", historyDir, imagesDir])
   }
 
-  // the files go before the toast, else its archive move shows the row again until the delete
   function removeEntry(originalId, timestamp) {
     var row = { originalId: originalId, timestamp: timestamp }
     enqueueFileJob(["bash", "-c",
@@ -544,7 +545,6 @@ Item {
       return
     }
 
-    // live notifications ride along in the history rows (liveRowsForReplay), still open for their senders
     clearPopups("replay")
     for (let i = 0; i < rows.length; i++) {
       service.restoredPopups[NotificationLogic.popupFileName(rows[i])] = true
@@ -746,7 +746,6 @@ Item {
       required property var modelData
       screen: modelData
 
-      // hyprland keeps no_anim on this namespace: the ListView transitions below animate each toast
       WlrLayershell.namespace: "quickshell-notifications"
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

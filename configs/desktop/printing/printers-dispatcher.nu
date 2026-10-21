@@ -1,5 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# after 90-anonymous-persona started avahi; a unit, not inline: discovery takes seconds and dispatchers run serially
+# a unit, not inline: discovery takes seconds and dispatchers run serially
 
 const HOME_NETWORK = "/run/home-network"
 

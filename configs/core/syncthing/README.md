@@ -2,8 +2,7 @@
 
 Syncs `~/sync` with the homelab NAS (`vm-104-nas`, `10.100.0.104` over the
 wireguard tunnel), with staggered versioning (30 days) for what another device
-deletes or overwrites, and sends `~/.local/share/borg-repo` as the folder
-`borg-<host>` to the NAS alone (configs/core/borg).
+deletes or overwrites.
 
 The link verb installs `configs/secrets/keys/syncthing/<hostname>/` (`cert.pem`,
 `key.pem`, `config.xml`) so the device comes up paired. Without them it starts
@@ -15,7 +14,3 @@ relays, NAT traversal, crash and usage reporting through the API, and sets the
 GUI login to your user name with the password from
 `configs/secrets/keys/syncthing-gui-password` (base64 characters only), or one it generates
 into `~/.local/state/syncthing/gui-password` (0600) while that secret is missing.
-
-The NAS declares `borg-<host>` receive-only with versioning off (homelab
-`src/core/104-internal-nas/main.nix`): the repo is already encrypted and
-versioned by borg itself. A new host needs its folder added there.

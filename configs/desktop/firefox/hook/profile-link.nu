@@ -1,8 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
-# a profile firefox made itself (a downgrade, about:profiles) has no user.js or userChrome.css until desktop/firefox
-# links it; a profiles.ini change with every profile styled is left alone
-
+# links a profile firefox made itself (a downgrade, about:profiles), which has no user.js or userChrome.css yet
 # the unit's environment has no DOTFILES outside a uwsm session
+
 const DOT = path self | path dirname | path join .. .. .. .. scripts dot.nu
 
 def main []: nothing -> nothing {

@@ -2,7 +2,6 @@
 # idle dim and restore of the backlight and ddc/ci monitors, the pre-dim level per device saved for resume
 
 const DDC_LOW = 10
-# a percentage: a raw 10 is near black on a panel with a high max
 const BACKLIGHT_LOW_PCT = 10
 const DDC_BUS_MAP = ".cache/ddcutil-bus-map.tsv"
 const VCP_BRIGHTNESS = "10"
@@ -20,9 +19,7 @@ def buses []: nothing -> list<string> {
 
 def dim []: nothing -> nothing {
     if (state-file | path exists) { return }
-    # only ever down: a screen already below the dim level stays as it is, and nothing is saved to restore
     if (backlight) {
-        # -m: "device,class,current,percent%,max"
         let current = ^brightnessctl -m --class=backlight | complete | get stdout | lines | get 0? | default "" | split row "," | get 3?
             | default "" | str trim --right --char "%"
         if $current !~ '^\d+$' or ($current | into int) <= $BACKLIGHT_LOW_PCT { return }
@@ -30,7 +27,6 @@ def dim []: nothing -> nothing {
         "" | save (state-file)
         return
     }
-    # ddc is slow, so one job per monitor; the state only exists once every baseline is in it
     let saved = buses | par-each {|bus|
         let current = ^ddcutil --bus $bus getvcp $VCP_BRIGHTNESS --terse | complete | get stdout | split row " " | get --optional 3
         if $current == null or $current !~ '^\d+$' or ($current | into int) <= $DDC_LOW { return null }

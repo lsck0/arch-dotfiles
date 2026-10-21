@@ -12,10 +12,13 @@ name, not a theme name: a theme is picked through its wallpaper, `dot theme "$(j
 It links `~/.cache/wal/wallpaper`, then:
 
 - A wallpaper named by a `themes/<theme>.json` (`"wallpaper"` field) applies that hand-made palette
-  (`wallust cs -s <theme>`, plus its optional `"font"` through `toggle-font.nu set`); any other wallpaper derives one
-  (`wallust run -s <file>`).
-- wallust renders every file of `configs/core/wallust/templates/wal/` to `~/.cache/wal/<same name>`
-  (`wallust.toml`, `{background}`, `{foreground}`, `{color0}` to `{color15}`).
+  (`wallust cs -s --wallpaper <file> <theme>`, plus its optional `"font"` through `toggle-font.nu set`); any other
+  wallpaper derives one (`wallust run -s <file>`). Either way it also writes `~/.cache/wal/nvim_theme`.
+- wallust renders every file of `configs/core/wallust/templates/wal/` to `~/.cache/wal/<same name>` (pywal
+  placeholders `{background}`, `{foreground}`, `{color0}` to `{color15}`). The other `[templates]` entries in
+  `wallust.toml`: jinja templates at the `templates/` root (`{{color4}}`, filters such as `blend`) to
+  `~/.cache/wal/`, `colors-steam.css` to Steam's millennium theme, `omarchy-colors.toml` to
+  `~/.local/state/omarchy/current/theme/`.
 - Then every enabled module's `theme` verb runs (`dot internal theme apply`): `export def theme [cfg: record, wallpaper:
   string]` in its `mod.nu`, returning declarations like `link`. It reads the palette with `palette-load` (`bg`, `fg`,
   `c0` to `c15`, `light`, `bg_conditioned`) or `configs/core/wallust/palette.nu` directly, the one conditioning
@@ -33,10 +36,11 @@ them into its program's config (`style.lua`, `dotfiles-style.css`, `ROUNDNESS`),
 Most families have a light theme (`catppuccin-latte`, `rose-pine-dawn`, `alucard`, ...) and some a soft one
 (`gruvbox-*-soft`, `everforest-*-soft`). Every theme names its family's theme of the other mode in `"pair"` (a light
 one pairs back), which `toggle-theme-mode.nu` flips to; `themes.test.nu` checks it, so a new
-theme needs one. It also holds every theme's raw palette to contrast floors on its background (foreground and
-color4 4.5:1, the accents and color8 3:1), since templates use those colours unconditioned. `gruvbox-light`'s
-wallpaper (`alena-aenami-serenity.jpg`) has a public copy in `wallpapers/`, so it works with locked secrets too; a
-wallpaper resolves from `configs/secrets/keys/wallpapers/` first (when unlocked), then `wallpapers/`.
+theme needs one. It also holds every theme's raw palette to contrast floors on its background (foreground, color4 and
+color12 4.5:1, on a dark theme also color7 and color15; the other accents and color8 3:1), since templates use those
+colours unconditioned. Every theme's wallpaper has a public copy in `wallpapers/`, so themes work without the
+submodule; a name resolves from `configs/secrets/state/wallpapers/` first (plaintext, present wherever the submodule
+is pulled), then `wallpapers/` (`scripts/lib/wallpaper-list.nu`).
 
 ## Add a template (a program reads a color file)
 
@@ -66,5 +70,6 @@ dot theme --sync <remembered path>
 
 `--sync` waits for the background verbs. After each: check `~/.cache/wal/<your file>`, the program's look
 (screenshot on a headless output, skill `l-dotfiles-gui-testing`), and contrast on the light theme. `git status` stays clean: a switch writes nothing in the
-repo. `dot apply --user` reruns the switch itself when anything under `configs/core/wallust`,
-`themes/`, a tracked `mod.nu` or `scripts/lib/wallpaper.nu` changed.
+repo. A full user run (no module arguments) reruns the whole switch when anything under `configs/core/wallust`,
+`themes/`, any `mod.nu` or `scripts/lib/wallpaper.nu` changed, tracked or untracked (stamp
+`~/.cache/wal/.theme-stamp`); any apply reruns the `theme` verb of each module it applied.

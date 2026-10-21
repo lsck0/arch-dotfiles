@@ -1,7 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
 # only the managers write these ids and journald sets _PID, so a local logger --journald cannot fake a kill
 
-# systemd.catalog's ids
 const OOMD_KILL_ID = "d989611b15e44c9dbf31e3c81256e4ed"
 const KERNEL_KILL_ID = "fe6faa94e7774663a0da52717891d8ef"
 

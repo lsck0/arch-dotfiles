@@ -1,3 +1,6 @@
+# Pinned downloads behind fetch-file and fetch-git (module.nu): a file checked against its sha256 and cached
+# by it, a git tree at a commit; a stamp per destination says it is done.
+
 use state.nu [state-dir path-kind]
 
 def fetch-cache []: nothing -> path {
@@ -21,6 +24,8 @@ def extract [archive: path, into: path]: nothing -> nothing {
     if (^file -b --mime-type $archive | str trim) == "application/zip" { ^unzip -q $archive -d $into } else { ^tar -xf $archive -C $into }
 }
 
+# Downloads url (or takes it from the cache), checks the sha256 and swaps it in at dest; --extract names an
+# archive member, or . for all.
 export def fetch-file-run [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
@@ -53,6 +58,7 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     $sha256 | save --force (stamp $dest)
 }
 
+# A shallow checkout of url at commit in dir, submodules included.
 export def fetch-git-run [url: string, commit: string, dir: path]: nothing -> nothing {
     if (fetch-git-done $commit $dir) { return }
     ^git init -q $dir

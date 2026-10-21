@@ -1,33 +1,21 @@
 # managed by arch-dotfiles/apparmor
-# native messaging hosts: proton pass, a root-owned binary the browser cannot rewrite
 /opt/proton-pass/resources/assets/proton_pass_nm_host rPUx,
-# pywalfox is a bash and python script, so the browser's environment (BASH_ENV, PYTHONPATH, PATH) steers it: a child
-# that reads the palette and serves its socket, never unconfined
 @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh rCx -> pywalfox,
-# the per-user manifests: base/xdg links ~/.mozilla here, so the profile's ~/.mozilla rule never matches
 owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
 
-# the homelab share and attachments in temp dirs, as for every viewer: file:// pages, pdfs and images other apps drop
-# in /tmp
 include <abstractions/dotfiles/viewer-read>
 
-# the new tab and home page (desktop/firefox), qutebrowser's, its bookmarks (secrets/weblinks); the wallpaper is in
-# ~/projects
 owner @{user_config_dirs}/qutebrowser/startpage.html r,
 owner @{user_share_dirs}/weblinks/links.js r,
 owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
 
-# claude's playwright-mcp (programming/playwright) drives a headless firefox on a throwaway profile in temp
 owner /tmp/playwright_firefoxdev_profile-*/ rw,
 owner /tmp/playwright_firefoxdev_profile-*/** rwk,
 
-# the crash reporter's request it writes beside the minidump
 owner /tmp/crashreporter*-request*.json rw,
 
-# web speech: libspeechd talks to the socket-activated user speech-dispatcher (desktop/firefox)
 owner @{run}/user/@{uid}/speech-dispatcher/speechd.sock rw,
 
-# a handler the browser registers is what child-open-any runs unconfined; base/xdg owns these
 deny @{user_config_dirs}/mimeapps.list* w,
 deny @{user_share_dirs}/applications/{,**} w,
 
@@ -43,19 +31,14 @@ profile pywalfox flags=(attach_disconnected) {
   @{bin}/pywalfox rix,
 
   @{lib}/python3.@{int}/site-packages/pywalfox/bin/main.sh r,
-  # bash probes the terminal it never has under the browser
   deny /dev/tty rw,
 
   owner @{user_cache_dirs}/wal/colors.json r,
   owner @{user_cache_dirs}/pywalfox.log{,.1} rw,
   owner @{user_config_dirs}/pywalfox/{,config.json} rw,
   owner @{tmp}/pywalfox_socket_@{uid} rw,
-  # python's tempfile probes /tmp then /var/tmp (@{tmp}) for a writable dir at startup by creating a scratch file;
-  # without this it falls through to its cwd (the site-packages bin dir) and, denied there too, dies with "No usable
-  # temporary directory"
   owner @{tmp}/* rw,
 
-  # its css toggles: profiles.ini through the ~/.config/firefox link, and the profile's chrome dir
   owner @{user_config_dirs}/mozilla/firefox/profiles.ini r,
   owner @{user_config_dirs}/mozilla/firefox/*/chrome/{,*.css} rw,
 }

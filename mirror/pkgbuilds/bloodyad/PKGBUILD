@@ -19,8 +19,6 @@ sha256sums=(2c04f013963a616ef21bee964b7c5c641b0d2c3ae51be6d65a7485bc4b5e4513)
 _pyver=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 _pkgroot="/opt/bloodyad"
 _pylib="$_pkgroot/lib/python$_pyver/site-packages"
-# pyproject's dependencies minus cryptography: a vendored copy shadows the system one (hazmat.asn1, >=45) that
-# aioquic/service_identity need. drop the recipe once upstream unpins it
 _deps=(
     "badldap>=0.7.5"
     "winacl==0.1.9"
@@ -37,7 +35,6 @@ package() {
     cd "$srcdir/bloodyAD-$pkgver"
     install -d "$pkgdir$_pylib"
 
-    # the dependencies first, then the built wheel on top without resolving them again
     python -m pip install \
         --target="$pkgdir$_pylib" \
         --no-compile \
@@ -48,7 +45,6 @@ package() {
         --no-compile \
         dist/*.whl
 
-    # both spellings of the command wrap the real entrypoint
     install -Dm755 /dev/stdin "$pkgdir/usr/bin/bloodyad" << EOF
 #!/bin/bash
 export PYTHONPATH="$_pylib:\$PYTHONPATH"

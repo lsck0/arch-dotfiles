@@ -1,4 +1,4 @@
-# bypass.nu <nft file> <phase>, in an empty namespace on the guest; vm.nu fills in the probes and the member gid
+# bypass.nu <nft file> <phase>, run in an empty namespace on the guest; vm.nu fills in the probes and the member gid.
 
 const PROBES = '@PROBES@'
 const PROBE_TABLE = r#'
@@ -47,7 +47,6 @@ def main [nft_file: path, phase: string] {
     for probe in ($PROBES | from nuon | where phase == $phase) {
         let family = if ($probe.daddr | str contains ":") { 6 } else { 4 }
         let element = $"{ ($probe.daddr) . ($probe.dport) }"
-        # bash: its /dev/tcp and /dev/udp redirects open the socket
         ^setpriv $"--regid=($probe.gid)" --clear-groups timeout 1 bash -c $"echo > /dev/($probe.proto)/($probe.daddr)/($probe.dport)" | complete | ignore
         let got = if not (probe-has $"seen($family)" $element) { "unseen" } else if (probe-has $"marked($family)" $element) { "marked" } else { "unmarked" }
         print $"drill: bypass_($probe.name)=($got)"

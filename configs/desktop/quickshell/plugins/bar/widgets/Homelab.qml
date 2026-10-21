@@ -52,9 +52,7 @@ BarWidget {
   Process {
     id: statusProc
     running: true
-    // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
-    // never --summary: it drops host, storage and traffic, which the bar icon needs too
     command: panel.visible
       ? [Paths.barWidget("homelab-status.nu"), "30"]
       : [Paths.barWidget("homelab-status.nu"), "300"]
@@ -110,7 +108,6 @@ BarWidget {
     Text {
       anchors.verticalCenter: parent.verticalCenter
       textFormat: Text.PlainText
-      // md-server_network / md-server_network_off
       text: root.ok || !root.received ? "\u{f048d}" : "\u{f048e}"
       color: root.ok && root.problemCount > 0 ? Colors.urgent
         : root.bar ? root.bar.barForeground : Colors.foreground

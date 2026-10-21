@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [TOGGLES_DIR toggle-run]
 
-const PICKER = path self ../picker.nu
+const PICKER = path self ../lib/picker.nu
 
 def main [--fzf] {
     let toggles = ^($TOGGLES_DIR | path join status.nu) | from json | each {|t| $t | insert line $"(if $t.on { '●' } else { '○' }) ($t.label)" }

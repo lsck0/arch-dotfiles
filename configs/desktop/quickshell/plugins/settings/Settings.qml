@@ -36,11 +36,9 @@ Item {
   property var batch: ({ applied: [], failed: 0, notes: [] })
   property bool systemPending: false
   readonly property int exitSystemPending: 3
-  // a set, apply or root toggle may ask for a polkit password, whose dialog needs the keyboard
   readonly property bool busy: setProc.running || systemApplyProc.running || toggleProc.running
   property string notice: ""
 
-  // graphviz installs a /usr/bin/dot too, so never by PATH
   readonly property string dot: Paths.home + "/.local/bin/dot"
   readonly property var sections: Schema.sections(modules, toggles, query)
   readonly property var section: sections[Math.min(sectionIndex, sections.length - 1)] || null
@@ -62,7 +60,6 @@ Item {
 
   onExpandedIdChanged: root.choiceQuery = ""
 
-  // on the named output, else the focused one
   function open(output) {
     var name = output || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
     panel.screen = Array.from(Quickshell.screens).find(function (s) { return s.name === name }) || null
@@ -99,7 +96,6 @@ Item {
     root.selectRow(Schema.selectable(root.rows, 0, 1))
   }
 
-  // headers in the list are skipped in the direction of travel
   function selectSection(index, direction) {
     if (root.sections.length === 0) return
     var dir = direction || 1
@@ -349,7 +345,6 @@ Item {
     setProc.id = id
     setProc.value = entry.value
     var option = entry.option
-    // flags before `--`, so a negative number is a value and not a flag
     var machine = option.scope === "machine" ? ["--machine"] : []
     setProc.command = option.toggle ? [Paths.toggle("toggle-" + option.toggle + ".nu"), option.set, Schema.toggleArgument(option, entry.value)]
       : entry.reset ? [root.dot, "set", "--default"].concat(machine, ["--", id])
@@ -393,7 +388,6 @@ Item {
   function runToggle(toggle) {
     if (toggleProc.running) return
     root.busyToggles = Util.mapSet(root.busyToggles, toggle.name, true)
-    // its own scope, as StayAwake: what a toggle leaves running must outlive a quickshell.service restart
     toggleProc.command = ["uwsm-app", "-s", "b", "--", Paths.toggle("toggle-" + toggle.name + ".nu"), "toggle"]
     toggleProc.running = true
   }
@@ -449,7 +443,6 @@ Item {
     }
   }
 
-  // a toggle that fails never announces itself, so its exit clears the busy mark
   Process {
     id: toggleProc
     onExited: statusProc.refresh()
@@ -486,7 +479,6 @@ Item {
     target: "settings"
     function toggle(): string { root.toggle(); return "ok" }
     function open(): string { root.open(""); return "ok" }
-    // a given output, focused or not: the agents' headless output, or another monitor
     function openOn(output: string): string { root.open(output); return "ok" }
     function close(): string { root.close(); return "ok" }
   }
@@ -530,7 +522,6 @@ Item {
           required property var modelData
           required property int index
 
-          // a group's name above its modules, never selectable
           readonly property bool header: modelData.kind === "header"
           readonly property bool current: !header && index === root.sectionIndex && !root.query
           readonly property bool hasCursor: current && root.pane === "sections"
@@ -664,7 +655,6 @@ Item {
               Rectangle {
                 readonly property var toggle: slot.modelData.toggle
                 readonly property bool busy: root.busyToggles[toggle.name] === true
-                // a cycling toggle's label is "<name>: <state>": the name on the left, the state as its badge
                 readonly property int split: Schema.toggleCycles(toggle) ? toggle.label.indexOf(": ") : -1
                 readonly property string name: split > 0 ? toggle.label.slice(0, split) : toggle.label
                 readonly property string stateText: split > 0 ? toggle.label.slice(split + 2) : "next"

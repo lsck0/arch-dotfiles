@@ -7,7 +7,6 @@ const HOMELAB_FILE = "/etc/pacman.d/homelab-mirror"
 const COUNTRIES_FILE = "/etc/pacman.d/mirror-countries"
 const COUNTRIES = "Germany,France,Switzerland,Austria,Poland,Denmark,Netherlands"
 const MIRRORS_MAX = 30
-# fewer servers means a failed fetch
 const MIRRORS_MIN = 10
 const USER_DEFINED = "## Used Defined"
 const HOMELAB_COMMENT = (
@@ -22,8 +21,7 @@ def rank [mode: string, out: path]: nothing -> list<string> {
             | if $in == "" { $COUNTRIES } else { $in }
         ^ghostmirror -l $out -c $countries -L $MIRRORS_MAX -T https -S state,outofdate,morerecent,ping
     }
-    # https only: core and extra databases are unsigned, a plain-http mirror on a foreign network could replay a stale
-    # one and hold security updates back
+    # https only: the databases are unsigned, a plain-http mirror could replay a stale one and hold updates back
     open --raw $out | lines | where {|l| not ($l | str starts-with "Server=http://") }
 }
 
@@ -32,7 +30,6 @@ def main [mode: string]: nothing -> nothing {
         print --stderr "usage: mirrorlist-update {sort|rebuild}"
         exit 2
     }
-    # the weekly sort and the monthly rebuild must not overwrite each other's list
     if $env.MIRRORLIST_LOCKED? == null {
         with-env {MIRRORLIST_LOCKED: 1} { exec flock $LOCK $SELF $mode }
     }

@@ -24,7 +24,6 @@ def main []: nothing -> nothing {
     if (^sudo test -e $STAGE_KEY_FILE | complete).exit_code == 0 {
         die "the stage keyfile is still armed, run this after the stage chain"
     }
-    # cryptsetup writes the backup as root and refuses an existing file
     let tmp = ^sudo mktemp -d | str trim
     let failed = try {
         ^sudo cryptsetup luksHeaderBackup $device --header-backup-file $"($tmp)/header.img"

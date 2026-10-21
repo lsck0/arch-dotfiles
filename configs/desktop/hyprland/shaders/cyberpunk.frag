@@ -9,14 +9,12 @@ uniform sampler2D tex;
 uniform float time;
 out vec4 fragColor;
 
-// rewritten by toggle-shader.nu from the shell palette
 const vec3 BACKGROUND = vec3(0.0431, 0.0549, 0.0784);
 const vec3 ACCENT = vec3(0.2235, 0.7294, 0.9020);
 const float GLOW = 0.55;
 const float SCANLINE_OPACITY = 0.06;
 const float SCANLINE_SPACING_PX = 3.0;
 
-// grade
 const float SATURATION = 1.35;
 const float CONTRAST = 1.14;
 const float SHADOW_LIFT = 0.60;     // how far near-black is pulled to BACKGROUND
@@ -25,35 +23,29 @@ const float HIGHLIGHT_TINT = 0.22;  // accent tint on bright areas
 const vec3 SHADOW_HEAT = vec3(1.25, 0.55, 0.85); // magenta push in the mids, against the accent highlights
 const float HEAT_MIX = 0.18;
 
-// glow: 4-tap bloom above a luma threshold, coloured toward ACCENT
 const float BLOOM_RADIUS_UV = 0.0030;
 const float BLOOM_THRESHOLD = 0.55;
 const float BLOOM_ACCENT_MIX = 0.70;
 
-// tube
 const float WOBBLE_UV = 0.0018;
 const float ROLL_SPEED = 0.18;      // tracking band sweeps per second
 const float ROLL_SHIFT_UV = 0.014;
 const float FLICKER = 0.035;
 
-// rgb split: pulsing base, kicked by every glitch
 const float ABERRATION_UV = 0.0030;
 const float ABERRATION_PULSE_UV = 0.0018;
 const float ABERRATION_KICK_UV = 0.009;
 
-// tear bands
 const float TEAR_RATE_HZ = 14.0;
 const float TEAR_BAND_PX = 7.0;
 const float TEAR_CHANCE = 0.09;     // share of bands torn per slot
 const float TEAR_SHIFT_UV = 0.05;
 
-// datamosh cells jumping sideways
 const vec2 BLOCK_GRID = vec2(28.0, 16.0);
 const float BLOCK_RATE_HZ = 10.0;
 const float BLOCK_CHANCE = 0.045;
 const float BLOCK_SHIFT_UV = 0.08;
 
-// hsync jolt: the whole frame slips for a few frames, roughly every couple of seconds
 const float JOLT_SLOT_S = 0.09;
 const float JOLT_CHANCE = 0.035;
 const float JOLT_SHIFT_UV = 0.035;
@@ -118,7 +110,6 @@ void main() {
     col = mix(col, max(col, BACKGROUND), SHADOW_LIFT * (1.0 - smoothstep(0.0, SHADOW_LUMA_MAX, l)));
     col = mix(col, col * (0.5 + ACCENT), HIGHLIGHT_TINT * smoothstep(0.5, 1.0, l));
 
-    // torn bands and moshed cells flash toward the accent
     col = mix(col, col + ACCENT * 0.35, (torn * 0.6 + blk * 0.8) * hash(band * 3.3 + tslot));
 
     float scan = sin((gl_FragCoord.y + time * SCANLINE_DRIFT_PX) * 3.14159265 * 2.0 / SCANLINE_SPACING_PX) * 0.5 + 0.5;
@@ -128,7 +119,6 @@ void main() {
     col += (hash2(uv * vec2(640.0, 360.0) + time * 60.0) - 0.5) * GRAIN;
     col *= 1.0 + FLICKER * sin(time * 50.0);
 
-    // vignette into the theme background, not black
     float vig = smoothstep(0.30, 0.95, distance(v_texcoord, vec2(0.5)));
     col = mix(col, BACKGROUND, vig * VIGNETTE);
 

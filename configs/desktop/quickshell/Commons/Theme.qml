@@ -11,7 +11,6 @@ QtObject {
     property int fontSize: 12
     property real backgroundValueMin: 0.08
     property real backgroundValueMax: 0.26
-    // kept equal to palette.nu LIGHT_LUMINANCE, the authority
     property real lightLuminance: 0.4
     property real foregroundContrast: 7
     property real accentMinSaturation: 0.7
@@ -30,7 +29,6 @@ QtObject {
     property real crtFlicker: 0.02
     property real matrixRain: 0.5
     property int revision: 0
-    // toggle-font.nu saves in place (truncate, then write): a read between the two sees an empty or partial file
     readonly property int reloadDelayMs: 80
     property FileView file
     property Timer reloadTimer
@@ -39,7 +37,6 @@ QtObject {
         path: root.path
         watchChanges: true
         printErrors: false
-        // rearm: editors replace the file atomically
         onLoaded: {
             root.apply(text());
             Util.rearmWatch(this);

@@ -1,22 +1,27 @@
+# Machine facts: the platform file bootstrap installed, its groups, form factor and facts; the facts reach
+# modules as uppercase env vars, read with platform-has.
+
 use log.nu *
 
 const PLATFORM_LOCAL_DIR = "/etc/dotfiles"
+export const PLATFORM_NAME_FILE = "/etc/dotfiles/platform"
 const FORM_FACTORS = [desktop laptop server vm wsl]
 export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_keys lsck0_snapshot]
 const PLATFORM_KEYS = [hostname form_factor groups extra_packages facts packages_keep]
 
+# Every group under configs/ but secrets, which is on wherever the submodule is pulled.
 export def platform-groups-all [repo: path]: nothing -> list<string> {
-    # secrets: the private submodule's group, on wherever it is pulled, never chosen
     ls ($repo | path join configs) | where type == dir | get name | path basename | where $it != secrets | sort
 }
 
+# The first of /etc/dotfiles/platform.nuon, platforms/local.nuon and the installed platforms/<name>.nuon, or null.
 export def platform-file [repo: path]: nothing -> any {
-    let host = open --raw /etc/hostname | str trim
+    let name = try { open --raw $PLATFORM_NAME_FILE | str trim } catch { "" }
     [
         ($PLATFORM_LOCAL_DIR | path join platform.nuon)
         ($repo | path join platforms local.nuon)
-        ($repo | path join platforms $"($host).nuon")
-    ] | where ($it | path exists) | get --optional 0
+        (if $name != "" { $repo | path join platforms $"($name).nuon" })
+    ] | compact | where ($it | path exists) | get --optional 0
 }
 
 export def platform-options-file [file: path]: nothing -> path {
@@ -37,6 +42,7 @@ def platform-probe-form-factor []: nothing -> string {
     }
 }
 
+# The validated platform; no groups means all, form_factor falls back to FORM_FACTOR, then a probe.
 export def platform-load [repo: path]: nothing -> record {
     let file = platform-file $repo
     let raw = if $file == null { {} } else { open $file }
@@ -74,6 +80,7 @@ export def platform-load [repo: path]: nothing -> record {
     }
 }
 
+# The facts as uppercase env vars: true is "1", false and null empty.
 export def platform-env [platform: record]: nothing -> record {
     $platform.facts | items {|name, value|
         let text = match ($value | describe) {
@@ -85,17 +92,19 @@ export def platform-env [platform: record]: nothing -> record {
     } | transpose -r -d
 }
 
+# Whether the fact's env var from platform-env is set.
 export def platform-has [fact: string]: nothing -> bool {
     $env | get --optional ($fact | str uppercase) | default "" | is-not-empty
 }
 
+# GDK_SCALE for X11 apps under force_zero_scaling: 1 on a laptop, else 2.
 export def display-xwayland-scale [form_factor: string]: nothing -> int {
     if $form_factor == "laptop" { 1 } else { 2 }
 }
 
 const GPU_VENDORS = {"0x1002": amd, "0x8086": intel, "0x10de": nvidia}
 
-# best first: most vram, then the one the firmware booted on
+# The DRM cards, best first: most vram, then the one the firmware booted on.
 export def gpu-list []: nothing -> table {
     glob /sys/class/drm/card[0-9]* | where ($it | path basename) =~ '^card\d+$' | each {|card|
         let dev = $card | path join device

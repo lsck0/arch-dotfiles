@@ -10,6 +10,5 @@
     "base/tlp": {enable: false}
     "base/v4l-utils": {enable: false}
     "base/v4l2loopback": {enable: false}
-    # the hardware mac on ethernet: a random one per connection breaks dhcp reservations
     "base/networkmanager": {home_wired: true}
 }

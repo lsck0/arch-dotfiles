@@ -3,5 +3,4 @@ Sandrock = "Sandrock"
 Luca = "Luca"
 
 [type.tex]
-# tex commands flood false positives; vim spell covers tex prose
 check-file = false

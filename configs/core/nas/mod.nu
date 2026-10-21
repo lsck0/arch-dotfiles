@@ -15,12 +15,11 @@ export def system [cfg: record] {
             error make {msg: $"nas: samba-homelab is not a username=/password=/domain= credentials file, keeping ($CRED)"}
         }
     } else if not ($CRED | path exists) {
-        # no credentials, no mount: never a guest mount
         log-info "nas: no samba-homelab secret yet, the homelab mount stays off"
         return []
     }
     [
-        # installed, not owned: a run without secrets (locked) never takes the credentials away
+        # installed, not owned: a run with locked secrets never takes the credentials away
         (if not ($secret | path exists) or (try { open --raw $CRED } catch { "" }) == (open --raw $secret) { [] } else {
             exec homelab-cred [install -Dm600 -o root -g root $secret $CRED]
         })
@@ -30,6 +29,5 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    # the mount exists only where the machine has the share; the link would dangle anywhere else
-    if (profile-has homelab) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
+    if (profile-has secrets) and (platform-has homelab) { file-link $MOUNT ($nu.home-dir | path join nas) } else { [] }
 }

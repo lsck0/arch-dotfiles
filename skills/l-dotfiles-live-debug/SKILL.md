@@ -11,9 +11,11 @@ Read first, change nothing: every command here only reads, except the restart at
 
 ```bash
 dot status --brief        # failed checks only, "<check>: <text>"
-dot status                # generation, pending migrations and system parts, drift, every check
+dot status                # generation, last run and errors, pending migrations / system parts / applies, managed files
+                          # changed since their apply, every check, then each machine's drift report (state/drift)
 dot status --json         # the same as one record
-dot log                   # the last run's records, INFO and up; --module <id>, --level WARN
+dot log                   # the last changing run's records (read-only runs like status/plan skipped), INFO and up;
+                          # --module <id>, --level WARN
 dot log <run> --trace     # the span tree with timings; run ids complete
 dot plan [mod...]         # what an apply would do, drift included; touches nothing
 dot explain <path|pkg>    # which module, verb and run wrote a path, or which module declares a package
@@ -23,6 +25,8 @@ dot explain <path|pkg>    # which module, verb and run wrote a path, or which mo
   `config.log` / `install.log` the terminal output.
 - `~/.local/state/dotfiles/crash.json`: the record a crashed run leaves. Root's state is `/var/lib/dotfiles`.
 - Exit 3 from a `DOT_SYSTEM=skip` run is a pending system part, not a failure.
+- Another machine's drift: `configs/secrets/state/drift/<host>` (plaintext); `dot internal drift report` gives this
+  machine's.
 
 ## systemd
 

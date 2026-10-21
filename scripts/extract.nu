@@ -7,7 +7,6 @@ const ENTRIES_MAX = 200_000
 const TOTAL_MAX = 10GiB
 const FILE_MAX = 2GiB
 const BSDTAR_ROW = '^(?<mode>\S+)\s+\d+\s+\S+\s+\S+\s+(?<size>\d+)\s+\S+\s+\S+\s+\S+ (?<name>.*)$'
-# 7z tags a link by name in tar/wim, by a unix mode starting with l in 7z/zip/rar
 const SEVENZIP_LINK_KEYS = ["Symbolic Link" "Hard Link" "Link"]
 const SEVENZIP_LINK_MODE = '(^|[\s_-])l[r-][w-][xsS-]'
 
@@ -39,7 +38,6 @@ def sevenzip-extract [archive: path, stage: path]: nothing -> nothing {
     ^7z x -y $"-o($stage)" -- $archive | ignore
 }
 
-# libarchive first; 7z for what it cannot read (rar5 variants) or decompress (deflate64 zips)
 def stage-fill [archive: path, stage: path]: nothing -> nothing {
     let listing = do { ^bsdtar -tvf $archive } | complete
     if $listing.exit_code != 0 {
@@ -54,7 +52,6 @@ def stage-fill [archive: path, stage: path]: nothing -> nothing {
             sevenzip-extract $archive $stage
         }
     }
-    # whatever a listing missed: a link in the stage fails the whole extract
     if (^find $stage "(" -type l -o -type f -links +1 ")" -print -quit | is-not-empty) {
         error make {msg: $"links are not allowed in archives: ($archive)"}
     }
@@ -68,7 +65,6 @@ def main [archive: path, destination?: path]: nothing -> nothing {
     let root = $destination | default $env.PWD | path expand
     let dest = $root | path join $base
     if ($dest | path exists) { die $"destination already exists: ($dest)" }
-    # next to the destination, not in /tmp: tmpfs is ram, and a big archive staged there would be written twice
     let stage = mktemp --directory --tmpdir-path $root .extract.XXXXXX
     try { stage-fill $archive $stage } catch {|err|
         rm --recursive --force $stage

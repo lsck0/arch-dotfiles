@@ -1,4 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
+# aa: per-machine apparmor modes (flags.d/include.d manual.conf), layered over the dotfiles baseline
 
 const REPO = path self | path expand | path dirname | path join ../../.. | path expand
 use ($REPO | path join scripts lib usage.nu) [die]
@@ -30,7 +31,6 @@ def sudo-save [file: path, --append]: string -> nothing {
 def mode-set [profile: string, mode: string]: nothing -> nothing {
     if $profile not-in (available) { die $"no apparmor.d profile named '($profile)' \(try: aa list ($profile)\)" }
     ^sudo touch $INCLUDE $FLAGS
-    # keep the baseline's extra flags (telegram-desktop enforce,mediate_deleted) across a mode change
     let extra = if ($BASELINE_FLAGS | path exists) {
         open --raw $BASELINE_FLAGS | lines | where (first-word $it) == $profile
         | each { split row --regex '\s+' | get 1 | parse --regex '^[^,]*(?<rest>.*)' | get 0.rest } | str join

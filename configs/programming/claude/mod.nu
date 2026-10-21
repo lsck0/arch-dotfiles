@@ -22,12 +22,12 @@ def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-# credentials, so this machine's own: no seed, a new machine logs in itself
+# Per machine: it holds credentials, so a new machine logs in itself instead of being seeded.
 def backup-dir []: nothing -> path {
     host-file ($env.DOTFILES | path join configs secrets keys claude)
 }
 
-# a granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard
+# A granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard.
 def guard-hooks [guard: path]: nothing -> record {
     let hook = {|action| [{hooks: [{type: command, command: $"($guard) ($action)"}]}] }
     let start = do $hook turn-start
@@ -53,17 +53,16 @@ export def link [cfg: record] {
     let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
     let creds = home .claude .credentials.json
     let token = $env.DOTFILES | path join configs secrets keys claude-oauth-token
-    # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
     [
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
         (json-merge $settings [
             (json-set [remoteControlAtStartup] true)
             (json-set [model] $cfg.model)
             (json-set [voice] {enabled: true, mode: hold})
+            # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
             (json-set [env DO_NOT_TRACK] "0")
             (json-set [env DISABLE_ERROR_REPORTING] "1")
             (json-set [env CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY] "1")
-            # no co-author trailer or session link in commits and PRs (l-style-tooling: no AI attribution)
             (json-set [attribution] {commit: "", pr: ""})
             (json-set [includeCoAuthoredBy] false)
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)

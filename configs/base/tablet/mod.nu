@@ -2,7 +2,6 @@ use module.nu *
 
 export const meta = {packages: {native: [python-evdev]}}
 
-# the T1161's usb product id; its udev rule starts the driver on an add event
 const PRODUCT_ID = "6811"
 
 export def system [cfg: record] {

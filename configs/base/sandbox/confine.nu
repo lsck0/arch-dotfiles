@@ -1,8 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 
 const SLICE = "confined.slice"
-# no NoNewPrivileges: nnp denies apparmor cx/px transitions (discord//crashpad_handler dies on SIGTRAP)
-# no RestrictNamespaces/PrivateTmp/ProtectHome: electron needs user namespaces, a shared /tmp and ~/.config
+# no NoNewPrivileges (it denies apparmor cx/px transitions) or namespace, /tmp and home limits: electron needs them
 const PROPERTIES = [
     ProtectKernelTunables=yes ProtectKernelLogs=yes ProtectKernelModules=yes ProtectControlGroups=yes
     RestrictSUIDSGID=yes RestrictRealtime=yes LockPersonality=yes ProtectClock=yes

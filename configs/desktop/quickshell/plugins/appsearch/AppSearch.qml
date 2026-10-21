@@ -8,7 +8,6 @@ import qs.Ui
 import "../../services"
 import "../../services/AppSearch.js" as AppSearch
 
-// launcher: apps by default; a leading `=` calculates, `>` runs a command, `@` lists windows, `:` hands off to the clipboard
 Item {
   id: root
 
@@ -41,7 +40,6 @@ Item {
   property string calcResult: ""
   property string calcState: ""
   readonly property int exitNotFound: 127
-  // a stuck qalc (currency update, huge factorial) must not hold the row on `--`
   readonly property int calcTimeoutS: 5
 
   function open() {
@@ -152,7 +150,6 @@ Item {
       if (root.calcState !== "" || !row.payload) return
       Quickshell.execDetached(["wl-copy", "--", row.payload])
     } else if (row.kind === "run") {
-      // uwsm-app so the command does not inherit wayland-wm@.service
       Quickshell.execDetached(["uwsm-app", "--", "sh", "-c", row.payload])
     }
     root.close()
@@ -163,7 +160,6 @@ Item {
     interval: root.calcDebounceMs
     onTriggered: {
       calcProc.running = false
-      // leading space: an expression starting with - is not read as an option
       calcProc.command = ["sh", "-c", "command -v qalc >/dev/null 2>&1 || exit " + root.exitNotFound + "; exec timeout " + root.calcTimeoutS + " qalc -t \" $1\"",
                           "qalc", root.modeQuery]
       calcProc.running = true
@@ -334,7 +330,6 @@ Item {
 
             Text {
               width: parent.width
-              // AppSearch.highlight escapes the markup
               textFormat: Text.StyledText
               text: rowDelegate.modelData.kind === "app"
                 ? AppSearch.highlight(rowDelegate.modelData.name, root.modeQuery, String(Colors.accent2))

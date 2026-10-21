@@ -5,7 +5,7 @@ const RECHECK = 60sec
 const ENDED = "ended"
 const TIMEOUT = "timeout"
 
-# logind sessions, not tcp sockets on the port: a preauth connection is no session, and a closing session no longer counts
+# Logind sessions, not sockets on the port: a preauth connection is no session, a closing one no longer counts.
 def ssh-session-open []: nothing -> bool {
     ^loginctl list-sessions --no-legend | lines | each { str trim | split row --regex '\s+' | first } | any {|id|
         let props = ^loginctl show-session $id -p Service -p State | lines | parse "{key}={value}" | transpose -r -d
@@ -14,8 +14,8 @@ def ssh-session-open []: nothing -> bool {
 }
 
 def main [] {
-    # any logind signal or the recheck timeout triggers a check; gdbus's startup lines give the initial one
     job spawn {
+        # gdbus's startup lines trigger the initial check
         ^gdbus monitor --system --dest org.freedesktop.login1 | lines | each { job send 0 } | ignore
         $ENDED | job send 0
     }
@@ -30,6 +30,6 @@ def main [] {
             $holder = null
         }
     }
-    # the monitor ending is a failure, so Restart=on-failure brings the guard back
+    # a failure, so Restart=on-failure brings the guard back
     error make {msg: "gdbus monitor ended"}
 }

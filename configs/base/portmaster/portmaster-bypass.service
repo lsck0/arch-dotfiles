@@ -6,7 +6,6 @@ Before=portmaster.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
-# a load empties the sets; configs/pentesting/pentest reloads this once it made the pentest group
 ExecStartPost=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/portmaster-bypass.nft
 ExecReload=-/bin/sh -c 'for g in pentest libvirt-qemu; do gid=$$(getent group $$g | cut -d: -f3) && /usr/sbin/nft add element inet portmaster_bypass gids "{ $$gid }"; done; [ ! -s /run/home-network ] || /usr/sbin/nft add element inet portmaster_bypass home_ifaces "{ $$(paste -sd, /run/home-network) }"; [ ! -r /etc/NetworkManager/homelab.env ] || { . /etc/NetworkManager/homelab.env && /usr/sbin/nft add element inet portmaster_bypass lab_dns "{ $$HOMELAB_DNS }"; }; true'

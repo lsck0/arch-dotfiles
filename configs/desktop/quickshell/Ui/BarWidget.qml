@@ -4,7 +4,6 @@ import qs.Commons
 Item {
   id: root
 
-  // untyped: Ui cannot import plugins/bar back
   property var bar: null
   property string moduleName: ""
   property var settings: ({})
@@ -17,14 +16,10 @@ Item {
     return value === undefined || value === null ? fallback : value
   }
 
-  // false where a left click already does something else (Media plays, Homelab opens its homepage)
   property bool panelPinOnClick: true
   readonly property bool panelPinnable: panelPinOnClick && bar !== null
     && bar.panelNames.indexOf(moduleName) !== -1
 
-  // above the widget's own MouseArea: a passive tap grab lets the press through to it. No HoverHandler here: it
-  // takes the hover, so the MouseArea below never gets onEntered and no panel opens on hover (blocking: false does
-  // not help); each widget's MouseArea sets the pointing cursor itself
   Item {
     anchors.fill: parent
     z: 1000
@@ -59,6 +54,5 @@ Item {
     function onWidthChanged() { root.refreshBarX() }
   }
 
-  // deferred: layout has not run yet at completion
   Component.onCompleted: refreshBarX()
 }

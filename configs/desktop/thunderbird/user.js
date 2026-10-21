@@ -1,6 +1,5 @@
 user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
 
-// one key for everything: the system gnupg keyring and gpg-agent, so yubikey and pinentry work as in the shell
 user_pref("mail.openpgp.allow_external_gnupg", true);
 user_pref("mail.openpgp.fetch_pubkeys_from_gnupg", true);
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S nu --no-config-file
-# the websocket password is read from obs's plugin config at each start, so it never lands in ~/.claude.json
+# obs-mcp with the websocket password read from obs's config at each start, so it never lands in ~/.claude.json
 
 const WS_CONFIG = ".config/obs-studio/plugin_config/obs-websocket/config.json"
 const WS_PORT_DEFAULT = 4455

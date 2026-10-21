@@ -1,6 +1,5 @@
 ; extends
 
-; sqlx query builders, raw or normal strings: query("..."), query_as::<_, T>("..."), sqlx::query("...")
 (call_expression
   function: [
     (identifier) @_name
@@ -16,7 +15,6 @@
     ])
   (#set! injection.language "sql"))
 
-; Regex::new("...") with a non-raw string, upstream injects raw ones
 (call_expression
   function: [
     (scoped_identifier

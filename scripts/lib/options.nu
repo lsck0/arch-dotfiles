@@ -1,4 +1,5 @@
-# defaults < platform < profile; the system layer resolves without the profile, so a user value never reaches root
+# Typed module options: schema checks and resolution, defaults < detected < platform < profile; the system
+# layer resolves without the profile, so a user value never reaches root.
 
 const SPEC_KEYS = [type default doc label group choices min max step apply scope env toggle]
 const SPEC_REQUIRED = [type default doc]
@@ -8,6 +9,7 @@ const OPTION_APPLY_DEFAULT = "relink"
 const OPTION_SCOPE_DEFAULT = "user"
 export const OPTION_ENABLE = "enable"
 
+# Whether value fits a spec type; a trailing ? admits null, an int passes as float, a string as path.
 export def option-type-ok [type: string, value: any]: nothing -> bool {
     let actual = $value | describe
     let wanted = $type | str trim --right --char "?"
@@ -40,6 +42,7 @@ def spec-errors [id: string, name: string, spec: record]: nothing -> list<string
     $unknown ++ $missing ++ $enums ++ $default_bad
 }
 
+# Why value is not valid for spec (type, choices, min, max), each line naming file and option; empty when fine.
 export def option-value-errors [id: string, name: string, spec: record, value: any, file: string]: nothing -> list<string> {
     let where = $"($file): ($id).($name)"
     if not (option-type-ok $spec.type $value) {
@@ -54,6 +57,7 @@ export def option-value-errors [id: string, name: string, spec: record, value: a
     $low ++ $high
 }
 
+# A module's option specs with the implicit enable option and label, group, apply and scope filled in.
 export def options-schema [module: record]: nothing -> record {
     let enable = {
         type: bool
@@ -73,6 +77,7 @@ export def options-schema [module: record]: nothing -> record {
     } | reduce --fold {} {|o, acc| $acc | insert $o.name $o.spec }
 }
 
+# Each module's option values and where each came from, plus every error across the layers.
 export def options-resolve [modules: table, platform: record, profile: any, detected: record = {}]: nothing -> record {
     let ids = $modules.id
     let layers = [
@@ -118,14 +123,13 @@ export def options-resolve [modules: table, platform: record, profile: any, dete
 }
 
 const EVENTS_FILE = "dot/events.jsonl"
-# the events file lives in tmpfs; past this it starts over (dot internal watch follows the truncation)
 const EVENTS_MAX_BYTES = 1048576
 
 export def options-events-file []: nothing -> path {
     $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)" | path join $EVENTS_FILE
 }
 
-# --error: the value is stored but applying it failed
+# Appends a changed option to the events file dot internal watch follows; --error: stored, but applying it failed.
 export def options-notify [key: string, value: any, source: string, runtime?: any, --error: any]: nothing -> nothing {
     let file = options-events-file
     mkdir ($file | path dirname)
@@ -135,7 +139,7 @@ export def options-notify [key: string, value: any, source: string, runtime?: an
     $"({key: $key, value: $value, source: $source, runtime: $runtime, error: $error} | to json --raw)\n" | save --append $file
 }
 
-# records and lists spelled out, never nuon's table form, one key per line, order kept
+# Nuon with records and lists spelled out one entry per line, never the table form, key order kept.
 export def options-to-nuon [--indent: int = 0]: any -> string {
     let value = $in
     let pad = "    " | fill --width ($indent * 4) --character " " | str substring 0..<($indent * 4)
@@ -158,7 +162,7 @@ export def options-to-nuon [--indent: int = 0]: any -> string {
     }
 }
 
-# a string bare where nuon reads it back as the same string, quoted otherwise
+# A string bare where nuon reads it back as the same string, quoted otherwise.
 def nuon-word [text: string]: nothing -> string {
     let bare = $text =~ '^[A-Za-z_][A-Za-z0-9_.-]*$' and $text not-in ["true" "false" "null"]
     if $bare { $text } else { $text | to nuon }

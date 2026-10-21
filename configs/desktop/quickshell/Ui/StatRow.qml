@@ -1,21 +1,6 @@
 import QtQuick
 import qs.Commons
 
-/**
- * StatRow: one `LABEL ........ value note` line, value right-aligned in fixed-width digits.
- *
- * Properties:
- *   label       left, caption uppercase
- *   value       right; "--" while unknown
- *   note        faint text after the value, "" hides it (stale ages read " ~12m")
- *   valueColor  value tint, e.g. Colors.urgent for an alert
- *   dim         value at faint emphasis
- *   valueElide  how a too-long value shortens (it may take valueShare of the row)
- *   clickable   hover fill and pointer, emits activated()
- *
- * Usage:
- *   StatRow { label: "uptime"; value: root.uptime; note: root.stale }
- */
 Item {
   id: root
 

@@ -15,5 +15,5 @@ Extends the root `AGENTS.md`. Local LLM runtimes and frontends.
 - No model downloads in `dot apply`: models are GB-scale and pulled on first use. Keep the install path off that.
 - Models are pinned like packages: the vLLM model by hub commit (the `model_revision` option), the ollama
   models by manifest sha256 in `ollama-ensure-models.nu`, checked before and after the pull. Bump them by hand.
-- Models and weights are re-downloadable and excluded from borg (see root backup model).
+- Models and weights are re-downloadable and not backed up.
 - vLLM is a ROCm workload; the GPU and group access come from `rocm/compute`.

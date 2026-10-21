@@ -8,13 +8,13 @@ def playing []: nothing -> bool {
 }
 
 def main [] {
-    # --follow only wakes us on a change; the aggregate is re-read so one paused player cannot release another's hold
     job spawn {
         ^playerctl --all-players --follow status e>| ignore | lines | each { job send 0 } | ignore
         $ENDED | job send 0
     }
     mut holder: any = null
     while (job recv) != $ENDED {
+        # every change re-reads all players, so one paused player cannot release another's hold
         if (playing) {
             if $holder == null {
                 $holder = job spawn { ^systemd-inhibit --what=sleep --mode=block --who=media --why="media playing" sleep infinity }
@@ -24,6 +24,6 @@ def main [] {
             $holder = null
         }
     }
-    # the monitor ending is a failure, so Restart=on-failure brings the guard back
+    # a failure, so Restart=on-failure brings the guard back
     error make {msg: "playerctl --follow ended"}
 }

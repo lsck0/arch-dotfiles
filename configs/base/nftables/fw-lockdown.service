@@ -1,6 +1,5 @@
 [Unit]
 Description=Inbound lockdown firewall, the resting state until a home network or toggle-firewall.nu lifts it
-# shares table inet fw with fw-inbound: the old table goes before the new one loads
 Conflicts=fw-inbound.service
 After=fw-inbound.service
 Before=network-pre.target
@@ -10,7 +9,6 @@ Wants=network-pre.target
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/nft -f /etc/nftables.d/fw-lockdown.nft
-# every lockdown starts as the persona dispatcher's, which a home up lifts; toggle-firewall.nu removes it to keep one
 ExecStartPost=/usr/bin/touch /run/persona-lockdown
 ExecReload=/usr/sbin/nft -f /etc/nftables.d/fw-lockdown.nft
 ExecStop=/usr/sbin/nft destroy table inet fw

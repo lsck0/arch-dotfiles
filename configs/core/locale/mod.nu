@@ -107,7 +107,6 @@ export def system [cfg: record] {
         (if $cfg.keyboard_layout == null or $env.FORM_FACTOR? == "wsl" or $keyboard == $current { [] } else {
             exec keymap ([localectl set-x11-keymap $cfg.keyboard_layout $XKB_MODEL] ++ ($keyboard | skip 1))
         })
-        # wireless-regdb ships every country commented out, so wifi would stay on the restrictive world domain
         (if $cfg.wifi_country == null or not ($REGDOM | path exists) { [] } else {
             file-text $REGDOM $"WIRELESS_REGDOM=\"($cfg.wifi_country)\"\n" --generated
         })

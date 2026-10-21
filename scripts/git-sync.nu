@@ -11,7 +11,6 @@ def --wrapped git-out [dir: path, ...args: string]: nothing -> string {
     do { ^git -C $dir ...$args } | complete | get stdout | str trim
 }
 
-# refs/remotes/*/HEAD is skipped: fetch creates it without anything new
 def refs-of [dir: path, ...patterns: string]: nothing -> list<string> {
     git-out $dir for-each-ref --exclude=refs/remotes/*/HEAD "--format=%(refname) %(objectname)" ...$patterns | lines
 }
@@ -28,7 +27,6 @@ def repos-under [base: path]: nothing -> list<path> {
     }
 }
 
-# customer repos fetch and push with their own credentials
 def --wrapped remote-git [dir: path, ...args: string]: nothing -> record {
     if ($dir | path join .identity envrc | path exists) {
         do { ^direnv exec $dir git -C $dir ...$args } | complete

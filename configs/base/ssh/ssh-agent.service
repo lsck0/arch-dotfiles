@@ -4,10 +4,8 @@ Description=SSH key agent
 [Service]
 Type=simple
 Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
-# ssh-askpass needs DISPLAY
 Environment=DISPLAY=:0
 ExecStart=/usr/bin/ssh-agent -D -a $SSH_AUTH_SOCK
-# ssh-agent -D exits 2 on SIGTERM, every logout would count as a failure
 SuccessExitStatus=2
 
 [Install]

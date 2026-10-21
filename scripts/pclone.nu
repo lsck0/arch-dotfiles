@@ -3,7 +3,6 @@
 const PROJECTS = "projects"
 const COLOR_ERROR = "1"
 
-# holds the popup so the message can be read
 def popup-fail [message: string]: nothing -> nothing {
     ^gum style --foreground $COLOR_ERROR $message
     input ""
@@ -26,7 +25,6 @@ def main []: nothing -> nothing {
         ^gum spin --title $"cloning ($name)..." -- git clone --recurse-submodules $url $dest
     } catch { popup-fail "clone failed" }
     if ($env.TMUX? | is-not-empty) {
-        # tmux stores '.' and ':' in a session name as '_'
         let session = $name | str replace --all --regex '[.:]' '_'
         if (do { ^tmux has-session -t $"=($session)" } | complete).exit_code != 0 {
             ^tmux new-session -d -s $session -c $dest

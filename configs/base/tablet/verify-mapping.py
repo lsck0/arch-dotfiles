@@ -95,7 +95,6 @@ def hypr_socket():
         cands = [c for c in glob.glob(os.path.join(runtime, "hypr", "*")) if os.path.isdir(c)]
         if not cands:
             return None
-        # the signature starts with the build's commit hash, so by name a stale instance can sort last
         sig = os.path.basename(max(cands, key=os.path.getmtime))
     return os.path.join(runtime, "hypr", sig, ".socket.sock")
 

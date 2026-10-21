@@ -36,14 +36,13 @@ def main [interface?: string, --meta] {
 
     if $ssid == "" { fail "Could not read the Wi-Fi name" }
     if ($key_management =~ "eap|ieee8021x") { fail "Enterprise Wi-Fi cannot be shared with a password QR code" }
-    # nm models wep as key-mgmt none plus a wep-key
     let security = if $key_management not-in ["" "none"] { "WPA" } else if $wep_key != "" { "WEP" } else { "nopass" }
     let password = match $security { WPA => $psk, WEP => $wep_key, _ => "" }
     if $security == "WPA" and $password == "" { fail "Could not read the Wi-Fi password" }
     let hidden = if ($fields.3? | default no) == "yes" { "H:true;" } else { "" }
 
     if $meta { print $"meta\t($interface)\t($security)\t($ssid)" }
-    # stdin, never an argv visible in /proc; two ascii chars per module
+    # stdin, never an argv visible in /proc
     $"WIFI:T:($security);S:($ssid | qr-escape);P:($password | qr-escape);($hidden);"
         | ^qrencode --type ASCII --margin 4 --output -
         | lines

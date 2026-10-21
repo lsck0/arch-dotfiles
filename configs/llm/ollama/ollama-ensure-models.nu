@@ -1,8 +1,8 @@
 #!/usr/bin/env -S nu --no-config-file
-# pin: sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<name>/manifests/<tag>`
 const REGISTRY = "https://registry.ollama.ai/v2/library"
 const MANIFEST_TYPE = "application/vnd.docker.distribution.manifest.v2+json"
 const OLLAMA_URL = "http://127.0.0.1:11434"
+# a pin is the sha256sum of `curl -H 'Accept: <MANIFEST_TYPE>' <REGISTRY>/<name>/manifests/<tag>`
 const NIMBLE = {model: "nimble:latest", pin: "6aa3fde96874d5d9f03306e795016e232610aaa5f19efcb107bf9311c712ccd9"}
 const LLAMA = {model: "llama3.1:8b", pin: "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e"}
 const SYSTEM_ONE_VERSION = "0.35.0"

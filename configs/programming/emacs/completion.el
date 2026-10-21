@@ -1,5 +1,3 @@
-;;; completion.el --- fuzzy finding + in-buffer completion -*- lexical-binding: t; -*-
-
 (use-package vertico
   :init (vertico-mode 1)
   :config (setq vertico-cycle t
@@ -71,7 +69,6 @@
   (setq tempel-path (expand-file-name "templates.eld" user-emacs-directory))
   (add-hook 'completion-at-point-functions #'tempel-expand))
 
-;; eglot's capf is buffer-local and would hide tempel
 (defvar-local my/eglot-capf nil
   "The merged eglot + tempel capf installed in this buffer.")
 
@@ -85,4 +82,3 @@
 (add-hook 'eglot-managed-mode-hook #'my/eglot-capf-with-templates)
 
 (provide 'completion)
-;;; completion.el ends here

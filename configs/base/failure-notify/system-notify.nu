@@ -21,7 +21,6 @@ def card [entry: record]: nothing -> any {
         }
         _ => {
             let unit = $entry.UNIT? | default "-"
-            # one that restarts on failure is not failed yet
             if (^systemctl -q is-failed $unit | complete).exit_code != 0 { return null }
             {key: $unit, urgency: critical, title: $"($unit) failed", body: $"journalctl -xeu ($unit)"}
         }

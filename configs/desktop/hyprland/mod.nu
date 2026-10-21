@@ -1,3 +1,5 @@
+# hyprland's lua config, plus platform.lua generated each run from the live monitors and keyboard
+
 use module.nu *
 use ../../core/wallust/palette.nu [RADIUS_PX BORDER_PX OPACITY_WINDOW OPACITY_SURFACE]
 
@@ -112,21 +114,18 @@ const COMMANDS = [lockscreen-stats.nu quickshell-lock-launch.nu screen-dim.nu]
 const KEYBOARD_CONF = "/etc/X11/xorg.conf.d/00-keyboard.conf"
 const INTERNAL_PANEL = '^(eDP|LVDS|DSI)-'
 const WORKSPACE_COUNT = 10
-# logical dpi a scale aims for, a laptop is seen from closer: 1 on a 14" 1080p panel, 1.5 on a 27" 4k
 const TARGET_DPI = {laptop: 150.0, desktop: 110.0}
 const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 
 def outputs-live []: nothing -> table {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return [] }
-    # a stale signature (a shell from before a compositor restart) must not cost detect its keyboard half
     try { ^hyprctl -j monitors | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
 }
 
 def mode-best [modes: list<string>]: nothing -> string {
     let best = $modes | parse --regex '(?<w>\d+)x(?<h>\d+)@(?<hz>[\d.]+)Hz' | into int w h | into float hz
         | sort-by --reverse {|m| [($m.w * $m.h) $m.hz] } | first
-    # an output whose edid gave no parsable mode must not fail the whole detect
     if $best == null { "preferred" } else { $"($best.w)x($best.h)@($best.hz | math round)" }
 }
 
@@ -204,8 +203,8 @@ export def detect [cfg: record]: nothing -> record {
     } | merge (keyboard-detect)
 }
 
-# outside hyprland (a timer, a shell without its signature) detect sees no output: the same picks over the platform's
-# monitors keep platform.lua from flipping, and every apply from reloading hyprland over it
+# Outside hyprland detect sees no output: the same picks over the platform's monitors keep platform.lua (and
+# hyprland) from flipping on every apply.
 def platform-lua [cfg: record]: nothing -> string {
     let backlight = glob /sys/class/leds/*kbd_backlight* | get --optional 0 | if $in == null { null } else { $in | path basename }
     let monitors = $cfg.monitors | default []
@@ -243,16 +242,14 @@ export def link [cfg: record] {
     ]
 }
 
-# hyprpm runs every write to its root-owned store (/var/cache/hyprpm) through sudo, so it builds only where sudo asks
-# nothing: the install chain's config stage (its zz-dotfiles-stage drop-in). Elsewhere the login notice and
-# system-update (a terminal) do it
+# Builds the plugins where sudo asks nothing for hyprpm's root-owned store: the install chain's config stage.
 export def plugins-build []: nothing -> nothing {
     if (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-not-empty) { return }
     if (do { ^sudo -n true } | complete).exit_code != 0 { return }
     ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) --build
 }
 
-# the shader goes last: a config write or scale re-render after it drops it
+# Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def reload []: nothing -> nothing {
     if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return }
     let toggles = $env.DOTFILES | path join scripts toggles

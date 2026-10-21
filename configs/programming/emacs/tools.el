@@ -1,5 +1,3 @@
-;;; tools.el --- terminal, compile, windows, popups -*- lexical-binding: t; -*-
-
 (defun my/project-root ()
   "Root of the current project, or `default-directory' outside one."
   (if-let* ((proj (project-current)))
@@ -28,7 +26,6 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
   (require 'eat)
   (let ((default-directory (my/project-root)))
     (tab-bar-new-tab)
-    ;; non-numeric arg: a fresh shell per tab
     (switch-to-buffer (eat nil t))
     (tab-bar-rename-tab "term")))
 
@@ -278,4 +275,3 @@ ansi-color-* faces (doom-themes-base), so eat matches the rest of the UI."
     (eat (concat "perf record -g -- " command) t)))
 
 (provide 'tools)
-;;; tools.el ends here

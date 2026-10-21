@@ -1,11 +1,10 @@
 #!/usr/bin/env -S nu --no-config-file
 
-const SCRIPTS = path self | path expand | path dirname
-use ($SCRIPTS | path join lib usage.nu) [die]
-use ($SCRIPTS | path join lib secrets.nu) [secret-is-plaintext]
+const LIB = path self | path expand | path dirname
+use ($LIB | path join usage.nu) [die]
 
-const PUBLIC_DIR = $SCRIPTS | path dirname | path join wallpapers
-const SECRET_DIR = $SCRIPTS | path dirname | path join configs secrets keys wallpapers
+const PUBLIC_DIR = $LIB | path dirname --num-levels 2 | path join wallpapers
+const SECRET_DIR = $LIB | path dirname --num-levels 2 | path join configs secrets state wallpapers
 const IMAGE_SUFFIXES = [jpg jpeg png gif webp]
 const SCREEN_DEFAULT = "3840x2160"
 const CROP_PERCENT_MAX = 10
@@ -18,13 +17,13 @@ def images-in [dir: path]: nothing -> table {
     | each { {path: $in.name, mtime: ($in.modified | into int)} }
 }
 
-# configs/secrets/keys/wallpapers shadows wallpapers/ by file name, a secret only while it is plaintext (git-crypt unlocked)
+# configs/secrets/state/wallpapers (purchased, private) shadows wallpapers/ by file name.
 def wallpapers []: nothing -> table {
-    images-in $PUBLIC_DIR | append (images-in $SECRET_DIR | where { secret-is-plaintext $in.path })
+    images-in $PUBLIC_DIR | append (images-in $SECRET_DIR)
     | insert name { $in.path | path basename } | reverse | uniq-by name | reject name | sort-by path
 }
 
-# header reads only, cached by mtime, one vipsheader for every file the cache does not know
+# Header reads only, cached by mtime: one vipsheader call for every file the cache does not know.
 def sizes-of [files: table]: nothing -> table {
     let cache_file = $nu.home-dir | path join $CACHE
     let cached = try {
@@ -36,7 +35,6 @@ def sizes-of [files: table]: nothing -> table {
         do { ^vipsheader ...$unknown.path } | complete | get stdout | lines
         | parse --regex '^(?<path>.*): (?<width>\d+)x(?<height>\d+) ' | into int width height | join $unknown path
     }
-    # the read rows carry the join's column order, and to tsv serialises in the first row's: pin it to the read order
     let sizes = $known ++ $read | sort-by path | select path mtime width height
     $unknown | where path not-in $read.path
     | each { print --stderr $"wallpaper-list: skipping ($in.path): unreadable image" }
@@ -47,14 +45,15 @@ def sizes-of [files: table]: nothing -> table {
     $sizes
 }
 
+# The file a bare wallpaper name refers to, the secret dir first; null when none.
 export def wallpaper-resolve [name: string]: nothing -> any {
     if $name == "" or "/" in $name or $name in [. ..] { return null }
     [$SECRET_DIR $PUBLIC_DIR] | each { path join $name }
-    | where { ($in | path type) == file and ($in starts-with $PUBLIC_DIR or (secret-is-plaintext $in)) }
+    | where { ($in | path type) == file }
     | get --optional 0
 }
 
-# integers only: nu compares floats with a tolerance, which blurs the limits
+# Integers only: nu compares floats with a tolerance, which blurs the limits.
 def fits-screen [width: int, height: int, screen: record]: nothing -> bool {
     let sides = [($screen.width * $height) ($screen.height * $width)]
     let upscale = $UPSCALE_PERCENT_MAX

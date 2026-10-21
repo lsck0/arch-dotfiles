@@ -2,7 +2,7 @@ use module.nu *
 
 export const meta = {
     packages: {pacman: [kulala-fmt prettier shellcheck shfmt stylua taplo-cli typstyle]}
-    # rustup installs toolchains, and two rustup runs at once race on its download and settings files
+    # two rustup runs at once race on its download and settings files
     serial: true
 }
 

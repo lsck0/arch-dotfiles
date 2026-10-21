@@ -6,7 +6,6 @@ const NESTED = {AuthenticAMD: kvm_amd, GenuineIntel: kvm_intel}
 const DEFAULT_SUBNET = "192.168.122.0/24"
 const DEFAULT_BRIDGE = "virbr0"
 
-# a guest's own 192.168.122.0/24 would collide with a nested default network
 export def system [cfg: record] {
     if (which virsh | is-empty) or $env.FORM_FACTOR? in [vm wsl] { return [] }
     let vendor = open /proc/cpuinfo | lines | parse --regex '^vendor_id\s*:\s*(?<v>\S+)' | get --optional 0.v
@@ -21,7 +20,7 @@ export def system [cfg: record] {
     ]
 }
 
-# slirp would leave guest flows to portmaster as qemu's, which refuses the guest's dns-over-tls
+# Starts libvirt's NAT network unless its subnet is taken (a nested guest); slirp would give guest dns to portmaster.
 export def network []: nothing -> nothing {
     ^virsh -q -c qemu:///system net-autostart default | ignore
     if (^virsh -q -c qemu:///system net-info default | lines | any { $in =~ '^Active:.*yes' }) { return }

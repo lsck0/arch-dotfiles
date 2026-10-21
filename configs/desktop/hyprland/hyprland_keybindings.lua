@@ -12,7 +12,7 @@ local function quickshell_toggle(target)
     return quickshell_call(target, "toggle")
 end
 
--- an app gets its own scope in app.slice: out of the compositor's protected cgroup, an oomd candidate on its own
+-- An app gets its own scope in app.slice: out of the compositor's protected cgroup, an oomd candidate on its own.
 local function app(cmd)
     return hl.dsp.exec_cmd("uwsm-app -- " .. cmd)
 end
@@ -27,7 +27,7 @@ end
 
 local color_grading = "$DOTFILES/configs/desktop/color-grading/color-grading.py"
 
--- obs hotkeys only fire while obs is focused on wayland; obs-status.nu exits after stdin eof, timeout covers obs closed
+-- Obs hotkeys only fire while obs is focused on wayland; timeout covers obs closed.
 local function obs_command(cmd)
     return hl.dsp.exec_cmd(
         'echo \'{"cmd":"'
@@ -94,7 +94,7 @@ hl.bind(mod .. " + d", quickshell_toggle("appsearch"), { description = "app laun
 hl.bind(
     mod .. " + ALT + d",
     hl.dsp.exec_cmd(
-        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
+        "cmd=$(bash -c 'compgen -c' | sort -u | $DOTFILES/scripts/lib/picker.nu -p run) && uwsm-app -- sh -c \"$cmd\""
     ),
     { description = "run a command from $PATH (the launcher while quickshell is down)" }
 )
@@ -282,8 +282,6 @@ hl.define_submap("resize", function()
     hl.bind("Escape", hl.dsp.submap("reset"), { description = "leave resize mode" })
 end)
 
--- bar panels from the keyboard: mod+b, then a letter; the panel takes the keyboard (hjkl/arrows, Tab per section,
--- Enter/Space, Esc or q). One key leaves the submap: a letter after its dispatch, anything else through catchall.
 local PANELS = {
     { key = "a", panel = "audio-io", name = "audio" },
     { key = "b", panel = "notifications", name = "notifications" },
@@ -300,7 +298,6 @@ local PANELS = {
 }
 hl.bind(mod .. " + b", hl.dsp.submap("panels"), { description = "bar panel: then a letter (a n s c ...)" })
 hl.define_submap("panels", "reset", function()
-    -- with mod still held too, else catchall would take mod+letter
     for _, entry in ipairs(PANELS) do
         for _, keys in ipairs({ entry.key, mod .. " + " .. entry.key }) do
             hl.bind(
@@ -313,7 +310,6 @@ hl.define_submap("panels", "reset", function()
     hl.bind("catchall", hl.dsp.submap("reset"), { description = "leave the panel keys" })
 end)
 
--- hyprland binds beat the overlay's focus: with mod held, mod+tab and mod+return cycle and go instead of closing it
 hl.define_submap("overview", function()
     hl.bind(mod .. " + Tab", quickshell_call("overview", "next"), { repeating = true, description = "next window" })
     hl.bind(

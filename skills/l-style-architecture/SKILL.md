@@ -123,7 +123,7 @@ The full rule (subject-first shape, verb vocabulary, units, inverse pairs, conve
 - Handles over pointers for anything in a table. Options structs and designated initializers over long positional parameter lists.
 - C: tunables are `#define`s so a consumer can override them from the command line.
 - The API file is the manual. Every public header opens with a block: what the module is for, a flat overview of every function in it, a copy-pasteable example of the common path, and the reasoning including what was tried and why it lost. Non-obvious functions get their own example.
-- Docs live as close to what they describe as the language allows: file block above the module, doc comment above the declaration, why-comment above the line. A fact in a separate document rots; one above the code gets edited by whoever changes it.
+- Docs live as close to what they describe as the language allows: header block above the module, doc comment above the declaration, and a line comment only where the reason the code exists is exceptionally unclear. A fact in a separate document rots; one above the code gets edited by whoever changes it.
 - REST is uniform and generated from one place: a router module per resource exporting its path constant and router, merged at the root; typed request and response structs beside the handler; DTOs as the only thing crossing the wire, with total conversions to and from the domain model; every handler documenting auth, permissions and every status code including the error ones; cross-cutting concerns as layers and preconditions as extractors, so a handler taking a `User` can't run unauthenticated; checked-in `.http` files per resource.
 
 ## Memory

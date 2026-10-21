@@ -8,11 +8,9 @@ const ETC = "/etc/apparmor.d"
 const PARSER_CONF = "/etc/apparmor/parser.conf"
 const SYSCTL = "/etc/sysctl.d/99-apparmor.conf"
 const EARLY_POLICY = "/etc/apparmor/earlypolicy"
-# cached where systemd loads it before the first unit (apparmor.d's install guide)
 const PARSER_LINES = [write-cache $"cache-loc ($EARLY_POLICY)/" Optimize=compress-fast]
 # the kernel's CONFIG_LSM default with apparmor before bpf
 const LSM = "lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-# abstractions every gui profile already includes, so all can read the ~/.config link targets in the checkout
 const CONFIG_LINK_HOOKS = [desktop fonts qt5 qt6 kde]
 const USER_DIRS = "../xdg/user-dirs.dirs"
 
@@ -31,7 +29,7 @@ def modes []: nothing -> record {
     | reduce --fold {} {|r, acc| $acc | upsert $r.name ($r.flags | split row "," | first) }
 }
 
-# apparmor.d assumes capitalized xdg dirs, ours are lowercase
+# apparmor.d assumes capitalized xdg dirs, ours are lowercase.
 def xdg-tunables []: nothing -> string {
     open --raw $USER_DIRS | lines | parse --regex '^(?<var>XDG_[A-Z]+_DIR)="\$HOME/(?<dir>.*)"$'
     | each { $'@{($in.var)}+="($in.dir)"' } | append '@{XDG_SYNC_DIR}+="sync"' | str join "\n" | $"($in)\n"
@@ -61,12 +59,11 @@ export def system [cfg: record] {
         (file-copy modes /etc/apparmor/modes)
         (file-text /etc/apparmor/flags.d/dotfiles.conf (do $lines ($upstream | each { $"($in.name) ($in.flags)" })))
         (file-text /etc/apparmor/include.d/dotfiles.conf (do $lines $upstream.name))
-        # an own profile replaces apparmor.d's of the same name (thunderbird, libreoffice): aa-install must not build its own
+        # an own profile replaces apparmor.d's of the same name: aa-install must not build its own
         (file-text /etc/apparmor/ignore.d/dotfiles.conf (do $lines (own)))
         (file-text $"($ETC)/tunables/xdg-user-dirs.d/apparmor.d.d/dotfiles" (xdg-tunables))
         (step build)
     ] ++ (if not ($"($ETC)/abstractions/base-strict" | path exists) {
-        # the rest would not compile without apparmor.d's variables and abstractions
         []
     } else {
         let modes = modes
@@ -82,8 +79,7 @@ export def system [cfg: record] {
     }) ++ [(step load)]
 }
 
-# before the own profiles are written: aa-install removes what it built earlier, and apparmor.d's libreoffice sat at the
-# very path the own one takes
+# Runs aa-install before the own profiles are written, since it removes what it built earlier.
 export def build []: nothing -> nothing {
     mkdir $EARLY_POLICY
     let have = open --raw $PARSER_CONF | lines
@@ -92,8 +88,7 @@ export def build []: nothing -> nothing {
     if (which aa-install | is-not-empty) and (^aa-install --install --no-reload | complete).exit_code != 0 {
         print "note: apparmor: aa-install failed, the profiles keep their last build"
     }
-    # an own profile is the only source of its name: apparmor.d's earlier build of it, and the disable/ link it made for
-    # the stock profile the own one now overwrites, would load a second thunderbird or keep the own one unloaded
+    # an own profile is its name's only source: apparmor.d's earlier build or disable/ link would shadow or unload it
     for name in (own) {
         rm --force ($ETC | path join $"($name).apparmor.d") ($ETC | path join disable $name)
     }

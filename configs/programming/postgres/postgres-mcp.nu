@@ -32,6 +32,5 @@ def main []: nothing -> nothing {
     let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
     let servers = glob ($data | path join pgedge-postgres-mcp * pgedge-postgres-mcp) | sort
     if ($servers | is-empty) { print -e "postgres-mcp: no server installed, run dot apply"; exit 1 }
-    # -config names no file, so an /etc/pgedge config is never picked up; the database comes from the PG* variables
     exec ($servers | last) -config /dev/null
 }

@@ -1,6 +1,5 @@
 #!/usr/bin/nu --no-config-file
-# NM dispatcher: the home split-horizon dns cannot resolve NM's probe (a false LIMITED), so the check is off at home only
-# not a plain-http probe to an ip literal: portmaster drops it
+# NM dispatcher: home's split-horizon dns cannot resolve NM's probe (a false LIMITED), so the check is off at home only
 
 const HOME_NETWORK = "/run/home-network"
 const NM = "org.freedesktop.NetworkManager"

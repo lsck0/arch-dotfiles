@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell.Io
 
-// minAgeMs rate-limits refresh() only, polls ignore it; an empty run counts as failed
 QtObject {
   id: root
 
@@ -26,7 +25,6 @@ QtObject {
     run()
   }
 
-  // parse outside the handler call so a throwing onParsed is not reported as bad json
   function decode(text) {
     var data
     try { data = JSON.parse(text) } catch (e) { root.failed(String(e)); return }
@@ -46,7 +44,6 @@ QtObject {
     id: proc
     command: root.command
     stdout: root.streaming ? root.lines : root.whole
-    // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
   }
 

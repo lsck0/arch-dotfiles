@@ -122,7 +122,6 @@ Item {
       anchors { top: true; bottom: true; left: true; right: true }
       color: "transparent"
 
-      // hyprland keeps moved layer surfaces at the old origin
       ScreenMoveRemap { id: screenGuard; window: panel }
       visible: !screenGuard.remapping
 
@@ -134,7 +133,6 @@ Item {
         Math.ceil(width * outputScale), Math.ceil(height * outputScale))
 
       function maybeStartReveal() {
-        // not gated on revealProgress === 0
         if (!root.incomingBackground || maskReady) return
         if (incomingFrame.status !== Image.Ready) return
         Qt.callLater(function() {

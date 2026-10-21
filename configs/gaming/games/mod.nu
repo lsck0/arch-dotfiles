@@ -27,7 +27,6 @@ export def link [cfg: record] {
 export def relocate []: nothing -> nothing {
     let p = paths
     if ($p.pob | path exists) and ($p.pob_synced | path exists) {
-        # -n: never overwrite a synced copy
         ^cp -rn $"($p.pob)/." $"($p.pob_synced)/"
         let kept = $"($p.pob).pre-sync.(date now | format date '%s')"
         mv $p.pob $kept
@@ -35,7 +34,6 @@ export def relocate []: nothing -> nothing {
     } else if ($p.pob | path exists) {
         mv $p.pob $p.pob_synced
     }
-    # pobfrontend's data dir does not exist until it has run once
     mkdir ($p.pob | path dirname)
     ^ln -s $p.pob_synced $p.pob
 }

@@ -1,15 +1,13 @@
 #!/usr/bin/nu --no-config-file
 # a permanent queue per driverless printer cups finds over mdns, bound to its .local name so a new lease never breaks it
 
-# the dnssd backend browses this long; mdns answers come within a second or two
 const DISCOVERY_TIMEOUT_S = 10
-# an AirPrint printer advertises both: one queue, on plain ipp
 const SERVICES = [ipp ipps]
 const DEFAULT_SET = "system default destination:"
 
 def warn [msg: string]: nothing -> nothing { print --stderr $"printers-sync: ($msg)" }
 
-# "HP%20ENVY%205640%20series%20%5BB8A730%5D" -> HP_ENVY_5640_series_B8A730
+# The queue name of an mdns instance: "HP%20ENVY%205640%20series%20%5BB8A730%5D" -> HP_ENVY_5640_series_B8A730.
 def queue-name [instance: string]: nothing -> string {
     $instance | url decode | str replace --all --regex '[^A-Za-z0-9_-]+' "_" | str trim --char "_"
 }

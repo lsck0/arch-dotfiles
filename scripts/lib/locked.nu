@@ -1,3 +1,6 @@
+# The writes that must not interleave, each run under flock by state-locked (state.nu) with its
+# arguments as json on stdin.
+
 use json.nu [json-edits-apply]
 use ini.nu [ini-apply]
 
@@ -29,7 +32,7 @@ def "main written-forget" []: string -> nothing {
     records-write $args.file (records-read $args.file | where path not-in $args.paths)
 }
 
-# prints "changed" when rewritten, plus "owned" when the new content is to be recorded
+# Prints "changed" when rewritten, plus "owned" when the new content is to be recorded.
 def "main json-update" []: string -> nothing {
     let args = $in | from json
     let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }
@@ -39,23 +42,21 @@ def "main json-update" []: string -> nothing {
         return
     }
     let owned = ($raw | is-not-empty) and ($raw | hash sha256) == $args.recorded_sum
-    # the same inode, so an app holding the file open or a link to it keeps working
     $merged | to json --indent 2 | $"($in)\n" | save --force $args.file
     print (if $owned { "changed owned" } else { "changed" })
 }
 
-# a link is followed (save writes through it), so the file it points to keeps every key the module does not set
+# Follows a link (save writes through it), so the file it points to keeps every key the module does not set.
 def "main ini-update" []: string -> nothing {
     let args = $in | from json
     let raw = if ($args.file | path exists) { open --raw $args.file } else { "" }
     let merged = $args.edits | reduce --fold $raw {|e, text| $text | ini-apply $e.values $e.missing_only }
     if $merged == $raw { return }
-    # the same inode, so an app holding the file open keeps working
     $merged | save --force --raw $args.file
     print changed
 }
 
-# the plan sandbox's unit snapshot: <unit> <state> lines, one unit's state replaced
+# Replaces these units' state in the plan sandbox's unit snapshot of <unit> <state> lines.
 def "main units-set" []: string -> nothing {
     let args = $in | from json
     let kept = if ($args.file | path exists) {

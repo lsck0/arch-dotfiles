@@ -4,12 +4,12 @@ export const meta = {packages: {pacman: [vscodium-bin]}}
 
 const USER_DIR = ".config/VSCodium/User"
 
-# merged, not rendered: VSCodium rewrites settings.json from its settings UI and keeps its own keys there
+# Merged, not rendered: VSCodium rewrites settings.json from its settings UI and keeps its own keys there.
 def settings [] {
     let p = palette-load
     let theme = if $p == null { {} } else {
-        # the base theme carries every token not overridden here, so it must match the luminance
         {
+            # the base theme carries every token not overridden here, so its luminance must match
             "workbench.colorTheme": (if $p.light == "1" { "Default Light Modern" } else { "Default Dark Modern" })
             "workbench.colorCustomizations": {
                 "editor.background": $p.bg_conditioned

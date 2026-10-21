@@ -14,7 +14,6 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // fa-sign_out
     text: "\u{f08b}"
     tooltipText: "Power menu"
     onPressed: Quickshell.execDetached(Paths.ipcCall("powermenu", "toggle"))

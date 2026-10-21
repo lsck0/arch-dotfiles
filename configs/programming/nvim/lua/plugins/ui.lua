@@ -63,7 +63,6 @@ return {
         end,
     },
 
-    -- its default groups are redefined on every ColorScheme, and themes with an integration override them
     {
         "HiPhish/rainbow-delimiters.nvim",
         event = { "BufReadPost", "BufNewFile" },
@@ -98,7 +97,7 @@ return {
 
     {
         "folke/snacks.nvim",
-        priority = 1000, -- load before other eager UI plugins (snacks health rec)
+        priority = 1000,
         opts = {
             bigfile = { enabled = true },
             dashboard = { enabled = false },
@@ -132,7 +131,7 @@ return {
             picker = {
                 sources = {
                     explorer = {
-                        -- off: its reveal re-roots at the file, stacking roots; lib/explorer.lua reveals instead
+                        -- its reveal re-roots at the file, stacking roots; lib/explorer.lua reveals instead
                         follow_file = false,
                         hidden = true,
                         ignored = true, -- still dimmed by the git status

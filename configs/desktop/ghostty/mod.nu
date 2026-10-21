@@ -16,7 +16,6 @@ export def link [cfg: record] {
         (link-commands xdg/ghostty-window.nu)
         (file-render xdg/ghostty-new-window.desktop ($apps | path join ghostty-new-window.desktop) {HOME: $nu.home-dir})
         (file-copy xdg/xdg-terminals.list ($config | path join xdg-terminals.list))
-        # volatile like tlp's forced mode, so a reboot never leaves power-saver tweaks behind
         (file-link ($runtime | path join toggles ghostty-powersave.conf) ($nu.home-dir | path join .cache ghostty-powersave.conf))
         # GDK_SCALE only for what a tab runs, so ghostty's own gtk keeps the compositor's fractional scale
         (file-text ($config | path join dotfiles ghostty-env.conf) $"env = GDK_SCALE=($scale)\n")
@@ -27,7 +26,6 @@ export def link [cfg: record] {
     ]
 }
 
-# ghostty has no config watcher; reload_config is only reachable over d-bus
 export def theme [cfg: record, wallpaper: string] {
     if (^pgrep -x ghostty | complete).exit_code != 0 { return [] }
     exec ghostty-reload [

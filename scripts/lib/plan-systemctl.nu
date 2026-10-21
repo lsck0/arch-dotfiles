@@ -1,4 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
+# The fake systemctl inside the plan sandbox: answers from the unit snapshots and notes every change a run
+# would make instead of making it.
 
 const ENABLED_STATES = [enabled enabled-runtime static alias indirect generated transient]
 const CHANGE_VERBS = [
@@ -94,7 +96,6 @@ def --wrapped main [...args: string]: nothing -> nothing {
                 _ => ""
             }
             if ($new_state | is-not-empty) {
-                # bound into the sandbox alone, so the library comes from the checkout
                 let lib = $env.DOTFILES | path join scripts lib
                 {file: $unit_files, units: $units, state: $new_state} | to json --raw
                 | ^flock $"($unit_files).lock" nu --no-config-file --stdin -I $lib ($lib | path join locked.nu) units-set

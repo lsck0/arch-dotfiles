@@ -2,11 +2,11 @@ use module.nu *
 
 export const meta = {packages: {pacman: [audacity uv]}}
 
-# deps frozen at a date; bump both together
+# MCP_FROZEN freezes its deps at that date; bump both together
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
 const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
-# a config without its prefs and app version is a first run to audacity, which resets the whole file on start
+# without prefs and app version audacity takes the config for a first run and resets it
 const PREFS_VERSION = "1.1.1r1"
 
 export def link [cfg: record] {
@@ -17,12 +17,11 @@ export def link [cfg: record] {
     let version = ^pacman -Q audacity | parse --regex '(?<Major>\d+)\.(?<Minor>\d+)\.(?<Micro>\d+)' | first
     [
         (ini-merge $cfg_file {"": {PrefsVersion: $PREFS_VERSION}, Version: $version} --missing-only)
-        # the path and the .so's mtime, so an upgrade re-enables it; audacity rewrites the file on exit
         (ini-merge $cfg_file {
-            # the welcome dialog on every start
             GUI: {ShowSplashScreen: 0}
             Module: {mod-script-pipe: 1}
             ModulePath: {mod-script-pipe: $SCRIPT_PIPE}
+            # the .so's mtime, so an upgrade re-enables the module
             ModuleDateTime: {mod-script-pipe: $built}
         })
         (json-merge ($nu.home-dir | path join .claude.json) [

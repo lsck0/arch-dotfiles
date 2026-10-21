@@ -4,7 +4,6 @@ import qs.Commons
 Text {
   id: root
 
-  // HoverPanel's Tab jumps between these
   readonly property bool panelSectionHeader: true
 
   property color foreground: Colors.accent

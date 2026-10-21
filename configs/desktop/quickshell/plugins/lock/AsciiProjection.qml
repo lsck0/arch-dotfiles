@@ -1,10 +1,6 @@
 import QtQuick
 import qs.Commons
 
-/**
- * The lock's wallpaper redrawn as text: sampled once per lock into a glyph grid, developed by a rain over
- * developMs, then a few accent drops keep falling (Style.fx.matrixRain; static in power saver).
- */
 Item {
   id: root
 
@@ -71,7 +67,6 @@ Item {
 
     function sample(ctx) {
       ctx.clearRect(0, 0, width, height)
-      // qt6.12 draws nothing from an Image item; draw its source url instead (loaded below)
       ctx.drawImage(root.image.source, 0, 0, root.cols, root.rows)
       var data = ctx.getImageData(0, 0, root.cols, root.rows).data
       ctx.clearRect(0, 0, root.cols, root.rows)
@@ -146,7 +141,6 @@ Item {
           ctx.clearRect(0, 0, width, height)
           return
         }
-        // the canvas needs the source url loaded before drawImage can read its pixels
         if (!isImageLoaded(root.image.source)) { loadImage(root.image.source); return }
         sample(ctx)
         root.frames = 0

@@ -1,4 +1,5 @@
-# "" is the part before the first section
+# Sets each section's keys in the input text, adding missing sections and keys; missing_only keeps set values.
+# Section "" is the part before the first header.
 export def ini-apply [values: record, missing_only: bool]: string -> string {
     let start = $in
     $values | items {|section, keys| {section: $section, keys: $keys} } | reduce --fold ($start | lines) {|s, lines|
@@ -22,7 +23,7 @@ export def ini-apply [values: record, missing_only: bool]: string -> string {
     } | str join "\n" | $"($in)\n"
 }
 
-# one row per line: its section ("" before the first), key and value (null for a header, comment or blank)
+# One row per line: its section ("" before the first), key and value (null for a header, comment or blank).
 export def ini-rows [text: string]: nothing -> table<section: string, key: any, value: any, line: string> {
     $text | lines | reduce --fold {section: "", rows: []} {|line, acc|
         let section = $line | parse --regex '^\[(?<s>.*)\]$' | get --optional 0.s | default $acc.section

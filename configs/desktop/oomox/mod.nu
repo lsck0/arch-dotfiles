@@ -6,14 +6,13 @@ export const meta = {packages: {pacman: [themix-gui-git themix-plugin-base16-git
 const EXPORT_DIR = ".config/oomox/export_config"
 const EXPORT_CONFIGS = [multi_export_oomox_classic.json multi_export_oodwaita.json]
 const COLORS = ".cache/wal/colors-oomox"
-# themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap, so timeout kills it after this
+# themix-multi-export can hang forever on an oomox gtk-loop bug sigterm cannot reap
 const THEMIX_TIMEOUT = [timeout -k 5 20]
 const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
     [
         (files-into ($nu.home-dir | path join $EXPORT_DIR) ...$EXPORT_CONFIGS)
-        # only the base16 exports run, headless from theme; the gui wants theme and icon plugins none of which ship
         (desktop-override com.github.themix_project.Oomox.desktop {
             str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true"
         })
@@ -40,21 +39,19 @@ export def theme [cfg: record, wallpaper: string] {
     ]
 }
 
-# themix cannot init gtk headless, so a fresh install's first login gtk dialogs would be plain adwaita
+# Exports the gtk themes from the wallust colors, under Xvfb without a display: themix cannot init gtk headless.
 export def themix-export []: nothing -> nothing {
     let headless = ($env.WAYLAND_DISPLAY? | is-empty) and ($env.DISPLAY? | is-empty) and (which xvfb-run | is-not-empty)
-    # -e: Xvfb's own errors, else a server that died leaves only themix's last benign lines
     let themix = (if $headless { [xvfb-run -a -e /dev/stderr] } else { [] }) ++ [themix-multi-export]
     let argv = $THEMIX_TIMEOUT ++ $themix
     let export = {|config|
-        # themix reports a missing layout file on every run, so its output only matters when it fails
         let out = ^($argv | first) ...($argv | skip 1) ($nu.home-dir | path join $EXPORT_DIR $config) ($nu.home-dir | path join $COLORS) o+e>| complete
         if $out.exit_code == 0 { null } else { $"themix export ($config) exited ($out.exit_code): ($out.stdout | lines | last 6 | str join ' ')" }
     }
     # two xvfb-run -a at once pick the same display: one Xvfb dies, its export lands on the other and exits 1
     let failed = if $headless { $EXPORT_CONFIGS | each $export } else { $EXPORT_CONFIGS | par-each $export } | compact
     if ($failed | is-not-empty) { error make {msg: ($failed | str join "\n")} }
-    # running gtk3 apps reread the exported theme only on a theme name change, so flip it away and back
+    # running gtk3 apps reread the exported theme only on a theme name change, so it is flipped away and back
     let theme = ^gsettings get $INTERFACE gtk-theme | complete | get stdout | str trim | str trim --char "'"
     if ($theme | is-empty) { return }
     ^gsettings set $INTERFACE gtk-theme "" | complete | ignore

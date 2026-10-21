@@ -15,7 +15,6 @@ try:
 except (OSError, ValueError):
     pass
 
-# palette.nu's shared constants, written by core/wallust's link before this module's
 with open(os.path.expanduser("~/.config/dotfiles/style.json")) as _f:
     _style = json.load(_f)
 
@@ -114,7 +113,6 @@ c.colors.webpage.bg = bg
 _startpage = "file://" + os.path.expanduser("~/.config/qutebrowser/startpage.html")
 c.url.start_pages = [_startpage]
 c.url.default_page = _startpage
-# its search form posts from file:// to google, blocked by default
 config.set("content.local_content_can_access_remote_urls", True, _startpage)
 
 _search = "https://duckduckgo.com/?q={}"
@@ -136,8 +134,6 @@ c.url.searchengines = {
     "w": "https://en.wikipedia.org/w/index.php?search={}",
     "yt": "https://youtube.com/results?search_query={}",
 }
-
-# no ua override: the default is a plain chrome one with the real version, a pinned one ages into a fingerprint
 
 c.content.webrtc_ip_handling_policy = "default-public-interface-only"
 c.content.cookies.accept = "no-3rdparty"

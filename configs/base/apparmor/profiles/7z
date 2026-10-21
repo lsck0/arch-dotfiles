@@ -1,16 +1,12 @@
 # managed by arch-dotfiles/apparmor
-# 7-Zip: every archive format yazi previews and file managers unpack
 
 abi <abi/4.0>,
 
 include <tunables/global>
 
-# apparmor.d's abstractions prefix some paths with it, its built profiles set it empty
 @{att} = ""
 
 @{exec_path} = @{bin}/7z{,a,r} @{lib}/7zip/7z{,a,r}
-# attached by literal /usr paths: @{bin}/@{lib} expand to /{,usr/}... inside an alternation, which apparmor 4.1.8 loads
-# but never attaches (every 7z ran unconfined); usr is merged, so the kernel only ever sees the /usr paths
 profile 7z /usr/{bin,lib/7zip}/7z{,a,r} flags=(attach_disconnected) {
   include <abstractions/dotfiles/file-tool>
 

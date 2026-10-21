@@ -1,3 +1,6 @@
+# Module discovery, ordering and evaluation: finds every mod.nu, reads its meta, options and verbs in one
+# child nu, sorts modules by group and meta deps, and evaluates a verb for many modules in one child.
+
 use log.nu *
 use state.nu [LIB_DIR nu-bin SYSTEM_STATE]
 
@@ -8,11 +11,8 @@ export const VERBS = [link unlink system theme apply backup restore check]
 const HOOKS = [detect packages]
 const MARKER = "mod.nu"
 const ROOT_MODULES = [scripts skills]
-# group secrets is the private submodule configs/secrets: the owner's own modules beside keys/, the one git-crypt dir
-# (no module, never globbed). Its code is plaintext, so it is found locked or not; a profile without the secrets
-# capability never pulls the submodule, so there it is an empty dir
 export const SECRETS_GROUP = "secrets"
-const SECRETS_KEYS = "keys"
+const SECRETS_DATA = ["secrets/keys/**" "secrets/state/**"]
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
 def names-read [file: path]: nothing -> list<string> {
@@ -25,7 +25,7 @@ def native-script [mods: list<record>, body: string]: nothing -> string {
     $uses | append $body | str join "\n"
 }
 
-# a child's log lines are in the run log already; other stderr (a deprecation, print -e) is a warning, not its answer
+# A child's log lines are in the run log already; other stderr (a deprecation, print -e) becomes a warning.
 def child-warnings [stderr: string]: nothing -> nothing {
     let tag = $"($env.LOG_TAG? | default dotfiles): "
     let lines = $stderr | lines | where ($it | str trim) != ""
@@ -34,6 +34,7 @@ def child-warnings [stderr: string]: nothing -> nothing {
     if ($other | is-not-empty) { log-warn ($other | str join "\n") }
 }
 
+# Each module dir's consts and exported commands; a mod.nu that does not parse is logged and marked broken.
 def native-read [dirs: list<path>]: nothing -> list<record> {
     if ($dirs | is-empty) { return [] }
     let mods = $dirs | each {|dir| {dir: $dir} }
@@ -81,11 +82,12 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
     }
 }
 
+# Every module in the repo, cached on the markers' stat; selected says whether this platform runs it.
 export def modules-discover [repo: path, groups: list<string>]: nothing -> table {
     let configs = $repo | path join configs
-    let markers = glob $"($configs)/*/**/($MARKER)" --exclude [$"($SECRETS_GROUP)/($SECRETS_KEYS)/**"]
+    let markers = glob $"($configs)/*/**/($MARKER)" --exclude $SECRETS_DATA
         | append ($ROOT_MODULES | each {|r| glob $"($repo)/($r)/($MARKER)" } | flatten)
-    let inputs = $markers | append (glob $"($configs)/**/dependencies.txt" --exclude [$"($SECRETS_GROUP)/($SECRETS_KEYS)/**"])
+    let inputs = $markers | append (glob $"($configs)/**/dependencies.txt" --exclude $SECRETS_DATA)
         | append $SELF
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
     # the caller's own cache, never root's: a user plans the system layer too
@@ -102,11 +104,10 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
     $found | insert selected {|m| $m.group in ["" $SECRETS_GROUP] or $m.group in $groups or $m.id in $groups }
 }
 
-# byte-wise id order breaks ties, so an undeclared order is the sorted one
+# The modules in run order, each with after (what it waits for) and level; ties break by sorted id.
 export def modules-graph [repo: path, modules: table]: nothing -> table {
     let ids = $modules.id
     let groups = $modules.group | uniq | where $it != ""
-    # the personal layer goes last, after every group it could build on
     let group_deps = $groups | each {|g|
         let deps = if $g == $SECRETS_GROUP { $groups | where $it != $g } else {
             names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] })
@@ -122,7 +123,6 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         }
         $m | insert after ($by_group | append $m.meta.deps | where $it in $ids and $it != $m.id | uniq)
     }
-    # kahn over a waiting count per module: rescanning every module's after list per pick cost seconds at 137 modules
     let sorted = $with_preds | sort-by id
     let position = $sorted | enumerate | reduce --fold {} {|r, acc| $acc | insert $r.item.id $r.index }
     let dependents = $sorted | each {|m| $m.after | each {|a| {after: $a, id: $m.id} } } | flatten | group-by after
@@ -153,7 +153,8 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
     $order
 }
 
-# --private: umask 077, for a backup writing into configs/secrets/
+# Calls verb on each module in one child nu: one row per module with its flattened declarations or its error;
+# --private runs it under umask 077, for a backup writing into configs/secrets/.
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private]: nothing -> table {
     if ($modules | is-empty) { return [] }
     let calls = $modules | enumerate | each {|m|
@@ -161,7 +162,6 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
         let cfg = $cfgs | get $m.item.id | to nuon
         $"{id: ($m.item.id | to nuon), run: {|| cd ($m.item.dir | to nuon); with-env {DOTFILES_MODULE: ($m.item.id | to nuon)} { m($m.index) ($verb) ($cfg) ($args | each { to nuon } | str join ' ') } }}"
     }
-    # through a file in nuon, not stdout in json: a module may print, and a filesize or duration must stay one
     let body = $"[($calls | str join ' ')] | each {|c| try { {id: $c.id, ok: true, decls: \(do $c.run | decls-flatten\), error: null} } catch {|e| {id: $c.id, ok: false, decls: [], error: $e.msg} } } | to nuon | save --force $env.DOT_EVAL_OUT"
     let run = [(nu-bin) --no-config-file -I $LIB_DIR -c (native-script ($modules | select dir) $"use module.nu *\n($body)")]
     let out_file = mktemp --tmpdir
@@ -169,7 +169,6 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
         if $private { ^bash -c 'umask 077 && exec "$@"' private ...$run | complete } else { ^($run | first) ...($run | skip 1) | complete }
     }
     child-warnings $out.stderr
-    # a child killed outside its per-module try exits without the file, whatever its code says
     let result = if $out.exit_code == 0 and ($out_file | path type) == "file" { open --raw $out_file | from nuon } else { null }
     rm --force $out_file
     if $result == null {
@@ -178,6 +177,7 @@ export def modules-eval [modules: table, verb: string, cfgs: record, args: list,
     $result
 }
 
+# The pacman, flatpak and nix packages every enabled module on this platform declares.
 export def modules-packages [repo: path, modules: table, platform: record]: nothing -> record {
     let wsl = $platform.form_factor == "wsl"
     let selected = $modules | where {|m| $m.selected and $m.cfg.enable }

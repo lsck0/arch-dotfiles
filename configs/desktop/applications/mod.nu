@@ -13,21 +13,17 @@ export const meta = {
     }
 }
 
-# packaged entries hidden from a real app: NoDisplay, or OnlyShowIn=KDE on hyprland (quickshell's hidden-entries.nu)
 const SHOWN = [org.kde.knetattach org.kde.bluedevilwizard org.kde.plasma.printqueue]
 const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
-# appimagetool is a CLI that wants an AppDir, byobu.desktop runs the missing gnome-terminal
 const HIDDEN = [appimagetool byobu]
 
-# filezilla's welcome dialog shows until a greeting version at least its own is stored; it writes the whole file on
-# exit, so a seed only where none exists yet
+# filezilla nags until a greeting version is stored and rewrites the file on exit, so it is seeded only once
 const FILEZILLA_XML = "filezilla/filezilla.xml"
 
 export def filezilla-seed [file: path]: nothing -> nothing {
     if ($file | path exists) { return }
     let installed = ^pacman -Q filezilla | complete
     if $installed.exit_code != 0 { return }
-    # "filezilla 3.71.1-1": the version without the pkgrel
     let version = $installed.stdout | str trim | split row " " | last | str replace --regex '-[0-9.]+$' ''
     mkdir ($file | path dirname)
     [
@@ -49,7 +45,7 @@ export def link [cfg: record] {
     let run = $nu.home-dir | path join .local bin desktop-run
     let filezilla = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $FILEZILLA_XML
     [(link-commands desktop-run.nu hollywood-run.nu)]
-    # a per-user copy: Exec needs the absolute path, ~/.local/bin is not on every session's PATH
+    # Exec needs the absolute path, ~/.local/bin is not on every session's PATH
     | append (glob *.desktop | each {|entry|
         file-render $entry ($apps | path join ($entry | path basename)) {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     })

@@ -58,7 +58,6 @@ BarWidget {
     if (!entry) return
     var argv = NotificationLogic.parseExecArgv(entry.execArgv)
     if (argv) {
-      // uwsm-app: a browser started here must not join quickshell.service
       Quickshell.execDetached(["uwsm-app", "--"].concat(argv))
       if (root.bar) root.bar.closePanel(root.moduleName)
       return
@@ -69,7 +68,6 @@ BarWidget {
       if (!id) continue
       let de = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id) || root.findEntry(id)
       if (de) {
-        // not de.execute(): quickshell.service's cgroup dies with every shell restart
         Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", de.id + ".desktop"])
         if (root.bar) root.bar.closePanel(root.moduleName)
         return
@@ -81,7 +79,6 @@ BarWidget {
     if (root.service) root.service.setDoNotDisturb(!root.service.doNotDisturb)
   }
 
-  // the deletes are queued, a re-read now could resurrect the rows
   function clearHistory() {
     if (!root.service) return
     root.service.clearHistory()
@@ -96,7 +93,6 @@ BarWidget {
 
   Process {
     id: historyProc
-    // the service writes while this reads, so a half-written line is skipped, not the whole list
     command: ["bash", "-c",
       "shopt -s nullglob; files=(\"$1\"/*.json \"$2\"/*.json); " +
       "{ (( ${#files[@]} )) && awk 1 \"${files[@]}\"; } | " +
@@ -118,7 +114,6 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // codicons bell, bell-dot, bell-slash, bell-slash-dot
     text: root.dndOn
       ? (root.history.length > 0 ? "\u{ec09}" : "\u{ec08}")
       : (root.history.length > 0 ? "\u{eb9a}" : "\u{eaa2}")

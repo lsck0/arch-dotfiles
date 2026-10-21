@@ -5,17 +5,14 @@ Documentation=file:/var/lib/dotfiles/repo/configs/base/tablet/tablet-driver.py
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/tablet-driver
-# exits 0 when unplugged; udev starts it again on the next add
 Restart=on-failure
 RestartSec=2
 TimeoutStartSec=30
 
-# must match CALIB_PATH in tablet-driver.py
 StateDirectory=tablet-driver
 
 DeviceAllow=/dev/uinput rw
 DeviceAllow=char-hidraw rw
-# python-evdev opens the new uinput node to name it; refused, it retried 2 s per device before giving up
 DeviceAllow=char-input r
 ProtectSystem=strict
 ProtectHome=yes

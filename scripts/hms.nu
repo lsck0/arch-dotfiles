@@ -8,7 +8,6 @@ const SEARCH_DEPTH_DEFAULT = 10
 const FD_EXCLUDES = [elpa node_modules .cargo vendor target]
 const SERVER_POLLS = 100
 const SERVER_POLL_INTERVAL = 100ms
-# ansi indices match tms's picker_colors; the herdr popup draws the frame, so no fzf border
 const FZF_ARGS = [
     --prompt "> " --delimiter "\t" --with-nth 1 --border none --no-scrollbar --pointer " " --marker " " --gutter " "
     --color "fg:-1,bg:-1,fg+:0,bg+:12,hl:12,hl+:0,info:11,prompt:10,gutter:-1"
@@ -24,12 +23,10 @@ def repos-in [root: string, depth: int]: nothing -> list<record> {
     | complete | get stdout | lines
     | where {|entry|
         if ($entry | path basename) == HEAD {
-            # a plain bare repo, as lua/lib/projects.lua is_bare; HEADs inside a .git or .bare are not projects
             let dir = $entry | path dirname
             (($entry | path type) == file and ($dir | path join objects | path type) == dir
                 and ($dir | path join refs | path type) == dir and $entry !~ '/\.(git|bare)/')
         } else {
-            # a .git file is a project only as a linked worktree, so submodules and the `gitdir: ./.bare` root stay out
             ($entry | path type) == dir or (open --raw $entry | lines | first) =~ '^gitdir: .*/worktrees/[^/]+/?$'
         }
     }

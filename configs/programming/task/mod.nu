@@ -30,7 +30,7 @@ def secret-read [file: path]: nothing -> string {
     open --raw $file | str trim --right
 }
 
-# taskwarrior refuses a missing include: locked secrets keep the file as it is, else empty
+# Taskwarrior refuses a missing include: locked secrets keep the file as it is, else empty.
 def sync-text [cfg: record]: nothing -> string {
     let rc = $nu.home-dir | path join $SYNC_RC
     if $cfg.sync_url == null { return "" }
@@ -51,7 +51,7 @@ def sync-text [cfg: record]: nothing -> string {
 
 export def link [cfg: record] {
     let sync = sync-text $cfg
-    let bugwarrior = (profile-has identity) and (which bugwarrior | is-not-empty)
+    let bugwarrior = (profile-has secrets) and (which bugwarrior | is-not-empty)
     [
         (file-copy taskrc ($nu.home-dir | path join .config task taskrc))
         (file-copy wal.theme ($nu.home-dir | path join .config task wal.theme))

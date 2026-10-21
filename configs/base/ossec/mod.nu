@@ -19,11 +19,10 @@ export def system [cfg: record] {
     ]
 }
 
-# the shipped localfiles name syslog files arch never writes, each a 'Could not open file' at every start
+# Drops the shipped localfiles: they name syslog files arch never writes, each a 'Could not open file' per start.
 export def localfiles []: nothing -> nothing {
-    # UMask covers only a file systemd creates: one left from before it keeps its old mode until the next boot
+    # UMask covers only a file systemd creates: an older one keeps its mode until the next boot
     if ($JOURNAL_LOG | path exists) { ^chmod 600 $JOURNAL_LOG }
-    # a running server gets the file before the restart below looks for it
     if (^systemctl is-active -q ossec-server.target | complete).exit_code == 0 {
         ^systemctl start ossec-journal.service
     }

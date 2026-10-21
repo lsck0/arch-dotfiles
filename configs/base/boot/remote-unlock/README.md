@@ -12,7 +12,7 @@ both carrying `ConditionPathExists=/etc/initrd-release` so they only ever run in
 Per machine, opt in:
 
 - `platforms/<host>.options.nuon`: `"base/boot/remote-unlock": {ssh_unlock: true}`
-- `platforms/<host>.nuon`: add `mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox` to `extra_packages`
+- `platforms/<name>.nuon`: add `mkinitcpio-systemd-tool tinyssh tinyssh-convert busybox` to `extra_packages`
 
 A laptop off its cable also joins a home wifi in the initramfs: set `wifi` too (`"base/boot/remote-unlock": {ssh_unlock:
 true, wifi: true}`). `dot apply` turns every line of `configs/secrets/keys/wifi` (ssid, a tab, the passphrase; already
@@ -21,7 +21,7 @@ in `SYSTEM_SECRETS`) into a `wpa_supplicant` network, the key hashed by `wpa_pas
 wireless interface the driver brings up. It uses the card's own mac, as NetworkManager does for the home wifis
 (`base/networkmanager`), so the dhcp lease is the running system's.
 
-`luca-pc` has both; `luca-notebook` adds `wifi`. Unsetting the option and re-running `dot apply` removes the wiring (disables the units, drops the
+`pc` has both; `notebook` adds `wifi`. Unsetting the option and re-running `dot apply` removes the wiring (disables the units, drops the
 `systemd-tool` hook and `rd.neednet`).
 
 ## What `mod.nu` does

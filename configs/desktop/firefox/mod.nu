@@ -11,15 +11,14 @@ const HOME_DIR = ".config/mozilla/firefox"
 const FIREFOX_DIR = "/usr/lib/firefox"
 const POLICIES = "/etc/firefox/policies/policies.json"
 const PYWALFOX_HOST = ".mozilla/native-messaging-hosts/pywalfox.json"
-# the run is ended on purpose; profiles.ini is the real result
+# the headless run is ended on purpose; profiles.ini is its result
 const HEADLESS_TIMEOUT = "20"
 const SEARCH_OFF_HOMELAB = {
     Add: [{Name: DuckDuckGo, URLTemplate: "https://duckduckgo.com/?q={searchTerms}", Method: GET, Alias: ddg}]
     Default: DuckDuckGo
 }
-# NoScript has no managed storage; its allowed sites say where a person browses, so they stay in secrets
 const NOSCRIPT_ID = "{73a6fe31-595d-460b-a920-fcc0f8843232}"
-const NOSCRIPT_FILE = "configs/secrets/keys/firefox/noscript.json"
+const NOSCRIPT_FILE = "configs/secrets/state/firefox/noscript.json"
 const SYNC_DB = "storage-sync-v2.sqlite"
 # NoScript's MAX_ITEM_SIZE: a longer value is stored as "[CHUNKED]" plus <key>/CHUNKS and <key>/<n> pieces
 const NOSCRIPT_CHUNK = 4096
@@ -27,7 +26,6 @@ const NOSCRIPT_SELECT = "select data from storage_sync_data where ext_id = '@ID@
 const NOSCRIPT_UPSERT = "insert into storage_sync_data (ext_id, data) values ('@ID@', cast(readfile('@FILE@') as text))
     on conflict(ext_id) do update set data = excluded.data, sync_change_counter = sync_change_counter + 1"
 const SQLITE_TIMEOUT = ".timeout 5000"
-# in a profile that holds the saved sites, so a backup may drop the ones a person removed since
 const NOSCRIPT_SEEDED = ".noscript-from-secrets"
 
 def profiles [ini: path]: nothing -> list<path> {
@@ -40,7 +38,7 @@ def profile-default [ini: path]: nothing -> any {
     if $path == null { null } else { $ini | path dirname | path join $path }
 }
 
-# a crash or a killed session leaves the lock link behind, so only a live firefox pid counts
+# A live firefox pid behind the lock link; a crash or a killed session leaves the link behind.
 def profile-running [dir: path]: nothing -> bool {
     let lock = $dir | path join lock
     if ($lock | path type) != symlink { return false }
@@ -97,7 +95,7 @@ def noscript-file []: nothing -> path {
     $env.DOTFILES | path join $NOSCRIPT_FILE
 }
 
-# only into a closed profile: firefox holds the database and would write its copy back over this one
+# Profiles still to take the saved sites, closed ones only: firefox would write its copy of the database back.
 def noscript-pending []: nothing -> list<path> {
     let ini = $nu.home-dir | path join $HOME_DIR profiles.ini
     if not ($ini | path exists) or not (secret-is-plaintext (noscript-file)) { return [] }
@@ -187,19 +185,18 @@ export def restore [cfg: record] {
 }
 
 export def theme [cfg: record, wallpaper: string] {
-    # the native host listens only while firefox runs; a firefox started later reads the colors itself
     let socket = $env.TMPDIR? | default /tmp | path join $"pywalfox_socket_(^id -u | str trim)"
     if (which pywalfox | is-empty) or not ($socket | path exists) { return [] }
     exec pywalfox-update [pywalfox update]
 }
 
-# the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
 export def system [cfg: record] {
     let policies = if (platform-has homelab) {
         file-copy policies.json $POLICIES
     } else {
         file-text $POLICIES $"(open policies.json | upsert policies.SearchEngines $SEARCH_OFF_HOMELAB | to json --indent 2)\n"
     }
+    # the new tab url is settable only from autoconfig in the install dir; mozilla.cfg reads each user's home at runtime
     let autoconfig = if ($FIREFOX_DIR | path exists) {
         [
             (file-copy autoconfig.js ($FIREFOX_DIR | path join defaults pref autoconfig.js))

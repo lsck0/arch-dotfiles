@@ -1,26 +1,6 @@
 import QtQuick
 import qs.Commons
 
-/**
- * BootIn: the cold boot of a surface (signature B). Draws nothing, drives its host.
- *
- * On active: progress eases 0 -> 1 over motion.base (brackets fly from the centre to the corners,
- * drawers grow), the title types one char per typeStepMs on a self-stopping timer, rows fade in
- * staggerMs apart (capped at staggerCap) inside motion.boot. Inactive replays it backwards at
- * motion.closeRate of the time. Power saver jumps to the end state. Nothing loops.
- *
- * Properties:
- *   active        target state, bind to the host's open flag
- *   title         text to type; typedTitle / typed follow it
- *   span          half the host's smaller side, where the brackets start
- *   progress      eased 0..1, 0 means fully closed (unmap the window then)
- *   bracketInset  HudFrame.inset while booting
- *   rowOpacity(i) staggered fade for row i
- *
- * Usage:
- *   BootIn { id: boot; active: root.open; title: root.title; span: Math.min(card.width, card.height) / 2 }
- *   HudFrame { inset: boot.bracketInset }
- */
 Item {
   id: root
 

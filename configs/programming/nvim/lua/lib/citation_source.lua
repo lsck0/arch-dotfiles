@@ -1,5 +1,6 @@
---- blink.cmp source: citation keys inside \cite{...} (tex) and after @ (markdown). In tex texlab already completes
---- the keys of the project's own .bib files, so this adds only the Zotero export's.
+--- blink.cmp source: citation keys inside \cite{...} (tex) and after @ (markdown); in tex only the Zotero
+--- export's, since texlab already completes the project's own .bib keys.
+
 local citation = require("lib.citation")
 
 local source = {}

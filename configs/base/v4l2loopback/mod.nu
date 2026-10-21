@@ -35,11 +35,11 @@ export def system [cfg: record] {
     ]
 }
 
-# read at pipewire and wireplumber start only; restarting either would drop live audio and video
 export def link [cfg: record] {
     if (which pipewire | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
     [
+        # read at pipewire and wireplumber start only; restarting either would drop live audio and video
         (file-render virtcam-pipewire.conf ($config | path join pipewire pipewire.conf.d virtcam.conf)
             {VIDEO_NR: $cfg.video_nr})
         (file-copy virtcam-wireplumber.conf ($config | path join wireplumber wireplumber.conf.d virtcam.conf))

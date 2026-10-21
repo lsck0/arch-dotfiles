@@ -1,4 +1,2 @@
-#%PAM-1.0
-# password only; yubikey and fingerprint stay on sudo
 auth       include    system-auth
 account    include    system-auth

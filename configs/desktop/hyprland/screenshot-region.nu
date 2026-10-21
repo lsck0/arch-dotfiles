@@ -8,7 +8,6 @@ def main [] {
     let wal = try { open ($nu.home-dir | path join $COLORS_JSON) } catch { null }
     let bg = $wal.special?.background? | default $FALLBACK.bg | str trim --left --char "#"
     let accent = $wal.colors?.color4? | default $FALLBACK.accent | str trim --left --char "#"
-    # slurp takes rrggbbaa; cancelling the selection is no error
     let region = ^slurp -b $"($bg)99" -c $"($accent)ff" -s $"($accent)22" -w 2 | complete
     if $region.exit_code != 0 { return }
     ^grim -g ($region.stdout | str trim) - | ^wl-copy

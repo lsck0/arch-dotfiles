@@ -1,5 +1,3 @@
-;;; files-setup.el --- file browser -*- lexical-binding: t; -*-
-
 (defconst my/tree-ignored-mark "\ue668"
   "Sidebar marker for gitignored entries: the nerd font seti-ignored glyph nvim's explorer shows.")
 
@@ -19,7 +17,6 @@
         (names (directory-files dir nil directory-files-no-dot-files-regexp t)))
     (when names
       (with-temp-buffer
-        ;; outside a repo git exits 128 with empty stdout
         (apply #'process-file "git" nil '(t nil) nil "check-ignore" "--" names)
         (dolist (name (split-string (buffer-string) "\n" t))
           (puthash (directory-file-name name) t table))))
@@ -120,7 +117,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
   :init (dirvish-override-dired-mode 1)
   :config
   (setq dirvish-attributes '(nerd-icons file-size collapse subtree-state vc-state git-msg)
-        ;; the sidebar is only 30 columns wide
         dirvish-side-attributes '(nerd-icons collapse subtree-state vc-state tree-dim tree-mark)
         dirvish-use-header-line 'global
         dirvish-mode-line-format '(:left (sort symlink) :right (omit yank index))
@@ -131,8 +127,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
           ("p" "~/projects/"                     "projects")
           ("c" "~/projects/arch-dotfiles/configs/" "configs")))
 
-  ;; -v puts dotfiles first
-  ;; --ignore=.git: --almost-all overrides -I
   (setq dired-listing-switches "-l --almost-all --human-readable --group-directories-first -v --ignore=.git"
         dired-dwim-target t
         dired-recursive-copies 'always
@@ -156,7 +150,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
       `(right . ,(propertize (if (eq state 'ignored) my/tree-ignored-mark my/tree-hidden-mark)
                              'face (or hl-face 'dired-ignored)))))
 
-  ;; not dirvish-side-follow-mode: buffer-list-update-hook fires for background buffers and re-roots the sidebar
   (defvar my/dirvish-side-follow-timer nil)
 
   (defun my/dirvish-side-follow--now ()
@@ -194,7 +187,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
     "Sidebar buffers: resizable, explorer keys, fresh gitignore data, the H state."
     (when-let* ((dv (dirvish-curr))
                 ((eq (dv-type dv) 'side)))
-      ;; :config is macroexpanded before dirvish loads, so struct accessors must resolve at runtime
       (setf (aref dv (cl-struct-slot-offset 'dirvish 'size-fixed)) nil)
       (setq-local window-size-fixed nil
                   my/tree-ignored-cache nil)
@@ -212,7 +204,6 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
 
 (defun my/startup-layout ()
   "A directory argument: cd into it and start on an empty buffer, no file browser (nvim's dir-arg); then the sidebar."
-  ;; initial-buffer-choice shows *scratch* next to whatever the command line opened, in a second window
   (let ((dired (seq-find (lambda (buf) (with-current-buffer buf (derived-mode-p 'dired-mode)))
                          (mapcar #'window-buffer (window-list)))))
     (cond (dired
@@ -230,4 +221,3 @@ editing window it merely focuses the tree, so wrap it to always hide when visibl
 (add-hook 'emacs-startup-hook #'my/startup-layout)
 
 (provide 'files-setup)
-;;; files-setup.el ends here

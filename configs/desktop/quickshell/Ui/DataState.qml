@@ -2,27 +2,6 @@ import QtQuick
 import Quickshell
 import qs.Commons
 
-/**
- * DataState: the one marker for data that is not fresh. Never hides its host, it states why:
- *   loading  `--`          no data yet and a fetch is out
- *   error    `x ERR`       the last fetch failed and there is nothing to show; detail after it
- *   stale    ` ~12m`       data older than staleAfterMs, as a suffix next to the value
- *   fresh    nothing, the item collapses to zero width
- * An error with older data still shown reads as stale, the value stays up.
- *
- * Properties:
- *   loading       a fetch is running
- *   error         the last fetch failed ("" means none); shown as its detail when detailed
- *   detailed      append the error text after `x ERR`
- *   updatedMs     epoch ms of the last good data, 0 when none
- *   staleAfterMs  age at which the suffix appears
- *   freshness     "loading" | "error" | "stale" | "fresh"
- *
- * The age ticks once a minute only while the marker is on screen and stale.
- *
- * Usage:
- *   DataState { loading: proc.running; error: root.errorText; updatedMs: root.updatedMs; staleAfterMs: 90 * 60000 }
- */
 Text {
   id: root
 
@@ -41,7 +20,6 @@ Text {
     : stale || error !== "" ? "stale"
     : "fresh"
 
-  // QsWindow.window is typed QObject in quickshell's qmltypes; at runtime it is the window proxy
   readonly property bool onScreen: visible && (QsWindow.window ? QsWindow.window.visible : true) // qmllint disable missing-property
 
   Timer {

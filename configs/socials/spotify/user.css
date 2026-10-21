@@ -1,6 +1,5 @@
 :root {
     --font-scale: 1.1;
-    /* the desktop's corner radius, palette.nu RADIUS_PX; the theme verb rewrites this line */
     --radius: 2px;
 }
 html {
@@ -18,7 +17,6 @@ body {
     --gradient-colors: var(--spice-gradienttop), var(--spice-gradientbottom);
 }
 
-/* encore's bright accent, spotify's green, ignores the color scheme */
 :root {
     --essential-bright-accent: var(--spice-button) !important;
     --background-bright-accent: var(--spice-button) !important;
@@ -38,9 +36,6 @@ body {
     color: var(--spice-text);
 }
 
-/* no grid-template-areas override, it blanks the content pane */
-
-/* never display:none, queue and device picker live here */
 .Root__right-sidebar {
     background-color: var(--spice-main);
 }
@@ -185,7 +180,6 @@ body {
     border-radius: var(--radius);
 }
 
-/* inset shadow, a border would reflow */
 .main-card-card:hover,
 .main-rootlist-rootlistItem:hover,
 .main-trackList-trackListRow:hover {
@@ -207,14 +201,12 @@ body {
     text-decoration: underline;
 }
 
-/* entity header by its spotify 1.2.96 hash, the dom never gets main-entityHeader-container; fixed height clips the title */
 .XToncn4_mYHzhKy7 {
     padding-top: 65px !important;
     height: auto !important;
     max-height: none !important;
 }
 
-/* the header tint spotify takes from the cover art, and its dark fade, would hide the window's glass */
 .main-entityHeader-container > div,
 .main-view-container section[data-testid] > div[style*="background-color"] {
     background-color: transparent !important;

@@ -1,3 +1,6 @@
+# Completion for dot from its own command table: `dot internal complete <words>` answers both zsh's _dot and
+# the generated nushell externs, so neither goes stale.
+
 use log.nu [runs-dir]
 use platform.nu [platform-load]
 use modules.nu [modules-discover]
@@ -8,9 +11,7 @@ use cli.nu [concat]
 const REPO = path self ../..
 const COMPLETE_FILES = "<files>"
 const COMPLETE_FILE_SHAPES = [path filepath directory glob]
-# a typed extern converts its arguments (1kb, 5min, dates) before dot sees them, a bare `string` refuses true
 const COMPLETE_NU_SHAPE = "oneof<bool, string>"
-# graphviz installs a /usr/bin/dot too, so the completions never go by PATH
 const COMPLETE_DOT = "~/.local/bin/dot"
 const COMPLETE_NU_COMPLETER = "nu-complete dot"
 const COMPLETE_ZSH = r##'#compdef dot
@@ -29,11 +30,11 @@ done
 _describe -t dot-args dot described
 '##
 
-# the platform's groups, so an option's default is the one this machine gets
 def complete-modules []: nothing -> table {
     modules-discover $REPO (platform-load $REPO).groups
 }
 
+# Module ids as {value, description}; like every completer here it takes the words typed so far.
 export def module-ids [words: list<string>]: nothing -> list<record> {
     complete-modules | each {|m| {value: $m.id, description: ($m.meta.doc? | default "")} }
 }
@@ -75,6 +76,7 @@ def complete-values [completion: any, shape: any, words: list<string>]: nothing 
     }
 }
 
+# Every `def "main ..."` in scope as {name, description, params}, name prefixed by prefix.
 export def command-table [prefix: string = ""]: nothing -> table {
     scope commands | where name =~ '^main ' | each {|c|
         {
@@ -91,6 +93,7 @@ def flag-find [params: table, word: string]: nothing -> any {
     $params | where parameter_type in [switch named] | where {|p| $p.parameter_name == $long or ($short != null and $p.short_flag == $short) } | get --optional 0
 }
 
+# Prints the candidates for the last word, one `value<tab>description` per line.
 export def complete-run [table: table, words: list<string>]: nothing -> nothing {
     let current = $words | last | default ""
     let before = $words | drop 1
@@ -150,6 +153,7 @@ def completions-nu-param [p: record]: nothing -> string {
     }
 }
 
+# Prints zsh's _dot or the nushell externs for the table.
 export def completions-run [table: table, shell: string]: nothing -> nothing {
     match $shell {
         "zsh" => { print -n $COMPLETE_ZSH }

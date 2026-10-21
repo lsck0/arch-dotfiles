@@ -4,7 +4,6 @@ Description=Weekly nix store garbage collection
 [Timer]
 OnCalendar=weekly
 Persistent=true
-# a machine off at the start of the week catches up without all weekly jobs at once
 RandomizedDelaySec=1h
 
 [Install]

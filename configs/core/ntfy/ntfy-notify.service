@@ -1,6 +1,5 @@
 [Unit]
 Description=Forward ntfy topic messages to desktop notifications
-# no network-online: a user unit cannot wait on system targets, the script reconnects with backoff
 After=graphical-session.target
 PartOf=graphical-session.target
 

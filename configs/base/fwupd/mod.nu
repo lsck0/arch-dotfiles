@@ -12,7 +12,7 @@ export def system [cfg: record] {
     ] ++ (if ($EFI | path exists) { [(step sign)] } else { [] })
 }
 
-# once in sbctl's list its pacman hook re-signs it on every fwupd upgrade
+# Signs the fwupd efi binary into sbctl's list, so sbctl's pacman hook re-signs it on every fwupd upgrade.
 export def sign []: nothing -> nothing {
     if (which sbctl | is-empty) or not (^sbctl status | str contains "Owner GUID") { return }
     ^sbctl sign -s -o $"($EFI).signed" $EFI

@@ -12,7 +12,7 @@ vim.filetype.add({
     pattern = {
         [".*/hyprland/.*%.conf"] = "hyprlang",
         [".*/compose%.ya?ml"] = "yaml.docker-compose",
-        [".*/compose%.[^/]+%.ya?ml"] = "yaml.docker-compose", -- compose.override.yaml, ...
+        [".*/compose%.[^/]+%.ya?ml"] = "yaml.docker-compose",
         [".*/docker%-compose%.ya?ml"] = "yaml.docker-compose",
         [".*/docker%-compose%.[^/]+%.ya?ml"] = "yaml.docker-compose",
     },

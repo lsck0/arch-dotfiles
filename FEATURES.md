@@ -36,18 +36,18 @@ the tree itself; this file says what they do.
   and the unattended chain; it also sets up a fresh WSL distro.
 - `dotfiles-stage.service` runs `dot internal stage` once per boot until install and config are done, with no one at
   the keyboard.
-- `dot sync`: the one command; pulls, snapshots, runs migrations, installs, applies, backs up live app state, runs the
+- `dot sync`: the one command; pulls, runs migrations, installs, applies, backs up live app state, runs the
   gates, makes the signed `Generation: <n>` commit and pushes. `--no-push`, and a machine that does not sign, stop
   after the apply.
-- `dot apply`: converges the machine without git: the system layer (an admin's, after a snapshot) from the root-owned
+- `dot apply`: converges the machine without git: the system layer (an admin's) from the root-owned
   copy `/var/lib/dotfiles/repo`, then the user layer. `--system` and `--user` (or naming modules) run one layer alone.
-  `--packages`: snapshot, every declared package from the `[lsck0]` mirror, the user's flatpak and nix packages, then
+  `--packages`: every declared package from the `[lsck0]` mirror, the user's flatpak and nix packages, then
   offers to remove packages no module declares.
 - `dot plan`: what an apply would do, touching nothing; `--sandbox` also runs the user layer in a bubblewrap overlay
   and reports its write set; `--system` for the system layer; `--order` the run order, `--modules` every module.
 - `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply, then
-  every health check (failures, pending applies, drift, firewall, units, backups, snapshots, secrets due for rotation or
-  a recovery drill) and the drift report each machine publishes into `configs/secrets/keys/drift/<host>`; `--brief` the
+  every health check (failures, pending applies, drift, firewall, units, the [lsck0] snapshot, secrets due for rotation or
+  a recovery drill) and the drift report each machine publishes into `configs/secrets/state/drift/<host>`; `--brief` the
   failures alone, for the login notice and the bar; `--json` all of it.
 - `dot set`: every option off its default with value and source (default, platform, profile, detected); a module or
   `<module>.<option>` shows those; a value sets one, validated, stored in the profile (or `--machine` in the platform),
@@ -58,8 +58,7 @@ the tree itself; this file says what they do.
   back); `remove <module>` also turns it off (`--machine` for the machine) and offers its packages for removal;
   `restore <module>` runs its restore verb.
 - `dot rollback`: back to an earlier generation, undoing newer migrations; `--full` also takes the packages back (the
-  `[lsck0]` snapshot and nixpkgs pin of that commit); `--dry-run` only reports what it would do; `--snapshot` lists
-  the pre-apply btrfs snapshots and how to restore one.
+  `[lsck0]` snapshot and nixpkgs pin of that commit); `--dry-run` only reports what it would do.
 - `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
 - `dot secrets unlock|lock|init|seal`: the git-crypt `configs/secrets/` worktree behind the YubiKey; `--identity <age
   file>` without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording
@@ -86,9 +85,9 @@ the tree itself; this file says what they do.
 
 ## Machines, profiles and options
 
-- `platforms/<host>.nuon`: machine facts and the groups it installs (luca-pc, luca-notebook, luca-wsl, test-vm);
-  `platforms/<host>.options.nuon` holds machine-scoped option values.
-- `profiles/<name>.nuon`: profiles picked at install (or `custom`, none), user capabilities (`secrets`, `identity`, `homelab`, `work`) that gate modules, never a
+- `platforms/<name>.nuon`: machine facts and the groups it installs (pc, notebook, wsl, server, vm);
+  `platforms/<name>.options.nuon` holds machine-scoped option values.
+- `profiles/<name>.nuon`: profiles picked at install (or `custom`, none), the one capability `secrets` (the owner: private submodule, accounts, keys, homelab) that gates modules, never a
   username check.
 - Every module has an `enable` option; typed options (bool, int, string, list, record, filesize) carry docs, min/max,
   choices and an apply mode, and can be detected from the hardware when unset. Full list under [Options](#options).
@@ -207,8 +206,6 @@ the tree itself; this file says what they do.
 
 - systemd-boot, timeout 1, UKIs; plymouth `cyberpunk` theme; ly display manager on tty2 with a themed console palette,
   F4 reboots into firmware setup.
-- btrfs snapshots by timeshift: weekly, 4 kept, plus one before every pacman upgrade; `kernel-resync` repairs the ESP
-  after a rollback.
 - zram swap (zstd, size of RAM), MGLRU, swappiness 150.
 - systemd-oomd kills in `app.slice` under pressure; `session.slice` keeps `base/oomd.session_memory_low` and CPU weight
   400 so the desktop stays responsive.
@@ -386,8 +383,7 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
 - Firefox: policies above, uBlock, pywalfox, Privacy Badger, SearXNG on homelab machines, the local startpage as new
   tab, Ctrl+V outside a text field pastes into the URL bar.
 - qutebrowser: adblock, search aliases (ddg, g, aur, gh, w, yt, ...), `J`/`K` tabs, palette from wallust.
-- Chromium: managed policy, uBlock Origin Lite and browserpass forced; a separate Capgemini profile for `work`
-  profiles that refuses to start under tor.
+- Chromium: managed policy, uBlock Origin Lite and browserpass forced.
 - Thunderbird, Signal, Telegram, Element, Discord (BetterDiscord with pinned plugins, voice status in the bar),
   ZapZap, hexchat, Proton Mail and Meet, TeamSpeak (native Wayland).
 - Spotify patched with spicetify (theme, ad and telemetry blocking), confined by AppArmor; spotify_player in the
@@ -499,14 +495,11 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 
 ## Backups and sync
 
-- Config in git; app state in git-crypt `configs/secrets/keys/<app>/`, written by `dot sync`'s backup and restored by
-  each module's link.
+- Config in git; app state in the private submodule, `configs/secrets/keys/<app>/` (git-crypt) or
+  `configs/secrets/state/<app>/`, written by `dot sync`'s backup and restored by each module's link.
 - syncthing: `~/sync` with the NAS (30 day versioning), announce, relays and NAT off; GUI password from secrets.
-- borg daily for `homelab` profiles: `$HOME` minus what lives elsewhere (sync, caches, toolchains, models, games, VMs),
-  repokey-blake2, prune 7/4/6, weekly repository check, monthly canary restore; skipped on battery or metered
-  connections; the repo ships to the NAS as a send-only syncthing folder.
 - NAS share at `/mnt/homelab` (automount, sealed SMB 3.1.1) on home or wg0; `~/nas` symlink.
-- timeshift btrfs snapshots before upgrades and weekly; `dot rollback` for generations.
+- `dot rollback` for generations.
 - App state round trips: Claude, gh token, OBS collections, FFXIV and Dalamud, Modrinth, caido, Plasma, Spotify prefs.
 
 ## Keybinds

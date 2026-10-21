@@ -14,7 +14,7 @@ export const meta = {
 const PLUGIN_DIR = ".local/share/nvim/lazy"
 const THEME_NAME = ".cache/wal/nvim_theme"
 
-# a partial clone (interrupted restore) can lack HEAD, the loose ref and packed-refs alike: stale, not a crash
+# Null for a partial clone (interrupted restore) that lacks HEAD, the loose ref and packed-refs alike.
 def head-commit [git: path]: nothing -> any {
     let head_file = $git | path join HEAD
     if not ($head_file | path exists) { return null }
@@ -28,7 +28,6 @@ def head-commit [git: path]: nothing -> any {
     open --raw $packed | lines | parse "{sha} {name}" | where name == $ref | get --optional 0.sha
 }
 
-# the plugins not checked out at their lazy-lock.json pin
 def plugins-stale []: nothing -> list<string> {
     open lazy-lock.json | items {|name, pin|
         let git = $nu.home-dir | path join $PLUGIN_DIR $name .git
@@ -45,7 +44,7 @@ export def link [cfg: record] {
     ]
 }
 
-# nvim exits 0 when every fetch of a restore failed (offline, 111 "Could not resolve host"): the pins tell
+# Restore the plugins; nvim exits 0 even when every fetch failed, so the pins tell.
 export def prefetch [...restore: string]: nothing -> nothing {
     ^env ...$QUIET_GIT nvim --headless ...$restore "+qa"
     let stale = plugins-stale

@@ -6,17 +6,15 @@ const LAUNCH_OPTIONS_DEFAULT = "gamemoderun mangohud %command%"
 const LAUNCH_OPTIONS_APPS = {"2596880": "gamemoderun obs-gamecapture %command%"}
 const LAUNCH_OPTIONS_OURS = [$LAUNCH_OPTIONS_DEFAULT "gamemoderun mangohud obs-gamecapture %command%"]
 const APPS_PATH = [UserLocalConfigStore Software Valve Steam apps]
-# steam holds localconfig.vdf open and overwrites it on exit
 const STEAM_PROCESSES = [steam steamwebhelper]
 const BACKUP_SUFFIX = ".dotfiles-bak"
-# a vdf token: a quoted string (escapes kept as written, so a round trip is exact) or a brace
 const TOKEN = '"(?<s>(?:[^"\\]|\\.)*)"|(?<b>[{}])'
 
 def steam-root []: nothing -> path {
     $env.STEAM_ROOT? | default ($nu.home-dir | path join .local share Steam)
 }
 
-# an object is a list of {k, v}, v a string or a nested object: keeps order and steam's duplicate keys
+# An object is a list of {k, v}, v a string or a nested object: keeps order and steam's duplicate keys.
 def vdf-object [tokens: list, start: int]: nothing -> record {
     mut i = $start
     mut pairs = []
@@ -51,7 +49,7 @@ def vdf-dump [pairs: list, level: int = 0]: nothing -> string {
     } | str join
 }
 
-# steam's keys compare case-insensitively
+# Steam's keys compare case-insensitively.
 def vdf-get [pairs: list, key: string]: nothing -> any {
     $pairs | where ($it.k | str lowercase) == ($key | str lowercase) | get --optional 0.v
 }
@@ -79,7 +77,6 @@ def apps-fill [installed: list<string>]: list -> list {
         if $app.k not-in $installed or ($app.v | describe) == string { return $app }
         let existing = vdf-get $app.v LaunchOptions
         let wanted = $LAUNCH_OPTIONS_APPS | get --optional $app.k | default $LAUNCH_OPTIONS_DEFAULT
-        # a user customization wins; an absent or empty option, or one this script wrote, is filled
         let ours = $existing == null or ($existing | str trim) == "" or $existing in $LAUNCH_OPTIONS_OURS
         if not $ours or $existing == $wanted { return $app }
         let options = if ($app.v | any { $in.k == LaunchOptions }) {

@@ -11,7 +11,6 @@ const ZONES = [
     [JP Asia/Tokyo]
 ]
 const WINDOW_H = 25
-# every one of these zones switches on a whole utc hour
 const STEP_S = 3600
 
 def offset-at [unix_s: int, iana: string]: nothing -> int {

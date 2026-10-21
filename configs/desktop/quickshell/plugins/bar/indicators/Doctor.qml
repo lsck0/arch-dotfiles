@@ -33,7 +33,6 @@ BarIndicator {
     onFileChanged: reload()
   }
 
-  // the file appears only after the first check, a watch set earlier sees nothing
   Timer {
     interval: 10 * 60 * 1000
     running: true

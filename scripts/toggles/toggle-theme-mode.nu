@@ -1,7 +1,7 @@
 #!/usr/bin/env -S nu --no-config-file
 use lib.nu [notify state-file]
 use ../lib/log.nu [log-err]
-use ../wallpaper-list.nu [wallpaper-resolve]
+use ../lib/wallpaper-list.nu [wallpaper-resolve]
 use ../../configs/core/wallust/palette.nu [hex-to-rgb is-light]
 
 const THEMES = path self ../../themes
@@ -45,7 +45,6 @@ def current-theme [themes: table, wallpaper: string]: nothing -> record {
     $themes | where mode == (mode-of $bg) | sort-by { distance $in.background $bg } | first
 }
 
-# the switch a toggle makes; a flip back from the theme the last flip landed on returns to the exact wallpaper it left
 def target []: nothing -> record {
     let themes = themes
     let from = current-wallpaper
@@ -67,7 +66,6 @@ def flip []: nothing -> nothing {
     try {
         let to = target
         ^nu --no-config-file $DOT theme $to.wallpaper
-        # dot skips the switch while another runs and still exits 0
         if (current-wallpaper) != ($to.wallpaper | path expand) { error make {msg: "a theme switch is already running"} }
         {from: $to.from, to: ($to.wallpaper | path expand)} | to nuon | save --force (state-file $LAST_FLIP)
         notify "Theme" $"($to.mode | str capitalize)(if $to.theme != '' { $': ($to.theme)' })"

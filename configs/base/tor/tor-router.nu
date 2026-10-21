@@ -4,7 +4,6 @@
 const TABLE = "tor_router"
 const TRANS_PORT = 9040
 const DNS_PORT = 6669
-# protonvpn's and wg-quick's fwmarks on their own udp, as in base/nftables/fw-egress.nft
 const TUNNEL_MARKS = "0x0ea13b2c, 0x0000ca6c"
 const HOME_NETWORK = "/run/home-network"
 const HOMELAB_ENV = "/etc/NetworkManager/homelab.env"
@@ -81,7 +80,7 @@ def elements [values: list<string>]: nothing -> string {
     if ($values | is-empty) { "" } else { $"elements = { ($values | str join ',') }" }
 }
 
-# flushed first, so a failed fill only keeps the lan on tor
+# Refills the lan bypass for the current home links; flushed first, so a failed fill only keeps the lan on tor.
 def home-fill []: nothing -> nothing {
     let ifaces = try { open --raw $HOME_NETWORK | lines | where $it != "" } catch { [] }
     let links = $ifaces | each {|i|

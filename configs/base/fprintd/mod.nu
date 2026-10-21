@@ -4,7 +4,7 @@ export const meta = {volatile: true}
 
 const VALIDITY_UNITS = [python3-validity.service open-fprintd-resume.service open-fprintd-suspend.service]
 
-# elsewhere python-validity crash-loops and its fprintd mask leaves a real sensor without a driver
+# Whether a python-validity sensor is present; elsewhere its fprintd mask leaves a real sensor without a driver.
 def validity-sensor []: nothing -> bool {
     [138a: 06cb:009a] | any {|id| (^lsusb -d $id | complete).exit_code == 0 }
 }
@@ -17,7 +17,6 @@ export def system [cfg: record] {
         return ($VALIDITY_UNITS | each { unit-disable $in --now } | append $unmask)
     }
     [
-        # try-restart: a changed ExecStart only takes on the next start, and a stopped daemon stays stopped
         (dropin python3-validity.service override.conf --then [sh -c "systemctl daemon-reload && systemctl try-restart python3-validity.service"])
         (dropin open-fprintd-resume.service open-fprintd-resume.conf)
         ...($VALIDITY_UNITS | each { unit-enable $in })

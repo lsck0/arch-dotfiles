@@ -36,6 +36,5 @@ BarIndicator {
     function onChanged(script) { if (script === "toggle-keep-awake.nu") root.refresh() }
   }
 
-  // the inhibitor must outlive a quickshell.service restart, which kills its whole cgroup
   onPressed: function() { Quickshell.execDetached(["uwsm-app", "-s", "b", "--", root.toggleScript, "toggle"]) }
 }

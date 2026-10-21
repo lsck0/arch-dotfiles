@@ -1,12 +1,11 @@
 #!/usr/bin/env -S nu --no-config-file
-# re-sources tmux.conf for the lifetime of its server; not b0o/tmux-autoreload: its entr watcher outlived the server
-
 const SELF = path self
 
-# run-shell blocks until stdout closes, so detach fully; every reload reruns this, the lock keeps one per server
+# Re-source tmux.conf on change for the lifetime of this tmux server; the lock keeps one watcher per server.
 def main [--watch]: nothing -> nothing {
     let socket = $env.TMUX | split row "," | first
     if not $watch {
+        # run-shell blocks until stdout closes, so detach fully
         "" | ^setsid -f flock -n $"($socket).autoreload.lock" $SELF --watch o+e> /dev/null
         return
     }

@@ -1,4 +1,3 @@
-# public repo: never commit the vault
 *.hc
 *.tc
 vault/

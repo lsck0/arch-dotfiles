@@ -39,7 +39,6 @@ def link-is-home [link: string, gateways: list<string>]: nothing -> bool {
 
 def main [iface: string = "", action: string = ""]: nothing -> nothing {
     if $action not-in [up down] { return }
-    # a home link that vanished (usb unplug) still counts on its down
     if not (physical $iface) and $iface not-in (home-links) { return }
     let gateways = if ($GATEWAYS | path exists) { open --raw $GATEWAYS | lines | str lowercase } else { [] }
     let home = if ($gateways | is-empty) { [] } else {

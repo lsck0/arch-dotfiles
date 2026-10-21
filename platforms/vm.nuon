@@ -1,4 +1,3 @@
-# the vm test's guest (dot test run), everything the desktop gets
 {
     hostname: test-vm
     form_factor: vm

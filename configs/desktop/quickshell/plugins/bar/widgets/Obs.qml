@@ -469,7 +469,6 @@ BarWidget {
 
                 ActionButton {
                     width: (parent.width - Style.spacing.xs * 2) / 3
-                    // obs rejects pause unless recording
                     enabled: root.recording
                     glyph: root.recordPaused ? "\u{f040a}" : "\u{f03e4}" // md-play / md-pause
                     label: root.recordPaused ? "Resume" : "Pause"

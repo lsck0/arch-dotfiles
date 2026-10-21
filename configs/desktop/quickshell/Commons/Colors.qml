@@ -19,7 +19,6 @@ QtObject {
     readonly property color surface: surfaceOf(background, surfaceLift)
     readonly property real surfaceLift: 0.04
     readonly property real semanticTint: 0.15
-    // conditioned as urgent is: a fixed yellow or green is unreadable on a light background
     readonly property color warn: readable(Qt.tint(warnBase, Util.alpha(accent, semanticTint)))
     readonly property color ok: readable(Qt.tint(okBase, Util.alpha(accent, semanticTint)))
     readonly property color severe: readable(Qt.tint(severeBase, Util.alpha(accent, semanticTint)))
@@ -38,7 +37,6 @@ QtObject {
         property color recording: root.severeBase
         property color warn: root.warn
         property color speaking: root.okBase
-        // meteoalarm levels 4 and 3, level 2 is warn
         property color alertRed: semanticColors.live
         property color alertOrange: semanticColors.recording
     }
@@ -93,7 +91,6 @@ QtObject {
     readonly property ImagePickerTokens imagePicker: ImagePickerTokens {}
 
     property string rawColors: ""
-    // Background.qml holds a new palette until its wedge passes centre, released after syncHoldMaxMs
     property bool syncHold: false
     property var pendingPalette: null
     readonly property int syncHoldMaxMs: 3000
@@ -124,7 +121,6 @@ QtObject {
         path: root.colorsPath
         watchChanges: true
         printErrors: false
-        // rearm in case the file is replaced rather than written in place
         onLoaded: {
             root.applyColors(text());
             Util.rearmWatch(this);
@@ -207,7 +203,6 @@ QtObject {
 
         try {
             const p = conditionPalette(source);
-            // only once it parsed: a torn wallust write would otherwise poison every later re-parse
             if (fromFile)
                 rawColors = source;
 

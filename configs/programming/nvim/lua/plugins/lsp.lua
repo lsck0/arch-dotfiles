@@ -31,7 +31,7 @@ local installed = {
     "nil",
     "ormolu",
     "pyright",
-    "ruff", -- python lint/format LSP, pyright keeps types
+    "ruff",
     "rust-analyzer",
     "slang-server",
     "sqruff", -- sqlls is unmaintained and crashes on load
@@ -77,7 +77,6 @@ return {
 
     {
         "mason-org/mason.nvim",
-        -- automatic_enable walks every server (~200ms); BufReadPre still precedes FileType
         event = { "BufReadPre", "BufNewFile" },
         cmd = {
             "Mason",
@@ -88,7 +87,6 @@ return {
             "MasonToolsInstall",
             "MasonToolsInstallSync",
             "MasonToolsUpdate",
-            -- no Lsp* commands: lspconfig skips them on nvim 0.12, whose native :lsp covers info/log/start/stop/restart
         },
         dependencies = {
             { "neovim/nvim-lspconfig" },
@@ -131,7 +129,6 @@ return {
                     "clangd",
                     "--offset-encoding=utf-16",
                     "--background-index",
-                    -- unreal's compile_commands.json names the engine's bundled clang (local_plugins/unreal.lua)
                     "--query-driver=/opt/unreal-engine/**/bin/clang++,"
                         .. vim.env.HOME
                         .. "/.local/share/unreal-engine/**/bin/clang++",
@@ -150,7 +147,7 @@ return {
             })
             vim.lsp.enable("nushell")
 
-            -- kani projects need these cfgs + nightly, plain rust must not get them
+            -- kani projects need these cfgs and nightly, plain rust must not get them
             local function rust_extra_env(root)
                 local f = type(root) == "string" and io.open(root .. "/Cargo.toml")
                 if f then
@@ -286,7 +283,6 @@ return {
                         result.diagnostics = drop_ipython_noise(vim.uri_to_bufnr(result.uri), result.diagnostics)
                         return publish(err, result, ctx)
                     end,
-                    -- pyright pulls diagnostics (textDocument/diagnostic), filter those too
                     ["textDocument/diagnostic"] = function(err, result, ctx)
                         if result and result.items then
                             result.items = drop_ipython_noise(ctx.bufnr, result.items)
@@ -332,7 +328,8 @@ return {
         config = function()
             require("conform").formatters.sortderives = {
                 inherit = false,
-                command = vim.fn.expand("~/.local/bin/sort-derives-stdout"),
+                command = vim.uv.fs_realpath(vim.fn.stdpath("config"))
+                    .. "/../../../scripts/lib/sort-derives-stdout.nu",
                 stdin = true,
             }
             require("conform").formatters["kulala-fmt"] = { command = "kulala-fmt" }
@@ -371,7 +368,7 @@ return {
                     "prettier.config.ts",
                 }, "--config=", "prettierrc.json"),
             }
-            -- personal rustfmt.toml is nightly-only; a project's own config runs on its toolchain
+            -- the personal rustfmt.toml is nightly-only; a project's own config runs on its toolchain
             local rustfmt = personal({ "rustfmt.toml", ".rustfmt.toml" }, "--config-path=", "rustfmt.toml")
             require("conform").formatters.rustfmt = {
                 prepend_args = function(self, ctx)
@@ -391,7 +388,6 @@ return {
             end, "--config=", "ruff.toml")
             require("conform").formatters.ruff_format = { prepend_args = ruff }
             require("conform").formatters.ruff_organize_imports = { prepend_args = ruff }
-            -- php-cs-fixer with neither rules nor a config prints usage and leaves the file as is, PSR-12 fills in
             require("conform").formatters.php_cs_fixer = {
                 prepend_args = function(_, ctx)
                     local configs = { ".php-cs-fixer.php", ".php-cs-fixer.dist.php" }
@@ -409,7 +405,7 @@ return {
                 haskell = { "ormolu" },
                 http = { "kulala-fmt" },
                 plaintex = { "latexindent" },
-                python = { "ruff_organize_imports", "ruff_format" }, -- width from configs/programming/formatting/ruff.toml
+                python = { "ruff_organize_imports", "ruff_format" },
                 rest = { "kulala-fmt" },
                 rust = function(bufnr)
                     local fmts = { "rustfmt", "sortderives" }

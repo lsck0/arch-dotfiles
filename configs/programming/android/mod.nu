@@ -1,8 +1,5 @@
 use module.nu *
 
-# the ndk from pacman, the sdk user-writable under XDG_DATA_HOME: arch's android-sdk is root-owned and only the
-# deprecated `tools`, and sdkmanager must write into the sdk it manages. jdk21: sdkmanager and apksigner, beside the
-# default jdk-openjdk that toolchains keeps
 export const meta = {packages: {pacman: [android-ndk jdk21-openjdk]}}
 
 export const options = {
@@ -17,12 +14,10 @@ export const options = {
 }
 
 const JAVA_HOME = "/usr/lib/jvm/java-21-openjdk"
-# cmdline-tools;latest 23.0 from https://dl.google.com/android/repository/repository2-3.xml (its sha1 e025545c...)
 const CMDLINE_TOOLS_URL = "https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip"
 const CMDLINE_TOOLS_SHA256 = "0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8"
 const SYSTEM_IMAGE = "system-images;android-35;google_apis;x86_64"
 const DEVICE = "pixel_6"
-# sdkmanager package and the file that marks it installed, relative to the sdk
 const PACKAGES = [
     [package created];
     [platform-tools platform-tools/adb]
@@ -32,8 +27,7 @@ const PACKAGES = [
     [$SYSTEM_IMAGE system-images/android-35/google_apis/x86_64/system.img]
 ]
 
-# the same dirs as configs/base/xdg/app-dirs.conf sets for the session, passed explicitly: dot may run outside it.
-# jdk21 once pacman has it; the cmdline-tools also run on the default jdk until then
+# The dirs app-dirs.conf sets for the session, passed explicitly since dot may run outside it.
 def env-vars []: nothing -> list<string> {
     let data = $nu.home-dir | path join .local share
     [
@@ -48,7 +42,6 @@ def sdk []: nothing -> path { $nu.home-dir | path join .local share android-sdk 
 export def link [cfg: record] {
     let sdk = sdk
     let sdkmanager = $sdk | path join cmdline-tools latest bin sdkmanager
-    # accepting google's android sdk license: approved by the owner (2026-10-20), sdkmanager refuses without it
     let install = {|p| exec $"sdkmanager ($p.package)" [env ...(env-vars) sh -c $'yes | "$0" --licenses >/dev/null; "$0" --install "$1"' $sdkmanager $p.package] --creates ($sdk | path join $p.created) }
     let avd = $nu.home-dir | path join .local share android avd $"($cfg.avd).avd"
     let avdmanager = $sdk | path join cmdline-tools latest bin avdmanager

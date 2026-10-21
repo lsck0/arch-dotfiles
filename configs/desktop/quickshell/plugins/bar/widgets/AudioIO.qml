@@ -29,7 +29,6 @@ BarWidget {
 
     }
 
-    // undeafen unmutes both, not the prior state
     function toggleDeafen() {
         var target = !deafened;
         if (sink && sink.audio)
@@ -45,7 +44,6 @@ BarWidget {
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
 
-    // the sinks too while open: Audio.route sends their object.serial, and an unbound node has no properties
     PwObjectTracker {
         objects: [root.sink, root.source].filter((n) => {
             return !!n;
@@ -133,7 +131,6 @@ BarWidget {
                     glyph: Audio.volumeIcon(root.volume, false)
                 }
 
-                // what the headset plays: the system audio, or the stream mix the viewers get
                 Item {
                     width: content.width
                     visible: ObsProcess.connected || ObsProcess.listening
@@ -335,7 +332,6 @@ BarWidget {
                         if (root.bar)
                             root.bar.closePanel(root.moduleName);
 
-                        // uwsm-app so it does not live in quickshell.service's cgroup
                         Quickshell.execDetached(["uwsm-app", "--", "qpwgraph"]);
                     }
                 }
@@ -448,7 +444,6 @@ BarWidget {
         readonly property real obsMul: external ? (Number(ObsProcess.inputVolumes[obsLabel]) || 0) : 0
         readonly property bool muted: external ? (ObsProcess.inputMutes[obsLabel] === true) : (node && node.audio ? node.audio.muted : false)
         readonly property real volume: external ? Math.min(1, obsMul) : (node && node.audio ? node.audio.volume : 0)
-        // obs mul is linear amplitude: 20 log10 for dB, floored like Audio.dbText
         readonly property string readoutText: muted ? "MUTE" : external ? (obsMul > 0 ? (20 * Math.log(obsMul) / Math.LN10).toFixed(1) + " dB" : "-inf") : Audio.dbText(volume) + " dB"
 
         function toggleMute() {

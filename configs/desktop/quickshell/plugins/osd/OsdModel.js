@@ -14,7 +14,6 @@ function iconFor(name) {
   if (n === "microphone-muted" || n === "microphone-off" || n === "mic-muted" || n === "mic-off") return "\u{f131}"
   if (n === "microphone" || n === "mic") return "\u{f130}"
   if (n === "brightness" || n === "display") return "\u{f042}"
-  // md-keyboard / md-keyboard_off
   if (n === "keyboard-backlight-off" || n === "kbd-backlight-off") return "\u{f0310}"
   if (n === "keyboard-backlight" || n === "kbd-backlight" || n === "keyboard") return "\u{f030c}"
   if (n === "launch") return "\u{f14de}"

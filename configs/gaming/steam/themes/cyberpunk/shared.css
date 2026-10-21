@@ -1,4 +1,3 @@
-/* fallbacks, colors.css overrides */
 :root {
     --cp-bg: #01060e;
     --cp-bg-alt: #0a0f18;
@@ -8,14 +7,12 @@
     --cp-font: "Kode Mono", "JetBrainsMono Nerd Font", sans-serif;
 }
 
-/* muted, so popups and button rows read as surfaces, not a grid of outlines */
 :root {
     --cp-border-faint: color-mix(in srgb, var(--cp-accent) 14%, transparent);
     --cp-border: color-mix(in srgb, var(--cp-accent) 26%, transparent);
     --cp-border-strong: color-mix(in srgb, var(--cp-accent) 45%, transparent);
 }
 
-/* steam's own panel and text variables, the ones its css reads */
 :root {
     --gpBackground-DarkSoft: color-mix(in srgb, var(--cp-bg-alt) 60%, transparent) !important;
     --gpBackground-DarkMedium: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
@@ -30,7 +27,6 @@ body {
     background-color: var(--cp-bg) !important;
 }
 
-/* text controls only, keeps steam icon fonts */
 body,
 button,
 input,
@@ -39,7 +35,6 @@ select {
     font-family: var(--cp-font) !important;
 }
 
-/* steam sets its progress token per widget, so it has to be beaten per element */
 * {
     border-radius: 0 !important;
     --color-progress-bar-foreground: var(--cp-accent) !important;
@@ -88,7 +83,6 @@ textarea:focus {
     box-shadow: 0 0 6px -2px var(--cp-accent) !important;
 }
 
-/* inset shadows as borders, no reflow */
 button,
 [class*="DialogButton"] {
     box-shadow: inset 0 0 0 1px var(--cp-border-faint) !important;
@@ -141,7 +135,6 @@ button:active,
     box-shadow: inset 0 0 0 1px var(--cp-border) !important;
 }
 
-/* the menu's own edge is the frame, an outline per item would nest boxes */
 [class*="contextMenu"] button,
 [class*="ContextMenu"] button,
 [class*="contextMenu"] [class*="DialogButton"],
@@ -157,14 +150,12 @@ button:active,
     color: var(--cp-fg) !important;
 }
 
-/* dialogs; not ModalPosition, the full-screen positioner */
 [class*="DialogContent"],
 [class*="DialogBody"],
 [class*="_DialogLayout"],
 [class*="dialog_"] {
     background-color: var(--cp-bg) !important;
 }
-/* frame on the outer dialog only; substring selectors also hit InnerWidth and BodyText and nest boxes */
 [class~="DialogContent"] {
     box-shadow:
         inset 0 0 0 1px var(--cp-border),
@@ -207,7 +198,6 @@ html {
     background: var(--cp-accent) !important;
 }
 
-/* titlebar overlays popup content, so an opaque one covers dialog tops */
 [class*="TitleBar"],
 [class*="titlebar"] {
     background-color: transparent !important;
@@ -234,14 +224,10 @@ html {
     color: var(--cp-bg) !important;
 }
 
-/* underline only, capsules stay legible */
 a:hover {
     text-decoration-color: var(--cp-accent) !important;
 }
 
-/* hashed class names change with steam builds; re-dump the dom when stale */
-
-/* page backdrops: library home, main content, sidebar */
 ._3Sb2o_mQ30IDRh0C72QUUu,
 ._3VQUewWB8g6Z5qB4C7dGFr,
 ._17uEBe5Ri8TMsnfELvs8-N,
@@ -249,7 +235,6 @@ a:hover {
     background: var(--cp-bg) !important;
 }
 
-/* top/bottom bars and raised panels */
 ._2Dd4T78PcCTUVgOtDGFY5j,
 ._3Z7VQ1IMk4E3HsHvrkLNgo,
 ._3vCzSrrXZzZjVJFZNg9SGu,
@@ -260,7 +245,6 @@ a:hover {
     background: var(--cp-bg-alt) !important;
 }
 
-/* menu bar dropdowns and the notifications popup */
 .PP7LM0Ow1K5qkR8WElLpt,
 ._2EstNjFIIZm_WUSKm5Wt7n,
 ._3k90ug209sE23xAMqcM74s,
@@ -268,7 +252,6 @@ a:hover {
     background: var(--cp-bg-alt) !important;
 }
 
-/* steam blue: update banner, event dates, progress, title highlight */
 ._2iJsgdTIX9Tj23rWnB7Q-c,
 ._3OSZu24hLN7YKjqGi7I2Xp,
 ._5wILZhsLODVwGfcJ0hKmJ,
@@ -276,14 +259,12 @@ a:hover {
     background: var(--cp-accent) !important;
 }
 
-/* library filter panel and its header */
 ._20QAC4WMXm8qFE8waUT5oo,
 .Woh0kBQCmatzC1daBX9i6,
 ._276E6ijBpjMA2_iTxNhhjc {
     background: var(--cp-bg-alt) !important;
 }
 
-/* translucent chips: game tiles, avatar badges, shelf drag handle */
 ._3_xMyCJAh_Dv99KgZ54P3j,
 ._3yD46y5pd3zOGR7CzKs0mC,
 .RtSv39ZoBOySnb8XQ5hJf,
@@ -291,7 +272,6 @@ a:hover {
     background: color-mix(in srgb, var(--cp-accent) 12%, transparent) !important;
 }
 
-/* game page: backdrop, header fade, play bar, side panels */
 ._3lDczhulqraStjCitLYJ1K {
     background: var(--cp-bg) !important;
 }
@@ -313,18 +293,15 @@ a:hover {
 .bACIuqv-b_9TztCczFK19 {
     background: color-mix(in srgb, var(--cp-bg-alt) 85%, transparent) !important;
 }
-/* install / play button, its dropdown and the loading sweep */
 ._3ydigb6zZAjJ0JCDgHwSYA,
 ._3pXasCUulX4jjqO79s4q_F {
     background: var(--cp-accent) !important;
     color: var(--cp-bg) !important;
 }
-/* gear, info, favorite buttons */
 ._3qDWQGB0rtwM3qpXTb11Q- {
     background: color-mix(in srgb, var(--cp-accent) 14%, transparent) !important;
 }
 
-/* store url bar in the client */
 .UkR3sY319PuaUNuUWks2K {
     background: var(--cp-bg) !important;
 }
@@ -332,7 +309,6 @@ a:hover {
     background: transparent !important;
 }
 
-/* friends list and chat windows (stable class names) */
 .friendlistListContainer,
 .chatRoomListContainer,
 .chatDialogs,
@@ -362,8 +338,6 @@ a:hover {
     background: var(--cp-accent) !important;
 }
 
-/* steam's remaining hardcoded blues: selected nav tab label, review playtime
-   line, download footer status, online friend names, dialog links */
 ._1gqEjB5QsKT_NftD1dEsdZ ._19axKcqYRuaJ8vdYKYmtTQ,
 .qX4kNo6O0M-mYntdErKSJ,
 ._1xCcFYWIrJ7W8WRDmGvR3y,
@@ -378,7 +352,6 @@ a:hover {
     background: var(--cp-accent) !important;
 }
 
-/* review nudge yes / no / maybe later */
 ._1kCN0pAntrcGCSmcc-vYdk,
 ._35_OgqfHHZfSzTYfv367K6 {
     background: color-mix(in srgb, var(--cp-accent) 20%, transparent) !important;

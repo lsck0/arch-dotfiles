@@ -1,3 +1,6 @@
+# obs's collections and profiles rendered per machine (canvas, mic, webcam, encoders) from the repo seeds and the
+# secret Streaming collection; backup carries obs's own edits back into them
+
 use module.nu *
 use converge.nu [recorded-hashes]
 
@@ -73,17 +76,13 @@ const OBS = ".config/obs-studio"
 const MCP_PREFIX = ".local/share/obs-mcp"
 const WEBSOCKET_PORT = 4455
 const CANVAS_FALLBACK = "1920x1080"
-# an agent's own output for gui checks, no screen anyone records
 const HEADLESS_OUTPUT = '^HEADLESS-'
-# the virtual camera sends the output raw (YUYV): 4k at 30 fps is ~500 MB/s that discord and browsers scale per frame
+# the virtual camera sends raw YUYV: 4k at 30 fps is ~500 MB/s that every consumer scales per frame
 const VIRTUALCAM_HEIGHT = 720
-# twitch ingests at most 1080p60 (6000 kbps): the stream encoder scales down, the canvas and recording keep full size
 const STREAM_HEIGHT = 1080
-# the scene collection without the portal RestoreToken obs writes per machine, as the backup stores it
 const PORTAL_TOKEN = "RestoreToken"
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
-# since obs 31 the selection lives in user.ini [Basic]; without it obs opens an empty Untitled profile and collection.
-# FirstRun is set once the first start is over: unset, obs opens its auto-configuration wizard over the profiles
+# obs 31+ reads the selection here, else it opens an empty Untitled; FirstRun unset opens the setup wizard
 const USER = {
     Basic: {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
     General: {FirstRun: "true"}
@@ -91,7 +90,6 @@ const USER = {
 # obs never shows chromium's local network access prompt, so an https overlay could not reach discord's rpc
 const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks"
 
-# before the install pass, or as root with no session, there is no vainfo or pulse server: nothing to report
 def vaapi-encodes [node: string, profile: string]: nothing -> bool {
     if (which vainfo | is-empty) { return false }
     ^vainfo --display drm --device $node | complete | get stdout | lines
@@ -103,12 +101,11 @@ def --wrapped pactl-read [...args: string]: nothing -> oneof<string, nothing> {
     ^pactl ...$args | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { null }
 }
 
-# the hardware itself, never the default or focused one: those follow the bar's device picker, an agent's headless
-# output or null sink, and each change re-rendered the profiles and collections on the next apply
+# The hardware node of a kind, never the default one, which follows the bar's picker and an agent's null sink;
+# an external one over the built-in.
 def audio-device [kind: string]: nothing -> oneof<string, nothing> {
     let nodes = pactl-read -f json list $kind
     if $nodes == null { return null }
-    # an external mic or headset over the built-in one
     $nodes | from json | where properties."device.class"? == "sound"
     | sort-by {|n| $n.properties."device.bus"? == "pci" } name | get --optional 0.name
 }
@@ -127,7 +124,6 @@ export def detect [cfg: record]: nothing -> record {
         vaapi_render_node: $gpu.by_path?
         canvas: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })
         mic: (audio-device sources)
-        # index0 is a camera's capture node, index1 its metadata; the v4l2loopback virtual camera has no by-id link
         webcam: (glob /dev/v4l/by-id/*-video-index0 | sort | get --optional 0)
         monitor_device: (audio-device sinks)
         record_encoder: (if (do $vaapi AV1) { "av1_ffmpeg_vaapi_tex" } else { $h264 })
@@ -151,10 +147,9 @@ def sink-name [node: string]: nothing -> string {
     pactl-read -f json list sinks | if $in == null { $node } else { from json | where name == $node | get --optional 0.description | default $node }
 }
 
-# the profiles' ini keep this user's dirs and the machine's devices and encoders as @KEY@ placeholders
+# The values of the profiles' @KEY@ placeholders: this user's dirs, the machine's devices and encoders.
 def profile-values [cfg: record]: nothing -> record {
     let size = canvas-size $cfg
-    # same aspect as the canvas, capped in height, the width even as the encoders want it
     let fit = {|cap| let h = [$cap $size.h] | math min; {w: (($h * $size.w / $size.h / 2 | math round) * 2), h: $h} }
     let virtualcam = do $fit $VIRTUALCAM_HEIGHT
     let stream = do $fit $STREAM_HEIGHT
@@ -182,8 +177,7 @@ def strip-token []: record -> record {
     }
 }
 
-# a collection is laid out in its own resolution; on another canvas each item's position and bounds scale to it, and
-# the canvas-relative copies obs prefers on load go, so obs derives them from the absolute ones
+# Rescales a collection laid out at another resolution to the canvas; the relative copies go, obs derives them anew.
 def scene-fit [size: record]: record -> record {
     let scene = $in
     let from = $scene.resolution
@@ -207,11 +201,10 @@ def scene-mic [mic: oneof<string, nothing>]: record -> record {
     $in | update AuxAudioDevice1.settings.device_id $mic
 }
 
-# the shared Streaming collection gets this machine's mic alone, its layout stays the stream's
+# A collection for this machine: its mic, with --machine also its canvas and webcam (the shared Streaming layout stays).
 def scene-render [cfg: record, src: path, --machine]: nothing -> string {
     let scene = open $src | scene-mic $cfg.mic
     if not $machine { return $"($scene | to json --indent 2)\n" }
-    # the profiles' canvas, so the layout fills it
     let miked = $scene | scene-fit (canvas-size $cfg)
     let cammed = if $cfg.webcam == null { $miked } else {
         $miked | update sources {
@@ -221,14 +214,14 @@ def scene-render [cfg: record, src: path, --machine]: nothing -> string {
     $"($cammed | to json --indent 2)\n"
 }
 
-# obs saves by renaming to .bak and writing anew, so a copy; one differing only in its portal token is kept
+# Keeps the live collection when it differs only in its portal token.
 def scene-file [dest: path, text: string, mode: string]: nothing -> record {
     let live = if ($dest | path exists) { open --raw $dest } else { "" }
     let same = $live != "" and (($live | from json | strip-token) == ($text | from json | strip-token))
     file-text $dest (if $same { $live } else { $text }) --mode $mode
 }
 
-# which repo collection a live one was last installed from, so the backup can tell an edit obs has not loaded
+# Which repo collection a live one was last installed from, so backup can tell an edit obs has not loaded.
 def applied-file [live: path]: nothing -> path {
     let state = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state)
     $state | path join dotfiles obs $"($live | path basename).applied"
@@ -244,7 +237,6 @@ def vaapi-encoder [cfg: record, src: path]: nothing -> string {
     $"($json | to json --indent 2)\n"
 }
 
-# the shared seeds; each is laid out for one machine's canvas, mic and webcam, so a machine keeps its own copy
 def repo-scenes []: nothing -> list<path> {
     glob ($HERE | path join scenes *.json) | sort
 }
@@ -268,7 +260,6 @@ def obs-running []: nothing -> bool {
 export def link [cfg: record] {
     let obs = obs-dir
     let basic = $obs | path join basic
-    # the Streaming collection carries stream tokens (alert browser sources), so it lives in secrets
     let streaming = secret obs-Streaming.json
     let service = secret obs-service.json
     let scene = {|live, text, mode|
@@ -278,7 +269,6 @@ export def link [cfg: record] {
         (do $scene ($basic | path join scenes Streaming.json) (scene-render $cfg $streaming) "600")
         | append (file-text ($basic | path join scenes .from-secrets) "")
     } else { [] }
-    # no tokens, so in the repo: Bare, VirtualCam
     let scenes = $secret_scene ++ (repo-scenes | each {|seed|
         do $scene ($basic | path join scenes ($seed | path basename)) (scene-render $cfg (scene-seed $seed) --machine) "644"
     })
@@ -290,7 +280,7 @@ export def link [cfg: record] {
         }
     }
     let state = $scenes ++ $profiles | decls-flatten
-    # obs saves its loaded collection and profile over the live copies on exit, one written under a running obs is lost
+    # obs saves its loaded collection and profile on exit, over anything written under it
     if (obs-running) and ($state | any {|d| not ($d.target | path exists) or (open --raw $d.target) != $d.content }) {
         error make {msg: "obs runs, close it so its collections and profiles can be updated"}
     }
@@ -299,14 +289,12 @@ export def link [cfg: record] {
     let npm_ci = [npm ci --no-audit --no-fund --prefix $prefix]
     [
         $state
-        # the stream key belongs to the Streaming profile only; without it obs asks for one (Settings > Stream)
         (if (secret-is-plaintext $service) {
             file-copy $service ($basic | path join profiles Streaming service.json) --mode 600
         } else { [] })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
         (ini-merge ($obs | path join user.ini) $USER --missing-only)
         (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
-        # obs-mcp pinned by the committed lockfile and installed from it offline (npm ci), never npx at start
         (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
         (file-copy ($HERE | path join mcp package-lock.json) ($prefix | path join package-lock.json) --then $npm_ci)
         (exec obs-mcp-install $npm_ci --creates ($prefix | path join node_modules .bin obs-mcp))
@@ -332,8 +320,8 @@ export def websocket-init [file: path]: nothing -> nothing {
     chmod 600 $file
 }
 
-# unless the repo's copy (src, what link installed from) changed since link: obs has not loaded that edit and would
-# save its old state over it; the portal token is this machine's, so never stored
+# Carries a live collection back to dest, unless src changed since link (an edit obs has not loaded).
+# The portal token is this machine's, never stored.
 def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: nothing -> nothing {
     if not ($live | path exists) { return }
     let applied = applied-file $live
@@ -342,7 +330,6 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
         return
     }
     let saved = open $live | strip-token
-    # a shared collection keeps its own mic; only one changed in obs since the apply is carried back
     let saved = if $machine or $saved.AuxAudioDevice1?.settings?.device_id? != $cfg.mic { $saved } else {
         $saved | scene-mic (open $src | get --optional AuxAudioDevice1.settings.device_id)
     }
@@ -350,7 +337,7 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
     $"($saved | to json --indent 2)\n" | save --force $dest
 }
 
-# placeholder lines stay placeholders, a path under this user's dirs becomes one again (videos first, it is under home)
+# Writes a live profile back to the repo: placeholders stay, paths under this user's dirs become placeholders again.
 def profile-back [live: path, repo: path]: nothing -> nothing {
     let placeholders = ini-lines (open --raw $repo) | where {|r| $r.value != null and $r.value =~ '^@[A-Z_]+@$' }
     let videos = videos-dir
@@ -358,6 +345,7 @@ def profile-back [live: path, repo: path]: nothing -> nothing {
         let kept = $placeholders | where section == $l.section and key == $l.key | get --optional 0.value
         if $kept != null { return $"($l.key)=($kept)" }
         if $l.key == null or not ($l.key | str ends-with "Path") { return $l.line }
+        # videos first, it is under home
         let path = if $l.value == $videos or ($l.value | str starts-with $"($videos)/") {
             $l.value | str replace $videos "@XDG_VIDEOS@"
         } else if $l.value == $nu.home-dir or ($l.value | str starts-with $"($nu.home-dir)/") {
@@ -391,7 +379,6 @@ export def backup [cfg: record]: nothing -> nothing {
     let recorded = recorded-hashes
     for repo in (glob ($HERE | path join profiles * *)) {
         let live = $basic | path join ($repo | path relative-to $HERE)
-        # one obs never saved over holds nothing of obs's, and the repo's may be newer
         let saved = ($live | path exists) and (open --raw $live | hash sha256) != ($recorded | get --optional $live)
         if not $saved { continue }
         if ($repo | path basename) == "basic.ini" {

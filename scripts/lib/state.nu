@@ -1,3 +1,5 @@
+# Where dot keeps its state and the primitives every writer uses: the lock, the atomic save, path-kind.
+
 export const SYSTEM_REPO = "/var/lib/dotfiles/repo"
 export const SYSTEM_STATE = "/var/lib/dotfiles"
 export const LIB_DIR = path self .
@@ -5,7 +7,7 @@ export const LIB_DIR = path self .
 export const NU_ROOT = "/usr/bin/nu"
 const LOCKED_SCRIPT = path self locked.nu
 
-# the system layer's state is root's even when a user plans it
+# The running layer's state dir; the system layer's is root's even when a user plans it.
 export def state-dir []: nothing -> path {
     if (is-admin) or ($env.DOT_LAYER? == "system") {
         $SYSTEM_STATE
@@ -18,22 +20,21 @@ export def nu-bin []: nothing -> string {
     if (is-admin) { $NU_ROOT } else { "nu" }
 }
 
-# nu holds no fd lock, so the critical section is a process of its own under flock, the bash helpers' lock too
+# Runs op of locked.nu under flock on lock: nu holds no fd lock, so the critical section is a process of its own.
 export def state-locked [lock: path, op: string, args: record]: nothing -> nothing {
     mkdir ($lock | path dirname)
     $args | to json --raw | ^flock $lock (nu-bin) --no-config-file --stdin -I $LIB_DIR $LOCKED_SCRIPT $op
 }
 
-# a temp of this process's own, then a rename: a concurrent writer or a reader never sees half a file
+# Saves through a temp of this process and a rename, so no reader sees half a file; a link stays a link.
 export def save-atomic [file: path]: string -> nothing {
-    # a link stays a link: the rename goes to the file behind it
     let file = if (path-kind $file) == "symlink" { ^readlink -f $file | str trim } else { $file }
     let tmp = $"($file).($nu.pid)-(random chars --length 6).new"
     $in | save --force --raw $tmp
     mv --force $tmp $file
 }
 
-# path type fails on a missing path instead of answering nothing
+# The path type, "" for a missing path (path type fails on one instead of answering nothing).
 export def path-kind [path: path]: nothing -> string {
     try { $path | path type | default "" } catch { "" }
 }

@@ -23,7 +23,7 @@ def session-id []: string -> string {
     try { $payload | from json | get session_id } catch { $SESSION_DEFAULT } | default $SESSION_DEFAULT
 }
 
-# the hook's caller, the agent process: its exit ends the session's claim
+# The hook's caller, the agent process: its exit ends the session's claim.
 def parent-pid []: nothing -> string {
     open --raw $"/proc/($nu.pid)/stat" | str replace --regex '^.*\) ' '' | split row " " | get 1
 }
@@ -37,7 +37,7 @@ def any-busy [dir: path]: nothing -> bool {
     glob ($dir | path join "*.pid") | any {|f| session-busy $dir ($f | path parse | get stem) }
 }
 
-# one block inhibitor for all agents; it exits by itself once nothing is busy, so a crash never leaks it
+# One sleep inhibitor for all agents; it exits by itself once nothing is busy, so a crash never leaks it.
 def holder-ensure [dir: path]: nothing -> nothing {
     if (alive (read-or ($dir | path join .holder) "")) { return }
     (^setsid --fork systemd-inhibit --what=sleep:handle-lid-switch --who="coding agent" --why="agent working" --mode=block
@@ -69,7 +69,7 @@ def "main subagent-stop" []: string -> nothing {
     agents-add (state-dir) $sid (-1)
 }
 
-# exit 0 while any agent works (hypridle's condition)
+# Exits 0 while any agent works (hypridle's condition).
 def "main busy" []: nothing -> nothing { if not (any-busy (state-dir)) { exit 1 } }
 
 def "main hold" []: nothing -> nothing {

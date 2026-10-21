@@ -1,8 +1,8 @@
---- Citation keys from the project's .bib files and the Zotero library export, for the picker and the completion
---- source. A parsed file is cached until its mtime or size changes; a buffer's bib list until it is written.
+--- Citation keys from the project's .bib files and the Zotero export, for the picker and the completion source.
+--- A parsed file is cached until its mtime or size changes, a buffer's bib list until it is written.
+
 local M = {}
 
--- written by better bibtex's auto-export (latex/zotero)
 M.ZOTERO_BIB = vim.fs.joinpath(vim.env.XDG_DATA_HOME or vim.fs.normalize("~/.local/share"), "zotero", "library.bib")
 
 local AUTHORS_SHOWN_MAX = 2
@@ -21,12 +21,6 @@ local MARKDOWN_FILETYPES = { markdown = true, quarto = true, rmd = true, pandoc 
 local file_cache = {}
 ---@type table<integer, string[]>
 local buffer_bibs = {}
-
---[[
------------------------------------------------------------------------------
-PARSING
------------------------------------------------------------------------------
-]]
 
 ---@param text string
 ---@return string
@@ -125,19 +119,13 @@ local function bib_entries(file)
     return entries
 end
 
---[[
------------------------------------------------------------------------------
-DISCOVERY
------------------------------------------------------------------------------
-]]
-
 ---@param dir string
 ---@return string[]
 local function bib_glob(dir)
     return vim.fn.globpath(dir, "*.bib", false, true)
 end
 
---- The .bib files a buffer's document reads: vimtex's view of \bibliography and \addbibresource, else every .bib
+--- The .bib files a buffer's document reads: vimtex's \bibliography and \addbibresource, else every .bib
 --- next to the main file (tex) or the buffer and cwd (markdown).
 ---@param buf integer
 ---@return string[]
@@ -201,13 +189,6 @@ function M.entries(buf)
     return result
 end
 
---[[
------------------------------------------------------------------------------
-INSERTION
------------------------------------------------------------------------------
-]]
-
--- \cite, \citep, \parencite, \textcite, \autocite, \nocite and their starred and optional-argument forms
 local TEX_CITE_PATTERN = "()\\%a*cite%a*%*?[^{}\\\n]-()%b{}()"
 local MARKDOWN_CITE_PATTERN = "()%[[^%[%]]-@[^%[%]]-%]()"
 
@@ -233,7 +214,7 @@ local function cite_find(line, col, markdown)
     return nil
 end
 
---- Insert KEY at the cursor of the current window: into the cite under the cursor, else as a new one.
+--- Insert KEY at the cursor: into the cite under the cursor, else as a new one.
 ---@param key string
 function M.insert(key)
     local buf = vim.api.nvim_get_current_buf()
@@ -288,12 +269,6 @@ function M.pick()
         end
     end)
 end
-
---[[
------------------------------------------------------------------------------
-COMPLETION CONTEXT
------------------------------------------------------------------------------
-]]
 
 --- Whether the text before the cursor ends inside a cite's key list.
 ---@param before string

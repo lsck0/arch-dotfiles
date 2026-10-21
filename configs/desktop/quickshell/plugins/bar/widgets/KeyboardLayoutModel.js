@@ -21,7 +21,6 @@ function layoutBriefs(text) {
   return briefs
 }
 
-// brief is a language code, not a country code
 function shortLabel(description, briefs) {
   if (!description) return ""
 
@@ -44,7 +43,6 @@ function eventKeyboardName(event) {
   return isTypedKeyboard(name) ? name : ""
 }
 
-// hyprland lists every device with key events as a keyboard: mice, mics, speakers, media and power keys
 var UNTYPED_KEYBOARDS = /^(hl-virtual-keyboard|power-button|sleep-button|lid-switch|video-bus)|-(consumer|system)-control|mouse|microphone|speaker|headset|yubikey|hotkeys|extra-buttons/
 
 function isTypedKeyboard(name) {

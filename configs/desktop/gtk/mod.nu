@@ -10,7 +10,7 @@ export def link [cfg: record] {
     [
         # a link: toggle-font rewrites the repo file
         (file-link gtk.css ($config | path join gtk-3.0 gtk.css))
-        # libadwaita ignores gtk-theme-name, so its gtk.css is the oodwaita export; dangling until the first switch
+        # libadwaita ignores gtk-theme-name, so its gtk.css is oomox's export; dangling until the first theme switch
         (file-link ($nu.home-dir | path join .themes $GTK_THEME gtk-4.0 gtk.css) ($config | path join gtk-4.0 gtk.css))
     ]
 }

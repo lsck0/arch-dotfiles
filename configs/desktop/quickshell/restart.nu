@@ -25,7 +25,6 @@ def "main prepare" [] {
         if $pgid != null and $pgid not-in $spared { ^kill -9 -- $"-($pgid)" | complete } else { ^kill -9 $pid | complete }
     }
 
-    # ShaderEffect reads only baked shaders; qsb ships in qt6-shadertools, without it Ui/Glitch.qml skips itself
     let qsb = which qsb | get path.0? | default (if ($QSB_FALLBACK | path exists) { $QSB_FALLBACK })
     if $qsb != null {
         for frag in (glob $"($config)/shaders/*.frag") {

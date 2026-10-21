@@ -2,11 +2,9 @@
 use ../configs/core/wallust/palette.nu [hex-to-rgb is-light passes TEXT_RATIO]
 
 const THEMES = path self .
-# wcag's floor for large text and ui marks: the ansi accents and color8, the muted text
 const ACCENT_RATIO = 3.0
 const TEXT_SLOTS = [color4 color12]
 const ACCENT_SLOTS = [color1 color2 color3 color5 color6 color8 color9 color10 color11 color13 color14]
-# a light theme's white is the background by design
 const DARK_TEXT_SLOTS = [color7 color15]
 
 def contrast-problems [name: string, spec: record]: nothing -> list<string> {

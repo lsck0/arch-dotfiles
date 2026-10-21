@@ -65,7 +65,6 @@ IncludeCategories:
     SortPriority: 8
 IndentWidth: 4
 PointerAlignment: Left
-# unity build includes are hand-ordered by dependency
 SortIncludes: Never
 AttributeMacros:
   - __attr_allow_unused
@@ -123,5 +122,4 @@ TypenameMacros:
   - nya_derive_ring
   - nya_template
 
-# literate style uses deliberate double blank lines
 MaxEmptyLinesToKeep: 2

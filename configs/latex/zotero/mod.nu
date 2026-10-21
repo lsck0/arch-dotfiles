@@ -3,7 +3,6 @@ use module.nu *
 export const meta = {packages: {pacman: [zotero-bin uv]}}
 
 const ZOTERO_HOME = ".zotero/zotero"
-# the aur zotero-mcp-server needs python packages the aur lacks, so uvx runs the pinned pypi release
 const MCP = {
     type: stdio
     command: uvx
@@ -16,11 +15,9 @@ const BBT_SHA256 = "bf61a1690dc8a2b7ab09be9de2c89986f4fb6d495c82407d89b102b26fba
 const BBT_ID = "better-bibtex@iris-advies.com"
 const BBT_TRANSLATOR_BIBTEX = "ca65189f-8815-4afe-8c8b-8c7c15f0edca"
 const ZOTERO_USER_LIBRARY_ID = 1
-# better bibtex's own http export of the library through zotero's local connector server
 const ZOTERO_SERVER = "http://127.0.0.1:23119"
 const BBT_READY = $"($ZOTERO_SERVER)/better-bibtex/cayw?probe=true"
 const BBT_EXPORT = $"($ZOTERO_SERVER)/better-bibtex/export/library?/($ZOTERO_USER_LIBRARY_ID)/library.bibtex"
-# zotero headless with better bibtex loaded answers in about 15 s; the timeout ends a hung one
 const EXPORT_TIMEOUT = "120"
 const READY_POLLS = 100
 const READY_POLL_INTERVAL = 1sec
@@ -29,7 +26,7 @@ def library-bib-path []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join zotero library.bib
 }
 
-# better bibtex's pref key for an auto-export: encodeURIComponent, then .!'()* as lowercase %xx
+# Better BibTeX's pref key for an auto-export to file: encodeURIComponent, then .!'()* as lowercase %xx.
 def autoexport-key [file: path]: nothing -> string {
     $file | url encode --all
     | str replace --all "%2D" "-" | str replace --all "%5F" "_" | str replace --all "%7E" "~"
@@ -54,11 +51,11 @@ export def link [cfg: record] {
     let bib = library-bib-path
     let prefs = {EXPORT_KEY: (autoexport-key $bib), EXPORT_JOB: (autoexport-job $bib)}
     [
-        # no profile until a first run; the timeout ends the headless one on purpose, the profile is the result
+        # the timeout ends the headless first run on purpose: the profile it creates is the result
         (exec zotero-profile [sh -c 'timeout 20 zotero --headless > /dev/null 2>&1; true'] --creates $ini)
         ($profiles | each {|dir| file-render user.js ($dir | path join user.js) $prefs })
         ($profiles | each {|dir| fetch-file $BBT_URL $BBT_SHA256 ($dir | path join extensions $"($BBT_ID).xpi") } | flatten)
-        # the auto-export only runs on a library change, so an unchanged library never gets its file
+        # the auto-export runs only on a library change, so an unchanged library never gets its file
         (if ($profiles | is-empty) or ($bib | path exists) { [] } else { step library-export $bib })
         (json-merge ($nu.home-dir | path join .claude.json) [(json-set [mcpServers zotero-mcp] $MCP)])
     ]
@@ -68,7 +65,7 @@ def bbt-ready []: nothing -> bool {
     (try { http get --max-time 2sec $BBT_READY } catch { "" }) == "ready"
 }
 
-# from a running zotero, else a headless one started for it and stopped after
+# Exports the library to <bib> from a running zotero, else from a headless one started for it and stopped after.
 export def library-export [bib: path]: nothing -> nothing {
     let started = if (bbt-ready) { null } else {
         # timeout puts zotero in its own process group and passes a TERM on to all of it, the wrapper script included

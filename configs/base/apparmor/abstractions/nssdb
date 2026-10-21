@@ -1,6 +1,4 @@
 # managed by arch-dotfiles/apparmor
-# the nss cert store, which base/xdg moves from ~/.pki to XDG state; apparmor.d's abstractions only cover ~/.pki, so
-# without this every chromium-based app is denied its cert db at start
 
   abi <abi/4.0>,
 

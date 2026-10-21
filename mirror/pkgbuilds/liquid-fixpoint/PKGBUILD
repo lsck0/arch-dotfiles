@@ -11,7 +11,6 @@ license=(BSD-3-Clause)
 depends=(gmp z3)
 makedepends=(git)
 options=(!strip)
-# arch's stack (2.11) builds no setup shim against the ghc 9.10 cabal: initialBuildSteps is gone
 _stackver=3.11.1
 source=(
     "git+$url.git"
@@ -29,7 +28,6 @@ pkgver() {
 
 build() {
     cd liquid-fixpoint
-    # stack keeps its ghc and package db out of the build user's home
     export STACK_ROOT="$srcdir/stack"
     install -m755 "$srcdir/stack-$_stackver" "$srcdir/stack-bin"
     "$srcdir/stack-bin" --install-ghc build --copy-bins --local-bin-path "$srcdir/bin"

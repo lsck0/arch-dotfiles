@@ -1,0 +1,11 @@
+{
+    hostname: luca-pc
+    form_factor: desktop
+    groups: [base core fonts desktop socials gaming creating latex programming qemu llm rocm pentesting]
+    extra_packages: [it87-dkms-git]
+    facts: {
+        homelab: true
+        wireguard: wg0.pc.conf
+        secure_boot_own_keys: true
+    }
+}

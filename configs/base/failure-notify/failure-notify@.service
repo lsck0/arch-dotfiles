@@ -1,11 +1,9 @@
 [Unit]
 Description=Desktop notification that %i failed
-# the display-less provisioning boot would wait a minute per failing unit for a daemon that never comes
 ConditionEnvironment=WAYLAND_DISPLAY
 
 [Service]
 Type=oneshot
-# a unit failing at login can beat quickshell to the notification name
 ExecStartPre=/usr/bin/gdbus wait --session org.freedesktop.Notifications
 ExecStart=/usr/bin/notify-send -u critical -a systemd "%i failed" "journalctl --user -xeu %i"
 TimeoutStartSec=1min

@@ -2,19 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 
-/**
- * ActionButton: the one text action, `[ LABEL ]` with an optional glyph, square, tinted fill.
- *
- * Properties:
- *   label    drawn uppercase inside brackets
- *   glyph    nerd font glyph before the label, "" hides it
- *   tint     text and fill hue
- *   danger   stronger fill, for destructive actions
- *   focusable  takes tab focus, Enter/Space activate
- *
- * Usage:
- *   ActionButton { label: "run again"; enabled: !root.running; onActivated: root.runAgainRequested() }
- */
 Rectangle {
   id: root
 

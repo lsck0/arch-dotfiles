@@ -6,19 +6,15 @@ import Quickshell.Services.Pipewire
 Singleton {
   id: root
 
-  // the eq name comes from configs/desktop/pipewire/mod.nu
   readonly property string eqName: "eq"
   readonly property string peakMonitorName: "quickshell"
-  // the per-app loopbacks from configs/desktop/pipewire/app-loopback.lua: app.<key> sink, app.<key>.out stream
   readonly property string loopbackPrefix: "app."
   readonly property string loopbackOutSuffix: ".out"
-  // obs names pulse captures after the app and pipewire captures "OBS: <source>"
   readonly property var obsNamePattern: /^OBS(:|$)/
 
   readonly property real floorDb: -60
   readonly property real volumeStep: 0.05
 
-  // quickshell's qmltypes stub ObjectModel as opaque, so qmllint cannot see .values
   readonly property var nodes: Pipewire.nodes.values // qmllint disable missing-property
   readonly property var linkGroups: Pipewire.linkGroups.values // qmllint disable missing-property
 
@@ -31,7 +27,6 @@ Singleton {
   readonly property var sinks: nodes.filter(n => n.audio && n.isSink && !n.isStream && !isChain(n) && !isLoopback(n))
   readonly property var sources: nodes.filter(n => n.audio && !n.isSink && !n.isStream)
   readonly property var loopbackOuts: nodes.filter(n => n.audio && n.isStream && isLoopback(n))
-  // streams of one app share its loopback and so its system fader: one row per loopback
   readonly property var appStreams: {
     var seen = []
     return nodes.filter(n => {
@@ -60,7 +55,6 @@ Singleton {
     return loopbackOuts.find(n => n.name === name) || null
   }
 
-  // the node whose volume is what the user hears of a stream: its loopback, else the stream itself
   function levelOf(stream) { return loopbackOutOf(stream) || stream }
 
   function sinkOf(node) {
@@ -83,7 +77,6 @@ Singleton {
     return tap ? tap.name.replace(/^OBS:\s*/, "") : ""
   }
 
-  // wine/proton apps hold several capture streams at once, so tag by app rather than by stream
   readonly property var micListeners: {
     var streams = targetsOf(Pipewire.defaultAudioSource).filter(t => t.isStream && !isPeakMonitor(t))
     var names = []
@@ -129,7 +122,6 @@ Singleton {
     return (node.nickname || node.description || node.name).replace(/ (Analog|Digital) (Stereo|Mono|Surround.*)$/, "")
   }
 
-  // quickshell volumes and peaks are cubic like wpctl, so db is 60 log10
   function db(cubic) { return cubic > 0 ? 60 * Math.log(cubic) / Math.LN10 : -Infinity }
   function dbText(cubic) {
     var d = db(cubic)
@@ -138,7 +130,6 @@ Singleton {
   }
   function meterPosition(peak) { return Math.max(0, Math.min(1, 1 - db(peak) / floorDb)) }
 
-  // md-volume mute / high / medium / low
   function volumeIcon(volume, muted) {
     if (muted) return "\u{f075f}"
     if (volume > 0.66) return "\u{f057e}"
@@ -151,8 +142,6 @@ Singleton {
     node.audio.volume = Math.max(0, Math.min(1, node.audio.volume + (delta > 0 ? volumeStep : -volumeStep)))
   }
 
-  // a looped back app is routed by its loopback, so the app stream keeps playing into it.
-  // by object.serial: state-stream saves a route only when the value is a serial, a name would be lost on restart
   function route(stream, target) {
     if (!stream) return
     var node = levelOf(stream)

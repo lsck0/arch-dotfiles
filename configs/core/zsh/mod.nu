@@ -7,7 +7,6 @@ export const meta = {
 export def link [cfg: record] {
     [
         (file-copy zshrc ($nu.home-dir | path join .zshrc))
-        # every zsh (login, interactive, non-interactive) sources environment.d, so agents' tty shells match systemd
         (file-copy zshenv ($nu.home-dir | path join .zshenv))
         (link-commands fence.nu)
         (files-into ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join environment.d) no-telemetry.conf)

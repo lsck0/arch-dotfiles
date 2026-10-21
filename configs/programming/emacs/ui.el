@@ -1,5 +1,3 @@
-;;; ui.el --- theme, bars, visual aids -*- lexical-binding: t; -*-
-
 (defconst my/system-theme-file (expand-file-name "~/.cache/wal/nvim_theme"))
 
 (defconst my/system-theme-alist
@@ -32,7 +30,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (mapc #'disable-theme custom-enabled-themes)
   (unless (ignore-errors (load-theme (my/system-theme) t))
     (load-theme 'doom-one t))
-  ;; early-init's palette colours only cover the first frame; left in, they override the theme on every later frame
   (setq default-frame-alist
         (assq-delete-all 'background-color (assq-delete-all 'foreground-color default-frame-alist))))
 
@@ -40,7 +37,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
   :config
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t)
-  ;; the theme verb writes doom-pywal-theme.el into the cache, so a switch never touches the config
   (add-to-list 'custom-theme-load-path
                (expand-file-name "wal/" (or (getenv "XDG_CACHE_HOME")
                                             (expand-file-name "~/.cache/"))))
@@ -72,7 +68,6 @@ frames recolour on a theme switch exactly as a fresh launch would."
       tab-bar-format '(tab-bar-format-tabs tab-bar-separator))
 (tab-bar-mode 1)
 
-;; doom-themes skips tab labels
 (set-face-attribute 'tab-bar-tab nil
                     :inherit 'tab-line-tab-current :box nil :weight 'bold)
 (set-face-attribute 'tab-bar-tab-inactive nil
@@ -106,4 +101,3 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (advice-add 'evil-yank :after #'my/yank-pulse))
 
 (provide 'ui)
-;;; ui.el ends here

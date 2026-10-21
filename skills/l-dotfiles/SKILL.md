@@ -15,18 +15,22 @@ links only where an app reads the repo live.
 - `configs/<group>/<name>`: config/setup for tools/tasks, including `configs/base/keyboard` (keyboard firmware).
 - `themes/`: color themes propagated through the system, next to `wallpapers/`.
 - `mirror/`: pkgbuilds and the local package mirror.
-- `platforms/`: `<host>.nuon` machine facts and groups, `<host>.options.nuon` option values (luca-pc, luca-notebook,
-  luca-wsl, test-vm, `templates/`).
+- `platforms/`: `<name>.nuon` machine facts and groups, `<name>.options.nuon` option values (pc, notebook, wsl,
+  server, vm); a named machine's choice is `/etc/dotfiles/platform`, a server or custom machine's answers are
+  `/etc/dotfiles/platform{,.options}.nuon`.
 - `profiles/`: per-user profile templates.
 - `scripts/`: scripts that are meant to be called directly.
 - `scripts/toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
-- `configs/secrets/`: the private submodule, committed by dot sync: `keys/` the git-crypt secrets, `<module>/mod.nu` the
-  owner's own modules (group `secrets`).
+- `configs/secrets/`: the private submodule, committed and pushed by dot sync before the generation: `keys/` the
+  git-crypt secrets, `state/` the plaintext backed-up app state (dalamud, ffxiv, wallpapers, drift, firefox,
+  repositories), `<module>/mod.nu` the owner's own modules (yubikey, capgemini, weblinks; group `secrets`). Anything
+  else there makes sync refuse.
 - `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
 - `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
 - `bootstrap.sh` (then `dot internal bootstrap`), `dot apply --packages`, `dot apply`, `dot internal stage`: install stages 1 to 3 (base system from the ISO, packages, user and system config) and the per-boot chain that runs them unattended.
-- `dot sync`: the one command: pull, migrate, install, apply, back up live app state, signed `Generation: <n>` commit, push (`--no-push` stops before the backup).
+- `dot sync`: the one command: pull, migrate, install, apply, back up live app state, signed `Generation: <n>` commit,
+  push (`--no-push`, and any machine without the signing key, stop after the apply: no backup, commit or push).
 
 ## Conventions
 

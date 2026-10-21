@@ -1,3 +1,2 @@
 # managed by arch-dotfiles/apparmor
-# local html files and attachments that mail and other programs hand over through temp dirs
 owner /tmp/** r,

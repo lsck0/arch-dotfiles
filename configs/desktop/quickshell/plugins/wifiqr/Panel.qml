@@ -37,7 +37,6 @@ Item {
     root.ssid = payload.ssid !== undefined ? String(payload.ssid) : ""
     generate(String(payload.iface || ""))
     root.opened = true
-    // window maps after focus: true is evaluated, refocus later
     Qt.callLater(function() {
       if (root.opened) keyCatcher.forceActiveFocus()
     })
@@ -103,7 +102,6 @@ Item {
     if (parsed.meta.ssid !== "") ssid = parsed.meta.ssid
     if (parsed.meta.iface !== "") iface = parsed.meta.iface
     secured = parsed.meta.security !== "" && parsed.meta.security !== "nopass"
-    // a canceled run's stderr may land late; good output wins
     if (qrSize > 0) error = ""
   }
 
@@ -119,7 +117,6 @@ Item {
 
   Process {
     id: qrProc
-    // output buffered after a dismissal must not reopen the card
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: if (!root.expectedStop) root.updateQr(text)
@@ -132,7 +129,6 @@ Item {
       root.loading = false
       if (root.pendingShow) {
         root.pendingShow = false
-        // keep expectedStop set until the replacement launches
         Qt.callLater(function() { root.generate(root.pendingIface) })
         return
       }

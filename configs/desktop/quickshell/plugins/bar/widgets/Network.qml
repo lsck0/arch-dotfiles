@@ -24,7 +24,6 @@ BarWidget {
 
   property bool detailsConnected: false
   property string connectivity: "unknown"
-  // 75-connectivity-check turns NM's probe off at home (split-horizon dns), so unknown on a connected link is online
   readonly property bool reallyOnline: connectivity === "full" || (detailsConnected && connectivity === "unknown")
   property string detailsDevice: ""
   property string detailsSsid: ""
@@ -86,12 +85,10 @@ BarWidget {
   }
 
   function connectTo(ssid, password) {
-    // a running attempt would take this password on its already closed stdin
     if (connectProc.running) return
     root.connectingSsid = ssid
     root.connectError = ""
     connectProc.command = [Paths.barWidget("network-wifi-connect.nu"), ssid]
-    // over stdin, an argv is readable by anyone in /proc; closing stdin ends it
     connectProc.stdinEnabled = true
     connectProc.running = true
     connectProc.write((password || "") + "\n")
@@ -236,7 +233,6 @@ BarWidget {
     id: nmMonitorProc
     running: true
     command: ["nmcli", "monitor"]
-    // quickshell does not reap helpers on reload, stop on teardown
     Component.onDestruction: running = false
     stdout: SplitParser {
       splitMarker: "\n"

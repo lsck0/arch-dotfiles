@@ -1,3 +1,2 @@
 # managed by arch-dotfiles/apparmor
-# Qt saves the rss feeds (and its other state) as a temp file hard-linked into place; denied, it falls back to a rename
 owner @{user_config_dirs}/qBittorrent/** l,

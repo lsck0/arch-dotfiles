@@ -1,6 +1,4 @@
 #!/usr/bin/env -S nu --no-config-file
-# the lock screen's one stats line: kernel, load as a share of the cores, memory, uptime
-
 def main [] {
     let load = open /proc/loadavg | split row " " | first | into float
     let cpu = $load * 100 / (sys cpu | length) | math round

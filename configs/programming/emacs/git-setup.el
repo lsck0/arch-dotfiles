@@ -1,5 +1,3 @@
-;;; git-setup.el --- git -*- lexical-binding: t; -*-
-
 (use-package magit
   :commands (magit-status magit-dispatch magit-file-dispatch)
   :config
@@ -91,7 +89,6 @@
          (existing (seq-find (lambda (wt) (equal (plist-get wt :branch) branch)) worktrees)))
     (if existing
         (my/project-open (plist-get existing :path))
-      ;; slashes flattened like slug_of in clones-sdd-repos.sh
       (let ((dir (my/worktree-dir worktrees (replace-regexp-in-string "/" "-" branch))))
         (cond ((ignore-errors (my/git-lines "show-ref" "--verify" "--quiet" (concat "refs/heads/" branch)) t)
                (my/git-lines "worktree" "add" dir branch))
@@ -155,4 +152,3 @@
   (my/gh-search query "repositories"))
 
 (provide 'git-setup)
-;;; git-setup.el ends here

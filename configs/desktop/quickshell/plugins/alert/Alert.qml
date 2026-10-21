@@ -75,7 +75,6 @@ Item {
     visible: root.alerts.length > 0
     screen: root.mainScreen
     anchors { top: true; right: true }
-    // quickshell's qmltypes stub PanelWindow.margins
     margins { top: Style.bar.sizeHorizontal + Style.spacing.sm; right: Style.spacing.sm } // qmllint disable missing-property
     implicitWidth: Style.space(440)
     implicitHeight: stack.implicitHeight

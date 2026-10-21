@@ -1,3 +1,2 @@
-# no sccache rustc-wrapper: it disables incremental compilation, opt in per shell
 [target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]

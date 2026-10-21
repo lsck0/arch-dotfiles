@@ -28,13 +28,12 @@ def state-save [state: record]: nothing -> nothing {
     $state | select --optional running paused phase endsAt cycle remaining work break long cycles | to json -r | save -f (state-path)
 }
 
-# the app name the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP)
+# Sent as the app the shell shows through dnd and keeps out of history (NotificationLogic.js ACTION_APP).
 def notify [title: string, body: string = ""]: nothing -> nothing {
     ^notify-send -a quickshell-action -u low -h $"string:omarchy-glyph:($glyph)" $title $body
 }
 
-# foreground: the timer's unit kills background children on exit
-# a notification passes the app loopbacks (configs/desktop/pipewire): own level, heard while listening to obs
+# Plays in the foreground: the timer's unit kills background children on exit.
 def chime-play []: nothing -> nothing {
     if ($chime | path exists) { ^timeout $chime_timeout pw-play --media-role Notification --volume $chime_volume $chime | complete | ignore }
 }
@@ -48,7 +47,7 @@ def timer-cancel []: nothing -> nothing {
     if ($timers | is-not-empty) { systemctl --user stop ...$timers }
 }
 
-# nanoseconds in the unit name: two skips in one second would otherwise collide
+# Nanoseconds in the unit name: two skips in one second would otherwise collide.
 def timer-arm [seconds: int]: nothing -> nothing {
     timer-cancel
     (systemd-run --user --quiet --collect $"--on-active=($seconds)s" --timer-property=AccuracySec=1s
@@ -131,6 +130,27 @@ def "main set" [...pairs: string]: nothing -> nothing {
             notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
             exit 1
         }
+    }
+    retime
+}
+
+# a running timer takes the new lengths: the current phase keeps its elapsed time against its new length
+def retime []: nothing -> nothing {
+    let state = state-load
+    if not $state.running { return }
+    let config = config-load
+    let lengths = {work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles}
+    let total = ($state | get $state.phase) * 60
+    let left = if $state.paused { $state.remaining } else { [($state.endsAt - (now)) 0] | math max }
+    let left = ($lengths | get $state.phase) * 60 - ($total - $left)
+    let state = $state | merge $lengths
+    if $left <= 0 {
+        state-save $state
+        phase-advance
+    } else if $state.paused {
+        state-save ($state | merge {remaining: $left})
+    } else {
+        phase-start $state $state.phase $left
     }
 }
 

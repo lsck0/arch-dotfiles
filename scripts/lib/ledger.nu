@@ -1,15 +1,19 @@
+# The ledger: what dot enabled or installed (units, packages) and each generation's package snapshot, so
+# what no module declares any more can be found and, after a yes, disabled or removed.
+
 use log.nu *
 use state.nu [state-dir save-atomic]
 use written.nu [tty-confirm]
 use converge.nu [unit-states]
 
-export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|timeshift|zsh)$'
+export const PACKAGES_DENY = '^(base|base-devel|linux.*|.*-firmware|.*-ucode|binutils|sbctl|cryptsetup|btrfs-progs|mkinitcpio|systemd.*|networkmanager|sudo|pacman|git|gnupg|yay|nix|nushell|libfido2|openssh|age|age-plugin-yubikey|git-crypt|pcsclite|zsh)$'
 const UNIT_NAME = '[A-Za-z0-9][A-Za-z0-9:_.-]*(@[A-Za-z0-9:_.-]*)?\.(service|socket|timer|path|mount|automount|target)'
 
 export def ledger-file []: nothing -> path {
     state-dir | path join ledger
 }
 
+# The names recorded under kind (unit, pkg), sorted.
 export def ledger-get [kind: string]: nothing -> list<string> {
     let file = ledger-file
     if not ($file | path exists) { return [] }
@@ -23,7 +27,8 @@ export def ledger-set [kind: string, names: list<string>]: nothing -> nothing {
     $kept | append ($names | where $it != "" | each { $"($kind) ($in)" }) | uniq | sort | str join "\n" | $"($in)\n" | save-atomic $file
 }
 
-# declared: named by an enabled module's dir or scripts/; a module turned off no longer keeps its units on
+# Enabled units against those named in an enabled module's dir or scripts/; a dropped one is disabled after
+# a yes, and by_hand lists what was enabled outside dot.
 export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: nothing -> record {
     let paths = $dirs | append ($repo | path join scripts) | where ($it | path exists)
     let declared = ^grep -rhoIE $UNIT_NAME --exclude=*.log -- ...$paths | lines | uniq
@@ -48,6 +53,7 @@ export def ledger-units [repo: path, dirs: list<path>, scope: string, --plan]: n
     {owned: $owned, dropped: (if $disable { [] } else { $dropped }), by_hand: $by_hand}
 }
 
+# Explicitly installed packages that no module declares, keep lists or PACKAGES_DENY spares.
 export def packages-convergence [declared: list<string>, keep: list<string>]: nothing -> record {
     let resolved = ^pacman -Qq ...$declared | complete | get stdout | lines
         | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last })
@@ -57,7 +63,7 @@ export def packages-convergence [declared: list<string>, keep: list<string>]: no
     {declared: ($resolved | length), explicit: ($explicit | length), remove: $extra}
 }
 
-# what another package still needs stays as a dependency
+# Removes, after a yes, recorded packages no module declares; what another package still needs stays as a dependency.
 export def ledger-packages [declared: list<string>]: nothing -> nothing {
     let resolved = ^pacman -Qq ...$declared | complete | get stdout | lines
         | append (^pacman -Qqg ...$declared | complete | get stdout | lines | each { split row " " | last }) | uniq | sort
@@ -76,7 +82,7 @@ export def ledger-packages [declared: list<string>]: nothing -> nothing {
     if ($by_hand | is-not-empty) { log-info $"installed by hand, not managed: ($by_hand | str join ' ')" }
 }
 
-# one line per sha: <copy sha> <pin|latest> <db time> <db sha256>
+# One line per commit sha, <sha> <pin|latest> <db time> <db sha256>, replacing an earlier line for it.
 export def ledger-generation [file: path, sha: string, snapshot: string]: nothing -> nothing {
     if not ($sha =~ '^[0-9a-f]{40}$') { error make {msg: $"ledger-generation: ($sha) is not a commit sha"} }
     let kept = if ($file | path exists) { open --raw $file | lines | where {|l| ($l | split row " " | first) != $sha } } else { [] }

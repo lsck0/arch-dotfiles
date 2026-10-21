@@ -1,12 +1,12 @@
 #!/usr/bin/env -S nu --no-config-file
+# gamemode's start/end hook: frees the gpu and cpu from local inference and the trmnl timer while a game runs
 
 const TRMNL_TIMER = "trmnl-claude.timer"
-# local inference holds the whole gpu vram; the socket reactivates vllm on the next client, so only ollama is restored
 const VLLM_PROXY = "vllm-proxy.service"
 const OLLAMA = "ollama.service"
 const SPLIT_LOCK_MITIGATE = "/usr/local/bin/split-lock-mitigate"
 
-# tmpfs like the toggles' volatile state, so a crash mid-game never restores ollama after a reboot
+# Tmpfs like the toggles' volatile state, so a crash mid-game never restores ollama after a reboot.
 def ollama-mark []: nothing -> path {
     $env.XDG_RUNTIME_DIR | path join toggles gamemode-ollama
 }

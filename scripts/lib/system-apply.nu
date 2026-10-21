@@ -1,4 +1,6 @@
 #!/usr/bin/nu --no-config-file
+# Root's one entry, what sudo or the polkit action runs: each command re-execs itself under one flock and
+# runs only from the root-owned copy.
 
 use log.nu *
 use state.nu [SYSTEM_REPO SYSTEM_STATE state-dir]
@@ -9,24 +11,19 @@ use written.nu [tty-confirm written-begin written-prune written-end preserve-pru
 use migrate.nu [migrations-run]
 use system.nu [system-unpack system-secrets ENTRY]
 
-# dot internal stage retries an abort, moves on from a run that only recorded failures
 const EXIT_FAILURES = 1
 const EXIT_ABORTED = 2
 const OFFLINE_WAIT_S = 120
 # the mirror answers 429 past its per-ip budget; each pass after the budget refills fetches the next files
 const DOWNLOAD_TRIES = 80
-# offline past nm-online's wait: a few tries tell a slow link from none, then the stage retries next boot
 const OFFLINE_TRIES = 3
 const DOWNLOAD_BACKOFF = 5sec
-# what a retry can fix; anything else (a conflict, a broken package, the lock) fails at once
 const DOWNLOAD_ERRORS = '(?i)failed retrieving file|failed to retrieve some files|failed to synchronize|could not resolve|returned error: (429|5\d\d)|timed? ?out|too slow|connection (refused|reset)|could not connect|network is unreachable'
 const LSCK0_DB = "/var/lib/pacman/sync/lsck0.db"
 const PACMAN_LOCK = "/var/lib/pacman/db.lck"
 const PACMAN_MODULE = "base/pacman"
 const YUBIKEY_MODULE = "base/yubikey"
 const ADDUSER_LINK = "/usr/local/bin/adduser-dotfiles"
-const PRE_APPLY_KEEP = 5
-const PRE_APPLY_COMMENT = "dot pre-apply"
 
 def repo-guard []: nothing -> path {
     let repo = $env.FILE_PWD | path dirname | path dirname
@@ -37,7 +34,6 @@ def repo-guard []: nothing -> path {
     $repo
 }
 
-# one system run at a time: re-exec the whole command under flock
 def --wrapped locked [...args: string]: nothing -> nothing {
     if ($env.DOT_SYSTEM_LOCKED? | is-empty) {
         mkdir $SYSTEM_STATE
@@ -59,7 +55,8 @@ def failures-end [what: string]: nothing -> nothing {
     log-info $"($what) done"
 }
 
-# --needed still names every installed target "up to date -- skipping"; a group by its missing members
+# The targets still missing; --needed would still name every installed one, and a group counts by its
+# missing members.
 def packages-wanted [names: list<string>]: nothing -> list<string> {
     let groups = ^pacman -Sgg | lines | parse "{group} {name}" | where group in $names
     let installed = ^pacman -Qq | lines
@@ -68,7 +65,7 @@ def packages-wanted [names: list<string>]: nothing -> list<string> {
     $missing ++ ($groups | where name not-in $installed | get name | uniq)
 }
 
-# pacman with stderr kept to tell a download error from the rest; stdout stays the tty for the bars
+# Keeps pacman's stderr to tell a download error from the rest; stdout stays the tty for the bars.
 def --wrapped pacman-try [...args: string]: nothing -> record {
     let err = mktemp --tmpdir
     let ok = try { ^pacman ...$args e> $err; true } catch { false }
@@ -78,7 +75,8 @@ def --wrapped pacman-try [...args: string]: nothing -> record {
     {ok: $ok, download: (not $ok and $text =~ $DOWNLOAD_ERRORS)}
 }
 
-# retries a download error up to tries times; exits EXIT_ABORTED when it never got through, EXIT_FAILURES on any other
+# Retries a download error up to tries times; exits EXIT_ABORTED when it never got through, EXIT_FAILURES
+# on any other error.
 def --wrapped pacman-retry [what: string, tries: int, ...args: string]: nothing -> nothing {
     mut try = 1
     loop {
@@ -97,21 +95,19 @@ def module-system [ctx: record, id: string]: nothing -> bool {
 }
 
 def main [] {
-    error make {msg: $"system-apply.nu <apply|install|config|snapshot|packages|module|migrate|preserve-prune>"}
+    error make {msg: $"system-apply.nu <apply|install|config|packages|module|migrate|preserve-prune>"}
 }
 
 # apply <sha> <install|config>: unpack the repo and secrets archive on stdin, run the stage from the new copy
-def "main apply" [sha: string, stage: string, --snapshot, --unattended, --force, --pin: string]: nothing -> nothing {
+def "main apply" [sha: string, stage: string, --unattended, --force, --pin: string]: nothing -> nothing {
     repo-guard | ignore
     if $stage not-in [install config] { error make {msg: $"apply: ($stage) is neither install nor config"} }
-    locked apply $sha $stage --snapshot=($snapshot) --unattended=($unattended) --force=($force) ...(if $pin == null { [] } else { [--pin $pin] })
+    locked apply $sha $stage --unattended=($unattended) --force=($force) ...(if $pin == null { [] } else { [--pin $pin] })
     let work = mktemp --directory --tmpdir-path /run
-    # the secrets tar is plaintext: gone whatever step throws
     let status = try {
         ^tar -x --no-same-owner --no-same-permissions -C $work -f - repo.tar secrets.tar
         open --raw ($work | path join repo.tar) | system-unpack $SYSTEM_REPO $sha
         let entry = $SYSTEM_REPO | path join $ENTRY
-        if $snapshot { ^/usr/bin/nu --no-config-file $entry snapshot }
         let flags = if $stage == "install" { [--unattended=($unattended)] ++ (if $pin == null { [] } else { [--pin $pin] }) } else { [--unattended=($unattended) --force=($force)] }
         try { open --raw ($work | path join secrets.tar) | ^/usr/bin/nu --no-config-file $entry $stage ...$flags; 0 } catch {|e| $e.exit_code? | default 1 }
     } catch {|e|
@@ -144,29 +140,25 @@ def "main install" [--unattended, --pin: string]: nothing -> nothing {
     # a power cut mid-transaction leaves the lock, and every retry boot would fail on it
     if ($PACMAN_LOCK | path exists) and (^pgrep -x pacman | complete).exit_code != 0 { rm --force $PACMAN_LOCK }
     let declared = modules-packages $repo $ctx.modules $ctx.platform
-    # offline is an abort (exit 2), which the stage chain retries next boot instead of going on to a bare config
     pacman-retry "the database sync" (if $offline { $OFFLINE_TRIES } else { $DOWNLOAD_TRIES }) -Syy --noconfirm
     let missing = ^pacman -Sp --noconfirm --print-format "%n" ...$declared.pacman | complete | get stderr | lines | parse "error: target not found: {p}" | get p
     $missing | each { fail $"not on the mirror: ($in) \(a name new since the last nightly build arrives with the next one\)" } | ignore
     let available = $declared.pacman | where $it not-in $missing
     let wanted = packages-wanted $available
     log-info $"sources: ($available | length) packages, ($wanted | length) to install in one pass, ($missing | length) not on the mirror"
-    # -uu moves pacstrap's packages onto the snapshot and a pin back onto an older one; anywhere else a mirror behind
-    # the last run would downgrade the machine. --ask 4 replaces the old lsck0-* names
+    # -uu moves pacstrap's packages onto the snapshot and a pin back onto an older one; --ask 4 replaces old names
     let upgrade = if $unattended or ($ctx.platform.facts.lsck0_snapshot | is-not-empty) { "-Suu" } else { "-Su" }
     pacman-retry "the install pass" $DOWNLOAD_TRIES $upgrade --needed --noconfirm --ask 4 ...$wanted
     let snapshot = $"($ctx.platform.facts.lsck0_snapshot | default latest) (ls $LSCK0_DB | get 0.modified | date to-timezone UTC | format date '%FT%TZ') (open --raw $LSCK0_DB | hash sha256)"
     ledger-set snapshot [$snapshot]
     let source = $repo | path join .source
     if ($source | path exists) { ledger-generation ($SYSTEM_STATE | path join generations) (open --raw $source | str trim) $snapshot }
-    # after the pass, so a dropped package only leaves once whatever replaced it is in
     try { ledger-packages $declared.pacman } catch {|e| fail $"ledger: removing dropped packages: ($e.msg)" }
     if ($declared.nix | is-not-empty) and (which nix | is-not-empty) {
         try { ^systemctl enable --now nix-daemon.socket } catch { fail "nix-daemon.socket" }
-        # nix ships no /nix/store and a user's first call fails on it; the owner and mode nix gives it itself
+        # nix ships no /nix/store and a user's first call fails on it
         if not ("/nix/store" | path exists) { ^install -d -o root -g nixbld -m 1775 /nix/store }
     }
-    # card access before the first config: its secrets unlock runs as the user ahead of the system layer
     if not (module-system $ctx $YUBIKEY_MODULE) { fail $YUBIKEY_MODULE }
     failures-end install
 }
@@ -179,7 +171,6 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     failures-start
     let ctx = pipeline-load $repo system
     let secrets = mktemp --directory --tmpdir-path /run
-    # plaintext secrets: gone whatever step throws
     try {
         ^tar -x --no-same-owner --no-same-permissions -C $secrets -f -
         let allowed = system-secrets $ctx.platform.facts.wireguard?
@@ -188,7 +179,6 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         $env.DOTFILES_SECRETS = $secrets
         written-begin
         let planned = pipeline-plan $ctx system [] $force | where id != $PACMAN_MODULE
-        # one at a time: the system modules share pacman, /etc/group and the boot queue
         let results = pipeline-apply $ctx $planned system 1
         # a module skipped by its input hash writes nothing this run, so its targets have to be kept explicitly
         let owned = glob (state-dir | path join modules **/*.nuon) | each { open $in | get outputs.target } | flatten
@@ -198,7 +188,6 @@ def "main config" [--unattended, --force]: nothing -> nothing {
         error make {msg: $e.msg}
     }
     rm --recursive --force $secrets
-    # root runs nothing from a home
     ls /usr/local/bin | where type == symlink | where { (^readlink $in.name | str starts-with "/home/") } | each { rm $in.name } | ignore
     rm --force $ADDUSER_LINK
     $"#!/bin/sh\n[ \"$\(id -u\)\" = 0 ] || exec sudo \"$0\" \"$@\"\nexec /usr/bin/nu --no-config-file ($SYSTEM_REPO | path join $ENTRY) adduser \"$@\"\n" | save $ADDUSER_LINK
@@ -207,29 +196,6 @@ def "main config" [--unattended, --force]: nothing -> nothing {
     # last, so every initramfs and cmdline change of this run is rebuilt once, then signed and verified
     try { ^/usr/bin/nu --no-config-file -I ($repo | path join scripts lib) -c $"use ($repo | path join configs base boot boot.nu) [boot-commit]; boot-commit" } catch { fail "boot barrier (configs/base/boot/boot.nu boot-commit)" }
     failures-end config
-}
-
-def snapshots []: nothing -> table {
-    ^timeshift --list --scripted | lines
-    | parse --regex '^\s*\d+\s+>\s+(?<name>\S+)\s+(?<tags>\S+)\s+(?<comment>.*)$'
-    | where ($it.comment | str starts-with $PRE_APPLY_COMMENT) | sort-by name
-}
-
-# a timeshift snapshot before the system changes
-def "main snapshot" []: nothing -> nothing {
-    let repo = repo-guard
-    locked snapshot
-    let fstype = ^findmnt -n -o FSTYPE / | str trim
-    if (^systemd-detect-virt | complete | get stdout | str trim) == "wsl" or $fstype != "btrfs" {
-        log-info $"no pre-apply snapshot: / is ($fstype), not btrfs"
-        return
-    }
-    if (which timeshift | is-empty) { return }
-    let sha = open --raw ($repo | path join .source) | str trim | str substring 0..11
-    let made = ^timeshift --create --scripted --tags O --comments $"($PRE_APPLY_COMMENT) ($sha)" | complete
-    if $made.exit_code != 0 { error make {msg: $"timeshift --create: ($made.stdout)($made.stderr)"} }
-    log-info $"pre-apply snapshot of ($sha)"
-    for old in (snapshots | drop $PRE_APPLY_KEEP | get name) { ^timeshift --delete --scripted --snapshot $old | complete | ignore }
 }
 
 # remove explicit packages no module declares, keep list aside, recorded in the ledger for rollback
@@ -243,7 +209,6 @@ def "main packages" [--yes, --plan, --unattended]: nothing -> nothing {
     if ($found.remove | is-empty) { return }
     print $"not declared by any module: ($found.remove | str join ' ')"
     if $plan or not ($yes or (tty-confirm $"remove these ($found.remove | length)?")) { return }
-    # one another package still needs would fail the whole -Rns: each becomes a dependency, the orphans go
     ^pacman -D --asdeps ...$found.remove | ignore
     let orphans = ^pacman -Qdttq | complete | get stdout | lines | where $it in $found.remove
     let kept = $found.remove | where $it not-in $orphans
@@ -291,7 +256,6 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
         input $"profile for ($name) [($PROFILE_CUSTOM)]: " | default --empty $PROFILE_CUSTOM
     } else { $PROFILE_CUSTOM }
     if $picked not-in $profiles { error make {msg: $"unknown profile '($picked)', one of: ($profiles | str join ' ')"} }
-    # an existing system account would get a password set and a checkout in its home, root's run as uid 0
     let existing = ^id -u $name | complete
     if $existing.exit_code == 0 and ($existing.stdout | str trim | into int) < 1000 {
         error make {msg: $"($name) is a system account, not a login to add"}
@@ -315,10 +279,8 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     if $picked != $PROFILE_CUSTOM and not ($live | path exists) {
         ^runuser -u $name -- install -Dm644 ($checkout | path join profiles $"($picked).nuon") $live
     }
-    # root's record of the owner's logins: secrets/yubikey maps the owner's yubikey to exactly these, from the next
-    # system run
     let picked_file = $checkout | path join profiles $"($picked).nuon"
-    if $picked != $PROFILE_CUSTOM and ("identity" in (open $picked_file | get --optional capabilities | default [])) {
+    if $picked != $PROFILE_CUSTOM and ("secrets" in (open $picked_file | get --optional capabilities | default [])) {
         let owners = "/var/lib/dotfiles/owners"
         let have = if ($owners | path exists) { open --raw $owners | lines } else { [] }
         if $name not-in $have { $"($name)\n" | save --append $owners }
