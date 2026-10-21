@@ -69,9 +69,12 @@ Item {
     onLoadFailed: root.frecency = ({})
   }
 
+  // an app's own icon from the scan first; a device name (network-wireless) through the icon theme, the scan's
+  // first hit for one is breeze's 16px symbolic, dark on the dark launcher
   function iconSource(icon) {
     var found = root.iconIndex[String(icon || "")]
-    return (found ? Util.fileUrl(found) : Util.iconSource(icon)) || Quickshell.iconPath("application-x-executable", true)
+    if (found && found.indexOf("/devices/") < 0) return Util.fileUrl(found)
+    return Util.iconSource(icon) || (found ? Util.fileUrl(found) : "") || Quickshell.iconPath("application-x-executable", true)
   }
 
   function refreshIcons() {

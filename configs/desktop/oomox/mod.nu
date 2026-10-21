@@ -11,7 +11,13 @@ const THEMIX_TIMEOUT = [timeout -k 5 20]
 const INTERFACE = "org.gnome.desktop.interface"
 
 export def link [cfg: record] {
-    files-into ($nu.home-dir | path join $EXPORT_DIR) ...$EXPORT_CONFIGS
+    [
+        (files-into ($nu.home-dir | path join $EXPORT_DIR) ...$EXPORT_CONFIGS)
+        # only the base16 exports run, headless from theme; the gui wants theme and icon plugins none of which ship
+        (desktop-override com.github.themix_project.Oomox.desktop {
+            str replace --regex '(?m)^\[Desktop Entry\]$' "[Desktop Entry]\nNoDisplay=true"
+        })
+    ]
 }
 
 export def theme [cfg: record, wallpaper: string] {

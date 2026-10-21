@@ -19,7 +19,7 @@ def --wrapped main [target: string, ...args: string]: nothing -> nothing {
         if (do { ^nc -z -w $PROBE_TIMEOUT_S $host $PORT } | complete).exit_code == 0 { break }
     }
     # neither is in ssh's default key paths
-    let keys = [($REPO | path join secrets ssh_privatekey.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
+    let keys = [($REPO | path join configs secrets keys ssh_privatekey.asc) ($nu.home-dir | path join .ssh id_ed25519_sk)]
         | where { secret-is-plaintext $in }
     let ids = $keys | each { [-i $in] } | flatten
     let only = if ($keys | is-empty) { [] } else { [-o IdentitiesOnly=yes] }

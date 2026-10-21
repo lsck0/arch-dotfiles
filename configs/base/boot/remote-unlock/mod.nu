@@ -13,7 +13,7 @@ export const options = {
     wifi: {
         type: bool
         default: false
-        doc: "Also join the home wifis (secrets/wifi) in the initramfs; their keys are written into the image"
+        doc: "Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image"
         label: "Remote unlock over wifi"
         apply: reboot
         scope: machine
@@ -49,6 +49,7 @@ export def system [cfg: record] {
         # the stock file matches eth* only
         (file-copy initrd-network.network $"($TOOL_DIR)/network/initrd-network.network")
         (dropin initrd-tinysshd.service tinysshd.conf)
+        (dropin initrd-network.service initrd-network.conf)
         # the systemd-tool hook puts enabled units in the image, ConditionPathExists keeps them off the real system
         ...($UNITS | each { unit-enable $in })
         ...(wifi $cfg.wifi)
@@ -60,26 +61,31 @@ def wifi [enabled: bool]: nothing -> list<record> {
     if not $enabled {
         return [(unit-disable $WIFI_UNIT) (step wifi-teardown)]
     }
-    # the unit requires the conf, else every mkinitcpio build fails; the next apply enables it once secrets are readable
+    # the unit requires the conf, else every mkinitcpio build fails; wifi-conf writes it this run when configs/secrets/keys/wifi is
+    # readable, so the first apply already ships the unit, else the next apply enables it once secrets are readable
     [
         (step wifi-conf)
-    ] ++ (if ($WIFI_CONF | path exists) {
+    ] ++ (if ($WIFI_CONF | path exists) or (wifi-secret | path exists) {
         [(file-copy $WIFI_UNIT $"/etc/systemd/system/($WIFI_UNIT)") (unit-enable $WIFI_UNIT)]
     } else { [(unit-disable $WIFI_UNIT)] })
 }
 
-# secrets/wifi lines are ssid, a tab, the passphrase; a run without DOTFILES_SECRETS keeps what is there
+# configs/secrets/keys/wifi lines are ssid, a tab, the passphrase; a run without DOTFILES_SECRETS keeps what is there
+def wifi-secret []: nothing -> path {
+    $env.DOTFILES_SECRETS? | default "/nonexistent" | path join wifi
+}
+
 export def wifi-conf []: nothing -> nothing {
-    let wifi = $env.DOTFILES_SECRETS? | default "/nonexistent" | path join wifi
+    let wifi = wifi-secret
     if not ($wifi | path exists) {
         if not ($WIFI_CONF | path exists) {
-            print "note: remote-unlock: secrets/wifi not readable, unlock the secrets and rerun; the initramfs stays wired only"
+            print "note: remote-unlock: configs/secrets/keys/wifi not readable, unlock the secrets and rerun; the initramfs stays wired only"
         }
         return
     }
     let networks = open --raw $wifi | lines | where $it != "" | each {|line|
         let fields = $line | split row "\t"
-        if ($fields | length) != 2 { error make {msg: "remote-unlock: secrets/wifi is not one ssid<tab>passphrase per line"} }
+        if ($fields | length) != 2 { error make {msg: "remote-unlock: configs/secrets/keys/wifi is not one ssid<tab>passphrase per line"} }
         # the passphrase goes in on stdin, never argv; wpa_passphrase's comments repeat it in plain, so they all go
         $fields.1 | ^wpa_passphrase $fields.0 | lines | where not ($it | str trim | str starts-with "#")
     } | flatten
@@ -104,7 +110,7 @@ export def keys []: nothing -> nothing {
     } else if not ($"($KEYDIR)/.ed25519.sk" | path exists) {
         ^install -dm700 ($KEYDIR | path dirname)
         ^tinysshd-makekey $KEYDIR
-        let backup = $"secrets/initramfs-ssh/($host)"
+        let backup = $"configs/secrets/keys/initramfs-ssh/($host)"
         print ("note: remote-unlock: generated a new initramfs host key; back it up: "
             + $"sudo mkdir -p ($backup) && sudo cp -a ($KEYDIR) ($backup)/sshkeydir")
     }
@@ -112,7 +118,7 @@ export def keys []: nothing -> nothing {
     if ($pubkey | path exists) and (open --raw $pubkey | str starts-with "ssh-") {
         ^install -Dm600 $pubkey $AUTHORIZED_KEYS
     } else {
-        print ("note: remote-unlock: secrets/ssh_publickey.asc not readable, unlock the secrets and rerun; "
+        print ("note: remote-unlock: configs/secrets/keys/ssh_publickey.asc not readable, unlock the secrets and rerun; "
             + "no authorized_keys installed")
     }
 }

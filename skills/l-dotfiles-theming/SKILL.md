@@ -36,7 +36,7 @@ one pairs back), which `toggle-theme-mode.nu` flips to; `themes.test.nu` checks 
 theme needs one. It also holds every theme's raw palette to contrast floors on its background (foreground and
 color4 4.5:1, the accents and color8 3:1), since templates use those colours unconditioned. `gruvbox-light`'s
 wallpaper (`alena-aenami-serenity.jpg`) has a public copy in `wallpapers/`, so it works with locked secrets too; a
-wallpaper resolves from `secrets/wallpapers/` first (when unlocked), then `wallpapers/`.
+wallpaper resolves from `configs/secrets/keys/wallpapers/` first (when unlocked), then `wallpapers/`.
 
 ## Add a template (a program reads a color file)
 

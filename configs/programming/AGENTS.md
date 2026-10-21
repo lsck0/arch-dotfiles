@@ -22,7 +22,8 @@ Extends the root `AGENTS.md`. Editors, language toolchains, debuggers, agent CLI
   (owner's repos), `flux`, `grafana`.
 - Package-only modules (a `meta` and no verbs): `toolchains` (compilers, build systems, runtimes), `python`,
   `debugging` (debuggers, profilers, tracers), `security`, `verification`, `math`, `vcs`, `http`, `infra`, `devtools`.
-  A package goes into the module that uses it, else into the closest of these.
+  A package goes into the module that uses it, else into the closest of these. The only `link` one of them has
+  answers an app's first-run dialog or fixes its desktop entry (tracy, rstudio, tla-toolbox).
 
 ## Conventions
 

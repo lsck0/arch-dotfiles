@@ -20,11 +20,11 @@ links only where an app reads the repo live.
 - `profiles/`: per-user profile templates.
 - `scripts/`: scripts that are meant to be called directly.
 - `scripts/toggles/`: on/off switches for system features (wifi, vpn, dnd, ...), plus a menu and a status script.
-- `secrets/`: git-crypt secrets submodule, committed by dot sync.
+- `configs/secrets/`: the private submodule, committed by dot sync: `keys/` the git-crypt secrets, `<module>/mod.nu` the
+  owner's own modules (group `secrets`).
 - `showcase/`: screenshots of the setup.
 - `skills/`: llm personas, prompts and my styles.
 - `wallpapers/`: wallpapers which are either set through a theme or by itself and then have a theme dynamically generated.
-- `weblinks/`: browser independent bookmarks.
 - `bootstrap.sh` (then `dot internal bootstrap`), `dot apply --packages`, `dot apply`, `dot internal stage`: install stages 1 to 3 (base system from the ISO, packages, user and system config) and the per-boot chain that runs them unattended.
 - `dot sync`: the one command: pull, migrate, install, apply, back up live app state, signed `Generation: <n>` commit, push (`--no-push` stops before the backup).
 

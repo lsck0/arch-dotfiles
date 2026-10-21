@@ -118,8 +118,10 @@ export def file-classify [obs: record, want: string, recorded: any, generated: b
 }
 
 # a recorded file output as the next apply sees it, without evaluating its module: drift, missing or null (holds,
-# or the apply rewrites it on its own: generated, the old linked form)
-export def output-file-state [output: record, obs: record, repo: string]: nothing -> any {
+# or the apply rewrites it on its own: generated, the old linked form). <written> the hash dot last wrote there: a
+# merge of another verb (a theme's wallpaper key) onto a module's own copy is no drift
+export def output-file-state [output: record, obs: record, repo: string, written: any = null]: nothing -> any {
+    if $written != null and $obs.hash? == $written { return null }
     let c = file-classify $obs $output.hash $output.hash ($output.generated? | default false) (link-stale $obs $output.target $repo) false
     match $c.kind { "drift" => "changed", "create" => "missing", _ => null }
 }
@@ -137,7 +139,11 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
         match $d.kind {
             "file" => {
                 let want = if $d.content != null { sha $d.content } else { open --raw $d.source | sha $in }
-                let rec = $prev | where target == $d.target | get --optional 0.hash | default ($recorded | get --optional $d.target)
+                # what dot last wrote there, a merge of another verb included, is as much the module's as its own record
+                let written = $recorded | get --optional $d.target
+                let rec = if $written != null and $obs.hash? == $written { $written } else {
+                    $prev | where target == $d.target | get --optional 0.hash | default $written
+                }
                 let c = file-classify $obs $want $rec $d.generated (link-stale $obs $d.target $repo) $force
                 let before = match $obs.type { "" => null, "symlink" => $obs.link, _ => $obs.hash }
                 action $id $c.kind $d.target $c.reason (if $c.preserve { $d | insert preserve true } else { $d }) $before $want
@@ -301,7 +307,9 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                         state-locked $"(state-dir)/json.lock" json-update {file: $a.target, edits: $a.decl.edits, recorded_sum: $recorded} | complete
                     }
                     if $out.exit_code != 0 { error make {msg: $"($a.decl.kind) merge exited ($out.exit_code): (error-brief $out.stderr)"} }
-                    if ($out.stdout | str contains owned) { written-record $a.target }
+                    # an ini merge onto the file as dot last wrote it keeps it dot's, as json-update's owned says
+                    let owned = $a.decl.kind == "ini" and $a.before != null and $a.before == (recorded-hashes | get --optional $a.target)
+                    if ($out.stdout | str contains owned) or ($owned and ($out.stdout | str contains changed)) { written-record $a.target }
                     {output: (if ($a.decl.then | is-not-empty) { run-exec ($a | update decl.argv $a.decl.then) $dir } else { "" })}
                 }
                 "disable" => {

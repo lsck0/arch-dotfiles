@@ -6,14 +6,21 @@ export const meta = {packages: {pacman: [audacity uv]}}
 const MCP_VERSION = "0.1.23"
 const MCP_FROZEN = "2026-10-14"
 const SCRIPT_PIPE = "/usr/lib/audacity/modules/mod-script-pipe.so"
+# a config without its prefs and app version is a first run to audacity, which resets the whole file on start
+const PREFS_VERSION = "1.1.1r1"
 
 export def link [cfg: record] {
     if (which audacity uvx | length) < 2 or not ($SCRIPT_PIPE | path exists) { return [] }
     let pkg = $"audacity-mcp-server==($MCP_VERSION)"
     let built = ls $SCRIPT_PIPE | get 0.modified | format date "%Y-%m-%dT%H:%M:%S"
+    let cfg_file = $nu.home-dir | path join .config audacity audacity.cfg
+    let version = ^pacman -Q audacity | parse --regex '(?<Major>\d+)\.(?<Minor>\d+)\.(?<Micro>\d+)' | first
     [
+        (ini-merge $cfg_file {"": {PrefsVersion: $PREFS_VERSION}, Version: $version} --missing-only)
         # the path and the .so's mtime, so an upgrade re-enables it; audacity rewrites the file on exit
-        (ini-merge ($nu.home-dir | path join .config audacity audacity.cfg) {
+        (ini-merge $cfg_file {
+            # the welcome dialog on every start
+            GUI: {ShowSplashScreen: 0}
             Module: {mod-script-pipe: 1}
             ModulePath: {mod-script-pipe: $SCRIPT_PIPE}
             ModuleDateTime: {mod-script-pipe: $built}

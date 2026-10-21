@@ -6,8 +6,8 @@ use ($SCRIPTS | path join lib secrets.nu) [secret-is-plaintext]
 
 const REPO = $SCRIPTS | path dirname
 const PUBLIC_DIR = $REPO | path join wallpapers
-const SECRET_DIR = $REPO | path join secrets wallpapers
-const SECRETS_PROBE = $REPO | path join secrets age.txt
+const SECRET_DIR = $REPO | path join configs secrets keys wallpapers
+const SECRETS_PROBE = $REPO | path join configs secrets keys age.txt
 const IMAGE_SUFFIXES = [jpg jpeg png webp]
 const FINGERPRINT_SIZE = "32x18!"
 # mean absolute grey difference per pixel (0-255) below which two images are the same artwork
@@ -28,11 +28,11 @@ def is-image [file: path]: nothing -> bool {
     ($file | path parse | get extension | str lowercase) in $IMAGE_SUFFIXES
 }
 
-# Import high-res wallpapers (files, dirs, zips) into secrets/wallpapers/, shadowing matching low-res ones.
+# Import high-res wallpapers (files, dirs, zips) into configs/secrets/keys/wallpapers/, shadowing matching low-res ones.
 def main [...sources: path]: nothing -> nothing {
     if ($sources | is-empty) { die --misuse "the following arguments are required: file|dir|zip" }
     if not (($SECRETS_PROBE | path exists) and (secret-is-plaintext $SECRETS_PROBE)) {
-        die "secrets/ is locked, unlock it first"
+        die "configs/secrets/ is locked, unlock it first"
     }
     let public = ls $PUBLIC_DIR | get name | where { is-image $in }
         | par-each --keep-order { {name: ($in | path basename), fingerprint: (fingerprint-of $in)} }
@@ -65,7 +65,7 @@ def main [...sources: path]: nothing -> nothing {
         let size = ^magick identify -format "%wx%h" $"($image)[0]"
         let how = if $target == $best.name { $"shadows wallpapers/($best.name)" } else { "new, no public match" }
         let distance = $best.distance | into string --decimals 1
-        print $"($name)  ($size)  -> secrets/wallpapers/($target)  \(($how), distance ($distance)\)"
+        print $"($name)  ($size)  -> configs/secrets/keys/wallpapers/($target)  \(($how), distance ($distance)\)"
     } | ignore
     rm --recursive --force $unzipped
 }

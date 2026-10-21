@@ -9,7 +9,7 @@ const URL = $"https://github.com/grafana/mcp-grafana/releases/download/v($VERSIO
 
 export def link [cfg: record] {
     let claude = $nu.home-dir | path join .claude.json
-    let token = $env.DOTFILES | path join secrets grafana-mcp-token
+    let token = $env.DOTFILES | path join configs secrets keys grafana-mcp-token
     if not (profile-has homelab) or not (secret-is-plaintext $token) {
         if (profile-has homelab) { log-warn $"no readable ($token), skipping \(README.md\)" }
         return (json-merge $claude [(json-delete [mcpServers grafana])])

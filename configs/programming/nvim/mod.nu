@@ -28,20 +28,30 @@ def head-commit [git: path]: nothing -> any {
     open --raw $packed | lines | parse "{sha} {name}" | where name == $ref | get --optional 0.sha
 }
 
-def plugins-stale []: nothing -> bool {
+# the plugins not checked out at their lazy-lock.json pin
+def plugins-stale []: nothing -> list<string> {
     open lazy-lock.json | items {|name, pin|
         let git = $nu.home-dir | path join $PLUGIN_DIR $name .git
-        not ($git | path exists) or (head-commit $git) != $pin.commit
-    } | any { $in }
+        if not ($git | path exists) or (head-commit $git) != $pin.commit { $name }
+    } | compact
 }
 
 # a link, not copies: lazy writes lazy-lock.json and zg the spell word lists back into the config dir
 export def link [cfg: record] {
-    let restore = if (plugins-stale) { ["+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync"] } else { [] }
+    let restore = if (plugins-stale | is-not-empty) { ["+Lazy! restore" "+TSInstallSync" "+MasonToolsInstallSync"] } else { [] }
     [
         (file-link . ($nu.home-dir | path join .config nvim))
-        (exec prefetch [env ...$QUIET_GIT nvim --headless ...$restore "+qa"])
+        (step prefetch ...$restore)
     ]
+}
+
+# nvim exits 0 when every fetch of a restore failed (offline, 111 "Could not resolve host"): the pins tell
+export def prefetch [...restore: string]: nothing -> nothing {
+    ^env ...$QUIET_GIT nvim --headless ...$restore "+qa"
+    let stale = plugins-stale
+    if ($stale | is-not-empty) {
+        error make {msg: $"($stale | length) plugins are not at their lazy-lock.json pin after the restore: ($stale | str join ' ')"}
+    }
 }
 
 export def theme [cfg: record, wallpaper: string] {

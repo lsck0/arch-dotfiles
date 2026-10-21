@@ -26,7 +26,8 @@ profile obs-mcp @{exec_path} flags=(attach_disconnected) {
   # the shebang's env and the system node it finds, in this profile
   @{exec_path} r,
   @{bin}/env ix,
-  @{bin}/node ix,
+  # node reads its own binary (process.execPath) at start
+  @{bin}/node rix,
 
   # its own tree, installed by its mod.nu from the committed lockfile
   @{obs_mcp}/{,**} r,

@@ -132,7 +132,7 @@ export def rollback-run [target: string, --full, --dry-run]: nothing -> nothing 
     let dirty = git-out status --porcelain --ignore-submodules=all | lines
     log-info $"target ($short) \(($label)\)"
     log-info $"from   (git-out rev-parse HEAD | str substring 0..11) \((describe-commit HEAD)\)"
-    log-info $"config layer: (git-out diff --shortstat $sha HEAD -- . ':!secrets')"
+    log-info $"config layer: (git-out diff --shortstat $sha HEAD -- . ':!configs/secrets')"
     if $admin {
         let source = try { open --raw ($SYSTEM_REPO | path join .source) | str trim } catch { "none" }
         log-info $"root copy ($SYSTEM_REPO) at ($source), stepped back to ($short)"

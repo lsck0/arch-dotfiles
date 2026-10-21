@@ -9,8 +9,9 @@ how strictly.
   `telegram-desktop enforce,mediate_deleted`), apparmor.d's own (loaded through include.d by `aa-install`) and this
   module's alike; a row whose name is in `profiles/` is an own profile.
 - `profiles/`: this module's own profiles, for programs apparmor.d does not cover (feh, nsxiv, sioyek, bookokrat,
-  zapzap, zotero, obsidian, the archive/image tools, `handbrake`, `blender-mcp`, `obs-mcp`, `localsend-app`). Each
-  carries its mode in its header.
+  zapzap, zotero, obsidian, the archive/image tools, `handbrake`, `blender-mcp`, `obs-mcp`, `localsend-app`), and
+  apparmor.d's `firefox`, `thunderbird` and `libreoffice` with a plain `/usr` attachment, since apparmor 4.1.8 never
+  attaches their nested-brace form (`OVERRIDES` in `apparmor.test.nu`). Each carries its mode in its header.
 - `local/`: drop-ins layered onto apparmor.d's profiles (firefox, chromium, qutebrowser, discord, telegram, mpv,
   thunderbird, zathura, libreoffice, spotify, signal, ffmpeg, ffprobe, ...), plus the opener children `child-open`,
   `child-open-any`, `child-open-browsers`, `child-open-strict`. This is where a confined app's child-exec and file

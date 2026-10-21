@@ -47,17 +47,20 @@ const RECLAIM = [
     [.genius .config/genius link] [.idlerc .config/idlerc link] [.kismet .local/state/kismet link]
     [.mcp-inspector .local/state/mcp-inspector link] [.netscanner .local/state/netscanner link]
     [.nnd .local/state/nnd link] [.superseedr .local/state/superseedr link] [.usdview .local/state/usdview link]
-    [.Xcolours .config/Xcolours link] [.viminfo .local/state/vim/viminfo link-file]
+    [.Xcolours .config/Xcolours link] [.lyx .config/lyx link] [.java .config/java link]
+    [.lmmsrc.xml .config/lmms/lmmsrc.xml link-file]
+    [.viminfo .local/state/vim/viminfo link-file]
     [.wget-hsts .local/state/wget-hsts link-file] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file]
 ]
 
 const XBEL_NS = "http://www.freedesktop.org/standards/desktop-bookmarks"
+const XBEL_END = "</xbel>"
 
 def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
 }
 
-def places [nas: bool, projects: bool]: nothing -> string {
+def places [nas: bool, projects: bool]: nothing -> list<record> {
     let h = $"file://($nu.home-dir)"
     let rows = [
         [$h Home user-home] [$"($h)/desktop" Desktop user-desktop] [$"($h)/documents" Documents folder-documents]
@@ -66,12 +69,24 @@ def places [nas: bool, projects: bool]: nothing -> string {
     ] ++ (if $projects { [[$"($h)/projects" Projects folder-development]] } else { [] }) ++ [
         [$"($h)/vault" Vault folder-locked] [$"($h)/sync" Sync folder-sync]
     ] ++ (if $nas { [[$"($h)/nas" NAS folder-network]] } else { [] }) ++ [[trash:/ Trash user-trash]]
-    let marks = $rows | each {|r|
+    $rows | each {|r|
         let icon = $'<metadata owner="http://freedesktop.org"><bookmark:icon name="($r.2)" /></metadata>'
         let system = '<metadata owner="http://www.kde.org"><isSystemItem>true</isSystemItem></metadata>'
-        $'<bookmark href="($r.0)"><title>($r.1)</title><info>($icon)($system)</info></bookmark>'
+        {href: $r.0, xml: $'<bookmark href="($r.0)"><title>($r.1)</title><info>($icon)($system)</info></bookmark>'}
     }
-    $"<?xml version='1.0' encoding='UTF-8'?>\n<xbel xmlns:bookmark=\"($XBEL_NS)\">($marks | str join)</xbel>"
+}
+
+# kio rewrites the places file on every change (ids, devices, the person's own places): the live one with any of
+# these missing added, so an apply only writes when one is gone
+def places-xbel [marks: list<record>]: nothing -> string {
+    let file = home .local share user-places.xbel
+    let live = if ($file | path exists) { open --raw $file } else { "" }
+    if not ($live | str contains $XBEL_END) {
+        return $"<?xml version='1.0' encoding='UTF-8'?>\n<xbel xmlns:bookmark=\"($XBEL_NS)\">($marks.xml | str join)($XBEL_END)"
+    }
+    let missing = $marks | where {|m| not ($live | str contains $'href="($m.href)"') }
+    if ($missing | is-empty) { return $live }
+    $live | str replace $XBEL_END $"($missing.xml | str join)($XBEL_END)"
 }
 
 def autostart-hidden []: nothing -> list<string> {
@@ -102,7 +117,7 @@ export def link [cfg: record] {
         (if (which Hyprland | is-not-empty) { files-into $portals hyprland-portals.conf } else { [] })
         (if (which startplasma-wayland | is-not-empty) { files-into $portals kde-portals.conf } else { [] })
         (file-text ($config | path join gtk-3.0 bookmarks) ($bookmarks | str join "\n" | $"($in)\n"))
-        (file-text (home .local share user-places.xbel) (places $nas $projects) --generated)
+        (file-text (home .local share user-places.xbel) (places-xbel (places $nas $projects)) --generated)
         # a fresh user has no applications dir yet, and update-desktop-database fails on a missing one
         (if (which update-desktop-database | is-not-empty) {
             exec "desktop database" [update-desktop-database (home .local share applications)]

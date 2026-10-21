@@ -1,6 +1,6 @@
 ---
 name: l-dotfiles-add-package
-description: Adding or removing a package in a module's meta (pacman, flatpak, nix), checking it is on the [lsck0] mirror, and how removal works. Load when a module needs a new program.
+description: Adding or removing a package in a module's meta (pacman, flatpak, nix), checking it is on the [lsck0] mirror, how removal works, and the supply-chain rules (pins, checksums, lockfiles, the known floating sources). Load when a module needs a new program, download, uvx/npx tool or git source.
 ---
 
 # add-package
@@ -34,3 +34,34 @@ description: Adding or removing a package in a module's meta (pacman, flatpak, n
 Delete the name. `dot apply --packages` removes what the ledger owns and nothing declares, then every explicitly
 installed package no module declares (minus `packages_keep` in the platform file and the boot/unlock deny list), each
 after a yes at the tty; `dot plan` lists them.
+
+## Supply chain
+
+Everything a module pulls in runs as the user or as root, so each source is pinned and checked. The rules, then
+what still floats:
+
+- pacman: signed (`SigLevel = Required`); the `[lsck0]` mirror is signed by its own key. Its AUR packages are built
+  from AUR recipes by the homelab builder, so the signature proves who built a package, not that the recipe is
+  benign. Before adding an AUR package, read its PKGBUILD and check who maintains it.
+- flatpak: a commit (above). nix: `NIXPKGS` in `scripts/dot.nu`.
+- A download: `fetch-file <url> <sha256> <dest>` (`scripts/lib/module.nu`), never a bare curl, and never `curl | sh`.
+  A git source: `fetch-git <url> <commit> <dir>`, a commit and not a branch or tag (see `configs/programming/caveman`).
+- python tools through `uvx`: `--exclude-newer <date>` plus `--from <pkg>==<version>` (see
+  `configs/creating/audacity`). A bare `<pkg>==<version>` pins only the top package, and its dependencies resolve
+  fresh on every start.
+- node tools: a committed `package-lock.json` installed with `npm ci` (see `configs/creating/obs/mcp`).
+  `npx -y <pkg>@<version>` pins only the top package; its dependency tree floats.
+- The repo itself: `bootstrap.sh`, the iso stub and `system-apply.nu` refuse a HEAD that is not signed by
+  `SIGNING_KEY_FINGERPRINT`, and `merge.verifySignatures` makes `dot sync`'s pull refuse unsigned commits.
+
+Known floating sources, fix them when touching the module:
+
+- `npx` with no lockfile: `configs/programming/kubernetes` (`kubernetes-mcp-server@0.0.67`),
+  `configs/programming/godot/godot-mcp.nu` (`godot-mcp-server@0.6.0`), `configs/programming/caveman`
+  (`skills@1.7.0`).
+- `uvx` with no `--exclude-newer`: `configs/latex/zotero` (`zotero-mcp-server==0.14.1`), `configs/pentesting/wireshark`
+  (`wireshark-mcp==3.0.0`), `configs/programming/docker` (`mcp-server-docker==0.3.0`).
+- Tools installed at their latest version: mason (`mason-tool-installer` in
+  `configs/programming/nvim/lua/plugins/lsp.lua`), the VSCodium vim extension (`configs/programming/vscode`), and the
+  browser extensions Firefox and Chromium force from their stores (`policies.json`, `policy.json`), which update
+  themselves. Rustup toolchains and Claude Code plugins other than caveman also float.

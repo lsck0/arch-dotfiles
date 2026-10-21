@@ -3,8 +3,8 @@
 owner @{HOME}/projects/arch-dotfiles/configs/desktop/qutebrowser/config.py r,
 owner @{user_cache_dirs}/wal/{colors.json,colors-qutebrowser.css} r,
 # the start page's bookmarks, and the wallpaper ~/.cache/wal/wallpaper links to
-owner @{HOME}/projects/arch-dotfiles/weblinks/collection/links.js r,
-owner @{HOME}/projects/arch-dotfiles/{,secrets/}wallpapers/** r,
+owner @{user_share_dirs}/weblinks/links.js r,
+owner @{HOME}/projects/arch-dotfiles/{,configs/secrets/keys/}wallpapers/** r,
 # QtWebEngine looks for chromium's widevine beside its own profile; qutebrowser plays no drm content
 deny @{user_config_dirs}/chromium/{,**} r,
 # opening downloads and external links
@@ -34,3 +34,5 @@ owner @{user_config_dirs}/dotfiles/style.json r,
 # pulse client config, its runtime dir and event sounds; denied, sites play with a fallback client and no event sounds
 include <abstractions/audio-client>
 owner @{user_cache_dirs}/event-sound-cache.tdb.* rwk,
+# python probes the terminal it never has under the launcher
+deny /dev/tty r,

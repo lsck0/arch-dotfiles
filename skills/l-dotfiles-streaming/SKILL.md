@@ -8,8 +8,9 @@ description: The OBS setup in configs/creating/obs (the Streaming, VirtualCam an
 ## OBS state
 
 - Collections, three, each meant for the profile of its use (obs has no pairing, pick both in the menus):
-  - `Streaming` (profile Streaming): the stream and record setup, from `secrets/obs-Streaming.json` (alert tokens),
-    installed as is.
+  - `Streaming` (profile Streaming): the stream and record setup, from `configs/secrets/keys/obs-Streaming.json`
+    (alert tokens), installed as is but for the mic, which takes the machine's detected `mic` option (the backup puts
+    the secret's own device back).
   - `VirtualCam` (profile VirtualCam): `configs/creating/obs/scenes/VirtualCam.json`. Scene `Desktop` holds the screen
     capture, scene `Webcam` the `Camera` (v4l2, option `webcam`, detected by-id, MJPG 1080p30) full frame, so its crop
     and filters live in one place; `Cam top left|top right|bottom left|bottom right` nest `Desktop` and `Webcam`, the

@@ -2,12 +2,12 @@ use module.nu *
 
 export const meta = {
     deps: [core/gh]
-    inputs: [~/projects ~/.config/tms/config.toml secrets/repositories]
+    inputs: [~/projects ~/.config/tms/config.toml configs/secrets/keys/repositories]
 }
 
 const PROJECTS = "projects"
 # <spec> [path] [secret] per line: what to clone and where
-const REPOSITORIES = "secrets/repositories"
+const REPOSITORIES = "configs/secrets/keys/repositories"
 const BARE = [probe]
 const ICON = "folder-development"
 # a push to github alone must not reach root here through git-sync and dot apply
@@ -29,9 +29,9 @@ def clone [root: path, line: string]: nothing -> list<record> {
     if ($dest | path exists) { return [] }
     let secret = $fields | get --optional 2
     let auth = if $secret == null { [] } else {
-        let token = $env.DOTFILES | path join secrets $secret
+        let token = $env.DOTFILES | path join configs secrets keys $secret
         if not (secret-is-plaintext $token) {
-            log-warn $"projects: secrets/($secret) is locked, ($dest | path basename) skipped"
+            log-warn $"projects: configs/secrets/keys/($secret) is locked, ($dest | path basename) skipped"
             return []
         }
         # the empty helper first drops gh's, which logs in as another account

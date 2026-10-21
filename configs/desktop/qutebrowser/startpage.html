@@ -119,8 +119,8 @@
              placeholder="search google" />
     </form>
     <nav id="links"></nav>
-    <!-- generated from weblinks/links.txt by weblinks/link.py -->
-    <script src="file://@DOTFILES@/weblinks/collection/links.js"></script>
+    <!-- written by the owner's weblinks module (configs/secrets/weblinks); absent without it -->
+    <script src="file://@DATA@/weblinks/links.js"></script>
     <script>
       "use strict";
 
@@ -228,7 +228,7 @@
         );
       }
 
-      // bookmarks; links.js is missing until weblinks/link.py ran once
+      // bookmarks; links.js is missing until the weblinks module ran once, or for good on a machine without it
       const links_nav = document.getElementById("links");
       const bookmarks = [];
       for (const link of typeof weblinks === "undefined" ? [] : weblinks) {

@@ -9,7 +9,7 @@ paths = [
   '''configs/base/yubikey/age-39779321\.identity''',
   '''configs/base/yubikey/recipients\.txt''',
   '''configs/base/pacman/archrepo\.asc''',
-  '''secrets/.*''',
+  '''configs/secrets/.*''',
 ]
 regexes = [
   '''-----BEGIN (PGP PUBLIC KEY BLOCK|OPENSSH PUBLIC KEY|PUBLIC KEY)-----''',

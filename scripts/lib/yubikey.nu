@@ -3,9 +3,11 @@ use secrets.nu [secret-is-plaintext secrets-wanted]
 
 const REPO = path self ../..
 const KEY_DIR = path self ../../configs/base/yubikey
-const SECRETS = path self ../../secrets
+# the owner's half (configs/secrets/yubikey/mod.nu): enrolled FIDO keys and the paper recipients, read with the secrets pulled
+const OWNER_DIR = path self ../../configs/secrets/yubikey
+const SECRETS = path self ../../configs/secrets
 const SEALED_KEY = path self ../../configs/base/yubikey/secrets.key.age
-const WITNESS = path self ../../secrets/pgp_privatekey.asc
+const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const PAM_ORIGIN = "pam://lsck0"
 const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"
@@ -17,7 +19,7 @@ const INIT_STEPS = [pins pgp ssh u2f age]
 # a profile without the secrets capability never pulls or unlocks the private submodule
 def unwanted []: nothing -> bool {
     if (secrets-wanted) { return false }
-    print "secrets: this profile has no secrets capability, secrets/ is not pulled or unlocked"
+    print "secrets: this profile has no secrets capability, configs/secrets/ is not pulled or unlocked"
     true
 }
 
@@ -35,9 +37,10 @@ def recipient [identity: path]: nothing -> string {
     open --raw $identity | lines | parse --regex '^#\s*Recipient: (?<r>.*)$' | get 0.r
 }
 
-# git-crypt checks every secret out 0644; only the public halves stay world-readable
+# git-crypt checks every secret out 0644; only the public halves stay world-readable. keys/ alone: the module dirs
+# beside it are plaintext code, their linked commands keep the exec bit
 def secrets-lock-0600 []: nothing -> nothing {
-    ^find $SECRETS -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
+    ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
 
 def with-touch [argv: list<string>]: nothing -> bool {
@@ -72,11 +75,11 @@ def fingerprint []: nothing -> string {
 # every enrolled key's age recipient plus recipients.txt, so any of them opens the sealed git-crypt key
 export def yubikey-seal []: nothing -> nothing {
     let identities = glob ($KEY_DIR | path join "age-*.identity") | each { [-r (recipient $in)] } | flatten
-    let file = $KEY_DIR | path join recipients.txt
+    let file = $OWNER_DIR | path join recipients.txt
     let listed = ($file | path exists) and (open --raw $file | lines | any { $in !~ '^\s*(#|$)' })
     let recipients = $identities ++ (if $listed { [-R $file] } else { [] })
     if ($recipients | is-empty) {
-        error make {msg: $"yubikey: no age identity or recipients.txt entry in ($KEY_DIR) to seal for"}
+        error make {msg: $"yubikey: no age identity in ($KEY_DIR) or recipients.txt entry in ($OWNER_DIR) to seal for"}
     }
     with-key-file {|key|
         ^git -C $SECRETS crypt export-key $key
@@ -93,7 +96,7 @@ def pgp-to-card []: nothing -> nothing {
     let home = mktemp --directory
     "disable-ccid\npcsc-shared\n" | save ($home | path join scdaemon.conf)
     try {
-        ^gpg --homedir $home --import ($SECRETS | path join pgp_privatekey.asc)
+        ^gpg --homedir $home --import ($SECRETS | path join keys pgp_privatekey.asc)
         print "gpg prompt: keytocard -> 1 (signature), key 1, keytocard -> 2 (encryption), save"
         # gpg exits non-zero after a quit without save although keytocard already wrote the card
         do { ^gpg --homedir $home --edit-key (fingerprint) } | complete | ignore
@@ -133,7 +136,7 @@ def init-step [step: string, sn: string]: nothing -> nothing {
             heading "pam_u2f for sudo (a touch), reaches /etc/u2f_mappings on the next dot apply"
             let user = $env.USER
             let line = ^pamu2fcfg -o $PAM_ORIGIN -i $PAM_ORIGIN -u $user | str trim
-            let file = $KEY_DIR | path join u2f_keys
+            let file = $OWNER_DIR | path join u2f_keys
             if ($file | path exists) {
                 let added = $line | str replace $"($user):" ""
                 open --raw $file | lines
@@ -172,7 +175,7 @@ export def yubikey-init [...steps: string]: nothing -> nothing {
 def unlock-identity [identity: path]: nothing -> nothing {
     if not ($identity | path exists) { error make {msg: $"yubikey: no identity file '($identity)'"} }
     if not ($SEALED_KEY | path exists) { error make {msg: $"yubikey: no sealed key ($SEALED_KEY)"} }
-    if not ($SECRETS | path join .git | path exists) { ^git -C $REPO submodule update --init secrets }
+    if not ($SECRETS | path join .git | path exists) { ^git -C $REPO submodule update --init configs/secrets }
     if (secret-is-plaintext $WITNESS) {
         print "yubikey: secrets already unlocked"
         return
@@ -220,7 +223,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         let ssh = $"ssh -i ($key_file) -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         let ok = with-touch [
             git -C $REPO -c $"core.sshCommand=($ssh)" -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"
-            submodule update --init secrets
+            submodule update --init configs/secrets
         ]
         rm --force $key_file
         if not $ok { print "yubikey: pull failed or no touch" }

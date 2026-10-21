@@ -3,6 +3,7 @@ use ledger.nu [ledger-get]
 use platform.nu [platform-load]
 use profile.nu [profile-has]
 use secrets.nu [secret-is-plaintext]
+use system.nu [system-files]
 use written.nu [preserve-report]
 use drift.nu [drift-report]
 use audit.nu [audit-findings]
@@ -11,11 +12,14 @@ const REPO = path self ../..
 const INVARIANTS = path self invariants.txt
 const PROFILES_CONF = path self ../../configs/base/apparmor/profiles.conf
 const BORG_SCRIPT = path self ../../configs/core/borg/borg-backup.nu
+const BORG_SERVICE = "borg-backup.service"
+const BORG_TIMER = "borg-backup.timer"
+const LUKS_TOKENS = [TPM2 FIDO2]
+const LUKS_TOKEN_MISSING = 'No valid (?<token>TPM2|FIDO2) token data found'
 const SYNCTHING_CONFIG = ".local/state/syncthing/config.xml"
-const WITNESS = path self ../../secrets/pgp_privatekey.asc
+const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const APPARMOR_MANUAL = "/etc/apparmor/flags.d/manual.conf"
 const TIMESHIFT_LOGS = "/var/log/timeshift"
-const SYSTEM_PATHS = [configs platforms profiles scripts]
 const SNAPSHOT_MAX_DAYS = 30
 const TIMESHIFT_MAX_DAYS = 14
 const SHOWN_MAX = 8
@@ -55,8 +59,7 @@ def config-pending []: nothing -> list<record> {
     if not ($SYSTEM_REPO | path exists) { return [] }
     let head = ^git -C $REPO rev-parse HEAD | str trim
     let source = try { open --raw ($SYSTEM_REPO | path join .source) | str trim } catch { "" }
-    let ours = ^git -C $REPO ls-files -z --cached --others --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
-        | split row "\u{0}" | where {|f| $f != "" and (($REPO | path join $f | path type) == file) }
+    let ours = system-files $REPO "--cached" | append (system-files $REPO "--others") | uniq
     let theirs = cd $SYSTEM_REPO | ^find . -type f ! -name .source -printf '%P\n' | lines
     let a = hashes $REPO $ours
     let b = hashes $SYSTEM_REPO $theirs
@@ -181,6 +184,19 @@ def units []: nothing -> list<record> {
     }
 }
 
+# the header is root's to read; systemd-cryptsetup says at unlock which token the cmdline asked for and found none of
+def luks []: nothing -> list<record> {
+    let options = open --raw /proc/cmdline | parse --regex 'rd\.luks\.options=(?<o>\S+)' | get --optional 0.o | default ""
+    let asked = $LUKS_TOKENS | where {|t| $"($t | str lowercase)-device=auto" in ($options | split row ",") }
+    if ($asked | is-empty) { return [] }
+    let unlock = ^journalctl --boot --quiet --identifier systemd-cryptsetup --output cat --grep $LUKS_TOKEN_MISSING
+        | complete | get stdout | parse --regex $LUKS_TOKEN_MISSING | get token | uniq
+    $unlock | where $it in $asked | each {|t|
+        report note luks ($"the LUKS root has no ($t) token, rd.luks.options asks for one: "
+            + "the system apply of base/boot/luks notes the systemd-cryptenroll command")
+    }
+}
+
 # the repo only counts once every other device of borg-<host> holds it, a day's grace for the upload
 def borg-replicated [age: int]: nothing -> list<record> {
     let config = $nu.home-dir | path join $SYNCTHING_CONFIG
@@ -211,11 +227,17 @@ def borg-replicated [age: int]: nothing -> list<record> {
 }
 
 def borg []: nothing -> list<record> {
-    if not (succeeds [systemctl --user -q is-enabled borg-backup.timer]) { return [] }
+    if not (succeeds [systemctl --user -q is-enabled $BORG_TIMER]) { return [] }
     let stale_days = open --raw $BORG_SCRIPT | parse --regex 'const STALE_DAYS = (?<d>\d+)' | get 0.d | into int
     let stamp = $env.XDG_STATE_HOME? | default ($nu.home-dir | path join .local state) | path join borg last-success
     if not ($stamp | path exists) {
-        return [(report FAIL borg "no borg backup has succeeded yet: systemctl --user start borg-backup")]
+        # a fresh install: the daily timer has not fired yet, so a service that never started has not failed
+        let started = ^journalctl --user --unit $BORG_SERVICE --quiet --lines 1 --output cat | complete | get stdout | str trim
+        let next = ^systemctl --user show $BORG_TIMER --property NextElapseUSecRealtime --value | complete | get stdout | str trim
+        if ($started | is-empty) and ($next | is-not-empty) {
+            return [(report note borg $"no borg backup yet, the timer's first run is due ($next)")]
+        }
+        return [(report FAIL borg $"no borg backup has succeeded yet: systemctl --user start ($BORG_SERVICE)")]
     }
     let age = days-since (mtime $stamp)
     if $age > $stale_days {
@@ -265,13 +287,14 @@ def preserved []: nothing -> list<record> {
 }
 
 const CHECKS = [
-    failures config-pending reboot invariants apparmor snapshot drift firewall units borg timeshift secrets preserved
+    failures config-pending reboot invariants apparmor snapshot drift firewall luks units borg timeshift secrets
+    preserved
 ]
 
 def check-run [check: string]: nothing -> list<record> {
     match $check {
         failures => (failures), config-pending => (config-pending), reboot => (reboot), invariants => (invariants)
-        apparmor => (apparmor), snapshot => (snapshot), drift => (drift), firewall => (firewall), units => (units)
+        apparmor => (apparmor), snapshot => (snapshot), drift => (drift), firewall => (firewall), luks => (luks), units => (units)
         borg => (borg), timeshift => (timeshift), secrets => (secrets), preserved => (preserved)
     }
 }

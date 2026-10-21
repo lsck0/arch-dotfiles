@@ -9,6 +9,26 @@ const SYSTEM_PATHS = [configs migrations platforms profiles scripts]
 const SYSTEM_SECRETS = [samba-homelab home-gateways wifi protonvpn-netns.conf ssh_publickey.asc]
 export const ENTRY = "scripts/lib/system-apply.nu"
 
+# the secrets group's modules (scripts/lib/modules.nu): their files, never keys/, ride in the root copy like configs/
+def private-files [checkout: path, which: string]: nothing -> list<string> {
+    let dir = $checkout | path join configs secrets
+    if not ($dir | path join .git | path exists) { return [] }
+    ^git -C $dir ls-files -z $which --exclude-standard --deduplicate | split row (char nul)
+    | where {|f|
+        let parts = $f | path split
+        let module = $f != "" and ($parts | length) > 1 and $parts.0 != keys and ($dir | path join $parts.0 mod.nu | path exists)
+        $module and ($dir | path join $f | path type) == "file" and (secret-is-plaintext ($dir | path join $f))
+    }
+    | each { $"configs/secrets/($in)" }
+}
+
+# every file the root copy holds, by git's view: --cached the tracked, --others the untracked
+export def system-files [checkout: path, which: string]: nothing -> list<string> {
+    ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
+    | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" }
+    | append (private-files $checkout $which)
+}
+
 export def system-secrets [wireguard: any]: nothing -> list<string> {
     $SYSTEM_SECRETS | append $"initramfs-ssh/(sys host | get hostname)/sshkeydir/.ed25519.sk" | append ([$wireguard] | flatten | compact | where $it != "")
 }
@@ -25,11 +45,9 @@ export def system-pack [checkout: path, --rollback]: nothing -> binary {
         if $back { log-warn $"($SYSTEM_REPO) steps back from ($old) to ($head), an explicit rollback" }
     }
     # links stay out (one could point into /home), a deleted tracked file has nothing to pack
-    let list = {|which| ^git -C $checkout ls-files -z $which --exclude-standard --deduplicate -- ...$SYSTEM_PATHS
-        | split row (char nul) | where {|f| $f != "" and ($checkout | path join $f | path type) == "file" } }
-    let tracked = do $list "--cached"
+    let tracked = system-files $checkout "--cached"
     # untracked new modules apply before their commit; their mode as is, so a 600 file never turns world-readable
-    let untracked = do $list "--others" | where $it not-in $tracked
+    let untracked = system-files $checkout "--others" | where $it not-in $tracked
     if $ENTRY not-in $tracked and $ENTRY not-in $untracked { error make {msg: $"($checkout) lists no ($ENTRY), not packing"} }
     let tar = mktemp --tmpdir dot-pack.XXXXXX
     $tracked | str join (char nul) | ^tar -C $checkout --no-recursion --null -T - --mode=go=u,go-w -cf $tar
@@ -57,7 +75,8 @@ export def system-unpack [copy: path, sha: string]: binary -> nothing {
 export def system-archive [checkout: path, wireguard: any, --rollback]: nothing -> binary {
     let work = mktemp --directory
     system-pack $checkout --rollback=$rollback | save --raw ($work | path join repo.tar)
-    let dir = if ($checkout | path join secrets | path exists) { $checkout | path join secrets } else { $checkout }
+    # flat in $DOTFILES_SECRETS: a system verb reads $DOTFILES_SECRETS/<file> for configs/secrets/keys/<file>
+    let dir = if ($checkout | path join configs secrets keys | path exists) { $checkout | path join configs secrets keys } else { $checkout }
     let names = system-secrets $wireguard | where {|n| secret-is-plaintext ($dir | path join $n) }
     $names | str join (char nul) | ^tar -C $dir -c --null -T - -f - | save --raw ($work | path join secrets.tar)
     let out = ^tar -C $work -cf - repo.tar secrets.tar

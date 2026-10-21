@@ -9,7 +9,7 @@ export const options = {
     sync_url: {
         type: string?
         default: null
-        doc: "The taskchampion server every replica syncs with as the one client of secrets/taskwarrior-*; none: no sync"
+        doc: "The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync"
         label: "Sync server"
     }
     recurrence: {
@@ -22,8 +22,8 @@ export const options = {
 }
 
 const HOOK = "/usr/share/doc/timew/ext/on-modify.timewarrior"
-const CLIENT_ID = "secrets/taskwarrior-client-id"
-const SECRET = "secrets/taskwarrior-encryption-secret"
+const CLIENT_ID = "configs/secrets/keys/taskwarrior-client-id"
+const SECRET = "configs/secrets/keys/taskwarrior-encryption-secret"
 const SYNC_RC = ".config/task/sync.taskrc"
 
 def secret-read [file: path]: nothing -> string {

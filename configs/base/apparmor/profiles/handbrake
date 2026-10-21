@@ -33,5 +33,9 @@ profile handbrake @{exec_path} flags=(attach_disconnected) {
   # "open folder" when an encode is done
   @{open_path} rPx -> child-open-strict,
 
+  # gst-plugin-scan's v4l2 device provider opens the cameras and watches udev for new ones; handbrake records nothing
+  deny network netlink raw,
+  deny /dev/video@{int} w,
+
   include if exists <local/handbrake>
 }

@@ -7,7 +7,7 @@ use ($LIB | path join cli.nu) [concat jobs guarded]
 use ($LIB | path join complete.nu) [command-table complete-run completions-run module-ids]
 use ($LIB | path join platform.nu) [platform-env]
 use ($LIB | path join options.nu) [options-events-file]
-use ($LIB | path join modules.nu) [modules-packages modules-eval]
+use ($LIB | path join modules.nu) [modules-packages modules-eval SECRETS_GROUP]
 use ($LIB | path join pipeline.nu) [pipeline-load pipeline-plan pipeline-apply]
 use ($LIB | path join secrets.nu) [secret-is-plaintext secrets-wanted]
 use ($LIB | path join written.nu) [preserve-prune]
@@ -44,6 +44,9 @@ def "main completions" [shell: string@[zsh nu]]: nothing -> nothing {
     completions-run (commands-all) $shell
 }
 
+# pinned downloads: a file by its sha256, a git checkout by its commit
+def "main fetch" []: nothing -> nothing { help main fetch }
+
 # download a pinned file, verify its sha256, put it in place; --extract <member> or .
 def "main fetch file" [url: string, sha256: string, dest: path, --mode: string = "644", --extract: string]: nothing -> nothing {
     guarded fetch { fetch-file-run $url $sha256 $dest --mode $mode --extract=$extract }
@@ -71,7 +74,9 @@ def "main stage" []: nothing -> nothing {
 
 def mirror-list []: nothing -> string {
     let ctx = pipeline-load $REPO system
-    let all = $ctx.modules | update selected true | update cfg { upsert enable true }
+    # the public list never names the private modules' packages, and must not change with the submodule pulled or not;
+    # one they need from the mirror goes in the platform's extra_packages
+    let all = $ctx.modules | where group != $SECRETS_GROUP | update selected true | update cfg { upsert enable true }
     let extras = glob ($REPO | path join platforms *.nuon) | where not ($it | str ends-with ".options.nuon") | each { open $in | get --optional extra_packages | default [] } | flatten
     let variants = $all | where {|m| "packages" in $m.native } | each {|m|
         $m.options | items {|name, spec| $spec.choices? | default [] | each {|c| {m: $m, cfg: ($m.cfg | upsert $name $c)} } } | flatten
@@ -99,7 +104,8 @@ def "main iso" [--out: path, --work: path, --mirror: string, --sign: string, --k
 
 # declared packages of a kind, one per line; --groups/--form-factor for another machine
 def "main packages" [kind: string@[pacman flatpak nix] = "pacman", --groups: string, --form-factor: string]: nothing -> nothing {
-    guarded packages {
+    guarded packages --read-only {
+        if $kind not-in [pacman flatpak nix] { error make {msg: $"packages: no kind ($kind), one of pacman flatpak nix"} }
         let ctx = pipeline-load $REPO system
         let chosen = $groups | default "" | split row --regex '[ ,]+' | where $it != ""
         let mods = if ($chosen | is-empty) { $ctx.modules } else { $ctx.modules | update selected {|m| $m.group in $chosen or $m.group == "" } }
@@ -130,18 +136,27 @@ def "main watch" []: nothing -> nothing {
     ^tail --follow=name --retry --lines=0 $file
 }
 
+# what this machine runs that no module declares
+def "main drift" []: nothing -> nothing { help main drift }
+
 # this machine's drift report
-def "main drift report" []: nothing -> nothing { guarded drift { drift-report | print -n } }
-# publish this machine's report into secrets/drift/<host> when it changed
+def "main drift report" []: nothing -> nothing { guarded drift --read-only { drift-report | print -n } }
+# publish this machine's report into configs/secrets/keys/drift/<host> when it changed
 def "main drift publish" []: nothing -> nothing { guarded drift { drift-publish } }
+
+# secret rotation and recovery drill reminders
+def "main audit" []: nothing -> nothing { help main audit }
 
 # a notification when the recovery drill is due
 def "main audit remind" []: nothing -> nothing { guarded audit { audit-remind } }
 
+# the wallpaper and the theme verbs
+def "main theme" []: nothing -> nothing { help main theme }
+
 # the current wallpaper
-def "main theme get" []: nothing -> nothing { guarded theme { print (wallpaper-get) } }
+def "main theme get" []: nothing -> nothing { guarded theme --read-only { print (wallpaper-get) } }
 # the wallpapers for the largest monitor
-def "main theme list" []: nothing -> nothing { guarded theme { print (wallpaper-list | str join "\n") } }
+def "main theme list" []: nothing -> nothing { guarded theme --read-only { print (wallpaper-list | str join "\n") } }
 
 # every module's theme verb for this wallpaper (--only foreground|background)
 def "main theme apply" [wallpaper: path, ...mods: string@module-ids, --only: string@[foreground background]]: nothing -> nothing {
@@ -181,7 +196,7 @@ def "main backup" [--roundtrip]: nothing -> nothing {
     guarded backup {
         let ctx = pipeline-load $REPO user
         let wanted = secrets-wanted
-        let locked = not $wanted or not (secret-is-plaintext ($REPO | path join secrets pgp_privatekey.asc))
+        let locked = not $wanted or not (secret-is-plaintext ($REPO | path join configs secrets keys pgp_privatekey.asc))
         let mods = $ctx.modules | where {|m| "backup" in $m.native and $m.cfg.enable }
         let secret = {|m| $m.meta.backup?.secrets? | default false }
         if not $roundtrip {

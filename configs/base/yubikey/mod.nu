@@ -26,22 +26,6 @@ export def link [cfg: record] {
                 (file-copy $"($stub).pub" ($ssh | path join id_ed25519_sk.pub))
             ]
         } else { [] })
-        (if (profile-has secrets) { step sops-keys } else { [] })
         (link-commands totp.nu)
     ] | decls-flatten
-}
-
-# sops identities, merged so hand-added age keys stay; a step, so the secret key never travels in a declaration
-export def sops-keys []: nothing -> nothing {
-    let file = $nu.home-dir | path join .config sops age keys.txt
-    let age = $env.DOTFILES | path join secrets age.txt
-    let unlocked = (secret-is-plaintext $age) and (open --raw $age | lines | any { str starts-with AGE-SECRET-KEY- })
-    let enrolled = glob age-*.identity | each { open --raw $in | lines } | flatten
-    let want = (if $unlocked { open --raw $age | lines } else { [] }) ++ $enrolled
-    let have = if ($file | path exists) { open --raw $file | lines } else { [] }
-    let missing = $want | where $it not-in $have
-    if ($missing | is-empty) { return }
-    mkdir ($file | path dirname)
-    $have ++ $missing | str join "\n" | $"($in)\n" | save --force $file
-    ^chmod 600 $file
 }

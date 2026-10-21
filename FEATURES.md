@@ -45,10 +45,10 @@ the tree itself; this file says what they do.
   offers to remove packages no module declares.
 - `dot plan`: what an apply would do, touching nothing; `--sandbox` also runs the user layer in a bubblewrap overlay
   and reports its write set; `--system` for the system layer; `--order` the run order, `--modules` every module.
-- `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply,
-  then every health check (failures, pending applies, drift, firewall, units, backups, snapshots, secrets due for
-  rotation or a recovery drill) and the drift report each machine publishes into `secrets/drift/<host>`; `--brief`
-  the failures alone, for the login notice and the bar; `--json` all of it.
+- `dot status`: generation, last run, pending migrations and system parts, managed files changed since their apply, then
+  every health check (failures, pending applies, drift, firewall, units, backups, snapshots, secrets due for rotation or
+  a recovery drill) and the drift report each machine publishes into `configs/secrets/keys/drift/<host>`; `--brief` the
+  failures alone, for the login notice and the bar; `--json` all of it.
 - `dot set`: every option off its default with value and source (default, platform, profile, detected); a module or
   `<module>.<option>` shows those; a value sets one, validated, stored in the profile (or `--machine` in the platform),
   applied as the option says (live, relink, relogin, reboot); `--default` resets it; `--json` is the schema, values
@@ -61,8 +61,9 @@ the tree itself; this file says what they do.
   `[lsck0]` snapshot and nixpkgs pin of that commit); `--dry-run` only reports what it would do; `--snapshot` lists
   the pre-apply btrfs snapshots and how to restore one.
 - `dot theme [name|random]`: wallpaper and theme switching, fzf with previews without a name (see Theming).
-- `dot secrets unlock|lock|init|seal`: the git-crypt `secrets/` worktree behind the YubiKey; `--identity <age file>`
-  without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording it.
+- `dot secrets unlock|lock|init|seal`: the git-crypt `configs/secrets/` worktree behind the YubiKey; `--identity <age
+  file>` without one. `dot secrets audit [rotated|drilled]`: what is due for rotation or a recovery drill, and recording
+  it.
 - `dot explain <path|package>`, `dot log [--trace]`: who wrote a path or declared a package, a run's records and span
   tree.
 - `dot internal`: the plumbing other code runs, out of `dot --help`: `migrate` (`--system`, `--baseline`), `backup`
@@ -122,7 +123,7 @@ the tree itself; this file says what they do.
 - LUKS root unlocks with TPM2 plus PIN, then YubiKey FIDO2, then passphrase (`sd-encrypt`, PCR 7 and 15); missing
   enrollments print the exact `systemd-cryptenroll` command.
 - Other fixed LUKS partitions get crypttab entries with discard and no workqueues; the root LUKS header is backed up to
-  `secrets/` (`header-backup.nu`).
+  `configs/secrets/` (`header-backup.nu`).
 - Remote unlock (`base/boot/remote-unlock.ssh_unlock`): wake-on-lan, then ssh into the initramfs (tinysshd on 2223)
   to type the passphrase.
 - Secure boot with sbctl: own keys (plus Microsoft's unless the platform says own only), enrolled in setup mode with
@@ -358,7 +359,8 @@ window list them through `status.nu`. Privileged halves go through `pkexec toggl
   (pywalfox), Thunderbird, Spotify (spicetify), Discord (BetterDiscord), Steam (Millennium), caido, ghidra, gh-dash,
   hermes, telegram palette, delta.
 - `toggle-font` switches the UI and terminal font family everywhere.
-- Wallpapers fit-checked per monitor (`wallpaper-list`), private ones imported into `secrets/` (`wallpaper-import`).
+- Wallpapers fit-checked per monitor (`wallpaper-list`), private ones imported into `configs/secrets/`
+  (`wallpaper-import`).
 
 ## Shell and terminal
 
@@ -497,8 +499,8 @@ Registered in `~/.claude.json` by the module that owns the app; each listens on 
 
 ## Backups and sync
 
-- Config in git; app state in git-crypt `secrets/<app>/`, written by `dot sync`'s backup and restored by each module's
-  link.
+- Config in git; app state in git-crypt `configs/secrets/keys/<app>/`, written by `dot sync`'s backup and restored by
+  each module's link.
 - syncthing: `~/sync` with the NAS (30 day versioning), announce, relays and NAT off; GUI password from secrets.
 - borg daily for `homelab` profiles: `$HOME` minus what lives elsewhere (sync, caches, toolchains, models, games, VMs),
   repokey-blake2, prune 7/4/6, weekly repository check, monthly canary restore; skipped on battery or metered
@@ -566,13 +568,13 @@ the value comes from the hardware or system when the platform and profile leave 
 |---|---|---|---|
 | `base/boot/hardening.allow_smt` | `bool` | `false` | Keep hyperthreading despite MDS/MMIO, accepting the cross-sibling leak for the threads |
 | `base/boot/remote-unlock.ssh_unlock` | `bool` | `false` | Wake-on-lan this machine, then ssh into the initramfs to unlock LUKS remotely |
-| `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (secrets/wifi) in the initramfs; their keys are written into the image |
+| `base/boot/remote-unlock.wifi` | `bool` | `false` | Also join the home wifis (configs/secrets/keys/wifi) in the initramfs; their keys are written into the image |
 | `base/ghostmirror.homelab_mirror` | `string?` | unset | A homelab pacman mirror's URL ($repo and $arch as in a mirrorlist), put first on a homelab machine |
 | `base/hardware.nvidia_driver` | `string?` | unset | NVIDIA driver branch: open (Turing on), 580xx (Maxwell to Volta), 470xx (Kepler), none (nouveau) |
 | `base/networkmanager.untrusted_policy` | `string` | `"firewall-only"` | Off the home network: lockdown-tor closes inbound and lets out only tor, dhcp and tunnels until a VPN is up; firewall-only closes inbound and leaves egress open; off treats every network as home |
 | `base/networkmanager.home_wired` | `bool?` | detected | Ethernet is always the home network: it keeps the hardware MAC and wake-on-lan (a desktop); null detects it from the form factor |
 | `base/networkmanager.wifi_radio` | `bool?` | detected | Wi-Fi radio on at first boot; off on a desktop wired to the network, so only the link in use is up. Later toggles (toggle-wifi) persist in NetworkManager's own state; null detects it |
-| `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's secrets/home-gateways |
+| `base/networkmanager.home_gateways` | `list<string>` | `[]` | Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways |
 | `base/networkmanager.homelab_dns` | `string?` | unset | The homelab's split-horizon resolver, asked for homelab_domain out a home link (homelab machines) |
 | `base/networkmanager.homelab_domain` | `string?` | unset | The homelab's DNS zone |
 | `base/networkmanager.homelab_subnets` | `list<string>` | `[]` | The homelab's subnets, routed straight out a home link and through wg0 elsewhere |
@@ -638,6 +640,6 @@ the value comes from the hardware or system when the platform and profile leave 
 | `programming/android.avd` | `string` | `"nya35"` | Name of the emulator image made from the system image; empty makes none |
 | `programming/claude.model` | `string` | `"claude-opus-5-5"` | The model every session starts on |
 | `programming/claude.effort` | `string` | `"medium"` | Reasoning effort of that model |
-| `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of secrets/taskwarrior-*; none: no sync |
+| `programming/task.sync_url` | `string?` | unset | The taskchampion server every replica syncs with as the one client of configs/secrets/keys/taskwarrior-*; none: no sync |
 | `programming/task.recurrence` | `bool` | `true` | This replica creates the instances of recurring tasks; one per sync, or each adds its own copy (task-sync(5)) |
 | `programming/trmnl-claude.poster` | `bool` | `false` | This machine posts its Claude usage to the TRMNL panel; one poster per panel, a second would overwrite it |

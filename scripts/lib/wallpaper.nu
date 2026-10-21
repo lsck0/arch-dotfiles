@@ -63,7 +63,11 @@ export def wallpaper-list []: nothing -> list<string> {
 
 # single-flighted, so get and list still answer while one runs
 export def wallpaper-set [wallpaper: string, --sync]: nothing -> nothing {
-    let file = if ($wallpaper | str contains "/") { $wallpaper } else { ^$LIST --resolve $wallpaper | str trim }
+    let file = if ($wallpaper | str contains "/") { $wallpaper } else {
+        let found = do { ^$LIST --resolve $wallpaper } | complete
+        if $found.exit_code != 0 { error make {msg: ($found.stderr | str trim)} }
+        $found.stdout | str trim
+    }
     let lock = $env.XDG_RUNTIME_DIR? | default /tmp | path join $LOCK
     let script = $"use wallpaper.nu [wallpaper-apply]; wallpaper-apply ($file | path expand | to nuon) ($sync)"
     let code = try {

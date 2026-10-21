@@ -15,12 +15,6 @@ export const options = {
 
 const U2F_MODULE = "/usr/lib/security/pam_u2f.so"
 const FPRINT_MODULE = "/usr/lib/security/pam_fprintd.so"
-# the owner's enrolled keys as pamu2fcfg wrote them, user:key[:key...]; the user part is the enrolling login, not
-# whom they map to
-const U2F_KEYS = "../yubikey/u2f_keys"
-# root's machine fact: the logins installed with the owner's profile (bootstrap, adduser-dotfiles --profile), one per
-# line. The keys map to exactly these, never to whatever login happens to share the enrolling name
-const OWNERS = "/var/lib/dotfiles/owners"
 # polkit ships its stack in /usr/lib/pam.d, an /etc one of the same name replaces it
 const POLKIT_VENDOR = "/usr/lib/pam.d/polkit-1"
 const SUDO = "/etc/pam.d/sudo"
@@ -32,8 +26,8 @@ export def detect [cfg: record]: nothing -> record {
     {fido_origin: $"pam://(open --raw /etc/hostname | str trim)"}
 }
 
-# root-owned mapping, never the user's own u2f_keys a process of theirs could add a key to; touch alone, no pin
-# no nouserok: a user without a key falls through to the password include
+# /etc/u2f_mappings is the owner's, root-owned (configs/secrets/yubikey writes it); touch alone, no pin
+# no nouserok: a user without a key, or a machine without the file, falls through to the password include
 def u2f-line [origin: string]: nothing -> string {
     let options = $"cue pinverification=0 authfile=/etc/u2f_mappings origin=($origin) appid=($origin)"
     $"auth       sufficient pam_u2f.so ($options)"
@@ -47,20 +41,6 @@ def auth-insert [lines: list<string>, line: string]: nothing -> list<string> {
     if $at == null { $lines } else { ($lines | first $at) ++ [$line] ++ ($lines | skip $at) }
 }
 
-def u2f-mappings []: nothing -> any {
-    # no registry yet (migrations/0003-u2f-owners.nu not run): keep the enrolled file as it is, never drop a working
-    # touch login on the way to the registry
-    if not ($OWNERS | path exists) {
-        return (if ($U2F_KEYS | path exists) { file-copy $U2F_KEYS /etc/u2f_mappings } else { [] })
-    }
-    let owners = open --raw $OWNERS | lines | where $it =~ '^[a-z_][a-z0-9_-]*$'
-    let keys = if ($U2F_KEYS | path exists) { open --raw $U2F_KEYS | lines | get --optional 0 | default "" } else { "" }
-    let keys = $keys | split row ":" | skip 1 | str join ":"
-    # no owner on this machine: no mapping, so the owner's key opens nothing here
-    if ($owners | is-empty) or ($keys | is-empty) { return [] }
-    file-text /etc/u2f_mappings ($owners | uniq | each { $"($in):($keys)" } | str join "\n" | $"($in)\n")
-}
-
 export def system [cfg: record] {
     if $env.FORM_FACTOR? == "wsl" { return [] }
     let line = u2f-line $cfg.fido_origin
@@ -69,7 +49,6 @@ export def system [cfg: record] {
         # copies, pam follows no symlinks
         (file-copy quickshell-lock /etc/pam.d/quickshell-lock)
         (file-render quickshell-lock-u2f /etc/pam.d/quickshell-lock-u2f {ORIGIN: $cfg.fido_origin})
-        (u2f-mappings)
         (step sudo-stack ($u2f | into string) $line)
         (if $u2f and ($POLKIT_VENDOR | path exists) {
             let text = auth-insert (open --raw $POLKIT_VENDOR | lines) $line | str join "\n" | $"($in)\n"

@@ -9,7 +9,7 @@ Type=oneshot
 Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
 Environment=SSH_ASKPASS=@DOTFILES@/configs/base/ssh/ssh-askpass-keyring.nu
 Environment=SSH_ASKPASS_REQUIRE=force
-ExecStart=/usr/bin/ssh-add @DOTFILES@/secrets/ssh_privatekey.asc
+ExecStart=/usr/bin/ssh-add @DOTFILES@/configs/secrets/keys/ssh_privatekey.asc
 
 [Install]
 WantedBy=graphical-session.target

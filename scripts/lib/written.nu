@@ -25,7 +25,9 @@ export def sync-guard [path: path]: nothing -> nothing {
 }
 
 # by its full path under preserved/, never beside the original, where a scanning dir would load it as a second config
-export def preserve-aside [path: path]: nothing -> path {
+# null when the path is already gone: a module's own step can remove it between the plan and the write
+export def preserve-aside [path: path]: nothing -> any {
+    if (path-kind $path) == "" { return null }
     let base = $"(preserve-dir)(^realpath -ms $path).(date now | format date $STAMP_FORMAT)"
     mut dest = $base
     mut n = 0

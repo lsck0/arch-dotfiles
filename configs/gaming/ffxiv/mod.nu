@@ -6,7 +6,7 @@ const XLCORE = ".xlcore"
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join $XLCORE
-    let saved = $env.DOTFILES | path join secrets ffxiv
+    let saved = $env.DOTFILES | path join configs secrets keys ffxiv
     # resolution, graphics, GamePath and the characters' UI layout are this machine's; a new one seeds from the shared copy
     {
         xl: $xl, config: ($xl | path join ffxivConfig), launcher: ($xl | path join launcher.ini)

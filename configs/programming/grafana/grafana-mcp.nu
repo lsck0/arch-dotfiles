@@ -7,7 +7,7 @@ def --wrapped main [...args: string]: nothing -> nothing {
     let data = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share)
     load-env {
         GRAFANA_URL: (open ($homelab | path join src generated lab.json) | get monitoring.grafana)
-        GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE: ($REPO | path join secrets grafana-mcp-token)
+        GRAFANA_SERVICE_ACCOUNT_TOKEN_FILE: ($REPO | path join configs secrets keys grafana-mcp-token)
         GRAFANA_USAGE_STATS: disabled
         DO_NOT_TRACK: "1"
     }

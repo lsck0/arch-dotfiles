@@ -3,7 +3,7 @@
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
 # own copies that replace apparmor.d's of the same name on purpose (their header says why); aa-install skips them
-const OVERRIDES = [thunderbird libreoffice]
+const OVERRIDES = [firefox thunderbird libreoffice]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero

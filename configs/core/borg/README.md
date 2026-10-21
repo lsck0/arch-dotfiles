@@ -19,11 +19,11 @@ holds instead of syncing a fresh repo over the old one's files.
 ## Setup, once per user
 
 ```bash
-head -c 32 /dev/urandom | base64 > secrets/borg-passphrase   # then dot sync
+head -c 32 /dev/urandom | base64 > configs/secrets/keys/borg-passphrase   # then dot sync
 ```
 
-The first run exports the repo key (still encrypted by the passphrase) to `secrets/borg-key-<repo>`. Keep a paper
-copy as well, beside the age key:
+The first run exports the repo key (still encrypted by the passphrase) to `configs/secrets/keys/borg-key-<repo>`. Keep a
+paper copy as well, beside the age key:
 
 ```bash
 borg key export --paper ~/.local/share/borg-repo/<repo>
@@ -32,10 +32,10 @@ borg key export --paper ~/.local/share/borg-repo/<repo>
 ## Restore
 
 ```bash
-export BORG_REPO=~/.local/share/borg-repo/<repo> BORG_PASSCOMMAND="cat $HOME/projects/arch-dotfiles/secrets/borg-passphrase"
+export BORG_REPO=~/.local/share/borg-repo/<repo> BORG_PASSCOMMAND="cat $HOME/projects/arch-dotfiles/configs/secrets/keys/borg-passphrase"
 borg list
 borg extract --list ::<archive> home/<user>/path/to/restore   # into the current directory
 ```
 
 Lost the machine: copy the folder back from the NAS (or point `BORG_REPO` at the NAS copy, read only); a damaged
-repo `config` takes the key with it, restore it with `borg key import <repo> secrets/borg-key-<repo>`.
+repo `config` takes the key with it, restore it with `borg key import <repo> configs/secrets/keys/borg-key-<repo>`.

@@ -5,7 +5,7 @@ use ($SCRIPTS | path join lib usage.nu) [die]
 use ($SCRIPTS | path join lib secrets.nu) [secret-is-plaintext]
 
 const PUBLIC_DIR = $SCRIPTS | path dirname | path join wallpapers
-const SECRET_DIR = $SCRIPTS | path dirname | path join secrets wallpapers
+const SECRET_DIR = $SCRIPTS | path dirname | path join configs secrets keys wallpapers
 const IMAGE_SUFFIXES = [jpg jpeg png gif webp]
 const SCREEN_DEFAULT = "3840x2160"
 const CROP_PERCENT_MAX = 10
@@ -18,7 +18,7 @@ def images-in [dir: path]: nothing -> table {
     | each { {path: $in.name, mtime: ($in.modified | into int)} }
 }
 
-# secrets/wallpapers shadows wallpapers/ by file name, a secret only while it is plaintext (git-crypt unlocked)
+# configs/secrets/keys/wallpapers shadows wallpapers/ by file name, a secret only while it is plaintext (git-crypt unlocked)
 def wallpapers []: nothing -> table {
     images-in $PUBLIC_DIR | append (images-in $SECRET_DIR | where { secret-is-plaintext $in.path })
     | insert name { $in.path | path basename } | reverse | uniq-by name | reject name | sort-by path

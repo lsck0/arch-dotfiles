@@ -29,9 +29,9 @@ export def sync-pull [repo: path]: nothing -> nothing {
 
 # the pulled generation may name a newer secrets revision; the commit's `git add .` would record the old checkout back
 def secrets-follow [repo: path]: nothing -> nothing {
-    let secrets = $repo | path join secrets
+    let secrets = $repo | path join configs secrets
     if not (secrets-wanted) or not ($secrets | path join .git | path exists) { return }
-    let recorded = ^git -C $repo ls-tree HEAD secrets | parse --regex '^\S+ commit (?<sha>[0-9a-f]+)' | get --optional 0.sha
+    let recorded = ^git -C $repo ls-tree HEAD configs/secrets | parse --regex '^\S+ commit (?<sha>[0-9a-f]+)' | get --optional 0.sha
     let current = ^git -C $secrets rev-parse HEAD | str trim
     if $recorded == null or $recorded == $current { return }
     if (^git -C $secrets cat-file -e $"($recorded)^{commit}" | complete).exit_code != 0 {
@@ -65,6 +65,21 @@ export def sync-can-sign [repo: path]: nothing -> bool {
     (^gpg --batch --list-secret-keys (fingerprint $repo) | complete).exit_code == 0
 }
 
+# only keys/ is git-crypt (configs/secrets/.gitattributes): a file outside it would be committed in plaintext. A module dir
+# (configs/secrets/<module>/mod.nu) is code and may change; anything else, a backup that wrote beside keys/, stops the commit
+def secrets-plaintext-guard [secrets: path]: nothing -> nothing {
+    let stray = ^git -C $secrets ls-files -z --others --modified --exclude-standard | split row (char nul)
+        | where {|f| $f != "" and ($secrets | path join $f | path exists) }
+        | where {|f|
+            let parts = $f | path split
+            let module = ($parts | length) > 1 and ($secrets | path join $parts.0 mod.nu | path exists)
+            $parts.0 not-in [keys .git-crypt] and $f != .gitattributes and not $module
+        }
+    if ($stray | is-not-empty) {
+        error make {msg: $"secrets: ($stray | str join ' ') would be committed unencrypted: move it under configs/secrets/keys/, or into a module dir"}
+    }
+}
+
 export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     sync-branch-check $repo
     let fpr = fingerprint $repo
@@ -74,9 +89,10 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
 
     ^nu --no-config-file ($repo | path join scripts lib internal.nu) backup
     # secrets first, so the generation commit records its new revision
-    let secrets = $repo | path join secrets
-    if (secrets-wanted) and (secret-is-plaintext ($secrets | path join pgp_privatekey.asc)) {
+    let secrets = $repo | path join configs secrets
+    if (secrets-wanted) and (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
+            secrets-plaintext-guard $secrets
             ^git -C $secrets add -A
             ^git -C $secrets commit -m "chore(sync): back up live app state"
         }
@@ -103,7 +119,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
         # bootstrap.sh and the lsck0 builder consume master directly: a script that does not parse never becomes a generation
         let broken = ^git -C $repo ls-files -z '*.sh' | split row (char nul) | where $it != "" | par-each {|f| if (^bash -n ($repo | path join $f) | complete).exit_code != 0 { $f } } | compact
         if ($broken | is-not-empty) { error make {msg: $"does not parse, nothing committed: ($broken | str join ' ')"} }
-        # master is public: a credential in any tracked file must never get there; secrets/ is encrypted and allowlisted
+        # master is public: a credential in any tracked file must never get there; configs/secrets/ is encrypted and allowlisted
         if not $no_verify {
             try { ^nu --no-config-file ($repo | path join scripts dot.nu) test check } catch { error make {msg: "dot test check found a problem, nothing committed (dot sync --no-verify overrides)"} }
             try { do { cd $repo; ^gitleaks git --staged --redact --no-banner } } catch { error make {msg: "gitleaks found a secret in the staged tree, nothing committed (dot sync --no-verify overrides)"} }

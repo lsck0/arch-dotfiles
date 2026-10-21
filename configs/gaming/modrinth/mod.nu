@@ -4,7 +4,7 @@ export const meta = {packages: {pacman: [modrinth-app]}, backup: {secrets: true}
 
 def paths []: nothing -> record {
     let data = $nu.home-dir | path join .local share ModrinthApp
-    let saved = $env.DOTFILES | path join secrets modrinth
+    let saved = $env.DOTFILES | path join configs secrets keys modrinth
     # instances, java paths and window state are this machine's; a new one seeds from the shared copy
     {
         data: $data, db: ($data | path join app.db), seed: (host-seed $saved app.db), saved: (host-file $saved app.db)

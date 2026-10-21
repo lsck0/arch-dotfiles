@@ -154,6 +154,8 @@ alias cd = z
 alias cdi = zi
 source $WAL
 
-if ("TERM" in $env) and $env.TERM != "dumb" and (which fastfetch | is-not-empty) {
+# config.nu also loads for `nu -l -c`, whose stdout a caller reads; like zshrc, only an interactive shell on a tty
+let fetch = $nu.is-interactive and (is-terminal --stdout) and ("TERM" in $env) and $env.TERM != "dumb"
+if $fetch and (which fastfetch | is-not-empty) {
     fastfetch
 }

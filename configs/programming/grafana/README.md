@@ -13,7 +13,7 @@ The server needs a Grafana service account token, which lives in the private
 secrets submodule. `mod.nu` registers nothing while the file is missing.
 
 ```
-# secrets/grafana-mcp-token
+# configs/secrets/keys/grafana-mcp-token
 glsa_...
 ```
 

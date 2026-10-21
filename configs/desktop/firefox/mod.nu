@@ -19,7 +19,7 @@ const SEARCH_OFF_HOMELAB = {
 }
 # NoScript has no managed storage; its allowed sites say where a person browses, so they stay in secrets
 const NOSCRIPT_ID = "{73a6fe31-595d-460b-a920-fcc0f8843232}"
-const NOSCRIPT_FILE = "secrets/firefox/noscript.json"
+const NOSCRIPT_FILE = "configs/secrets/keys/firefox/noscript.json"
 const SYNC_DB = "storage-sync-v2.sqlite"
 # NoScript's MAX_ITEM_SIZE: a longer value is stored as "[CHUNKED]" plus <key>/CHUNKS and <key>/<n> pieces
 const NOSCRIPT_CHUNK = 4096

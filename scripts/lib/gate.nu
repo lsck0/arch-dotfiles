@@ -6,7 +6,9 @@ const SUDO = '\bsudo\b'
 const NU_VERB = '(?ms)^export def (?<verb>link|unlink|system|theme|apply|backup|restore|check) \[.*?^\}'
 const NU_USER_FACT = '(profile-has|profile-load|\$nu\.home-dir|\$env\.HOME\b|\$env\.USER\b|~/)'
 const QUOTED = r#''[^']*'|"(?:[^"\\]|\\.)*"'#
-const ROOT_MODULES = [scripts skills weblinks]
+const ROOT_MODULES = [scripts skills]
+# the private submodule's git-crypt dir: blobs while locked, no code (its modules beside it are linted like any other)
+const SECRETS_KEYS = "secrets/keys/**"
 # the folder root itself (syncthing needs it) and .stignore (per device, never synced) are not writes into it
 const SYNC_PATH = '(?:\$\{?HOME\}?|~|%h)/sync(?<tail>[^\w].*|$)'
 const SYNC_WRITE = '(^|[^\w-])(mkdir|touch|cp|mv|install|tee|rm|ln|unzip|tar|curl|wget)([^\w-]|$)|--mkdir|>'
@@ -61,7 +63,8 @@ def lint-modules []: nothing -> list<string> {
 
 def lint-layers []: nothing -> list<string> {
     let configs = $REPO | path join configs
-    let mods = glob $"($configs)/**/mod.nu" | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
+    let mods = glob $"($configs)/**/mod.nu" --exclude [$SECRETS_KEYS]
+        | append ($ROOT_MODULES | each {|r| $REPO | path join $r mod.nu } | where ($it | path exists))
     let verbs = $mods | each {|f|
         let text = open --raw $f
         $text | parse --regex $"\(?<body>($NU_VERB)\)" | each {|m|
@@ -81,7 +84,8 @@ def lint-layers []: nothing -> list<string> {
 
 # a write into a syncthing folder collides with what syncthing delivers from other machines
 def lint-sync []: nothing -> list<string> {
-    let files = glob $"($REPO)/configs/**/*.{sh,nu,py}" | append (glob $"($REPO)/scripts/**/*.{sh,nu}") | append [($REPO | path join bootstrap.sh)]
+    let files = glob $"($REPO)/configs/**/*.{sh,nu,py}" --exclude [$SECRETS_KEYS] | append (glob $"($REPO)/scripts/**/*.{sh,nu}")
+        | append [($REPO | path join bootstrap.sh)]
     $files | where ($it | path exists) | each {|f|
         code-lines $f | each {|l|
             let code = unquote ($l.line | split row " #" | first) {|q| $q =~ $SYNC_PATH }
@@ -97,16 +101,20 @@ const ROOT_FILES = [
     .editorconfig .gitattributes .gitignore .gitleaks.toml .gitmodules .ruff.toml .shellcheckrc AGENTS.md FEATURES.md
     LICENSE.md README.md bootstrap.sh
 ]
-const ROOT_DIRS = [configs migrations mirror platforms profiles scripts secrets showcase skills themes wallpapers weblinks]
+const ROOT_DIRS = [configs migrations mirror platforms profiles scripts showcase skills themes wallpapers]
 const GROUP_FILES = [AGENTS.md dependencies.txt]
+const SUBMODULE = "configs/secrets"
 
 def lint-stray []: nothing -> list<string> {
-    let files = ^git -C $REPO ls-files --cached --others --exclude-standard -z | split row (char nul) | where $it != ""
+    # a tracked file deleted in the worktree is no leftover, dot sync's `git add .` stages its removal
+    let files = ^git -C $REPO ls-files --cached --others --exclude-standard -z | split row (char nul)
+        | where {|f| $f != "" and ($REPO | path join $f | path exists) }
     $files | each {|f|
         let parts = $f | split row "/"
         let stray = match ($parts | length) {
             1 => ($f not-in $ROOT_FILES and $f not-in $ROOT_DIRS)
-            _ => (($parts.0 not-in $ROOT_DIRS) or ($parts.0 == configs and (($parts | length) == 2 or (($parts | length) == 3 and $parts.2 not-in $GROUP_FILES))))
+            # configs/secrets is the private submodule, one gitlink here
+            _ => (($parts.0 not-in $ROOT_DIRS) or ($parts.0 == configs and $f != $SUBMODULE and (($parts | length) == 2 or (($parts | length) == 3 and $parts.2 not-in $GROUP_FILES))))
         }
         if $stray { $"($f): not a file of the repo's layout, a tool's leftover? remove it or add it where it belongs" }
     } | compact
@@ -190,7 +198,7 @@ def lint-generated []: nothing -> list<string> {
 
 def unit-tests []: nothing -> list<string> {
     # scripts/ too: an engine test beside its library must not be skipped without a word
-    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" | sort | each {|t|
+    glob $"($REPO)/{configs,themes,scripts}/**/*.test.{sh,nu}" --exclude [$"configs/($SECRETS_KEYS)"] | sort | each {|t|
         let run = if ($t | str ends-with ".nu") { ^nu --no-config-file -I ($REPO | path join scripts lib) $t | complete } else { ^bash $t | complete }
         if $run.exit_code != 0 { $"(rel $t): failed\n($run.stdout + $run.stderr | str trim --right)" }
     } | compact

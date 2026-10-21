@@ -3,7 +3,7 @@
 # the browser can read but never write
 /opt/proton-pass/resources/assets/proton_pass_nm_host rPUx,
 owner @{HOME}/{.claude,projects/*/.identity/claude}/chrome/chrome-native-host rPUx,
-# the capgemini work profile (desktop/capgemini) is its own --user-data-dir, out of apparmor.d's @{config_dirs}
+# the capgemini work profile (configs/secrets/capgemini) is its own --user-data-dir, out of apparmor.d's @{config_dirs}
 owner @{user_share_dirs}/capgemini/ rw,
 owner @{user_share_dirs}/capgemini/chromium/ rw,
 owner @{user_share_dirs}/capgemini/chromium/** rwk,

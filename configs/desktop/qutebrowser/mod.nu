@@ -40,7 +40,11 @@ export def link [cfg: record] {
         (file-link config.py ($dir | path join config.py))
         (file-text ($dir | path join search-url) $"($search)\n")
         # a per-user copy: the page needs absolute paths into this home; toggle-font edits this copy and the repo's
-        (file-render startpage.html ($dir | path join startpage.html) {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES, RADIUS: $RADIUS_PX})
+        (file-render startpage.html ($dir | path join startpage.html) {
+            HOME: $nu.home-dir
+            DATA: ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share))
+            RADIUS: $RADIUS_PX
+        })
     ] | append (if (lists-ready) { [] } else { [(step lists-fetch)] })
 }
 

@@ -96,4 +96,5 @@ Root-owned `/usr/local/bin/adduser-dotfiles` (linked by `system-apply.nu`): crea
 checkout, profile and user layer. Without `--profile` it asks on a tty and takes `custom` otherwise. Rerun-safe; an
 existing `profile.nuon` is kept. A profile with the `identity` capability adds the login to root's owner registry
 `/var/lib/dotfiles/owners` (the bootstrap does the same for the first login; `migrations/0003-u2f-owners.nu` seeded it
-on installed machines), from which `base/pam` maps the owner's YubiKey in `/etc/u2f_mappings` on the next system run.
+on installed machines), from which the owner's module `configs/secrets/yubikey` maps their YubiKey in `/etc/u2f_mappings`
+on the next system run (`base/pam` reads it; without the submodule there is no mapping and sudo takes the password).

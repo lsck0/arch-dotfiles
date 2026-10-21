@@ -1,0 +1,143 @@
+# managed by arch-dotfiles/apparmor
+# apparmor.d's firefox profile, built, with one change: its attachment. apparmor 4.1.8 loads apparmor.d's
+# /{{,usr/}...{,x}...} form but never attaches /usr/lib/firefox/firefox, the desktop file's Exec: launched from there
+# firefox ran unconfined and the openers' px into it failed (profile transition not found). aa-install skips its own
+# copy (ignore.d, mod.nu); refresh this file from /usr/share/apparmor.d when apparmor.d changes the profile
+
+# apparmor.d - Full set of apparmor profiles
+# Copyright (C) 2015-2022 Mikhail Morfikov
+# Copyright (C) 2021-2024 Alexandre Pujol <alexandre@pujol.io>
+# SPDX-License-Identifier: GPL-2.0-only
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+@{name} = firefox{,-esr,-beta,-devedition,-nightly,.sh}
+@{lib_dirs} = @{lib}/@{name} /opt/@{name}
+@{config_dirs} = @{HOME}/.mozilla/
+@{config_dirs} += @{user_config_dirs}/mozilla/
+@{cache_dirs} = @{user_cache_dirs}/mozilla/
+
+@{exec_path} = @{bin}/@{name} @{lib_dirs}/@{name}
+@{att} = /att/firefox/
+profile firefox /usr/{bin/firefox,lib/firefox/firefox} flags=(attach_disconnected,attach_disconnected.path=@{att}) {
+  include <abstractions/attached/base>
+  include <abstractions/app/bwrap-glycin>
+  include <abstractions/app/firefox>
+  include <abstractions/user-download-strict>
+  include <abstractions/user-read-strict>
+
+  signal send set=(term, kill) peer=firefox//&keepassxc-proxy,
+
+  unix type=seqpacket addr=@gecko-crash-helper-pipe.@{int},
+  unix type=seqpacket peer=(label=firefox-crashhelper),
+  unix type=seqpacket peer=(label=firefox-glxtest),
+
+  unix type=seqpacket,
+  unix type=seqpacket peer=(label=firefox-crashreporter),
+  unix type=stream,
+
+  #aa/dbus own bus=session name=org.mozilla.firefox
+  include <abstractions/bus/session/own>
+  dbus bind bus=session name=org.mozilla.firefox{,.*},
+  dbus receive bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.mozilla.firefox{,.*}
+       peer=(name="@{busname}"),
+  dbus send bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.mozilla.firefox{,.*}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+  # DBus.Properties: reply to properties request from anyone
+  dbus (send receive) bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.freedesktop.DBus.Properties
+       member={Get,GetAll,Set,PropertiesChanged}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+  # DBus.Introspectable: allow clients to introspect the service
+  dbus receive bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.freedesktop.DBus.Introspectable
+       member=Introspect
+       peer=(name="@{busname}"),
+  # DBus.ObjectManager: allow clients to enumerate sources
+  dbus receive bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.freedesktop.DBus.ObjectManager
+       member=GetManagedObjects
+       peer=(name="{@{busname},org.mozilla.firefox{,.*}}"),
+  dbus send bus=session path=/org/mozilla/firefox{,/**}
+       interface=org.freedesktop.DBus.ObjectManager
+       member={InterfacesAdded,InterfacesRemoved}
+       peer=(name="{@{busname},org.freedesktop.DBus}"),
+
+
+  dbus send bus=session path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.host.portal.Registry
+       member=Register
+       peer=(name=@{busname}, label=xdg-desktop-portal),
+
+  @{exec_path} mrix,
+
+  @{lib_dirs}/crashhelper rpx -> firefox//&firefox-crashhelper,
+  @{lib_dirs}/glxtest     rpx -> firefox//&firefox-glxtest,
+  @{lib_dirs}/vaapitest   rpx -> firefox//&firefox-vaapitest,
+  @{lib_dirs}/gfxtest     rpx -> firefox//&firefox-gfxtest,
+
+
+  # glycin-loaders sandboxed profile stack
+  include <abstractions/app/bwrap-glycin>
+  @{bin}/bwrap                          px -> firefox//&glycin,
+  @{lib}/glycin-loaders/@{d}+/glycin-*  px -> firefox//&glycin//&glycin//loaders,
+
+  @{lib}/@{multiarch}/qt5/plugins/kf5/org.kde.kwindowsystem.platforms/KF5WindowSystemKWaylandPlugin.so mr,
+  @{lib}/@{multiarch}/qt5/plugins/kf5/org.kde.kwindowsystem.platforms/KF5WindowSystemX11Plugin.so mr,
+  @{lib}/mozilla/plugins/ r,
+  @{lib}/mozilla/plugins/*.so mr,
+
+  # Desktop integration
+  @{bin}/gnome-browser-connector-host                rpx,
+  @{bin}/gnome-software                              rpx,
+  @{bin}/kreadconfig{,5}                             rpx,
+  @{bin}/plasma-browser-integration-host             rpx,
+  @{bin}/speech-dispatcher                           rpx,
+  @{bin}/update-mime-database                        rpx,
+  @{lib}/gvfsd-metadata                              rpx,
+  @{lib}/mozilla/kmozillahelper                     rpux,
+  @{open_path}                                       rpx -> child-open-any,
+
+  # Common extensions
+  @{bin}/browserpass                                           rpx,
+  @{bin}/keepassxc-proxy                                       rpx -> firefox//&keepassxc-proxy,
+  @{lib}/browserpass/browserpass-native                        rpx,
+  /opt/1Password/1Password-BrowserSupport                      rpux,
+  /opt/net.downloadhelper.coapp/bin/net.downloadhelper.coapp*  rpx,
+
+  owner @{user_config_dirs}/gtk-{3,4}.0/assets/*.svg r,
+  owner @{user_config_dirs}/ibus/bus/ r,
+  owner @{user_config_dirs}/ibus/bus/@{hex32}-unix-{,wayland-}@{int} r,
+  owner @{user_config_dirs}/kioslaverc r,
+  owner @{user_config_dirs}/mimeapps.list w,
+  owner @{user_config_dirs}/mimeapps.list.@{rand6} rw,
+
+  owner @{user_share_dirs}/applications/userapp-Firefox-@{rand6}.desktop{,.@{rand6}} rw,
+  owner @{user_share_dirs}/mime/packages/user-extension-{htm,html,xht,xhtml,shtml}.xml rw,
+  owner @{user_share_dirs}/mime/packages/user-extension-{htm,html,xht,xhtml,shtml}.xml.* rw,
+
+  owner @{tmp}/.xfsm-ICE-@{rand6} rw,
+  owner @{tmp}/@{rand8}.* rw,  # file downloads (to anywhere)
+  owner @{tmp}/@{uuid}.zip{,.tmp} rw,
+  owner @{tmp}/crashreporter@{int}-request@{int}.json r,
+  owner @{tmp}/Mozilla@{uuid}-cachePurge-{@{hex15},@{hex16}} rwk,
+  owner @{tmp}/Mozilla\{@{uuid}\}-cachePurge-{@{hex15},@{hex16}} rwk,
+  owner @{tmp}/MozillaBackgroundTask-*/.parentlock k,
+  owner @{tmp}/MozillaBackgroundTask-*/{**,} rw,
+  owner @{tmp}/Mozillato-be-removed-cachePurge-{@{hex15},@{hex16}} rwk,
+
+  owner @{run}/user/@{uid}/app/ w,
+  owner @{run}/user/@{uid}/app/org.keepassxc.KeePassXC/ w,
+  owner @{run}/user/@{uid}/org.keepassxc.KeePassXC.BrowserServer w,
+
+  # Silencer
+  deny @{lib_dirs}/** w,
+
+  include if exists <local/firefox>
+}
+
+# vim:syntax=apparmor

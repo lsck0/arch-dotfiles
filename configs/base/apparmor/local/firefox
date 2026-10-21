@@ -11,8 +11,10 @@ owner @{user_share_dirs}/mozilla/native-messaging-hosts/{,*.json} r,
 # in /tmp
 include <abstractions/dotfiles/viewer-read>
 
-# the new tab and home page (desktop/firefox), qutebrowser's; links.js and the wallpaper are in ~/projects
+# the new tab and home page (desktop/firefox), qutebrowser's, its bookmarks (secrets/weblinks); the wallpaper is in
+# ~/projects
 owner @{user_config_dirs}/qutebrowser/startpage.html r,
+owner @{user_share_dirs}/weblinks/links.js r,
 owner @{user_cache_dirs}/wal/colors-qutebrowser.css r,
 
 # claude's playwright-mcp (programming/playwright) drives a headless firefox on a throwaway profile in temp

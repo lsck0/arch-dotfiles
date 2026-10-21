@@ -5,6 +5,7 @@
 use log.nu *
 use state.nu [SYSTEM_REPO path-kind]
 use system.nu [system-pack system-unpack]
+use platform.nu [platform-groups-all]
 
 const MIRRORLIST = "/etc/pacman.d/mirrorlist"
 const MIRROR_COUNTRIES = "/etc/pacman.d/mirror-countries"
@@ -316,7 +317,7 @@ def user-setup [c: record]: nothing -> nothing {
     }
     let profile = $home | path join .config dotfiles profile.nuon
     if ($c.profile_file | is-not-empty) and not ($profile | path exists) { ^install -Dm644 $c.profile_file $profile }
-    # root's record of the owner's logins: base/pam maps the owner's yubikey to exactly these
+    # root's record of the owner's logins: secrets/yubikey maps the owner's yubikey to exactly these
     if ($c.profile_file | is-not-empty) and ("identity" in (open $c.profile_file | get --optional capabilities | default [])) {
         let owners = $"($root)/var/lib/dotfiles/owners"
         mkdir ($owners | path dirname)
@@ -610,7 +611,7 @@ def answer-platform [e: record, c: record]: nothing -> record {
 }
 
 def answer-groups [e: record, c: record]: nothing -> list<string> {
-    let universe = ls ($c.repo | path join configs) | where type == dir | get name | path basename | sort
+    let universe = platform-groups-all $c.repo
     let required = {required: $e.required}
     let chosen = if $c.server { $c.groups } else if (env-or $e.env | is-not-empty) {
         env-or $e.env | split row --regex '\s+' | where $it != ""
@@ -715,7 +716,7 @@ def step-platform-load [q: record, c: record]: nothing -> record {
         let file = $c.repo | path join platforms $"($c.platform).nuon"
         let p = open $file
         if ($p.hostname? | is-empty) { die $"($file) sets no hostname" }
-        let all = ls ($c.repo | path join configs) | where type == dir | get name | path basename
+        let all = platform-groups-all $c.repo
         let options = $c.repo | path join platforms $"($c.platform).options.nuon" | if ($in | path exists) { open $in } else { {} }
         let secure_boot = if ($options | get --optional $SBCTL_MODULE | get --optional enable) == false { "off" } else if ($p.facts?.secure_boot_own_keys? | default false) { "own" } else { "microsoft" }
         $c | merge {hostname: $p.hostname, groups: ($p.groups? | default $all), form_factor: ($p.form_factor? | default ""), homelab: ($p.facts?.homelab? | default false), secure_boot: $secure_boot}

@@ -62,8 +62,23 @@ for _, class in ipairs({
     "^io.missioncenter.MissionCenter$",
     "^org.pulseaudio.pavucontrol$",
 }) do
-    hl.window_rule({ match = { class = class }, float = true, size = "1080 720" })
+    -- 1080x720, shrunk to 80% of a smaller output; centered, else they map at the monitor's origin
+    hl.window_rule({
+        match = { class = class },
+        float = true,
+        center = true,
+        size = "min(1080,monitor_w*0.8) min(720,monitor_h*0.8)",
+    })
 end
+
+-- an xwayland dialog with no parent: maps at the global origin, which is another output's corner when scaled
+hl.window_rule({
+    match = {
+        class = "^Hexchat$",
+        title = "^Network List - HexChat$",
+    },
+    center = true,
+})
 
 hl.window_rule({
     match = {

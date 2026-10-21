@@ -41,9 +41,10 @@ table inet fw {
         tcp dport 7001 ip saddr @knock1 update @knock2 { ip saddr }
         tcp dport 9003 update @knock1 { ip saddr }
 
-        # endlessh 22, kde connect 1716, payloads 1739-1764, mdns 5353, wivrn 9757, localsend 53317
-        iifname @home_ifaces tcp dport { 22, 1716, 1739-1764, 9757, 53317 } accept
-        iifname @home_ifaces udp dport { 1716, 5353, 9757, 53317 } accept
+        # endlessh 22, kde connect 1716, payloads 1739-1764, mdns 5353, wivrn 9757, syncthing 22000 (tcp, quic),
+        # localsend 53317
+        iifname @home_ifaces tcp dport { 22, 1716, 1739-1764, 9757, 22000, 53317 } accept
+        iifname @home_ifaces udp dport { 1716, 5353, 9757, 22000, 53317 } accept
     }
 
     # docker, libvirt and waydroid turn ip_forward on, the lan and tun0 could route through this host

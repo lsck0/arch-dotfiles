@@ -40,6 +40,8 @@ profile onlyoffice @{exec_path} flags=(attach_disconnected) {
   @{lib_dirs}/{editors_helper,converter/x2t} rix,
 
   @{open_path} rPx -> child-open-strict,
+  # the launcher script probes the terminal it never has
+  deny /dev/tty rw,
 
   owner @{user_config_dirs}/onlyoffice/{,**} rwk,
   owner @{user_share_dirs}/onlyoffice/{,**} rwk,

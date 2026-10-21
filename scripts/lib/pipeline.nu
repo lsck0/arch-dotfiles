@@ -39,13 +39,12 @@ export def --env pipeline-load [repo: path, layer: string]: nothing -> record {
     if ($resolved.errors | is-not-empty) {
         error make {msg: $"options:\n($resolved.errors | str join "\n")"}
     }
-    let homelab = $profile != null and "homelab" in $profile.capabilities
     let values = $resolved.rows | reduce --fold {} {|r, acc| $acc | insert $r.id $r }
     let modules = $found | each {|m|
         let row = $values | get $m.id
         let deps = $m.meta.deps | where $it in ($values | columns) | reduce --fold {} {|d, acc| $acc | insert $d ($values | get $d | get values) }
         $m | insert cfg ($row.values | insert deps $deps) | insert sources $row.sources
-    } | where {|m| $m.id != "weblinks" or $homelab }
+    }
     $base | insert modules $modules
 }
 
@@ -117,7 +116,7 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let graph = span graph {} { modules-graph $ctx.repo ($active ++ $retired) }
     let global = [
         (stamp $LIB_DIR) ($ctx.platform.facts | to nuon) ($ctx.profile.capabilities? | default [] | to nuon)
-        (secret-is-plaintext ($ctx.repo | path join secrets pgp_privatekey.asc)) $verb ($args | to nuon)
+        (secret-is-plaintext ($ctx.repo | path join configs secrets keys pgp_privatekey.asc)) $verb ($args | to nuon)
     ] | str join "\n"
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
@@ -207,10 +206,11 @@ export def pipeline-apply [ctx: record, planned: table, verb: string, jobs: int,
     mut running = {}
     mut results = []
     mut pending = $planned
+    let planned_ids = $planned.id
     while ($pending | is-not-empty) or ($running | is-not-empty) {
         let finished = $done
         let busy = $running | columns | length
-        let ready = $pending | where {|m| $m.after | all {|a| $a in $finished or $a not-in $planned.id } }
+        let ready = $pending | where {|m| $m.after | all {|a| $a in $finished or $a not-in $planned_ids } }
         let serial_wait = $ready | where serial | is-not-empty
         let startable = if $busy == 0 and $serial_wait { $ready | where serial | first 1 } else { $ready | where not serial | first ([($jobs - $busy) 0] | math max) }
         for m in $startable {

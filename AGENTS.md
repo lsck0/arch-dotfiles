@@ -11,7 +11,7 @@ Load the skill a task needs from `skills/<name>/SKILL.md`.
 |---|---|
 | `l-dotfiles-install` | installing a machine (owner, generic, WSL), the boot chain, adding another login |
 | `l-dotfiles-add-module` | a new `configs/<group>/<module>/mod.nu` (verbs, options, packages), running one module alone |
-| `l-dotfiles-add-package` | adding or removing a package in a module's meta, the mirror check, removal |
+| `l-dotfiles-add-package` | adding or removing a package in a module's meta, the mirror check, removal, supply-chain pins |
 | `l-dotfiles-apparmor-profile` | writing or adjusting a profile or `local/` rule, reading denials, enforce policy |
 | `l-dotfiles-theming` | adding a wallust template or generator, testing a theme switch dark and light |
 | `l-dotfiles-toggles` | adding a `scripts/toggles/toggle-*.nu` and wiring it into quickshell |
@@ -80,7 +80,12 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 - `configs/core/wallust/` (templates, `palette.nu`), `themes/*.json`, `dot theme [name|random]`;
   each module themes its own program in its `theme` verb, run by `dot internal theme apply`.
 - `configs/desktop/quickshell/` (bar, launcher, lock, notifications), `configs/desktop/hyprland/` (Lua config).
-- `secrets/`: git-crypt submodule. `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
+- `configs/secrets/`: the group `secrets`, a private submodule pulled only for a profile with `secrets`. `keys/` in
+  it holds every credential and backed-up app state, git-crypt encrypted (nothing else is). Beside it, the owner's
+  own modules (`yubikey`, `capgemini`, `weblinks`, anything personal): plaintext, so found locked; on wherever the
+  submodule is pulled, never a platform's choice; applied after every other group; their packages kept out of
+  `mirror/packages.txt`.
+- `mirror/`: own pkgbuilds and `overrides.conf` for the `[lsck0]` package mirror;
   `mirror/iso/` the install iso (Arch Linux-LSCK0, served at https://mirror.lsck0.dev/iso/): releng plus an overlay,
   its stub `airootfs/usr/local/bin/lsck0-install` (network, verified master, then that checkout's `bootstrap.sh`
   and second stage `scripts/lib/iso-install.nu`); only the stub is frozen on the stick.
@@ -129,14 +134,13 @@ personas and workflows. `skills/mod.nu` globs `l-*` when it runs, so a new skill
 
 Each kind of data has one home; borg is the last resort, never the first.
 
-- Config and reproducible settings: this repo (git), app state as git-crypt `secrets/<app>/` restored by a module's
-  `link` or `restore` verb.
+- Config and reproducible settings: this repo (git), app state as git-crypt `configs/secrets/keys/<app>/` restored by a
+  module's `link` or `restore` verb.
 - Anything meant to sync across devices or to the NAS: `~/sync` (syncthing). Primary for live, shared data.
-- borg (`configs/core/borg`): the worst-case fallback for `$HOME` data that is NOT already covered, e.g. local
-  work under `~/projects` not yet pushed, app state not in `secrets/` or `~/sync`. It excludes everything already
-  safe elsewhere: `~/sync` (on the NAS), caches, toolchains, models, re-downloadable game/VM data. When a new
-  backup is added, route the data to sync or git-crypt first and keep borg's excludes in step so nothing is stored
-  twice.
+- borg (`configs/core/borg`): the worst-case fallback for `$HOME` data that is NOT already covered, e.g. local work
+  under `~/projects` not yet pushed, app state not in `configs/secrets/` or `~/sync`. It excludes everything already
+  safe elsewhere: `~/sync` (on the NAS), caches, toolchains, models, re-downloadable game/VM data. When a new backup is
+  added, route the data to sync or git-crypt first and keep borg's excludes in step so nothing is stored twice.
 
 ## Gotchas
 
@@ -146,7 +150,7 @@ Each kind of data has one home; borg is the last resort, never the first.
 - dot's state: `~/.local/state/dotfiles` (root's `/var/lib/dotfiles`): `modules/<id>/<verb>.nuon` what each native
   module owns (input hash, outputs), `written`, `ledger`, `runs/`, `preserved/`.
 - Locked secrets are git-crypt blobs starting with `\0GITCRYPT`; check with `secret-is-plaintext`, never write
-  into `secrets/` while locked.
+  into `configs/secrets/` while locked.
 - AppArmor: everything that opens other people's content stays `enforce` in `profiles.conf`;
   `apparmor.test.nu` fails otherwise. Use `aa complain <profile>` on one machine, not the baseline.
 - Hyprland config is Lua (`hl.*`). Dispatch is Lua too: `hyprctl dispatch "hl.dsp.exec_cmd('cmd')"`,

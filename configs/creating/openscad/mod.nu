@@ -10,6 +10,8 @@ export def link [cfg: record] {
     if (which openscad uvx | length) < 2 { return [] }
     let pkg = $"openscad-mcp==($MCP_VERSION)"
     [
+        # the welcome launcher (new, open, examples) instead of an empty editor on every start
+        (ini-merge ($nu.home-dir | path join .config OpenSCAD OpenSCAD.conf) {launcher: {showOnStartup: "false"}})
         (json-merge ($nu.home-dir | path join .claude.json) [
             (json-set [mcpServers openscad] {
                 type: stdio, command: uvx, args: [--exclude-newer $MCP_FROZEN $pkg]

@@ -1,6 +1,6 @@
 use module.nu *
 
-const TOKEN = "secrets/ntfy-desktop-token"
+const TOKEN = "configs/secrets/keys/ntfy-desktop-token"
 const HOMELAB_URL = "https://github.com/lsck0/homelab.git"
 
 export def link [cfg: record] {

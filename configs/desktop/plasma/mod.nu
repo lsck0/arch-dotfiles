@@ -31,6 +31,9 @@ const APPLETSRC = "plasma-org.kde.plasma.desktop-appletsrc"
 const KICKOFF_FAVORITES = "favoritesPortedToKAstats=true"
 const KACTIVITIES_DB = ".local/share/kactivitymanagerd/resources/database"
 const DOLPHIN_STATE = ".local/state/dolphinstaterc"
+const DOLPHIN_VIEW = "dolphin/view_properties/global/.directory"
+const WAL_WALLPAPER = ".cache/wal/wallpaper"
+const WALLPAPER_SECTION = '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$'
 const DRM = "/sys/class/drm"
 const MODERNCLOCK = {id: com.github.prayag2.modernclock, url: "https://github.com/prayag2/kde_modernclock", commit: 5c86f0f23d2646be7e9872fc5e769bdce259af92}
 # the keys toggle-font.nu sets; smallestReadableFont sits this far below the body font
@@ -57,6 +60,25 @@ export def detect [cfg: record]: nothing -> record {
     {kwin_outputs: ($connected | any { $in in $ours })}
 }
 
+# every image wallpaper section of an applets file, set to <wallpaper>
+def wallpaper-values [applets: string, wallpaper: string]: nothing -> record {
+    let image = {Image: $"file://($wallpaper)"}
+    $applets | lines | parse --regex $WALLPAPER_SECTION | get s | reduce --fold {} {|s, acc| $acc | insert $s $image }
+}
+
+# the wallpaper the last theme switch applied, "" before the first
+def wallpaper-current []: nothing -> string {
+    let link = $nu.home-dir | path join $WAL_WALLPAPER
+    if ($link | path exists) { $link | path expand } else { "" }
+}
+
+# dolphin rewrites its view properties (a timestamp, every view change): the module's keys seed it, dolphin owns it
+def dolphin-view [dest: path]: nothing -> list<record> {
+    let values = ini-rows (open --raw $DOLPHIN_VIEW) | where key != null
+        | reduce --fold {} {|r, acc| $acc | upsert $r.section {|v| $v | get --optional $r.section | default {} | insert $r.key $r.value } }
+    if ($values | is-empty) { [] } else { [(ini-merge $dest $values --missing-only)] }
+}
+
 # until dot runs detect itself (modules.nu VERBS lacks it)
 def detected [cfg: record]: nothing -> record {
     if $cfg.kwin_outputs == null { $cfg | merge (detect $cfg) } else { $cfg }
@@ -68,13 +90,16 @@ export def link [cfg: record] {
     let values = {HOME: $nu.home-dir, DOTFILES: $env.DOTFILES}
     # kickoff ports its favorites into the activity database only while this is false; a fresh account has none yet
     let fresh = not ($nu.home-dir | path join $KACTIVITIES_DB | path exists)
+    # the wallpaper the theme verb merges is rendered in too, else every apply would take it back and theme set it again
+    let wallpaper = wallpaper-current
     let applets = file-render (host-seed $DIR $APPLETSRC) ($config | path join $APPLETSRC) $values
         | update content { if $fresh { str replace $KICKOFF_FAVORITES "favoritesPortedToKAstats=false" } else { $in } }
+        | update content {|d| if $wallpaper == "" { $d.content } else { $d.content | ini-apply (wallpaper-values $d.content $wallpaper) false } }
     let dirs = $CONFIG_DIRS | each {|d| glob ($DIR | path join $d "**/*") --no-dir } | flatten
         | each {|f| file-copy $f ($config | path join ($f | path relative-to $DIR)) }
     [
         (files-into ($nu.home-dir | path join .local share applications) ...(glob ($DIR | path join applications "*.desktop")))
-        (files-into ($nu.home-dir | path join .local share dolphin view_properties global) dolphin/view_properties/global/.directory)
+        (dolphin-view ($nu.home-dir | path join .local share $DOLPHIN_VIEW))
         (files-into ($nu.home-dir | path join .local share dbus-1 services) dbus/org.kde.KSplash.service)
         # no kiosk key hides dolphin's dock short of shell_access=false, which also stops it running any executable
         (ini-merge ($nu.home-dir | path join $DOLPHIN_STATE) {State: {State: (open --raw dolphin/dock-state | str trim)}})
@@ -132,11 +157,9 @@ def kde-colors [p: record]: nothing -> record {
 def wallpaper-set [wallpaper: string]: nothing -> list<record> {
     let applets = config-path $APPLETSRC
     if $wallpaper == "" or not ($applets | path exists) { return [] }
-    let sections = open --raw $applets | lines | parse --regex '^\[(?<s>Containments\]\[\d+\]\[Wallpaper\]\[org\.kde\.image\]\[General)\]$' | get s
-    let image = {Image: $"file://($wallpaper)"}
     let running = (^pgrep -x plasmashell | complete).exit_code == 0
     [
-        (ini-merge $applets ($sections | reduce --fold {} {|s, acc| $acc | insert $s $image }))
+        (ini-merge $applets (wallpaper-values (open --raw $applets) $wallpaper))
         (if $running { exec plasma-wallpaper [plasma-apply-wallpaperimage $wallpaper] } else { [] })
     ]
 }

@@ -8,7 +8,7 @@ export def secret-is-plaintext [file: path]: nothing -> bool {
     (open --raw $file | first 9 | into binary) != $GITCRYPT_MAGIC
 }
 
-# secrets/ is fetched, pulled and unlocked only for a profile with the secrets capability; root reads no profile,
+# configs/secrets/ is fetched, pulled and unlocked only for a profile with the secrets capability; root reads no profile,
 # so there the caller decided (bootstrap runs unlock only for a profile that has it)
 export def secrets-wanted []: nothing -> bool {
     (is-admin) or (profile-has secrets)

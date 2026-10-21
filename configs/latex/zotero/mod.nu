@@ -16,6 +16,14 @@ const BBT_SHA256 = "bf61a1690dc8a2b7ab09be9de2c89986f4fb6d495c82407d89b102b26fba
 const BBT_ID = "better-bibtex@iris-advies.com"
 const BBT_TRANSLATOR_BIBTEX = "ca65189f-8815-4afe-8c8b-8c7c15f0edca"
 const ZOTERO_USER_LIBRARY_ID = 1
+# better bibtex's own http export of the library through zotero's local connector server
+const ZOTERO_SERVER = "http://127.0.0.1:23119"
+const BBT_READY = $"($ZOTERO_SERVER)/better-bibtex/cayw?probe=true"
+const BBT_EXPORT = $"($ZOTERO_SERVER)/better-bibtex/export/library?/($ZOTERO_USER_LIBRARY_ID)/library.bibtex"
+# zotero headless with better bibtex loaded answers in about 15 s; the timeout ends a hung one
+const EXPORT_TIMEOUT = "120"
+const READY_POLLS = 100
+const READY_POLL_INTERVAL = 1sec
 
 def library-bib-path []: nothing -> path {
     $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join zotero library.bib
@@ -50,6 +58,27 @@ export def link [cfg: record] {
         (exec zotero-profile [sh -c 'timeout 20 zotero --headless > /dev/null 2>&1; true'] --creates $ini)
         ($profiles | each {|dir| file-render user.js ($dir | path join user.js) $prefs })
         ($profiles | each {|dir| fetch-file $BBT_URL $BBT_SHA256 ($dir | path join extensions $"($BBT_ID).xpi") } | flatten)
+        # the auto-export only runs on a library change, so an unchanged library never gets its file
+        (if ($profiles | is-empty) or ($bib | path exists) { [] } else { step library-export $bib })
         (json-merge ($nu.home-dir | path join .claude.json) [(json-set [mcpServers zotero-mcp] $MCP)])
     ]
+}
+
+def bbt-ready []: nothing -> bool {
+    (try { http get --max-time 2sec $BBT_READY } catch { "" }) == "ready"
+}
+
+# from a running zotero, else a headless one started for it and stopped after
+export def library-export [bib: path]: nothing -> nothing {
+    let started = if (bbt-ready) { null } else {
+        # timeout puts zotero in its own process group and passes a TERM on to all of it, the wrapper script included
+        ^sh -c $"timeout ($EXPORT_TIMEOUT) zotero --headless >/dev/null 2>&1 & echo $!" | str trim | into int
+    }
+    if $started != null and not (seq 1 $READY_POLLS | any {|_| sleep $READY_POLL_INTERVAL; bbt-ready }) {
+        ^kill $started
+        error make {msg: "zotero's better bibtex did not answer; dot apply latex/zotero again once zotero starts"}
+    }
+    mkdir ($bib | path dirname)
+    http get --raw $BBT_EXPORT | save --force $bib
+    if $started != null { ^kill $started }
 }

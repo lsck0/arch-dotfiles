@@ -19,8 +19,9 @@ export def build []: nothing -> record {
     {commit: $head, dirty: $dirty, nu: (version | get version)}
 }
 
-export def guarded [name: string, body: closure]: nothing -> any {
-    run-begin $name | ignore
+# --read-only: the run changes nothing, so its log never evicts one that did
+export def guarded [name: string, body: closure, --read-only]: nothing -> any {
+    run-begin $name --read-only=$read_only | ignore
     $env.DOTFILES = $REPO
     $env.LOG_TAG = "dot"
     try {

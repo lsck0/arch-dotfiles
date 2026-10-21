@@ -5,7 +5,7 @@ export const meta = {
     inputs: [~/.gnupg/pubring.kbx ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d]
 }
 
-const PRIVATE_KEY = "secrets/pgp_privatekey.asc"
+const PRIVATE_KEY = "configs/secrets/keys/pgp_privatekey.asc"
 
 def --wrapped gpg-ok [...args: string]: nothing -> bool {
     (^gpg --batch ...$args | complete).exit_code == 0

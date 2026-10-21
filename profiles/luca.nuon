@@ -1,5 +1,5 @@
 # bootstrap.sh and adduser-dotfiles copy it to ~/.config/dotfiles when profile luca is picked, whatever the login
-# name. secrets: unlock secrets/ with the yubikey; identity: git/gpg/ssh/pass and his accounts; homelab: nas, ntfy,
+# name. secrets: unlock configs/secrets/ with the yubikey; identity: git/gpg/ssh/pass and his accounts; homelab: nas, ntfy,
 # syncthing, weblinks; work: capgemini
 {
     capabilities: [secrets identity homelab work]

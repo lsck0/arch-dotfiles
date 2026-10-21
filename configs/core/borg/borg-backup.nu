@@ -113,7 +113,7 @@ def main []: nothing -> nothing {
     # same path and id as configs/core/syncthing
     let folder = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join borg-repo
     let folder_id = $"borg-($host)"
-    let secrets = $env.DOTFILES_SECRETS? | default ($env.DOTFILES | path join secrets)
+    let secrets = $env.DOTFILES_SECRETS? | default ($env.DOTFILES | path join configs secrets keys)
     let passfile = $secrets | path join borg-passphrase
     let canary = state-dir | path join canary
 
@@ -124,7 +124,7 @@ def main []: nothing -> nothing {
         skip-run "metered connection"
     }
     if not ($passfile | path exists) or (ls $passfile | get 0.size) == 0b {
-        fail "no passphrase, create secrets/borg-passphrase (configs/core/borg/README.md)"
+        fail "no passphrase, create configs/secrets/keys/borg-passphrase (configs/core/borg/README.md)"
     }
     # a locked blob would become the passphrase of a fresh repo
     if not (secret-is-plaintext $passfile) { fail "secrets are locked, unlock them (dot secrets unlock)" }

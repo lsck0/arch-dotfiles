@@ -182,6 +182,7 @@ feh
 feroxbuster-git
 ffmpeg
 ffuf-bin
+fig2dev
 figlet
 file
 filezilla
@@ -509,6 +510,7 @@ openscad
 openssh
 openssl
 openvpn
+optipng
 osmium-tool
 ossec-hids-local
 osslsigncode
@@ -554,6 +556,7 @@ plasma-integration
 plasma-nm
 plasma-pa
 plasma-vault
+plasma5-integration
 playerctl
 playwright-mcp
 plymouth

@@ -32,6 +32,7 @@
 
   # this repo's secrets: the git-crypt symmetric keys and the locked secrets submodule
   deny @{HOME}/projects/arch-dotfiles/.git/git-crypt/{,**} mrwkl,
-  deny @{HOME}/projects/arch-dotfiles/secrets/{,**}        mrwkl,
+  deny @{HOME}/projects/arch-dotfiles/.git/modules/configs/secrets/git-crypt/{,**} mrwkl,
+  deny @{HOME}/projects/arch-dotfiles/configs/secrets/{,**} mrwkl,
 
   include if exists <abstractions/dotfiles/deny-sensitive-home.d>

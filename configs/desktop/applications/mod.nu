@@ -19,6 +19,27 @@ const KDE_ONLY = [systemsettings org.kde.plasma.emojier]
 # appimagetool is a CLI that wants an AppDir, byobu.desktop runs the missing gnome-terminal
 const HIDDEN = [appimagetool byobu]
 
+# filezilla's welcome dialog shows until a greeting version at least its own is stored; it writes the whole file on
+# exit, so a seed only where none exists yet
+const FILEZILLA_XML = "filezilla/filezilla.xml"
+
+export def filezilla-seed [file: path]: nothing -> nothing {
+    if ($file | path exists) { return }
+    let installed = ^pacman -Q filezilla | complete
+    if $installed.exit_code != 0 { return }
+    # "filezilla 3.71.1-1": the version without the pkgrel
+    let version = $installed.stdout | str trim | split row " " | last | str replace --regex '-[0-9.]+$' ''
+    mkdir ($file | path dirname)
+    [
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        $'<FileZilla3 version="($version)" platform="*nix">'
+        '  <Settings>'
+        $'    <Setting name="Greeting version">($version)</Setting>'
+        '  </Settings>'
+        '</FileZilla3>'
+    ] | str join "\n" | $"($in)\n" | save $file
+}
+
 def line-drop [pattern: string]: string -> string {
     lines | where $it !~ $pattern | str join "\n" | $"($in)\n"
 }
@@ -26,6 +47,7 @@ def line-drop [pattern: string]: string -> string {
 export def link [cfg: record] {
     let apps = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join applications
     let run = $nu.home-dir | path join .local bin desktop-run
+    let filezilla = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join $FILEZILLA_XML
     [(link-commands desktop-run.nu hollywood-run.nu)]
     # a per-user copy: Exec needs the absolute path, ~/.local/bin is not on every session's PATH
     | append (glob *.desktop | each {|entry|
@@ -39,5 +61,6 @@ export def link [cfg: record] {
     | append (desktop-override wayvr.desktop {
         str replace --regex '(?m)^Terminal=true$' 'Terminal=false' | str replace --regex '(?m)^Exec=wayvr$' $"Exec=($run) --notify -- wayvr"
     })
+    | append (if ($filezilla | path exists) { [] } else { [(step filezilla-seed $filezilla)] })
     | append [(exec desktop-database [update-desktop-database $apps])]
 }

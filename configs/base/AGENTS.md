@@ -34,9 +34,10 @@ one of the module's own exported commands, run at apply time.
 - `oomd`: systemd-oomd plus the oom-notify hook.
 - `ossec`: host IDS; its alert log feeds the quickshell system panel.
 - `pacman`: pacman.conf, makepkg.conf, root hooks, the `[lsck0]` mirror and key.
-- `pam`: fingerprint and YubiKey auth on sudo and polkit, additive to the password. `/etc/u2f_mappings` maps the
-  owner's keys (`yubikey/u2f_keys`) to the logins in root's `/var/lib/dotfiles/owners` (written by the bootstrap and
-  `adduser-dotfiles --profile` for a profile with `identity`, seeded by `migrations/0003-u2f-owners.nu`), never by name.
+- `pam`: fingerprint and YubiKey auth on sudo and polkit, additive to the password, against `/etc/u2f_mappings`.
+  The owner's module `configs/secrets/yubikey` writes that file: its `u2f_keys` mapped to the logins in root's
+  `/var/lib/dotfiles/owners` (written by the bootstrap and `adduser-dotfiles --profile` for a profile with
+  `identity`, seeded by `migrations/0003-u2f-owners.nu`), never by name. Without it, the password.
 - `perf`: I/O scheduler tuning and perf_event access.
 - `plymouth`: boot splash.
 - `portmaster`: the application firewall; global rules and the per-connection/dns bypass (see `pentesting`, `gaming`).

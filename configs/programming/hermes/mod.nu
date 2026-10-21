@@ -46,13 +46,22 @@ def configure [home: path, settings: record]: nothing -> list<record> {
     [(exec $"configure ($home)" [env $"HERMES_HOME=($home)" $PYTHON configure.py ($want | to json --raw)])]
 }
 
+# hermes' own wrapper for a profile is named after it; the skills call the orchestrator hermes-orchestrator
+def bare-alias []: nothing -> bool {
+    let wrapper = $nu.home-dir | path join .local bin orchestrator
+    ($wrapper | path exists) and (open --raw $wrapper | str contains "hermes -p orchestrator")
+}
+
 # --clone snapshots the default profile once, so both are configured
 export def link [cfg: record] {
     let h = homes
     let skills = glob ($env.DOTFILES | path join skills "l-*") | where ($it | path type) == dir
     [
-        (exec orchestrator-create [hermes profile create orchestrator --clone --description "Orchestrator. Not for interactive chat."] --creates $h.orchestrator)
+        (exec orchestrator-create [
+            hermes profile create orchestrator --clone --no-alias --description "Orchestrator. Not for interactive chat."
+        ] --creates $h.orchestrator)
         (exec orchestrator-alias [hermes profile alias orchestrator --name hermes-orchestrator] --creates ($nu.home-dir | path join .local bin hermes-orchestrator))
+        (if (bare-alias) { exec orchestrator-alias-bare-remove [hermes profile alias orchestrator --remove] } else { [] })
         ($skills | each {|dir| file-link $dir ($h.orchestrator | path join skills ($dir | path basename)) })
         (configure $h.default $SETTINGS)
         (configure $h.orchestrator ($SETTINGS | merge $ORCHESTRATOR_SETTINGS))

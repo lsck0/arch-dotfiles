@@ -7,7 +7,12 @@ const REPO = path self ../..
 export const VERBS = [link unlink system theme apply backup restore check]
 const HOOKS = [detect packages]
 const MARKER = "mod.nu"
-const ROOT_MODULES = [scripts skills weblinks]
+const ROOT_MODULES = [scripts skills]
+# group secrets is the private submodule configs/secrets: the owner's own modules beside keys/, the one git-crypt dir
+# (no module, never globbed). Its code is plaintext, so it is found locked or not; a profile without the secrets
+# capability never pulls the submodule, so there it is an empty dir
+export const SECRETS_GROUP = "secrets"
+const SECRETS_KEYS = "keys"
 const META_DEFAULT = {deps: [], packages: {pacman: [], native: [], flatpak: {}, nix: []}, serial: false}
 
 def names-read [file: path]: nothing -> list<string> {
@@ -78,8 +83,10 @@ def modules-scan [repo: path, markers: list<path>]: nothing -> table {
 
 export def modules-discover [repo: path, groups: list<string>]: nothing -> table {
     let configs = $repo | path join configs
-    let markers = glob $"($configs)/*/**/($MARKER)" | append ($ROOT_MODULES | each {|r| glob $"($repo)/($r)/($MARKER)" } | flatten)
-    let inputs = $markers | append (glob $"($configs)/**/dependencies.txt") | append $SELF
+    let markers = glob $"($configs)/*/**/($MARKER)" --exclude [$"($SECRETS_GROUP)/($SECRETS_KEYS)/**"]
+        | append ($ROOT_MODULES | each {|r| glob $"($repo)/($r)/($MARKER)" } | flatten)
+    let inputs = $markers | append (glob $"($configs)/**/dependencies.txt" --exclude [$"($SECRETS_GROUP)/($SECRETS_KEYS)/**"])
+        | append $SELF
     let key = ls --full-paths ...$inputs | select name size modified | to nuon | hash sha256
     # the caller's own cache, never root's: a user plans the system layer too
     let cache = if (is-admin) { $SYSTEM_STATE | path join discover.nuon } else { $env.XDG_CACHE_HOME? | default ($nu.home-dir | path join .cache) | path join dotfiles discover.nuon }
@@ -92,14 +99,19 @@ export def modules-discover [repo: path, groups: list<string>]: nothing -> table
         }
         $scanned
     }
-    $found | insert selected {|m| $m.group == "" or $m.group in $groups or $m.id in $groups }
+    $found | insert selected {|m| $m.group in ["" $SECRETS_GROUP] or $m.group in $groups or $m.id in $groups }
 }
 
 # byte-wise id order breaks ties, so an undeclared order is the sorted one
 export def modules-graph [repo: path, modules: table]: nothing -> table {
     let ids = $modules.id
-    let group_deps = $modules.group | uniq | where $it != "" | each {|g|
-        {group: $g, deps: (names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] }))}
+    let groups = $modules.group | uniq | where $it != ""
+    # the personal layer goes last, after every group it could build on
+    let group_deps = $groups | each {|g|
+        let deps = if $g == $SECRETS_GROUP { $groups | where $it != $g } else {
+            names-read ($repo | path join configs $g dependencies.txt) | append (if $g == "base" { [] } else { [base] })
+        }
+        {group: $g, deps: $deps}
     }
     let with_preds = $modules | each {|m|
         let by_group = if $m.group == "" {
@@ -110,25 +122,38 @@ export def modules-graph [repo: path, modules: table]: nothing -> table {
         }
         $m | insert after ($by_group | append $m.meta.deps | where $it in $ids and $it != $m.id | uniq)
     }
+    # kahn over a waiting count per module: rescanning every module's after list per pick cost seconds at 137 modules
+    let sorted = $with_preds | sort-by id
+    let position = $sorted | enumerate | reduce --fold {} {|r, acc| $acc | insert $r.item.id $r.index }
+    let dependents = $sorted | each {|m| $m.after | each {|a| {after: $a, id: $m.id} } } | flatten | group-by after
+    mut waiting = $sorted | reduce --fold {} {|m, acc| $acc | insert $m.id ($m.after | length) }
+    mut ready = $sorted | where ($it.after | is-empty) | get id
     mut done = {}
     mut order = []
-    mut left = $with_preds | sort-by id
-    while ($left | is-not-empty) {
+    while ($ready | is-not-empty) {
+        let id = $ready | first
+        $ready = $ready | skip 1
+        let next = $sorted | get ($position | get $id)
         let finished = $done
-        let ready = $left | where {|m| $m.after | all {|a| $a in $finished } }
-        if ($ready | is-empty) {
-            error make {msg: $"dependency cycle among ($left.id | str join ' ')"}
-        }
-        let next = $ready | first
         let level = $next.after | each {|a| $finished | get $a } | append (-1) | math max | $in + 1
-        $done = $done | insert $next.id $level
+        $done = $done | insert $id $level
         $order = $order | append ($next | insert level $level)
-        $left = $left | where id != $next.id
+        mut freed = []
+        for d in ($dependents | get --optional $id | default [] | get --optional id | default []) {
+            let count = ($waiting | get $d) - 1
+            $waiting = $waiting | upsert $d $count
+            if $count == 0 { $freed = $freed | append $d }
+        }
+        if ($freed | is-not-empty) { $ready = $ready | append $freed | sort }
+    }
+    if ($order | length) != ($sorted | length) {
+        let finished = $done
+        error make {msg: $"dependency cycle among ($sorted | where id not-in ($finished | columns) | get id | str join ' ')"}
     }
     $order
 }
 
-# --private: umask 077, for a backup writing into secrets/
+# --private: umask 077, for a backup writing into configs/secrets/
 export def modules-eval [modules: table, verb: string, cfgs: record, args: list, --private]: nothing -> table {
     if ($modules | is-empty) { return [] }
     let calls = $modules | enumerate | each {|m|

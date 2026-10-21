@@ -7,7 +7,6 @@ manager, terminals, browsers, document and media viewers and their theming.
 
 - `applications`: launcher entries for apps and TUIs that ship none (TUIs via `Terminal=true` and xdg-terminal-exec).
 - `bookokrat`: a book reader; this module seeds its state file.
-- `capgemini`: a work app launcher entry with an absolute Exec path.
 - `chromium`: Chromium with the oomox/wal gtk theme seeded for new profiles.
 - `color-grading`: wlr-gamma-control night/color grading over the hyprland protocol.
 - `feather`: Monero wallet; wallets live in the syncthing folder, `.keys` stay password-encrypted.

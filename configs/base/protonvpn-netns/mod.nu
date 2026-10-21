@@ -45,7 +45,7 @@ export def tunnel []: nothing -> nothing {
     let text = open --raw (secret)
     if not ($text =~ '(?m)^\[Interface\]') or ($text =~ $HOOKS) or not ($text | lines | any { $in =~ $PRIVATE_KEY }) {
         let why = "is no wireguard config with a real PrivateKey (hooks are refused)"
-        error make {msg: $"protonvpn-netns: secrets/protonvpn-netns.conf ($why)"}
+        error make {msg: $"protonvpn-netns: configs/secrets/keys/protonvpn-netns.conf ($why)"}
     }
     let dns = $text | lines | parse --regex '^\s*DNS\s*=\s*(?<v>.*)$' | get --optional 0.v | default ""
         | split row "," | str trim | where { $in != "" and not ($in | str contains ":") } | get --optional 0

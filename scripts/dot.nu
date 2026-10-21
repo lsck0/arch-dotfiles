@@ -214,7 +214,7 @@ def "main plan" [
     --json     # --order or --modules as json
 ]: nothing -> any {
     if $order or $modules {
-        return (guarded plan {
+        return (guarded plan --read-only {
             let layer = if $system { "system" } else { "user" }
             let ctx = pipeline-load $REPO $layer
             let rows = if $order {
@@ -229,7 +229,7 @@ def "main plan" [
             if $json { $rows | to json } else { $rows }
         })
     }
-    guarded plan {
+    guarded plan --read-only {
         if $system {
             let ctx = pipeline-load $REPO system
             plan-print (pipeline-plan $ctx system $mods $force) system $ctx.modules $mods
@@ -667,8 +667,9 @@ def "main set" [
 ]: nothing -> any {
     if $no_system { $env.DOT_SYSTEM = "skip" }
     # only a write: listing and --json stay free while an apply runs
-    if $target != null and ($default or ($value | is-not-empty)) { user-locked }
-    guarded set {
+    let write = $target != null and ($default or ($value | is-not-empty))
+    if $write { user-locked }
+    guarded set --read-only=(not $write) {
         # a rest, so a given null (reset, as the settings window sends it) differs from none
         if ($value | length) > 1 { error make {msg: "dot set <module>.<option> <value>: one value, quote a list"} }
         let given = $value | is-not-empty
@@ -698,6 +699,7 @@ def "main set" [
 
 # every recorded output that no longer holds; pending: the next apply puts it back without being told to
 def managed-drift []: nothing -> table {
+    let written = recorded-hashes
     glob (state-dir | path join modules **/*.nuon) | each {|f|
         let id = $f | path dirname | path relative-to (state-dir | path join modules)
         let outs = open $f | get outputs
@@ -705,7 +707,7 @@ def managed-drift []: nothing -> table {
         $outs | each {|o|
             let obs = $seen.paths | get --optional $o.target
             let state = match $o.kind {
-                "file" => (output-file-state $o $obs $REPO)
+                "file" => (output-file-state $o $obs $REPO ($written | get --optional $o.target))
                 "link" => (if $obs.link? != $o.source { "relinked" } else { null })
                 "unit" => {
                     let now = $seen.units | get --optional $o.target
@@ -783,13 +785,13 @@ def "main rollback" [target?: string, --snapshot, --full, --dry-run]: nothing ->
 }
 
 def status-head []: nothing -> record {
-    # this status run has its own file already; the interesting one is the last real run before it
-    let last = ls (runs-dir) | where name ends-with ".jsonl" and name !~ $env.DOT_RUN_ID | sort-by name | last
-    let records = if $last == null { [] } else { open --raw $last.name | lines | each { from json } }
+    # this status run is read-only, so the last that could change something is the one before it
+    let last = run-last-changed
+    let records = if $last == null { [] } else { open --raw $last | lines | each { from json } }
     {
         generation: (^git -C $REPO log -1 --format=%s | str trim)
         build: (build)
-        last_run: (if $last == null { "none" } else { $last.name | path basename | str replace ".jsonl" "" })
+        last_run: (if $last == null { "none" } else { $last | path basename | str replace ".jsonl" "" })
         errors: ($records | where level in [ERROR PANIC] | length)
         migrations_pending: (migrations-pending $REPO user | get id)
         system_pending: (try { open --raw (pending-file) | lines | uniq } catch { [] })
@@ -802,7 +804,7 @@ def "main status" [
     --brief  # only the failed checks as "<check>: <text>"
     --json   # everything as one record, managed drift and checks included
 ]: nothing -> nothing {
-    guarded status {
+    guarded status --read-only {
         if $brief {
             if (doctor-run --brief) { exit 1 }
             return
@@ -831,7 +833,8 @@ def "main status" [
 # a run's records (default the last) by module and level; --trace the span tree with timings
 def "main log" [run?: string@run-ids, --module: string@module-ids, --level: string@[TRACE DEBUG INFO WARN ERROR PANIC] = "INFO", --trace]: nothing -> any {
     if ($level | str uppercase) not-in $LOG_LEVELS { die --misuse $"log: --level ($level), one of ($LOG_LEVELS | str join ' ')" }
-    let file = if $run == null { glob (runs-dir | path join "*.jsonl") | sort | last } else { runs-dir | path join $"($run).jsonl" }
+    # the last run that could change something: a status or plan since says nothing
+    let file = if $run == null { run-last-changed } else { runs-dir | path join $"($run).jsonl" }
     if $file == null or not ($file | path exists) { error make --unspanned {msg: "dot log: no such run"} }
     let records = open --raw $file | lines | each { from json }
     if $trace {
@@ -852,16 +855,22 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
 }
 
 # which module and run wrote a path, or which module declares a package
-def "main explain" [thing: string]: nothing -> any {
-    guarded explain {
+def "main explain" [thing: string]: nothing -> nothing {
+    guarded explain --read-only {
         let target = if ($thing | str contains "/") { $thing | path expand } else { $thing }
         let owners = glob (state-dir | path join modules **/*.nuon) | each {|f|
             let st = open $f
             $st.outputs | where target == $target | each { {module: ($f | path dirname | path relative-to (state-dir | path join modules)), verb: ($f | path parse | get stem), output: $in, run: $st.run, time: $st.time} }
         } | flatten
-        let ctx = pipeline-load $REPO user
-        let declares = $ctx.modules | where {|m| $thing in $m.meta.packages.pacman } | get id
-        {owners: $owners, packages_declared_by: $declares}
+        let declares = if $target != $thing { [] } else {
+            pipeline-load $REPO user | get modules | where {|m|
+                let p = $m.meta.packages
+                $thing in ($p.pacman ++ $p.native ++ $p.nix ++ ($p.flatpak | columns))
+            } | get id
+        }
+        if ($owners | is-empty) and ($declares | is-empty) { error make {msg: $"nothing owns ($thing)"} }
+        $owners | each {|o| print $"($o.module) ($o.verb): ($o.output.kind) ($o.output.target)(if $o.output.source? != null { $' from ($o.output.source)' } else { '' }), run ($o.run) at ($o.time)" } | ignore
+        $declares | each { print $"($in) declares the package ($thing)" } | ignore
     }
 }
 
@@ -923,12 +932,12 @@ def "main secrets" []: nothing -> nothing { help main secrets }
 def "main secrets init" [...steps: string]: nothing -> nothing { guarded secrets { yubikey-init ...$steps } }
 # re-seal the git-crypt key to every enrolled key's recipient
 def "main secrets seal" []: nothing -> nothing { guarded secrets { yubikey-seal } }
-# pull and unlock secrets/ with a touch of the yubikey, or --identity <age file> without one
+# pull and unlock configs/secrets/ with a touch of the yubikey, or --identity <age file> without one
 def "main secrets unlock" [--identity: path]: nothing -> nothing { guarded secrets { yubikey-unlock --identity=$identity } }
-# lock secrets/ again
+# lock configs/secrets/ again
 def "main secrets lock" []: nothing -> nothing { guarded secrets { yubikey-lock } }
 # what is due for rotation or a recovery drill
-def "main secrets audit" [--brief]: nothing -> nothing { guarded audit { audit-run --brief=$brief } }
+def "main secrets audit" [--brief]: nothing -> nothing { guarded audit --read-only { audit-run --brief=$brief } }
 # record <paths> as rotated today
 def "main secrets audit rotated" [...paths: path]: nothing -> nothing { guarded audit { audit-rotated ...$paths } }
 # record the recovery drill as done today

@@ -1,9 +1,10 @@
 use secrets.nu [secret-is-plaintext secrets-wanted]
 
-const SECRETS = path self ../../secrets
+const SECRETS = path self ../../configs/secrets/keys
 const KEY_DIR = path self ../../configs/base/yubikey
-const ROTATION = path self ../../secrets/rotation.txt
-const WITNESS = path self ../../secrets/pgp_privatekey.asc
+const OWNER_DIR = path self ../../configs/secrets/yubikey
+const ROTATION = path self ../../configs/secrets/keys/rotation.txt
+const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const DRILL = "recovery-drill"
 const REMIND_STATE = "secrets-audit/reminded"
 const REMIND_EVERY = 28day
@@ -17,7 +18,7 @@ const CLASSES = [
     [borg-passphrase password] [samba-homelab password] [wifi password] [pgp_privatekey.asc identity]
     [vorrh.private-key.asc identity] [age.txt identity] [age-recovery-key.txt identity] ["syncthing/*/key.pem" identity]
     ["*.pub*" -] ["*_publickey.asc" -] ["*.public-key.asc" -] ["syncthing/*" -] ["initramfs-ssh/*" -] ["borg-key-*" -]
-    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [repositories -] [.gitattributes -] [".git-crypt/*" -]
+    ["luks-header-*" -] [rotation.txt -] [home-gateways -] [repositories -] [diablo2/cd-keys -] [firefox/noscript.json -]
     ["drift/*" -]
     ["claude/*" -] ["caido/*" -] ["dalamud/*" -] ["ffxiv/*" -] ["modrinth/*" -] ["obs-*.json" -] ["wallpapers/*" -]
     ["todeletewallpapers/*" -]
@@ -38,11 +39,12 @@ def rotation-recorded [path: string]: nothing -> string {
     | get --optional date | last | default ""
 }
 
-# the file's own time last: not committed yet, sync commits it
+# the file's own time last: not committed yet, sync commits it. A pure rename (the move into keys/) is no rotation,
+# so --follow past it to the last add or change
 def rotation-date [path: string]: nothing -> string {
     let recorded = rotation-recorded $path
     if $recorded != "" { return $recorded }
-    let committed = ^git -C $SECRETS log -1 --format=%cs -- $path | str trim
+    let committed = ^git -C $SECRETS log -1 --follow --diff-filter=AM --format=%cs -- $path | str trim
     if $committed != "" { return $committed }
     ls ($SECRETS | path join $path) | get 0.modified | format date "%F"
 }
@@ -57,23 +59,23 @@ def credentials []: nothing -> list<record> {
         let class = secret-class $path
         if $class == "-" { return null }
         if $class == "" {
-            return (finding note $"secrets/($path) has no class, add it to CLASSES in scripts/lib/audit.nu")
+            return (finding note $"configs/secrets/keys/($path) has no class, add it to CLASSES in scripts/lib/audit.nu")
         }
         let day = rotation-date $path
         let limit = $MAX_DAYS | get $class
         let age = days-since $day
         if $age > $limit {
             let why = $"last rotated ($day), ($age) days ago, limit ($limit)"
-            finding fail $"secrets/($path) \(($class)\) ($why); rotate it, then dot secrets audit rotated ($path)"
+            finding fail $"configs/secrets/keys/($path) \(($class)\) ($why); rotate it, then dot secrets audit rotated ($path)"
         } else {
-            finding ok $"secrets/($path) \(($class)\) ($day), ($age) of ($limit) days"
+            finding ok $"configs/secrets/keys/($path) \(($class)\) ($day), ($age) of ($limit) days"
         }
     } | compact
 }
 
 def recovery []: nothing -> list<record> {
     let host = sys host | get hostname
-    let file = $KEY_DIR | path join recipients.txt
+    let file = $OWNER_DIR | path join recipients.txt
     let recipients = if ($file | path exists) {
         open --raw $file | lines | where ($it | str starts-with age1) | length
     } else { 0 }
@@ -87,17 +89,17 @@ def recovery []: nothing -> list<record> {
     let drilled = rotation-recorded $DRILL
     [
         (if $recipients == 0 {
-            let file = "configs/base/yubikey/recipients.txt"
-            finding fail $"($file) holds no paper age recipient, losing every yubikey loses secrets/"
+            let file = "configs/secrets/yubikey/recipients.txt"
+            finding fail $"($file) holds no paper age recipient, losing every yubikey loses configs/secrets/"
         } else if $stanzas < $recipients {
             let sealed = $"sealed to ($stanzas) of ($recipients) recipients.txt keys"
             finding fail $"secrets.key.age is ($sealed), reseal: dot secrets seal"
         })
         (if $borg and (glob ($SECRETS | path join $"borg-key-($host)-*") | is-empty) {
-            finding fail $"no secrets/borg-key-($host)-*, the next borg-backup run exports it"
+            finding fail $"no configs/secrets/keys/borg-key-($host)-*, the next borg-backup run exports it"
         })
         (if $luks and not ($SECRETS | path join $"luks-header-($host).img" | path exists) {
-            finding fail $"no secrets/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
+            finding fail $"no configs/secrets/keys/luks-header-($host).img, run configs/base/boot/luks/header-backup.nu"
         })
         (if $drilled == "" {
             finding note 'recovery drill never recorded: RECOVERY.md "Test it", then dot secrets audit drilled'
@@ -113,7 +115,7 @@ def recovery []: nothing -> list<record> {
 export def audit-findings []: nothing -> list<record<level: string, text: string>> {
     if not (secrets-wanted) { return [(finding note "this profile has no secrets capability, nothing audited")] }
     if not (secret-is-plaintext $WITNESS) {
-        return [(finding note "secrets/ is locked, nothing audited: dot secrets unlock")]
+        return [(finding note "configs/secrets/ is locked, nothing audited: dot secrets unlock")]
     }
     (credentials) ++ (recovery)
 }
@@ -129,16 +131,16 @@ export def audit-run [--brief]: nothing -> nothing {
 
 export def audit-rotated [...paths: string]: nothing -> nothing {
     if not (secret-is-plaintext $WITNESS) { error make {msg: "secrets is locked, unlock it first"} }
-    if ($paths | is-empty) { error make {msg: "rotated <path under secrets/...>"} }
+    if ($paths | is-empty) { error make {msg: "rotated <path under configs/secrets/keys/...>"} }
     let missing = $paths | where {|p| $p != $DRILL and not ($SECRETS | path join $p | path exists) }
-    if ($missing | is-not-empty) { error make {msg: $"no secrets/($missing.0)"} }
+    if ($missing | is-not-empty) { error make {msg: $"no configs/secrets/keys/($missing.0)"} }
     let today = date now | format date "%F"
     let kept = if ($ROTATION | path exists) {
         open --raw $ROTATION | lines | where ($it | split row " " | first) not-in $paths
     } else { [] }
     $kept ++ ($paths | each { $"($in) ($today)" }) | sort | str join "\n" | $"($in)\n" | save --force $"($ROTATION).new"
     mv --force $"($ROTATION).new" $ROTATION
-    print $"audit: recorded ($paths | str join ' ') on ($today) in secrets/rotation.txt, dot sync commits it"
+    print $"audit: recorded ($paths | str join ' ') on ($today) in configs/secrets/keys/rotation.txt, dot sync commits it"
 }
 
 export def audit-drilled []: nothing -> nothing { audit-rotated $DRILL }

@@ -12,6 +12,10 @@ priority=1 @{bin}/gpg{,2} rCx -> gpg,
 priority=1 @{bin}/gpgconf rCx -> gpg,
 priority=1 @{bin}/gpgsm   rCx -> gpg,
 
+# the jvm and soffice probe hugepage sizes and the cgroup's memory.low for heap sizing; the defaults do, quietly
+deny @{sys}/kernel/mm/hugepages/hugepages-*/nr_hugepages r,
+deny @{sys}/fs/cgroup/user.slice/user-@{uid}.slice/user@@{uid}.service/**/memory.low r,
+
 profile gpg flags=(attach_disconnected) {
   include <abstractions/dotfiles/gpg-client>
 }

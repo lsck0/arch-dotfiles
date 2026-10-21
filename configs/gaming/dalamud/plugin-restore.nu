@@ -22,7 +22,7 @@ def main [manifest: path, plugins: path]: nothing -> nothing {
     }
     let entry = open $cache | where InternalName == $name | get --optional 0
     if $entry == null {
-        print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from secrets/dalamud/manifests"
+        print $"note: dalamud: ($name) is gone from ($url), skipped; drop its manifest from configs/secrets/keys/dalamud/manifests"
         touch ($cache | path dirname | path join $"($name).delisted")
         return
     }

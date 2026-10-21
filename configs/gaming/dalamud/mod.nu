@@ -6,7 +6,7 @@ const BACKUP_EXCLUDES = [vnavmesh/meshcache/ BossMod/replays/ Questionable/PathD
 
 def paths []: nothing -> record {
     let xl = $nu.home-dir | path join .xlcore
-    let shared = $env.DOTFILES | path join secrets dalamud
+    let shared = $env.DOTFILES | path join configs secrets keys dalamud
     # the plugin set (manifests) is shared; the config, UI and plugin configs are this machine's, a new one seeds from
     # the shared copy
     {

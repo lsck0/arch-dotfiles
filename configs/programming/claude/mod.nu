@@ -24,7 +24,7 @@ def home [...parts: string]: nothing -> path {
 
 # credentials, so this machine's own: no seed, a new machine logs in itself
 def backup-dir []: nothing -> path {
-    host-file ($env.DOTFILES | path join secrets claude)
+    host-file ($env.DOTFILES | path join configs secrets keys claude)
 }
 
 # a granted permission prompt resumes the turn without a new prompt, so every tool call re-arms the guard
@@ -52,7 +52,7 @@ export def link [cfg: record] {
     let settings = home .claude settings.json
     let current = if ($settings | path exists) { open $settings | get --optional hooks | default {} } else { {} }
     let creds = home .claude .credentials.json
-    let token = $env.DOTFILES | path join secrets claude-oauth-token
+    let token = $env.DOTFILES | path join configs secrets keys claude-oauth-token
     # remote control needs feature flags, which the session-wide DO_NOT_TRACK switches off
     [
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
@@ -92,7 +92,7 @@ export def backup [cfg: record]: nothing -> nothing {
     if not ($creds | path exists) {
         error make {msg: $"no ($creds), run claude and log in first"}
     }
-    if not (secret-is-plaintext ($env.DOTFILES | path join secrets pgp_privatekey.asc)) {
+    if not (secret-is-plaintext ($env.DOTFILES | path join configs secrets keys pgp_privatekey.asc)) {
         error make {msg: "secrets is locked, unlock it first"}
     }
     mkdir (backup-dir)

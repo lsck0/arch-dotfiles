@@ -3,26 +3,38 @@
 use pipeline.nu [pipeline-load]
 use modules.nu [modules-packages]
 use platform.nu [platform-groups-all]
-use ledger.nu [ledger-get]
+use ledger.nu [ledger-get PACKAGES_DENY]
 use secrets.nu [secret-is-plaintext secrets-wanted]
 use state.nu [SYSTEM_STATE]
 
 const REPO = path self ../..
-const REPORTS = path self ../../secrets/drift
-const WITNESS = path self ../../secrets/pgp_privatekey.asc
+const REPORTS = path self ../../configs/secrets/keys/drift
+const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const SHOWN_MAX = 12
 
 def ledger [layer: string, kind: string]: nothing -> list<string> {
     with-env {DOT_LAYER: $layer} { ledger-get $kind }
 }
 
+# the units named by Also= in these, and in theirs: libvirtd's pulls virtlogd's, which pulls virtlogd-admin.socket
+def also-closure [scope: string, units: list<string>]: nothing -> list<string> {
+    mut seen = []
+    mut next = $units
+    while ($next | is-not-empty) {
+        let batch = $next
+        let found = do { ^systemctl $"--($scope)" cat ...$batch } | complete | get stdout | lines
+            | parse "Also={units}" | get units | each { split row " " } | flatten | where $it != "" | uniq
+        let known = $seen ++ $batch
+        $seen = $known
+        $next = $found | where $it not-in $known
+    }
+    $seen | where $it not-in $units
+}
+
 # a unit pulled in by an owned unit's Also= is not by hand; the ledger's unit report follows the same rule
 def units-by-hand [scope: string, layer: string]: nothing -> list<string> {
     let owned = ledger $layer unit | parse "{scope} {name}" | where scope == $scope | get name
-    let also = if ($owned | is-empty) { [] } else {
-        do { ^systemctl $"--($scope)" cat ...$owned } | complete | get stdout | lines
-        | parse "Also={units}" | get units | each { split row " " } | flatten
-    }
+    let also = also-closure $scope $owned
     ^systemctl $"--($scope)" list-unit-files --state=enabled --no-legend | lines
     | parse --regex '^(?<name>\S+)\s+\S+\s+(?<preset>\S+)' | where preset != enabled and name not-in $also
     | get name | where $it not-in $owned | sort
@@ -49,7 +61,7 @@ export def drift-report []: nothing -> string {
         $"groups ($ctx.platform.groups | str join ' ')"
         ...(ledger system snapshot | each { $"snapshot ($in)" })
         ...(packages-missing $declared | each { $"missing ($in)" })
-        ...(^pacman -Qqe | lines | where $it not-in $pkgs | sort | each { $"hand ($in)" })
+        ...(^pacman -Qqe | lines | where $it not-in $pkgs and not ($it =~ $PACKAGES_DENY) | sort | each { $"hand ($in)" })
         ...(units-by-hand system system | each { $"unit-hand system ($in)" })
         ...(units-by-hand user user | each { $"unit-hand user ($in)" })
         ...($pkgs | each { $"pkg ($in)" })
@@ -67,6 +79,7 @@ export def drift-publish []: nothing -> nothing {
     if ($dest | path exists) and (open --raw $dest) == $report { return }
     mkdir $REPORTS
     $report | save --force $"($dest).new"
+    ^chmod 600 $"($dest).new"
     mv --force $"($dest).new" $dest
     print $"drift: published ($dest), dot sync commits it"
 }
@@ -89,14 +102,14 @@ def snapshot-of [report: path]: nothing -> string {
 }
 
 export def drift-view []: nothing -> nothing {
-    if not (secret-is-plaintext $WITNESS) { error make {msg: "drift: secrets/ is locked: dot secrets unlock"} }
+    if not (secret-is-plaintext $WITNESS) { error make {msg: "drift: configs/secrets/ is locked: dot secrets unlock"} }
     let reports = glob ($REPORTS | path join "*") --no-dir | where not ($it | str ends-with ".new") | sort
     if ($reports | is-empty) {
-        error make {msg: "drift: nothing published in secrets/drift yet: dot internal drift publish on each machine, dot sync"}
+        error make {msg: "drift: nothing published in configs/secrets/keys/drift yet: dot internal drift publish on each machine, dot sync"}
     }
     for report in $reports {
         let host = $report | path basename
-        let age = ^git -C ($REPORTS | path dirname) log -1 --format=%cs -- $"drift/($host)" | str trim
+        let age = ^git -C ($REPORTS | path dirname) log -1 --follow --diff-filter=AM --format=%cs -- $"drift/($host)" | str trim
             | if $in == "" { ls $report | get 0.modified | format date "%F" } else { $in }
         print $"($host) \(report of ($age)\)"
         let platform = $REPO | path join platforms $"($host).nuon"

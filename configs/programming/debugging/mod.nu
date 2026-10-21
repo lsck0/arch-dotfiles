@@ -1,3 +1,5 @@
+use module.nu *
+
 export const meta = {
     packages: {
         pacman: [
@@ -5,4 +7,10 @@ export const meta = {
             py-spy raddebugger reptyr rr samply speedscope strace strace-tui tracy valgrind
         ]
     }
+}
+
+# tracy asks on its first start whether to turn on achievements, its tutorial
+export def link [cfg: record] {
+    if (which tracy-profiler | is-empty) { return [] }
+    ini-merge ($nu.home-dir | path join .config tracy tracy.ini) {achievements: {enabled: 0, asked: 1}} --missing-only
 }

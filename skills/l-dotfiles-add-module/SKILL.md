@@ -8,6 +8,13 @@ description: Creating a configs/<group>/<module>/mod.nu (meta with deps and pack
 A module is one folder, `configs/<group>/<module>/`, with a `mod.nu`. Nothing central changes: `dot` discovers the
 folder, its verbs (the commands it exports), its options and its packages.
 
+A module only the owner wants (an employer's setup, their bookmarks, their own keys' wiring) goes in the private
+submodule instead: `configs/secrets/<module>/mod.nu`, id `secrets/<module>`, group `secrets`. Same contract; it runs
+after every other group, on every machine that pulled the submodule (gate it with `profile-has` or a platform fact
+inside), its code is plaintext (only `configs/secrets/keys/` is git-crypt), and its packages stay out of
+`mirror/packages.txt`, so one it needs from the mirror goes in the platform's `extra_packages`. `dot test lint`
+checks its layer rules like any other.
+
 ## The contract
 
 ```nu
@@ -17,7 +24,7 @@ export const meta = {
     deps: [core/gh]                                   # modules that apply first, any group
     packages: {pacman: [btop], native: [], flatpak: {}, nix: []}
     serial: false                                     # true: runs alone (rustup, a package manager)
-    inputs: [secrets/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
+    inputs: [configs/secrets/keys/repositories /usr/bin/cargo-kani] # more input-hash files: relative is the repo's, ~ and / as is
     volatile: false                                   # true: always evaluated (reads machine state)
 }
 
@@ -97,7 +104,7 @@ export def packages [cfg: record]: nothing -> record {
   back into the module) or `dot apply --force <group>/<module>` (preserves it aside).
 - A one-time move (an old path, a renamed state dir) is a `migrations/<NNNN>-<slug>.nu` with `up` (and `down`).
 - A program that rewrites its own config over the copy (OBS, apps that save on exit) needs a `backup` verb that
-  carries the live file back into the repo or `secrets/`; `dot sync` runs it. State that differs per machine
+  carries the live file back into the repo or `configs/secrets/`; `dot sync` runs it. State that differs per machine
   (resolution, devices, layout, logins) goes to `host-file <dir> <file>` (`<dir>/<host>/<file>`), so machines never
   overwrite each other's; the restore reads `host-seed <dir> <file>` (this machine's copy, else the shared seed
   `<dir>/<file>`), a credential only `host-file` (no seed: a new machine logs in itself). Theme output is no state:

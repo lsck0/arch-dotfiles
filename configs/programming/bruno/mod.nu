@@ -13,9 +13,17 @@ export def link [cfg: record] {
     } else {
         json-set [preferences telemetry] {enabled: false}
     }
+    # the first launch imports a sample collection into ~/documents/bruno, a later one without a seen version opens
+    # the changelog; the version is seeded once, so an upgrade still shows what changed
+    let installed = ^pacman -Q bruno-bin | complete | get stdout | parse --regex ' (?<v>\d+\.\d+\.\d+)' | get --optional 0.v
+    let seen = if $installed == null or $current.preferences?.onboarding?.lastSeenVersion? != null { [] } else {
+        [(json-set [preferences onboarding lastSeenVersion] $installed)]
+    }
     json-merge $file ([
         (json-delete [preferences theme])
         (json-set [preferences font codeFont] "Kode Mono")
         $telemetry
-    ] ++ (if $current.version? == null { [(json-set [version] "1")] } else { [] }))
+        (json-set [preferences onboarding hasLaunchedBefore] true)
+        (json-set [preferences onboarding hasSeenWelcomeModal] true)
+    ] ++ $seen ++ (if $current.version? == null { [(json-set [version] "1")] } else { [] }))
 }

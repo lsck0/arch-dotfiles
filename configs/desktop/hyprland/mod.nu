@@ -153,7 +153,7 @@ def main-pick [monitors: list<record>]: nothing -> any {
     let internal = $monitors | where output =~ $INTERNAL_PANEL
     if ($internal | is-not-empty) { return $internal.0.output }
     let sized = $monitors | each {|m|
-        let size = $m.mode | parse --regex '(?<w>\d+)x(?<h>\d+)' | into int w h | first
+        let size = $m.mode | parse --regex '(?<w>\d+)x(?<h>\d+)' | into int w h | get --optional 0 | default {w: 0, h: 0}
         {output: $m.output, area: ($size.w * $size.h)}
     }
     if ($sized | is-empty) { return null }
@@ -179,18 +179,6 @@ def keyboard-detect []: nothing -> record {
     | where value != null | reduce --fold {} {|f, acc| $acc | insert $f.key $f.value }
 }
 
-export def detect [cfg: record]: nothing -> record {
-    let monitors = monitors-detect
-    let main = main-pick $monitors
-    let scale = $monitors | where output == $main | get --optional 0.scale
-    {
-        monitors: $monitors
-        main_monitor: $main
-        workspaces: (workspaces-split ($monitors | each { $in.output }) $main)
-        xwayland_scale: (if $scale == null { display-xwayland-scale $env.FORM_FACTOR } else { [1 ($scale | math round | into int)] | math max })
-    } | merge (keyboard-detect)
-}
-
 def lua-from [value: any]: nothing -> string {
     match ($value | describe | split row "<" | first) {
         "nothing" => "nil"
@@ -201,15 +189,34 @@ def lua-from [value: any]: nothing -> string {
     }
 }
 
+def xwayland-scale [scale: any]: nothing -> int {
+    if $scale == null { display-xwayland-scale $env.FORM_FACTOR } else { [1 ($scale | math round | into int)] | math max }
+}
+
+export def detect [cfg: record]: nothing -> record {
+    let monitors = monitors-detect
+    let main = main-pick $monitors
+    {
+        monitors: $monitors
+        main_monitor: $main
+        workspaces: (workspaces-split ($monitors | each { $in.output }) $main)
+        xwayland_scale: (xwayland-scale ($monitors | where output == $main | get --optional 0.scale))
+    } | merge (keyboard-detect)
+}
+
+# outside hyprland (a timer, a shell without its signature) detect sees no output: the same picks over the platform's
+# monitors keep platform.lua from flipping, and every apply from reloading hyprland over it
 def platform-lua [cfg: record]: nothing -> string {
     let backlight = glob /sys/class/leds/*kbd_backlight* | get --optional 0 | if $in == null { null } else { $in | path basename }
+    let monitors = $cfg.monitors | default []
+    let main = $cfg.main_monitor | default (main-pick $monitors)
     let facts = {
         form_factor: $env.FORM_FACTOR
         laptop: ($env.FORM_FACTOR == laptop)
-        xwayland_scale: ($cfg.xwayland_scale | default (display-xwayland-scale $env.FORM_FACTOR) | into string)
-        main_monitor: $cfg.main_monitor
-        monitors: ($cfg.monitors | default [])
-        workspaces: ($cfg.workspaces | default {})
+        xwayland_scale: ($cfg.xwayland_scale | default (xwayland-scale ($monitors | where output == $main | get --optional 0.scale)) | into string)
+        main_monitor: $main
+        monitors: $monitors
+        workspaces: ($cfg.workspaces | default (workspaces-split ($monitors | each { $in.output }) $main))
         app_workspaces: $cfg.app_workspaces
         keyboard: {layout: ($cfg.kb_layout | default us), variant: ($cfg.kb_variant | default ""), options: ($cfg.kb_options | default "")}
         pointer: {sensitivity: $cfg.pointer_sensitivity, natural_scroll: $cfg.natural_scroll}

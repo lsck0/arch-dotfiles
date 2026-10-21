@@ -17,8 +17,11 @@ export def link [cfg: record] {
     let work = if (profile-has work) {
         profile-style ($env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join capgemini chromium)
     } else { [] }
-    profile-style ($env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join chromium)
+    let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
+    profile-style ($config | path join chromium)
     | append $work
+    # a new profile opens on an "additional terms of service" dialog no policy turns off; arch's launcher reads this
+    | append (file-text ($config | path join chromium-flags.conf) "--no-first-run\n")
     | append (desktop-override chromium.desktop { str replace --all --regex '(?m)^Exec=chromium' 'Exec=chromium --ozone-platform-hint=auto' })
 }
 

@@ -30,7 +30,7 @@ export const options = {
     mic: {
         type: string?
         default: null
-        doc: "The pipewire source node the repo collections' Mic/Aux captures"
+        doc: "The pipewire source node every collection's Mic/Aux captures"
         label: "Microphone"
         scope: machine
     }
@@ -73,6 +73,8 @@ const OBS = ".config/obs-studio"
 const MCP_PREFIX = ".local/share/obs-mcp"
 const WEBSOCKET_PORT = 4455
 const CANVAS_FALLBACK = "1920x1080"
+# an agent's own output for gui checks, no screen anyone records
+const HEADLESS_OUTPUT = '^HEADLESS-'
 # the virtual camera sends the output raw (YUYV): 4k at 30 fps is ~500 MB/s that discord and browsers scale per frame
 const VIRTUALCAM_HEIGHT = 720
 # twitch ingests at most 1080p60 (6000 kbps): the stream encoder scales down, the canvas and recording keep full size
@@ -80,9 +82,11 @@ const STREAM_HEIGHT = 1080
 # the scene collection without the portal RestoreToken obs writes per machine, as the backup stores it
 const PORTAL_TOKEN = "RestoreToken"
 const GLOBAL = {General: {AutomaticSearch: "true", SafeMode: "false", ConfirmOnExit: "true"}}
-# since obs 31 the selection lives in user.ini [Basic]; without it obs opens an empty Untitled profile and collection
-const SELECTION = {
+# since obs 31 the selection lives in user.ini [Basic]; without it obs opens an empty Untitled profile and collection.
+# FirstRun is set once the first start is over: unset, obs opens its auto-configuration wizard over the profiles
+const USER = {
     Basic: {Profile: Streaming, ProfileDir: Streaming, SceneCollection: Streaming, SceneCollectionFile: Streaming.json}
+    General: {FirstRun: "true"}
 }
 # obs never shows chromium's local network access prompt, so an https overlay could not reach discord's rpc
 const LAUNCH_FLAGS = "--enable-unsafe-webgpu --enable-features=Vulkan --disable-features=LocalNetworkAccessChecks"
@@ -99,9 +103,22 @@ def --wrapped pactl-read [...args: string]: nothing -> oneof<string, nothing> {
     ^pactl ...$args | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { null }
 }
 
+# the hardware itself, never the default or focused one: those follow the bar's device picker, an agent's headless
+# output or null sink, and each change re-rendered the profiles and collections on the next apply
+def audio-device [kind: string]: nothing -> oneof<string, nothing> {
+    let nodes = pactl-read -f json list $kind
+    if $nodes == null { return null }
+    # an external mic or headset over the built-in one
+    $nodes | from json | where properties."device.class"? == "sound"
+    | sort-by {|n| $n.properties."device.bus"? == "pci" } name | get --optional 0.name
+}
+
 export def detect [cfg: record]: nothing -> record {
     let gpu = gpu-list | get --optional 0
-    let monitor = try { ^hyprctl -j monitors | from json | sort-by focused --reverse | first } catch { null }
+    let monitor = try {
+        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_OUTPUT
+        | sort-by {|m| -1 * $m.width * $m.height } name | first
+    } catch { null }
     let node = $cfg.vaapi_render_node | default $gpu.by_path?
     let nvidia = $gpu.vendor? == "nvidia"
     let vaapi = {|profile| $node != null and not $nvidia and (vaapi-encodes $node $profile) }
@@ -109,10 +126,10 @@ export def detect [cfg: record]: nothing -> record {
     {
         vaapi_render_node: $gpu.by_path?
         canvas: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })
-        mic: (pactl-read get-default-source)
+        mic: (audio-device sources)
         # index0 is a camera's capture node, index1 its metadata; the v4l2loopback virtual camera has no by-id link
         webcam: (glob /dev/v4l/by-id/*-video-index0 | sort | get --optional 0)
-        monitor_device: (pactl-read get-default-sink)
+        monitor_device: (audio-device sinks)
         record_encoder: (if (do $vaapi AV1) { "av1_ffmpeg_vaapi_tex" } else { $h264 })
         stream_encoder: $h264
     }
@@ -185,14 +202,17 @@ def scene-fit [size: record]: record -> record {
     }
 }
 
+def scene-mic [mic: oneof<string, nothing>]: record -> record {
+    if $mic == null or $in.AuxAudioDevice1? == null { return $in }
+    $in | update AuxAudioDevice1.settings.device_id $mic
+}
+
+# the shared Streaming collection gets this machine's mic alone, its layout stays the stream's
 def scene-render [cfg: record, src: path, --machine]: nothing -> string {
-    let scene = open $src
+    let scene = open $src | scene-mic $cfg.mic
     if not $machine { return $"($scene | to json --indent 2)\n" }
     # the profiles' canvas, so the layout fills it
-    let sized = $scene | scene-fit (canvas-size $cfg)
-    let miked = if $cfg.mic == null or $sized.AuxAudioDevice1? == null { $sized } else {
-        $sized | update AuxAudioDevice1.settings.device_id $cfg.mic
-    }
+    let miked = $scene | scene-fit (canvas-size $cfg)
     let cammed = if $cfg.webcam == null { $miked } else {
         $miked | update sources {
             each {|src| if $src.id == "v4l2_input" { $src | upsert settings.device_id $cfg.webcam } else { $src } }
@@ -238,7 +258,7 @@ def scene-own [seed: path]: nothing -> path {
 }
 
 def secret [name: string]: nothing -> path {
-    $env.DOTFILES | path join secrets $name
+    $env.DOTFILES | path join configs secrets keys $name
 }
 
 def obs-running []: nothing -> bool {
@@ -284,7 +304,7 @@ export def link [cfg: record] {
             file-copy $service ($basic | path join profiles Streaming service.json) --mode 600
         } else { [] })
         (ini-merge ($obs | path join global.ini) $GLOBAL)
-        (ini-merge ($obs | path join user.ini) $SELECTION --missing-only)
+        (ini-merge ($obs | path join user.ini) $USER --missing-only)
         (if ($websocket | path exists) { [] } else { step websocket-init $websocket })
         # obs-mcp pinned by the committed lockfile and installed from it offline (npm ci), never npx at start
         (file-copy ($HERE | path join mcp package.json) ($prefix | path join package.json))
@@ -321,8 +341,13 @@ def scene-back [cfg: record, live: path, src: path, dest: path, --machine]: noth
         log-warn $"($src) has edits obs has not loaded, kept it; close obs and dot apply --user creating/obs"
         return
     }
+    let saved = open $live | strip-token
+    # a shared collection keeps its own mic; only one changed in obs since the apply is carried back
+    let saved = if $machine or $saved.AuxAudioDevice1?.settings?.device_id? != $cfg.mic { $saved } else {
+        $saved | scene-mic (open $src | get --optional AuxAudioDevice1.settings.device_id)
+    }
     mkdir ($dest | path dirname)
-    $"(open $live | strip-token | to json --indent 2)\n" | save --force $dest
+    $"($saved | to json --indent 2)\n" | save --force $dest
 }
 
 # placeholder lines stay placeholders, a path under this user's dirs becomes one again (videos first, it is under home)

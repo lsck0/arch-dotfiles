@@ -25,7 +25,7 @@ def lab-json []: nothing -> path {
 }
 
 def token-file []: nothing -> path {
-    $env.NTFY_TOKEN_FILE? | default ($env.DOTFILES? | default $REPO | path join secrets ntfy-desktop-token)
+    $env.NTFY_TOKEN_FILE? | default ($env.DOTFILES? | default $REPO | path join configs secrets keys ntfy-desktop-token)
 }
 
 def state-dir []: nothing -> path {

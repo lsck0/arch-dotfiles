@@ -14,7 +14,8 @@ Extends the root `AGENTS.md`. Content-creation apps, most paired with an agent M
   vaapi node: options detected from the hardware), carried back into the repo by the module's `backup` verb (the portal
   RestoreToken is per machine, never committed; the profiles' `basic.ini` keep `@KEY@` placeholders).
 - `openscad`: OpenSCAD plus openscad-mcp (stdio over the openscad cli).
-- `apps`: the creative apps with no config of their own (packages only).
+- `apps`: the creative apps with no config of their own, packages plus their first-run dialogs answered (kdenlive,
+  famistudio, rawtherapee, lmms).
 
 ## Conventions
 
@@ -23,5 +24,5 @@ Extends the root `AGENTS.md`. Content-creation apps, most paired with an agent M
 - The MCPs are local: stdio over the app's own scripting pipe or a loopback bridge, no public port. The blender-mcp
   relay and obs-mcp are AppArmor-confined (`base/apparmor profiles/{blender-mcp,obs-mcp}`); the blender add-on's
   in-process rce is not confined.
-- App state that is not reproducible config is saved by the module's `backup` verb into `secrets/` or the module and
-  restored by its `link`, not left to the user to set by hand.
+- App state that is not reproducible config is saved by the module's `backup` verb into `configs/secrets/` or the module
+  and restored by its `link`, not left to the user to set by hand.

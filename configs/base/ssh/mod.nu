@@ -74,7 +74,7 @@ export def link [cfg: record] {
 
 # git-crypt checks the secrets key out 0644, which ssh refuses
 export def authorize []: nothing -> nothing {
-    let secrets = $env.DOTFILES | path join secrets
+    let secrets = $env.DOTFILES | path join configs secrets keys
     let key = $secrets | path join ssh_privatekey.asc
     if (secret-is-plaintext $key) { ^chmod 600 $key }
     mkdir (ssh-dir)

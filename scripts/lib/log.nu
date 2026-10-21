@@ -1,7 +1,10 @@
 use state.nu [state-dir SYSTEM_STATE]
 
 const LEVELS = [TRACE DEBUG INFO WARN ERROR PANIC]
+# a read-only run (status, plan, a listing) keeps its own budget: a burst of them never evicts an apply's log
 const RUNS_KEEP = 50
+const RUNS_READ_ONLY_KEEP = 20
+const RUN_READ_ONLY_MARK = '"read_only":true'
 const STREAM_TAIL_LINES = 5
 
 def rank [level: string]: nothing -> int {
@@ -53,13 +56,28 @@ export def fail [message: string]: nothing -> nothing {
     $"($message)\n" | save --append $env.FAILURES_FILE
 }
 
-export def --env run-begin [name: string]: nothing -> nothing {
+# the run files, oldest first, and which of them a read-only run wrote: its first record carries the mark
+def runs-list []: nothing -> record {
+    let files = glob (runs-dir | path join "*.jsonl") | sort
+    let read_only = if ($files | is-empty) { [] } else { ^grep --files-with-matches --fixed-strings $RUN_READ_ONLY_MARK ...$files | complete | get stdout | lines }
+    {files: $files, read_only: $read_only}
+}
+
+# the newest run that could change something, null without one
+export def run-last-changed []: nothing -> any {
+    let runs = runs-list
+    $runs.files | where $it not-in $runs.read_only | last
+}
+
+export def --env run-begin [name: string, --read-only]: nothing -> nothing {
     $env.DOT_RUN_ID = $"(date now | format date '%Y%m%dT%H%M%S')-(random chars --length 4 | str lowercase)"
     $env.DOT_RUN_FILE = runs-dir | path join $"($env.DOT_RUN_ID).jsonl"
     $env.DOT_SPAN = ""
     mkdir (runs-dir)
-    ls (runs-dir) | sort-by name | drop $RUNS_KEEP | each { rm --force $in.name } | ignore
-    log-debug $"run ($name)" {kind: run, target: $name}
+    let runs = runs-list
+    let changing = $runs.files | where $it not-in $runs.read_only
+    ($changing | drop $RUNS_KEEP) ++ ($runs.read_only | drop $RUNS_READ_ONLY_KEEP) | each { rm --force $in } | ignore
+    log-debug $"run ($name)" {kind: run, target: $name, read_only: $read_only}
 }
 
 # child processes inherit the open span; an error still closes it

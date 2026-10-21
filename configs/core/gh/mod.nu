@@ -7,7 +7,7 @@ const HOSTS = ".config/gh/hosts.yml"
 
 # this machine's own token: no seed, a new machine runs gh auth login itself
 def token-file []: nothing -> path {
-    host-file ($env.DOTFILES | path join secrets gh) token
+    host-file ($env.DOTFILES | path join configs secrets keys gh) token
 }
 
 export def link [cfg: record] {

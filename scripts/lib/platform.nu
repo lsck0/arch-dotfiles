@@ -6,7 +6,8 @@ export const PLATFORM_FACTS = [form_factor homelab wireguard secure_boot_own_key
 const PLATFORM_KEYS = [hostname form_factor groups extra_packages facts packages_keep]
 
 export def platform-groups-all [repo: path]: nothing -> list<string> {
-    ls ($repo | path join configs) | where type == dir | get name | path basename | sort
+    # secrets: the private submodule's group, on wherever it is pulled, never chosen
+    ls ($repo | path join configs) | where type == dir | get name | path basename | where $it != secrets | sort
 }
 
 export def platform-file [repo: path]: nothing -> any {

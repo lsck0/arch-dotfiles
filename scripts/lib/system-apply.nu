@@ -315,7 +315,8 @@ def "main adduser" [name: string, --profile: string]: nothing -> nothing {
     if $picked != $PROFILE_CUSTOM and not ($live | path exists) {
         ^runuser -u $name -- install -Dm644 ($checkout | path join profiles $"($picked).nuon") $live
     }
-    # root's record of the owner's logins: base/pam maps the owner's yubikey to exactly these, from the next system run
+    # root's record of the owner's logins: secrets/yubikey maps the owner's yubikey to exactly these, from the next
+    # system run
     let picked_file = $checkout | path join profiles $"($picked).nuon"
     if $picked != $PROFILE_CUSTOM and ("identity" in (open $picked_file | get --optional capabilities | default [])) {
         let owners = "/var/lib/dotfiles/owners"

@@ -14,7 +14,7 @@ The plugin UUID is a write token, so it lives in the private secrets
 submodule. `mod.nu` skips the install when the file is missing or the machine is not the `poster`.
 
 ```
-# secrets/trmnl-claude.env
+# configs/secrets/keys/trmnl-claude.env
 TRMNL_PLUGIN_UUID=...
 ```
 

@@ -31,7 +31,7 @@ export const options = {
     home_gateways: {
         type: list<string>
         default: []
-        doc: "Router MACs that make a network home, beside the admin's secrets/home-gateways"
+        doc: "Router MACs that make a network home, beside the admin's configs/secrets/keys/home-gateways"
         label: "Home gateways"
         scope: machine
     }

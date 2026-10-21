@@ -7,7 +7,7 @@ export const meta = {
 
 const STATE = ".local/state/syncthing"
 const IDENTITY = [[file mode]; [config.xml 600] [cert.pem 644] [key.pem 600]]
-const GUI_SECRET = "secrets/syncthing-gui-password"
+const GUI_SECRET = "configs/secrets/keys/syncthing-gui-password"
 const NAS_NAME = "vm-104-nas"
 const API_WAIT_SECONDS = 30
 const GUI_TRIES = 3
@@ -19,7 +19,7 @@ const VERSIONS_MAX_AGE = 2592000
 const BORG_FOLDER = ".local/share/borg-repo"
 
 def secret-dir []: nothing -> path {
-    $env.DOTFILES | path join secrets syncthing (sys host | get hostname)
+    $env.DOTFILES | path join configs secrets keys syncthing (sys host | get hostname)
 }
 
 def borg-id []: nothing -> string {
