@@ -1,5 +1,6 @@
 #!/usr/bin/env -S nu --no-config-file
-# hyprpm sudoes every call until its store exists, a FIDO2 prompt nobody answers at login: build only from a terminal
+# hyprpm runs every write to its root-owned store through sudo, a FIDO2 prompt nobody answers at login: build only
+# from a terminal, or with --build where sudo asks nothing (the install chain's config stage, mod.nu plugins-build)
 
 const STORE = "/var/cache/hyprpm"
 const PLUGIN = "dynamic-cursors"
@@ -14,9 +15,9 @@ def --wrapped hyprpm-yes [...args: string]: nothing -> bool {
     (^yes | ^hyprpm ...$args | complete).exit_code == 0
 }
 
-def main [] {
+def main [--build] {
     if (which hyprpm | is-empty) { return }
-    if not (is-terminal --stdout) {
+    if not $build and not (is-terminal --stdout) {
         # a built .so, not the store dir: any hyprpm call creates an empty headersRoot, and reloading that fails
         if (glob $"($STORE)/($env.USER)/*/*.so" | is-empty) {
             ^notify-send -a hyprpm "Hyprland plugins not built" "run system-update (or configs/desktop/hyprland/plugins.nu) from a terminal" | complete | ignore
@@ -38,6 +39,7 @@ def main [] {
     let added = $REPOS | where {|r| not ($listed | str contains $"repository ($r.name) ") } | each {|r| hyprpm-yes add $r.url }
     if $updated or ($added | is-not-empty) or not (loaded) {
         ^hyprpm enable $PLUGIN | complete | ignore
-        ^hyprpm reload
+        # no session yet in the install chain: the login's plugins.nu loads it
+        if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-not-empty) { ^hyprpm reload }
     }
 }

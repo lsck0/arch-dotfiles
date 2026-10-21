@@ -238,8 +238,18 @@ export def link [cfg: record] {
         })
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
+        (step plugins-build)
         (step reload)
     ]
+}
+
+# hyprpm runs every write to its root-owned store (/var/cache/hyprpm) through sudo, so it builds only where sudo asks
+# nothing: the install chain's config stage (its zz-dotfiles-stage drop-in). Elsewhere the login notice and
+# system-update (a terminal) do it
+export def plugins-build []: nothing -> nothing {
+    if (glob $"/var/cache/hyprpm/($env.USER)/*/*.so" | is-not-empty) { return }
+    if (do { ^sudo -n true } | complete).exit_code != 0 { return }
+    ^($env.DOTFILES | path join configs desktop hyprland plugins.nu) --build
 }
 
 # the shader goes last: a config write or scale re-render after it drops it
