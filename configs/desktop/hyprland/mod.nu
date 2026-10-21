@@ -118,8 +118,14 @@ const TARGET_DPI = {laptop: 150.0, desktop: 110.0}
 const MM_PER_INCH = 25.4
 const SCALES = [1.0 1.25 1.5 1.666667 2.0 2.5 3.0]
 
+# Whether this process's Hyprland still runs: a shell started under one keeps its signature after a logout.
+def hyprland-live []: nothing -> bool {
+    let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
+    $sig != "" and ($env.XDG_RUNTIME_DIR? | default "" | path join hypr $sig .socket.sock | path exists)
+}
+
 def outputs-live []: nothing -> table {
-    if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return [] }
+    if not (hyprland-live) { return [] }
     try { ^hyprctl -j monitors | from json } catch { [] } | where name !~ '^HEADLESS-' | sort-by x
 }
 
@@ -251,7 +257,7 @@ export def plugins-build []: nothing -> nothing {
 
 # Reloads hyprland; the shader goes last, a config write or scale re-render after it drops it.
 export def reload []: nothing -> nothing {
-    if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-empty) { return }
+    if not (hyprland-live) { return }
     let toggles = $env.DOTFILES | path join scripts toggles
     ^hyprctl reload config-only
     ^($toggles | path join toggle-monitor-scale.nu) reapply

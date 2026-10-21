@@ -40,6 +40,7 @@ def main [--build] {
     if $updated or ($added | is-not-empty) or not (loaded) {
         ^hyprpm enable $PLUGIN | complete | ignore
         # no session yet in the install chain: the login's plugins.nu loads it
-        if ($env.HYPRLAND_INSTANCE_SIGNATURE? | is-not-empty) { ^hyprpm reload }
+        let sig = $env.HYPRLAND_INSTANCE_SIGNATURE? | default ""
+        if $sig != "" and ($env.XDG_RUNTIME_DIR | path join hypr $sig .socket.sock | path exists) { ^hyprpm reload }
     }
 }
