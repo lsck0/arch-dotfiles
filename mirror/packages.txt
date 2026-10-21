@@ -690,6 +690,7 @@ sof-firmware
 sops
 sowon-git
 sox
+spectacle
 speech-dispatcher
 speedscope
 spicetify-cli

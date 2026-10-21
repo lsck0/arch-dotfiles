@@ -76,6 +76,7 @@
         natural_scroll: true
     }
     "base/networkmanager": {
+        wake_on_lan: true
         untrusted_policy: lockdown-tor
         homelab_dns: "192.168.178.29"
         homelab_domain: lsck0.dev

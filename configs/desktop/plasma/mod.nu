@@ -9,7 +9,7 @@ export const meta = {
     packages: {
         pacman: [
             bluedevil dolphin kdeplasma-addons kscreen plasma-desktop plasma-integration plasma-nm plasma-pa plasma-vault
-            polkit-kde-agent
+            polkit-kde-agent spectacle
         ]
     }
 }

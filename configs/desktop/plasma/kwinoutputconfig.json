@@ -25,7 +25,6 @@
                 "hdrIccProfilePath": "",
                 "highDynamicRange": false,
                 "iccProfilePath": "",
-                "maxBitsPerColor": 0,
                 "mode": {
                     "cvt": {
                         "clock": 1292980,
@@ -78,7 +77,6 @@
                 "hdrIccProfilePath": "",
                 "highDynamicRange": false,
                 "iccProfilePath": "",
-                "maxBitsPerColor": 0,
                 "mode": {
                     "cvt": {
                         "clock": 1292980,
@@ -131,11 +129,23 @@
                 "hdrIccProfilePath": "",
                 "highDynamicRange": false,
                 "iccProfilePath": "",
+                "maxBitsPerColor": 0,
                 "mode": {
-                    "flags": 1,
-                    "height": 1080,
-                    "refreshRate": 60001,
-                    "width": 1920
+                    "cvt": {
+                        "clock": 138780,
+                        "flags": 10,
+                        "hdisplay": 1920,
+                        "hskew": 0,
+                        "hsyncEnd": 1996,
+                        "hsyncStart": 1966,
+                        "htotal": 2080,
+                        "vdisplay": 1080,
+                        "vscan": 0,
+                        "vsyncEnd": 1086,
+                        "vsyncStart": 1082,
+                        "vtotal": 1112
+                    },
+                    "flags": 1
                 },
                 "overscan": 0,
                 "rgbRange": "Automatic",

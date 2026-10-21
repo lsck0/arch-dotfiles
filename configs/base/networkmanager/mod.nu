@@ -15,9 +15,15 @@ export const options = {
     home_wired: {
         type: bool?
         default: null
-        doc: ("Ethernet is always the home network: it keeps the hardware MAC and wake-on-lan (a desktop); "
-            + "null detects it from the form factor")
+        doc: "Ethernet is always the home network and keeps its hardware MAC (a desktop); null detects it from the form factor"
         label: "Wired is home"
+        scope: machine
+    }
+    wake_on_lan: {
+        type: bool
+        default: false
+        doc: "Wake on a magic packet over ethernet (NetworkManager sets it on every wired connection it brings up)"
+        label: "Wake-on-LAN"
         scope: machine
     }
     wifi_radio: {
@@ -112,6 +118,7 @@ export def system [cfg: record] {
         (file-copy NetworkManager.conf $"($NM)/NetworkManager.conf" --then $restart)
         # NM's one auto wired profile serves every wired network, so a laptop's ethernet is never home (fail closed)
         (if $home_wired { file-copy home-wired.conf $"($NM)/conf.d/10-home-wired.conf" --then $restart } else { [] })
+        (if $cfg.wake_on_lan { file-copy wake-on-lan.conf $"($NM)/conf.d/20-wake-on-lan.conf" --then $restart } else { [] })
         (do $dispatcher home-network.nu 70-home-network)
         (do $dispatcher connectivity-check.nu 75-connectivity-check)
         (do $dispatcher homelab-routes.nu 80-homelab-routes)
