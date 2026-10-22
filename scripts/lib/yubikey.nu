@@ -15,6 +15,7 @@ const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"
 const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "60"
+const TOUCH_PROBE_S = "8"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
@@ -48,10 +49,31 @@ def secrets-lock-0600 []: nothing -> nothing {
     ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
 
+# A short first attempt: a working device prints a prompt or at least fails fast; one that hangs with
+# zero output at all (not even a touch request) is a broken plugin/pcscd handshake, not a missed touch
+# (seen live: age-plugin-yubikey --list works and lights up the key, but age -d invoking the same plugin
+# hangs forever producing nothing). Warn once so a person doesn't keep touching a key that was never asked,
+# then keep the full patience for the normal case of a slow reader or someone stepping away.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
-    while (do { ^timeout $TOUCH_ATTEMPT_S ...$argv } | complete).exit_code != 0 {
-        if (date now) > $deadline { return false }
+    mut probed = false
+    mut last = {stdout: "", stderr: "", exit_code: 1}
+    mut ok = false
+    while not $ok {
+        let secs = if $probed { $TOUCH_ATTEMPT_S } else { $TOUCH_PROBE_S }
+        let attempt = (do { ^timeout $secs ...$argv } | complete)
+        $ok = $attempt.exit_code == 0
+        if $ok { continue }
+        if not $probed and ($attempt.stdout | str trim | is-empty) and ($attempt.stderr | str trim | is-empty) {
+            print $"yubikey: no response at all within ($TOUCH_PROBE_S)s, not even a touch prompt \(likely a broken age/age-plugin-yubikey handshake, not a missed touch -- check 'age-plugin-yubikey --list' works and that 'age' and 'age-plugin-yubikey' versions are compatible\); still retrying"
+        }
+        $probed = true
+        $last = $attempt
+        if (date now) > $deadline {
+            let out = ([$last.stdout $last.stderr] | each { str trim } | where {|s| not ($s | is-empty) } | str join "\n")
+            if ($out | is-not-empty) { print $"yubikey: last attempt's output:\n($out)" }
+            return false
+        }
         sleep $TOUCH_RETRY
     }
     true
