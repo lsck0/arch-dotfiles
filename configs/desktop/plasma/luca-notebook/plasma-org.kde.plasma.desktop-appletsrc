@@ -34,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/projects","0","4","desktop:/documents
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-cover-art-007-3.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-mushi-shi.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-cover-art-007-3.jpg
+Image=file://@DOTFILES@/wallpapers/alena-aenami-mushi-shi.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]
@@ -221,5 +221,5 @@ knownItems=org.kde.kdeconnect,org.kde.plasma.vault,org.kde.plasma.bluetooth,org.
 AppletOrder=4;6;7;8;23;24
 
 [ScreenMapping]
-itemsOnDisabledScreens=
+itemsOnDisabledScreens=0,230c143b-accd-470f-bc9e-bcd19408078e,8,desktop:/dinorawrhehe,desktop:/pictures,desktop:/videos,desktop:/documents,desktop:/music,desktop:/downloads,desktop:/image.png,desktop:/projects
 screenMapping=desktop:/pictures,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/videos,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/downloads,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/dinorawrhehe,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/image.png,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/documents,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/projects,0,230c143b-accd-470f-bc9e-bcd19408078e,desktop:/music,0,230c143b-accd-470f-bc9e-bcd19408078e
