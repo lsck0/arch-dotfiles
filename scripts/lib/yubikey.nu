@@ -14,8 +14,7 @@ const PAM_ORIGIN = "pam://lsck0"
 const SSH_APPLICATION = "ssh:lsck0"
 const AGE_SLOT = "1"
 const TOUCH_WAIT = 30min
-const TOUCH_ATTEMPT_S = "60"
-const TOUCH_PROBE_S = "8"
+const TOUCH_ATTEMPT_S = "900"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
 const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
@@ -49,31 +48,16 @@ def secrets-lock-0600 []: nothing -> nothing {
     ^find ($SECRETS | path join keys) -type f ! -name '.*' ! -name '*.pub' ! -name '*public*' -exec chmod 600 '{}' +
 }
 
-# A short first attempt: a working device prints a prompt or at least fails fast; one that hangs with
-# zero output at all (not even a touch request) is a broken plugin/pcscd handshake, not a missed touch
-# (seen live: age-plugin-yubikey --list works and lights up the key, but age -d invoking the same plugin
-# hangs forever producing nothing). Warn once so a person doesn't keep touching a key that was never asked,
-# then keep the full patience for the normal case of a slow reader or someone stepping away.
+# Each attempt runs on the terminal (ssh's touch request, the clone's progress and any error are seen) and ends on
+# its own without a touch: the key times out its own touch wait, ssh or the age plugin fail, and the loop asks again.
+# The per-attempt cap only guards a stalled network; it is far above a clone of the hundreds-of-MB secrets repo, which
+# a 60s cap killed and restarted forever, each retry wanting another touch. --foreground keeps the terminal, a
+# background process group would stop on a tty read; age-plugin-yubikey prints no touch prompt, the key's blink is it.
 def with-touch [argv: list<string>]: nothing -> bool {
     let deadline = (date now) + $TOUCH_WAIT
-    mut probed = false
-    mut last = {stdout: "", stderr: "", exit_code: 1}
-    mut ok = false
-    while not $ok {
-        let secs = if $probed { $TOUCH_ATTEMPT_S } else { $TOUCH_PROBE_S }
-        let attempt = (do { ^timeout $secs ...$argv } | complete)
-        $ok = $attempt.exit_code == 0
-        if $ok { continue }
-        if not $probed and ($attempt.stdout | str trim | is-empty) and ($attempt.stderr | str trim | is-empty) {
-            print $"yubikey: no response at all within ($TOUCH_PROBE_S)s, not even a touch prompt \(likely a broken age/age-plugin-yubikey handshake, not a missed touch -- check 'age-plugin-yubikey --list' works and that 'age' and 'age-plugin-yubikey' versions are compatible\); still retrying"
-        }
-        $probed = true
-        $last = $attempt
-        if (date now) > $deadline {
-            let out = ([$last.stdout $last.stderr] | each { str trim } | where {|s| not ($s | is-empty) } | str join "\n")
-            if ($out | is-not-empty) { print $"yubikey: last attempt's output:\n($out)" }
-            return false
-        }
+    while not (try { ^timeout --foreground $TOUCH_ATTEMPT_S ...$argv; true } catch { false }) {
+        if (date now) > $deadline { return false }
+        print ">>> not done, touch the YubiKey again when it blinks"
         sleep $TOUCH_RETRY
     }
     true
@@ -244,7 +228,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if not $pulled {
         let key_file = mktemp --tmpdir
         ^install -m600 $stub $key_file
-        print ">>> touch the YubiKey to pull the secrets"
+        print ">>> touch the YubiKey to pull the secrets (the clone takes a while after the touch)"
         let ssh = $"ssh -i ($key_file) -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         let ok = with-touch [
             git -C $REPO -c $"core.sshCommand=($ssh)" -c "url.git@github.com:lsck0/.insteadOf=https://github.com/lsck0/"

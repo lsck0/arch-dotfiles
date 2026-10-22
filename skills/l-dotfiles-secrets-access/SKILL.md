@@ -35,6 +35,13 @@ nu -c 'use scripts/lib/secrets.nu *; if (secret-is-plaintext configs/secrets/key
 unlocks through the PGP key; `unlock --identity <file>` is the recovery path. Unlock needs a person to touch the key:
 ask, do not wait in a loop.
 
+Touch steps (`with-touch` in `scripts/lib/yubikey.nu`) run on the terminal with only a 15min stall cap: the pull clones
+the whole submodule (~300 MB), so a short per-attempt timeout kills it mid-clone and restarts it forever, each retry
+wanting another touch, which looks like "touched, nothing happens". `age-plugin-yubikey` prints no touch prompt; the
+key's blink is the only cue. A `timeout`ed child sits in its own process group, so Ctrl+C on the console leaves it
+holding the key: an `age -d` tried by hand alongside then hangs without a blink. pcscd on the bare ISO serves root
+without polkit (`ykman piv info` works there); installing polkit would only tighten it.
+
 ## Use in a module
 
 - `link` verb: read `$env.DOTFILES/configs/secrets/keys/<file>` and guard with `secret-is-plaintext`, skipping with a

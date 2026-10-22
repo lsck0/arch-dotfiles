@@ -34,7 +34,7 @@ const LUKS_OPEN = [--allow-discards --perf-no_read_workqueue --perf-no_write_wor
 const PACSTRAP = [base linux linux-firmware mkinitcpio btrfs-progs cryptsetup binutils networkmanager sudo git zsh zram-generator libfido2 nushell]
 const HOOKS = [base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck]
 const CMDLINE_TAIL = "rw zswap.enabled=0 nmi_watchdog=0 slab_nomerge init_on_alloc=1 init_on_free=1 randomize_kstack_offset=on vsyscall=none page_alloc.shuffle=1"
-const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager polkit]
+const SECRETS_TOOLS = [age age-plugin-yubikey git-crypt pcsclite ccid libfido2 yubikey-manager]
 const STAGE_STATE_DIR = "/var/lib/dotfiles-stage"
 const STAGE_KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const STAGE_KEY_BYTES = 64
@@ -875,12 +875,6 @@ export def bootstrap-run [repo: path, platform_arg: string]: nothing -> nothing 
 
     if "secrets" in $capabilities {
         if not (try { ^pacman -Sy --noconfirm --needed ...$SECRETS_TOOLS; true } catch { false }) { log-warn "secrets tools did not install, the config stage unlocks instead" }
-        # pcscd only authorizes a PC/SC client through polkit (base/yubikey's own system module drops this same
-        # rule, but only once the config stage runs post-reboot); without it here the bare ISO has no decision for
-        # org.debian.pcsc-lite.access_pcsc and age-plugin-yubikey's card connect hangs silently instead of
-        # erroring, burning the whole touch window without ever requesting a touch.
-        mkdir /etc/polkit-1/rules.d
-        ^install -m644 ($repo | path join configs base yubikey pcsc.rules) /etc/polkit-1/rules.d/50-pcsc-wheel.rules
         ^systemctl start pcscd.socket | complete | ignore
         let unlocked = try { with-env {DOTFILES: $repo, PROFILE_FILE: $c.profile_file} { ^nu --no-config-file ($repo | path join scripts dot.nu) secrets unlock }; true } catch { false }
         if not $unlocked { log-warn "secrets stay locked for now" }
