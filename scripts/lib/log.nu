@@ -13,6 +13,10 @@ def rank [level: string]: nothing -> int {
     $LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
 }
 
+export def since-ms [start: datetime]: nothing -> int {
+    (date now) - $start | into int | $in // 1_000_000
+}
+
 export def runs-dir []: nothing -> path {
     if (is-admin) { $SYSTEM_STATE | path join runs } else { with-env {DOT_LAYER: user} { state-dir | path join runs } }
 }
@@ -55,10 +59,12 @@ export def command-stream [tag: string, argv: list]: nothing -> record {
     {exit_code: $code, output: $output, tail: ($output | lines | last $STREAM_TAIL_LINES | str join "\n")}
 }
 
-# Logs message as a failure and appends it to FAILURES_FILE.
+# Logs message as a failure and appends it to FAILURES_FILE, falling back to the run's own
+# failures path when no phase has opened one (a crash here must never take down the whole run).
 export def fail [message: string]: nothing -> nothing {
     log-err $message {kind: failure}
-    $"($message)\n" | save --append $env.FAILURES_FILE
+    let target = if ($env.FAILURES_FILE? | is-empty) { $env.DOT_RUN_FILE | str replace ".jsonl" ".failures" } else { $env.FAILURES_FILE }
+    $"($message)\n" | save --append $target
 }
 
 def runs-list []: nothing -> record {
@@ -93,7 +99,7 @@ export def span [name: string, fields: record, body: closure]: nothing -> any {
     with-env {DOT_SPAN: $id} {
         log-record TRACE $"begin ($name)" ($base | insert phase begin)
         let result = try { {ok: true, value: (do $body)} } catch {|err| {ok: false, error: $err} }
-        let ms = (date now) - $start | into int | $in // 1_000_000
+        let ms = since-ms $start
         log-record TRACE $"end ($name)" ($base | merge {phase: end, ms: $ms, outcome: (if $result.ok { "ok" } else { "error" })})
         if not $result.ok { $result.error.raw }
         $result.value

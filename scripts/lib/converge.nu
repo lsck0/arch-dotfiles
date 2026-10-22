@@ -2,13 +2,13 @@
 # wrote (create, update, skip, drift, merge, remove), applies the actions and records the outputs per verb.
 
 use log.nu *
-use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR]
+use state.nu [state-dir state-locked path-kind nu-bin save-atomic LIB_DIR SYSTEM_STATE]
 use written.nu [sync-guard preserve-aside written-file written-record written-forget]
 use json.nu [json-edits-apply]
 use module.nu [DECL_KEYS DECL_KINDS unit-dir]
 use ini.nu [ini-apply]
 
-const OWN_LINK_PREFIXES = ["/var/lib/dotfiles/"]
+const OWN_LINK_PREFIXES = [$"($SYSTEM_STATE)/"]
 
 # The record of what a module's verb owns: <state>/modules/<id>/<verb>.nuon.
 export def state-path [id: string, verb: string]: nothing -> path {
@@ -20,7 +20,7 @@ export def state-read [id: string, verb: string]: nothing -> record {
     if ($file | path exists) { open $file } else { {input: "", run: "", time: "", outputs: []} }
 }
 
-export def assert-shape [value: record, keys: list<string>, what: string]: nothing -> nothing {
+def assert-shape [value: record, keys: list<string>, what: string]: nothing -> nothing {
     if ($value | columns | sort) != ($keys | sort) {
         error make {msg: $"($what) has keys ($value | columns | str join ' '), wants ($keys | str join ' '): ($value | to nuon)"}
     }
@@ -57,6 +57,7 @@ export def observe [targets: list<string>, units: list<string>, scope: string]: 
             type: $type
             hash: (if $type == file { try { open --raw $t | sha $in } catch { "unreadable" } } else { null })
             link: (if $type == symlink { ^readlink $t } else { null })
+            mode: (if $type == file { try { ^stat -c "%a" $t | str trim } catch { null } } else { null })
         }
     }
     let unit_names = $units | uniq
@@ -104,14 +105,16 @@ def link-stale [obs: record, target: string, repo: string]: nothing -> bool {
 }
 
 # What an apply does to a declared file: obs on disk, want the content's hash, recorded the hash it last wrote.
-export def file-classify [obs: record, want: string, recorded: any, generated: bool, stale_link: bool, force: bool]: nothing -> record {
+def file-classify [obs: record, want: string, recorded: any, generated: bool, stale_link: bool, force: bool, mode: any = null]: nothing -> record {
     let c = {|kind, reason, preserve| {kind: $kind, reason: $reason, preserve: $preserve} }
     if $obs.type == "" {
         do $c create "missing" false
     } else if $stale_link {
         do $c update "a link of the old linked form" false
     } else if $obs.type == file and $obs.hash == $want {
-        if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
+        if $mode != null and ($obs.mode? | default $mode) != $mode {
+            do $c update "mode changed" false
+        } else if $recorded == $want { do $c skip "" false } else { do $c record "already this content" false }
     } else if $obs.type == file and ($generated or $recorded == $obs.hash) {
         do $c update "changed in the module" false
     } else if $recorded == null {
@@ -138,7 +141,7 @@ def merge-read [obs: record, target: string]: nothing -> string {
 
 # The actions for one module: its declarations against what is on disk, then its orphaned outputs
 # (removals and disables, sorted first).
-export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool]: nothing -> list<record> {
+export def plan-module [id: string, decls: list<record>, prev: list<record>, seen: record, recorded: record, repo: string, force: bool, all_targets: list<string> = []]: nothing -> list<record> {
     let wanted = (fold-merges $decls) | each {|d|
         let obs = $seen.paths | get --optional $d.target
         if $obs.hash? == "unreadable" { return (action $id unreadable $d.target "unreadable as this user, checked at apply" $d null null) }
@@ -149,7 +152,7 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
                 let rec = if $written != null and $obs.hash? == $written { $written } else {
                     $prev | where target == $d.target | get --optional 0.hash | default $written
                 }
-                let c = file-classify $obs $want $rec $d.generated (link-stale $obs $d.target $repo) $force
+                let c = file-classify $obs $want $rec $d.generated (link-stale $obs $d.target $repo) $force $d.mode
                 let before = match $obs.type { "" => null, "symlink" => $obs.link, _ => $obs.hash }
                 action $id $c.kind $d.target $c.reason (if $c.preserve { $d | insert preserve true } else { $d }) $before $want
             }
@@ -197,20 +200,23 @@ export def plan-module [id: string, decls: list<record>, prev: list<record>, see
     let targets = $decls.target
     let orphans = $prev | where target not-in $targets | each {|o|
         let obs = $seen.paths | get --optional $o.target | default {type: "", hash: null, link: null}
+        let claimed = $o.target in $all_targets
         match $o.kind {
             "file" => {
-                if $obs.type == "" { action $id forget $o.target "already gone" $o null null
+                if $claimed { action $id forget $o.target "now declared by another module" $o null null
+                } else if $obs.type == "" { action $id forget $o.target "already gone" $o null null
                 } else if $obs.hash == $o.hash { action $id remove $o.target "no longer declared" $o $o.hash null
                 } else { action $id drift $o.target "no longer declared, changed since: left in place" $o $obs.hash null }
             }
             "link" => {
-                if $obs.type == symlink and $obs.link == $o.source { action $id remove $o.target "no longer declared" $o $o.source null } else { action $id forget $o.target "not the link it was" $o null null }
+                if $claimed { action $id forget $o.target "now declared by another module" $o null null
+                } else if $obs.type == symlink and $obs.link == $o.source { action $id remove $o.target "no longer declared" $o $o.source null } else { action $id forget $o.target "not the link it was" $o null null }
             }
-            "unit" => (match ($o.state? | default enabled) {
+            "unit" => (if $claimed { action $id forget $o.target "now declared by another module" $o null null } else { match ($o.state? | default enabled) {
                 "enabled" => (action $id disable $o.target "no longer declared" ($o | insert now true) enabled null)
                 "masked" => (action $id unmask $o.target "no longer declared" $o masked null)
                 _ => (action $id forget $o.target "no longer declared" $o null null)
-            })
+            } })
             _ => null
         }
     } | compact
@@ -280,6 +286,10 @@ def run-exec [a: record, dir: path]: nothing -> string {
 
 # Runs a module's planned actions; one outcome per action, a failure confined to that action.
 export def apply-module [actions: list<record>, dir: path, scope: string]: nothing -> list<record> {
+    let unreadable = $actions | where kind == unreadable | each {|a|
+        log-record "ERROR" $"unreadable ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: 0, outcome: $a.reason}
+        $a | merge {ok: false, error: $a.reason, aside: null, output: ""} | insert ms 0
+    }
     let outcomes = $actions | where kind not-in [skip drift unreadable] | each {|a|
         let start = date now
         let result = try {
@@ -327,18 +337,23 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
                 "unmask" => { systemctl-retry $scope unmask $a.target; {} }
                 "step" => { {output: (run-step $a $dir)} }
                 "remove" => {
-                    rm --force $a.target
-                    prune-parents ($a.target | path dirname)
-                    if $a.decl.kind == "file" { written-forget $a.target }
-                    if ($a.decl.aside? | default null) != null and ($a.decl.aside | path exists) { ^mv -n $a.decl.aside $a.target }
-                    {}
+                    let current = if (path-kind $a.target) == file { open --raw $a.target | sha $in } else { null }
+                    if $a.decl.kind == "file" and $current != $a.before {
+                        {}
+                    } else {
+                        rm --force $a.target
+                        prune-parents ($a.target | path dirname)
+                        if $a.decl.kind == "file" { written-forget $a.target }
+                        if ($a.decl.aside? | default null) != null and ($a.decl.aside | path exists) { ^mv -n $a.decl.aside $a.target }
+                        {}
+                    }
                 }
                 "forget" => { if $a.decl.kind == "file" { written-forget $a.target }; {} }
                 "exec" => { {output: (run-exec $a $dir)} }
             }
             | {ok: true, error: null, aside: ($in.aside? | default null), output: ($in.output? | default "")}
         } catch {|e| {ok: false, error: $e.msg, aside: null, output: ""} }
-        let ms = (date now) - $start | into int | $in // 1_000_000
+        let ms = since-ms $start
         log-record (if $result.ok { "DEBUG" } else { "ERROR" }) $"($a.kind) ($a.target)" {module: $a.module, kind: $a.kind, target: $a.target, ms: $ms, outcome: (if $result.ok { "ok" } else { $result.error })}
         $a | merge $result | insert ms $ms
     }
@@ -346,7 +361,7 @@ export def apply-module [actions: list<record>, dir: path, scope: string]: nothi
     if ($outcomes | any {|o| $o.ok and ($o.target | str starts-with $unit_root) }) {
         ^systemctl $"--($scope)" daemon-reload
     }
-    $outcomes
+    $outcomes ++ $unreadable
 }
 
 # Records what the module now owns; a failed action keeps its previous output and clears the input hash

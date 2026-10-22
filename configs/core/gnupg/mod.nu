@@ -5,6 +5,23 @@ export const meta = {
     inputs: [~/.gnupg/pubring.kbx ~/.gnupg/trustdb.gpg ~/.gnupg/private-keys-v1.d]
 }
 
+export const options = {
+    cache_ttl: {
+        type: int
+        default: 600
+        doc: "Seconds gpg-agent caches a passphrase after use before re-asking, gpg-agent.conf(5) default-cache-ttl"
+        label: "Passphrase cache (s)"
+        scope: user
+    }
+    cache_ttl_max: {
+        type: int
+        default: 7200
+        doc: "Seconds gpg-agent caches a passphrase at most, however often it is used, gpg-agent.conf(5) max-cache-ttl"
+        label: "Passphrase cache max (s)"
+        scope: user
+    }
+}
+
 const PRIVATE_KEY = "configs/secrets/keys/pgp_privatekey.asc"
 
 def --wrapped gpg-ok [...args: string]: nothing -> bool {
@@ -42,7 +59,8 @@ export def link [cfg: record] {
     [
         (exec gnupg-dir [install -d -m 700 $dir] --creates $dir)
         # reload keeps cached keys; scdaemon reads its config only at start
-        (file-copy gpg-agent.conf ($dir | path join gpg-agent.conf) --then [gpgconf --reload gpg-agent])
+        (file-render gpg-agent.conf ($dir | path join gpg-agent.conf) {CACHE_TTL: $cfg.cache_ttl, CACHE_TTL_MAX: $cfg.cache_ttl_max}
+            --then [gpgconf --reload gpg-agent])
         (file-copy scdaemon.conf ($dir | path join scdaemon.conf) --then [gpgconf --kill scdaemon])
         (file-text ($dir | path join gpg.conf) $"(open --raw gpg.conf)($default_key)" --mode 600)
         (if $fpr == "" { [] } else { identity $fpr })

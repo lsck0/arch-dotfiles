@@ -2,6 +2,16 @@ use module.nu *
 
 export const meta = {packages: {native: [nftables]}, volatile: true, deps: [tor]}
 
+export const options = {
+    ssh_knock_window: {
+        type: string
+        default: "1h"
+        doc: "How long a successful SSH port-knock keeps that IP allowed through to port 2222, nft timeout syntax"
+        label: "SSH knock access window"
+        scope: machine
+    }
+}
+
 const DIR = "/etc/nftables.d"
 # (uid_t)-1 when tor is missing, which no process runs as
 const NO_UID = "4294967295"
@@ -12,7 +22,7 @@ export def system [cfg: record] {
     if (which nft | is-empty) or $env.FORM_FACTOR? == "wsl" { return [] }
     let tor_uid = ^id -u tor | complete | if $in.exit_code == 0 { $in.stdout | str trim } else { $NO_UID }
     [
-        (file-copy fw-inbound.nft $"($DIR)/fw-inbound.nft")
+        (file-render fw-inbound.nft $"($DIR)/fw-inbound.nft" {SSH_KNOCK_WINDOW: $cfg.ssh_knock_window})
         (file-copy fw-lockdown.nft $"($DIR)/fw-lockdown.nft")
         (file-render fw-egress.nft $"($DIR)/fw-egress.nft" {TOR_UID: $tor_uid})
         ($UNITS | each { unit-file $in } | decls-flatten)

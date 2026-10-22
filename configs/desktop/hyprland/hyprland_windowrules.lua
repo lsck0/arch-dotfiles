@@ -8,17 +8,8 @@ hl.window_rule({
     monitor = platform.main_monitor,
 })
 
-for _, class in ipairs({ "^[Ss]potify$", "^discord$" }) do
+for _, class in ipairs({ "^[Ss]potify$", "^discord$", "^neovide$", "^nemo$", "^(org.kde.)?dolphin$", "^steam$" }) do
     hl.window_rule({ match = { class = class }, opacity = style.opacity_surface })
-end
-
-for _, class in ipairs({
-    "^neovide$",
-    "^nemo$",
-    "^(org.kde.)?dolphin$",
-    "^steam$",
-}) do
-    hl.window_rule({ match = { class = class }, opacity = style.opacity })
 end
 
 hl.window_rule({

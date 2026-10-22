@@ -68,7 +68,7 @@ Item {
       var w = width, h = height
       var c = root.color
 
-      ctx.strokeStyle = Qt.rgba(c.r, c.g, c.b, 0.10)
+      ctx.strokeStyle = Util.alpha(c, 0.10)
       ctx.lineWidth = 1
       for (let g = 1; g <= 3; g++) {
         let gy = Math.round(h * g / 4) + 0.5
@@ -91,8 +91,8 @@ Item {
       var key = c.toString() + "|" + root.fillAlpha
       if (!cv.gradCache || cv.gradH !== h || cv.gradKey !== key) {
         let grad = ctx.createLinearGradient(0, 0, 0, h)
-        grad.addColorStop(0, Qt.rgba(c.r, c.g, c.b, root.fillAlpha))
-        grad.addColorStop(1, Qt.rgba(c.r, c.g, c.b, 0))
+        grad.addColorStop(0, Util.alpha(c, root.fillAlpha))
+        grad.addColorStop(1, Util.alpha(c, 0))
         cv.gradCache = grad; cv.gradH = h; cv.gradKey = key
       }
       ctx.beginPath()

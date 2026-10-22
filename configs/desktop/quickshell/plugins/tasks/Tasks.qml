@@ -43,7 +43,7 @@ Item {
     ? filtered[selectedIndex] : null
 
   readonly property var hints: view === "notes" ? [["ESC", "close"], ["TAB", "tasks"]]
-    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project:"], ["ESC", "back"]]
+    : inputMode === "add" ? [["ENTER", "add"], ["TAB", "complete +tag project: due: priority:"], ["ESC", "back"]]
     : inputMode === "filter" ? [["ENTER", "keep"], ["ESC", "clear"], ["TAB", "notes"]]
     : [["J/K", "move"], ["ENTER/D", "done"], ["S", "start/stop"], ["X", "delete"], ["A", "add"], ["/", "filter"],
        ["TAB", "notes"], ["ESC", "close"]]
@@ -187,16 +187,35 @@ Item {
     return Object.keys(seen).sort()
   }
 
+  readonly property var fieldKeywords: ["project:", "due:", "priority:"]
+  readonly property var priorities: ["H", "M", "L"]
+
+  // a keyword already has its colon (+tag, project:x, pro:x, due:x, priority:x, prio:x): complete the value after
+  // it. otherwise complete the bare word (proj, du, prio) into the keyword itself (project:, due:, priority:).
   function completeInput() {
     var head = input.text.slice(0, input.cursorPosition)
     var start = head.search(/\S*$/)
-    var match = head.slice(start).match(/^([+-]|pro(?:ject)?:)(.*)$/)
-    if (!match) return false
-    var pool = root.known(match[1].length === 1 ? "tags" : "project")
-    var done = Util.completion(match[2], pool)
+    var word = head.slice(start)
+    var value = word.match(/^([+-]|pro(?:ject)?:|due:|prio(?:rity)?:)(.*)$/)
+    if (value) return root.completeValue(start, value[1], value[2])
+    if (!word) return false
+    var field = Util.completion(word, root.fieldKeywords)
+    if (field === word) return false
+    input.remove(start, input.cursorPosition)
+    input.insert(start, field)
+    return true
+  }
+
+  // due: takes a freeform date (tomorrow, eod, 3days): nothing to complete against, stay in add mode.
+  function completeValue(start, keyword, partial) {
+    if (keyword === "due:") return true
+    var pool = keyword.length === 1 ? root.known("tags")
+      : keyword === "priority:" || keyword === "prio:" ? root.priorities
+      : root.known("project")
+    var done = Util.completion(partial, pool)
     var unique = pool.filter(function (c) { return c.indexOf(done) === 0 }).length === 1
     input.remove(start, input.cursorPosition)
-    input.insert(start, match[1] + done + (unique ? " " : ""))
+    input.insert(start, keyword + done + (unique ? " " : ""))
     return true
   }
 
@@ -207,7 +226,10 @@ Item {
   function metaText(task) {
     var parts = []
     if (task.project) parts.push(task.project)
+    if (task.priority) parts.push("priority:" + task.priority)
     for (let i = 0; i < task.tags.length; i++) parts.push("+" + task.tags[i])
+    var tracked = TaskState.trackedText(task.desc)
+    if (tracked) parts.push(tracked + " today")
     return parts.join(" ")
   }
 
@@ -361,7 +383,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.inputMode === "" || input.text === ""
             textFormat: Text.PlainText
-            text: root.inputMode === "add" ? "description project:x due:tomorrow +tag"
+            text: root.inputMode === "add" ? "description project:x due:tomorrow priority:H +tag"
               : root.inputMode === "filter" ? "filter"
               : root.filterText ? root.filterText : "a to add, / to filter"
             color: Colors.menu.text
@@ -566,10 +588,32 @@ Item {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           height: visible ? implicitHeight : 0
-          visible: TimerState.pomoRunning || TimerState.reminderCount > 0
+          visible: TimerState.pomoRunning || TimerState.reminderCount > 0 || TaskState.activeTask !== null || TaskState.trackedTotalSeconds > 0
           spacing: Style.spacing.xxs
 
           PanelSeparator {}
+
+          Text {
+            width: parent.width
+            visible: TaskState.activeTask !== null
+            textFormat: Text.PlainText
+            text: TaskState.activeTask ? ("tracking :: " + TaskState.activeTask.desc + " " + TaskState.activeElapsedText()) : ""
+            color: Colors.accent
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
+
+          Text {
+            width: parent.width
+            visible: TaskState.trackedTotalSeconds > 0
+            textFormat: Text.PlainText
+            text: "worktime today :: " + TaskState.totalTrackedText()
+            color: Colors.foreground
+            opacity: Style.emphasis.dim
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+          }
 
           Text {
             width: parent.width

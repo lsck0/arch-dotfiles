@@ -19,7 +19,8 @@ export def link [cfg: record] {
     [
         (link-commands unreal-editor.nu unreal-install-plugins.nu)
         (file-copy uproject.xml ($mime | path join packages uproject.xml) --then [update-mime-database $mime])
-        (json-merge ($nu.home-dir | path join .claude.json) [(json-set [mcpServers unreal-mcp] $MCP)])
+        (json-merge ($nu.home-dir | path join .claude.json)
+            [(if $installed { json-set [mcpServers unreal-mcp] $MCP } else { json-delete [mcpServers unreal-mcp] })])
         (if $zip == null or $current { [] } else { exec unreal-install [($env.PWD | path join hook unreal-install.nu)] })
         (if $installed { [] } else { user-hook unreal-install hook/unreal-install.nu --watch ["%h/sync/vendor"] })
     ]

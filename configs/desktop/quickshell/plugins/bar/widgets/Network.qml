@@ -260,6 +260,7 @@ BarWidget {
     function onChanged(script) { if (root.networkToggles.indexOf(script) >= 0) nmDebounce.restart() }
   }
 
+  // rxKbps/txKbps need continuous sampling; nmcli monitor only emits on connectivity changes, not throughput
   Timer {
     interval: 2000
     running: panel.visible

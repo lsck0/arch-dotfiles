@@ -137,13 +137,6 @@ BarWidget {
 
     onOpened: root.refreshHistory()
 
-    Timer {
-      interval: 4000
-      running: panel.visible
-      repeat: true
-      onTriggered: root.refreshHistory()
-    }
-
     property double nowMs: Date.now()
     Timer {
       interval: 30000

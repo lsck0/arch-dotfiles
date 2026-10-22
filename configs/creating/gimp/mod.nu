@@ -52,3 +52,25 @@ export def welcome-seen [config: path, release: string]: nothing -> nothing {
     let text = if ($text | str contains $WELCOME_OFF) { $text } else { $text | str replace --regex '\(show-welcome-dialog [a-z]+\)\n?' "" | $"($in)($WELCOME_OFF)\n" }
     $text | save --force $gimprc
 }
+
+export def migrate [dir: path]: nothing -> nothing {
+    for file in ($RENAMED_FILES | each {|f| $dir | path join $f } | where ($it | path exists)) {
+        $RENAMES | items {|old, new| {old: $'"($old)"', new: $'"($new)"'} }
+        | reduce --fold (open --raw $file) {|r, text| $text | str replace --all $r.old $r.new } | save --force $file
+    }
+}
+
+# only the gimp config: the release's .desktop runs the flatpak. a file of gimp's own it replaces is preserved first
+export def seed [config: path, version: string]: nothing -> nothing {
+    let src = unpacked | path join PhotoGIMP-linux .config GIMP "3.0"
+    if $version != "3.0" { migrate $src }
+    for file in (glob ($src | path join **/*) --no-dir) {
+        let dest = $config | path join ($file | path relative-to $src)
+        if ($dest | path exists) and (open --raw $dest | hash sha256) != (open --raw $file | hash sha256) {
+            preserve-aside $dest | ignore
+        }
+        mkdir ($dest | path dirname)
+        cp --force $file $dest
+    }
+    touch ($config | path join $".photogimp-($PHOTOGIMP_VERSION)")
+}

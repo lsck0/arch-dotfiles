@@ -3,13 +3,15 @@ use module.nu *
 export const meta = {
     packages: {
         pacman: [
-            noto-fonts noto-fonts-emoji noto-fonts-extra otf-atkinsonhyperlegiblemono-nerd otf-aurulent-nerd
-            otf-codenewroman-nerd otf-comicshanns-nerd otf-commit-mono-nerd otf-droid-nerd otf-firamono-nerd
+            maplemono-nf noto-fonts noto-fonts-emoji noto-fonts-extra otf-atkinsonhyperlegiblemono-nerd otf-aurulent-nerd
+            otf-codenewroman-nerd otf-comicshanns-nerd otf-commit-mono-nerd otf-departure-mono otf-droid-nerd
+            otf-firamono-nerd
             otf-geist-mono-nerd otf-hasklig-nerd otf-hermit-nerd otf-monaspace-nerd otf-opendyslexic-nerd
             otf-overpass-nerd terminus-font-ttf ttf-0xproto-nerd ttf-3270-nerd ttf-adwaitamono-nerd ttf-agave-nerd
             ttf-annotationmono-nerd ttf-anonymous-pro ttf-anonymouspro-nerd ttf-arimo-nerd ttf-arphic-ukai
             ttf-arphic-uming ttf-atkinson-hyperlegible ttf-baekmuk ttf-bigblueterminal-nerd ttf-bitstream-vera-mono-nerd
-            ttf-caladea ttf-cascadia-code ttf-cascadia-code-nerd ttf-cascadia-mono-nerd ttf-cormorant ttf-cousine-nerd
+            ttf-caladea ttf-cascadia-code ttf-cascadia-code-nerd ttf-cascadia-mono-nerd ttf-comic-mono-git
+            ttf-cormorant ttf-cousine-nerd
             ttf-crimson ttf-crimson-pro ttf-crimson-pro-variable ttf-croscore ttf-d2coding-nerd ttf-daddytime-mono-nerd
             ttf-dejavu-nerd ttf-doulos-sil ttf-droid ttf-envycoder-nerd ttf-eurof ttf-fantasque-nerd
             ttf-fantasque-sans-mono ttf-fira-code ttf-fira-mono ttf-fira-sans ttf-firacode-nerd ttf-gentium
@@ -32,12 +34,15 @@ export const meta = {
 }
 
 const FONTS = [KodeMono.ttf Tektur.ttf Vollkorn.ttf Vollkorn-Italic.ttf]
+# one OFL license file per vendored family (Vollkorn and Vollkorn-Italic share one)
+const LICENSES = [KodeMono.OFL.txt Tektur.OFL.txt Vollkorn.OFL.txt]
 
 export def link [cfg: record] {
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
     let fonts = $nu.home-dir | path join .local share fonts
     [
         ($FONTS | each {|f| file-copy $f ($fonts | path join $f) --then [fc-cache -f $fonts] })
+        ($LICENSES | each {|f| file-copy $f ($fonts | path join $f) })
         # a drop-in, not fonts.conf: plasma's font settings rewrite that one
         (file-copy fonts.conf ($config | path join fontconfig conf.d 50-dotfiles.conf))
     ]

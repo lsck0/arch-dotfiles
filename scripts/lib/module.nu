@@ -24,13 +24,23 @@ def decl [kind: string, target: string, fields: record]: nothing -> record {
     } | merge $fields
 }
 
+# A dep's resolved xwayland_scale option, falling back to the detected value for an app with no option UI of
+# its own to set it (desktop/hyprland's own xwayland_scale wins once set).
+export def xwayland-scale-for [cfg: record]: nothing -> int {
+    $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
+}
+
 def module-path [file: path]: nothing -> path {
     $file | path expand --no-symlink
 }
 
+def layer-is-system []: nothing -> bool {
+    ($env.DOT_LAYER? | default user) == "system"
+}
+
 # The systemd unit dir of the running layer: /etc/systemd/system for the system layer, else the user's.
 export def unit-dir []: nothing -> path {
-    if ($env.DOT_LAYER? | default user) == "system" {
+    if (layer-is-system) {
         "/etc/systemd/system"
     } else {
         $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config) | path join systemd user
@@ -88,7 +98,7 @@ export def unit-file [src: path, --enable, --now, --then: list<string> = []]: no
 
 # A --then command restarting a unit, skipped while the unit is not installed yet (a fresh install).
 export def unit-restart [name: string, --reload]: nothing -> list<string> {
-    let scope = if ($env.DOT_LAYER? | default user) == "system" { "--system" } else { "--user" }
+    let scope = if (layer-is-system) { "--system" } else { "--user" }
     let verb = if $reload { "reload-or-restart" } else { "restart" }
     [sh -c $"! systemctl ($scope) cat ($name) >/dev/null 2>&1 || systemctl ($scope) ($verb) ($name)"]
 }

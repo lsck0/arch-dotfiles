@@ -2,6 +2,7 @@ backend = "fastresize"
 check_contrast = true
 palette = "salience"
 style = "dark"
+threshold = 14
 
 [templates]
 wal = { template = 'wal/', target = '~/.cache/wal/', pywal = true }

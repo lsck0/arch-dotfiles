@@ -76,6 +76,7 @@ vim.g.loaded_ruby_provider = 0
 if vim.g.neovide then
     vim.g.neovide_scale_factor = 1.0
     vim.g.neovide_theme = "auto"
+    -- opacity comes from Hyprland's windowrule (OPACITY_SURFACE), same as every other app; not set here to avoid stacking
     vim.g.neovide_remember_window_size = true
     vim.g.neovide_hide_mouse_when_typing = true
     vim.g.neovide_refresh_rate = 120

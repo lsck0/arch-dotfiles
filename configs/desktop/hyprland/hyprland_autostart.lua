@@ -5,7 +5,6 @@ hl.on("hyprland.start", function()
     -- quickshell's unit waits for the finalize above
     hl.exec_cmd("systemctl --user start quickshell.service")
     hl.exec_cmd("uwsm app -s s -- /usr/lib/polkit-kde-authentication-agent-1")
-    hl.exec_cmd("uwsm app -s s -- hypridle")
 
     -- the shell expands $DOTFILES (an unset getenv would abort this hook); no hyprpm reload here, it races plugins.nu's
     hl.exec_cmd("uwsm app -s b -- $DOTFILES/configs/desktop/hyprland/plugins.nu")

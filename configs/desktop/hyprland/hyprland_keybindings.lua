@@ -123,11 +123,12 @@ hl.bind(
     hl.dsp.exec_cmd("hyprpicker | tr -d '\\n' | wl-copy"),
     { description = "pick a screen color to the clipboard" }
 )
-hl.bind(mod .. " + t", helper("$DOTFILES/scripts/toggles/menu.nu"), { description = "toggles menu" })
+hl.bind(mod .. " + t", quickshell_call("shell", "summon panel.reminders {}"), { description = "timer and pomodoro" })
 hl.bind(mod .. " + SHIFT + t", app("missioncenter"), { description = "system monitor (mission center)" })
 hl.bind(mod .. " + w", helper(shell_bin("wallpaper-picker")), { description = "wallpaper picker" })
 hl.bind(mod .. " + y", helper("spawn-shimeji"), { description = "spawn a desktop mascot" })
 hl.bind(mod .. " + x", app("$DOTFILES/configs/desktop/hyprland/boomer.nu"), { description = "magnifier (boomer)" })
+hl.bind(mod .. " + u", helper("$DOTFILES/scripts/toggles/menu.nu"), { description = "toggles menu" })
 
 hl.bind(mod .. " + Q", hl.dsp.exec_cmd("$DOTFILES/configs/desktop/hyprland/window-close.nu"), {
     description = "close the window (a gamescope game is killed)",
@@ -143,9 +144,13 @@ hl.bind(mod .. " + v", quickshell_toggle("clipboard"), { description = "clipboar
 
 hl.bind(mod .. " + g", hl.dsp.layout("togglesplit"), { description = "toggle the split direction" })
 
-hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), { description = "play or pause media" })
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { description = "previous track" })
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { description = "next track" })
+hl.bind(
+    "XF86AudioPlay",
+    hl.dsp.exec_cmd("playerctl play-pause"),
+    { locked = true, description = "play or pause media" }
+)
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true, description = "previous track" })
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true, description = "next track" })
 hl.bind(
     "XF86AudioMedia",
     hl.dsp.exec_cmd("playerctl play-pause"),

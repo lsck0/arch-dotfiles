@@ -11,7 +11,7 @@ const SETTINGS = {
 }
 
 export def link [cfg: record] {
-    let scale = $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
+    let scale = xwayland-scale-for $cfg
     let java = { str replace --all --regex '(?m)^Exec=' $"Exec=env JDK_JAVA_OPTIONS=-Dsun.java2d.uiScale=($scale) " }
     let dir = $nu.home-dir | path join .jd cfg
     [

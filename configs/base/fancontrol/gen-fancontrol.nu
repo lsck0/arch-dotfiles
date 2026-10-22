@@ -10,8 +10,10 @@ const FORCE_ID = "0x8622"
 const INTERVAL_S = 5
 # Tctl jumps 15C within seconds on any burst; averaging 4 readings (20 s) keeps the fans from chasing it
 const AVERAGE = 4
-const TEMP_MIN_C = 65
-const TEMP_MAX_C = 88
+# the 9950X3D sits at 65-75C under routine background load (normal for this chip, Tjmax 95C): start the
+# ramp past that range so fans stay at the floor for everyday use, full speed well before anything risky
+const TEMP_MIN_C = 72
+const TEMP_MAX_C = 90
 # 16%: near-silent, but every fan spins, so a mis-identified channel never stalls
 const PWM_FLOOR = 40
 const PWM_START = 90

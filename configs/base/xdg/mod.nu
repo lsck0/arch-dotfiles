@@ -46,6 +46,8 @@ const RECLAIM = [
     [.mcp-inspector .local/state/mcp-inspector link] [.netscanner .local/state/netscanner link]
     [.nnd .local/state/nnd link] [.superseedr .local/state/superseedr link] [.usdview .local/state/usdview link]
     [.Xcolours .config/Xcolours link] [.lyx .config/lyx link] [.java .config/java link]
+    [.gemini .local/share/gemini link] [.copilot .local/share/copilot link] [.agents .local/share/agents link]
+    [.caido-mcp .local/share/caido-mcp link]
     [.lmmsrc.xml .config/lmms/lmmsrc.xml link-file]
     [.viminfo .local/state/vim/viminfo link-file]
     [.wget-hsts .local/state/wget-hsts link-file] [.indentconfig.yaml .config/latexindent/indentconfig.yaml link-file]

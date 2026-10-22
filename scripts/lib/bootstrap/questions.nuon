@@ -31,16 +31,6 @@
             invalid: "unknown keymap '{value}'"
         }
         {
-            id: username
-            kind: text
-            env: BOOTSTRAP_USERNAME
-            default: null
-            title: "login name"
-            text: "Login name:"
-            pattern: '^[a-z_][a-z0-9_-]{0,31}$'
-            invalid: "invalid login name '{value}', expected {pattern}"
-        }
-        {
             id: profile
             kind: profile
             env: BOOTSTRAP_PROFILE
@@ -74,7 +64,7 @@
             when: {host_wsl: false}
             default: false
             title: "home network"
-            text: "Are you on your home network right now?\n\nYes lets this machine find printers and other devices here. Other networks stay locked down."
+            text: "On your home network right now?\n\nLets this machine find printers and other devices here."
         }
         {step: home-network, when: {host_wsl: false}}
         {step: platform-load}
@@ -97,7 +87,7 @@
             default: ""
             empty_ok: true
             title: "ssh key"
-            text: "SSH public key, the one line from e.g. ~/.ssh/id_ed25519.pub.\nssh only takes key logins. Empty leaves just the console."
+            text: "SSH public key (one line, e.g. ~/.ssh/id_ed25519.pub). Empty leaves just the console."
             pattern: '^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp(256|384|521)|sk-(ssh-ed25519|ecdsa-sha2-nistp256)@openssh\.com) [A-Za-z0-9+/=]+( [^\n]*)?$'
             invalid: "BOOTSTRAP_SSH_KEY is not one ssh public key line"
         }
@@ -190,6 +180,17 @@
             text: "Encrypt the disk? You type its password at every boot.\n\nWithout it, anyone who gets the disk can read it."
         }
         {
+            id: username
+            kind: text
+            env: BOOTSTRAP_USERNAME
+            when: {machine_wsl: false}
+            default: null
+            title: "login name"
+            text: "Login name:"
+            pattern: '^[a-z_][a-z0-9_-]{0,31}$'
+            invalid: "invalid login name '{value}', expected {pattern}"
+        }
+        {
             id: password
             kind: password
             env: BOOTSTRAP_PASSWORD
@@ -222,6 +223,17 @@
             empty_ok: true
             title: "root password"
             text: "Root password. Empty keeps root locked:"
+        }
+        {
+            id: username
+            kind: text
+            env: BOOTSTRAP_USERNAME
+            when: {machine_wsl: true}
+            default: null
+            title: "login name"
+            text: "Login name:"
+            pattern: '^[a-z_][a-z0-9_-]{0,31}$'
+            invalid: "invalid login name '{value}', expected {pattern}"
         }
         {
             id: user_password

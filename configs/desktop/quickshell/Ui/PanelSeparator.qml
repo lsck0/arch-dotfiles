@@ -11,7 +11,7 @@ Rectangle {
   implicitWidth: 100
   implicitHeight: 1
   height: 1
-  color: Qt.rgba(foreground.r, foreground.g, foreground.b, strength)
+  color: Util.alpha(foreground, strength)
 
   layer.enabled: Style.fx.glow > 0
   layer.effect: Glow {}

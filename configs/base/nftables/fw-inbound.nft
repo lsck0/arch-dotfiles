@@ -6,7 +6,7 @@ delete table inet fw
 table inet fw {
     set knock1 { type ipv4_addr; flags timeout; timeout 10s; }
     set knock2 { type ipv4_addr; flags timeout; timeout 10s; }
-    set ssh_allowed { type ipv4_addr; flags timeout; timeout 1h; }
+    set ssh_allowed { type ipv4_addr; flags timeout; timeout @SSH_KNOCK_WINDOW@; }
     set home_ifaces { type ifname; }
 
     chain input {
@@ -16,6 +16,7 @@ table inet fw {
         ct state established,related accept
         ct state invalid drop
 
+        ip6 nexthdr ipv6-icmp icmpv6 type echo-request limit rate 10/second accept
         ip6 nexthdr ipv6-icmp accept
         ip protocol icmp icmp type echo-request limit rate 5/second accept
         ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem, echo-reply } accept

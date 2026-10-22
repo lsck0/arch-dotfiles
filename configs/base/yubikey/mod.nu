@@ -18,12 +18,15 @@ export def system [cfg: record] {
 export def link [cfg: record] {
     let ssh = $nu.home-dir | path join .ssh
     # ssh tries id_ed25519_sk by default, after the agent's keys; a copy, ssh rejects a key file others can read
-    let stub = glob ssh-* | where not ($it | str ends-with .pub) | get --optional 0
+    let module = $env.DOTFILES | path join configs base yubikey
+    let secrets = $env.DOTFILES | path join configs secrets keys yubikey
+    let stub = glob ($secrets | path join "ssh-*") | where {|f| not ($f | str ends-with ".pub") } | get --optional 0
+    let pub = glob ($module | path join "ssh-*.pub") | get --optional 0
     [
-        (if (profile-has secrets) and $stub != null {
+        (if (profile-has secrets) and $stub != null and $pub != null and (secret-is-plaintext $stub) {
             [
                 (file-copy $stub ($ssh | path join id_ed25519_sk) --mode 600)
-                (file-copy $"($stub).pub" ($ssh | path join id_ed25519_sk.pub))
+                (file-copy $pub ($ssh | path join id_ed25519_sk.pub))
             ]
         } else { [] })
         (link-commands totp.nu)

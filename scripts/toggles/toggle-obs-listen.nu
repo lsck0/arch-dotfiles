@@ -34,12 +34,16 @@ def monitor-set [socket: int, names: list<string>, type: string]: nothing -> not
 }
 
 def monitor-enable [socket: int]: nothing -> nothing {
+    let already = inputs-get
     let names = request $socket GetInputList | get -o inputs | default [] | get inputName | where {|name|
-        let tracks = request $socket GetInputAudioTracks {inputName: $name} | get -o inputAudioTracks
-        let type = request $socket GetInputAudioMonitorType {inputName: $name} | get -o monitorType
-        ($tracks | get -o $STREAM_TRACK) == true and $type == $MONITOR_NONE
+        $name not-in $already
+            and ((request $socket GetInputAudioTracks {inputName: $name}
+                | default {} | get -o inputAudioTracks | get -o $STREAM_TRACK) == true)
+            and ((request $socket GetInputAudioMonitorType {inputName: $name}
+                | get -o monitorType | default $MONITOR_NONE) == $MONITOR_NONE)
     }
-    inputs-get | append $names | uniq | to nuon | save --force (state-file $STATE_INPUTS)
+    if ($names | is-empty) { return }
+    $already | append $names | uniq | to nuon | save --force (state-file $STATE_INPUTS)
     monitor-set $socket $names $MONITOR_AND_OUTPUT
 }
 

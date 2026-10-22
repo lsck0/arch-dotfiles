@@ -16,6 +16,7 @@ Extends the root `AGENTS.md`. Chat, voice and music clients.
 
 ## Conventions
 
-- Every client here is confined by AppArmor in `enforce` (see `base/apparmor`): they open other people's content.
+- Every client here with an upstream or hand-written AppArmor profile runs in `enforce` (see `base/apparmor`);
+  teamspeak6-client, proton-meet-bin, chatuino-bin and discordo-git have none yet and are not yet confined.
 - Palette and scaling follow the desktop conventions (wallust/oomox, XWayland scaling); clients that render through
   CEF/Chromium are pushed onto native Wayland rather than scaled on XWayland.

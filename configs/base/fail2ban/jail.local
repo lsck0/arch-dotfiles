@@ -1,8 +1,8 @@
 [DEFAULT]
 ignoreip = 127.0.0.1/8 ::1
-bantime = 3600
-findtime = 600
-maxretry = 5
+bantime = @BANTIME@
+findtime = @FINDTIME@
+maxretry = @MAXRETRY@
 banaction = nftables-multiport
 banaction_allports = nftables-allports
 

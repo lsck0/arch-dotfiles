@@ -122,7 +122,14 @@ export def link [cfg: record] {
     let pywalfox = if (which pywalfox | is-empty) { [] } else {
         [(exec pywalfox-host [pywalfox install] --creates ($nu.home-dir | path join $PYWALFOX_HOST))]
     }
-    let speech = if (which speech-dispatcher | is-empty) { [] } else { [(unit-enable speech-dispatcher.socket --now)] }
+    let speech = if (which speech-dispatcher | is-empty) { [] } else {
+        [
+            (unit-enable speech-dispatcher.socket --now)
+            (file-text ($nu.home-dir | path join .config speech-dispatcher speechd.conf)
+                "AddModule \"espeak-ng\" \"sd_espeak-ng\" \"espeak-ng.conf\"\nDefaultModule espeak-ng\n")
+            (dropin speech-dispatcher.service speech-dispatcher-timeout.conf --then [systemctl --user daemon-reload])
+        ]
+    }
     let noscript = if (noscript-pending | is-empty) { [] } else { [(step noscript-restore)] }
     # pywalfox looks in ~/.config/firefox
     [(file-link $root ($nu.home-dir | path join .config firefox))]

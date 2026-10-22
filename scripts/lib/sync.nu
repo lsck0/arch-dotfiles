@@ -7,6 +7,7 @@ use secrets.nu [secret-is-plaintext secrets-wanted]
 const BRANCH = "master"
 const PUSH_TRIES = 3
 const FINGERPRINT_LINE = '(?m)^SIGNING_KEY_FINGERPRINT=(?<fpr>[0-9A-F]{40})$'
+const LUKS_HEADER_MAX_AGE_DAYS = 90
 
 # Fails unless HEAD is on master: a rollback's detached HEAD would commit off it and the push would fail.
 export def sync-branch-check [repo: path]: nothing -> nothing {
@@ -87,6 +88,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
     }
 
     ^nu --no-config-file ($repo | path join scripts lib internal.nu) backup
+    luks-header-sync $repo
     let secrets = $repo | path join configs secrets
     if (secrets-wanted) and (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) {
         if (^git -C $secrets status --porcelain | str trim | is-not-empty) {
@@ -108,6 +110,7 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
 
     sync-catch-up $repo
     ^git -C $repo add .
+    mut committed = false
     if (^git -C $repo diff --cached --quiet | complete).exit_code == 0 {
         log-info "sync: nothing changed, no new generation"
     } else {
@@ -118,23 +121,70 @@ export def sync-commit [repo: path, --no-verify]: nothing -> nothing {
             try { do { cd $repo; ^gitleaks git --staged --redact --no-banner } } catch { error make {msg: "gitleaks found a secret in the staged tree, nothing committed (dot sync --no-verify overrides)"} }
         }
         generation-commit $repo $fpr
+        $committed = true
     }
     mut tries = 0
-    while (^git -C $repo push --no-recurse-submodules | complete).exit_code != 0 {
+    mut push = ^git -C $repo push --no-recurse-submodules | complete
+    while $push.exit_code != 0 {
         $tries += 1
         if $tries > $PUSH_TRIES { error make {msg: $"push still rejected after ($PUSH_TRIES) retries"} }
-        ^git -C $repo reset --soft HEAD~1
+        if not ($push.stderr | str contains "non-fast-forward") and not ($push.stderr | str contains "fetch first") and not ($push.stderr | str contains "rejected") {
+            error make {msg: $"push failed, nothing rewound: (error-brief $push.stderr)"}
+        }
+        if $committed { ^git -C $repo reset --soft HEAD~1 }
         ^git -C $repo stash push --quiet --include-untracked
         sync-catch-up $repo
         ^git -C $repo stash pop --quiet
         ^git -C $repo add .
-        generation-commit $repo $fpr
+        if $committed { generation-commit $repo $fpr }
+        $push = ^git -C $repo push --no-recurse-submodules | complete
     }
 }
 
 def generation-commit [repo: path, fpr: string]: nothing -> nothing {
     let last = ^git -C $repo log --format=%s | parse --regex '(?m)^Generation: (?<n>\d+)' | get --optional 0.n | default "0" | into int
     ^git -C $repo -c gpg.format=openpgp commit $"-S($fpr)" -m $"Generation: ($last + 1)"
+}
+
+def luks-header-path [repo: path]: nothing -> path {
+    $repo | path join configs secrets keys $"luks-header-(open --raw /etc/hostname | str trim).img"
+}
+
+def luks-root []: nothing -> bool {
+    let source = ^findmnt -n -o SOURCE / | str trim | split row "[" | first
+    if not ($source | str starts-with "/dev/mapper/") { return false }
+    (^lsblk -n -o TYPE $source | str trim) == "crypt"
+}
+
+def luks-header-checked-stamp []: nothing -> path {
+    $nu.home-dir | path join .local state dotfiles $"luks-header-checked-(open --raw /etc/hostname | str trim)"
+}
+
+# Missing: due. Otherwise due when we last actually ran header-backup.nu (recorded in a stamp outside git,
+# since git-crypt is deterministic and an unchanged header produces no new commit to measure age from)
+# longer than LUKS_HEADER_MAX_AGE_DAYS ago.
+def luks-header-due [header: path]: nothing -> bool {
+    if not ($header | path exists) { return true }
+    let stamp = luks-header-checked-stamp
+    if not ($stamp | path exists) { return true }
+    let touched = open --raw $stamp | str trim | into int | $in * 1sec + 1970-01-01
+    (date now) - $touched > ($LUKS_HEADER_MAX_AGE_DAYS * 1day)
+}
+
+# Keeps the LUKS header backup current: missing or stale, root re-backs it up (base/boot/luks/header-backup.nu)
+# so the secrets commit right after carries it. Silently skipped off a LUKS root or while secrets are locked.
+export def luks-header-sync [repo: path]: nothing -> nothing {
+    if not (luks-root) { return }
+    if $env.DOT_SYSTEM? == "skip" { return }
+    let secrets = $repo | path join configs secrets
+    if not (secret-is-plaintext ($secrets | path join keys pgp_privatekey.asc)) { return }
+    try {
+        if not (luks-header-due (luks-header-path $repo)) { return }
+        ^nu --no-config-file ($repo | path join configs base boot luks header-backup.nu)
+        let stamp = luks-header-checked-stamp
+        mkdir ($stamp | path dirname)
+        (date now | format date "%s") | save --force $stamp
+    } catch {|e| log-warn $"luks header backup: ($e.msg)" }
 }
 
 def sync-catch-up [repo: path]: nothing -> nothing {

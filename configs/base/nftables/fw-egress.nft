@@ -22,6 +22,7 @@ table inet fw_egress {
         meta mark $game_mark accept
         oifname @portal tcp dport { 80, 443 } accept
         oifname @portal meta l4proto { tcp, udp } th dport 53 accept
+        oifname @portal tcp dport 853 accept
 
         meta l4proto tcp reject with tcp reset
         reject

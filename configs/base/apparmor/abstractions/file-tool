@@ -18,10 +18,12 @@
 
   deny @{HOME}/.{profile,bash_profile,bash_login,bashrc,bash_logout,zshenv,zprofile,zshrc,zlogin,zlogout} w,
   deny @{HOME}/.{xprofile,xinitrc,xsession,pam_environment} w,
-  deny @{user_config_dirs}/{autostart,systemd,environment.d,zsh,fish,nushell,hypr,uwsm,git}/{,**} w,
+  deny @{user_config_dirs}/{autostart,systemd,environment.d,zsh,fish,nushell,hypr,uwsm,git,quickshell,tmux,ghostty}/{,**} w,
   deny @{user_config_dirs}/{mimeapps.list,user-dirs.dirs} w,
   deny @{user_bin_dirs}/{,**} w,
   deny @{user_share_dirs}/{applications,dbus-1,systemd}/{,**} w,
+  deny @{user_share_dirs}/nvim/{,**} w,
+  deny @{HOME}/.claude/{,**} w,
   deny @{HOME}/projects/arch-dotfiles/{,**} w,
 
   include if exists <abstractions/dotfiles/file-tool.d>

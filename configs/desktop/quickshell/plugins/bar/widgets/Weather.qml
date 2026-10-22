@@ -493,15 +493,51 @@ BarWidget {
           text: "NEXT 24 HOURS" + (root.hourly.length > 0 ? " :: " + root.t(root.hourlyTempMin) + " .. " + root.t(root.hourlyTempMax) : "")
         }
 
-        Sparkline {
+        Row {
           width: parent.width
           height: Style.space(64)
           visible: root.hourly.length > 0
-          color: Colors.menu.text
-          glow: true
-          minValue: root.hourlyTempMin - 1
-          maxValue: root.hourlyTempMax + 1
-          values: root.hourlyTemps
+          spacing: Style.spacing.xs
+
+          Item {
+            id: tempAxis
+            width: Math.max(tempMaxLabel.implicitWidth, tempMinLabel.implicitWidth)
+            height: parent.height
+
+            Text {
+              id: tempMaxLabel
+              anchors.top: parent.top
+              anchors.right: parent.right
+              textFormat: Text.PlainText
+              text: root.t(root.hourlyTempMax)
+              color: Colors.menu.text
+              opacity: Style.emphasis.faint
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+
+            Text {
+              id: tempMinLabel
+              anchors.bottom: parent.bottom
+              anchors.right: parent.right
+              textFormat: Text.PlainText
+              text: root.t(root.hourlyTempMin)
+              color: Colors.menu.text
+              opacity: Style.emphasis.faint
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+          }
+
+          Sparkline {
+            width: parent.width - tempAxis.width - parent.spacing
+            height: parent.height
+            color: Colors.menu.text
+            glow: true
+            minValue: root.hourlyTempMin - 1
+            maxValue: root.hourlyTempMax + 1
+            values: root.hourlyTemps
+          }
         }
 
         Column {
@@ -509,52 +545,101 @@ BarWidget {
           spacing: Style.spacing.xxs
           visible: root.hourly.length > 0
 
-          Item {
-            id: hourlyBars
-            width: parent.width
-            height: Style.space(28)
-            Row {
-              anchors.fill: parent
-              spacing: 1
-              Repeater {
-                model: root.hourly
-                delegate: Item {
-                  id: hourBar
-                  required property var modelData
-                  width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
-                  height: hourlyBars.height
-                  Rectangle {
-                    anchors.bottom: parent.bottom
-                    width: parent.width
-                    height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
-                    color: Util.alpha(Colors.accent, 0.55)
-                    antialiasing: false
-                  }
-                }
-              }
-            }
+          Text {
+            textFormat: Text.PlainText
+            text: "RAIN CHANCE"
+            color: Colors.menu.text
+            opacity: Style.emphasis.faint
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: Style.headerTracking
           }
 
           Row {
             width: parent.width
-            spacing: 1
-            Repeater {
-              model: root.hourly
-              delegate: Column {
-                id: hourTick
-                required property var modelData
-                required property int index
-                width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
-                spacing: 0
-                Text {
-                  text: hourTick.index % 6 === 0 ? root.iconFor(hourTick.modelData.code, 1) : ""
-                  color: Colors.accent
-                  font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
+            spacing: Style.spacing.xs
+
+            Item {
+              id: rainAxis
+              width: Style.space(28)
+              height: Style.space(28)
+
+              Text {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                textFormat: Text.PlainText
+                text: "100%"
+                color: Colors.menu.text
+                opacity: Style.emphasis.faint
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+
+              Text {
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                textFormat: Text.PlainText
+                text: "0%"
+                color: Colors.menu.text
+                opacity: Style.emphasis.faint
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+            }
+
+            Column {
+              id: rainChart
+              width: parent.width - rainAxis.width - parent.spacing
+              spacing: 0
+
+              Item {
+                id: hourlyBars
+                width: parent.width
+                height: Style.space(28)
+                Row {
+                  anchors.fill: parent
+                  spacing: 1
+                  Repeater {
+                    model: root.hourly
+                    delegate: Item {
+                      id: hourBar
+                      required property var modelData
+                      width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
+                      height: hourlyBars.height
+                      Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: Math.max(1, parent.height * Math.max(0, Math.min(100, Number(hourBar.modelData.pop) || 0)) / 100)
+                        color: Util.alpha(Colors.accent, 0.55)
+                        antialiasing: false
+                      }
+                    }
+                  }
                 }
-                Text {
-                  text: hourTick.index % 6 === 0 ? hourTick.modelData.h : ""
-                  color: Colors.menu.text; opacity: Style.emphasis.faint
-                  font.family: Style.font.family; font.pixelSize: Style.font.caption
+              }
+
+              Row {
+                width: parent.width
+                spacing: 1
+                Repeater {
+                  model: root.hourly
+                  delegate: Column {
+                    id: hourTick
+                    required property var modelData
+                    required property int index
+                    width: (hourlyBars.width - (root.hourly.length - 1)) / Math.max(1, root.hourly.length)
+                    spacing: 0
+                    Text {
+                      text: hourTick.index % 6 === 0 ? root.iconFor(hourTick.modelData.code, 1) : ""
+                      color: Colors.accent
+                      font.family: Style.font.iconFamily; font.pixelSize: Style.font.iconSmall
+                    }
+                    Text {
+                      text: hourTick.index % 6 === 0 ? hourTick.modelData.h : ""
+                      color: Colors.menu.text; opacity: Style.emphasis.faint
+                      font.family: Style.font.family; font.pixelSize: Style.font.caption
+                    }
+                  }
                 }
               }
             }

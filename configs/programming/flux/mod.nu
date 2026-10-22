@@ -16,9 +16,8 @@ export def link [cfg: record] {
     let channel = open $toolchain | get toolchain.channel
     let rustup = $env.RUSTUP_HOME? | default ($nu.home-dir | path join .rustup)
     let marker = $rustup | path join toolchains $"($channel)-x86_64-unknown-linux-gnu" lib rustlib manifest-llvm-tools-preview-x86_64-unknown-linux-gnu
+    # flux reads FLUX_SYSROOT (app-dirs.conf) for its sysroot, so no ~/.flux link is needed
     [
         (exec flux-toolchain [rustup toolchain install $channel --profile minimal --component $COMPONENTS] --creates $marker)
-        # flux finds its sysroot only at ~/.flux
-        (file-link $SYSROOT ($nu.home-dir | path join .flux))
     ]
 }

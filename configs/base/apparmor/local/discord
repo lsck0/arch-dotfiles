@@ -8,8 +8,10 @@ owner @{user_config_dirs}/discord/app-*/modules/discord_voice-*/discord_voice/gp
 owner @{user_config_dirs}/discord/discord_asset_cache/openh264/libopenh264-*.so mr,
 include <abstractions/user-read-strict>
 owner @{user_download_dirs}/{,**} rwl,
-owner @{user_sync_dirs}/{,**} rwl,
+owner @{HOME}/sync/coms/{,**} rwl,
+include <abstractions/dotfiles/deny-sensitive-home>
 include <abstractions/dotfiles/nssdb>
+include <abstractions/devices-u2f>
 @{PROC}/uptime r,
 /etc/arch-release r,
 owner @{user_config_dirs}/BetterDiscord/{,**} rwk,

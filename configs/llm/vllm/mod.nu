@@ -47,6 +47,8 @@ const VERSION = "0.30.0+rocm723"
 const OMNI_VERSION = "0.30.0"
 # the bare rocm/ index keeps only the newest release; rocm/<release>/<rocm tag>/ keeps the pin resolvable
 const WHEELS_URL = "https://wheels.vllm.ai/rocm/0.30.0/rocm723/"
+# pins the resolver's view of every transitive dep (torch, transformers, ...) as of this date; bump with VERSION
+const EXCLUDE_NEWER = "2026-10-22"
 # rocm wheels are cp312 only
 const PYTHON_VERSION = "3.12"
 const ROCM_BIN = "/opt/rocm/bin"
@@ -68,9 +70,11 @@ def rocm-gpu []: nothing -> bool {
 export def system [cfg: record] {
     if not (rocm-gpu) or $cfg.gpu_memory_utilization == null { return [] }
     let share = $cfg.gpu_memory_utilization | into string --decimals 2
+    let gpu = gpu-list | where vendor == amd | get --optional 0
+    let perf_path = if $gpu == null { "/nonexistent" } else { $"/sys/class/drm/card($gpu.index)/device/power_dpm_force_performance_level" }
     let values = {
         MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
-        TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser
+        TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
     }
     [
         (step venv)
@@ -90,8 +94,8 @@ export def venv []: nothing -> nothing {
     with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
         ^uv venv --allow-existing --python $PYTHON_VERSION $venv
         # mooncake's bundled glog clashes with the system's and aborts the import
-        (^uv pip install --python $venv --extra-index-url $WHEELS_URL --excludes uv-excludes.txt $"vllm==($VERSION)"
-            $"vllm-omni==($OMNI_VERSION)")
+        (^uv pip install --python $venv --extra-index-url $WHEELS_URL --exclude-newer $EXCLUDE_NEWER
+            --excludes uv-excludes.txt $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
         ^uv pip uninstall --python $venv -r uv-excludes.txt
     }
     # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it

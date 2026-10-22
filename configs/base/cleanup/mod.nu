@@ -1,8 +1,18 @@
 use module.nu *
 
+export const options = {
+    journal_max_use: {
+        type: string
+        default: "500M"
+        doc: "Total disk space the systemd journal may keep, journald.conf(5) size syntax"
+        label: "Max journal size"
+        scope: machine
+    }
+}
+
 export def system [cfg: record] {
     (
-        file-copy journald-size.conf /etc/systemd/journald.conf.d/00-size.conf
+        file-render journald-size.conf /etc/systemd/journald.conf.d/00-size.conf {MAX_USE: $cfg.journal_max_use}
             --then [systemctl restart systemd-journald.service]
     )
 }

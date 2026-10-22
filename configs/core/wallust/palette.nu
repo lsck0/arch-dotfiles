@@ -144,13 +144,21 @@ export def mix [a: list<float>, b: list<float>, t: float]: nothing -> list<float
     [0 1 2] | each {|i| ($a | get $i) * (1 - $t) + ($b | get $i) * $t }
 }
 
-def walk [bg: list<float>, start: list<float>, target: list<float>, ratio: float]: nothing -> record {
+# Steps `start` through step up to count_max times, stopping at the first non-null stop result; stop
+# reads the current value and returns null to keep stepping, or whatever should be returned on success.
+def search-until [count_max: int, start: any, step: closure, stop: closure]: nothing -> record {
     mut out = $start
-    for _ in 1..$WALK_COUNT_MAX {
-        if (passes $out $bg $ratio) { return {ok: true, out: $out} }
-        $out = mix $out $target $WALK_STEP
+    for _ in 1..$count_max {
+        let found = do $stop $out
+        if $found != null { return {ok: true, out: $out, found: $found} }
+        $out = do $step $out
     }
-    {ok: false, out: $out}
+    {ok: false, out: $out, found: null}
+}
+
+def walk [bg: list<float>, start: list<float>, target: list<float>, ratio: float]: nothing -> record {
+    let r = search-until $WALK_COUNT_MAX $start {|out| mix $out $target $WALK_STEP } {|out| if (passes $out $bg $ratio) { $out } }
+    {ok: $r.ok, out: $r.out}
 }
 
 # The input walked toward white or black until it reaches ratio on bg, or the better of walk and target.
@@ -166,12 +174,7 @@ export def readable-light-on [bg: list<float>, --ratio: float = $TEXT_RATIO]: li
 
 # The input mixed into bg until its contrast drops to ratio.
 export def dim-toward [bg: list<float>, --ratio: float = $DIM_RATIO]: list<float> -> list<float> {
-    mut out = $in
-    for _ in 1..$DIM_COUNT_MAX {
-        if (cmp (contrast $out $bg) $ratio) <= 0 { return $out }
-        $out = mix $out $bg $DIM_STEP
-    }
-    $out
+    (search-until $DIM_COUNT_MAX $in {|out| mix $out $bg $DIM_STEP } {|out| if (cmp (contrast $out $bg) $ratio) <= 0 { $out } }).out
 }
 
 # The error, warn or ok hue at the input's saturation and value, readable on bg.
@@ -179,29 +182,27 @@ export def semantic [role: string, bg: list<float>, --ratio: float = $TEXT_RATIO
     let hsv = $in | rgb-to-hsv
     let h = $SEMANTIC_HUES | get $role
     let light = $bg | is-light
-    mut out = hsv-to-rgb $h ($hsv.1 | clamp 0.45 0.85) (max2 0.55 $hsv.2)
-    for _ in 1..$WALK_COUNT_MAX {
-        if (passes $out $bg $ratio) { return $out }
+    let start = hsv-to-rgb $h ($hsv.1 | clamp 0.45 0.85) (max2 0.55 $hsv.2)
+    let step = {|out|
         let o = $out | rgb-to-hsv
         let v = if $light { $o.2 / 1.07 } else { min2 1.0 ($o.2 * 1.07) }
-        $out = hsv-to-rgb $h (max2 0.35 ($o.1 * 0.96)) $v
+        hsv-to-rgb $h (max2 0.35 ($o.1 * 0.96)) $v
     }
-    $out
+    (search-until $WALK_COUNT_MAX $start $step {|out| if (passes $out $bg $ratio) { $out } }).out
 }
 
 # A selection background darkened from the input and the light text readable on it.
 export def selection-pair [fg: list<float>, --ratio: float = $TEXT_RATIO]: list<float> -> list<list<float>> {
     let hsv = $in | rgb-to-hsv
-    mut v = $hsv.2
-    for _ in 1..$SELECTION_COUNT_MAX {
+    let stop = {|v|
         let cand = hsv-to-rgb $hsv.0 $hsv.1 $v
         if (passes $fg $cand $ratio) or (passes $WHITE $cand $ratio) {
             let light = $fg | readable-light-on $cand --ratio $ratio
-            if (passes $light $cand $ratio) { return [$cand $light] }
+            if (passes $light $cand $ratio) { [$cand $light] }
         }
-        $v = $v * $SELECTION_DARKEN
     }
-    [(hsv-to-rgb $hsv.0 $hsv.1 $v) $WHITE]
+    let r = search-until $SELECTION_COUNT_MAX $hsv.2 {|v| $v * $SELECTION_DARKEN } $stop
+    if $r.ok { $r.found } else { [(hsv-to-rgb $hsv.0 $hsv.1 $r.out) $WHITE] }
 }
 
 # A closure reading a wal slot as rgb (with a fallback hex), or null when colors.json is unreadable.

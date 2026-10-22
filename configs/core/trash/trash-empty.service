@@ -3,7 +3,7 @@ Description=Empty user trash
 
 [Service]
 Type=oneshot
-Environment=RETENTION_DAYS=1
+Environment=RETENTION_DAYS=@RETENTION_DAYS@
 ExecStart=/usr/bin/trash-empty -f --trash-dir %h/.local/share/Trash ${RETENTION_DAYS}
 ExecStart=/usr/bin/find /tmp/.Trash-%U -mindepth 1 -delete
 SuccessExitStatus=0 1

@@ -2,6 +2,16 @@ use module.nu *
 
 export const meta = {packages: {pacman: [downgrade pacman-contrib yay]}}
 
+export const options = {
+    yay_cache_days: {
+        type: int
+        default: 30
+        doc: "Days an unused yay build cache dir may sit in ~/.cache/yay before yay-cache-clean.timer deletes it, find -mtime argument"
+        label: "Yay cache retention (days)"
+        scope: user
+    }
+}
+
 const SNAPSHOT = '^(\d{4}-\d{2}-\d{2})?$'
 
 export def system [cfg: record] {
@@ -34,7 +44,7 @@ export def trust []: nothing -> nothing {
 export def link [cfg: record] {
     [
         (files-into ($nu.home-dir | path join .config pacman) makepkg.conf)
-        (unit-file yay-cache-clean.service)
+        (file-render yay-cache-clean.service (unit-dir | path join yay-cache-clean.service) {CACHE_DAYS: $cfg.yay_cache_days})
         (unit-file yay-cache-clean.timer --enable --now)
     ]
 }

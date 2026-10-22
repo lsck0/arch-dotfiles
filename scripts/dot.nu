@@ -91,7 +91,8 @@ def --env link-run [mods: list<string>, force: bool, plan: bool]: nothing -> tab
     let wallpaper = $nu.home-dir | path join .cache wal wallpaper
     let themed = if ($wallpaper | path exists) {
         let ids = $planned | where native and id not-in ($ctx.modules | where broken | get id) | get id
-        pipeline-plan $ctx theme $ids false [(^readlink -f $wallpaper | str trim)] | where native | pipeline-apply $ctx $in theme (jobs) [(^readlink -f $wallpaper | str trim)]
+        let real_wallpaper = ^readlink -f $wallpaper | str trim
+        pipeline-plan $ctx theme $ids false [$real_wallpaper] | where native | pipeline-apply $ctx $in theme (jobs) [$real_wallpaper]
     } else { [] }
     if $full {
         if ($results | all { $in.ok }) { written-prune (owned-targets) } else { written-end }
@@ -803,8 +804,8 @@ def "main log" [run?: string@run-ids, --module: string@module-ids, --level: stri
             $"('' | fill --width ($depth * 2))($b.target) ($end.ms? | default '?')ms ($end.outcome? | default 'open')"
         } | str join "\n")
     }
-    let rank = [TRACE DEBUG INFO WARN ERROR PANIC] | enumerate | where item == ($level | str uppercase) | get 0.index
-    $records | where {|r| ([TRACE DEBUG INFO WARN ERROR PANIC] | enumerate | where item == $r.level | get 0.index) >= $rank }
+    let rank = $LOG_LEVELS | enumerate | where item == ($level | str uppercase) | get 0.index
+    $records | where {|r| ($LOG_LEVELS | enumerate | where item == $r.level | get 0.index) >= $rank }
     | where {|r| $module == null or $r.module == $module } | select time level module msg
 }
 

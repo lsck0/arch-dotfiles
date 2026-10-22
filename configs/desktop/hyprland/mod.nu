@@ -241,6 +241,7 @@ export def link [cfg: record] {
             SUSPEND_S: $cfg.idle_suspend_s DIM_SAVER_S: $cfg.idle_dim_saver_s LOCK_SAVER_S: $cfg.idle_lock_saver_s
             SUSPEND_SAVER_S: $cfg.idle_suspend_saver_s
         })
+        (unit-enable hypridle.service --now)
         (file-text ($dir | path join platform.lua) (platform-lua $cfg) --generated)
         (file-text ($dir | path join style.lua) $"return (lua-from {rounding: $RADIUS_PX, border: $BORDER_PX, opacity: $OPACITY_WINDOW, opacity_surface: $OPACITY_SURFACE})\n" --generated)
         (step plugins-build)

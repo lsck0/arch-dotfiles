@@ -1,4 +1,5 @@
 use module.nu *
+use ../../core/wallust/palette.nu [OPACITY_SURFACE]
 
 export const meta = {packages: {pacman: [emacs hunspell-en_us]}}
 
@@ -38,8 +39,10 @@ export def theme [cfg: record, wallpaper: string] {
     if $p == null { return [] }
     let theme = $nu.home-dir | path join $THEME
     let shade = if $p.light == "1" { {mode: light, darken: lighten, lighten: darken} } else { {mode: dark, darken: darken, lighten: lighten} }
-    let frame = [[background-color $p.bg_conditioned] [foreground-color $p.fg]]
-        | each { $"\(push '\(($in.0) . \"($in.1)\"\) default-frame-alist\)" } | str join "\n"
+    let strings = [[background-color $p.bg_conditioned] [foreground-color $p.fg]]
+        | each { $"\(push '\(($in.0) . \"($in.1)\"\) default-frame-alist\)" }
+    let alpha = $"\(push '\(alpha-background . ($OPACITY_SURFACE * 100 | math round)\) default-frame-alist\)"
+    let frame = ($strings ++ [$alpha]) | str join "\n"
     [
         (file-render doom-pywal-theme.el.in $theme ($p | merge $shade | rename --block { str uppercase }) | file-text $theme $in.content --generated)
         (file-text ($nu.home-dir | path join $FRAME) $"($frame)\n" --generated)

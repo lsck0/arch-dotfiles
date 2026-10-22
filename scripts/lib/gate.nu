@@ -252,7 +252,7 @@ export def gate-tools [apply: bool]: nothing -> record {
     let pick = {|exts| $paths | where { ($in | path parse | get extension) in $exts } | each { rel $in } | sort }
     let sh = $paths | where { shell-script $in } | each { rel $in } | sort
     let recipes = $paths | where { pkgbuild $in } | each { rel $in } | sort
-    let sets = {shfmt: $sh, shellcheck: ($sh | where $it not-in $recipes), ruff: (do $pick [py]), stylua: (do $pick [lua]), prettier: (do $pick [css scss yaml yml]), taplo: (do $pick [toml]), $QMLLINT: (do $pick [qml]), nu: (do $pick [nu])}
+    let sets = {shfmt: $sh, shellcheck: ($sh | where $it not-in $recipes), ruff: (do $pick [py]), stylua: (do $pick [lua]), prettier: (do $pick [css scss yaml yml]), taplo: ((do $pick [toml]) | where {|f| not ((open --raw ($REPO | path join $f)) =~ '@[A-Z_]+@') }), $QMLLINT: (do $pick [qml]), nu: (do $pick [nu])}
     let present = $sets | items {|t, files| {tool: $t, files: $files, have: (($files | is-not-empty) and (which $t | is-not-empty))} }
     let notes = $present | where {|t| ($t.files | is-not-empty) and not $t.have } | each { $"($in.tool): not installed, ($in.files | length) file\(s\) left untouched" }
     let on = {|t| $present | where tool == $t | get 0 | if $in.have { $in.files } else { [] } }

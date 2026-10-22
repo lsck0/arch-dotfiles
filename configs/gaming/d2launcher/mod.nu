@@ -14,7 +14,14 @@ def install-dir []: nothing -> path {
 # SCRIPT_HOME_DIR is hardcoded in the script.
 def home-dir []: nothing -> path { $nu.home-dir | path join .d2launcher }
 
-def vendor-dir []: nothing -> path { $nu.home-dir | path join sync vendor d2launcher }
+def vendor-dir []: nothing -> path {
+    let synced = $nu.home-dir | path join sync vendor d2launcher
+    if ($synced | path exists) {
+        $synced
+    } else {
+        $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join d2launcher-vendor
+    }
+}
 
 const VENDOR_LINKED = [bin patches backup]
 const BASE_MARKER = "d2exp.mpq"
@@ -25,6 +32,7 @@ const D2_ARGS = "-3dfx"
 const MXL_MANIFEST = "https://launcher.median-xl.com/mxl/release/public/manifest"
 const OLD_DESKTOP_NAME = "Diablo II"
 const RESOLUTION_FALLBACK = {desktop: "3840x2160", laptop: "1920x1080"}
+const HEADLESS_MONITORS = '^HEADLESS-'
 
 export const options = {
     base_dir: {
@@ -56,7 +64,7 @@ export def detect [cfg: record]: nothing -> record {
     let base = $prefixes | compact | each { path expand | path join $BASE_IN_PREFIX }
         | where { path join $BASE_MARKER | path exists } | get --optional 0
     let monitor = try {
-        ^hyprctl -j monitors | from json | where name !~ "^HEADLESS-" | sort-by focused --reverse | first
+        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | sort-by focused --reverse | first
     } catch { null }
     {base_dir: $base, resolution: (if $monitor == null { null } else { $"($monitor.width)x($monitor.height)" })}
 }
@@ -81,6 +89,7 @@ export def link [cfg: record] {
             exec $"d2launcher-vendor-($d)" [mkdir -p $path] --creates $path
         })
         ...($VENDOR_LINKED | each {|d| file-link ($vendor | path join $d) (home-dir | path join $d) })
+        (step wine-bin-fixup)
         (if ($seedable and not $seeded) or $game_empty { step game-seed $base } else { [] })
         (if ($seedable or $seeded) and not ($game | path join $PATCH_VERSION | path exists) {
             step mxl-install
@@ -111,16 +120,20 @@ def config []: nothing -> string {
     ] | str join "\n" | $"($in)\n"
 }
 
+def parse-wxh [text: string]: nothing -> record {
+    $text | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)}
+}
+
 def resolution [cfg: record]: nothing -> record {
     let text = $cfg.resolution | default ($RESOLUTION_FALLBACK | get --optional ($env.FORM_FACTOR? | default desktop)
         | default $RESOLUTION_FALLBACK.desktop)
-    $text | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)}
+    parse-wxh $text
 }
 
 # A multiple of 12 keeps both sides of 4:3 whole and even.
 def render-size [cfg: record]: nothing -> record {
     if $cfg.render_size != null {
-        return ($cfg.render_size | parse "{w}x{h}" | get 0 | {w: ($in.w | into int), h: ($in.h | into int)})
+        return (parse-wxh $cfg.render_size)
     }
     let h = (resolution $cfg).h | $in - ($in mod 12)
     {w: ($h // 3 * 4), h: $h}
@@ -129,7 +142,7 @@ def render-size [cfg: record]: nothing -> record {
 # Gamescope paces at 60 unless told the monitor's rate; outside a session (install stage) 60 stays.
 def refresh-rate []: nothing -> int {
     try {
-        ^hyprctl -j monitors | from json | where name !~ '^HEADLESS-' | get refreshRate | math max | math round
+        ^hyprctl -j monitors | from json | where name !~ $HEADLESS_MONITORS | get refreshRate | math max | math round
     } catch { 60 }
 }
 
@@ -169,6 +182,15 @@ export def d2gl-window [width: string, height: string]: nothing -> nothing {
 }
 
 def wine-bin []: nothing -> path { home-dir | path join bin wine bin wine }
+
+# ~/sync ignores permissions (core/syncthing, ignorePerms), so a resync silently drops wine's execute bit
+export def wine-bin-fixup []: nothing -> nothing {
+    let dir = wine-bin | path dirname
+    if not ($dir | path exists) { return }
+    let files = ls $dir | where type == file | get name
+    if ($files | is-empty) { return }
+    ^chmod +x ...$files
+}
 
 def prefix-dir []: nothing -> path { vendor-dir | path join wineprefix }
 

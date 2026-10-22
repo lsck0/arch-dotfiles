@@ -2,8 +2,6 @@ use module.nu *
 
 export const meta = {packages: {pacman: [ctop docker docker-buildx docker-compose lazydocker trivy uv]}}
 
-const MCP = {type: stdio, command: uvx, args: ["mcp-server-docker==0.3.0"]}
-
 export def system [cfg: record] {
     [
         # forwarding policy lives in inet fw: docker's own FORWARD drop would also cut libvirt and lxc bridges
@@ -14,8 +12,10 @@ export def system [cfg: record] {
 }
 
 export def link [cfg: record] {
-    let member = "docker" in (^id -nG $env.USER | str trim | split row " ")
+    # no MCP server here: mcp-server-docker's typical mount (-v /:/host) gives root-equivalent host
+    # access to anything that can reach it, breaking "agents never reach root" even for a docker-group
+    # member; this only clears a stale entry left by an earlier version of this module
     json-merge ($nu.home-dir | path join .claude.json) [
-        (if $member { json-set [mcpServers docker] $MCP } else { json-delete [mcpServers docker] })
+        (json-delete [mcpServers docker])
     ]
 }

@@ -414,6 +414,7 @@ make
 man-db
 man-pages
 mangohud
+maplemono-nf
 masscan
 maven
 mdbook
@@ -518,6 +519,7 @@ otf-aurulent-nerd
 otf-codenewroman-nerd
 otf-comicshanns-nerd
 otf-commit-mono-nerd
+otf-departure-mono
 otf-droid-nerd
 otf-firamono-nerd
 otf-geist-mono-nerd
@@ -786,6 +788,7 @@ ttf-caladea
 ttf-cascadia-code
 ttf-cascadia-code-nerd
 ttf-cascadia-mono-nerd
+ttf-comic-mono-git
 ttf-cormorant
 ttf-cousine-nerd
 ttf-crimson

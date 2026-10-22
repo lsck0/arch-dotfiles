@@ -140,9 +140,6 @@ end
 
 -- Runs after every ColorScheme handler: plugins (barbar, lualine) redefine their groups in theirs.
 local function transparency_apply()
-    if vim.g.neovide then
-        return
-    end
     for _, name in ipairs(CLEAR_BG) do
         background_clear(hl_get(name), name)
     end

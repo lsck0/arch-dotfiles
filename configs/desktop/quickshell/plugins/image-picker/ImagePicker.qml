@@ -34,7 +34,12 @@ Item {
     property var filterMatches: []
     property var filterPositions: []
     property int filteredCount: 0
-    property var doneFilesToRelease: []
+    property ProcessQueue releaseQueue: ProcessQueue {
+        onRunItem: function (path) {
+            releaseProc.command = ["bash", "-c", ": > " + Util.shellQuote(path)];
+            releaseProc.running = true;
+        }
+    }
     property var imageArray: []
     property color dimColor: Colors.background
     property color foreground: Colors.imagePicker.text
@@ -183,21 +188,11 @@ Item {
         }
     }
 
-    function releaseNextDoneFile() {
-        if (releaseProc.running || doneFilesToRelease.length === 0)
-            return ;
-
-        var path = doneFilesToRelease.shift();
-        releaseProc.command = ["bash", "-c", ": > " + Util.shellQuote(path)];
-        releaseProc.running = true;
-    }
-
     function finishDoneFile(path) {
         if (!path)
             return ;
 
-        doneFilesToRelease.push(path);
-        releaseNextDoneFile();
+        releaseQueue.enqueue(path);
     }
 
     function applySelected() {
@@ -430,7 +425,7 @@ Item {
     Process {
         id: releaseProc
 
-        onExited: root.releaseNextDoneFile()
+        onExited: root.releaseQueue.done()
     }
 
     BootIn {

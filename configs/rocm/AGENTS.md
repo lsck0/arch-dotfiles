@@ -4,7 +4,7 @@ Extends the root `AGENTS.md`. AMD GPU compute stack.
 
 ## Modules
 
-- `compute`: ROCm/HIP for interactive compute (python-pytorch-opt-rocm, Blender HIP, llama.cpp-hip); puts the user in
+- `compute`: ROCm/HIP for interactive compute (python-pytorch-opt-rocm, Blender HIP, ollama-rocm); puts the user in
   the render and video groups (only when an AMD GPU is present).
 
 ## Conventions

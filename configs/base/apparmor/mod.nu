@@ -92,6 +92,9 @@ export def build []: nothing -> nothing {
     for name in (own) {
         rm --force ($ETC | path join $"($name).apparmor.d") ($ETC | path join disable $name)
     }
+    for name in (modes | items {|name, mode| if $mode == enforce { $name }} | compact) {
+        rm --force ($ETC | path join disable $name)
+    }
 }
 
 export def load []: nothing -> nothing {

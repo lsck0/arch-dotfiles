@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs.Commons
 import qs.Ui
 
@@ -163,11 +164,11 @@ BarWidget {
     }
   }
 
-  Timer {
-    interval: 5000
-    running: panel.visible
-    repeat: true
-    onTriggered: root.refreshMonitors()
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "monitoradded" || event.name === "monitorremoved") root.refreshMonitors()
+    }
   }
 
   Component.onCompleted: {

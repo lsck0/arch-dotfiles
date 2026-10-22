@@ -19,6 +19,16 @@ def config-load []: nothing -> record {
 
 def state-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro state.json }
 
+def lock-path []: nothing -> path { $env.XDG_RUNTIME_DIR | path join quickshell-pomodoro.lock }
+
+# state-save and timer-arm must commit as one unit: a concurrent invocation (e.g. two rapid
+# "set" calls) can otherwise leave the persisted endsAt out of sync with whichever timer
+# actually ended up armed, freezing the UI at a stale remaining time.
+def with-lock [...rest: string]: nothing -> nothing {
+    mkdir (state-path | path dirname)
+    ^flock (lock-path) $nu.current-exe --no-config-file ($env.CURRENT_FILE | path expand) locked ...$rest
+}
+
 def state-load []: nothing -> record {
     if (state-path | path exists) { open (state-path) } else { {running: false, paused: false} }
 }
@@ -51,7 +61,8 @@ def timer-cancel []: nothing -> nothing {
 def timer-arm [seconds: int]: nothing -> nothing {
     timer-cancel
     (systemd-run --user --quiet --collect $"--on-active=($seconds)s" --timer-property=AccuracySec=1s
-        $"--unit=($unit_prefix)-(date now | into int)" ($env.CURRENT_FILE | path expand) _elapsed)
+        $"--unit=($unit_prefix)-(date now | into int)" flock (lock-path) $nu.current-exe --no-config-file
+        ($env.CURRENT_FILE | path expand) locked _elapsed)
 }
 
 def phase-start [state: record, phase: string, seconds: int]: nothing -> nothing {
@@ -77,63 +88,6 @@ def phase-advance [--chime]: nothing -> nothing {
     if $chime { chime-play }
 }
 
-def "main start" []: nothing -> nothing {
-    let config = config-load
-    phase-start {cycle: 1, work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles} work ($config.focus * 60)
-    notify $"Focus for ($config.focus) min" "Pomodoro 1 started"
-}
-
-def "main stop" []: nothing -> nothing {
-    timer-cancel
-    rm -f (state-path)
-    notify "Pomodoro stopped"
-}
-
-def "main pause" []: nothing -> nothing {
-    let state = state-load
-    if not $state.running or $state.paused { return }
-    let remaining = [($state.endsAt - (now)) 0] | math max
-    timer-cancel
-    state-save ($state | merge {paused: true, endsAt: 0, remaining: $remaining})
-    notify "Pomodoro paused" $"(clock $remaining) left"
-}
-
-def "main resume" []: nothing -> nothing {
-    let state = state-load
-    if not $state.paused { return }
-    let remaining = if $state.remaining > 0 { $state.remaining } else { 60 }
-    phase-start $state $state.phase $remaining
-    notify "Pomodoro resumed" $"(clock $remaining) left"
-}
-
-def "main toggle" []: nothing -> nothing {
-    let state = state-load
-    if not $state.running { main start } else if $state.paused { main resume } else { main pause }
-}
-
-def "main skip" []: nothing -> nothing { phase-advance }
-
-# the timer's own command
-def "main _elapsed" []: nothing -> nothing { phase-advance --chime }
-
-# the lengths in minutes and the focus blocks before a long break, as json
-def "main config" []: nothing -> nothing { print (config-load | to json -r) }
-
-# set <key> <value> ...: focus, break, long (minutes) or cycles, stored as the module's options
-def "main set" [...pairs: string]: nothing -> nothing {
-    if ($pairs | is-empty) or ($pairs | length) mod 2 != 0 { error make {msg: "want <key> <value> pairs, keys: focus break long cycles"} }
-    for pair in ($pairs | chunks 2) {
-        let option = $option_names | get --optional $pair.0
-        if $option == null { error make {msg: $"($pair.0): want one of ($option_names | columns | str join ', ')"} }
-        let saved = ^$dot set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
-        if $saved.exit_code != 0 {
-            notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
-            exit 1
-        }
-    }
-    retime
-}
-
 # a running timer takes the new lengths: the current phase keeps its elapsed time against its new length
 def retime []: nothing -> nothing {
     let state = state-load
@@ -152,6 +106,28 @@ def retime []: nothing -> nothing {
     } else {
         phase-start $state $state.phase $left
     }
+}
+
+def "main start" []: nothing -> nothing { with-lock start }
+def "main stop" []: nothing -> nothing { with-lock stop }
+def "main pause" []: nothing -> nothing { with-lock pause }
+def "main resume" []: nothing -> nothing { with-lock resume }
+def "main toggle" []: nothing -> nothing { with-lock toggle }
+def "main skip" []: nothing -> nothing { with-lock skip }
+
+# set <key> <value> ...: focus, break, long (minutes) or cycles, stored as the module's options
+def "main set" [...pairs: string]: nothing -> nothing {
+    if ($pairs | is-empty) or ($pairs | length) mod 2 != 0 { error make {msg: "want <key> <value> pairs, keys: focus break long cycles"} }
+    for pair in ($pairs | chunks 2) {
+        let option = $option_names | get --optional $pair.0
+        if $option == null { error make {msg: $"($pair.0): want one of ($option_names | columns | str join ', ')"} }
+        let saved = ^$dot set $"desktop/quickshell.($option)" $pair.1 --no-system | complete
+        if $saved.exit_code != 0 {
+            notify "Pomodoro" $"Could not save ($pair.0): ($saved.stderr | str trim | lines | last 1 | str join)"
+            exit 1
+        }
+    }
+    with-lock retime
 }
 
 def "main status" [--json (-j)]: nothing -> nothing {
@@ -177,4 +153,49 @@ def "main status" [--json (-j)]: nothing -> nothing {
     print (if $json { $status | to json -r } else { $status.tooltip })
 }
 
+# the lengths in minutes and the focus blocks before a long break, as json
+def "main config" []: nothing -> nothing { print (config-load | to json -r) }
+
 def main []: nothing -> nothing { main status }
+
+# reached only through with-lock's flock-wrapped re-invocation: the actual state mutations
+def "main locked start" []: nothing -> nothing {
+    let config = config-load
+    phase-start {cycle: 1, work: $config.focus, break: $config.break, long: $config.long, cycles: $config.cycles} work ($config.focus * 60)
+    notify $"Focus for ($config.focus) min" "Pomodoro 1 started"
+}
+
+def "main locked stop" []: nothing -> nothing {
+    timer-cancel
+    rm -f (state-path)
+    notify "Pomodoro stopped"
+}
+
+def "main locked pause" []: nothing -> nothing {
+    let state = state-load
+    if not $state.running or $state.paused { return }
+    let remaining = [($state.endsAt - (now)) 0] | math max
+    timer-cancel
+    state-save ($state | merge {paused: true, endsAt: 0, remaining: $remaining})
+    notify "Pomodoro paused" $"(clock $remaining) left"
+}
+
+def "main locked resume" []: nothing -> nothing {
+    let state = state-load
+    if not $state.paused { return }
+    let remaining = if $state.remaining > 0 { $state.remaining } else { 60 }
+    phase-start $state $state.phase $remaining
+    notify "Pomodoro resumed" $"(clock $remaining) left"
+}
+
+def "main locked toggle" []: nothing -> nothing {
+    let state = state-load
+    if not $state.running { main locked start } else if $state.paused { main locked resume } else { main locked pause }
+}
+
+def "main locked skip" []: nothing -> nothing { phase-advance }
+
+def "main locked retime" []: nothing -> nothing { retime }
+
+# the timer's own command
+def "main locked _elapsed" []: nothing -> nothing { phase-advance --chime }

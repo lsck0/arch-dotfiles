@@ -10,6 +10,11 @@ def warps-set [value: bool]: nothing -> nothing {
 }
 
 def main [] {
+    let existing = ^hyprctl -j clients | from json | where title == "wayland-boomer"
+    if ($existing | is-not-empty) {
+        ^pkill -x wayland-boomer | ignore
+        return
+    }
     let warps_off = ^hyprctl -j getoption cursor:no_warps | from json | get bool
     warps-set true
     # every real monitor, not an agent's headless output: grim alone spans those too and renders at its higher scale

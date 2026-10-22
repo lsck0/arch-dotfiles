@@ -2,6 +2,16 @@ use module.nu *
 
 export const meta = {packages: {pacman: [starship]}}
 
+export const options = {
+    scan_timeout_ms: {
+        type: int
+        default: 500
+        doc: "Milliseconds starship waits for a directory scan (project file detection) before giving up, starship.toml scan_timeout"
+        label: "Prompt scan timeout (ms)"
+        scope: user
+    }
+}
+
 export def link [cfg: record] {
-    files-into ($nu.home-dir | path join .config) starship.toml
+    file-render starship.toml ($nu.home-dir | path join .config starship.toml) {SCAN_TIMEOUT_MS: $cfg.scan_timeout_ms}
 }

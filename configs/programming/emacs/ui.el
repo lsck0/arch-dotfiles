@@ -31,7 +31,9 @@ frames recolour on a theme switch exactly as a fresh launch would."
   (unless (ignore-errors (load-theme (my/system-theme) t))
     (load-theme 'doom-one t))
   (setq default-frame-alist
-        (assq-delete-all 'background-color (assq-delete-all 'foreground-color default-frame-alist))))
+        (assq-delete-all 'background-color (assq-delete-all 'foreground-color default-frame-alist)))
+  (when-let ((alpha (alist-get 'alpha-background default-frame-alist)))
+    (set-frame-parameter nil 'alpha-background alpha)))
 
 (use-package doom-themes
   :config

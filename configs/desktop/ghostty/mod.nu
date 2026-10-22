@@ -9,7 +9,7 @@ export def link [cfg: record] {
     let config = $env.XDG_CONFIG_HOME? | default ($nu.home-dir | path join .config)
     let apps = $env.XDG_DATA_HOME? | default ($nu.home-dir | path join .local share) | path join applications
     let runtime = $env.XDG_RUNTIME_DIR? | default $"/run/user/(^id -u | str trim)"
-    let scale = $cfg.deps?."desktop/hyprland"?.xwayland_scale? | default (display-xwayland-scale ($env.FORM_FACTOR? | default ""))
+    let scale = xwayland-scale-for $cfg
     [
         # a link: toggle-font rewrites the repo file
         (file-link config ($config | path join ghostty config))

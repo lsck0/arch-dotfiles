@@ -139,6 +139,14 @@ Item {
                     visible: !root.agendaEmpty
                     onHeadingClicked: TaskState.panelOpen = true
 
+                    Line {
+                        visible: TaskState.activeTask !== null
+                        label: TaskState.activeTask ? ("\u25b6 " + TaskState.activeTask.desc) : ""
+                        trailing: TaskState.activeElapsedText()
+                        trailingColor: Colors.accent
+                        trailingOpacity: Style.emphasis.strong
+                    }
+
                     Repeater {
                         model: root.reminderRows
 
@@ -180,7 +188,7 @@ Item {
                         width: parent.width
                         textFormat: TextEdit.PlainText
                         color: Colors.foreground
-                        opacity: (text.length > 0 || activeFocus) ? Style.emphasis.dim : Style.emphasis.faint
+                        opacity: (text.length > 0 || activeFocus) ? Style.emphasis.strong : Style.emphasis.faint
                         wrapMode: TextEdit.Wrap
                         selectByMouse: true
                         persistentSelection: true

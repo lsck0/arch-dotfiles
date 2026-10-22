@@ -3,6 +3,7 @@ use module.nu *
 export const meta = {packages: {pacman: [playerctl]}}
 
 const GUARDS = [agent-guard.nu media-guard.nu ssh-guard.nu]
+export const AGENT_GUARD = ".config/idle-guards/agent-guard.nu"
 
 export def link [cfg: record] {
     let dir = $nu.home-dir | path join .config idle-guards

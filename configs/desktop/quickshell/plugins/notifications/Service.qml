@@ -304,21 +304,18 @@ Item {
   Process { id: focusAppProc; running: false }
 
   property var restoredPopups: ({})
-  property var fileJobs: []
+  property ProcessQueue fileJobQueue: ProcessQueue {
+    onRunItem: function (item) {
+      service.fileJob = item
+      fileJobProc.command = item.command
+      fileJobProc.running = true
+    }
+  }
   property var fileJob: null
   property int historyRevision: 0
 
   function enqueueFileJob(command, done) {
-    fileJobs = fileJobs.concat([{ command: command, done: done || null }])
-    runNextFileJob()
-  }
-
-  function runNextFileJob() {
-    if (fileJob || fileJobs.length === 0) return
-    fileJob = fileJobs[0]
-    fileJobs = fileJobs.slice(1)
-    fileJobProc.command = fileJob.command
-    fileJobProc.running = true
+    fileJobQueue.enqueue({ command: command, done: done || null })
   }
 
   Process {
@@ -337,7 +334,7 @@ Item {
       } catch (e) {
         console.warn("notifications: file job callback failed:", e)
       }
-      service.runNextFileJob()
+      service.fileJobQueue.done()
     }
   }
 

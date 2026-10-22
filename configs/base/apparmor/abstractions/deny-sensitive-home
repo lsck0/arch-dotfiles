@@ -6,6 +6,9 @@
   deny @{user_gpg_dirs}/{,**}             mrwkl,
   deny @{user_passwordstore_dirs}/{,**}   mrwkl,
   deny @{HOME}/sync/password-store/{,**}  mrwkl,
+  deny @{HOME}/sync/monero/{,**}          mrwkl,
+  deny @{HOME}/sync/vault.hc              mrwkl,
+  deny @{HOME}/sync/scripts/{,**}         mrwkl,
   deny @{user_config_dirs}/age/{,**}      mrwkl,
   deny @{HOME}/.age{,/{,**}}              mrwkl,
   deny @{HOME}/.age-*{,/{,**}}            mrwkl,
@@ -15,6 +18,7 @@
   deny @{HOME}/.aws/{,**}                 mrwkl,
   deny @{HOME}/.*pki*{,/{,**}}            mrwkl,
   deny @{HOME}/.*cert*{,/{,**}}           mrwkl,
+  deny @{HOME}/.claude/.credentials.json  mrwkl,
 
   deny @{run}/user/@{uid}/keyring**       mrwkl,
   deny @{HOME}/.gnome2/keyrings/{,**}     mrwkl,

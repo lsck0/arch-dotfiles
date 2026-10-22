@@ -247,8 +247,6 @@ BarWidget {
                     Caption {
                         text: "HEARD BY"
                         opacity: Style.emphasis.dim
-                        height: Style.row.control
-                        verticalAlignment: Text.AlignVCenter
                     }
 
                     Repeater {

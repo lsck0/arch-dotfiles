@@ -84,6 +84,7 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
         | append $off
         | each {|e| if not $e.ok { $e } else { try { decls-check $e.id $e.decls; $e } catch {|err| $e | merge {ok: false, decls: [], error: $err.msg} } } }
     let decls = $evaluated | reduce --fold [] {|e, acc| $acc ++ $e.decls }
+    let all_targets = $decls | get --optional target | default [] | uniq
     let olds = $prev | values | reduce --fold [] {|p, acc| $acc ++ $p }
     let paths = $decls | where kind not-in [unit exec step] | get --optional target | default [] | append ($olds | where kind not-in [unit exec] | get --optional target | default [])
     let units = $decls | where kind == unit | get --optional target | default [] | append ($olds | where kind == unit | get --optional target | default [])
@@ -92,7 +93,7 @@ def eval-plan [ctx: record, mods: table, verb: string, args: list, prev: record,
     $evaluated | each {|r|
         if not $r.ok { return {id: $r.id, actions: [], error: $r.error} }
         try {
-            {id: $r.id, actions: (plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force), error: null}
+            {id: $r.id, actions: (plan-module $r.id $r.decls ($prev | get $r.id) $seen $recorded $ctx.repo $force $all_targets), error: null}
         } catch {|err| {id: $r.id, actions: [], error: $"plan: ($err.msg)"} }
     }
 }
@@ -197,7 +198,7 @@ def module-run [ctx: record, m: record, verb: string, args: list]: nothing -> re
     }
     let notes = $result.log | lines | where ($it | str trim | str starts-with $NOTE_PREFIX) | each { str trim | str replace $NOTE_PREFIX "" | str trim }
     $notes | each { log-debug $"note: ($m.id): ($in)" {kind: note} } | ignore
-    $result | insert id $m.id | insert notes $notes | insert ms ((date now) - $start | into int | $in // 1_000_000)
+    $result | insert id $m.id | insert notes $notes | insert ms (since-ms $start)
 }
 
 # Runs the planned modules as jobs, each once its after list finished, at most jobs at once, a serial one alone.

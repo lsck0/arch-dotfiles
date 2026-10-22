@@ -13,10 +13,9 @@ export const options = {
     }
 }
 
-const GUARD = ".config/idle-guards/agent-guard.nu"
+use ../../desktop/idle-guards/mod.nu [AGENT_GUARD]
+
 const ACCOUNT_KEYS = [oauthAccount userID hasCompletedOnboarding lastOnboardingVersion]
-const TOKEN_CONF = "environment.d/50-claude-oauth-token.conf"
-const PRIVATE = "600"
 
 def home [...parts: string]: nothing -> path {
     $nu.home-dir | path join ...$parts
@@ -55,7 +54,7 @@ export def link [cfg: record] {
     let token = $env.DOTFILES | path join configs secrets keys claude-oauth-token
     [
         (files-into (home .claude) CLAUDE.md RTK.md keybindings.json)
-        (json-merge $settings [
+        (json-merge $settings ([
             (json-set [remoteControlAtStartup] true)
             (json-set [model] $cfg.model)
             (json-set [voice] {enabled: true, mode: hold})
@@ -66,16 +65,17 @@ export def link [cfg: record] {
             (json-set [attribution] {commit: "", pr: ""})
             (json-set [includeCoAuthoredBy] false)
             (json-set [modelSettings $cfg.model effortLevel] $cfg.effort)
-            (json-set [hooks] (hooks-merge $current (home $GUARD)))
-        ])
+            (json-set [hooks] (hooks-merge $current (home $AGENT_GUARD)))
+        ] ++ (if (secret-is-plaintext $token) {
+            # claude's own settings env block, read only by the claude process; not a session-wide
+            # environment.d drop-in every other process (sandboxed or not) would inherit
+            [(json-set [env CLAUDE_CODE_OAUTH_TOKEN] (open --raw $token | str trim))]
+        } else { [] })))
         (if (secret-is-plaintext (backup-dir | path join credentials.json)) and not ($creds | path exists) {
             [
                 (exec claude-login [install -Dm600 (backup-dir | path join credentials.json) $creds] --creates $creds)
                 (json-merge (home .claude.json) (open (backup-dir | path join account.json) | items {|k, v| json-set [$k] $v }))
             ]
-        } else { [] })
-        (if (secret-is-plaintext $token) {
-            file-text (home .config $TOKEN_CONF) $"CLAUDE_CODE_OAUTH_TOKEN=(open --raw $token | str trim)\n" --mode $PRIVATE
         } else { [] })
     ]
 }

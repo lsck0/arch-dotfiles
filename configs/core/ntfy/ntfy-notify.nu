@@ -15,6 +15,10 @@ const HEALTHY = 2min
 const ALERT_LINES_MAX = 5
 const GLYPH_HOMELAB = "\u{f048d}"
 const GLYPH_NTFY = "\u{f009e}"
+# ntfy's own 1-5 priority scale, 3 the default
+const PRIORITY_DEFAULT = 3
+const PRIORITY_CRITICAL_MIN = 5
+const PRIORITY_LOW_MAX = 2
 const NOTIFICATIONS = [
     --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications
     --method org.freedesktop.Notifications.CloseNotification
@@ -117,8 +121,8 @@ def notify [msg: record]: nothing -> nothing {
         file-replace (state-dir | path join open-alerts.json) ($opened | to json --raw)
         return
     }
-    let priority = $msg.priority? | default 3 | into int
-    let urgency = if $priority >= 5 { "critical" } else if $priority <= 2 { "low" } else { "normal" }
+    let priority = $msg.priority? | default $PRIORITY_DEFAULT | into int
+    let urgency = if $priority >= $PRIORITY_CRITICAL_MIN { "critical" } else if $priority <= $PRIORITY_LOW_MAX { "low" } else { "normal" }
     let title = $msg.title? | default ($msg.topic? | default ntfy)
     notify-send ntfy $GLYPH_NTFY $urgency $title $text (https $msg.click?) | ignore
 }

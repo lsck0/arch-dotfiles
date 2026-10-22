@@ -13,6 +13,9 @@ const BUGWARRIOR_UDA = "githuburl"
 const HUMAN_INPUT_TAGS = [human-clarification-needed human-review-ready]
 const REVIEW_TAG_WORDS = [review approval]
 const CLARIFY_TAG_WORDS = [needs-human clarification]
+const SECONDS_PER_DAY = 86400
+const SECONDS_PER_HOUR = 3600
+const SECONDS_PER_MINUTE = 60
 
 const REDRAW_INTERVAL = 1sec
 const FAST_REFRESH = 5sec
@@ -254,15 +257,17 @@ def bar [filled: int, total: int]: nothing -> string {
 def elapsed [start: any]: nothing -> string {
     if $start == null { return "" }
     let secs = (date now) - ($start | into datetime) | $in / 1sec | into int
-    let days = $secs // 86400
+    let days = $secs // $SECONDS_PER_DAY
     let pad = {|n| $n | fill -a r -c 0 -w 2 }
-    let clock = $"($secs mod 86400 // 3600):(do $pad ($secs mod 3600 // 60)):(do $pad ($secs mod 60))"
+    let clock = (
+        $"($secs mod $SECONDS_PER_DAY // $SECONDS_PER_HOUR):(do $pad ($secs mod $SECONDS_PER_HOUR // $SECONDS_PER_MINUTE)):(do $pad ($secs mod $SECONDS_PER_MINUTE))"
+    )
     match $days { 0 => $clock, 1 => $"1 day, ($clock)", _ => $"($days) days, ($clock)" }
 }
 
 def hours [secs: number]: nothing -> string {
     let s = $secs | into int
-    $"($s // 3600):($s mod 3600 // 60 | fill -a r -c 0 -w 2)"
+    $"($s // $SECONDS_PER_HOUR):($s mod $SECONDS_PER_HOUR // $SECONDS_PER_MINUTE | fill -a r -c 0 -w 2)"
 }
 
 def due-relative [task: record]: nothing -> string {

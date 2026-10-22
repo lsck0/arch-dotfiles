@@ -27,7 +27,10 @@ Singleton {
 
   property var notified: ({})
   property bool notifiedReady: false
-  property var queue: []
+  property ProcessQueue mutateQueue: ProcessQueue {
+    onRunItem: function (item) { mutateProc.command = item; mutateProc.running = true }
+  }
+  property var tracked: ({})
 
   function twDate(value) {
     var m = String(value || "").match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/)
@@ -47,6 +50,57 @@ Singleton {
     return "in " + Math.max(1, Math.floor(diff / 60000)) + "m"
   }
 
+  // on-modify.timewarrior tags each interval with the task's description: the join key back to a task.
+  function buildTracked(data) {
+    var list = (data && data.length) ? Array.prototype.slice.call(data) : []
+    var now = Date.now()
+    var out = {}
+    for (let i = 0; i < list.length; i++) {
+      let iv = list[i]
+      let desc = (iv.tags && iv.tags[0]) || ""
+      let start = twDate(iv.start)
+      if (!desc || !start) continue
+      let end = iv.end ? twDate(iv.end) : new Date(now)
+      out[desc] = (out[desc] || 0) + Math.max(0, (end.getTime() - start.getTime()) / 1000)
+    }
+    return out
+  }
+
+  function trackedText(desc) {
+    return root.durationText(root.tracked[desc] || 0)
+  }
+
+  function durationText(secs) {
+    if (secs < 60) return ""
+    var h = Math.floor(secs / 3600)
+    var m = Math.floor((secs % 3600) / 60)
+    return (h > 0 ? h + "h" : "") + m + "m"
+  }
+
+  property real nowTick: Date.now()
+  Timer { interval: 30000; running: true; repeat: true; onTriggered: root.nowTick = Date.now() }
+
+  readonly property var activeTask: {
+    for (let i = 0; i < root.tasks.length; i++) if (root.tasks[i].active) return root.tasks[i]
+    return null
+  }
+
+  function activeElapsedText() {
+    var t = root.activeTask
+    if (!t || !t.startMs) return ""
+    return root.durationText(Math.max(0, (root.nowTick - t.startMs) / 1000))
+  }
+
+  readonly property int trackedTotalSeconds: {
+    let s = 0
+    for (let k in root.tracked) s += root.tracked[k]
+    return s
+  }
+
+  function totalTrackedText() {
+    return root.durationText(root.trackedTotalSeconds)
+  }
+
   function buildTasks(data) {
     var list = (data && data.length) ? Array.prototype.slice.call(data) : []
     var out = []
@@ -59,12 +113,14 @@ Singleton {
         uuid: String(t.uuid),
         desc: String(t.description || ""),
         project: String(t.project || ""),
+        priority: String(t.priority || ""),
         tags: tags,
         dueRaw: String(t.due || ""),
         dueMs: d ? d.getTime() : Infinity,
         due: dueText(t.due),
         overdue: !!d && d.getTime() < Date.now(),
         active: !!t.start,
+        startMs: t.start ? (root.twDate(t.start) ? root.twDate(t.start).getTime() : 0) : 0,
         urgency: Number(t.urgency) || 0
       })
     }
@@ -89,16 +145,7 @@ Singleton {
   }
 
   function run(args) {
-    root.queue = root.queue.concat([root.taskArgv.concat(args)])
-    runNext()
-  }
-
-  function runNext() {
-    if (mutateProc.running || root.queue.length === 0) return
-    var next = root.queue[0]
-    root.queue = root.queue.slice(1)
-    mutateProc.command = next
-    mutateProc.running = true
+    root.mutateQueue.enqueue(root.taskArgv.concat(args))
   }
 
   function add(text) {
@@ -152,13 +199,22 @@ Singleton {
     }
   }
 
+  JsonProcess {
+    id: timewProc
+    command: ["timew", "export", ":day"]
+    intervalMs: root.refreshMs
+    onParsed: function (data) { root.tracked = root.buildTracked(data) }
+    onFailed: function (error) { }
+  }
+
   Process {
     id: mutateProc
     stderr: StdioCollector { id: mutateErr; waitForEnd: true }
     onExited: function (exitCode) {
       root.errorText = exitCode === 0 ? "" : (String(mutateErr.text || "").trim().split("\n")[0] || "task exited " + exitCode)
-      if (root.queue.length > 0) root.runNext()
-      else root.refresh()
+      timewProc.refresh()
+      root.mutateQueue.done()
+      if (!root.mutateQueue.running) root.refresh()
     }
   }
 

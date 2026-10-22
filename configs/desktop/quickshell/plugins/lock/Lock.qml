@@ -439,12 +439,12 @@ Item {
                     gradient: Gradient {
                         GradientStop {
                             position: 0
-                            color: Qt.rgba(Colors.background.r, Colors.background.g, Colors.background.b, 0.7)
+                            color: Util.alpha(Colors.background, 0.7)
                         }
 
                         GradientStop {
                             position: 1
-                            color: Qt.rgba(Colors.accent.r, Colors.accent.g, Colors.accent.b, 0.22)
+                            color: Util.alpha(Colors.accent, 0.22)
                         }
 
                     }
@@ -500,7 +500,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         width: Style.space(320)
                         height: Style.space(46)
-                        color: Qt.rgba(Colors.background.r, Colors.background.g, Colors.background.b, 0.55)
+                        color: Util.alpha(Colors.background, 0.55)
                         border.width: root.authError ? 2 : 1
                         border.color: root.authError ? Colors.urgent : (pwField.activeFocus ? Colors.accent : Style.normalBorderColor)
                         radius: Style.shape.data

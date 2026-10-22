@@ -109,8 +109,12 @@ def apparmor []: nothing -> list<record> {
     let live = glob /proc/[0-9]*/attr/apparmor/current | each {|f| try { open --raw $f | str trim } catch { "" } }
         | where ($it | str ends-with " (complain)") | each { str replace " (complain)" "" } | uniq | sort
         | where $it in $enforced | each { $"($in):complain \(running\)" }
-    if ($backed ++ $live | is-not-empty) {
-        [(report FAIL apparmor $"backed off from enforce: (shown ($backed ++ $live)); aa enforce <profile>")]
+    let disabled = if ("/etc/apparmor.d/disable" | path exists) {
+        ls /etc/apparmor.d/disable | get name | path basename | where $it in $enforced
+            | each { $"($in):disabled" }
+    } else { [] }
+    if ($backed ++ $live ++ $disabled | is-not-empty) {
+        [(report FAIL apparmor $"backed off from enforce: (shown ($backed ++ $live ++ $disabled)); aa enforce <profile>")]
     } else {
         [(report ok apparmor "every profiles.conf profile is in its baseline mode")]
     }
