@@ -17,6 +17,12 @@ const TOUCH_WAIT = 30min
 const TOUCH_ATTEMPT_S = "60"
 const TOUCH_RETRY = 2sec
 const INIT_STEPS = [pins pgp ssh u2f age]
+const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
+
+# Clears the install chain's "still locked" login banner once secrets actually unlock.
+def clear-secrets-issue []: nothing -> nothing {
+    if ($SECRETS_ISSUE | path exists) { ^sudo rm -f $SECRETS_ISSUE }
+}
 
 def unwanted []: nothing -> bool {
     if (secrets-wanted) { return false }
@@ -182,6 +188,7 @@ def unlock-identity [identity: path]: nothing -> nothing {
         }
         if not (crypt-unlock $key) { error make {msg: "yubikey: git-crypt unlock failed"} }
     }
+    clear-secrets-issue
 }
 
 # Unlocks configs/secrets/ with a yubikey touch (gpg when no key is present), or with the age identity --identity.
@@ -196,6 +203,7 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
         if $pulled and not (secret-is-plaintext $WITNESS) {
             if (do { ^git -C $SECRETS crypt unlock } | complete).exit_code == 0 {
                 secrets-lock-0600
+                clear-secrets-issue
             } else {
                 print "yubikey: no key present and pgp git-crypt unlock failed"
             }
@@ -231,6 +239,8 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
             print "yubikey: unlock failed or no touch"
         } else if not (crypt-unlock $key) {
             print "yubikey: git-crypt unlock failed"
+        } else {
+            clear-secrets-issue
         }
     }
 }

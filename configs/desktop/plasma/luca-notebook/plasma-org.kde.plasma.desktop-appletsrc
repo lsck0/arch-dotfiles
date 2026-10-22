@@ -34,7 +34,7 @@ positions={"1920x1080":["1","17","desktop:/projects","0","4","desktop:/documents
 sortMode=-1
 
 [Containments][1][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-mushi-shi.jpg
+Image=file://@DOTFILES@/wallpapers/starkiteckt-atlantis-nebula-7.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][2]
@@ -53,7 +53,7 @@ DialogHeight=630
 DialogWidth=810
 
 [Containments][2][Wallpaper][org.kde.image][General]
-Image=file://@DOTFILES@/wallpapers/alena-aenami-mushi-shi.jpg
+Image=file://@DOTFILES@/wallpapers/starkiteckt-atlantis-nebula-7.jpg
 SlidePaths=/usr/share/wallpapers/
 
 [Containments][3]

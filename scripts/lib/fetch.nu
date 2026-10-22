@@ -30,7 +30,9 @@ export def fetch-file-run [url: string, sha256: string, dest: path, --mode: stri
     let cached = fetch-cache | path join $sha256
     if not ($cached | path exists) {
         mkdir ($cached | path dirname)
-        let got = ^curl -fsSL --retry 3 -C - -o $"($cached).part" $url | complete
+        # --retry-all-errors: large third-party downloads (sourceforge, mirrors) drop mid-transfer in ways
+        # curl's default retryable-error set does not cover; -C - resumes instead of restarting each attempt
+        let got = ^curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors -C - -o $"($cached).part" $url | complete
         if $got.exit_code != 0 { error make {msg: $"download of ($url) failed: ($got.stderr | str trim | lines | last)"} }
         if (open --raw $"($cached).part" | hash sha256) != $sha256 {
             rm --force $"($cached).part"

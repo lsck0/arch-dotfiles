@@ -2,7 +2,10 @@
 # disarms the chain (keyfile, sudo drop-in, unit) and reboots into the finished system.
 
 use log.nu *
+use secrets.nu [secret-is-plaintext]
+use profile.nu [profile-has]
 
+const WITNESS = path self ../../configs/secrets/keys/pgp_privatekey.asc
 const STATE_DIR = "/var/lib/dotfiles-stage"
 const KEY_FILE = "/etc/cryptsetup-keys.d/root.key"
 const MKINITCPIO_DROPIN = "/etc/mkinitcpio.conf.d/dotfiles-stage.conf"
@@ -10,6 +13,7 @@ const SUDOERS_DROPIN = "/etc/sudoers.d/zz-dotfiles-stage"
 const UNIT = "/etc/systemd/system/dotfiles-stage.service"
 const ESP_MARKER = "/boot/dotfiles-stage-in-progress"
 const ISSUE = "/etc/issue.d/dotfiles-stage.issue"
+const SECRETS_ISSUE = "/etc/issue.d/dotfiles-secrets.issue"
 const DISARM_TRIES = 3
 const DISARM_BACKOFF = 5sec
 const EFIVARS = "/sys/firmware/efi/efivars"
@@ -118,6 +122,12 @@ export def stage-run [repo: path]: nothing -> nothing {
     ^sudo fstrim /boot | complete | ignore
     if (luks-device) != "" {
         note $"to rotate the disk's volume key \(slow, runs online\): sudo cryptsetup reencrypt (luks-device)"
+    }
+    if (profile-has secrets) and not (secret-is-plaintext $WITNESS) {
+        let message = "dotfiles secrets are still locked: the YubiKey was not recognized during the install chain.\nPlug it in and run `dot apply` (or `dot secrets unlock`) to pull it in; this banner clears itself once unlocked."
+        note "secrets still locked, see the login banner"
+        ^sudo mkdir -p ($SECRETS_ISSUE | path dirname)
+        $"\n($message)\n\n" | ^sudo tee $SECRETS_ISSUE | ignore
     }
     boot-next-here
     ^sudo sh -c $"rm -f ($SUDOERS_DROPIN); systemctl disable dotfiles-stage.service; rm -f ($UNIT) ($STATE_DIR)/next ($ESP_MARKER); systemctl reboot"

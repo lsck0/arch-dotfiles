@@ -13,6 +13,24 @@ export const meta = {
 
 const PLUGIN_DIR = ".local/share/nvim/lazy"
 const THEME_NAME = ".cache/wal/nvim_theme"
+# lazy skips a plugin outright when its spec's cond is false (image.nvim: only in a kitty-protocol terminal);
+# headless install has no such terminal, so lazy-lock.json's pin for it is never meant to be cloned there
+const COND_LUA = '
+local cfg = require("lazy.core.config")
+local names = {}
+for name, p in pairs(cfg.plugins) do
+    local c = p.cond
+    local ok = true
+    if type(c) == "function" then
+        local success, result = pcall(c, p)
+        ok = (not success) or (result and true or false)
+    elseif c ~= nil then
+        ok = c and true or false
+    end
+    if ok then table.insert(names, name) end
+end
+io.write(table.concat(names, "\n"))
+'
 
 # Null for a partial clone (interrupted restore) that lacks HEAD, the loose ref and packed-refs alike.
 def head-commit [git: path]: nothing -> any {
@@ -28,8 +46,16 @@ def head-commit [git: path]: nothing -> any {
     open --raw $packed | lines | parse "{sha} {name}" | where name == $ref | get --optional 0.sha
 }
 
+# Plugins lazy actually wants installed right now; a false `cond` (e.g. terminal_graphics outside kitty/ghostty)
+# means it is correctly absent, not stale.
+def plugins-enabled []: nothing -> list<string> {
+    ^env ...$QUIET_GIT nvim --headless -c $"lua ($COND_LUA)" -c "qa" | lines
+}
+
 def plugins-stale []: nothing -> list<string> {
+    let enabled = plugins-enabled
     open lazy-lock.json | items {|name, pin|
+        if $name not-in $enabled { return null }
         let git = $nu.home-dir | path join $PLUGIN_DIR $name .git
         if not ($git | path exists) or (head-commit $git) != $pin.commit { $name }
     } | compact

@@ -100,13 +100,18 @@ export def venv []: nothing -> nothing {
     mkdir $PREFIX
     if (^find $PREFIX ! -user root -print -quit | str trim | is-not-empty) { ^chown -R root:root $PREFIX }
     let venv = $PREFIX | path join venv
+    # the rocm wheel index has no upload-time metadata (torch, triton, flash_attn, ... built there too), so
+    # --exclude-newer can't apply to it; pin it off for that index alone and keep the cutoff for everything else
+    let uv_config = mktemp --tmpdir --suffix .toml
+    $"[[index]]\nname = \"vllm-rocm\"\nurl = \"($WHEELS_URL)\"\nexclude-newer = false\n" | save --force $uv_config
     with-env {UV_PYTHON_INSTALL_DIR: ($PREFIX | path join python)} {
         ^uv venv --allow-existing --python $PYTHON_VERSION $venv
         # mooncake's bundled glog clashes with the system's and aborts the import
-        (^uv pip install --python $venv --extra-index-url $WHEELS_URL --exclude-newer $EXCLUDE_NEWER
+        (^uv pip install --python $venv --config-file $uv_config --exclude-newer $EXCLUDE_NEWER
             --excludes uv-excludes.txt $"vllm==($VERSION)" $"vllm-omni==($OMNI_VERSION)")
         ^uv pip uninstall --python $venv -r uv-excludes.txt
     }
+    rm --force $uv_config
     # torch's RUNPATH is $ORIGIN, so the libmpi_cxx stub goes beside it
     let platlib = ^($venv | path join bin python) -c 'import sysconfig; print(sysconfig.get_path("platlib"))' | str trim
     let build = mktemp --directory

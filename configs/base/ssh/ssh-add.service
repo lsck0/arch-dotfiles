@@ -8,6 +8,8 @@ Type=oneshot
 Environment=SSH_AUTH_SOCK=%t/ssh-agent.socket
 Environment=SSH_ASKPASS=@DOTFILES@/configs/base/ssh/ssh-askpass-keyring.nu
 Environment=SSH_ASKPASS_REQUIRE=force
+# skips cleanly (not a failed unit) while configs/secrets/ is unpulled or still git-crypt locked
+ExecCondition=/usr/bin/nu --no-config-file -c 'use @DOTFILES@/scripts/lib/secrets.nu [secret-is-plaintext]; exit (if (secret-is-plaintext "@DOTFILES@/configs/secrets/keys/ssh_privatekey.asc") { 0 } else { 1 })'
 ExecStart=/usr/bin/ssh-add @DOTFILES@/configs/secrets/keys/ssh_privatekey.asc
 
 [Install]
