@@ -38,9 +38,17 @@ ask, do not wait in a loop.
 Touch steps (`with-touch` in `scripts/lib/yubikey.nu`) run on the terminal with only a 15min stall cap: the pull clones
 the whole submodule (~300 MB), so a short per-attempt timeout kills it mid-clone and restarts it forever, each retry
 wanting another touch, which looks like "touched, nothing happens". `age-plugin-yubikey` prints no touch prompt; the
-key's blink is the only cue. A `timeout`ed child sits in its own process group, so Ctrl+C on the console leaves it
+key's blink is the only cue. Without `--foreground`, `timeout` puts the child in its own background process group: the
+moment ssh reads `/dev/tty` after the touch (seen live on the ISO: the whole git/ssh chain in state `T`, stopped by
+SIGTTIN) it freezes invisibly until the cap kills and restarts it. Ctrl+C on the console also misses that group, leaving it
 holding the key: an `age -d` tried by hand alongside then hangs without a blink. pcscd on the bare ISO serves root
 without polkit (`ykman piv info` works there); installing polkit would only tighten it.
+
+The pull's ssh stub `configs/base/yubikey/ssh-<serial>` is public, so it is committed passphrase-protected (allowed in
+`.gitleaks.toml`); `stub-decrypt` asks that passphrase once on the terminal into a 600 temp copy before the touch loop,
+and unattended (no tty) skips the pull rather than wait on a prompt. `configs/secrets/keys/yubikey/ssh-<serial>`, the
+copy `link` installs as `~/.ssh/id_ed25519_sk`, is unencrypted under git-crypt. Check a stub with
+`ssh-keygen -y -P "" -f <600 copy>`: it fails on an encrypted one.
 
 ## Use in a module
 

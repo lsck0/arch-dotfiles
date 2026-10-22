@@ -63,6 +63,18 @@ def with-touch [argv: list<string>]: nothing -> bool {
     true
 }
 
+# The committed ssh stub is public and so passphrase-protected: decrypt the private copy once, on the terminal, before
+# the touch loop. Left encrypted, ssh asks on every attempt, and unattended nothing can answer and it waits forever.
+def stub-decrypt [key_file: path]: nothing -> bool {
+    if (do { ^ssh-keygen -y -P "" -f $key_file } | complete).exit_code == 0 { return true }
+    if ($env.DOTFILES_UNATTENDED? | is-not-empty) or not (is-terminal --stdin) { return false }
+    print ">>> the YubiKey's ssh stub is passphrase-protected, type its passphrase"
+    for _ in 1..3 {
+        if (try { ^ssh-keygen -q -p -N "" -f $key_file; true } catch { false }) { return true }
+    }
+    false
+}
+
 def with-key-file [body: closure]: nothing -> nothing {
     let key = mktemp --tmpdir
     let failed = try { do $body $key; null } catch {|e| $e.msg }
@@ -228,6 +240,11 @@ export def yubikey-unlock [--identity: path]: nothing -> nothing {
     if not $pulled {
         let key_file = mktemp --tmpdir
         ^install -m600 $stub $key_file
+        if not (stub-decrypt $key_file) {
+            rm --force $key_file
+            print "yubikey: the ssh stub stays locked without its passphrase, secrets are not pulled"
+            return
+        }
         print ">>> touch the YubiKey to pull the secrets (the clone takes a while after the touch)"
         let ssh = $"ssh -i ($key_file) -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
         let ok = with-touch [
