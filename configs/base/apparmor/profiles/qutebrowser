@@ -1,10 +1,7 @@
 # managed by arch-dotfiles/apparmor
-# apparmor.d's qutebrowser profile, built, with one change: the mode. apparmor.d 0.4914.0-1.2 started shipping
-# qutebrowser as an explicit `flags=(unconfined)` stub ("this profile allows everything and only exists to give
-# the application a name instead of having the label unconfined") even though the real ruleset below is still
-# in the package (usr/share/apparmor.d/profiles-m-r/qutebrowser, byte-identical to 1.1) — just no longer wired to
-# enforce by apparmor.d's own build. aa-install skips its own copy (ignore.d, mod.nu); refresh this file from
-# /usr/share/apparmor.d when apparmor.d changes the real ruleset
+# apparmor.d's qutebrowser profile, built, with one change: flags=(attach_disconnected,...) instead of the
+# unconfined stub apparmor.d 0.4914.0-1.2 ships (the real ruleset is still in the package, just not wired to
+# enforce). aa-install skips its own copy (ignore.d, mod.nu); refresh from /usr/share/apparmor.d if it changes
 
 # apparmor.d - Full set of apparmor profiles
 # Copyright (C) 2026 Alexandre Pujol <alexandre@pujol.io>
@@ -17,8 +14,8 @@ include <tunables/global>
 @{domain} = org.chromium.Chromium
 
 @{exec_path} = @{bin}/qutebrowser
-@{att} = ""
-profile qutebrowser /{,usr/}bin/qutebrowser flags=(attach_disconnected) {
+@{att} = /att/qutebrowser/
+profile qutebrowser /{,usr/}bin/qutebrowser flags=(attach_disconnected,attach_disconnected.path=@{att}) {
   include <abstractions/base-strict>
   include <abstractions/common/chromium>
   include <abstractions/desktop>

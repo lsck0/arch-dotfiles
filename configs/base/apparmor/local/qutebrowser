@@ -6,6 +6,7 @@ owner @{HOME}/projects/arch-dotfiles/{,configs/secrets/state/}wallpapers/** r,
 deny @{user_config_dirs}/chromium/{,**} r,
 @{open_path} rPx -> child-open-strict,
 owner @{user_cache_dirs}/qutebrowser/{,**} l,
+include <abstractions/dotfiles/nssdb>
 include <abstractions/dotfiles/viewer-read>
 owner /tmp/[0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_][0-9a-z_] rw,
 owner /tmp/qutebrowser-basedir-*/{,**} rwkl,
