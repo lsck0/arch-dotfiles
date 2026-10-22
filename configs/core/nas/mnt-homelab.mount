@@ -8,7 +8,7 @@ Wants=network-online.target
 StartLimitIntervalSec=0
 ConditionPathExists=|/run/home-network
 ConditionPathExists=|/sys/class/net/wg0
-ConditionVirtualization=|wsl
+ConditionVirtualization=!wsl
 
 [Mount]
 What=//10.100.0.104/homelab

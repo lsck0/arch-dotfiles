@@ -14,6 +14,9 @@ const HASH_STAMP = '%P %s %T@\n'
 const EXEC_PASSES_MAX = 3
 const NOTE_PREFIX = "note:"
 const REVERT_VERBS = [link system]
+# a link's source can be a live mount (autofs, a network share): bound the existence probe so one
+# unreachable host doesn't stall every plan/apply; a timeout counts as "gone", same as a real miss
+const LINK_PROBE_TIMEOUT_S = 2
 
 def eval-env [ctx: record]: nothing -> record {
     platform-env $ctx.platform | merge {DOT_LAYER: $ctx.layer, DOTFILES: $ctx.repo}
@@ -121,8 +124,12 @@ export def pipeline-plan [ctx: record, verb: string, ids: list<string>, force: b
     let natives = $graph | where $verb in $it.native | each {|m|
         let prev = state-read $m.id $verb
         let outside = $prev.outputs | where kind in [file link] and source != null and not ($it.source | str starts-with $m.dir)
-        # a link depends only on its source being there: a linked live app dir's mtime moves all day
-        let links = $outside | where kind == link | get source | each {|s| $"($s) ($s | path exists)" } | str join "\n"
+        # a link depends only on its source being there: a linked live app dir's mtime moves all day; the
+        # source can be an unreachable network mount, so bound the probe (LINK_PROBE_TIMEOUT_S) instead of
+        # a bare `path exists`, whose stat() can block for a kernel TCP-connect timeout on a dead autofs mount
+        let links = $outside | where kind == link | get source
+            | each {|s| $"($s) ((do { ^timeout $LINK_PROBE_TIMEOUT_S test -e $s } | complete).exit_code == 0)" }
+            | str join "\n"
         let input = [$global (stamp $m.dir) ($m.cfg | to nuon) (stat $ctx.repo ($m.meta.inputs? | default [])) (stat $ctx.repo ($outside | where kind == file | get source)) $links] | str join "\n" | hash sha256
         {id: $m.id, prev: $prev, input: $input, volatile: ($m.meta.volatile? | default false)}
     }

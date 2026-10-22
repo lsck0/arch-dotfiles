@@ -13,7 +13,7 @@ const VPN_IFACE = "proton0"
 const WG_IFACE = "wg0"
 const PORTAL_S = 120
 const PORTAL_UNIT = "persona-portal"
-const UNREACHABLE_METRIC = "4000"
+const UNREACHABLE_METRIC = "4000"  # kept in sync by hand with homelab-routes.nu's own copy; same ordering invariant
 const IFNAME = '^[A-Za-z0-9_.-]{1,15}$'
 
 def --wrapped out [...argv: string]: nothing -> string {

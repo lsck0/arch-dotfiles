@@ -50,6 +50,44 @@ The fix is skill `l-dotfiles-apparmor-profile`.
 `/run/user/$UID/quickshell/by-id/<id>/log.log`; the newest dir (`ls -t`) is the live one. Skill
 `l-dotfiles-quickshell-dev` covers reload and IPC.
 
+## Hyprland vs the actual session
+
+A Hyprland keybind, `hyprctl`/IPC call or quickshell behavior that silently does nothing may mean Hyprland isn't
+the running compositor at all: `ly` remembers the last-selected session (`save = true` in its config), so a login
+can silently land in a plain Plasma/KWin session instead, where none of the dotfiles' Hyprland config (keybinds,
+quickshell, the bar) applies. Check this before debugging the keybind itself:
+
+```bash
+loginctl show-session "$XDG_SESSION_ID" -p Desktop -p Type   # Desktop=KDE, Type=wayland = plain Plasma, not Hyprland
+pgrep -x Hyprland                                             # empty = Hyprland is not running
+```
+
+`hypridle.service` can show `active running` as a leftover user unit even when KWin, not Hyprland, owns the
+session — its presence alone is not proof Hyprland is up.
+
+## Homelab connectivity
+
+The homelab lives in the sibling repo `~/projects/homelab` (Proxmox + NixOS guests), not in arch-dotfiles. When a
+mount, ssh or any named service to a homelab guest (`10.100.0.0/16`/`10.200.0.0/16`) times out on TCP while ICMP to
+the same IP succeeds, the guest isn't down — the router's firewall only opens that flow to specific source IPs
+(`~/projects/homelab/src/modules/flows.nix`, the named `workstation`/`notebook` sources), not the whole subnet.
+Compare this machine's current DHCP lease against the IP the firewall trusts:
+
+```bash
+ip -4 addr show <iface>                                                         # current lease
+grep -A1 '"workstation"\|"notebook"' ~/projects/homelab/src/generated/site.json # the IP the firewall trusts
+```
+
+A mismatch (the router gave a different lease than its own reservation) silently locks out every named TCP flow
+while ping still answers; fix is a DHCP renew (`nmcli connection down/up <profile>`) or the router's reservation
+itself, never the dotfiles.
+
+A `.mount` unit's own `TimeoutSec` is the only thing that bounds the hang in this failure mode: against a host
+that drops packets instead of rejecting them, the kernel's TCP connect takes longer than any application-level
+timeout can interrupt, so a short `TimeoutSec` (not `soft`/`echo_interval`) is what actually caps the wait — and
+since autofs has no negative-cache, every single stat through the mountpoint (or a symlink into it, e.g. `~/nas`)
+re-triggers the same hang until the route to the host is fixed.
+
 ## Everything at once
 
 `collect-diagnostics [dest]` (`scripts/collect-diagnostics.sh`) gathers one folder, `dest/diag-<host>-<time>/`:
