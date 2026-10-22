@@ -40,6 +40,14 @@ export const options = {
         max: 0.95
         scope: machine
     }
+    kv_cache_dtype: {
+        type: string
+        default: fp8
+        doc: "fp8 halves the kv cache's vram use but has no native matrix support on RDNA3; auto (bf16) is faster there"
+        label: "KV cache dtype"
+        choices: [auto fp8]
+        scope: machine
+    }
 }
 
 const PREFIX = "/opt/vllm"
@@ -75,6 +83,7 @@ export def system [cfg: record] {
     let values = {
         MODEL: $cfg.model, MODEL_REVISION: $cfg.model_revision, GPU_MEMORY_UTILIZATION: $share
         TOOL_CALL_PARSER: $cfg.tool_call_parser, REASONING_PARSER: $cfg.reasoning_parser, PERF_LEVEL_PATH: $perf_path
+        KV_CACHE_DTYPE: $cfg.kv_cache_dtype
     }
     [
         (step venv)

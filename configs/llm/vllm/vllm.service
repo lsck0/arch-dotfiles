@@ -45,7 +45,7 @@ ExecStart=/opt/vllm/venv/bin/vllm serve @MODEL@ \
     --gpu-memory-utilization @GPU_MEMORY_UTILIZATION@ \
     --language-model-only \
     --compilation-config '{"cudagraph_capture_sizes": [1, 2, 4, 8]}' \
-    --kv-cache-dtype fp8 \
+    --kv-cache-dtype @KV_CACHE_DTYPE@ \
     --max-num-seqs 8 \
     --enable-auto-tool-choice \
     --tool-call-parser @TOOL_CALL_PARSER@ \
