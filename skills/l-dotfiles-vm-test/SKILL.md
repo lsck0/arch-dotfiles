@@ -14,7 +14,7 @@ their own boots, logs in on tty3, pulls logs and checks the end state. Install p
 - `dot test lint` (also run first by `run`).
 - Needs sudo (asked once, kept alive), `virt-install`, `virsh`, `tesseract`, `magick`, `socat` (the beacon server),
   `xorriso` (the answers cd), `blkid`, and the ISO at
-  `~/downloads/archlinux-x86_64.iso` (`--iso PATH` otherwise).
+  `~/sync/isos/archlinux-x86_64.iso` (`--iso PATH` otherwise).
 - `--iso` with an Arch Linux-LSCK0 iso (`dot internal iso`, told apart by its `ARCH_LSCK0_` volume label) types
   nothing: the answers, the snapshot bundle and its lfs objects go on a second cd labelled `LSCK0` (`lsck0.nuon`,
   `unattended: true`); the iso's stub fetches and verifies GitHub master, applies the bundle on top (so the second

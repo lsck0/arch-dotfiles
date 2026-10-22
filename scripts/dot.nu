@@ -858,7 +858,7 @@ def "main test run" [--iso: path, --platform: string, --user: string, --profile:
     guarded test {
         let problems = gate-lint
         if ($problems | is-not-empty) { error make {msg: ($problems | str join "\n")} }
-        vm-run $name ($iso | default ($nu.home-dir | path join downloads archlinux-x86_64.iso)) ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
+        vm-run $name ($iso | default ($nu.home-dir | path join sync isos archlinux-x86_64.iso)) ($platform | default $PLATFORM) ($user | default $USER) ($profile | default $PROFILE) $master
     }
 }
 
