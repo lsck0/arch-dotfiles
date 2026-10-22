@@ -2,7 +2,7 @@
 
 const HERE = path self | path dirname
 const MARKER = "# managed by arch-dotfiles/apparmor"
-const OVERRIDES = [firefox thunderbird libreoffice]
+const OVERRIDES = [firefox thunderbird libreoffice qutebrowser]
 const ENFORCED = [
     firefox chromium qutebrowser lynx cha thunderbird discord signal-desktop telegram-desktop element-desktop hexchat
     zapzap spotify mpv zathura sioyek okular bookokrat libreoffice onlyoffice feh nsxiv imv obsidian zotero

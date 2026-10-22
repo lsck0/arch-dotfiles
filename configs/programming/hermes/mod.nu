@@ -20,7 +20,7 @@ const SETTINGS = {
         {provider: nous, model: "meituan/longcat-2.0:free"}
         {provider: nous, model: "poolside/laguna-s-2.1:free"}
     ]
-    model_aliases.vllm: {
+    model_overrides.vllm: {
         model: "RogerS-01/Josiefied-Qwen3-8B-abliterated-v1-AWQ"
         provider: custom
         base_url: "http://127.0.0.1:8000/v1"
